@@ -1022,7 +1022,6 @@
 "contentVisibility.viewOnlyMode" = "Mode només visualització";
 "contentVisibility.viewOnlyMode.description" = "Els usuaris només poden veure el teu contingut, sense interaccions";
 "contentVisibility.interactionsConfig.title" = "Configurar interaccions";
-"contentVisibility.interactionsConfig.description" = "Personalitza com poden interactuar els usuaris amb les teves històries";
 "contentVisibility.info.title" = "Informació";
 "contentVisibility.info.description" = "Aquestes configuracions s'apliquen a tot el teu contingut";
 "contentVisibility.interactions.allAllowed" = "Totes les interaccions permeses";
@@ -1456,6 +1455,7 @@
 "savedMoments.filter.collection.multiple" = "Carousel";
 "savedMoments.empty.filtered.title" = "No hi ha resultats amb aquests filtres";
 "savedMoments.empty.filtered.description" = "Prova de treure filtres o netejar la cerca.";
+"savedMoments.clearFilters" = "Netejar filtres";
 "savedMoments.selection.count" = "%d seleccionats";
 "savedMoments.selection.remove.title" = "Eliminar seleccionats";
 "savedMoments.selection.remove.message" = "S'eliminaran %d elements de guardats.";
@@ -1465,12 +1465,15 @@
 "contentVisibility.interactions.title" = "Configuració d'interaccions";
 "contentVisibility.hideFrom" = "Ocultar el meu contingut de";
 "contentVisibility.hiddenCount" = "%d persones no poden veure el teu contingut";
+"contentVisibility.hiddenUsers.section" = "Ocult d'aquestes persones";
+"contentVisibility.searchResults.section" = "Resultats de cerca";
 "contentVisibility.additionalRestrictions" = "Restriccions addicionals";
 "contentVisibility.manageCustomLists" = "Gestionar llistes personalitzades";
 "contentVisibility.createEditAudience" = "Crear i editar llistes d'audiència";
 "contentVisibility.audienceLists" = "Llistes d'audiència";
 "contentVisibility.interactionsConfig.title" = "Configuració d'Interaccions";
-"contentVisibility.interactionsConfig.description" = "Controla quin tipus d'interaccions poden fer altres usuaris a les teves històries. Aquesta configuració s'aplicarà a totes les teves històries futures.";
+"contentVisibility.interactionsConfig.description" = "Personalitza quin tipus d'interaccions poden fer altres usuaris a les teves històries.";
+"contentVisibility.interactionsConfig.subtitle" = "Aquesta configuració s'aplicarà a totes les teves històries actuals i futures.";
 "contentVisibility.viewOnlyMode" = "Mode només visualització";
 "contentVisibility.viewOnlyMode.description" = "Els usuaris només podran veure les teves històries, sense poder interactuar";
 "contentVisibility.cancel" = "Cancel·lar";
@@ -2774,6 +2777,8 @@
 "echo.info.how.body" = "Echo detecta moments de mutuals a la mateixa zona (fins a 500 m) i dins la mateixa finestra de temps (24 h). Quan s'activa, pots navegar entre perspectives (barra inferior) i moments (amunt/avall).";
 "echo.info.privacy.title" = "Privadesa";
 "echo.info.privacy.body" = "Echo es crea entre mutuals, però conserva qui el podia veure en aquell moment. Si després canvia la relació, es continua veient; només es difumina si l'audiència del moment (best friends o llista personalitzada) no t'inclou. Dins d'Echo veus els teus moments i els dels participants que han acceptat.";
+"echo.info.status.title" = "Estats";
+"echo.info.status.body" = "Actiu vol dir que l'Echo continua obert i que altres persones encara s'hi poden unir durant la seva finestra de 24 hores. Expirat vol dir que aquest termini s'ha acabat i que l'Echo es tanca, així que ningú més no s'hi pot unir.";
 "echo.info.controls.title" = "Controls";
 "echo.info.controls.body" = "Llisca amunt/avall per canviar de moment, fes servir la barra inferior per canviar de perspectiva i el menú per sortir de l'Echo. No en pots sortir mentre l'Echo estigui actiu: es desbloqueja quan acaba la finestra de 24 h. Si en surts, els teus moments s'eliminen d'aquest Echo.";
 

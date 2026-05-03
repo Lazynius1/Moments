@@ -6,7 +6,6 @@ import Kingfisher
 /// Vista que muestra el historial de Echoes del usuario
 struct EchoHistoryView: View {
     @Environment(\.dismiss) var dismiss
-    @Environment(\.colorScheme) var colorScheme
     
     @State private var echoes: [Echo] = []
     @State private var isLoading = true
@@ -18,42 +17,23 @@ struct EchoHistoryView: View {
     private var activeCount: Int { echoes.filter { $0.status == .active }.count }
     
     var body: some View {
-        NavigationView {
-            ZStack {
-                // Background
-                (colorScheme == .dark ? Color(hex: "0B1215") : Color(hex: "FAF9F6"))
-                    .ignoresSafeArea()
-                
-                if isLoading {
-                    ProgressView()
-                        .scaleEffect(1.2)
-                        .tint(Color.orange)
-                } else if echoes.isEmpty {
-                    emptyStateView
-                } else {
-                    VStack(spacing: 12) {
-                        summaryHeader
-                        echoListView
-                    }
-                }
-            }
-            .navigationTitle(NSLocalizedString("echo.history.title", comment: ""))
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button(NSLocalizedString("common.close", comment: "")) {
-                        dismiss()
-                    }
-                    .foregroundColor(Color.orange)
-                }
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button {
-                        showEchoInfoSheet = true
-                    } label: {
-                        Image(systemName: "info.circle")
-                            .font(.system(size: 18, weight: .semibold))
-                            .foregroundColor(Color.orange)
-                    }
+        VStack(spacing: 0) {
+            headerView
+
+            if isLoading {
+                Spacer()
+                ProgressView()
+                    .scaleEffect(1.1)
+                    .tint(.primary)
+                Spacer()
+            } else if echoes.isEmpty {
+                Spacer()
+                emptyStateView
+                Spacer()
+            } else {
+                VStack(spacing: 14) {
+                    summaryHeader
+                    echoListView
                 }
             }
         }
@@ -68,22 +48,54 @@ struct EchoHistoryView: View {
         }
         .sheet(isPresented: $showEchoInfoSheet) {
             EchoHistoryInfoSheetView()
+                .presentationDetents([.medium, .large])
         }
     }
     
     // MARK: - Views
     
+    private var headerView: some View {
+        ZStack {
+            HStack {
+                Button {
+                    dismiss()
+                } label: {
+                    Image(systemName: "chevron.down")
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundColor(.primary)
+                        .frame(width: 36, height: 36)
+                        .liquidGlass(in: Circle(), interactive: true)
+                }
+
+                Spacer()
+
+                Button {
+                    showEchoInfoSheet = true
+                } label: {
+                    Image(systemName: "info.circle")
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundColor(.primary)
+                        .frame(width: 36, height: 36)
+                        .liquidGlass(in: Circle(), interactive: true)
+                }
+            }
+
+            VStack(spacing: 3) {
+                Text(NSLocalizedString("echo.history.title", comment: ""))
+                    .font(.system(size: 21, weight: .semibold))
+                    .foregroundColor(.primary)
+            }
+        }
+        .padding(.horizontal, 20)
+        .padding(.top, 10)
+        .padding(.bottom, 14)
+    }
+
     private var emptyStateView: some View {
         VStack(spacing: 16) {
             Image(systemName: "camera.aperture")
-                .font(.system(size: 60))
-                .foregroundStyle(
-                    LinearGradient(
-                        colors: [.orange.opacity(0.5), .purple.opacity(0.5)],
-                        startPoint: .leading,
-                        endPoint: .trailing
-                    )
-                )
+                .font(.system(size: 48, weight: .regular))
+                .foregroundColor(.secondary)
             
             Text(NSLocalizedString("echo.history.empty.title", comment: ""))
                 .font(.system(size: 18, weight: .semibold))
@@ -106,17 +118,21 @@ struct EchoHistoryView: View {
                     }
                 }
             }
-            .padding()
+            .padding(.horizontal, 16)
+            .padding(.bottom, 20)
         }
+        .scrollIndicators(.hidden)
     }
 
     private var summaryHeader: some View {
         HStack(spacing: 10) {
             infoChip(icon: "waveform.path.ecg", text: "\(echoes.count) Echoes")
-            infoChip(icon: "dot.radiowaves.left.and.right", text: "\(activeCount) active")
+            infoChip(
+                icon: "dot.radiowaves.left.and.right",
+                text: "\(activeCount) \(NSLocalizedString("echo.status.active", comment: ""))"
+            )
         }
         .padding(.horizontal, 16)
-        .padding(.top, 8)
     }
 
     private func infoChip(icon: String, text: String) -> some View {
@@ -129,7 +145,7 @@ struct EchoHistoryView: View {
         .foregroundColor(.primary)
         .padding(.horizontal, 10)
         .padding(.vertical, 6)
-        .background(.ultraThinMaterial, in: Capsule())
+        .liquidGlass(in: Capsule())
     }
     
     // MARK: - Data
@@ -153,12 +169,32 @@ private struct EchoHistoryInfoSheetView: View {
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
-        NavigationView {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 16) {
-                    Text(NSLocalizedString("echo.info.title", comment: ""))
-                        .font(.system(size: 24, weight: .bold))
+        VStack(spacing: 0) {
+            ZStack {
+                HStack {
+                    Button {
+                        dismiss()
+                    } label: {
+                        Image(systemName: "chevron.left")
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundColor(.primary)
+                            .frame(width: 36, height: 36)
+                            .liquidGlass(in: Circle(), interactive: true)
+                    }
 
+                    Spacer()
+                }
+
+                Text(NSLocalizedString("echo.info.title", comment: ""))
+                    .font(.system(size: 20, weight: .semibold))
+                    .foregroundColor(.primary)
+            }
+            .padding(.horizontal, 20)
+            .padding(.top, 10)
+            .padding(.bottom, 18)
+
+            ScrollView {
+                VStack(alignment: .leading, spacing: 20) {
                     infoRow(
                         title: NSLocalizedString("echo.info.what.title", comment: ""),
                         body: NSLocalizedString("echo.info.what.body", comment: "")
@@ -172,23 +208,19 @@ private struct EchoHistoryInfoSheetView: View {
                         body: NSLocalizedString("echo.info.privacy.body", comment: "")
                     )
                     infoRow(
+                        title: NSLocalizedString("echo.info.status.title", comment: ""),
+                        body: NSLocalizedString("echo.info.status.body", comment: "")
+                    )
+                    infoRow(
                         title: NSLocalizedString("echo.info.controls.title", comment: ""),
                         body: NSLocalizedString("echo.info.controls.body", comment: "")
                     )
                 }
-                .padding(20)
+                .padding(.horizontal, 20)
+                .padding(.bottom, 24)
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button {
-                        dismiss()
-                    } label: {
-                        Image(systemName: "xmark")
-                            .font(.system(size: 14, weight: .bold))
-                    }
-                }
-            }
+            .scrollIndicators(.hidden)
         }
     }
 
@@ -200,10 +232,7 @@ private struct EchoHistoryInfoSheetView: View {
                 .font(.system(size: 14))
                 .foregroundColor(.secondary)
         }
-        .padding(14)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(.ultraThinMaterial)
-        .clipShape(RoundedRectangle(cornerRadius: 14))
     }
 }
 
@@ -212,8 +241,6 @@ private struct EchoHistoryInfoSheetView: View {
 struct EchoHistoryCard: View {
     let echo: Echo
     let onTap: () -> Void
-    
-    @Environment(\.colorScheme) var colorScheme
     
     private var statusColor: Color {
         switch echo.status {
@@ -270,8 +297,8 @@ struct EchoHistoryCard: View {
                     }
                 }
                 .frame(width: 56, height: 56)
-                .background(.ultraThinMaterial)
-                .clipShape(RoundedRectangle(cornerRadius: 12))
+                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                .liquidGlass(in: RoundedRectangle(cornerRadius: 12, style: .continuous))
                 
                 VStack(alignment: .leading, spacing: 4) {
                     // Ubicación
@@ -311,32 +338,15 @@ struct EchoHistoryCard: View {
                         .foregroundColor(statusColor)
                         .padding(.horizontal, 8)
                         .padding(.vertical, 4)
-                        .background(statusColor.opacity(0.15))
-                        .clipShape(Capsule())
+                        .background(statusColor.opacity(0.12), in: Capsule())
                     
                     Image(systemName: "chevron.right")
                         .font(.system(size: 12, weight: .semibold))
                         .foregroundColor(.secondary)
                 }
             }
-            .padding(12)
-            .background(
-                RoundedRectangle(cornerRadius: 16)
-                    .fill(.ultraThinMaterial)
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 16)
-                    .stroke(
-                        LinearGradient(
-                            colors: colorScheme == .dark ?
-                                [Color.white.opacity(0.14), Color.white.opacity(0.06)] :
-                                [Color.black.opacity(0.10), Color.black.opacity(0.04)],
-                            startPoint: .top,
-                            endPoint: .bottom
-                        ),
-                        lineWidth: 1
-                    )
-            )
+            .padding(.horizontal, 4)
+            .padding(.vertical, 10)
         }
         .buttonStyle(PlainButtonStyle())
     }

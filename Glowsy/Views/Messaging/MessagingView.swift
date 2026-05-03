@@ -11,8 +11,6 @@ struct GlassmorphicBackground: View {
     let adaptiveColors: AdaptiveColors
     
     var body: some View {
-        // iOS 26: fondo limpio y neutro — el Liquid Glass de los componentes
-        // proporciona el efecto de profundidad sin necesidad de blobs
         if adaptiveColors.colorScheme == .dark {
             Color(hex: "0B1215")
                 .ignoresSafeArea()
@@ -78,7 +76,7 @@ struct MessagingView: View {
     private var adaptiveColors: AdaptiveColors {
         AdaptiveColors(colorScheme: colorScheme)
     }
-    
+
     // ✅ NUEVO: Instancia de PrivacyService para verificar historias
     private let privacyService = PrivacyService()
     
@@ -105,9 +103,13 @@ struct MessagingView: View {
                             selectedConversation = conversation // ✅ Navegar automáticamente
                         }
                     }
+                    .presentationDetents([.medium, .large])
+                    .presentationDragIndicator(.visible)
                 }
                 .sheet(isPresented: $showingMessageRequests) {
                     MessageRequestsView()
+                        .presentationDetents([.medium, .large])
+                        .presentationDragIndicator(.visible)
                 }
                 // ✅ CAMBIO 2: navigationDestination en lugar de NavigationLink con isActive
                 .navigationDestination(item: $selectedConversation) { conversation in
@@ -725,54 +727,67 @@ struct SwipeableConversationRow: View {
     
     @State private var offset: CGFloat = 0
     @State private var showingActions = false
+    @Environment(\.colorScheme) private var colorScheme
+
+    private var rowMaskColor: Color {
+        colorScheme == .dark ? Color(hex: "0B1215") : Color(hex: "FAF9F6")
+    }
+
+    private var swipeHighlightColor: Color {
+        colorScheme == .dark ? Color.white.opacity(0.05) : Color.black.opacity(0.035)
+    }
     
     var body: some View {
         ZStack {
             // ✅ Acciones de fondo (aparecen al deslizar)
-            HStack(spacing: 0) {
+            HStack(spacing: 4) {
                 Spacer()
                 
-                // Botón de silenciar (naranja)
-                Button(action: onMute) {
+                // Botón de silenciar
+                Button(action: {
+                    closeSwipeThenPerform(onMute)
+                }) {
                     Image(systemName: conversation.isMuted == true ? "bell.fill" : "bell.slash.fill")
-                        .font(.system(size: 18))
-                        .foregroundColor(.white)
-                        .frame(width: 60, height: 80)
-                        .background(conversation.isMuted == true ? Color.green : Color.orange)
+                        .font(.system(size: 17, weight: .semibold))
+                        .foregroundColor(colorScheme == .dark ? .white.opacity(0.9) : .black.opacity(0.85))
+                        .frame(width: 50, height: 50)
                 }
+                .buttonStyle(.plain)
                 
-                // Botón de pin (azul)
-                Button(action: onPin) {
+                // Botón de pin
+                Button(action: {
+                    closeSwipeThenPerform(onPin)
+                }) {
                     Image(systemName: conversation.isPinned == true ? "pin.slash.fill" : "pin.fill")
-                        .font(.system(size: 18))
-                        .foregroundColor(.white)
-                        .frame(width: 60, height: 80)
-                        .background(conversation.isPinned == true ? Color.gray : Color.blue)
+                        .font(.system(size: 17, weight: .semibold))
+                        .foregroundColor(colorScheme == .dark ? .white.opacity(0.9) : .black.opacity(0.85))
+                        .frame(width: 50, height: 50)
                 }
+                .buttonStyle(.plain)
                 
-                // Botón de eliminar (rojo)
-                Button(action: onDelete) {
+                // Botón de eliminar
+                Button(action: {
+                    closeSwipeThenPerform(onDelete)
+                }) {
                     Image(systemName: "trash.fill")
-                        .font(.system(size: 18))
-                        .foregroundColor(.white)
-                        .frame(width: 80, height: 80)
-                        .background(Color.red)
+                        .font(.system(size: 17, weight: .semibold))
+                        .foregroundColor(.red)
+                        .frame(width: 50, height: 50)
                 }
+                .buttonStyle(.plain)
             }
-            .cornerRadius(20)
+            .padding(.trailing, 12)
+            .opacity(offset < -12 ? 1 : 0)
             
             // ✅ Fila de conversación principal
-            VStack(spacing: 0) {
-                GlassmorphicConversationRow(conversation: conversation, onTap: onTap)
-                    .background(Color.clear) // ✅ Sin fondo sólido, mantener transparencia
-                    .offset(x: offset)
-                
-                // ✅ Separador sutil
-                Rectangle()
-                    .fill(Color.white.opacity(0.1))
-                    .frame(height: 0.5)
-                    .padding(.leading, 80) // Alineado con el texto
-            }
+            GlassmorphicConversationRow(conversation: conversation, onTap: onTap)
+                .background(offset < -2 ? rowMaskColor : Color.clear)
+                .overlay(
+                    Rectangle()
+                        .fill(swipeHighlightColor)
+                        .opacity(offset < -2 ? min(abs(offset) / 140, 1) : 0)
+                )
+                .offset(x: offset)
                 .gesture(
                     DragGesture()
                         .onChanged { value in
@@ -804,6 +819,17 @@ struct SwipeableConversationRow: View {
                 }
         }
         .clipped()
+    }
+    
+    private func closeSwipeThenPerform(_ action: @escaping () -> Void) {
+        withAnimation(.spring(response: 0.28, dampingFraction: 0.84)) {
+            offset = 0
+            showingActions = false
+        }
+        
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.14) {
+            action()
+        }
     }
 }
 
@@ -951,7 +977,7 @@ struct GlassmorphicConversationRow: View {
     @State private var isOtherParticipantBlockedByCurrentUser: Bool = false
     private let privacyService = PrivacyService()
     private let firestoreService = FirestoreService()
-
+    
     private var displayUsername: String {
         let fallback = conversation.otherParticipantUsername ?? NSLocalizedString("messaging.user.default", comment: "Default user name")
         let live = liveOtherParticipantUsername.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -1065,8 +1091,8 @@ struct GlassmorphicConversationRow: View {
             }
         }
         .padding(.horizontal, 16)
-        .padding(.vertical, 14)
-        .glassmorphic() // ✅ Mantener el efecto glassmorphic único (asegurar que este modificador también sea adaptativo)
+        .padding(.vertical, 10)
+        .background(Color.clear)
         .onAppear {
             checkUserStories()
             refreshOtherParticipantUsername()
@@ -1204,44 +1230,32 @@ struct GlassmorphicNewConversationView: View {
     @State private var messageText = ""
     let onConversationCreated: (Conversation?) -> Void
     
-    private var adaptiveColors: AdaptiveColors {
-        AdaptiveColors(colorScheme: colorScheme)
-    }
-    
     var body: some View {
-        ZStack {
-            // ✅ Fondo Glassmorphic Consistente
-            GlassmorphicBackground(adaptiveColors: adaptiveColors)
-                .ignoresSafeArea()
-            
-            VStack(spacing: 0) {
-                // ✅ CUSTOM HEADER "IOS 26"
-                HStack {
-                    Button(action: { dismiss() }) {
-                        Text(NSLocalizedString("messaging.new.cancel", comment: "Cancel button"))
-                            .font(.system(size: 15, weight: .medium))
-                            .foregroundColor(.primary)
-                            .padding(.horizontal, 16)
-                            .padding(.vertical, 8)
-                            .liquidGlass(in: Capsule())
-                    }
-                    
-                    Spacer()
-                    
-                    Text(NSLocalizedString("messaging.new.title", comment: "New conversation title"))
-                        .font(.system(size: 18, weight: .bold))
+        VStack(spacing: 0) {
+            HStack {
+                Button(action: { dismiss() }) {
+                    Image(systemName: "chevron.down")
+                        .font(.system(size: 16, weight: .semibold))
                         .foregroundColor(.primary)
-                    
-                    Spacer()
-                    
-                    // Spacer técnico para centrar el título perfectamente
-                    Color.clear.frame(width: 80, height: 1)
+                        .frame(width: 38, height: 38)
+                        .background(Color.clear.liquidGlass(in: Circle(), interactive: true))
                 }
-                .padding(.horizontal, 20)
-                .padding(.top, 16)
-                .padding(.bottom, 24)
                 
-                VStack(spacing: 24) {
+                Spacer()
+                
+                Text(NSLocalizedString("messaging.new.title", comment: "New conversation title"))
+                    .font(.custom("Poppins-SemiBold", size: 22))
+                    .foregroundColor(.primary)
+                
+                Spacer()
+                
+                Color.clear.frame(width: 38, height: 38)
+            }
+            .padding(.horizontal, 14)
+            .padding(.top, 8)
+            .padding(.bottom, 20)
+            
+            VStack(spacing: 24) {
                     // ✅ LIQUID GLASS SEARCH BAR (CÁPSULA)
                     HStack(spacing: 12) {
                         Image(systemName: "magnifyingglass")
@@ -1273,8 +1287,7 @@ struct GlassmorphicNewConversationView: View {
                     .padding(.horizontal, 20)
                     .frame(height: 56)
                     .liquidGlass(in: Capsule())
-                    .padding(.horizontal, 20)
-                    .shadow(color: .black.opacity(0.1), radius: 10, x: 0, y: 5)
+                    .padding(.horizontal, 14)
                     
                     if let errorMessage = viewModel.errorMessage {
                         Text(errorMessage)
@@ -1290,7 +1303,7 @@ struct GlassmorphicNewConversationView: View {
                                             .stroke(.red.opacity(0.3), lineWidth: 0.5)
                                     )
                             )
-                            .padding(.horizontal, 20)
+                            .padding(.horizontal, 14)
                     }
                     
                     ScrollView(showsIndicators: false) {
@@ -1303,7 +1316,7 @@ struct GlassmorphicNewConversationView: View {
                                 )
                             }
                         }
-                        .padding(.horizontal, 20)
+                        .padding(.horizontal, 14)
                         .padding(.top, 8)
                     }
                     
@@ -1329,11 +1342,10 @@ struct GlassmorphicNewConversationView: View {
                             .clipShape(Capsule())
                             .shadow(color: Color(hex: "4F46E5").opacity(0.4), radius: 20, x: 0, y: 10)
                         }
-                        .padding(.horizontal, 24)
+                        .padding(.horizontal, 20)
                         .padding(.bottom, 24)
                         .transition(.move(edge: .bottom).combined(with: .opacity))
                     }
-                }
             }
         }
         //.preferredColorScheme(.dark) // ❌ ELIMINADO: Respetar tema del sistema/app
@@ -1685,6 +1697,20 @@ class MessagingViewModel: ObservableObject {
     private var userSearchWorkItem: DispatchWorkItem?
     private var activeSearchQuery: String = ""
     private var activeUserSearchQuery: String = ""
+
+    private func sortConversationsForInbox(_ conversations: [Conversation]) -> [Conversation] {
+        let currentUserId = Auth.auth().currentUser?.uid
+        return conversations.sorted { lhs, rhs in
+            let lhsPinned = lhs.isPinned(for: currentUserId)
+            let rhsPinned = rhs.isPinned(for: currentUserId)
+
+            if lhsPinned != rhsPinned {
+                return lhsPinned && !rhsPinned
+            }
+
+            return lhs.timestamp > rhs.timestamp
+        }
+    }
     
     deinit {
         searchWorkItem?.cancel()
@@ -1696,7 +1722,7 @@ class MessagingViewModel: ObservableObject {
     
     func fetchConversations(for userId: String) {
         // ✅ SwiftData: Carga instantánea del caché local
-        let cachedConversations = LocalPersistenceService.shared.loadConversations()
+        let cachedConversations = sortConversationsForInbox(LocalPersistenceService.shared.loadConversations())
         if !cachedConversations.isEmpty {
             DispatchQueue.main.async {
                 self.conversations = cachedConversations
@@ -1710,13 +1736,14 @@ class MessagingViewModel: ObservableObject {
                 switch result {
                 case .success(let conversations):
                     let filtered = conversations.filter { $0.id != nil && !$0.id!.isEmpty }
-                    self.conversations = filtered
+                    let sorted = self.sortConversationsForInbox(filtered)
+                    self.conversations = sorted
                     self.hasUnreadMessages = conversations.contains { !($0.readStatus[userId] ?? true) }
                     self.errorMessage = nil
                     
                     // ✅ SwiftData: Persistir lista de chats
                     // Usar sync: true solo en la primera carga para purgar inconsistencias
-                    LocalPersistenceService.shared.saveConversations(filtered, sync: self.isFirstFetch)
+                    LocalPersistenceService.shared.saveConversations(sorted, sync: self.isFirstFetch)
                     self.isFirstFetch = false
                     
                 case .failure(let error):
@@ -2028,7 +2055,11 @@ class MessagingViewModel: ObservableObject {
                             otherParticipantUsername: existingConversation.otherParticipantUsername,
                             otherParticipantProfileImagePath: existingConversation.otherParticipantProfileImagePath,
                             isPinned: existingConversation.isPinned,
-                            isMuted: existingConversation.isMuted
+                            pinnedByUserIds: existingConversation.pinnedByUserIds,
+                            pinnedBy: existingConversation.pinnedBy,
+                            isMuted: existingConversation.isMuted,
+                            mutedByUserIds: existingConversation.mutedByUserIds,
+                            mutedBy: existingConversation.mutedBy
                         )
                         self.selectedConversation = updatedConversation
                         if let idx = self.conversations.firstIndex(where: { $0.id == conversationId }) {

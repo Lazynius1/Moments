@@ -453,66 +453,41 @@ struct SavedMomentsView: View {
     }
     
     var body: some View {
-        NavigationView {
-            ZStack(alignment: .bottom) {
-                background
+        ZStack(alignment: .bottom) {
+            background
+            
+            VStack(spacing: 14) {
+                header
                 
                 if viewModel.isLoading {
                     loadingView
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else if let error = viewModel.error {
                     errorView(error)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else if viewModel.moments.isEmpty {
                     emptyStateView
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else {
                     content
                 }
-                
-                if isSelectionMode {
-                    selectionBar
-                        .transition(.move(edge: .bottom).combined(with: .opacity))
-                        .padding(.horizontal, 12)
-                        .padding(.bottom, 10)
-                }
             }
-            .navigationTitle(NSLocalizedString("profile.tab.saved", comment: "Saved tab title"))
-            .navigationBarTitleDisplayMode(.large)
-            .navigationBarBackButtonHidden(true)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button(action: { dismiss() }) {
-                        Image(systemName: "chevron.left")
-                            .font(.system(size: 17, weight: .semibold))
-                    }
-                }
-                ToolbarItemGroup(placement: .navigationBarTrailing) {
-                    Menu {
-                        ForEach(SavedSortMode.allCases, id: \.self) { mode in
-                            Button(mode.title) { sortMode = mode }
-                        }
-                    } label: {
-                        Image(systemName: "arrow.up.arrow.down")
-                            .font(.system(size: 15, weight: .medium))
-                    }
-                    Button(isSelectionMode ? NSLocalizedString("savedMoments.cancel", comment: "Cancel selection mode") : NSLocalizedString("savedMoments.select", comment: "Enable selection mode")) {
-                        withAnimation(.spring(response: 0.32, dampingFraction: 0.82)) {
-                            isSelectionMode.toggle()
-                            if !isSelectionMode {
-                                selectedMomentIds.removeAll()
-                            }
-                        }
-                    }
-                    .font(.custom("Poppins-SemiBold", size: 14))
-                    .foregroundColor(isSelectionMode ? .red : .primary)
-                }
+            .padding(.top, 8)
+            
+            if isSelectionMode {
+                selectionBar
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+                    .padding(.horizontal, 12)
+                    .padding(.bottom, 10)
             }
-            .onAppear {
-                if viewModel.moments.isEmpty && !viewModel.isLoading {
-                    viewModel.loadSavedMoments()
-                }
+        }
+        .onAppear {
+            if viewModel.moments.isEmpty && !viewModel.isLoading {
+                viewModel.loadSavedMoments()
             }
-            .refreshable {
-                await refreshMoments()
-            }
+        }
+        .refreshable {
+            await refreshMoments()
         }
         .fullScreenCover(item: $detailRoute) { route in
             ModernSavedMomentsDetailView(
@@ -572,36 +547,25 @@ struct SavedMomentsView: View {
     
     private var content: some View {
         VStack(spacing: 14) {
-            Text(String(format: NSLocalizedString("savedMoments.count", comment: "Saved moments count"), viewModel.moments.count))
-                .font(.custom("Poppins-Medium", size: 13))
-                .foregroundColor(.secondary)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.horizontal, 14)
-                .padding(.top, 4)
             searchBar
-            mediaSegments
-            collectionRail
+            filterPanel
             gridContent
         }
-        .padding(.top, 8)
     }
     
     private var header: some View {
         HStack(spacing: 12) {
             Button(action: { dismiss() }) {
-                ZStack {
-                    Circle()
-                        .fill(.ultraThinMaterial)
-                        .frame(width: 36, height: 36)
-                    Image(systemName: "chevron.left")
-                        .font(.system(size: 15, weight: .semibold))
-                        .foregroundColor(colorScheme == .dark ? .white : .black)
-                }
+                Image(systemName: "chevron.left")
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundColor(colorScheme == .dark ? .white : .black)
+                    .frame(width: 38, height: 38)
+                    .background(Circle().fill(.ultraThinMaterial))
             }
             
             VStack(alignment: .leading, spacing: 2) {
                 Text(NSLocalizedString("profile.tab.saved", comment: "Saved tab title"))
-                    .font(.custom("Poppins-Bold", size: 24))
+                    .font(.custom("Poppins-SemiBold", size: 22))
                     .foregroundColor(.primary)
                     .lineLimit(1)
                     .minimumScaleFactor(0.85)
@@ -614,21 +578,6 @@ struct SavedMomentsView: View {
             
             Spacer()
             
-            Menu {
-                ForEach(SavedSortMode.allCases, id: \.self) { mode in
-                    Button(mode.title) { sortMode = mode }
-                }
-            } label: {
-                HStack(spacing: 6) {
-                    Image(systemName: "arrow.up.arrow.down")
-                    Text(NSLocalizedString("savedMoments.sortMenu", comment: "Sort menu title"))
-                }
-                .font(.custom("Poppins-Medium", size: 13))
-                .padding(.horizontal, 10)
-                .padding(.vertical, 8)
-                .background(Capsule().fill(.ultraThinMaterial))
-            }
-            
             Button(isSelectionMode ? NSLocalizedString("savedMoments.cancel", comment: "Cancel selection mode") : NSLocalizedString("savedMoments.select", comment: "Enable selection mode")) {
                 withAnimation(.spring(response: 0.32, dampingFraction: 0.82)) {
                     isSelectionMode.toggle()
@@ -638,15 +587,10 @@ struct SavedMomentsView: View {
                 }
             }
             .font(.custom("Poppins-SemiBold", size: 13))
+            .foregroundColor(isSelectionMode ? .red : .primary)
             .padding(.horizontal, 10)
             .padding(.vertical, 8)
-            .background(
-                Capsule().fill(
-                    isSelectionMode
-                        ? AnyShapeStyle(Color.red.opacity(0.18))
-                        : AnyShapeStyle(.ultraThinMaterial)
-                )
-            )
+            .background(Color.clear.liquidGlass(in: Capsule(), interactive: true))
         }
         .padding(.horizontal, 14)
     }
@@ -669,14 +613,36 @@ struct SavedMomentsView: View {
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 12)
-        .background(
-            RoundedRectangle(cornerRadius: 14)
-                .fill(.ultraThinMaterial)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 14)
-                        .stroke(Color.white.opacity(colorScheme == .dark ? 0.12 : 0.3), lineWidth: 1)
-                )
-        )
+        .background(Color.clear.liquidGlass(in: Capsule()))
+        .padding(.horizontal, 14)
+    }
+    
+    private var filterPanel: some View {
+        VStack(spacing: 10) {
+            HStack(spacing: 8) {
+                mediaSegments
+                
+                Menu {
+                    ForEach(SavedSortMode.allCases, id: \.self) { mode in
+                        Button(mode.title) { sortMode = mode }
+                    }
+                } label: {
+                    HStack(spacing: 6) {
+                        Image(systemName: "arrow.up.arrow.down")
+                            .font(.system(size: 13, weight: .semibold))
+                        Text(sortMode.title)
+                            .lineLimit(1)
+                    }
+                    .font(.custom("Poppins-Medium", size: 13))
+                    .foregroundColor(.primary)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 10)
+                    .background(Color.clear.liquidGlass(in: Capsule(), interactive: true))
+                }
+            }
+            
+            collectionRail
+        }
         .padding(.horizontal, 14)
     }
     
@@ -686,22 +652,30 @@ struct SavedMomentsView: View {
                 Button(action: { mediaFilter = filter }) {
                     Text(filter.title)
                         .font(.custom("Poppins-SemiBold", size: 13))
-                        .foregroundColor(mediaFilter == filter ? .white : .primary)
+                        .foregroundColor(.primary)
                         .frame(maxWidth: .infinity)
-                        .padding(.vertical, 9)
+                        .padding(.vertical, 10)
                         .background(
-                            RoundedRectangle(cornerRadius: 12)
-                                .fill(
-                                    mediaFilter == filter
-                                        ? AnyShapeStyle(Color(hex: "2563EB"))
-                                        : AnyShapeStyle(.ultraThinMaterial)
-                                )
+                            Group {
+                                if mediaFilter == filter {
+                                    Color.clear.liquidGlass(in: Capsule(), interactive: true)
+                                } else {
+                                    Capsule()
+                                        .fill(.ultraThinMaterial)
+                                        .overlay(
+                                            Capsule()
+                                                .stroke(
+                                                    Color.white.opacity(colorScheme == .dark ? 0.06 : 0.16),
+                                                    lineWidth: 1
+                                                )
+                                        )
+                                }
+                            }
                         )
                 }
                 .buttonStyle(.plain)
             }
         }
-        .padding(.horizontal, 14)
     }
     
     private var collectionRail: some View {
@@ -711,22 +685,30 @@ struct SavedMomentsView: View {
                     Button(action: { collectionFilter = filter }) {
                         Text(filter.title)
                             .font(.custom("Poppins-Medium", size: 13))
-                            .foregroundColor(collectionFilter == filter ? .white : .primary)
+                            .foregroundColor(.primary)
                             .padding(.horizontal, 12)
-                            .padding(.vertical, 8)
+                            .padding(.vertical, 9)
                             .background(
-                                Capsule()
-                                    .fill(
-                                        collectionFilter == filter
-                                            ? AnyShapeStyle(Color(hex: "007AFF"))
-                                            : AnyShapeStyle(.ultraThinMaterial)
-                                    )
+                                Group {
+                                    if collectionFilter == filter {
+                                        Color.clear.liquidGlass(in: Capsule(), interactive: true)
+                                    } else {
+                                        Capsule()
+                                            .fill(.ultraThinMaterial)
+                                            .overlay(
+                                                Capsule()
+                                                    .stroke(
+                                                        Color.white.opacity(colorScheme == .dark ? 0.06 : 0.16),
+                                                        lineWidth: 1
+                                                    )
+                                            )
+                                    }
+                                }
                             )
                     }
                     .buttonStyle(.plain)
                 }
             }
-            .padding(.horizontal, 14)
         }
     }
     
@@ -735,13 +717,26 @@ struct SavedMomentsView: View {
             if filteredMoments.isEmpty {
                 VStack(spacing: 10) {
                     Image(systemName: "line.3.horizontal.decrease.circle")
-                        .font(.system(size: 40))
+                        .font(.system(size: 36))
                         .foregroundColor(.secondary)
                     Text(NSLocalizedString("savedMoments.empty.filtered.title", comment: "No results for current filters"))
                         .font(.custom("Poppins-SemiBold", size: 16))
                     Text(NSLocalizedString("savedMoments.empty.filtered.description", comment: "Hint for filtered empty state"))
                         .font(.custom("Poppins-Regular", size: 13))
                         .foregroundColor(.secondary)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 32)
+                    
+                    Button(NSLocalizedString("savedMoments.clearFilters", comment: "Clear filters action")) {
+                        searchText = ""
+                        mediaFilter = .all
+                        collectionFilter = .all
+                    }
+                    .font(.custom("Poppins-SemiBold", size: 13))
+                    .foregroundColor(.primary)
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 10)
+                    .background(Color.clear.liquidGlass(in: Capsule(), interactive: true))
                 }
                 .padding(.top, 80)
             } else {
@@ -796,16 +791,19 @@ struct SavedMomentsView: View {
                 Label(NSLocalizedString("savedMoments.share", comment: "Share action"), systemImage: "square.and.arrow.up")
                     .font(.custom("Poppins-SemiBold", size: 13))
             }
-            .buttonStyle(.borderedProminent)
-            .tint(Color(hex: "007AFF"))
+            .padding(.horizontal, 12)
+            .padding(.vertical, 10)
+            .background(Color.clear.liquidGlass(in: Capsule(), interactive: true))
             .disabled(selectedMomentIds.isEmpty)
             
             Button(action: { showRemoveSelectionAlert = true }) {
                 Label(NSLocalizedString("savedMoments.remove", comment: "Remove action"), systemImage: "bookmark.slash")
                     .font(.custom("Poppins-SemiBold", size: 13))
             }
-            .buttonStyle(.borderedProminent)
-            .tint(.red)
+            .foregroundColor(.red)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 10)
+            .background(Color.clear.liquidGlass(in: Capsule(), interactive: true))
             .disabled(selectedMomentIds.isEmpty)
         }
         .padding(.horizontal, 14)
@@ -833,7 +831,7 @@ struct SavedMomentsView: View {
         VStack(spacing: 14) {
             Image(systemName: "wifi.exclamationmark")
                 .font(.system(size: 40))
-                .foregroundColor(.orange)
+                .foregroundColor(.secondary)
             Text(NSLocalizedString("savedMoments.error.title", comment: "Saved moments loading error title"))
                 .font(.custom("Poppins-Bold", size: 19))
             Text(error.localizedDescription)
@@ -844,15 +842,18 @@ struct SavedMomentsView: View {
             Button(NSLocalizedString("savedMoments.retry", comment: "Retry action")) {
                 viewModel.loadSavedMoments()
             }
-            .buttonStyle(.borderedProminent)
-            .tint(Color(hex: "2563EB"))
+            .font(.custom("Poppins-SemiBold", size: 14))
+            .foregroundColor(.primary)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 11)
+            .background(Capsule().fill(.ultraThinMaterial))
         }
     }
     
     private var emptyStateView: some View {
         VStack(spacing: 16) {
             Image(systemName: "bookmark.circle")
-                .font(.system(size: 72))
+                .font(.system(size: 64))
                 .foregroundColor(.secondary)
             Text(NSLocalizedString("savedMoments.empty.title", comment: "Saved moments empty title"))
                 .font(.custom("Poppins-Bold", size: 23))
@@ -861,6 +862,11 @@ struct SavedMomentsView: View {
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 26)
+            Text(NSLocalizedString("savedMoments.empty.tip", comment: "Saved moments empty tip"))
+                .font(.custom("Poppins-Medium", size: 13))
+                .foregroundColor(.secondary)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 30)
         }
     }
     
@@ -1476,11 +1482,16 @@ struct ModernSavedDetailHeader: View {
             Button(action: onRemove) {
                 Image(systemName: "bookmark.slash")
                     .font(.system(size: 16, weight: .semibold))
-                    .foregroundColor(colorScheme == .dark ? .white.opacity(0.92) : Color.red.opacity(0.9))
+                    .foregroundColor(iconColor)
                     .frame(width: 44, height: 44)
-                    .background(Color.red.opacity(colorScheme == .dark ? 0.28 : 0.16))
+                    .background(.ultraThinMaterial)
                     .clipShape(Circle())
-                    .overlay(Circle().stroke(Color.red.opacity(colorScheme == .dark ? 0.45 : 0.35), lineWidth: 1))
+                    .overlay(
+                        Circle().stroke(
+                            colorScheme == .dark ? Color.white.opacity(0.2) : Color.black.opacity(0.12),
+                            lineWidth: 1
+                        )
+                    )
             }
         }
         .padding(.horizontal, 16)

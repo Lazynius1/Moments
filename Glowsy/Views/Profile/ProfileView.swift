@@ -77,49 +77,142 @@ enum ProfileTabType: String, CaseIterable {
 // MARK: - ✅ NUEVO: Pill Tabs Component
 struct ProfilePillTabs: View {
     @Binding var selectedTab: ProfileTabType
-    @Namespace private var animation
     @Environment(\.colorScheme) var colorScheme
+    @State private var transientOffset: CGFloat = 0
     
     var body: some View {
-        HStack(spacing: 0) {
-            ForEach(ProfileTabType.allCases, id: \.self) { tab in
-                Button(action: {
-                    withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                        selectedTab = tab
-                    }
-                }) {
-                    HStack(spacing: 6) {
-                        Image(systemName: tab.icon)
-                            .font(.system(size: 14, weight: .medium))
-                        
-                        Text(tab.localizedTitle)
-                            .font(.custom("Poppins-SemiBold", size: 13))
-                    }
-                    .foregroundColor(selectedTab == tab ? .white : ProfileColors.textSecondary)
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 10)
-                    .background(
-                        ZStack {
-                            if selectedTab == tab {
-                                Capsule()
-                                    .fill(
-                                        LinearGradient(
-                                            colors: [ProfileColors.accent, ProfileColors.blue],
-                                            startPoint: .topLeading,
-                                            endPoint: .bottomTrailing
-                                        )
-                                    )
-                                    .matchedGeometryEffect(id: "TAB_INDICATOR", in: animation)
-                            }
-                        }
+        GeometryReader { proxy in
+            ZStack {
+                Capsule()
+                    .fill(colorScheme == .dark ? Color.white.opacity(0.06) : Color.black.opacity(0.05))
+                    .overlay(
+                        Capsule()
+                            .stroke(colorScheme == .dark ? Color.white.opacity(0.08) : Color.black.opacity(0.06), lineWidth: 0.75)
                     )
+
+                Capsule()
+                    .fill(Color.white.opacity(colorScheme == .dark ? 0.055 : 0.035))
+                    .frame(width: segmentWidth(for: proxy.size.width), height: 34)
+                    .liquidGlass(in: Capsule(), interactive: true)
+                    .shadow(color: .black.opacity(colorScheme == .dark ? 0.24 : 0.08), radius: 7, x: 0, y: 2)
+                    .offset(x: pillOffset(for: proxy.size.width))
+
+                HStack(spacing: 0) {
+                    ForEach(Array(ProfileTabType.allCases.enumerated()), id: \.element) { index, tab in
+                        Button(action: {
+                            if tab != selectedTab {
+                                HapticManager.shared.selection()
+                            }
+                            withAnimation(.smooth(duration: 0.18, extraBounce: 0.01)) {
+                                selectedTab = tab
+                                transientOffset = 0
+                            }
+                        }) {
+                            HStack(spacing: 6) {
+                                Image(systemName: tab.icon)
+                                    .font(.system(size: 13, weight: .medium))
+
+                                Text(tab.localizedTitle)
+                                    .font(.custom("Poppins-Medium", size: 13))
+                            }
+                            .foregroundColor(labelColor(for: index, width: proxy.size.width))
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                            .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                    }
                 }
+                .padding(.horizontal, 3)
+                .animation(.smooth(duration: 0.18, extraBounce: 0.01), value: visualIndex(for: proxy.size.width))
+
+                Capsule()
+                    .fill(Color.black.opacity(0.001))
+                    .contentShape(Capsule())
+                    .highPriorityGesture(
+                        DragGesture(minimumDistance: 0, coordinateSpace: .local)
+                            .onChanged { value in
+                                var transaction = Transaction()
+                                transaction.animation = nil
+                                withTransaction(transaction) {
+                                    transientOffset = constrainedTranslation(value.translation.width, width: proxy.size.width)
+                                }
+                            }
+                            .onEnded { value in
+                                settleSelection(translation: value.translation.width, locationX: value.location.x, width: proxy.size.width)
+                            }
+                    )
             }
         }
-        .padding(4)
-        .background(ProfileColors.cardBackground)
-        .clipShape(Capsule())
-        .shadow(color: ProfileColors.shadowColor, radius: 6, x: 0, y: 3)
+        .frame(height: 42)
+    }
+
+    private var currentIndex: Int {
+        ProfileTabType.allCases.firstIndex(of: selectedTab) ?? 0
+    }
+
+    private func segmentWidth(for totalWidth: CGFloat) -> CGFloat {
+        let innerWidth = totalWidth - 6
+        return innerWidth / CGFloat(ProfileTabType.allCases.count)
+    }
+
+    private func baseOffset(for totalWidth: CGFloat) -> CGFloat {
+        let segmentWidth = segmentWidth(for: totalWidth)
+        let start = -((CGFloat(ProfileTabType.allCases.count - 1) * segmentWidth) / 2)
+        return start + (CGFloat(currentIndex) * segmentWidth)
+    }
+
+    private func pillOffset(for totalWidth: CGFloat) -> CGFloat {
+        baseOffset(for: totalWidth) + transientOffset
+    }
+
+    private func visualIndex(for totalWidth: CGFloat) -> Int {
+        let width = segmentWidth(for: totalWidth)
+        let start = -((CGFloat(ProfileTabType.allCases.count - 1) * width) / 2)
+        let raw = ((pillOffset(for: totalWidth) - start) / width).rounded()
+        return min(max(Int(raw), 0), ProfileTabType.allCases.count - 1)
+    }
+
+    private func labelColor(for index: Int, width: CGFloat) -> Color {
+        visualIndex(for: width) == index ? ProfileColors.textPrimary : ProfileColors.textSecondary
+    }
+
+    private func constrainedTranslation(_ translation: CGFloat, width: CGFloat) -> CGFloat {
+        let segment = segmentWidth(for: width)
+        let minOffset = -((CGFloat(ProfileTabType.allCases.count - 1) * segment) / 2)
+        let maxOffset = ((CGFloat(ProfileTabType.allCases.count - 1) * segment) / 2)
+        let proposed = baseOffset(for: width) + translation
+        let clamped = min(max(proposed, minOffset), maxOffset)
+        return clamped - baseOffset(for: width)
+    }
+
+    private func settleSelection(translation: CGFloat, locationX: CGFloat, width: CGFloat) {
+        let segment = segmentWidth(for: width)
+        let rawIndex = Int((locationX / segment).clamped(to: 0...(CGFloat(ProfileTabType.allCases.count) - 0.001)))
+        let threshold = min(segment * 0.28, 36)
+        let targetIndex: Int
+
+        if abs(translation) > threshold {
+            let direction = translation > 0 ? 1 : -1
+            targetIndex = min(max(currentIndex + direction, 0), ProfileTabType.allCases.count - 1)
+        } else {
+            targetIndex = min(max(rawIndex, 0), ProfileTabType.allCases.count - 1)
+        }
+
+        let targetTab = ProfileTabType.allCases[targetIndex]
+        if targetTab != selectedTab {
+            HapticManager.shared.selection()
+        }
+
+        withAnimation(.smooth(duration: 0.18, extraBounce: 0.01)) {
+            selectedTab = targetTab
+            transientOffset = 0
+        }
+    }
+}
+
+private extension CGFloat {
+    func clamped(to range: ClosedRange<CGFloat>) -> CGFloat {
+        Swift.min(Swift.max(self, range.lowerBound), range.upperBound)
     }
 }
 
@@ -532,20 +625,7 @@ struct ModernProfileContentView: View {
                         
                         VStack(spacing: 0) {
                             // ✅ NUEVO: Pill Tabs para cambiar entre Moments y Guardados
-                            HStack {
-                                ProfilePillTabs(selectedTab: $selectedProfileTab)
-                                
-                                Spacer()
-                                
-                                // Contador del tab seleccionado
-                                Text("\(selectedProfileTab == .moments ? viewModel.moments.count : savedMomentsViewModel.moments.count)")
-                                    .font(.custom("Poppins-Medium", size: 12))
-                                    .foregroundColor(ProfileColors.textSecondary)
-                                    .padding(.horizontal, 9)
-                                    .padding(.vertical, 5)
-                                    .background(ProfileColors.cardBackground)
-                                    .clipShape(Capsule())
-                            }
+                            ProfilePillTabs(selectedTab: $selectedProfileTab)
                             .padding(.horizontal, 20)
                             .padding(.bottom, 8)
                             .frame(maxWidth: UIScreen.main.bounds.width)
@@ -631,29 +711,18 @@ struct ModernProfileContentView: View {
                             
                             case .tagged:
                                 // ✅ NUEVO: Contenido de momentos donde has sido etiquetado
-                                VStack {
+                                Group {
                                     if viewModel.isLoadingTagged {
                                         ProgressView()
                                             .tint(.white)
                                             .frame(height: 400)
                                     } else if viewModel.taggedMoments.isEmpty {
-                                        VStack(spacing: 16) {
-                                            Image(systemName: "person.crop.rectangle")
-                                                .font(.system(size: 56))
-                                                .foregroundColor(.white.opacity(0.5))
-                                            
-                                            Text(NSLocalizedString("profile.tagged.empty.title", comment: ""))
-                                                .font(.title3)
-                                                .fontWeight(.semibold)
-                                                .foregroundColor(.white)
-                                            
-                                            Text(NSLocalizedString("profile.tagged.empty.description", comment: ""))
-                                                .font(.caption)
-                                                .foregroundColor(.white.opacity(0.7))
-                                                .multilineTextAlignment(.center)
-                                                .padding(.horizontal, 32)
-                                        }
-                                        .frame(height: 400)
+                                        ProfileSectionEmptyState(
+                                            icon: "person.crop.rectangle",
+                                            titleKey: "profile.tagged.empty.title",
+                                            subtitleKey: "profile.tagged.empty.description"
+                                        )
+                                        .frame(height: 400, alignment: .top)
                                     } else {
                                         LazyVGrid(columns: [
                                             GridItem(.flexible(), spacing: 4),
@@ -1689,139 +1758,58 @@ struct ModernMomentThumbnail: View {
 
 
 // MARK: - Estado vacío para momentos
-struct ModernEmptyMomentsView: View {
-    @Environment(\.colorScheme) var colorScheme
-    
+struct ProfileSectionEmptyState: View {
+    let icon: String
+    let titleKey: LocalizedStringKey
+    let subtitleKey: LocalizedStringKey
+
     var body: some View {
-        VStack(spacing: 18) {
+        VStack(spacing: 14) {
             ZStack {
                 Circle()
-                    .fill(ProfileColors.materialBackground)
-                    .frame(width: 80, height: 80)
-                    .overlay(
-                        Circle()
-                            .stroke(
-                                LinearGradient(
-                                    colors: [
-                                        ProfileColors.accent.opacity(0.4),
-                                        ProfileColors.borderColor
-                                    ],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                ),
-                                lineWidth: 2
-                            )
-                    )
-                
-                Image(systemName: "camera.circle")
-                    .font(.system(size: 40))
-                    .foregroundStyle(
-                        LinearGradient(
-                            colors: [ProfileColors.accent, ProfileColors.textSecondary],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
+                    .fill(ProfileColors.textPrimary.opacity(0.05))
+                    .frame(width: 54, height: 54)
+
+                Image(systemName: icon)
+                    .font(.system(size: 22, weight: .medium))
+                    .foregroundColor(ProfileColors.textSecondary.opacity(0.7))
             }
-            
-            VStack(spacing: 8) {
-                Text("profile.moments.empty.title")
-                    .font(.custom("Poppins-SemiBold", size: 16))
+
+            VStack(spacing: 6) {
+                Text(titleKey)
+                    .font(.custom("Poppins-SemiBold", size: 17))
                     .foregroundColor(ProfileColors.textPrimary)
-                
-                Text("profile.moments.empty.subtitle")
+
+                Text(subtitleKey)
                     .font(.custom("Poppins-Regular", size: 14))
                     .foregroundColor(ProfileColors.textSecondary)
                     .multilineTextAlignment(.center)
-                    .padding(.horizontal, 20)
+                    .padding(.horizontal, 24)
             }
         }
         .frame(maxWidth: .infinity)
-        .padding(.vertical, 50)
-        .background(ProfileColors.cardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: 20))
-        .overlay(
-            RoundedRectangle(cornerRadius: 20)
-                .stroke(
-                    LinearGradient(
-                        colors: [
-                            ProfileColors.borderColor,
-                            ProfileColors.accent.opacity(0.2)
-                        ],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    ),
-                    lineWidth: 1
-                )
+        .padding(.vertical, 56)
+    }
+}
+
+// MARK: - Estado vacío para momentos
+struct ModernEmptyMomentsView: View {
+    var body: some View {
+        ProfileSectionEmptyState(
+            icon: "camera",
+            titleKey: "profile.moments.empty.title",
+            subtitleKey: "profile.moments.empty.subtitle"
         )
     }
 }
 
 // MARK: - ✅ NUEVO: Placeholder para Guardados
 struct ProfileSavedPlaceholder: View {
-    @Environment(\.colorScheme) var colorScheme
-    
     var body: some View {
-        VStack(spacing: 18) {
-            ZStack {
-                Circle()
-                    .fill(ProfileColors.materialBackground)
-                    .frame(width: 80, height: 80)
-                    .overlay(
-                        Circle()
-                            .stroke(
-                                LinearGradient(
-                                    colors: [
-                                        ProfileColors.blue.opacity(0.4),
-                                        ProfileColors.borderColor
-                                    ],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                ),
-                                lineWidth: 2
-                            )
-                    )
-                
-                Image(systemName: "bookmark.circle")
-                    .font(.system(size: 40))
-                    .foregroundStyle(
-                        LinearGradient(
-                            colors: [ProfileColors.blue, ProfileColors.textSecondary],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
-            }
-            
-            VStack(spacing: 8) {
-                Text(NSLocalizedString("profile.saved.empty.title", comment: "No saved content"))
-                    .font(.custom("Poppins-SemiBold", size: 16))
-                    .foregroundColor(ProfileColors.textPrimary)
-                
-                Text(NSLocalizedString("profile.saved.empty.subtitle", comment: "Your saved moments will appear here"))
-                    .font(.custom("Poppins-Regular", size: 14))
-                    .foregroundColor(ProfileColors.textSecondary)
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal, 20)
-            }
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 50)
-        .background(ProfileColors.cardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: 20))
-        .overlay(
-            RoundedRectangle(cornerRadius: 20)
-                .stroke(
-                    LinearGradient(
-                        colors: [
-                            ProfileColors.borderColor,
-                            ProfileColors.blue.opacity(0.2)
-                        ],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    ),
-                    lineWidth: 1
-                )
+        ProfileSectionEmptyState(
+            icon: "bookmark",
+            titleKey: LocalizedStringKey("profile.saved.empty.title"),
+            subtitleKey: LocalizedStringKey("profile.saved.empty.subtitle")
         )
     }
 }
@@ -1912,19 +1900,33 @@ struct ProfileSavedContent: View {
                 .padding(.horizontal, 20)
         } else {
             VStack(spacing: 14) {
-                HStack(spacing: 10) {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(NSLocalizedString("profile.tab.saved", comment: "Saved tab title"))
-                            .font(.custom("Poppins-Bold", size: 18))
-                            .foregroundColor(ProfileColors.textPrimary)
-                        
-                        Text(String(format: NSLocalizedString("savedMoments.count", comment: "Saved moments count"), viewModel.moments.count))
-                            .font(.custom("Poppins-Medium", size: 12))
-                            .foregroundColor(ProfileColors.textSecondary)
+                HStack(alignment: .center, spacing: 10) {
+                    HStack(spacing: 8) {
+                        ForEach(SavedQuickFilter.allCases, id: \.self) { filter in
+                            Button(action: {
+                                withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                                    selectedFilter = filter
+                                }
+                            }) {
+                                Text(filter.title)
+                                    .font(.custom("Poppins-Medium", size: 12))
+                                    .foregroundColor(selectedFilter == filter ? ProfileColors.textPrimary : ProfileColors.textSecondary)
+                                    .padding(.horizontal, 12)
+                                    .padding(.vertical, 8)
+                                    .background(
+                                        Color.clear.liquidGlass(
+                                            in: Capsule(),
+                                            interactive: true
+                                        )
+                                        .opacity(selectedFilter == filter ? 1 : 0.78)
+                                    )
+                            }
+                            .scaleEffect(selectedFilter == filter ? 1.0 : 0.985)
+                        }
                     }
                     
                     Spacer()
-                    
+
                     Button(action: {
                         showingSavedManager = true
                     }) {
@@ -1937,42 +1939,10 @@ struct ProfileSavedContent: View {
                         .foregroundColor(ProfileColors.textPrimary)
                         .padding(.horizontal, 10)
                         .padding(.vertical, 8)
-                        .background(ProfileColors.cardBackground)
-                        .clipShape(Capsule())
+                        .background(Color.clear.liquidGlass(in: Capsule(), interactive: true))
                     }
                 }
                 .padding(.horizontal, 20)
-                
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 8) {
-                        ForEach(SavedQuickFilter.allCases, id: \.self) { filter in
-                            Button(action: {
-                                withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-                                    selectedFilter = filter
-                                }
-                            }) {
-                                Text(filter.title)
-                                    .font(.custom("Poppins-Medium", size: 12))
-                                    .foregroundColor(selectedFilter == filter ? .white : ProfileColors.textPrimary)
-                                    .padding(.horizontal, 12)
-                                    .padding(.vertical, 8)
-                                    .background(
-                                        Capsule()
-                                            .fill(
-                                                selectedFilter == filter
-                                                ? AnyShapeStyle(LinearGradient(
-                                                    colors: [ProfileColors.accent, ProfileColors.blue],
-                                                    startPoint: .topLeading,
-                                                    endPoint: .bottomTrailing
-                                                ))
-                                                : AnyShapeStyle(ProfileColors.cardBackground)
-                                            )
-                                    )
-                            }
-                        }
-                    }
-                    .padding(.horizontal, 20)
-                }
                 
                 if previewMoments.isEmpty {
                     VStack(spacing: 8) {

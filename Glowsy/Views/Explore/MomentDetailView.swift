@@ -281,9 +281,6 @@ struct MomentDetailView: View {
             }
             .padding(.horizontal, 20)
             .padding(.vertical, 8)
-            
-            Divider()
-                .background(Color.white.opacity(0.04))
         }
         .background(colorScheme == .dark ? Color(hex: "0B1215") : Color(hex: "FAF9F6"))
     }

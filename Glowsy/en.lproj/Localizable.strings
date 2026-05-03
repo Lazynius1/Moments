@@ -1038,7 +1038,6 @@
 "contentVisibility.viewOnlyMode" = "View only mode";
 "contentVisibility.viewOnlyMode.description" = "Users can only view your content, no interactions";
 "contentVisibility.interactionsConfig.title" = "Configure interactions";
-"contentVisibility.interactionsConfig.description" = "Customize how users can interact with your stories";
 "contentVisibility.info.title" = "Information";
 "contentVisibility.info.description" = "These settings apply to all your content";
 
@@ -1460,6 +1459,7 @@
 "savedMoments.filter.collection.multiple" = "Carousel";
 "savedMoments.empty.filtered.title" = "No results for these filters";
 "savedMoments.empty.filtered.description" = "Try removing filters or clearing search.";
+"savedMoments.clearFilters" = "Clear filters";
 "savedMoments.selection.count" = "%d selected";
 "savedMoments.selection.remove.title" = "Remove selected";
 "savedMoments.selection.remove.message" = "This will remove %d items from saved.";
@@ -1469,12 +1469,15 @@
 "contentVisibility.interactions.title" = "Interaction settings";
 "contentVisibility.hideFrom" = "Hide my content from";
 "contentVisibility.hiddenCount" = "%d people cannot see your content";
+"contentVisibility.hiddenUsers.section" = "Hidden from these people";
+"contentVisibility.searchResults.section" = "Search results";
 "contentVisibility.additionalRestrictions" = "Additional restrictions";
 "contentVisibility.manageCustomLists" = "Manage custom lists";
 "contentVisibility.createEditAudience" = "Create and edit audience lists";
 "contentVisibility.audienceLists" = "Audience lists";
 "contentVisibility.interactionsConfig.title" = "Interaction Settings";
-"contentVisibility.interactionsConfig.description" = "Control what type of interactions other users can make on your stories. This setting will apply to all your future stories.";
+"contentVisibility.interactionsConfig.description" = "Customize what type of interactions other users can make on your stories.";
+"contentVisibility.interactionsConfig.subtitle" = "This setting will apply to all your current and future stories.";
 "contentVisibility.viewOnlyMode" = "View-only mode";
 "contentVisibility.viewOnlyMode.description" = "Users will only be able to see your stories, without being able to interact";
 "contentVisibility.cancel" = "Cancel";
@@ -2764,6 +2767,8 @@
 "echo.info.how.body" = "Echo detects moments from mutuals in the same area (up to 500 m) and time window (24 h). Once active, you can navigate between perspectives (bottom bar) and moments (up/down).";
 "echo.info.privacy.title" = "Privacy";
 "echo.info.privacy.body" = "Echo is created between mutuals, but it keeps who could view it at that time. If the relationship changes later, it remains visible; it only blurs when the moment audience (best friends or custom list) does not include you. Inside Echo, you see your moments and moments from participants who accepted.";
+"echo.info.status.title" = "States";
+"echo.info.status.body" = "Active means the Echo is still open and other people can still join during its 24-hour window. Expired means that window has ended and the Echo closes, so no one else can join.";
 "echo.info.controls.title" = "Controls";
 "echo.info.controls.body" = "Swipe up/down to change moments, use the bottom bar to switch perspectives, and the menu to leave the Echo. You cannot leave while the Echo is active: leaving unlocks when its 24 h window ends. If you leave, your moments are removed from that Echo.";
 

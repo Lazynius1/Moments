@@ -33,6 +33,12 @@ private struct FeedProfileSheetRoute: Identifiable {
     var id: String { userId }
 }
 
+private struct FeedEchoInvitationRoute: Identifiable {
+    let echoId: String
+
+    var id: String { echoId }
+}
+
 struct FeedView: View {
     private typealias StoryUserState = (userId: String, hasStory: Bool, hasUnseenStory: Bool, storyCount: Int, storyViewedStatus: [Bool], storyAudiences: [String?])
 
@@ -109,6 +115,7 @@ struct FeedView: View {
     @State private var showEchoHistory = false
     @State private var showPendingEchoInvitation = false
     @State private var selectedPendingEchoId: String = ""
+    @State private var pendingEchoInvitationRoute: FeedEchoInvitationRoute?
     @State private var pendingEchoesListener: ListenerRegistration?
     
     private var adaptiveColors: AdaptiveColors {
@@ -219,6 +226,22 @@ struct FeedView: View {
                 Spacer() // Para que se mantenga arriba
             }
             .zIndex(2000) // Por encima de todo
+
+            if let route = pendingEchoInvitationRoute {
+                EchoInvitationView(
+                    echoId: route.echoId,
+                    onDismiss: {
+                        pendingEchoInvitationRoute = nil
+                        showPendingEchoInvitation = false
+                        selectedPendingEchoId = ""
+                    },
+                    onAccept: { echoId in
+                        NotificationNavigationService.shared.pendingNavigation = .echo(echoId)
+                    }
+                )
+                .transition(.opacity.combined(with: .scale(scale: 0.98)))
+                .zIndex(2100)
+            }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
             .onAppear {
@@ -458,21 +481,10 @@ struct FeedView: View {
                     .id($0.userId)
             }
             // 🌊 ECHOES: Sheet para invitación pendiente
-            .sheet(isPresented: $showPendingEchoInvitation) {
-                if !selectedPendingEchoId.isEmpty {
-                    EchoInvitationView(
-                        echoId: selectedPendingEchoId,
-                        isPresented: $showPendingEchoInvitation,
-                        onAccept: { echoId in
-                            // Navegar al visor tras aceptar
-                            NotificationNavigationService.shared.pendingNavigation = .echo(echoId)
-                        }
-                    )
-                }
-            }
             // 🌊 ECHOES: Sheet para historial
             .sheet(isPresented: $showEchoHistory) {
                 EchoHistoryView()
+                    .presentationDetents([.medium, .large])
             }
         // 🔗 STORY CHAINS: Eliminado en Feed; centralizado en StoryModels
     }
@@ -747,6 +759,7 @@ struct FeedView: View {
                                 if let firstPending = pendingEchoes.first, let echoId = firstPending.id {
                                     selectedPendingEchoId = echoId
                                     showPendingEchoInvitation = true
+                                    pendingEchoInvitationRoute = FeedEchoInvitationRoute(echoId: echoId)
                                 }
                             }
                             Button(NSLocalizedString("feed.echo.actions.viewHistory", comment: "View echo history")) {

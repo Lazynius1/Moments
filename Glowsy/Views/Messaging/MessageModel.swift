@@ -13,7 +13,11 @@ struct Conversation: Identifiable, Codable, Hashable {
     let otherParticipantUsername: String?
     let otherParticipantProfileImagePath: String?
     let isPinned: Bool?
+    let pinnedByUserIds: [String]?
+    let pinnedBy: String?
     let isMuted: Bool?
+    let mutedByUserIds: [String]?
+    let mutedBy: String?
     let encryptionVersion: String?
     let conversationKeyVersion: Int?
     let wrappedKeys: [String: WrappedConversationKey]?
@@ -39,7 +43,11 @@ struct Conversation: Identifiable, Codable, Hashable {
         case otherParticipantUsername
         case otherParticipantProfileImagePath
         case isPinned
+        case pinnedByUserIds
+        case pinnedBy
         case isMuted
+        case mutedByUserIds
+        case mutedBy
         case encryptionVersion
         case conversationKeyVersion
         case wrappedKeys
@@ -56,7 +64,11 @@ struct Conversation: Identifiable, Codable, Hashable {
         otherParticipantUsername: String?,
         otherParticipantProfileImagePath: String?,
         isPinned: Bool? = false,
+        pinnedByUserIds: [String]? = nil,
+        pinnedBy: String? = nil,
         isMuted: Bool? = false,
+        mutedByUserIds: [String]? = nil,
+        mutedBy: String? = nil,
         encryptionVersion: String? = nil,
         conversationKeyVersion: Int? = nil,
         wrappedKeys: [String: WrappedConversationKey]? = nil
@@ -70,7 +82,11 @@ struct Conversation: Identifiable, Codable, Hashable {
         self.otherParticipantUsername = otherParticipantUsername
         self.otherParticipantProfileImagePath = otherParticipantProfileImagePath
         self.isPinned = isPinned
+        self.pinnedByUserIds = pinnedByUserIds
+        self.pinnedBy = pinnedBy
         self.isMuted = isMuted
+        self.mutedByUserIds = mutedByUserIds
+        self.mutedBy = mutedBy
         self.encryptionVersion = encryptionVersion
         self.conversationKeyVersion = conversationKeyVersion
         self.wrappedKeys = wrappedKeys
@@ -89,7 +105,11 @@ struct Conversation: Identifiable, Codable, Hashable {
         self.otherParticipantUsername = try container.decodeIfPresent(String.self, forKey: .otherParticipantUsername)
         self.otherParticipantProfileImagePath = try container.decodeIfPresent(String.self, forKey: .otherParticipantProfileImagePath)
         self.isPinned = try container.decodeIfPresent(Bool.self, forKey: .isPinned) ?? false
+        self.pinnedByUserIds = try container.decodeIfPresent([String].self, forKey: .pinnedByUserIds)
+        self.pinnedBy = try container.decodeIfPresent(String.self, forKey: .pinnedBy)
         self.isMuted = try container.decodeIfPresent(Bool.self, forKey: .isMuted) ?? false
+        self.mutedByUserIds = try container.decodeIfPresent([String].self, forKey: .mutedByUserIds)
+        self.mutedBy = try container.decodeIfPresent(String.self, forKey: .mutedBy)
         self.encryptionVersion = try container.decodeIfPresent(String.self, forKey: .encryptionVersion)
         self.conversationKeyVersion = try container.decodeIfPresent(Int.self, forKey: .conversationKeyVersion)
         self.wrappedKeys = try container.decodeIfPresent([String: WrappedConversationKey].self, forKey: .wrappedKeys)
@@ -107,11 +127,47 @@ struct Conversation: Identifiable, Codable, Hashable {
         try container.encodeIfPresent(otherParticipantUsername, forKey: .otherParticipantUsername)
         try container.encodeIfPresent(otherParticipantProfileImagePath, forKey: .otherParticipantProfileImagePath)
         try container.encodeIfPresent(isPinned, forKey: .isPinned)
+        try container.encodeIfPresent(pinnedByUserIds, forKey: .pinnedByUserIds)
+        try container.encodeIfPresent(pinnedBy, forKey: .pinnedBy)
         try container.encodeIfPresent(isMuted, forKey: .isMuted)
+        try container.encodeIfPresent(mutedByUserIds, forKey: .mutedByUserIds)
+        try container.encodeIfPresent(mutedBy, forKey: .mutedBy)
         try container.encodeIfPresent(encryptionVersion, forKey: .encryptionVersion)
         try container.encodeIfPresent(conversationKeyVersion, forKey: .conversationKeyVersion)
         try container.encodeIfPresent(wrappedKeys, forKey: .wrappedKeys)
         try container.encodeIfPresent(readReceiptPreferences, forKey: .readReceiptPreferences)
+    }
+
+    func isMuted(for userId: String?) -> Bool {
+        guard let userId, !userId.isEmpty else {
+            return isMuted ?? false
+        }
+
+        if mutedByUserIds?.contains(userId) == true {
+            return true
+        }
+
+        if isMuted == true, let mutedBy {
+            return mutedBy == userId
+        }
+
+        return false
+    }
+
+    func isPinned(for userId: String?) -> Bool {
+        guard let userId, !userId.isEmpty else {
+            return isPinned ?? false
+        }
+
+        if pinnedByUserIds?.contains(userId) == true {
+            return true
+        }
+
+        if isPinned == true, let pinnedBy {
+            return pinnedBy == userId
+        }
+
+        return false
     }
     
     // Propiedad calculada para obtener el número de mensajes no leídos

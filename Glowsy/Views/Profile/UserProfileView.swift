@@ -74,49 +74,137 @@ enum UserProfileTabType: String, CaseIterable {
 // ✅ NUEVO: Pills Tabs Component para UserProfile
 struct UserProfilePillTabs: View {
     @Binding var selectedTab: UserProfileTabType
-    @Namespace private var animation
     @Environment(\.colorScheme) var colorScheme
+    @State private var transientOffset: CGFloat = 0
     
     var body: some View {
-        HStack(spacing: 0) {
-            ForEach(UserProfileTabType.allCases, id: \.self) { tab in
-                Button(action: {
-                    withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                        selectedTab = tab
-                    }
-                }) {
-                    HStack(spacing: 6) {
-                        Image(systemName: tab.icon)
-                            .font(.system(size: 14, weight: .medium))
-                        
-                        Text(tab.localizedTitle)
-                            .font(.custom("Poppins-SemiBold", size: 13))
-                    }
-                    .foregroundColor(selectedTab == tab ? .white : UserProfileColors.textSecondary)
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 10)
-                    .background(
-                        ZStack {
-                            if selectedTab == tab {
-                                Capsule()
-                                    .fill(
-                                        LinearGradient(
-                                            colors: [UserProfileColors.accent, UserProfileColors.blue],
-                                            startPoint: .leading,
-                                            endPoint: .trailing
-                                        )
-                                    )
-                                    .matchedGeometryEffect(id: "USERPROFILETAB", in: animation)
-                            }
-                        }
+        GeometryReader { proxy in
+            ZStack {
+                Capsule()
+                    .fill(colorScheme == .dark ? Color.white.opacity(0.06) : Color.black.opacity(0.05))
+                    .overlay(
+                        Capsule()
+                            .stroke(colorScheme == .dark ? Color.white.opacity(0.08) : Color.black.opacity(0.06), lineWidth: 0.75)
                     )
+
+                Capsule()
+                    .fill(Color.white.opacity(colorScheme == .dark ? 0.055 : 0.035))
+                    .frame(width: segmentWidth(for: proxy.size.width), height: 34)
+                    .liquidGlass(in: Capsule(), interactive: true)
+                    .shadow(color: .black.opacity(colorScheme == .dark ? 0.24 : 0.08), radius: 7, x: 0, y: 2)
+                    .offset(x: pillOffset(for: proxy.size.width))
+
+                HStack(spacing: 0) {
+                    ForEach(Array(UserProfileTabType.allCases.enumerated()), id: \.element) { index, tab in
+                        Button(action: {
+                            if tab != selectedTab {
+                                HapticManager.shared.selection()
+                            }
+                            withAnimation(.smooth(duration: 0.18, extraBounce: 0.01)) {
+                                selectedTab = tab
+                                transientOffset = 0
+                            }
+                        }) {
+                            HStack(spacing: 6) {
+                                Image(systemName: tab.icon)
+                                    .font(.system(size: 13, weight: .medium))
+
+                                Text(tab.localizedTitle)
+                                    .font(.custom("Poppins-Medium", size: 13))
+                            }
+                            .foregroundColor(labelColor(for: index, width: proxy.size.width))
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                            .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                    }
                 }
+                .padding(.horizontal, 3)
+                .animation(.smooth(duration: 0.18, extraBounce: 0.01), value: visualIndex(for: proxy.size.width))
+
+                Capsule()
+                    .fill(Color.black.opacity(0.001))
+                    .contentShape(Capsule())
+                    .highPriorityGesture(
+                        DragGesture(minimumDistance: 0, coordinateSpace: .local)
+                            .onChanged { value in
+                                var transaction = Transaction()
+                                transaction.animation = nil
+                                withTransaction(transaction) {
+                                    transientOffset = constrainedTranslation(value.translation.width, width: proxy.size.width)
+                                }
+                            }
+                            .onEnded { value in
+                                settleSelection(translation: value.translation.width, locationX: value.location.x, width: proxy.size.width)
+                            }
+                    )
             }
         }
-        .padding(4)
-        .background(UserProfileColors.cardBackground)
-        .clipShape(Capsule())
-        .shadow(color: UserProfileColors.shadowColor, radius: 6, x: 0, y: 3)
+        .frame(height: 42)
+    }
+
+    private var currentIndex: Int {
+        UserProfileTabType.allCases.firstIndex(of: selectedTab) ?? 0
+    }
+
+    private func segmentWidth(for totalWidth: CGFloat) -> CGFloat {
+        let innerWidth = totalWidth - 6
+        return innerWidth / CGFloat(UserProfileTabType.allCases.count)
+    }
+
+    private func baseOffset(for totalWidth: CGFloat) -> CGFloat {
+        let segmentWidth = segmentWidth(for: totalWidth)
+        let start = -((CGFloat(UserProfileTabType.allCases.count - 1) * segmentWidth) / 2)
+        return start + (CGFloat(currentIndex) * segmentWidth)
+    }
+
+    private func pillOffset(for totalWidth: CGFloat) -> CGFloat {
+        baseOffset(for: totalWidth) + transientOffset
+    }
+
+    private func visualIndex(for totalWidth: CGFloat) -> Int {
+        let width = segmentWidth(for: totalWidth)
+        let start = -((CGFloat(UserProfileTabType.allCases.count - 1) * width) / 2)
+        let raw = ((pillOffset(for: totalWidth) - start) / width).rounded()
+        return min(max(Int(raw), 0), UserProfileTabType.allCases.count - 1)
+    }
+
+    private func labelColor(for index: Int, width: CGFloat) -> Color {
+        visualIndex(for: width) == index ? UserProfileColors.textPrimary : UserProfileColors.textSecondary
+    }
+
+    private func constrainedTranslation(_ translation: CGFloat, width: CGFloat) -> CGFloat {
+        let segment = segmentWidth(for: width)
+        let minOffset = -((CGFloat(UserProfileTabType.allCases.count - 1) * segment) / 2)
+        let maxOffset = ((CGFloat(UserProfileTabType.allCases.count - 1) * segment) / 2)
+        let proposed = baseOffset(for: width) + translation
+        let clamped = min(max(proposed, minOffset), maxOffset)
+        return clamped - baseOffset(for: width)
+    }
+
+    private func settleSelection(translation: CGFloat, locationX: CGFloat, width: CGFloat) {
+        let segment = segmentWidth(for: width)
+        let normalizedLocation = min(max(locationX / segment, 0), CGFloat(UserProfileTabType.allCases.count) - 0.001)
+        let rawIndex = Int(normalizedLocation)
+        let threshold = min(segment * 0.28, 36)
+        let targetIndex: Int
+
+        if abs(translation) > threshold {
+            let direction = translation > 0 ? 1 : -1
+            targetIndex = min(max(currentIndex + direction, 0), UserProfileTabType.allCases.count - 1)
+        } else {
+            targetIndex = min(max(rawIndex, 0), UserProfileTabType.allCases.count - 1)
+        }
+
+        let targetTab = UserProfileTabType.allCases[targetIndex]
+        if targetTab != selectedTab {
+            HapticManager.shared.selection()
+        }
+
+        withAnimation(.smooth(duration: 0.18, extraBounce: 0.01)) {
+            selectedTab = targetTab
+            transientOffset = 0
+        }
     }
 }
 
@@ -696,29 +784,18 @@ struct UserModernPublicProfileView: View {
                         
                         case .tagged:
                             // Contenido de momentos etiquetados
-                            VStack {
+                            Group {
                                 if viewModel.isLoadingTagged {
                                     ProgressView()
                                         .tint(UserProfileColors.textPrimary)
                                         .frame(height: 400)
                                 } else if viewModel.taggedMoments.isEmpty {
-                                    VStack(spacing: 16) {
-                                        Image(systemName: "person.crop.rectangle")
-                                            .font(.system(size: 56))
-                                            .foregroundColor(UserProfileColors.textSecondary.opacity(0.5))
-                                        
-                                        Text(NSLocalizedString("profile.tagged.empty.title", comment: ""))
-                                            .font(.title3)
-                                            .fontWeight(.semibold)
-                                            .foregroundColor(UserProfileColors.textPrimary)
-                                        
-                                        Text(NSLocalizedString("profile.tagged.empty.description", comment: ""))
-                                            .font(.caption)
-                                            .foregroundColor(UserProfileColors.textSecondary)
-                                            .multilineTextAlignment(.center)
-                                            .padding(.horizontal, 32)
-                                    }
-                                    .frame(height: 400)
+                                    ProfileSectionEmptyState(
+                                        icon: "person.crop.rectangle",
+                                        titleKey: "profile.tagged.empty.title",
+                                        subtitleKey: "profile.tagged.empty.description"
+                                    )
+                                    .frame(height: 400, alignment: .top)
                                 } else {
                                     GeometryReader { geometry in
                                         let spacing: CGFloat = 4
@@ -2544,69 +2621,11 @@ private func calculateGridHeight(itemCount: Int) -> CGFloat {
 
 // MARK: - ✅ NUEVO: Estado vacío moderno como ProfileView
 struct UserModernEmptyMomentsView: View {
-    @Environment(\.colorScheme) var colorScheme
-    
     var body: some View {
-        VStack(spacing: 18) {
-            ZStack {
-                Circle()
-                    .fill(UserProfileColors.materialBackground)
-                    .frame(width: 80, height: 80)
-                    .overlay(
-                        Circle()
-                            .stroke(
-                                LinearGradient(
-                                    colors: [
-                                        UserProfileColors.accent.opacity(0.4),
-                                        UserProfileColors.borderColor
-                                    ],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                ),
-                                lineWidth: 2
-                            )
-                    )
-                
-                Image(systemName: "camera.circle")
-                    .font(.system(size: 40))
-                    .foregroundStyle(
-                        LinearGradient(
-                            colors: [UserProfileColors.accent, UserProfileColors.textSecondary],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
-            }
-            
-            VStack(spacing: 8) {
-                Text("userProfile.noMoments.title")
-                    .font(.custom("Poppins-SemiBold", size: 16))
-                    .foregroundColor(UserProfileColors.textPrimary)
-                
-                Text("userProfile.noMoments.description")
-                    .font(.custom("Poppins-Regular", size: 14))
-                    .foregroundColor(UserProfileColors.textSecondary)
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal, 20)
-            }
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 50)
-        .background(UserProfileColors.cardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: 20))
-        .overlay(
-            RoundedRectangle(cornerRadius: 20)
-                .stroke(
-                    LinearGradient(
-                        colors: [
-                            UserProfileColors.borderColor,
-                            UserProfileColors.accent.opacity(0.2)
-                        ],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    ),
-                    lineWidth: 1
-                )
+        ProfileSectionEmptyState(
+            icon: "camera",
+            titleKey: "userProfile.noMoments.title",
+            subtitleKey: "userProfile.noMoments.description"
         )
     }
 }

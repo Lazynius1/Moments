@@ -10,6 +10,8 @@ struct ContentVisibilityView: View {
     @State private var showingStoryAudienceSelector = false
     @State private var showingPostAudienceSelector = false
     @State private var showingStoryInteractionSettings = false // ✅ NUEVO
+    @State private var showingCustomAudienceLists = false
+    @State private var showingHiddenFromView = false
     
     var body: some View {
         NavigationView {
@@ -116,7 +118,7 @@ struct ContentVisibilityView: View {
                                 .padding(.leading, 4)
                                 
                                 VStack(spacing: 0) {
-                                    NavigationLink(destination: HiddenFromView(viewModel: viewModel)) {
+                                    Button(action: { showingHiddenFromView = true }) {
                                         HStack(spacing: 14) {
                                             Image(systemName: "eye.slash")
                                                 .foregroundColor(colorScheme == .dark ? .white : .black)
@@ -136,6 +138,7 @@ struct ContentVisibilityView: View {
                                         .padding(.vertical, 11)
                                         .padding(.horizontal, 4)
                                     }
+                                    .buttonStyle(.plain)
                                 }
                             }
                             
@@ -147,7 +150,7 @@ struct ContentVisibilityView: View {
                                     .padding(.leading, 4)
                                 
                                 VStack(spacing: 0) {
-                                    NavigationLink(destination: CustomAudienceListsView()) {
+                                    Button(action: { showingCustomAudienceLists = true }) {
                                         HStack(spacing: 14) {
                                             Image(systemName: "list.bullet.rectangle")
                                                 .foregroundColor(colorScheme == .dark ? .white : .black)
@@ -167,6 +170,7 @@ struct ContentVisibilityView: View {
                                         .padding(.vertical, 11)
                                         .padding(.horizontal, 4)
                                     }
+                                    .buttonStyle(.plain)
                                 }
                             }
                         }
@@ -204,6 +208,18 @@ struct ContentVisibilityView: View {
             // ✅ NUEVO: Sheet para configuración de interacciones
             .sheet(isPresented: $showingStoryInteractionSettings) {
                 StoryInteractionSettingsView(viewModel: viewModel)
+                    .presentationDetents([.medium])
+                    .presentationDragIndicator(.visible)
+            }
+            .sheet(isPresented: $showingCustomAudienceLists) {
+                CustomAudienceListsView()
+                    .presentationDetents([.medium, .large])
+                    .presentationDragIndicator(.visible)
+            }
+            .sheet(isPresented: $showingHiddenFromView) {
+                HiddenFromView(viewModel: viewModel)
+                    .presentationDetents([.medium, .large])
+                    .presentationDragIndicator(.visible)
             }
         }
     }
@@ -297,101 +313,86 @@ struct StoryInteractionSettingsView: View {
     @Environment(\.colorScheme) var colorScheme
     
     var body: some View {
-        NavigationView {
-            VStack(spacing: 0) {
-                // Header informativo
-                VStack(alignment: .leading, spacing: 12) {
-                    HStack {
-                        Image(systemName: "info.circle")
-                            .foregroundColor(Color(hex: "4F46E5"))
-                            .font(.system(size: 18))
-                        
-                        Text(NSLocalizedString("contentVisibility.interactionsConfig.title", comment: "Configure interactions title"))
-                            .font(.custom("Poppins-SemiBold", size: 16))
-                            .foregroundColor(colorScheme == .dark ? .white : .black)
-                    }
-                    
-                    Text(NSLocalizedString("contentVisibility.interactionsConfig.description", comment: "Configure interactions description"))
-                        .font(.custom("Poppins-Regular", size: 14))
-                        .foregroundColor(.gray)
-                        .fixedSize(horizontal: false, vertical: true)
+        VStack(spacing: 0) {
+            HStack {
+                Button(action: { dismiss() }) {
+                    Image(systemName: "chevron.down")
+                        .font(.system(size: 17, weight: .semibold))
+                        .foregroundColor(colorScheme == .dark ? .white : .black)
+                        .frame(width: 44, height: 44)
+                        .liquidGlass(in: Circle(), interactive: true)
                 }
-                .padding(20)
-                .background(
-                    RoundedRectangle(cornerRadius: 16)
-                        .fill(Color(hex: "4F46E5").opacity(0.1))
-                )
-                .padding(.horizontal, 20)
-                .padding(.top, 20)
-                
-                // Opciones de configuración
+
+                Spacer()
+
+                Button(NSLocalizedString("contentVisibility.save", comment: "Save")) {
+                    viewModel.saveStoryInteractionSettings()
+                    dismiss()
+                }
+                .font(.custom("Poppins-SemiBold", size: 15))
+                .foregroundColor(colorScheme == .dark ? .white : .black)
+                .frame(height: 44)
+                .padding(.horizontal, 16)
+                .liquidGlass(in: Capsule(), interactive: true)
+            }
+            .padding(.horizontal, 12)
+            .padding(.top, 10)
+            .padding(.bottom, 10)
+
+            ScrollView(.vertical, showsIndicators: false) {
                 VStack(spacing: 16) {
+                    VStack(spacing: 4) {
+                        Text(NSLocalizedString("contentVisibility.interactionsConfig.description", comment: "Configure interactions description"))
+                            .font(.custom("Poppins-SemiBold", size: 15))
+                            .foregroundColor(colorScheme == .dark ? .white : .black)
+                            .multilineTextAlignment(.center)
+
+                        Text(NSLocalizedString("contentVisibility.interactionsConfig.subtitle", comment: "Configure interactions subtitle"))
+                            .font(.custom("Poppins-Regular", size: 13))
+                            .foregroundColor(.gray)
+                            .multilineTextAlignment(.center)
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.bottom, 6)
+
                     InteractionToggleRow(
                         icon: "message.fill",
                         title: NSLocalizedString("contentVisibility.interactions.messages.title", comment: "Messages"),
                         description: NSLocalizedString("contentVisibility.interactions.messages.description", comment: "Allow them to send you private messages from your stories"),
                         isOn: $viewModel.allowStoryMessages
                     )
-                    
+
                     InteractionToggleRow(
                         icon: "heart.fill",
                         title: NSLocalizedString("contentVisibility.interactions.reactions.title", comment: "Reactions"),
                         description: NSLocalizedString("contentVisibility.interactions.reactions.description", comment: "Allow them to react with emojis to your stories"),
                         isOn: $viewModel.allowStoryReactions
                     )
-                    
+
                     InteractionToggleRow(
                         icon: "camera.fill",
                         title: NSLocalizedString("contentVisibility.interactions.ephemeralPhotos.title", comment: "Ephemeral photos"),
                         description: NSLocalizedString("contentVisibility.interactions.ephemeralPhotos.description", comment: "Allow them to send photos as responses to your stories"),
                         isOn: $viewModel.allowStoryEphemeralPhotos
                     )
-                }
-                .padding(.horizontal, 20)
-                .padding(.top, 30)
-                
-                Spacer()
-                
-                // Información adicional
-                if !viewModel.allowStoryMessages && !viewModel.allowStoryReactions && !viewModel.allowStoryEphemeralPhotos {
-                    VStack(spacing: 8) {
-                        Image(systemName: "eye.slash")
-                            .font(.system(size: 24))
-                            .foregroundColor(.orange)
-                        
-                        Text(NSLocalizedString("contentVisibility.viewOnlyMode", comment: "View only mode label"))
-                            .font(.custom("Poppins-SemiBold", size: 16))
-                            .foregroundColor(.orange)
-                        
-                        Text(NSLocalizedString("contentVisibility.viewOnlyMode.description", comment: "View only mode description"))
-                            .font(.custom("Poppins-Regular", size: 14))
-                            .foregroundColor(.gray)
-                            .multilineTextAlignment(.center)
+
+                    if !viewModel.allowStoryMessages && !viewModel.allowStoryReactions && !viewModel.allowStoryEphemeralPhotos {
+                        VStack(spacing: 6) {
+                            Text(NSLocalizedString("contentVisibility.viewOnlyMode", comment: "View only mode label"))
+                                .font(.custom("Poppins-SemiBold", size: 15))
+                                .foregroundColor(colorScheme == .dark ? .white : .black)
+
+                            Text(NSLocalizedString("contentVisibility.viewOnlyMode.description", comment: "View only mode description"))
+                                .font(.custom("Poppins-Regular", size: 13))
+                                .foregroundColor(.gray)
+                                .multilineTextAlignment(.center)
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.top, 8)
                     }
-                    .padding(.horizontal, 20)
-                    .padding(.bottom, 20)
                 }
-            }
-            .background((colorScheme == .dark ? Color(hex: "0B1215") : Color(hex: "FAF9F6")).ignoresSafeArea())
-            .navigationTitle(NSLocalizedString("contentVisibility.interactions.navigation", comment: "Interactions"))
-            .navigationBarTitleDisplayMode(.inline)
-            .navigationBarBackButtonHidden(true)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button(NSLocalizedString("contentVisibility.cancel", comment: "Cancel")) {
-                        dismiss()
-                    }
-                    .foregroundColor(.gray)
-                }
-                
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button(NSLocalizedString("contentVisibility.save", comment: "Save")) {
-                        viewModel.saveStoryInteractionSettings()
-                        dismiss()
-                    }
-                    .foregroundColor(Color(hex: "4F46E5"))
-                    .fontWeight(.semibold)
-                }
+                .padding(.horizontal, 12)
+                .padding(.bottom, 24)
             }
         }
     }
@@ -409,7 +410,7 @@ struct InteractionToggleRow: View {
         HStack(spacing: 14) {
             Image(systemName: icon)
                 .font(.system(size: 19, weight: .regular))
-                .foregroundColor(isOn ? Color(hex: "4F46E5") : .gray)
+                .foregroundColor(colorScheme == .dark ? .white : .black)
                 .frame(width: 28, alignment: .center)
 
             VStack(alignment: .leading, spacing: 4) {
@@ -426,10 +427,9 @@ struct InteractionToggleRow: View {
             Spacer()
 
             Toggle("", isOn: $isOn)
-                .toggleStyle(SwitchToggleStyle(tint: Color(hex: "4F46E5")))
+                .toggleStyle(SwitchToggleStyle(tint: colorScheme == .dark ? .white.opacity(0.9) : .black.opacity(0.85)))
         }
         .padding(.vertical, 11)
-        .padding(.horizontal, 4)
         .animation(.easeInOut(duration: 0.2), value: isOn)
     }
 }
@@ -653,121 +653,128 @@ class ContentVisibilityViewModel: ObservableObject {
 // MARK: - Hidden From View y UserRowView (sin cambios)
 struct HiddenFromView: View {
     @Environment(\.colorScheme) var colorScheme
+    @Environment(\.dismiss) private var dismiss
     @ObservedObject var viewModel: ContentVisibilityViewModel
     @State private var searchText = ""
     @State private var searchResults: [AppUser] = []
     @State private var isSearching = false
     
     var body: some View {
-        VStack {
-            // Info header
-            VStack(alignment: .leading, spacing: 8) {
-                HStack {
-                    Image(systemName: "info.circle")
-                        .foregroundColor(Color(hex: "4F46E5"))
-                    
-                    Text(NSLocalizedString("contentVisibility.info.title", comment: "Information title"))
-                        .font(.custom("Poppins-SemiBold", size: 16))
-                        .foregroundColor(colorScheme == .dark ? .white : .black)
-                }
-                
-                Text(NSLocalizedString("contentVisibility.info.description", comment: "Information description"))
-                    .font(.custom("Poppins-Regular", size: 14))
-                    .foregroundColor(.gray)
-            }
-            .padding()
-            .background(
-                RoundedRectangle(cornerRadius: 12)
-                    .fill(Color(hex: "4F46E5").opacity(0.1))
-            )
-            .padding(.horizontal)
-            
-            // Search bar
+        VStack(spacing: 0) {
             HStack {
-                Image(systemName: "magnifyingglass")
-                    .foregroundColor(.gray)
-                
-                TextField("Buscar personas...", text: $searchText)
-                    .font(.custom("Poppins-Regular", size: 16))
-                    .onChange(of: searchText) { newValue in
-                        if !newValue.isEmpty {
-                            searchUsers(query: newValue)
-                        } else {
-                            searchResults = []
-                        }
-                    }
+                Button(action: { dismiss() }) {
+                    Image(systemName: "chevron.down")
+                        .font(.system(size: 17, weight: .semibold))
+                        .foregroundColor(colorScheme == .dark ? .white : .black)
+                        .frame(width: 44, height: 44)
+                        .liquidGlass(in: Circle(), interactive: true)
+                }
+
+                Spacer()
+
+                Text(NSLocalizedString("contentVisibility.hideContent.navigation", comment: "Hide Content"))
+                    .font(.custom("Poppins-SemiBold", size: 20))
+                    .foregroundColor(colorScheme == .dark ? .white : .black)
+
+                Spacer()
             }
-            .padding()
-            .background(
-                RoundedRectangle(cornerRadius: 12)
-                    .fill(colorScheme == .dark ? Color(hex: "FAF9F6").opacity(0.06) : Color(hex: "0B1215").opacity(0.05))
-            )
-            .padding(.horizontal)
-            
-            if isSearching {
-                ProgressView("Buscando...")
-                    .padding()
-            } else {
-                List {
-                    if !viewModel.hiddenFromUsers.isEmpty {
-                        Section("Oculto de estas personas") {
-                            ForEach(viewModel.hiddenFromUsers) { user in
-                                UserRowView(user: user, isSelected: true) {
-                                    viewModel.hiddenFromUsers.removeAll { $0.id == user.id }
-                                    viewModel.saveStorySettings()
-                                    viewModel.savePostSettings()
+            .padding(.horizontal, 12)
+            .padding(.top, 10)
+            .padding(.bottom, 10)
+
+            ScrollView {
+                VStack(spacing: 16) {
+                    Text(NSLocalizedString("contentVisibility.info.description", comment: "Information description"))
+                        .font(.custom("Poppins-Regular", size: 13))
+                        .foregroundColor(.gray)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 12)
+
+                    HStack {
+                        Image(systemName: "magnifyingglass")
+                            .foregroundColor(.gray)
+
+                        TextField(NSLocalizedString("audience.picker.searchPlaceholder", comment: ""), text: $searchText)
+                            .font(.custom("Poppins-Regular", size: 16))
+                            .onChange(of: searchText) { newValue in
+                                if !newValue.isEmpty {
+                                    searchUsers(query: newValue)
+                                } else {
+                                    searchResults = []
                                 }
                             }
-                        }
-                        .listRowBackground(SettingsListRowBackground())
                     }
-                    
-                    if !searchResults.isEmpty {
-                        Section("Resultados de búsqueda") {
-                            ForEach(searchResults) { user in
-                                let isHidden = viewModel.hiddenFromUsers.contains { $0.id == user.id }
-                                UserRowView(user: user, isSelected: isHidden) {
-                                    if isHidden {
-                                        viewModel.hiddenFromUsers.removeAll { $0.id == user.id }
-                                    } else {
-                                        viewModel.hiddenFromUsers.append(user)
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 12)
+                    .liquidGlass(in: Capsule(), interactive: true)
+
+                    if isSearching {
+                        ProgressView(NSLocalizedString("common.searching", comment: ""))
+                            .padding(.top, 8)
+                    } else {
+                        VStack(alignment: .leading, spacing: 18) {
+                            if !viewModel.hiddenFromUsers.isEmpty {
+                                sectionLabel(NSLocalizedString("contentVisibility.hiddenUsers.section", comment: ""))
+                                LazyVStack(spacing: 10) {
+                                    ForEach(viewModel.hiddenFromUsers) { user in
+                                        UserRowView(user: user, isSelected: true) {
+                                            viewModel.hiddenFromUsers.removeAll { $0.id == user.id }
+                                            viewModel.saveStorySettings()
+                                            viewModel.savePostSettings()
+                                        }
                                     }
-                                    viewModel.saveStorySettings()
-                                    viewModel.savePostSettings()
                                 }
                             }
-                        }
-                        .listRowBackground(SettingsListRowBackground())
-                    } else if viewModel.hiddenFromUsers.isEmpty && searchText.isEmpty {
-                        Section {
-                            VStack(spacing: 12) {
-                                Image(systemName: "eye.slash.circle")
-                                    .font(.system(size: 40))
-                                    .foregroundColor(.gray)
-                                
-                                Text("contentVisibility.noHiddenUsers.title")
-                                    .font(.custom("Poppins-Regular", size: 16))
-                                    .foregroundColor(.gray)
-                                    .multilineTextAlignment(.center)
-                                
-                                Text("contentVisibility.noHiddenUsers.description")
-                                    .font(.custom("Poppins-Regular", size: 14))
-                                    .foregroundColor(.gray)
-                                    .multilineTextAlignment(.center)
+
+                            if !searchResults.isEmpty {
+                                sectionLabel(NSLocalizedString("contentVisibility.searchResults.section", comment: ""))
+                                LazyVStack(spacing: 10) {
+                                    ForEach(searchResults) { user in
+                                        let isHidden = viewModel.hiddenFromUsers.contains { $0.id == user.id }
+                                        UserRowView(user: user, isSelected: isHidden) {
+                                            if isHidden {
+                                                viewModel.hiddenFromUsers.removeAll { $0.id == user.id }
+                                            } else {
+                                                viewModel.hiddenFromUsers.append(user)
+                                            }
+                                            viewModel.saveStorySettings()
+                                            viewModel.savePostSettings()
+                                        }
+                                    }
+                                }
+                            } else if viewModel.hiddenFromUsers.isEmpty && searchText.isEmpty {
+                                VStack(spacing: 12) {
+                                    Image(systemName: "eye.slash.circle")
+                                        .font(.system(size: 40))
+                                        .foregroundColor(.gray)
+
+                                    Text("contentVisibility.noHiddenUsers.title")
+                                        .font(.custom("Poppins-Regular", size: 16))
+                                        .foregroundColor(.gray)
+                                        .multilineTextAlignment(.center)
+
+                                    Text("contentVisibility.noHiddenUsers.description")
+                                        .font(.custom("Poppins-Regular", size: 14))
+                                        .foregroundColor(.gray)
+                                        .multilineTextAlignment(.center)
+                                }
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 20)
                             }
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 20)
                         }
-                        .listRowBackground(SettingsListRowBackground())
                     }
                 }
-                .scrollContentBackground(.hidden)
-                .background((colorScheme == .dark ? Color(hex: "0B1215") : Color(hex: "FAF9F6")).ignoresSafeArea())
+                .padding(.horizontal, 12)
+                .padding(.bottom, 24)
             }
         }
-        .navigationTitle(NSLocalizedString("contentVisibility.hideContent.navigation", comment: "Hide Content"))
-        .navigationBarTitleDisplayMode(.inline)
-        .navigationBarBackButtonHidden(false)
+    }
+
+    private func sectionLabel(_ text: String) -> some View {
+        Text(text.uppercased())
+            .font(.custom("Poppins-Bold", size: 11))
+            .foregroundColor(colorScheme == .dark ? .white.opacity(0.45) : .black.opacity(0.35))
+            .padding(.leading, 4)
     }
     
     private func searchUsers(query: String) {
@@ -830,7 +837,7 @@ struct UserRowView: View {
             Button(action: onTap) {
                 if isSelected {
                     Image(systemName: "checkmark.circle.fill")
-                        .foregroundColor(Color(hex: "4F46E5"))
+                        .foregroundColor(colorScheme == .dark ? .white : .black)
                         .font(.system(size: 20))
                 } else {
                     Image(systemName: "circle")
@@ -839,6 +846,7 @@ struct UserRowView: View {
                 }
             }
         }
-        .padding(.vertical, 4)
+        .padding(.horizontal, 4)
+        .padding(.vertical, 8)
     }
 }

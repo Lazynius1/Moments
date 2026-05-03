@@ -5,83 +5,82 @@ import FirebaseAuth
 
 struct EchoInvitationView: View {
     let echoId: String
-    @Binding var isPresented: Bool
+    let onDismiss: () -> Void
     var onAccept: ((String) -> Void)? // ✅ Callback para navegar al visor
     
     @State private var echo: Echo?
     @State private var isLoading = true
     @State private var errorMessage: String?
+    @State private var echoListener: ListenerRegistration?
+    @Environment(\.colorScheme) private var colorScheme
     
     private let db = Firestore.firestore()
     private let echoService = EchoService.shared
     
     var body: some View {
         ZStack {
-            // Fondo con desenfoque
-            Color.black.opacity(0.4)
+            Color.clear
+                .contentShape(Rectangle())
                 .ignoresSafeArea()
-                .onTapGesture { isPresented = false }
-            
-            VStack {
-                Spacer()
-                
+                .onTapGesture(perform: onDismiss)
+
+            Group {
                 if isLoading {
-                    ProgressView()
-                        .tint(.white)
-                        .padding(40)
-                        .background(.ultraThinMaterial)
-                        .clipShape(RoundedRectangle(cornerRadius: 20))
+                    loadingCard
                 } else if let echo = echo {
                     invitationCard(echo: echo)
                 } else if let error = errorMessage {
-                    Text(error)
-                        .foregroundColor(.white)
-                        .padding()
-                        .background(.ultraThinMaterial)
-                        .clipShape(RoundedRectangle(cornerRadius: 20))
+                    errorCard(error)
                 }
-                
-                Spacer()
             }
-            .padding(24)
+            .padding(.horizontal, 28)
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Color.clear)
+        .presentationBackground(.clear)
         .onAppear {
             fetchEcho()
+        }
+        .onDisappear {
+            echoListener?.remove()
+            echoListener = nil
         }
     }
     
     private func invitationCard(echo: Echo) -> some View {
         VStack(spacing: 24) {
-            // Header: Nova Spark Vibe
             HStack {
                 Image(systemName: "camera.aperture")
-                    .font(.system(size: 24))
-                    .foregroundColor(.orange)
+                    .font(.system(size: 20, weight: .semibold))
+                    .foregroundStyle(primaryTextColor)
+                    .frame(width: 40, height: 40)
+                    .liquidGlass(in: Circle())
                 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(NSLocalizedString("echo.invitation.sparkDetected", comment: ""))
                         .font(.system(size: 18, weight: .bold))
-                        .foregroundColor(.white)
+                        .foregroundStyle(primaryTextColor)
                     
                     Text(echo.locationName ?? NSLocalizedString("echo.viewer.location.fallback", comment: ""))
                         .font(.system(size: 14))
-                        .foregroundColor(.white.opacity(0.7))
+                        .foregroundStyle(secondaryTextColor)
                 }
                 
                 Spacer()
                 
-                Button(action: { isPresented = false }) {
-                    Image(systemName: "xmark.circle.fill")
-                        .font(.system(size: 24))
-                        .foregroundColor(.white.opacity(0.3))
+                Button(action: onDismiss) {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundStyle(primaryTextColor)
+                        .frame(width: 34, height: 34)
+                        .liquidGlass(in: Circle(), interactive: true)
                 }
             }
             
-            // Participants Grid
             VStack(alignment: .leading, spacing: 12) {
                 Text(NSLocalizedString("echo.invitation.participants", comment: ""))
                     .font(.system(size: 13, weight: .semibold))
-                    .foregroundColor(.white.opacity(0.5))
+                    .foregroundStyle(secondaryTextColor)
                     .textCase(.uppercase)
                 
                 HStack(spacing: -10) {
@@ -90,7 +89,6 @@ struct EchoInvitationView: View {
                             .frame(width: 44, height: 44)
                             .clipShape(Circle())
                             .overlay(Circle().stroke(Color.black, lineWidth: 2))
-                            .overlay(statusIndicator(status: participant.status), alignment: .bottomTrailing)
                     }
                     
                     if echo.participants.count > 1 {
@@ -98,74 +96,80 @@ struct EchoInvitationView: View {
                         let format = count == 1 ? "echo.participants.singular" : "echo.participants.plural"
                         Text(String(format: NSLocalizedString(format, comment: ""), count))
                             .font(.system(size: 14, weight: .medium))
-                            .foregroundColor(.white)
+                            .foregroundStyle(primaryTextColor)
                             .padding(.leading, 20)
                     }
                 }
             }
             .padding(.top, 8)
             
-            // Descripción IA
             Text(NSLocalizedString("echo.invitation.description", comment: ""))
                 .font(.system(size: 15))
-                .foregroundColor(.white.opacity(0.9))
+                .foregroundStyle(primaryTextColor)
                 .multilineTextAlignment(.leading)
                 .padding(.vertical, 8)
             
-            // Botones de acción
             HStack(spacing: 16) {
                 Button(action: declineEcho) {
                     Text(NSLocalizedString("echo.invitation.maybeLater", comment: ""))
                         .font(.system(size: 16, weight: .semibold))
-                        .foregroundColor(.white)
+                        .foregroundStyle(primaryTextColor)
                         .frame(maxWidth: .infinity)
                         .frame(height: 54)
-                        .background(.white.opacity(0.1))
-                        .clipShape(RoundedRectangle(cornerRadius: 16))
+                        .liquidGlass(in: RoundedRectangle(cornerRadius: 18, style: .continuous), interactive: true)
                 }
                 
                 Button(action: acceptEcho) {
                     Text(NSLocalizedString("echo.invitation.join", comment: ""))
                         .font(.system(size: 16, weight: .bold))
-                        .foregroundColor(.black)
+                        .foregroundStyle(joinButtonTextColor)
                         .frame(maxWidth: .infinity)
                         .frame(height: 54)
-                        .background(
-                            LinearGradient(colors: [.orange, .yellow], startPoint: .topLeading, endPoint: .bottomTrailing)
-                        )
-                        .clipShape(RoundedRectangle(cornerRadius: 16))
-                        .shadow(color: .orange.opacity(0.4), radius: 10, y: 5)
+                        .background(joinButtonFill)
+                        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
                 }
             }
         }
         .padding(24)
-        .background {
-            RoundedRectangle(cornerRadius: 32)
-                .fill(.ultraThinMaterial)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 32)
-                        .stroke(Color.white.opacity(0.2), lineWidth: 1)
-                )
-        }
+        .liquidGlass(in: RoundedRectangle(cornerRadius: 30, style: .continuous))
     }
     
-    private func statusIndicator(status: EchoParticipantStatus) -> some View {
-        Circle()
-            .fill(statusColor(status))
-            .frame(width: 12, height: 12)
-            .overlay(Circle().stroke(Color.black, lineWidth: 1.5))
+    private var primaryTextColor: Color {
+        colorScheme == .dark ? .white : .black
     }
-    
-    private func statusColor(_ status: EchoParticipantStatus) -> Color {
-        switch status {
-        case .accepted: return .green
-        case .declined: return .red
-        case .pending: return .orange
-        }
+
+    private var secondaryTextColor: Color {
+        colorScheme == .dark ? .white.opacity(0.68) : .black.opacity(0.58)
+    }
+
+    private var joinButtonTextColor: Color {
+        colorScheme == .dark ? .black : .white
+    }
+
+    private var joinButtonFill: some View {
+        RoundedRectangle(cornerRadius: 18, style: .continuous)
+            .fill(colorScheme == .dark ? Color.white.opacity(0.92) : Color.black.opacity(0.88))
+    }
+
+    private var loadingCard: some View {
+        ProgressView()
+            .tint(primaryTextColor)
+            .padding(40)
+            .liquidGlass(in: RoundedRectangle(cornerRadius: 24, style: .continuous))
+    }
+
+    private func errorCard(_ error: String) -> some View {
+        Text(error)
+            .font(.system(size: 15, weight: .medium))
+            .foregroundStyle(primaryTextColor)
+            .multilineTextAlignment(.center)
+            .padding(24)
+            .liquidGlass(in: RoundedRectangle(cornerRadius: 24, style: .continuous))
     }
     
     private func fetchEcho() {
-        db.collection("echoes").document(echoId).addSnapshotListener { snapshot, error in
+        echoListener?.remove()
+        echoListener = db.collection("echoes").document(echoId).addSnapshotListener { snapshot, error in
             if let error = error {
                 self.errorMessage = error.localizedDescription
                 self.isLoading = false
@@ -179,7 +183,9 @@ struct EchoInvitationView: View {
             }
             
             do {
-                self.echo = try data.data(as: Echo.self)
+                var decodedEcho = try data.data(as: Echo.self)
+                decodedEcho.id = data.documentID
+                self.echo = decodedEcho
                 self.isLoading = false
             } catch {
                 self.errorMessage = NSLocalizedString("echo.invitation.error.decoding", comment: "")
@@ -194,8 +200,7 @@ struct EchoInvitationView: View {
             do {
                 try await echoService.acceptEcho(echoId: echoId, userId: userId)
                 await MainActor.run {
-                    isPresented = false
-                    // ✅ Navegar al visor del Echo
+                    onDismiss()
                     onAccept?(echoId)
                 }
             } catch {
@@ -209,7 +214,9 @@ struct EchoInvitationView: View {
         Task {
             do {
                 try await echoService.declineEcho(echoId: echoId, userId: userId)
-                isPresented = false
+                await MainActor.run {
+                    onDismiss()
+                }
             } catch {
                 print("Error declining echo: \(error)")
             }

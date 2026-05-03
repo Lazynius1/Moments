@@ -941,9 +941,8 @@ class ChatService: ObservableObject {
         db.collection("conversations")
             .document(conversationId)
             .updateData([
-                "isPinned": true,
-                "pinnedAt": FieldValue.serverTimestamp(),
-                "pinnedBy": userId
+                "pinnedByUserIds": FieldValue.arrayUnion([userId]),
+                "pinnedByTimestamps.\(userId)": FieldValue.serverTimestamp()
             ]) { error in
                 if let error = error {
                     completion(error)
@@ -958,9 +957,8 @@ class ChatService: ObservableObject {
         db.collection("conversations")
             .document(conversationId)
             .updateData([
-                "isPinned": false,
-                "pinnedAt": FieldValue.delete(),
-                "pinnedBy": FieldValue.delete()
+                "pinnedByUserIds": FieldValue.arrayRemove([userId]),
+                "pinnedByTimestamps.\(userId)": FieldValue.delete()
             ]) { error in
                 if let error = error {
                     completion(error)
@@ -975,9 +973,8 @@ class ChatService: ObservableObject {
         db.collection("conversations")
             .document(conversationId)
             .updateData([
-                "isMuted": true,
-                "mutedAt": FieldValue.serverTimestamp(),
-                "mutedBy": userId
+                "mutedByUserIds": FieldValue.arrayUnion([userId]),
+                "mutedByTimestamps.\(userId)": FieldValue.serverTimestamp()
             ]) { error in
                 if let error = error {
                     completion(error)
@@ -992,9 +989,8 @@ class ChatService: ObservableObject {
         db.collection("conversations")
             .document(conversationId)
             .updateData([
-                "isMuted": false,
-                "mutedAt": FieldValue.delete(),
-                "mutedBy": FieldValue.delete()
+                "mutedByUserIds": FieldValue.arrayRemove([userId]),
+                "mutedByTimestamps.\(userId)": FieldValue.delete()
             ]) { error in
                 if let error = error {
                     completion(error)
@@ -1077,8 +1073,14 @@ class ChatService: ObservableObject {
                     }
                     
                     // ✅ Extraer campos de pin y mute
-                    let isPinned = data["isPinned"] as? Bool ?? false
-                    let isMuted = data["isMuted"] as? Bool ?? false
+                    let pinnedByUserIds = data["pinnedByUserIds"] as? [String] ?? []
+                    let legacyPinnedBy = data["pinnedBy"] as? String
+                    let legacyIsPinned = data["isPinned"] as? Bool ?? false
+                    let isPinned = pinnedByUserIds.contains(userId) || (legacyIsPinned && legacyPinnedBy == userId)
+                    let mutedByUserIds = data["mutedByUserIds"] as? [String] ?? []
+                    let legacyMutedBy = data["mutedBy"] as? String
+                    let legacyIsMuted = data["isMuted"] as? Bool ?? false
+                    let isMuted = mutedByUserIds.contains(userId) || (legacyIsMuted && legacyMutedBy == userId)
                     
                     let conversation = Conversation(
                         id: doc.documentID,
@@ -1090,7 +1092,11 @@ class ChatService: ObservableObject {
                         otherParticipantUsername: otherParticipantUsername,
                         otherParticipantProfileImagePath: otherParticipantProfileImagePath,
                         isPinned: isPinned,
+                        pinnedByUserIds: pinnedByUserIds,
+                        pinnedBy: legacyPinnedBy,
                         isMuted: isMuted,
+                        mutedByUserIds: mutedByUserIds,
+                        mutedBy: legacyMutedBy,
                         encryptionVersion: encryptionVersion,
                         conversationKeyVersion: data["conversationKeyVersion"] as? Int
                     )
@@ -1768,7 +1774,11 @@ class ChatService: ObservableObject {
                     otherParticipantUsername: conversation.otherParticipantUsername,
                     otherParticipantProfileImagePath: conversation.otherParticipantProfileImagePath,
                     isPinned: conversation.isPinned,
+                    pinnedByUserIds: conversation.pinnedByUserIds,
+                    pinnedBy: conversation.pinnedBy,
                     isMuted: conversation.isMuted,
+                    mutedByUserIds: conversation.mutedByUserIds,
+                    mutedBy: conversation.mutedBy,
                     encryptionVersion: conversation.encryptionVersion,
                     conversationKeyVersion: conversation.conversationKeyVersion,
                     wrappedKeys: conversation.wrappedKeys

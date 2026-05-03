@@ -1,6 +1,12 @@
 import SwiftUI
 import FirebaseAuth
 
+private struct EchoInvitationRoute: Identifiable {
+    let echoId: String
+
+    var id: String { echoId }
+}
+
 // MARK: - Tab Selection Type (iOS 26+)
 // Using an enum allows mixing Tab(value:) with Tab(role: .search, value:)
 @available(iOS 26.0, *)
@@ -25,41 +31,59 @@ struct TabBarView: View {
     @State private var hasPreloadedExplore: Bool = false
     @State private var showEchoInvitation: Bool = false
     @State private var pendingEchoId: String = ""
+    @State private var echoInvitationRoute: EchoInvitationRoute?
     @State private var showEchoViewer: Bool = false
     @Environment(\.colorScheme) var colorScheme
 
     var body: some View {
-        Group {
-            if shouldShowMainApp {
-                if #available(iOS 26.0, *) {
-                    // Dedicated struct owns @State modernTab: AppTab
-                    ModernTabView(
-                        selectedTab: $selectedTab,
-                        previousSelectedTab: $previousSelectedTab,
-                        showCreatorView: $showCreatorView,
-                        isCreatingStory: $isCreatingStory,
-                        openCreatorInStoryMode: $openCreatorInStoryMode,
-                        hasPreloadedExplore: $hasPreloadedExplore,
-                        showEchoInvitation: $showEchoInvitation,
-                        pendingEchoId: $pendingEchoId,
-                        showEchoViewer: $showEchoViewer,
-                        exploreViewModel: exploreViewModel,
-                        authService: authService,
-                        navigationService: navigationService
-                    )
-                    .overlay(alignment: .top) {
-                        InAppBannerView()
+        ZStack {
+            Group {
+                if shouldShowMainApp {
+                    if #available(iOS 26.0, *) {
+                        ModernTabView(
+                            selectedTab: $selectedTab,
+                            previousSelectedTab: $previousSelectedTab,
+                            showCreatorView: $showCreatorView,
+                            isCreatingStory: $isCreatingStory,
+                            openCreatorInStoryMode: $openCreatorInStoryMode,
+                            hasPreloadedExplore: $hasPreloadedExplore,
+                            showEchoInvitation: $showEchoInvitation,
+                            pendingEchoId: $pendingEchoId,
+                            showEchoViewer: $showEchoViewer,
+                            exploreViewModel: exploreViewModel,
+                            authService: authService,
+                            navigationService: navigationService
+                        )
+                        .overlay(alignment: .top) {
+                            InAppBannerView()
+                        }
+                    } else {
+                        legacyTabView
+                            .overlay(alignment: .top) {
+                                InAppBannerView()
+                            }
                     }
                 } else {
-                    // Implementación legacy para versiones anteriores
-                    legacyTabView
-                        .overlay(alignment: .top) {
-                            InAppBannerView() // ✅ NUEVO: Banners in-app
-                        }
+                    LoginView()
+                        .environmentObject(authService)
                 }
-            } else {
-                LoginView()
-                    .environmentObject(authService)
+            }
+
+            if let route = echoInvitationRoute {
+                EchoInvitationView(
+                    echoId: route.echoId,
+                    onDismiss: {
+                        echoInvitationRoute = nil
+                        showEchoInvitation = false
+                        pendingEchoId = ""
+                    },
+                    onAccept: { echoId in
+                        pendingEchoId = echoId
+                        showEchoViewer = true
+                    }
+                )
+                .transition(.opacity.combined(with: .scale(scale: 0.98)))
+                .zIndex(1000)
             }
         }
         .onAppear {
@@ -297,6 +321,7 @@ struct ModernTabView: View {
         case .echoSuggestion(let echoId):
             self.pendingEchoId = echoId
             self.showEchoInvitation = true
+            self.echoInvitationRoute = EchoInvitationRoute(echoId: echoId)
             
         case .echo(let echoId):
             self.pendingEchoId = echoId
@@ -725,19 +750,6 @@ extension View {
                 .onDisappear {
                     // ✅ Resetear el flag cuando se cierra el creator
                     openCreatorInStoryMode.wrappedValue = false
-                }
-            }
-            .sheet(isPresented: showEchoInvitation) {
-                if !pendingEchoId.wrappedValue.isEmpty {
-                    EchoInvitationView(
-                        echoId: pendingEchoId.wrappedValue,
-                        isPresented: showEchoInvitation,
-                        onAccept: { echoId in
-                            // ✅ Navegar al Echo Viewer después de aceptar
-                            pendingEchoId.wrappedValue = echoId
-                            showEchoViewer.wrappedValue = true
-                        }
-                    )
                 }
             }
             .fullScreenCover(isPresented: showEchoViewer) {

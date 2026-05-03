@@ -1153,26 +1153,7 @@ struct CustomAudienceListsView: View {
             if embeddedInFlow {
                 content
             } else {
-                NavigationView {
-                    content
-                        .navigationTitle(NSLocalizedString("audience.customLists.title", comment: ""))
-                        .navigationBarTitleDisplayMode(.inline)
-                        .toolbar {
-                            ToolbarItem(placement: .navigationBarLeading) {
-                                Button(NSLocalizedString("common.close", comment: "")) {
-                                    dismiss()
-                                }
-                                .foregroundColor(.gray)
-                            }
-                            
-                            ToolbarItem(placement: .navigationBarTrailing) {
-                                Button(action: { showingCreateList = true }) {
-                                    Image(systemName: "plus")
-                                        .foregroundColor(Color(hex: "00A896"))
-                                }
-                            }
-                        }
-                }
+                content
             }
         }
         .sheet(isPresented: Binding(
@@ -1233,10 +1214,6 @@ struct CustomAudienceListsView: View {
     
     private var content: some View {
         ZStack {
-            if !embeddedInFlow {
-                (colorScheme == .dark ? Color(hex: "0B1215") : Color(hex: "FAF9F6")).ignoresSafeArea()
-            }
-            
             if viewModel.isLoading {
                 ProgressView(NSLocalizedString("common.loading", comment: ""))
                     .progressViewStyle(CircularProgressViewStyle())
@@ -1275,6 +1252,43 @@ struct CustomAudienceListsView: View {
                                     showingCreateList = true
                                 }
                             }) {
+                                Image(systemName: "plus")
+                                    .font(.system(size: 18, weight: .semibold))
+                                    .foregroundColor(.primary)
+                                    .frame(width: 40, height: 40)
+                                    .liquidGlass(in: Circle(), interactive: true)
+                            }
+                            .buttonStyle(.plain)
+                        }
+                        .padding(.horizontal, 20)
+                        .padding(.top, 20)
+                        .padding(.bottom, 12)
+                    } else {
+                        HStack(spacing: 12) {
+                            Button(action: { dismiss() }) {
+                                Image(systemName: "chevron.down")
+                                    .font(.system(size: 18, weight: .semibold))
+                                    .foregroundColor(.primary)
+                                    .frame(width: 40, height: 40)
+                                    .liquidGlass(in: Circle(), interactive: true)
+                            }
+                            .buttonStyle(.plain)
+
+                            Spacer()
+
+                            VStack(spacing: 2) {
+                                Text(NSLocalizedString("audience.customLists.title", comment: ""))
+                                    .font(.custom("Poppins-SemiBold", size: 20))
+                                    .foregroundColor(colorScheme == .dark ? .white : .black)
+                                Text(NSLocalizedString("audience.customLists", comment: ""))
+                                    .font(.custom("Poppins-Regular", size: 13))
+                                    .foregroundColor(colorScheme == .dark ? .white.opacity(0.6) : .black.opacity(0.55))
+                            }
+                            .multilineTextAlignment(.center)
+
+                            Spacer()
+
+                            Button(action: { showingCreateList = true }) {
                                 Image(systemName: "plus")
                                     .font(.system(size: 18, weight: .semibold))
                                     .foregroundColor(.primary)

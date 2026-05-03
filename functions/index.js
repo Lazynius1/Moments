@@ -2134,7 +2134,14 @@ exports.onMessageAdded = onDocumentCreated('conversations/{conversationId}/messa
       }
 
       // ✅ VERIFICAR SI LA CONVERSACIÓN ESTÁ SILENCIADA PARA ESTE USUARIO
-      if (conversationData.isMuted === true) {
+      const mutedByUserIds = Array.isArray(conversationData.mutedByUserIds)
+        ? conversationData.mutedByUserIds
+        : [];
+      const isMutedForReceiver =
+        mutedByUserIds.includes(receiverId) ||
+        (conversationData.isMuted === true && conversationData.mutedBy === receiverId);
+
+      if (isMutedForReceiver) {
         return null;
       }
 
