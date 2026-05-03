@@ -148,8 +148,8 @@ struct GlassmorphicChatView: View {
             }
         }
         // ✅ NUEVO: Alert para error al cargar momento
-        .alert("Error", isPresented: $showingMomentError) {
-            Button("OK") { }
+        .alert("common.error", isPresented: $showingMomentError) {
+            Button("common.ok") { }
         } message: {
             Text("chat.moment.loadError")
         }
@@ -1457,21 +1457,21 @@ struct DeletedMessageBubble: View {
     private func getDeletedText() -> String {
         switch message.type {
         case .audio:
-            return "Mensaje de audio eliminado"
+            return NSLocalizedString("chat.deleted.audio", comment: "Deleted audio message")
         case .image:
-            return "Imagen eliminada"
+            return NSLocalizedString("chat.deleted.image", comment: "Deleted image message")
         case .video:
-            return "Video eliminado"
+            return NSLocalizedString("chat.deleted.video", comment: "Deleted video message")
         case .text:
-            return "Mensaje eliminado"
+            return NSLocalizedString("chat.deleted.text", comment: "Deleted text message")
         case .file:
-            return "Archivo eliminado"
+            return NSLocalizedString("chat.deleted.file", comment: "Deleted file message")
         case .location:
-            return "Ubicación eliminada"
+            return NSLocalizedString("chat.deleted.location", comment: "Deleted location message")
         case .ephemeral:
-            return "Momento efímero eliminado"
+            return NSLocalizedString("chat.deleted.ephemeral", comment: "Deleted ephemeral moment")
         default:
-            return "Mensaje eliminado"
+            return NSLocalizedString("chat.deleted.text", comment: "Deleted text message")
         }
     }
 }
@@ -2142,13 +2142,13 @@ struct GlassmorphicDateHeader: View {
     private func formatDate(_ date: Date) -> String {
         let calendar = Calendar.current
         if calendar.isDateInToday(date) {
-            return "Hoy"
+            return NSLocalizedString("chat.date.today", comment: "Today")
         } else if calendar.isDateInYesterday(date) {
-            return "Ayer"
+            return NSLocalizedString("chat.date.yesterday", comment: "Yesterday")
         } else {
             let formatter = DateFormatter()
             formatter.dateStyle = .medium
-            formatter.locale = Locale(identifier: "es_ES")
+            formatter.locale = Locale.current
             return formatter.string(from: date)
         }
     }
@@ -2170,7 +2170,7 @@ struct GlassmorphicUnreadDivider: View {
             HStack(spacing: 6) {
                 Image(systemName: "circle.fill")
                     .font(.system(size: 5))
-                Text("Nuevos mensajes")
+                Text("chat.newMessages")
                     .font(.custom("Poppins-SemiBold", size: 11))
             }
             .foregroundColor(adaptiveColors.primary.opacity(0.9))
@@ -2520,7 +2520,7 @@ struct FullScreenImageView: View {
                     HStack(spacing: 6) {
                         Image(systemName: "photo.fill")
                             .font(.system(size: 14))
-                        Text("Foto")
+                        Text("common.photo")
                             .font(.custom("Poppins-SemiBold", size: 12))
                             .textCase(.uppercase)
                     }
@@ -2650,7 +2650,7 @@ class MomentsChatViewModel: EnhancedChatViewModel {
     
     override func sendTextMessage(_ content: String, replyTo: String? = nil) {
         guard let conversationId = conversation.id, !conversationId.isEmpty else {
-            error = "No se puede enviar el mensaje: ID de conversación no válido"
+            error = NSLocalizedString("chat.error.invalidConversation.text", comment: "Invalid conversation ID when sending text")
             return
         }
         
@@ -2687,7 +2687,7 @@ class MomentsChatViewModel: EnhancedChatViewModel {
     // MARK: - New Media Message Functions
     func sendImageMessage(_ imageData: Data) {
         guard let conversationId = conversation.id, !conversationId.isEmpty else {
-            error = "No se puede enviar la imagen: ID de conversación no válido"
+            error = NSLocalizedString("chat.error.invalidConversation.image", comment: "Invalid conversation ID when sending image")
             return
         }
         
@@ -2722,7 +2722,7 @@ class MomentsChatViewModel: EnhancedChatViewModel {
                 case .success(let sentMessage):
                     self?.updateMessageInArray(messageId: messageId, newStatus: sentMessage.status)
                 case .failure(let error):
-                    self?.error = "Error al enviar imagen: \(error.localizedDescription)"
+                    self?.error = String(format: NSLocalizedString("chat.error.sendImage", comment: "Image send error"), error.localizedDescription)
                     self?.updateMessageInArray(messageId: messageId, newStatus: .failed)
                 }
             }
@@ -2731,7 +2731,7 @@ class MomentsChatViewModel: EnhancedChatViewModel {
     
     func sendAudioMessage(_ audioData: Data, duration: TimeInterval) {
         guard let conversationId = conversation.id, !conversationId.isEmpty else {
-            error = "No se puede enviar el audio: ID de conversación no válido"
+            error = NSLocalizedString("chat.error.invalidConversation.audio", comment: "Invalid conversation ID when sending audio")
             return
         }
         
@@ -2770,7 +2770,7 @@ class MomentsChatViewModel: EnhancedChatViewModel {
                 case .success(let sentMessage):
                     self?.updateMessageInArray(messageId: messageId, newStatus: sentMessage.status)
                 case .failure(let error):
-                    self?.error = "Error al enviar audio: \(error.localizedDescription)"
+                    self?.error = String(format: NSLocalizedString("chat.error.sendAudio", comment: "Audio send error"), error.localizedDescription)
                     self?.updateMessageInArray(messageId: messageId, newStatus: .failed)
                 }
             }
@@ -2780,7 +2780,7 @@ class MomentsChatViewModel: EnhancedChatViewModel {
     // ✅ NUEVA función para enviar mensajes view-once
     func sendViewOnceMessage(data: Data, mediaType: EnhancedCameraPickerView.MediaType) {
         guard let conversationId = conversation.id, !conversationId.isEmpty else {
-            error = "No se puede enviar el mensaje: ID de conversación no válido"
+            error = NSLocalizedString("chat.error.invalidConversation.viewOnce", comment: "Invalid conversation ID when sending view-once message")
             return
         }
         
@@ -2819,7 +2819,7 @@ class MomentsChatViewModel: EnhancedChatViewModel {
                     // ✅ Usar el estado devuelto (puede ser .pending si es offline)
                     self?.updateMessageInArray(messageId: messageId, newStatus: sentMessage.status)
                 case .failure(let error):
-                    self?.error = "Error al enviar mensaje: \(error.localizedDescription)"
+                    self?.error = String(format: NSLocalizedString("chat.error.sendMessage", comment: "Message send error"), error.localizedDescription)
                     self?.updateMessageInArray(messageId: messageId, newStatus: .failed)
                 }
             }

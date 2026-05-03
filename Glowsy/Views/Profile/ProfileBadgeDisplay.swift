@@ -43,7 +43,7 @@ struct PlusBadge: View {
                 .font(.system(size: 12, weight: .bold))
                 .foregroundColor(.white)
             
-            Text("PLUS")
+            Text("profileBadge.plus")
                 .font(.custom("Poppins-Bold", size: 10))
                 .foregroundColor(.white)
         }
@@ -184,7 +184,7 @@ struct BadgeDetailSheet: View {
                             .font(.custom("Poppins-Bold", size: 24))
                             .foregroundColor(colorScheme == .dark ? .white : .black)
                         
-                        Text("Badge de apoyo - \(badge.price)")
+                        Text(String(format: NSLocalizedString("profileBadge.supportBadgePrice", comment: ""), badge.price))
                             .font(.custom("Poppins-Medium", size: 16))
                             .foregroundColor(.gray)
                     }
@@ -192,9 +192,9 @@ struct BadgeDetailSheet: View {
                 
                 // Badge Info
                 VStack(spacing: 16) {
-                    InfoCard(title: "Fecha de compra", value: formatDate(badge.purchaseDate))
-                    InfoCard(title: "Tipo", value: "Una sola vez")
-                    InfoCard(title: "Estado", value: badge.isVisible ? "Visible" : "Oculto")
+                    InfoCard(title: NSLocalizedString("profileBadge.purchaseDate", comment: ""), value: formatDate(badge.purchaseDate))
+                    InfoCard(title: NSLocalizedString("profileBadge.type", comment: ""), value: NSLocalizedString("profileBadge.type.oneTime", comment: ""))
+                    InfoCard(title: NSLocalizedString("profileBadge.status", comment: ""), value: badge.isVisible ? NSLocalizedString("profileBadge.status.visible", comment: "") : NSLocalizedString("profileBadge.status.hidden", comment: ""))
                 }
                 
                 // Support Stats
@@ -214,7 +214,7 @@ struct BadgeDetailSheet: View {
                             .padding(.horizontal, 20)
                     }
                     
-                    Button("Cerrar") {
+                    Button("common.close") {
                         dismiss()
                     }
                     .font(.custom("Poppins-SemiBold", size: 16))
@@ -234,7 +234,7 @@ struct BadgeDetailSheet: View {
             .padding(.horizontal, 24)
             .padding(.vertical, 20)
             .background(Color(colorScheme == .dark ? .black : .white))
-            .navigationTitle("Badge Details")
+            .navigationTitle("profileBadge.detailsTitle")
             .navigationBarTitleDisplayMode(.inline)
             .navigationBarItems(trailing: Button("✕") { dismiss() })
         }
@@ -283,7 +283,7 @@ struct SupportStatsCard: View {
     var body: some View {
         VStack(spacing: 12) {
             HStack {
-                Text("Tu apoyo")
+                Text("profileBadge.yourSupport")
                     .font(.custom("Poppins-SemiBold", size: 16))
                     .foregroundColor(colorScheme == .dark ? .white : .black)
                 
@@ -294,12 +294,12 @@ struct SupportStatsCard: View {
             }
             
             VStack(spacing: 8) {
-                StatRow(label: "Nivel", value: user.supporterLevel.displayName)
-                StatRow(label: "Badges", value: "\(user.ownedBadges.count)")
-                StatRow(label: "Total contribuido", value: "€\(String(format: "%.2f", user.totalSpentOnBadges))")
+                StatRow(label: NSLocalizedString("profileBadge.level", comment: ""), value: user.supporterLevel.displayName)
+                StatRow(label: NSLocalizedString("profileBadge.badges", comment: ""), value: "\(user.ownedBadges.count)")
+                StatRow(label: NSLocalizedString("profileBadge.totalContributed", comment: ""), value: "€\(String(format: "%.2f", user.totalSpentOnBadges))")
                 
                 if user.hasActivePlusSubscription {
-                    StatRow(label: "Plus Subscriber", value: "Activo")
+                    StatRow(label: NSLocalizedString("profileBadge.plusSubscriber", comment: ""), value: NSLocalizedString("profileBadge.status.active", comment: ""))
                 }
             }
         }
@@ -350,11 +350,11 @@ struct BadgeCollectionView: View {
         VStack(spacing: 20) {
             // Header
             VStack(spacing: 8) {
-                Text("Mis Badges")
+                Text("profileBadge.myBadges")
                     .font(.custom("Poppins-Bold", size: 24))
                     .foregroundColor(colorScheme == .dark ? .white : .black)
                 
-                Text("Toca un badge para mostrar/ocultar")
+                Text("profileBadge.tapToToggle")
                     .font(.custom("Poppins-Regular", size: 14))
                     .foregroundColor(.gray)
             }
@@ -362,7 +362,7 @@ struct BadgeCollectionView: View {
             // ✅ NUEVO: Sección del Badge Plus (siempre visible si es suscriptor Plus)
             if user.isPlusSubscriber {
                 VStack(spacing: 16) {
-                    Text("Badge Plus")
+                    Text("profileBadge.plusBadge")
                         .font(.custom("Poppins-Bold", size: 18))
                         .foregroundColor(colorScheme == .dark ? .white : .black)
                     
@@ -378,12 +378,12 @@ struct BadgeCollectionView: View {
                         .font(.system(size: 48))
                         .foregroundColor(.gray.opacity(0.6))
                     
-                    Text("Aún no tienes badges")
+                    Text("profileBadge.emptyTitle")
                         .font(.custom("Poppins-Medium", size: 16))
                         .foregroundColor(.gray)
                     
                     NavigationLink(destination: SupportMomentsView()) {
-                        Text("Explorar badges")
+                        Text("profileBadge.explore")
                             .font(.custom("Poppins-SemiBold", size: 14))
                             .foregroundColor(.white)
                             .padding(.horizontal, 20)
@@ -487,7 +487,7 @@ struct BadgeToggleCard: View {
                     .foregroundColor(colorScheme == .dark ? .white : .black)
                     .opacity(currentIsVisible ? 1.0 : 0.6)
                 
-                Text(currentIsVisible ? "Visible" : "Oculto")
+                Text(currentIsVisible ? NSLocalizedString("profileBadge.status.visible", comment: "") : NSLocalizedString("profileBadge.status.hidden", comment: ""))
                     .font(.custom("Poppins-Regular", size: 10))
                     .foregroundColor(currentIsVisible ? Color(hex: "007AFF") : .gray)
             }
@@ -507,7 +507,7 @@ struct BadgeToggleCard: View {
                                 .font(.system(size: 10, weight: .bold))
                         }
                         
-                        Text("Guardar")
+                        Text("common.save")
                             .font(.custom("Poppins-SemiBold", size: 10))
                     }
                     .foregroundColor(.white)
@@ -641,12 +641,12 @@ struct PlusBadgeToggleCard: View {
             }
             
             VStack(spacing: 2) {
-                Text("Plus")
+                Text("profileBadge.plus")
                     .font(.custom("Poppins-SemiBold", size: 12))
                     .foregroundColor(colorScheme == .dark ? .white : .black)
                     .opacity(currentShowPlusBadge ? 1.0 : 0.6)
                 
-                Text(currentShowPlusBadge ? "Visible" : "Oculto")
+                Text(currentShowPlusBadge ? NSLocalizedString("profileBadge.status.visible", comment: "") : NSLocalizedString("profileBadge.status.hidden", comment: ""))
                     .font(.custom("Poppins-Regular", size: 10))
                     .foregroundColor(currentShowPlusBadge ? Color(hex: "FFD700") : .gray)
             }
@@ -666,7 +666,7 @@ struct PlusBadgeToggleCard: View {
                                 .font(.system(size: 10, weight: .bold))
                         }
                         
-                        Text("Guardar")
+                        Text("common.save")
                             .font(.custom("Poppins-SemiBold", size: 10))
                     }
                     .foregroundColor(.white)

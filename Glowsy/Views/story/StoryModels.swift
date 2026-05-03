@@ -4865,7 +4865,7 @@ struct FullScreenEphemeralImageView: View {
 
             VStack {
                 HStack {
-                    Button("Cerrar") {
+                    Button("common.close") {
                         dismiss()
                     }
                     .foregroundColor(.white)
@@ -5540,7 +5540,7 @@ struct PollVoteView: View {
                 }
 
                 // Botón cerrar
-                Button("Cerrar") {
+                Button("common.close") {
                     dismiss()
                 }
                 .font(.system(size: 16, weight: .semibold))
@@ -6444,11 +6444,11 @@ struct QuestionResponseInputView: View {
                 Spacer()
             }
             .padding(.top, 20)
-            .navigationTitle("Responder")
+            .navigationTitle("question.answer.title")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Cancelar") {
+                    Button("common.cancel") {
                         dismiss()
                     }
                     .foregroundColor(.blue)

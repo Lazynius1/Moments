@@ -81,7 +81,8 @@ struct UserProfilePillTabs: View {
         GeometryReader { proxy in
             ZStack {
                 Capsule()
-                    .fill(colorScheme == .dark ? Color.white.opacity(0.06) : Color.black.opacity(0.05))
+                    .fill(Color.clear)
+                    .liquidGlass(in: Capsule())
                     .overlay(
                         Capsule()
                             .stroke(colorScheme == .dark ? Color.white.opacity(0.08) : Color.black.opacity(0.06), lineWidth: 0.75)
@@ -184,16 +185,22 @@ struct UserProfilePillTabs: View {
 
     private func settleSelection(translation: CGFloat, locationX: CGFloat, width: CGFloat) {
         let segment = segmentWidth(for: width)
-        let normalizedLocation = min(max(locationX / segment, 0), CGFloat(UserProfileTabType.allCases.count) - 0.001)
-        let rawIndex = Int(normalizedLocation)
-        let threshold = min(segment * 0.28, 36)
+        let proposedOffset = baseOffset(for: width) + translation
+        let start = -((CGFloat(UserProfileTabType.allCases.count - 1) * segment) / 2)
+        
+        // Find the precise fractional index based on the dragged pill's position
+        let fractionalIndex = (proposedOffset - start) / segment
+        
         let targetIndex: Int
-
-        if abs(translation) > threshold {
+        let threshold = min(segment * 0.28, 36)
+        
+        // If the user dragged enough to show intent but didn't cross the half-way mark
+        if abs(translation) > threshold && abs(translation) < segment * 0.5 {
             let direction = translation > 0 ? 1 : -1
             targetIndex = min(max(currentIndex + direction, 0), UserProfileTabType.allCases.count - 1)
         } else {
-            targetIndex = min(max(rawIndex, 0), UserProfileTabType.allCases.count - 1)
+            // Resolve to the closest index based on the actual final position
+            targetIndex = min(max(Int(fractionalIndex.rounded()), 0), UserProfileTabType.allCases.count - 1)
         }
 
         let targetTab = UserProfileTabType.allCases[targetIndex]
@@ -380,7 +387,7 @@ struct UserProfileView: View {
             .presentationBackground(.clear)
         }
         .alert(NSLocalizedString("messageRequestModal.success.title", comment: "Success title"), isPresented: $showingSuccessMessage) {
-            Button("OK") {
+            Button(NSLocalizedString("common.ok", comment: "OK button")) {
                 showingSuccessMessage = false
             }
         } message: {

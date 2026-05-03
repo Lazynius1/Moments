@@ -107,7 +107,7 @@ struct PasswordChangeView: View {
                                 // Password strength indicator
                                 VStack(alignment: .leading, spacing: 4) {
                                     HStack {
-                                        Text("Fortaleza de la contraseña:")
+                                        Text("passwordChange.strength")
                                             .font(.custom("Poppins-Regular", size: 12))
                                             .foregroundColor(.gray)
                                         
@@ -250,13 +250,13 @@ struct PasswordChangeView: View {
                     }
                 }
             }
-            .alert("Error", isPresented: $viewModel.showError) {
-                Button("OK") { }
+            .alert("common.error", isPresented: $viewModel.showError) {
+                Button("common.ok") { }
             } message: {
                 Text(viewModel.errorMessage)
             }
             .alert(NSLocalizedString("passwordChange.successMessage", comment: "Success alert title"), isPresented: $viewModel.showSuccess) {
-                Button("OK") {
+                Button("common.ok") {
                     dismiss()
                 }
             } message: {

@@ -1807,7 +1807,7 @@ struct ThumbnailPickerView: View {
                 
                 // Scrubber Section
                 VStack(spacing: 12) {
-                    Text("Desliza para seleccionar la portada")
+                    Text("videoEditor.coverPicker.instructions")
                         .font(.system(size: 14, weight: .medium, design: .rounded))
                         .foregroundColor(.secondary)
                     
@@ -1849,17 +1849,17 @@ struct ThumbnailPickerView: View {
                 }
                 .padding(.bottom, 40)
             }
-            .navigationTitle("Seleccionar Portada")
+            .navigationTitle("videoEditor.coverPicker.title")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Cancelar") {
+                    Button("common.cancel") {
                         onDismiss()
                     }
                     .foregroundColor(.primary)
                 }
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Listo") {
+                    Button("common.done") {
                         selectedTime = currentTime
                         selectedImage = previewImage
                         onDismiss()

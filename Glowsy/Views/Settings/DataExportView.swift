@@ -309,7 +309,7 @@ struct ExportOptionCard: View {
                     .multilineTextAlignment(.leading)
                 
                 HStack {
-                    Text("Tamaño estimado:")
+                    Text("dataExport.estimatedSize")
                         .font(.custom("Poppins-Regular", size: 12))
                         .foregroundColor(.gray)
                     
@@ -385,7 +385,7 @@ struct CurrentRequestSection: View {
             
             VStack(alignment: .leading, spacing: 8) {
                 HStack {
-                    Text("Estado:")
+                    Text("dataExport.status")
                         .font(.custom("Poppins-Regular", size: 14))
                         .foregroundColor(.gray)
                     
@@ -395,7 +395,7 @@ struct CurrentRequestSection: View {
                 }
                 
                 HStack {
-                    Text("Solicitado:")
+                    Text("dataExport.requestedAt")
                         .font(.custom("Poppins-Regular", size: 14))
                         .foregroundColor(.gray)
                     
@@ -406,7 +406,7 @@ struct CurrentRequestSection: View {
                 
                 if let completionDate = request.estimatedCompletion {
                     HStack {
-                        Text("Estimado:")
+                        Text("dataExport.estimatedCompletion")
                             .font(.custom("Poppins-Regular", size: 14))
                             .foregroundColor(.gray)
                         

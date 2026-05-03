@@ -56,11 +56,11 @@ struct StoryNativeAdView: View {
                                 .font(.system(size: 50))
                                 .foregroundColor(.red)
                             
-                            Text("Error cargando anuncio")
+                            Text("ad.story.errorLoading")
                                 .font(.headline)
                                 .foregroundColor(.white)
                             
-                            Text("Saltando en 2 segundos...")
+                            Text("ad.story.skippingSoon")
                                 .font(.caption)
                                 .foregroundColor(.gray)
                         }
@@ -206,12 +206,12 @@ struct StoryAdContentViewWithMediaView: View {
                             }
                             
                             VStack(alignment: .leading, spacing: 2) {
-                                Text("Patrocinado")
+                                Text("ad.common.sponsored")
                                     .foregroundColor(.white)
                                     .font(.custom("Poppins-SemiBold", size: 14))
                                     .shadow(color: .black.opacity(0.8), radius: 2, x: 0, y: 1)
                                 
-                                Text("Anuncio")
+                                Text("ad.common.ad")
                                     .foregroundColor(.white.opacity(0.8))
                                     .font(.custom("Poppins-Regular", size: 11))
                                     .shadow(color: .black.opacity(0.6), radius: 1, x: 0, y: 1)
@@ -493,11 +493,11 @@ struct StoryAdLoadingView: View {
                             }
                             
                             VStack(alignment: .leading, spacing: 2) {
-                                Text("Patrocinado")
+                                Text("ad.common.sponsored")
                                     .foregroundColor(.white)
                                     .font(.custom("Poppins-SemiBold", size: 14))
                                 
-                                Text("Cargando...")
+                                Text("common.loading")
                                     .foregroundColor(.white.opacity(0.7))
                                     .font(.custom("Poppins-Regular", size: 11))
                             }
@@ -505,7 +505,7 @@ struct StoryAdLoadingView: View {
                         
                         Spacer()
                         
-                        Button("Saltar") {
+                        Button("ad.common.skip") {
                             onNext()
                         }
                         .font(.custom("Poppins-Medium", size: 12))
@@ -552,12 +552,12 @@ struct StoryAdLoadingView: View {
                     }
                     
                     VStack(spacing: 8) {
-                        Text("Preparando anuncio...")
+                        Text("ad.story.preparing")
                             .font(.custom("Poppins-SemiBold", size: 18))
                             .foregroundColor(.white)
                             .shadow(color: .black.opacity(0.3), radius: 5)
                         
-                        Text("Esto solo tomará unos segundos")
+                        Text("ad.story.preparingDescription")
                             .font(.custom("Poppins-Regular", size: 14))
                             .foregroundColor(.white.opacity(0.8))
                             .shadow(color: .black.opacity(0.3), radius: 3)
@@ -916,7 +916,7 @@ struct IntegratedStoryAdView: View {
                             .font(.custom("Poppins-SemiBold", size: 14))
                             .foregroundColor(.white)
                         
-                        Text("Patrocinado")
+                        Text("ad.common.sponsored")
                             .font(.custom("Poppins-Regular", size: 11))
                             .foregroundColor(.white.opacity(0.7))
                     }

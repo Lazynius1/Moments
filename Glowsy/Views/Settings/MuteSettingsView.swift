@@ -413,7 +413,7 @@ struct AddMutedUserView: View {
             .navigationBarBackButtonHidden(true)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Cancelar") {
+                    Button(NSLocalizedString("muteSettings.cancel", comment: "Cancel button")) {
                         dismiss()
                     }
                 }

@@ -426,21 +426,21 @@ struct LocationMapView: View {
                     StatisticItem(
                         icon: "photo.fill",
                         value: "\(locationMoments.count)",
-                        label: "fotos",
+                        label: NSLocalizedString("maps.stats.photos", comment: "Photos label"),
                         color: adaptiveColors.accent
                     )
                     
                     StatisticItem(
                         icon: "person.2.fill",
                         value: "\(Set(locationMoments.map { $0.authorId }).count)",
-                        label: "usuarios",
+                        label: NSLocalizedString("maps.stats.users", comment: "Users label"),
                         color: .blue
                     )
                     
                     StatisticItem(
                         icon: "calendar",
                         value: formatDateRange(),
-                        label: "tiempo",
+                        label: NSLocalizedString("maps.stats.time", comment: "Time label"),
                         color: .orange
                     )
                 }
@@ -882,15 +882,15 @@ extension LocationMapView {
                     if let clError = error as? CLError {
                         switch clError.code {
                         case .locationUnknown:
-                            self.errorMessage = "No se pudo encontrar '\(self.locationName)'. Intenta con un nombre más específico."
+                            self.errorMessage = String(format: NSLocalizedString("maps.error.locationNotFoundDetailed", comment: "Location not found with detail"), self.locationName)
                         case .denied:
-                            self.errorMessage = "Acceso a ubicación denegado"
+                            self.errorMessage = NSLocalizedString("maps.error.locationDenied", comment: "Location access denied")
                         case .network:
-                            self.errorMessage = "Error de conexión. Verifica tu internet"
+                            self.errorMessage = NSLocalizedString("maps.error.network", comment: "Network error")
                         case .geocodeFoundNoResult:
-                            self.errorMessage = "No se encontraron resultados para '\(self.locationName)'. Intenta con un nombre más específico."
+                            self.errorMessage = String(format: NSLocalizedString("maps.error.noResultsDetailed", comment: "No results with detail"), self.locationName)
                         case .geocodeCanceled:
-                            self.errorMessage = "Búsqueda cancelada"
+                            self.errorMessage = NSLocalizedString("maps.error.searchCanceled", comment: "Search canceled")
                         default:
                             // ✅ MEJORADO: Para errores de geocoding, mostrar ubicación por defecto
                             self.setupDefaultLocation(showMessage: true)
@@ -907,7 +907,7 @@ extension LocationMapView {
                 }
                 
                 guard let placemarks = placemarks, !placemarks.isEmpty else {
-                    self.errorMessage = "No se encontraron resultados para '\(self.locationName)'"
+                    self.errorMessage = String(format: NSLocalizedString("maps.error.noResults", comment: "No results"), self.locationName)
                     self.isLoading = false
                     return
                 }
@@ -923,7 +923,7 @@ extension LocationMapView {
                 
                 guard let bestPlacemark = validPlacemarks.first,
                       let location = bestPlacemark.location else {
-                    self.errorMessage = "No se pudo obtener la ubicación de '\(self.locationName)'"
+                    self.errorMessage = String(format: NSLocalizedString("maps.error.couldNotResolveLocation", comment: "Could not resolve location"), self.locationName)
                     self.isLoading = false
                     return
                 }
@@ -942,7 +942,7 @@ extension LocationMapView {
         
         guard CLLocationCoordinate2DIsValid(coordinate) else {
             DispatchQueue.main.async {
-                self.errorMessage = "Coordenadas de ubicación inválidas"
+                self.errorMessage = NSLocalizedString("maps.error.invalidCoordinates", comment: "Invalid coordinates")
                 self.isLoading = false
             }
             return
@@ -1002,12 +1002,12 @@ extension LocationMapView {
             self.annotations.append(MapsLocationAnnotation(
                 id: UUID(),
                 coordinate: defaultCoordinate,
-                title: "Ubicación por defecto"
+                title: NSLocalizedString("maps.defaultLocation.title", comment: "Default location title")
             ))
             
             self.isLoading = false
             self.errorMessage = showMessage
-                ? "Mostrando ubicación por defecto. '\(self.locationName)' no se pudo encontrar."
+                ? String(format: NSLocalizedString("maps.defaultLocation.message", comment: "Showing default location message"), self.locationName)
                 : nil
             self.nearbyMoments = []
             self.lastNearbyQueryKey = self.nearbyQueryKey(for: self.region)

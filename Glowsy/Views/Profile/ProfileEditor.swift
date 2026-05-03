@@ -850,7 +850,9 @@ struct ModernEditProfileView: View {
     
     // Estados de UI
     @State private var characterCount: Int = 0
-    @State private var isShowingPhotoPicker: Bool = false
+    @State private var isShowingPhotoActions: Bool = false
+    @State private var isShowingPhotoLibraryCrop: Bool = false
+    @State private var isShowingCameraCapture: Bool = false
     @State private var currentProfileImage: UIImage?
     @State private var isShowingInterestsPicker: Bool = false
     @State private var showingDeleteConfirmation: Bool = false
@@ -862,6 +864,7 @@ struct ModernEditProfileView: View {
     
     // Servicio de Firestore
     private let firestoreService = FirestoreService()
+    private let storageService = StorageService()
     
     // Secciones de edición simplificadas
     enum EditSection: CaseIterable {
@@ -884,33 +887,26 @@ struct ModernEditProfileView: View {
     
     // Lista de intereses disponibles (cargada desde la base de datos)
     @State private var availableInterests: [String] = []
-
+    
     var body: some View {
         NavigationView {
             ZStack {
-                // MARK: - 1. Immersive Background
                 immersiveBackground
                 
                 if isLoading {
-                    // Vista de carga
                     loadingView
                 } else if let errorMessage = errorMessage {
-                    // Vista de error
                     errorView(message: errorMessage)
                 } else {
-                    // Vista principal
                     VStack(spacing: 0) {
-                        // Header con navegación Flotante
                         profileHeader
                             .padding(.top, 10)
                         
-                        // Navegación por pestañas (simplificada)
                         if EditSection.allCases.count > 1 {
                             sectionTabs
-                                .padding(.top, 10)
+                                .padding(.top, 6)
                         }
                         
-                        // Contenido según la sección activa
                         ScrollView(showsIndicators: false) {
                             VStack(spacing: 24) {
                                 switch activeSection {
@@ -928,25 +924,32 @@ struct ModernEditProfileView: View {
                 }
             }
             .navigationBarHidden(true)
-            .sheet(isPresented: $isShowingPhotoPicker) {
-                GridPhotoPickerView(
-                    selectedPhoto: $selectedPhoto,
-                    currentProfileImage: $currentProfileImage,
-                    onUploadSuccess: {
-                        // Si se subió una foto con éxito, ya no necesitamos subirla en onSave
-                        self.selectedPhoto = nil 
-                    }
-                )
+            .sheet(isPresented: $isShowingPhotoActions) {
+                photoActionsSheet
+            }
+            .fullScreenCover(isPresented: $isShowingPhotoLibraryCrop) {
+                ProfileLibraryCropEntryView { croppedImage in
+                    currentProfileImage = croppedImage
+                    uploadCapturedProfileImage(croppedImage)
+                }
+            }
+            .fullScreenCover(isPresented: $isShowingCameraCapture) {
+                CameraCapture { media in
+                    guard media.type == .image else { return }
+                    let image = media.image
+                    currentProfileImage = image
+                    uploadCapturedProfileImage(image)
+                }
+                .ignoresSafeArea()
             }
             .sheet(isPresented: $isShowingInterestsPicker) {
                 interestsPickerSheet
             }
-            .alert("Eliminar foto de perfil", isPresented: $showingDeleteConfirmation) {
-                Button("Eliminar", role: .destructive) {
-                    currentProfileImage = nil
-                    selectedPhoto = nil
+            .alert("profileEditor.deletePhoto.title", isPresented: $showingDeleteConfirmation) {
+                Button("common.delete", role: .destructive) {
+                    deleteCurrentProfileImage()
                 }
-                Button("Cancelar", role: .cancel) { }
+                Button("common.cancel", role: .cancel) { }
             } message: {
                 Text("profileEditor.deletePhoto.confirm")
             }
@@ -959,40 +962,8 @@ struct ModernEditProfileView: View {
     
     // MARK: - Subviews Inmersivas
     private var immersiveBackground: some View {
-        ZStack {
-            // Capa 1: Gradiente Base
-            Color(hex: "0F2027").ignoresSafeArea()
-            
-            // Capa 2: Imagen desenfocada si existe
-            GeometryReader { proxy in
-                if let uiImage = currentProfileImage {
-                    Image(uiImage: uiImage)
-                        .resizable()
-                        .aspectRatio(contentMode: .fill)
-                        .frame(width: proxy.size.width, height: proxy.size.height)
-                        .blur(radius: 50)
-                        .opacity(0.4)
-                } else if let path = profileImagePath, let url = URL(string: path) {
-                    KFImage(url)
-                        .resizable()
-                        .aspectRatio(contentMode: .fill)
-                        .frame(width: proxy.size.width, height: proxy.size.height)
-                        .blur(radius: 50)
-                        .opacity(0.4)
-                } else {
-                    LinearGradient(
-                        colors: [Color(hex: "0F2027"), Color(hex: "203A43"), Color(hex: "2C5364")],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                    .opacity(0.6)
-                }
-            }
+        (colorScheme == .dark ? Color(hex: "0B1215") : Color(hex: "FAF9F6"))
             .ignoresSafeArea()
-            
-            // Capa 3: Overlay oscuro
-            Color.black.opacity(0.4).ignoresSafeArea()
-        }
     }
     
     private var loadingView: some View {
@@ -1027,11 +998,10 @@ struct ModernEditProfileView: View {
                 loadUserData()
             }
             .font(.custom("Poppins-SemiBold", size: 14))
-            .foregroundColor(.white)
+            .foregroundColor(colorScheme == .dark ? .white : .black)
             .padding(.horizontal, 24)
             .padding(.vertical, 12)
-            .background(Color(hex: "00A896"))
-            .clipShape(Capsule())
+            .background(Color.clear.liquidGlass(in: Capsule(), interactive: true))
         }
     }
 
@@ -1095,60 +1065,38 @@ struct ModernEditProfileView: View {
     // MARK: - Header del perfil
     private var profileHeader: some View {
         VStack(spacing: 24) {
-            // MARK: - Barra de Navegación Flotante
             HStack {
                 Button(action: { dismiss() }) {
-                    Image(systemName: "xmark")
+                    Image(systemName: "chevron.down")
                         .font(.system(size: 16, weight: .semibold))
-                        .foregroundColor(.white)
+                        .foregroundColor(colorScheme == .dark ? .white : .black)
                         .padding(10)
-                        .background(.ultraThinMaterial)
-                        .clipShape(Circle())
-                        .overlay(
-                            Circle()
-                                .stroke(Color.white.opacity(0.1), lineWidth: 0.5)
-                        )
+                        .background(Color.clear.liquidGlass(in: Circle(), interactive: true))
                 }
                 
                 Spacer()
                 
                 Text("profileEditor.title")
                     .font(.custom("Poppins-Bold", size: 18))
-                    .foregroundColor(.white)
-                    .shadow(color: .black.opacity(0.3), radius: 2, x: 0, y: 1)
+                    .foregroundColor(colorScheme == .dark ? .white : .black)
                 
                 Spacer()
                 
                 Button(action: { saveProfile() }) {
-                    Image(systemName: "checkmark")
-                        .font(.system(size: 16, weight: .bold))
-                        .foregroundColor(.white)
-                        .padding(10)
-                        .background(
-                            Circle()
-                                .fill(characterCount <= 150 ? Color(hex: "00A896") : Color.gray.opacity(0.5))
-                        )
-                        .shadow(radius: 5)
-                        .overlay(
-                            Circle()
-                                .stroke(Color.white.opacity(0.2), lineWidth: 1)
-                        )
+                    Text("common.save")
+                        .font(.custom("Poppins-SemiBold", size: 14))
+                        .foregroundColor(characterCount <= 150 ? (colorScheme == .dark ? .white : .black) : .secondary)
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 10)
+                        .background(Color.clear.liquidGlass(in: Capsule(), interactive: characterCount <= 150))
                 }
                 .disabled(characterCount > 150)
             }
             .padding(.horizontal, 20)
             .padding(.top, 10)
             
-            // MARK: - Avatar Central con Efectos Premium
             VStack(spacing: 20) {
                 ZStack {
-                    // Círculo de Brillo de Fondo
-                    Circle()
-                        .fill(Color(hex: "00A896").opacity(0.2))
-                        .frame(width: 130, height: 130)
-                        .blur(radius: 15)
-                    
-                    // Imagen de perfil o placeholder
                     if let currentImage = currentProfileImage {
                         Image(uiImage: currentImage)
                             .resizable()
@@ -1163,91 +1111,49 @@ struct ModernEditProfileView: View {
                             .clipShape(Circle())
                     } else {
                         Circle()
-                            .fill(Color.white.opacity(0.1))
+                            .fill(colorScheme == .dark ? Color.white.opacity(0.08) : Color.black.opacity(0.05))
                             .frame(width: 110, height: 110)
                             .overlay(
                                 Image(systemName: "person.fill")
                                     .font(.system(size: 50))
-                                    .foregroundColor(.white.opacity(0.6))
+                                    .foregroundColor(colorScheme == .dark ? .white.opacity(0.6) : .black.opacity(0.35))
                             )
                     }
                     
-                    // Borde Premium Animado (estático por ahora pero con gradiente)
                     Circle()
-                        .stroke(
-                            LinearGradient(
-                                colors: [
-                                    Color(hex: "00A896"),
-                                    Color.white.opacity(0.5),
-                                    Color(hex: "00A896").opacity(0.8)
-                                ],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            ),
-                            lineWidth: 3
-                        )
+                        .stroke(colorScheme == .dark ? Color.white.opacity(0.16) : Color.black.opacity(0.12), lineWidth: 1)
                         .frame(width: 118, height: 118)
                     
-                    // Botón de Cámara Overlay
                     VStack {
                         Spacer()
                         HStack {
                             Spacer()
-                            Button(action: { isShowingPhotoPicker = true }) {
+                            Button(action: { isShowingPhotoActions = true }) {
                                 Image(systemName: "camera.fill")
                                     .font(.system(size: 14, weight: .bold))
-                                    .foregroundColor(.white)
+                                    .foregroundColor(colorScheme == .dark ? .white : .black)
                                     .padding(8)
-                                    .background(Color(hex: "00A896"))
-                                    .clipShape(Circle())
-                                    .shadow(radius: 4)
-                                    .overlay(
-                                        Circle()
-                                            .stroke(Color.white.opacity(0.3), lineWidth: 1)
-                                    )
+                                    .background(Color.clear.liquidGlass(in: Circle(), interactive: true))
                             }
                         }
                     }
                     .frame(width: 110, height: 110)
                 }
                 .onTapGesture {
-                    isShowingPhotoPicker = true
+                    isShowingPhotoActions = true
                 }
                 
-                // Botones de Acción Rápidos (Cristal)
-                HStack(spacing: 16) {
-                    Button(action: { isShowingPhotoPicker = true }) {
-                        HStack(spacing: 6) {
-                            Image(systemName: "photo.on.rectangle")
-                                .font(.system(size: 14))
-                            Text("profileEditor.change")
-                                .font(.custom("Poppins-Medium", size: 13))
-                        }
-                        .foregroundColor(.white)
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 8)
-                        .background(Color.white.opacity(0.1))
-                        .clipShape(Capsule())
-                        .overlay(
-                            Capsule()
-                                .stroke(Color.white.opacity(0.1), lineWidth: 0.5)
-                        )
+                Button(action: { isShowingPhotoActions = true }) {
+                    HStack(spacing: 6) {
+                        Image(systemName: "photo.on.rectangle")
+                            .font(.system(size: 14))
+                        Text("profileEditor.change")
+                            .font(.custom("Poppins-Medium", size: 13))
                     }
-                    
-                    if currentProfileImage != nil || selectedPhoto != nil {
-                        Button(action: { showingDeleteConfirmation = true }) {
-                            Image(systemName: "trash")
-                                .font(.system(size: 14))
-                                .foregroundColor(.red.opacity(0.8))
-                                .padding(10)
-                                .background(Color.white.opacity(0.1))
-                                .clipShape(Circle())
-                                .overlay(
-                                    Circle()
-                                        .stroke(Color.white.opacity(0.1), lineWidth: 0.5)
-                                )
-                        }
-                    }
+                    .foregroundColor(colorScheme == .dark ? .white : .black)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 8)
+                    .background(Color.clear.liquidGlass(in: Capsule(), interactive: true))
                 }
             }
             .padding(.bottom, 10)
@@ -1256,127 +1162,98 @@ struct ModernEditProfileView: View {
     
     // MARK: - Pestañas de sección
     private var sectionTabs: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 16) {
-                ForEach(EditSection.allCases, id: \.self) { section in
-                    Button(action: {
-                        withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                            activeSection = section
-                        }
-                    }) {
-                        HStack(spacing: 8) {
-                            Image(systemName: section.icon)
-                                .font(.system(size: 14, weight: .semibold))
-                            Text(section.title)
-                                .font(.custom("Poppins-SemiBold", size: 14))
-                        }
-                        .foregroundColor(activeSection == section ? .white : .white.opacity(0.6))
-                        .padding(.horizontal, 18)
-                        .padding(.vertical, 12)
-                        .background(
-                            ZStack {
-                                if activeSection == section {
-                                    Color(hex: "00A896").opacity(0.3)
-                                    BlurView(style: .systemUltraThinMaterialDark)
-                                } else {
-                                    Color.white.opacity(0.05)
-                                }
-                            }
-                        )
-                        .clipShape(Capsule())
-                        .overlay(
-                            Capsule()
-                                .stroke(
-                                    activeSection == section ?
-                                    Color(hex: "00A896").opacity(0.8) :
-                                    Color.white.opacity(0.1),
-                                    lineWidth: 1
-                                )
-                        )
+        HStack(spacing: 10) {
+            ForEach(EditSection.allCases, id: \.self) { section in
+                Button(action: {
+                    withAnimation(.smooth(duration: 0.18, extraBounce: 0.01)) {
+                        activeSection = section
                     }
+                }) {
+                    HStack(spacing: 8) {
+                        Image(systemName: section.icon)
+                            .font(.system(size: 14, weight: .semibold))
+                        Text(section.title)
+                            .font(.custom("Poppins-SemiBold", size: 14))
+                    }
+                    .foregroundColor(activeSection == section ? (colorScheme == .dark ? .white : .black) : (colorScheme == .dark ? .white.opacity(0.65) : .black.opacity(0.55)))
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 10)
+                    .background(
+                        activeSection == section
+                        ? AnyView(Color.clear.liquidGlass(in: Capsule(), interactive: true))
+                        : AnyView(Capsule().fill(colorScheme == .dark ? Color.white.opacity(0.05) : Color.black.opacity(0.04)))
+                    )
                 }
             }
-            .padding(.horizontal, 20)
         }
+        .padding(.horizontal, 20)
         .padding(.bottom, 8)
     }
     
     // MARK: - Sección de perfil básico
     private var basicProfileSection: some View {
         VStack(spacing: 24) {
-            // MARK: - Information Card (Glass)
             VStack(spacing: 20) {
-                // Nombre de usuario (solo lectura)
                 VStack(alignment: .leading, spacing: 10) {
                     HStack {
                         Image(systemName: "at")
                             .font(.system(size: 14, weight: .bold))
-                            .foregroundColor(Color(hex: "00A896"))
+                            .foregroundColor(colorScheme == .dark ? .white.opacity(0.8) : .black.opacity(0.75))
                         
                         Text("profileEditor.username")
                             .font(.custom("Poppins-SemiBold", size: 14))
-                            .foregroundColor(.white.opacity(0.6))
+                            .foregroundColor(colorScheme == .dark ? .white.opacity(0.6) : .black.opacity(0.55))
                         
                         Spacer()
                         
                         Text("profileEditor.notEditable")
                             .font(.custom("Poppins-Medium", size: 10))
-                            .foregroundColor(.white.opacity(0.4))
+                            .foregroundColor(colorScheme == .dark ? .white.opacity(0.4) : .black.opacity(0.35))
                             .padding(.horizontal, 8)
                             .padding(.vertical, 4)
-                            .background(Color.white.opacity(0.05))
+                            .background(colorScheme == .dark ? Color.white.opacity(0.05) : Color.black.opacity(0.04))
                             .clipShape(Capsule())
                     }
                     
                     Text("\(username)")
                         .font(.custom("Poppins-Medium", size: 16))
-                        .foregroundColor(.white)
+                        .foregroundColor(colorScheme == .dark ? .white : .black)
                         .padding(16)
                         .frame(maxWidth: .infinity, alignment: .leading)
-                        .background(Color.black.opacity(0.2))
+                        .background(colorScheme == .dark ? Color.white.opacity(0.04) : Color.black.opacity(0.035))
                         .clipShape(RoundedRectangle(cornerRadius: 12))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 12)
-                                .stroke(Color.white.opacity(0.05), lineWidth: 1)
-                        )
                 }
                 
-                // Email (solo lectura)
                 VStack(alignment: .leading, spacing: 10) {
                     HStack {
                         Image(systemName: "envelope.fill")
                             .font(.system(size: 14))
-                            .foregroundColor(Color(hex: "00A896"))
+                            .foregroundColor(colorScheme == .dark ? .white.opacity(0.8) : .black.opacity(0.75))
                         
                         Text("profileEditor.email")
                             .font(.custom("Poppins-SemiBold", size: 14))
-                            .foregroundColor(.white.opacity(0.6))
+                            .foregroundColor(colorScheme == .dark ? .white.opacity(0.6) : .black.opacity(0.55))
                         
                         Spacer()
                         
                         Text("profileEditor.notEditable")
                             .font(.custom("Poppins-Medium", size: 10))
-                            .foregroundColor(.white.opacity(0.4))
+                            .foregroundColor(colorScheme == .dark ? .white.opacity(0.4) : .black.opacity(0.35))
                             .padding(.horizontal, 8)
                             .padding(.vertical, 4)
-                            .background(Color.white.opacity(0.05))
+                            .background(colorScheme == .dark ? Color.white.opacity(0.05) : Color.black.opacity(0.04))
                             .clipShape(Capsule())
                     }
                     
                     Text(email)
                         .font(.custom("Poppins-Medium", size: 16))
-                        .foregroundColor(.white)
+                        .foregroundColor(colorScheme == .dark ? .white : .black)
                         .padding(16)
                         .frame(maxWidth: .infinity, alignment: .leading)
-                        .background(Color.black.opacity(0.2))
+                        .background(colorScheme == .dark ? Color.white.opacity(0.04) : Color.black.opacity(0.035))
                         .clipShape(RoundedRectangle(cornerRadius: 12))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 12)
-                                .stroke(Color.white.opacity(0.05), lineWidth: 1)
-                        )
                 }
                 
-                // Sitio web (editable)
                 profileInputField(
                     title: NSLocalizedString("profileEditor.website", comment: "Website"),
                     placeholder: "www.yoursite.com",
@@ -1386,46 +1263,34 @@ struct ModernEditProfileView: View {
                 .textInputAutocapitalization(.never)
                 .keyboardType(.URL)
             }
-            .padding(20)
-            .background(Color.white.opacity(0.05))
-            .clipShape(RoundedRectangle(cornerRadius: 24))
-            .overlay(
-                RoundedRectangle(cornerRadius: 24)
-                    .stroke(Color.white.opacity(0.1), lineWidth: 1)
-            )
             
-            // MARK: - Bio Card (Glass)
             VStack(alignment: .leading, spacing: 16) {
                 HStack {
                     Image(systemName: "pencil.and.outline")
                         .font(.system(size: 16, weight: .bold))
-                        .foregroundColor(Color(hex: "00A896"))
+                        .foregroundColor(colorScheme == .dark ? .white.opacity(0.8) : .black.opacity(0.75))
                     
                     Text("profileEditor.bio")
                         .font(.custom("Poppins-SemiBold", size: 16))
-                        .foregroundColor(.white)
+                        .foregroundColor(colorScheme == .dark ? .white : .black)
                     
                     Spacer()
                     
                     Text("\(characterCount)/150")
                         .font(.custom("Poppins-Medium", size: 12))
-                        .foregroundColor(characterCount > 150 ? .red : .white.opacity(0.5))
+                        .foregroundColor(characterCount > 150 ? .red : (colorScheme == .dark ? .white.opacity(0.5) : .black.opacity(0.45)))
                 }
 
                 ZStack(alignment: .topLeading) {
                     TextEditor(text: $newBio)
                         .font(.custom("Poppins-Regular", size: 15))
-                        .foregroundColor(.white)
+                        .foregroundColor(colorScheme == .dark ? .white : .black)
                         .scrollContentBackground(.hidden)
                         .background(Color.clear)
                         .frame(minHeight: 100)
                         .padding(12)
-                        .background(Color.black.opacity(0.2))
+                        .background(colorScheme == .dark ? Color.white.opacity(0.04) : Color.black.opacity(0.035))
                         .clipShape(RoundedRectangle(cornerRadius: 16))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 16)
-                                .stroke(Color.white.opacity(0.05), lineWidth: 1)
-                        )
                         .onChange(of: newBio) { newValue in
                             characterCount = newValue.count
                         }
@@ -1433,20 +1298,13 @@ struct ModernEditProfileView: View {
                     if newBio.isEmpty {
                         Text("profileEditor.bio.placeholder")
                             .font(.custom("Poppins-Regular", size: 15))
-                            .foregroundColor(.white.opacity(0.3))
+                            .foregroundColor(colorScheme == .dark ? .white.opacity(0.3) : .black.opacity(0.28))
                             .padding(.horizontal, 16)
                             .padding(.vertical, 20)
                             .allowsHitTesting(false)
                     }
                 }
             }
-            .padding(20)
-            .background(Color.white.opacity(0.05))
-            .clipShape(RoundedRectangle(cornerRadius: 24))
-            .overlay(
-                RoundedRectangle(cornerRadius: 24)
-                    .stroke(Color.white.opacity(0.1), lineWidth: 1)
-            )
         }
     }
     
@@ -1458,28 +1316,27 @@ struct ModernEditProfileView: View {
                 HStack {
                     Image(systemName: "heart.fill")
                         .font(.system(size: 16))
-                        .foregroundColor(Color(hex: "00A896"))
+                        .foregroundColor(colorScheme == .dark ? .white.opacity(0.8) : .black.opacity(0.75))
                     
                     Text("profileEditor.interests.title")
                         .font(.custom("Poppins-SemiBold", size: 18))
-                        .foregroundColor(.white)
+                        .foregroundColor(colorScheme == .dark ? .white : .black)
                     
                     Spacer()
                     
                     Button(action: { isShowingInterestsPicker = true }) {
                         Text(NSLocalizedString("creator.edit", comment: ""))
                             .font(.custom("Poppins-Medium", size: 14))
-                            .foregroundColor(Color(hex: "00A896"))
+                            .foregroundColor(colorScheme == .dark ? .white : .black)
                             .padding(.horizontal, 12)
                             .padding(.vertical, 6)
-                            .background(Color(hex: "00A896").opacity(0.1))
-                            .clipShape(Capsule())
+                            .background(Color.clear.liquidGlass(in: Capsule(), interactive: true))
                     }
                 }
                 
                 Text("profileEditor.interests.description")
                     .font(.custom("Poppins-Regular", size: 14))
-                    .foregroundColor(.white.opacity(0.6))
+                    .foregroundColor(colorScheme == .dark ? .white.opacity(0.6) : .black.opacity(0.55))
                     .padding(.top, -10)
                 
                 // Grid de intereses seleccionados
@@ -1487,16 +1344,16 @@ struct ModernEditProfileView: View {
                     VStack(spacing: 16) {
                         Image(systemName: "heart.circle")
                             .font(.system(size: 48))
-                            .foregroundColor(.white.opacity(0.2))
+                            .foregroundColor(colorScheme == .dark ? .white.opacity(0.2) : .black.opacity(0.16))
                         
                         VStack(spacing: 4) {
                             Text("profileEditor.interests.empty.title")
                                 .font(.custom("Poppins-Medium", size: 16))
-                                .foregroundColor(.white.opacity(0.8))
+                                .foregroundColor(colorScheme == .dark ? .white.opacity(0.8) : .black.opacity(0.78))
                             
                             Text("profileEditor.interests.empty.subtitle")
                                 .font(.custom("Poppins-Regular", size: 13))
-                                .foregroundColor(.white.opacity(0.5))
+                                .foregroundColor(colorScheme == .dark ? .white.opacity(0.5) : .black.opacity(0.45))
                                 .multilineTextAlignment(.center)
                                 .padding(.horizontal, 20)
                         }
@@ -1505,23 +1362,16 @@ struct ModernEditProfileView: View {
                             isShowingInterestsPicker = true
                         }
                         .font(.custom("Poppins-SemiBold", size: 14))
-                        .foregroundColor(.white)
+                        .foregroundColor(colorScheme == .dark ? .white : .black)
                         .padding(.horizontal, 24)
                         .padding(.vertical, 12)
-                        .background(Color(hex: "00A896"))
-                        .clipShape(Capsule())
-                        .shadow(color: Color(hex: "00A896").opacity(0.3), radius: 8, x: 0, y: 4)
+                        .background(Color.clear.liquidGlass(in: Capsule(), interactive: true))
                     }
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 32)
-                    .background(Color.black.opacity(0.2))
+                    .background(colorScheme == .dark ? Color.white.opacity(0.04) : Color.black.opacity(0.035))
                     .clipShape(RoundedRectangle(cornerRadius: 16))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 16)
-                            .stroke(Color.white.opacity(0.05), lineWidth: 1)
-                    )
                 } else {
-                    // Flow layout de intereses seleccionados
                     ProfileFlowLayoutt(spacing: 10) {
                         ForEach(Array(selectedInterests.sorted()), id: \.self) { interest in
                             HStack(spacing: 6) {
@@ -1529,27 +1379,15 @@ struct ModernEditProfileView: View {
                                     .font(.system(size: 14))
                                 Text(InterestOption.localize(interest))
                                     .font(.custom("Poppins-Medium", size: 14))
-                                    .foregroundColor(.white)
+                                    .foregroundColor(colorScheme == .dark ? .white : .black)
                             }
                             .padding(.horizontal, 14)
                             .padding(.vertical, 8)
-                            .background(Color.white.opacity(0.1))
-                            .clipShape(Capsule())
-                            .overlay(
-                                Capsule()
-                                    .stroke(Color.white.opacity(0.1), lineWidth: 0.5)
-                            )
+                            .background(Color.clear.liquidGlass(in: Capsule(), interactive: false))
                         }
                     }
                 }
             }
-            .padding(20)
-            .background(Color.white.opacity(0.05))
-            .clipShape(RoundedRectangle(cornerRadius: 24))
-            .overlay(
-                RoundedRectangle(cornerRadius: 24)
-                    .stroke(Color.white.opacity(0.1), lineWidth: 1)
-            )
         }
     }
     
@@ -1559,52 +1397,29 @@ struct ModernEditProfileView: View {
             HStack {
                 Image(systemName: icon)
                     .font(.system(size: 14))
-                    .foregroundColor(Color(hex: "00A896"))
+                    .foregroundColor(colorScheme == .dark ? .white.opacity(0.8) : .black.opacity(0.75))
                 
                 Text(title)
                     .font(.custom("Poppins-SemiBold", size: 14))
-                    .foregroundColor(.white.opacity(0.6))
+                    .foregroundColor(colorScheme == .dark ? .white.opacity(0.6) : .black.opacity(0.55))
             }
             
-            TextField("", text: text, prompt: Text(placeholder).foregroundColor(.white.opacity(0.3)))
+            TextField("", text: text, prompt: Text(placeholder).foregroundColor(colorScheme == .dark ? .white.opacity(0.3) : .black.opacity(0.28)))
                 .font(.custom("Poppins-Medium", size: 16))
-                .foregroundColor(.white)
+                .foregroundColor(colorScheme == .dark ? .white : .black)
                 .padding(16)
-                .background(Color.black.opacity(0.2))
+                .background(colorScheme == .dark ? Color.white.opacity(0.04) : Color.black.opacity(0.035))
                 .clipShape(RoundedRectangle(cornerRadius: 12))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 12)
-                        .stroke(Color.white.opacity(0.05), lineWidth: 1)
-                )
         }
     }
     
     // MARK: - Sheet selector de intereses
     private var interestsPickerSheet: some View {
-        NavigationView {
-            ZStack {
-                immersiveBackground
-                
-                VStack(spacing: 0) {
-                    // Header con contador
-                    interestPickerHeader
-                        .padding(.top, 20)
-                    
-                    // Grid de intereses
-                    interestPickerGrid
-                }
-            }
-            .navigationTitle(NSLocalizedString("profileEditor.interests.navigationTitle", comment: ""))
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button(NSLocalizedString("profileEditor.done", comment: "")) {
-                        isShowingInterestsPicker = false
-                    }
-                    .foregroundColor(Color(hex: "00A896"))
-                    .font(.custom("Poppins-SemiBold", size: 16))
-                }
-            }
+        VStack(spacing: 0) {
+            interestPickerHeader
+                .padding(.top, 14)
+            
+            interestPickerGrid
         }
         .presentationDetents([.medium, .large])
         .presentationDragIndicator(.visible)
@@ -1612,23 +1427,38 @@ struct ModernEditProfileView: View {
 
     // MARK: - Componentes del selector de intereses
     private var interestPickerHeader: some View {
-        HStack {
-            Text("profileEditor.interests.select.title")
-                .font(.custom("Poppins-Medium", size: 16))
-                .foregroundColor(.white.opacity(0.8))
+        HStack(alignment: .center) {
+            Button(action: { isShowingInterestsPicker = false }) {
+                Image(systemName: "chevron.down")
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundColor(colorScheme == .dark ? .white : .black)
+                    .padding(10)
+                    .background(Color.clear.liquidGlass(in: Circle(), interactive: true))
+            }
+            
+            Spacer()
+            
+            VStack(spacing: 4) {
+                Text("profileEditor.interests.navigationTitle")
+                    .font(.custom("Poppins-SemiBold", size: 17))
+                    .foregroundColor(colorScheme == .dark ? .white : .black)
+                
+                Text("profileEditor.interests.select.title")
+                    .font(.custom("Poppins-Regular", size: 13))
+                    .foregroundColor(colorScheme == .dark ? .white.opacity(0.65) : .black.opacity(0.55))
+            }
             
             Spacer()
             
             Text("\(selectedInterests.count)/5")
-                .font(.custom("Poppins-SemiBold", size: 14))
-                .foregroundColor(selectedInterests.count >= 5 ? .red : Color(hex: "00A896"))
-                .padding(.horizontal, 10)
-                .padding(.vertical, 4)
-                .background(Color.white.opacity(0.1))
-                .clipShape(Capsule())
+                .font(.custom("Poppins-SemiBold", size: 13))
+                .foregroundColor(selectedInterests.count >= 5 ? .red : (colorScheme == .dark ? .white : .black))
+                .padding(.horizontal, 12)
+                .padding(.vertical, 8)
+                .background(Color.clear.liquidGlass(in: Capsule(), interactive: false))
         }
         .padding(.horizontal, 20)
-        .padding(.bottom, 20)
+        .padding(.bottom, 18)
     }
 
     private var interestPickerGrid: some View {
@@ -1649,6 +1479,7 @@ struct ModernEditProfileView: View {
                 }
             }
             .padding(.horizontal, 20)
+            .padding(.top, 6)
             .padding(.bottom, 40)
         }
     }
@@ -1659,6 +1490,163 @@ struct ModernEditProfileView: View {
             selectedInterests.remove(interest)
         } else if selectedInterests.count < 5 {
             selectedInterests.insert(interest)
+        }
+    }
+    
+    private var photoActionsSheet: some View {
+        VStack(spacing: 0) {
+            HStack {
+                Button(action: { isShowingPhotoActions = false }) {
+                    Image(systemName: "chevron.down")
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundColor(colorScheme == .dark ? .white : .black)
+                        .padding(10)
+                        .background(Color.clear.liquidGlass(in: Circle(), interactive: true))
+                }
+                
+                Spacer()
+                
+                Text("profileEditor.change")
+                    .font(.custom("Poppins-SemiBold", size: 17))
+                    .foregroundColor(colorScheme == .dark ? .white : .black)
+                
+                Spacer()
+                
+                Color.clear
+                    .frame(width: 36, height: 36)
+            }
+            .padding(.horizontal, 20)
+            .padding(.top, 12)
+            .padding(.bottom, 14)
+            
+            VStack(spacing: 0) {
+                photoActionRow(
+                    icon: "photo.on.rectangle",
+                    title: NSLocalizedString("profileEditor.library", comment: "")
+                ) {
+                    isShowingPhotoActions = false
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                        isShowingPhotoLibraryCrop = true
+                    }
+                }
+                
+                photoActionRow(
+                    icon: "camera.fill",
+                    title: NSLocalizedString("creator.camera", comment: "")
+                ) {
+                    isShowingPhotoActions = false
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                        isShowingCameraCapture = true
+                    }
+                }
+                
+                if currentProfileImage != nil || selectedPhoto != nil || profileImagePath != nil {
+                    photoActionRow(
+                        icon: "trash",
+                        title: NSLocalizedString("profileEditor.deletePhoto.title", comment: ""),
+                        isDestructive: true
+                    ) {
+                        isShowingPhotoActions = false
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                            showingDeleteConfirmation = true
+                        }
+                    }
+                }
+            }
+            .padding(.horizontal, 20)
+            .padding(.bottom, 18)
+        }
+        .presentationDetents([.height(photoActionsSheetHeight)])
+        .presentationDragIndicator(.visible)
+    }
+    
+    private func photoActionRow(icon: String, title: String, isDestructive: Bool = false, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack(spacing: 12) {
+                Image(systemName: icon)
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundColor(isDestructive ? .red.opacity(0.9) : (colorScheme == .dark ? .white : .black))
+                    .frame(width: 20)
+                
+                Text(title)
+                    .font(.custom("Poppins-Medium", size: 15))
+                    .foregroundColor(isDestructive ? .red.opacity(0.9) : (colorScheme == .dark ? .white : .black))
+                
+                Spacer()
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 15)
+        }
+        .buttonStyle(.plain)
+    }
+    
+    private var photoActionsSheetHeight: CGFloat {
+        let rowCount: CGFloat = (currentProfileImage != nil || selectedPhoto != nil || profileImagePath != nil) ? 3 : 2
+        return 96 + (rowCount * 52) + 24
+    }
+    
+    private func uploadCapturedProfileImage(_ image: UIImage) {
+        guard let userId = Auth.auth().currentUser?.uid else { return }
+        
+        isLoading = true
+        errorMessage = nil
+        
+        firestoreService.fetchUserProfile(userId: userId) { result in
+            let oldImagePath: String?
+            switch result {
+            case .success(let user):
+                oldImagePath = user.profileImagePath
+            case .failure:
+                oldImagePath = nil
+            }
+            
+            self.storageService.uploadProfileImage(userId: userId, image: image) { uploadResult in
+                switch uploadResult {
+                case .success(let newPath):
+                    self.firestoreService.updateProfilePicture(userId: userId, profileImagePath: newPath) { error in
+                        DispatchQueue.main.async {
+                            self.isLoading = false
+                            
+                            if let error = error {
+                                self.errorMessage = String(format: NSLocalizedString("profileEditor.error.updateProfile", comment: ""), error.localizedDescription)
+                            } else {
+                                self.profileImagePath = newPath
+                                self.selectedPhoto = nil
+                                self.storageService.deleteProfileImage(userId: userId, oldImagePath: oldImagePath) { _ in }
+                            }
+                        }
+                    }
+                case .failure(let error):
+                    DispatchQueue.main.async {
+                        self.isLoading = false
+                        self.errorMessage = String(format: NSLocalizedString("profileEditor.error.uploadImage", comment: ""), error.localizedDescription)
+                    }
+                }
+            }
+        }
+    }
+    
+    private func deleteCurrentProfileImage() {
+        guard let userId = Auth.auth().currentUser?.uid else { return }
+        
+        let oldImagePath = profileImagePath
+        isLoading = true
+        errorMessage = nil
+        
+        firestoreService.removeProfilePicture(userId: userId) { error in
+            DispatchQueue.main.async {
+                if let error = error {
+                    self.isLoading = false
+                    self.errorMessage = String(format: NSLocalizedString("profileEditor.error.updateProfile", comment: ""), error.localizedDescription)
+                    return
+                }
+                
+                self.storageService.deleteProfileImage(userId: userId, oldImagePath: oldImagePath) { _ in }
+                self.currentProfileImage = nil
+                self.selectedPhoto = nil
+                self.profileImagePath = nil
+                self.isLoading = false
+            }
         }
     }
     
@@ -1716,23 +1704,26 @@ private struct InterestPickerRow: View {
                 
                 if isSelected {
                     Image(systemName: "checkmark.circle.fill")
-                        .foregroundColor(Color(hex: "00A896"))
+                        .foregroundColor(colorScheme == .dark ? .white : .black)
                 }
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 14)
-            .background(
-                isSelected ?
-                Color(hex: "00A896").opacity(0.2) :
-                (colorScheme == .dark ? Color.white : Color.black).opacity(0.1)
-            )
+            .background {
+                if isSelected {
+                    Color.clear.liquidGlass(in: RoundedRectangle(cornerRadius: 12), interactive: false)
+                } else {
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(colorScheme == .dark ? Color.white.opacity(0.06) : Color.black.opacity(0.04))
+                }
+            }
             .clipShape(RoundedRectangle(cornerRadius: 12))
             .overlay(
                 RoundedRectangle(cornerRadius: 12)
                     .stroke(
                         isSelected ?
-                        Color(hex: "00A896") :
-                        (colorScheme == .dark ? Color.white : Color.black).opacity(0.2),
+                        (colorScheme == .dark ? Color.white.opacity(0.22) : Color.black.opacity(0.14)) :
+                        (colorScheme == .dark ? Color.white.opacity(0.10) : Color.black.opacity(0.08)),
                         lineWidth: 1
                     )
             )
@@ -1904,5 +1895,128 @@ struct ProfileAlbumRowView: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(PlainButtonStyle())
+    }
+}
+
+struct ProfileLibraryCropEntryView: View {
+    @Environment(\.dismiss) private var dismiss
+    @Environment(\.colorScheme) private var colorScheme
+    
+    let onImageCropped: (UIImage) -> Void
+    
+    @State private var authorizationStatus: PHAuthorizationStatus = .notDetermined
+    @State private var initialAsset: PHAsset?
+    @State private var isLoading = true
+    
+    var body: some View {
+        Group {
+            if let initialAsset {
+                PhotoCropEditorView(originalAsset: initialAsset) { croppedImage in
+                    onImageCropped(croppedImage)
+                }
+            } else if isLoading {
+                VStack(spacing: 16) {
+                    ProgressView()
+                        .tint(colorScheme == .dark ? .white : .black)
+                    Text("profileEditor.loadingPhotos")
+                        .font(.custom("Poppins-Medium", size: 15))
+                        .foregroundColor(colorScheme == .dark ? .white.opacity(0.75) : .black.opacity(0.75))
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else if authorizationStatus == .denied || authorizationStatus == .restricted {
+                VStack(spacing: 16) {
+                    Image(systemName: "photo.on.rectangle")
+                        .font(.system(size: 36))
+                        .foregroundColor(colorScheme == .dark ? .white.opacity(0.7) : .black.opacity(0.7))
+                    
+                    Text("profileEditor.photosAccess.title")
+                        .font(.custom("Poppins-SemiBold", size: 18))
+                        .foregroundColor(colorScheme == .dark ? .white : .black)
+                    
+                    Text("profileEditor.photosAccess.description")
+                        .font(.custom("Poppins-Regular", size: 14))
+                        .foregroundColor(colorScheme == .dark ? .white.opacity(0.65) : .black.opacity(0.6))
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 28)
+                    
+                    Button("creator.permissions.openSettings") {
+                        if let settingsUrl = URL(string: UIApplication.openSettingsURLString) {
+                            UIApplication.shared.open(settingsUrl)
+                        }
+                    }
+                    .font(.custom("Poppins-SemiBold", size: 14))
+                    .foregroundColor(colorScheme == .dark ? .white : .black)
+                    .padding(.horizontal, 18)
+                    .padding(.vertical, 10)
+                    .background(Color.clear.liquidGlass(in: Capsule(), interactive: true))
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else {
+                VStack(spacing: 16) {
+                    Text("profileEditor.photosAccess.title")
+                        .font(.custom("Poppins-SemiBold", size: 18))
+                        .foregroundColor(colorScheme == .dark ? .white : .black)
+                    
+                    Button(NSLocalizedString("profileEditor.allowAccess", comment: "")) {
+                        requestPermission()
+                    }
+                    .font(.custom("Poppins-SemiBold", size: 14))
+                    .foregroundColor(colorScheme == .dark ? .white : .black)
+                    .padding(.horizontal, 18)
+                    .padding(.vertical, 10)
+                    .background(Color.clear.liquidGlass(in: Capsule(), interactive: true))
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+        }
+        .onAppear {
+            loadInitialAsset()
+        }
+    }
+    
+    private func loadInitialAsset() {
+        let status = PHPhotoLibrary.authorizationStatus(for: .readWrite)
+        authorizationStatus = status
+        
+        switch status {
+        case .authorized, .limited:
+            fetchMostRecentAsset()
+        case .notDetermined:
+            requestPermission()
+        case .denied, .restricted:
+            isLoading = false
+        @unknown default:
+            isLoading = false
+        }
+    }
+    
+    private func requestPermission() {
+        PHPhotoLibrary.requestAuthorization(for: .readWrite) { status in
+            DispatchQueue.main.async {
+                authorizationStatus = status
+                if status == .authorized || status == .limited {
+                    fetchMostRecentAsset()
+                } else {
+                    isLoading = false
+                }
+            }
+        }
+    }
+    
+    private func fetchMostRecentAsset() {
+        isLoading = true
+        
+        let fetchOptions = PHFetchOptions()
+        fetchOptions.sortDescriptors = [NSSortDescriptor(key: "creationDate", ascending: false)]
+        fetchOptions.fetchLimit = 1
+        
+        let fetchResult = PHAsset.fetchAssets(with: .image, options: fetchOptions)
+        DispatchQueue.main.async {
+            initialAsset = fetchResult.firstObject
+            isLoading = false
+            if initialAsset == nil {
+                dismiss()
+            }
+        }
     }
 }

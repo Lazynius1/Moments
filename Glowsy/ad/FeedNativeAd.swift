@@ -92,7 +92,7 @@ struct ModernAdLoadingView: View {
     var body: some View {
         VStack(spacing: 12) {
             HStack {
-                Text("Anuncio")
+                Text("ad.common.ad")
                     .font(.custom("Poppins-Medium", size: 12))
                     .foregroundColor(.gray.opacity(0.8))
                     .padding(.horizontal, 12)
@@ -183,7 +183,7 @@ struct ModernNativeAdCardViewWithMediaView: View {
     var body: some View {
         VStack(spacing: 12) {
             HStack {
-                Text("Anuncio")
+                Text("ad.common.ad")
                     .font(.custom("Poppins-Medium", size: 12))
                     .foregroundColor(.gray.opacity(0.8))
                     .padding(.horizontal, 12)
@@ -360,7 +360,7 @@ struct IntegratedAdLoadingView: View {
                 Spacer()
                 
                 VStack(spacing: 2) {
-                    Text("Anuncio")
+                    Text("ad.common.ad")
                         .font(.custom("Poppins-Medium", size: 10))
                         .foregroundColor(.secondary)
                         .padding(.horizontal, 8)
@@ -452,7 +452,7 @@ struct IntegratedNativeAdView: View {
                         .foregroundColor(.primary)
                     // Ad badge handled by UIKit's adAttributionView
                     
-                    Text("Patrocinado")
+                    Text("ad.common.sponsored")
                         .font(.custom("Poppins-Regular", size: 11))
                         .foregroundColor(.secondary)
                 }
