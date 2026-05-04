@@ -2340,28 +2340,34 @@
 
 /* Whats New v2.8 */
 "whatsNew.title" = "¡Novedades en Moments!";
-"whatsNew.subtitle" = "Versión 2.8.0";
-"whatsNew.button" = "Explorar Moments 2.8";
+"whatsNew.subtitle" = "Versión 2.9.0";
+"whatsNew.button" = "Explorar Moments 2.9";
 
 /* Nova */
-"whatsNew.nova.title" = "Nova Se Siente Más Lista";
-"whatsNew.nova.description" = "Nova es más natural, recuerda mejor tus preferencias, conserva mejor las conversaciones y ahora tiene una gestión de memoria más clara.";
+"whatsNew.nova.title" = "Perfil Más Cuidado";
+"whatsNew.nova.description" = "Hemos renovado la edición de perfil con una experiencia más limpia y un flujo mucho mejor para cambiar tu foto.";
+
+"whatsNew.account.title" = "Mejor Acceso a la App";
+"whatsNew.account.description" = "También hemos pulido login, registro, splash y varios flujos de cuenta para que todo resulte más claro desde el primer momento.";
 
 /* Liquid glass */
-"whatsNew.glass.title" = "Una Interfaz Más Glass";
-"whatsNew.glass.description" = "Los sheets de Moments se sienten más integrados con iOS, con fondos liquid glass, transiciones y controles más cuidados.";
+"whatsNew.glass.title" = "Más Claridad en la App";
+"whatsNew.glass.description" = "Historias, actividad, Echoes y varios paneles internos se sienten ahora más limpios, consistentes y agradables de usar.";
 
 /* Creator */
-"whatsNew.creator.title" = "Flujos de Creación Mejorados";
-"whatsNew.creator.description" = "Audiencia, cadenas, stickers, etiquetas y ubicación ahora tienen un flujo más cómodo, consistente y fácil de navegar.";
+"whatsNew.creator.title" = "Mensajes Más Naturales";
+"whatsNew.creator.description" = "También hemos pulido chats, solicitudes y nuevas conversaciones para que la mensajería resulte más ligera y ordenada.";
 
 /* Feed */
-"whatsNew.feed.title" = "Feed e Historias Más Pulidos";
-"whatsNew.feed.description" = "Las burbujas de historias muestran nombres, los perfiles se abren de forma más fiable y hemos refinado varios detalles del feed.";
+"whatsNew.feed.title" = "Edición de Foto Mejorada";
+"whatsNew.feed.description" = "Cambiar tu foto de perfil ahora es más cómodo, con un flujo más claro y un recorte mucho más cuidado.";
+
+"whatsNew.social.title" = "Historias y Vistas Más Pulidas";
+"whatsNew.social.description" = "Historias, actividad, Echoes y otras vistas sociales ahora se sienten más fluidas, más claras y mejor integradas.";
 
 /* Fixes */
-"whatsNew.fixes.title" = "Más Estable en Toda la App";
-"whatsNew.fixes.description" = "Corregimos problemas de presentación, navegación y estados visuales en guardados, mapas, comentarios, mensajes y más.";
+"whatsNew.fixes.title" = "Más Fluidez y Estabilidad";
+"whatsNew.fixes.description" = "Hemos aplicado mejoras generales de rendimiento y fiabilidad en distintas áreas de la app.";
 
 /* Best Friends */
 "bestFriends.title" = "Mejores Amigos";

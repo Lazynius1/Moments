@@ -2328,28 +2328,34 @@
 
 /* Whats New v2.8 */
 "whatsNew.title" = "Novetats a Moments!";
-"whatsNew.subtitle" = "Versió 2.8.0";
-"whatsNew.button" = "Explorar Moments 2.8";
+"whatsNew.subtitle" = "Versió 2.9.0";
+"whatsNew.button" = "Explorar Moments 2.9";
 
 /* Nova */
-"whatsNew.nova.title" = "La Nova Se Sent Més Llesta";
-"whatsNew.nova.description" = "La Nova és més natural, recorda millor les teves preferències, conserva millor les converses i ara té una gestió de memòria més clara.";
+"whatsNew.nova.title" = "Un Perfil Més Cuidat";
+"whatsNew.nova.description" = "Hem renovat l'edició del perfil amb una experiència més neta i un flux molt millor per canviar la teva foto.";
+
+"whatsNew.account.title" = "Millor Accés a l'App";
+"whatsNew.account.description" = "També hem polit el login, el registre, l'splash i diversos fluxos de compte perquè tot sigui més clar des del primer moment.";
 
 /* Liquid glass */
-"whatsNew.glass.title" = "Una Interfície Més Glass";
-"whatsNew.glass.description" = "Els sheets de Moments se senten més integrats amb iOS, amb fons liquid glass, transicions i controls més cuidats.";
+"whatsNew.glass.title" = "Una App Més Clara";
+"whatsNew.glass.description" = "Històries, activitat, Echoes i diversos panells interns ara se senten més nets, més consistents i més agradables d'utilitzar.";
 
 /* Creator */
-"whatsNew.creator.title" = "Fluxos de Creació Millorats";
-"whatsNew.creator.description" = "Audiència, cadenes, stickers, etiquetes i ubicació ara tenen un flux més còmode, consistent i fàcil de navegar.";
+"whatsNew.creator.title" = "Missatges Més Naturals";
+"whatsNew.creator.description" = "També hem polit xats, sol·licituds i noves converses perquè la missatgeria sigui més lleugera i ordenada.";
 
 /* Feed */
-"whatsNew.feed.title" = "Feed i Històries Més Polits";
-"whatsNew.feed.description" = "Les bombolles d'històries mostren noms, els perfils s'obren de manera més fiable i hem refinat diversos detalls del feed.";
+"whatsNew.feed.title" = "Millor Edició de Foto";
+"whatsNew.feed.description" = "Canviar la teva foto de perfil ara és més còmode, amb un flux més clar i un retall molt més cuidat.";
+
+"whatsNew.social.title" = "Històries i Vistes Més Polides";
+"whatsNew.social.description" = "Històries, activitat, Echoes i altres vistes socials ara se senten més fluides, més clares i millor integrades.";
 
 /* Fixes */
-"whatsNew.fixes.title" = "Més Estable a Tota l'App";
-"whatsNew.fixes.description" = "Hem corregit problemes de presentació, navegació i estats visuals a guardats, mapes, comentaris, missatges i més.";
+"whatsNew.fixes.title" = "Més Fluïdesa i Estabilitat";
+"whatsNew.fixes.description" = "Hem aplicat millores generals de rendiment i fiabilitat en diferents parts de l'app.";
 
 /* Best Friends */
 "bestFriends.title" = "Millors Amics";

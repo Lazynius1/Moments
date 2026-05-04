@@ -13,6 +13,11 @@ struct WhatsNewView: View {
                 description: NSLocalizedString("whatsNew.nova.description", comment: "")
             ),
             WhatsNewFeature(
+                icon: "person.crop.circle.badge.checkmark",
+                title: NSLocalizedString("whatsNew.account.title", comment: ""),
+                description: NSLocalizedString("whatsNew.account.description", comment: "")
+            ),
+            WhatsNewFeature(
                 icon: "rectangle.on.rectangle.angled",
                 title: NSLocalizedString("whatsNew.glass.title", comment: ""),
                 description: NSLocalizedString("whatsNew.glass.description", comment: "")
@@ -26,6 +31,11 @@ struct WhatsNewView: View {
                 icon: "circle.grid.2x2",
                 title: NSLocalizedString("whatsNew.feed.title", comment: ""),
                 description: NSLocalizedString("whatsNew.feed.description", comment: "")
+            ),
+            WhatsNewFeature(
+                icon: "play.rectangle.on.rectangle",
+                title: NSLocalizedString("whatsNew.social.title", comment: ""),
+                description: NSLocalizedString("whatsNew.social.description", comment: "")
             ),
             WhatsNewFeature(
                 icon: "checkmark.seal",
@@ -48,17 +58,14 @@ struct WhatsNewView: View {
                                 WhatsNewFeatureRow(feature: feature, delay: Double(index) * 0.06)
                             }
                         }
+                        
+                        footerButton
+                            .padding(.top, 6)
                     }
                     .padding(.horizontal, 20)
-                    .padding(.bottom, 120)
+                    .padding(.bottom, 28)
                 }
                 .scrollContentBackground(.hidden)
-            }
-            .safeAreaInset(edge: .bottom) {
-                footerButton
-                    .padding(.horizontal, 20)
-                    .padding(.top, 12)
-                    .padding(.bottom, 12)
             }
             .onAppear {
                 withAnimation(.spring(response: 0.75, dampingFraction: 0.82)) {
