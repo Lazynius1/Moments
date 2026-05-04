@@ -2318,28 +2318,34 @@
 
 /* Whats New v2.8 */
 "whatsNew.title" = "New in Moments!";
-"whatsNew.subtitle" = "Version 2.8.0";
-"whatsNew.button" = "Explore Moments 2.8";
+"whatsNew.subtitle" = "Version 2.9.0";
+"whatsNew.button" = "Explore Moments 2.9";
 
 /* Nova */
-"whatsNew.nova.title" = "Nova Feels Smarter";
-"whatsNew.nova.description" = "Nova is more natural, remembers your preferences better, keeps conversations more reliably, and now has clearer memory controls.";
+"whatsNew.nova.title" = "A More Refined Profile";
+"whatsNew.nova.description" = "We’ve refreshed profile editing with a cleaner experience and a much better flow for changing your photo.";
+
+"whatsNew.account.title" = "Better App Access";
+"whatsNew.account.description" = "We’ve also refined login, sign up, splash, and several account flows so everything feels clearer from the very beginning.";
 
 /* Liquid glass */
-"whatsNew.glass.title" = "A More Glassy Interface";
-"whatsNew.glass.description" = "Sheets across Moments now feel more integrated with iOS, with cleaner liquid glass backgrounds, transitions, and controls.";
+"whatsNew.glass.title" = "A Clearer App Experience";
+"whatsNew.glass.description" = "Stories, activity, Echoes, and several internal panels now feel cleaner, more consistent, and nicer to use.";
 
 /* Creator */
-"whatsNew.creator.title" = "Better Creation Flows";
-"whatsNew.creator.description" = "Audience, chains, stickers, tags, and location flows are smoother, more consistent, and easier to navigate.";
+"whatsNew.creator.title" = "More Natural Messaging";
+"whatsNew.creator.description" = "We’ve also polished chats, requests, and new conversation flows to make messaging feel lighter and more organized.";
 
 /* Feed */
-"whatsNew.feed.title" = "Feed and Stories Polish";
-"whatsNew.feed.description" = "Story bubbles now show names, profiles open more reliably, and several feed details have been refined.";
+"whatsNew.feed.title" = "Better Photo Editing";
+"whatsNew.feed.description" = "Changing your profile photo is now more comfortable, with a clearer flow and a much more polished crop experience.";
+
+"whatsNew.social.title" = "Polished Stories and Views";
+"whatsNew.social.description" = "Stories, activity, Echoes, and other social views now feel smoother, clearer, and better integrated.";
 
 /* Fixes */
-"whatsNew.fixes.title" = "More Reliable Everywhere";
-"whatsNew.fixes.description" = "We fixed presentation, navigation, and visual state issues in saved moments, maps, comments, messaging, and more.";
+"whatsNew.fixes.title" = "More Fluid and Stable";
+"whatsNew.fixes.description" = "We’ve applied general performance and reliability improvements across different parts of the app.";
 
 /* Best Friends */
 "bestFriends.title" = "Best Friends";

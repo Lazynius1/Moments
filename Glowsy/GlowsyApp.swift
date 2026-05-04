@@ -146,7 +146,7 @@ struct GlowsyApp: App {
     }
 
     private func checkVersion() {
-        let currentVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "2.8.0"
+        let currentVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "2.9.0"
 
         if lastVersionPrompted != currentVersion {
             // Esperar un poco para que la transición del splash termine
