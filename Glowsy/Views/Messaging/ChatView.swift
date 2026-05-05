@@ -73,6 +73,7 @@ struct GlassmorphicChatView: View {
     
     // ✅ REACCIONES: Nuevo estado para Overlay
     @State private var reactionMessageOverlay: EnhancedMessage? = nil
+    @State private var selectedChatMedia: SharedMedia?
     
     private var adaptiveColors: AdaptiveColors {
         AdaptiveColors(colorScheme: colorScheme)
@@ -95,28 +96,8 @@ struct GlassmorphicChatView: View {
     }
     
     var body: some View {
-        ZStack(alignment: .top) {
-            // Glassmorphic background
-            ChatGlassmorphicBackground(adaptiveColors: adaptiveColors)
-            
-            VStack(spacing: 0) {
-                // Messages List
-                messagesListSection
-                
-                // Reply Bar
-                replyBarSection
-                
-                // Input Bar
-                inputBarSection
-            }
-
-            VStack(spacing: 0) {
-                glassmorphicNavigationBar
-
-                if isSearchVisible {
-                    chatSearchBarSection
-                }
-            }
+        GeometryReader { geometry in
+            chatRootContent(safeAreaTop: geometry.safeAreaInsets.top)
         }
         .navigationBarHidden(true)
         .photosPicker(isPresented: $showMediaPicker, selection: $selectedItems, maxSelectionCount: 10)
@@ -132,7 +113,7 @@ struct GlassmorphicChatView: View {
             }
             selectedItems = []
         }
-        .sheet(isPresented: $showingConversationSettings, onDismiss: {
+        .fullScreenCover(isPresented: $showingConversationSettings, onDismiss: {
             viewModel.refreshTypingIndicatorPreference()
         }) {
             ConversationSettingsView(conversation: viewModel.conversation)
@@ -199,6 +180,39 @@ struct GlassmorphicChatView: View {
                 withAnimation { reactionMessageOverlay = nil }
             }
         }
+        .overlay(
+            Group {
+                if let selectedChatMedia {
+                    ZStack {
+                        Rectangle()
+                            .fill(Color.clear)
+                            .contentShape(Rectangle())
+                            .ignoresSafeArea()
+                            .onTapGesture {
+                                withAnimation(.easeInOut(duration: 0.18)) {
+                                    self.selectedChatMedia = nil
+                                }
+                            }
+
+                        FullScreenMediaView(
+                            media: selectedChatMedia,
+                            currentUserId: viewModel.currentUserId,
+                            otherParticipantName: otherParticipantDisplayName,
+                            onClose: {
+                                withAnimation(.easeInOut(duration: 0.18)) {
+                                    self.selectedChatMedia = nil
+                                }
+                            },
+                            onSendReply: { text, completion in
+                                sendReplyToSharedMedia(selectedChatMedia, text: text, completion: completion)
+                            }
+                        )
+                    }
+                    .transition(.opacity)
+                    .zIndex(20)
+                }
+            }
+        )
         // ✅ REACCIONES Y OPCIONES: Overlay global premium
         .overlay(
             Group {
@@ -508,6 +522,7 @@ struct GlassmorphicChatView: View {
                 .padding(.vertical, 10)
                 .padding(.top, headerOverlayHeight)
             }
+            .scrollDismissesKeyboard(.interactively)
             .simultaneousGesture(
                 DragGesture(minimumDistance: 8)
                     .onChanged { value in
@@ -546,8 +561,21 @@ struct GlassmorphicChatView: View {
                 }
             }
             .onAppear {
-                if !viewModel.messages.isEmpty {
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                guard !viewModel.messages.isEmpty else { return }
+                // Si los mensajes ya están cargados (caché), scroll inmediato
+                proxy.scrollTo("chat-bottom-anchor", anchor: .bottom)
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+                    withAnimation(.easeOut(duration: 0.2)) {
+                        proxy.scrollTo("chat-bottom-anchor", anchor: .bottom)
+                    }
+                }
+            }
+            .onChange(of: viewModel.messages.isEmpty) { isEmpty in
+                // Detecta cuando los mensajes cargan de Firestore por primera vez (vacío → poblado)
+                guard !isEmpty else { return }
+                proxy.scrollTo("chat-bottom-anchor", anchor: .bottom)
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+                    withAnimation(.easeOut(duration: 0.2)) {
                         proxy.scrollTo("chat-bottom-anchor", anchor: .bottom)
                     }
                 }
@@ -580,6 +608,15 @@ struct GlassmorphicChatView: View {
                 guard let targetId else { return }
                 jumpToMessage(targetId, proxy: proxy)
                 pendingSearchTargetId = nil
+            }
+            .onChange(of: isTextFieldFocused) { focused in
+                if focused {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+                        withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                            proxy.scrollTo("chat-bottom-anchor", anchor: .bottom)
+                        }
+                    }
+                }
             }
         }
     }
@@ -622,7 +659,81 @@ struct GlassmorphicChatView: View {
     private var headerOverlayHeight: CGFloat {
         isSearchVisible ? 132 : 76
     }
-    
+
+    @ViewBuilder
+    private func chatRootContent(safeAreaTop: CGFloat) -> some View {
+        let fadeBase = Color(hex: colorScheme == .dark ? "0B1215" : "FAF9F6")
+
+        ZStack(alignment: .top) {
+            ChatGlassmorphicBackground(adaptiveColors: adaptiveColors)
+            mainChatStack
+            topChromeSection
+            topFadeOverlay(safeAreaTop: safeAreaTop, fadeBase: fadeBase)
+        }
+    }
+
+    private var mainChatStack: some View {
+        VStack(spacing: 0) {
+            messagesListSection
+            replyBarSection
+            inputBarSection
+        }
+    }
+
+    private var topChromeSection: some View {
+        VStack(spacing: 0) {
+            glassmorphicNavigationBar
+
+            if isSearchVisible {
+                chatSearchBarSection
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func topFadeOverlay(safeAreaTop: CGFloat, fadeBase: Color) -> some View {
+        VStack {
+            LinearGradient(
+                stops: [
+                    .init(color: fadeBase.opacity(0.98), location: 0.0),
+                    .init(color: fadeBase.opacity(0.88), location: 0.28),
+                    .init(color: fadeBase.opacity(0.4), location: 0.64),
+                    .init(color: fadeBase.opacity(0.08), location: 0.88),
+                    .init(color: .clear, location: 1.0)
+                ],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+            .frame(height: safeAreaTop + 42)
+            .ignoresSafeArea(edges: .top)
+            .allowsHitTesting(false)
+        }
+    }
+
+    private func sharedMedia(from message: EnhancedMessage) -> SharedMedia? {
+        guard let mediaUrl = message.mediaUrl else { return nil }
+        guard message.type == .image || message.type == .video else { return nil }
+
+        return SharedMedia(
+            id: message.id,
+            type: message.type == .image ? .image : .video,
+            thumbnailUrl: message.thumbnailUrl ?? mediaUrl,
+            originalUrl: mediaUrl,
+            senderId: message.senderId,
+            timestamp: message.timestamp
+        )
+    }
+
+    private func sendReplyToSharedMedia(_ media: SharedMedia, text: String, completion: @escaping (Result<Void, Error>) -> Void) {
+        let trimmedText = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedText.isEmpty else { return }
+
+        viewModel.sendTextMessage(trimmedText, replyTo: media.id)
+        DispatchQueue.main.async {
+            completion(.success(()))
+        }
+    }
+
     // ✅ REFACTORIZADO: Sección de barra de entrada
     private var inputBarSection: some View {
         Group {
@@ -761,6 +872,9 @@ struct GlassmorphicChatView: View {
                 onMomentNavigation: { message in
                     handleMomentNavigationFromChat(message: message)
                 },
+                onOpenMedia: { message in
+                    selectedChatMedia = sharedMedia(from: message)
+                },
                 progress: viewModel.uploadProgress[message.id]
             )
             .id(message.id)
@@ -792,6 +906,15 @@ struct GlassmorphicChatView: View {
                 },
                 onMomentNavigation: { message in
                     handleMomentNavigationFromChat(message: message)
+                },
+                onOpenMedia: { message in
+                    selectedChatMedia = sharedMedia(from: message)
+                },
+                onLongPress: { message in
+                    UIImpactFeedbackGenerator(style: .heavy).impactOccurred()
+                    withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) {
+                        showingMessageOptions = message
+                    }
                 },
                 onReply: { messages in
                     self.clusterForReply = messages
@@ -1289,6 +1412,7 @@ struct GlassmorphicMessageRow: View {
     let onReplyTap: ((String) -> Void)? // ✅ New: Jump to message
     let onMessageViewed: ((String) -> Void)?
     let onMomentNavigation: ((EnhancedMessage) -> Void)? // ✅ NUEVO: Callback para navegación al momento
+    let onOpenMedia: (EnhancedMessage) -> Void
     let progress: Double? // ✅ New: Real-time progress
     
     @Environment(\.colorScheme) var colorScheme
@@ -1351,7 +1475,8 @@ struct GlassmorphicMessageRow: View {
                         progress: progress, // ✅ Pass progress
                         onReplyTap: onReplyTap, // ✅ Pass jump callback
                         onMessageViewed: onMessageViewed,
-                        onMomentNavigation: onMomentNavigation
+                        onMomentNavigation: onMomentNavigation,
+                        onOpenMedia: onOpenMedia
                     )
                     
                     if let reactions = message.reactions, !reactions.isEmpty {
@@ -1486,6 +1611,7 @@ struct GlassmorphicMessageBubble: View {
     let onReplyTap: ((String) -> Void)? // ✅ New: Jump to message
     let onMessageViewed: ((String) -> Void)? // ✅ NUEVO callback
     let onMomentNavigation: ((EnhancedMessage) -> Void)? // ✅ NUEVO callback para navegación al momento
+    let onOpenMedia: (EnhancedMessage) -> Void
     @State private var showEphemeralImage: Bool = false
     @Environment(\.colorScheme) var colorScheme
     
@@ -1504,6 +1630,7 @@ struct GlassmorphicMessageBubble: View {
                     ViewOnceMessageBubble(
                         message: message,
                         isCurrentUser: isCurrentUser,
+                        otherParticipantName: otherParticipantName,
                         progress: progress, // ✅ Pass progress
                         onViewed: {
                             markViewOnceAsViewed()
@@ -1566,7 +1693,10 @@ struct GlassmorphicMessageBubble: View {
                     GlassmorphicImageMessage(
                         imageUrl: message.mediaUrl,
                         isSending: message.status == .sending,
-                        progress: progress
+                        progress: progress,
+                        onTap: {
+                            onOpenMedia(message)
+                        }
                     )
                     .frame(width: 208, height: 272)
                         .onAppear {
@@ -1589,7 +1719,10 @@ struct GlassmorphicMessageBubble: View {
                         videoUrl: message.mediaUrl,
                         thumbnailUrl: message.thumbnailUrl,
                         isSending: message.status == .sending,
-                        progress: progress
+                        progress: progress,
+                        onTap: {
+                            onOpenMedia(message)
+                        }
                     )
                     .frame(width: 208, height: 272)
                         .onAppear {
@@ -1629,7 +1762,8 @@ struct GlassmorphicMessageBubble: View {
                                     GlassmorphicImageMessage(
                                         imageUrl: mediaUrl,
                                         isSending: false,
-                                        progress: nil
+                                        progress: nil,
+                                        onTap: {}
                                     )
                                 }
                             }
@@ -1765,7 +1899,7 @@ struct GlassmorphicImageMessage: View {
     let imageUrl: String?
     let isSending: Bool // ✅ New
     let progress: Double? // ✅ New
-    @State private var showFullScreen = false
+    let onTap: () -> Void
     
     var body: some View {
         ZStack {
@@ -1774,10 +1908,7 @@ struct GlassmorphicImageMessage: View {
                     .resizable()
                     .scaledToFill()
                     .onTapGesture {
-                        showFullScreen = true
-                    }
-                    .fullScreenCover(isPresented: $showFullScreen) {
-                        FullScreenImageView(imageUrl: imageURL)
+                        onTap()
                     }
             } else {
                 RoundedRectangle(cornerRadius: 16)
@@ -1814,7 +1945,7 @@ struct GlassmorphicVideoMessage: View {
     let thumbnailUrl: String?
     let isSending: Bool // ✅ New
     let progress: Double? // ✅ New
-    @State private var showPlayer = false
+    let onTap: () -> Void
     
     var body: some View {
         ZStack {
@@ -1861,10 +1992,7 @@ struct GlassmorphicVideoMessage: View {
         )
         .shadow(color: Color.black.opacity(0.3), radius: 10, x: 0, y: 5)
         .onTapGesture {
-            showPlayer = true
-        }
-        .fullScreenCover(isPresented: $showPlayer) {
-            NormalVideoPlayerView(videoUrl: videoUrl, thumbnailUrl: thumbnailUrl)
+            onTap()
         }
     }
 }
@@ -3013,6 +3141,8 @@ struct GlassmorphicClusterRow: View {
     let onAvatarTap: () -> Void
     let onMessageViewed: ((String) -> Void)?
     let onMomentNavigation: ((EnhancedMessage) -> Void)? // ✅ Added missing property
+    let onOpenMedia: (EnhancedMessage) -> Void
+    let onLongPress: (EnhancedMessage) -> Void
     let onReply: ([EnhancedMessage]) -> Void // ✅ New: Cluster reply callback
     let onReplyTap: ((String) -> Void)? // ✅ New: Jump to message callback
     let uploadProgress: [String: Double]
@@ -3061,7 +3191,9 @@ struct GlassmorphicClusterRow: View {
                         messages: messages,
                         isCurrentUser: isCurrentUser,
                         uploadProgress: uploadProgress,
-                        onMomentNavigation: onMomentNavigation
+                        onMomentNavigation: onMomentNavigation,
+                        onOpenMedia: onOpenMedia,
+                        onLongPress: onLongPress
                     )
                 }
                 
@@ -3069,8 +3201,8 @@ struct GlassmorphicClusterRow: View {
             }
             .offset(x: dragOffset)
             .contentShape(Rectangle()) // Asegurar que todo el área es gesture-able
-            .gesture(
-                DragGesture(minimumDistance: 20, coordinateSpace: .local)
+            .highPriorityGesture(
+                DragGesture(minimumDistance: 14, coordinateSpace: .local)
                     .onChanged { value in
                         let horizontalMove = value.translation.width
                         let verticalMove = value.translation.height
@@ -3110,9 +3242,8 @@ struct MediaGridBubble: View {
     let isCurrentUser: Bool
     let uploadProgress: [String: Double]
     let onMomentNavigation: ((EnhancedMessage) -> Void)?
-    
-    @State private var selectedMediaIndex: Int = 0
-    @State private var showMediaViewer = false
+    let onOpenMedia: (EnhancedMessage) -> Void
+    let onLongPress: (EnhancedMessage) -> Void
     
     var body: some View {
         let count = messages.count
@@ -3128,32 +3259,33 @@ struct MediaGridBubble: View {
         
         LazyVGrid(columns: gridItems, spacing: gridSpacing) {
             ForEach(displayedMessages, id: \.element.id) { index, message in
-                Button {
-                    selectedMediaIndex = index
-                    showMediaViewer = true
-                } label: {
-                    MediaGridTileView(
-                        message: message,
-                        progress: uploadProgress[message.id]
-                    )
-                    .frame(width: cellWidth, height: cellHeight)
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
-                    .overlay(
-                        Group {
-                            if index == 3 && count > 4 {
-                                RoundedRectangle(cornerRadius: 12)
-                                    .fill(Color.black.opacity(0.5))
-                                    .overlay(
-                                        Text("+\(count - 4)")
-                                            .font(.custom("Poppins-SemiBold", size: 20))
-                                            .foregroundColor(.white)
-                                    )
-                                    .allowsHitTesting(false)
-                            }
+                MediaGridTileView(
+                    message: message,
+                    progress: uploadProgress[message.id]
+                )
+                .frame(width: cellWidth, height: cellHeight)
+                .clipShape(RoundedRectangle(cornerRadius: 12))
+                .overlay(
+                    Group {
+                        if index == 3 && count > 4 {
+                            RoundedRectangle(cornerRadius: 12)
+                                .fill(Color.black.opacity(0.5))
+                                .overlay(
+                                    Text("+\(count - 4)")
+                                        .font(.custom("Poppins-SemiBold", size: 20))
+                                        .foregroundColor(.white)
+                                )
+                                .allowsHitTesting(false)
                         }
-                    )
+                    }
+                )
+                .contentShape(RoundedRectangle(cornerRadius: 12))
+                .onTapGesture {
+                    onOpenMedia(message)
                 }
-                .buttonStyle(PlainButtonStyle())
+                .onLongPressGesture(minimumDuration: 0.3) {
+                    onLongPress(message)
+                }
             }
         }
         .frame(width: gridWidth)
@@ -3163,12 +3295,6 @@ struct MediaGridBubble: View {
                 .fill(.ultraThinMaterial.opacity(0.3))
         )
         .clipShape(RoundedRectangle(cornerRadius: 18))
-        .fullScreenCover(isPresented: $showMediaViewer) {
-            ClusterMediaViewer(
-                messages: messages,
-                startIndex: selectedMediaIndex
-            )
-        }
     }
 }
 

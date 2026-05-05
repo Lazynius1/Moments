@@ -682,7 +682,7 @@
 "conversationSettings.sharedPhotos" = "Fotos compartidas";
 "conversationSettings.sharedVideos" = "Videos compartidos";
 "conversationSettings.notifications" = "Notificaciones";
-"conversationSettings.notifications.desc" = "Recibe alertas cuando lleguen nuevos mensajes";
+"conversationSettings.notifications.desc" = "Activa o silencia las notificaciones de esta conversación.";
 "conversationSettings.typingIndicator" = "Indicador de escritura";
 "conversationSettings.typingIndicator.desc" = "Si lo desactivas, tampoco verás cuándo la otra persona está escribiendo.";
 "conversationSettings.privacy.readReceipts.title" = "Confirmación de lectura";
@@ -1245,6 +1245,9 @@
 /* Conversation Settings */
 "conversationSettings.close" = "Cerrar";
 "conversationSettings.notificationConfig.title" = "Configuración de Notificaciones";
+"conversationSettings.notificationConfig.error" = "No se ha podido actualizar la configuración de esta conversación.";
+"conversationSettings.notificationConfig.enabled" = "Las notificaciones están activadas para esta conversación.";
+"conversationSettings.notificationConfig.disabled" = "Las notificaciones están silenciadas para esta conversación.";
 "conversationSettings.understood" = "Entendido";
 "conversationSettings.conversationInfo" = "Información de la conversación";
 "conversationSettings.sharedMedia" = "Contenido multimedia compartido";
@@ -1254,6 +1257,13 @@
 "conversationSettings.blockUser" = "Bloquear usuario";
 "conversationSettings.viewAllMedia" = "Ver todos (%d)";
 "conversationSettings.videoLoadError" = "Error al cargar el video";
+"conversationSettings.replyToMedia" = "Responder a este multimedia";
+"conversationSettings.replyPlaceholder" = "Responde...";
+"conversationSettings.replySend.error" = "No se ha podido enviar la respuesta.";
+"conversationSettings.mediaSave.action" = "Guardar";
+"conversationSettings.mediaSave.title" = "Guardar contenido";
+"conversationSettings.mediaSave.success" = "El contenido se ha guardado correctamente en tu biblioteca.";
+"conversationSettings.mediaSave.error" = "No se ha podido guardar este contenido.";
 
 /* Video Editor */
 "videoEditor.error.title" = "Error";

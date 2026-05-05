@@ -904,15 +904,79 @@ function pickMomentPreviewUrl(momentData) {
 // ✅ Contar mensajes no leídos EN UNA CONVERSACIÓN ESPECÍFICA
 async function getUnreadMessagesInConversation(conversationId, userId) {
   try {
+    const conversationSnap = await admin.firestore()
+      .collection('conversations')
+      .doc(conversationId)
+      .get();
+
+    const conversationData = conversationSnap.data() || {};
+    const lastReadAt = conversationData.lastReadAt || {};
+    const lastReadValue = lastReadAt[userId];
+    const lastReadMillis = lastReadValue && typeof lastReadValue.toMillis === 'function'
+      ? lastReadValue.toMillis()
+      : null;
+
     const messagesSnap = await admin.firestore()
       .collection('conversations')
       .doc(conversationId)
       .collection('messages')
-      .where('status', 'in', ['sent', 'delivered'])
+      .orderBy('timestamp', 'desc')
       .get();
-    const unreadCount = messagesSnap.docs.filter(doc => doc.data().senderId !== userId).length;
-    // El mensaje actual ya está en la query, no debemos sumar +1.
-    return unreadCount;
+
+    const visibleIncomingMessages = messagesSnap.docs.filter(doc => {
+      const data = doc.data() || {};
+      if (data.senderId === userId) return false;
+      if (data.isDeleted === true) return false;
+
+      const deletedFor = Array.isArray(data.deletedFor) ? data.deletedFor : [];
+      if (deletedFor.includes(userId)) return false;
+
+      return true;
+    });
+
+    if (lastReadMillis) {
+      const unreadCount = visibleIncomingMessages.filter(doc => {
+        const data = doc.data() || {};
+        const timestampMillis = data.timestamp && typeof data.timestamp.toMillis === 'function'
+          ? data.timestamp.toMillis()
+          : null;
+
+        return !timestampMillis || timestampMillis > lastReadMillis;
+      }).length;
+
+      return Math.max(1, unreadCount);
+    }
+
+    // Fallback para conversaciones antiguas sin lastReadAt:
+    // contamos solo la racha mas reciente de mensajes entrantes no leidos.
+    let unreadCount = 0;
+    for (const doc of messagesSnap.docs) {
+      const data = doc.data() || {};
+
+      if (data.isDeleted === true) {
+        continue;
+      }
+
+      const deletedFor = Array.isArray(data.deletedFor) ? data.deletedFor : [];
+      if (deletedFor.includes(userId)) {
+        continue;
+      }
+
+      if (data.senderId === userId) {
+        break;
+      }
+
+      const readBy = Array.isArray(data.readBy) ? data.readBy : [];
+      const isExplicitlyRead = readBy.includes(userId) || data.isRead === true || data.status === 'read';
+
+      if (isExplicitlyRead) {
+        break;
+      }
+
+      unreadCount += 1;
+    }
+
+    return Math.max(1, unreadCount);
   } catch (error) {
     return 1;
   }

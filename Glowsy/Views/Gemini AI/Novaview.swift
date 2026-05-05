@@ -15,19 +15,27 @@ struct ModernGeminiColors {
 
     // Colores adaptativos
     static var background: Color {
-        Color(UIColor.systemBackground)
+        Color(UIColor { trait in
+            trait.userInterfaceStyle == .dark ? UIColor(Color(hex: "0B1215")) : UIColor(Color(hex: "FAF9F6"))
+        })
     }
 
     static var secondaryBackground: Color {
-        Color(UIColor.secondarySystemBackground)
+        Color(UIColor { trait in
+            trait.userInterfaceStyle == .dark ? UIColor.white.withAlphaComponent(0.02) : UIColor.black.withAlphaComponent(0.02)
+        })
     }
 
     static var cardBackground: Color {
-        Color(UIColor.systemBackground).opacity(0.8)
+        Color(UIColor { trait in
+            trait.userInterfaceStyle == .dark ? UIColor.white.withAlphaComponent(0.05) : UIColor.black.withAlphaComponent(0.03)
+        })
     }
 
     static var materialBackground: Color {
-        Color(UIColor.systemBackground).opacity(0.95)
+        Color(UIColor { trait in
+            trait.userInterfaceStyle == .dark ? UIColor.white.withAlphaComponent(0.08) : UIColor.black.withAlphaComponent(0.05)
+        })
     }
 
     static var textPrimary: Color {
@@ -73,8 +81,8 @@ struct GeminiView: View {
                 !viewModel.followUpSuggestions.isEmpty
             let topOverlayHeight: CGFloat = 132
             let bottomOverlayHeight: CGFloat = showsFollowUpSuggestions ? 128 : 88
-            let topFadeBase = colorScheme == .dark ? Color.black : Color(UIColor.systemBackground)
-            let bottomFadeBase = colorScheme == .dark ? Color.black : Color(UIColor.systemBackground)
+            let topFadeBase = colorScheme == .dark ? Color(hex: "0B1215") : Color(hex: "FAF9F6")
+            let bottomFadeBase = colorScheme == .dark ? Color(hex: "0B1215") : Color(hex: "FAF9F6")
             let tabBarFadeOffset: CGFloat = 92
 
             ZStack {
@@ -1423,21 +1431,13 @@ struct ModernGeminiBackground: View {
     @Environment(\.colorScheme) var colorScheme
 
     var body: some View {
-        LinearGradient(
-            colors: colorScheme == .dark
-                ? [
-                    Color.black,
-                    Color(hex: "0F1115"),
-                    Color(hex: "11161A")
-                ]
-                : [
-                    Color(hex: "FAF9F6"),
-                    Color(hex: "F4F5F7"),
-                    Color.white
-                ],
-            startPoint: .top,
-            endPoint: .bottom
-        )
+        Group {
+            if colorScheme == .dark {
+                Color(hex: "0B1215")
+            } else {
+                Color(hex: "FAF9F6")
+            }
+        }
         .ignoresSafeArea()
     }
 }
