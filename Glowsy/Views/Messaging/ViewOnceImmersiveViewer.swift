@@ -6,6 +6,7 @@ import AVFoundation
 /// Features a top progress bar, glassmorphic header, and gesture-based interactions.
 struct ViewOnceImmersiveViewer: View {
     let message: EnhancedMessage
+    let authorName: String
     let onViewed: () -> Void
     @Environment(\.dismiss) var dismiss
     @Environment(\.colorScheme) var colorScheme
@@ -15,6 +16,7 @@ struct ViewOnceImmersiveViewer: View {
     @State private var duration: Double = 5.0 // Default for images
     @State private var isPaused = false
     @State private var hasMarkedAsViewed = false
+    @State private var imageAspectRatio: CGFloat = 1.0
     
     // Interaction state
     @State private var dragOffset: CGFloat = 0
@@ -22,6 +24,21 @@ struct ViewOnceImmersiveViewer: View {
     
     private var adaptiveColors: AdaptiveColors {
         AdaptiveColors(colorScheme: colorScheme)
+    }
+
+    private var mediaURL: URL? {
+        guard let mediaUrl = message.mediaUrl else { return nil }
+        return URL(string: mediaUrl)
+    }
+
+    private var shouldUseLandscapeLayout: Bool {
+        imageAspectRatio > 1.05
+    }
+
+    private var relativeTime: String {
+        let formatter = RelativeDateTimeFormatter()
+        formatter.unitsStyle = .full
+        return formatter.localizedString(for: message.timestamp, relativeTo: Date())
     }
     
     private let timer = Timer.publish(every: 0.1, on: .main, in: .common).autoconnect()
@@ -59,34 +76,30 @@ struct ViewOnceImmersiveViewer: View {
                 }
                 
                 // Header
-                HStack(spacing: 12) {
-                    // Indicator for View-Once
-                    HStack(spacing: 6) {
-                        Image(systemName: "eye.slash.circle.fill")
-                            .font(.system(size: 14))
-                        Text(message.type == .viewOnceImage ? "chat.viewOnce.photo" : "chat.viewOnce.video")
-                            .font(.custom("Poppins-SemiBold", size: 12))
-                            .textCase(.uppercase)
-                    }
-                    .foregroundColor(.white)
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 6)
-                    .background(
-                        Capsule()
-                            .fill(LinearGradient(colors: [.blue, .purple], startPoint: .leading, endPoint: .trailing))
-                    )
-                    
-                    Spacer()
-                    
-                    // Close Button
+                HStack(spacing: 0) {
                     Button(action: { closeViewer() }) {
                         Image(systemName: "xmark")
-                            .font(.system(size: 18, weight: .bold))
+                            .font(.system(size: 18, weight: .semibold))
                             .foregroundColor(.white)
-                            .frame(width: 36, height: 36)
-                            .background(.ultraThinMaterial)
-                            .clipShape(Circle())
+                            .frame(width: 42, height: 42)
                     }
+
+                    HStack(spacing: 10) {
+                        avatarView
+
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(authorName)
+                                .font(.custom("Poppins-SemiBold", size: 16))
+                                .foregroundColor(.white)
+
+                            Text(relativeTime)
+                                .font(.custom("Poppins-Regular", size: 13))
+                                .foregroundColor(.white.opacity(0.58))
+                        }
+                    }
+                    .padding(.leading, 6)
+
+                    Spacer()
                 }
                 .padding(.horizontal, 30)
                 .padding(.top, 20)
@@ -146,19 +159,30 @@ struct ViewOnceImmersiveViewer: View {
     // MARK: - Content Views
     
     private var imageContent: some View {
-        ScreenshotProtectedView(isProtected: true) {
-            KFImage(URL(string: message.mediaUrl ?? ""))
-                .resizable()
-                .scaledToFill() // ✅ Fill screen like stories
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+        GeometryReader { geometry in
+            ScreenshotProtectedView(isProtected: true, fillsContainer: true) {
+                ZStack {
+                    if shouldUseLandscapeLayout {
+                        viewOnceImage(contentMode: .fill)
+                            .frame(width: geometry.size.width, height: geometry.size.height)
+                            .blur(radius: 36)
+                            .overlay(Color.black.opacity(0.28))
+                    }
+
+                    viewOnceImage(contentMode: shouldUseLandscapeLayout ? .fit : .fill)
+                        .frame(width: geometry.size.width, height: geometry.size.height)
+                }
+                .frame(width: geometry.size.width, height: geometry.size.height)
+                .background(Color.black)
                 .clipped()
+            }
         }
     }
     
     private var videoContent: some View {
         Group {
             if let urlString = message.mediaUrl, let url = URL(string: urlString) {
-                ScreenshotProtectedView(isProtected: true) {
+                ScreenshotProtectedView(isProtected: true, fillsContainer: true) {
                     MomentsVideoPlayer(
                         url: url,
                         isLooping: true,
@@ -207,6 +231,45 @@ struct ViewOnceImmersiveViewer: View {
     }
     
     // MARK: - Actions
+
+    @ViewBuilder
+    private var avatarView: some View {
+        if !message.senderId.isEmpty {
+            StoryRingAvatarView(
+                userId: message.senderId,
+                size: 42,
+                lineWidth: 2.1,
+                showBaseStroke: true,
+                baseStrokeColor: Color.white.opacity(0.16),
+                baseStrokeWidth: 1
+            )
+        } else {
+            Circle()
+                .fill(Color.white.opacity(0.1))
+                .frame(width: 42, height: 42)
+                .overlay(
+                    Image(systemName: "person.fill")
+                        .font(.system(size: 17, weight: .semibold))
+                        .foregroundColor(.white.opacity(0.72))
+                )
+        }
+    }
+
+    @ViewBuilder
+    private func viewOnceImage(contentMode: SwiftUI.ContentMode) -> some View {
+        if let mediaURL {
+            KFImage(mediaURL)
+                .onSuccess { result in
+                    let size = result.image.size
+                    guard size.height > 0 else { return }
+                    imageAspectRatio = size.width / size.height
+                }
+                .resizable()
+                .aspectRatio(contentMode: contentMode)
+        } else {
+            Color.black
+        }
+    }
     
     private func markAsStarted() {
         guard !hasMarkedAsViewed else { return }

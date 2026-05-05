@@ -571,7 +571,7 @@
 "conversationSettings.sharedPhotos" = "Shared photos";
 "conversationSettings.sharedVideos" = "Shared videos";
 "conversationSettings.notifications" = "Notifications";
-"conversationSettings.notifications.desc" = "Receive alerts when new messages arrive";
+"conversationSettings.notifications.desc" = "Turn notifications for this conversation on or off.";
 "conversationSettings.typingIndicator" = "Typing indicator";
 "conversationSettings.typingIndicator.desc" = "If you turn this off, you also won't see when the other person is typing.";
 "settings.privacy.readReceipts.title" = "Read Receipts";
@@ -1235,6 +1235,9 @@
 /* Conversation Settings */
 "conversationSettings.close" = "Close";
 "conversationSettings.notificationConfig.title" = "Notification Settings";
+"conversationSettings.notificationConfig.error" = "We couldn't update the settings for this conversation.";
+"conversationSettings.notificationConfig.enabled" = "Notifications are enabled for this conversation.";
+"conversationSettings.notificationConfig.disabled" = "Notifications are muted for this conversation.";
 "conversationSettings.understood" = "Understood";
 "conversationSettings.conversationInfo" = "Conversation Information";
 "conversationSettings.sharedMedia" = "Shared Media";
@@ -1244,6 +1247,13 @@
 "conversationSettings.blockUser" = "Block user";
 "conversationSettings.viewAllMedia" = "View all (%d)";
 "conversationSettings.videoLoadError" = "Error loading video";
+"conversationSettings.replyToMedia" = "Reply to this media";
+"conversationSettings.replyPlaceholder" = "Reply...";
+"conversationSettings.replySend.error" = "We couldn't send your reply.";
+"conversationSettings.mediaSave.action" = "Save";
+"conversationSettings.mediaSave.title" = "Save media";
+"conversationSettings.mediaSave.success" = "This media was saved to your library.";
+"conversationSettings.mediaSave.error" = "This media couldn't be saved.";
 
 /* Video Editor */
 "videoEditor.error.title" = "Error";

@@ -396,7 +396,8 @@ struct EnhancedCameraPickerView: View {
                 DispatchQueue.main.async {
                     // Determine if it's image or video
                     if let _ = UIImage(data: data) {
-                        self.onMediaCaptured(data, .image, self.isEphemeralMode)
+                        let normalizedData = self.normalizedGalleryImageData(from: data) ?? data
+                        self.onMediaCaptured(normalizedData, .image, self.isEphemeralMode)
                     } else {
                         self.onMediaCaptured(data, .video, self.isEphemeralMode)
                     }
@@ -407,6 +408,21 @@ struct EnhancedCameraPickerView: View {
                 }
             } else {
             }
+        }
+    }
+
+    private func normalizedGalleryImageData(from data: Data) -> Data? {
+        guard let image = UIImage(data: data) else { return nil }
+        let normalizedImage = normalizedGalleryImage(from: image)
+        return normalizedImage.jpegData(compressionQuality: 0.95)
+    }
+
+    private func normalizedGalleryImage(from image: UIImage) -> UIImage {
+        guard image.imageOrientation != .up else { return image }
+
+        let renderer = UIGraphicsImageRenderer(size: image.size)
+        return renderer.image { _ in
+            image.draw(in: CGRect(origin: .zero, size: image.size))
         }
     }
     
@@ -883,4 +899,3 @@ struct CameraButtonStyle: ButtonStyle {
             .animation(.spring(response: 0.3, dampingFraction: 0.7), value: configuration.isPressed)
     }
 }
-

@@ -7,6 +7,7 @@ import AVKit
 struct ViewOnceMessageBubble: View {
     let message: EnhancedMessage
     let isCurrentUser: Bool
+    let otherParticipantName: String
     let progress: Double? // ✅ New: Real-time upload progress
     let onViewed: () -> Void
     @State private var isViewed = false
@@ -57,6 +58,7 @@ struct ViewOnceMessageBubble: View {
         .fullScreenCover(isPresented: $showFullScreen) {
             ViewOnceImmersiveViewer(
                 message: message,
+                authorName: isCurrentUser ? NSLocalizedString("chat.reply.you", comment: "You") : otherParticipantName,
                 onViewed: {
                     isViewed = true
                     onViewed()
@@ -342,6 +344,5 @@ struct ViewOnceSentBubble: View {
         }
     }
 }
-
 
 

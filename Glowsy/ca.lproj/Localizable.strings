@@ -673,7 +673,7 @@
 "conversationSettings.sharedPhotos" = "Fotos compartides";
 "conversationSettings.sharedVideos" = "Vídeos compartits";
 "conversationSettings.notifications" = "Notificacions";
-"conversationSettings.notifications.desc" = "Rep alertes quan arribin nous missatges";
+"conversationSettings.notifications.desc" = "Activa o silencia les notificacions d'aquesta conversa.";
 "conversationSettings.typingIndicator" = "Indicador d'escriptura";
 "conversationSettings.typingIndicator.desc" = "Si ho desactives, tampoc veuràs quan l'altra persona està escrivint.";
 "conversationSettings.privacy.readReceipts.title" = "Confirmació de lectura";
@@ -1217,6 +1217,9 @@
 /* Conversation Settings */
 "conversationSettings.close" = "Tancar";
 "conversationSettings.notificationConfig.title" = "Configuració de Notificacions";
+"conversationSettings.notificationConfig.error" = "No s'ha pogut actualitzar la configuració d'aquesta conversa.";
+"conversationSettings.notificationConfig.enabled" = "Les notificacions estan activades per a aquesta conversa.";
+"conversationSettings.notificationConfig.disabled" = "Les notificacions estan silenciades per a aquesta conversa.";
 "conversationSettings.understood" = "Entès";
 "conversationSettings.conversationInfo" = "Informació de la conversa";
 "conversationSettings.sharedMedia" = "Contingut multimèdia compartit";
@@ -1226,6 +1229,13 @@
 "conversationSettings.blockUser" = "Bloquejar usuari";
 "conversationSettings.viewAllMedia" = "Veure tots (%d)";
 "conversationSettings.videoLoadError" = "Error al carregar el vídeo";
+"conversationSettings.replyToMedia" = "Respondre a aquest multimèdia";
+"conversationSettings.replyPlaceholder" = "Respon...";
+"conversationSettings.replySend.error" = "No s'ha pogut enviar la resposta.";
+"conversationSettings.mediaSave.action" = "Desar";
+"conversationSettings.mediaSave.title" = "Desar contingut";
+"conversationSettings.mediaSave.success" = "Aquest contingut s'ha desat correctament a la teva biblioteca.";
+"conversationSettings.mediaSave.error" = "No s'ha pogut desar aquest contingut.";
 
 /* Video Editor */
 "videoEditor.error.title" = "Error";

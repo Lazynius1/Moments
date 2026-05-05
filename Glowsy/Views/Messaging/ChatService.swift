@@ -1250,12 +1250,6 @@ class ChatService: ObservableObject {
             let userSettings = userSnapshot?.data()
             let globalEnabled = userSettings?["showReadReceipts"] as? Bool ?? true
             
-            if !globalEnabled {
-                // Si está desactivado globalmente, no marcamos como leído en Firestore
-                completion(nil)
-                return
-            }
-            
             self.db.collection("conversations").document(conversationId).getDocument { convSnapshot, convError in
                 let convData = convSnapshot?.data()
                 let preferences = convData?["readReceiptPreferences"] as? [String: Bool] ?? [:]
@@ -1269,13 +1263,6 @@ class ChatService: ObservableObject {
                     finalEnabled = globalEnabled
                 }
                 
-                if !finalEnabled {
-                    // Si el visto está desactivado (por chat o global), no marcamos como leído
-                    completion(nil)
-                    return
-                }
-                
-                // Si todo está habilitado, procedemos con el batch original
                 let batch = self.db.batch()
                 
                 for messageId in messageIds {
@@ -1284,14 +1271,23 @@ class ChatService: ObservableObject {
                         .collection("messages")
                         .document(messageId)
                     
-                    batch.updateData([
-                        "isRead": true,
-                        "status": MessageStatus.read.rawValue
-                    ], forDocument: messageRef)
+                    var messageUpdate: [String: Any] = [
+                        "readBy": FieldValue.arrayUnion([readerId])
+                    ]
+
+                    if finalEnabled {
+                        messageUpdate["isRead"] = true
+                        messageUpdate["status"] = MessageStatus.read.rawValue
+                    }
+
+                    batch.updateData(messageUpdate, forDocument: messageRef)
                 }
                 
                 let conversationRef = self.db.collection("conversations").document(conversationId)
-                batch.updateData(["readStatus.\(readerId)": true], forDocument: conversationRef)
+                batch.updateData([
+                    "readStatus.\(readerId)": true,
+                    "lastReadAt.\(readerId)": FieldValue.serverTimestamp()
+                ], forDocument: conversationRef)
                 
                 batch.commit { error in
                     completion(error)
