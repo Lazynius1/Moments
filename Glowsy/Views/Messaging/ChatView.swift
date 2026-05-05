@@ -74,6 +74,7 @@ struct GlassmorphicChatView: View {
     // ✅ REACCIONES: Nuevo estado para Overlay
     @State private var reactionMessageOverlay: EnhancedMessage? = nil
     @State private var selectedChatMedia: SharedMedia?
+    @State private var selectedChatMediaItems: [SharedMedia] = []
     
     private var adaptiveColors: AdaptiveColors {
         AdaptiveColors(colorScheme: colorScheme)
@@ -196,15 +197,17 @@ struct GlassmorphicChatView: View {
 
                         FullScreenMediaView(
                             media: selectedChatMedia,
+                            mediaItems: selectedChatMediaItems,
                             currentUserId: viewModel.currentUserId,
                             otherParticipantName: otherParticipantDisplayName,
                             onClose: {
                                 withAnimation(.easeInOut(duration: 0.18)) {
                                     self.selectedChatMedia = nil
+                                    self.selectedChatMediaItems = []
                                 }
                             },
-                            onSendReply: { text, completion in
-                                sendReplyToSharedMedia(selectedChatMedia, text: text, completion: completion)
+                            onSendReply: { media, text, completion in
+                                sendReplyToSharedMedia(media, text: text, completion: completion)
                             }
                         )
                     }
@@ -724,6 +727,17 @@ struct GlassmorphicChatView: View {
         )
     }
 
+    private func sharedMediaItemsForOverlay(selecting message: EnhancedMessage) -> [SharedMedia] {
+        let items = viewModel.messages.compactMap(sharedMedia(from:))
+        guard let selected = sharedMedia(from: message) else { return items }
+
+        if items.contains(where: { $0.id == selected.id }) {
+            return items
+        }
+
+        return items + [selected]
+    }
+
     private func sendReplyToSharedMedia(_ media: SharedMedia, text: String, completion: @escaping (Result<Void, Error>) -> Void) {
         let trimmedText = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedText.isEmpty else { return }
@@ -873,6 +887,7 @@ struct GlassmorphicChatView: View {
                     handleMomentNavigationFromChat(message: message)
                 },
                 onOpenMedia: { message in
+                    selectedChatMediaItems = sharedMediaItemsForOverlay(selecting: message)
                     selectedChatMedia = sharedMedia(from: message)
                 },
                 progress: viewModel.uploadProgress[message.id]
@@ -908,6 +923,7 @@ struct GlassmorphicChatView: View {
                     handleMomentNavigationFromChat(message: message)
                 },
                 onOpenMedia: { message in
+                    selectedChatMediaItems = sharedMediaItemsForOverlay(selecting: message)
                     selectedChatMedia = sharedMedia(from: message)
                 },
                 onLongPress: { message in

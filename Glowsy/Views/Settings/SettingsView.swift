@@ -166,10 +166,22 @@ struct SettingsView: View {
                         }
                         self.showReadReceipts = user.showReadReceipts
                     case .failure(let error):
+                        guard Auth.auth().currentUser != nil, authService.currentFirebaseUser != nil else {
+                            self.isLoading = false
+                            dismiss()
+                            return
+                        }
                         self.showError(message: String(format: NSLocalizedString("settings.error.load", comment: "Settings load error"), error.localizedDescription))
                     }
                     self.isLoading = false
                 }
+            }
+            .onChange(of: authService.currentFirebaseUser) { user in
+                guard user == nil else { return }
+                isLoading = false
+                showError = false
+                errorMessage = nil
+                dismiss()
             }
             .alert(isPresented: $showError) {
                 Alert(

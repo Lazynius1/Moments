@@ -152,8 +152,6 @@ struct MessagingView: View {
                         // ✅ SOLICITUDES: Escuchar solicitudes pendientes
                         messageRequestService.listenToPendingRequests(for: userId)
                         updatePendingRequestCount(for: userId)
-                    } else {
-                        viewModel.errorMessage = NSLocalizedString("messaging.error.notAuthenticated", comment: "User not authenticated")
                     }
 
                     // ✅ AGREGAR: Verificar si hay conversación objetivo
@@ -163,7 +161,19 @@ struct MessagingView: View {
                 }
                 .onChange(of: authService.currentUser) { _ in
                     if let userId = Auth.auth().currentUser?.uid {
+                        viewModel.errorMessage = nil
                         viewModel.fetchConversations(for: userId)
+                        messageRequestService.listenToPendingRequests(for: userId)
+                        updatePendingRequestCount(for: userId)
+                    } else {
+                        viewModel.stopListening()
+                        viewModel.errorMessage = nil
+                        viewModel.conversations = []
+                        viewModel.filteredConversations = []
+                        viewModel.hasUnreadMessages = false
+                        messageRequestService.removeAllListeners()
+                        messageRequestService.pendingRequests = []
+                        messageRequestService.errorMessage = nil
                     }
                 }
                 // ✅ AGREGAR: Listener para cuando cambie targetConversationId
@@ -192,6 +202,10 @@ struct MessagingView: View {
                         targetConversationId = conversationId
                         navigationService.clearPendingNavigation()
                     }
+                }
+                .onDisappear {
+                    viewModel.stopListening()
+                    messageRequestService.removeAllListeners()
                 }
             }
         }

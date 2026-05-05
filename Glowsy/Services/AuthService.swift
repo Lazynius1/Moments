@@ -653,8 +653,10 @@ class AuthService: ObservableObject {
                 Auth.auth().signIn(withEmail: identifier, password: password) { result, error in
                     if let error = error {
                         completion(.failure(self.mapAuthError(error)))
+                    } else if let user = result?.user {
+                        self.finishCredentialLogin(for: user, completion: completion)
                     } else {
-                        completion(.success(()))
+                        completion(.failure(NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: NSLocalizedString("login.error.unknown", comment: "Unknown login error")])))
                     }
                 }
             } else {
@@ -663,8 +665,10 @@ class AuthService: ObservableObject {
                     Auth.auth().signIn(withEmail: cachedEmail, password: password) { result, error in
                         if let error = error {
                             completion(.failure(self.mapAuthError(error)))
+                        } else if let user = result?.user {
+                            self.finishCredentialLogin(for: user, completion: completion)
                         } else {
-                            completion(.success(()))
+                            completion(.failure(NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: NSLocalizedString("login.error.unknown", comment: "Unknown login error")])))
                         }
                     }
                 } else {
@@ -685,9 +689,11 @@ class AuthService: ObservableObject {
                             Auth.auth().signIn(withEmail: email, password: password) { result, error in
                                 if let error = error {
                                     completion(.failure(self.mapAuthError(error)))
-                                } else {
+                                } else if let user = result?.user {
                                     UserDefaults.standard.set(email, forKey: "cachedEmail_\(identifier.lowercased())")
-                                    completion(.success(()))
+                                    self.finishCredentialLogin(for: user, completion: completion)
+                                } else {
+                                    completion(.failure(NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: NSLocalizedString("login.error.unknown", comment: "Unknown login error")])))
                                 }
                             }
                             return
@@ -719,9 +725,11 @@ class AuthService: ObservableObject {
                             Auth.auth().signIn(withEmail: userEmail, password: password) { result, error in
                                 if let error = error {
                                     completion(.failure(self.mapAuthError(error)))
-                                } else {
+                                } else if let user = result?.user {
                                     UserDefaults.standard.set(userEmail, forKey: "cachedEmail_\(identifier.lowercased())")
-                                    completion(.success(()))
+                                    self.finishCredentialLogin(for: user, completion: completion)
+                                } else {
+                                    completion(.failure(NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: NSLocalizedString("login.error.unknown", comment: "Unknown login error")])))
                                 }
                             }
                         }
@@ -729,6 +737,75 @@ class AuthService: ObservableObject {
                 }
             }
         }
+
+    private func finishCredentialLogin(for user: User, completion: @escaping (Result<Void, Error>) -> Void) {
+        authQueue.async {
+            self._transitionLock = true
+            self._registrationState = .idle
+            self._isAuthProcessingEnabled = true
+        }
+
+        DispatchQueue.main.async {
+            self.currentFirebaseUser = user
+            self.isLoggedIn = false
+            self.currentUser = nil
+            self.isAccountDeactivated = false
+            self.deactivatedUserData = nil
+            self.isVerifyingAccount = true
+            self.isRegistering = false
+            self.authState = .verifyingAccount
+        }
+
+        checkAccountStatus(userId: user.uid) { isActive, userData, isSuspended in
+            DispatchQueue.main.async {
+                self.isVerifyingAccount = false
+
+                if isSuspended {
+                    self.authQueue.async { self._transitionLock = false }
+                    completion(.success(()))
+                    return
+                }
+
+                if isActive {
+                    if let userData {
+                        self.saveCachedAccountStatus(userId: user.uid, decision: .allowed)
+                        LocalPersistenceService.shared.saveCurrentUser(userData)
+                    }
+
+                    self.isLoggedIn = true
+                    self.currentUser = userData
+                    self.currentFirebaseUser = user
+                    self.isAccountDeactivated = false
+                    self.deactivatedUserData = nil
+                    self.authState = .authenticated
+                    self.startSuspensionListener()
+                    self.syncProfileDataToWidget(userData: userData)
+
+                    self.authQueue.async { self._transitionLock = false }
+                    completion(.success(()))
+                    return
+                }
+
+                if let userData {
+                    self.saveCachedAccountStatus(userId: user.uid, decision: .deactivated)
+                    self.isLoggedIn = false
+                    self.currentUser = nil
+                    self.currentFirebaseUser = user
+                    self.isAccountDeactivated = true
+                    self.deactivatedUserData = userData
+                    self.authState = .deactivated
+
+                    self.authQueue.async { self._transitionLock = false }
+                    completion(.success(()))
+                    return
+                }
+
+                self.authQueue.async { self._transitionLock = false }
+                self.forceLogout()
+                completion(.failure(NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: NSLocalizedString("login.error.unknown", comment: "Unknown login error")])))
+            }
+        }
+    }
         
     // ✅ FUNCIÓN CORREGIDA: Verificar estado y suspensión con retry para registro
     private func checkAccountStatus(userId: String, completion: @escaping (Bool, AppUser?, Bool) -> Void) {

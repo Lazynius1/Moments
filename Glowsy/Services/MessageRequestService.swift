@@ -15,12 +15,27 @@ class MessageRequestService: ObservableObject {
     @Published var errorMessage: String?
     
     private var listeners: [String: ListenerRegistration] = [:]
+    private var authHandle: AuthStateDidChangeListenerHandle?
     
     // MARK: - Initialization
     init() {
+        authHandle = Auth.auth().addStateDidChangeListener { [weak self] _, user in
+            guard let self else { return }
+            if user == nil {
+                DispatchQueue.main.async {
+                    self.removeAllListeners()
+                    self.pendingRequests = []
+                    self.isLoading = false
+                    self.errorMessage = nil
+                }
+            }
+        }
     }
     
     deinit {
+        if let authHandle {
+            Auth.auth().removeStateDidChangeListener(authHandle)
+        }
         removeAllListeners()
     }
     
@@ -39,6 +54,13 @@ class MessageRequestService: ObservableObject {
             .order(by: "timestamp", descending: true)
             .addSnapshotListener { [weak self] snapshot, error in
                 if let error = error {
+                    if Auth.auth().currentUser == nil {
+                        DispatchQueue.main.async {
+                            self?.pendingRequests = []
+                            self?.errorMessage = nil
+                        }
+                        return
+                    }
                     self?.errorMessage = error.localizedDescription
                     return
                 }
