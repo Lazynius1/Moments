@@ -68,6 +68,7 @@ struct TabBarView: View {
                         .environmentObject(authService)
                 }
             }
+            .id(authRootIdentity)
 
             if let route = echoInvitationRoute {
                 EchoInvitationView(
@@ -98,6 +99,25 @@ struct TabBarView: View {
 
     private var shouldShowMainApp: Bool {
         authService.isLoggedIn && authService.authState == .authenticated
+    }
+
+    private var authRootIdentity: String {
+        let userId = authService.currentFirebaseUser?.uid ?? "guest"
+
+        switch authService.authState {
+        case .loading:
+            return "loading-\(userId)"
+        case .verifyingAccount:
+            return "verifying-\(userId)"
+        case .authenticated:
+            return "authenticated-\(userId)"
+        case .deactivated:
+            return "deactivated-\(userId)"
+        case .suspended(let reason, let expiresAt):
+            return "suspended-\(userId)-\(reason ?? "none")-\(expiresAt?.timeIntervalSince1970 ?? 0)"
+        case .unauthenticated:
+            return "unauthenticated"
+        }
     }
     
 

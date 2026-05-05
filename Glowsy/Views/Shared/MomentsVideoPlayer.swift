@@ -10,9 +10,13 @@ struct MomentsVideoPlayer: UIViewControllerRepresentable {
     let isPaused: Bool
     var isMuted: Bool = false
     var prioritizeSmoothPlayback: Bool = false
+    var showsPlaybackControls: Bool = false
+    var respectsExternalPauseState: Bool = true
+    var shouldAutoplay: Bool = true
     let videoGravity: AVLayerVideoGravity
     var onDurationReceived: ((Double) -> Void)? = nil
     var onProgressUpdate: ((Double) -> Void)? = nil
+    var onProgressFractionUpdate: ((Double) -> Void)? = nil
     var onVideoFinished: (() -> Void)? = nil
     
     private static let playerItemCache = PlayerItemCache()
@@ -54,17 +58,20 @@ struct MomentsVideoPlayer: UIViewControllerRepresentable {
         player.automaticallyWaitsToMinimizeStalling = prioritizeSmoothPlayback
         
         controller.player = player
-        controller.showsPlaybackControls = false
+        controller.showsPlaybackControls = showsPlaybackControls
         controller.videoGravity = videoGravity
         controller.view.backgroundColor = .black
+        controller.entersFullScreenWhenPlaybackBegins = false
+        controller.exitsFullScreenWhenPlaybackEnds = true
         
         context.coordinator.player = player
         context.coordinator.lastURL = url
+        context.coordinator.lastShouldAutoplay = shouldAutoplay
         context.coordinator.setupObservers(for: playerItem)
         
         setupAudioSession()
         
-        if !isPaused {
+        if shouldAutoplay && (!respectsExternalPauseState || !isPaused) {
             print("🎬 MomentsVideoPlayer: Triggering initial play")
             player.play()
         }
@@ -87,24 +94,36 @@ struct MomentsVideoPlayer: UIViewControllerRepresentable {
             
             uiViewController.player = newPlayer
             context.coordinator.player = newPlayer
+            context.coordinator.lastShouldAutoplay = shouldAutoplay
             context.coordinator.setupObservers(for: playerItem)
             
-            if !isPaused {
+            if shouldAutoplay && (!respectsExternalPauseState || !isPaused) {
                 newPlayer.play()
             }
         }
         
         if let player = uiViewController.player {
             player.isMuted = isMuted
-            if isPaused {
-                if player.rate != 0 {
-                    print("🎬 MomentsVideoPlayer: Pausing player")
-                    player.pause()
+            if respectsExternalPauseState {
+                if isPaused {
+                    if player.rate != 0 {
+                        print("🎬 MomentsVideoPlayer: Pausing player")
+                        player.pause()
+                    }
+                } else {
+                    if player.rate == 0 && (player.status == .readyToPlay || player.currentItem?.status == .readyToPlay) {
+                        print("🎬 MomentsVideoPlayer: Resuming player")
+                        player.play()
+                    }
                 }
-            } else {
-                if player.rate == 0 && (player.status == .readyToPlay || player.currentItem?.status == .readyToPlay) {
-                    print("🎬 MomentsVideoPlayer: Resuming player")
-                    player.play()
+            } else if context.coordinator.lastShouldAutoplay != shouldAutoplay {
+                context.coordinator.lastShouldAutoplay = shouldAutoplay
+                if shouldAutoplay {
+                    if player.rate == 0 && (player.status == .readyToPlay || player.currentItem?.status == .readyToPlay) {
+                        player.play()
+                    }
+                } else if player.rate != 0 {
+                    player.pause()
                 }
             }
         }
@@ -140,6 +159,7 @@ struct MomentsVideoPlayer: UIViewControllerRepresentable {
         var parent: MomentsVideoPlayer
         var player: AVPlayer?
         var lastURL: URL?
+        var lastShouldAutoplay: Bool?
         private var timeObserver: Any?
         private var statusObserver: NSKeyValueObservation?
         private var playbackLikelyObserver: NSKeyValueObservation?
@@ -166,10 +186,12 @@ struct MomentsVideoPlayer: UIViewControllerRepresentable {
                 switch item.status {
                 case .readyToPlay:
                     print("🎬 MomentsVideoPlayer: Ready to play. Duration: \(CMTimeGetSeconds(item.duration))")
-                    let duration = CMTimeGetSeconds(item.duration)
-                    if !duration.isNaN && !duration.isInfinite {
+                    let itemDuration = CMTimeGetSeconds(item.duration)
+                    let assetDuration = CMTimeGetSeconds(item.asset.duration)
+                    let resolvedDuration = (!itemDuration.isNaN && !itemDuration.isInfinite && itemDuration > 0) ? itemDuration : assetDuration
+                    if !resolvedDuration.isNaN && !resolvedDuration.isInfinite && resolvedDuration > 0 {
                         DispatchQueue.main.async {
-                            self.parent.onDurationReceived?(duration)
+                            self.parent.onDurationReceived?(resolvedDuration)
                         }
                     }
                     if !self.parent.isPaused {
@@ -248,6 +270,13 @@ struct MomentsVideoPlayer: UIViewControllerRepresentable {
                 let seconds = CMTimeGetSeconds(time)
                 if !seconds.isNaN && !seconds.isInfinite {
                     self.parent.onProgressUpdate?(seconds)
+                    if let currentItem = self.player?.currentItem {
+                        let durationSeconds = CMTimeGetSeconds(currentItem.duration)
+                        if durationSeconds.isFinite, durationSeconds > 0 {
+                            let progress = min(max(seconds / durationSeconds, 0.0), 1.0)
+                            self.parent.onProgressFractionUpdate?(progress)
+                        }
+                    }
                 }
             }
         }

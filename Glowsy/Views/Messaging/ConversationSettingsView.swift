@@ -69,14 +69,15 @@ struct ConversationSettingsView: View {
             if let selectedMedia = viewModel.selectedMedia {
                 FullScreenMediaView(
                     media: selectedMedia,
+                    mediaItems: viewModel.sharedMedia,
                     currentUserId: viewModel.currentUserId,
                     otherParticipantName: otherParticipantDisplayName,
                     onClose: {
                         viewModel.showFullScreenMedia = false
                         viewModel.selectedMedia = nil
                     },
-                    onSendReply: { text, completion in
-                        viewModel.sendReplyToMedia(selectedMedia, text: text, completion: completion)
+                    onSendReply: { media, text, completion in
+                        viewModel.sendReplyToMedia(media, text: text, completion: completion)
                     }
                 )
             }
@@ -830,6 +831,7 @@ struct AllSharedMediaView: View {
 
                     FullScreenMediaView(
                         media: selectedMedia,
+                        mediaItems: sharedMedia,
                         currentUserId: currentUserId,
                         otherParticipantName: otherParticipantName,
                         onClose: {
@@ -837,8 +839,8 @@ struct AllSharedMediaView: View {
                                 self.selectedMedia = nil
                             }
                         },
-                        onSendReply: { text, completion in
-                            onSendReply(selectedMedia, text, completion)
+                        onSendReply: { media, text, completion in
+                            onSendReply(media, text, completion)
                         }
                     )
                 }
@@ -852,19 +854,56 @@ struct AllSharedMediaView: View {
 // MARK: - Full Screen Media View
 struct FullScreenMediaView: View {
     let media: SharedMedia
+    let mediaItems: [SharedMedia]
     let currentUserId: String
     let otherParticipantName: String
     let onClose: () -> Void
-    let onSendReply: (String, @escaping (Result<Void, Error>) -> Void) -> Void
+    let onSendReply: (SharedMedia, String, @escaping (Result<Void, Error>) -> Void) -> Void
     @Environment(\.colorScheme) var colorScheme
     @FocusState private var isReplyFocused: Bool
     @State private var replyText = ""
     @State private var isSendingReply = false
     @State private var showSaveResult = false
     @State private var saveResultMessage = ""
+    @State private var videoProgress: Double = 0
+    @State private var dragOffset: CGFloat = 0
+    @State private var selectedIndex: Int
+
+    init(
+        media: SharedMedia,
+        mediaItems: [SharedMedia] = [],
+        currentUserId: String,
+        otherParticipantName: String,
+        onClose: @escaping () -> Void,
+        onSendReply: @escaping (SharedMedia, String, @escaping (Result<Void, Error>) -> Void) -> Void
+    ) {
+        self.media = media
+        self.mediaItems = mediaItems
+        self.currentUserId = currentUserId
+        self.otherParticipantName = otherParticipantName
+        self.onClose = onClose
+        self.onSendReply = onSendReply
+
+        let source = mediaItems.isEmpty ? [media] : mediaItems
+        let index = source.firstIndex(where: { $0.id == media.id }) ?? 0
+        _selectedIndex = State(initialValue: index)
+    }
+
+    private var pagedMedia: [SharedMedia] {
+        mediaItems.isEmpty ? [media] : mediaItems
+    }
+
+    private var currentMedia: SharedMedia {
+        let safeIndex = min(max(selectedIndex, 0), max(pagedMedia.count - 1, 0))
+        return pagedMedia[safeIndex]
+    }
 
     private var isOwnMedia: Bool {
-        media.senderId == currentUserId
+        currentMedia.senderId == currentUserId
+    }
+
+    private var isVideo: Bool {
+        currentMedia.type == .video
     }
 
     private var authorName: String {
@@ -874,124 +913,61 @@ struct FullScreenMediaView: View {
     private var relativeTime: String {
         let formatter = RelativeDateTimeFormatter()
         formatter.unitsStyle = .full
-        return formatter.localizedString(for: media.timestamp, relativeTo: Date())
+        return formatter.localizedString(for: currentMedia.timestamp, relativeTo: Date())
     }
 
     private var canSendReply: Bool {
         !replyText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !isSendingReply
     }
 
+    private var primaryOverlayColor: Color {
+        colorScheme == .dark ? .white : .black
+    }
+
+    private var secondaryOverlayColor: Color {
+        primaryOverlayColor.opacity(0.58)
+    }
+
+    private func mediaMaxWidth(in geometry: GeometryProxy) -> CGFloat {
+        max(geometry.size.width - 44, 0)
+    }
+
+    private func mediaMaxHeight(in geometry: GeometryProxy) -> CGFloat {
+        max(geometry.size.height * 0.82, 0)
+    }
+
     var body: some View {
         GeometryReader { geometry in
-            let horizontalInset: CGFloat = 22
-            let maxCardWidth = max(geometry.size.width - (horizontalInset * 2), 0)
-            let maxCardHeight = max(geometry.size.height * 0.82, 0)
-            let primaryOverlayColor = colorScheme == .dark ? Color.white : Color.black
-
             ZStack {
-                Color(hex: colorScheme == .dark ? "0B1215" : "FAF9F6")
-                    .ignoresSafeArea()
+                backgroundView
 
                 VStack(spacing: 0) {
-                    HStack {
-                        Button(action: onClose) {
-                            Image(systemName: "xmark")
-                                .font(.system(size: 18, weight: .semibold))
-                                .foregroundColor(primaryOverlayColor)
-                                .frame(width: 42, height: 42)
-                        }
+                    headerView
+                        .padding(.horizontal, 22)
+                        .padding(.top, 18)
 
-                        HStack(spacing: 10) {
-                            avatarView
-
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(authorName)
-                                    .font(.custom("Poppins-SemiBold", size: 16))
-                                    .foregroundColor(primaryOverlayColor)
-
-                                Text(relativeTime)
-                                    .font(.custom("Poppins-Regular", size: 13))
-                                    .foregroundColor(primaryOverlayColor.opacity(0.58))
-                            }
-                        }
-                        .padding(.leading, 6)
-
-                        Spacer()
-
-                        Button(action: {
-                            saveMedia()
-                        }) {
-                            HStack(spacing: 8) {
-                                Image(systemName: "arrow.down")
-                                    .font(.system(size: 18, weight: .semibold))
-                                Text("conversationSettings.mediaSave.action")
-                                    .font(.custom("Poppins-SemiBold", size: 17))
-                            }
-                            .foregroundColor(primaryOverlayColor)
-                            .frame(height: 42)
-                        }
+                    if isVideo {
+                        videoProgressView
+                            .padding(.horizontal, 22)
+                            .padding(.top, 14)
                     }
-                    .padding(.horizontal, 22)
-                    .padding(.top, 18)
 
                     Spacer(minLength: 6)
 
-                    Group {
-                        if media.type == .image {
-                            KFImage(URL(string: media.originalUrl))
-                                .resizable()
-                                .aspectRatio(contentMode: .fit)
-                                .frame(maxWidth: maxCardWidth)
-                                .frame(maxHeight: maxCardHeight)
-                        } else if let url = URL(string: media.originalUrl) {
-                            VideoPlayer(player: AVPlayer(url: url))
-                                .aspectRatio(contentMode: .fit)
-                                .frame(maxWidth: maxCardWidth)
-                                .frame(maxHeight: maxCardHeight)
-                        } else {
-                            Text("conversationSettings.videoLoadError")
-                                .foregroundColor(primaryOverlayColor)
-                                .frame(maxWidth: maxCardWidth)
-                                .frame(maxHeight: maxCardHeight)
-                        }
-                    }
-                    .fixedSize(horizontal: false, vertical: true)
+                    mediaContent(in: geometry)
 
                     Spacer(minLength: 4)
 
-                    HStack(spacing: 12) {
-                        TextField(NSLocalizedString("conversationSettings.replyPlaceholder", comment: "Reply placeholder"), text: $replyText)
-                            .font(.custom("Poppins-Regular", size: 16))
-                            .foregroundColor(primaryOverlayColor)
-                            .focused($isReplyFocused)
-                            .submitLabel(.send)
-                            .onSubmit {
-                                sendReply()
-                            }
-
-                        Button(action: sendReply) {
-                            if isSendingReply {
-                                ProgressView()
-                                    .controlSize(.small)
-                                    .tint(primaryOverlayColor)
-                                    .frame(width: 30, height: 30)
-                            } else {
-                                Image(systemName: "paperplane.fill")
-                                    .font(.system(size: 16, weight: .semibold))
-                                    .foregroundColor(canSendReply ? primaryOverlayColor : primaryOverlayColor.opacity(0.32))
-                                    .frame(width: 30, height: 30)
-                            }
-                        }
-                        .disabled(!canSendReply)
-                    }
-                    .padding(.horizontal, 14)
-                    .frame(height: 52)
-                    .background(Color.clear.liquidGlass(in: Capsule(), interactive: true))
-                    .padding(.horizontal, 22)
-                    .padding(.bottom, 18)
+                    replyComposer
+                        .padding(.horizontal, 22)
+                        .padding(.bottom, 18)
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .contentShape(Rectangle())
+            .offset(y: dragOffset)
+            .animation(.interactiveSpring(response: 0.28, dampingFraction: 0.84), value: dragOffset)
+            .gesture(dismissDragGesture)
         }
         .alert(isPresented: $showSaveResult) {
             Alert(
@@ -1000,13 +976,182 @@ struct FullScreenMediaView: View {
                 dismissButton: .default(Text("common.ok"))
             )
         }
+        .onChange(of: selectedIndex) { _ in
+            videoProgress = 0
+        }
+    }
+
+    @ViewBuilder
+    private var backgroundView: some View {
+        Color(hex: colorScheme == .dark ? "0B1215" : "FAF9F6")
+            .ignoresSafeArea()
+    }
+
+    @ViewBuilder
+    private func mediaContent(in geometry: GeometryProxy) -> some View {
+        if pagedMedia.count > 1 {
+            TabView(selection: $selectedIndex) {
+                ForEach(Array(pagedMedia.enumerated()), id: \.element.id) { index, item in
+                    mediaRenderer(for: item, isActive: index == selectedIndex)
+                        .frame(maxWidth: mediaMaxWidth(in: geometry))
+                        .frame(maxHeight: mediaMaxHeight(in: geometry))
+                        .tag(index)
+                }
+            }
+            .tabViewStyle(.page(indexDisplayMode: .never))
+        } else {
+            mediaRenderer(for: currentMedia, isActive: true)
+                .frame(maxWidth: mediaMaxWidth(in: geometry))
+                .frame(maxHeight: mediaMaxHeight(in: geometry))
+        }
+    }
+
+    @ViewBuilder
+    private func mediaRenderer(for item: SharedMedia, isActive: Bool) -> some View {
+        switch item.type {
+        case .image:
+            KFImage(URL(string: item.originalUrl))
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+
+        case .video:
+            if let url = URL(string: item.originalUrl) {
+                MomentsVideoPlayer(
+                    url: url,
+                    isLooping: true,
+                    isPaused: false,
+                    prioritizeSmoothPlayback: true,
+                    showsPlaybackControls: true,
+                    respectsExternalPauseState: false,
+                    shouldAutoplay: isActive,
+                    videoGravity: .resizeAspect,
+                    onDurationReceived: { value in
+                        if isActive, value > 0, videoProgress == 0 {
+                            videoProgress = 0
+                        }
+                    },
+                    onProgressFractionUpdate: { value in
+                        if isActive {
+                            videoProgress = value
+                        }
+                    },
+                    onVideoFinished: {}
+                )
+            } else {
+                Text("conversationSettings.videoLoadError")
+                    .foregroundColor(primaryOverlayColor)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+        }
+    }
+
+    private var headerView: some View {
+        HStack {
+            Button(action: onClose) {
+                Image(systemName: "xmark")
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundColor(primaryOverlayColor)
+                    .frame(width: 42, height: 42)
+                    .background(Color.clear.liquidGlass(in: Circle(), interactive: true))
+            }
+
+            HStack(spacing: 10) {
+                avatarView
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(authorName)
+                        .font(.custom("Poppins-SemiBold", size: 16))
+                        .foregroundColor(primaryOverlayColor)
+
+                    Text(relativeTime)
+                        .font(.custom("Poppins-Regular", size: 13))
+                        .foregroundColor(secondaryOverlayColor)
+                }
+            }
+            .padding(.leading, 6)
+
+            Spacer()
+
+            Button(action: saveMedia) {
+                HStack(spacing: 8) {
+                    Image(systemName: "arrow.down")
+                        .font(.system(size: 17, weight: .semibold))
+                    Text("conversationSettings.mediaSave.action")
+                        .font(.custom("Poppins-SemiBold", size: 16))
+                }
+                .foregroundColor(primaryOverlayColor)
+                .frame(height: 42)
+                .padding(.horizontal, 14)
+                .background(Color.clear.liquidGlass(in: Capsule(), interactive: true))
+            }
+        }
+    }
+
+    private var replyComposer: some View {
+        HStack(spacing: 12) {
+            TextField(NSLocalizedString("conversationSettings.replyPlaceholder", comment: "Reply placeholder"), text: $replyText)
+                .font(.custom("Poppins-Regular", size: 16))
+                .foregroundColor(primaryOverlayColor)
+                .focused($isReplyFocused)
+                .submitLabel(.send)
+                .onSubmit {
+                    sendReply()
+                }
+
+            Button(action: sendReply) {
+                if isSendingReply {
+                    ProgressView()
+                        .controlSize(.small)
+                        .tint(primaryOverlayColor)
+                        .frame(width: 30, height: 30)
+                } else {
+                    Image(systemName: "paperplane.fill")
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundColor(canSendReply ? primaryOverlayColor : primaryOverlayColor.opacity(0.32))
+                        .frame(width: 30, height: 30)
+                }
+            }
+            .disabled(!canSendReply)
+        }
+        .padding(.horizontal, 14)
+        .frame(height: 52)
+        .background(Color.clear.liquidGlass(in: Capsule(), interactive: true))
+    }
+
+    private var videoProgressView: some View {
+        GeometryReader { geo in
+            ZStack(alignment: .leading) {
+                Capsule()
+                    .fill(Color.gray.opacity(colorScheme == .dark ? 0.36 : 0.22))
+
+                Capsule()
+                    .fill(Color(hex: "FFCC33"))
+                    .frame(width: geo.size.width * videoProgress)
+            }
+        }
+        .frame(height: 5)
+    }
+
+    private var dismissDragGesture: some Gesture {
+        DragGesture()
+            .onChanged { value in
+                guard value.translation.height > 0 else { return }
+                dragOffset = value.translation.height
+            }
+            .onEnded { value in
+                if value.translation.height > 120 {
+                    onClose()
+                } else {
+                    dragOffset = 0
+                }
+            }
     }
 
     @ViewBuilder
     private var avatarView: some View {
         if !media.senderId.isEmpty {
             StoryRingAvatarView(
-                userId: media.senderId,
+                userId: currentMedia.senderId,
                 size: 42,
                 lineWidth: 2.1,
                 showBaseStroke: true,
@@ -1030,7 +1175,7 @@ struct FullScreenMediaView: View {
         guard !trimmedText.isEmpty, !isSendingReply else { return }
 
         isSendingReply = true
-        onSendReply(trimmedText) { result in
+        onSendReply(currentMedia, trimmedText) { result in
             isSendingReply = false
             switch result {
             case .success:
@@ -1045,7 +1190,7 @@ struct FullScreenMediaView: View {
     }
 
     private func saveMedia() {
-        guard let url = URL(string: media.originalUrl) else {
+        guard let url = URL(string: currentMedia.originalUrl) else {
             saveResultMessage = NSLocalizedString("conversationSettings.mediaSave.error", comment: "")
             showSaveResult = true
             return
@@ -1054,7 +1199,7 @@ struct FullScreenMediaView: View {
         Task {
             do {
                 let (data, _) = try await URLSession.shared.data(from: url)
-                switch media.type {
+                switch currentMedia.type {
                 case .image:
                     guard let image = UIImage(data: data) else {
                         throw NSError(domain: "ConversationSettingsMedia", code: 1)

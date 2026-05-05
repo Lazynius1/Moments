@@ -1017,6 +1017,10 @@ class ChatService: ObservableObject {
             .addSnapshotListener { snapshot, error in
                 
                 if let error = error {
+                    if Auth.auth().currentUser == nil {
+                        completion(.success([]))
+                        return
+                    }
                     completion(.failure(error))
                     return
                 }
