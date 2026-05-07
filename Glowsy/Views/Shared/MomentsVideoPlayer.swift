@@ -18,31 +18,10 @@ struct MomentsVideoPlayer: UIViewControllerRepresentable {
     var onProgressUpdate: ((Double) -> Void)? = nil
     var onProgressFractionUpdate: ((Double) -> Void)? = nil
     var onVideoFinished: (() -> Void)? = nil
+    var externalSeekTime: Binding<Double?>? = nil
+    var sharedPlayer: Binding<AVPlayer?>? = nil
     
-    private static let playerItemCache = PlayerItemCache()
-    
-    private final class PlayerItemCache {
-        private let cache = NSCache<NSURL, AVPlayerItem>()
-        
-        init() {
-            cache.countLimit = 30
-        }
-        
-        func makeItem(for url: URL) -> AVPlayerItem {
-            let key = url as NSURL
-            if let cachedItem = cache.object(forKey: key),
-               let copiedItem = cachedItem.copy() as? AVPlayerItem {
-                return copiedItem
-            }
-            
-            let newItem = AVPlayerItem(url: url)
-            cache.setObject(newItem, forKey: key)
-            if let copiedItem = newItem.copy() as? AVPlayerItem {
-                return copiedItem
-            }
-            return AVPlayerItem(url: url)
-        }
-    }
+
     
     func makeCoordinator() -> Coordinator {
         Coordinator(self)
@@ -52,7 +31,7 @@ struct MomentsVideoPlayer: UIViewControllerRepresentable {
         print("🎬 MomentsVideoPlayer: makeUIViewController for URL: \(url.absoluteString)")
         let controller = AVPlayerViewController()
         
-        let playerItem = Self.playerItemCache.makeItem(for: url)
+        let playerItem = VideoPreloader.shared.getPlayerItem(for: url.absoluteString)
         configurePlayerItem(playerItem)
         let player = AVQueuePlayer(playerItem: playerItem)
         player.automaticallyWaitsToMinimizeStalling = prioritizeSmoothPlayback
@@ -68,6 +47,10 @@ struct MomentsVideoPlayer: UIViewControllerRepresentable {
         context.coordinator.lastURL = url
         context.coordinator.lastShouldAutoplay = shouldAutoplay
         context.coordinator.setupObservers(for: playerItem)
+        
+        DispatchQueue.main.async {
+            self.sharedPlayer?.wrappedValue = player
+        }
         
         setupAudioSession()
         
@@ -87,7 +70,7 @@ struct MomentsVideoPlayer: UIViewControllerRepresentable {
             print("🎬 MomentsVideoPlayer: updateUIViewController - URL Changed from \(context.coordinator.lastURL?.absoluteString ?? "nil") to \(url.absoluteString)")
             context.coordinator.lastURL = url
             
-            let playerItem = Self.playerItemCache.makeItem(for: url)
+            let playerItem = VideoPreloader.shared.getPlayerItem(for: url.absoluteString)
             configurePlayerItem(playerItem)
             let newPlayer = AVQueuePlayer(playerItem: playerItem)
             newPlayer.automaticallyWaitsToMinimizeStalling = prioritizeSmoothPlayback
@@ -97,12 +80,22 @@ struct MomentsVideoPlayer: UIViewControllerRepresentable {
             context.coordinator.lastShouldAutoplay = shouldAutoplay
             context.coordinator.setupObservers(for: playerItem)
             
+            DispatchQueue.main.async {
+                self.sharedPlayer?.wrappedValue = newPlayer
+            }
+            
             if shouldAutoplay && (!respectsExternalPauseState || !isPaused) {
                 newPlayer.play()
             }
         }
         
         if let player = uiViewController.player {
+            if let time = externalSeekTime?.wrappedValue {
+                player.seek(to: CMTime(seconds: time, preferredTimescale: 600), toleranceBefore: .zero, toleranceAfter: .zero)
+                DispatchQueue.main.async {
+                    self.externalSeekTime?.wrappedValue = nil
+                }
+            }
             player.isMuted = isMuted
             if respectsExternalPauseState {
                 if isPaused {

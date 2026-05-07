@@ -866,6 +866,13 @@ struct FullScreenMediaView: View {
     @State private var showSaveResult = false
     @State private var saveResultMessage = ""
     @State private var videoProgress: Double = 0
+    @State private var videoDuration: Double = 0
+    @State private var seekTarget: Double? = nil
+    @State private var sharedPlayer: AVPlayer? = nil
+    @State private var isVideoPaused = false
+    @State private var isMuted = false
+    @State private var expandedVideoURL: URL?
+    @State private var showExpandedVideo = false
     @State private var dragOffset: CGFloat = 0
     @State private var selectedIndex: Int
 
@@ -967,7 +974,7 @@ struct FullScreenMediaView: View {
             .contentShape(Rectangle())
             .offset(y: dragOffset)
             .animation(.interactiveSpring(response: 0.28, dampingFraction: 0.84), value: dragOffset)
-            .gesture(dismissDragGesture)
+            .simultaneousGesture(dismissDragGesture)
         }
         .alert(isPresented: $showSaveResult) {
             Alert(
@@ -978,7 +985,18 @@ struct FullScreenMediaView: View {
         }
         .onChange(of: selectedIndex) { _ in
             videoProgress = 0
+            videoDuration = 0
+            isVideoPaused = false
         }
+        .onChange(of: showExpandedVideo) { isShown in
+            if !isShown {
+                expandedVideoURL = nil
+            }
+        }
+        .background(
+            NativeVideoPresenter(isPresented: $showExpandedVideo, player: sharedPlayer)
+                .frame(width: 0, height: 0)
+        )
     }
 
     @ViewBuilder
@@ -1013,30 +1031,44 @@ struct FullScreenMediaView: View {
             KFImage(URL(string: item.originalUrl))
                 .resizable()
                 .aspectRatio(contentMode: .fit)
+                .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
 
         case .video:
             if let url = URL(string: item.originalUrl) {
-                MomentsVideoPlayer(
-                    url: url,
-                    isLooping: true,
-                    isPaused: false,
-                    prioritizeSmoothPlayback: true,
-                    showsPlaybackControls: true,
-                    respectsExternalPauseState: false,
-                    shouldAutoplay: isActive,
-                    videoGravity: .resizeAspect,
-                    onDurationReceived: { value in
-                        if isActive, value > 0, videoProgress == 0 {
-                            videoProgress = 0
-                        }
-                    },
-                    onProgressFractionUpdate: { value in
-                        if isActive {
-                            videoProgress = value
-                        }
-                    },
-                    onVideoFinished: {}
-                )
+                ZStack {
+                    MomentsVideoPlayer(
+                        url: url,
+                        isLooping: true,
+                        isPaused: !isActive || isVideoPaused,
+                        isMuted: isMuted,
+                        prioritizeSmoothPlayback: true,
+                        showsPlaybackControls: false,
+                        respectsExternalPauseState: true,
+                        shouldAutoplay: isActive,
+                        videoGravity: .resizeAspect,
+                        onDurationReceived: { value in
+                            if isActive {
+                                videoDuration = value
+                            }
+                        },
+                        onProgressFractionUpdate: { value in
+                            if isActive {
+                                videoProgress = value
+                            }
+                        },
+                        onVideoFinished: {},
+                        externalSeekTime: $seekTarget,
+                        sharedPlayer: $sharedPlayer
+                    )
+                    .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
+
+                    if isActive {
+                        videoControlsOverlay
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                            .zIndex(2)
+                    }
+                }
+                .contentShape(Rectangle())
             } else {
                 Text("conversationSettings.videoLoadError")
                     .foregroundColor(primaryOverlayColor)
@@ -1130,6 +1162,69 @@ struct FullScreenMediaView: View {
             }
         }
         .frame(height: 5)
+    }
+
+    private var videoControlsOverlay: some View {
+        ZStack {
+            Button {
+                HapticManager.shared.lightImpact()
+                withAnimation(.spring(response: 0.24, dampingFraction: 0.82)) {
+                    isVideoPaused.toggle()
+                }
+            } label: {
+                Image(systemName: isVideoPaused ? "play.fill" : "pause.fill")
+                    .font(.system(size: 24, weight: .semibold))
+                    .foregroundColor(primaryOverlayColor)
+                    .frame(width: 64, height: 64)
+                    .background(Color.clear.liquidGlass(in: Circle(), interactive: true))
+                    .padding(60)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+
+            VStack {
+                HStack {
+                    Spacer()
+                    
+                    HStack(spacing: 0) {
+                        Button {
+                            HapticManager.shared.lightImpact()
+                            isMuted.toggle()
+                        } label: {
+                            Image(systemName: isMuted ? "speaker.slash.fill" : "speaker.wave.2.fill")
+                                .font(.system(size: 15, weight: .semibold))
+                                .foregroundColor(primaryOverlayColor)
+                                .frame(width: 40, height: 40)
+                                .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                        
+                        Divider()
+                            .frame(height: 16)
+                            .background(primaryOverlayColor.opacity(0.2))
+                        
+                        Button {
+                            if let url = URL(string: currentMedia.originalUrl) {
+                                HapticManager.shared.lightImpact()
+                                isVideoPaused = true
+                                expandedVideoURL = url
+                                showExpandedVideo = true
+                            }
+                        } label: {
+                            Image(systemName: "arrow.up.left.and.arrow.down.right")
+                                .font(.system(size: 15, weight: .semibold))
+                                .foregroundColor(primaryOverlayColor)
+                                .frame(width: 40, height: 40)
+                                .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                    }
+                    .background(Color.clear.liquidGlass(in: Capsule(), interactive: true))
+                    .padding(12)
+                }
+                Spacer()
+            }
+        }
     }
 
     private var dismissDragGesture: some Gesture {
@@ -1228,5 +1323,63 @@ struct FullScreenMediaView: View {
                 }
             }
         }
+    }
+}
+
+private class ModalVideoPlayerController: AVPlayerViewController {
+    var onDismiss: (() -> Void)?
+    
+    override func viewDidDisappear(_ animated: Bool) {
+        super.viewDidDisappear(animated)
+        if self.isBeingDismissed {
+            onDismiss?()
+        }
+    }
+}
+
+private struct NativeVideoPresenter: UIViewControllerRepresentable {
+    @Binding var isPresented: Bool
+    let player: AVPlayer?
+
+    func makeUIViewController(context: Context) -> UIViewController {
+        let vc = UIViewController()
+        vc.view.backgroundColor = .clear
+        return vc
+    }
+
+    func updateUIViewController(_ uiViewController: UIViewController, context: Context) {
+        if isPresented, let player = player, context.coordinator.playerController == nil {
+            let playerController = ModalVideoPlayerController()
+            
+            playerController.player = player
+            playerController.onDismiss = {
+                DispatchQueue.main.async {
+                    self.isPresented = false
+                }
+            }
+            context.coordinator.playerController = playerController
+            
+            DispatchQueue.main.async {
+                uiViewController.present(playerController, animated: true) {
+                    playerController.player?.play()
+                }
+            }
+        } else if !isPresented, let playerController = context.coordinator.playerController {
+            DispatchQueue.main.async {
+                playerController.player?.pause()
+                if playerController.presentingViewController != nil && !playerController.isBeingDismissed {
+                    playerController.dismiss(animated: true)
+                }
+                context.coordinator.playerController = nil
+            }
+        }
+    }
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator()
+    }
+
+    class Coordinator {
+        var playerController: ModalVideoPlayerController?
     }
 }

@@ -564,17 +564,23 @@
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.social-networking";
 				INFOPLIST_KEY_LSSupportsOpeningDocumentsInPlace = YES;
+				INFOPLIST_KEY_NSCameraUsageDescription = "Permite usar la cámara para capturar fotos y vídeos para tus historias, momentos y perfil.";
 				INFOPLIST_KEY_NSLocationAlwaysAndWhenInUseUsageDescription = "Necesitamos tu ubicación para mostrarte contenido cercano y etiquetar tus momentos.";
 				INFOPLIST_KEY_NSLocationAlwaysUsageDescription = "";
-				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "Para guardar fotos y videos editados en tu galería";
-				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "Esta app necesita acceso a tu galería para seleccionar fotos y videos para tus historias y momentos.";
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Permite usar tu ubicación para etiquetar publicaciones, mostrar contenido cercano y mejorar las sugerencias de Nova AI.";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Permite usar el micrófono para grabar audio en tus historias y mensajes de voz.";
+				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "Permite guardar fotos y vídeos (como tu código QR o historias editadas) directamente en tu galería.";
+				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "Permite el acceso a tu galería para subir fotos a tus historias, cambiar tu foto de perfil y permitir que Nova AI analice tus imágenes.";
+				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
+				INFOPLIST_KEY_NSSupportsLiveActivitiesFrequentUpdates = YES;
+				INFOPLIST_KEY_NSUserTrackingUsageDescription = "Este identificador se usará para mostrarte anuncios personalizados y mejorar tu experiencia en la app.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UILaunchStoryboardName = LaunchScreen;
 				INFOPLIST_KEY_UIStatusBarStyle = "";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
-				IPHONEOS_DEPLOYMENT_TARGET = 17.6;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.6;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -611,17 +617,23 @@
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.social-networking";
 				INFOPLIST_KEY_LSSupportsOpeningDocumentsInPlace = YES;
+				INFOPLIST_KEY_NSCameraUsageDescription = "Permite usar la cámara para capturar fotos y vídeos para tus historias, momentos y perfil.";
 				INFOPLIST_KEY_NSLocationAlwaysAndWhenInUseUsageDescription = "Necesitamos tu ubicación para mostrarte contenido cercano y etiquetar tus momentos.";
 				INFOPLIST_KEY_NSLocationAlwaysUsageDescription = "";
-				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "Para guardar fotos y videos editados en tu galería";
-				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "Esta app necesita acceso a tu galería para seleccionar fotos y videos para tus historias y momentos.";
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Permite usar tu ubicación para etiquetar publicaciones, mostrar contenido cercano y mejorar las sugerencias de Nova AI.";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Permite usar el micrófono para grabar audio en tus historias y mensajes de voz.";
+				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "Permite guardar fotos y vídeos (como tu código QR o historias editadas) directamente en tu galería.";
+				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "Permite el acceso a tu galería para subir fotos a tus historias, cambiar tu foto de perfil y permitir que Nova AI analice tus imágenes.";
+				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
+				INFOPLIST_KEY_NSSupportsLiveActivitiesFrequentUpdates = YES;
+				INFOPLIST_KEY_NSUserTrackingUsageDescription = "Este identificador se usará para mostrarte anuncios personalizados y mejorar tu experiencia en la app.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UILaunchStoryboardName = LaunchScreen;
 				INFOPLIST_KEY_UIStatusBarStyle = "";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
-				IPHONEOS_DEPLOYMENT_TARGET = 17.6;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.6;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
