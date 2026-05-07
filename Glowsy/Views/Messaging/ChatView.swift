@@ -96,7 +96,8 @@ struct GlassmorphicChatView: View {
         _viewModel = StateObject(wrappedValue: MomentsChatViewModel(conversation: conversation))
     }
     
-    var body: some View {
+    // ✅ REFACTOR: Dividido en variables separadas para evitar el error del compilador (timeout AST)
+    private var baseChatView: some View {
         GeometryReader { geometry in
             chatRootContent(safeAreaTop: geometry.safeAreaInsets.top)
         }
@@ -114,27 +115,35 @@ struct GlassmorphicChatView: View {
             }
             selectedItems = []
         }
-        .fullScreenCover(isPresented: $showingConversationSettings, onDismiss: {
-            viewModel.refreshTypingIndicatorPreference()
-        }) {
-            ConversationSettingsView(conversation: viewModel.conversation)
-        }
-        // ✅ NUEVO: Sheet para mostrar historias del usuario
-        .sheet(isPresented: $showingStories) {
-            StoriesView(startWithUserId: .constant(storiesUserId))
-        }
-        // ✅ NUEVO: Sheet para navegación al detalle del momento
-        .sheet(isPresented: $showingMomentDetail) {
-            if let moment = selectedMoment {
-                MomentDetailView(moment: moment)
+    }
+    
+    private var chatViewWithSettingsAndStories: some View {
+        baseChatView
+            .fullScreenCover(isPresented: $showingConversationSettings, onDismiss: {
+                viewModel.refreshTypingIndicatorPreference()
+            }) {
+                ConversationSettingsView(conversation: viewModel.conversation)
             }
-        }
-        // ✅ NUEVO: Alert para error al cargar momento
-        .alert("common.error", isPresented: $showingMomentError) {
-            Button("common.ok") { }
-        } message: {
-            Text("chat.moment.loadError")
-        }
+            // ✅ NUEVO: Sheet para mostrar historias del usuario
+            .sheet(isPresented: $showingStories) {
+                StoriesView(startWithUserId: .constant(storiesUserId))
+            }
+            // ✅ NUEVO: Sheet para navegación al detalle del momento
+            .sheet(isPresented: $showingMomentDetail) {
+                if let moment = selectedMoment {
+                    MomentDetailView(moment: moment)
+                }
+            }
+            // ✅ NUEVO: Alert para error al cargar momento
+            .alert("common.error", isPresented: $showingMomentError) {
+                Button("common.ok") { }
+            } message: {
+                Text("chat.moment.loadError")
+            }
+    }
+    
+    var body: some View {
+        chatViewWithSettingsAndStories
 // ✅ NUEVO: Navegación al perfil del usuario
         .background(
             NavigationLink(
