@@ -998,6 +998,8 @@
 
 /* Camera Picker */
 "camera.actions.cancel" = "Cancel";
+"camera.capture.photo" = "Photo";
+"camera.capture.video" = "Video";
 "camera.mode.ephemeral" = "EPHEMERAL";
 "camera.mode.normal" = "NORMAL";
 "camera.ephemeral.deleteOnView" = "Deletes when viewed";
@@ -2328,34 +2330,34 @@
 
 /* Whats New v2.8 */
 "whatsNew.title" = "New in Moments!";
-"whatsNew.subtitle" = "Version 2.9.0";
-"whatsNew.button" = "Explore Moments 2.9";
+"whatsNew.subtitle" = "Version 2.10.0";
+"whatsNew.button" = "Explore Moments 2.10";
 
 /* Nova */
-"whatsNew.nova.title" = "A More Refined Profile";
-"whatsNew.nova.description" = "We’ve refreshed profile editing with a cleaner experience and a much better flow for changing your photo.";
+"whatsNew.nova.title" = "Smoother Messaging";
+"whatsNew.nova.description" = "Viewing photos and videos in messages now feels more natural, with a cleaner and more comfortable media viewer.";
 
-"whatsNew.account.title" = "Better App Access";
-"whatsNew.account.description" = "We’ve also refined login, sign up, splash, and several account flows so everything feels clearer from the very beginning.";
+"whatsNew.account.title" = "Passkeys";
+"whatsNew.account.description" = "You can now sign in faster and more securely with Face ID thanks to new Passkey support.";
 
 /* Liquid glass */
-"whatsNew.glass.title" = "A Clearer App Experience";
-"whatsNew.glass.description" = "Stories, activity, Echoes, and several internal panels now feel cleaner, more consistent, and nicer to use.";
+"whatsNew.glass.title" = "Better Media Flow";
+"whatsNew.glass.description" = "We’ve also refined replies, overlays, and video playback to make shared content feel smoother and easier to revisit.";
 
 /* Creator */
-"whatsNew.creator.title" = "More Natural Messaging";
-"whatsNew.creator.description" = "We’ve also polished chats, requests, and new conversation flows to make messaging feel lighter and more organized.";
+"whatsNew.creator.title" = "More Privacy and Control";
+"whatsNew.creator.description" = "The privacy and ad consent flow now feels clearer and better integrated throughout the app.";
 
 /* Feed */
-"whatsNew.feed.title" = "Better Photo Editing";
-"whatsNew.feed.description" = "Changing your profile photo is now more comfortable, with a clearer flow and a much more polished crop experience.";
+"whatsNew.feed.title" = "Clearer Settings";
+"whatsNew.feed.description" = "We’ve refined several settings and security sections so everything is easier to find and understand.";
 
-"whatsNew.social.title" = "Polished Stories and Views";
-"whatsNew.social.description" = "Stories, activity, Echoes, and other social views now feel smoother, clearer, and better integrated.";
+"whatsNew.social.title" = "More Refined Details";
+"whatsNew.social.description" = "Small updates across profile, tabs, and internal views make the app feel more consistent day to day.";
 
 /* Fixes */
-"whatsNew.fixes.title" = "More Fluid and Stable";
-"whatsNew.fixes.description" = "We’ve applied general performance and reliability improvements across different parts of the app.";
+"whatsNew.fixes.title" = "Better Overall Stability";
+"whatsNew.fixes.description" = "We also fixed issues affecting authentication, notifications, visual states, and several internal flows.";
 
 /* Best Friends */
 "bestFriends.title" = "Best Friends";
@@ -3054,3 +3056,15 @@
 "maps.defaultLocation.title" = "Default location";
 "maps.defaultLocation.message" = "Showing default location. '%@' could not be found.";
 "profileEditor.website" = "Website";
+
+/* Passkeys */
+"common.success" = "Success!";
+"settings.security.passkey.success" = "Passkey created successfully! You can now sign in quickly and securely with Face ID.";
+"settings.security.passkey.create" = "Create Passkey";
+"login.passkey" = "Passkey";
+"settings.security.passkey.description" = "Sign in quickly and securely with Face ID.";
+"settings.security.passkey.generated" = "Passkey generated";
+
+/* Privacy & Ads */
+"settings.sections.adPrivacy" = "Privacy & Ad Consent";
+"settings.sections.adPrivacy.subtitle" = "Manage your advertising preferences";

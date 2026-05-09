@@ -5346,3 +5346,235 @@ exports.removeMyStickerRepliesBatch = onRequest(
     }
   }
 );
+
+// ============================================================================
+// MARK: - WebAuthn / Passkeys (FIDO2) Endpoints
+// ============================================================================
+
+const rpName = 'Moments';
+const rpID = 'momentsapp.app';
+const expectedOrigin = [ `https://${rpID}`, rpID ]; // iOS uses rpID as origin or https://rpID
+
+function isExpiredPasskeyChallenge(data) {
+  if (!data?.expiresAt || typeof data.expiresAt.toMillis !== 'function') {
+    return true;
+  }
+  return data.expiresAt.toMillis() <= Date.now();
+}
+
+exports.passkeyRegisterChallenge = onRequest({ timeoutSeconds: 30 }, async (req, res) => {
+  setProxyCors(res);
+  if (req.method === 'OPTIONS') return res.status(204).send('');
+
+  const uid = await verifyFirebaseAuth(req, res);
+  if (!uid) return;
+
+  try {
+    const { generateRegistrationOptions } = require('@simplewebauthn/server');
+    const userSnap = await admin.firestore().collection('users').doc(uid).get();
+    const userData = userSnap.data() || {};
+    const username = userData.username || uid;
+
+    // Obtener passkeys existentes
+    const passkeysSnap = await admin.firestore().collection('users').doc(uid).collection('passkeys').get();
+    const existingPasskeys = passkeysSnap.docs.map(doc => {
+      const data = doc.data();
+      return {
+        id: Buffer.from(data.id, 'base64url'),
+        type: 'public-key',
+      };
+    });
+
+    const options = await generateRegistrationOptions({
+      rpName,
+      rpID,
+      userID: Buffer.from(uid),
+      userName: username,
+      excludeCredentials: existingPasskeys,
+      authenticatorSelection: {
+        residentKey: 'required',
+        userVerification: 'required',
+      },
+    });
+
+    // Guardar challenge en Firestore (expira en 5 mins)
+    await admin.firestore().collection('passkeyChallenges').doc(uid).set({
+      challenge: options.challenge,
+      type: 'registration',
+      expiresAt: admin.firestore.Timestamp.fromDate(new Date(Date.now() + 5 * 60 * 1000)),
+    });
+
+    res.status(200).json(options);
+  } catch (error) {
+    console.error('passkeyRegisterChallenge error:', error);
+    res.status(500).json({ error: 'Failed to generate challenge' });
+  }
+});
+
+exports.passkeyRegisterVerify = onRequest({ timeoutSeconds: 30 }, async (req, res) => {
+  setProxyCors(res);
+  if (req.method === 'OPTIONS') return res.status(204).send('');
+
+  const uid = await verifyFirebaseAuth(req, res);
+  if (!uid) return;
+
+  try {
+    const { verifyRegistrationResponse } = require('@simplewebauthn/server');
+    const body = parseJsonBody(req);
+
+    const challengeRef = admin.firestore().collection('passkeyChallenges').doc(uid);
+    const challengeDoc = await challengeRef.get();
+    if (!challengeDoc.exists) {
+      return res.status(400).json({ error: 'Challenge expired or not found' });
+    }
+    const challengeData = challengeDoc.data();
+    if (isExpiredPasskeyChallenge(challengeData)) {
+      await challengeRef.delete();
+      return res.status(400).json({ error: 'Challenge expired or not found' });
+    }
+    const { challenge } = challengeData;
+
+    // Eliminar challenge usado
+    await challengeRef.delete();
+
+    const verification = await verifyRegistrationResponse({
+      response: body,
+      expectedChallenge: challenge,
+      expectedOrigin,
+      expectedRPID: rpID,
+      requireUserVerification: true,
+    });
+
+    if (verification.verified && verification.registrationInfo) {
+      const { credential, credentialDeviceType, credentialBackedUp } = verification.registrationInfo;
+      const { id, publicKey, counter } = credential;
+
+      // Guardar Passkey en Firestore
+      const passkeyIdStr = id; // Ya es un string base64url en v10+
+      await admin.firestore().collection('users').doc(uid).collection('passkeys').doc(passkeyIdStr).set({
+        id: passkeyIdStr,
+        publicKey: Buffer.from(publicKey).toString('base64'),
+        counter,
+        deviceType: credentialDeviceType,
+        backedUp: credentialBackedUp,
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+
+      res.status(200).json({ success: true });
+    } else {
+      res.status(400).json({ error: 'Verification failed' });
+    }
+  } catch (error) {
+    console.error('passkeyRegisterVerify error:', error);
+    res.status(500).json({ error: 'Failed to verify registration', details: error.message });
+  }
+});
+
+exports.passkeyLoginChallenge = onRequest({ timeoutSeconds: 30 }, async (req, res) => {
+  setProxyCors(res);
+  if (req.method === 'OPTIONS') return res.status(204).send('');
+
+  // Login challenge es público, no requiere Firebase Auth previo
+  try {
+    const { generateAuthenticationOptions } = require('@simplewebauthn/server');
+
+    const options = await generateAuthenticationOptions({
+      rpID,
+      userVerification: 'required',
+    });
+
+    // Guardar challenge con el propio ID del challenge (ya que no sabemos el uid aún)
+    await admin.firestore().collection('passkeyChallenges').doc(options.challenge).set({
+      challenge: options.challenge,
+      type: 'login',
+      expiresAt: admin.firestore.Timestamp.fromDate(new Date(Date.now() + 5 * 60 * 1000)),
+    });
+
+    res.status(200).json(options);
+  } catch (error) {
+    console.error('passkeyLoginChallenge error:', error);
+    res.status(500).json({ error: 'Failed to generate authentication challenge' });
+  }
+});
+
+exports.passkeyLoginVerify = onRequest({ timeoutSeconds: 30 }, async (req, res) => {
+  setProxyCors(res);
+  if (req.method === 'OPTIONS') return res.status(204).send('');
+
+  try {
+    const { verifyAuthenticationResponse } = require('@simplewebauthn/server');
+    const body = parseJsonBody(req);
+
+    // El frontend debe enviar el challenge usado en el body para que podamos buscarlo
+    const clientChallenge = body.clientExtensionResults?.challenge || body.originalChallenge;
+    if (!clientChallenge) {
+       return res.status(400).json({ error: 'Missing originalChallenge in request' });
+    }
+
+    const challengeRef = admin.firestore().collection('passkeyChallenges').doc(clientChallenge);
+    const challengeDoc = await challengeRef.get();
+    if (!challengeDoc.exists) {
+      return res.status(400).json({ error: 'Challenge expired or not found' });
+    }
+    const challengeData = challengeDoc.data();
+    if (isExpiredPasskeyChallenge(challengeData)) {
+      await challengeRef.delete();
+      return res.status(400).json({ error: 'Challenge expired or not found' });
+    }
+    const { challenge } = challengeData;
+    await challengeRef.delete();
+
+    const passkeyIdStr = body.id;
+    let passkeyDoc;
+
+    // Si tenemos el userHandle (uid base64url), podemos buscar directamente sin collectionGroup
+    if (body.response.userHandle) {
+      const uidFromHandle = Buffer.from(body.response.userHandle, 'base64url').toString('utf8');
+      passkeyDoc = await admin.firestore().collection('users').doc(uidFromHandle).collection('passkeys').doc(passkeyIdStr).get();
+    }
+
+    if (!passkeyDoc || !passkeyDoc.exists) {
+      // Fallback a Collection Group por si acaso (ahora tiene índice)
+      const passkeysSnap = await admin.firestore().collectionGroup('passkeys').where('id', '==', passkeyIdStr).get();
+      if (passkeysSnap.empty) {
+        return res.status(404).json({ error: 'Passkey not found in our records' });
+      }
+      passkeyDoc = passkeysSnap.docs[0];
+    }
+
+    const passkeyData = passkeyDoc.data();
+
+    // El path es users/{uid}/passkeys/{passkeyId}
+    const uid = passkeyDoc.ref.parent.parent.id;
+
+    const verification = await verifyAuthenticationResponse({
+      response: body,
+      expectedChallenge: challenge,
+      expectedOrigin,
+      expectedRPID: rpID,
+      credential: {
+        id: passkeyData.id,
+        publicKey: new Uint8Array(Buffer.from(passkeyData.publicKey, 'base64')),
+        counter: passkeyData.counter,
+        transports: passkeyData.transports || [],
+      },
+      requireUserVerification: true,
+    });
+
+    if (verification.verified) {
+      const { newCounter } = verification.authenticationInfo;
+      // Actualizar counter
+      await passkeyDoc.ref.update({ counter: newCounter });
+
+      // Generar Custom Token de Firebase Auth
+      const customToken = await admin.auth().createCustomToken(uid);
+
+      res.status(200).json({ customToken });
+    } else {
+      res.status(400).json({ error: 'Verification failed' });
+    }
+  } catch (error) {
+    console.error('passkeyLoginVerify error:', error);
+    res.status(500).json({ error: 'Failed to verify login', details: error.message });
+  }
+});

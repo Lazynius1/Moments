@@ -8,37 +8,37 @@ struct WhatsNewView: View {
     private var features: [WhatsNewFeature] {
         [
             WhatsNewFeature(
-                icon: "sparkles",
+                icon: "bubble.left.and.bubble.right.fill",
                 title: NSLocalizedString("whatsNew.nova.title", comment: ""),
                 description: NSLocalizedString("whatsNew.nova.description", comment: "")
             ),
             WhatsNewFeature(
-                icon: "person.crop.circle.badge.checkmark",
+                icon: "faceid",
                 title: NSLocalizedString("whatsNew.account.title", comment: ""),
                 description: NSLocalizedString("whatsNew.account.description", comment: "")
             ),
             WhatsNewFeature(
-                icon: "rectangle.on.rectangle.angled",
+                icon: "play.rectangle.on.rectangle",
                 title: NSLocalizedString("whatsNew.glass.title", comment: ""),
                 description: NSLocalizedString("whatsNew.glass.description", comment: "")
             ),
             WhatsNewFeature(
-                icon: "wand.and.stars",
+                icon: "hand.raised.fill",
                 title: NSLocalizedString("whatsNew.creator.title", comment: ""),
                 description: NSLocalizedString("whatsNew.creator.description", comment: "")
             ),
             WhatsNewFeature(
-                icon: "circle.grid.2x2",
+                icon: "key.fill",
                 title: NSLocalizedString("whatsNew.feed.title", comment: ""),
                 description: NSLocalizedString("whatsNew.feed.description", comment: "")
             ),
             WhatsNewFeature(
-                icon: "play.rectangle.on.rectangle",
+                icon: "person.crop.circle",
                 title: NSLocalizedString("whatsNew.social.title", comment: ""),
                 description: NSLocalizedString("whatsNew.social.description", comment: "")
             ),
             WhatsNewFeature(
-                icon: "checkmark.seal",
+                icon: "checkmark.circle",
                 title: NSLocalizedString("whatsNew.fixes.title", comment: ""),
                 description: NSLocalizedString("whatsNew.fixes.description", comment: "")
             )

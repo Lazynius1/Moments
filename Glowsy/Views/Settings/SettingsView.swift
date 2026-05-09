@@ -2,7 +2,7 @@ import SwiftUI
 import FirebaseAuth
 import FirebaseFirestore
 import AuthenticationServices
-
+import UserMessagingPlatform
 struct SettingsProfileColors {
     static var background: Color {
         Color(hex: "FAF9F6")
@@ -1249,6 +1249,73 @@ struct ConnectionVisibilityView: View {
     }
 }
 
+struct SecurityStatusRow<OverlayView: View>: View {
+    @Environment(\.colorScheme) var colorScheme
+    let icon: String
+    let title: LocalizedStringKey
+    let subtitle: LocalizedStringKey
+    let isConfigured: Bool
+    let isLoading: Bool
+    let action: (() -> Void)?
+    let overlayView: OverlayView
+
+    var body: some View {
+        Button(action: { action?() }) {
+            VStack(spacing: 0) {
+                HStack(spacing: 14) {
+                    Image(systemName: icon)
+                        .font(.system(size: 19, weight: .regular))
+                        .foregroundColor(colorScheme == .dark ? .white : .black)
+                        .frame(width: 28, alignment: .center)
+
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text(title)
+                            .font(.custom("Poppins-Medium", size: 15))
+                            .foregroundColor(colorScheme == .dark ? .white : .black)
+
+                        Text(subtitle)
+                            .font(.custom("Poppins-Regular", size: 12))
+                            .foregroundColor(.gray)
+                    }
+
+                    Spacer()
+
+                    if isLoading {
+                        ProgressView()
+                            .scaleEffect(0.8)
+                    } else if isConfigured {
+                        Image(systemName: "checkmark")
+                            .font(.system(size: 14, weight: .bold))
+                            .foregroundColor(Color(hex: "34C759"))
+                    } else {
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundColor(.gray.opacity(0.3))
+                    }
+                }
+                .padding(.vertical, 11)
+                .padding(.horizontal, 4)
+                .contentShape(Rectangle())
+
+                Divider()
+                    .opacity(0.2)
+                    .padding(.leading, 42)
+            }
+        }
+        .buttonStyle(.plain)
+        .overlay {
+            if !isConfigured {
+                overlayView
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .contentShape(Rectangle())
+                    .opacity(0.011)
+            }
+        }
+        .allowsHitTesting(!isConfigured)
+        .disabled(isLoading)
+    }
+}
+
 struct SecuritySection: View {
     @EnvironmentObject var authService: AuthService
     @Binding var isShowingPasswordChange: Bool
@@ -1256,8 +1323,10 @@ struct SecuritySection: View {
     // Para el linking
     @State private var isLoading = false
     @State private var errorMessage: String?
+    @State private var alertTitle: String = "common.error"
     @State private var showAlert = false
     @State private var showChatRecoverySettings = false
+    @State private var hasPasskey = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -1276,37 +1345,15 @@ struct SecuritySection: View {
             )
 
             // ✅ NUEVO: Vincular con Apple
-            if !authService.isAppleLinked {
-                VStack(alignment: .leading, spacing: 12) {
-                    HStack {
-                        ZStack {
-                            Circle()
-                                .fill(Color.primary.opacity(0.1))
-                                .frame(width: 40, height: 40)
-                            Image(systemName: "applelogo")
-                                .font(.system(size: 18))
-                                .foregroundColor(.primary)
-                        }
-
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("settings.security.appleId")
-                                .font(.custom("Poppins-Medium", size: 16))
-                            Text("settings.security.appleId.description")
-                                .font(.custom("Poppins-Regular", size: 12))
-                                .foregroundColor(.gray)
-                        }
-
-                        Spacer()
-                    }
-
-                    if isLoading {
-                        HStack {
-                            Spacer()
-                            ProgressView()
-                            Spacer()
-                        }
-                        .frame(height: 44)
-                    } else {
+            SecurityStatusRow(
+                icon: "applelogo",
+                title: "settings.security.appleId",
+                subtitle: authService.isAppleLinked ? "settings.security.appleId.linked" : "settings.security.appleId.description",
+                isConfigured: authService.isAppleLinked,
+                isLoading: isLoading,
+                action: nil,
+                overlayView: Group {
+                    if !authService.isAppleLinked {
                         SignInWithAppleButton(.continue) { request in
                             let nonce = authService.startAppleSignIn()
                             request.requestedScopes = [.fullName, .email]
@@ -1314,49 +1361,72 @@ struct SecuritySection: View {
                         } onCompletion: { result in
                             handleAppleLinkingResult(result)
                         }
-                        .signInWithAppleButtonStyle(Color.primary == .white ? .white : .black)
-                        .frame(height: 44)
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
                     }
                 }
-                .padding(.vertical, 12)
-                .padding(.horizontal, 16)
-                .background(.ultraThinMaterial.opacity(0.3))
-                .clipShape(RoundedRectangle(cornerRadius: 12))
-                .alert("common.error", isPresented: $showAlert) {
-                    Button("common.ok", role: .cancel) {}
-                } message: {
-                    Text(errorMessage ?? NSLocalizedString("comments.error.unknown", comment: "Unknown error"))
-                }
-            } else {
-                HStack {
-                    ZStack {
-                        Circle()
-                            .fill(Color.green.opacity(0.1))
-                            .frame(width: 40, height: 40)
-                        Image(systemName: "applelogo")
-                            .font(.system(size: 18))
-                            .foregroundColor(.green)
+            )
+
+            // ✅ NUEVO: Registro de Passkey
+            SecurityStatusRow(
+                icon: "faceid",
+                title: "login.passkey",
+                subtitle: hasPasskey ? "settings.security.passkey.generated" : "settings.security.passkey.description",
+                isConfigured: hasPasskey,
+                isLoading: isLoading,
+                action: {
+                    if !hasPasskey {
+                        isLoading = true
+                        PasskeyService.shared.registerPasskey { result in
+                            DispatchQueue.main.async {
+                                isLoading = false
+                                switch result {
+                                case .success:
+                                    let impact = UINotificationFeedbackGenerator()
+                                    impact.notificationOccurred(.success)
+                                    if let uid = Auth.auth().currentUser?.uid {
+                                        UserDefaults.standard.set(true, forKey: "hasPasskey_\(uid)")
+                                    }
+                                    hasPasskey = true
+                                    alertTitle = "common.success"
+                                    errorMessage = NSLocalizedString("settings.security.passkey.success", comment: "Passkey registered successfully")
+                                    showAlert = true
+                                case .failure(let error):
+                                    if (error as NSError).code == ASAuthorizationError.canceled.rawValue {
+                                        return
+                                    }
+                                    alertTitle = "common.error"
+                                    errorMessage = error.localizedDescription
+                                    showAlert = true
+                                }
+                            }
+                        }
                     }
+                },
+                overlayView: EmptyView()
+            )
+        }
+        .onAppear {
+            if let uid = Auth.auth().currentUser?.uid {
+                let localHasPasskey = UserDefaults.standard.bool(forKey: "hasPasskey_\(uid)")
+                hasPasskey = localHasPasskey
 
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("settings.security.appleId")
-                            .font(.custom("Poppins-Medium", size: 16))
-                        Text("settings.security.appleId.linked")
-                            .font(.custom("Poppins-Regular", size: 12))
-                            .foregroundColor(.gray)
+                // Solo consultamos a Firebase si localmente no consta que tenga Passkey.
+                // Así ahorramos lecturas de base de datos.
+                if !localHasPasskey {
+                    Firestore.firestore().collection("users").document(uid).collection("passkeys").limit(to: 1).getDocuments { snapshot, error in
+                        if let snapshot = snapshot, !snapshot.isEmpty {
+                            DispatchQueue.main.async {
+                                hasPasskey = true
+                            }
+                            UserDefaults.standard.set(true, forKey: "hasPasskey_\(uid)")
+                        }
                     }
-
-                    Spacer()
-
-                    Image(systemName: "checkmark.circle.fill")
-                        .foregroundColor(.green)
                 }
-                .padding(.vertical, 12)
-                .padding(.horizontal, 16)
-                .background(.ultraThinMaterial.opacity(0.3))
-                .clipShape(RoundedRectangle(cornerRadius: 12))
             }
+        }
+        .alert(NSLocalizedString(alertTitle, comment: ""), isPresented: $showAlert) {
+            Button("common.ok", role: .cancel) {}
+        } message: {
+            Text(errorMessage ?? NSLocalizedString("comments.error.unknown", comment: "Unknown error"))
         }
         .sheet(isPresented: $showChatRecoverySettings) {
             ChatRecoverySettingsView()
@@ -1394,6 +1464,7 @@ struct SecuritySection: View {
                         let impact = UINotificationFeedbackGenerator()
                         impact.notificationOccurred(.success)
                     case .failure(let error):
+                        alertTitle = "common.error"
                         errorMessage = error.localizedDescription
                         showAlert = true
                     }
@@ -1402,6 +1473,7 @@ struct SecuritySection: View {
         case .failure(let error):
             // Si el usuario cancela, no mostramos error
             if (error as NSError).code != ASAuthorizationError.canceled.rawValue {
+                alertTitle = "common.error"
                 errorMessage = error.localizedDescription
                 showAlert = true
             }
@@ -1463,6 +1535,8 @@ struct NotificationsSection: View {
 }
 
 struct HelpSection: View {
+    @State private var requiresPrivacyOptions = false
+
     var body: some View {
         VStack(spacing: 0) {
             SettingsRow(icon: "questionmark.circle",
@@ -1488,6 +1562,20 @@ struct HelpSection: View {
                 subtitle: "",
                 action: { if let url = URL(string: "https://momentsapp.app/privacy") { UIApplication.shared.open(url) } },
                 isExternal: true)
+
+            // ✅ NUEVO: Botón para gestionar el consentimiento de anuncios (UMP / GDPR)
+            if requiresPrivacyOptions {
+                SettingsRow(icon: "shield.righthalf.filled",
+                    title: NSLocalizedString("settings.sections.adPrivacy", comment: "Ad Privacy & Consent"),
+                    subtitle: NSLocalizedString("settings.sections.adPrivacy.subtitle", comment: "Manage your advertising preferences"),
+                    action: {
+                        AdMobConfiguration.shared.showPrivacyOptionsForm()
+                    })
+            }
+        }
+        .onAppear {
+            // Actualizar el estado al cargar la vista
+            requiresPrivacyOptions = UserMessagingPlatform.ConsentInformation.shared.privacyOptionsRequirementStatus == .required
         }
     }
 }

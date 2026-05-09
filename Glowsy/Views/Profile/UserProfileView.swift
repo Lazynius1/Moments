@@ -198,6 +198,9 @@ struct UserProfilePillTabs: View {
         if abs(translation) > threshold && abs(translation) < segment * 0.5 {
             let direction = translation > 0 ? 1 : -1
             targetIndex = min(max(currentIndex + direction, 0), UserProfileTabType.allCases.count - 1)
+        } else if abs(translation) < 5 {
+            // Es un tap directo, no un arrastre
+            targetIndex = min(max(Int(locationX / segment), 0), UserProfileTabType.allCases.count - 1)
         } else {
             // Resolve to the closest index based on the actual final position
             targetIndex = min(max(Int(fractionalIndex.rounded()), 0), UserProfileTabType.allCases.count - 1)
@@ -752,6 +755,7 @@ struct UserModernPublicProfileView: View {
                     VStack(spacing: 0) {
                         // Pills Tabs
                         UserProfilePillTabs(selectedTab: $selectedTab)
+                            .frame(maxWidth: 240)
                             .padding(.bottom, 12)
                         
                         // Contenido según tab seleccionado

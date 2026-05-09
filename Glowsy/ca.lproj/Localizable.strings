@@ -982,6 +982,8 @@
 
 /* Camera Picker */
 "camera.actions.cancel" = "Cancel·lar";
+"camera.capture.photo" = "Foto";
+"camera.capture.video" = "Vídeo";
 "camera.mode.ephemeral" = "EFÍMER";
 "camera.mode.normal" = "NORMAL";
 "camera.ephemeral.deleteOnView" = "S'elimina en veure";
@@ -2338,34 +2340,34 @@
 
 /* Whats New v2.8 */
 "whatsNew.title" = "Novetats a Moments!";
-"whatsNew.subtitle" = "Versió 2.9.0";
-"whatsNew.button" = "Explorar Moments 2.9";
+"whatsNew.subtitle" = "Versió 2.10.0";
+"whatsNew.button" = "Explorar Moments 2.10";
 
 /* Nova */
-"whatsNew.nova.title" = "Un Perfil Més Cuidat";
-"whatsNew.nova.description" = "Hem renovat l'edició del perfil amb una experiència més neta i un flux molt millor per canviar la teva foto.";
+"whatsNew.nova.title" = "Missatges Més Fluids";
+"whatsNew.nova.description" = "Veure fotos i vídeos en missatges ara se sent més natural, amb un visor més còmode i millor integrat.";
 
-"whatsNew.account.title" = "Millor Accés a l'App";
-"whatsNew.account.description" = "També hem polit el login, el registre, l'splash i diversos fluxos de compte perquè tot sigui més clar des del primer moment.";
+"whatsNew.account.title" = "Claus d'Accés";
+"whatsNew.account.description" = "Ara pots iniciar sessió de manera més ràpida i segura amb Face ID gràcies al suport per a Passkeys.";
 
 /* Liquid glass */
-"whatsNew.glass.title" = "Una App Més Clara";
-"whatsNew.glass.description" = "Històries, activitat, Echoes i diversos panells interns ara se senten més nets, més consistents i més agradables d'utilitzar.";
+"whatsNew.glass.title" = "Millor Experiència Multimèdia";
+"whatsNew.glass.description" = "També hem polit respostes, overlays i reproducció de vídeo perquè compartir i revisar contingut sigui més agradable.";
 
 /* Creator */
-"whatsNew.creator.title" = "Missatges Més Naturals";
-"whatsNew.creator.description" = "També hem polit xats, sol·licituds i noves converses perquè la missatgeria sigui més lleugera i ordenada.";
+"whatsNew.creator.title" = "Més Privacitat i Control";
+"whatsNew.creator.description" = "El flux de privacitat i consentiment d'anuncis ara es presenta d'una manera més clara i millor integrada.";
 
 /* Feed */
-"whatsNew.feed.title" = "Millor Edició de Foto";
-"whatsNew.feed.description" = "Canviar la teva foto de perfil ara és més còmode, amb un flux més clar i un retall molt més cuidat.";
+"whatsNew.feed.title" = "Ajustos Més Clars";
+"whatsNew.feed.description" = "Hem refinat diverses seccions d'ajustos i seguretat perquè tot sigui més fàcil de trobar i entendre.";
 
-"whatsNew.social.title" = "Històries i Vistes Més Polides";
-"whatsNew.social.description" = "Històries, activitat, Echoes i altres vistes socials ara se senten més fluides, més clares i millor integrades.";
+"whatsNew.social.title" = "Detalls Més Cuidats";
+"whatsNew.social.description" = "Petits ajustos en perfil, pestanyes i vistes internes fan que l'app se senti més consistent en el dia a dia.";
 
 /* Fixes */
-"whatsNew.fixes.title" = "Més Fluïdesa i Estabilitat";
-"whatsNew.fixes.description" = "Hem aplicat millores generals de rendiment i fiabilitat en diferents parts de l'app.";
+"whatsNew.fixes.title" = "Més Estabilitat General";
+"whatsNew.fixes.description" = "A més, hem corregit errors en autenticació, notificacions, estats visuals i diversos fluxos interns.";
 
 /* Best Friends */
 "bestFriends.title" = "Millors Amics";
@@ -3064,3 +3066,15 @@
 "maps.defaultLocation.title" = "Ubicació per defecte";
 "maps.defaultLocation.message" = "S'està mostrant la ubicació per defecte. No s'ha pogut trobar '%@'.";
 "profileEditor.website" = "Lloc web";
+
+/* Passkeys */
+"common.success" = "Èxit!";
+"settings.security.passkey.success" = "Clau d'accés creada correctament! Ara pots iniciar sessió de forma ràpida i segura amb Face ID.";
+"settings.security.passkey.create" = "Crear clau d'accés (Passkey)";
+"login.passkey" = "Clau d'accés (Passkey)";
+"settings.security.passkey.description" = "Inicia sessió ràpidament amb Face ID sense contrasenyes.";
+"settings.security.passkey.generated" = "Clau d'accés generada";
+
+/* Privacy & Ads */
+"settings.sections.adPrivacy" = "Privacitat i Anuncis";
+"settings.sections.adPrivacy.subtitle" = "Gestiona les teves preferències de publicitat";

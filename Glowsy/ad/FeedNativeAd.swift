@@ -54,7 +54,7 @@ struct SmartNativeAdView: View {
                 EmptyView()
             }
         }
-        .sheet(isPresented: $showingPrivacyConsent) {
+        .fullScreenCover(isPresented: $showingPrivacyConsent) {
             PrivacyConsentView(isPresented: $showingPrivacyConsent) {
                 // Callback: Usuario aceptó intro, iniciar flujo real
                 AdMobConfiguration.shared.startConsentFlow {

@@ -201,6 +201,9 @@ struct ProfilePillTabs: View {
         if abs(translation) > threshold && abs(translation) < segment * 0.5 {
             let direction = translation > 0 ? 1 : -1
             targetIndex = min(max(currentIndex + direction, 0), ProfileTabType.allCases.count - 1)
+        } else if abs(translation) < 5 {
+            // Es un tap directo, no un arrastre
+            targetIndex = min(max(Int(locationX / segment), 0), ProfileTabType.allCases.count - 1)
         } else {
             // Resolve to the closest index based on the actual final position
             targetIndex = min(max(Int(fractionalIndex.rounded()), 0), ProfileTabType.allCases.count - 1)

@@ -295,6 +295,50 @@ struct EnhancedFormView: View {
                 .frame(height: 50)
                 .cornerRadius(25)
                 .padding(.top, 2)
+
+                // ✅ NUEVO: Botón de Passkeys
+                Button(action: {
+                    isLoading = true
+                    PasskeyService.shared.loginWithPasskey { result in
+                        DispatchQueue.main.async {
+                            isLoading = false
+                            switch result {
+                            case .success(let customToken):
+                                authService.signInWithPasskeyToken(customToken) { loginResult in
+                                    switch loginResult {
+                                    case .success:
+                                        if let userId = Auth.auth().currentUser?.uid {
+                                            RealLoginActivityService.shared.recordSuccessfulLogin(userId: userId, method: "passkey")
+                                        }
+                                        errorMessage = nil
+                                    case .failure(let error):
+                                        errorMessage = error.localizedDescription
+                                        showAlert = true
+                                    }
+                                }
+                            case .failure(let error):
+                                if (error as NSError).code == ASAuthorizationError.canceled.rawValue {
+                                    return
+                                }
+                                errorMessage = error.localizedDescription
+                                showAlert = true
+                            }
+                        }
+                    }
+                }) {
+                    HStack(spacing: 8) {
+                        Image(systemName: "faceid")
+                            .font(.system(size: 20))
+                        Text("login.passkey")
+                            .font(.system(size: 16, weight: .semibold))
+                    }
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 50)
+                    .background(Color.primary.opacity(0.1))
+                    .foregroundColor(.primary)
+                    .cornerRadius(25)
+                }
+                .padding(.top, 2)
             }
 
             VStack(spacing: 10) {
