@@ -79,41 +79,64 @@ struct EnhancedCameraPickerView: View {
         isEphemeralMode ? Color(hex: "FFCC33") : .white
     }
 
+    private var safeAreaTintColor: Color {
+        colorScheme == .dark ? Color(hex: "0B1215") : Color(hex: "FAF9F6")
+    }
+
     private let modeControlWidth: CGFloat = 132
     private let modeControlHeight: CGFloat = 36
     private let modePillWidth: CGFloat = 62
     private let modePillHeight: CGFloat = 30
     private let modeInnerPadding: CGFloat = 3
-    
+
     var body: some View {
-        ZStack {
-            // Camera View
-            CameraView(
-                captureMode: captureMode,
-                cameraPosition: cameraPosition,
-                flashMode: flashMode,
-                isEphemeralMode: isEphemeralMode,
-                showGridLines: false,
-                onMediaCaptured: onMediaCaptured,
-                cameraViewController: $cameraViewController
-            )
+        GeometryReader { proxy in
+            ZStack {
+                CameraView(
+                    captureMode: captureMode,
+                    cameraPosition: cameraPosition,
+                    flashMode: flashMode,
+                    isEphemeralMode: isEphemeralMode,
+                    showGridLines: false,
+                    onMediaCaptured: onMediaCaptured,
+                    cameraViewController: $cameraViewController
+                )
+
+                VStack(spacing: 0) {
+                    if proxy.safeAreaInsets.top > 0 {
+                        Rectangle()
+                            .fill(safeAreaTintColor)
+                            .frame(height: proxy.safeAreaInsets.top)
+                    }
+
+                    Spacer(minLength: 0)
+
+                    if proxy.safeAreaInsets.bottom > 0 {
+                        Rectangle()
+                            .fill(safeAreaTintColor)
+                            .frame(height: proxy.safeAreaInsets.bottom)
+                    }
+                }
+                .ignoresSafeArea()
+                .allowsHitTesting(false)
             
-            VStack(spacing: 0) {
-                // ✅ TOP CONTROLS - Mejorados
-                topControlsBar
-                
-                Spacer()
+                VStack(spacing: 0) {
+                    // ✅ TOP CONTROLS - Mejorados
+                    topControlsBar
 
-                // ✅ MODE SELECTOR - Separado del capturador
-                modeSelector
-                    .padding(.bottom, 18)
+                    Spacer()
 
-                // ✅ BOTTOM CONTROLS - Rediseñados con galería funcional
-                bottomControlsBar
+                    // ✅ MODE SELECTOR - Separado del capturador
+                    modeSelector
+                        .padding(.bottom, 18)
+
+                    // ✅ BOTTOM CONTROLS - Rediseñados con galería funcional
+                    bottomControlsBar
+                }
+
+                // ✅ EPHEMERAL MODE INDICATOR - Mejorado
+                ephemeralModeIndicator
             }
-            
-            // ✅ EPHEMERAL MODE INDICATOR - Mejorado
-            ephemeralModeIndicator
         }
         .navigationBarHidden(true)
         .photosPicker(
