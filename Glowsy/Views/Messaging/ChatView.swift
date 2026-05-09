@@ -103,7 +103,7 @@ struct GlassmorphicChatView: View {
         }
         .navigationBarHidden(true)
         .photosPicker(isPresented: $showMediaPicker, selection: $selectedItems, maxSelectionCount: 10)
-        .sheet(isPresented: $showEnhancedCamera) {
+        .fullScreenCover(isPresented: $showEnhancedCamera) {
             EnhancedCameraPickerView { data, mediaType, isEphemeral in
                 handleCameraCapture(data: data, mediaType: mediaType, isEphemeral: isEphemeral)
             }

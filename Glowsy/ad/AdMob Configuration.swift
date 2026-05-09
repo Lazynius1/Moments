@@ -110,14 +110,13 @@ class AdMobConfiguration: NSObject {
     }
     
     private func loadAndShowConsentFormIfRequired(completion: @escaping (Bool) -> Void) {
-        guard let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
-              let rootViewController = windowScene.windows.first?.rootViewController else {
-            print("⚠️ UMP: No se encontró rootViewController para mostrar formulario")
+        guard let topVC = UIApplication.shared.topViewController() else {
+            print("⚠️ UMP: No se encontró topViewController para mostrar formulario")
             completion(UserMessagingPlatform.ConsentInformation.shared.canRequestAds)
             return
         }
         
-        UserMessagingPlatform.ConsentForm.loadAndPresentIfRequired(from: rootViewController) { error in
+        UserMessagingPlatform.ConsentForm.loadAndPresentIfRequired(from: topVC) { error in
             if let error = error {
                 print("❌ UMP Form Error: \(error.localizedDescription)")
             }
@@ -134,12 +133,12 @@ class AdMobConfiguration: NSObject {
             return
         }
         
-        guard let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
-              let rootViewController = windowScene.windows.first?.rootViewController else {
+        guard let topVC = UIApplication.shared.topViewController() else {
+            print("⚠️ UMP: No se encontró topViewController para mostrar opciones de privacidad")
             return
         }
         
-        UserMessagingPlatform.ConsentForm.presentPrivacyOptionsForm(from: rootViewController) { error in
+        UserMessagingPlatform.ConsentForm.presentPrivacyOptionsForm(from: topVC) { error in
             if let error = error {
                 print("❌ UMP: Error al mostrar opciones de privacidad: \(error.localizedDescription)")
             }
