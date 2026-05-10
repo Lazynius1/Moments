@@ -865,7 +865,7 @@ struct StoryEditingView: View {
                     showingIntensitySlider = selectedFilter != .normal
                 }
             }) {
-                Image(systemName: "paintbrush")
+                Image(systemName: "camera.filters")
                     .font(.system(size: 20))
                     .foregroundColor(isFilterMode ? .pink : .white)
                     .frame(width: 44, height: 44)
@@ -913,9 +913,12 @@ struct StoryEditingView: View {
                     .transition(.move(edge: .bottom).combined(with: .opacity))
                 }
 
-                // Swipeable Filter Selector
                 if selectedMediaItems.first?.type == .image {
-                    FilterSelectorView(selectedFilter: $selectedFilter, baseImage: selectedMediaItems.first?.image)
+                    FilterSelectorView(
+                        selectedFilter: $selectedFilter,
+                        filters: FilterService.FilterType.allCases,
+                        baseImage: selectedMediaItems.first?.image
+                    )
                         .onChange(of: selectedFilter) { _ in
                             if selectedFilter != .normal {
                                 withAnimation(.spring()) {
@@ -1127,11 +1130,13 @@ struct StoryEditingView: View {
     private func applySelectedFilter() {
         guard let firstMedia = selectedMediaItems.first, firstMedia.type == .image else {
             filteredImage = nil
+            isApplyingFilter = false
             return
         }
         
         if selectedFilter == .normal {
             filteredImage = nil
+            isApplyingFilter = false
             return
         }
         
@@ -1139,27 +1144,27 @@ struct StoryEditingView: View {
         
         // Cancelar la tarea anterior si existe para evitar acumulación de procesamiento
         filterTask?.cancel()
-        
-        // Crear nueva tarea
+
+        let selectedFilter = self.selectedFilter
+        let filterIntensity = self.filterIntensity
+        let optimizedImage = firstMedia.image
+
         filterTask = Task.detached(priority: .userInitiated) {
-            // Pequeño retardo opcional si el slider se mueve demasiado rápido (debouncing)
-            // try? await Task.sleep(nanoseconds: 10_000_000) // 10ms
-            
+            try? await Task.sleep(nanoseconds: 45_000_000)
+
             if Task.isCancelled { return }
-            
-            let optimizedImage = firstMedia.image
-            let filtered = FilterService.shared.applyFilter(selectedFilter, to: optimizedImage, intensity: filterIntensity)
+
+            let processed = FilterService.shared.applyFilter(selectedFilter, to: optimizedImage, intensity: filterIntensity)
             
             if Task.isCancelled { return }
             
             await MainActor.run {
-                self.filteredImage = filtered
+                self.filteredImage = processed
                 self.isApplyingFilter = false
             }
         }
     }
-    
-    
+
     // ✅ NUEVA FUNCIÓN: Cargar configuración por defecto del usuario
     private func loadUserDefaultAudienceSettings() {
         guard let userId = Auth.auth().currentUser?.uid else {
@@ -3255,13 +3260,14 @@ private struct StoryDrawingCanvasView: UIViewRepresentable {
 // MARK: - Filter Selector View
 struct FilterSelectorView: View {
     @Binding var selectedFilter: FilterService.FilterType
+    let filters: [FilterService.FilterType]
     let baseImage: UIImage?
     
     var body: some View {
         VStack(spacing: 8) {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 12) {
-                    ForEach(FilterService.FilterType.allCases, id: \.self) { filterType in
+                    ForEach(filters, id: \.self) { filterType in
                         FilterItemView(
                             type: filterType,
                             isSelected: selectedFilter == filterType,

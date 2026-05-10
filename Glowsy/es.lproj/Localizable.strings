@@ -1011,7 +1011,7 @@
 "camera.capture.photo" = "Foto";
 "camera.capture.video" = "Video";
 "camera.mode.ephemeral" = "EFÍMERO";
-"camera.mode.normal" = "NORMAL";
+"camera.mode.normal" = "FIJO";
 "camera.ephemeral.deleteOnView" = "Se elimina al ver";
 "camera.ephemeral.onceOnly" = "¡Solo una vez!";
 
@@ -3092,3 +3092,9 @@
 /* Privacy & Ads */
 "settings.sections.adPrivacy" = "Privacidad y Anuncios";
 "settings.sections.adPrivacy.subtitle" = "Gestiona tus preferencias de publicidad";
+
+/* Camera preview */
+"camera.preview.retake" = "Repetir";
+"camera.preview.send" = "Enviar";
+"camera.preview.sendEphemeral" = "Enviar efímero";
+"camera.preview.ephemeralBadge" = "1 visualización";

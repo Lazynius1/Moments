@@ -985,7 +985,7 @@
 "camera.capture.photo" = "Foto";
 "camera.capture.video" = "Vídeo";
 "camera.mode.ephemeral" = "EFÍMER";
-"camera.mode.normal" = "NORMAL";
+"camera.mode.normal" = "FIX";
 "camera.ephemeral.deleteOnView" = "S'elimina en veure";
 "camera.ephemeral.onceOnly" = "¡Només una vegada!";
 
@@ -3078,3 +3078,9 @@
 /* Privacy & Ads */
 "settings.sections.adPrivacy" = "Privacitat i Anuncis";
 "settings.sections.adPrivacy.subtitle" = "Gestiona les teves preferències de publicitat";
+
+/* Camera preview */
+"camera.preview.retake" = "Repetir";
+"camera.preview.send" = "Enviar";
+"camera.preview.sendEphemeral" = "Enviar efímer";
+"camera.preview.ephemeralBadge" = "1 visualització";
