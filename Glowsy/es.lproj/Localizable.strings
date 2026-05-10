@@ -403,12 +403,12 @@
 "poll.percentage" = "%d%%";
 
 /* Questions */
-"question.responses" = "%d respuestas";
-"question.tapToSee" = "Toca para ver respuestas";
-"question.tapToAnswer" = "Toca para responder";
-"question.yourAnswer" = "Tu respuesta (anónima)";
-"question.sendAnswer" = "Enviar respuesta";
-"question.answerPlaceholder" = "Escribe tu respuesta...";
+"question.responses" = "%d preguntas";
+"question.tapToSee" = "Toca para ver preguntas";
+"question.tapToAnswer" = "Toca para preguntar";
+"question.yourAnswer" = "Tu pregunta";
+"question.sendAnswer" = "Enviar pregunta";
+"question.answerPlaceholder" = "Escribe tu pregunta...";
 
 /* Weather */
 "weather.temperature" = "%@°C";
@@ -1866,9 +1866,9 @@
 "passwordChange.successMessage" = "Tu contraseña ha sido cambiada exitosamente";
 
 /* Question Responses */
-"questionResponses.noAnswers" = "Aún no hay respuestas";
-"questionResponses.shareStory" = "Comparte tu historia para recibir respuestas";
-"questionResponses.createStory" = "Crear historia con esta respuesta";
+"questionResponses.noAnswers" = "Aún no hay preguntas";
+"questionResponses.shareStory" = "Comparte tu historia para recibir preguntas";
+"questionResponses.createStory" = "Responder en tu historia";
 
 /* Highlighted Stories */
 "highlightedStories.empty" = "No hay historias destacadas";
@@ -1883,16 +1883,16 @@
 "creatingProfile.step.completed" = "Completado";
 
 /* Question Responses - Additional */
-"questionResponses.title" = "Respuestas";
+"questionResponses.title" = "Preguntas recibidas";
 "questionResponses.close" = "Cerrar";
-"questionResponses.shareResponse" = "Compartir respuesta";
+"questionResponses.shareResponse" = "Responder en tu historia";
 "questionResponses.cancel" = "Cancelar";
-"questionResponses.loading" = "Cargando respuestas...";
-"questionResponses.response" = "respuesta";
-"questionResponses.responses" = "respuestas";
-"questionResponses.sharingResponseTo" = "Compartiendo respuesta a:";
-"questionResponses.anonymousResponse" = "Respuesta anónima:";
-"questionResponses.anonymousResponseTitle" = "Respuesta anónima";
+"questionResponses.loading" = "Cargando preguntas...";
+"questionResponses.response" = "pregunta";
+"questionResponses.responses" = "preguntas";
+"questionResponses.sharingResponseTo" = "Respondiendo a:";
+"questionResponses.anonymousResponse" = "Pregunta anónima:";
+"questionResponses.anonymousResponseTitle" = "Pregunta anónima";
 
 /* Highlighted Stories - Additional */
 "highlightedStories.loading" = "Cargando destacadas...";
@@ -2985,7 +2985,15 @@
 "profileEditor.deletePhoto.title" = "Eliminar foto de perfil";
 "nova.easterEgg.title" = "Easter Egg desbloqueado";
 "nova.easterEgg.primaryButton" = "Increíble";
-"question.answer.title" = "Responder";
+"question.answer.title" = "Haz una pregunta";
+"question.answer.subtitle" = "Tu pregunta se enviará en privado al autor de la historia.";
+"question.promptLabel" = "Sticker";
+"questionResponses.subtitle" = "Elige una para responderla en tu historia.";
+"questionResponses.emptyTitle" = "Aún no hay preguntas";
+"questionResponses.emptySubtitle" = "Comparte tu historia para recibir preguntas.";
+"questionResponses.promptLabel" = "Sticker";
+"questionResponses.questionLabel" = "Pregunta";
+"questionResponses.shareSubtitle" = "Esta pregunta se compartirá como sticker para que puedas responderla en tu historia.";
 "share.favorites.empty" = "No hay favoritos";
 "ad.common.ad" = "Anuncio";
 "ad.common.sponsored" = "Patrocinado";

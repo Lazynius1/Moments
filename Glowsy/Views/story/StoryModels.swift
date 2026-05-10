@@ -6276,7 +6276,7 @@ struct InteractiveQuestionSticker: View {
                         .font(.custom("Poppins-Regular", size: 12))
                         .foregroundColor(.white.opacity(0.8))
                 } else {
-                    Text(isAuthor ? NSLocalizedString("question.tapToSee", comment: "Tap to see responses") : NSLocalizedString("question.tapToAnswer", comment: "Tap to answer"))
+                    Text(isAuthor ? NSLocalizedString("question.tapToSee", comment: "Tap to see questions") : NSLocalizedString("question.tapToAnswer", comment: "Tap to ask a question"))
                         .font(.custom("Poppins-Regular", size: 12))
                         .foregroundColor(.white.opacity(0.8))
                 }
@@ -6298,7 +6298,9 @@ struct InteractiveQuestionSticker: View {
             )
         }
         .buttonStyle(PlainButtonStyle())
-        .sheet(isPresented: $showingResponseInput) {
+        .sheet(isPresented: $showingResponseInput, onDismiss: {
+            onResumeStory()
+        }) {
             QuestionResponseInputView(
                 questionText: questionText,
                 storyId: storyId,
@@ -6314,7 +6316,9 @@ struct InteractiveQuestionSticker: View {
                 onPauseStory()
             }
         }
-        .sheet(isPresented: $showingResponsesView) {
+        .sheet(isPresented: $showingResponsesView, onDismiss: {
+            onResumeStory()
+        }) {
             QuestionResponsesView(
                 questionText: questionText,
                 storyId: storyId,
@@ -6379,85 +6383,107 @@ struct QuestionResponseInputView: View {
     @FocusState private var isTextFieldFocused: Bool
 
     var body: some View {
-        NavigationView {
-            VStack(spacing: 20) {
-                // Header con la pregunta
-                VStack(spacing: 12) {
-                    Image(systemName: "questionmark.circle.fill")
-                        .font(.system(size: 40))
-                        .foregroundStyle(
-                            LinearGradient(
-                                colors: [Color.blue, Color.purple, Color.pink],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            )
-                        )
+        VStack(spacing: 0) {
+            HStack {
+                Button(action: { dismiss() }) {
+                    Image(systemName: "chevron.down")
+                        .font(.system(size: 18, weight: .semibold))
+                        .foregroundStyle(.primary)
+                        .frame(width: 40, height: 40)
+                        .background {
+                            Color.clear
+                                .liquidGlass(in: Circle(), interactive: true)
+                        }
+                }
+                .buttonStyle(.plain)
+
+                Spacer()
+            }
+            .padding(.horizontal, 20)
+            .padding(.top, 16)
+            .padding(.bottom, 10)
+
+            VStack(alignment: .leading, spacing: 18) {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("question.answer.title")
+                        .font(.custom("Poppins-SemiBold", size: 24))
+                        .foregroundStyle(.primary)
+
+                    Text("question.answer.subtitle")
+                        .font(.custom("Poppins-Regular", size: 14))
+                        .foregroundStyle(.secondary)
+                }
+                .padding(.horizontal, 20)
+
+                VStack(alignment: .leading, spacing: 10) {
+                    Label("question.promptLabel", systemImage: "questionmark.bubble.fill")
+                        .font(.custom("Poppins-SemiBold", size: 13))
+                        .foregroundStyle(.secondary)
 
                     Text(questionText)
-                        .font(.custom("Poppins-SemiBold", size: 18))
-                        .foregroundColor(.primary)
-                        .multilineTextAlignment(.center)
-                        .padding(.horizontal, 20)
+                        .font(.custom("Poppins-SemiBold", size: 17))
+                        .foregroundStyle(.primary)
+                        .multilineTextAlignment(.leading)
                 }
+                .padding(18)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background {
+                    Color.clear
+                        .liquidGlass(in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+                }
+                .padding(.horizontal, 20)
 
-                // Campo de respuesta
-                VStack(alignment: .leading, spacing: 8) {
+                VStack(alignment: .leading, spacing: 10) {
                     Text("question.yourAnswer")
-                        .font(.custom("Poppins-Medium", size: 14))
-                        .foregroundColor(.secondary)
+                        .font(.custom("Poppins-SemiBold", size: 13))
+                        .foregroundStyle(.secondary)
 
-                    TextField(NSLocalizedString("question.answerPlaceholder", comment: "Write your answer"), text: $responseText, axis: .vertical)
-                        .textFieldStyle(.roundedBorder)
+                    TextField(NSLocalizedString("question.answerPlaceholder", comment: "Write your question"), text: $responseText, axis: .vertical)
+                        .font(.custom("Poppins-Regular", size: 16))
+                        .foregroundStyle(.primary)
                         .focused($isTextFieldFocused)
                         .lineLimit(3...6)
                         .disabled(isLoading)
                 }
+                .padding(18)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background {
+                    Color.clear
+                        .liquidGlass(in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+                }
                 .padding(.horizontal, 20)
 
-                // Botón de enviar
+                Spacer(minLength: 0)
+
                 Button(action: submitResponse) {
-                    HStack {
+                    HStack(spacing: 10) {
                         if isLoading {
                             ProgressView()
-                                .scaleEffect(0.8)
-                                .tint(.white)
-                        } else {
-                            Text("question.sendAnswer")
-                                .font(.custom("Poppins-SemiBold", size: 16))
+                                .scaleEffect(0.85)
                         }
+
+                        Text("question.sendAnswer")
+                            .font(.custom("Poppins-SemiBold", size: 16))
                     }
-                    .foregroundColor(.white)
+                    .foregroundStyle(.primary)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 16)
-                    .background(
-                        LinearGradient(
-                            colors: [Color.blue, Color.purple, Color.pink],
-                            startPoint: .leading,
-                            endPoint: .trailing
-                        )
-                    )
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                    .background {
+                        Color.clear
+                            .liquidGlass(in: RoundedRectangle(cornerRadius: 18, style: .continuous), interactive: true)
+                    }
                 }
+                .buttonStyle(.plain)
                 .disabled(responseText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isLoading)
                 .padding(.horizontal, 20)
-
-                Spacer()
-            }
-            .padding(.top, 20)
-            .navigationTitle("question.answer.title")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button("common.cancel") {
-                        dismiss()
-                    }
-                    .foregroundColor(.blue)
-                }
+                .padding(.bottom, 20)
             }
         }
-                        .onAppear {
-                    isTextFieldFocused = true
-                }
+        .presentationDetents([.medium])
+        .presentationDragIndicator(.visible)
+        .onAppear {
+            isTextFieldFocused = true
+        }
     }
 
 

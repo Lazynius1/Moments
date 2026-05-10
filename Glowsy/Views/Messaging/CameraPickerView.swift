@@ -4,6 +4,32 @@ import AVKit
 import PhotosUI
 import Photos
 
+private let momentsCaptureAspectRatio: CGFloat = 9.0 / 16.0
+
+private func momentsAspectRect(aspectRatio: CGFloat, in rect: CGRect) -> CGRect {
+    guard rect.width > 0, rect.height > 0 else { return .zero }
+
+    let candidateHeight = rect.width / aspectRatio
+    if candidateHeight <= rect.height {
+        let y = rect.minY + ((rect.height - candidateHeight) / 2)
+        return CGRect(x: rect.minX, y: y, width: rect.width, height: candidateHeight)
+    } else {
+        let width = rect.height * aspectRatio
+        let x = rect.minX + ((rect.width - width) / 2)
+        return CGRect(x: x, y: rect.minY, width: width, height: rect.height)
+    }
+}
+
+private func momentsCaptureRect(in size: CGSize, topInset: CGFloat, bottomInset: CGFloat) -> CGRect {
+    let availableRect = CGRect(
+        x: 0,
+        y: topInset,
+        width: size.width,
+        height: max(size.height - topInset - bottomInset, 0)
+    )
+    return momentsAspectRect(aspectRatio: momentsCaptureAspectRatio, in: availableRect)
+}
+
 // MARK: - Enhanced Camera Picker with Fixed Gallery and Useful Options
 struct EnhancedCameraPickerView: View {
     let onMediaCaptured: (Data, MediaType, Bool) -> Void
@@ -20,23 +46,37 @@ struct EnhancedCameraPickerView: View {
     @State private var photoLibraryManager = PHCachingImageManager()
     @State private var pendingPreview: CapturedMediaPreview?
     @State private var isVideoRecording = false
-    
+    @StateObject private var orientationManager = OrientationManager.shared
+
+    private var deviceOrientation: UIDeviceOrientation {
+        orientationManager.orientation
+    }
+
+    private var rotationAngle: Double {
+        switch deviceOrientation {
+        case .landscapeLeft: return 90
+        case .landscapeRight: return -90
+        case .portraitUpsideDown: return 180
+        default: return 0
+        }
+    }
+
     private let ephemeralGradient = LinearGradient(
         colors: [Color(hex: "FFB347"), Color(hex: "FFCC33")],
         startPoint: .topLeading,
         endPoint: .bottomTrailing
     )
-    
+
     enum CaptureMode: CaseIterable {
         case photo, video
-        
+
         var icon: String {
             switch self {
             case .photo: return "camera.fill"
             case .video: return "video.fill"
             }
         }
-        
+
         var title: String {
             switch self {
             case .photo: return NSLocalizedString("camera.capture.photo", comment: "Photo mode")
@@ -44,10 +84,10 @@ struct EnhancedCameraPickerView: View {
             }
         }
     }
-    
+
     enum CameraPosition {
         case back, front
-        
+
         var icon: String {
             switch self {
             case .back: return "camera.rotate"
@@ -55,10 +95,10 @@ struct EnhancedCameraPickerView: View {
             }
         }
     }
-    
+
     enum FlashMode: CaseIterable {
         case off, on, auto
-        
+
         var icon: String {
             switch self {
             case .off: return "bolt.slash"
@@ -67,7 +107,7 @@ struct EnhancedCameraPickerView: View {
             }
         }
     }
-    
+
     enum MediaType {
         case image, video
     }
@@ -80,7 +120,7 @@ struct EnhancedCameraPickerView: View {
         let videoURL: URL?
         let isEphemeral: Bool
     }
-    
+
     @State private var cameraViewController: CameraViewController?
 
     private var controlStrokeColor: Color {
@@ -103,7 +143,12 @@ struct EnhancedCameraPickerView: View {
 
     var body: some View {
         GeometryReader { proxy in
+            let captureRect = momentsCaptureRect(in: proxy.size, topInset: proxy.safeAreaInsets.top, bottomInset: proxy.safeAreaInsets.bottom)
+
             ZStack {
+                safeAreaTintColor
+                    .ignoresSafeArea()
+
                 CameraView(
                     captureMode: captureMode,
                     cameraPosition: cameraPosition,
@@ -116,44 +161,43 @@ struct EnhancedCameraPickerView: View {
                     onVideoRecordingStateChange: { isRecording in
                         self.isVideoRecording = isRecording
                     },
+                    deviceOrientation: deviceOrientation,
                     cameraViewController: $cameraViewController
                 )
+                .frame(width: captureRect.width, height: captureRect.height)
+                .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
+                .position(x: captureRect.midX, y: captureRect.midY)
 
-                VStack(spacing: 0) {
-                    if proxy.safeAreaInsets.top > 0 {
-                        Rectangle()
-                            .fill(safeAreaTintColor)
-                            .frame(height: proxy.safeAreaInsets.top)
+                topBar
+
+                ZStack {
+                    VStack(spacing: 12) {
+                        EnhancedCaptureButton(
+                            captureMode: captureMode,
+                            isEphemeralMode: isEphemeralMode,
+                            isVideoRecording: $isVideoRecording,
+                            onCapture: handleCapture
+                        )
+
+                        HStack(alignment: .center, spacing: 40) {
+                            galleryButton
+                                .rotationEffect(.degrees(rotationAngle))
+                                .animation(.spring(), value: rotationAngle)
+
+                            modeSelector
+
+                            topCircleButton(icon: cameraPosition.icon, action: switchCamera)
+                                .rotationEffect(.degrees(rotationAngle))
+                                .animation(.spring(), value: rotationAngle)
+                        }
                     }
-
-                    Spacer(minLength: 0)
-
-                    if proxy.safeAreaInsets.bottom > 0 {
-                        Rectangle()
-                            .fill(safeAreaTintColor)
-                            .frame(height: proxy.safeAreaInsets.bottom)
-                    }
+                    .padding(.horizontal, 24)
+                    .padding(.bottom, 26)
                 }
-                .ignoresSafeArea()
-                .allowsHitTesting(false)
-            
-                VStack(spacing: 0) {
-                    // ✅ TOP CONTROLS - Mejorados
-                    topControlsBar
-
-                    Spacer()
-
-                    // ✅ MODE SELECTOR - Separado del capturador
-                    modeSelector
-                        .padding(.bottom, 18)
-
-                    // ✅ BOTTOM CONTROLS - Rediseñados con galería funcional
-                    bottomControlsBar
-                }
+                .frame(width: captureRect.width, height: captureRect.height, alignment: .bottom)
+                .position(x: captureRect.midX, y: captureRect.midY)
 
                 // ✅ EPHEMERAL MODE INDICATOR - Mejorado
-                ephemeralModeIndicator
-
                 if let pendingPreview {
                     CameraMediaPreviewOverlay(
                         preview: pendingPreview,
@@ -173,6 +217,12 @@ struct EnhancedCameraPickerView: View {
             maxSelectionCount: 1,
             matching: .any(of: [.images, .videos])
         )
+        .onAppear {
+            orientationManager.startTracking()
+        }
+        .onDisappear {
+            orientationManager.stopTracking()
+        }
         .onChange(of: selectedItems) { items in
             handleSelectedMedia(items)
         }
@@ -181,8 +231,8 @@ struct EnhancedCameraPickerView: View {
         }
     }
 
-    private var topControlsBar: some View {
-        VStack(spacing: 14) {
+    private var topBar: some View {
+        VStack {
             HStack {
                 Button(action: { dismiss() }) {
                     Image(systemName: "chevron.down")
@@ -201,20 +251,12 @@ struct EnhancedCameraPickerView: View {
 
                 Spacer()
 
-                HStack(spacing: 10) {
-                    ephemeralHeaderToggle
-
-                    if cameraPosition == .back && captureMode == .photo {
-                        topCircleButton(icon: flashMode.icon, action: cycleFlashMode)
-                    }
-
-                    topCircleButton(icon: cameraPosition.icon, action: switchCamera)
-                }
+                ephemeralHeaderToggle
             }
-
+            Spacer()
         }
         .padding(.horizontal, 20)
-        .padding(.top, 18)
+        .padding(.top, 8)
     }
 
     private var ephemeralHeaderToggle: some View {
@@ -354,95 +396,52 @@ struct EnhancedCameraPickerView: View {
         }
         .frame(width: modeControlWidth, height: modeControlHeight)
     }
-    
-    private var bottomControlsBar: some View {
-        HStack(alignment: .bottom, spacing: 32) {
-            Button(action: {
-                showPhotoPicker = true
-            }) {
-                Group {
-                    if let recentGalleryPreview {
-                        Image(uiImage: recentGalleryPreview)
-                            .resizable()
-                            .scaledToFill()
-                    } else {
-                        ZStack {
-                            Circle()
-                                .fill(Color.white.opacity(0.14))
-                            Image(systemName: "photo.stack")
-                                .font(.system(size: 18, weight: .semibold))
-                                .foregroundColor(.white)
-                        }
-                    }
-                }
-                    .frame(width: 48, height: 48)
-                    .clipShape(Circle())
-                    .background {
-                        Color.clear
-                            .liquidGlass(in: Circle(), interactive: true)
-                    }
-                    .overlay(
+
+    private var galleryButton: some View {
+        Button(action: {
+            showPhotoPicker = true
+        }) {
+            Group {
+                if let recentGalleryPreview {
+                    Image(uiImage: recentGalleryPreview)
+                        .resizable()
+                        .scaledToFill()
+                } else {
+                    ZStack {
                         Circle()
-                            .stroke(controlStrokeColor, lineWidth: 1)
-                    )
-            }
-            .padding(.bottom, 16)
-            
-            EnhancedCaptureButton(
-                captureMode: captureMode,
-                isEphemeralMode: isEphemeralMode,
-                isVideoRecording: $isVideoRecording,
-                onCapture: handleCapture
-            )
-            
-            Color.clear
-                .frame(width: 48, height: 48)
-                .padding(.bottom, 16)
-        }
-        .padding(.bottom, 42)
-    }
-    
-    private var ephemeralModeIndicator: some View {
-        VStack {
-            if isEphemeralMode {
-                HStack(spacing: 8) {
-                    Image(systemName: "sparkles")
-                        .font(.system(size: 13, weight: .semibold))
-                    Text(NSLocalizedString("camera.ephemeral.deleteOnView", comment: "Ephemeral delete on view message"))
-                        .font(.custom("Poppins-SemiBold", size: 12))
+                            .fill(Color.white.opacity(0.14))
+                        Image(systemName: "photo.stack")
+                            .font(.system(size: 18, weight: .semibold))
+                            .foregroundColor(.white)
+                    }
                 }
-                .foregroundColor(Color(hex: "FFCC33"))
-                .padding(.horizontal, 14)
-                .padding(.vertical, 10)
+            }
+                .frame(width: 48, height: 48)
+                .clipShape(Circle())
                 .background {
                     Color.clear
-                        .liquidGlass(in: Capsule(), interactive: false)
+                        .liquidGlass(in: Circle(), interactive: true)
                 }
                 .overlay(
-                    Capsule()
-                        .stroke(Color(hex: "FFCC33").opacity(0.45), lineWidth: 1)
+                    Circle()
+                        .stroke(controlStrokeColor, lineWidth: 1)
                 )
-                .padding(.top, 132)
-                .transition(.move(edge: .top).combined(with: .opacity))
-            }
-            Spacer()
         }
-        .frame(maxWidth: .infinity)
     }
-    
+
     // ✅ ACTIONS
     private func toggleEphemeralMode() {
         withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
             isEphemeralMode.toggle()
         }
     }
-    
+
     private func switchCamera() {
         withAnimation(.easeInOut(duration: 0.3)) {
             cameraPosition = cameraPosition == .back ? .front : .back
         }
     }
-    
+
     private func cycleFlashMode() {
         let modes: [FlashMode] = [.off, .on, .auto]
         if let currentIndex = modes.firstIndex(of: flashMode) {
@@ -496,12 +495,12 @@ struct EnhancedCameraPickerView: View {
             }
         }
     }
-    
+
     // ✅ HANDLE SELECTED MEDIA FROM GALLERY
     private func handleSelectedMedia(_ items: [PhotosPickerItem]) {
         guard let item = items.first else { return }
-        
-        
+
+
         Task {
             if let data = try? await item.loadTransferable(type: Data.self) {
                 DispatchQueue.main.async {
@@ -512,7 +511,7 @@ struct EnhancedCameraPickerView: View {
                     } else {
                         self.presentPreview(data: data, mediaType: .video)
                     }
-                    
+
                     // Clear selection
                     self.selectedItems = []
                 }
@@ -535,13 +534,13 @@ struct EnhancedCameraPickerView: View {
             image.draw(in: CGRect(origin: .zero, size: image.size))
         }
     }
-    
+
     private func handleCapture() {
         guard let cameraVC = cameraViewController else {
             return
         }
-        
-        
+
+
         switch captureMode {
         case .photo:
             cameraVC.capturePhoto()
@@ -612,7 +611,14 @@ struct EnhancedCaptureButton: View {
     private var isCaptureActive: Bool {
         isRecording || isPhotoCaptureFeedback
     }
-    
+
+    private var captureFillColor: Color {
+        if captureMode == .video {
+            return .red
+        }
+        return .white
+    }
+
     var body: some View {
         VStack(spacing: 12) {
             ZStack {
@@ -636,42 +642,32 @@ struct EnhancedCaptureButton: View {
             Button(action: handleCapture) {
                 ZStack {
                     Circle()
-                        .fill(isEphemeralMode ? Color(hex: "FFCC33") : Color.white)
+                        .fill(isEphemeralMode ? Color(hex: "FFCC33").opacity(0.24) : Color.white.opacity(0.16))
                         .frame(width: 96, height: 96)
-                        .blur(radius: isCaptureActive ? 16 : 0)
-                        .opacity(isCaptureActive ? 0.18 : 0)
+                        .blur(radius: isCaptureActive ? 16 : 12)
+                        .opacity(isCaptureActive ? 0.22 : 0.12)
 
                     Circle()
-                        .stroke(
-                            isEphemeralMode ? AnyShapeStyle(ephemeralGradient) : AnyShapeStyle(Color.white),
-                            lineWidth: isCaptureActive ? 5 : 3
-                        )
-                        .frame(width: 88, height: 88)
-
-                    Circle()
-                        .fill(Color.white.opacity(isCaptureActive ? 0.1 : 0.16))
-                        .frame(width: 78, height: 78)
+                        .fill(Color.white.opacity(0.06))
+                        .frame(width: 82, height: 82)
                         .background {
                             Color.clear
                                 .liquidGlass(in: Circle(), interactive: true)
                         }
+                        .overlay(
+                            Circle()
+                                .stroke(isEphemeralMode ? Color(hex: "FFCC33").opacity(0.55) : Color.white.opacity(0.22), lineWidth: 1.5)
+                        )
 
                     Group {
                         if isRecording {
-                            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                            RoundedRectangle(cornerRadius: 11, style: .continuous)
                                 .fill(Color.red)
-                                .frame(width: 28, height: 28)
+                                .frame(width: 30, height: 30)
                         } else {
                             Circle()
-                                .fill(isEphemeralMode ? Color(hex: "FFCC33") : Color.white)
+                                .fill(captureFillColor)
                                 .frame(width: captureMode == .photo ? 62 : 54, height: captureMode == .photo ? 62 : 54)
-                                .overlay {
-                                    if captureMode == .video {
-                                        Circle()
-                                            .fill(Color.red)
-                                            .frame(width: 18, height: 18)
-                                    }
-                                }
                         }
                     }
                     .scaleEffect(isCaptureActive ? 0.8 : 1.0)
@@ -689,7 +685,7 @@ struct EnhancedCaptureButton: View {
             }
         }
     }
-    
+
     private func handleCapture() {
         switch captureMode {
         case .photo:
@@ -703,25 +699,25 @@ struct EnhancedCaptureButton: View {
                 }
             }
             onCapture()
-            
+
         case .video:
             onCapture()
         }
     }
-    
+
     private func startRecordingTimer() {
         recordingTime = 0
         recordingTimer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { _ in
             recordingTime += 0.1
         }
     }
-    
+
     private func stopRecordingTimer() {
         recordingTimer?.invalidate()
         recordingTimer = nil
         recordingTime = 0
     }
-    
+
     private func formatTime(_ time: TimeInterval) -> String {
         let minutes = Int(time) / 60
         let seconds = Int(time) % 60
@@ -750,47 +746,35 @@ private struct CameraMediaPreviewOverlay: View {
         GeometryReader { proxy in
             let topInset = proxy.safeAreaInsets.top
             let bottomInset = proxy.safeAreaInsets.bottom
+            let guideRect = momentsCaptureRect(in: proxy.size, topInset: topInset, bottomInset: bottomInset)
 
             ZStack {
+                safeAreaTintColor
+                    .ignoresSafeArea()
+
                 Group {
-                    switch preview.mediaType {
-                    case .image:
-                        if let image = preview.image {
-                            Image(uiImage: image)
-                                .resizable()
-                                .scaledToFill()
-                                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                                .clipped()
-                        } else {
-                            Color.black
-                        }
-                    case .video:
-                        if let videoURL = preview.videoURL {
-                            CameraPreviewVideoPlayer(url: videoURL)
-                        } else {
-                            Color.black
+                    ZStack {
+                        safeAreaTintColor
+
+                        switch preview.mediaType {
+                        case .image:
+                            if let image = preview.image {
+                                Image(uiImage: image)
+                                    .resizable()
+                                    .scaledToFit()
+                                    .frame(width: guideRect.width, height: guideRect.height)
+                                    .clipped()
+                            }
+                        case .video:
+                            if let videoURL = preview.videoURL {
+                                CameraPreviewVideoPlayer(url: videoURL)
+                                    .frame(width: guideRect.width, height: guideRect.height)
+                            }
                         }
                     }
                 }
-                .ignoresSafeArea()
-
-                VStack(spacing: 0) {
-                    if topInset > 0 {
-                        Rectangle()
-                            .fill(safeAreaTintColor)
-                            .frame(height: topInset)
-                    }
-
-                    Spacer(minLength: 0)
-
-                    if bottomInset > 0 {
-                        Rectangle()
-                            .fill(safeAreaTintColor)
-                            .frame(height: bottomInset)
-                    }
-                }
-                .ignoresSafeArea()
-                .allowsHitTesting(false)
+                .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
+                .position(x: guideRect.midX, y: guideRect.midY)
 
                 VStack(spacing: 0) {
                     HStack {
@@ -812,7 +796,7 @@ private struct CameraMediaPreviewOverlay: View {
                         Spacer()
                     }
                     .padding(.horizontal, 20)
-                    .padding(.top, 18)
+                    .padding(.top, 8)
 
                     Spacer()
 
@@ -921,14 +905,14 @@ private final class PlayerContainerView: UIView {
 
     override init(frame: CGRect) {
         super.init(frame: frame)
-        backgroundColor = .black
+        backgroundColor = .clear
         let tapGesture = UITapGestureRecognizer(target: self, action: #selector(togglePlayback))
         addGestureRecognizer(tapGesture)
     }
 
     required init?(coder: NSCoder) {
         super.init(coder: coder)
-        backgroundColor = .black
+        backgroundColor = .clear
         let tapGesture = UITapGestureRecognizer(target: self, action: #selector(togglePlayback))
         addGestureRecognizer(tapGesture)
     }
@@ -945,7 +929,7 @@ private final class PlayerContainerView: UIView {
         currentURL = url
         let player = AVPlayer(url: url)
         let layer = AVPlayerLayer(player: player)
-        layer.videoGravity = .resizeAspectFill
+        layer.videoGravity = .resizeAspect
         layer.frame = bounds
         self.layer.addSublayer(layer)
 
@@ -999,57 +983,61 @@ struct CameraView: UIViewControllerRepresentable {
     let showGridLines: Bool // ✅ Nuevo parámetro
     let onMediaCaptured: (Data, EnhancedCameraPickerView.MediaType, Bool) -> Void
     let onVideoRecordingStateChange: (Bool) -> Void
+    let deviceOrientation: UIDeviceOrientation // ✅ Propagar orientación
     @Binding var cameraViewController: CameraViewController?
-    
+
     func makeUIViewController(context: Context) -> CameraViewController {
         let controller = CameraViewController()
         controller.delegate = context.coordinator
-        
+
         DispatchQueue.main.async {
             self.cameraViewController = controller
         }
         return controller
     }
-    
+
     func updateUIViewController(_ uiViewController: CameraViewController, context: Context) {
         uiViewController.captureMode = captureMode
         uiViewController.cameraPosition = cameraPosition
         uiViewController.flashMode = flashMode
         uiViewController.isEphemeralMode = isEphemeralMode
         uiViewController.showGridLines = showGridLines // ✅ Actualizar grid lines
-        
+
+        // Propagar orientación física para los metadatos de captura
+        uiViewController.currentDeviceOrientation = deviceOrientation
+
         context.coordinator.updateEphemeralMode(isEphemeralMode)
-        
+
         // Update camera if position changed
         if uiViewController.currentCameraPosition != cameraPosition {
             uiViewController.switchCamera(to: cameraPosition)
         }
-        
+
         // Update grid lines
         uiViewController.updateGridLines(showGridLines)
     }
-    
+
     func makeCoordinator() -> Coordinator {
         Coordinator(self)
     }
-    
+
     class Coordinator: NSObject, CameraViewControllerDelegate {
         let parent: CameraView
         private var currentEphemeralMode: Bool = false
-        
+
         init(_ parent: CameraView) {
             self.parent = parent
             self.currentEphemeralMode = parent.isEphemeralMode
         }
-        
+
         func updateEphemeralMode(_ isEphemeral: Bool) {
             currentEphemeralMode = isEphemeral
         }
-        
+
         func didCapturePhoto(_ data: Data) {
             parent.onMediaCaptured(data, .image, currentEphemeralMode)
         }
-        
+
         func didCaptureVideo(_ data: Data) {
             parent.onMediaCaptured(data, .video, currentEphemeralMode)
         }
@@ -1075,7 +1063,8 @@ class CameraViewController: UIViewController {
     var isEphemeralMode: Bool = false
     var currentCameraPosition: EnhancedCameraPickerView.CameraPosition = .back
     var showGridLines: Bool = false // ✅ Nuevo
-    
+    var currentDeviceOrientation: UIDeviceOrientation = .portrait // ✅ Track para captura
+
     private let captureSession = AVCaptureSession()
     private let photoOutput = AVCapturePhotoOutput()
     let videoOutput = AVCaptureMovieFileOutput()
@@ -1084,14 +1073,14 @@ class CameraViewController: UIViewController {
     private var currentAudioInput: AVCaptureDeviceInput?
     private var gridLinesView: UIView? // ✅ Grid lines overlay
     private var captureEventInteraction: AVCaptureEventInteraction?
-    
+
     override func viewDidLoad() {
         super.viewDidLoad()
         setupCamera()
         setupGridLines() // ✅ Setup grid lines
         configureHardwareCaptureInteraction()
     }
-    
+
     override func viewDidLayoutSubviews() {
         super.viewDidLayoutSubviews()
         previewLayer?.frame = view.layer.bounds
@@ -1105,15 +1094,15 @@ class CameraViewController: UIViewController {
     override func viewWillDisappear(_ animated: Bool) {
         super.viewWillDisappear(animated)
     }
-    
+
     override var supportedInterfaceOrientations: UIInterfaceOrientationMask {
         return .portrait
     }
-    
+
     override var preferredInterfaceOrientationForPresentation: UIInterfaceOrientation {
         return .portrait
     }
-    
+
     override var shouldAutorotate: Bool {
         return false
     }
@@ -1126,16 +1115,16 @@ class CameraViewController: UIViewController {
         view.addInteraction(interaction)
         captureEventInteraction = interaction
     }
-    
+
     // ✅ SETUP GRID LINES
     private func setupGridLines() {
         gridLinesView = UIView(frame: view.bounds)
         gridLinesView?.backgroundColor = UIColor.clear
         gridLinesView?.isUserInteractionEnabled = false
-        
+
         // Create grid lines
         let gridLayer = CALayer()
-        
+
         // Vertical lines
         for i in 1...2 {
             let line = CALayer()
@@ -1143,7 +1132,7 @@ class CameraViewController: UIViewController {
             line.frame = CGRect(x: CGFloat(i) * view.bounds.width / 3, y: 0, width: 1, height: view.bounds.height)
             gridLayer.addSublayer(line)
         }
-        
+
         // Horizontal lines
         for i in 1...2 {
             let line = CALayer()
@@ -1151,15 +1140,15 @@ class CameraViewController: UIViewController {
             line.frame = CGRect(x: 0, y: CGFloat(i) * view.bounds.height / 3, width: view.bounds.width, height: 1)
             gridLayer.addSublayer(line)
         }
-        
+
         gridLinesView?.layer.addSublayer(gridLayer)
         gridLinesView?.isHidden = true
-        
+
         if let gridView = gridLinesView {
             view.addSubview(gridView)
         }
     }
-    
+
     // ✅ UPDATE GRID LINES VISIBILITY
     func updateGridLines(_ show: Bool) {
         UIView.animate(withDuration: 0.2) {
@@ -1167,7 +1156,7 @@ class CameraViewController: UIViewController {
         }
         gridLinesView?.isHidden = !show
     }
-    
+
     private func setupCamera() {
         AVCaptureDevice.requestAccess(for: .video) { granted in
             guard granted else { return }
@@ -1187,19 +1176,19 @@ class CameraViewController: UIViewController {
             }
         }
     }
-    
+
     private func setupCameraInput(position: AVCaptureDevice.Position) {
         guard let camera = AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: position) else {
             return
         }
-        
+
         do {
             let input = try AVCaptureDeviceInput(device: camera)
-            
+
             if let currentInput = currentCameraInput {
                 captureSession.removeInput(currentInput)
             }
-            
+
             if captureSession.canAddInput(input) {
                 captureSession.addInput(input)
                 currentCameraInput = input
@@ -1208,12 +1197,12 @@ class CameraViewController: UIViewController {
         } catch {
         }
     }
-    
+
     private func setupOutputs() {
         if captureSession.canAddOutput(photoOutput) {
             captureSession.addOutput(photoOutput)
         }
-        
+
         if captureSession.canAddOutput(videoOutput) {
             captureSession.addOutput(videoOutput)
         }
@@ -1233,22 +1222,22 @@ class CameraViewController: UIViewController {
         } catch {
         }
     }
-    
+
     private func setupPreviewLayer() {
         previewLayer = AVCaptureVideoPreviewLayer(session: captureSession)
         previewLayer.videoGravity = .resizeAspectFill
         previewLayer.frame = view.layer.bounds
         view.layer.addSublayer(previewLayer)
     }
-    
+
     func switchCamera(to position: EnhancedCameraPickerView.CameraPosition) {
         let avPosition: AVCaptureDevice.Position = position == .back ? .back : .front
         setupCameraInput(position: avPosition)
     }
-    
+
     func capturePhoto() {
         let settings = AVCapturePhotoSettings()
-        
+
         // Configure flash
         if cameraPosition == .back {
             switch flashMode {
@@ -1260,10 +1249,10 @@ class CameraViewController: UIViewController {
                 settings.flashMode = .auto
             }
         }
-        
+
         // Set orientation
         if let photoConnection = photoOutput.connection(with: .video) {
-            let orientation = UIDevice.current.orientation
+            let orientation = currentDeviceOrientation
             let videoOrientation: AVCaptureVideoOrientation = {
                 switch orientation {
                 case .portrait: return .portrait
@@ -1273,24 +1262,132 @@ class CameraViewController: UIViewController {
                 default: return .portrait
                 }
             }()
-            
+
             if photoConnection.isVideoOrientationSupported {
                 photoConnection.videoOrientation = videoOrientation
             }
+
+            if photoConnection.isVideoMirroringSupported {
+                photoConnection.isVideoMirrored = (currentCameraPosition == .front)
+            }
         }
-        
+
         photoOutput.capturePhoto(with: settings, delegate: self)
     }
-    
+
+    private func visiblePreviewRect() -> CGRect {
+        let topInset = view.safeAreaInsets.top
+        let bottomInset = view.safeAreaInsets.bottom
+        return momentsCaptureRect(in: view.bounds.size, topInset: topInset, bottomInset: bottomInset)
+    }
+
+    private func processedCapturedPhotoData(from imageData: Data) -> Data? {
+        guard let image = UIImage(data: imageData) else { return nil }
+
+        let normalizedImage = image.normalizedUp()
+        let previewMatchedImage = cropImageToVisiblePreview(normalizedImage) ?? normalizedImage
+
+        return previewMatchedImage.jpegData(compressionQuality: 0.95)
+    }
+
+    private func cropImageToVisiblePreview(_ image: UIImage) -> UIImage? {
+        guard let previewLayer, let cgImage = image.cgImage else { return nil }
+
+        let layerRect = visiblePreviewRect()
+        guard layerRect.width > 0, layerRect.height > 0 else { return nil }
+
+        let normalizedRect = previewLayer.metadataOutputRectConverted(fromLayerRect: layerRect)
+        let imageRect = CGRect(
+            x: normalizedRect.origin.x * CGFloat(cgImage.width),
+            y: normalizedRect.origin.y * CGFloat(cgImage.height),
+            width: normalizedRect.size.width * CGFloat(cgImage.width),
+            height: normalizedRect.size.height * CGFloat(cgImage.height)
+        )
+        .integral
+        .intersection(CGRect(x: 0, y: 0, width: cgImage.width, height: cgImage.height))
+
+        guard imageRect.width > 0, imageRect.height > 0,
+              let croppedImage = cgImage.cropping(to: imageRect) else {
+            return nil
+        }
+
+        return UIImage(cgImage: croppedImage, scale: image.scale, orientation: .up)
+    }
+
+    private func exportVideoMatchingVisiblePreview(from inputURL: URL, completion: @escaping (URL?) -> Void) {
+        let asset = AVAsset(url: inputURL)
+        guard let videoTrack = asset.tracks(withMediaType: .video).first else {
+            completion(nil)
+            return
+        }
+
+        let composition = AVMutableComposition()
+        guard let compositionVideoTrack = composition.addMutableTrack(withMediaType: .video, preferredTrackID: kCMPersistentTrackID_Invalid) else {
+            completion(nil)
+            return
+        }
+
+        do {
+            try compositionVideoTrack.insertTimeRange(CMTimeRange(start: .zero, duration: asset.duration), of: videoTrack, at: .zero)
+        } catch {
+            completion(nil)
+            return
+        }
+
+        if let audioTrack = asset.tracks(withMediaType: .audio).first,
+           let compositionAudioTrack = composition.addMutableTrack(withMediaType: .audio, preferredTrackID: kCMPersistentTrackID_Invalid) {
+            try? compositionAudioTrack.insertTimeRange(CMTimeRange(start: .zero, duration: asset.duration), of: audioTrack, at: .zero)
+        }
+
+        let transformedRect = CGRect(origin: .zero, size: videoTrack.naturalSize).applying(videoTrack.preferredTransform).standardized
+        let orientedSize = transformedRect.size
+        let cropRect = momentsAspectRect(aspectRatio: momentsCaptureAspectRatio, in: CGRect(origin: .zero, size: orientedSize)).integral
+
+        let instruction = AVMutableVideoCompositionInstruction()
+        instruction.timeRange = CMTimeRange(start: .zero, duration: asset.duration)
+
+        let layerInstruction = AVMutableVideoCompositionLayerInstruction(assetTrack: compositionVideoTrack)
+        let translationToOrigin = CGAffineTransform(translationX: -transformedRect.origin.x, y: -transformedRect.origin.y)
+        let cropTranslation = CGAffineTransform(translationX: -cropRect.origin.x, y: -cropRect.origin.y)
+        let finalTransform = videoTrack.preferredTransform.concatenating(translationToOrigin).concatenating(cropTranslation)
+        layerInstruction.setTransform(finalTransform, at: .zero)
+
+        instruction.layerInstructions = [layerInstruction]
+
+        let videoComposition = AVMutableVideoComposition()
+        videoComposition.instructions = [instruction]
+        videoComposition.renderSize = cropRect.size
+        videoComposition.frameDuration = CMTime(value: 1, timescale: max(Int32(videoTrack.nominalFrameRate.rounded()), 30))
+
+        let outputURL = FileManager.default.temporaryDirectory.appendingPathComponent("camera_cropped_\(UUID().uuidString).mov")
+        try? FileManager.default.removeItem(at: outputURL)
+
+        guard let exportSession = AVAssetExportSession(asset: composition, presetName: AVAssetExportPresetHighestQuality) else {
+            completion(nil)
+            return
+        }
+
+        exportSession.outputURL = outputURL
+        exportSession.outputFileType = .mov
+        exportSession.shouldOptimizeForNetworkUse = true
+        exportSession.videoComposition = videoComposition
+
+        exportSession.exportAsynchronously {
+            DispatchQueue.main.async {
+                completion(exportSession.status == .completed ? outputURL : nil)
+            }
+        }
+    }
+
     func startVideoRecording() {
         guard !videoOutput.isRecording else { return }
-        
+
         let documentsPath = NSSearchPathForDirectoriesInDomains(.documentDirectory, .userDomainMask, true)[0]
         let videoPath = "\(documentsPath)/temp_video_\(Date().timeIntervalSince1970).mov"
         let videoURL = URL(fileURLWithPath: videoPath)
-        
+
         if let videoConnection = videoOutput.connection(with: .video) {
-            let orientation = UIDevice.current.orientation
+            let orientation = currentDeviceOrientation
             let videoOrientation: AVCaptureVideoOrientation = {
                 switch orientation {
                 case .portrait: return .portrait
@@ -1300,16 +1397,20 @@ class CameraViewController: UIViewController {
                 default: return .portrait
                 }
             }()
-            
+
             if videoConnection.isVideoOrientationSupported {
                 videoConnection.videoOrientation = videoOrientation
             }
+
+            if videoConnection.isVideoMirroringSupported {
+                videoConnection.isVideoMirrored = (currentCameraPosition == .front)
+            }
         }
-        
+
         videoOutput.startRecording(to: videoURL, recordingDelegate: self)
         delegate?.didChangeVideoRecordingState(true)
     }
-    
+
     func stopVideoRecording() {
         guard videoOutput.isRecording else { return }
         videoOutput.stopRecording()
@@ -1336,8 +1437,8 @@ extension CameraViewController: AVCapturePhotoCaptureDelegate {
         guard let imageData = photo.fileDataRepresentation() else {
             return
         }
-        
-        delegate?.didCapturePhoto(imageData)
+
+        delegate?.didCapturePhoto(processedCapturedPhotoData(from: imageData) ?? imageData)
     }
 }
 
@@ -1348,13 +1449,24 @@ extension CameraViewController: AVCaptureFileOutputRecordingDelegate {
         if let error = error {
             return
         }
-        
+
+        // Ya no recortamos el video a 9:16 si se grabó en horizontal.
+        // Pasamos el archivo directamente, ya que AVCaptureConnection ya orientó el video correctamente.
         do {
             let videoData = try Data(contentsOf: outputFileURL)
             delegate?.didCaptureVideo(videoData)
-            
-            try FileManager.default.removeItem(at: outputFileURL)
         } catch {
+        }
+    }
+}
+
+private extension UIImage {
+    func normalizedUp() -> UIImage {
+        if imageOrientation == .up { return self }
+
+        let renderer = UIGraphicsImageRenderer(size: size)
+        return renderer.image { _ in
+            draw(in: CGRect(origin: .zero, size: size))
         }
     }
 }

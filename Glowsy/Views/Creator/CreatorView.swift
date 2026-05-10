@@ -464,6 +464,32 @@ import UIKit
 // Add Photos import at the top
 import Photos
 
+private let momentsCaptureAspectRatio: CGFloat = 9.0 / 16.0
+
+private func momentsAspectRect(aspectRatio: CGFloat, in rect: CGRect) -> CGRect {
+    guard rect.width > 0, rect.height > 0 else { return .zero }
+
+    let candidateHeight = rect.width / aspectRatio
+    if candidateHeight <= rect.height {
+        let y = rect.minY + ((rect.height - candidateHeight) / 2)
+        return CGRect(x: rect.minX, y: y, width: rect.width, height: candidateHeight)
+    } else {
+        let width = rect.height * aspectRatio
+        let x = rect.minX + ((rect.width - width) / 2)
+        return CGRect(x: x, y: rect.minY, width: width, height: rect.height)
+    }
+}
+
+private func momentsCaptureRect(in size: CGSize, topInset: CGFloat, bottomInset: CGFloat) -> CGRect {
+    let availableRect = CGRect(
+        x: 0,
+        y: topInset,
+        width: size.width,
+        height: max(size.height - topInset - bottomInset, 0)
+    )
+    return momentsAspectRect(aspectRatio: momentsCaptureAspectRatio, in: availableRect)
+}
+
 // MARK: - Main Creator View
 struct CreatorView: View {
     @Environment(\.dismiss) private var dismiss
@@ -472,23 +498,29 @@ struct CreatorView: View {
     let initialSticker: StickerItem? // ✅ NUEVO: Sticker inicial
     let initialMedia: [CreatorMedia]? // ✅ NUEVO: Media inicial (foto/video de fondo)
     let openInStoryMode: Bool // ✅ NUEVO: Abrir directamente en modo historia
+    let startInCameraWhenOnlySticker: Bool
 
     @State private var currentFlow: CreatorFlow = .typeSelection
     @State private var contentType: ContentType = .moment
 
-    init(isCreatingStory: Binding<Bool>, showCreatorView: Binding<Bool>, initialSticker: StickerItem? = nil, initialMedia: [CreatorMedia]? = nil, openInStoryMode: Bool = false) {
+    init(isCreatingStory: Binding<Bool>, showCreatorView: Binding<Bool>, initialSticker: StickerItem? = nil, initialMedia: [CreatorMedia]? = nil, openInStoryMode: Bool = false, startInCameraWhenOnlySticker: Bool = false) {
         self._isCreatingStory = isCreatingStory
         self._showCreatorView = showCreatorView
         self.initialSticker = initialSticker
         self.initialMedia = initialMedia
         self.openInStoryMode = openInStoryMode
+        self.startInCameraWhenOnlySticker = startInCameraWhenOnlySticker
 
         // ✅ Inicialización de estado sincronizada
-        if initialSticker != nil || initialMedia != nil {
+        if initialMedia != nil {
             _contentType = State(initialValue: .story)
             _currentFlow = State(initialValue: .storyEditing)
             _responseSticker = State(initialValue: initialSticker)
             _selectedMediaItems = State(initialValue: initialMedia ?? [])
+        } else if initialSticker != nil {
+            _contentType = State(initialValue: .story)
+            _currentFlow = State(initialValue: startInCameraWhenOnlySticker ? .storyCamera : .storyEditing)
+            _responseSticker = State(initialValue: initialSticker)
         } else if openInStoryMode {
             _contentType = State(initialValue: .story)
             _currentFlow = State(initialValue: .storyCamera)
@@ -595,7 +627,7 @@ struct CreatorView: View {
 
             if newType == .story {
                 // ✅ FIX: Si hay un sticker, ir al editor en lugar de la cámara
-                if initialSticker != nil || responseSticker != nil {
+                if initialMedia != nil {
                     currentFlow = .storyEditing
                 } else {
                     currentFlow = .storyCamera
@@ -610,26 +642,16 @@ struct CreatorView: View {
             setupResponseStickerListener()
             setupContinueChainListener()
 
-            // ✅ PRIORIDAD MÁXIMA: Si hay un sticker inicial, FORZAR el editor
+            // Si llega solo un sticker de pregunta, abrimos la cámara primero y lo conservamos para el editor.
             if let sticker = initialSticker {
                 if responseSticker == nil { responseSticker = sticker }
-                print("🏗 Forcing StoryEditing due to sticker")
+                print("🏗 Opening StoryCamera with preserved question sticker")
 
-                // Force update even if already set, to trigger UI
                 contentType = .story
-                currentFlow = .storyEditing
-
-                // ✅ FIX: Ensure there is a background media item for publishStory to work
-                if selectedMediaItems.isEmpty {
-                    print("🎨 Generating default background for sticker story")
-                    let gradientImage = createDefaultGradientImage()
-                    let mediaItem = CreatorMedia(
-                        type: .image,
-                        image: gradientImage,
-                        videoURL: nil,
-                        aspectRatio: .nineBySixteen
-                    )
-                    selectedMediaItems = [mediaItem]
+                if initialMedia != nil || !startInCameraWhenOnlySticker {
+                    currentFlow = .storyEditing
+                } else {
+                    currentFlow = .storyCamera
                 }
 
                 isCreatingStory = true
@@ -1357,7 +1379,7 @@ struct MediaSelectionView: View {
         .onAppear {
             requestPhotoLibraryAccess()
         }
-        .sheet(isPresented: $showingCamera) {
+        .fullScreenCover(isPresented: $showingCamera) {
             CameraCapture { media in
                 selectedMediaItems.append(media)
                 currentFlow = .mediaEditing
@@ -3636,6 +3658,11 @@ struct StoryCameraView: View {
     @Binding var currentFlow: CreatorView.CreatorFlow
     @Binding var showCreatorView: Bool
 
+    @Environment(\.colorScheme) private var colorScheme
+    private var safeAreaTintColor: Color {
+        colorScheme == .dark ? Color(hex: "0B1215") : Color(hex: "FAF9F6")
+    }
+
     @State private var showingGallery = false
     @State private var cameraPosition: AVCaptureDevice.Position = .back
     @State private var flashMode: AVCaptureDevice.FlashMode = .off
@@ -3646,144 +3673,207 @@ struct StoryCameraView: View {
     @State private var lastZoomLevel: CGFloat = 1.0
     @State private var capturePhotoTrigger = false
     @State private var lastGalleryImage: UIImage?
+    @StateObject private var orientationManager = OrientationManager.shared
+
+    private var deviceOrientation: UIDeviceOrientation {
+        orientationManager.orientation
+    }
+
+    private var rotationAngle: Double {
+        switch deviceOrientation {
+        case .landscapeLeft: return 90
+        case .landscapeRight: return -90
+        case .portraitUpsideDown: return 180
+        default: return 0
+        }
+    }
 
     var body: some View {
-        ZStack {
-            // Camera preview
-            CameraPreviewRepresentable(
-                cameraPosition: $cameraPosition,
-                flashMode: $flashMode,
-                isRecording: $isRecording,
-                zoomLevel: $zoomLevel,
-                capturePhotoTrigger: $capturePhotoTrigger,
-                onImageCaptured: { image in
-                    handleCapturedImage(image)
-                },
-                onVideoCaptured: { videoURL in
-                    handleCapturedVideo(videoURL)
-                }
-            )
-            .ignoresSafeArea()
-            .gesture(
-                MagnificationGesture()
-                    .onChanged { value in
-                        let newZoom = lastZoomLevel * value
-                        zoomLevel = min(max(newZoom, 1.0), 5.0)
-                    }
-                    .onEnded { value in
-                        lastZoomLevel = zoomLevel
-                    }
-            )
+        GeometryReader { proxy in
+            let captureRect = momentsCaptureRect(in: proxy.size, topInset: proxy.safeAreaInsets.top, bottomInset: proxy.safeAreaInsets.bottom)
 
-            // Controls overlay
-            VStack {
-                // Top controls
-                HStack {
-                    Button(action: {
-                        showCreatorView = false
-                    }) {
-                        Image(systemName: "xmark")
-                            .font(.title2)
-                            .foregroundColor(.white)
-                            .padding()
-                            .liquidGlass(in: Circle(), interactive: true)
+            ZStack {
+                safeAreaTintColor
+                    .ignoresSafeArea()
+
+                // Camera preview
+                CameraPreviewRepresentable(
+                    cameraPosition: $cameraPosition,
+                    flashMode: $flashMode,
+                    isRecording: $isRecording,
+                    zoomLevel: $zoomLevel,
+                    capturePhotoTrigger: $capturePhotoTrigger,
+                    deviceOrientation: deviceOrientation,
+                    onImageCaptured: { image in
+                        handleCapturedImage(image)
+                    },
+                    onVideoCaptured: { videoURL in
+                        handleCapturedVideo(videoURL)
                     }
+                )
+                .frame(width: captureRect.width, height: captureRect.height)
+                .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
+                .position(x: captureRect.midX, y: captureRect.midY)
+                .gesture(
+                    MagnificationGesture()
+                        .onChanged { value in
+                            let newZoom = lastZoomLevel * value
+                            zoomLevel = min(max(newZoom, 1.0), 5.0)
+                        }
+                        .onEnded { value in
+                            lastZoomLevel = zoomLevel
+                        }
+                )
+
+
+                // Top controls
+                VStack {
+                    HStack {
+                        Button(action: {
+                            showCreatorView = false
+                        }) {
+                            Image(systemName: "xmark")
+                                .font(.system(size: 18, weight: .semibold))
+                                .foregroundColor(.white)
+                                .frame(width: 42, height: 42)
+                                .background {
+                                    Color.clear
+                                        .liquidGlass(in: Circle(), interactive: true)
+                                }
+                                .overlay(
+                                    Circle()
+                                        .stroke(Color.white.opacity(0.12), lineWidth: 1)
+                                )
+                        }
+                        .rotationEffect(.degrees(rotationAngle))
+                        .animation(.spring(), value: rotationAngle)
+
+                        Spacer()
+
+                        // Flash button
+                        Button(action: {
+                            toggleFlash()
+                        }) {
+                            Image(systemName: flashIcon)
+                                .font(.system(size: 18, weight: .semibold))
+                                .foregroundColor(.white)
+                                .frame(width: 42, height: 42)
+                                .background {
+                                    Color.clear
+                                        .liquidGlass(in: Circle(), interactive: true)
+                                }
+                                .overlay(
+                                    Circle()
+                                        .stroke(Color.white.opacity(0.12), lineWidth: 1)
+                                )
+                        }
+                        .rotationEffect(.degrees(rotationAngle))
+                        .animation(.spring(), value: rotationAngle)
+                    }
+                    .padding(.horizontal, 20)
+                    .padding(.top, 8)
 
                     Spacer()
-
-                    // Flash button
-                    Button(action: {
-                        toggleFlash()
-                    }) {
-                        Image(systemName: flashIcon)
-                            .font(.title2)
-                            .foregroundColor(.white)
-                            .padding()
-                            .background(Color.black.opacity(0.3))
-                            .clipShape(Circle())
-                    }
                 }
-                .padding()
-
-                Spacer()
-
-                Spacer()
 
                 // Bottom controls
-                VStack(spacing: 12) {
-                    ZStack {
-                        if isRecording {
-                            HStack(spacing: 8) {
-                                Circle()
-                                    .fill(Color.red)
-                                    .frame(width: 10, height: 10)
-                                    .scaleEffect(1.0)
-                                    .animation(.easeInOut(duration: 0.5).repeatForever(), value: isRecording)
+                ZStack {
+                    VStack(spacing: 12) {
+                        ZStack {
+                            if isRecording {
+                                HStack(spacing: 8) {
+                                    Circle()
+                                        .fill(Color.red)
+                                        .frame(width: 10, height: 10)
+                                        .scaleEffect(1.0)
+                                        .animation(.easeInOut(duration: 0.5).repeatForever(), value: isRecording)
 
-                                Text(formatTime(recordingDuration))
-                                    .font(.system(size: 16, weight: .medium))
+                                    Text(formatTime(recordingDuration))
+                                        .font(.system(size: 16, weight: .medium))
+                                        .foregroundColor(.white)
+                                }
+                                .padding(.horizontal, 16)
+                                .padding(.vertical, 8)
+                                .background(Color.black.opacity(0.5))
+                                .cornerRadius(20)
+                            }
+                        }
+                        .frame(height: 36)
+
+                        HStack(alignment: .bottom, spacing: 40) {
+                            // Gallery button with last image preview
+                            Button(action: {
+                                showingGallery = true
+                            }) {
+                                if let lastImage = lastGalleryImage {
+                                    Image(uiImage: lastImage)
+                                        .resizable()
+                                        .aspectRatio(contentMode: .fill)
+                                        .frame(width: 48, height: 48)
+                                        .clipShape(Circle())
+                                        .overlay(
+                                            Circle()
+                                                .stroke(Color.white.opacity(0.18), lineWidth: 1)
+                                        )
+                                } else {
+                                    ZStack {
+                                        Circle()
+                                            .fill(Color.white.opacity(0.14))
+                                        Image(systemName: "photo.stack")
+                                            .font(.system(size: 18, weight: .semibold))
+                                            .foregroundColor(.white)
+                                    }
+                                    .frame(width: 48, height: 48)
+                                    .clipShape(Circle())
+                                    .background {
+                                        Color.clear
+                                            .liquidGlass(in: Circle(), interactive: true)
+                                    }
+                                    .overlay(
+                                        Circle()
+                                            .stroke(Color.white.opacity(0.18), lineWidth: 1)
+                                    )
+                                }
+                            }
+                            .rotationEffect(.degrees(rotationAngle))
+                            .animation(.spring(), value: rotationAngle)
+
+                            // Capture button
+                            CaptureButton(
+                                isRecording: $isRecording,
+                                onTap: {
+                                    takePhoto()
+                                },
+                                onLongPressStart: { startRecording() },
+                                onLongPressEnd: { stopRecording() }
+                            )
+
+                            // Switch camera button
+                            Button(action: {
+                                switchCamera()
+                            }) {
+                                Image(systemName: "arrow.triangle.2.circlepath.camera")
+                                    .font(.system(size: 18, weight: .semibold))
                                     .foregroundColor(.white)
-                            }
-                            .padding(.horizontal, 16)
-                            .padding(.vertical, 8)
-                            .background(Color.black.opacity(0.5))
-                            .cornerRadius(20)
-                        }
-                    }
-                    .frame(height: 36)
-
-                    HStack(alignment: .bottom, spacing: 50) {
-                        // Gallery button with last image preview
-                        Button(action: {
-                            showingGallery = true
-                        }) {
-                            if let lastImage = lastGalleryImage {
-                                Image(uiImage: lastImage)
-                                    .resizable()
-                                    .aspectRatio(contentMode: .fill)
-                                    .frame(width: 40, height: 40)
-                                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                                    .frame(width: 48, height: 48)
+                                    .background {
+                                        Color.clear
+                                            .liquidGlass(in: Circle(), interactive: true)
+                                    }
                                     .overlay(
-                                        RoundedRectangle(cornerRadius: 8)
-                                            .stroke(Color.white, lineWidth: 2)
-                                    )
-                            } else {
-                                RoundedRectangle(cornerRadius: 8)
-                                    .fill(Color.white)
-                                    .frame(width: 40, height: 40)
-                                    .overlay(
-                                        Image(systemName: "photo")
-                                            .foregroundColor(.black)
+                                        Circle()
+                                            .stroke(Color.white.opacity(0.18), lineWidth: 1)
                                     )
                             }
+                            .rotationEffect(.degrees(rotationAngle))
+                            .animation(.spring(), value: rotationAngle)
                         }
-                        .padding(.bottom, 20)
-
-                        // Capture button
-                        CaptureButton(
-                            isRecording: $isRecording,
-                            onTap: {
-                                takePhoto()
-                            },
-                            onLongPressStart: { startRecording() },
-                            onLongPressEnd: { stopRecording() }
-                        )
-
-                        // Switch camera button
-                        Button(action: {
-                            switchCamera()
-                        }) {
-                            Image(systemName: "arrow.triangle.2.circlepath.camera")
-                                .font(.title2)
-                                .foregroundColor(.white)
-                                .frame(width: 40, height: 40)
-                                .background(Color.black.opacity(0.3))
-                                .clipShape(Circle())
-                        }
-                        .padding(.bottom, 20)
                     }
+                    .padding(.horizontal, 24)
+                    .padding(.bottom, 26)
                 }
-                .padding(.bottom, 50)
+                .frame(width: captureRect.width, height: captureRect.height, alignment: .bottom)
+                .position(x: captureRect.midX, y: captureRect.midY)
             }
         }
         .sheet(isPresented: $showingGallery) {
@@ -3796,9 +3886,11 @@ struct StoryCameraView: View {
         .onAppear {
             setupAudioSession()
             loadLastGalleryImage()
+            orientationManager.startTracking()
         }
         .onDisappear {
             stopRecording()
+            orientationManager.stopTracking()
         }
     }
 
@@ -3871,13 +3963,14 @@ struct StoryCameraView: View {
     }
 
     private func handleCapturedImage(_ image: UIImage) {
+        let detectedRatio = CreatorMedia.AspectRatio.fromRatio(image.size.width / image.size.height)
         let processedMedia = CreatorMedia(
             id: UUID().uuidString,
             image: image,
             videoURL: nil,
             type: .image,
-            aspectRatio: .nineBySixteen,
-            recommendedAspectRatio: .nineBySixteen
+            aspectRatio: detectedRatio,
+            recommendedAspectRatio: detectedRatio
         )
         selectedMediaItems = [processedMedia]
         currentFlow = .storyEditing
@@ -3894,14 +3987,16 @@ struct StoryCameraView: View {
                 let cgImage = try generator.copyCGImage(at: .zero, actualTime: nil)
                 let thumbnail = UIImage(cgImage: cgImage)
 
+                let detectedRatio = CreatorMedia.AspectRatio.fromRatio(thumbnail.size.width / thumbnail.size.height)
+
                 await MainActor.run {
                     let processedMedia = CreatorMedia(
                         id: UUID().uuidString,
                         image: thumbnail,
                         videoURL: videoURL,
                         type: .video,
-                        aspectRatio: .nineBySixteen,
-                        recommendedAspectRatio: .nineBySixteen
+                        aspectRatio: detectedRatio,
+                        recommendedAspectRatio: detectedRatio
                     )
                     selectedMediaItems = [processedMedia]
                     currentFlow = .storyEditing
@@ -3944,6 +4039,36 @@ struct StoryCameraView: View {
     }
 }
 
+private struct MomentsStoryGuideOverlay: View {
+    var body: some View {
+        GeometryReader { proxy in
+            let guideRect = momentsAspectRect(aspectRatio: momentsCaptureAspectRatio, in: CGRect(origin: .zero, size: proxy.size))
+            let topMaskHeight = max(guideRect.minY, 0)
+            let bottomMaskHeight = max(proxy.size.height - guideRect.maxY, 0)
+
+            VStack(spacing: 0) {
+                Rectangle()
+                    .fill(Color.black.opacity(0.34))
+                    .frame(height: topMaskHeight)
+
+                Color.clear
+                    .frame(height: guideRect.height)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 22, style: .continuous)
+                            .stroke(Color.white.opacity(0.18), lineWidth: 1.5)
+                    )
+
+                Rectangle()
+                    .fill(Color.black.opacity(0.34))
+                    .frame(height: bottomMaskHeight)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        }
+        .ignoresSafeArea()
+        .allowsHitTesting(false)
+    }
+}
+
 // MARK: - Capture Button with Long Press
 struct CaptureButton: View {
     @Binding var isRecording: Bool
@@ -3957,12 +4082,20 @@ struct CaptureButton: View {
     var body: some View {
         ZStack {
             Circle()
-                .stroke(Color.white, lineWidth: 4)
-                .frame(width: 80, height: 80)
+                .fill(Color.white.opacity(0.14))
+                .frame(width: 88, height: 88)
+                .background {
+                    Color.clear
+                        .liquidGlass(in: Circle(), interactive: true)
+                }
+                .overlay(
+                    Circle()
+                        .stroke(Color.white.opacity(0.22), lineWidth: 1.5)
+                )
 
             Circle()
                 .fill(isRecording ? Color.red : Color.white)
-                .frame(width: isPressed ? 60 : 70, height: isPressed ? 60 : 70)
+                .frame(width: isPressed ? 58 : 68, height: isPressed ? 58 : 68)
                 .scaleEffect(isRecording ? 0.8 : 1.0)
                 .animation(.easeInOut(duration: 0.1), value: isPressed)
                 .animation(.easeInOut(duration: 0.2), value: isRecording)
@@ -4007,7 +4140,66 @@ struct CaptureButton: View {
 
 
 
-// MARK: - Camera Preview View Implementation
+struct CameraPreviewRepresentable: UIViewRepresentable {
+    @Binding var cameraPosition: AVCaptureDevice.Position
+    @Binding var flashMode: AVCaptureDevice.FlashMode
+    @Binding var isRecording: Bool
+    @Binding var zoomLevel: CGFloat
+    @Binding var capturePhotoTrigger: Bool
+    var deviceOrientation: UIDeviceOrientation
+    let onImageCaptured: (UIImage) -> Void
+    let onVideoCaptured: (URL) -> Void
+
+    func makeUIView(context: Context) -> CameraPreviewView {
+        let view = CameraPreviewView(frame: .zero)
+        view.delegate = context.coordinator
+        view.currentDeviceOrientation = deviceOrientation
+        return view
+    }
+
+    func updateUIView(_ uiView: CameraPreviewView, context: Context) {
+        uiView.updateCameraPosition(cameraPosition)
+        uiView.updateFlashMode(flashMode)
+        uiView.updateZoom(zoomLevel)
+        uiView.currentDeviceOrientation = deviceOrientation
+
+        if capturePhotoTrigger {
+            uiView.capturePhoto()
+            DispatchQueue.main.async {
+                capturePhotoTrigger = false
+            }
+        }
+
+        if isRecording && !uiView.isCurrentlyRecording {
+            uiView.startRecording()
+        } else if !isRecording && uiView.isCurrentlyRecording {
+            uiView.stopRecording()
+        }
+    }
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(self)
+    }
+
+    class Coordinator: NSObject, AVCapturePhotoCaptureDelegate, AVCaptureFileOutputRecordingDelegate {
+        var parent: CameraPreviewRepresentable
+
+        init(_ parent: CameraPreviewRepresentable) {
+            self.parent = parent
+        }
+
+        func photoOutput(_ output: AVCapturePhotoOutput, didFinishProcessingPhoto photo: AVCapturePhoto, error: Error?) {
+            guard let imageData = photo.fileDataRepresentation(),
+                  let image = UIImage(data: imageData) else { return }
+            parent.onImageCaptured(image)
+        }
+
+        func fileOutput(_ output: AVCaptureFileOutput, didFinishRecordingTo outputFileURL: URL, from connections: [AVCaptureConnection], error: Error?) {
+            parent.onVideoCaptured(outputFileURL)
+        }
+    }
+}
+
 class CameraPreviewView: UIView {
     weak var delegate: CameraPreviewRepresentable.Coordinator?
 
@@ -4022,6 +4214,7 @@ class CameraPreviewView: UIView {
     private var currentFlashMode: AVCaptureDevice.FlashMode = .off
     private var currentZoom: CGFloat = 1.0
     private var captureEventInteraction: AVCaptureEventInteraction?
+    var currentDeviceOrientation: UIDeviceOrientation = .portrait
 
     var isCurrentlyRecording: Bool {
         return movieOutput?.isRecording ?? false
@@ -4228,12 +4421,52 @@ class CameraPreviewView: UIView {
 
         settings.flashMode = currentFlashMode
 
+        if let photoConnection = photoOutput.connection(with: .video) {
+            let orientation = currentDeviceOrientation
+            let videoOrientation: AVCaptureVideoOrientation = {
+                switch orientation {
+                case .portrait: return .portrait
+                case .portraitUpsideDown: return .portraitUpsideDown
+                case .landscapeLeft: return .landscapeRight
+                case .landscapeRight: return .landscapeLeft
+                default: return .portrait
+                }
+            }()
+
+            if photoConnection.isVideoOrientationSupported {
+                photoConnection.videoOrientation = videoOrientation
+            }
+            if photoConnection.isVideoMirroringSupported {
+                photoConnection.isVideoMirrored = (currentPosition == .front)
+            }
+        }
+
         photoOutput.capturePhoto(with: settings, delegate: self)
     }
 
     func startRecording() {
         guard let movieOutput = movieOutput,
               !movieOutput.isRecording else { return }
+
+        if let videoConnection = movieOutput.connection(with: .video) {
+            let orientation = currentDeviceOrientation
+            let videoOrientation: AVCaptureVideoOrientation = {
+                switch orientation {
+                case .portrait: return .portrait
+                case .portraitUpsideDown: return .portraitUpsideDown
+                case .landscapeLeft: return .landscapeRight
+                case .landscapeRight: return .landscapeLeft
+                default: return .portrait
+                }
+            }()
+
+            if videoConnection.isVideoOrientationSupported {
+                videoConnection.videoOrientation = videoOrientation
+            }
+            if videoConnection.isVideoMirroringSupported {
+                videoConnection.isVideoMirrored = (currentPosition == .front)
+            }
+        }
 
         let outputURL = createTempVideoURL()
         movieOutput.startRecording(to: outputURL, recordingDelegate: self)
@@ -4258,6 +4491,93 @@ class CameraPreviewView: UIView {
         let documentsPath = FileManager.default.temporaryDirectory
         let fileName = "story_video_\(Date().timeIntervalSince1970).mov"
         return documentsPath.appendingPathComponent(fileName)
+    }
+
+    private func exportVideoMatchingVisiblePreview(from inputURL: URL, completion: @escaping (URL?) -> Void) {
+        let asset = AVAsset(url: inputURL)
+        guard let videoTrack = asset.tracks(withMediaType: .video).first else {
+            completion(nil)
+            return
+        }
+
+        let composition = AVMutableComposition()
+        guard let compositionVideoTrack = composition.addMutableTrack(withMediaType: .video, preferredTrackID: kCMPersistentTrackID_Invalid) else {
+            completion(nil)
+            return
+        }
+
+        do {
+            try compositionVideoTrack.insertTimeRange(CMTimeRange(start: .zero, duration: asset.duration), of: videoTrack, at: .zero)
+        } catch {
+            completion(nil)
+            return
+        }
+
+        if let audioTrack = asset.tracks(withMediaType: .audio).first,
+           let compositionAudioTrack = composition.addMutableTrack(withMediaType: .audio, preferredTrackID: kCMPersistentTrackID_Invalid) {
+            try? compositionAudioTrack.insertTimeRange(CMTimeRange(start: .zero, duration: asset.duration), of: audioTrack, at: .zero)
+        }
+
+        let transformedRect = CGRect(origin: .zero, size: videoTrack.naturalSize).applying(videoTrack.preferredTransform).standardized
+        let orientedSize = transformedRect.size
+        let cropRect = momentsAspectRect(aspectRatio: momentsCaptureAspectRatio, in: CGRect(origin: .zero, size: orientedSize)).integral
+
+        let instruction = AVMutableVideoCompositionInstruction()
+        instruction.timeRange = CMTimeRange(start: .zero, duration: asset.duration)
+
+        let layerInstruction = AVMutableVideoCompositionLayerInstruction(assetTrack: compositionVideoTrack)
+        let translationToOrigin = CGAffineTransform(translationX: -transformedRect.origin.x, y: -transformedRect.origin.y)
+        let cropTranslation = CGAffineTransform(translationX: -cropRect.origin.x, y: -cropRect.origin.y)
+        let finalTransform = videoTrack.preferredTransform.concatenating(translationToOrigin).concatenating(cropTranslation)
+        layerInstruction.setTransform(finalTransform, at: .zero)
+
+        instruction.layerInstructions = [layerInstruction]
+
+        let videoComposition = AVMutableVideoComposition()
+        videoComposition.instructions = [instruction]
+        videoComposition.renderSize = cropRect.size
+        videoComposition.frameDuration = CMTime(value: 1, timescale: max(Int32(videoTrack.nominalFrameRate.rounded()), 30))
+
+        let outputURL = FileManager.default.temporaryDirectory.appendingPathComponent("story_cropped_\(UUID().uuidString).mov")
+        try? FileManager.default.removeItem(at: outputURL)
+
+        guard let exportSession = AVAssetExportSession(asset: composition, presetName: AVAssetExportPresetHighestQuality) else {
+            completion(nil)
+            return
+        }
+
+        exportSession.outputURL = outputURL
+        exportSession.outputFileType = .mov
+        exportSession.shouldOptimizeForNetworkUse = true
+        exportSession.videoComposition = videoComposition
+
+        exportSession.exportAsynchronously {
+            DispatchQueue.main.async {
+                completion(exportSession.status == .completed ? outputURL : nil)
+            }
+        }
+    }
+
+    private func cropImageToVisiblePreview(_ image: UIImage) -> UIImage? {
+        guard let previewLayer = videoPreviewLayer, let cgImage = image.cgImage else { return nil }
+
+        let guideRect = momentsAspectRect(aspectRatio: momentsCaptureAspectRatio, in: bounds)
+        let normalizedRect = previewLayer.metadataOutputRectConverted(fromLayerRect: guideRect)
+        let imageRect = CGRect(
+            x: normalizedRect.origin.x * CGFloat(cgImage.width),
+            y: normalizedRect.origin.y * CGFloat(cgImage.height),
+            width: normalizedRect.size.width * CGFloat(cgImage.width),
+            height: normalizedRect.size.height * CGFloat(cgImage.height)
+        )
+        .integral
+        .intersection(CGRect(x: 0, y: 0, width: cgImage.width, height: cgImage.height))
+
+        guard imageRect.width > 0, imageRect.height > 0,
+              let croppedImage = cgImage.cropping(to: imageRect) else {
+            return nil
+        }
+
+        return UIImage(cgImage: croppedImage, scale: image.scale, orientation: .up)
     }
 }
 
@@ -7707,9 +8027,11 @@ extension CameraPreviewView: AVCapturePhotoCaptureDelegate {
 
         // Correct orientation for front camera
         let correctedImage = correctImageOrientation(image)
+        let normalizedImage = correctedImage.normalizedUp()
+        let previewMatchedImage = cropImageToVisiblePreview(normalizedImage) ?? normalizedImage
 
         DispatchQueue.main.async { [weak self] in
-            self?.delegate?.parent.onImageCaptured(correctedImage)
+            self?.delegate?.parent.onImageCaptured(previewMatchedImage)
         }
     }
 
@@ -7732,6 +8054,8 @@ extension CameraPreviewView: AVCaptureFileOutputRecordingDelegate {
             return
         }
 
+        // Ya no recortamos el video a 9:16 si se grabó en horizontal.
+        // AVCaptureConnection ya orientó y capturó el video de forma óptima.
         DispatchQueue.main.async { [weak self] in
             self?.delegate?.parent.onVideoCaptured(outputFileURL)
         }

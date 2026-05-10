@@ -791,6 +791,8 @@ struct StoryEditingView: View {
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             )
+            .frame(width: canvasSize.width, height: canvasSize.height)
+            .clipped()
             .ignoresSafeArea()
         }
     }
@@ -2540,54 +2542,7 @@ struct StickerItem: Identifiable {
     }
 }
 
-// MARK: - Camera Preview UIViewRepresentable
-struct CameraPreviewRepresentable: UIViewRepresentable {
-    @Binding var cameraPosition: AVCaptureDevice.Position
-    @Binding var flashMode: AVCaptureDevice.FlashMode
-    @Binding var isRecording: Bool
-    @Binding var zoomLevel: CGFloat
-    @Binding var capturePhotoTrigger: Bool
-    
-    let onImageCaptured: (UIImage) -> Void
-    let onVideoCaptured: (URL) -> Void
-    
-    func makeUIView(context: Context) -> CameraPreviewView {
-        let preview = CameraPreviewView()
-        preview.delegate = context.coordinator
-        return preview
-    }
-    
-    func updateUIView(_ uiView: CameraPreviewView, context: Context) {
-        uiView.updateCameraPosition(cameraPosition)
-        uiView.updateFlashMode(flashMode)
-        uiView.updateZoom(zoomLevel)
-        
-        // Handle photo capture trigger
-        if capturePhotoTrigger != context.coordinator.lastCaptureState {
-            context.coordinator.lastCaptureState = capturePhotoTrigger
-            uiView.capturePhoto()
-        }
-        
-        if isRecording && !uiView.isCurrentlyRecording {
-            uiView.startRecording()
-        } else if !isRecording && uiView.isCurrentlyRecording {
-            uiView.stopRecording()
-        }
-    }
-    
-    func makeCoordinator() -> Coordinator {
-        Coordinator(self)
-    }
-    
-class Coordinator: NSObject {
-        let parent: CameraPreviewRepresentable
-        var lastCaptureState: Bool = false
-        
-        init(_ parent: CameraPreviewRepresentable) {
-            self.parent = parent
-        }
-    }
-}
+
 
 private enum StoryDrawingBrush {
     case pen
