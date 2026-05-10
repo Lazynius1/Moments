@@ -395,12 +395,12 @@
 "poll.percentage" = "%d%%";
 
 /* Questions */
-"question.responses" = "%d responses";
-"question.tapToSee" = "Tap to see responses";
-"question.tapToAnswer" = "Tap to answer";
-"question.yourAnswer" = "Your answer (anonymous)";
-"question.sendAnswer" = "Send answer";
-"question.answerPlaceholder" = "Write your answer...";
+"question.responses" = "%d questions";
+"question.tapToSee" = "Tap to see questions";
+"question.tapToAnswer" = "Tap to ask";
+"question.yourAnswer" = "Your question";
+"question.sendAnswer" = "Send question";
+"question.answerPlaceholder" = "Write your question...";
 
 /* Weather */
 "weather.temperature" = "%@°C";
@@ -1868,9 +1868,9 @@
 "passwordChange.successMessage" = "Your password has been changed successfully";
 
 /* Question Responses */
-"questionResponses.noAnswers" = "No answers yet";
-"questionResponses.shareStory" = "Share your story to receive answers";
-"questionResponses.createStory" = "Create story with this answer";
+"questionResponses.noAnswers" = "No questions yet";
+"questionResponses.shareStory" = "Share your story to receive questions";
+"questionResponses.createStory" = "Reply in your story";
 
 /* Highlighted Stories */
 "highlightedStories.empty" = "No highlighted stories";
@@ -1885,16 +1885,16 @@
 "creatingProfile.step.completed" = "Done";
 
 /* Question Responses - Additional */
-"questionResponses.title" = "Responses";
+"questionResponses.title" = "Questions received";
 "questionResponses.close" = "Close";
-"questionResponses.shareResponse" = "Share response";
+"questionResponses.shareResponse" = "Reply in your story";
 "questionResponses.cancel" = "Cancel";
-"questionResponses.loading" = "Loading responses...";
-"questionResponses.response" = "response";
-"questionResponses.responses" = "responses";
-"questionResponses.sharingResponseTo" = "Sharing response to:";
-"questionResponses.anonymousResponse" = "Anonymous response:";
-"questionResponses.anonymousResponseTitle" = "Anonymous response";
+"questionResponses.loading" = "Loading questions...";
+"questionResponses.response" = "question";
+"questionResponses.responses" = "questions";
+"questionResponses.sharingResponseTo" = "Replying to:";
+"questionResponses.anonymousResponse" = "Anonymous question:";
+"questionResponses.anonymousResponseTitle" = "Anonymous question";
 
 /* Highlighted Stories - Additional */
 "highlightedStories.loading" = "Loading highlighted stories...";
@@ -2961,7 +2961,15 @@
 "profileEditor.deletePhoto.title" = "Delete profile photo";
 "nova.easterEgg.title" = "Easter egg unlocked";
 "nova.easterEgg.primaryButton" = "Awesome";
-"question.answer.title" = "Reply";
+"question.answer.title" = "Ask a question";
+"question.answer.subtitle" = "Your question will be sent privately to the story author.";
+"question.promptLabel" = "Sticker";
+"questionResponses.subtitle" = "Choose one to reply to in your story.";
+"questionResponses.emptyTitle" = "No questions yet";
+"questionResponses.emptySubtitle" = "Share your story to receive questions.";
+"questionResponses.promptLabel" = "Sticker";
+"questionResponses.questionLabel" = "Question";
+"questionResponses.shareSubtitle" = "This question will be shared as a sticker so you can reply to it in your story.";
 "share.favorites.empty" = "No favorites yet";
 "ad.common.ad" = "Ad";
 "ad.common.sponsored" = "Sponsored";

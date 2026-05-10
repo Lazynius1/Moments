@@ -392,12 +392,12 @@
 "poll.percentage" = "%d%%";
 
 /* Questions */
-"question.responses" = "%d respostes";
-"question.tapToSee" = "Toca per veure respostes";
-"question.tapToAnswer" = "Toca per respondre";
-"question.yourAnswer" = "La teva resposta (anònima)";
-"question.sendAnswer" = "Enviar resposta";
-"question.answerPlaceholder" = "Escriu la teva resposta...";
+"question.responses" = "%d preguntes";
+"question.tapToSee" = "Toca per veure preguntes";
+"question.tapToAnswer" = "Toca per preguntar";
+"question.yourAnswer" = "La teva pregunta";
+"question.sendAnswer" = "Enviar pregunta";
+"question.answerPlaceholder" = "Escriu la teva pregunta...";
 
 /* Weather */
 "weather.temperature" = "%@°C";
@@ -1864,25 +1864,25 @@
 "passwordChange.successMessage" = "La teva contrasenya ha estat canviada amb èxit";
 
 /* Question Responses */
-"questionResponses.noAnswers" = "Encara no hi ha respostes";
-"questionResponses.shareStory" = "Comparteix la teva història per rebre respostes";
-"questionResponses.createStory" = "Crear història amb aquesta resposta";
+"questionResponses.noAnswers" = "Encara no hi ha preguntes";
+"questionResponses.shareStory" = "Comparteix la teva història per rebre preguntes";
+"questionResponses.createStory" = "Respondre a la teva història";
 
 /* Highlighted Stories */
 "highlightedStories.empty" = "No hi ha històries destacades";
 "highlightedStories.storyCount" = "%@ història%@";
 
 /* Question Responses - Additional */
-"questionResponses.title" = "Respostes";
+"questionResponses.title" = "Preguntes rebudes";
 "questionResponses.close" = "Tancar";
-"questionResponses.shareResponse" = "Compartir resposta";
+"questionResponses.shareResponse" = "Respondre a la teva història";
 "questionResponses.cancel" = "Cancel·lar";
-"questionResponses.loading" = "Carregant respostes...";
-"questionResponses.response" = "resposta";
-"questionResponses.responses" = "respostes";
-"questionResponses.sharingResponseTo" = "Compartint resposta a:";
-"questionResponses.anonymousResponse" = "Resposta anònima:";
-"questionResponses.anonymousResponseTitle" = "Resposta anònima";
+"questionResponses.loading" = "Carregant preguntes...";
+"questionResponses.response" = "pregunta";
+"questionResponses.responses" = "preguntes";
+"questionResponses.sharingResponseTo" = "Respondre a:";
+"questionResponses.anonymousResponse" = "Pregunta anònima:";
+"questionResponses.anonymousResponseTitle" = "Pregunta anònima";
 
 /* Creating Profile */
 "creatingProfile.title" = "Creant el teu compte";
@@ -2971,7 +2971,15 @@
 "profileEditor.deletePhoto.title" = "Eliminar la foto de perfil";
 "nova.easterEgg.title" = "Easter egg desbloquejat";
 "nova.easterEgg.primaryButton" = "Increïble";
-"question.answer.title" = "Respondre";
+"question.answer.title" = "Fes una pregunta";
+"question.answer.subtitle" = "La teva pregunta s’enviarà en privat a l’autor de la història.";
+"question.promptLabel" = "Sticker";
+"questionResponses.subtitle" = "Tria'n una per respondre-la a la teva història.";
+"questionResponses.emptyTitle" = "Encara no hi ha preguntes";
+"questionResponses.emptySubtitle" = "Comparteix la teva història per rebre preguntes.";
+"questionResponses.promptLabel" = "Sticker";
+"questionResponses.questionLabel" = "Pregunta";
+"questionResponses.shareSubtitle" = "Aquesta pregunta es compartirà com a sticker perquè la puguis respondre a la teva història.";
 "share.favorites.empty" = "No hi ha favorits";
 "ad.common.ad" = "Anunci";
 "ad.common.sponsored" = "Patrocinat";
