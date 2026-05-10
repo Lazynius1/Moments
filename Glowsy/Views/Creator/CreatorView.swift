@@ -1,24 +1,24 @@
 // MARK: - Story Upload Progress Manager
 class StoryUploadProgressManager: ObservableObject {
     static let shared = StoryUploadProgressManager()
-    
+
     @Published var isUploading = false
     @Published var progress: Double = 0.0
-    
+
     func startUpload() {
         isUploading = true
         progress = 0.0
     }
-    
+
     func updateProgress(_ value: Double) {
         progress = value
     }
-    
+
     func finishUpload() {
         isUploading = false
         progress = 1.0
     }
-    
+
     func cancelUpload() {
         isUploading = false
         progress = 0.0
@@ -33,7 +33,7 @@ struct DrawingView: UIViewControllerRepresentable {
     let backgroundImage: UIImage? // Agregar imagen de fondo
     let onComplete: (UIImage) -> Void
     @Environment(\.dismiss) private var dismiss
-    
+
     func makeUIViewController(context: Context) -> DrawingViewController {
         let controller = DrawingViewController()
         controller.backgroundImage = backgroundImage
@@ -43,7 +43,7 @@ struct DrawingView: UIViewControllerRepresentable {
         }
         return controller
     }
-    
+
     func updateUIViewController(_ uiViewController: DrawingViewController, context: Context) {}
 }
 
@@ -51,7 +51,7 @@ class DrawingViewController: UIViewController {
     var onComplete: ((UIImage) -> Void)?
     var onDismiss: (() -> Void)?
     var backgroundImage: UIImage?
-    
+
     private let canvasView = PKCanvasView()
     private let toolPicker = PKToolPicker()
     private var selectedColor: UIColor = .white
@@ -64,20 +64,20 @@ class DrawingViewController: UIViewController {
     private weak var markerButton: UIButton?
     private weak var arrowButton: UIButton?
     private weak var eraserButton: UIButton?
-    
+
     enum BrushType {
         case pen, neon, marker, arrow
     }
     private var selectedBrush: BrushType = .pen
-    
+
     override func viewDidLoad() {
         super.viewDidLoad()
         setupUI()
     }
-    
+
     private func setupUI() {
         view.backgroundColor = .clear
-        
+
         // Agregar imagen de fondo si existe
         if let backgroundImage = backgroundImage {
             let imageView = UIImageView(image: backgroundImage)
@@ -85,14 +85,14 @@ class DrawingViewController: UIViewController {
             imageView.contentMode = .scaleAspectFill
             view.addSubview(imageView)
             backgroundImageView = imageView
-            
+
             NSLayoutConstraint.activate([
                 imageView.topAnchor.constraint(equalTo: view.topAnchor),
                 imageView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
                 imageView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
                 imageView.bottomAnchor.constraint(equalTo: view.bottomAnchor)
             ])
-            
+
             let dimView = UIView()
             dimView.translatesAutoresizingMaskIntoConstraints = false
             dimView.backgroundColor = UIColor.black.withAlphaComponent(0.10)
@@ -106,7 +106,7 @@ class DrawingViewController: UIViewController {
         } else {
             view.backgroundColor = .black
         }
-        
+
         // Canvas setup - TRANSPARENTE
         canvasView.translatesAutoresizingMaskIntoConstraints = false
         canvasView.backgroundColor = .clear
@@ -114,7 +114,7 @@ class DrawingViewController: UIViewController {
         canvasView.drawingPolicy = .anyInput
         canvasView.tool = PKInkingTool(.pen, color: .white, width: 3)
         view.addSubview(canvasView)
-        
+
         // Top toolbar
         let topToolbar = UIView()
         topToolbar.translatesAutoresizingMaskIntoConstraints = false
@@ -125,7 +125,7 @@ class DrawingViewController: UIViewController {
         topToolbar.clipsToBounds = true
         view.addSubview(topToolbar)
         addBlurBackground(to: topToolbar)
-        
+
         // Close button
         let closeButton = UIButton(type: .system)
         closeButton.translatesAutoresizingMaskIntoConstraints = false
@@ -135,13 +135,13 @@ class DrawingViewController: UIViewController {
         closeButton.layer.cornerRadius = 15
         closeButton.addTarget(self, action: #selector(closeTapped), for: .touchUpInside)
         topToolbar.addSubview(closeButton)
-        
+
         let undoButton = createToolButton(imageName: "arrow.uturn.backward", action: #selector(undoTapped))
         topToolbar.addSubview(undoButton)
-        
+
         let redoButton = createToolButton(imageName: "arrow.uturn.forward", action: #selector(redoTapped))
         topToolbar.addSubview(redoButton)
-        
+
         // Done button
         let doneButton = UIButton(type: .system)
         doneButton.translatesAutoresizingMaskIntoConstraints = false
@@ -153,7 +153,7 @@ class DrawingViewController: UIViewController {
         doneButton.contentEdgeInsets = UIEdgeInsets(top: 8, left: 14, bottom: 8, right: 14)
         doneButton.addTarget(self, action: #selector(doneTapped), for: .touchUpInside)
         topToolbar.addSubview(doneButton)
-        
+
         // Bottom toolbar
         let bottomToolbar = UIView()
         bottomToolbar.translatesAutoresizingMaskIntoConstraints = false
@@ -164,7 +164,7 @@ class DrawingViewController: UIViewController {
         bottomToolbar.clipsToBounds = true
         view.addSubview(bottomToolbar)
         addBlurBackground(to: bottomToolbar)
-        
+
         // Tool buttons
         let penButton = createToolButton(imageName: "pencil", action: #selector(penSelected))
         let neonButton = createToolButton(imageName: "sparkles", action: #selector(neonSelected))
@@ -172,20 +172,20 @@ class DrawingViewController: UIViewController {
         let arrowButton = createToolButton(imageName: "arrow.up.right", action: #selector(arrowSelected))
         let eraserButton = createToolButton(imageName: "eraser", action: #selector(eraserSelected))
         let clearButton = createToolButton(imageName: "trash", action: #selector(clearTapped))
-        
+
         self.penButton = penButton
         self.neonButton = neonButton
         self.markerButton = markerButton
         self.arrowButton = arrowButton
         self.eraserButton = eraserButton
-        
+
         let toolStack = UIStackView(arrangedSubviews: [penButton, neonButton, markerButton, arrowButton, eraserButton, clearButton])
         toolStack.translatesAutoresizingMaskIntoConstraints = false
         toolStack.axis = .horizontal
         toolStack.distribution = .equalSpacing
         toolStack.spacing = 10
         bottomToolbar.addSubview(toolStack)
-        
+
         let widthSlider = UISlider()
         widthSlider.translatesAutoresizingMaskIntoConstraints = false
         widthSlider.minimumValue = 2
@@ -201,7 +201,7 @@ class DrawingViewController: UIViewController {
         let colorStack = createColorPicker()
         colorStack.translatesAutoresizingMaskIntoConstraints = false
         bottomToolbar.addSubview(colorStack)
-        
+
         // Constraints
         NSLayoutConstraint.activate([
             // Canvas
@@ -209,41 +209,41 @@ class DrawingViewController: UIViewController {
             canvasView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             canvasView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
             canvasView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
-            
+
             // Top toolbar
             topToolbar.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 8),
             topToolbar.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 14),
             topToolbar.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -14),
             topToolbar.heightAnchor.constraint(equalToConstant: 58),
-            
+
             // Close button
             closeButton.leadingAnchor.constraint(equalTo: topToolbar.leadingAnchor, constant: 12),
             closeButton.centerYAnchor.constraint(equalTo: topToolbar.centerYAnchor),
             closeButton.widthAnchor.constraint(equalToConstant: 30),
             closeButton.heightAnchor.constraint(equalToConstant: 30),
-            
+
             // Undo button
             undoButton.leadingAnchor.constraint(equalTo: closeButton.trailingAnchor, constant: 10),
             undoButton.centerYAnchor.constraint(equalTo: topToolbar.centerYAnchor),
-            
+
             // Redo button
             redoButton.leadingAnchor.constraint(equalTo: undoButton.trailingAnchor, constant: 8),
             redoButton.centerYAnchor.constraint(equalTo: topToolbar.centerYAnchor),
-            
+
             // Done button
             doneButton.trailingAnchor.constraint(equalTo: topToolbar.trailingAnchor, constant: -12),
             doneButton.centerYAnchor.constraint(equalTo: topToolbar.centerYAnchor),
-            
+
             // Bottom toolbar
             bottomToolbar.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 14),
             bottomToolbar.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -14),
             bottomToolbar.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -12),
             bottomToolbar.heightAnchor.constraint(equalToConstant: 154),
-            
+
             // Tool stack
             toolStack.centerXAnchor.constraint(equalTo: bottomToolbar.centerXAnchor),
             toolStack.topAnchor.constraint(equalTo: bottomToolbar.topAnchor, constant: 14),
-            
+
             // Width slider
             widthSlider.leadingAnchor.constraint(equalTo: bottomToolbar.leadingAnchor, constant: 16),
             widthSlider.trailingAnchor.constraint(equalTo: bottomToolbar.trailingAnchor, constant: -16),
@@ -254,7 +254,7 @@ class DrawingViewController: UIViewController {
             colorStack.bottomAnchor.constraint(equalTo: bottomToolbar.bottomAnchor, constant: -12),
             colorStack.topAnchor.constraint(equalTo: widthSlider.bottomAnchor, constant: 8)
         ])
-        
+
         // Setup tool picker
         toolPicker.setVisible(false, forFirstResponder: canvasView)
         toolPicker.addObserver(canvasView)
@@ -264,12 +264,12 @@ class DrawingViewController: UIViewController {
         updateToolSelectionUI()
         updateColorSelectionUI()
     }
-    
+
     override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
         canvasView.becomeFirstResponder()
     }
-    
+
     private func createToolButton(imageName: String, action: Selector) -> UIButton {
         let button = UIButton(type: .system)
         let symbolConfig = UIImage.SymbolConfiguration(pointSize: 15, weight: .semibold)
@@ -283,7 +283,7 @@ class DrawingViewController: UIViewController {
         button.addTarget(self, action: action, for: .touchUpInside)
         return button
     }
-    
+
     private func createColorPicker() -> UIStackView {
         let colors: [UIColor] = [.white, .black, .red, .orange, .yellow, .green, .blue, .purple]
         let buttons = colors.map { color in
@@ -299,7 +299,7 @@ class DrawingViewController: UIViewController {
             return button
         }
         colorButtons = buttons
-        
+
         let stack = UIStackView(arrangedSubviews: buttons)
         stack.axis = .horizontal
         stack.spacing = 11
@@ -318,11 +318,11 @@ class DrawingViewController: UIViewController {
             blur.bottomAnchor.constraint(equalTo: container.bottomAnchor)
         ])
     }
-    
+
     @objc private func closeTapped() {
         onDismiss?()
     }
-    
+
     @objc private func doneTapped() {
         // Renderizar solo el dibujo sin fondo
         let renderer = UIGraphicsImageRenderer(bounds: canvasView.bounds)
@@ -330,14 +330,14 @@ class DrawingViewController: UIViewController {
             // Fondo transparente
             UIColor.clear.setFill()
             context.fill(canvasView.bounds)
-            
+
             // Dibujar solo el canvas
             canvasView.drawHierarchy(in: canvasView.bounds, afterScreenUpdates: true)
         }
         onComplete?(image)
         onDismiss?()
     }
-    
+
     private func updateCurrentTool() {
         guard !isEraserSelected else {
             canvasView.tool = PKEraserTool(.bitmap)
@@ -355,13 +355,13 @@ class DrawingViewController: UIViewController {
             canvasView.tool = PKInkingTool(.pen, color: selectedColor, width: max(3, brushWidth * 0.9))
         }
     }
-    
+
     @objc private func eraserSelected() {
         isEraserSelected = true
         updateToolSelectionUI()
         updateCurrentTool()
     }
-    
+
     @objc private func undoTapped() {
         canvasView.drawing = canvasView.drawing
         canvasView.undoManager?.undo()
@@ -370,11 +370,11 @@ class DrawingViewController: UIViewController {
     @objc private func redoTapped() {
         canvasView.undoManager?.redo()
     }
-    
+
     @objc private func clearTapped() {
         canvasView.drawing = PKDrawing()
     }
-    
+
     @objc private func brushWidthChanged(_ sender: UISlider) {
         brushWidth = CGFloat(sender.value)
         updateCurrentTool()
@@ -396,21 +396,21 @@ class DrawingViewController: UIViewController {
         updateToolSelectionUI()
         updateCurrentTool()
     }
-    
+
     @objc private func neonSelected() {
         selectedBrush = .neon
         isEraserSelected = false
         updateToolSelectionUI()
         updateCurrentTool()
     }
-    
+
     @objc private func markerSelected() {
         selectedBrush = .marker
         isEraserSelected = false
         updateToolSelectionUI()
         updateCurrentTool()
     }
-    
+
     @objc private func arrowSelected() {
         selectedBrush = .arrow
         isEraserSelected = false
@@ -472,17 +472,17 @@ struct CreatorView: View {
     let initialSticker: StickerItem? // ✅ NUEVO: Sticker inicial
     let initialMedia: [CreatorMedia]? // ✅ NUEVO: Media inicial (foto/video de fondo)
     let openInStoryMode: Bool // ✅ NUEVO: Abrir directamente en modo historia
-    
+
     @State private var currentFlow: CreatorFlow = .typeSelection
     @State private var contentType: ContentType = .moment
-    
+
     init(isCreatingStory: Binding<Bool>, showCreatorView: Binding<Bool>, initialSticker: StickerItem? = nil, initialMedia: [CreatorMedia]? = nil, openInStoryMode: Bool = false) {
         self._isCreatingStory = isCreatingStory
         self._showCreatorView = showCreatorView
         self.initialSticker = initialSticker
         self.initialMedia = initialMedia
         self.openInStoryMode = openInStoryMode
-        
+
         // ✅ Inicialización de estado sincronizada
         if initialSticker != nil || initialMedia != nil {
             _contentType = State(initialValue: .story)
@@ -500,15 +500,15 @@ struct CreatorView: View {
     @State private var selectedLocation: CLLocationCoordinate2D?
     @State private var locationName: String = ""
     @State private var responseSticker: StickerItem? = nil
-    
+
     // 🔗 NUEVO: Variables para contexto de cadena
     @State private var pendingChainId: String? = nil
     @State private var pendingChainTitle: String? = nil
     @State private var pendingChainPosition: Int? = nil
-    
+
     // ✅ Geometry Effect Namespace
     @Namespace private var animation
-    
+
     enum CreatorFlow {
         case typeSelection
         case mediaSelection
@@ -518,16 +518,16 @@ struct CreatorView: View {
         case storyCamera
         case storyEditing
     }
-    
+
     enum ContentType {
         case moment
         case story
     }
-    
+
     var body: some View {
         ZStack {
             Color.black.ignoresSafeArea()
-            
+
             switch currentFlow {
             case .typeSelection:
                 ContentTypeSelectionView(
@@ -589,10 +589,10 @@ struct CreatorView: View {
             if initialSticker != nil || responseSticker != nil {
                 if currentFlow == .storyEditing { return }
             }
-            
+
             // ✅ EVITAR RESET: Si ya estamos en edición o cámara story, no sobrescribir el flujo
             guard currentFlow == .typeSelection else { return }
-            
+
             if newType == .story {
                 // ✅ FIX: Si hay un sticker, ir al editor en lugar de la cámara
                 if initialSticker != nil || responseSticker != nil {
@@ -609,16 +609,16 @@ struct CreatorView: View {
         .onAppear {
             setupResponseStickerListener()
             setupContinueChainListener()
-            
+
             // ✅ PRIORIDAD MÁXIMA: Si hay un sticker inicial, FORZAR el editor
             if let sticker = initialSticker {
                 if responseSticker == nil { responseSticker = sticker }
                 print("🏗 Forcing StoryEditing due to sticker")
-                
+
                 // Force update even if already set, to trigger UI
                 contentType = .story
                 currentFlow = .storyEditing
-                
+
                 // ✅ FIX: Ensure there is a background media item for publishStory to work
                 if selectedMediaItems.isEmpty {
                     print("🎨 Generating default background for sticker story")
@@ -631,7 +631,7 @@ struct CreatorView: View {
                     )
                     selectedMediaItems = [mediaItem]
                 }
-                
+
                 isCreatingStory = true
             } else if openInStoryMode {
                 print("🏗 Forcing StoryCamera due to openInStoryMode")
@@ -645,12 +645,12 @@ struct CreatorView: View {
         .onDisappear {
             removeResponseStickerListener()
             removeContinueChainListener()
-            
+
             // ✅ Limpiar video y audio cuando se cierra CreatorView
             cleanupVideoAndAudio()
         }
     }
-    
+
     // MARK: - Response Sticker Handling
     private func setupResponseStickerListener() {
         NotificationCenter.default.addObserver(
@@ -663,7 +663,7 @@ struct CreatorView: View {
             }
         }
     }
-    
+
     private func removeResponseStickerListener() {
         NotificationCenter.default.removeObserver(
             self,
@@ -671,7 +671,7 @@ struct CreatorView: View {
             object: nil
         )
     }
-    
+
     // MARK: - Continue Chain Handling
     private func setupContinueChainListener() {
         NotificationCenter.default.addObserver(
@@ -686,7 +686,7 @@ struct CreatorView: View {
                 continueStoryChain(chainId: chainId, chainTitle: chainTitle, chainPosition: chainPosition)
             }
         }
-        
+
         // 🔗 NUEVO: Listener para configurar tipo de contenido
         NotificationCenter.default.addObserver(
             forName: NSNotification.Name("SetContentType"),
@@ -702,7 +702,7 @@ struct CreatorView: View {
                 }
             }
         }
-        
+
         // 🔗 NUEVO: Listener para guardar contexto de cadena
         NotificationCenter.default.addObserver(
             forName: NSNotification.Name("SetChainContext"),
@@ -719,14 +719,14 @@ struct CreatorView: View {
             }
         }
     }
-    
+
     private func removeContinueChainListener() {
         NotificationCenter.default.removeObserver(
             self,
             name: NSNotification.Name("ContinueStoryChain"),
             object: nil
         )
-        
+
         // 🔗 NUEVO: Limpiar listener de tipo de contenido
         NotificationCenter.default.removeObserver(
             self,
@@ -734,13 +734,13 @@ struct CreatorView: View {
             object: nil
         )
     }
-    
+
     private func continueStoryChain(chainId: String, chainTitle: String, chainPosition: Int) {
         // Configurar para continuar cadena
         contentType = .story
         currentFlow = .storyCamera
         isCreatingStory = true
-        
+
         // Pasar datos de cadena al StoryEditingView
         // Esto se manejará en el StoryEditingView cuando se abra
         NotificationCenter.default.post(
@@ -753,11 +753,11 @@ struct CreatorView: View {
             ]
         )
     }
-    
+
     private func addResponseStickerToStory(_ sticker: StickerItem) {
         // ✅ GUARDAR EL STICKER EN EL ESTADO ANTES DE ABRIR StoryEditingView
         responseSticker = sticker
-        
+
         // Ir directamente a la edición de historia con el sticker
         contentType = .story
         currentFlow = .storyEditing
@@ -767,10 +767,10 @@ struct CreatorView: View {
     private func cleanupVideoAndAudio() {
         // ✅ Limpiar los media items seleccionados
         selectedMediaItems.removeAll()
-        
+
         // ✅ Pausar cualquier audio que esté reproduciéndose
         try? AVAudioSession.sharedInstance().setActive(false)
-        
+
         // ✅ Notificar limpieza de video
         NotificationCenter.default.post(name: NSNotification.Name("CleanupVideoPlayer"), object: nil)
     }
@@ -779,19 +779,19 @@ struct CreatorView: View {
     private func createDefaultGradientImage() -> UIImage {
         let size = UIScreen.main.bounds.size
         let renderer = UIGraphicsImageRenderer(size: size)
-        
+
         return renderer.image { context in
             let colors = [
                 UIColor(Color(hex: "4158D0") ?? .blue).cgColor,
                 UIColor(Color(hex: "C850C0") ?? .purple).cgColor,
                 UIColor(Color(hex: "FFCC70") ?? .pink).cgColor
             ]
-            
+
             let gradient = sectionGradient(colors: colors, size: size)
             gradient.render(in: context.cgContext)
         }
     }
-    
+
     private func sectionGradient(colors: [CGColor], size: CGSize) -> CAGradientLayer {
         let layer = CAGradientLayer()
         layer.frame = CGRect(origin: .zero, size: size)
@@ -810,7 +810,7 @@ struct ContentTypeSelectionView: View {
     @Binding var showCreatorView: Bool
     var animation: Namespace.ID // ✅ Accept Namespace
     @Environment(\.colorScheme) var colorScheme
-    
+
     // State
     @State private var selectedMode: CreatorView.ContentType = .moment
     @State private var recentImages: [UIImage] = [] // ✅ Changed to array for collage
@@ -818,7 +818,7 @@ struct ContentTypeSelectionView: View {
     @State private var isBreathing: Bool = false // ✅ For collage animation
     @State private var hasCameraPermission: Bool = false
     @State private var dialTransientOffset: CGFloat = 0
-    
+
     // Constants
     private let dialModes: [CreatorView.ContentType] = [.moment, .story]
     private let dialControlWidth: CGFloat = 170
@@ -826,23 +826,23 @@ struct ContentTypeSelectionView: View {
     private let dialInnerPadding: CGFloat = 4
     private let dialPillWidth: CGFloat = 84
     private let dialPillHeight: CGFloat = 36
-    
+
     var body: some View {
         ZStack {
             // 1. Dynamic Background
             backgroundLayer
-            
+
             // 2. Content & Controls
             VStack(spacing: 0) {
                 // Top Toolbar (Close)
                 topToolbar
-                
+
                 Spacer()
-                
+
                 // Center Shutter/Trigger
                 shutterButton
                     .padding(.bottom, 28)
-                
+
                 // Bottom Dial Selector
                 dialSelector
                     .padding(.bottom, 30)
@@ -857,14 +857,14 @@ struct ContentTypeSelectionView: View {
             }
         }
     }
-    
+
     // MARK: - Components
-    
+
     private var backgroundLayer: some View {
         ZStack {
             // Base layer
             Color.black.ignoresSafeArea()
-            
+
             if selectedMode == .moment {
                 // Moment: Floating Collage Blur
                 if !recentImages.isEmpty {
@@ -909,22 +909,22 @@ struct ContentTypeSelectionView: View {
         }
         .animation(.easeInOut(duration: 0.5), value: selectedMode)
     }
-    
+
     // ✅ NEW: Floating Image View Helper
     private struct FloatingImageView: View {
         let image: UIImage
         let index: Int
-        
+
         @State private var offset: CGSize = .zero
         @State private var scale: CGFloat = 1.0
         @State private var rotation: Double = 0
-        
+
         var body: some View {
             GeometryReader { geometry in
                 // Calculate quadrant position based on index
                 let quadrantX = index % 2 == 0 ? geometry.size.width * 0.25 : geometry.size.width * 0.75
                 let quadrantY = index < 2 ? geometry.size.height * 0.25 : geometry.size.height * 0.75
-                
+
                 Image(uiImage: image)
                     .resizable()
                     .aspectRatio(contentMode: .fill)
@@ -941,7 +941,7 @@ struct ContentTypeSelectionView: View {
                         // Randomize animation parameters for organic feel
                         let duration = Double.random(in: 15...25)
                         let delay = Double.random(in: 0...5)
-                        
+
                         withAnimation(.easeInOut(duration: duration).repeatForever(autoreverses: true).delay(delay)) {
                             offset = CGSize(
                                 width: CGFloat.random(in: -100...100),
@@ -954,7 +954,7 @@ struct ContentTypeSelectionView: View {
             }
         }
     }
-    
+
     private var topToolbar: some View {
         HStack {
             Button(action: {
@@ -967,12 +967,12 @@ struct ContentTypeSelectionView: View {
                     .liquidGlass(in: Circle(), interactive: true)
             }
             .padding(.leading)
-            
+
             Spacer()
         }
         .padding(.top, 10)
     }
-    
+
     private var shutterButton: some View {
         Button(action: {
             confirmSelection()
@@ -987,14 +987,14 @@ struct ContentTypeSelectionView: View {
                             .frame(width: 60, height: 60)
                             .rotationEffect(.degrees(-10))
                             .offset(x: -5, y: 0)
-                        
+
                         // Card 2 (Middle)
                         RoundedRectangle(cornerRadius: 12)
                             .fill(Color.white.opacity(0.9))
                             .frame(width: 60, height: 60)
                             .rotationEffect(.degrees(5))
                             .offset(x: 5, y: -2)
-                        
+
                         // Card 3 (Top - Photo)
                         Group {
                             if let topImage = recentImages.first {
@@ -1051,7 +1051,7 @@ struct ContentTypeSelectionView: View {
             }
         }, perform: {})
     }
-    
+
     private var dialSelector: some View {
         GeometryReader { proxy in
             ZStack {
@@ -1162,11 +1162,11 @@ struct ContentTypeSelectionView: View {
         case .story: return NSLocalizedString("creator.story.title", comment: "Story")
         }
     }
-    
+
     private func confirmSelection() {
         let generator = UIImpactFeedbackGenerator(style: .medium)
         generator.impactOccurred()
-        
+
         withAnimation {
             contentType = selectedMode
             switch selectedMode {
@@ -1175,7 +1175,7 @@ struct ContentTypeSelectionView: View {
             case .story:
                 // ✅ Stop background camera session BEFORE opening real camera
                 NotificationCenter.default.post(name: NSNotification.Name("StopBackgroundCameraSession"), object: nil)
-                
+
                 // ✅ Small delay to ensure session is fully released
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                     currentFlow = .storyCamera
@@ -1183,23 +1183,23 @@ struct ContentTypeSelectionView: View {
             }
         }
     }
-    
+
     private func loadRecentPhotos() {
         let fetchOptions = PHFetchOptions()
         fetchOptions.sortDescriptors = [NSSortDescriptor(key: "creationDate", ascending: false)]
         fetchOptions.fetchLimit = 4
-        
+
         let assets = PHAsset.fetchAssets(with: .image, options: fetchOptions)
         let manager = PHImageManager.default()
         let options = PHImageRequestOptions()
         options.isSynchronous = false
         options.deliveryMode = .fastFormat // ✅ Optimized for speed (Medium Quality)
         options.resizeMode = .fast
-        
+
         // Use a temporary array to collect images, then update state
         var loadedImages: [UIImage] = []
         let processingGroup = DispatchGroup()
-        
+
         assets.enumerateObjects { asset, _, _ in
             processingGroup.enter()
             manager.requestImage(for: asset, targetSize: CGSize(width: 300, height: 300), contentMode: .aspectFill, options: options) { image, info in
@@ -1214,14 +1214,14 @@ struct ContentTypeSelectionView: View {
                 processingGroup.leave()
             }
         }
-        
+
         processingGroup.notify(queue: .main) {
             withAnimation {
                 self.recentImages = loadedImages
             }
         }
     }
-    
+
     private func checkCameraPermission() {
         switch AVCaptureDevice.authorizationStatus(for: .video) {
         case .authorized:
@@ -1240,29 +1240,29 @@ struct BackgroundCameraView: UIViewControllerRepresentable {
     func makeUIViewController(context: Context) -> UIViewController {
         let controller = UIViewController()
         controller.view.backgroundColor = .black
-        
+
         // Lightweight Session
         let session = AVCaptureSession()
         session.sessionPreset = .medium // Setup for performance since it's blurred
-        
+
         guard let device = AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: .back),
               let input = try? AVCaptureDeviceInput(device: device) else {
             return controller
         }
-        
+
         if session.canAddInput(input) {
             session.addInput(input)
         }
-        
+
         let previewLayer = AVCaptureVideoPreviewLayer(session: session)
         previewLayer.videoGravity = .resizeAspectFill
         previewLayer.frame = controller.view.bounds
         controller.view.layer.addSublayer(previewLayer)
-        
+
         // Store session and layer in Coordinator
         context.coordinator.session = session
         context.coordinator.previewLayer = previewLayer
-        
+
         // ✅ Listen for stop notification
         NotificationCenter.default.addObserver(
             forName: NSNotification.Name("StopBackgroundCameraSession"),
@@ -1271,28 +1271,28 @@ struct BackgroundCameraView: UIViewControllerRepresentable {
         ) { _ in
             context.coordinator.stopSession()
         }
-        
+
         DispatchQueue.global(qos: .userInitiated).async {
             session.startRunning()
         }
-        
+
         return controller
     }
-    
+
     func updateUIViewController(_ uiViewController: UIViewController, context: Context) {
         if let layer = context.coordinator.previewLayer {
             layer.frame = uiViewController.view.bounds
         }
     }
-    
+
     func makeCoordinator() -> Coordinator {
         Coordinator()
     }
-    
+
     class Coordinator {
         var session: AVCaptureSession?
         var previewLayer: AVCaptureVideoPreviewLayer?
-        
+
         // ✅ Stop session method
         func stopSession() {
             DispatchQueue.global(qos: .userInitiated).async { [weak self] in
@@ -1300,7 +1300,7 @@ struct BackgroundCameraView: UIViewControllerRepresentable {
                 self?.session = nil
             }
         }
-        
+
         deinit {
             NotificationCenter.default.removeObserver(self)
             stopSession()
@@ -1318,37 +1318,37 @@ struct MediaSelectionView: View {
     @Binding var currentFlow: CreatorView.CreatorFlow
     @Binding var showCreatorView: Bool
     var animation: Namespace.ID // ✅ Accept Namespace
-    
+
     @Environment(\.colorScheme) var colorScheme
-    
+
     @State private var mediaAssets: [PHAsset] = []
     @State private var thumbnails: [String: UIImage] = [:]
     @State private var selectedAssetIDs: [String] = []
     @State private var isLoadingLibrary = true
     @State private var showingCamera = false
     @State private var authorizationStatus: PHAuthorizationStatus = .notDetermined
-    
+
     // ✅ Estados para manejo de álbumes
     @State private var availableAlbums: [AlbumInfo] = []
     @State private var selectedAlbum: AlbumInfo?
     @State private var showingAlbumPicker = false
-    
+
     private let imageManager = PHImageManager.default()
     private let thumbnailSize = CGSize(width: 300, height: 300)
-    
+
     // Grid layout mejorado con columnas fijas para mejor control
     private let columns = Array(repeating: GridItem(.flexible(), spacing: 2), count: 3)
-    
+
     var body: some View {
         VStack(spacing: 0) {
             // Header
             headerView
-            
+
             // Preview del archivo seleccionado principal
             if !selectedAssetIDs.isEmpty {
                 mainPreviewSection
             }
-            
+
             // Grid de fotos y videos
             mediaGridSection
         }
@@ -1364,7 +1364,7 @@ struct MediaSelectionView: View {
             }
         }
     }
-    
+
     // MARK: - Header
     private var headerView: some View {
         HStack {
@@ -1377,15 +1377,15 @@ struct MediaSelectionView: View {
                     .frame(width: 40, height: 40)
                     .liquidGlass(in: Circle(), interactive: true)
             }
-            
+
             Spacer()
-            
+
             Text(NSLocalizedString("creator.newMoment", comment: ""))
                 .font(.system(size: 17, weight: .bold))
                 .foregroundColor(colorScheme == .dark ? .white : .black)
-            
+
             Spacer()
-            
+
             if !selectedAssetIDs.isEmpty {
                 GlowSharePill(
                     title: "creator.next",
@@ -1407,14 +1407,14 @@ struct MediaSelectionView: View {
         )
         .zIndex(10)
     }
-    
+
     // MARK: - Preview principal
     private var mainPreviewSection: some View {
         VStack(spacing: 0) {
             // Preview grande del archivo seleccionado
             if let currentAssetID = selectedAssetIDs.last, // Usar el último seleccionado para el preview principal
                let currentAsset = mediaAssets.first(where: { $0.localIdentifier == currentAssetID }) {
-                
+
                 ZStack {
                     // Fondo Cinemático (Blur)
                     if let thumbnail = thumbnails[currentAssetID] {
@@ -1426,7 +1426,7 @@ struct MediaSelectionView: View {
                             .opacity(0.6)
                             .overlay(Color.black.opacity(0.2))
                     }
-                    
+
                     if let thumbnail = thumbnails[currentAssetID] {
                         Image(uiImage: thumbnail)
                             .resizable()
@@ -1439,7 +1439,7 @@ struct MediaSelectionView: View {
                         ProgressView()
                             .tint(.white)
                     }
-                    
+
                     // Indicador de video
                     if currentAsset.mediaType == .video {
                         VStack {
@@ -1461,7 +1461,7 @@ struct MediaSelectionView: View {
                             }
                         }
                     }
-                    
+
                     // Botón para deseleccionar rápido
                     VStack {
                         HStack {
@@ -1480,7 +1480,7 @@ struct MediaSelectionView: View {
                 .clipped()
                 .transition(.asymmetric(insertion: .opacity.combined(with: .scale(scale: 0.95)), removal: .opacity))
             }
-            
+
             // Carrusel de Multiselección
             if selectedAssetIDs.count > 0 {
                 ScrollView(.horizontal, showsIndicators: false) {
@@ -1518,7 +1518,7 @@ struct MediaSelectionView: View {
             }
         }
     }
-    
+
     // MARK: - Grid de medios
     private var mediaGridSection: some View {
         VStack(spacing: 0) {
@@ -1526,7 +1526,7 @@ struct MediaSelectionView: View {
             Rectangle()
                 .fill(Color.gray.opacity(0.3))
                 .frame(height: 1)
-            
+
             // Header con selector de álbum y botón de cámara
             HStack {
                 Button(action: {
@@ -1536,7 +1536,7 @@ struct MediaSelectionView: View {
                         Text(selectedAlbum?.title ?? NSLocalizedString("creator.album.recents", comment: "Recents"))
                             .font(.system(size: 14, weight: .bold))
                             .foregroundColor(colorScheme == .dark ? .white : .black)
-                        
+
                         Image(systemName: "chevron.down")
                             .font(.system(size: 10, weight: .bold))
                             .foregroundColor(colorScheme == .dark ? .white.opacity(0.7) : .black.opacity(0.5))
@@ -1547,9 +1547,9 @@ struct MediaSelectionView: View {
                     .background(colorScheme == .dark ? Color.white.opacity(0.1) : Color.black.opacity(0.05))
                     .clipShape(Capsule())
                 }
-                
+
                 Spacer()
-                
+
                 Button(action: {
                     showingCamera = true
                 }) {
@@ -1571,7 +1571,7 @@ struct MediaSelectionView: View {
             .padding(.horizontal, 16)
             .padding(.vertical, 12)
             .background(colorScheme == .dark ? Color(hex: "0B1215") : Color(hex: "FAF9F6"))
-            
+
             // Grid de fotos
             if isLoadingLibrary {
                 loadingView
@@ -1608,14 +1608,14 @@ struct MediaSelectionView: View {
             )
         }
     }
-    
+
     // MARK: - Loading View
     private var loadingView: some View {
         VStack(spacing: 16) {
             ProgressView()
                 .scaleEffect(1.2)
                 .tint(Color(hex: "007AFF"))
-            
+
                             Text("creator.gallery.loading")
                 .font(.custom("Poppins-Medium", size: 16))
                 .foregroundColor(.gray)
@@ -1623,12 +1623,12 @@ struct MediaSelectionView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .padding(50)
     }
-    
+
     // MARK: - Funciones
-    
+
     private func requestPhotoLibraryAccess() {
         authorizationStatus = PHPhotoLibrary.authorizationStatus(for: .readWrite)
-        
+
         if authorizationStatus == .notDetermined {
             PHPhotoLibrary.requestAuthorization(for: .readWrite) { status in
                 DispatchQueue.main.async {
@@ -1648,17 +1648,17 @@ struct MediaSelectionView: View {
             isLoadingLibrary = false
         }
     }
-    
+
     private func loadAvailableAlbums() {
         var albums: [AlbumInfo] = []
-        
+
         // Álbum "Recientes" (Camera Roll)
         let recentsFetchResult = PHAssetCollection.fetchAssetCollections(
             with: .smartAlbum,
             subtype: .smartAlbumUserLibrary,
             options: nil
         )
-        
+
         recentsFetchResult.enumerateObjects { collection, _, _ in
             let assetCount = PHAsset.fetchAssets(in: collection, options: nil).count
             if assetCount > 0 {
@@ -1670,14 +1670,14 @@ struct MediaSelectionView: View {
                 ))
             }
         }
-        
+
         // Álbumes del usuario
         let userAlbumsFetchResult = PHAssetCollection.fetchAssetCollections(
             with: .album,
             subtype: .any,
             options: nil
         )
-        
+
         userAlbumsFetchResult.enumerateObjects { collection, _, _ in
             let assetCount = PHAsset.fetchAssets(in: collection, options: nil).count
             if assetCount > 0 {
@@ -1689,7 +1689,7 @@ struct MediaSelectionView: View {
                 ))
             }
         }
-        
+
         // Álbumes inteligentes adicionales
         let smartAlbumTypes: [PHAssetCollectionSubtype] = [
             .smartAlbumFavorites,
@@ -1698,14 +1698,14 @@ struct MediaSelectionView: View {
             .smartAlbumVideos,
             .smartAlbumRecentlyAdded
         ]
-        
+
         for subtype in smartAlbumTypes {
             let smartAlbumFetchResult = PHAssetCollection.fetchAssetCollections(
                 with: .smartAlbum,
                 subtype: subtype,
                 options: nil
             )
-            
+
             smartAlbumFetchResult.enumerateObjects { collection, _, _ in
                 let assetCount = PHAsset.fetchAssets(in: collection, options: nil).count
                 if assetCount > 0 {
@@ -1719,20 +1719,20 @@ struct MediaSelectionView: View {
                 }
             }
         }
-        
+
         // Ordenar álbumes
         albums.sort { first, second in
             if first.title == NSLocalizedString("creator.album.recents", comment: "Recents") { return true }
             if second.title == NSLocalizedString("creator.album.recents", comment: "Recents") { return false }
             return first.assetCount > second.assetCount
         }
-        
+
         DispatchQueue.main.async {
             self.availableAlbums = albums
             self.selectedAlbum = albums.first
         }
     }
-    
+
     private func getSmartAlbumTitle(for subtype: PHAssetCollectionSubtype) -> String {
         switch subtype {
         case .smartAlbumFavorites: return NSLocalizedString("creator.album.smart.favorites", comment: "Favorites")
@@ -1743,59 +1743,59 @@ struct MediaSelectionView: View {
         default: return NSLocalizedString("creator.album.default", comment: "Album")
         }
     }
-    
+
     private func loadMediaFromAlbum(_ album: AlbumInfo) {
         isLoadingLibrary = true
         mediaAssets = []
         thumbnails = [:]
         selectedAssetIDs = []
-        
+
         Task {
             let fetchOptions = PHFetchOptions()
             fetchOptions.sortDescriptors = [NSSortDescriptor(key: "creationDate", ascending: false)]
-            
+
             let assets = PHAsset.fetchAssets(in: album.assetCollection, options: fetchOptions)
             var assetArray: [PHAsset] = []
-            
+
             assets.enumerateObjects { asset, _, _ in
                 assetArray.append(asset)
             }
-            
+
             await MainActor.run {
                 self.mediaAssets = assetArray
                 loadThumbnails()
             }
         }
     }
-    
+
     private func loadMediaFromLibrary() {
         isLoadingLibrary = true
-        
+
         Task {
             let fetchOptions = PHFetchOptions()
             fetchOptions.sortDescriptors = [NSSortDescriptor(key: "creationDate", ascending: false)]
             fetchOptions.fetchLimit = 500
-            
+
             let assets = PHAsset.fetchAssets(with: fetchOptions)
             var assetArray: [PHAsset] = []
-            
+
             assets.enumerateObjects { asset, _, _ in
                 assetArray.append(asset)
             }
-            
+
             await MainActor.run {
                 self.mediaAssets = assetArray
                 loadThumbnails()
             }
         }
     }
-    
+
     private func loadThumbnails() {
         let options = PHImageRequestOptions()
         options.deliveryMode = .opportunistic
         options.isNetworkAccessAllowed = false
         options.isSynchronous = false
-        
+
         for asset in mediaAssets.prefix(50) {
             imageManager.requestImage(
                 for: asset,
@@ -1806,7 +1806,7 @@ struct MediaSelectionView: View {
                 if let image = image {
                     DispatchQueue.main.async {
                         self.thumbnails[asset.localIdentifier] = image
-                        
+
                         if self.thumbnails.count == 20 && self.isLoadingLibrary {
                             self.isLoadingLibrary = false
                         }
@@ -1814,13 +1814,13 @@ struct MediaSelectionView: View {
                 }
             }
         }
-        
+
         DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
             if isLoadingLibrary {
                 isLoadingLibrary = false
             }
         }
-        
+
         DispatchQueue.global(qos: .background).async {
             for asset in mediaAssets.dropFirst(50) {
                 imageManager.requestImage(
@@ -1838,10 +1838,10 @@ struct MediaSelectionView: View {
             }
         }
     }
-    
+
     private func toggleAssetSelection(_ asset: PHAsset) {
         let assetID = asset.localIdentifier
-        
+
         if selectedAssetIDs.contains(assetID) {
             selectedAssetIDs.removeAll { $0 == assetID }
         } else {
@@ -1849,17 +1849,17 @@ struct MediaSelectionView: View {
                 selectedAssetIDs.append(assetID)
             }
         }
-        
+
         if thumbnails[assetID] == nil {
             loadHighQualityThumbnail(for: asset)
         }
     }
-    
+
     private func loadHighQualityThumbnail(for asset: PHAsset) {
         let options = PHImageRequestOptions()
         options.deliveryMode = .highQualityFormat
         options.isNetworkAccessAllowed = true
-        
+
         imageManager.requestImage(
             for: asset,
             targetSize: CGSize(width: 500, height: 500),
@@ -1873,21 +1873,21 @@ struct MediaSelectionView: View {
             }
         }
     }
-    
+
     // Reemplaza tu función processSelectedAssets() con esta versión mejorada
 
     private func processSelectedAssets() {
         Task {
             var processedMedia: [ProcessedMedia] = []
-            
+
             for assetID in selectedAssetIDs {
                 guard let asset = mediaAssets.first(where: { $0.localIdentifier == assetID }) else { continue }
-                
+
                 if asset.mediaType == .image {
                     if let image = await loadFullImage(for: asset) {
                         // ✅ Detectar aspect ratio automáticamente
                         let detectedAspectRatio = detectAspectRatio(from: image)
-                        
+
                         let media = CreatorMedia(
                             id: assetID,
                             image: image,
@@ -1900,12 +1900,12 @@ struct MediaSelectionView: View {
                     }
                 } else if asset.mediaType == .video {
                     let (thumbnail, videoURL) = await loadFullVideo(for: asset)
-                    
+
                     let finalImage = thumbnail ?? createVideoPlaceholder()
-                    
+
                     // ✅ Detectar aspect ratio del video
                     let detectedAspectRatio = detectAspectRatio(from: finalImage)
-                    
+
                     let media = ProcessedMedia(
                         id: assetID,
                         image: finalImage,
@@ -1917,15 +1917,15 @@ struct MediaSelectionView: View {
                     processedMedia.append(media)
                 }
             }
-            
+
             await MainActor.run {
                 selectedMediaItems = processedMedia
-                
+
                 // ✅ NUEVA LÓGICA: Determinar flujo basado en tipo de medios
                 let hasImages = processedMedia.contains { $0.type == .image }
                 let hasVideos = processedMedia.contains { $0.type == .video }
-                
-                
+
+
                 if hasVideos && !hasImages {
                     // Solo videos: ir al editor de videos
                     currentFlow = .videoEditing
@@ -1946,45 +1946,45 @@ struct MediaSelectionView: View {
     // ✅ FUNCIÓN AUXILIAR: Validar videos antes de continuar
     private func validateSelectedMedia() {
         let videoItems = selectedMediaItems.filter { $0.type == .video }
-        
+
         for (index, videoItem) in videoItems.enumerated() {
             if videoItem.videoURL == nil {
             } else {
             }
         }
     }
-    
+
     // ✅ NUEVA FUNCIÓN: Detectar aspect ratio automáticamente SOLO para momentos
     // Reemplaza tu función detectAspectRatio en MediaSelectionView con esta versión mejorada
 
     private func detectAspectRatio(from image: UIImage) -> CreatorMedia.AspectRatio {
         let imageRatio = image.size.width / image.size.height
-        
+
         // ✅ MEJORADO: Tolerancia más amplia (15%) para detectar mejor ratios comunes
         let tolerance: CGFloat = 0.15
-        
+
         // ✅ MEJORADO: Detectar ratios específicos con mayor precisión y tolerancia
-        
+
         // 9:16 (Stories/Reels) - ratio ≈ 0.5625
         if abs(imageRatio - 0.5625) < tolerance {
             return .nineBySixteen
         }
-        
+
         // 4:5 (Portrait posts) - ratio = 0.8
         if abs(imageRatio - 0.8) < tolerance {
             return .portrait
         }
-        
+
         // 1:1 (Square) - ratio = 1.0
         if abs(imageRatio - 1.0) < tolerance {
             return .square
         }
-        
+
         // 16:9 (Landscape) - ratio ≈ 1.777
         if abs(imageRatio - 1.777) < tolerance {
             return .landscape
         }
-        
+
         // ✅ MEJORADO: Detección por rangos más precisos y amplios
         // Rangos ajustados para cubrir más casos comunes
         if imageRatio < 0.65 {
@@ -2005,14 +2005,14 @@ struct MediaSelectionView: View {
         }
     }
 
-    
+
     private func loadFullImage(for asset: PHAsset) async -> UIImage? {
         return await withCheckedContinuation { continuation in
             let options = PHImageRequestOptions()
             options.deliveryMode = .highQualityFormat
             options.isNetworkAccessAllowed = true
             options.isSynchronous = false
-            
+
             imageManager.requestImage(
                 for: asset,
                 targetSize: PHImageManagerMaximumSize,
@@ -2023,63 +2023,63 @@ struct MediaSelectionView: View {
             }
         }
     }
-    
+
     private func loadFullVideo(for asset: PHAsset) async -> (UIImage?, URL?) {
-        
+
         // Cargar thumbnail del video
         let thumbnail = await loadFullImage(for: asset)
-        
+
         // ✅ MÉTODO MEJORADO: Solicitar video con opciones específicas
         let videoURL: URL? = await withCheckedContinuation { continuation in
             let options = PHVideoRequestOptions()
             options.isNetworkAccessAllowed = true
             options.deliveryMode = .highQualityFormat
             options.version = .current // Usar versión actual, no la original
-            
-            
+
+
             PHImageManager.default().requestAVAsset(forVideo: asset, options: options) { avAsset, audioMix, info in
-                
-                
+
+
                 // Verificar si es degraded (baja calidad)
                 if let isDegraded = info?[PHImageResultIsDegradedKey] as? Bool, isDegraded {
                     return // Esperar la versión de alta calidad
                 }
-                
+
                 // Verificar si hay error
                 if let error = info?[PHImageErrorKey] as? Error {
                     continuation.resume(returning: nil)
                     return
                 }
-                
+
                 // Verificar si necesita descargar de iCloud
                 if let needsDownload = info?[PHImageResultIsInCloudKey] as? Bool, needsDownload {
                     // Ya configuramos isNetworkAccessAllowed = true
                     return
                 }
-                
+
                 // Extraer URL del AVAsset
                 guard let urlAsset = avAsset as? AVURLAsset else {
                     continuation.resume(returning: nil)
                     return
                 }
-                
+
                 let videoURL = urlAsset.url
-                
+
                 // Verificar tamaño del archivo
                 do {
                     let fileAttributes = try FileManager.default.attributesOfItem(atPath: videoURL.path)
                     let fileSize = fileAttributes[FileAttributeKey.size] as? Int64 ?? 0
                 } catch {
                 }
-                
+
                 continuation.resume(returning: videoURL)
             }
         }
-        
+
         if let videoURL = videoURL {
         } else {
         }
-        
+
         return (thumbnail, videoURL)
     }
 
@@ -2088,7 +2088,7 @@ struct MediaSelectionView: View {
         let options = PHVideoRequestOptions()
         options.isNetworkAccessAllowed = false // Solo check local
         options.deliveryMode = .fastFormat
-        
+
         PHImageManager.default().requestAVAsset(forVideo: asset, options: options) { avAsset, audioMix, info in
             DispatchQueue.main.async {
                 if let error = info?[PHImageErrorKey] as? Error {
@@ -2098,13 +2098,13 @@ struct MediaSelectionView: View {
             }
         }
     }
-    
+
     private func createVideoPlaceholder() -> UIImage {
         let renderer = UIGraphicsImageRenderer(size: CGSize(width: 300, height: 300))
         return renderer.image { context in
             UIColor.systemGray3.setFill()
             context.fill(CGRect(origin: .zero, size: CGSize(width: 300, height: 300)))
-            
+
             let videoIcon = "▶️"
             let attributes: [NSAttributedString.Key: Any] = [
                 .font: UIFont.systemFont(ofSize: 60),
@@ -2120,37 +2120,37 @@ struct MediaSelectionView: View {
             videoIcon.draw(in: textRect, withAttributes: attributes)
         }
     }
-    
+
     private func formatDuration(_ duration: TimeInterval) -> String {
         let minutes = Int(duration) / 60
         let seconds = Int(duration) % 60
         return String(format: "%d:%02d", minutes, seconds)
     }
-    
+
     // MARK: - Permission Denied View (con instrucciones opcionales)
     private var permissionDeniedView: some View {
         VStack(spacing: 24) {
             Image(systemName: "photo.on.rectangle")
                 .font(.system(size: 60))
                 .foregroundColor(colorScheme == .dark ? .gray : .gray.opacity(0.6))
-            
+
             Text("creator.gallery.permission")
                 .font(.custom("Poppins-Medium", size: 16))
                 .foregroundColor(colorScheme == .dark ? .white : .black)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 40)
-            
+
             // ✅ Instrucciones opcionales para el usuario
             VStack(spacing: 12) {
                 Text("creator.permissions.instructions.title")
                     .font(.custom("Poppins-SemiBold", size: 14))
                     .foregroundColor(colorScheme == .dark ? .white : .black)
-                
+
                 Text("creator.permissions.instructions.path")
                     .font(.custom("Poppins-Regular", size: 12))
                     .foregroundColor(colorScheme == .dark ? .gray : .gray.opacity(0.7))
                     .multilineTextAlignment(.center)
-                
+
                 Button("creator.permissions.openSettings") {
                     if let settingsUrl = URL(string: UIApplication.openSettingsURLString) {
                         UIApplication.shared.open(settingsUrl)
@@ -2181,7 +2181,7 @@ struct AlbumInfo: Identifiable, Equatable {
     let title: String
     let assetCollection: PHAssetCollection
     let assetCount: Int
-    
+
     static func == (lhs: AlbumInfo, rhs: AlbumInfo) -> Bool {
         return lhs.id == rhs.id
     }
@@ -2192,21 +2192,21 @@ struct AlbumPickerView: View {
     let albums: [AlbumInfo]
     let selectedAlbum: AlbumInfo?
     let onAlbumSelected: (AlbumInfo) -> Void
-    
+
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) var colorScheme
     @State private var albumThumbnails: [String: UIImage] = [:]
-    
+
     private let imageManager = PHImageManager.default()
-    
+
     var body: some View {
         VStack(spacing: 0) {
             // ✅ Header compacto y elegante
             headerView
-            
+
             // ✅ Lista de álbumes
             albumListView
-            
+
             // ✅ Botón cerrar elegante
             cancelButton
         }
@@ -2235,7 +2235,7 @@ struct AlbumPickerView: View {
         .presentationBackground(.clear)
         .transition(.move(edge: .bottom).combined(with: .opacity))
     }
-    
+
     // ✅ Header compacto sin padding extra
     private var headerView: some View {
         VStack(spacing: 0) {
@@ -2245,7 +2245,7 @@ struct AlbumPickerView: View {
                 .frame(width: 36, height: 5)
                 .padding(.top, 8)
                 .padding(.bottom, 16)
-            
+
             // Título centrado
             Text(NSLocalizedString("creator.album.select", comment: "Select Album"))
                 .font(.system(size: 18, weight: .bold))
@@ -2253,7 +2253,7 @@ struct AlbumPickerView: View {
                 .padding(.bottom, 20)
         }
     }
-    
+
     // ✅ Lista de álbumes con scroll
     private var albumListView: some View {
         ScrollView {
@@ -2276,7 +2276,7 @@ struct AlbumPickerView: View {
             .padding(.vertical, 16)
         }
     }
-    
+
     // ✅ Botón cancelar elegante
     private var cancelButton: some View {
         Button(NSLocalizedString("common.cancel", comment: "Cancel")) {
@@ -2299,20 +2299,20 @@ struct AlbumPickerView: View {
         .padding(.horizontal, 20)
         .padding(.bottom, 30)
     }
-    
+
     private func loadAlbumThumbnail(for album: AlbumInfo) {
         let fetchOptions = PHFetchOptions()
         fetchOptions.fetchLimit = 1
         fetchOptions.sortDescriptors = [NSSortDescriptor(key: "creationDate", ascending: false)]
-        
+
         let assets = PHAsset.fetchAssets(in: album.assetCollection, options: fetchOptions)
-        
+
         guard let firstAsset = assets.firstObject else { return }
-        
+
         let options = PHImageRequestOptions()
         options.deliveryMode = .opportunistic
         options.isNetworkAccessAllowed = false
-        
+
         imageManager.requestImage(
             for: firstAsset,
             targetSize: CGSize(width: 150, height: 150),
@@ -2334,9 +2334,9 @@ struct AlbumRowView: View {
     let thumbnail: UIImage?
     let isSelected: Bool
     let onTap: () -> Void
-    
+
     @Environment(\.colorScheme) var colorScheme
-    
+
     var body: some View {
         Button(action: onTap) {
             HStack(spacing: 16) {
@@ -2345,7 +2345,7 @@ struct AlbumRowView: View {
                     RoundedRectangle(cornerRadius: 8)
                         .fill(Color.gray.opacity(0.3))
                         .frame(width: 60, height: 60)
-                    
+
                     if let thumbnail = thumbnail {
                         Image(uiImage: thumbnail)
                             .resizable()
@@ -2358,22 +2358,22 @@ struct AlbumRowView: View {
                             .foregroundColor(.gray)
                     }
                 }
-                
+
                 // Info del álbum
                 VStack(alignment: .leading, spacing: 4) {
                     Text(album.title)
                         .font(.custom("Poppins-SemiBold", size: 16))
                         .foregroundColor(colorScheme == .dark ? .white : .black)
                         .frame(maxWidth: .infinity, alignment: .leading)
-                    
+
                     Text(String(format: NSLocalizedString("creator.album.elements", comment: "Album elements"), album.assetCount))
                         .font(.custom("Poppins-Regular", size: 14))
                         .foregroundColor(.gray.opacity(0.8))
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
-                
+
                 Spacer()
-                
+
                 // Indicador de selección
                 if isSelected {
                     Image(systemName: "checkmark.circle.fill")
@@ -2400,7 +2400,7 @@ struct MediaGridCell: View {
     let isSelected: Bool
     let selectionNumber: Int?
     let onTap: () -> Void
-    
+
     var body: some View {
         Button(action: onTap) {
             ZStack {
@@ -2428,11 +2428,11 @@ struct MediaGridCell: View {
                     Rectangle()
                         .fill(Color.gray.opacity(0.3))
                         .aspectRatio(1, contentMode: .fit)
-                    
+
                     ProgressView()
                         .tint(Color(hex: "00A896"))
                 }
-                
+
                 // Overlay de selección
                 if isSelected {
                     Color.pink.opacity(0.3)
@@ -2441,7 +2441,7 @@ struct MediaGridCell: View {
                                 .stroke(Color.pink, lineWidth: 3)
                         )
                 }
-                
+
                 // Indicador de video
                 if asset.mediaType == .video {
                     VStack {
@@ -2461,7 +2461,7 @@ struct MediaGridCell: View {
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
                 }
-                
+
                 // Número de selección
                 VStack {
                     HStack {
@@ -2472,7 +2472,7 @@ struct MediaGridCell: View {
                                     .fill(LinearGradient(colors: [.purple, .pink], startPoint: .topLeading, endPoint: .bottomTrailing))
                                     .frame(width: 22, height: 22)
                                     .shadow(radius: 2)
-                                
+
                                 Text("\(number)")
                                     .font(.system(size: 12, weight: .bold))
                                     .foregroundColor(.white)
@@ -2492,7 +2492,7 @@ struct MediaGridCell: View {
         }
         .buttonStyle(PlainButtonStyle())
     }
-    
+
     private func formatDuration(_ duration: TimeInterval) -> String {
         let minutes = Int(duration) / 60
         let seconds = Int(duration) % 60
@@ -2505,29 +2505,29 @@ struct MediaEditingView: View {
     @Binding var selectedMediaItems: [CreatorMedia]
     @Binding var currentFlow: CreatorView.CreatorFlow
     @Binding var showCreatorView: Bool
-    
+
     @Environment(\.colorScheme) var colorScheme
-    
+
     @State private var currentMediaIndex = 0
     @State private var showingCropView = false
     @State private var showingFilterToolbar = false // Nueva flag para el modo edición filtros
     @State private var appliedFilters: [String: FilterSettings] = [:]
-    
+
     // Filtro temporal para el modo edición (antes de aplicar)
     @State private var tempFilterType: FilterService.FilterType = .normal
     @State private var tempFilterIntensity: Double = 1.0
     @State private var previewImage: UIImage? = nil
     @State private var filterTask: Task<Void, Never>? = nil
-    
+
     // ✅ NUEVO: Aspect ratio recomendado (detectado automáticamente de la imagen original)
     private var recommendedAspectRatio: CreatorMedia.AspectRatio {
         guard currentMediaIndex < selectedMediaItems.count else { return .square }
         // Usar el aspect ratio recomendado guardado, o el actual si no hay recomendado
         return selectedMediaItems[currentMediaIndex].recommendedAspectRatio ?? selectedMediaItems[currentMediaIndex].aspectRatio
     }
-    
+
     var body: some View {
-            
+
             VStack(spacing: 0) {
                 // Header (Branded)
                 HStack {
@@ -2543,15 +2543,15 @@ struct MediaEditingView: View {
                                 .background(Color.white.opacity(0.1))
                                 .clipShape(Capsule())
                         }
-                        
+
                         Spacer()
-                        
+
                         Text(NSLocalizedString("creator.edit", comment: ""))
                             .font(.custom("Poppins-SemiBold", size: 18))
                             .foregroundColor(.white)
-                        
+
                         Spacer()
-                        
+
                         Button(action: {
                             applyFilter()
                         }) {
@@ -2573,16 +2573,16 @@ struct MediaEditingView: View {
                                 .padding(10)
                                 .liquidGlass(in: Circle(), interactive: true)
                         }
-                        
+
                         Spacer()
-                        
+
                         Text(NSLocalizedString("creator.edit", comment: ""))
                             .font(.custom("Poppins-SemiBold", size: 18))
                             .foregroundColor(.white)
                             .shadow(color: .black.opacity(0.5), radius: 5)
-                        
+
                         Spacer()
-                        
+
                         GlowSharePill(title: "creator.next", icon: "arrow.right", isLoading: false) {
                             currentFlow = .captionAndDetails
                         }
@@ -2592,9 +2592,9 @@ struct MediaEditingView: View {
                 .background(
                     LinearGradient(colors: [.black.opacity(0.6), .clear], startPoint: .top, endPoint: .bottom)
                 )
-                
+
                 Spacer()
-                
+
                 // Media preview (con aspecto mejorado)
                 ZStack {
                     TabView(selection: $currentMediaIndex) {
@@ -2618,7 +2618,7 @@ struct MediaEditingView: View {
                     }
                     .tabViewStyle(PageTabViewStyle(indexDisplayMode: .never))
                     .frame(maxHeight: UIScreen.main.bounds.height * 0.6)
-                    
+
                     // Recommended Dimensions badge
                     VStack {
                         if recommendedAspectRatio != .square || (currentMediaIndex < selectedMediaItems.count && selectedMediaItems[currentMediaIndex].aspectRatio != recommendedAspectRatio) {
@@ -2635,9 +2635,9 @@ struct MediaEditingView: View {
                         Spacer()
                     }
                 }
-                
+
                 Spacer()
-                
+
                 // Bottom Area: Thumbnails, Format and Tools
                 VStack(spacing: 0) {
                     if showingFilterToolbar {
@@ -2655,7 +2655,7 @@ struct MediaEditingView: View {
                                             .font(.system(size: 11, weight: .bold))
                                             .foregroundColor(.pink)
                                     }
-                                    
+
                                     Slider(value: $tempFilterIntensity, in: 0...1)
                                         .tint(.pink)
                                         .onChange(of: tempFilterIntensity) { _ in
@@ -2664,7 +2664,7 @@ struct MediaEditingView: View {
                                 }
                                 .padding(.horizontal, 25)
                             }
-                            
+
                             // Filter Carousel
                             ScrollView(.horizontal, showsIndicators: false) {
                                 HStack(spacing: 15) {
@@ -2711,7 +2711,7 @@ struct MediaEditingView: View {
                                                     .clipShape(RoundedRectangle(cornerRadius: 12))
                                                     .opacity(currentMediaIndex == index ? 1.0 : 0.6)
                                                     .scaleEffect(currentMediaIndex == index ? 1.05 : 0.95)
-                                                
+
                                                 if currentMediaIndex == index {
                                                     RoundedRectangle(cornerRadius: 12)
                                                         .stroke(
@@ -2727,7 +2727,7 @@ struct MediaEditingView: View {
                             }
                             .frame(height: 60)
                             .padding(.bottom, 15)
-                            
+
                             // Controls Row
                             HStack(spacing: 0) {
                                 // Aspect ratio selector
@@ -2751,7 +2751,7 @@ struct MediaEditingView: View {
                                                         width: ratio == .landscape ? 35 : (ratio == .square ? 25 : 20),
                                                         height: 25
                                                     )
-                                                
+
                                                 Text(ratio.displayName)
                                                     .font(.system(size: 8, weight: .medium))
                                                     .foregroundColor(selectedMediaItems[currentMediaIndex].aspectRatio == ratio ? .pink : .white.opacity(0.6))
@@ -2760,13 +2760,13 @@ struct MediaEditingView: View {
                                     }
                                 }
                                 .padding(.leading, 20)
-                                
+
                                 Spacer()
-                                
+
                                 // Editing tools (Glassmorphic)
                                 HStack(spacing: 12) {
                                     ToolIconButton(icon: "crop.rotate") { showingCropView = true }
-                                    ToolIconButton(icon: "paintbrush") {
+                                    ToolIconButton(icon: "camera.filters") {
                                         enterFilterMode()
                                     }
                                 }
@@ -2803,7 +2803,7 @@ struct MediaEditingView: View {
                 let aspectRatioToUse = currentAspectRatio == .square && recommendedAspectRatio != .square
                     ? recommendedAspectRatio
                     : currentAspectRatio
-                
+
                 CropViewWrapper(
                     image: selectedMediaItems[currentMediaIndex].image,
                     aspectRatio: aspectRatioToUse,
@@ -2818,13 +2818,13 @@ struct MediaEditingView: View {
             }
         }
     }
-    
+
     // MARK: - Filter Logic Integration
-    
+
     private func enterFilterMode() {
         guard currentMediaIndex < selectedMediaItems.count else { return }
         let currentItem = selectedMediaItems[currentMediaIndex]
-        
+
         // Cargar ajustes actuales si existen
         if let settings = appliedFilters[currentItem.id],
            let type = FilterService.FilterType(rawValue: settings.name) {
@@ -2834,13 +2834,13 @@ struct MediaEditingView: View {
             tempFilterType = .normal
             tempFilterIntensity = 1.0
         }
-        
+
         withAnimation(.spring()) {
             showingFilterToolbar = true
         }
         updatePreviewTask()
     }
-    
+
     private func cancelFilter() {
         filterTask?.cancel()
         withAnimation(.spring()) {
@@ -2848,46 +2848,51 @@ struct MediaEditingView: View {
             previewImage = nil
         }
     }
-    
+
     private func applyFilter() {
         guard currentMediaIndex < selectedMediaItems.count else { return }
         let currentItemId = selectedMediaItems[currentMediaIndex].id
-        
+
         // Guardar ajustes
         let settings = FilterSettings(name: tempFilterType.rawValue, intensity: tempFilterIntensity)
         appliedFilters[currentItemId] = settings
-        
+
         // Aplicar permanentemente a la imagen de la lista si no es normal
         if let preview = previewImage {
             selectedMediaItems[currentMediaIndex].image = preview
             selectedMediaItems[currentMediaIndex].hasEdits = true
         }
-        
+
         withAnimation(.spring()) {
             showingFilterToolbar = false
             previewImage = nil
         }
     }
-    
+
     private func updatePreviewTask() {
         guard currentMediaIndex < selectedMediaItems.count else { return }
         let baseImage = selectedMediaItems[currentMediaIndex].image
-        
+
         filterTask?.cancel()
-        
+
         if tempFilterType == .normal {
             previewImage = nil
             return
         }
-        
+
+        let tempFilterType = self.tempFilterType
+        let tempFilterIntensity = self.tempFilterIntensity
+
         filterTask = Task.detached(priority: .userInitiated) {
+            try? await Task.sleep(nanoseconds: 45_000_000)
+
+            if Task.isCancelled { return }
+
             let filtered = FilterService.shared.applyFilter(tempFilterType, to: baseImage, intensity: tempFilterIntensity)
-            
+
             if !Task.isCancelled {
                 await MainActor.run {
-                    withAnimation(.linear(duration: 0.1)) {
-                        self.previewImage = filtered
-                    }
+                    self.previewImage = filtered
                 }
             }
         }
@@ -2897,7 +2902,7 @@ struct MediaEditingView: View {
 // MARK: - Media Stack Preview
 struct MediaStackPreview: View {
     let items: [CreatorMedia]
-    
+
     var body: some View {
         ZStack {
             ForEach(Array(items.prefix(3).enumerated().reversed()), id: \.element.id) { index, item in
@@ -2927,15 +2932,15 @@ struct CaptionAndDetailsView: View {
     @Binding var locationName: String
     @Binding var currentFlow: CreatorView.CreatorFlow
     @Binding var showCreatorView: Bool
-    
+
     // Total tags across all media
     private var totalTagsCount: Int {
         selectedMediaItems.reduce(0) { $0 + ($1.tags?.count ?? 0) }
     }
-    
+
     @Environment(\.colorScheme) var colorScheme
     @StateObject private var uploadService = BackgroundMomentUploadService.shared
-    
+
     @State private var isPublishing = false
     @State private var showingUserSearch = false
     @State private var showingLocationPicker = false
@@ -2943,28 +2948,28 @@ struct CaptionAndDetailsView: View {
     @State private var audienceSetting: AudienceSetting = .everyone
     @State private var customViewers: [String] = []
     @State private var customListId: String? = nil
-    
+
     // Interaction Settings (from AdvancedSettingsView)
     @AppStorage("disableComments") private var disableComments = false
     @AppStorage("hideLikeCounts") private var hideLikeCounts = false
     @AppStorage("allowSharing") private var allowSharing = true
-    
+
     // Scheduling (New)
     @State private var isSchedulingEnabled = false
     @State private var scheduledDate = Date().addingTimeInterval(3600) // Default to 1 hour from now
-    
+
     // New variables for custom lists
     @State private var selectedListId: String?
     @State private var selectedListName: String?
     @State private var customSelectedUsers: [String] = []
-    
+
     @FocusState private var isCaptionFocused: Bool
     @State private var isLaunching = false // 🔥 Control para la animación de lanzamiento
     @State private var isPreviewingMedia = false
     @State private var showingTagSelector = false
     @State private var currentMediaTagIndex = 0
     @State private var tagSelectorDetent: PresentationDetent = .large
-    
+
     enum AudienceSetting {
         case everyone
         case mutuals
@@ -2972,7 +2977,7 @@ struct CaptionAndDetailsView: View {
         case bestFriends
         case custom
         case onlyMe
-        
+
         var title: String {
             switch self {
             case .everyone: return NSLocalizedString("audience.type.everyone", comment: "Everyone audience type")
@@ -2983,7 +2988,7 @@ struct CaptionAndDetailsView: View {
             case .onlyMe: return NSLocalizedString("audience.type.onlyMe", comment: "Only me audience type")
             }
         }
-        
+
         var icon: String {
             switch self {
             case .everyone: return "globe"
@@ -2995,7 +3000,7 @@ struct CaptionAndDetailsView: View {
             }
         }
     }
-    
+
     // New function to map AudienceSetting to ContentAudience
     func toContentAudience() -> ContentAudience {
         switch audienceSetting {
@@ -3007,14 +3012,14 @@ struct CaptionAndDetailsView: View {
         case .onlyMe: return .onlyMe
         }
     }
-    
+
     var body: some View {
         NavigationView {
             ZStack {
                 // 1. Immersive Background (Mosaic Blur)
                 SelectedMediaBlurView(mediaItems: selectedMediaItems)
                     .ignoresSafeArea()
-                
+
                 VStack(spacing: 0) {
                     // Header
                     HStack {
@@ -3027,25 +3032,25 @@ struct CaptionAndDetailsView: View {
                                 .padding(10)
                                 .liquidGlass(in: Circle(), interactive: true)
                         }
-                        
+
                         Spacer()
-                        
+
                         Text("creator.newMoment")
                             .font(.headline)
                             .foregroundColor(.white)
-                        
+
                         Spacer()
-                        
+
                         GlowSharePill(title: "creator.share", isLoading: isPublishing, action: {
                             publishMoment()
                         })
                     }
                     .padding()
 
-                    
+
                     ScrollView {
                         VStack(spacing: 15) { // Tight spacing to bring options right under
-                            
+
                             // SECTION 1: Caption & Media Preview
                             HStack(alignment: .top, spacing: 30) { // Aumentado spacing de 20 a 30
                                 // Media Preview with "Press to Unfold" gesture
@@ -3061,7 +3066,7 @@ struct CaptionAndDetailsView: View {
                                         }) {
                                             // Action on complete
                                         }
-                                    
+
                                     // Helper hint
                                     if !isPreviewingMedia {
                                         Text("creator.media_preview.hint")
@@ -3075,7 +3080,7 @@ struct CaptionAndDetailsView: View {
                                             .allowsHitTesting(false)
                                     }
                                 }
-                                
+
                                 // Caption Input
                                 ZStack(alignment: .topLeading) {
                                     if captionText.isEmpty {
@@ -3083,7 +3088,7 @@ struct CaptionAndDetailsView: View {
                                             .foregroundColor(.white.opacity(0.6))
                                             .padding(.top, 8)
                                     }
-                                    
+
                                     TextEditor(text: $captionText)
                                         .scrollContentBackground(.hidden)
                                         .foregroundColor(.white)
@@ -3095,7 +3100,7 @@ struct CaptionAndDetailsView: View {
                             }
                             .padding(.horizontal)
                             .padding(.top, 10) // Tighter top spacing from header
-                            
+
                             // SECTION 2: Options List
                             VStack(spacing: 0) {
                                 // Tag people
@@ -3111,9 +3116,9 @@ struct CaptionAndDetailsView: View {
                                     }
                                     showingTagSelector = true
                                 }
-                                
+
                                 Divider().background(Color.white.opacity(0.1)).padding(.leading, 50)
-                                
+
                                 // Add location
                                 MinimalOptionRow(
                                     icon: "location",
@@ -3122,9 +3127,9 @@ struct CaptionAndDetailsView: View {
                                 ) {
                                     showingLocationPicker = true
                                 }
-                                
+
                                 Divider().background(Color.white.opacity(0.1)).padding(.leading, 50)
-                                
+
                                 // Audience
                                 MinimalOptionRow(
                                     icon: getAudienceIcon(),
@@ -3133,13 +3138,13 @@ struct CaptionAndDetailsView: View {
                                 ) {
                                     showingAudience = true
                                 }
-                                
+
                                 Divider().background(Color.white.opacity(0.1)).padding(.leading, 50)
-                                
+
                                 // Advanced settings removed (moved to quick access)
                             }
                             .padding(.top, 10) // Pull options closer to preview
-                            
+
                             // SECTION 3: Interaction Settings (Quick Access)
                             VStack(spacing: 0) {
                                 Text("creator.interactions.title")
@@ -3148,23 +3153,23 @@ struct CaptionAndDetailsView: View {
                                     .frame(maxWidth: .infinity, alignment: .leading)
                                     .padding(.leading, 16)
                                     .padding(.bottom, 8)
-                                
+
                                 MinimalToggleRow(
                                     icon: "bubble.left.and.bubble.right",
                                     title: NSLocalizedString("creator.interactions.disableComments", comment: ""),
                                     isOn: $disableComments
                                 )
-                                
+
                                 Divider().background(Color.white.opacity(0.1)).padding(.leading, 50)
-                                
+
                                 MinimalToggleRow(
                                     icon: "heart.slash",
                                     title: NSLocalizedString("creator.visualization.hideReactions", comment: ""),
                                     isOn: $hideLikeCounts
                                 )
-                                
+
                                 Divider().background(Color.white.opacity(0.1)).padding(.leading, 50)
-                                
+
                                 MinimalToggleRow(
                                     icon: "bookmark",
                                     title: NSLocalizedString("creator.interactions.allowSharing", comment: ""),
@@ -3172,7 +3177,7 @@ struct CaptionAndDetailsView: View {
                                 )
                             }
                             .padding(.top, 25)
-                            
+
                             // SECTION 4: Scheduling
                             VStack(spacing: 0) {
                                 Text("creator.scheduling.title")
@@ -3181,21 +3186,21 @@ struct CaptionAndDetailsView: View {
                                     .frame(maxWidth: .infinity, alignment: .leading)
                                     .padding(.leading, 16)
                                     .padding(.bottom, 8)
-                                
+
                                 MinimalToggleRow(
                                     icon: "calendar.badge.clock",
                                     title: NSLocalizedString("creator.scheduling.enable", comment: ""),
                                     isOn: $isSchedulingEnabled
                                 )
-                                
+
                                 if isSchedulingEnabled {
                                     Divider().background(Color.white.opacity(0.1)).padding(.leading, 50)
-                                    
+
                                     HStack {
                                         Image(systemName: "clock")
                                             .foregroundColor(.white.opacity(0.7))
                                             .frame(width: 24)
-                                        
+
                                         DatePicker(
                                             NSLocalizedString("creator.scheduling.date", comment: ""),
                                             selection: $scheduledDate,
@@ -3205,9 +3210,9 @@ struct CaptionAndDetailsView: View {
                                         .colorScheme(.dark)
                                         .accentColor(.pink)
                                         .labelsHidden()
-                                        
+
                                         Spacer()
-                                        
+
                                         Text(scheduledDate.formatted())
                                             .font(.subheadline)
                                             .foregroundColor(.white.opacity(0.7))
@@ -3225,23 +3230,23 @@ struct CaptionAndDetailsView: View {
                     if isPublishing && !isLaunching {
                         Color.black.opacity(0.6)
                             .ignoresSafeArea()
-                        
+
                         VStack(spacing: 20) {
                             ProgressView()
                                 .scaleEffect(1.5)
                                 .tint(.white)
-                            
+
                             Text("creator.publishing")
                                 .font(.headline)
                                 .foregroundColor(.white)
                         }
                     }
-                    
+
                     // 🔥 OVERLAY DE LANZAMIENTO (Cinematic Handoff)
                     if isLaunching {
                         ZStack {
                             Color.black.ignoresSafeArea()
-                            
+
                             VStack(spacing: 24) {
                                 Text(NSLocalizedString("creator.uploading.success_fly", comment: "Successfully shared"))
                                     .font(.system(size: 20, weight: .bold, design: .rounded))
@@ -3250,14 +3255,14 @@ struct CaptionAndDetailsView: View {
                         }
                         .transition(.opacity)
                     }
-                    
+
                     // Full Screen Media Preview Overlay
                     if isPreviewingMedia {
                         Color.black.opacity(0.6)
                             .ignoresSafeArea()
                             .transition(.opacity)
                             .zIndex(99)
-                        
+
                         TabView {
                             ForEach(selectedMediaItems) { item in
                                 Image(uiImage: item.image)
@@ -3310,27 +3315,27 @@ struct CaptionAndDetailsView: View {
             loadDefaultPostAudience()
         }
     }
-    
+
     // ✅ FUNCIÓN ACTUALIZADA: Publicar momento con soporte para listas
     private func publishMoment() {
         guard let userId = Auth.auth().currentUser?.uid else { return }
-        
+
         isPublishing = true
-        
+
         // Use local properties (managed by @AppStorage)
         let finalDisableComments = disableComments
         let finalHideLikeCounts = hideLikeCounts
         let finalAllowSharing = allowSharing
         let finalScheduledDate = isSchedulingEnabled ? scheduledDate : nil
-        
-        
+
+
         let detectedAspectRatio = preferredMomentAspectRatio(for: selectedMediaItems)
-        
+
         // 🔥 USAR EL SERVICIO DE BACKGROUND UPLOAD
         // Combinar etiquetas espaciales con la lista legacy para notificaciones y búsquedas
         let spatialTaggedUsers = selectedMediaItems.flatMap { $0.tags ?? [] }.map { $0.userId }
         let allTaggedUsers = Array(Set(taggedUsers + spatialTaggedUsers))
-        
+
         let uploadingMoment = uploadService.uploadMoment(
             content: captionText,
             mediaItems: selectedMediaItems,
@@ -3349,29 +3354,29 @@ struct CaptionAndDetailsView: View {
             allowSharing: finalAllowSharing,
             scheduledDate: finalScheduledDate
         )
-        
+
         // 🔥 CERRAR PANTALLA CON ANIMACIÓN CINEMÁTICA
         withAnimation(.spring(response: 0.6, dampingFraction: 0.8)) {
             self.isLaunching = true
         }
-        
+
         hapticNotification(.success)
-        
+
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
             self.isPublishing = false
             self.showCreatorView = false
-            
+
             if uploadingMoment != nil {
                 // 🧹 Limpiar formulario para próximo uso
                 self.resetForm()
-                
+
                 // 📊 Analytics
-                
+
             } else {
                 // ❌ Feedback háptico de error
                 let notificationFeedback = UINotificationFeedbackGenerator()
                 notificationFeedback.notificationOccurred(.error)
-                
+
                 // Revertir estado si falló el inicio del servicio
                 withAnimation {
                     self.isLaunching = false
@@ -3407,7 +3412,7 @@ struct CaptionAndDetailsView: View {
 
         return mostVerticalRatio.displayName
     }
-    
+
     // 🧹 NUEVA FUNCIÓN: Limpiar formulario después de publicar
     private func resetForm() {
         captionText = ""
@@ -3421,7 +3426,7 @@ struct CaptionAndDetailsView: View {
     }
 
     // MediaStackPreview eliminado (reemplazado por imagen grande inline)
-    
+
     // ✅ FUNCIONES AUXILIARES RESTAURADAS
     private func getAudienceIcon() -> String {
         if audienceSetting == .custom && selectedListId != nil {
@@ -3429,7 +3434,7 @@ struct CaptionAndDetailsView: View {
         }
         return audienceSetting.icon
     }
-    
+
     private func getAudienceText() -> String {
         if audienceSetting == .custom {
             if let listName = selectedListName {
@@ -3440,7 +3445,7 @@ struct CaptionAndDetailsView: View {
         }
         return audienceSetting.title
     }
-    
+
     private func convertToContentAudience() -> Binding<ContentAudience> {
         Binding<ContentAudience>(
             get: {
@@ -3466,7 +3471,7 @@ struct CaptionAndDetailsView: View {
             }
         )
     }
-    
+
     private func updateAudienceSetting() {
         guard let userId = Auth.auth().currentUser?.uid else { return }
 
@@ -3529,13 +3534,13 @@ struct CaptionAndDetailsView: View {
     }
 
     // MARK: - 📍 MINIMAL OPTION ROW (Clean Design)
-    
+
     struct MinimalOptionRow: View {
         let icon: String
         let title: String
         let value: String?
         let action: () -> Void
-        
+
         var body: some View {
             Button(action: action) {
                 MinimalOptionRowContent(icon: icon, title: title, value: value)
@@ -3548,7 +3553,7 @@ struct CaptionAndDetailsView: View {
         let icon: String
         let title: String
         @Binding var isOn: Bool
-        
+
         var body: some View {
             HStack(spacing: 16) {
                 // Icon
@@ -3556,13 +3561,13 @@ struct CaptionAndDetailsView: View {
                     .font(.system(size: 20))
                     .foregroundColor(.white)
                     .frame(width: 32)
-                
+
                 Text(title)
                     .font(.system(size: 16, weight: .medium))
                     .foregroundColor(.white)
-                
+
                 Spacer()
-                
+
                 Toggle("", isOn: $isOn)
                     .labelsHidden()
                     .tint(.pink)
@@ -3572,12 +3577,12 @@ struct CaptionAndDetailsView: View {
             .contentShape(Rectangle())
         }
     }
-    
+
     struct MinimalOptionRowContent: View {
         let icon: String
         let title: String
         let value: String?
-        
+
         var body: some View {
             HStack(spacing: 16) {
                 // Icon
@@ -3585,19 +3590,19 @@ struct CaptionAndDetailsView: View {
                     .font(.system(size: 20))
                     .foregroundColor(.white)
                     .frame(width: 32)
-                
+
                 Text(title)
                     .font(.system(size: 16, weight: .medium))
                     .foregroundColor(.white)
-                
+
                 Spacer()
-                
+
                 if let value = value {
                     Text(value)
                         .font(.system(size: 15))
                         .foregroundColor(.white.opacity(0.7))
                 }
-                
+
                 Image(systemName: "chevron.right")
                     .font(.system(size: 14, weight: .bold))
                     .foregroundColor(.white.opacity(0.3))
@@ -3620,7 +3625,7 @@ extension CreatorMedia.AspectRatio {
         default: self = .square // Default fallback
         }
     }
-    
+
     // ✅ NOTA: La función fromRatio está definida dentro del enum AspectRatio (línea 78)
     // para usar la lógica mejorada de detección con tolerancia y rangos más precisos
 }
@@ -3630,7 +3635,7 @@ struct StoryCameraView: View {
     @Binding var selectedMediaItems: [CreatorMedia]
     @Binding var currentFlow: CreatorView.CreatorFlow
     @Binding var showCreatorView: Bool
-    
+
     @State private var showingGallery = false
     @State private var cameraPosition: AVCaptureDevice.Position = .back
     @State private var flashMode: AVCaptureDevice.FlashMode = .off
@@ -3641,7 +3646,7 @@ struct StoryCameraView: View {
     @State private var lastZoomLevel: CGFloat = 1.0
     @State private var capturePhotoTrigger = false
     @State private var lastGalleryImage: UIImage?
-    
+
     var body: some View {
         ZStack {
             // Camera preview
@@ -3669,7 +3674,7 @@ struct StoryCameraView: View {
                         lastZoomLevel = zoomLevel
                     }
             )
-            
+
             // Controls overlay
             VStack {
                 // Top controls
@@ -3683,9 +3688,9 @@ struct StoryCameraView: View {
                             .padding()
                             .liquidGlass(in: Circle(), interactive: true)
                     }
-                    
+
                     Spacer()
-                    
+
                     // Flash button
                     Button(action: {
                         toggleFlash()
@@ -3699,77 +3704,83 @@ struct StoryCameraView: View {
                     }
                 }
                 .padding()
-                
+
                 Spacer()
-                
-                // Recording indicator
-                if isRecording {
-                    HStack {
-                        Circle()
-                            .fill(Color.red)
-                            .frame(width: 10, height: 10)
-                            .scaleEffect(1.0)
-                            .animation(.easeInOut(duration: 0.5).repeatForever(), value: isRecording)
-                        
-                        Text(formatTime(recordingDuration))
-                            .font(.system(size: 16, weight: .medium))
-                            .foregroundColor(.white)
-                    }
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 8)
-                    .background(Color.black.opacity(0.5))
-                    .cornerRadius(20)
-                }
-                
+
                 Spacer()
-                
+
                 // Bottom controls
-                HStack(alignment: .center, spacing: 50) {
-                    // Gallery button with last image preview
-                    Button(action: {
-                        showingGallery = true
-                    }) {
-                        if let lastImage = lastGalleryImage {
-                            Image(uiImage: lastImage)
-                                .resizable()
-                                .aspectRatio(contentMode: .fill)
-                                .frame(width: 40, height: 40)
-                                .clipShape(RoundedRectangle(cornerRadius: 8))
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 8)
-                                        .stroke(Color.white, lineWidth: 2)
-                                )
-                        } else {
-                            RoundedRectangle(cornerRadius: 8)
-                                .fill(Color.white)
-                                .frame(width: 40, height: 40)
-                                .overlay(
-                                    Image(systemName: "photo")
-                                        .foregroundColor(.black)
-                                )
+                VStack(spacing: 12) {
+                    ZStack {
+                        if isRecording {
+                            HStack(spacing: 8) {
+                                Circle()
+                                    .fill(Color.red)
+                                    .frame(width: 10, height: 10)
+                                    .scaleEffect(1.0)
+                                    .animation(.easeInOut(duration: 0.5).repeatForever(), value: isRecording)
+
+                                Text(formatTime(recordingDuration))
+                                    .font(.system(size: 16, weight: .medium))
+                                    .foregroundColor(.white)
+                            }
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 8)
+                            .background(Color.black.opacity(0.5))
+                            .cornerRadius(20)
                         }
                     }
-                    
-                    // Capture button
-                    CaptureButton(
-                        isRecording: $isRecording,
-                        onTap: {
-                            takePhoto()
-                        },
-                        onLongPressStart: { startRecording() },
-                        onLongPressEnd: { stopRecording() }
-                    )
-                    
-                    // Switch camera button
-                    Button(action: {
-                        switchCamera()
-                    }) {
-                        Image(systemName: "arrow.triangle.2.circlepath.camera")
-                            .font(.title2)
-                            .foregroundColor(.white)
-                            .frame(width: 40, height: 40)
-                            .background(Color.black.opacity(0.3))
-                            .clipShape(Circle())
+                    .frame(height: 36)
+
+                    HStack(alignment: .bottom, spacing: 50) {
+                        // Gallery button with last image preview
+                        Button(action: {
+                            showingGallery = true
+                        }) {
+                            if let lastImage = lastGalleryImage {
+                                Image(uiImage: lastImage)
+                                    .resizable()
+                                    .aspectRatio(contentMode: .fill)
+                                    .frame(width: 40, height: 40)
+                                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 8)
+                                            .stroke(Color.white, lineWidth: 2)
+                                    )
+                            } else {
+                                RoundedRectangle(cornerRadius: 8)
+                                    .fill(Color.white)
+                                    .frame(width: 40, height: 40)
+                                    .overlay(
+                                        Image(systemName: "photo")
+                                            .foregroundColor(.black)
+                                    )
+                            }
+                        }
+                        .padding(.bottom, 20)
+
+                        // Capture button
+                        CaptureButton(
+                            isRecording: $isRecording,
+                            onTap: {
+                                takePhoto()
+                            },
+                            onLongPressStart: { startRecording() },
+                            onLongPressEnd: { stopRecording() }
+                        )
+
+                        // Switch camera button
+                        Button(action: {
+                            switchCamera()
+                        }) {
+                            Image(systemName: "arrow.triangle.2.circlepath.camera")
+                                .font(.title2)
+                                .foregroundColor(.white)
+                                .frame(width: 40, height: 40)
+                                .background(Color.black.opacity(0.3))
+                                .clipShape(Circle())
+                        }
+                        .padding(.bottom, 20)
                     }
                 }
                 .padding(.bottom, 50)
@@ -3790,7 +3801,7 @@ struct StoryCameraView: View {
             stopRecording()
         }
     }
-    
+
     private var flashIcon: String {
         switch flashMode {
         case .off: return "bolt.slash"
@@ -3799,7 +3810,7 @@ struct StoryCameraView: View {
         @unknown default: return "bolt.slash"
         }
     }
-    
+
     private func toggleFlash() {
         switch flashMode {
         case .off: flashMode = .on
@@ -3808,7 +3819,7 @@ struct StoryCameraView: View {
         @unknown default: flashMode = .off
         }
     }
-    
+
     private func switchCamera() {
         withAnimation(.easeInOut(duration: 0.3)) {
             cameraPosition = cameraPosition == .back ? .front : .back
@@ -3817,24 +3828,24 @@ struct StoryCameraView: View {
             lastZoomLevel = 1.0
         }
     }
-    
+
     private func takePhoto() {
         capturePhotoTrigger.toggle()
     }
-    
+
     private func startRecording() {
         isRecording = true
         recordingDuration = 0
         startRecordingTimer()
     }
-    
+
     private func stopRecording() {
         guard isRecording else { return }
         isRecording = false
         recordingTimer?.invalidate()
         recordingTimer = nil
     }
-    
+
     private func startRecordingTimer() {
         recordingTimer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { _ in
             recordingDuration += 0.1
@@ -3843,13 +3854,13 @@ struct StoryCameraView: View {
             }
         }
     }
-    
+
     private func formatTime(_ time: TimeInterval) -> String {
         let minutes = Int(time) / 60
         let seconds = Int(time) % 60
         return String(format: "%d:%02d", minutes, seconds)
     }
-    
+
     private func setupAudioSession() {
         do {
             let session = AVAudioSession.sharedInstance()
@@ -3858,7 +3869,7 @@ struct StoryCameraView: View {
         } catch {
         }
     }
-    
+
     private func handleCapturedImage(_ image: UIImage) {
         let processedMedia = CreatorMedia(
             id: UUID().uuidString,
@@ -3871,18 +3882,18 @@ struct StoryCameraView: View {
         selectedMediaItems = [processedMedia]
         currentFlow = .storyEditing
     }
-    
+
     private func handleCapturedVideo(_ videoURL: URL) {
         // Generate thumbnail from video
         let asset = AVAsset(url: videoURL)
         let generator = AVAssetImageGenerator(asset: asset)
         generator.appliesPreferredTrackTransform = true
-        
+
         Task {
             do {
                 let cgImage = try generator.copyCGImage(at: .zero, actualTime: nil)
                 let thumbnail = UIImage(cgImage: cgImage)
-                
+
                 await MainActor.run {
                     let processedMedia = CreatorMedia(
                         id: UUID().uuidString,
@@ -3899,7 +3910,7 @@ struct StoryCameraView: View {
             }
         }
     }
-    
+
     private func loadLastGalleryImage() {
         // ✅ Cargar la última imagen de la galería en background
         Task {
@@ -3907,15 +3918,15 @@ struct StoryCameraView: View {
                 let fetchOptions = PHFetchOptions()
                 fetchOptions.sortDescriptors = [NSSortDescriptor(key: "creationDate", ascending: false)]
                 fetchOptions.fetchLimit = 1
-                
+
                 let fetchResult = PHAsset.fetchAssets(with: .image, options: fetchOptions)
-                
+
                 if let lastAsset = fetchResult.firstObject {
                     let manager = PHImageManager.default()
                     let options = PHImageRequestOptions()
                     options.deliveryMode = .fastFormat
                     options.isSynchronous = false
-                    
+
                     manager.requestImage(
                         for: lastAsset,
                         targetSize: CGSize(width: 120, height: 120),
@@ -3939,16 +3950,16 @@ struct CaptureButton: View {
     let onTap: () -> Void
     let onLongPressStart: () -> Void
     let onLongPressEnd: () -> Void
-    
+
     @State private var isPressed = false
     @State private var longPressTimer: Timer?
-    
+
     var body: some View {
         ZStack {
             Circle()
                 .stroke(Color.white, lineWidth: 4)
                 .frame(width: 80, height: 80)
-            
+
             Circle()
                 .fill(isRecording ? Color.red : Color.white)
                 .frame(width: isPressed ? 60 : 70, height: isPressed ? 60 : 70)
@@ -3973,12 +3984,12 @@ struct CaptureButton: View {
                 }
                 .onEnded { _ in
                     isPressed = false
-                    
+
                     // Cancel timer if it hasn't fired yet
                     if let timer = longPressTimer {
                         timer.invalidate()
                         longPressTimer = nil
-                        
+
                         // If we were recording, stop it, otherwise take photo
                         if isRecording {
                             onLongPressEnd()
@@ -3999,166 +4010,193 @@ struct CaptureButton: View {
 // MARK: - Camera Preview View Implementation
 class CameraPreviewView: UIView {
     weak var delegate: CameraPreviewRepresentable.Coordinator?
-    
+
     private var captureSession: AVCaptureSession?
     private var videoPreviewLayer: AVCaptureVideoPreviewLayer?
     private var photoOutput: AVCapturePhotoOutput?
     private var movieOutput: AVCaptureMovieFileOutput?
     private var currentCamera: AVCaptureDevice?
     private var currentCameraInput: AVCaptureDeviceInput?
+    private var currentAudioInput: AVCaptureDeviceInput?
     private var currentPosition: AVCaptureDevice.Position = .back
     private var currentFlashMode: AVCaptureDevice.FlashMode = .off
     private var currentZoom: CGFloat = 1.0
-    
+    private var captureEventInteraction: AVCaptureEventInteraction?
+
     var isCurrentlyRecording: Bool {
         return movieOutput?.isRecording ?? false
     }
-    
+
     override init(frame: CGRect) {
         super.init(frame: frame)
+        configureHardwareCaptureInteraction()
         setupCamera()
     }
-    
+
     required init?(coder: NSCoder) {
         super.init(coder: coder)
+        configureHardwareCaptureInteraction()
         setupCamera()
     }
-    
+
     override func layoutSubviews() {
         super.layoutSubviews()
         videoPreviewLayer?.frame = bounds
     }
-    
+
+    override func didMoveToWindow() {
+        super.didMoveToWindow()
+    }
+
+    private func configureHardwareCaptureInteraction() {
+        let interaction = AVCaptureEventInteraction { [weak self] event in
+            guard event.phase == .ended else { return }
+            self?.handleHardwareCapturePress()
+        }
+        addInteraction(interaction)
+        captureEventInteraction = interaction
+    }
+
     private func setupCamera() {
         // Request camera permission first
         AVCaptureDevice.requestAccess(for: .video) { [weak self] granted in
             guard granted else {
                 return
             }
-            
-            DispatchQueue.global(qos: .userInitiated).async {
-                self?.configureCaptureSession()
+
+            AVCaptureDevice.requestAccess(for: .audio) { _ in
+                DispatchQueue.global(qos: .userInitiated).async {
+                    self?.configureCaptureSession()
+                }
             }
         }
     }
-    
+
     private func configureCaptureSession() {
         guard captureSession == nil else { return }
-        
+
         let session = AVCaptureSession()
         session.sessionPreset = .high
-        
+
         // Setup camera input
         guard let camera = AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: currentPosition),
               let input = try? AVCaptureDeviceInput(device: camera) else {
             return
         }
-        
+
         currentCamera = camera
         currentCameraInput = input
-        
+
         if session.canAddInput(input) {
             session.addInput(input)
         }
-        
+
+        if AVCaptureDevice.authorizationStatus(for: .audio) == .authorized,
+           let microphone = AVCaptureDevice.default(for: .audio),
+           let audioInput = try? AVCaptureDeviceInput(device: microphone),
+           session.canAddInput(audioInput) {
+            session.addInput(audioInput)
+            currentAudioInput = audioInput
+        }
+
         // Setup photo output
         let photoOutput = AVCapturePhotoOutput()
         if session.canAddOutput(photoOutput) {
             session.addOutput(photoOutput)
             self.photoOutput = photoOutput
         }
-        
+
         // Setup video output
         let movieOutput = AVCaptureMovieFileOutput()
         if session.canAddOutput(movieOutput) {
             session.addOutput(movieOutput)
-            
+
             // Configure video settings
             if let connection = movieOutput.connection(with: .video) {
                 if connection.isVideoStabilizationSupported {
                     connection.preferredVideoStabilizationMode = .auto
                 }
             }
-            
+
             self.movieOutput = movieOutput
         }
-        
+
         self.captureSession = session
-        
+
         // ✅ UI setup en main thread
         DispatchQueue.main.async { [weak self] in
             self?.setupPreviewLayer()
-            
+
             // ✅ Heavy camera operation en background thread
             DispatchQueue.global(qos: .userInitiated).async {
                 session.startRunning()
             }
         }
     }
-    
+
     private func setupPreviewLayer() {
         guard let session = captureSession else { return }
-        
+
         let previewLayer = AVCaptureVideoPreviewLayer(session: session)
         previewLayer.frame = bounds
         previewLayer.videoGravity = .resizeAspectFill
-        
+
         layer.addSublayer(previewLayer)
         self.videoPreviewLayer = previewLayer
     }
-    
+
     func updateCameraPosition(_ position: AVCaptureDevice.Position) {
         guard position != currentPosition else { return }
         currentPosition = position
-        
+
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
             self?.switchCamera(to: position)
         }
     }
-    
+
     private func switchCamera(to position: AVCaptureDevice.Position) {
         guard let session = captureSession else { return }
-        
+
         session.beginConfiguration()
-        
+
         // Remove current input
         if let currentInput = currentCameraInput {
             session.removeInput(currentInput)
         }
-        
+
         // Add new input
         guard let newCamera = AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: position),
               let newInput = try? AVCaptureDeviceInput(device: newCamera) else {
             session.commitConfiguration()
             return
         }
-        
+
         if session.canAddInput(newInput) {
             session.addInput(newInput)
             currentCamera = newCamera
             currentCameraInput = newInput
         }
-        
+
         session.commitConfiguration()
-        
+
         // Reset zoom
         currentZoom = 1.0
         updateCameraZoom(1.0)
     }
-    
+
     func updateFlashMode(_ mode: AVCaptureDevice.FlashMode) {
         currentFlashMode = mode
     }
-    
+
     func updateZoom(_ level: CGFloat) {
         guard abs(level - currentZoom) > 0.1 else { return }
         currentZoom = level
         updateCameraZoom(level)
     }
-    
+
     private func updateCameraZoom(_ level: CGFloat) {
         guard let camera = currentCamera else { return }
-        
+
         do {
             try camera.lockForConfiguration()
             let maxZoom = min(camera.activeFormat.videoMaxZoomFactor, 5.0)
@@ -4167,17 +4205,17 @@ class CameraPreviewView: UIView {
         } catch {
         }
     }
-    
+
     func capturePhoto() {
         guard let photoOutput = photoOutput else { return }
-        
+
         // ✅ CONFIGURACIÓN SEGURA DE ALTA CALIDAD
         let settings = AVCapturePhotoSettings()
-        
+
         // ✅ VERIFICAR Y CONFIGURAR CALIDAD SEGÚN LOS LÍMITES DEL DISPOSITIVO
         if #available(iOS 13.0, *) {
             let maxQuality = photoOutput.maxPhotoQualityPrioritization
-            
+
             // Solo usar la calidad que el dispositivo permite
             if maxQuality == .quality {
                 settings.photoQualityPrioritization = .quality
@@ -4187,27 +4225,35 @@ class CameraPreviewView: UIView {
                 settings.photoQualityPrioritization = .speed
             }
         }
-        
+
         settings.flashMode = currentFlashMode
-        
+
         photoOutput.capturePhoto(with: settings, delegate: self)
     }
-    
+
     func startRecording() {
         guard let movieOutput = movieOutput,
               !movieOutput.isRecording else { return }
-        
+
         let outputURL = createTempVideoURL()
         movieOutput.startRecording(to: outputURL, recordingDelegate: self)
     }
-    
+
     func stopRecording() {
         guard let movieOutput = movieOutput,
               movieOutput.isRecording else { return }
-        
+
         movieOutput.stopRecording()
     }
-    
+
+    private func handleHardwareCapturePress() {
+        if isCurrentlyRecording {
+            stopRecording()
+        } else {
+            capturePhoto()
+        }
+    }
+
     private func createTempVideoURL() -> URL {
         let documentsPath = FileManager.default.temporaryDirectory
         let fileName = "story_video_\(Date().timeIntervalSince1970).mov"
@@ -4222,18 +4268,18 @@ struct CropViewWrapper: UIViewControllerRepresentable {
     let allowFreeCrop: Bool // ✅ NUEVO: Permitir crop libre (no bloquear ratio)
     let onComplete: (UIImage, CreatorMedia.AspectRatio) -> Void
     @Environment(\.dismiss) private var dismiss
-    
+
     init(image: UIImage, aspectRatio: CreatorMedia.AspectRatio, allowFreeCrop: Bool = false, onComplete: @escaping (UIImage, CreatorMedia.AspectRatio) -> Void) {
         self.image = image
         self.aspectRatio = aspectRatio
         self.allowFreeCrop = allowFreeCrop
         self.onComplete = onComplete
     }
-    
+
     func makeUIViewController(context: Context) -> UINavigationController {
         let cropViewController = TOCropViewController(croppingStyle: .default, image: image)
         cropViewController.delegate = context.coordinator
-        
+
         // ✅ MEJORADO: Set aspect ratio basado en selección, pero permitir ajuste libre si allowFreeCrop es true
         if allowFreeCrop {
             // ✅ NUEVO: No bloquear el aspect ratio, solo sugerirlo como inicial
@@ -4265,10 +4311,10 @@ struct CropViewWrapper: UIViewControllerRepresentable {
                 cropViewController.aspectRatioLockEnabled = true
             }
         }
-        
+
         cropViewController.rotateButtonsHidden = false
         cropViewController.resetButtonHidden = false
-        
+
         // Style the crop controller
         cropViewController.toolbar.tintColor = UIColor.white
         cropViewController.toolbar.backgroundColor = UIColor.black.withAlphaComponent(0.8)
@@ -4276,28 +4322,28 @@ struct CropViewWrapper: UIViewControllerRepresentable {
             titleLabel.textColor = UIColor.white
         }
         cropViewController.view.backgroundColor = UIColor.black
-        
+
         let navController = UINavigationController(rootViewController: cropViewController)
         navController.navigationBar.barStyle = UIBarStyle.black
         navController.navigationBar.tintColor = UIColor.white
         navController.modalPresentationStyle = .fullScreen
-        
+
         return navController
     }
-    
+
     func updateUIViewController(_ uiViewController: UINavigationController, context: Context) {}
-    
+
     func makeCoordinator() -> Coordinator {
         Coordinator(self)
     }
-    
+
     class Coordinator: NSObject, TOCropViewControllerDelegate {
         let parent: CropViewWrapper
-        
+
         init(_ parent: CropViewWrapper) {
             self.parent = parent
         }
-        
+
         func cropViewController(_ cropViewController: TOCropViewController, didCropTo image: UIImage, with cropRect: CGRect, angle: Int) {
             // ✅ NUEVO: Si allowFreeCrop es true, detectar el aspect ratio final de la imagen recortada
             let finalAspectRatio: CreatorMedia.AspectRatio
@@ -4309,11 +4355,11 @@ struct CropViewWrapper: UIViewControllerRepresentable {
                 // Usar el aspect ratio que estaba bloqueado
                 finalAspectRatio = parent.aspectRatio
             }
-            
+
             parent.onComplete(image, finalAspectRatio)
             parent.dismiss()
         }
-        
+
         func cropViewControllerDidCancel(_ cropViewController: TOCropViewController) {
             parent.dismiss()
         }
@@ -4326,9 +4372,9 @@ struct FilterOption: View {
     let filter: FilterService.FilterType
     let isSelected: Bool
     let onTap: () -> Void
-    
+
     @State private var previewImage: UIImage? = nil
-    
+
     var body: some View {
         Button(action: onTap) {
             VStack(spacing: 8) {
@@ -4344,7 +4390,7 @@ struct FilterOption: View {
                             .frame(width: 80, height: 100)
                             .clipShape(RoundedRectangle(cornerRadius: 12))
                     }
-                    
+
                     if isSelected {
                         RoundedRectangle(cornerRadius: 12)
                             .stroke(
@@ -4356,7 +4402,7 @@ struct FilterOption: View {
                 }
                 .frame(width: 80, height: 100) // Constrain ZStack height
                 .shadow(color: isSelected ? .pink.opacity(0.3) : .clear, radius: 8)
-                
+
                 Text(filter.rawValue)
                     .font(.system(size: 11, weight: isSelected ? .bold : .medium))
                     .foregroundColor(isSelected ? .white : .gray)
@@ -4366,7 +4412,7 @@ struct FilterOption: View {
             generatePreview()
         }
     }
-    
+
     private func generatePreview() {
         // Generate a small thumbnail for the carousel to save memory
         let size = CGSize(width: 100, height: 120) // Swapped to match new aspect ratio
@@ -4374,7 +4420,7 @@ struct FilterOption: View {
         let thumb = renderer.image { _ in
             image.draw(in: CGRect(origin: .zero, size: size))
         }
-        
+
         Task.detached(priority: .background) {
             let filtered = FilterService.shared.applyFilterToThumbnail(filter, to: thumb)
             await MainActor.run {
@@ -4391,14 +4437,14 @@ struct FilterOption: View {
 struct UserSearchView: View {
     @Binding var selectedUsers: [String]
     @Environment(\.dismiss) private var dismiss
-    
+
     @State private var searchText = ""
     @State private var searchResults: [AppUser] = []
     @State private var isSearching = false
     @State private var selectedUserIds = Set<String>()
-    
+
     private let firestoreService = FirestoreService()
-    
+
     var body: some View {
         NavigationView {
             VStack(spacing: 0) {
@@ -4406,14 +4452,14 @@ struct UserSearchView: View {
                 HStack {
                     Image(systemName: "magnifyingglass")
                         .foregroundColor(.gray)
-                    
+
                     TextField(NSLocalizedString("creator.tag.search", comment: ""), text: $searchText)
                         .textFieldStyle(PlainTextFieldStyle())
                         .foregroundColor(.white)
                         .onChange(of: searchText) { _, newValue in
                             searchUsers(query: newValue)
                         }
-                    
+
                     if !searchText.isEmpty {
                         Button(action: {
                             searchText = ""
@@ -4428,7 +4474,7 @@ struct UserSearchView: View {
                 .background(Color.gray.opacity(0.2))
                 .cornerRadius(10)
                 .padding()
-                
+
                 // Selected users
                 if !selectedUserIds.isEmpty {
                     ScrollView(.horizontal, showsIndicators: false) {
@@ -4445,7 +4491,7 @@ struct UserSearchView: View {
                     }
                     .padding(.bottom, 10)
                 }
-                
+
                 // Search results
                 if isSearching {
                     HStack {
@@ -4469,7 +4515,7 @@ struct UserSearchView: View {
                         }
                     }
                 }
-                
+
                 Spacer()
             }
             .background(Color.black)
@@ -4482,7 +4528,7 @@ struct UserSearchView: View {
                     }
                     .foregroundColor(.white)
                 }
-                
+
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button(NSLocalizedString("creator.tag.done", comment: "")) {
                         selectedUsers = Array(selectedUserIds)
@@ -4500,19 +4546,19 @@ struct UserSearchView: View {
             loadSuggestions()
         }
     }
-    
+
     private func searchUsers(query: String) {
         guard !query.isEmpty else {
             loadSuggestions()
             return
         }
-        
+
         isSearching = true
-        
+
         firestoreService.searchUsers(query: query, limit: 10) { result in
             DispatchQueue.main.async {
                 self.isSearching = false
-                
+
                 switch result {
                 case .success(let users):
                     self.searchResults = users
@@ -4522,12 +4568,12 @@ struct UserSearchView: View {
             }
         }
     }
-    
+
     private func loadSuggestions() {
         // Load suggested users
         searchResults = []
     }
-    
+
     private func toggleUserSelection(_ user: AppUser) {
         if selectedUserIds.contains(user.id) {
             selectedUserIds.remove(user.id)
@@ -4541,7 +4587,7 @@ struct UserSearchRow: View {
     let user: AppUser
     let isSelected: Bool
     let onTap: () -> Void
-    
+
     var body: some View {
         Button(action: onTap) {
             HStack(spacing: 12) {
@@ -4550,7 +4596,7 @@ struct UserSearchRow: View {
                     Circle()
                         .fill(Color.gray.opacity(0.3))
                         .frame(width: 44, height: 44)
-                    
+
                     if let imagePath = user.profileImagePath {
                         // AsyncImage for profile
                         Image(systemName: "person.fill")
@@ -4560,12 +4606,12 @@ struct UserSearchRow: View {
                             .foregroundColor(.gray)
                     }
                 }
-                
+
                 VStack(alignment: .leading, spacing: 2) {
                     Text(user.username)
                         .font(.system(size: 16, weight: .medium))
                         .foregroundColor(.white)
-                    
+
                     if let bio = user.bio, !bio.isEmpty {
                         Text(bio)
                             .font(.caption)
@@ -4573,9 +4619,9 @@ struct UserSearchRow: View {
                             .lineLimit(1)
                     }
                 }
-                
+
                 Spacer()
-                
+
                 Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
                     .foregroundColor(isSelected ? .blue : .gray)
                     .font(.title2)
@@ -4589,13 +4635,13 @@ struct UserSearchRow: View {
 struct SelectedUserChip: View {
     let user: AppUser
     let onRemove: () -> Void
-    
+
     var body: some View {
         HStack(spacing: 6) {
             Text(user.username)
                 .font(.caption)
                 .foregroundColor(.white)
-            
+
             Button(action: onRemove) {
                 Image(systemName: "xmark.circle.fill")
                     .font(.caption)
@@ -4616,7 +4662,7 @@ struct LocationPickerView: View {
     @Binding var locationName: String
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) private var colorScheme
-    
+
     @State private var searchText = ""
     @State private var region = MKCoordinateRegion(
         center: CLLocationCoordinate2D(latitude: 41.3874, longitude: 2.1686), // Barcelona por defecto
@@ -4628,13 +4674,13 @@ struct LocationPickerView: View {
     @State private var nearbyPlaces: [MKMapItem] = []
     @State private var isRequestingLocation = false
     @State private var locationError: String?
-    
+
     @StateObject private var locationManager = LocationUtilities.shared
-    
+
     private var adaptiveColors: AdaptiveColors {
         AdaptiveColors(colorScheme: colorScheme)
     }
-    
+
     var body: some View {
         NavigationView {
             VStack(spacing: 0) {
@@ -4642,14 +4688,14 @@ struct LocationPickerView: View {
                 HStack {
                     Image(systemName: "magnifyingglass")
                         .foregroundColor(adaptiveColors.secondary)
-                    
+
                     TextField(NSLocalizedString("creator.location.search", comment: ""), text: $searchText)
                         .textFieldStyle(PlainTextFieldStyle())
                         .foregroundColor(adaptiveColors.primary)
                         .onSubmit {
                             searchLocation()
                         }
-                    
+
                     if !searchText.isEmpty {
                         Button(action: {
                             searchText = ""
@@ -4664,7 +4710,7 @@ struct LocationPickerView: View {
                 .padding(.vertical, 12)
                 .liquidGlass(in: Capsule(), interactive: true)
                 .padding()
-                
+
                 // Map
                 Map(coordinateRegion: $region, annotationItems: selectedLocation != nil ? [LocationAnnotation(coordinate: selectedLocation!)] : []) { location in
                     MapMarker(coordinate: location.coordinate, tint: .blue)
@@ -4672,7 +4718,7 @@ struct LocationPickerView: View {
                 .frame(height: 200)
                 .cornerRadius(10)
                 .padding(.horizontal)
-                
+
                 // Current location button
                 HStack {
                     Button(action: {
@@ -4693,7 +4739,7 @@ struct LocationPickerView: View {
                         .padding(.vertical, 8)
                     }
                     .disabled(isRequestingLocation)
-                    
+
                     // Botón para actualizar ubicación si ya tenemos permisos
                     if locationManager.authorizationStatus == .authorizedWhenInUse ||
                        locationManager.authorizationStatus == .authorizedAlways {
@@ -4710,12 +4756,12 @@ struct LocationPickerView: View {
                         }
                         .disabled(isRequestingLocation)
                     }
-                    
+
                     Spacer()
                 }
                 .padding(.horizontal)
                 .padding(.top, 8)
-                
+
                 // Error message
                 if let error = locationError {
                     HStack {
@@ -4729,7 +4775,7 @@ struct LocationPickerView: View {
                     .padding(.horizontal)
                     .padding(.bottom, 8)
                 }
-                
+
                 // Places list
                 if isSearching {
                     Spacer()
@@ -4750,7 +4796,7 @@ struct LocationPickerView: View {
                                     .padding(.top, 20)
                                     .padding(.bottom, 10)
                             }
-                            
+
                             ForEach(showingNearbyPlaces ? nearbyPlaces : searchResults, id: \.self) { place in
                                 LocationRow(place: place) {
                                     selectLocation(place)
@@ -4783,7 +4829,7 @@ struct LocationPickerView: View {
                             .foregroundColor(adaptiveColors.primary)
                     }
                 }
-                
+
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button(NSLocalizedString("creator.tag.done", comment: "")) {
                         dismiss()
@@ -4806,10 +4852,10 @@ struct LocationPickerView: View {
             if let location = location, isRequestingLocation {
                 let coordinate = location.coordinate
                 selectedLocation = coordinate
-                
+
                 // Usar geocoding inverso para obtener el nombre real de la ubicación
                 getLocationNameFromCoordinates(coordinate)
-                
+
                 withAnimation {
                     region.center = coordinate
                 }
@@ -4824,41 +4870,41 @@ struct LocationPickerView: View {
             }
         }
     }
-    
+
     private func searchLocation() {
         guard !searchText.isEmpty else { return }
-        
+
         isSearching = true
         showingNearbyPlaces = false
-        
+
         // Usar ubicación del usuario si está disponible, si no usar la región del mapa
         let searchRegion = locationManager.currentLocation != nil ?
             MKCoordinateRegion(
                 center: locationManager.currentLocation!.coordinate,
                 span: MKCoordinateSpan(latitudeDelta: 0.1, longitudeDelta: 0.1)
             ) : region
-        
+
         let request = MKLocalSearch.Request()
         request.naturalLanguageQuery = searchText
         request.region = searchRegion
         request.resultTypes = [.pointOfInterest, .address] // Incluir direcciones y POIs
-        
+
         let search = MKLocalSearch(request: request)
         search.start { response, error in
             DispatchQueue.main.async {
                 isSearching = false
-                
+
                 if let response = response {
                     // Ordenar resultados por relevancia y distancia
                     let sortedResults = response.mapItems.sorted { item1, item2 in
                         // Priorizar lugares con nombre
                         let hasName1 = item1.name != nil && !item1.name!.isEmpty
                         let hasName2 = item2.name != nil && !item2.name!.isEmpty
-                        
+
                         if hasName1 != hasName2 {
                             return hasName1
                         }
-                        
+
                         // Si ambos tienen nombre, priorizar por tipo (POI primero)
                         if hasName1 && hasName2 {
                             let isPOI1 = item1.pointOfInterestCategory != nil
@@ -4867,10 +4913,10 @@ struct LocationPickerView: View {
                                 return isPOI1
                             }
                         }
-                        
+
                         return true
                     }
-                    
+
                     searchResults = sortedResults
                 } else {
                     searchResults = []
@@ -4878,11 +4924,11 @@ struct LocationPickerView: View {
             }
         }
     }
-    
+
     private func loadNearbyPlaces() {
         // Priorizar ubicación del usuario, luego ubicación seleccionada, luego región por defecto
         let centerCoordinate: CLLocationCoordinate2D
-        
+
         if let currentLocation = locationManager.currentLocation {
             centerCoordinate = currentLocation.coordinate
         } else if let selectedLocation = selectedLocation {
@@ -4890,12 +4936,12 @@ struct LocationPickerView: View {
         } else {
             centerCoordinate = region.center
         }
-        
+
         let searchRegion = MKCoordinateRegion(
             center: centerCoordinate,
             span: MKCoordinateSpan(latitudeDelta: 0.05, longitudeDelta: 0.05)
         )
-        
+
         // Búsqueda más específica para lugares útiles
         let searchQueries = [
             "restaurantes",
@@ -4909,22 +4955,22 @@ struct LocationPickerView: View {
             "estaciones de metro",
             "bibliotecas"
         ]
-        
+
         var allPlaces: [MKMapItem] = []
         let group = DispatchGroup()
-        
+
         for query in searchQueries.prefix(5) { // Solo usar los primeros 5 para no sobrecargar
             group.enter()
-            
+
             let request = MKLocalSearch.Request()
             request.naturalLanguageQuery = query
             request.region = searchRegion
             request.resultTypes = .pointOfInterest
-            
+
             let search = MKLocalSearch(request: request)
             search.start { response, error in
                 defer { group.leave() }
-                
+
                 if let response = response {
                     DispatchQueue.main.async {
                         allPlaces.append(contentsOf: response.mapItems.prefix(3)) // Máximo 3 por categoría
@@ -4932,18 +4978,18 @@ struct LocationPickerView: View {
                 }
             }
         }
-        
+
         group.notify(queue: .main) {
             // Filtrar duplicados y ordenar por distancia
             let uniquePlaces = Array(Set(allPlaces)).prefix(15)
             self.nearbyPlaces = Array(uniquePlaces)
         }
     }
-    
+
     private func requestCurrentLocation() {
         isRequestingLocation = true
         locationError = nil
-        
+
         switch locationManager.authorizationStatus {
         case .notDetermined:
             locationManager.requestLocationPermission()
@@ -4954,10 +5000,10 @@ struct LocationPickerView: View {
             if let currentLocation = locationManager.currentLocation {
                 let coordinate = currentLocation.coordinate
                 selectedLocation = coordinate
-                
+
                 // Usar geocoding inverso para obtener el nombre real de la ubicación
                 getLocationNameFromCoordinates(coordinate)
-                
+
                 withAnimation {
                     region.center = coordinate
                 }
@@ -4971,11 +5017,11 @@ struct LocationPickerView: View {
             isRequestingLocation = false
         }
     }
-    
+
     private func getLocationNameFromCoordinates(_ coordinate: CLLocationCoordinate2D) {
         let geocoder = CLGeocoder()
         let location = CLLocation(latitude: coordinate.latitude, longitude: coordinate.longitude)
-        
+
         geocoder.reverseGeocodeLocation(location) { placemarks, error in
             DispatchQueue.main.async {
                 if let placemark = placemarks?.first {
@@ -4987,7 +5033,7 @@ struct LocationPickerView: View {
             }
         }
     }
-    
+
     private func generateCleanLocationName(from placemark: CLPlacemark) -> String {
         // Priorizar el nombre del lugar si existe
         if let name = placemark.name, !name.isEmpty {
@@ -4997,7 +5043,7 @@ struct LocationPickerView: View {
             }
             return name
         }
-        
+
         // Si no hay nombre específico, usar calle + ciudad
         if let thoroughfare = placemark.thoroughfare, !thoroughfare.isEmpty {
             if let locality = placemark.locality, !locality.isEmpty {
@@ -5005,50 +5051,50 @@ struct LocationPickerView: View {
             }
             return thoroughfare
         }
-        
+
         // Fallback a ciudad
         if let locality = placemark.locality, !locality.isEmpty {
             return locality
         }
-        
+
         if let administrativeArea = placemark.administrativeArea, !administrativeArea.isEmpty {
             return administrativeArea
         }
-        
+
         return NSLocalizedString("creator.location.current", comment: "")
     }
-    
+
     private func updateCurrentLocationAndNearbyPlaces() {
         isRequestingLocation = true
         locationError = nil
-        
+
         // Solicitar nueva ubicación
         locationManager.requestLocationPermission()
-        
+
         // También actualizar la región del mapa si tenemos ubicación actual
         if let currentLocation = locationManager.currentLocation {
             let coordinate = currentLocation.coordinate
-            
+
             // Actualizar la región del mapa
             withAnimation {
                 region.center = coordinate
             }
-            
+
             // Actualizar la ubicación seleccionada si no hay ninguna
             if selectedLocation == nil {
                 selectedLocation = coordinate
                 getLocationNameFromCoordinates(coordinate)
             }
-            
+
             // Recargar lugares cercanos con la nueva ubicación
             loadNearbyPlaces()
         }
     }
-    
+
     private func selectLocation(_ place: MKMapItem) {
         selectedLocation = place.placemark.coordinate
         locationName = place.name ?? NSLocalizedString("creator.location.selected", comment: "")
-        
+
         withAnimation {
             region.center = place.placemark.coordinate
         }
@@ -5064,14 +5110,14 @@ struct LocationRow: View {
     let place: MKMapItem
     let onTap: () -> Void
     @Environment(\.colorScheme) private var colorScheme
-    
+
     private var adaptiveColors: AdaptiveColors {
         AdaptiveColors(colorScheme: colorScheme)
     }
-    
+
     private var categoryIcon: String {
         guard let category = place.pointOfInterestCategory else { return "mappin" }
-        
+
         switch category {
         case .restaurant: return "fork.knife"
         case .cafe: return "cup.and.saucer"
@@ -5096,10 +5142,10 @@ struct LocationRow: View {
         default: return "mappin"
         }
     }
-    
+
     private var categoryName: String {
         guard let category = place.pointOfInterestCategory else { return "Lugar" }
-        
+
         switch category {
         case .restaurant: return "Restaurante"
         case .cafe: return "Café"
@@ -5124,7 +5170,7 @@ struct LocationRow: View {
         default: return "Lugar"
         }
     }
-    
+
     var body: some View {
         Button(action: onTap) {
             HStack(spacing: 12) {
@@ -5133,25 +5179,25 @@ struct LocationRow: View {
                     .font(.system(size: 18, weight: .medium))
                     .foregroundColor(adaptiveColors.primary)
                     .frame(width: 30)
-                
+
                 VStack(alignment: .leading, spacing: 4) {
                     Text(place.name ?? "Ubicación sin nombre")
                         .font(.system(size: 16, weight: .medium))
                         .foregroundColor(adaptiveColors.primary)
-                    
+
                     Text(categoryName)
                         .font(.caption)
                         .foregroundColor(adaptiveColors.secondary)
-                    
+
                     if let address = place.placemark.title {
                         Text(address)
                             .font(.caption)
                             .foregroundColor(adaptiveColors.secondary.opacity(0.8))
                     }
                 }
-                
+
                 Spacer()
-                
+
                 Image(systemName: "chevron.right")
                     .font(.caption)
                     .foregroundColor(adaptiveColors.secondary)
@@ -5172,21 +5218,21 @@ struct StoryGalleryPicker: View {
     let onSelect: (CreatorMedia) -> Void
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) var colorScheme
-    
+
     @State private var selectedImage: UIImage?
     @State private var selectedVideoURL: URL?
     @State private var showingMediaPicker = false
     @State private var showingVideoLengthAlert = false
     @State private var videoDuration: Double = 0
     @State private var authorizationStatus: PHAuthorizationStatus = .notDetermined
-    
+
     var body: some View {
         // ✅ Vista invisible que abre directamente la galería
         Color.clear
             .onAppear {
                 // ✅ Verificar permisos antes de abrir el picker
                 checkPhotoLibraryPermission()
-                
+
                 // ✅ Abrir el picker si el estado inicial permite (authorized, limited, o notDetermined)
                 // PHPickerViewController funciona incluso sin permisos, pero es mejor verificar
                 if authorizationStatus == .authorized || authorizationStatus == .limited || authorizationStatus == .notDetermined {
@@ -5226,13 +5272,13 @@ struct StoryGalleryPicker: View {
                             asset.loadValuesAsynchronously(forKeys: ["duration"]) {
                                 DispatchQueue.main.async {
                                     let duration = CMTimeGetSeconds(asset.duration)
-                                    
+
                                     if duration <= 60.0 {
                                         // ✅ Video corto - ir directamente a edición
                                         let imageGenerator = AVAssetImageGenerator(asset: asset)
                                         imageGenerator.appliesPreferredTrackTransform = true
                                         imageGenerator.maximumSize = CGSize(width: 300, height: 300)
-                                        
+
                                         let time = CMTime(seconds: 0.1, preferredTimescale: 600)
                                         imageGenerator.generateCGImagesAsynchronously(forTimes: [NSValue(time: time)]) { requestedTime, cgImage, actualTime, result, error in
                                             DispatchQueue.main.async {
@@ -5242,7 +5288,7 @@ struct StoryGalleryPicker: View {
                                                 } else {
                                                     thumbnail = UIImage(systemName: "video.fill") ?? UIImage()
                                                 }
-                                                
+
                                                 let media = CreatorMedia(
                                                     id: UUID().uuidString,
                                                     image: thumbnail,
@@ -5257,7 +5303,7 @@ struct StoryGalleryPicker: View {
                                         }
                                     } else {
                                         // ✅ Video muy largo - mostrar mensaje informativo
-                                        
+
                                         // Guardar la duración y mostrar alert
                                         videoDuration = duration
                                         showingVideoLengthAlert = true
@@ -5284,11 +5330,11 @@ struct StoryGalleryPicker: View {
                 }
             )
     }
-    
+
     // MARK: - Helper Functions
     private func checkPhotoLibraryPermission() {
         authorizationStatus = PHPhotoLibrary.authorizationStatus(for: .readWrite)
-        
+
         // Si el estado es notDetermined, solicitar permiso
         if authorizationStatus == .notDetermined {
             PHPhotoLibrary.requestAuthorization(for: .readWrite) { status in
@@ -5298,35 +5344,35 @@ struct StoryGalleryPicker: View {
             }
         }
     }
-    
+
     // MARK: - Permission Denied Overlay (con instrucciones opcionales)
     private var permissionDeniedOverlay: some View {
         ZStack {
             (colorScheme == .dark ? Color.black : Color.white).opacity(0.95)
                 .ignoresSafeArea()
-            
+
             VStack(spacing: 24) {
                 Image(systemName: "photo.on.rectangle")
                     .font(.system(size: 60))
                     .foregroundColor(colorScheme == .dark ? .gray : .gray.opacity(0.6))
-                
+
                 Text("creator.gallery.permission")
                     .font(.custom("Poppins-Medium", size: 16))
                     .foregroundColor(colorScheme == .dark ? .white : .black)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 40)
-                
+
                 // ✅ Instrucciones opcionales para el usuario
                 VStack(spacing: 12) {
                     Text("creator.permissions.instructions.title")
                         .font(.custom("Poppins-SemiBold", size: 14))
                         .foregroundColor(colorScheme == .dark ? .white : .black)
-                    
+
                     Text("creator.permissions.instructions.path")
                         .font(.custom("Poppins-Regular", size: 12))
                         .foregroundColor(colorScheme == .dark ? .gray : .gray.opacity(0.7))
                         .multilineTextAlignment(.center)
-                    
+
                     Button("creator.permissions.openSettings") {
                         if let settingsUrl = URL(string: UIApplication.openSettingsURLString) {
                             UIApplication.shared.open(settingsUrl)
@@ -5345,7 +5391,7 @@ struct StoryGalleryPicker: View {
                     )
                     .clipShape(Capsule())
                 }
-                
+
                 Button("common.close") {
                     dismiss()
                 }
@@ -5373,28 +5419,28 @@ struct StoryMediaPicker: UIViewControllerRepresentable {
     private var pickerForegroundColor: UIColor {
         colorScheme == .dark ? .white : .black
     }
-    
+
     func makeUIViewController(context: Context) -> PHPickerViewController {
         var configuration = PHPickerConfiguration()
         configuration.filter = .any(of: [.images, .videos])
         configuration.selectionLimit = 1
         configuration.preferredAssetRepresentationMode = .current
-        
+
         let picker = PHPickerViewController(configuration: configuration)
         picker.delegate = context.coordinator
         picker.overrideUserInterfaceStyle = colorScheme == .dark ? .dark : .light
         picker.view.backgroundColor = pickerBackgroundColor
         applyAppearance(to: picker)
-        
+
         return picker
     }
-    
+
     func updateUIViewController(_ uiViewController: PHPickerViewController, context: Context) {
         uiViewController.overrideUserInterfaceStyle = colorScheme == .dark ? .dark : .light
         uiViewController.view.backgroundColor = pickerBackgroundColor
         applyAppearance(to: uiViewController)
     }
-    
+
     func makeCoordinator() -> Coordinator {
         Coordinator(self)
     }
@@ -5413,22 +5459,22 @@ struct StoryMediaPicker: UIViewControllerRepresentable {
         picker.navigationController?.navigationBar.tintColor = pickerForegroundColor
         picker.navigationController?.view.backgroundColor = pickerBackgroundColor
     }
-    
+
     class Coordinator: NSObject, PHPickerViewControllerDelegate {
         let parent: StoryMediaPicker
-        
+
         init(_ parent: StoryMediaPicker) {
             self.parent = parent
         }
-        
+
         func picker(_ picker: PHPickerViewController, didFinishPicking results: [PHPickerResult]) {
             guard let result = results.first else {
                 parent.onSelect(nil, nil)
                 parent.dismiss()
                 return
             }
-            
-            
+
+
             if result.itemProvider.hasItemConformingToTypeIdentifier(UTType.image.identifier) {
                 // ✅ Procesar imagen
                 result.itemProvider.loadObject(ofClass: UIImage.self) { object, error in
@@ -5447,12 +5493,12 @@ struct StoryMediaPicker: UIViewControllerRepresentable {
                 result.itemProvider.loadDataRepresentation(forTypeIdentifier: UTType.movie.identifier) { data, error in
                     DispatchQueue.main.async {
                         if let videoData = data {
-                            
+
                             // ✅ Guardar datos en archivo temporal
                             let documentsPath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
                             let tempFileName = "temp_video_\(UUID().uuidString).mp4"
                             let tempURL = documentsPath.appendingPathComponent(tempFileName)
-                            
+
                             do {
                                 // ✅ Escribir datos al archivo
                                 try videoData.write(to: tempURL)
@@ -6079,7 +6125,7 @@ struct TextStyleOption: View {
     let style: StoryEditingView.TextStyle
     let isSelected: Bool
     let onTap: () -> Void
-    
+
     var stylePreview: String {
         switch style {
         case .modern: return "Aa"
@@ -6096,7 +6142,7 @@ struct TextStyleOption: View {
         case .chalk: return "Aa"
         }
     }
-    
+
     var body: some View {
         Button(action: onTap) {
             Text(stylePreview)
@@ -6106,7 +6152,7 @@ struct TextStyleOption: View {
                 .background(
                     ZStack {
                         style.backgroundColor
-                        
+
                         if style.backgroundColor == .clear {
                             RoundedRectangle(cornerRadius: 12)
                                 .stroke(Color.white.opacity(0.3), lineWidth: 1)
@@ -6162,7 +6208,7 @@ struct ColorOption: View {
     let color: Color
     let isSelected: Bool
     let onTap: () -> Void
-    
+
     var body: some View {
         Button(action: onTap) {
             HStack(spacing: 6) {
@@ -6191,7 +6237,7 @@ struct AlignmentButton: View {
     let alignment: TextAlignment
     @Binding var currentAlignment: TextAlignment
     let icon: String
-    
+
     var body: some View {
         Button(action: {
             currentAlignment = alignment
@@ -6218,7 +6264,7 @@ struct AlignmentButton: View {
 struct CameraCapture: UIViewControllerRepresentable {
     let onCapture: (CreatorMedia) -> Void
     @Environment(\.dismiss) private var dismiss
-    
+
     func makeUIViewController(context: Context) -> UIImagePickerController {
         let picker = UIImagePickerController()
         picker.sourceType = .camera
@@ -6228,20 +6274,20 @@ struct CameraCapture: UIViewControllerRepresentable {
         picker.videoMaximumDuration = 60
         return picker
     }
-    
+
     func updateUIViewController(_ uiViewController: UIImagePickerController, context: Context) {}
-    
+
     func makeCoordinator() -> Coordinator {
         Coordinator(self)
     }
-    
+
     class Coordinator: NSObject, UIImagePickerControllerDelegate, UINavigationControllerDelegate {
         let parent: CameraCapture
-        
+
         init(_ parent: CameraCapture) {
             self.parent = parent
         }
-        
+
         func imagePickerController(_ picker: UIImagePickerController, didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey : Any]) {
             if let image = info[.originalImage] as? UIImage {
                 // ✅ Detectar aspect ratio de la imagen capturada
@@ -6260,11 +6306,11 @@ struct CameraCapture: UIViewControllerRepresentable {
                 let asset = AVAsset(url: videoURL)
                 let generator = AVAssetImageGenerator(asset: asset)
                 generator.appliesPreferredTrackTransform = true
-                
+
                 do {
                     let cgImage = try generator.copyCGImage(at: .zero, actualTime: nil)
                     let thumbnail = UIImage(cgImage: cgImage)
-                    
+
                     // ✅ Detectar aspect ratio del video capturado
                     let detectedRatio = CreatorMedia.AspectRatio.fromRatio(thumbnail.size.width / thumbnail.size.height)
                     let media = CreatorMedia(
@@ -6279,10 +6325,10 @@ struct CameraCapture: UIViewControllerRepresentable {
                 } catch {
                 }
             }
-            
+
             parent.dismiss()
         }
-        
+
         func imagePickerControllerDidCancel(_ picker: UIImagePickerController) {
             parent.dismiss()
         }
@@ -6303,17 +6349,17 @@ struct StoryOverlaysView: View {
     @Binding var isTextEditorPresented: Bool
     @Binding var stickers: [StickerItem]
     @Binding var drawingImage: UIImage?
-    
+
     let onNavigateToProfile: (String) -> Void
     let onNavigateToLocation: (String, CLLocationCoordinate2D?) -> Void
-    
+
     @State private var selectedStickerId: String?
     @State private var isEditingText = false
     @State private var isDraggingItem = false
     @State private var showTrashZone = false
     @State private var isOverTrash = false
     @State private var pinchStartTextFontSize: CGFloat?
-    
+
     var body: some View {
         ZStack {
             // Drawing overlay
@@ -6330,24 +6376,24 @@ struct StoryOverlaysView: View {
                         DragGesture()
                             .onChanged { value in
                                 if !text.isEmpty { return }
-                                
+
                                 if !isDraggingItem {
                                     withAnimation(.easeOut(duration: 0.2)) {
                                         isDraggingItem = true
                                         showTrashZone = true
                                     }
                                 }
-                                
+
                                 let trashY = UIScreen.main.bounds.height - 150
                                 isOverTrash = value.location.y > trashY
                             }
                             .onEnded { value in
                                 if !text.isEmpty { return }
-                                
+
                                 withAnimation(.easeOut(duration: 0.2)) {
                                     isDraggingItem = false
                                     showTrashZone = false
-                                    
+
                                     if isOverTrash {
                                         drawingImage = nil
                                     }
@@ -6360,7 +6406,7 @@ struct StoryOverlaysView: View {
                         selectedStickerId = nil
                     }
             }
-            
+
             // Text overlay
             if !text.isEmpty && !isTextEditorPresented {
                 Text(text)
@@ -6390,14 +6436,14 @@ struct StoryOverlaysView: View {
                         DragGesture()
                             .onChanged { value in
                                 textPosition = value.location
-                                
+
                                 if !isDraggingItem {
                                     withAnimation(.easeOut(duration: 0.2)) {
                                         isDraggingItem = true
                                         showTrashZone = true
                                     }
                                 }
-                                
+
                                 let trashY = UIScreen.main.bounds.height - 150
                                 isOverTrash = value.location.y > trashY
                             }
@@ -6405,7 +6451,7 @@ struct StoryOverlaysView: View {
                                 withAnimation(.easeOut(duration: 0.2)) {
                                     isDraggingItem = false
                                     showTrashZone = false
-                                    
+
                                     if isOverTrash {
                                         text = ""
                                     }
@@ -6433,7 +6479,7 @@ struct StoryOverlaysView: View {
                     }
                     .animation(.easeInOut(duration: 0.2), value: isDraggingItem)
             }
-            
+
             // ✅ STICKERS COMPLETAMENTE LIBRES - Sin interfaz de selección
             ForEach(stickers.indices, id: \.self) { index in
                 StickerOverlayView(
@@ -6457,7 +6503,7 @@ struct StoryOverlaysView: View {
                                 selectedStickerId = stickers[index].id
                             }
                         }
-                        
+
                         let trashY = UIScreen.main.bounds.height - 150
                         isOverTrash = position.y > trashY
                     },
@@ -6465,7 +6511,7 @@ struct StoryOverlaysView: View {
                         withAnimation(.easeOut(duration: 0.2)) {
                             isDraggingItem = false
                             showTrashZone = false
-                            
+
                             if isOverTrash {
                                 stickers.remove(at: index)
                             }
@@ -6479,12 +6525,12 @@ struct StoryOverlaysView: View {
                 )
             }
 
-            
+
             // Zona de papelera
             if showTrashZone {
                 VStack {
                     Spacer()
-                    
+
                     ZStack {
                         LinearGradient(
                             colors: [
@@ -6497,21 +6543,21 @@ struct StoryOverlaysView: View {
                         )
                         .frame(height: 200)
                         .ignoresSafeArea()
-                        
+
                         VStack(spacing: 12) {
                             ZStack {
                                 Circle()
                                     .fill(isOverTrash ? Color.red.opacity(0.2) : Color.black.opacity(0.3))
                                     .frame(width: 80, height: 80)
                                     .scaleEffect(isOverTrash ? 1.1 : 1.0)
-                                
+
                                 Image(systemName: isOverTrash ? "trash.circle.fill" : "trash.circle")
                                     .font(.system(size: 40))
                                     .foregroundColor(isOverTrash ? .red : .white)
                                     .scaleEffect(isOverTrash ? 1.1 : 1.0)
                             }
                             .animation(.spring(response: 0.3, dampingFraction: 0.6), value: isOverTrash)
-                            
+
                             Text(isOverTrash ? "Soltar para eliminar" : "Arrastra aquí para eliminar")
                                 .font(.system(size: 14, weight: .medium))
                                 .foregroundColor(.white)
@@ -6542,7 +6588,7 @@ struct StoryOverlaysView: View {
             return Color.white.opacity(0.90)
         }
     }
-    
+
     private func handleStickerTap(_ sticker: StickerItem) {
         switch sticker.type {
         case .mention:
@@ -6555,35 +6601,35 @@ struct StoryOverlaysView: View {
                     }
                 }
             }
-            
+
         case .hashtag:
             if let hashtag = sticker.interactionData?.hashtag {
                 // Handle hashtag tap
             }
-            
+
         case .location:
             if let interactionData = sticker.interactionData,
                let location = interactionData.location {
                 onNavigateToLocation(location, interactionData.locationCoordinate)
             }
-            
+
         case .poll:
             // Handle poll tap
             break
-            
+
         case .question:
             // Handle question tap
             break
-            
+
         case .questionResponse:
             // Handle question response tap
             break
-            
+
         default:
             break
         }
     }
-    
+
     private func findUserIdByUsername(_ username: String, completion: @escaping (String?) -> Void) {
         let firestoreService = FirestoreService()
         firestoreService.searchUsers(query: username, limit: 10) { result in
@@ -6600,28 +6646,28 @@ struct StoryOverlaysView: View {
         }
     }
 
-    
+
     // ✅ FUNCIONES AUXILIARES: Mostrar toasts informativos
     private func showUserNotFoundToast(username: String) {
         // Implementar toast: "Usuario @username no encontrado"
     }
-    
+
     private func showHashtagToast(hashtag: String) {
         // Implementar toast: "Ver publicaciones con #hashtag"
     }
-    
+
     private func showLocationToast(location: String) {
         // Implementar toast: "Ver ubicación: location"
     }
-    
+
     private func showPollToast() {
         // Implementar toast: "Toca para votar en la encuesta"
     }
-    
+
     private func showQuestionToast() {
         // Implementar toast: "Toca para responder la pregunta"
     }
-    
+
     private func showQuestionResponseToast() {
         // Implementar toast: "Respuesta anónima compartida"
     }
@@ -6638,7 +6684,7 @@ struct StickerOverlayView: View {
     let onDragChanged: (CGPoint) -> Void
     let onDragEnded: (CGPoint) -> Void
     let onStickerTapped: (StickerItem) -> Void
-    
+
     @State private var currentPosition: CGPoint
     @State private var scale: CGFloat
     @State private var rotation: Angle
@@ -6646,7 +6692,7 @@ struct StickerOverlayView: View {
     @State private var selfieCaptureTrigger = false
     @State private var selfieSwitchCameraTrigger = false
     @State private var lastSelfieSwitchAt: Date = .distantPast
-    
+
     init(sticker: Binding<StickerItem>, isSelected: Bool, isDragging: Bool,
          onUpdate: @escaping (StickerItem) -> Void,
          onDelete: @escaping () -> Void,
@@ -6665,7 +6711,7 @@ struct StickerOverlayView: View {
         _scale = State(initialValue: sticker.wrappedValue.scale)
         _rotation = State(initialValue: sticker.wrappedValue.rotation)
     }
-    
+
     var body: some View {
         ZStack {
             // ✅ SOLUCIÓN DEFINITIVA: Renderizado idéntico al Viewer
@@ -6676,7 +6722,7 @@ struct StickerOverlayView: View {
                         StoryVideoPlayerView(videoURL: videoURL, videoGravity: .resizeAspectFill)
                             .frame(width: sticker.image.size.width, height: sticker.image.size.height)
                             .allowsHitTesting(false)
-                        
+
                         // Header Overlay (Username)
                         if let interactionData = sticker.interactionData, let username = interactionData.username {
                             HStack(spacing: 8) {
@@ -6684,11 +6730,11 @@ struct StickerOverlayView: View {
                                     .fill(.white.opacity(0.1))
                                     .frame(width: 24, height: 24)
                                     .overlay(Circle().stroke(.white.opacity(0.3), lineWidth: 0.5))
-                                
+
                                 Text(username)
                                     .font(.custom("Poppins-Bold", size: 10))
                                     .foregroundColor(.white)
-                                
+
                                 Spacer()
                             }
                             .padding(.horizontal, 10)
@@ -6705,7 +6751,7 @@ struct StickerOverlayView: View {
                                     )
                             )
                         }
-                        
+
                         // Caption Overlay (Bottom)
                         if let caption = sticker.interactionData?.caption, !caption.isEmpty {
                             VStack {
@@ -6850,18 +6896,18 @@ struct StickerOverlayView: View {
                         .resizable()
                         .aspectRatio(contentMode: .fit)
                         .frame(width: sticker.image.size.width, height: sticker.image.size.height)
-                    
+
                     // 2. Video Overlay (si existe)
                     if let videoURL = sticker.videoURL {
                         StickerVideoPlayer(url: videoURL)
                            .frame(width: sticker.image.size.width, height: sticker.image.size.height)
                            .allowsHitTesting(false)
                     }
-                    
+
                     // 3. Dynamic Overlays (Mismo diseño que en el Viewer)
                     ZStack(alignment: .top) {
                         Color.clear // Contenedor
-                        
+
                         // Header (Username + Profile)
                         HStack(spacing: 10) {
                             if let interactionData = sticker.interactionData,
@@ -6886,7 +6932,7 @@ struct StickerOverlayView: View {
                                     .frame(width: 34, height: 34)
                                     .foregroundColor(.white.opacity(0.5))
                             }
-                            
+
                             VStack(alignment: .leading, spacing: 0) {
                                 Text(sticker.interactionData?.username ?? "User")
                                     .font(.custom("Poppins-Bold", size: 13))
@@ -6908,7 +6954,7 @@ struct StickerOverlayView: View {
                                     )
                                 )
                         )
-                        
+
                         // Caption Overlay (Bottom)
                         if let caption = sticker.interactionData?.caption, !caption.isEmpty {
                             VStack {
@@ -6923,7 +6969,7 @@ struct StickerOverlayView: View {
                                     .padding(.bottom, 10)
                             }
                         }
-                        
+
                         // Gallery Indicator (Top Right)
                         if (sticker.interactionData?.mediaCount ?? 0) > 1 {
                             VStack {
@@ -6946,7 +6992,7 @@ struct StickerOverlayView: View {
                 }
                 .clipShape(RoundedRectangle(cornerRadius: 28))
                 .allowsHitTesting(false)
-                
+
             } else if sticker.type == .weather, let weatherSymbol = sticker.interactionData?.weatherSymbol {
 
                 // WEATHER ANIMADO
@@ -6968,13 +7014,13 @@ struct StickerOverlayView: View {
                             RoundedRectangle(cornerRadius: 28)
                                 .stroke(.white.opacity(0.2), lineWidth: 1) // Borde sutil
                         )
-                    
+
                     // Contenido (Hora y Fecha)
                     VStack(spacing: 0) {
                         Text(Date.now.formatted(date: .omitted, time: .shortened))
                             .font(.system(size: 24, weight: .bold, design: .rounded))
                             .foregroundColor(.white)
-                        
+
                         Text(Date.now.formatted(date: .numeric, time: .omitted))
                             .font(.system(size: 11, weight: .medium, design: .rounded))
                             .foregroundColor(.white.opacity(0.8))
@@ -7028,7 +7074,7 @@ struct StickerOverlayView: View {
                 .onChanged { value in
                     currentPosition = value.location
                     onDragChanged(value.location)
-                    
+
                     // ✅ ACTUALIZAR DIRECTAMENTE EL BINDING
                     sticker.position = currentPosition
                 }
@@ -7041,26 +7087,26 @@ struct StickerOverlayView: View {
             MagnificationGesture()
                 .onChanged { value in
                     let newScale = sticker.scale * value
-                    
+
                     // ✅ FIX 2: Límite más agresivo y robusto basado en el tamaño en PANTALLA
                     // El límite anterior de 8192px era de textura, pero en pantallas 3x (iPhone Pro)
                     // una vista de 3000pt ya son 9000px, superando el límite de 8192px en algunos disp.
                     //
                     // Limitamos el tamaño visual máximo a 2048 puntos (aprox 2.5x la altura de la pantalla)
                     // Esto asegura que incluso en 3x (6144px) estemos seguros.
-                    
+
                     let maxDimension: CGFloat = 2048
                     let currentWidth = sticker.image.size.width
                     let currentHeight = sticker.image.size.height
-                    
+
                     let maxScaleWidth = maxDimension / max(currentWidth, 1)
                     let maxScaleHeight = maxDimension / max(currentHeight, 1)
-                    
+
                     let safeMaxScale = min(maxScaleWidth, maxScaleHeight)
-                    
+
                     // Mantenemos un mínimo razonable de 5.0, pero si la imagen es gigante, safeMaxScale lo bajará
                     let finalMaxScale = max(min(5.0, safeMaxScale), 0.5) // Asegurar que al menos permita 0.5x
-                    
+
                     scale = min(max(newScale, 0.2), finalMaxScale)
                 }
                 .onEnded { value in
@@ -7084,7 +7130,7 @@ struct StickerOverlayView: View {
         .animation(.spring(response: 0.3, dampingFraction: 0.8), value: scale)
         .animation(.spring(response: 0.4, dampingFraction: 0.9), value: rotation)
     }
-    
+
     private func handleStickerTap() {
         if isLiveSelfieSticker {
             // Evita capturar justo después de long-press para cambiar cámara.
@@ -7099,14 +7145,14 @@ struct StickerOverlayView: View {
         withAnimation(.spring(response: 0.15, dampingFraction: 0.9)) {
             showInteractionFeedback = true
         }
-        
+
         // ✅ Feedback háptico ligero
         let impactFeedback = UIImpactFeedbackGenerator(style: .light)
         impactFeedback.impactOccurred()
-        
+
         // ✅ Llamar al handler
         onStickerTapped(sticker)
-        
+
         // Reset feedback visual rápido
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
             withAnimation(.easeOut(duration: 0.15)) {
@@ -7215,6 +7261,7 @@ final class SelfieStickerCameraPreviewView: UIView, AVCapturePhotoCaptureDelegat
     private var currentCameraPosition: AVCaptureDevice.Position = .front
     private var previewLayer: AVCaptureVideoPreviewLayer?
     private var isConfigured = false
+    private var captureEventInteraction: AVCaptureEventInteraction?
 
     var onPhotoCaptured: ((UIImage) -> Void)?
 
@@ -7223,6 +7270,7 @@ final class SelfieStickerCameraPreviewView: UIView, AVCapturePhotoCaptureDelegat
         backgroundColor = .black
         layer.cornerRadius = 18
         clipsToBounds = true
+        configureHardwareCaptureInteraction()
         configureCamera()
     }
 
@@ -7231,6 +7279,7 @@ final class SelfieStickerCameraPreviewView: UIView, AVCapturePhotoCaptureDelegat
         backgroundColor = .black
         layer.cornerRadius = 18
         clipsToBounds = true
+        configureHardwareCaptureInteraction()
         configureCamera()
     }
 
@@ -7245,6 +7294,19 @@ final class SelfieStickerCameraPreviewView: UIView, AVCapturePhotoCaptureDelegat
     override func layoutSubviews() {
         super.layoutSubviews()
         previewLayer?.frame = bounds
+    }
+
+    override func didMoveToWindow() {
+        super.didMoveToWindow()
+    }
+
+    private func configureHardwareCaptureInteraction() {
+        let interaction = AVCaptureEventInteraction { [weak self] event in
+            guard event.phase == .ended else { return }
+            self?.capturePhoto()
+        }
+        addInteraction(interaction)
+        captureEventInteraction = interaction
     }
 
     func capturePhoto() {
@@ -7393,24 +7455,24 @@ struct ModernSelectionInterface: View {
     let onScaleChanged: (CGFloat) -> Void
     let onRotationChanged: (Angle) -> Void
     let onDelete: () -> Void
-    
+
     @State private var initialScale: CGFloat = 1.0
     @State private var initialRotation: Angle = .zero
     @State private var showDeleteButton = false
-    
+
     var body: some View {
         ZStack {
             // ✅ BORDE ELEGANTE - Solo líneas en las esquinas
             CornerBorders(size: size)
-            
+
             // ✅ CONTROLES EN LAS ESQUINAS
             VStack {
                 HStack {
                     // Botón eliminar (esquina superior izquierda)
                     DeleteButton(onDelete: onDelete)
-                    
+
                     Spacer()
-                    
+
                     // Control de rotación (esquina superior derecha)
                     RotationControl(
                         scale: scale,
@@ -7420,12 +7482,12 @@ struct ModernSelectionInterface: View {
                         }
                     )
                 }
-                
+
                 Spacer()
-                
+
                 HStack {
                     Spacer()
-                    
+
                     // Control de escala (esquina inferior derecha)
                     ScaleControl(
                         scale: scale,
@@ -7449,7 +7511,7 @@ struct ModernSelectionInterface: View {
 // MARK: - Bordes de esquina elegantes
 struct CornerBorders: View {
     let size: CGSize
-    
+
     var body: some View {
         ZStack {
             ForEach(0..<4, id: \.self) { index in
@@ -7488,7 +7550,7 @@ struct CornerBorder: View {
 struct DeleteButton: View {
     let onDelete: () -> Void
     @State private var isPressed = false
-    
+
     var body: some View {
         Button(action: {
             let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
@@ -7504,7 +7566,7 @@ struct DeleteButton: View {
                             .stroke(Color.white, lineWidth: 2)
                     )
                     .shadow(color: .black.opacity(0.2), radius: 3, x: 0, y: 2)
-                
+
                 Image(systemName: "xmark")
                     .font(.system(size: 12, weight: .bold))
                     .foregroundColor(.white)
@@ -7525,10 +7587,10 @@ struct RotationControl: View {
     let scale: CGFloat
     @Binding var isRotating: Bool
     let onRotationChanged: (Angle) -> Void
-    
+
     @State private var lastRotation: Angle = .zero
     @State private var currentRotation: Angle = .zero
-    
+
     var body: some View {
         ZStack {
             Circle()
@@ -7539,7 +7601,7 @@ struct RotationControl: View {
                         .stroke(Color.white, lineWidth: 2)
                 )
                 .shadow(color: .black.opacity(0.2), radius: 3, x: 0, y: 2)
-            
+
             Image(systemName: "arrow.clockwise")
                 .font(.system(size: 12, weight: .bold))
                 .foregroundColor(.white)
@@ -7570,10 +7632,10 @@ struct ScaleControl: View {
     let scale: CGFloat
     @Binding var isScaling: Bool
     let onScaleChanged: (CGFloat) -> Void
-    
+
     @State private var lastScale: CGFloat = 1.0
     @State private var currentScale: CGFloat = 1.0
-    
+
     var body: some View {
         ZStack {
             Circle()
@@ -7584,7 +7646,7 @@ struct ScaleControl: View {
                         .stroke(Color.white, lineWidth: 2)
                 )
                 .shadow(color: .black.opacity(0.2), radius: 3, x: 0, y: 2)
-            
+
             Image(systemName: "plus.magnifyingglass")
                 .font(.system(size: 12, weight: .bold))
                 .foregroundColor(.white)
@@ -7642,15 +7704,15 @@ extension CameraPreviewView: AVCapturePhotoCaptureDelegate {
               let image = UIImage(data: imageData) else {
             return
         }
-        
+
         // Correct orientation for front camera
         let correctedImage = correctImageOrientation(image)
-        
+
         DispatchQueue.main.async { [weak self] in
             self?.delegate?.parent.onImageCaptured(correctedImage)
         }
     }
-    
+
     private func correctImageOrientation(_ image: UIImage) -> UIImage {
         if currentPosition == .front {
             // Flip horizontally for front camera
@@ -7664,12 +7726,12 @@ extension CameraPreviewView: AVCapturePhotoCaptureDelegate {
 extension CameraPreviewView: AVCaptureFileOutputRecordingDelegate {
     func fileOutput(_ output: AVCaptureFileOutput, didStartRecordingTo fileURL: URL, from connections: [AVCaptureConnection]) {
     }
-    
+
     func fileOutput(_ output: AVCaptureFileOutput, didFinishRecordingTo outputFileURL: URL, from connections: [AVCaptureConnection], error: Error?) {
         if let error = error {
             return
         }
-        
+
         DispatchQueue.main.async { [weak self] in
             self?.delegate?.parent.onVideoCaptured(outputFileURL)
         }

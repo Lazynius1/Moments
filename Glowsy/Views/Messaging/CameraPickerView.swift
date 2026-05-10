@@ -1,5 +1,6 @@
 import SwiftUI
 import AVFoundation
+import AVKit
 import PhotosUI
 import Photos
 
@@ -17,6 +18,8 @@ struct EnhancedCameraPickerView: View {
     @State private var modeTransientOffset: CGFloat = 0
     @State private var recentGalleryPreview: UIImage?
     @State private var photoLibraryManager = PHCachingImageManager()
+    @State private var pendingPreview: CapturedMediaPreview?
+    @State private var isVideoRecording = false
     
     private let ephemeralGradient = LinearGradient(
         colors: [Color(hex: "FFB347"), Color(hex: "FFCC33")],
@@ -68,6 +71,15 @@ struct EnhancedCameraPickerView: View {
     enum MediaType {
         case image, video
     }
+
+    struct CapturedMediaPreview: Identifiable {
+        let id = UUID()
+        let data: Data
+        let mediaType: MediaType
+        let image: UIImage?
+        let videoURL: URL?
+        let isEphemeral: Bool
+    }
     
     @State private var cameraViewController: CameraViewController?
 
@@ -98,7 +110,12 @@ struct EnhancedCameraPickerView: View {
                     flashMode: flashMode,
                     isEphemeralMode: isEphemeralMode,
                     showGridLines: false,
-                    onMediaCaptured: onMediaCaptured,
+                    onMediaCaptured: { data, mediaType, _ in
+                        presentPreview(data: data, mediaType: mediaType)
+                    },
+                    onVideoRecordingStateChange: { isRecording in
+                        self.isVideoRecording = isRecording
+                    },
                     cameraViewController: $cameraViewController
                 )
 
@@ -136,6 +153,17 @@ struct EnhancedCameraPickerView: View {
 
                 // ✅ EPHEMERAL MODE INDICATOR - Mejorado
                 ephemeralModeIndicator
+
+                if let pendingPreview {
+                    CameraMediaPreviewOverlay(
+                        preview: pendingPreview,
+                        onClose: discardPendingPreview,
+                        onRetake: discardPendingPreview,
+                        onSend: sendPendingPreview
+                    )
+                    .transition(.opacity)
+                    .zIndex(10)
+                }
             }
         }
         .navigationBarHidden(true)
@@ -328,7 +356,7 @@ struct EnhancedCameraPickerView: View {
     }
     
     private var bottomControlsBar: some View {
-        HStack(spacing: 32) {
+        HStack(alignment: .bottom, spacing: 32) {
             Button(action: {
                 showPhotoPicker = true
             }) {
@@ -358,15 +386,18 @@ struct EnhancedCameraPickerView: View {
                             .stroke(controlStrokeColor, lineWidth: 1)
                     )
             }
+            .padding(.bottom, 16)
             
             EnhancedCaptureButton(
                 captureMode: captureMode,
                 isEphemeralMode: isEphemeralMode,
+                isVideoRecording: $isVideoRecording,
                 onCapture: handleCapture
             )
             
             Color.clear
                 .frame(width: 48, height: 48)
+                .padding(.bottom, 16)
         }
         .padding(.bottom, 42)
     }
@@ -477,14 +508,13 @@ struct EnhancedCameraPickerView: View {
                     // Determine if it's image or video
                     if let _ = UIImage(data: data) {
                         let normalizedData = self.normalizedGalleryImageData(from: data) ?? data
-                        self.onMediaCaptured(normalizedData, .image, self.isEphemeralMode)
+                        self.presentPreview(data: normalizedData, mediaType: .image)
                     } else {
-                        self.onMediaCaptured(data, .video, self.isEphemeralMode)
+                        self.presentPreview(data: data, mediaType: .video)
                     }
                     
-                    // Clear selection and dismiss
+                    // Clear selection
                     self.selectedItems = []
-                    self.dismiss()
                 }
             } else {
             }
@@ -523,14 +553,49 @@ struct EnhancedCameraPickerView: View {
             }
         }
     }
+
+    private func presentPreview(data: Data, mediaType: MediaType) {
+        pendingPreview = CapturedMediaPreview(
+            data: data,
+            mediaType: mediaType,
+            image: mediaType == .image ? UIImage(data: data) : nil,
+            videoURL: mediaType == .video ? persistPreviewVideo(data: data) : nil,
+            isEphemeral: isEphemeralMode
+        )
+    }
+
+    private func discardPendingPreview() {
+        if let videoURL = pendingPreview?.videoURL {
+            try? FileManager.default.removeItem(at: videoURL)
+        }
+        pendingPreview = nil
+    }
+
+    private func sendPendingPreview() {
+        guard let pendingPreview else { return }
+        onMediaCaptured(pendingPreview.data, pendingPreview.mediaType, pendingPreview.isEphemeral)
+        discardPendingPreview()
+        dismiss()
+    }
+
+    private func persistPreviewVideo(data: Data) -> URL? {
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent("camera_preview_\(UUID().uuidString).mov")
+        do {
+            try data.write(to: url, options: .atomic)
+            return url
+        } catch {
+            return nil
+        }
+    }
 }
 
 // ✅ ENHANCED CAPTURE BUTTON
 struct EnhancedCaptureButton: View {
     let captureMode: EnhancedCameraPickerView.CaptureMode
     let isEphemeralMode: Bool
+    @Binding var isVideoRecording: Bool
     let onCapture: () -> Void
-    @State private var isRecording = false
+    @State private var isPhotoCaptureFeedback = false
     @State private var recordingTime: TimeInterval = 0
     @State private var recordingTimer: Timer?
 
@@ -539,73 +604,90 @@ struct EnhancedCaptureButton: View {
         startPoint: .topLeading,
         endPoint: .bottomTrailing
     )
+
+    private var isRecording: Bool {
+        captureMode == .video && isVideoRecording
+    }
+
+    private var isCaptureActive: Bool {
+        isRecording || isPhotoCaptureFeedback
+    }
     
     var body: some View {
-        Button(action: handleCapture) {
+        VStack(spacing: 12) {
             ZStack {
-                Circle()
-                    .fill(isEphemeralMode ? Color(hex: "FFCC33") : Color.white)
-                    .frame(width: 96, height: 96)
-                    .blur(radius: isRecording ? 16 : 0)
-                    .opacity(isRecording ? 0.18 : 0)
-
-                Circle()
-                    .stroke(
-                        isEphemeralMode ? AnyShapeStyle(ephemeralGradient) : AnyShapeStyle(Color.white),
-                        lineWidth: isRecording ? 5 : 3
-                    )
-                    .frame(width: 88, height: 88)
-
-                Circle()
-                    .fill(Color.white.opacity(isRecording ? 0.1 : 0.16))
-                    .frame(width: 78, height: 78)
-                    .background {
-                        Color.clear
-                            .liquidGlass(in: Circle(), interactive: true)
-                    }
-
-                Group {
-                    if isRecording {
-                        RoundedRectangle(cornerRadius: 10, style: .continuous)
-                            .fill(Color.red)
-                            .frame(width: 28, height: 28)
-                    } else {
-                        Circle()
-                            .fill(isEphemeralMode ? Color(hex: "FFCC33") : Color.white)
-                            .frame(width: captureMode == .photo ? 62 : 54, height: captureMode == .photo ? 62 : 54)
-                            .overlay {
-                                if captureMode == .video {
-                                    Circle()
-                                        .fill(Color.red)
-                                        .frame(width: 18, height: 18)
-                                }
-                            }
-                    }
-                }
-                .scaleEffect(isRecording ? 0.8 : 1.0)
-
                 if isRecording && captureMode == .video {
-                    VStack {
-                        Spacer()
-                        Text(formatTime(recordingTime))
-                            .font(.custom("Poppins-SemiBold", size: 14))
-                            .foregroundColor(.white)
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 6)
-                            .background(
-                                Capsule()
-                                    .fill(Color.red)
-                                    .overlay(
-                                        Capsule().stroke(Color.white, lineWidth: 1)
-                                    )
-                            )
-                            .offset(y: 65)
+                    Text(formatTime(recordingTime))
+                        .font(.custom("Poppins-SemiBold", size: 14))
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 6)
+                        .background(
+                            Capsule()
+                                .fill(Color.red)
+                                .overlay(
+                                    Capsule().stroke(Color.white, lineWidth: 1)
+                                )
+                        )
+                }
+            }
+            .frame(height: 30)
+
+            Button(action: handleCapture) {
+                ZStack {
+                    Circle()
+                        .fill(isEphemeralMode ? Color(hex: "FFCC33") : Color.white)
+                        .frame(width: 96, height: 96)
+                        .blur(radius: isCaptureActive ? 16 : 0)
+                        .opacity(isCaptureActive ? 0.18 : 0)
+
+                    Circle()
+                        .stroke(
+                            isEphemeralMode ? AnyShapeStyle(ephemeralGradient) : AnyShapeStyle(Color.white),
+                            lineWidth: isCaptureActive ? 5 : 3
+                        )
+                        .frame(width: 88, height: 88)
+
+                    Circle()
+                        .fill(Color.white.opacity(isCaptureActive ? 0.1 : 0.16))
+                        .frame(width: 78, height: 78)
+                        .background {
+                            Color.clear
+                                .liquidGlass(in: Circle(), interactive: true)
+                        }
+
+                    Group {
+                        if isRecording {
+                            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                .fill(Color.red)
+                                .frame(width: 28, height: 28)
+                        } else {
+                            Circle()
+                                .fill(isEphemeralMode ? Color(hex: "FFCC33") : Color.white)
+                                .frame(width: captureMode == .photo ? 62 : 54, height: captureMode == .photo ? 62 : 54)
+                                .overlay {
+                                    if captureMode == .video {
+                                        Circle()
+                                            .fill(Color.red)
+                                            .frame(width: 18, height: 18)
+                                    }
+                                }
+                        }
                     }
+                    .scaleEffect(isCaptureActive ? 0.8 : 1.0)
                 }
             }
         }
         .buttonStyle(CameraButtonStyle())
         .animation(.spring(response: 0.4, dampingFraction: 0.7), value: isRecording)
+        .animation(.spring(response: 0.25, dampingFraction: 0.8), value: isPhotoCaptureFeedback)
+        .onChange(of: isRecording) { recording in
+            if recording {
+                startRecordingTimer()
+            } else {
+                stopRecordingTimer()
+            }
+        }
     }
     
     private func handleCapture() {
@@ -613,22 +695,16 @@ struct EnhancedCaptureButton: View {
         case .photo:
             // Photo capture con feedback visual
             withAnimation(.easeInOut(duration: 0.1)) {
-                isRecording = true
+                isPhotoCaptureFeedback = true
             }
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                 withAnimation(.easeInOut(duration: 0.1)) {
-                    isRecording = false
+                    isPhotoCaptureFeedback = false
                 }
             }
             onCapture()
             
         case .video:
-            isRecording.toggle()
-            if isRecording {
-                startRecordingTimer()
-            } else {
-                stopRecordingTimer()
-            }
             onCapture()
         }
     }
@@ -653,6 +729,267 @@ struct EnhancedCaptureButton: View {
     }
 }
 
+private struct CameraMediaPreviewOverlay: View {
+    let preview: EnhancedCameraPickerView.CapturedMediaPreview
+    let onClose: () -> Void
+    let onRetake: () -> Void
+    let onSend: () -> Void
+    @Environment(\.colorScheme) private var colorScheme
+
+    private let ephemeralGradient = LinearGradient(
+        colors: [Color(hex: "FFB347"), Color(hex: "FFCC33")],
+        startPoint: .topLeading,
+        endPoint: .bottomTrailing
+    )
+
+    private var safeAreaTintColor: Color {
+        colorScheme == .dark ? Color(hex: "0B1215") : Color(hex: "FAF9F6")
+    }
+
+    var body: some View {
+        GeometryReader { proxy in
+            let topInset = proxy.safeAreaInsets.top
+            let bottomInset = proxy.safeAreaInsets.bottom
+
+            ZStack {
+                Group {
+                    switch preview.mediaType {
+                    case .image:
+                        if let image = preview.image {
+                            Image(uiImage: image)
+                                .resizable()
+                                .scaledToFill()
+                                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                                .clipped()
+                        } else {
+                            Color.black
+                        }
+                    case .video:
+                        if let videoURL = preview.videoURL {
+                            CameraPreviewVideoPlayer(url: videoURL)
+                        } else {
+                            Color.black
+                        }
+                    }
+                }
+                .ignoresSafeArea()
+
+                VStack(spacing: 0) {
+                    if topInset > 0 {
+                        Rectangle()
+                            .fill(safeAreaTintColor)
+                            .frame(height: topInset)
+                    }
+
+                    Spacer(minLength: 0)
+
+                    if bottomInset > 0 {
+                        Rectangle()
+                            .fill(safeAreaTintColor)
+                            .frame(height: bottomInset)
+                    }
+                }
+                .ignoresSafeArea()
+                .allowsHitTesting(false)
+
+                VStack(spacing: 0) {
+                    HStack {
+                        Button(action: onClose) {
+                            Image(systemName: "xmark")
+                                .font(.system(size: 18, weight: .semibold))
+                                .foregroundColor(.white)
+                                .frame(width: 42, height: 42)
+                                .background {
+                                    Color.clear
+                                        .liquidGlass(in: Circle(), interactive: true)
+                                }
+                                .overlay(
+                                    Circle()
+                                        .stroke(Color.white.opacity(0.12), lineWidth: 1)
+                                )
+                        }
+
+                        Spacer()
+                    }
+                    .padding(.horizontal, 20)
+                    .padding(.top, 18)
+
+                    Spacer()
+
+                    VStack(spacing: 10) {
+                        if preview.isEphemeral {
+                            HStack(spacing: 8) {
+                                Image(systemName: "sparkles")
+                                    .font(.system(size: 11, weight: .semibold))
+                                Text(NSLocalizedString("camera.preview.ephemeralBadge", comment: "Ephemeral preview badge"))
+                                    .font(.custom("Poppins-SemiBold", size: 11))
+                            }
+                            .foregroundColor(Color(hex: "FFCC33"))
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 8)
+                            .background {
+                                Color.clear
+                                    .liquidGlass(in: Capsule(), interactive: false)
+                            }
+                            .overlay(
+                                Capsule()
+                                    .stroke(Color(hex: "FFCC33").opacity(0.45), lineWidth: 1)
+                            )
+                        }
+
+                        HStack(spacing: 10) {
+                            Button(action: onRetake) {
+                                HStack(spacing: 6) {
+                                    Image(systemName: "arrow.counterclockwise")
+                                        .font(.system(size: 12, weight: .semibold))
+                                    Text(NSLocalizedString("camera.preview.retake", comment: "Retake media"))
+                                        .font(.custom("Poppins-SemiBold", size: 13))
+                                }
+                                .foregroundColor(.white)
+                                .padding(.horizontal, 14)
+                                .frame(minWidth: 112)
+                                .frame(height: 42)
+                                .background {
+                                    Color.clear
+                                        .liquidGlass(in: Capsule(), interactive: true)
+                                }
+                                .overlay(
+                                    Capsule()
+                                        .stroke(Color.white.opacity(0.12), lineWidth: 1)
+                                )
+                            }
+
+                            Spacer(minLength: 0)
+
+                            Button(action: onSend) {
+                                HStack(spacing: 6) {
+                                    Image(systemName: preview.isEphemeral ? "sparkles" : "paperplane.fill")
+                                        .font(.system(size: 12, weight: .semibold))
+                                    Text(NSLocalizedString("camera.preview.send", comment: "Send media"))
+                                        .font(.custom("Poppins-SemiBold", size: 13))
+                                }
+                                .foregroundColor(preview.isEphemeral ? .black : .white)
+                                .padding(.horizontal, 14)
+                                .frame(minWidth: 112)
+                                .frame(height: 42)
+                                .background {
+                                    Group {
+                                        if preview.isEphemeral {
+                                            Capsule().fill(ephemeralGradient)
+                                        } else {
+                                            Color.clear
+                                                .liquidGlass(in: Capsule(), interactive: true)
+                                        }
+                                    }
+                                }
+                                .overlay(
+                                    Capsule()
+                                        .stroke(preview.isEphemeral ? Color.clear : Color.white.opacity(0.14), lineWidth: 1)
+                                )
+                                .shadow(color: .black.opacity(0.18), radius: 10, x: 0, y: 4)
+                            }
+                        }
+                        .frame(maxWidth: .infinity)
+                    }
+                    .padding(.horizontal, 20)
+                    .padding(.bottom, 42)
+                }
+            }
+        }
+    }
+}
+
+private struct CameraPreviewVideoPlayer: UIViewRepresentable {
+    let url: URL
+
+    func makeUIView(context: Context) -> PlayerContainerView {
+        let view = PlayerContainerView()
+        view.configure(url: url)
+        return view
+    }
+
+    func updateUIView(_ uiView: PlayerContainerView, context: Context) {
+        uiView.configure(url: url)
+    }
+}
+
+private final class PlayerContainerView: UIView {
+    private var player: AVPlayer?
+    private var playerLayer: AVPlayerLayer?
+    private var playbackObserver: NSObjectProtocol?
+    private var currentURL: URL?
+
+    override init(frame: CGRect) {
+        super.init(frame: frame)
+        backgroundColor = .black
+        let tapGesture = UITapGestureRecognizer(target: self, action: #selector(togglePlayback))
+        addGestureRecognizer(tapGesture)
+    }
+
+    required init?(coder: NSCoder) {
+        super.init(coder: coder)
+        backgroundColor = .black
+        let tapGesture = UITapGestureRecognizer(target: self, action: #selector(togglePlayback))
+        addGestureRecognizer(tapGesture)
+    }
+
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        playerLayer?.frame = bounds
+    }
+
+    func configure(url: URL) {
+        guard currentURL != url else { return }
+        cleanup()
+
+        currentURL = url
+        let player = AVPlayer(url: url)
+        let layer = AVPlayerLayer(player: player)
+        layer.videoGravity = .resizeAspectFill
+        layer.frame = bounds
+        self.layer.addSublayer(layer)
+
+        playbackObserver = NotificationCenter.default.addObserver(
+            forName: .AVPlayerItemDidPlayToEndTime,
+            object: player.currentItem,
+            queue: .main
+        ) { [weak player] _ in
+            player?.seek(to: .zero)
+            player?.play()
+        }
+
+        self.player = player
+        self.playerLayer = layer
+        player.play()
+    }
+
+    @objc
+    private func togglePlayback() {
+        guard let player else { return }
+        if player.timeControlStatus == .playing {
+            player.pause()
+        } else {
+            player.play()
+        }
+    }
+
+    private func cleanup() {
+        player?.pause()
+        if let playbackObserver {
+            NotificationCenter.default.removeObserver(playbackObserver)
+            self.playbackObserver = nil
+        }
+        playerLayer?.removeFromSuperlayer()
+        playerLayer = nil
+        player = nil
+        currentURL = nil
+    }
+
+    deinit {
+        cleanup()
+    }
+}
+
 // ✅ CAMERA VIEW - ACTUALIZADA CON GRID LINES
 struct CameraView: UIViewControllerRepresentable {
     let captureMode: EnhancedCameraPickerView.CaptureMode
@@ -661,6 +998,7 @@ struct CameraView: UIViewControllerRepresentable {
     let isEphemeralMode: Bool
     let showGridLines: Bool // ✅ Nuevo parámetro
     let onMediaCaptured: (Data, EnhancedCameraPickerView.MediaType, Bool) -> Void
+    let onVideoRecordingStateChange: (Bool) -> Void
     @Binding var cameraViewController: CameraViewController?
     
     func makeUIViewController(context: Context) -> CameraViewController {
@@ -715,6 +1053,10 @@ struct CameraView: UIViewControllerRepresentable {
         func didCaptureVideo(_ data: Data) {
             parent.onMediaCaptured(data, .video, currentEphemeralMode)
         }
+
+        func didChangeVideoRecordingState(_ isRecording: Bool) {
+            parent.onVideoRecordingStateChange(isRecording)
+        }
     }
 }
 
@@ -722,6 +1064,7 @@ struct CameraView: UIViewControllerRepresentable {
 protocol CameraViewControllerDelegate: AnyObject {
     func didCapturePhoto(_ data: Data)
     func didCaptureVideo(_ data: Data)
+    func didChangeVideoRecordingState(_ isRecording: Bool)
 }
 
 class CameraViewController: UIViewController {
@@ -738,18 +1081,29 @@ class CameraViewController: UIViewController {
     let videoOutput = AVCaptureMovieFileOutput()
     private var previewLayer: AVCaptureVideoPreviewLayer!
     private var currentCameraInput: AVCaptureDeviceInput?
+    private var currentAudioInput: AVCaptureDeviceInput?
     private var gridLinesView: UIView? // ✅ Grid lines overlay
+    private var captureEventInteraction: AVCaptureEventInteraction?
     
     override func viewDidLoad() {
         super.viewDidLoad()
         setupCamera()
         setupGridLines() // ✅ Setup grid lines
+        configureHardwareCaptureInteraction()
     }
     
     override func viewDidLayoutSubviews() {
         super.viewDidLayoutSubviews()
         previewLayer?.frame = view.layer.bounds
         gridLinesView?.frame = view.bounds // ✅ Update grid lines frame
+    }
+
+    override func viewDidAppear(_ animated: Bool) {
+        super.viewDidAppear(animated)
+    }
+
+    override func viewWillDisappear(_ animated: Bool) {
+        super.viewWillDisappear(animated)
     }
     
     override var supportedInterfaceOrientations: UIInterfaceOrientationMask {
@@ -762,6 +1116,15 @@ class CameraViewController: UIViewController {
     
     override var shouldAutorotate: Bool {
         return false
+    }
+
+    private func configureHardwareCaptureInteraction() {
+        let interaction = AVCaptureEventInteraction { [weak self] event in
+            guard event.phase == .ended else { return }
+            self?.handleHardwareCapturePress()
+        }
+        view.addInteraction(interaction)
+        captureEventInteraction = interaction
     }
     
     // ✅ SETUP GRID LINES
@@ -806,13 +1169,22 @@ class CameraViewController: UIViewController {
     }
     
     private func setupCamera() {
-        captureSession.sessionPreset = .high
-        setupCameraInput(position: .back)
-        setupOutputs()
-        setupPreviewLayer()
-        
-        DispatchQueue.global(qos: .userInitiated).async {
-            self.captureSession.startRunning()
+        AVCaptureDevice.requestAccess(for: .video) { granted in
+            guard granted else { return }
+
+            AVCaptureDevice.requestAccess(for: .audio) { _ in
+                DispatchQueue.main.async {
+                    self.captureSession.sessionPreset = .high
+                    self.setupCameraInput(position: .back)
+                    self.setupAudioInputIfAvailable()
+                    self.setupOutputs()
+                    self.setupPreviewLayer()
+
+                    DispatchQueue.global(qos: .userInitiated).async {
+                        self.captureSession.startRunning()
+                    }
+                }
+            }
         }
     }
     
@@ -844,6 +1216,21 @@ class CameraViewController: UIViewController {
         
         if captureSession.canAddOutput(videoOutput) {
             captureSession.addOutput(videoOutput)
+        }
+    }
+
+    private func setupAudioInputIfAvailable() {
+        guard currentAudioInput == nil else { return }
+        guard AVCaptureDevice.authorizationStatus(for: .audio) == .authorized else { return }
+        guard let microphone = AVCaptureDevice.default(for: .audio) else { return }
+
+        do {
+            let audioInput = try AVCaptureDeviceInput(device: microphone)
+            if captureSession.canAddInput(audioInput) {
+                captureSession.addInput(audioInput)
+                currentAudioInput = audioInput
+            }
+        } catch {
         }
     }
     
@@ -920,11 +1307,26 @@ class CameraViewController: UIViewController {
         }
         
         videoOutput.startRecording(to: videoURL, recordingDelegate: self)
+        delegate?.didChangeVideoRecordingState(true)
     }
     
     func stopVideoRecording() {
         guard videoOutput.isRecording else { return }
         videoOutput.stopRecording()
+        delegate?.didChangeVideoRecordingState(false)
+    }
+
+    private func handleHardwareCapturePress() {
+        switch captureMode {
+        case .photo:
+            capturePhoto()
+        case .video:
+            if videoOutput.isRecording {
+                stopVideoRecording()
+            } else {
+                startVideoRecording()
+            }
+        }
     }
 }
 
@@ -941,6 +1343,8 @@ extension CameraViewController: AVCapturePhotoCaptureDelegate {
 
 extension CameraViewController: AVCaptureFileOutputRecordingDelegate {
     func fileOutput(_ output: AVCaptureFileOutput, didFinishRecordingTo outputFileURL: URL, from connections: [AVCaptureConnection], error: Error?) {
+        delegate?.didChangeVideoRecordingState(false)
+
         if let error = error {
             return
         }
