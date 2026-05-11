@@ -398,6 +398,7 @@
 "question.responses" = "%d questions";
 "question.tapToSee" = "Tap to see questions";
 "question.tapToAnswer" = "Tap to ask";
+"question.alreadyAsked" = "You already asked";
 "question.yourAnswer" = "Your question";
 "question.sendAnswer" = "Send question";
 "question.answerPlaceholder" = "Write your question...";

@@ -395,6 +395,7 @@
 "question.responses" = "%d preguntes";
 "question.tapToSee" = "Toca per veure preguntes";
 "question.tapToAnswer" = "Toca per preguntar";
+"question.alreadyAsked" = "Ja has preguntat";
 "question.yourAnswer" = "La teva pregunta";
 "question.sendAnswer" = "Enviar pregunta";
 "question.answerPlaceholder" = "Escriu la teva pregunta...";

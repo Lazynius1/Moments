@@ -406,6 +406,7 @@
 "question.responses" = "%d preguntas";
 "question.tapToSee" = "Toca para ver preguntas";
 "question.tapToAnswer" = "Toca para preguntar";
+"question.alreadyAsked" = "Ya has preguntado";
 "question.yourAnswer" = "Tu pregunta";
 "question.sendAnswer" = "Enviar pregunta";
 "question.answerPlaceholder" = "Escribe tu pregunta...";
