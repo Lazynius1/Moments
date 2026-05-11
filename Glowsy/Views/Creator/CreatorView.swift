@@ -7125,8 +7125,9 @@ struct StickerOverlayView: View {
                     .clipShape(Circle())
 
                     Circle()
-                        .stroke(Color.white, lineWidth: 2)
+                        .stroke(Color.black.opacity(0.04), lineWidth: max(0.5, sticker.image.size.width * 0.005))
                         .frame(width: sticker.image.size.width, height: sticker.image.size.height)
+                        .shadow(color: Color.black.opacity(0.12), radius: 10, y: 4)
 
                     VStack {
                         Spacer()
@@ -7154,7 +7155,7 @@ struct StickerOverlayView: View {
                     totalVotes: .constant(0),
                     onVote: { _ in }
                 )
-                .frame(width: 280, height: 180)
+                .frame(width: 300, height: 172)
                 .allowsHitTesting(false)
             } else if sticker.type == .question, let questionText = sticker.interactionData?.questionText {
                 // QUESTION INTERACTIVO
@@ -7165,7 +7166,7 @@ struct StickerOverlayView: View {
                     onPauseStory: {},
                     onResumeStory: {}
                 )
-                .frame(width: 280, height: 120)
+                .frame(width: 300, height: 132)
                 .allowsHitTesting(false)
             } else if sticker.type == .location, let locationName = sticker.interactionData?.location {
                 // LOCATION INTERACTIVO
@@ -7175,7 +7176,7 @@ struct StickerOverlayView: View {
                     onPauseStory: {},
                     onResumeStory: {}
                 )
-                .frame(height: 40)
+                .frame(width: 220, height: 56)
                 .allowsHitTesting(false)
             } else if sticker.type == .hashtag, let hashtag = sticker.interactionData?.hashtag {
                 // HASHTAG INTERACTIVO
@@ -7184,7 +7185,7 @@ struct StickerOverlayView: View {
                     onPauseStory: {},
                     onResumeStory: {}
                 )
-                .frame(height: 40)
+                .frame(height: 52)
                 .allowsHitTesting(false)
             } else if sticker.type == .link, let linkURL = sticker.interactionData?.linkURL {
                 StickerLinkCardView(
@@ -7323,30 +7324,11 @@ struct StickerOverlayView: View {
                 .frame(width: 140, height: 50)
                 .allowsHitTesting(false)
             } else if sticker.type == .time {
-                // TIME STICKER TRANSLÚCIDO (Live Blur)
-                // ✅ DISEÑO LIQUID GLASS REAL con UltraThinMaterialDark
-                ZStack {
-                    // Fondo Glass Dark
-                    RoundedRectangle(cornerRadius: 28)
-                        .fill(.ultraThinMaterial) // Blur real
-                        .environment(\.colorScheme, .dark) // Forzar Dark Mode para el material
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 28)
-                                .stroke(.white.opacity(0.2), lineWidth: 1) // Borde sutil
-                        )
-
-                    // Contenido (Hora y Fecha)
-                    VStack(spacing: 0) {
-                        Text(Date.now.formatted(date: .omitted, time: .shortened))
-                            .font(.system(size: 24, weight: .bold, design: .rounded))
-                            .foregroundColor(.white)
-
-                        Text(Date.now.formatted(date: .numeric, time: .omitted))
-                            .font(.system(size: 11, weight: .medium, design: .rounded))
-                            .foregroundColor(.white.opacity(0.8))
-                    }
-                }
-                .frame(width: 160, height: 60)
+                StickerTimeCardView(
+                    timeText: sticker.interactionData?.questionText ?? Date.now.formatted(date: .omitted, time: .shortened),
+                    dateText: sticker.interactionData?.caption ?? Date.now.formatted(date: .numeric, time: .omitted)
+                )
+                .frame(width: 164, height: 56)
                 .allowsHitTesting(false)
             } else {
                 // STICKER ESTÁTICO / IMAGEN (Emoji, Generic, etc.)
@@ -7491,9 +7473,14 @@ struct StickerOverlayView: View {
         return renderer.image { context in
             let rect = CGRect(x: 0, y: 0, width: size, height: size)
             let circlePath = UIBezierPath(ovalIn: rect)
-            UIColor.clear.setFill()
+            
+            context.cgContext.saveGState()
+            context.cgContext.setShadow(offset: CGSize(width: 0, height: 4), blur: 10, color: UIColor.black.withAlphaComponent(0.12).cgColor)
+            UIColor.white.setFill()
             circlePath.fill()
-            let imageRect = rect.insetBy(dx: size * 0.018, dy: size * 0.018)
+            context.cgContext.restoreGState()
+
+            let imageRect = rect.insetBy(dx: size * 0.012, dy: size * 0.012)
             let imageCirclePath = UIBezierPath(ovalIn: imageRect)
             context.cgContext.saveGState()
             imageCirclePath.addClip()
@@ -7515,8 +7502,8 @@ struct StickerOverlayView: View {
             selfieImage.draw(in: drawRect)
             context.cgContext.restoreGState()
 
-            UIColor.white.setStroke()
-            circlePath.lineWidth = max(1.6, size * 0.016)
+            UIColor.black.withAlphaComponent(0.04).setStroke()
+            circlePath.lineWidth = max(0.5, size * 0.005)
             circlePath.stroke()
         }
     }

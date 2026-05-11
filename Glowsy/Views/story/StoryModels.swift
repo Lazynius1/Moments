@@ -5275,45 +5275,19 @@ struct InteractivePollSticker: View {
     let onVote: (Int) -> Void
 
     var body: some View {
-        ZStack {
-            // ✅ Fondo con gradiente elegante (colores de la app)
-            RoundedRectangle(cornerRadius: 28)
-                .fill(
-                    LinearGradient(
-                        colors: [
-                            Color.blue.opacity(0.85),
-                            Color.purple.opacity(0.85),
-                            Color.pink.opacity(0.85)
-                        ],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                )
-                .overlay(
-                    RoundedRectangle(cornerRadius: 28)
-                        .stroke(Color.white.opacity(0.3), lineWidth: 1.5)
-                )
-
-            VStack(spacing: 8) {
-                // ✅ Icono de poll
-                Text("📊")
-                    .font(.system(size: 16, weight: .medium))
-                    .foregroundColor(.white.opacity(0.9))
-                    .padding(.top, 8)
-
-                // ✅ Pregunta con mejor tipografía
-                Text(pollData[0].count > 30 ? String(pollData[0].prefix(30)) + "..." : pollData[0])
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundColor(.white)
+        NeutralStickerCard {
+            VStack(spacing: 10) {
+                Text(pollData[0].count > 42 ? String(pollData[0].prefix(42)) + "..." : pollData[0])
+                    .font(.system(size: 17, weight: .semibold))
+                    .foregroundColor(Color(red: 0.10, green: 0.11, blue: 0.14))
                     .multilineTextAlignment(.center)
-                    .padding(.horizontal, 16)
-                    .padding(.bottom, 8)
+                    .padding(.horizontal, 18)
+                    .padding(.top, 18)
 
-                // ✅ Opciones interactivas con diseño moderno
                 VStack(spacing: 6) {
                     ForEach(0..<2, id: \.self) { index in
                         InteractivePollOptionButton(
-                            text: pollData[index + 1].count > 22 ? String(pollData[index + 1].prefix(22)) + "..." : pollData[index + 1],
+                            text: pollData[index + 1].count > 26 ? String(pollData[index + 1].prefix(26)) + "..." : pollData[index + 1],
                             percentage: calculatePercentage(for: index),
                             isSelected: selectedOption == index,
                             hasVoted: hasVoted,
@@ -5327,7 +5301,7 @@ struct InteractivePollSticker: View {
                     }
                 }
                 .padding(.horizontal, 16)
-                .padding(.bottom, 8)
+                .padding(.bottom, 14)
             }
         }
         .onAppear {
@@ -5365,6 +5339,21 @@ struct InteractivePollSticker: View {
                     totalVotes = counts.values.reduce(0, +)
                 }
             }
+
+        guard let currentUserId = Auth.auth().currentUser?.uid else { return }
+
+        Firestore.firestore().collection("users").document(userId)
+            .collection("stories").document(storyId)
+            .collection("pollVotes").document(currentUserId)
+            .getDocument { snapshot, error in
+                guard let data = snapshot?.data(),
+                      let option = data["option"] as? Int else { return }
+
+                DispatchQueue.main.async {
+                    selectedOption = option
+                    hasVoted = true
+                }
+            }
     }
 }
 
@@ -5378,44 +5367,43 @@ struct InteractivePollOptionButton: View {
 
     var body: some View {
         Button(action: onTap) {
-            ZStack(alignment: .leading) {
-                // Fondo de la opción
-                RoundedRectangle(cornerRadius: 22.5)
-                    .fill(isSelected ? Color.blue.opacity(0.8) : Color.white.opacity(0.1))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 22.5)
-                            .stroke(Color.white.opacity(0.3), lineWidth: 1)
-                    )
-
-                // Barra de progreso (solo si ya votó)
-                if hasVoted {
-                    RoundedRectangle(cornerRadius: 22.5)
-                        .fill(Color.white.opacity(0.3))
-                        .frame(width: 280 * (percentage / 100))
-                        .animation(.easeInOut(duration: 0.5), value: percentage)
-                }
-
-                // Texto
-                HStack {
-                    Text(text)
-                        .font(.system(size: 12, weight: .semibold))
-                        .foregroundColor(.white)
-                        .lineLimit(1)
-
-                    Spacer()
+            GeometryReader { proxy in
+                ZStack(alignment: .leading) {
+                    RoundedRectangle(cornerRadius: 18, style: .continuous)
+                        .fill(isSelected ? Color(red: 0.98, green: 0.93, blue: 0.98) : Color(red: 0.96, green: 0.96, blue: 0.97))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                                .stroke(isSelected ? Color(red: 0.91, green: 0.25, blue: 0.74).opacity(0.55) : Color.black.opacity(0.05), lineWidth: 1)
+                        )
 
                     if hasVoted {
-                        Text("\(Int(percentage))%")
-                            .font(.system(size: 10, weight: .bold))
-                            .foregroundColor(.white)
+                        RoundedRectangle(cornerRadius: 18, style: .continuous)
+                            .fill(Color(red: 0.91, green: 0.25, blue: 0.74).opacity(isSelected ? 0.22 : 0.14))
+                            .frame(width: proxy.size.width * (percentage / 100))
+                            .animation(.easeInOut(duration: 0.5), value: percentage)
                     }
+
+                    HStack(spacing: 10) {
+                        Text(text)
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundColor(Color(red: 0.10, green: 0.11, blue: 0.14))
+                            .lineLimit(1)
+
+                        Spacer(minLength: 0)
+
+                        if hasVoted {
+                            Text("\(Int(percentage))%")
+                                .font(.system(size: 11, weight: .bold))
+                                .foregroundColor(Color(red: 0.43, green: 0.16, blue: 0.44))
+                        }
+                    }
+                    .padding(.horizontal, 14)
                 }
-                .padding(.horizontal, 16)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
-        .frame(height: 45)
+        .frame(height: 44)
         .disabled(hasVoted)
-        .scaleEffect(isSelected ? 1.02 : 1.0)
         .animation(.spring(response: 0.2, dampingFraction: 0.7), value: isSelected)
     }
 }
@@ -5638,20 +5626,24 @@ private struct InteractiveEmojiSliderSticker: View {
         !isAuthor && submittedValue == nil && currentUserId != nil && !storyId.isEmpty
     }
 
+    private var displayAverage: Double? {
+        if isAuthor {
+            return nil
+        }
+        if submittedValue != nil, totalVotes > 0 {
+            return averageValue
+        }
+        return nil
+    }
+
     var body: some View {
         ZStack(alignment: .bottom) {
             StickerEmojiSliderCardView(
                 prompt: prompt,
                 emoji: emoji,
-                value: displayValue
+                value: displayValue,
+                averageValue: displayAverage
             )
-
-            if totalVotes > 0 {
-                Text(String(format: NSLocalizedString("stickerview.emojiSlider.voteCount", comment: "Emoji slider votes count"), totalVotes))
-                    .font(.system(size: 11, weight: .semibold))
-                    .foregroundColor(.white.opacity(0.88))
-                    .padding(.bottom, 10)
-            }
         }
         .contentShape(Rectangle())
         .overlay {
@@ -5678,7 +5670,7 @@ private struct InteractiveEmojiSliderSticker: View {
                                 )
                             }
                             .onEnded { gesture in
-                                guard canVote else {
+                                guard canVote, interactiveFrame.contains(gesture.location) else {
                                     dragValue = nil
                                     return
                                 }
@@ -5723,8 +5715,17 @@ private struct InteractiveEmojiSliderSticker: View {
         sliderVotesCollection()
             .document(currentUserId)
             .getDocument { snapshot, _ in
-                guard let data = snapshot?.data(),
-                      let value = data["value"] as? Double else { return }
+                guard let data = snapshot?.data() else { return }
+                
+                // Safely decode Double or Int
+                let value: Double
+                if let doubleVal = data["value"] as? Double {
+                    value = doubleVal
+                } else if let intVal = data["value"] as? Int {
+                    value = Double(intVal)
+                } else {
+                    return
+                }
 
                 DispatchQueue.main.async {
                     submittedValue = value
@@ -5751,13 +5752,23 @@ private struct InteractiveEmojiSliderSticker: View {
 
         let voteRef = sliderVotesCollection().document(currentUserId)
         voteRef.getDocument { snapshot, _ in
-            if let data = snapshot?.data(),
-               let existingValue = data["value"] as? Double {
-                DispatchQueue.main.async {
-                    submittedValue = existingValue
-                    loadVoteAggregate()
+            if let data = snapshot?.data() {
+                let existingValue: Double?
+                if let doubleVal = data["value"] as? Double {
+                    existingValue = doubleVal
+                } else if let intVal = data["value"] as? Int {
+                    existingValue = Double(intVal)
+                } else {
+                    existingValue = nil
                 }
-                return
+                
+                if let validExistingValue = existingValue {
+                    DispatchQueue.main.async {
+                        submittedValue = validExistingValue
+                        loadVoteAggregate()
+                    }
+                    return
+                }
             }
 
             voteRef.setData([
@@ -5996,7 +6007,7 @@ struct StoryStickerView: View {
                     handlePollVote(option: option, pollData: pollData)
                 }
             )
-            .frame(width: 280, height: 180)
+            .frame(width: 300, height: 172)
             .scaleEffect(sticker.scale) // ✅ APLICAR ESCALA
             .rotationEffect(sticker.rotation)
         } else if sticker.type == .question, let questionText = sticker.interactionData?.questionText {
@@ -6008,7 +6019,7 @@ struct StoryStickerView: View {
                 onPauseStory: onPauseStory,
                 onResumeStory: onResumeStory
             )
-            .frame(width: 280, height: 120)
+            .frame(width: 300, height: 132)
             .scaleEffect(sticker.scale) // ✅ APLICAR ESCALA
             .rotationEffect(sticker.rotation)
         } else if sticker.type == .location, let locationName = sticker.interactionData?.location {
@@ -6019,7 +6030,7 @@ struct StoryStickerView: View {
                 onPauseStory: onPauseStory,
                 onResumeStory: onResumeStory
             )
-            .frame(height: 40)
+            .frame(width: 220, height: 56)
             .scaleEffect(sticker.scale) // ✅ APLICAR ESCALA
             .rotationEffect(sticker.rotation)
         } else if sticker.type == .hashtag, let hashtag = sticker.interactionData?.hashtag {
@@ -6029,7 +6040,7 @@ struct StoryStickerView: View {
                 onPauseStory: onPauseStory,
                 onResumeStory: onResumeStory
             )
-            .frame(height: 40)
+            .frame(height: 52)
             .scaleEffect(sticker.scale) // ✅ APLICAR ESCALA
             .rotationEffect(sticker.rotation)
         } else if sticker.type == .link, let linkURL = sticker.interactionData?.linkURL {
@@ -6077,33 +6088,11 @@ struct StoryStickerView: View {
 
             }
         } else if sticker.type == .time {
-            // ✅ TIME STICKER (Liquid Glass Real)
-            // Reconstruimos el diseño usando SwiftUI puro para tener blur real
-            ZStack {
-                // 1. Fondo Glass
-                RoundedRectangle(cornerRadius: 28)
-                    .fill(.ultraThinMaterial) // Blur real
-                    .environment(\.colorScheme, .dark) // Forzar modo oscuro para el material
-
-                // 2. Fondo Base (para tinte oscuro)
-                RoundedRectangle(cornerRadius: 28)
-                    .fill(Color.black.opacity(0.2))
-
-                // 3. Brillo y Borde
-                RoundedRectangle(cornerRadius: 28)
-                    .stroke(Color.white.opacity(0.2), lineWidth: 1)
-
-                VStack(spacing: -2) { // Spacing ajustado
-                    Text(sticker.interactionData?.questionText ?? "") // Hora
-                        .font(.system(size: 22, weight: .bold))
-                        .foregroundColor(.white)
-
-                    Text(sticker.interactionData?.caption ?? "") // Fecha
-                        .font(.system(size: 11, weight: .medium))
-                        .foregroundColor(.white.opacity(0.8))
-                }
-            }
-            .frame(width: 160, height: 56)
+            StickerTimeCardView(
+                timeText: sticker.interactionData?.questionText ?? Date.now.formatted(date: .omitted, time: .shortened),
+                dateText: sticker.interactionData?.caption ?? Date.now.formatted(date: .numeric, time: .omitted)
+            )
+            .frame(width: 164, height: 56)
             .scaleEffect(sticker.scale)
             .rotationEffect(sticker.rotation)
 
@@ -6197,6 +6186,12 @@ struct StoryStickerView: View {
             .collection("pollVotes").document(currentUserId)
             .getDocument { snapshot, error in
                 if let snapshot = snapshot, snapshot.exists {
+                    if let option = snapshot.data()?["option"] as? Int {
+                        DispatchQueue.main.async {
+                            selectedPollOption = option
+                            hasVoted = true
+                        }
+                    }
                     return
                 }
 
@@ -6251,51 +6246,30 @@ struct InteractiveQuestionSticker: View {
                 showingResponseInput = true
             }
         }) {
-            VStack(spacing: 8) {
-                // Icono de pregunta
-                Image(systemName: "questionmark.circle.fill")
-                    .font(.system(size: 24))
-                    .foregroundStyle(
-                        LinearGradient(
-                            colors: [Color.blue, Color.purple, Color.pink],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
+            NeutralStickerCard {
+                VStack(spacing: 10) {
+                    Text(questionText)
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundColor(Color(red: 0.10, green: 0.11, blue: 0.14))
+                        .multilineTextAlignment(.center)
+                        .lineLimit(3)
+                        .padding(.horizontal, 18)
+                        .padding(.top, 18)
+
+                    Text(responseSubtitle)
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundColor(Color(red: 0.24, green: 0.46, blue: 0.88))
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 10)
+                        .frame(maxWidth: .infinity)
+                        .background(
+                            Capsule(style: .continuous)
+                                .fill(Color(red: 0.95, green: 0.95, blue: 0.96))
                         )
-                    )
-
-                // Texto de la pregunta
-                Text(questionText)
-                    .font(.custom("Poppins-SemiBold", size: 14))
-                    .foregroundColor(.white)
-                    .multilineTextAlignment(.center)
-                    .lineLimit(3)
-
-                // Contador de respuestas
-                if responseCount > 0 {
-                    Text(String(format: NSLocalizedString("question.responses", comment: "Responses count"), responseCount))
-                        .font(.custom("Poppins-Regular", size: 12))
-                        .foregroundColor(.white.opacity(0.8))
-                } else {
-                    Text(isAuthor ? NSLocalizedString("question.tapToSee", comment: "Tap to see questions") : NSLocalizedString("question.tapToAnswer", comment: "Tap to ask a question"))
-                        .font(.custom("Poppins-Regular", size: 12))
-                        .foregroundColor(.white.opacity(0.8))
+                        .padding(.horizontal, 16)
+                        .padding(.bottom, 16)
                 }
             }
-            .frame(width: 280, height: 120)
-            .background(
-                RoundedRectangle(cornerRadius: 28)
-                    .fill(
-                        LinearGradient(
-                            colors: [Color.blue.opacity(0.8), Color.purple.opacity(0.8), Color.pink.opacity(0.8)],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 28)
-                    .stroke(Color.white.opacity(0.3), lineWidth: 1.5)
-            )
         }
         .buttonStyle(PlainButtonStyle())
         .sheet(isPresented: $showingResponseInput, onDismiss: {
@@ -6333,6 +6307,20 @@ struct InteractiveQuestionSticker: View {
             checkIfUserHasResponded()
             checkIfUserIsAuthor()
         }
+    }
+
+    private var responseSubtitle: String {
+        if isAuthor, responseCount > 0 {
+            return String(format: NSLocalizedString("question.responses", comment: "Responses count"), responseCount)
+        }
+
+        if !isAuthor, hasResponded {
+            return NSLocalizedString("question.alreadyAsked", comment: "Already asked")
+        }
+
+        return isAuthor
+            ? NSLocalizedString("question.tapToSee", comment: "Tap to see questions")
+            : NSLocalizedString("question.tapToAnswer", comment: "Tap to ask a question")
     }
 
     private func loadResponseCount() {
@@ -6536,32 +6524,30 @@ struct InteractiveLocationSticker: View {
             onPauseStory() // ✅ PAUSAR HISTORIA
             showingLocationMap = true
         }) {
-            Text(locationName)
-                .font(.system(size: 16, weight: .semibold))
-                .foregroundStyle(
-                    LinearGradient(
-                        colors: [Color.blue, Color.purple, Color.pink],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                )
-                .padding(.horizontal, 16)
-                .padding(.vertical, 8)
-                .background(
-                    RoundedRectangle(cornerRadius: 28)
-                        .fill(.ultraThinMaterial.opacity(0.3))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 28)
-                                .stroke(
-                                    LinearGradient(
-                                        colors: [Color.blue.opacity(0.6), Color.purple.opacity(0.6)],
-                                        startPoint: .topLeading,
-                                        endPoint: .bottomTrailing
-                                    ),
-                                    lineWidth: 1
-                                )
-                        )
-                )
+            NeutralStickerCard(cornerRadius: 28) {
+                HStack(spacing: 12) {
+                    ZStack {
+                        Circle()
+                            .fill(Color(red: 1.00, green: 0.62, blue: 0.20))
+                            .frame(width: 28, height: 28)
+
+                        Image(systemName: "mappin.and.ellipse")
+                            .font(.system(size: 13, weight: .bold))
+                            .foregroundColor(.white)
+                    }
+
+                    HStack(spacing: 0) {
+                        Text(locationName)
+                            .font(.system(size: 15, weight: .semibold))
+                            .foregroundColor(Color(red: 0.10, green: 0.11, blue: 0.14))
+                            .lineLimit(1)
+                    }
+
+                    Spacer(minLength: 0)
+                }
+                .padding(.horizontal, 14)
+                .frame(width: 220, height: 56, alignment: .leading)
+            }
         }
         .buttonStyle(PlainButtonStyle())
         .fullScreenCover(isPresented: $showingLocationMap) {
@@ -6596,32 +6582,7 @@ struct InteractiveHashtagSticker: View {
             onPauseStory() // ✅ PAUSAR HISTORIA
             showingHashtagExplore = true
         }) {
-            Text("#\(hashtag)")
-                .font(.system(size: 16, weight: .semibold))
-                .foregroundStyle(
-                    LinearGradient(
-                        colors: [Color.pink, Color.orange, Color.yellow],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                )
-                .padding(.horizontal, 16)
-                .padding(.vertical, 8)
-                .background(
-                    RoundedRectangle(cornerRadius: 28)
-                        .fill(.ultraThinMaterial.opacity(0.3))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 28)
-                                .stroke(
-                                    LinearGradient(
-                                        colors: [Color.pink.opacity(0.6), Color.orange.opacity(0.6)],
-                                        startPoint: .topLeading,
-                                        endPoint: .bottomTrailing
-                                    ),
-                                    lineWidth: 1
-                                )
-                        )
-                )
+            StickerHashtagCardView(hashtag: hashtag)
         }
         .buttonStyle(PlainButtonStyle())
         .fullScreenCover(isPresented: $showingHashtagExplore) {

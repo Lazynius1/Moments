@@ -957,64 +957,103 @@ struct StickerPickerView: View {
         )
     }
 
-    private func createLocationSticker(_ location: String, coordinate: CLLocationCoordinate2D?) {
-        let renderer = UIGraphicsImageRenderer(size: CGSize(width: 280, height: 120))
-        let image = renderer.image { context in
-            let rect = CGRect(x: 0, y: 0, width: 280, height: 120)
-            
-            // ✅ FONDO CON GRADIENTE COMO INSTAGRAM
-            let backgroundPath = UIBezierPath(roundedRect: rect, cornerRadius: 16)
-            
-            // Gradiente de fondo
-            let colors = [
-                UIColor.systemBlue.withAlphaComponent(0.85).cgColor,
-                UIColor.systemPurple.withAlphaComponent(0.85).cgColor,
-                UIColor.systemPink.withAlphaComponent(0.85).cgColor
-            ] as CFArray
-            
-            context.cgContext.saveGState()
-            backgroundPath.addClip()
-            
-            if let gradient = CGGradient(colorsSpace: CGColorSpaceCreateDeviceRGB(), colors: colors, locations: [0.0, 0.5, 1.0]) {
-                context.cgContext.drawLinearGradient(gradient, start: CGPoint(x: 0, y: 0), end: CGPoint(x: rect.width, y: rect.height), options: [])
-            } else {
-                UIColor.systemPurple.setFill()
-                context.fill(rect)
-            }
-            context.cgContext.restoreGState()
-            
-            // Borde sutil
-            UIColor.white.withAlphaComponent(0.3).setStroke()
-            backgroundPath.lineWidth = 1.5
-            backgroundPath.stroke()
-            
-            // 📍 Icono de ubicación simple
-            let locationIcon = "📍"
-            let iconAttributes: [NSAttributedString.Key: Any] = [
-                .font: UIFont.systemFont(ofSize: 20, weight: .medium),
-                .foregroundColor: UIColor.white.withAlphaComponent(0.9)
-            ]
-            locationIcon.draw(in: CGRect(x: 16, y: 12, width: 20, height: 20), withAttributes: iconAttributes)
-            
-            // 📝 TEXTO DE UBICACIÓN
-            let displayText = location
-            
-            // Texto principal
-            let textAttributes: [NSAttributedString.Key: Any] = [
-                .font: UIFont.systemFont(ofSize: 18, weight: .semibold),
-                .foregroundColor: UIColor.white
-            ]
-            
-            let truncatedText = displayText.count > 25 ? String(displayText.prefix(25)) + "..." : displayText
-            truncatedText.draw(in: CGRect(x: 16, y: 45, width: 248, height: 50), withAttributes: textAttributes)
-            
-            // Texto "Ver ubicación"
+    private func drawStickerCardBackground(
+        in context: UIGraphicsImageRendererContext,
+        rect: CGRect,
+        cornerRadius: CGFloat,
+        fillColor: UIColor = .white,
+        strokeColor: UIColor = UIColor.black.withAlphaComponent(0.08),
+        shadowColor: UIColor = UIColor.black.withAlphaComponent(0.12)
+    ) {
+        let path = UIBezierPath(roundedRect: rect, cornerRadius: cornerRadius)
+
+        context.cgContext.saveGState()
+        context.cgContext.setShadow(offset: CGSize(width: 0, height: 8), blur: 20, color: shadowColor.cgColor)
+        fillColor.setFill()
+        path.fill()
+        context.cgContext.restoreGState()
+
+        strokeColor.setStroke()
+        path.lineWidth = 1
+        path.stroke()
+    }
+
+    private func drawStickerAccentPill(
+        in context: UIGraphicsImageRendererContext,
+        rect: CGRect,
+        fillColor: UIColor,
+        iconSystemName: String? = nil,
+        iconTint: UIColor = .white
+    ) {
+        let path = UIBezierPath(roundedRect: rect, cornerRadius: rect.height / 2)
+        fillColor.setFill()
+        path.fill()
+
+        if let iconSystemName,
+           let icon = UIImage(systemName: iconSystemName)?.withTintColor(iconTint, renderingMode: .alwaysOriginal) {
+            let side = min(rect.width, rect.height) * 0.48
+            let iconRect = CGRect(
+                x: rect.midX - side / 2,
+                y: rect.midY - side / 2,
+                width: side,
+                height: side
+            )
+            icon.draw(in: iconRect)
+        }
+    }
+
+    private func drawUtilityStickerText(
+        title: String,
+        subtitle: String?,
+        titleRect: CGRect,
+        subtitleRect: CGRect? = nil,
+        titleColor: UIColor = UIColor.black.withAlphaComponent(0.92),
+        subtitleColor: UIColor = UIColor.black.withAlphaComponent(0.48),
+        titleFont: UIFont = .systemFont(ofSize: 19, weight: .semibold),
+        subtitleFont: UIFont = .systemFont(ofSize: 12, weight: .medium)
+    ) {
+        let paragraphStyle = NSMutableParagraphStyle()
+        paragraphStyle.lineBreakMode = .byTruncatingTail
+
+        let titleAttributes: [NSAttributedString.Key: Any] = [
+            .font: titleFont,
+            .foregroundColor: titleColor,
+            .paragraphStyle: paragraphStyle
+        ]
+        (title as NSString).draw(in: titleRect, withAttributes: titleAttributes)
+
+        if let subtitle, let subtitleRect {
             let subtitleAttributes: [NSAttributedString.Key: Any] = [
-                .font: UIFont.systemFont(ofSize: 12, weight: .medium),
-                .foregroundColor: UIColor.white.withAlphaComponent(0.8)
+                .font: subtitleFont,
+                .foregroundColor: subtitleColor,
+                .paragraphStyle: paragraphStyle
             ]
-            NSLocalizedString("stickerview.location.viewLocation", comment: "View location subtitle")
-                .draw(in: CGRect(x: 16, y: 95, width: 248, height: 20), withAttributes: subtitleAttributes)
+            (subtitle as NSString).draw(in: subtitleRect, withAttributes: subtitleAttributes)
+        }
+    }
+
+    private func createLocationSticker(_ location: String, coordinate: CLLocationCoordinate2D?) {
+        let renderer = UIGraphicsImageRenderer(size: CGSize(width: 220, height: 56))
+        let image = renderer.image { context in
+            let rect = CGRect(x: 0, y: 0, width: 220, height: 56)
+            drawStickerCardBackground(in: context, rect: rect, cornerRadius: 22)
+
+            drawStickerAccentPill(
+                in: context,
+                rect: CGRect(x: 12, y: 12, width: 32, height: 32),
+                fillColor: UIColor(red: 0.98, green: 0.42, blue: 0.26, alpha: 1),
+                iconSystemName: "mappin.and.ellipse"
+            )
+
+            let displayText = location.count > 22 ? String(location.prefix(22)) + "..." : location
+            let titleAttributes: [NSAttributedString.Key: Any] = [
+                .font: UIFont.systemFont(ofSize: 15, weight: .semibold),
+                .foregroundColor: UIColor.black.withAlphaComponent(0.90)
+            ]
+            (displayText as NSString).draw(
+                in: CGRect(x: 54, y: 18, width: 148, height: 20),
+                withAttributes: titleAttributes
+            )
         }
         
         // ✅ CREAR STICKER CON DATOS DE INTERACCIÓN (TAMAÑO FIJO)
@@ -1334,73 +1373,34 @@ struct StickerPickerView: View {
         let timeString = timeFormatter.string(from: now)
         let dateString = dateFormatter.string(from: now)
         
-        // ✅ DISEÑO LIQUID GLASS (MÁS LIMPIO Y MODERNO)
-        // Aumentamos altura para dar aire
-        let width: CGFloat = 160
+        let width: CGFloat = 164
         let height: CGFloat = 56
-        let cornerRadius: CGFloat = 28 // Full rounded sides
+        let cornerRadius: CGFloat = 22
         
         let renderer = UIGraphicsImageRenderer(size: CGSize(width: width, height: height))
         let image = renderer.image { context in
             let rect = CGRect(x: 0, y: 0, width: width, height: height)
-            let path = UIBezierPath(roundedRect: rect, cornerRadius: cornerRadius)
-            
-            // 1. FONDO TRANSLÚCIDO (Glass Effect)
-            // Simulación de cristal con blanco semitransparente + sombra interna sutil
-            context.cgContext.saveGState()
-            path.addClip()
-            
-            // Fondo base suave
-            UIColor.black.withAlphaComponent(0.4).setFill() // Oscuro para contraste sobre cualquier fondo
-            path.fill()
-            
-            // Brillo superior (Top Gloss)
-            let glossPath = UIBezierPath(rect: CGRect(x: 0, y: 0, width: width, height: height / 2))
-            UIColor.white.withAlphaComponent(0.1).setFill()
-            glossPath.fill()
-            
-            context.cgContext.restoreGState()
-            
-            // 2. BORDE SUTIL (Rim Light)
-            // Borde blanco muy fino y semitransparente para definir la forma
-            context.cgContext.saveGState()
-            path.lineWidth = 1
-            UIColor.white.withAlphaComponent(0.3).setStroke()
-            path.stroke()
-            context.cgContext.restoreGState()
-            
-            // 3. TEXTO TIME (Grande y Bold)
+            drawStickerCardBackground(in: context, rect: rect, cornerRadius: cornerRadius)
+
+            drawStickerAccentPill(
+                in: context,
+                rect: CGRect(x: 14, y: 14, width: 28, height: 28),
+                fillColor: UIColor(red: 0.18, green: 0.66, blue: 0.98, alpha: 1),
+                iconSystemName: "clock.fill"
+            )
+
             let timeAttributes: [NSAttributedString.Key: Any] = [
-                .font: UIFont.systemFont(ofSize: 22, weight: .bold), // SF Pro Bold
-                .foregroundColor: UIColor.white,
-                .paragraphStyle: {
-                    let style = NSMutableParagraphStyle()
-                    style.alignment = .center
-                    return style
-                }()
+                .font: UIFont.monospacedDigitSystemFont(ofSize: 17, weight: .semibold),
+                .foregroundColor: UIColor.black.withAlphaComponent(0.92)
             ]
             
             let dateAttributes: [NSAttributedString.Key: Any] = [
-                .font: UIFont.systemFont(ofSize: 11, weight: .medium), // SF Pro Medium
-                .foregroundColor: UIColor.white.withAlphaComponent(0.8),
-                .paragraphStyle: {
-                    let style = NSMutableParagraphStyle()
-                    style.alignment = .center
-                    return style
-                }()
+                .font: UIFont.systemFont(ofSize: 11, weight: .medium),
+                .foregroundColor: UIColor.black.withAlphaComponent(0.48)
             ]
-            
-            // Dibujar Hora
-            let timeSize = timeString.size(withAttributes: timeAttributes)
-            let dateSize = dateString.size(withAttributes: dateAttributes)
-            
-            let totalContentHeight = timeSize.height + dateSize.height - 4 // -4 de spacing negativo
-            let startY = (height - totalContentHeight) / 2
-            
-            timeString.draw(in: CGRect(x: 0, y: startY, width: width, height: timeSize.height), withAttributes: timeAttributes)
-            
-            // Dibujar Fecha
-            dateString.draw(in: CGRect(x: 0, y: startY + timeSize.height - 4, width: width, height: dateSize.height), withAttributes: dateAttributes)
+
+            timeString.draw(in: CGRect(x: 52, y: 12, width: 92, height: 20), withAttributes: timeAttributes)
+            dateString.draw(in: CGRect(x: 52, y: 31, width: 92, height: 14), withAttributes: dateAttributes)
         }
         
         let sticker = StickerItem(
@@ -1459,15 +1459,15 @@ struct StickerPickerView: View {
         return renderer.image { context in
             let rect = CGRect(x: 0, y: 0, width: size, height: size)
             let circlePath = UIBezierPath(ovalIn: rect)
-            UIColor.black.withAlphaComponent(0.28).setFill()
+            UIColor.white.withAlphaComponent(0.92).setFill()
             circlePath.fill()
-            UIColor.white.setStroke()
-            circlePath.lineWidth = 2
+            UIColor.black.withAlphaComponent(0.08).setStroke()
+            circlePath.lineWidth = 1.5
             circlePath.stroke()
 
             let symbolConfig = UIImage.SymbolConfiguration(pointSize: size * 0.38, weight: .bold)
             let icon = UIImage(systemName: "camera.fill", withConfiguration: symbolConfig)?
-                .withTintColor(.white, renderingMode: .alwaysOriginal)
+                .withTintColor(UIColor.black.withAlphaComponent(0.78), renderingMode: .alwaysOriginal)
             icon?.draw(in: CGRect(
                 x: size * 0.31,
                 y: size * 0.31,
@@ -1483,40 +1483,24 @@ struct StickerPickerView: View {
         // Reducir tamaño masivo (ej. 12MP) a algo manejable para el renderer (800px)
         let selfieImage = downscaleImageIfNeeded(originalImage)
         
-        // ✅ CREAR STICKER CIRCULAR CON BORDE ELEGANTE
         let size: CGFloat = 120
         let renderer = UIGraphicsImageRenderer(size: CGSize(width: size, height: size))
         let stickerImage = renderer.image { context in
             let rect = CGRect(x: 0, y: 0, width: size, height: size)
-            
-            // ✅ FONDO CIRCULAR CON GRADIENTE
             let circlePath = UIBezierPath(ovalIn: rect)
-            
-            // Gradiente de fondo
-            let colors = [
-                UIColor.systemBlue.withAlphaComponent(0.8).cgColor,
-                UIColor.systemPurple.withAlphaComponent(0.8).cgColor,
-                UIColor.systemPink.withAlphaComponent(0.8).cgColor
-            ] as CFArray
-            
-            if let gradient = CGGradient(colorsSpace: CGColorSpaceCreateDeviceRGB(), colors: colors, locations: [0.0, 0.5, 1.0]) {
-                context.cgContext.saveGState()
-                circlePath.addClip()
-                context.cgContext.drawLinearGradient(gradient, start: CGPoint(x: 0, y: 0), end: CGPoint(x: size, y: size), options: [])
-                context.cgContext.restoreGState()
-            } else {
-                // Fallback
-                UIColor.systemPurple.withAlphaComponent(0.8).setFill()
-                circlePath.fill()
-            }
-            
-            // ✅ BORDE ELEGANTE
-            UIColor.white.withAlphaComponent(0.6).setStroke()
-            circlePath.lineWidth = 3
+
+            context.cgContext.saveGState()
+            context.cgContext.setShadow(offset: CGSize(width: 0, height: 4), blur: 10, color: UIColor.black.withAlphaComponent(0.12).cgColor)
+            UIColor.white.withAlphaComponent(0.98).setFill()
+            circlePath.fill()
+            context.cgContext.restoreGState()
+
+            UIColor.black.withAlphaComponent(0.04).setStroke()
+            circlePath.lineWidth = 0.5
             circlePath.stroke()
             
             // ✅ FOTO DEL SELFIE (CIRCULAR)
-            let imageRect = rect.insetBy(dx: 6, dy: 6)
+            let imageRect = rect.insetBy(dx: 1.5, dy: 1.5)
             let imageCirclePath = UIBezierPath(ovalIn: imageRect)
             
             context.cgContext.saveGState()
@@ -1646,36 +1630,35 @@ struct StickerPickerView: View {
     // MARK: - Función principal para generar el sticker (ESTILO INSTAGRAM)
     private func generateSticker(username: String, userId: String, profileImage: UIImage?) {
 
-        // ✅ ESTILO INSTAGRAM: Solo @username con fondo blanco
         let text = "@\(username)"
         let textAttributes: [NSAttributedString.Key: Any] = [
             .font: UIFont.systemFont(ofSize: 18, weight: .semibold),
-            .foregroundColor: UIColor.black
+            .foregroundColor: UIColor.black.withAlphaComponent(0.92)
         ]
         
         let textSize = text.size(withAttributes: textAttributes)
-        let padding: CGFloat = 12
-        let width = textSize.width + (padding * 2)
-        let height = textSize.height + (padding * 2)
+        let horizontalPadding: CGFloat = 20
+        let verticalPadding: CGFloat = 14
+        let iconSize: CGFloat = 28
+        let interItemSpacing: CGFloat = 10
+        let width = textSize.width + horizontalPadding * 2 + iconSize + interItemSpacing
+        let height = max(textSize.height + verticalPadding * 2, 56)
         
         let renderer = UIGraphicsImageRenderer(size: CGSize(width: width, height: height))
         let image = renderer.image { context in
             let rect = CGRect(x: 0, y: 0, width: width, height: height)
-            
-            // ✅ FONDO BLANCO nativo
-            let backgroundPath = UIBezierPath(roundedRect: rect, cornerRadius: height / 2)
-            UIColor.white.setFill()
-            backgroundPath.fill()
-            
-            // ✅ BORDE SUTIL
-            UIColor.black.withAlphaComponent(0.1).setStroke()
-            backgroundPath.lineWidth = 0.5
-            backgroundPath.stroke()
-            
-            // ✅ TEXTO CENTRADO
+
+            drawStickerCardBackground(in: context, rect: rect, cornerRadius: height / 2)
+            drawStickerAccentPill(
+                in: context,
+                rect: CGRect(x: 14, y: (height - iconSize) / 2, width: iconSize, height: iconSize),
+                fillColor: UIColor(red: 0.98, green: 0.65, blue: 0.13, alpha: 1),
+                iconSystemName: "at"
+            )
+
             let textRect = CGRect(
-                x: padding,
-                y: padding,
+                x: 14 + iconSize + interItemSpacing,
+                y: (height - textSize.height) / 2,
                 width: textSize.width,
                 height: textSize.height
             )
@@ -1706,62 +1689,37 @@ struct StickerPickerView: View {
     }
     
     private func createHashtagSticker(_ hashtag: String) {
-        let renderer = UIGraphicsImageRenderer(size: CGSize(width: 280, height: 120))
+        let displayText = hashtag.count > 18 ? String(hashtag.prefix(18)) + "..." : hashtag
+        let finalText = "#\(displayText)"
+        let textAttributes: [NSAttributedString.Key: Any] = [
+            .font: UIFont.systemFont(ofSize: 15, weight: .semibold),
+            .foregroundColor: UIColor.black.withAlphaComponent(0.92)
+        ]
+        let textWidth = ceil((finalText as NSString).size(withAttributes: textAttributes).width)
+        let width = max(136, min(240, textWidth + 72))
+
+        let renderer = UIGraphicsImageRenderer(size: CGSize(width: width, height: 52))
         let image = renderer.image { context in
-            let rect = CGRect(x: 0, y: 0, width: 280, height: 120)
-            
-            // ✅ FONDO CON GRADIENTE COMO INSTAGRAM
-            let backgroundPath = UIBezierPath(roundedRect: rect, cornerRadius: 16)
-            
-            // Gradiente de fondo (colores hashtag)
-            let colors = [
-                UIColor.systemPink.withAlphaComponent(0.85).cgColor,
-                UIColor.systemOrange.withAlphaComponent(0.85).cgColor,
-                UIColor.systemYellow.withAlphaComponent(0.85).cgColor
-            ] as CFArray
-            
-            if let gradient = CGGradient(colorsSpace: CGColorSpaceCreateDeviceRGB(), colors: colors, locations: [0.0, 0.5, 1.0]) {
-                context.cgContext.saveGState()
-                backgroundPath.addClip()
-                context.cgContext.drawLinearGradient(gradient, start: CGPoint(x: 0, y: 0), end: CGPoint(x: rect.width, y: rect.height), options: [])
-                context.cgContext.restoreGState()
-            } else {
-                UIColor.systemOrange.withAlphaComponent(0.85).setFill()
-                backgroundPath.fill()
-            }
-            
-            // Borde sutil
-            UIColor.white.withAlphaComponent(0.3).setStroke()
-            backgroundPath.lineWidth = 1.5
-            backgroundPath.stroke()
-            
-            // 🏷️ Icono de hashtag
-            let hashtagIcon = "#"
-            let iconAttributes: [NSAttributedString.Key: Any] = [
-                .font: UIFont.systemFont(ofSize: 20, weight: .medium),
-                .foregroundColor: UIColor.white.withAlphaComponent(0.9)
-            ]
-            hashtagIcon.draw(in: CGRect(x: 16, y: 12, width: 20, height: 20), withAttributes: iconAttributes)
-            
-            // 📝 TEXTO DE HASHTAG
-            let displayText = hashtag
-            
-            // Texto principal
-            let textAttributes: [NSAttributedString.Key: Any] = [
-                .font: UIFont.systemFont(ofSize: 18, weight: .semibold),
+            let rect = CGRect(x: 0, y: 0, width: width, height: 52)
+            drawStickerCardBackground(in: context, rect: rect, cornerRadius: 22)
+
+            drawStickerAccentPill(
+                in: context,
+                rect: CGRect(x: 12, y: 12, width: 28, height: 28),
+                fillColor: UIColor(red: 0.96, green: 0.40, blue: 0.58, alpha: 1),
+                iconSystemName: nil
+            )
+
+            let hashAttributes: [NSAttributedString.Key: Any] = [
+                .font: UIFont.systemFont(ofSize: 14, weight: .bold),
                 .foregroundColor: UIColor.white
             ]
-            
-            let truncatedText = displayText.count > 25 ? String(displayText.prefix(25)) + "..." : displayText
-            truncatedText.draw(in: CGRect(x: 16, y: 45, width: 248, height: 50), withAttributes: textAttributes)
-            
-            // Texto "Ver hashtag"
-            let subtitleAttributes: [NSAttributedString.Key: Any] = [
-                .font: UIFont.systemFont(ofSize: 12, weight: .medium),
-                .foregroundColor: UIColor.white.withAlphaComponent(0.8)
-            ]
-            NSLocalizedString("stickerview.hashtag.viewHashtag", comment: "View hashtag subtitle")
-                .draw(in: CGRect(x: 16, y: 95, width: 248, height: 20), withAttributes: subtitleAttributes)
+            ("#" as NSString).draw(in: CGRect(x: 20, y: 17, width: 10, height: 16), withAttributes: hashAttributes)
+
+            (finalText as NSString).draw(
+                in: CGRect(x: 50, y: 17, width: width - 62, height: 18),
+                withAttributes: textAttributes
+            )
         }
         
         // ✅ CREAR STICKER CON DATOS DE INTERACCIÓN
@@ -1791,37 +1749,41 @@ struct StickerPickerView: View {
 
         let displayTitle = customTitle.trimmingCharacters(in: .whitespacesAndNewlines)
         let resolvedTitle = displayTitle.isEmpty ? stickerHostLabel(from: normalizedURL.absoluteString) : displayTitle
-        let resolvedSize = linkStickerRenderingSize(for: resolvedTitle)
+        let hostLabel = stickerHostLabel(from: normalizedURL.absoluteString)
+        let resolvedSize = CGSize(width: max(220, min(320, linkStickerRenderingSize(for: resolvedTitle).width + 44)), height: 78)
         let renderer = UIGraphicsImageRenderer(size: resolvedSize)
         let image = renderer.image { context in
             let rect = CGRect(origin: .zero, size: resolvedSize)
-            let path = UIBezierPath(roundedRect: rect, cornerRadius: resolvedSize.height / 2)
-
-            UIColor.white.withAlphaComponent(0.16).setFill()
-            path.fill()
-
-            UIColor.white.withAlphaComponent(0.18).setStroke()
-            path.lineWidth = 1
-            path.stroke()
-
-            if let linkIcon = UIImage(systemName: "link")?.withTintColor(UIColor(red: 0.29, green: 0.72, blue: 0.98, alpha: 1), renderingMode: .alwaysOriginal) {
-                linkIcon.draw(in: CGRect(x: 14, y: 15, width: 15, height: 15))
-            }
+            drawStickerCardBackground(in: context, rect: rect, cornerRadius: 24)
+            drawStickerAccentPill(
+                in: context,
+                rect: CGRect(x: 16, y: 19, width: 40, height: 40),
+                fillColor: UIColor(red: 0.18, green: 0.66, blue: 0.98, alpha: 1),
+                iconSystemName: "link"
+            )
 
             let paragraphStyle = NSMutableParagraphStyle()
             paragraphStyle.lineBreakMode = .byTruncatingTail
 
             let titleAttributes: [NSAttributedString.Key: Any] = [
                 .font: UIFont.systemFont(ofSize: 16, weight: .semibold),
-                .foregroundColor: UIColor.white,
+                .foregroundColor: UIColor.black.withAlphaComponent(0.92),
                 .paragraphStyle: paragraphStyle
             ]
-            if let linkIcon = UIImage(systemName: "link")?.withTintColor(UIColor(red: 0.29, green: 0.72, blue: 0.98, alpha: 1), renderingMode: .alwaysOriginal) {
-                linkIcon.draw(in: CGRect(x: 18, y: 16, width: 18, height: 18))
-            }
+
+            let subtitleAttributes: [NSAttributedString.Key: Any] = [
+                .font: UIFont.systemFont(ofSize: 12, weight: .medium),
+                .foregroundColor: UIColor.black.withAlphaComponent(0.48),
+                .paragraphStyle: paragraphStyle
+            ]
+
             (resolvedTitle as NSString).draw(
-                in: CGRect(x: 48, y: 14, width: resolvedSize.width - 66, height: 20),
+                in: CGRect(x: 70, y: 18, width: resolvedSize.width - 86, height: 20),
                 withAttributes: titleAttributes
+            )
+            (hostLabel as NSString).draw(
+                in: CGRect(x: 70, y: 40, width: resolvedSize.width - 86, height: 16),
+                withAttributes: subtitleAttributes
             )
         }
 
@@ -1854,104 +1816,47 @@ struct StickerPickerView: View {
     
     private func createPollSticker(_ poll: [String]) {
         guard poll.count >= 3 else { return }
-        
-        // ✅ NUEVO: Tamaño más compacto y elegante
-        let renderer = UIGraphicsImageRenderer(size: CGSize(width: 280, height: 180))
+
+        let renderer = UIGraphicsImageRenderer(size: CGSize(width: 300, height: 172))
         let image = renderer.image { context in
-            let rect = CGRect(x: 0, y: 0, width: 280, height: 180)
-            
-            // ✅ Fondo con gradiente elegante (colores de la app)
-            let colors = [
-                UIColor.systemBlue.withAlphaComponent(0.85).cgColor,
-                UIColor.systemPurple.withAlphaComponent(0.85).cgColor,
-                UIColor.systemPink.withAlphaComponent(0.85).cgColor
-            ] as CFArray
-            
-            context.cgContext.saveGState()
-            let mainPath = UIBezierPath(roundedRect: rect, cornerRadius: 16)
-            mainPath.addClip()
-            
-            if let gradient = CGGradient(
-                colorsSpace: CGColorSpaceCreateDeviceRGB(),
-                colors: colors,
-                locations: [0.0, 0.5, 1.0]
-            ) {
-                context.cgContext.drawLinearGradient(
-                    gradient,
-                    start: CGPoint(x: 0, y: 0),
-                    end: CGPoint(x: rect.width, y: rect.height),
-                    options: []
-                )
-            } else {
-                UIColor.systemPurple.withAlphaComponent(0.85).setFill()
-                mainPath.fill()
-            }
-            context.cgContext.restoreGState()
-            
-            // ✅ Borde con glow sutil
-            UIColor.white.withAlphaComponent(0.3).setStroke()
-            mainPath.lineWidth = 1.5
-            mainPath.stroke()
-            
-            // ✅ Icono de poll (más elegante que "ENCUESTA")
-            let pollIcon = "📊"
-            let iconAttributes: [NSAttributedString.Key: Any] = [
-                .font: UIFont.systemFont(ofSize: 16, weight: .medium),
-                .foregroundColor: UIColor.white.withAlphaComponent(0.9)
-            ]
-            pollIcon.draw(in: CGRect(x: 16, y: 12, width: 20, height: 20), withAttributes: iconAttributes)
-            
-            // ✅ Pregunta con mejor tipografía
+            let rect = CGRect(x: 0, y: 0, width: 300, height: 172)
+            drawStickerCardBackground(in: context, rect: rect, cornerRadius: 26)
+
             let questionAttributes: [NSAttributedString.Key: Any] = [
-                .font: UIFont.systemFont(ofSize: 16, weight: .semibold),
-                .foregroundColor: UIColor.white
+                .font: UIFont.systemFont(ofSize: 17, weight: .semibold),
+                .foregroundColor: UIColor.black.withAlphaComponent(0.92)
             ]
-            let questionText = poll[0].count > 30 ? String(poll[0].prefix(30)) + "..." : poll[0]
-            questionText.draw(in: CGRect(x: 16, y: 35, width: 248, height: 40), withAttributes: questionAttributes)
-            
-            // ✅ Opción 1 con diseño más moderno
-            let option1Rect = CGRect(x: 16, y: 85, width: 248, height: 35)
-            let option1Path = UIBezierPath(roundedRect: option1Rect, cornerRadius: 17.5)
-            
-            // Fondo semi-transparente con blur effect
-            UIColor.white.withAlphaComponent(0.15).setFill()
-            option1Path.fill()
-            
-            // Borde sutil
-            UIColor.white.withAlphaComponent(0.4).setStroke()
-            option1Path.lineWidth = 0.8
-            option1Path.stroke()
-            
-            // ✅ Opción 2
-            let option2Rect = CGRect(x: 16, y: 130, width: 248, height: 35)
-            let option2Path = UIBezierPath(roundedRect: option2Rect, cornerRadius: 17.5)
-            
-            UIColor.white.withAlphaComponent(0.15).setFill()
-            option2Path.fill()
-            
-            UIColor.white.withAlphaComponent(0.4).setStroke()
-            option2Path.lineWidth = 0.8
-            option2Path.stroke()
-            
-            // ✅ Texto de las opciones con mejor espaciado
+            let questionText = poll[0].count > 44 ? String(poll[0].prefix(44)) + "..." : poll[0]
+            questionText.draw(in: CGRect(x: 18, y: 20, width: 264, height: 42), withAttributes: questionAttributes)
+
+            let optionFill = UIColor.black.withAlphaComponent(0.045)
+            let optionStroke = UIColor.black.withAlphaComponent(0.08)
             let optionAttributes: [NSAttributedString.Key: Any] = [
-                .font: UIFont.systemFont(ofSize: 14, weight: .medium),
-                .foregroundColor: UIColor.white
+                .font: UIFont.systemFont(ofSize: 15, weight: .medium),
+                .foregroundColor: UIColor.black.withAlphaComponent(0.88)
             ]
-            
-            let option1Text = poll[1].count > 22 ? String(poll[1].prefix(22)) + "..." : poll[1]
-            let option2Text = poll[2].count > 22 ? String(poll[2].prefix(22)) + "..." : poll[2]
-            
-            option1Text.draw(in: CGRect(x: 28, y: 94, width: 224, height: 18), withAttributes: optionAttributes)
-            option2Text.draw(in: CGRect(x: 28, y: 139, width: 224, height: 18), withAttributes: optionAttributes)
-            
-            // ✅ Indicador de "Toca para votar" sutil
-            let tapText = "Toca para votar"
-            let tapAttributes: [NSAttributedString.Key: Any] = [
-                .font: UIFont.systemFont(ofSize: 10, weight: .medium),
-                .foregroundColor: UIColor.white.withAlphaComponent(0.6)
-            ]
-            tapText.draw(in: CGRect(x: 16, y: 155, width: 248, height: 12), withAttributes: tapAttributes)
+
+            let option1Rect = CGRect(x: 18, y: 82, width: 264, height: 32)
+            let option1Path = UIBezierPath(roundedRect: option1Rect, cornerRadius: 17)
+            optionFill.setFill()
+            option1Path.fill()
+            optionStroke.setStroke()
+            option1Path.lineWidth = 1
+            option1Path.stroke()
+
+            let option2Rect = CGRect(x: 18, y: 122, width: 264, height: 32)
+            let option2Path = UIBezierPath(roundedRect: option2Rect, cornerRadius: 17)
+            optionFill.setFill()
+            option2Path.fill()
+            optionStroke.setStroke()
+            option2Path.lineWidth = 1
+            option2Path.stroke()
+
+            let option1Text = poll[1].count > 28 ? String(poll[1].prefix(28)) + "..." : poll[1]
+            let option2Text = poll[2].count > 28 ? String(poll[2].prefix(28)) + "..." : poll[2]
+
+            option1Text.draw(in: CGRect(x: 32, y: 89, width: 232, height: 18), withAttributes: optionAttributes)
+            option2Text.draw(in: CGRect(x: 32, y: 129, width: 232, height: 18), withAttributes: optionAttributes)
         }
         
         // ✅ CREAR STICKER CON DATOS DE INTERACCIÓN (TAMAÑO FIJO )
@@ -1977,68 +1882,30 @@ struct StickerPickerView: View {
     }
     
     private func createQuestionSticker(_ question: String) {
-        let renderer = UIGraphicsImageRenderer(size: CGSize(width: 300, height: 120))
+        let renderer = UIGraphicsImageRenderer(size: CGSize(width: 300, height: 132))
         let image = renderer.image { context in
-            let rect = CGRect(x: 0, y: 0, width: 300, height: 120)
-            
-            // Fondo degradado dinámico - SAFE UNWRAP
-            let colors = [
-                UIColor.systemTeal.cgColor,
-                UIColor.systemBlue.cgColor,
-                UIColor.systemPurple.cgColor
-            ] as CFArray
-            
-            let path = UIBezierPath(roundedRect: rect, cornerRadius: 20)
-            context.cgContext.addPath(path.cgPath)
-            context.cgContext.clip()
-            
-            if let gradient = CGGradient(
-                colorsSpace: CGColorSpaceCreateDeviceRGB(),
-                colors: colors,
-                locations: [0.0, 0.5, 1.0]
-            ) {
-                context.cgContext.drawLinearGradient(
-                    gradient,
-                    start: CGPoint(x: 0, y: 0),
-                    end: CGPoint(x: rect.width, y: rect.height),
-                    options: []
-                )
-            } else {
-                // Fallback color
-                UIColor.systemBlue.setFill()
-                path.fill()
-            }
-            
-            // Overlay glassmorphism
-            UIColor.white.withAlphaComponent(0.1).setFill()
-            let overlayPath = UIBezierPath(roundedRect: rect.insetBy(dx: 3, dy: 3), cornerRadius: 17)
-            overlayPath.fill()
-            
-            // Icono de pregunta
-            let questionMark = "?"
-            let iconAttributes: [NSAttributedString.Key: Any] = [
-                .font: UIFont.systemFont(ofSize: 24, weight: .bold),
-                .foregroundColor: UIColor.white.withAlphaComponent(0.9)
-            ]
-            questionMark.draw(in: CGRect(x: 20, y: 20, width: 30, height: 30), withAttributes: iconAttributes)
-            
-            // Texto "PREGÚNTAME"
-            let headerAttributes: [NSAttributedString.Key: Any] = [
-                .font: UIFont.systemFont(ofSize: 12, weight: .bold),
-                .foregroundColor: UIColor.white.withAlphaComponent(0.8),
-                .kern: 1.0
-            ]
-            NSLocalizedString("stickerview.question.askMe", comment: "Ask me header")
-                .draw(in: CGRect(x: 60, y: 25, width: 220, height: 15), withAttributes: headerAttributes)
-            
-            // Pregunta personalizada
+            let rect = CGRect(x: 0, y: 0, width: 300, height: 132)
+            drawStickerCardBackground(in: context, rect: rect, cornerRadius: 26)
+
             let questionAttributes: [NSAttributedString.Key: Any] = [
-                .font: UIFont.systemFont(ofSize: 16, weight: .semibold),
-                .foregroundColor: UIColor.white
+                .font: UIFont.systemFont(ofSize: 17, weight: .semibold),
+                .foregroundColor: UIColor.black.withAlphaComponent(0.92)
             ]
-            
-            let truncatedQuestion = question.count > 40 ? String(question.prefix(40)) + "..." : question
-            truncatedQuestion.draw(in: CGRect(x: 20, y: 55, width: 260, height: 50), withAttributes: questionAttributes)
+
+            let truncatedQuestion = question.count > 48 ? String(question.prefix(48)) + "..." : question
+            truncatedQuestion.draw(in: CGRect(x: 18, y: 20, width: 264, height: 42), withAttributes: questionAttributes)
+
+            let responseRect = CGRect(x: 18, y: 88, width: 264, height: 28)
+            let responsePath = UIBezierPath(roundedRect: responseRect, cornerRadius: 14)
+            UIColor.black.withAlphaComponent(0.05).setFill()
+            responsePath.fill()
+
+            let responseAttributes: [NSAttributedString.Key: Any] = [
+                .font: UIFont.systemFont(ofSize: 12, weight: .medium),
+                .foregroundColor: UIColor(red: 0.24, green: 0.46, blue: 0.88, alpha: 0.95)
+            ]
+            NSLocalizedString("question.tapToAnswer", comment: "Tap to answer")
+                .draw(in: CGRect(x: 30, y: 95, width: 240, height: 16), withAttributes: responseAttributes)
         }
         
         // ✅ CREAR STICKER CON DATOS DE INTERACCIÓN
@@ -2074,22 +1941,7 @@ struct StickerPickerView: View {
         let renderer = UIGraphicsImageRenderer(size: CGSize(width: 240, height: 96))
         let image = renderer.image { context in
             let rect = CGRect(x: 0, y: 0, width: 240, height: 96)
-            let path = UIBezierPath(roundedRect: rect, cornerRadius: 20)
-            let colors = [
-                UIColor(red: 0.32, green: 0.24, blue: 0.92, alpha: 0.86).cgColor,
-                UIColor(red: 0.86, green: 0.28, blue: 0.73, alpha: 0.92).cgColor
-            ] as CFArray
-
-            context.cgContext.saveGState()
-            path.addClip()
-            if let gradient = CGGradient(colorsSpace: CGColorSpaceCreateDeviceRGB(), colors: colors, locations: [0.0, 1.0]) {
-                context.cgContext.drawLinearGradient(gradient, start: CGPoint(x: 0, y: 0), end: CGPoint(x: rect.width, y: rect.height), options: [])
-            }
-            context.cgContext.restoreGState()
-
-            UIColor.white.withAlphaComponent(0.18).setStroke()
-            path.lineWidth = 1
-            path.stroke()
+            drawStickerCardBackground(in: context, rect: rect, cornerRadius: 22)
 
             let paragraphStyle = NSMutableParagraphStyle()
             paragraphStyle.lineBreakMode = .byTruncatingTail
@@ -2097,17 +1949,17 @@ struct StickerPickerView: View {
             paragraphStyle.alignment = .center
 
             let titleAttributes: [NSAttributedString.Key: Any] = [
-                .font: UIFont.systemFont(ofSize: 15, weight: .semibold),
-                .foregroundColor: UIColor.white,
+                .font: UIFont.systemFont(ofSize: 14, weight: .semibold),
+                .foregroundColor: UIColor.black.withAlphaComponent(0.92),
                 .paragraphStyle: paragraphStyle
             ]
             let digitAttributes: [NSAttributedString.Key: Any] = [
                 .font: UIFont.systemFont(ofSize: 22, weight: .bold),
-                .foregroundColor: UIColor.white
+                .foregroundColor: UIColor.black.withAlphaComponent(0.92)
             ]
             let colonAttributes: [NSAttributedString.Key: Any] = [
                 .font: UIFont.systemFont(ofSize: 22, weight: .bold),
-                .foregroundColor: UIColor.white.withAlphaComponent(0.92),
+                .foregroundColor: UIColor(red: 0.43, green: 0.16, blue: 0.44, alpha: 1),
                 .paragraphStyle: paragraphStyle
             ]
 
@@ -2138,9 +1990,9 @@ struct StickerPickerView: View {
                 } else {
                     let boxRect = CGRect(x: currentX, y: rowY, width: boxSize.width, height: boxSize.height)
                     let boxPath = UIBezierPath(roundedRect: boxRect, cornerRadius: 8)
-                    UIColor.white.withAlphaComponent(0.18).setFill()
+                    UIColor(white: 0.96, alpha: 1).setFill()
                     boxPath.fill()
-                    UIColor.white.withAlphaComponent(0.2).setStroke()
+                    UIColor.black.withAlphaComponent(0.05).setStroke()
                     boxPath.lineWidth = 1
                     boxPath.stroke()
 
@@ -4038,6 +3890,9 @@ struct ModernPollInputView: View {
     @State private var option1 = ""
     @State private var option2 = ""
     @FocusState private var focusedField: Field?
+
+    private let maxPollQuestionLength = 44
+    private let maxPollOptionLength = 28
     
     enum Field {
         case question, option1, option2
@@ -4070,6 +3925,11 @@ struct ModernPollInputView: View {
                         .font(.system(size: 18, weight: .medium))
                         .foregroundColor(palette.primaryText)
                         .focused($focusedField, equals: .question)
+                        .onChange(of: question) { newValue in
+                            if newValue.count > maxPollQuestionLength {
+                                question = String(newValue.prefix(maxPollQuestionLength))
+                            }
+                        }
                         .padding(.horizontal, 20)
                         .padding(.vertical, 16)
                         .background(
@@ -4098,6 +3958,11 @@ struct ModernPollInputView: View {
                             .font(.system(size: 18, weight: .medium))
                             .foregroundColor(palette.primaryText)
                             .focused($focusedField, equals: .option1)
+                            .onChange(of: option1) { newValue in
+                                if newValue.count > maxPollOptionLength {
+                                    option1 = String(newValue.prefix(maxPollOptionLength))
+                                }
+                            }
                     }
                     .padding(.horizontal, 20)
                     .padding(.vertical, 16)
@@ -4127,6 +3992,11 @@ struct ModernPollInputView: View {
                             .font(.system(size: 18, weight: .medium))
                             .foregroundColor(palette.primaryText)
                             .focused($focusedField, equals: .option2)
+                            .onChange(of: option2) { newValue in
+                                if newValue.count > maxPollOptionLength {
+                                    option2 = String(newValue.prefix(maxPollOptionLength))
+                                }
+                            }
                     }
                     .padding(.horizontal, 20)
                     .padding(.vertical, 16)
@@ -4182,6 +4052,8 @@ struct ModernQuestionInputView: View {
     @State private var question = ""
     @FocusState private var isTextFieldFocused: Bool
 
+    private let maxQuestionLength = 48
+
     private var palette: StickerDetailPalette {
         StickerDetailPalette(colorScheme: colorScheme)
     }
@@ -4209,6 +4081,11 @@ struct ModernQuestionInputView: View {
                         .font(.system(size: 18, weight: .medium))
                         .foregroundColor(palette.primaryText)
                         .focused($isTextFieldFocused)
+                        .onChange(of: question) { newValue in
+                            if newValue.count > maxQuestionLength {
+                                question = String(newValue.prefix(maxQuestionLength))
+                            }
+                        }
                 }
                 .padding(.horizontal, 20)
                 .padding(.vertical, 16)
