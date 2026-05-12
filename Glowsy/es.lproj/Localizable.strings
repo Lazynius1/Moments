@@ -2933,11 +2933,21 @@
 "notification.moderation.partial.body" = "Hemos ocultado %@ foto(s)/vídeo(s) de tu publicación porque no cumplen nuestras Normas de la comunidad. El resto sigue visible.";
 "notification.moderation.full.title" = "Revisión de contenido";
 "notification.moderation.full.body" = "Tu publicación ahora es solo para ti porque todo el contenido multimedia fue ocultado tras la revisión.";
+"notification.moderation.story.partial.title" = "Revisión de contenido";
+"notification.moderation.story.partial.body" = "Hemos ocultado %@ elemento(s) de tu historia porque no cumplen nuestras Normas de la comunidad. El resto sigue visible.";
+"notification.moderation.story.full.title" = "Revisión de contenido";
+"notification.moderation.story.full.body" = "Tu historia ahora es solo para ti porque su contenido fue ocultado tras la revisión.";
+"notification.moderation.storySticker.partial.title" = "Revisión de contenido";
+"notification.moderation.storySticker.partial.body.one" = "Hemos ocultado un sticker de tu historia porque no cumple nuestras Normas de la comunidad. El resto sigue visible.";
+"notification.moderation.storySticker.partial.body.other" = "Hemos ocultado %d stickers de tu historia porque no cumplen nuestras Normas de la comunidad. El resto sigue visible.";
 "notifications.message.mediaModeration" = "Hemos revisado una publicación reciente para asegurar que cumple con nuestras Normas de la comunidad.";
 
 /* Banner - Moderación de contenido */
 "banner.verb.mediaModeration.partial" = "Se ha ocultado contenido de tu publicación";
 "banner.verb.mediaModeration.full" = "Tu publicación ahora es solo para ti";
+"banner.verb.mediaModeration.story.partial" = "Se ha ocultado contenido de tu historia";
+"banner.verb.mediaModeration.story.full" = "Tu historia ahora es solo para ti";
+"banner.verb.mediaModeration.storySticker.partial" = "Hemos ocultado un sticker de tu historia";
 "appeal.yourAppeal.placeholder" = "Cuéntanos por qué crees que la suspensión debería revisarse. Añade contexto concreto y evita información sensible.";
 "appeal.additionalInfo.placeholder" = "Añade cualquier detalle extra que pueda ayudar a revisar tu caso.";
 

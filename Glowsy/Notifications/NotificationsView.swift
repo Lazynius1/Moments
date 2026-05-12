@@ -509,7 +509,21 @@ struct EnhancedNotificationRow: View {
     var body: some View {
         HStack(spacing: 12) {
             // Avatar con Story Ring consistente con el resto de la app
-            if let senderId = group.notifications.first?.senderId, !senderId.isEmpty {
+            if isModerationNotification {
+                ZStack {
+                    Circle()
+                        .fill(colorScheme == .dark ? Color.white.opacity(0.08) : Color.black.opacity(0.08))
+                        .frame(width: 42, height: 42)
+                    Image(colorScheme == .dark ? "SplashLogoLight" : "SplashLogoDark")
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 24, height: 24)
+                }
+                .overlay(
+                    Circle()
+                        .stroke(colorScheme == .dark ? Color.white.opacity(0.16) : Color.black.opacity(0.1), lineWidth: 1)
+                )
+            } else if let senderId = group.notifications.first?.senderId, !senderId.isEmpty {
                 StoryRingAvatarView(
                     userId: senderId,
                     size: 42,
@@ -923,18 +937,12 @@ struct EnhancedNotificationRow: View {
                 .buttonStyle(PlainButtonStyle())
 
             case .mediaModeration:
-                // 🛡️ Icono de moderación naranja
+                // 🛡️ Icono de moderación limpio
                 Button(action: onTapAction) {
                     Image(systemName: "exclamationmark.shield.fill")
-                        .foregroundColor(.orange)
-                        .font(.system(size: 20))
+                        .foregroundColor(colorScheme == .dark ? .white.opacity(0.9) : .black.opacity(0.82))
+                        .font(.system(size: 20, weight: .semibold))
                         .frame(width: 44, height: 44)
-                        .background(Color.orange.opacity(0.15))
-                        .clipShape(Circle())
-                        .overlay(
-                            Circle()
-                                .stroke(Color.orange.opacity(0.45), lineWidth: 1)
-                        )
                 }
                 .buttonStyle(PlainButtonStyle())
 
@@ -942,6 +950,10 @@ struct EnhancedNotificationRow: View {
                 EmptyView()
             }
         }
+    }
+
+    private var isModerationNotification: Bool {
+        group.notifications.first?.type == .mediaModeration
     }
 
     // MARK: - Métodos auxiliares (mantenidos del original)

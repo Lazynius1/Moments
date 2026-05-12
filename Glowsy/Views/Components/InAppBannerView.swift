@@ -63,15 +63,7 @@ struct InAppBannerView: View {
         }) {
             HStack(spacing: 12) {
                 if isSystem {
-                    ZStack {
-                        Circle()
-                            .fill(accentColor.opacity(0.16))
-                            .frame(width: 42, height: 42)
-                        Image(systemName: isSystemModerationBanner(notification) ? "exclamationmark.shield.fill" : "hourglass.circle.fill")
-                            .font(.system(size: 18, weight: .bold))
-                            .foregroundColor(accentColor)
-                    }
-                    .overlay(Circle().stroke(accentColor.opacity(0.35), lineWidth: 1))
+                    systemBannerAvatar(for: notification)
                 } else {
                     AsyncProfileImageView(userId: notification.senderId)
                         .frame(width: 42, height: 42)
@@ -144,15 +136,10 @@ struct InAppBannerView: View {
                                 .stroke(accentColor.opacity(0.3), lineWidth: 1)
                         )
                 } else {
-                    ZStack {
-                        Circle()
-                            .fill(accentColor.opacity(0.15))
-                            .frame(width: 32, height: 32)
-                        
-                        Image(systemName: isSystemTimeLimitBanner(notification) ? "clock.fill" : (isSystemModerationBanner(notification) ? "exclamationmark.shield.fill" : notification.type.systemIconName))
-                            .font(.system(size: 14, weight: .bold))
-                            .foregroundColor(accentColor)
-                    }
+                    Image(systemName: isSystemTimeLimitBanner(notification) ? "clock.fill" : (isSystemModerationBanner(notification) ? "exclamationmark.shield.fill" : notification.type.systemIconName))
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundColor(isSystemModerationBanner(notification) ? .primary.opacity(0.85) : accentColor)
+                        .frame(width: 32, height: 32)
                 }
             }
             .padding(.horizontal, 16)
@@ -186,6 +173,35 @@ struct InAppBannerView: View {
             // Reset y recargar si cambia la notificación en vuelo
             contentPreviewImage = nil
             loadImages(for: notification)
+        }
+    }
+
+    @ViewBuilder
+    private func systemBannerAvatar(for notification: Notification) -> some View {
+        if isSystemModerationBanner(notification) {
+            ZStack {
+                Circle()
+                    .fill(colorScheme == .dark ? Color.white.opacity(0.08) : Color.black.opacity(0.08))
+                    .frame(width: 42, height: 42)
+                Image(colorScheme == .dark ? "SplashLogoLight" : "SplashLogoDark")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 24, height: 24)
+            }
+            .overlay(
+                Circle()
+                    .stroke(colorScheme == .dark ? Color.white.opacity(0.14) : Color.black.opacity(0.1), lineWidth: 1)
+            )
+        } else {
+            ZStack {
+                Circle()
+                    .fill(Color.orange.opacity(0.16))
+                    .frame(width: 42, height: 42)
+                Image(systemName: "hourglass.circle.fill")
+                    .font(.system(size: 18, weight: .bold))
+                    .foregroundColor(.orange)
+            }
+            .overlay(Circle().stroke(Color.orange.opacity(0.35), lineWidth: 1))
         }
     }
     
@@ -327,11 +343,21 @@ struct InAppBannerView: View {
         if let message = notification.message, !message.isEmpty {
             return message
         }
-        // Usar clave de localización basada en moderationType
-        // El campo message se rellena desde el servidor, pero como fallback usamos la clave
         let moderationType = notification.reaction ?? "partial" // reaction se usa para almacenar moderationType en el decode
+        let moderationScope = notification.moderationScope ?? "post"
+
+        if moderationScope == "storySticker" {
+            return NSLocalizedString("banner.verb.mediaModeration.storySticker.partial", value: "We hid a sticker from your story", comment: "")
+        }
+
+        if moderationScope == "story" {
+            if moderationType == "full" {
+                return NSLocalizedString("banner.verb.mediaModeration.story.full", value: "Your story is now only visible to you", comment: "")
+            }
+            return NSLocalizedString("banner.verb.mediaModeration.story.partial", value: "Some content was hidden from your story", comment: "")
+        }
+
         if moderationType == "full" || notification.senderId == "system_moderation" {
-            // Verificar título para distinguir
             if notification.title?.contains("solo para ti") == true || notification.title?.contains("only to you") == true {
                 return NSLocalizedString("banner.verb.mediaModeration.full", value: "Your post is now only visible to you", comment: "")
             }

@@ -2908,11 +2908,21 @@
 "notification.moderation.partial.body" = "We've hidden %@ photo(s)/video(s) from your post because they don't meet our Community Guidelines. The rest is still visible.";
 "notification.moderation.full.title" = "Content Review";
 "notification.moderation.full.body" = "Your post is now visible only to you because all media was hidden after review.";
+"notification.moderation.story.partial.title" = "Content Review";
+"notification.moderation.story.partial.body" = "We've hidden %@ item(s) from your story because they don't meet our Community Guidelines. The rest is still visible.";
+"notification.moderation.story.full.title" = "Content Review";
+"notification.moderation.story.full.body" = "Your story is now visible only to you because its content was hidden after review.";
+"notification.moderation.storySticker.partial.title" = "Content Review";
+"notification.moderation.storySticker.partial.body.one" = "We've hidden a sticker from your story because it doesn't meet our Community Guidelines. The rest is still visible.";
+"notification.moderation.storySticker.partial.body.other" = "We've hidden %d stickers from your story because they don't meet our Community Guidelines. The rest is still visible.";
 "notifications.message.mediaModeration" = "We reviewed a recent post to ensure it complies with our Community Guidelines.";
 
 /* Banner - Media Moderation */
 "banner.verb.mediaModeration.partial" = "Some content was hidden from your post";
 "banner.verb.mediaModeration.full" = "Your post is now only visible to you";
+"banner.verb.mediaModeration.story.partial" = "Some content was hidden from your story";
+"banner.verb.mediaModeration.story.full" = "Your story is now only visible to you";
+"banner.verb.mediaModeration.storySticker.partial" = "We hid a sticker from your story";
 "appeal.yourAppeal.placeholder" = "Tell us why you think the suspension should be reviewed. Add specific context and avoid sensitive information.";
 "appeal.additionalInfo.placeholder" = "Add any extra details that could help us review your case.";
 

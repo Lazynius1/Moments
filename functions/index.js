@@ -1419,19 +1419,33 @@ async function handleModerationPush(userId, notificationId, notification, userDa
   if (!fcmToken || isDoNotDisturbActive(userData)) return;
 
   const moderationType = notification.moderationType || 'full';
+  const moderationScope = notification.moderationScope || 'post';
   const moderatedMediaCount = notification.moderatedMediaCount || 0;
   const momentId = notification.momentId || '';
+  const storyId = notification.storyId || '';
 
   let titleLocKey, bodyLocKey, bodyLocArgs;
 
-  if (moderationType === 'partial') {
-    titleLocKey = 'notification.moderation.partial.title';
-    bodyLocKey = 'notification.moderation.partial.body';
-    bodyLocArgs = [String(moderatedMediaCount)];
+  if (moderationScope === 'storySticker') {
+    titleLocKey = 'notification.moderation.storySticker.partial.title';
+    if (moderatedMediaCount === 1) {
+      bodyLocKey = 'notification.moderation.storySticker.partial.body.one';
+      bodyLocArgs = [];
+    } else {
+      bodyLocKey = 'notification.moderation.storySticker.partial.body.other';
+      bodyLocArgs = [String(moderatedMediaCount)];
+    }
   } else {
-    titleLocKey = 'notification.moderation.full.title';
-    bodyLocKey = 'notification.moderation.full.body';
-    bodyLocArgs = [];
+    const scopePrefix = moderationScope === 'story' ? 'notification.moderation.story' : 'notification.moderation';
+    if (moderationType === 'partial') {
+      titleLocKey = `${scopePrefix}.partial.title`;
+      bodyLocKey = `${scopePrefix}.partial.body`;
+      bodyLocArgs = [String(moderatedMediaCount)];
+    } else {
+      titleLocKey = `${scopePrefix}.full.title`;
+      bodyLocKey = `${scopePrefix}.full.body`;
+      bodyLocArgs = [];
+    }
   }
 
   // Obtener conteos para badge
@@ -1446,14 +1460,16 @@ async function handleModerationPush(userId, notificationId, notification, userDa
     data: {
       type: 'media_moderation',
       momentId: momentId,
+      storyId: storyId,
       moderationType: moderationType,
+      moderationScope: moderationScope,
       moderatedMediaCount: String(moderatedMediaCount),
       unreadMessages: String(counts.unreadMessages),
       unreadNotifications: String(counts.unreadNotifications),
     },
     apns: {
       headers: {
-        'apns-collapse-id': `moderation_${momentId}`
+        'apns-collapse-id': `moderation_${storyId || momentId || notificationId}`
       },
       payload: {
         aps: {
@@ -1465,7 +1481,7 @@ async function handleModerationPush(userId, notificationId, notification, userDa
           badge: Math.max(1, counts.unreadNotifications + counts.unreadMessages),
           sound: 'default',
           'mutable-content': 1,
-          'thread-id': `moderation_${momentId}`
+          'thread-id': `moderation_${storyId || momentId || notificationId}`
         }
       }
     }
