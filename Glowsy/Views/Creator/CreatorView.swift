@@ -7204,6 +7204,27 @@ struct StickerOverlayView: View {
         }
     }
 
+    private var minimumStickerScale: CGFloat {
+        switch sticker.type {
+        case .poll, .question, .quiz:
+            return 0.42
+        case .time, .weather, .location, .mention, .hashtag, .link, .countdown, .emojiSlider:
+            return 0.35
+        case .frame, .selfie:
+            return 0.3
+        default:
+            return 0.28
+        }
+    }
+
+    private var maximumStickerScale: CGFloat {
+        let maxDimension: CGFloat = 2048
+        let maxScaleWidth = maxDimension / max(stickerSize.width, 1)
+        let maxScaleHeight = maxDimension / max(stickerSize.height, 1)
+        let safeMaxScale = min(maxScaleWidth, maxScaleHeight)
+        return min(4.5, safeMaxScale)
+    }
+
     var body: some View {
         ZStack {
             // ... (resto del contenido del ZStack sin cambios hasta la línea 7405)
@@ -7564,7 +7585,7 @@ struct StickerOverlayView: View {
         }
         .onChange(of: sticker.scale) { _, newScale in
             withAnimation(.spring(response: 0.45, dampingFraction: 0.75)) {
-                scale = newScale
+                scale = min(max(newScale, minimumStickerScale), maximumStickerScale)
             }
         }
         .onChange(of: sticker.rotation) { _, newRot in
@@ -7611,14 +7632,9 @@ struct StickerOverlayView: View {
             MagnificationGesture()
                 .onChanged { value in
                     let newScale = sticker.scale * value
-                    let maxDimension: CGFloat = 2048
-                    let maxScaleWidth = maxDimension / max(stickerSize.width, 1)
-                    let maxScaleHeight = maxDimension / max(stickerSize.height, 1)
-                    let safeMaxScale = min(maxScaleWidth, maxScaleHeight)
-                    let finalMaxScale = min(4.5, safeMaxScale)
-                    scale = min(max(newScale, 0.1), finalMaxScale)
+                    scale = min(max(newScale, minimumStickerScale), maximumStickerScale)
                 }
-                .onEnded { value in
+                .onEnded { _ in
                     sticker.scale = scale
                 }
         )

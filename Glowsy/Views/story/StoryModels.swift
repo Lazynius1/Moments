@@ -1459,6 +1459,8 @@ struct GlassmorphicStoryViewer: View {
 
     @ViewBuilder
     private func geometryStackView(for geometry: GeometryProxy) -> some View {
+        let hasReveal = storyStickers.contains { $0.type == .reveal }
+
         ZStack {
             // MARK: - 1. CONTENIDO MULTIMEDIA (Fijo en el centro - NUNCA SE MUEVE)
             contentView
@@ -1486,6 +1488,17 @@ struct GlassmorphicStoryViewer: View {
                 .allowsHitTesting(false)
                 .frame(width: geometry.size.width, height: geometry.size.height)
                 .position(x: geometry.size.width / 2, y: geometry.size.height / 2)
+
+            // MARK: - 3.5 REVEAL OVERLAY (sobre contenido, debajo de la UI)
+            if hasReveal {
+                InteractiveRevealSticker(
+                    storyId: story.id ?? "",
+                    onPauseStory: { pauseStory() },
+                    onResumeStory: { resumeStory() }
+                )
+                .frame(width: geometry.size.width, height: geometry.size.height)
+                .position(x: geometry.size.width / 2, y: geometry.size.height / 2)
+            }
 
             if !isUIHidden {
                 VStack(spacing: 0) {
@@ -1700,16 +1713,6 @@ struct GlassmorphicStoryViewer: View {
                         }
                     }
                 
-                // ✅ CAPA DE REVEAL (Si existe el sticker de reveal)
-                let hasReveal = storyStickers.contains { $0.type == .reveal }
-                if hasReveal {
-                    InteractiveRevealSticker(
-                        storyId: story.id ?? "",
-                        onPauseStory: { pauseStory() },
-                        onResumeStory: { resumeStory() }
-                    )
-                    .ignoresSafeArea()
-                }
             }
             .onChange(of: selectedPhoto) { newPhoto in
                 handleEphemeralPhoto(newPhoto)
@@ -6046,7 +6049,9 @@ struct StoryStickerView: View {
             .rotationEffect(sticker.rotation)
         } else if sticker.type == .frame {
             InteractiveFrameSticker(
+                storyId: storyId,
                 image: sticker.image,
+                caption: sticker.interactionData?.caption,
                 onPauseStory: onPauseStory,
                 onResumeStory: onResumeStory
             )

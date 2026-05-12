@@ -3121,4 +3121,5 @@
 "reveal.title" = "Revelar";
 "reveal.subtitle" = "Crea una capa que els teus amics hauran de rascar per veure la història";
 "reveal.addLayer" = "AFEGIR CAPA";
+"reveal.viewerHint" = "Rasca per descobrir";
 "storyEditor.polaroid.addNote" = "Afegeix una nota...";

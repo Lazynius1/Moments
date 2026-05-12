@@ -172,6 +172,7 @@ private enum QuizConfettiRenderer {
 
 // MARK: - 2. POLAROID FRAME (SHAKE TO REVEAL)
 struct InteractiveFrameSticker: View {
+    let storyId: String
     let image: UIImage?
     let caption: String? // ✅ Nuevo
     let isEditing: Bool
@@ -182,8 +183,11 @@ struct InteractiveFrameSticker: View {
     @State private var motionManager = CMMotionManager()
     @State private var lastAcceleration: CMAcceleration?
     @State private var shakeTimer: Timer? = nil
+
+    private var persistenceKey: String { "frame_revealed_\(storyId)" }
     
-    init(image: UIImage?, caption: String? = nil, isEditing: Bool = false, onPauseStory: (() -> Void)? = nil, onResumeStory: (() -> Void)? = nil) {
+    init(storyId: String = "", image: UIImage?, caption: String? = nil, isEditing: Bool = false, onPauseStory: (() -> Void)? = nil, onResumeStory: (() -> Void)? = nil) {
+        self.storyId = storyId
         self.image = image
         self.caption = caption
         self.isEditing = isEditing
@@ -195,6 +199,10 @@ struct InteractiveFrameSticker: View {
     var body: some View {
         StickerPolaroidFrameView(image: image, progress: revealProgress, caption: caption)
             .onAppear {
+                if !storyId.isEmpty, UserDefaults.standard.bool(forKey: persistenceKey) {
+                    revealProgress = 1.0
+                    return
+                }
                 if !isEditing {
                     startMotionUpdates()
                 }
@@ -211,6 +219,7 @@ struct InteractiveFrameSticker: View {
             // Fallback for simulator
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
                 withAnimation(.linear(duration: 2.5)) { revealProgress = 1.0 }
+                markAsRevealed()
             }
             return
         }
@@ -238,8 +247,10 @@ struct InteractiveFrameSticker: View {
                         HapticManager.shared.lightImpact()
                     } else if revealProgress >= 1.0 && revealProgress - increment < 1.0 {
                         HapticManager.shared.notification(.success)
+                        markAsRevealed()
                         // Si ya terminó de revelar, podemos reanudar inmediatamente
                         shakeTimer?.invalidate()
+                        motionManager.stopAccelerometerUpdates()
                         onResumeStory?()
                     }
                 }
@@ -256,6 +267,11 @@ struct InteractiveFrameSticker: View {
             }
         }
     }
+
+    private func markAsRevealed() {
+        guard !storyId.isEmpty else { return }
+        UserDefaults.standard.set(true, forKey: persistenceKey)
+    }
 }
 
 // MARK: - 3. REVEAL STICKER (DITHERED SCRATCH - Solo raspar)
@@ -268,6 +284,8 @@ struct InteractiveRevealSticker: View {
     @State private var points: [CGPoint] = []
     @State private var isRevealed = false
     @State private var scratchedGrid: Set<Int> = [] // Para seguimiento de área
+    @State private var showHint = false
+    @State private var animateHint = false
     private let gridSize: Int = 12 // Cuadrícula de 12x12
     
     private var persistenceKey: String { "reveal_revealed_\(storyId)" }
@@ -298,6 +316,30 @@ struct InteractiveRevealSticker: View {
                             context.stroke(path, with: .color(.black), style: StrokeStyle(lineWidth: 35, lineCap: .round, lineJoin: .round))
                         }
                     )
+
+                    if showHint {
+                        VStack {
+                            Spacer()
+
+                            HStack(spacing: 8) {
+                                Image(systemName: "hand.draw.fill")
+                                    .font(.system(size: 13, weight: .semibold))
+                                    .rotationEffect(.degrees(animateHint ? -8 : 6))
+                                    .offset(x: animateHint ? 6 : -5, y: animateHint ? 2 : -2)
+                                Text(NSLocalizedString("reveal.viewerHint", comment: "Reveal hint"))
+                                    .font(.custom("Poppins-SemiBold", size: 12))
+                            }
+                            .foregroundColor(.white.opacity(0.96))
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 10)
+                            .background(Color.white.opacity(0.001))
+                            .liquidGlass(in: Capsule())
+                            .scaleEffect(animateHint ? 1.03 : 0.985)
+                            .opacity(animateHint ? 1.0 : 0.82)
+                            .padding(.bottom, 140)
+                        }
+                        .allowsHitTesting(false)
+                    }
                 }
             }
             .contentShape(Rectangle())
@@ -305,6 +347,12 @@ struct InteractiveRevealSticker: View {
                 DragGesture(minimumDistance: 0)
                     .onChanged { value in
                         guard !isRevealed else { return }
+                        if showHint {
+                            withAnimation(.easeOut(duration: 0.18)) {
+                                animateHint = false
+                                showHint = false
+                            }
+                        }
                         onPauseStory?()
                         points.append(value.location)
                         checkRevealStatus(in: geo.size)
@@ -321,6 +369,21 @@ struct InteractiveRevealSticker: View {
             // Restaurar estado persistido
             if !storyId.isEmpty {
                 isRevealed = UserDefaults.standard.bool(forKey: persistenceKey)
+            }
+
+            guard !isRevealed else { return }
+
+            showHint = true
+            withAnimation(.easeInOut(duration: 0.72).repeatForever(autoreverses: true)) {
+                animateHint = true
+            }
+
+            DispatchQueue.main.asyncAfter(deadline: .now() + 3.8) {
+                guard points.isEmpty, !isRevealed else { return }
+                withAnimation(.easeOut(duration: 0.22)) {
+                    animateHint = false
+                    showHint = false
+                }
             }
         }
     }
@@ -358,4 +421,3 @@ struct InteractiveRevealSticker: View {
         }
     }
 }
-
