@@ -3111,4 +3111,5 @@
 "reveal.title" = "Reveal";
 "reveal.subtitle" = "Create a layer that your friends will have to scratch to see the story";
 "reveal.addLayer" = "ADD LAYER";
+"reveal.viewerHint" = "Scratch to reveal";
 "storyEditor.polaroid.addNote" = "Add a note...";
