@@ -20,9 +20,10 @@ final class CachedNotification {
     var reactionCount: Int?
     var commentId: String?
     var echoId: String?
+    var moderationScope: String?
     var lastSyncedAt: Date
     
-    init(id: String, type: String, senderId: String, senderUsername: String, timestamp: Date, isPending: Bool, title: String? = nil, message: String? = nil, downloadURL: String? = nil, momentId: String? = nil, visitCount: Int? = nil, storyId: String? = nil, storyAuthorId: String? = nil, reaction: String? = nil, reactionCount: Int? = nil, commentId: String? = nil, echoId: String? = nil, lastSyncedAt: Date = Date()) {
+    init(id: String, type: String, senderId: String, senderUsername: String, timestamp: Date, isPending: Bool, title: String? = nil, message: String? = nil, downloadURL: String? = nil, momentId: String? = nil, visitCount: Int? = nil, storyId: String? = nil, storyAuthorId: String? = nil, reaction: String? = nil, reactionCount: Int? = nil, commentId: String? = nil, echoId: String? = nil, moderationScope: String? = nil, lastSyncedAt: Date = Date()) {
         self.id = id
         self.type = type
         self.senderId = senderId
@@ -40,6 +41,7 @@ final class CachedNotification {
         self.reactionCount = reactionCount
         self.commentId = commentId
         self.echoId = echoId
+        self.moderationScope = moderationScope
         self.lastSyncedAt = lastSyncedAt
     }
     
@@ -61,7 +63,8 @@ final class CachedNotification {
             reaction: notification.reaction,
             reactionCount: notification.reactionCount,
             commentId: notification.commentId,
-            echoId: notification.echoId
+            echoId: notification.echoId,
+            moderationScope: notification.moderationScope
         )
     }
     
@@ -83,7 +86,8 @@ final class CachedNotification {
             reaction: reaction,
             reactionCount: reactionCount,
             commentId: commentId,
-            echoId: echoId
+            echoId: echoId,
+            moderationScope: moderationScope
         )
     }
 }

@@ -987,6 +987,71 @@ class MediaModerationService {
         return result.action
     }
 
+    func moderateStickerImage(
+        _ image: UIImage,
+        preserveAlpha: Bool = false,
+        userId: String,
+        storyId: String,
+        stickerId: String,
+        completion: @escaping (MediaModerationAction) -> Void
+    ) {
+        moderationQueue.async { [weak self] in
+            guard let self else {
+                DispatchQueue.main.async {
+                    completion(.approved)
+                }
+                return
+            }
+
+            let imageData: Data?
+            if preserveAlpha {
+                imageData = image.pngData() ?? image.jpegData(compressionQuality: 0.85)
+            } else {
+                imageData = image.jpegData(compressionQuality: 0.85) ?? image.pngData()
+            }
+
+            guard let imageData else {
+                DispatchQueue.main.async {
+                    completion(.approved)
+                }
+                return
+            }
+
+            self.analyzeFrameWithVision(frameData: imageData, timestamp: 0.0) { [weak self] json in
+                guard let self else {
+                    DispatchQueue.main.async {
+                        completion(.approved)
+                    }
+                    return
+                }
+
+                guard let json else {
+                    DispatchQueue.main.async {
+                        completion(.error("Error analizando sticker con Sightengine"))
+                    }
+                    return
+                }
+
+                let action = self.analyzeSightengineResult(json)
+                self.logModerationEvent(
+                    userId: userId,
+                    mediaURL: "story_sticker:\(stickerId)",
+                    mediaType: "story_sticker",
+                    contentType: "story",
+                    action: self.actionToString(action),
+                    reason: self.getReasonFromAction(action),
+                    category: self.getCategoryFromAction(action),
+                    contentId: storyId,
+                    visionData: ["provider": "sightengine", "stickerId": stickerId]
+                )
+
+                DispatchQueue.main.async {
+                    completion(action)
+                }
+            }
+        }
+    }
+
     private func getReasonFromAction(_ action: MediaModerationAction) -> String {
         switch action {
         case .deleted(let reason, _): return reason
@@ -1233,11 +1298,13 @@ class MediaModerationService {
                         self.createModerationNotification(
                             userId: userId,
                             contentId: contentId,
+                            contentType: .moment,
                             moderationType: "partial",
                             moderatedMediaCount: hiddenCount,
                             totalMediaCount: mediaItems.count,
                             moderatedMediaIndex: matchedIndex + 1,
-                            moderationCategory: self.getCategoryFromAction(action)
+                            moderationCategory: self.getCategoryFromAction(action),
+                            moderationScope: "post"
                         )
                     }
                 }
@@ -1314,11 +1381,13 @@ class MediaModerationService {
                         self?.createModerationNotification(
                             userId: userId,
                             contentId: contentId,
+                            contentType: contentType,
                             moderationType: "full",
                             moderatedMediaCount: 0,
                             totalMediaCount: 0,
                             moderatedMediaIndex: nil,
-                            moderationCategory: nil
+                            moderationCategory: nil,
+                            moderationScope: contentType == .story ? "story" : "post"
                         )
                     }
                 }
@@ -1333,11 +1402,13 @@ class MediaModerationService {
     private func createModerationNotification(
         userId: String,
         contentId: String,
+        contentType: ContentType,
         moderationType: String, // "partial" o "full"
         moderatedMediaCount: Int,
         totalMediaCount: Int,
         moderatedMediaIndex: Int?,
-        moderationCategory: String?
+        moderationCategory: String?,
+        moderationScope: String
     ) {
         let db = Firestore.firestore()
         let notificationId = "moderation_\(contentId)_\(Int(Date().timeIntervalSince1970))"
@@ -1347,13 +1418,19 @@ class MediaModerationService {
             "type": "mediaModeration",
             "senderId": "system_moderation",
             "senderUsername": "Moments",
-            "momentId": contentId,
             "moderationType": moderationType,
+            "moderationScope": moderationScope,
             "moderatedMediaCount": moderatedMediaCount,
             "totalMediaCount": totalMediaCount,
             "timestamp": FieldValue.serverTimestamp(),
             "isPending": true
         ]
+
+        if contentType == .story {
+            notificationData["storyId"] = contentId
+        } else {
+            notificationData["momentId"] = contentId
+        }
         
         if let index = moderatedMediaIndex {
             notificationData["moderatedMediaIndex"] = index
@@ -1365,6 +1442,111 @@ class MediaModerationService {
         notificationRef.setData(notificationData) { error in
             if let error = error {
                 print("❌ Error creando notificación de moderación: \(error.localizedDescription)")
+            }
+        }
+    }
+
+    func hideStoryStickerItems(
+        userId: String,
+        storyId: String,
+        moderatedStickers: [String: MediaModerationAction],
+        completion: ((Bool) -> Void)? = nil
+    ) {
+        guard !moderatedStickers.isEmpty else {
+            completion?(false)
+            return
+        }
+
+        DispatchQueue.global(qos: .utility).async {
+            let db = Firestore.firestore()
+            let storyRef = db.collection("users").document(userId).collection("stories").document(storyId)
+            let moderatableTypes: Set<String> = ["frame", "selfie"]
+
+            storyRef.getDocument { [weak self] document, error in
+                guard let self,
+                      error == nil,
+                      let document,
+                      document.exists,
+                      let contentData = document.data(),
+                      var stickers = contentData["stickers"] as? [[String: Any]],
+                      !stickers.isEmpty else {
+                    completion?(false)
+                    return
+                }
+
+                var updated = false
+                var newlyHiddenCount = 0
+
+                for index in stickers.indices {
+                    let stickerId = stickers[index]["stickerId"] as? String
+                    guard let stickerId,
+                          let action = moderatedStickers[stickerId] else {
+                        continue
+                    }
+
+                    let previousState = stickers[index]["moderationState"] as? String
+                    if previousState != "hidden" {
+                        newlyHiddenCount += 1
+                    }
+
+                    stickers[index]["moderationState"] = "hidden"
+                    stickers[index]["moderationReason"] = self.getReasonFromAction(action)
+                    stickers[index]["moderationCategory"] = self.getCategoryFromAction(action)
+                    stickers[index]["moderatedAt"] = Timestamp(date: Date())
+                    updated = true
+                }
+
+                guard updated else {
+                    completion?(false)
+                    return
+                }
+
+                let totalModeratableCount = stickers.reduce(into: 0) { count, sticker in
+                    if let type = sticker["type"] as? String, moderatableTypes.contains(type) {
+                        count += 1
+                    }
+                }
+
+                let primaryAction = moderatedStickers.values.first ?? .deleted(reason: "Contenido inapropiado", category: "general")
+                var updateData: [String: Any] = [
+                    "stickers": stickers,
+                    "moderatedAt": FieldValue.serverTimestamp(),
+                    "moderatedBy": "auto_moderation"
+                ]
+
+                switch primaryAction {
+                case .deleted(let reason, let category):
+                    updateData["moderationReason"] = reason
+                    updateData["moderationCategory"] = category
+                case .warning(let reason, let category):
+                    updateData["moderationReason"] = "Advertencia: \(reason)"
+                    updateData["moderationCategory"] = category
+                default:
+                    break
+                }
+
+                storyRef.updateData(updateData) { error in
+                    guard error == nil else {
+                        completion?(false)
+                        return
+                    }
+
+                    if newlyHiddenCount > 0 {
+                        self.createModerationNotification(
+                            userId: userId,
+                            contentId: storyId,
+                            contentType: .story,
+                            moderationType: "partial",
+                            moderatedMediaCount: newlyHiddenCount,
+                            totalMediaCount: totalModeratableCount,
+                            moderatedMediaIndex: nil,
+                            moderationCategory: self.getCategoryFromAction(primaryAction),
+                            moderationScope: "storySticker"
+                        )
+                    }
+
+                    completion?(true)
+                }
             }
         }
     }

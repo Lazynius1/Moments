@@ -834,7 +834,66 @@ class BackgroundStoryUploadService: ObservableObject {
                 continuation.resume()
             }
         }
-        
+
+        await moderateStoryImageStickersSilently(
+            storyId: storyId,
+            uploadingStory: uploadingStory
+        )
+    }
+
+    private func moderateStoryImageStickersSilently(
+        storyId: String,
+        uploadingStory: UploadingStory
+    ) async {
+        guard let stickers = uploadingStory.stickerData, !stickers.isEmpty else {
+            return
+        }
+
+        let moderatableStickers = stickers.filter { sticker in
+            sticker.type == .frame || sticker.type == .selfie
+        }
+
+        guard !moderatableStickers.isEmpty else {
+            return
+        }
+
+        var moderatedStickers: [String: MediaModerationAction] = [:]
+
+        for sticker in moderatableStickers {
+            let preserveAlpha = sticker.type == .selfie
+            let result = await withCheckedContinuation { continuation in
+                MediaModerationService.shared.moderateStickerImage(
+                    sticker.image,
+                    preserveAlpha: preserveAlpha,
+                    userId: uploadingStory.userId,
+                    storyId: storyId,
+                    stickerId: sticker.id
+                ) { action in
+                    continuation.resume(returning: action)
+                }
+            }
+
+            switch result {
+            case .deleted, .warning:
+                moderatedStickers[sticker.id] = result
+            case .approved, .error:
+                break
+            }
+        }
+
+        guard !moderatedStickers.isEmpty else {
+            return
+        }
+
+        await withCheckedContinuation { continuation in
+            MediaModerationService.shared.hideStoryStickerItems(
+                userId: uploadingStory.userId,
+                storyId: storyId,
+                moderatedStickers: moderatedStickers
+            ) { _ in
+                continuation.resume()
+            }
+        }
     }
     
     // MARK: - 📊 CONFIGURAR POLLS

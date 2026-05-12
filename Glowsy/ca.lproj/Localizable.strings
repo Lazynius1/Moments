@@ -2918,11 +2918,21 @@
 "notification.moderation.partial.body" = "Hem ocultat %@ foto(s)/vídeo(s) de la teva publicació perquè no compleixen les nostres Normes de la comunitat. La resta segueix visible.";
 "notification.moderation.full.title" = "Revisió de contingut";
 "notification.moderation.full.body" = "La teva publicació ara és només per a tu perquè tot el contingut multimèdia va ser ocultat després de la revisió.";
+"notification.moderation.story.partial.title" = "Revisió de contingut";
+"notification.moderation.story.partial.body" = "Hem ocultat %@ element(s) de la teva història perquè no compleixen les nostres Normes de la comunitat. La resta segueix visible.";
+"notification.moderation.story.full.title" = "Revisió de contingut";
+"notification.moderation.story.full.body" = "La teva història ara és només per a tu perquè el seu contingut va ser ocultat després de la revisió.";
+"notification.moderation.storySticker.partial.title" = "Revisió de contingut";
+"notification.moderation.storySticker.partial.body.one" = "Hem ocultat un sticker de la teva història perquè no compleix les nostres Normes de la comunitat. La resta segueix visible.";
+"notification.moderation.storySticker.partial.body.other" = "Hem ocultat %d stickers de la teva història perquè no compleixen les nostres Normes de la comunitat. La resta segueix visible.";
 "notifications.message.mediaModeration" = "Hem revisat una publicació recent per assegurar que compleix les nostres Normes de la comunitat.";
 
 /* Banner - Moderació de contingut */
 "banner.verb.mediaModeration.partial" = "S'ha ocultat contingut de la teva publicació";
 "banner.verb.mediaModeration.full" = "La teva publicació ara és només per a tu";
+"banner.verb.mediaModeration.story.partial" = "S'ha ocultat contingut de la teva història";
+"banner.verb.mediaModeration.story.full" = "La teva història ara és només per a tu";
+"banner.verb.mediaModeration.storySticker.partial" = "Hem ocultat un sticker de la teva història";
 "appeal.yourAppeal.placeholder" = "Explica'ns per què creus que la suspensió s'hauria de revisar. Afegeix context concret i evita informació sensible.";
 "appeal.additionalInfo.placeholder" = "Afegeix qualsevol detall extra que pugui ajudar a revisar el teu cas.";
 

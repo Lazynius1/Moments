@@ -977,6 +977,9 @@ struct Story: Identifiable, Codable {
         guard let stickers = stickers else { return [] }
         
         return stickers.compactMap { stickerData in
+            if stickerData.moderationState == "hidden" {
+                return nil
+            }
             
             // ✅ RECREAR IMAGEN DEL STICKER basada en el tipo
             let stickerImage: UIImage
@@ -1371,6 +1374,9 @@ struct StickerData: Codable {
     let quizCorrectIndex: Int?
     let revealType: String?
     let frameStyle: String?
+    let moderationState: String?
+    let moderationReason: String?
+    let moderationCategory: String?
     
     // ✅ NUEVAS PROPIEDADES para animación
     let isAnimated: Bool
@@ -1382,6 +1388,7 @@ struct StickerData: Codable {
          username: String? = nil, userId: String? = nil, hashtag: String? = nil,
          location: String? = nil, latitude: Double? = nil, longitude: Double? = nil, questionText: String? = nil, pollOptions: [String]? = nil, weatherSymbol: String? = nil, linkURL: String? = nil, linkTitle: String? = nil, countdownTitle: String? = nil, countdownTargetAtMs: Double? = nil, sliderEmoji: String? = nil, sliderPrompt: String? = nil, caption: String? = nil, profileImagePath: String? = nil, momentId: String? = nil, mediaCount: Int? = nil,
          quizQuestion: String? = nil, quizOptions: [String]? = nil, quizCorrectIndex: Int? = nil, revealType: String? = nil, frameStyle: String? = nil,
+         moderationState: String? = nil, moderationReason: String? = nil, moderationCategory: String? = nil,
          isAnimated: Bool = false, gifURL: String? = nil, videoURL: String? = nil) {
         self.stickerId = stickerId
         self.type = type
@@ -1413,6 +1420,9 @@ struct StickerData: Codable {
         self.quizCorrectIndex = quizCorrectIndex
         self.revealType = revealType
         self.frameStyle = frameStyle
+        self.moderationState = moderationState
+        self.moderationReason = moderationReason
+        self.moderationCategory = moderationCategory
         self.isAnimated = isAnimated
         self.gifURL = gifURL
         self.videoURL = videoURL
@@ -1467,6 +1477,9 @@ struct StickerData: Codable {
         self.quizCorrectIndex = try container.decodeIfPresent(Int.self, forKey: .quizCorrectIndex)
         self.revealType = try container.decodeIfPresent(String.self, forKey: .revealType)
         self.frameStyle = try container.decodeIfPresent(String.self, forKey: .frameStyle)
+        self.moderationState = try container.decodeIfPresent(String.self, forKey: .moderationState)
+        self.moderationReason = try container.decodeIfPresent(String.self, forKey: .moderationReason)
+        self.moderationCategory = try container.decodeIfPresent(String.self, forKey: .moderationCategory)
         
         // ✅ COMPATIBILIDAD HACIA ATRÁS: Detectar stickers animados basándose en el contenido
         let decodedIsAnimated = try container.decodeIfPresent(Bool.self, forKey: .isAnimated) ?? false
@@ -1525,6 +1538,9 @@ struct StickerData: Codable {
             quizCorrectIndex: stickerItem.interactionData?.quizCorrectIndex,
             revealType: stickerItem.interactionData?.revealType,
             frameStyle: stickerItem.interactionData?.frameStyle,
+            moderationState: nil,
+            moderationReason: nil,
+            moderationCategory: nil,
             isAnimated: stickerItem.isAnimated,
             gifURL: stickerItem.gifURL?.absoluteString,
             videoURL: stickerItem.videoURL?.absoluteString
@@ -1612,6 +1628,9 @@ extension StickerData {
         case quizCorrectIndex
         case revealType
         case frameStyle
+        case moderationState
+        case moderationReason
+        case moderationCategory
     }
     
     func encode(to encoder: Encoder) throws {
@@ -1650,6 +1669,9 @@ extension StickerData {
         try container.encodeIfPresent(quizCorrectIndex, forKey: .quizCorrectIndex)
         try container.encodeIfPresent(revealType, forKey: .revealType)
         try container.encodeIfPresent(frameStyle, forKey: .frameStyle)
+        try container.encodeIfPresent(moderationState, forKey: .moderationState)
+        try container.encodeIfPresent(moderationReason, forKey: .moderationReason)
+        try container.encodeIfPresent(moderationCategory, forKey: .moderationCategory)
     }
 }
 
@@ -1725,6 +1747,7 @@ struct Notification: Identifiable, Codable {
     let reactionCount: Int?
     let commentId: String? // ✅ NUEVO: Para identificar comentarios específicos
     let echoId: String? // ✅ NUEVO: Para identificar el Echo sugerido
+    let moderationScope: String? // 🛡️ Contexto de moderación: post, story, storySticker
     let chainId: String? // 🔗 Story Chains
     let chainTitle: String? // 🔗 Story Chains
     let chainPosition: Int? // 🔗 Story Chains
@@ -1750,6 +1773,7 @@ struct Notification: Identifiable, Codable {
         case commentText  // ✅ COMPATIBILIDAD: El servidor usa este campo para comentarios
         case commentId
         case echoId
+        case moderationScope
         case chainId
         case chainTitle
         case chainPosition
@@ -1772,6 +1796,7 @@ struct Notification: Identifiable, Codable {
          reactionCount: Int? = nil,
          commentId: String? = nil,
          echoId: String? = nil,
+         moderationScope: String? = nil,
          chainId: String? = nil,
          chainTitle: String? = nil,
          chainPosition: Int? = nil) {
@@ -1793,6 +1818,7 @@ struct Notification: Identifiable, Codable {
         self.reactionCount = reactionCount
         self.commentId = commentId
         self.echoId = echoId
+        self.moderationScope = moderationScope
         self.chainId = chainId
         self.chainTitle = chainTitle
         self.chainPosition = chainPosition
@@ -1844,6 +1870,7 @@ struct Notification: Identifiable, Codable {
         
         self.commentId = try container.decodeIfPresent(String.self, forKey: .commentId)
         self.echoId = try container.decodeIfPresent(String.self, forKey: .echoId)
+        self.moderationScope = try container.decodeIfPresent(String.self, forKey: .moderationScope)
         self.chainId = try container.decodeIfPresent(String.self, forKey: .chainId)
         self.chainTitle = try container.decodeIfPresent(String.self, forKey: .chainTitle)
         self.chainPosition = try container.decodeIfPresent(Int.self, forKey: .chainPosition)
@@ -1868,6 +1895,7 @@ struct Notification: Identifiable, Codable {
         try container.encodeIfPresent(reactionCount, forKey: .reactionCount)
         try container.encodeIfPresent(commentId, forKey: .commentId)
         try container.encodeIfPresent(echoId, forKey: .echoId)
+        try container.encodeIfPresent(moderationScope, forKey: .moderationScope)
         try container.encodeIfPresent(chainId, forKey: .chainId)
         try container.encodeIfPresent(chainTitle, forKey: .chainTitle)
         try container.encodeIfPresent(chainPosition, forKey: .chainPosition)
