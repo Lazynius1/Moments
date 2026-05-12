@@ -1558,6 +1558,13 @@ struct StickerData: Codable {
 
         // 1. PRIORIDAD: Shared Moments y otros que requieren Base64 para el template visual
         // Esto garantiza que el sticker se vea perfecto en el visor aunque no cargue el media aún
+        if sticker.type == .frame {
+            let resizedImage = sticker.image.resized(toMaxDimension: 900).normalized()
+            if let jpegData = resizedImage.jpegData(compressionQuality: 0.42) {
+                return jpegData.base64EncodedString()
+            }
+        }
+
         if [.generic, .sticker, .emoji, .time, .selfie, .questionResponse, .shareMoment, .link, .countdown, .emojiSlider, .frame, .quiz].contains(sticker.type) {
             if let jpegData = sticker.image.jpegData(compressionQuality: 0.6) {
                 return jpegData.base64EncodedString()

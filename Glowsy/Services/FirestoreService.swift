@@ -3987,6 +3987,10 @@ extension FirestoreService {
                 do {
                     let encoder = Firestore.Encoder()
                     var storyData = try encoder.encode(story)
+                    // El payload Codable de Story incluye `stickers` con CGPoint anidado.
+                    // Para Firestore saneamos ese array manualmente justo debajo.
+                    storyData.removeValue(forKey: "stickers")
+                    storyData.removeValue(forKey: "textPosition")
                     
                     // 🔥 MANEJAR CAMPOS ESPECIALES
                     if let textPosition = textPosition {
@@ -3999,9 +4003,9 @@ extension FirestoreService {
                             var stickerData: [String: Any] = [
                                 "type": sticker.type,
                                 "content": sticker.content,
-                                "positionX": sticker.position.x,
-                                "positionY": sticker.position.y,
-                                "scale": sticker.scale,
+                                "positionX": Double(sticker.position.x),
+                                "positionY": Double(sticker.position.y),
+                                "scale": Double(sticker.scale),
                                 "rotation": sticker.rotation
                             ]
                             if let stickerId = sticker.stickerId {

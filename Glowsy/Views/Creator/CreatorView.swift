@@ -645,7 +645,6 @@ struct CreatorView: View {
             // Si llega solo un sticker de pregunta, abrimos la cámara primero y lo conservamos para el editor.
             if let sticker = initialSticker {
                 if responseSticker == nil { responseSticker = sticker }
-                print("🏗 Opening StoryCamera with preserved question sticker")
 
                 contentType = .story
                 if initialMedia != nil || !startInCameraWhenOnlySticker {
@@ -656,7 +655,6 @@ struct CreatorView: View {
 
                 isCreatingStory = true
             } else if openInStoryMode {
-                print("🏗 Forcing StoryCamera due to openInStoryMode")
                 isCreatingStory = true
                 if currentFlow == .typeSelection {
                     contentType = .story
