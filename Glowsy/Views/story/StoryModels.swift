@@ -1476,6 +1476,7 @@ struct GlassmorphicStoryViewer: View {
                     onPauseStory: pauseStory,
                     onResumeStory: resumeStory
                 )
+                .id((story.id ?? "") + sticker.id) // ✅ Forzar nueva instancia al cambiar de historia
                 .position(stickerDisplayPosition(sticker, containerSize: screenSize))
                 }
             }
@@ -1619,7 +1620,6 @@ struct GlassmorphicStoryViewer: View {
         }
         .ignoresSafeArea(.all)
         .background(Color.black)
-        .offset(y: dragOffset)
         .scaleEffect(zoomScale)
 
         if isMenuInteractionActive {
@@ -1685,59 +1685,72 @@ struct GlassmorphicStoryViewer: View {
 
     private var overlayBoundView: AnyView {
         AnyView(
-            lifecycleBoundView
-                .sheet(isPresented: $showViewers, onDismiss: {
-                    resumeStory()
-                }) {
-                    GlassmorphicViewersSheet(
-                        story: story,
-                        viewers: storyViewModel.storyViewers[story.id ?? ""] ?? [],
-                        reactions: storyViewModel.storyReactions[story.id ?? ""] ?? []
+            ZStack {
+                lifecycleBoundView
+                    .sheet(isPresented: $showViewers, onDismiss: {
+                        resumeStory()
+                    }) {
+                        GlassmorphicViewersSheet(
+                            story: story,
+                            viewers: storyViewModel.storyViewers[story.id ?? ""] ?? [],
+                            reactions: storyViewModel.storyReactions[story.id ?? ""] ?? []
+                        )
+                        .onAppear {
+                            pauseStory()
+                        }
+                    }
+                
+                // ✅ CAPA DE REVEAL (Si existe el sticker de reveal)
+                let hasReveal = storyStickers.contains { $0.type == .reveal }
+                if hasReveal {
+                    InteractiveRevealSticker(
+                        storyId: story.id ?? "",
+                        onPauseStory: { pauseStory() },
+                        onResumeStory: { resumeStory() }
                     )
-                    .onAppear {
-                        pauseStory()
+                    .ignoresSafeArea()
+                }
+            }
+            .onChange(of: selectedPhoto) { newPhoto in
+                handleEphemeralPhoto(newPhoto)
+            }
+            .onChange(of: showReactions) { isOpen in
+                if isOpen {
+                    pauseStory()
+                } else {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                        resumeStory()
                     }
                 }
-                .onChange(of: selectedPhoto) { newPhoto in
-                    handleEphemeralPhoto(newPhoto)
-                }
-                .onChange(of: showReactions) { isOpen in
-                    if isOpen {
-                        pauseStory()
-                    } else {
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                            resumeStory()
-                        }
+            }
+            .onChange(of: showEphemeralPicker) { isOpen in
+                if isOpen {
+                    pauseStory()
+                } else {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                        resumeStory()
                     }
                 }
-                .onChange(of: showEphemeralPicker) { isOpen in
-                    if isOpen {
-                        pauseStory()
-                    } else {
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                            resumeStory()
-                        }
+            }
+            .onChange(of: showingReportSheet) { oldValue, newValue in
+                if newValue {
+                    pauseStory()
+                } else {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                        resumeStory()
                     }
                 }
-                .onChange(of: showingReportSheet) { oldValue, newValue in
-                    if newValue {
-                        pauseStory()
-                    } else {
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                            resumeStory()
-                        }
+            }
+            .onChange(of: showViewers) { oldValue, newValue in
+                if newValue {
+                    pauseStory()
+                } else {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                        resumeStory()
                     }
                 }
-                .onChange(of: showViewers) { oldValue, newValue in
-                    if newValue {
-                        pauseStory()
-                    } else {
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                            resumeStory()
-                        }
-                    }
-                }
-                .onChange(of: showingBlockConfirmation) { oldValue, newValue in
+            }
+            .onChange(of: showingBlockConfirmation) { oldValue, newValue in
                     if newValue {
                         pauseStory()
                     } else {
@@ -2635,30 +2648,20 @@ struct GlassmorphicStoryViewer: View {
                 // Si ya se disparó una acción (nav/reply), ignorar resto del drag
                 if gestureActionTriggered { return }
 
-                // 2. SWIPE UP (Quick Reply)
+                // SWIPE UP (Quick Reply)
                 if value.translation.height < -60 && abs(value.translation.width) < 50 {
                     if authorAllowsMessages {
                         let generator = UIImpactFeedbackGenerator(style: .medium)
                         generator.impactOccurred()
                         withAnimation {
                             isTextFieldFocused = true
-                            // Restaurar UI al activar teclado
                             isUIHidden = false
                         }
                         gestureActionTriggered = true
-                        // No reanudar aquí, el foco del teclado lo manejará
                     }
                 }
 
-                // 3. SWIPE DOWN (Dismiss)
-                else if value.translation.height > 0 {
-                     isDragging = true
-                     dragOffset = value.translation.height
-                     // Mostrar UI para que se vea qué pasa
-                     withAnimation { isUIHidden = false }
-                }
-
-                // 4. HORIZONTAL SWIPE (Navigation) - Solo si es cadena
+                // HORIZONTAL SWIPE (Navigation) - Solo si es cadena
                 else if let chainId = story.chainId, !chainStories.isEmpty {
                     if value.translation.width > 60 {
                          goToPreviousChainPart()
@@ -2676,39 +2679,18 @@ struct GlassmorphicStoryViewer: View {
                     return
                 }
 
-                let wasHoldingStory = isHoldingStory
                 isHoldingStory = false
                 cancelPendingHoldPause()
-
-                // RESET STATE
                 gestureActionTriggered = false
 
-                // Restaurar Immersive Mode
+                // Restaurar UI
                 if isUIHidden {
                     withAnimation(.easeInOut(duration: 0.2)) {
                         isUIHidden = false
                     }
                 }
 
-                // DISMISS HANDLE OR RESUME
-                if isDragging {
-                    let translation = value.translation.height
-
-                    // ✅ CRITICAL FIX: Set isDragging to false BEFORE calling resumeStory,
-                    // otherwise resumeStory() guard will block the resume.
-                    isDragging = false
-
-                    withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-                        if translation > screenSize.height * 0.3 {
-                            dismiss()
-                        } else {
-                            dragOffset = 0
-                            resumeStory()
-                        }
-                    }
-                } else if !isTextFieldFocused {
-                    resumeStory()
-                } else if wasHoldingStory {
+                if !isTextFieldFocused {
                     resumeStory()
                 }
             }
@@ -4929,9 +4911,7 @@ extension View {
     func glassmorphic() -> some View {
         self
             .background(
-                Color.white.opacity(0.1)
-                    .background(.ultraThinMaterial)
-                    .environment(\.colorScheme, .dark)
+                Color.clear.liquidGlass(in: Rectangle())
             )
             .overlay(
                 RoundedRectangle(cornerRadius: 0)
@@ -4942,8 +4922,7 @@ extension View {
     func storyGlassmorphic() -> some View {
         self
             .background(
-                Color.white.opacity(0.05)
-                    .background(.ultraThinMaterial)
+                Color.clear.liquidGlass(in: Rectangle())
             )
             .overlay(
                 RoundedRectangle(cornerRadius: 0)
@@ -5275,35 +5254,37 @@ struct InteractivePollSticker: View {
     let onVote: (Int) -> Void
 
     var body: some View {
-        NeutralStickerCard {
-            VStack(spacing: 10) {
-                Text(pollData[0].count > 42 ? String(pollData[0].prefix(42)) + "..." : pollData[0])
-                    .font(.system(size: 17, weight: .semibold))
-                    .foregroundColor(Color(red: 0.10, green: 0.11, blue: 0.14))
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal, 18)
-                    .padding(.top, 18)
+        VStack(spacing: 12) {
+            Text(pollData[0].count > 42 ? String(pollData[0].prefix(42)) + "..." : pollData[0])
+                .font(.system(size: 20, weight: .bold, design: .rounded))
+                .foregroundColor(.white)
+                .multilineTextAlignment(.center)
+                .shadow(color: .black.opacity(0.15), radius: 4, x: 0, y: 2)
+                .padding(.horizontal, 18)
+                .padding(.top, 20)
 
-                VStack(spacing: 6) {
-                    ForEach(0..<2, id: \.self) { index in
-                        InteractivePollOptionButton(
-                            text: pollData[index + 1].count > 26 ? String(pollData[index + 1].prefix(26)) + "..." : pollData[index + 1],
-                            percentage: calculatePercentage(for: index),
-                            isSelected: selectedOption == index,
-                            hasVoted: hasVoted,
-                            onTap: {
-                                if !hasVoted {
-                                    selectedOption = index
-                                    onVote(index)
-                                }
+            VStack(spacing: 8) {
+                ForEach(0..<2, id: \.self) { index in
+                    InteractivePollOptionButton(
+                        text: pollData[index + 1].count > 26 ? String(pollData[index + 1].prefix(26)) + "..." : pollData[index + 1],
+                        percentage: calculatePercentage(for: index),
+                        isSelected: selectedOption == index,
+                        hasVoted: hasVoted,
+                        onTap: {
+                            if !hasVoted {
+                                selectedOption = index
+                                onVote(index)
                             }
-                        )
-                    }
+                        }
+                    )
                 }
-                .padding(.horizontal, 16)
-                .padding(.bottom, 14)
             }
+            .padding(.horizontal, 14)
+            .padding(.bottom, 16)
         }
+        .background(
+            Color.clear.liquidGlass(in: RoundedRectangle(cornerRadius: 26, style: .continuous))
+        )
         .onAppear {
             loadVoteCounts()
         }
@@ -5369,40 +5350,37 @@ struct InteractivePollOptionButton: View {
         Button(action: onTap) {
             GeometryReader { proxy in
                 ZStack(alignment: .leading) {
-                    RoundedRectangle(cornerRadius: 18, style: .continuous)
-                        .fill(isSelected ? Color(red: 0.98, green: 0.93, blue: 0.98) : Color(red: 0.96, green: 0.96, blue: 0.97))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 18, style: .continuous)
-                                .stroke(isSelected ? Color(red: 0.91, green: 0.25, blue: 0.74).opacity(0.55) : Color.black.opacity(0.05), lineWidth: 1)
-                        )
+                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                        .fill(isSelected ? Color.white : Color.white.opacity(0.1))
 
                     if hasVoted {
-                        RoundedRectangle(cornerRadius: 18, style: .continuous)
-                            .fill(Color(red: 0.91, green: 0.25, blue: 0.74).opacity(isSelected ? 0.22 : 0.14))
+                        RoundedRectangle(cornerRadius: 16, style: .continuous)
+                            .fill(isSelected ? Color.white : Color.white.opacity(0.35))
                             .frame(width: proxy.size.width * (percentage / 100))
                             .animation(.easeInOut(duration: 0.5), value: percentage)
                     }
 
                     HStack(spacing: 10) {
                         Text(text)
-                            .font(.system(size: 13, weight: .semibold))
-                            .foregroundColor(Color(red: 0.10, green: 0.11, blue: 0.14))
+                            .font(.system(size: 15, weight: .bold))
+                            .foregroundColor(isSelected ? .black : .white)
+                            .shadow(color: isSelected ? .clear : .black.opacity(0.15), radius: 2)
                             .lineLimit(1)
 
                         Spacer(minLength: 0)
 
                         if hasVoted {
                             Text("\(Int(percentage))%")
-                                .font(.system(size: 11, weight: .bold))
-                                .foregroundColor(Color(red: 0.43, green: 0.16, blue: 0.44))
+                                .font(.system(size: 14, weight: .bold))
+                                .foregroundColor(isSelected ? .black : .white)
                         }
                     }
-                    .padding(.horizontal, 14)
+                    .padding(.horizontal, 16)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
-        .frame(height: 44)
+        .frame(height: 52)
         .disabled(hasVoted)
         .animation(.spring(response: 0.2, dampingFraction: 0.7), value: isSelected)
     }
@@ -5650,27 +5628,30 @@ private struct InteractiveEmojiSliderSticker: View {
             GeometryReader { geometry in
                 let metrics = emojiSliderTrackMetrics(totalWidth: geometry.size.width)
                 let trackFrame = emojiSliderTrackFrame(totalSize: geometry.size, showsPrompt: emojiSliderHasPrompt(prompt))
-                let interactiveFrame = CGRect(
-                    x: trackFrame.minX - (metrics.thumbBaseSize / 2),
-                    y: trackFrame.minY - 18,
-                    width: trackFrame.width + metrics.thumbBaseSize,
-                    height: max(trackFrame.height + 36, metrics.thumbBaseSize + 12)
+                
+                // Hitbox expandida para que sea MUCHO más fácil de tocar
+                let hitBox = CGRect(
+                    x: trackFrame.minX - 40,
+                    y: trackFrame.minY - 30,
+                    width: trackFrame.width + 80,
+                    height: trackFrame.height + 60
                 )
 
                 Color.clear
                     .contentShape(Rectangle())
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .gesture(
+                    .highPriorityGesture(
                         DragGesture(minimumDistance: 0)
                             .onChanged { gesture in
-                                guard canVote, interactiveFrame.contains(gesture.location) else { return }
+                                // Solo requiere estar dentro al iniciar, luego fluye
+                                guard canVote, hitBox.contains(gesture.startLocation) else { return }
                                 dragValue = normalizedValue(
                                     for: gesture.location.x,
                                     metrics: metrics
                                 )
                             }
                             .onEnded { gesture in
-                                guard canVote, interactiveFrame.contains(gesture.location) else {
+                                guard canVote, hitBox.contains(gesture.startLocation) else {
                                     dragValue = nil
                                     return
                                 }
@@ -6030,8 +6011,17 @@ struct StoryStickerView: View {
                 onPauseStory: onPauseStory,
                 onResumeStory: onResumeStory
             )
-            .frame(width: 220, height: 56)
             .scaleEffect(sticker.scale) // ✅ APLICAR ESCALA
+            .rotationEffect(sticker.rotation)
+        } else if sticker.type == .mention, let username = sticker.interactionData?.username {
+            // ✅ MENTION INTERACTIVO: Diseño completo nativo
+            InteractiveMentionSticker(
+                username: username,
+                onTap: {
+                    handleStickerTap()
+                }
+            )
+            .scaleEffect(sticker.scale)
             .rotationEffect(sticker.rotation)
         } else if sticker.type == .hashtag, let hashtag = sticker.interactionData?.hashtag {
             // ✅ HASHTAG INTERACTIVO: Diseño completo e interactivo
@@ -6040,9 +6030,31 @@ struct StoryStickerView: View {
                 onPauseStory: onPauseStory,
                 onResumeStory: onResumeStory
             )
-            .frame(height: 52)
             .scaleEffect(sticker.scale) // ✅ APLICAR ESCALA
             .rotationEffect(sticker.rotation)
+        } else if sticker.type == .quiz, let question = sticker.interactionData?.quizQuestion, let options = sticker.interactionData?.quizOptions {
+            InteractiveQuizSticker(
+                storyId: storyId,
+                userId: userId,
+                stickerId: sticker.id,
+                question: question,
+                options: options,
+                correctIndex: sticker.interactionData?.quizCorrectIndex ?? 0
+            )
+            .frame(width: 300) // ✅ CONSISTENCIA CON EL EDITOR
+            .scaleEffect(sticker.scale)
+            .rotationEffect(sticker.rotation)
+        } else if sticker.type == .frame {
+            InteractiveFrameSticker(
+                image: sticker.image,
+                onPauseStory: onPauseStory,
+                onResumeStory: onResumeStory
+            )
+            .frame(width: 200, height: 240) // ✅ CONSISTENCIA CON EL EDITOR
+            .scaleEffect(sticker.scale)
+            .rotationEffect(sticker.rotation)
+        } else if sticker.type == .reveal {
+            EmptyView()
         } else if sticker.type == .link, let linkURL = sticker.interactionData?.linkURL {
             Button(action: {
                 handleStickerTap()
@@ -6050,7 +6062,6 @@ struct StoryStickerView: View {
                 StickerLinkCardView(
                     title: sticker.interactionData?.linkTitle ?? stickerHostLabel(from: linkURL)
                 )
-                .frame(width: sticker.image.size.width, height: sticker.image.size.height)
             }
             .buttonStyle(PlainButtonStyle())
             .scaleEffect(sticker.scale)
@@ -6059,7 +6070,6 @@ struct StoryStickerView: View {
                   let countdownTitle = sticker.interactionData?.countdownTitle,
                   let targetAtMs = sticker.interactionData?.countdownTargetAtMs {
             StickerCountdownCardView(title: countdownTitle, targetAtMs: targetAtMs)
-                .frame(width: 240, height: 96)
                 .scaleEffect(sticker.scale)
                 .rotationEffect(sticker.rotation)
         } else if sticker.type == .emojiSlider,
@@ -6246,30 +6256,41 @@ struct InteractiveQuestionSticker: View {
                 showingResponseInput = true
             }
         }) {
-            NeutralStickerCard {
-                VStack(spacing: 10) {
-                    Text(questionText)
-                        .font(.system(size: 16, weight: .semibold))
-                        .foregroundColor(Color(red: 0.10, green: 0.11, blue: 0.14))
-                        .multilineTextAlignment(.center)
-                        .lineLimit(3)
-                        .padding(.horizontal, 18)
-                        .padding(.top, 18)
+            VStack(spacing: 14) {
+                Text(questionText)
+                    .font(.system(size: 22, weight: .bold, design: .rounded))
+                    .foregroundColor(.white)
+                    .multilineTextAlignment(.center)
+                    .lineLimit(3)
+                    .shadow(color: .black.opacity(0.15), radius: 4, x: 0, y: 2)
+                    .padding(.horizontal, 20)
+                    .padding(.top, 24)
 
-                    Text(responseSubtitle)
-                        .font(.system(size: 12, weight: .medium))
-                        .foregroundColor(Color(red: 0.24, green: 0.46, blue: 0.88))
-                        .padding(.horizontal, 14)
-                        .padding(.vertical, 10)
-                        .frame(maxWidth: .infinity)
-                        .background(
-                            Capsule(style: .continuous)
-                                .fill(Color(red: 0.95, green: 0.95, blue: 0.96))
-                        )
-                        .padding(.horizontal, 16)
-                        .padding(.bottom, 16)
-                }
+                Text(responseSubtitle)
+                    .font(.system(size: 15, weight: .bold))
+                    .foregroundColor(.white.opacity(0.8))
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 14)
+                    .frame(maxWidth: .infinity)
+                    .background(
+                        Capsule(style: .continuous)
+                            .fill(Color.black.opacity(0.15))
+                            .overlay(
+                                Capsule(style: .continuous)
+                                    .stroke(Color.white.opacity(0.1), lineWidth: 1)
+                            )
+                    )
+                    .padding(.horizontal, 16)
+                    .padding(.bottom, 20)
             }
+            .background(
+                Color.clear.liquidGlass(in: RoundedRectangle(cornerRadius: 28, style: .continuous))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 28, style: .continuous)
+                    .stroke(Color.white.opacity(0.3), lineWidth: 0.5)
+            )
+            .shadow(color: .black.opacity(0.15), radius: 16, x: 0, y: 8)
         }
         .buttonStyle(PlainButtonStyle())
         .sheet(isPresented: $showingResponseInput, onDismiss: {
@@ -6524,30 +6545,26 @@ struct InteractiveLocationSticker: View {
             onPauseStory() // ✅ PAUSAR HISTORIA
             showingLocationMap = true
         }) {
-            NeutralStickerCard(cornerRadius: 28) {
-                HStack(spacing: 12) {
-                    ZStack {
-                        Circle()
-                            .fill(Color(red: 1.00, green: 0.62, blue: 0.20))
-                            .frame(width: 28, height: 28)
-
-                        Image(systemName: "mappin.and.ellipse")
-                            .font(.system(size: 13, weight: .bold))
-                            .foregroundColor(.white)
-                    }
-
-                    HStack(spacing: 0) {
-                        Text(locationName)
-                            .font(.system(size: 15, weight: .semibold))
-                            .foregroundColor(Color(red: 0.10, green: 0.11, blue: 0.14))
-                            .lineLimit(1)
-                    }
-
-                    Spacer(minLength: 0)
-                }
-                .padding(.horizontal, 14)
-                .frame(width: 220, height: 56, alignment: .leading)
+            HStack(spacing: 8) {
+                Image(systemName: "mappin.and.ellipse")
+                    .font(.system(size: 16, weight: .bold))
+                Text(locationName.uppercased())
+                    .font(.system(size: 15, weight: .black, design: .rounded))
+                    .tracking(0.5)
+                    .lineLimit(1)
             }
+            .foregroundColor(.white)
+            .shadow(color: .black.opacity(0.2), radius: 2, x: 0, y: 1)
+            .padding(.horizontal, 18)
+            .padding(.vertical, 14)
+            .background(
+                Color.clear.liquidGlass(in: Capsule(style: .continuous))
+            )
+            .overlay(
+                Capsule(style: .continuous)
+                    .stroke(Color.white.opacity(0.4), lineWidth: 0.5)
+            )
+            .shadow(color: .black.opacity(0.15), radius: 10, x: 0, y: 5)
         }
         .buttonStyle(PlainButtonStyle())
         .fullScreenCover(isPresented: $showingLocationMap) {
@@ -6570,6 +6587,40 @@ struct InteractiveLocationSticker: View {
     }
 }
 
+// MARK: - ✅ INTERACTIVE MENTION STICKER
+struct InteractiveMentionSticker: View {
+    let username: String
+    let onTap: () -> Void
+
+    var body: some View {
+        Button(action: onTap) {
+            HStack(spacing: 2) {
+                Text("@")
+                    .font(.system(size: 20, weight: .heavy, design: .rounded))
+                    .foregroundColor(.white)
+                    .opacity(0.7)
+                
+                Text(username.uppercased())
+                    .font(.system(size: 20, weight: .black, design: .rounded))
+                    .tracking(0.5)
+                    .foregroundColor(.white)
+            }
+            .shadow(color: .black.opacity(0.2), radius: 3, x: 0, y: 2)
+            .padding(.horizontal, 20)
+            .padding(.vertical, 12)
+            .background(
+                Color.clear.liquidGlass(in: Capsule(style: .continuous))
+            )
+            .overlay(
+                Capsule(style: .continuous)
+                    .stroke(Color.white.opacity(0.4), lineWidth: 0.5)
+            )
+            .shadow(color: .black.opacity(0.15), radius: 12, x: 0, y: 6)
+        }
+        .buttonStyle(PlainButtonStyle())
+    }
+}
+
 // MARK: - ✅ INTERACTIVE HASHTAG STICKER
 struct InteractiveHashtagSticker: View {
     let hashtag: String
@@ -6586,7 +6637,7 @@ struct InteractiveHashtagSticker: View {
         }
         .buttonStyle(PlainButtonStyle())
         .fullScreenCover(isPresented: $showingHashtagExplore) {
-            ExploreView(initialSearchQuery: "#\(hashtag)")
+            ExploreView(initialSearchQuery: "#\(hashtag)", isDismissable: true)
         }
         .onChange(of: showingHashtagExplore) { isPresented in
             if !isPresented {

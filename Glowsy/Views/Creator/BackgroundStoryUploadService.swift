@@ -150,10 +150,17 @@ struct CachedStickerInteractionData: Codable {
     let countdownTargetAtMs: Double?
     let sliderEmoji: String?
     let sliderPrompt: String?
-    let caption: String? // ✅ NUEVA
-    let profileImagePath: String? // ✅ NUEVA: Persistencia de imagen de perfil
-    let momentId: String? // ✅ NUEVA: Para navegación
-    let mediaCount: Int? // ✅ NUEVA: Para indicador de galería
+    let caption: String?
+    let profileImagePath: String?
+    let momentId: String?
+    let mediaCount: Int?
+    
+    // Quiz & Reveal
+    let quizQuestion: String?
+    let quizOptions: [String]?
+    let quizCorrectIndex: Int?
+    let revealType: String?
+    let frameStyle: String?
 }
 
 // MARK: - 🔥 SERVICIO PRINCIPAL DE STORIES
@@ -383,6 +390,12 @@ class BackgroundStoryUploadService: ObservableObject {
                 let weatherStickers = stickerData.filter { $0.type == .weather }
                 if !weatherStickers.isEmpty {
                     await setupWeatherStickers(storyId: storyId, stickers: weatherStickers)
+                }
+
+                // ✅ NUEVO: Procesar quiz stickers
+                let quizStickers = stickerData.filter { $0.type == .quiz }
+                if !quizStickers.isEmpty {
+                    await setupQuizStickers(storyId: storyId, stickers: quizStickers)
                 }
             }
             
@@ -945,6 +958,43 @@ class BackgroundStoryUploadService: ObservableObject {
     }
     
     // MARK: - 🌤️ CONFIGURAR WEATHER STICKERS
+    // MARK: - 📝 CONFIGURAR QUIZ
+    private func setupQuizStickers(storyId: String, stickers: [StickerItem]) async {
+        
+        guard let uploadingStory = uploadingStory else { return }
+        
+        for sticker in stickers {
+            guard let quizQuestion = sticker.interactionData?.quizQuestion,
+                  let quizOptions = sticker.interactionData?.quizOptions else {
+                continue
+            }
+            
+            // Colección de respuestas para este quiz
+            let quizResponsesRef = Firestore.firestore()
+                .collection("users")
+                .document(uploadingStory.userId)
+                .collection("stories")
+                .document(storyId)
+                .collection("quizResponses")
+            
+            // Metadata inicial del quiz
+            let quizMetadata: [String: Any] = [
+                "question": quizQuestion,
+                "options": quizOptions,
+                "correctIndex": sticker.interactionData?.quizCorrectIndex ?? 0,
+                "stickerId": sticker.id,
+                "createdAt": FieldValue.serverTimestamp(),
+                "totalResponses": 0
+            ]
+            
+            do {
+                try await quizResponsesRef.document("metadata").setData(quizMetadata)
+            } catch {
+                print("❌ Error setting quiz metadata: \(error)")
+            }
+        }
+    }
+    
     private func setupWeatherStickers(storyId: String, stickers: [StickerItem]) async {
         
         // Los stickers de clima son estáticos y se muestran animados en la historia
@@ -1159,7 +1209,12 @@ class BackgroundStoryUploadService: ObservableObject {
                 caption: data.caption,
                 profileImagePath: data.profileImagePath,
                 momentId: data.momentId,
-                mediaCount: data.mediaCount
+                mediaCount: data.mediaCount,
+                quizQuestion: data.quizQuestion,
+                quizOptions: data.quizOptions,
+                quizCorrectIndex: data.quizCorrectIndex,
+                revealType: data.revealType,
+                frameStyle: data.frameStyle
             )
         }
         
@@ -1277,7 +1332,12 @@ class BackgroundStoryUploadService: ObservableObject {
                             caption: data.caption,
                             profileImagePath: data.profileImagePath,
                             momentId: data.momentId,
-                            mediaCount: data.mediaCount
+                            mediaCount: data.mediaCount,
+                            quizQuestion: data.quizQuestion,
+                            quizOptions: data.quizOptions,
+                            quizCorrectIndex: data.quizCorrectIndex,
+                            revealType: data.revealType,
+                            frameStyle: data.frameStyle
                         )
                     }
                     

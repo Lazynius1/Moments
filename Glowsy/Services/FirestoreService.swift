@@ -1368,6 +1368,21 @@ class FirestoreService: ObservableObject {
                             if let mediaCount = sticker.mediaCount {
                                 stickerData["mediaCount"] = mediaCount
                             }
+                            if let quizQuestion = sticker.quizQuestion {
+                                stickerData["quizQuestion"] = quizQuestion
+                            }
+                            if let quizOptions = sticker.quizOptions {
+                                stickerData["quizOptions"] = quizOptions
+                            }
+                            if let quizCorrectIndex = sticker.quizCorrectIndex {
+                                stickerData["quizCorrectIndex"] = quizCorrectIndex
+                            }
+                            if let revealType = sticker.revealType {
+                                stickerData["revealType"] = revealType
+                            }
+                            if let frameStyle = sticker.frameStyle {
+                                stickerData["frameStyle"] = frameStyle
+                            }
                             
                             // ✅ INCLUIR PROPIEDADES DE ANIMACIÓN
                             if sticker.isAnimated {
@@ -4050,6 +4065,21 @@ extension FirestoreService {
                             if let mediaCount = sticker.mediaCount {
                                 stickerData["mediaCount"] = mediaCount
                             }
+                            if let quizQuestion = sticker.quizQuestion {
+                                stickerData["quizQuestion"] = quizQuestion
+                            }
+                            if let quizOptions = sticker.quizOptions {
+                                stickerData["quizOptions"] = quizOptions
+                            }
+                            if let quizCorrectIndex = sticker.quizCorrectIndex {
+                                stickerData["quizCorrectIndex"] = quizCorrectIndex
+                            }
+                            if let revealType = sticker.revealType {
+                                stickerData["revealType"] = revealType
+                            }
+                            if let frameStyle = sticker.frameStyle {
+                                stickerData["frameStyle"] = frameStyle
+                            }
                             
                             // ✅ INCLUIR PROPIEDADES DE ANIMACIÓN
                             if sticker.isAnimated {
@@ -4481,6 +4511,21 @@ extension FirestoreService {
                             }
                             if let mediaCount = sticker.mediaCount {
                                 stickerData["mediaCount"] = mediaCount
+                            }
+                            if let quizQuestion = sticker.quizQuestion {
+                                stickerData["quizQuestion"] = quizQuestion
+                            }
+                            if let quizOptions = sticker.quizOptions {
+                                stickerData["quizOptions"] = quizOptions
+                            }
+                            if let quizCorrectIndex = sticker.quizCorrectIndex {
+                                stickerData["quizCorrectIndex"] = quizCorrectIndex
+                            }
+                            if let revealType = sticker.revealType {
+                                stickerData["revealType"] = revealType
+                            }
+                            if let frameStyle = sticker.frameStyle {
+                                stickerData["frameStyle"] = frameStyle
                             }
 
                             // ✅ INCLUIR PROPIEDADES DE ANIMACIÓN

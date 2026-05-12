@@ -6,6 +6,8 @@ import Kingfisher
 import CoreLocation
 import MapKit
 import WeatherKit
+import PhotosUI
+
 
 // MARK: - Sticker Picker
 
@@ -18,6 +20,7 @@ struct StickerPickerView: View {
     @State private var gifSearchText = ""
     @State private var selectedCategory: StickerCategory = .trending
     @State private var giphyResults: [GiphyGif] = []
+    @State private var photoPickerItem: PhotosPickerItem? = nil
     @State private var isLoadingGiphy = false
     @State private var mode: PickerMode = .catalog
     private let functionsRegion = "europe-southwest1"
@@ -42,6 +45,9 @@ struct StickerPickerView: View {
         case weather
         case time
         case selfie
+        case quiz
+        case frame
+        case reveal
 
         var id: String { rawValue }
 
@@ -60,6 +66,9 @@ struct StickerPickerView: View {
             case .weather: return NSLocalizedString("stickerview.category.weather", comment: "Weather category")
             case .time: return NSLocalizedString("stickerview.category.time", comment: "Time category")
             case .selfie: return NSLocalizedString("stickerview.category.selfie", comment: "Selfie category")
+            case .quiz: return NSLocalizedString("stickerview.category.quiz", comment: "Quiz category")
+            case .frame: return NSLocalizedString("stickerview.category.frame", comment: "Frame category")
+            case .reveal: return NSLocalizedString("stickerview.category.reveal", comment: "Reveal category")
             }
         }
 
@@ -78,6 +87,9 @@ struct StickerPickerView: View {
             case .weather: return "cloud.sun.fill"
             case .time: return "clock.fill"
             case .selfie: return "person.crop.circle.badge.plus"
+            case .quiz: return "list.bullet.clipboard.fill"
+            case .frame: return "photo.artframe"
+            case .reveal: return "eye.slash.fill"
             }
         }
 
@@ -96,13 +108,16 @@ struct StickerPickerView: View {
             case .weather: return Color(red: 0.20, green: 0.77, blue: 0.95)
             case .time: return Color(red: 1.00, green: 0.62, blue: 0.20)
             case .selfie: return Color(red: 1.00, green: 0.25, blue: 0.55)
+            case .quiz: return .orange
+            case .frame: return .blue
+            case .reveal: return .purple
             }
         }
 
     }
 
     private var catalogCategories: [StickerCategory] {
-        [.location, .mention, .trending, .emoji, .link, .question, .poll, .emojiSlider, .hashtag, .countdown, .weather, .time, .selfie]
+        [.location, .mention, .trending, .emoji, .link, .question, .poll, .quiz, .reveal, .frame, .emojiSlider, .hashtag, .countdown, .weather, .time, .selfie]
     }
 
     private var filteredCatalogCategories: [StickerCategory] {
@@ -597,6 +612,65 @@ struct StickerPickerView: View {
             ModernCountdownInputView { title, targetAtMs in
                 createCountdownSticker(title: title, targetAtMs: targetAtMs)
             }
+            
+        case .quiz:
+            ModernQuizInputView { question, options, correctIndex in
+                createQuizSticker(question: question, options: options, correctIndex: correctIndex)
+            }
+            
+        case .frame:
+            VStack(spacing: 25) {
+                Text(NSLocalizedString("polaroid.title", comment: ""))
+                    .font(.system(size: 24, weight: .black, design: .rounded))
+                
+                Text(NSLocalizedString("polaroid.subtitle", comment: ""))
+                    .font(.system(size: 16, weight: .medium))
+                    .multilineTextAlignment(.center)
+                    .foregroundColor(.secondary)
+                
+                PhotosPicker(selection: $photoPickerItem, matching: .images) {
+                    Label(NSLocalizedString("polaroid.selectPhoto", comment: ""), systemImage: "photo.on.rectangle.angled")
+                        .font(.system(size: 18, weight: .bold))
+                        .foregroundColor(.white)
+                        .padding()
+                        .frame(maxWidth: .infinity)
+                        .background(Color.blue)
+                        .cornerRadius(16)
+                }
+                .onChange(of: photoPickerItem) { newItem in
+                    Task {
+                        if let data = try? await newItem?.loadTransferable(type: Data.self),
+                           let uiImage = UIImage(data: data) {
+                            createFrameSticker(image: uiImage)
+                        }
+                    }
+                }
+            }
+            .padding(30)
+
+        case .reveal:
+            VStack(spacing: 20) {
+                Text(NSLocalizedString("reveal.title", comment: ""))
+                    .font(.system(size: 24, weight: .black, design: .rounded))
+                
+                Text(NSLocalizedString("reveal.subtitle", comment: ""))
+                    .font(.system(size: 16, weight: .medium))
+                    .multilineTextAlignment(.center)
+                    .foregroundColor(.secondary)
+                
+                Button(action: {
+                    createRevealSticker()
+                }) {
+                    Text(NSLocalizedString("reveal.addLayer", comment: ""))
+                        .font(.system(size: 16, weight: .black))
+                        .foregroundColor(.white)
+                        .padding()
+                        .frame(maxWidth: .infinity)
+                        .background(Color.purple)
+                        .cornerRadius(16)
+                }
+            }
+            .padding(30)
 
         case .weather, .time, .selfie:
             EmptyView()
@@ -1880,6 +1954,76 @@ struct StickerPickerView: View {
         selectedStickers.append(sticker)
         dismiss()
     }
+    
+    private func createQuizSticker(question: String, options: [String], correctIndex: Int) {
+        hapticFeedback(.heavy)
+        
+        // Renderizamos una versión estática para el editor
+        let controller = UIHostingController(rootView: StickerQuizCardView(
+            question: question,
+            options: options,
+            selectedIndex: nil,
+            correctIndex: correctIndex,
+            onSelect: { _ in }
+        ))
+        let targetSize = CGSize(width: 300, height: 200) // Tamaño estimado razonable
+        controller.view.bounds = CGRect(origin: .zero, size: targetSize)
+        controller.view.backgroundColor = .clear
+        
+        let renderer = UIGraphicsImageRenderer(size: targetSize)
+        let image = renderer.image { _ in
+            controller.view.drawHierarchy(in: controller.view.bounds, afterScreenUpdates: true)
+        }
+        
+        let sticker = StickerItem(
+            image: image,
+            position: CGPoint(x: UIScreen.main.bounds.width / 2, y: UIScreen.main.bounds.height / 2),
+            type: .quiz,
+            interactionData: StickerItem.StickerInteractionData(
+                quizQuestion: question,
+                quizOptions: options,
+                quizCorrectIndex: correctIndex
+            )
+        )
+        selectedStickers.append(sticker)
+        dismiss()
+    }
+    
+    private func createFrameSticker(image: UIImage) {
+        hapticFeedback(.medium)
+        
+        // ✅ La imagen REAL del usuario se guarda directamente como content (Base64)
+        // El visor la recupera vía sticker.image → InteractiveFrameSticker(image:)
+        // La vista previa en el editor muestra el marco Polaroid vacío (progress: 0)
+        let sticker = StickerItem(
+            image: image,   // ← imagen real → se encode a Base64 via extractContent
+            position: CGPoint(x: UIScreen.main.bounds.width / 2, y: UIScreen.main.bounds.height / 2),
+            type: .frame,
+            interactionData: StickerItem.StickerInteractionData(
+                caption: nil,
+                quizQuestion: nil,
+                frameStyle: "classic"
+            )
+        )
+        selectedStickers.append(sticker)
+        dismiss()
+    }
+    
+    private func createRevealSticker() {
+        hapticFeedback(.medium)
+        
+        let image = UIImage(systemName: "eye.slash.fill")?.withTintColor(.white) ?? UIImage()
+        
+        let sticker = StickerItem(
+            image: image,
+            position: CGPoint(x: UIScreen.main.bounds.width / 2, y: 100), // Arriba por defecto
+            type: .reveal,
+            interactionData: StickerItem.StickerInteractionData(revealType: "scratch")
+        )
+        selectedStickers.append(sticker)
+        dismiss()
+    }
+
     
     private func createQuestionSticker(_ question: String) {
         let renderer = UIGraphicsImageRenderer(size: CGSize(width: 300, height: 132))
@@ -3882,6 +4026,130 @@ struct ModernEmojiSliderInputView: View {
         }
     }
 }
+struct ModernQuizInputView: View {
+    let onSelect: (String, [String], Int) -> Void
+    @Environment(\.colorScheme) private var colorScheme
+    @State private var question = ""
+    @State private var options = ["", "", ""]
+    @State private var correctIndex = 0
+    @FocusState private var focusedField: Int?
+    
+    private var isDarkMode: Bool { colorScheme == .dark }
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 20) {
+            VStack(alignment: .leading, spacing: 8) {
+                Text(NSLocalizedString("quiz.title", comment: ""))
+                    .font(.system(size: 24, weight: .black, design: .rounded))
+                    .foregroundColor(isDarkMode ? .white : .black)
+                
+                Text(NSLocalizedString("quiz.subtitle", comment: ""))
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundColor(isDarkMode ? .white.opacity(0.6) : .black.opacity(0.5))
+            }
+            .padding(.bottom, 10)
+            
+            // Campo de Pregunta
+            VStack(alignment: .leading, spacing: 10) {
+                TextField(NSLocalizedString("quiz.question.placeholder", comment: ""), text: $question)
+                    .font(.system(size: 18, weight: .bold))
+                    .padding()
+                    .background(Color.white.opacity(isDarkMode ? 0.1 : 0.05))
+                    .cornerRadius(16)
+                    .focused($focusedField, equals: -1)
+                
+                // Opciones dinámicas
+                ForEach(0..<options.count, id: \.self) { index in
+                    quizOptionField(index: index)
+                }
+                
+                // ✅ BOTÓN PARA AÑADIR OPCIÓN EXTRA (Máximo 4) - Liquid Glass Style
+                if options.count < 4 {
+                    Button(action: {
+                        withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                            options.append("")
+                        }
+                    }) {
+                        HStack(spacing: 8) {
+                            Image(systemName: "plus.circle.fill")
+                                .font(.system(size: 14, weight: .bold))
+                            Text(NSLocalizedString("quiz.addOption", comment: ""))
+                                .font(.system(size: 13, weight: .bold, design: .rounded))
+                        }
+                        .foregroundColor(isDarkMode ? .white : .black)
+                        .padding(.vertical, 8)
+                        .padding(.horizontal, 14)
+                        .background(
+                            Color.clear.liquidGlass(in: Capsule(), interactive: true)
+                        )
+                    }
+                    .padding(.top, 4)
+                }
+            }
+            
+            Button(action: {
+                let filledOptions = options.map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }.filter { !$0.isEmpty }
+                if !question.isEmpty && filledOptions.count >= 2 {
+                    onSelect(question, filledOptions, min(correctIndex, filledOptions.count - 1))
+                }
+            }) {
+                Text(NSLocalizedString("quiz.done", comment: ""))
+                    .font(.system(size: 16, weight: .black))
+                    .foregroundColor(.white)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 56)
+                    .background(
+                        Capsule()
+                            .fill(LinearGradient(colors: [.orange, .pink], startPoint: .leading, endPoint: .trailing))
+                    )
+                    .shadow(color: .orange.opacity(0.3), radius: 10, y: 5)
+            }
+            .padding(.top, 10)
+            .disabled(question.isEmpty || options.filter({!$0.isEmpty}).count < 2)
+            .opacity(question.isEmpty || options.filter({!$0.isEmpty}).count < 2 ? 0.5 : 1.0)
+            
+            Spacer()
+        }
+        .padding(.horizontal, 20)
+        .padding(.top, 20)
+        // ✅ TAP FUERA PARA BAJAR TECLADO
+        .contentShape(Rectangle())
+        .onTapGesture {
+            focusedField = nil
+        }
+        .onAppear {
+            focusedField = -1
+        }
+    }
+    
+    @ViewBuilder
+    private func quizOptionField(index: Int) -> some View {
+        HStack {
+            TextField(NSLocalizedString("quiz.option.placeholder", comment: "") + " \(index + 1)", text: $options[index])
+                .font(.system(size: 16, weight: .medium))
+                .focused($focusedField, equals: index)
+            
+            Spacer()
+            
+            Button(action: {
+                correctIndex = index
+                HapticManager.shared.lightImpact()
+            }) {
+                Image(systemName: correctIndex == index ? "checkmark.circle.fill" : "circle")
+                    .font(.system(size: 22))
+                    .foregroundColor(correctIndex == index ? .green : .gray.opacity(0.5))
+            }
+        }
+        .padding()
+        .background(Color.white.opacity(isDarkMode ? 0.08 : 0.04))
+        .cornerRadius(14)
+        .overlay(
+            RoundedRectangle(cornerRadius: 14)
+                .stroke(correctIndex == index ? Color.green.opacity(0.3) : Color.clear, lineWidth: 2)
+        )
+    }
+}
+
 
 struct ModernPollInputView: View {
     let onSelect: ([String]) -> Void

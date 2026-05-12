@@ -2,6 +2,7 @@
 "storyEditor.customAudience.multiple" = "%d people";
 "storyEditor.loadingSettings" = "Loading...";
 "storyEditor.savedToGallery" = "Story saved to your gallery";
+"storyEditor.reveal.active" = "Reveal effect active";
 "storyEditor.error.publishStart" = "Couldn't start story upload";
 
 /* Story Chains */
@@ -3083,3 +3084,21 @@
 "camera.preview.send" = "Send";
 "camera.preview.sendEphemeral" = "Send view once";
 "camera.preview.ephemeralBadge" = "1 view";
+
+/* Liquid Glass Stickers */
+"stickerview.category.quiz" = "Quiz";
+"stickerview.category.frame" = "Polaroid";
+"stickerview.category.reveal" = "Reveal";
+"quiz.title" = "Quiz";
+"quiz.subtitle" = "Ask a question and mark the correct answer";
+"quiz.question.placeholder" = "Write your question...";
+"quiz.option.placeholder" = "Option";
+"quiz.addOption" = "Add option";
+"quiz.done" = "DONE";
+"polaroid.title" = "Polaroid Frame";
+"polaroid.subtitle" = "Choose a photo to reveal by shaking the phone";
+"polaroid.selectPhoto" = "Select Photo";
+"reveal.title" = "Reveal";
+"reveal.subtitle" = "Create a layer that your friends will have to scratch to see the story";
+"reveal.addLayer" = "ADD LAYER";
+"storyEditor.polaroid.addNote" = "Add a note...";

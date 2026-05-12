@@ -1037,7 +1037,7 @@ struct Story: Identifiable, Codable {
                 } else {
                     stickerImage = UIImage(systemName: "chart.bar") ?? UIImage()
                 }
-            case .time, .weather, .emoji, .sticker, .generic, .selfie, .questionResponse, .shareMoment:
+            case .time, .weather, .emoji, .sticker, .generic, .selfie, .questionResponse, .shareMoment, .frame, .quiz:
                 // ✅ INTENTAR DECODIFICAR IMAGEN BASE64
                 // Usar UIScreen.main.scale para restaurar el tamaño lógico (puntos) original
                 if let data = Data(base64Encoded: stickerData.content),
@@ -1080,7 +1080,12 @@ struct Story: Identifiable, Codable {
                 caption: stickerData.caption,
                 profileImagePath: stickerData.profileImagePath,
                 momentId: stickerData.momentId,
-                mediaCount: stickerData.mediaCount
+                mediaCount: stickerData.mediaCount,
+                quizQuestion: stickerData.quizQuestion,
+                quizOptions: stickerData.quizOptions,
+                quizCorrectIndex: stickerData.quizCorrectIndex,
+                revealType: stickerData.revealType,
+                frameStyle: stickerData.frameStyle
             )
             
             // Crear StickerItem con las transformaciones aplicadas
@@ -1361,6 +1366,11 @@ struct StickerData: Codable {
     let profileImagePath: String? // ✅ NUEVA: Ruta de imagen de perfil para reconstrucción
     let momentId: String? // ✅ NUEVA: Para navegación
     let mediaCount: Int? // ✅ NUEVA: Para indicador de galería
+    let quizQuestion: String?
+    let quizOptions: [String]?
+    let quizCorrectIndex: Int?
+    let revealType: String?
+    let frameStyle: String?
     
     // ✅ NUEVAS PROPIEDADES para animación
     let isAnimated: Bool
@@ -1371,6 +1381,7 @@ struct StickerData: Codable {
     init(stickerId: String? = nil, type: String, content: String, position: CGPoint, scale: CGFloat, rotation: Double,
          username: String? = nil, userId: String? = nil, hashtag: String? = nil,
          location: String? = nil, latitude: Double? = nil, longitude: Double? = nil, questionText: String? = nil, pollOptions: [String]? = nil, weatherSymbol: String? = nil, linkURL: String? = nil, linkTitle: String? = nil, countdownTitle: String? = nil, countdownTargetAtMs: Double? = nil, sliderEmoji: String? = nil, sliderPrompt: String? = nil, caption: String? = nil, profileImagePath: String? = nil, momentId: String? = nil, mediaCount: Int? = nil,
+         quizQuestion: String? = nil, quizOptions: [String]? = nil, quizCorrectIndex: Int? = nil, revealType: String? = nil, frameStyle: String? = nil,
          isAnimated: Bool = false, gifURL: String? = nil, videoURL: String? = nil) {
         self.stickerId = stickerId
         self.type = type
@@ -1397,6 +1408,11 @@ struct StickerData: Codable {
         self.profileImagePath = profileImagePath
         self.momentId = momentId
         self.mediaCount = mediaCount
+        self.quizQuestion = quizQuestion
+        self.quizOptions = quizOptions
+        self.quizCorrectIndex = quizCorrectIndex
+        self.revealType = revealType
+        self.frameStyle = frameStyle
         self.isAnimated = isAnimated
         self.gifURL = gifURL
         self.videoURL = videoURL
@@ -1446,6 +1462,11 @@ struct StickerData: Codable {
         self.profileImagePath = try container.decodeIfPresent(String.self, forKey: .profileImagePath)
         self.momentId = try container.decodeIfPresent(String.self, forKey: .momentId)
         self.mediaCount = try container.decodeIfPresent(Int.self, forKey: .mediaCount)
+        self.quizQuestion = try container.decodeIfPresent(String.self, forKey: .quizQuestion)
+        self.quizOptions = try container.decodeIfPresent([String].self, forKey: .quizOptions)
+        self.quizCorrectIndex = try container.decodeIfPresent(Int.self, forKey: .quizCorrectIndex)
+        self.revealType = try container.decodeIfPresent(String.self, forKey: .revealType)
+        self.frameStyle = try container.decodeIfPresent(String.self, forKey: .frameStyle)
         
         // ✅ COMPATIBILIDAD HACIA ATRÁS: Detectar stickers animados basándose en el contenido
         let decodedIsAnimated = try container.decodeIfPresent(Bool.self, forKey: .isAnimated) ?? false
@@ -1499,6 +1520,11 @@ struct StickerData: Codable {
             profileImagePath: stickerItem.interactionData?.profileImagePath,
             momentId: stickerItem.interactionData?.momentId,
             mediaCount: stickerItem.interactionData?.mediaCount,
+            quizQuestion: stickerItem.interactionData?.quizQuestion,
+            quizOptions: stickerItem.interactionData?.quizOptions,
+            quizCorrectIndex: stickerItem.interactionData?.quizCorrectIndex,
+            revealType: stickerItem.interactionData?.revealType,
+            frameStyle: stickerItem.interactionData?.frameStyle,
             isAnimated: stickerItem.isAnimated,
             gifURL: stickerItem.gifURL?.absoluteString,
             videoURL: stickerItem.videoURL?.absoluteString
@@ -1516,7 +1542,7 @@ struct StickerData: Codable {
 
         // 1. PRIORIDAD: Shared Moments y otros que requieren Base64 para el template visual
         // Esto garantiza que el sticker se vea perfecto en el visor aunque no cargue el media aún
-        if [.generic, .sticker, .emoji, .time, .selfie, .questionResponse, .shareMoment, .link, .countdown, .emojiSlider].contains(sticker.type) {
+        if [.generic, .sticker, .emoji, .time, .selfie, .questionResponse, .shareMoment, .link, .countdown, .emojiSlider, .frame, .quiz].contains(sticker.type) {
             if let jpegData = sticker.image.jpegData(compressionQuality: 0.6) {
                 return jpegData.base64EncodedString()
             }
@@ -1581,6 +1607,11 @@ extension StickerData {
         case profileImagePath
         case momentId
         case mediaCount
+        case quizQuestion
+        case quizOptions
+        case quizCorrectIndex
+        case revealType
+        case frameStyle
     }
     
     func encode(to encoder: Encoder) throws {
@@ -1614,6 +1645,11 @@ extension StickerData {
         try container.encodeIfPresent(profileImagePath, forKey: .profileImagePath)
         try container.encodeIfPresent(momentId, forKey: .momentId)
         try container.encodeIfPresent(mediaCount, forKey: .mediaCount)
+        try container.encodeIfPresent(quizQuestion, forKey: .quizQuestion)
+        try container.encodeIfPresent(quizOptions, forKey: .quizOptions)
+        try container.encodeIfPresent(quizCorrectIndex, forKey: .quizCorrectIndex)
+        try container.encodeIfPresent(revealType, forKey: .revealType)
+        try container.encodeIfPresent(frameStyle, forKey: .frameStyle)
     }
 }
 
@@ -1637,6 +1673,9 @@ extension StickerItem.StickerType {
         case .time: return "time"
         case .shareMoment: return "shareMoment"
         case .selfie: return "selfie"
+        case .quiz: return "quiz"
+        case .frame: return "frame"
+        case .reveal: return "reveal"
         }
     }
     
@@ -1658,6 +1697,9 @@ extension StickerItem.StickerType {
         case "time": self = .time
         case "shareMoment": self = .shareMoment
         case "selfie": self = .selfie
+        case "quiz": self = .quiz
+        case "frame": self = .frame
+        case "reveal": self = .reveal
         default: return nil
         }
     }

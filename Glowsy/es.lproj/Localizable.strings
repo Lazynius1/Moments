@@ -2,6 +2,7 @@
 "storyEditor.customAudience.multiple" = "%d personas";
 "storyEditor.loadingSettings" = "Cargando...";
 "storyEditor.savedToGallery" = "Historia guardada en tu galería";
+"storyEditor.reveal.active" = "Efecto de revelado activo";
 "storyEditor.error.publishStart" = "Error al iniciar la subida de historia";
 
 /* Story Chains */
@@ -3107,3 +3108,21 @@
 "camera.preview.send" = "Enviar";
 "camera.preview.sendEphemeral" = "Enviar efímero";
 "camera.preview.ephemeralBadge" = "1 visualización";
+
+/* Liquid Glass Stickers */
+"stickerview.category.quiz" = "Cuestionario";
+"stickerview.category.frame" = "Polaroid";
+"stickerview.category.reveal" = "Revelar";
+"quiz.title" = "Cuestionario";
+"quiz.subtitle" = "Haz una pregunta y marca la respuesta correcta";
+"quiz.question.placeholder" = "Escribe tu pregunta...";
+"quiz.option.placeholder" = "Opción";
+"quiz.addOption" = "Añadir opción";
+"quiz.done" = "LISTO";
+"polaroid.title" = "Marco Polaroid";
+"polaroid.subtitle" = "Elige una foto para revelar agitando el móvil";
+"polaroid.selectPhoto" = "Seleccionar Foto";
+"reveal.title" = "Revelar";
+"reveal.subtitle" = "Crea una capa que tus amigos tendrán que rascar para ver la historia";
+"reveal.addLayer" = "AÑADIR CAPA";
+"storyEditor.polaroid.addNote" = "Añade una nota...";
