@@ -4,6 +4,7 @@ import AVFoundation
 import AVKit
 import FirebaseAuth
 import PencilKit
+import CoreLocation
 
 // MARK: - Editable Image View
 struct EditableImageView: View {
@@ -95,6 +96,7 @@ struct StoryEditingView: View {
     @State private var filterIntensity: Double = 1.0
     @State private var isApplyingFilter = false
     @State private var showingIntensitySlider = false
+    @State private var isEditingSticker = false // ✅ NUEVO
     
     
     // ✅ Variables para transformaciones de imagen
@@ -362,6 +364,7 @@ struct StoryEditingView: View {
                             ),
                             stickers: $selectedStickers,
                             drawingImage: $drawingImage,
+                            isEditingSticker: $isEditingSticker,
                             onNavigateToProfile: { userId in
                                 handleProfileNavigation(userId: userId)
                             },
@@ -394,6 +397,8 @@ struct StoryEditingView: View {
                             
                             bottomControlsView(bottomInset: proxy.safeAreaInsets.bottom)
                         }
+                        .opacity(isEditingSticker ? 0 : 1)
+                        .disabled(isEditingSticker)
                     }
 
                     if isDrawingMode {
@@ -1124,7 +1129,8 @@ struct StoryEditingView: View {
                 .background(Color.white.opacity(isLoadingUserSettings ? 0.5 : 1.0))
                 .clipShape(Capsule())
             }
-            .disabled(isPublishing || isLoadingUserSettings)
+            .disabled(isPublishing || isLoadingUserSettings || isEditingSticker)
+            .opacity(isEditingSticker ? 0 : 1)
         }
     }
     
@@ -2421,7 +2427,7 @@ struct StickerItem: Identifiable {
     let isAnimated: Bool  // Flag para saber si es GIF o Vídeo Animado
     
     let type: StickerType
-    let interactionData: StickerInteractionData?
+    var interactionData: StickerInteractionData?
     
     enum StickerType: String, Codable {
         case emoji
@@ -2439,30 +2445,44 @@ struct StickerItem: Identifiable {
         case weather
         case time
         case selfie
-        case shareMoment // ✅ NUEVO: Para identificar stickers de compartir momento
+        case shareMoment
+        case quiz
+        case frame
+        case reveal
     }
     
     struct StickerInteractionData {
-        let username: String?
-        let userId: String?
-        let hashtag: String?
-        let location: String?
-        let locationCoordinate: CLLocationCoordinate2D?
-        let pollData: [String]?
-        let questionText: String?
-        let weatherSymbol: String?
-        let linkURL: String?
-        let linkTitle: String?
-        let countdownTitle: String?
-        let countdownTargetAtMs: Double?
-        let sliderEmoji: String?
-        let sliderPrompt: String?
-        let caption: String? // ✅ NUEVO: Para mostrar el pie de foto en compartidos
-        let profileImagePath: String? // ✅ NUEVO: Para reconstruir el header en el visor
-        let momentId: String? // ✅ NUEVO: Para navegación al detalle
-        let mediaCount: Int? // ✅ NUEVO: Para indicador de galería
+        var username: String?
+        var userId: String?
+        var hashtag: String?
+        var location: String?
+        var locationCoordinate: CLLocationCoordinate2D?
+        var pollData: [String]?
+        var questionText: String?
+        var weatherSymbol: String?
+        var linkURL: String?
+        var linkTitle: String?
+        var countdownTitle: String?
+        var countdownTargetAtMs: Double?
+        var sliderEmoji: String?
+        var sliderPrompt: String?
+        var caption: String?
+        var profileImagePath: String?
+        var momentId: String?
+        var mediaCount: Int?
+        
+        // Quiz Data
+        var quizQuestion: String?
+        var quizOptions: [String]?
+        var quizCorrectIndex: Int?
+        
+        // Reveal Data
+        var revealType: String? // "scratch" por defecto
+        
+        // Polaroid Frame Data
+        var frameStyle: String?
 
-        // ✅ Inicializador con valores por defecto para evitar errores de compilación masivos
+        // ✅ Inicializador
         init(
             username: String? = nil,
             userId: String? = nil,
@@ -2481,7 +2501,12 @@ struct StickerItem: Identifiable {
             caption: String? = nil,
             profileImagePath: String? = nil,
             momentId: String? = nil,
-            mediaCount: Int? = nil
+            mediaCount: Int? = nil,
+            quizQuestion: String? = nil,
+            quizOptions: [String]? = nil,
+            quizCorrectIndex: Int? = nil,
+            revealType: String? = nil,
+            frameStyle: String? = nil
         ) {
             self.username = username
             self.userId = userId
@@ -2501,6 +2526,11 @@ struct StickerItem: Identifiable {
             self.profileImagePath = profileImagePath
             self.momentId = momentId
             self.mediaCount = mediaCount
+            self.quizQuestion = quizQuestion
+            self.quizOptions = quizOptions
+            self.quizCorrectIndex = quizCorrectIndex
+            self.revealType = revealType
+            self.frameStyle = frameStyle
         }
     }
     

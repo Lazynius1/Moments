@@ -2,6 +2,7 @@
 "storyEditor.customAudience.multiple" = "%d persones";
 "storyEditor.loadingSettings" = "Carregant...";
 "storyEditor.savedToGallery" = "Història desada a la teva galeria";
+"storyEditor.reveal.active" = "Efecte de revelat actiu";
 "storyEditor.error.publishStart" = "No s'ha pogut iniciar la pujada de la història";
 
 /* Story Chains */
@@ -3093,3 +3094,21 @@
 "camera.preview.send" = "Enviar";
 "camera.preview.sendEphemeral" = "Enviar efímer";
 "camera.preview.ephemeralBadge" = "1 visualització";
+
+/* Liquid Glass Stickers */
+"stickerview.category.quiz" = "Qüestionari";
+"stickerview.category.frame" = "Polaroid";
+"stickerview.category.reveal" = "Revelar";
+"quiz.title" = "Qüestionari";
+"quiz.subtitle" = "Fes una pregunta i marca la resposta correcta";
+"quiz.question.placeholder" = "Escriu la teva pregunta...";
+"quiz.option.placeholder" = "Opció";
+"quiz.addOption" = "Afegir opció";
+"quiz.done" = "FET";
+"polaroid.title" = "Marc Polaroid";
+"polaroid.subtitle" = "Tria una foto per revelar agitant el mòbil";
+"polaroid.selectPhoto" = "Seleccionar Foto";
+"reveal.title" = "Revelar";
+"reveal.subtitle" = "Crea una capa que els teus amics hauran de rascar per veure la història";
+"reveal.addLayer" = "AFEGIR CAPA";
+"storyEditor.polaroid.addNote" = "Afegeix una nota...";

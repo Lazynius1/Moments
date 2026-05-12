@@ -6669,6 +6669,7 @@ struct StoryOverlaysView: View {
     @Binding var isTextEditorPresented: Bool
     @Binding var stickers: [StickerItem]
     @Binding var drawingImage: UIImage?
+    @Binding var isEditingSticker: Bool // ✅ NUEVO: Para ocultar la UI del padre
 
     let onNavigateToProfile: (String) -> Void
     let onNavigateToLocation: (String, CLLocationCoordinate2D?) -> Void
@@ -6679,6 +6680,13 @@ struct StoryOverlaysView: View {
     @State private var showTrashZone = false
     @State private var isOverTrash = false
     @State private var pinchStartTextFontSize: CGFloat?
+    @State private var dragOffset: CGSize = .zero // ✅ Offset para evitar el salto al centro al tocar el texto
+
+    // 📸 NUEVO: Estado para editar el pie de foto de la Polaroid
+    @State private var editingPolaroidId: String? = nil
+    @State private var polaroidCaptionBuffer: String = ""
+    @State private var originalStickerTransform: (pos: CGPoint, scale: CGFloat, rot: Angle)? = nil
+    @State private var keyboardHeight: CGFloat = 0
 
     var body: some View {
         ZStack {
@@ -6747,15 +6755,26 @@ struct StoryOverlaysView: View {
                         RoundedRectangle(cornerRadius: effectiveTextBackgroundColor == nil ? 0 : 10, style: .continuous)
                     )
                     .padding(.horizontal, 24)
-                    .position(textPosition)
                     .scaleEffect(isDraggingItem && selectedStickerId == nil ? 0.8 : 1.0)
                     .opacity(isDraggingItem && selectedStickerId == nil ? 0.8 : 1.0)
                     .modifier(TextEffectModifier(effect: textEffect, textColor: textColor))
-                    .contentShape(Rectangle())
+                    .contentShape(Rectangle()) // ✅ Área táctil limitada al texto
                     .gesture(
-                        DragGesture()
+                        DragGesture(coordinateSpace: .named("storyCanvas")) // ✅ Estabilidad absoluta en el canvas
                             .onChanged { value in
-                                textPosition = value.location
+                                if dragOffset == .zero {
+                                    dragOffset = CGSize(
+                                        width: value.startLocation.x - textPosition.x,
+                                        height: value.startLocation.y - textPosition.y
+                                    )
+                                }
+                                
+                                let newPos = CGPoint(
+                                    x: value.location.x - dragOffset.width,
+                                    y: value.location.y - dragOffset.height
+                                )
+                                
+                                textPosition = newPos
 
                                 if !isDraggingItem {
                                     withAnimation(.easeOut(duration: 0.2)) {
@@ -6765,9 +6784,10 @@ struct StoryOverlaysView: View {
                                 }
 
                                 let trashY = UIScreen.main.bounds.height - 150
-                                isOverTrash = value.location.y > trashY
+                                isOverTrash = newPos.y > trashY
                             }
                             .onEnded { value in
+                                dragOffset = .zero
                                 withAnimation(.easeOut(duration: 0.2)) {
                                     isDraggingItem = false
                                     showTrashZone = false
@@ -6797,52 +6817,88 @@ struct StoryOverlaysView: View {
                         isEditingText = true
                         isTextEditorPresented = true
                     }
+                    .position(textPosition) // ✅ Posicionar al final
                     .animation(.easeInOut(duration: 0.2), value: isDraggingItem)
             }
 
             // ✅ STICKERS COMPLETAMENTE LIBRES - Sin interfaz de selección
             ForEach(stickers.indices, id: \.self) { index in
-                StickerOverlayView(
-                    sticker: $stickers[index], // ✅ USAR BINDING PARA ACTUALIZACIÓN DIRECTA
-                    isSelected: selectedStickerId == stickers[index].id, // Solo para tracking
-                    isDragging: isDraggingItem && selectedStickerId == stickers[index].id,
-                    onUpdate: { updatedSticker in
-                        stickers[index] = updatedSticker
-                    },
-                    onDelete: {
-                        withAnimation(.easeOut(duration: 0.2)) {
-                            stickers.remove(at: index)
-                            selectedStickerId = nil
-                        }
-                    },
-                    onDragChanged: { position in
-                        if !isDraggingItem {
+                // Ocultar stickers de tipo REVEAL del canvas (se muestran como badge arriba)
+                if stickers[index].type != .reveal {
+                    StickerOverlayView(
+                        sticker: $stickers[index],
+                        isSelected: selectedStickerId == stickers[index].id,
+                        isDragging: isDraggingItem && selectedStickerId == stickers[index].id,
+                        onUpdate: { updatedSticker in
+                            stickers[index] = updatedSticker
+                        },
+                        onDelete: {
                             withAnimation(.easeOut(duration: 0.2)) {
-                                isDraggingItem = true
-                                showTrashZone = true
-                                selectedStickerId = stickers[index].id
-                            }
-                        }
-
-                        let trashY = UIScreen.main.bounds.height - 150
-                        isOverTrash = position.y > trashY
-                    },
-                    onDragEnded: { position in
-                        withAnimation(.easeOut(duration: 0.2)) {
-                            isDraggingItem = false
-                            showTrashZone = false
-
-                            if isOverTrash {
                                 stickers.remove(at: index)
+                                selectedStickerId = nil
                             }
-                            isOverTrash = false
+                        },
+                        onDragChanged: { position in
+                            if !isDraggingItem {
+                                withAnimation(.easeOut(duration: 0.2)) {
+                                    isDraggingItem = true
+                                    showTrashZone = true
+                                    selectedStickerId = stickers[index].id
+                                }
+                            }
+
+                            let trashY = UIScreen.main.bounds.height - 150
+                            isOverTrash = position.y > trashY
+                        },
+                        onDragEnded: { position in
+                            withAnimation(.easeOut(duration: 0.2)) {
+                                isDraggingItem = false
+                                showTrashZone = false
+
+                                if isOverTrash {
+                                    stickers.remove(at: index)
+                                }
+                                isOverTrash = false
+                            }
+                        },
+                        onStickerTapped: { tappedSticker in
+                            handleStickerTap(tappedSticker)
+                            selectedStickerId = tappedSticker.id
                         }
-                    },
-                    onStickerTapped: { tappedSticker in
-                        handleStickerTap(tappedSticker)
-                        selectedStickerId = tappedSticker.id // Solo para tracking
+                    )
+                    .zIndex(editingPolaroidId == stickers[index].id ? 2000 : (selectedStickerId == stickers[index].id ? 500 : 1))
+                }
+            }
+
+            // ✅ REVEAL STATUS BADGE (Top)
+            if stickers.contains(where: { $0.type == .reveal }) {
+                VStack {
+                    HStack {
+                        HStack(spacing: 8) {
+                            Image(systemName: "magicmouse.fill")
+                                .font(.system(size: 14))
+                            Text(NSLocalizedString("storyEditor.reveal.active", comment: "Reveal effect active status"))
+                                .font(.custom("Poppins-Medium", size: 13))
+                            
+                            Button {
+                                withAnimation(.spring()) {
+                                    stickers.removeAll(where: { $0.type == .reveal })
+                                }
+                            } label: {
+                                Image(systemName: "xmark.circle.fill")
+                                    .font(.system(size: 18))
+                                    .foregroundColor(.white.opacity(0.6))
+                            }
+                        }
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 10)
+                        .liquidGlass(in: Capsule())
+                        .shadow(color: .black.opacity(0.2), radius: 10, y: 5)
                     }
-                )
+                    .padding(.top, 100) // Debajo de los controles superiores
+                    Spacer()
+                }
+                .transition(.move(edge: .top).combined(with: .opacity))
             }
 
 
@@ -6890,10 +6946,67 @@ struct StoryOverlaysView: View {
                 }
                 .transition(.move(edge: .bottom).combined(with: .opacity))
             }
+            
+            // 📸 FONDO OSCURO DE EDICIÓN (Dentro del ZStack para controlar el zIndex)
+            if editingPolaroidId != nil {
+                Color.black.opacity(0.8)
+                    .ignoresSafeArea()
+                    .zIndex(1500) // Entre los stickers normales y el "Hero"
+                    .onTapGesture {
+                        savePolaroidCaption()
+                    }
+                    .transition(.opacity)
+                
+                // INPUT DE TEXTO (Encima de todo)
+                VStack {
+                    Spacer()
+                    TextField(NSLocalizedString("storyEditor.polaroid.addNote", comment: "Prompt to add a note to a polaroid"), text: $polaroidCaptionBuffer)
+                        .font(.custom("MarkerFelt-Wide", size: 24)) // Un pelín más pequeña
+                        .foregroundColor(.black)
+                        .multilineTextAlignment(.center)
+                        .padding(.vertical, 12) // Mucho más fino
+                        .padding(.horizontal, 25)
+                        .liquidGlass(in: Capsule(), interactive: true)
+                        .padding(.horizontal, 40)
+                        .submitLabel(.done)
+                        .onSubmit {
+                            savePolaroidCaption()
+                        }
+                        .padding(.bottom, keyboardHeight > 0 ? keyboardHeight + 80 : 160)
+                }
+                .zIndex(2500)
+                .transition(.move(edge: .bottom).combined(with: .opacity))
+                .animation(.spring(response: 0.35, dampingFraction: 0.8), value: keyboardHeight)
+                .onChange(of: polaroidCaptionBuffer) { _, newValue in
+                    // ✅ ACTUALIZACIÓN EN TIEMPO REAL
+                    if let editingId = editingPolaroidId,
+                       let index = stickers.firstIndex(where: { $0.id == editingId }) {
+                        var interaction = stickers[index].interactionData ?? StickerItem.StickerInteractionData()
+                        interaction.caption = newValue
+                        stickers[index].interactionData = interaction
+                    }
+                }
+            }
         }
+        .onChange(of: editingPolaroidId) { _, newValue in
+            // ✅ AVISAR AL PADRE PARA OCULTAR LA UI
+            withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                isEditingSticker = newValue != nil
+            }
+        }
+        .coordinateSpace(name: "storyCanvas")
         .onTapGesture {
             // Deseleccionar al tocar el fondo
             selectedStickerId = nil
+        }
+        .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillChangeFrameNotification)) { notification in
+            guard let endFrame = notification.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? CGRect else { return }
+            let screenHeight = UIScreen.main.bounds.height
+            let overlap = max(0, screenHeight - endFrame.minY)
+            keyboardHeight = overlap
+        }
+        .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillHideNotification)) { _ in
+            keyboardHeight = 0
         }
 
     }
@@ -6945,9 +7058,59 @@ struct StoryOverlaysView: View {
             // Handle question response tap
             break
 
+        case .frame:
+            // 📸 EFECTO ENFOQUE: Guardar posición y centrar para editar
+            if let index = stickers.firstIndex(where: { $0.id == sticker.id }) {
+                let original = stickers[index]
+                originalStickerTransform = (original.position, original.scale, original.rotation)
+                
+                editingPolaroidId = sticker.id
+                polaroidCaptionBuffer = sticker.interactionData?.caption ?? ""
+                
+                withAnimation(.spring(response: 0.45, dampingFraction: 0.75)) {
+                    // Mover al centro (un poco arriba por el teclado) y ampliar
+                    stickers[index].position = CGPoint(x: UIScreen.main.bounds.width / 2, y: UIScreen.main.bounds.height / 3)
+                    stickers[index].scale = 1.4
+                    stickers[index].rotation = .zero
+                }
+                
+                let haptic = UIImpactFeedbackGenerator(style: .medium)
+                haptic.impactOccurred()
+            }
+
         default:
             break
         }
+    }
+
+
+    private func savePolaroidCaption() {
+        guard let editingId = editingPolaroidId else { return }
+        
+        if let index = stickers.firstIndex(where: { $0.id == editingId }) {
+            // Actualizar el caption en los datos de interacción
+            var interactionData = stickers[index].interactionData ?? StickerItem.StickerInteractionData()
+            interactionData.caption = polaroidCaptionBuffer
+            stickers[index].interactionData = interactionData
+            
+            // 🚀 VOLVER A LA POSICIÓN ORIGINAL CON ANIMACIÓN
+            if let original = originalStickerTransform {
+                withAnimation(.spring(response: 0.45, dampingFraction: 0.8)) {
+                    stickers[index].position = original.pos
+                    stickers[index].scale = original.scale
+                    stickers[index].rotation = original.rot
+                }
+            }
+        }
+        
+        withAnimation(.easeOut(duration: 0.25)) {
+            editingPolaroidId = nil
+            polaroidCaptionBuffer = ""
+            originalStickerTransform = nil
+        }
+        
+        // Ocultar teclado
+        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
     }
 
     private func findUserIdByUsername(_ username: String, completion: @escaping (String?) -> Void) {
@@ -7012,6 +7175,7 @@ struct StickerOverlayView: View {
     @State private var selfieCaptureTrigger = false
     @State private var selfieSwitchCameraTrigger = false
     @State private var lastSelfieSwitchAt: Date = .distantPast
+    @State private var dragOffset: CGSize = .zero // ✅ Offset para evitar el salto al centro al tocar
 
     init(sticker: Binding<StickerItem>, isSelected: Bool, isDragging: Bool,
          onUpdate: @escaping (StickerItem) -> Void,
@@ -7032,8 +7196,19 @@ struct StickerOverlayView: View {
         _rotation = State(initialValue: sticker.wrappedValue.rotation)
     }
 
+    private var stickerSize: CGSize {
+        switch sticker.type {
+        case .frame: return CGSize(width: 200, height: 240)
+        case .quiz, .poll, .question: return CGSize(width: 300, height: 320)
+        case .weather: return CGSize(width: 140, height: 50)
+        case .time: return CGSize(width: 180, height: 80)
+        default: return sticker.image.size
+        }
+    }
+
     var body: some View {
         ZStack {
+            // ... (resto del contenido del ZStack sin cambios hasta la línea 7405)
             // ✅ SOLUCIÓN DEFINITIVA: Renderizado idéntico al Viewer
             if sticker.isAnimated {
                 if let videoURL = sticker.videoURL {
@@ -7176,7 +7351,6 @@ struct StickerOverlayView: View {
                     onPauseStory: {},
                     onResumeStory: {}
                 )
-                .frame(width: 220, height: 56)
                 .allowsHitTesting(false)
             } else if sticker.type == .hashtag, let hashtag = sticker.interactionData?.hashtag {
                 // HASHTAG INTERACTIVO
@@ -7185,19 +7359,23 @@ struct StickerOverlayView: View {
                     onPauseStory: {},
                     onResumeStory: {}
                 )
-                .frame(height: 52)
+                .allowsHitTesting(false)
+            } else if sticker.type == .mention, let username = sticker.interactionData?.username {
+                // MENTION INTERACTIVO
+                InteractiveMentionSticker(
+                    username: username,
+                    onTap: {}
+                )
                 .allowsHitTesting(false)
             } else if sticker.type == .link, let linkURL = sticker.interactionData?.linkURL {
                 StickerLinkCardView(
                     title: sticker.interactionData?.linkTitle ?? stickerHostLabel(from: linkURL)
                 )
-                .frame(width: sticker.image.size.width, height: sticker.image.size.height)
                 .allowsHitTesting(false)
             } else if sticker.type == .countdown,
                       let countdownTitle = sticker.interactionData?.countdownTitle,
                       let targetAtMs = sticker.interactionData?.countdownTargetAtMs {
                 StickerCountdownCardView(title: countdownTitle, targetAtMs: targetAtMs)
-                    .frame(width: 240, height: 96)
                     .allowsHitTesting(false)
             } else if sticker.type == .emojiSlider,
                       let sliderPrompt = sticker.interactionData?.sliderPrompt,
@@ -7328,7 +7506,28 @@ struct StickerOverlayView: View {
                     timeText: sticker.interactionData?.questionText ?? Date.now.formatted(date: .omitted, time: .shortened),
                     dateText: sticker.interactionData?.caption ?? Date.now.formatted(date: .numeric, time: .omitted)
                 )
-                .frame(width: 164, height: 56)
+                .allowsHitTesting(false)
+            } else if sticker.type == .frame {
+                InteractiveFrameSticker(
+                    image: sticker.image,
+                    caption: sticker.interactionData?.caption,
+                    isEditing: true
+                )
+                .frame(width: 200, height: 240)
+                .allowsHitTesting(false)
+            } else if sticker.type == .quiz,
+                      let question = sticker.interactionData?.quizQuestion,
+                      let options = sticker.interactionData?.quizOptions {
+                InteractiveQuizSticker(
+                    storyId: "preview",
+                    userId: "preview",
+                    stickerId: sticker.id,
+                    question: question,
+                    options: options,
+                    correctIndex: sticker.interactionData?.quizCorrectIndex ?? 0,
+                    isEditing: true
+                )
+                .frame(width: 300)
                 .allowsHitTesting(false)
             } else {
                 // STICKER ESTÁTICO / IMAGEN (Emoji, Generic, etc.)
@@ -7351,14 +7550,29 @@ struct StickerOverlayView: View {
             }
         }
         .rotationEffect(rotation)
-        // ✅ Aplicar escala al contenedor completo (incluyendo los frames fijos de arriba)
         .scaleEffect(isDragging ? 0.9 : (showInteractionFeedback ? 1.05 : 1.0))
-        .scaleEffect(scale) // ✅ IMPORTANTE: Aquí se aplica la escala del usuario
+        .scaleEffect(scale)
         .opacity(isDragging ? 0.8 : 1.0)
-        .position(currentPosition)
-        .contentShape(Rectangle()) // ✅ ASEGURAR QUE TODA EL ÁREA SEA INTERACTIVA
+        .frame(width: stickerSize.width, height: stickerSize.height)
+        .contentShape(Rectangle())
         .onTapGesture {
             handleStickerTap()
+        }
+        // ✅ SINCRONIZAR CON EL PADRE PARA EL "VUELO HERO"
+        .onChange(of: sticker.position) { _, newPos in
+            withAnimation(.spring(response: 0.45, dampingFraction: 0.75)) {
+                currentPosition = newPos
+            }
+        }
+        .onChange(of: sticker.scale) { _, newScale in
+            withAnimation(.spring(response: 0.45, dampingFraction: 0.75)) {
+                scale = newScale
+            }
+        }
+        .onChange(of: sticker.rotation) { _, newRot in
+            withAnimation(.spring(response: 0.45, dampingFraction: 0.75)) {
+                rotation = newRot
+            }
         }
         .simultaneousGesture(
             LongPressGesture(minimumDuration: 0.45)
@@ -7371,62 +7585,55 @@ struct StickerOverlayView: View {
                 }
         )
         .gesture(
-            // ✅ DRAG GESTURE - Completamente libre
-            DragGesture()
+            DragGesture(coordinateSpace: .named("storyCanvas")) // ✅ Usar el canvas global para estabilidad absoluta
                 .onChanged { value in
-                    currentPosition = value.location
-                    onDragChanged(value.location)
-
-                    // ✅ ACTUALIZAR DIRECTAMENTE EL BINDING
-                    sticker.position = currentPosition
+                    if dragOffset == .zero {
+                        // Calcular la distancia desde el centro del sticker hasta donde pusimos el dedo
+                        dragOffset = CGSize(
+                            width: value.startLocation.x - currentPosition.x,
+                            height: value.startLocation.y - currentPosition.y
+                        )
+                    }
+                    
+                    let newPos = CGPoint(
+                        x: value.location.x - dragOffset.width,
+                        y: value.location.y - dragOffset.height
+                    )
+                    
+                    currentPosition = newPos
+                    onDragChanged(newPos)
+                    sticker.position = newPos
                 }
-                .onEnded { value in
-                    onDragEnded(value.location)
+                .onEnded { _ in
+                    dragOffset = .zero // Resetear para el próximo arrastre
+                    onDragEnded(currentPosition)
                 }
         )
         .simultaneousGesture(
-            // ✅ PINCH TO SCALE - Completamente libre, rango amplio
             MagnificationGesture()
                 .onChanged { value in
                     let newScale = sticker.scale * value
-
-                    // ✅ FIX 2: Límite más agresivo y robusto basado en el tamaño en PANTALLA
-                    // El límite anterior de 8192px era de textura, pero en pantallas 3x (iPhone Pro)
-                    // una vista de 3000pt ya son 9000px, superando el límite de 8192px en algunos disp.
-                    //
-                    // Limitamos el tamaño visual máximo a 2048 puntos (aprox 2.5x la altura de la pantalla)
-                    // Esto asegura que incluso en 3x (6144px) estemos seguros.
-
                     let maxDimension: CGFloat = 2048
-                    let currentWidth = sticker.image.size.width
-                    let currentHeight = sticker.image.size.height
-
-                    let maxScaleWidth = maxDimension / max(currentWidth, 1)
-                    let maxScaleHeight = maxDimension / max(currentHeight, 1)
-
+                    let maxScaleWidth = maxDimension / max(stickerSize.width, 1)
+                    let maxScaleHeight = maxDimension / max(stickerSize.height, 1)
                     let safeMaxScale = min(maxScaleWidth, maxScaleHeight)
-
-                    // Mantenemos un mínimo razonable de 5.0, pero si la imagen es gigante, safeMaxScale lo bajará
-                    let finalMaxScale = max(min(5.0, safeMaxScale), 0.5) // Asegurar que al menos permita 0.5x
-
-                    scale = min(max(newScale, 0.2), finalMaxScale)
+                    let finalMaxScale = min(4.5, safeMaxScale)
+                    scale = min(max(newScale, 0.1), finalMaxScale)
                 }
                 .onEnded { value in
-                    // ✅ ACTUALIZAR DIRECTAMENTE EL BINDING
                     sticker.scale = scale
                 }
         )
         .simultaneousGesture(
-            // ✅ ROTATION GESTURE - Completamente libre
             RotationGesture()
                 .onChanged { value in
                     rotation = sticker.rotation + value
                 }
                 .onEnded { value in
-                    // ✅ ACTUALIZAR DIRECTAMENTE EL BINDING
                     sticker.rotation = rotation
                 }
         )
+        .position(currentPosition) // ✅ Posicionar en el lienzo global al final
         .animation(.spring(response: 0.3, dampingFraction: 0.7), value: showInteractionFeedback)
         .animation(.easeInOut(duration: 0.1), value: isDragging)
         .animation(.spring(response: 0.3, dampingFraction: 0.8), value: scale)

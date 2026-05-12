@@ -17,9 +17,11 @@ struct ExploreView: View {
 
     @State private var showSuggestedUsersView = false
     let initialSearchQuery: String?
+    let isDismissable: Bool
     
-    init(initialSearchQuery: String? = nil) {
+    init(initialSearchQuery: String? = nil, isDismissable: Bool = false) {
         self.initialSearchQuery = initialSearchQuery
+        self.isDismissable = isDismissable
     }
     
     var body: some View {
@@ -29,6 +31,21 @@ struct ExploreView: View {
             .navigationTitle(NSLocalizedString("explore.title", comment: ""))
             .navigationBarTitleDisplayMode(.large)
             .toolbar {
+                if isDismissable {
+                    ToolbarItem(placement: .topBarLeading) {
+                        Button {
+                            ExploreHapticFeedback.impact(.light)
+                            dismiss()
+                        } label: {
+                            Image(systemName: "chevron.left")
+                                .font(.system(size: 16, weight: .bold))
+                                .foregroundColor(.primary)
+                                .frame(width: 32, height: 32)
+                                .background(Color.clear.liquidGlass(in: Circle(), interactive: true))
+                        }
+                    }
+                }
+
                 ToolbarItemGroup(placement: .topBarTrailing) {
                     Button {
                         ExploreHapticFeedback.impact(.medium)
