@@ -620,7 +620,7 @@ class BackgroundStoryUploadService: ObservableObject {
         // Así se mantiene estable entre móviles con tamaños/ratios distintos.
         let contentRect = storyContentRectInEditor(for: uploadingStory, aspectRatio: aspectRatio)
         let referenceContentWidth: CGFloat = 375.0
-        
+
         let normalizedStickerData: [StickerData]? = uploadingStory.stickerData?.compactMap { stickerItem in
             var normalizedItem = stickerItem
             
@@ -636,7 +636,6 @@ class BackgroundStoryUploadService: ObservableObject {
                 y: normalizedY.isFinite ? normalizedY : 0.5
             )
             normalizedItem.scale = normalizedScale.isFinite ? normalizedScale : stickerItem.scale
-            
             return StickerData.from(normalizedItem)
         }
         
@@ -1048,9 +1047,7 @@ class BackgroundStoryUploadService: ObservableObject {
             
             do {
                 try await quizResponsesRef.document("metadata").setData(quizMetadata)
-            } catch {
-                print("❌ Error setting quiz metadata: \(error)")
-            }
+            } catch { }
         }
     }
     
@@ -1195,9 +1192,7 @@ class BackgroundStoryUploadService: ObservableObject {
             
             await LocalPersistenceService.shared.saveAction(action)
             
-        } catch {
-            print("❌ BackgroundStoryUpload: Error al persistir acción: \(error)")
-        }
+        } catch { }
     }
     
     private func saveMediaToDisk(_ media: ProcessedMedia) async throws -> CachedMediaItem {
@@ -1497,12 +1492,8 @@ class BackgroundStoryUploadService: ObservableObject {
             )
             
             LocalPersistenceService.shared.deleteAction(id: action.id)
-            
-            print("🚀 BackgroundStoryUpload: Subida reanudada desde el disco (\(action.id))")
-            
-        } catch {
-            print("❌ BackgroundStoryUpload: Error al reanudar subida: \(error)")
-        }
+
+        } catch { }
     }
 }
 // MARK: - 🔄 EXTENSIÓN PARA INTEGRAR CON TU CREATOR VIEW
@@ -1695,7 +1686,6 @@ extension BackgroundStoryUploadService {
                 continue
             }
             
-            print("🧹 Limpiando Live Activity huerfana: \(activity.id)")
             await activity.end(dismissalPolicy: .immediate)
         }
     }

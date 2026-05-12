@@ -748,11 +748,8 @@ class BackgroundMomentUploadService: ObservableObject {
                 )
                 
                 await LocalPersistenceService.shared.saveAction(action)
-                print("💾 BackgroundUpload: Acción persistida correctamente")
-                
-            } catch {
-                print("❌ BackgroundUpload: Error al persistir acción: \(error)")
-            }
+
+            } catch { }
         }
     }
     
@@ -820,7 +817,6 @@ class BackgroundMomentUploadService: ObservableObject {
             }
             
             if isAlreadyUploading {
-                print("⚠️ BackgroundUpload: Ignorando duplicado de subida (ya en proceso)")
                 LocalPersistenceService.shared.deleteAction(id: action.id)
                 return
             }
@@ -883,9 +879,7 @@ class BackgroundMomentUploadService: ObservableObject {
                 LocalPersistenceService.shared.deleteAction(id: action.id)
             }
             
-        } catch {
-            print("❌ BackgroundUpload: Error al retomar subida: \(error)")
-        }
+        } catch { }
     }
     
     private func deleteActionFiles(id: String) {
@@ -898,8 +892,6 @@ class BackgroundMomentUploadService: ObservableObject {
                     }
                 }
             }
-        } catch {
-            print("⚠️ BackgroundUpload: Error al borrar archivos temporales: \(error)")
-        }
+        } catch { }
     }
 }
