@@ -33,11 +33,11 @@ struct EditableImageView: View {
         self.filteredImage = filteredImage
         self.canvasSize = canvasSize
     }
-    
+
     var displayImage: UIImage {
         filteredImage ?? image
     }
-    
+
     var body: some View {
         ZStack {
             // ✅ Fondo con imagen original blur (usando blur nativo de SwiftUI)
@@ -47,7 +47,7 @@ struct EditableImageView: View {
                 .frame(width: canvasSize.width, height: canvasSize.height)
                 .blur(radius: 20)
                 .scaleEffect(1.1) // Ligeramente más grande para evitar bordes
-            
+
             // ✅ Imagen editable en primer plano
             Image(uiImage: displayImage)
                 .resizable()
@@ -66,7 +66,7 @@ struct StoryEditingView: View {
     @Binding var currentFlow: CreatorView.CreatorFlow
     @Binding var showCreatorView: Bool
     let initialSticker: StickerItem?
-    
+
     // 🔗 NUEVO: Parámetros de cadena
     let initialChainId: String?
     let initialChainTitle: String?
@@ -91,40 +91,40 @@ struct StoryEditingView: View {
     @State private var selectedTextEffect: TextEffect = .none
     @State private var drawingImage: UIImage?
     @State private var editableImageViewRef: EditableImageView?
-    
+
     // ✅ Filtros e Intensidad
     @State private var filterIntensity: Double = 1.0
     @State private var isApplyingFilter = false
     @State private var showingIntensitySlider = false
     @State private var isEditingSticker = false // ✅ NUEVO
-    
-    
+
+
     // ✅ Variables para transformaciones de imagen
     @State private var imageScale: CGFloat = 1.0
     @State private var imageOffset: CGSize = .zero
     @State private var imageRotation: Angle = .zero
-    
+
     @State private var selectedListId: String?
     @State private var selectedListName: String?
     @State private var customSelectedUsers: [String] = []
     @State private var forceUpdate: Bool = false
-    
+
     // ✅ Filtros
     @State private var selectedFilter: FilterService.FilterType = .normal
     @State private var filteredImage: UIImage? = nil
     @State private var filterTask: Task<Void, Never>? = nil
-    
+
     // ✅ PROPIEDADES para navegación
     @State private var showingUserProfile = false
     @State private var selectedUserId: String = ""
     @State private var navigationPath = NavigationPath()
-    
 
-    
+
+
     @State private var showingLocationMap = false
     @State private var selectedLocationName = ""
     @State private var selectedCoordinate: CLLocationCoordinate2D?
-    
+
     // 🔗 NUEVAS VARIABLES para Story Chains
     @State private var isCreatingChain = false
     @State private var chainTitle = ""
@@ -134,7 +134,7 @@ struct StoryEditingView: View {
     @State private var originalChainTitle = ""
     @FocusState private var isChainTitleFocused: Bool
     @State private var keyboardHeight: CGFloat = 0
-    
+
     // 🔗 NUEVAS VARIABLES para configuración de cadenas
     @State private var allowOthersToContinue = true
     @State private var continuationAudience: ChainContinuationSetting = .everyone
@@ -175,7 +175,7 @@ struct StoryEditingView: View {
         static var fontPickerStyles: [TextStyle] {
             [.modern, .classic, .editorial, .rounded, .signature, .typewriter, .handwritten, .bold, .poster]
         }
-        
+
         func font(size: CGFloat) -> Font {
             switch self {
             case .modern: return .system(size: size, weight: .medium)
@@ -221,7 +221,7 @@ struct StoryEditingView: View {
                 return UIFont(name: "ChalkboardSE-Bold", size: size + 1) ?? .systemFont(ofSize: size + 1, weight: .bold)
             }
         }
-        
+
         var backgroundColor: Color {
             switch self {
             case .modern: return Color.black.opacity(0.6)
@@ -320,7 +320,7 @@ struct StoryEditingView: View {
     private var isDrawingMode: Bool { activeEditorMode == .drawing }
     private var isFilterMode: Bool { activeEditorMode == .filters }
     private var isCanvasModeActive: Bool { activeEditorMode != .idle }
-    
+
     var body: some View {
         NavigationStack(path: $navigationPath) {
             GeometryReader { proxy in
@@ -334,7 +334,7 @@ struct StoryEditingView: View {
                 ZStack(alignment: .topLeading) {
                     backgroundMediaView(canvasSize: mediaCanvasSize)
                         .offset(y: mediaCanvasOffsetY)
-                    
+
                     // Drawing overlay preview when text editor is open
                     if let drawing = drawingImage, isTextMode {
                         Image(uiImage: drawing)
@@ -344,7 +344,7 @@ struct StoryEditingView: View {
                             .offset(y: mediaCanvasOffsetY)
                             .allowsHitTesting(false)
                     }
-                    
+
                     // Overlays
                     if !isTextMode && !isDrawingMode {
                         StoryOverlaysView(
@@ -377,29 +377,7 @@ struct StoryEditingView: View {
                     }
 
                     // Controls
-                    if !isTextMode && !isDrawingMode {
-                        VStack {
-                            topBarView(topInset: proxy.safeAreaInsets.top)
-
-                            if activeEditorMode == .idle {
-                                HStack {
-                                    Spacer()
-                                    sideToolbarView()
-                                }
-                            }
-                            
-                            Spacer()
-                            
-                            // Video playback controls
-                            if let firstMedia = selectedMediaItems.first, firstMedia.type == .video {
-                                VideoControlsOverlay()
-                            }
-                            
-                            bottomControlsView(bottomInset: proxy.safeAreaInsets.bottom)
-                        }
-                        .opacity(isEditingSticker ? 0 : 1)
-                        .disabled(isEditingSticker)
-                    }
+                    mainControlsOverlay(proxy: proxy)
 
                     if isDrawingMode {
                         StoryDrawingEditorOverlay(
@@ -446,19 +424,19 @@ struct StoryEditingView: View {
             setupStickerListener()
             setupChainContextListener()
             refreshPrimaryVideoAspectRatio()
-            
+
             // ✅ AGREGAR STICKER INICIAL SI EXISTE
             if let initialSticker = initialSticker {
                 selectedStickers.append(initialSticker)
             }
-            
+
             // 🔗 NUEVO: Configurar contexto de cadena si se pasan parámetros
             if let chainId = initialChainId,
                let chainTitle = initialChainTitle,
                let chainPosition = initialChainPosition {
                 setChainContext(chainId: chainId, chainTitle: chainTitle, chainPosition: chainPosition)
             }
-            
+
             // Inicializar filtro si es necesario
             if filteredImage == nil && selectedFilter != .normal {
                 applySelectedFilter()
@@ -475,53 +453,7 @@ struct StoryEditingView: View {
         .ignoresSafeArea(.keyboard)
         // ✅ Input inferior para título de cadena
         .safeAreaInset(edge: .bottom) {
-            if isCreatingChain && !isCanvasModeActive {
-                VStack(spacing: 6) {
-                    if activeEditorMode == .idle {
-                        HStack {
-                            Spacer()
-                            principalActionButton()
-                        }
-                        .padding(.horizontal, 16)
-                    }
-
-                    HStack(spacing: 12) {
-                        HStack(spacing: 10) {
-                            Image(systemName: "link")
-                                .foregroundColor((colorScheme == .dark ? Color.white : Color.black).opacity(0.72))
-                                .font(.system(size: 15, weight: .semibold))
-
-                            TextField(NSLocalizedString("storyChains.chainTitlePlaceholder", comment: "Chain title placeholder"), text: $chainTitle)
-                                .textFieldStyle(PlainTextFieldStyle())
-                                .foregroundColor(colorScheme == .dark ? .white : .black)
-                                .tint(colorScheme == .dark ? .white : .black)
-                                .focused($isChainTitleFocused)
-                        }
-                        .padding(.vertical, 12)
-                        .padding(.horizontal, 14)
-                        .liquidGlass(in: Capsule(), interactive: true)
-
-                        Button(action: { isChainTitleFocused = false }) {
-                            Image(systemName: "keyboard.chevron.compact.down")
-                                .foregroundColor(colorScheme == .dark ? .white : .black)
-                                .padding(10)
-                                .background((colorScheme == .dark ? Color.black : Color.white).opacity(colorScheme == .dark ? 0.2 : 0.28))
-                                .clipShape(Circle())
-                        }
-                    }
-                    .padding(.horizontal, 16)
-                    .padding(.top, activeEditorMode == .idle ? 8 : 12)
-                    .padding(.bottom, 12)
-                    .background(
-                        Color.clear
-                            .liquidGlass(in: Rectangle())
-                            .ignoresSafeArea(edges: .bottom)
-                    )
-                }
-                .padding(.top, 8)
-                .padding(.bottom, chainInputBottomPadding())
-                .animation(.easeOut(duration: 0.24), value: keyboardHeight)
-            }
+            chainTitleInputOverlay()
         }
         // ✅ SHEET ACTUALIZADO para selector de audiencia mejorado
         .sheet(isPresented: $showingAudienceSelector) {
@@ -564,12 +496,12 @@ struct StoryEditingView: View {
             )
         }
         .sheet(isPresented: $showingStickerPicker) {
-            StickerPickerView(selectedStickers: $selectedStickers)
+            StickerPickerView(selectedStickers: $selectedStickers, isVideo: selectedMediaItems.first?.type == .video)
                 .ignoresSafeArea()
                 .onDisappear {
                     activeEditorMode = .idle
                 }
-                .presentationDetents([.medium, .large])
+                .presentationDetents([.medium])
                 .presentationDragIndicator(.hidden)
                 .presentationBackground(.clear)
         }
@@ -578,12 +510,12 @@ struct StoryEditingView: View {
                 if isPublishing {
                     Color.black.opacity(0.5)
                         .ignoresSafeArea()
-                    
+
                     VStack(spacing: 20) {
                         ProgressView()
                             .scaleEffect(1.5)
                             .tint(.white)
-                        
+
                         Text("storyEditor.sharing")
                             .foregroundColor(.white)
                     }
@@ -608,7 +540,7 @@ struct StoryEditingView: View {
             keyboardHeight = 0
         }
     }
-    
+
     // ✅ FUNCIÓN PARA LIMPIAR VIDEO Y AUDIO
     private func cleanupVideoAndAudio() {
         // ✅ Pausar y limpiar el reproductor de video
@@ -619,13 +551,13 @@ struct StoryEditingView: View {
                 object: videoURL
             )
         }
-        
+
         // ✅ Limpiar los media items seleccionados
         selectedMediaItems.removeAll()
-        
+
         // ✅ Pausar cualquier audio que esté reproduciéndose
         try? AVAudioSession.sharedInstance().setActive(false)
-        
+
     }
 
     // ✅ NUEVAS FUNCIONES AUXILIARES
@@ -635,7 +567,7 @@ struct StoryEditingView: View {
         }
         return storyAudience.icon
     }
-    
+
     private func getAudienceText() -> String {
         if storyAudience == .custom {
             if let listName = selectedListName {
@@ -651,7 +583,7 @@ struct StoryEditingView: View {
         }
         return storyAudience.title
     }
-    
+
     private func convertToContentAudience() -> Binding<ContentAudience> {
         Binding<ContentAudience>(
             get: {
@@ -677,7 +609,7 @@ struct StoryEditingView: View {
             }
         )
     }
-    
+
     private func updateAudienceSetting() {
         guard let userId = Auth.auth().currentUser?.uid else { return }
 
@@ -705,7 +637,7 @@ struct StoryEditingView: View {
 
         FirestoreService().db.collection("users").document(userId).updateData(update)
     }
-    
+
     // 🔗 NUEVA FUNCIÓN: Convertir audiencia de continuación a ContentAudience
     private func convertContinuationAudience() -> ContentAudience {
         switch continuationAudience {
@@ -742,7 +674,7 @@ struct StoryEditingView: View {
             }
         }
     }
-    
+
     @ViewBuilder
     private func backgroundMediaView(canvasSize: CGSize) -> some View {
         if let firstMedia = selectedMediaItems.first {
@@ -760,7 +692,7 @@ struct StoryEditingView: View {
                         .scaleEffect(1.1)
                         .clipped()
                         .ignoresSafeArea()
-                    
+
                     StoryVideoPlayerView(
                         videoURL: videoURL,
                         videoGravity: presentationMode.videoGravity
@@ -801,7 +733,7 @@ struct StoryEditingView: View {
             .ignoresSafeArea()
         }
     }
-    
+
     @ViewBuilder
     private func topBarView(topInset: CGFloat) -> some View {
         HStack {
@@ -847,7 +779,7 @@ struct StoryEditingView: View {
         .padding(.horizontal)
         .padding(.top, topBarTopPadding(topInset: topInset))
     }
-    
+
     @ViewBuilder
     private func sideToolbarView() -> some View {
         VStack(spacing: 12) {
@@ -865,7 +797,7 @@ struct StoryEditingView: View {
                     activeEditorMode = .drawing
                 }
             }
-            
+
             Button(action: {
                 withAnimation(.spring(response: 0.28, dampingFraction: 0.86)) {
                     activeEditorMode = isFilterMode ? .idle : .filters
@@ -879,7 +811,7 @@ struct StoryEditingView: View {
                     .liquidGlass(in: Circle())
                     .overlay(Circle().stroke(isFilterMode ? Color.pink : Color.clear, lineWidth: 1))
             }
-            
+
             if !isContinuingChain {
                 Button(action: {
                     withAnimation(.spring()) { isCreatingChain.toggle() }
@@ -895,7 +827,85 @@ struct StoryEditingView: View {
         }
         .padding(.trailing, 16)
     }
-    
+
+    @ViewBuilder
+    private func mainControlsOverlay(proxy: GeometryProxy) -> some View {
+        if !isTextMode && !isDrawingMode {
+            VStack {
+                topBarView(topInset: proxy.safeAreaInsets.top)
+
+                if activeEditorMode == .idle {
+                    HStack {
+                        Spacer()
+                        sideToolbarView()
+                    }
+                }
+
+                Spacer()
+
+                // Video playback controls
+                if let firstMedia = selectedMediaItems.first, firstMedia.type == .video {
+                    VideoControlsOverlay()
+                }
+
+                bottomControlsView(bottomInset: proxy.safeAreaInsets.bottom)
+            }
+            .opacity(isEditingSticker ? 0 : 1)
+            .disabled(isEditingSticker)
+        }
+    }
+
+    @ViewBuilder
+    private func chainTitleInputOverlay() -> some View {
+        if isCreatingChain && !isCanvasModeActive {
+            VStack(spacing: 6) {
+                if activeEditorMode == .idle {
+                    HStack {
+                        Spacer()
+                        principalActionButton()
+                    }
+                    .padding(.horizontal, 16)
+                }
+
+                HStack(spacing: 12) {
+                    HStack(spacing: 10) {
+                        Image(systemName: "link")
+                            .foregroundColor((colorScheme == .dark ? Color.white : Color.black).opacity(0.72))
+                            .font(.system(size: 15, weight: .semibold))
+
+                        TextField(NSLocalizedString("storyChains.chainTitlePlaceholder", comment: "Chain title placeholder"), text: $chainTitle)
+                            .textFieldStyle(PlainTextFieldStyle())
+                            .foregroundColor(colorScheme == .dark ? .white : .black)
+                            .tint(colorScheme == .dark ? .white : .black)
+                            .focused($isChainTitleFocused)
+                    }
+                    .padding(.vertical, 12)
+                    .padding(.horizontal, 14)
+                    .liquidGlass(in: Capsule(), interactive: true)
+
+                    Button(action: { isChainTitleFocused = false }) {
+                        Image(systemName: "keyboard.chevron.compact.down")
+                            .foregroundColor(colorScheme == .dark ? .white : .black)
+                            .padding(10)
+                            .background((colorScheme == .dark ? Color.black : Color.white).opacity(colorScheme == .dark ? 0.2 : 0.28))
+                            .clipShape(Circle())
+                    }
+                }
+                .padding(.horizontal, 16)
+                .padding(.top, activeEditorMode == .idle ? 8 : 12)
+                .padding(.bottom, 12)
+                .background(
+                    Color.clear
+                        .liquidGlass(in: Rectangle())
+                        .ignoresSafeArea(edges: .bottom)
+                )
+            }
+            .padding(.top, 8)
+            .padding(.bottom, chainInputBottomPadding())
+            .animation(.easeOut(duration: 0.24), value: keyboardHeight)
+        }
+    }
+
     @ViewBuilder
     private func bottomControlsView(bottomInset: CGFloat) -> some View {
         VStack(spacing: 12) {
@@ -909,7 +919,7 @@ struct StoryEditingView: View {
                             .padding(.horizontal, 8)
                             .padding(.vertical, 2)
                             .liquidGlass(in: Capsule())
-                        
+
                         Slider(value: $filterIntensity, in: 0...1.0)
                             .accentColor(.white)
                             .padding(.horizontal, 40)
@@ -940,19 +950,19 @@ struct StoryEditingView: View {
                         .transition(.move(edge: .bottom).combined(with: .opacity))
                 }
             }
-            
+
             // 🔗 Texto informativo de continuando cadena
             if isContinuingChain {
                 HStack {
                     Image(systemName: "link")
                         .foregroundColor(.blue)
                         .font(.system(size: 12))
-                    
+
                     Text("Continuando cadena: \(originalChainTitle)")
                         .font(.system(size: 12, weight: .medium))
                         .foregroundColor(.white)
                         .lineLimit(1)
-                    
+
                     Spacer()
                 }
                 .padding(.horizontal, 12)
@@ -960,7 +970,7 @@ struct StoryEditingView: View {
                 .liquidGlass(in: RoundedRectangle(cornerRadius: 12))
                 .padding(.horizontal, 16)
             }
-            
+
             if activeEditorMode == .idle && !isCreatingChain {
                 HStack {
                     // Story settings
@@ -978,7 +988,7 @@ struct StoryEditingView: View {
                                 } else {
                                     Image(systemName: getAudienceIcon())
                                 }
-                                
+
                                 Text(isLoadingUserSettings ? NSLocalizedString("storyEditor.loadingSettings", comment: "Loading user settings") : getAudienceText())
                                     .font(.system(size: 14, weight: .medium))
                             }
@@ -989,9 +999,9 @@ struct StoryEditingView: View {
                             .shadow(color: .black.opacity(0.1), radius: 4, x: 0, y: 2)
                         }
                     }
-                
+
                     Spacer()
-                    
+
                     // Botón de acción principal
                     principalActionButton()
                 }
@@ -1048,7 +1058,7 @@ struct StoryEditingView: View {
         }
         return 0
     }
-    
+
     @ViewBuilder
     private func principalActionButton() -> some View {
         if isContinuingChain {
@@ -1060,7 +1070,7 @@ struct StoryEditingView: View {
                     Image(systemName: "arrow.right.circle.fill")
                         .foregroundColor(.white)
                         .font(.system(size: 16))
-                    
+
                     Text(NSLocalizedString("storyChains.shareChain", comment: "Share Chain"))
                         .font(.custom("Poppins-Medium", size: 16))
                         .foregroundColor(.white)
@@ -1076,7 +1086,7 @@ struct StoryEditingView: View {
                             endPoint: .trailing
                         )
                         .clipShape(Capsule())
-                        
+
                         // Efecto glassmorphism
                         Capsule()
                             .fill(.ultraThinMaterial)
@@ -1133,7 +1143,7 @@ struct StoryEditingView: View {
             .opacity(isEditingSticker ? 0 : 1)
         }
     }
-    
+
     // ✅ Filtros: Aplicación asíncrona optimizada (Cancela tareas previas para evitar lag)
     private func applySelectedFilter() {
         guard let firstMedia = selectedMediaItems.first, firstMedia.type == .image else {
@@ -1141,15 +1151,15 @@ struct StoryEditingView: View {
             isApplyingFilter = false
             return
         }
-        
+
         if selectedFilter == .normal {
             filteredImage = nil
             isApplyingFilter = false
             return
         }
-        
+
         isApplyingFilter = true
-        
+
         // Cancelar la tarea anterior si existe para evitar acumulación de procesamiento
         filterTask?.cancel()
 
@@ -1163,9 +1173,9 @@ struct StoryEditingView: View {
             if Task.isCancelled { return }
 
             let processed = FilterService.shared.applyFilter(selectedFilter, to: optimizedImage, intensity: filterIntensity)
-            
+
             if Task.isCancelled { return }
-            
+
             await MainActor.run {
                 self.filteredImage = processed
                 self.isApplyingFilter = false
@@ -1179,17 +1189,17 @@ struct StoryEditingView: View {
             isLoadingUserSettings = false
             return
         }
-        
+
         FirestoreService().db.collection("users").document(userId).getDocument { document, error in
             DispatchQueue.main.async {
                 if let document = document, document.exists,
                    let data = document.data(),
                    let visibilitySettings = data["contentVisibilitySettings"] as? [String: Any] {
-                    
+
                     // Cargar audiencia por defecto
                     if let storyAudienceRaw = visibilitySettings["storyAudience"] as? String,
                        let contentAudience = ContentAudience(rawValue: storyAudienceRaw) {
-                        
+
                         // Convertir ContentAudience a CaptionAndDetailsView.AudienceSetting
                         switch contentAudience {
                         case .everyone:
@@ -1214,29 +1224,29 @@ struct StoryEditingView: View {
             }
         }
     }
-    
+
     private func handleProfileNavigation(userId: String) {
-        
+
         if let currentUserId = Auth.auth().currentUser?.uid, currentUserId == userId {
             return
         }
-        
+
         let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
         impactFeedback.impactOccurred()
-        
+
         navigationPath.append(userId)
     }
-    
+
     private func handleLocationNavigation(locationName: String, coordinate: CLLocationCoordinate2D?) {
-        
+
         let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
         impactFeedback.impactOccurred()
-        
+
         selectedLocationName = locationName
         selectedCoordinate = coordinate
         showingLocationMap = true
     }
-    
+
     private func saveToGallery() {
         if let firstMedia = selectedMediaItems.first {
             if firstMedia.type == .video, let videoURL = firstMedia.videoURL {
@@ -1246,11 +1256,11 @@ struct StoryEditingView: View {
                 UIImageWriteToSavedPhotosAlbum(finalImage, nil, nil, nil)
             }
         }
-        
+
         alertMessage = NSLocalizedString("storyEditor.savedToGallery", comment: "Story saved to gallery")
         showAlert = true
     }
-    
+
     private func saveVideoToGallery(_ videoURL: URL) {
         PHPhotoLibrary.shared().performChanges({
             PHAssetChangeRequest.creationRequestForAssetFromVideo(atFileURL: videoURL)
@@ -1263,14 +1273,14 @@ struct StoryEditingView: View {
         let safeScreenWidth = max(screenSize.width, 1)
         let safeScreenHeight = max(screenSize.height, 1)
         let screenAspectRatio = safeScreenWidth / safeScreenHeight
-        
+
         let targetWidth: CGFloat = 1080
         let targetHeight = targetWidth / max(screenAspectRatio, 0.0001)
         var targetSize = CGSize(width: targetWidth, height: targetHeight)
-        
+
         if targetSize.height > 3000 { targetSize.height = 3000 }
         if targetSize.height < 1200 { targetSize.height = 1200 }
-        
+
         return targetSize
     }
 
@@ -1279,27 +1289,27 @@ struct StoryEditingView: View {
         let ciContext = CIContext(options: [.useSoftwareRenderer: false])
         let smallSize = CGSize(width: 200, height: 200 * (targetSize.height / max(targetSize.width, 1)))
         let smallRect = CGRect(origin: .zero, size: smallSize)
-        
+
         let smallRenderer = UIGraphicsImageRenderer(size: smallSize)
         let smallImage = smallRenderer.image { _ in
             baseImage.draw(in: smallRect)
         }
-        
+
         guard let ciImage = CIImage(image: smallImage),
               let clampFilter = CIFilter(name: "CIAffineClamp"),
               let blurFilter = CIFilter(name: "CIGaussianBlur") else {
             return baseImage
         }
-        
+
         clampFilter.setValue(ciImage, forKey: kCIInputImageKey)
         blurFilter.setValue(clampFilter.outputImage, forKey: kCIInputImageKey)
         blurFilter.setValue(blurRadius, forKey: kCIInputRadiusKey)
-        
+
         guard let outputImage = blurFilter.outputImage?.cropped(to: ciImage.extent),
               let cgImage = ciContext.createCGImage(outputImage, from: outputImage.extent) else {
             return baseImage
         }
-        
+
         return UIImage(cgImage: cgImage)
     }
 
@@ -1422,10 +1432,10 @@ struct StoryEditingView: View {
         let targetRatio = targetSize.width / max(targetSize.height, 1)
         let useFit = StoryMediaLayoutRules.presentationMode(for: imageRatio, canvasAspectRatio: targetRatio) == .fitWithBlur
         let mediaIsWider = imageRatio > targetRatio
-        
+
         let finalWidth: CGFloat
         let finalHeight: CGFloat
-        
+
         if useFit {
             if mediaIsWider {
                 finalWidth = targetSize.width
@@ -1443,7 +1453,7 @@ struct StoryEditingView: View {
                 finalHeight = targetSize.width / max(imageRatio, 0.0001)
             }
         }
-        
+
         return CGRect(
             x: (targetSize.width - finalWidth) / 2,
             y: (targetSize.height - finalHeight) / 2,
@@ -1454,35 +1464,35 @@ struct StoryEditingView: View {
 
     private func renderStoryOverlayImage(targetSize: CGSize, screenSize: CGSize) -> UIImage? {
         guard drawingImage != nil || !storyText.isEmpty else { return nil }
-        
+
         let scaleFactorX = targetSize.width / max(screenSize.width, 1)
         let scaleFactorY = targetSize.height / max(screenSize.height, 1)
         let renderer = UIGraphicsImageRenderer(size: targetSize)
-        
+
         return renderer.image { _ in
             let rect = CGRect(origin: .zero, size: targetSize)
-            
+
             if let drawing = drawingImage {
                 drawing.draw(in: rect, blendMode: .normal, alpha: 1.0)
             }
-            
+
             if !storyText.isEmpty {
                 let paragraphStyle = NSMutableParagraphStyle()
                 paragraphStyle.alignment = nsTextAlignment(from: storyTextAlignment)
-                
+
                 let scaledFontSize = storyTextFontSize * max(scaleFactorX, scaleFactorY)
                 let font = selectedTextStyle.uiFont(size: scaledFontSize)
-                
+
                 var attributes: [NSAttributedString.Key: Any] = [
                     .font: font,
                     .foregroundColor: UIColor(storyTextColor),
                     .paragraphStyle: paragraphStyle
                 ]
-                
+
                 if let shadow = selectedTextEffect.nsShadow(for: UIColor(storyTextColor)) {
                     attributes[.shadow] = shadow
                 }
-                
+
                 let attributedText = NSAttributedString(string: storyText, attributes: attributes)
                 let maxTextWidth = rect.width * 0.82
                 let measuredSize = attributedText.boundingRect(
@@ -1497,14 +1507,14 @@ struct StoryEditingView: View {
                     width: drawTextWidth,
                     height: measuredSize.height
                 )
-                
+
                 let scaleFactor = max(scaleFactorX, scaleFactorY)
                 if let backgroundUIColor = resolvedTextBackgroundUIColor() {
                     backgroundUIColor.setFill()
                     let backgroundRect = textRect.insetBy(dx: -16 * scaleFactor, dy: -8 * scaleFactor)
                     UIBezierPath(roundedRect: backgroundRect, cornerRadius: 8 * scaleFactor).fill()
                 }
-                
+
                 attributedText.draw(in: textRect)
             }
         }
@@ -1514,12 +1524,12 @@ struct StoryEditingView: View {
         guard let firstMedia = selectedMediaItems.first else {
             return UIImage()
         }
-        
+
         let baseImage = firstMedia.image
         let screenSize = UIScreen.main.bounds.size
         let targetSize = storyRenderTargetSize(for: screenSize)
         let renderer = UIGraphicsImageRenderer(size: targetSize)
-        
+
         return renderer.image { context in
             let rect = CGRect(origin: .zero, size: targetSize)
             let blurImage = storyBackgroundBlurImage(baseImage: baseImage, targetSize: targetSize)
@@ -1531,17 +1541,17 @@ struct StoryEditingView: View {
                 height: targetSize.height * overscale
             )
             blurImage.draw(in: overscaleRect)
-            
+
             let renderImage: UIImage
             if selectedFilter != .normal {
                 renderImage = FilterService.shared.applyFilter(selectedFilter, to: baseImage, intensity: filterIntensity)
             } else {
                 renderImage = baseImage
             }
-            
+
             context.cgContext.saveGState()
             context.cgContext.translateBy(x: targetSize.width / 2, y: targetSize.height / 2)
-            
+
             if firstMedia.type != .video {
                 let scaleFactorX = targetSize.width / max(screenSize.width, 1)
                 let scaleFactorY = targetSize.height / max(screenSize.height, 1)
@@ -1552,16 +1562,16 @@ struct StoryEditingView: View {
                     y: imageOffset.height * scaleFactorY
                 )
             }
-            
+
             let imageRect = mediaRectForStoryCanvas(mediaSize: renderImage.size, targetSize: targetSize)
                 .offsetBy(dx: -targetSize.width / 2, dy: -targetSize.height / 2)
             renderImage.draw(in: imageRect)
             context.cgContext.restoreGState()
-            
+
             if let overlayImage = renderStoryOverlayImage(targetSize: targetSize, screenSize: screenSize) {
                 overlayImage.draw(in: rect)
             }
-            
+
             // 5. Stickers overlay
             // ✅ FIX: No renderizar NINGÚN sticker en la imagen de fondo
             // Los stickers se añaden como metadatos interactivos y se renderizan en el visor
@@ -1574,19 +1584,19 @@ struct StoryEditingView: View {
                    sticker.type == .link || sticker.type == .countdown {
                     continue
                 }
-                
+
                 context.cgContext.saveGState()
-                
+
                 let scaledPosition = CGPoint(
                     x: sticker.position.x * scaleFactorX,
                     y: sticker.position.y * scaleFactorY
                 )
-                
+
                 let stickerOriginalSize = sticker.image.size
                 let scaledWidth: CGFloat
                 let scaledHeight: CGFloat
                 let stickerScale = sticker.scale
-                
+
                 if sticker.type == .questionResponse {
                     let commonScale = max(scaleFactorX, scaleFactorY) * stickerScale
                     scaledWidth = stickerOriginalSize.width * commonScale
@@ -1596,23 +1606,23 @@ struct StoryEditingView: View {
                     scaledWidth = baseSize
                     scaledHeight = baseSize
                 }
-                
+
                 context.cgContext.translateBy(x: scaledPosition.x, y: scaledPosition.y)
                 context.cgContext.rotate(by: sticker.rotation.radians)
-                
+
                 let stickerRect = CGRect(
                     x: -scaledWidth / 2,
                     y: -scaledHeight / 2,
                     width: scaledWidth,
                     height: scaledHeight
                 )
-                
+
                 sticker.image.draw(in: stickerRect)
-                
+
                 context.cgContext.restoreGState()
             }
             */
-            
+
         }
     }
 
@@ -1625,17 +1635,17 @@ struct StoryEditingView: View {
         guard let sourceURL = media.videoURL else {
             throw NSError(domain: "StoryEditor", code: 1, userInfo: [NSLocalizedDescriptionKey: "Missing source video URL"])
         }
-        
+
         let asset = AVURLAsset(url: sourceURL)
         guard let videoTrack = try await asset.loadTracks(withMediaType: .video).first else {
             throw NSError(domain: "StoryEditor", code: 2, userInfo: [NSLocalizedDescriptionKey: "Missing video track"])
         }
-        
+
         let duration = try await asset.load(.duration)
         let targetSize = storyRenderTargetSize()
         let overlayImage = renderStoryOverlayImage(targetSize: targetSize, screenSize: UIScreen.main.bounds.size)
         let blurImage = storyBackgroundBlurImage(baseImage: media.image, targetSize: targetSize)
-        
+
         let composition = AVMutableComposition()
         let frameRate = try await videoTrack.load(.nominalFrameRate)
         let timescale = Int32(max(30, min(60, Int(frameRate.rounded()))))
@@ -1661,11 +1671,11 @@ struct StoryEditingView: View {
         ) else {
             throw NSError(domain: "StoryEditor", code: 3, userInfo: [NSLocalizedDescriptionKey: "Unable to create composition track"])
         }
-        
+
         let timeRange = CMTimeRange(start: .zero, duration: duration)
         try compositionBackgroundTrack.insertTimeRange(timeRange, of: blurTrack, at: .zero)
         try compositionVideoTrack.insertTimeRange(timeRange, of: videoTrack, at: .zero)
-        
+
         if let audioTrack = try await asset.loadTracks(withMediaType: .audio).first,
            let compositionAudioTrack = composition.addMutableTrack(
                 withMediaType: .audio,
@@ -1673,7 +1683,7 @@ struct StoryEditingView: View {
            ) {
             try compositionAudioTrack.insertTimeRange(timeRange, of: audioTrack, at: .zero)
         }
-        
+
         let naturalSize = try await videoTrack.load(.naturalSize)
         let preferredTransform = try await videoTrack.load(.preferredTransform)
         let transformedRect = CGRect(origin: .zero, size: naturalSize).applying(preferredTransform)
@@ -1682,7 +1692,7 @@ struct StoryEditingView: View {
         let scale = useFit
             ? min(targetSize.width / max(actualSize.width, 1), targetSize.height / max(actualSize.height, 1))
             : max(targetSize.width / max(actualSize.width, 1), targetSize.height / max(actualSize.height, 1))
-        
+
         let scaledTransform = preferredTransform.concatenating(CGAffineTransform(scaleX: scale, y: scale))
         let scaledRect = CGRect(origin: .zero, size: naturalSize).applying(scaledTransform)
         let translation = CGAffineTransform(
@@ -1690,28 +1700,28 @@ struct StoryEditingView: View {
             y: (targetSize.height - scaledRect.height) / 2 - scaledRect.minY
         )
         let finalTransform = scaledTransform.concatenating(translation)
-        
+
         let instruction = AVMutableVideoCompositionInstruction()
         instruction.timeRange = timeRange
-        
+
         let backgroundInstruction = AVMutableVideoCompositionLayerInstruction(assetTrack: compositionBackgroundTrack)
         let layerInstruction = AVMutableVideoCompositionLayerInstruction(assetTrack: compositionVideoTrack)
         layerInstruction.setTransform(finalTransform, at: .zero)
         instruction.layerInstructions = [layerInstruction, backgroundInstruction]
-        
+
         let videoComposition = AVMutableVideoComposition()
         videoComposition.renderSize = targetSize
         videoComposition.frameDuration = CMTime(value: 1, timescale: timescale)
         videoComposition.instructions = [instruction]
-        
+
         let renderFrame = CGRect(origin: .zero, size: targetSize)
         let parentLayer = CALayer()
         parentLayer.frame = renderFrame
         let videoLayer = CALayer()
         videoLayer.frame = renderFrame
-        
+
         parentLayer.addSublayer(videoLayer)
-        
+
         if let overlayImage {
             let overlayLayer = CALayer()
             overlayLayer.frame = renderFrame
@@ -1719,27 +1729,27 @@ struct StoryEditingView: View {
             overlayLayer.contentsGravity = .resize
             parentLayer.addSublayer(overlayLayer)
         }
-        
+
         videoComposition.animationTool = AVVideoCompositionCoreAnimationTool(
             postProcessingAsVideoLayer: videoLayer,
             in: parentLayer
         )
-        
+
         let outputURL = FileManager.default.temporaryDirectory
             .appendingPathComponent("story_overlay_\(UUID().uuidString).mp4")
         try? FileManager.default.removeItem(at: outputURL)
-        
+
         guard let exportSession = AVAssetExportSession(asset: composition, presetName: AVAssetExportPresetHighestQuality) else {
             throw NSError(domain: "StoryEditor", code: 4, userInfo: [NSLocalizedDescriptionKey: "Unable to create export session"])
         }
-        
+
         exportSession.outputURL = outputURL
         exportSession.outputFileType = .mp4
         exportSession.shouldOptimizeForNetworkUse = true
         exportSession.videoComposition = videoComposition
-        
+
         await exportSession.export()
-        
+
         switch exportSession.status {
         case .completed:
             return outputURL
@@ -1754,26 +1764,26 @@ struct StoryEditingView: View {
 
     private func prepareMediaForStoryUpload(from media: ProcessedMedia) async throws -> (mediaItem: ProcessedMedia, finalRenderedImage: UIImage) {
         let finalRenderedImage = renderStoryWithOverlays()
-        
+
         guard shouldBakeCurrentOverlaysIntoVideo(media) else {
             return (media, finalRenderedImage)
         }
-        
+
         let exportedVideoURL = try await exportVideoWithCurrentOverlays(media)
         let finalMedia = media.with(
             videoURL: exportedVideoURL,
             hasEdits: true,
             image: finalRenderedImage
         )
-        
+
         return (finalMedia, finalRenderedImage)
     }
-    
+
     // ✅ FUNCIÓN ACTUALIZADA: Publicar historia con soporte para listas
     private func publishStory() {
         guard let userId = Auth.auth().currentUser?.uid,
               let media = selectedMediaItems.first else { return }
-        
+
         // 🔗 VALIDAR LÍMITES DE STORY CHAINS
         Task {
             do {
@@ -1784,7 +1794,7 @@ struct StoryEditingView: View {
                     // Validar que se puede continuar la cadena
                     try await StoryChainLimitsService.shared.canContinueChain(chainId: existingChainId, userId: userId)
                 }
-                
+
                 // Continuar con la publicación
                 await MainActor.run {
                     publishStoryAfterValidation()
@@ -1796,10 +1806,10 @@ struct StoryEditingView: View {
             }
         }
     }
-    
+
     private func publishStoryAfterValidation() {
         guard let media = selectedMediaItems.first else { return }
-        
+
         Task {
             do {
                 let preparedUpload = try await prepareMediaForStoryUpload(from: media)
@@ -1823,11 +1833,11 @@ struct StoryEditingView: View {
     private func publishPreparedStory(media: ProcessedMedia, finalRenderedImage: UIImage) {
         let stickerData = selectedStickers
         let drawingData = drawingImage?.pngData()
-        
+
         var finalChainId: String? = nil
         var finalChainPosition: Int? = nil
         var finalChainTitle: String? = nil
-        
+
         if isCreatingChain && !chainTitle.isEmpty {
             finalChainId = UUID().uuidString
             finalChainPosition = 1
@@ -1837,7 +1847,7 @@ struct StoryEditingView: View {
             finalChainPosition = (chainPosition ?? 0) + 1
             finalChainTitle = originalChainTitle
         }
-        
+
         let contentAudience: ContentAudience = {
             if isCreatingChain || isContinuingChain {
                 return .everyone
@@ -1852,7 +1862,7 @@ struct StoryEditingView: View {
                 }
             }
         }()
-        
+
         let success = BackgroundStoryUploadService.shared.publishStoryInBackground(
             mediaItem: media,
             storyText: storyText,
@@ -1874,33 +1884,33 @@ struct StoryEditingView: View {
             continuationCustomListId: (isCreatingChain || isContinuingChain) ? selectedListId : nil, // 🔗 AÑADIDO: Lista específica de continuación
             continuationCustomListName: (isCreatingChain || isContinuingChain) ? selectedListName : nil // 🔗 AÑADIDO: Nombre de lista de continuación
         )
-        
+
         if success {
             // 🔥 CERRAR PANTALLA INMEDIATAMENTE
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
                 self.showCreatorView = false
-                
-                
+
+
                 // 🎉 Feedback háptico de éxito
                 let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
                 impactFeedback.impactOccurred()
-                
+
                 // 🧹 Limpiar formulario para próximo uso
                 self.resetStoryForm()
-                
+
                 // 📊 Analytics
-                
+
                 // ✅ ENVIAR NOTIFICACIONES DE MENCIONES DESPUÉS DE PUBLICAR
                 // Las notificaciones se enviarán cuando se complete la publicación
                 // con el storyId real desde BackgroundStoryUploadService
             }
         } else {
             // ❌ Error: No se pudo agregar historia al servicio
-            
+
             // Feedback háptico de error
             let notificationFeedback = UINotificationFeedbackGenerator()
             notificationFeedback.notificationOccurred(.error)
-            
+
             // Mostrar error
             alertMessage = NSLocalizedString("storyEditor.error.publishStart", comment: "Error starting story upload")
             showAlert = true
@@ -1919,7 +1929,7 @@ struct StoryEditingView: View {
         storyTextAlignment = .center
         storyTextBackground = .none
         storyTextFontSize = 30
-        
+
     }
 
     private func nsTextAlignment(from alignment: TextAlignment) -> NSTextAlignment {
@@ -1950,20 +1960,20 @@ struct StoryEditingView: View {
         }
         return selectedTextEffect.uiBackgroundColor
     }
-    
+
     // 🔗 MANEJAR ERRORES DE LÍMITES DE STORY CHAINS
     private func handleChainLimitError(_ error: Error) {
         let notificationFeedback = UINotificationFeedbackGenerator()
         notificationFeedback.notificationOccurred(.error)
-        
+
         if let chainError = error as? StoryChainLimitError {
             alertMessage = chainError.localizedDescription
         } else {
             alertMessage = String(format: NSLocalizedString("storyChains.error.validation", comment: "Error validating chain"), error.localizedDescription)
         }
-        
+
         showAlert = true
-        
+
         // Limpiar estado de cadena si hay error
         if isContinuingChain {
             isContinuingChain = false
@@ -1972,14 +1982,14 @@ struct StoryEditingView: View {
             originalChainTitle = ""
         }
     }
-    
+
     // ✅ ENVIAR NOTIFICACIONES DE MENCIONES DESPUÉS DE PUBLICAR HISTORIA
     private func sendMentionNotificationsAfterPublish(stickerData: [StickerItem]) {
         // ✅ Filtrar solo stickers de menciones
         let mentionStickers = stickerData.filter { $0.type == .mention }
-        
+
         if !mentionStickers.isEmpty {
-            
+
             // ✅ Usar la función estática de StickerPickerView
             StickerPickerView.sendMentionNotificationsForStory(
                 storyId: "story_published", // ✅ Placeholder - se actualizará cuando tengamos storyId real
@@ -1987,10 +1997,10 @@ struct StoryEditingView: View {
             )
         }
     }
-    
+
     private func extractStickerContent(from sticker: StickerItem) -> String {
         guard let interactionData = sticker.interactionData else { return "" }
-        
+
         switch sticker.type {
         case .mention:
             return interactionData.username ?? ""
@@ -2017,7 +2027,7 @@ struct StoryEditingView: View {
             return ""
         }
     }
-    
+
     // MARK: - Response Sticker Handling
     private func setupStickerListener() {
         NotificationCenter.default.addObserver(
@@ -2030,7 +2040,7 @@ struct StoryEditingView: View {
             }
         }
     }
-    
+
     private func removeStickerListener() {
         NotificationCenter.default.removeObserver(
             self,
@@ -2038,7 +2048,7 @@ struct StoryEditingView: View {
             object: nil
         )
     }
-    
+
     // MARK: - Chain Context Handling
     private func setupChainContextListener() {
         NotificationCenter.default.addObserver(
@@ -2054,7 +2064,7 @@ struct StoryEditingView: View {
             }
         }
     }
-    
+
     private func removeChainContextListener() {
         NotificationCenter.default.removeObserver(
             self,
@@ -2062,7 +2072,7 @@ struct StoryEditingView: View {
             object: nil
         )
     }
-    
+
     private func setChainContext(chainId: String, chainTitle: String, chainPosition: Int) {
         // Configurar variables de cadena
         self.chainId = chainId
@@ -2070,18 +2080,18 @@ struct StoryEditingView: View {
         self.chainPosition = chainPosition
         self.isContinuingChain = true
         self.originalChainTitle = chainTitle
-        
+
         // Mantener audiencia seleccionada por el usuario (no forzar)
     }
-    
+
     private func addStickerToStory(_ sticker: StickerItem) {
         // Agregar el sticker a la lista de stickers seleccionados
         selectedStickers.append(sticker)
-        
+
         // Feedback háptico
         let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
         impactFeedback.impactOccurred()
-        
+
         // ✅ FORZAR ACTUALIZACIÓN DE LA VISTA
         DispatchQueue.main.async {
             self.forceUpdate.toggle()
@@ -2091,39 +2101,39 @@ struct StoryEditingView: View {
 
 // MARK: - Image Optimization Extensions
 extension StoryEditingView {
-    
+
     // ✅ FUNCIÓN: Optimizar imagen para historias
     private func optimizeImageForStory(_ image: UIImage) -> UIImage {
         // Normalizamos orientación siempre
         let normalizedImage = image.normalized()
-        
+
         // Capped dimension for memory - Stories are typically 1080x1920
         // Using 1440 for high quality but much less memory than camera resolution
         let maxDimension: CGFloat = 1440
-        
+
         if normalizedImage.size.width > maxDimension || normalizedImage.size.height > maxDimension {
             return calculateOptimalSize(for: normalizedImage, maxDimension: maxDimension)
         }
-        
+
         return normalizedImage
     }
-    
+
     // ✅ FUNCIÓN: Calcular tamaño óptimo para redimensionar
     private func calculateOptimalSize(for image: UIImage, maxDimension: CGFloat) -> UIImage {
         let originalSize = image.size
         let widthRatio = maxDimension / originalSize.width
         let heightRatio = maxDimension / originalSize.height
         let scale = min(widthRatio, heightRatio)
-        
+
         let newWidth = originalSize.width * scale
         let newHeight = originalSize.height * scale
         let newSize = CGSize(width: newWidth, height: newHeight)
-        
+
         let renderer = UIGraphicsImageRenderer(size: newSize)
         let resizedImage = renderer.image { context in
             image.draw(in: CGRect(origin: .zero, size: newSize))
         }
-        
+
         // ✅ Normalizar orientación después del redimensionamiento
         return resizedImage.normalized()
     }
@@ -2133,13 +2143,13 @@ extension StoryEditingView {
 struct StoryVideoPlayerView: UIViewRepresentable {
     let videoURL: URL
     var videoGravity: AVLayerVideoGravity = .resizeAspect // ✅ Default gravity
-    
+
     func makeUIView(context: Context) -> PlayerUIView {
         let playerView = PlayerUIView()
         playerView.update(with: videoURL, gravity: videoGravity)
         return playerView
     }
-    
+
     func updateUIView(_ uiView: PlayerUIView, context: Context) {
         uiView.update(with: videoURL, gravity: videoGravity)
     }
@@ -2150,20 +2160,20 @@ class PlayerUIView: UIView {
     private var playerLayer: AVPlayerLayer?
     private var currentURL: URL?
     private var currentGravity: AVLayerVideoGravity?
-    
+
     override init(frame: CGRect) {
         super.init(frame: frame)
         setupPlayer()
     }
-    
+
     required init?(coder: NSCoder) {
         super.init(coder: coder)
         setupPlayer()
     }
-    
+
     private func setupPlayer() {
         backgroundColor = .clear // ✅ Transparent background for blur effect
-        
+
         // ✅ Escuchar notificación para limpiar el video
         NotificationCenter.default.addObserver(
             forName: NSNotification.Name("CleanupVideoPlayer"),
@@ -2173,7 +2183,7 @@ class PlayerUIView: UIView {
             self.cleanupPlayer()
         }
     }
-    
+
     func update(with url: URL, gravity: AVLayerVideoGravity = .resizeAspect) {
         if currentURL != url || player == nil || playerLayer == nil {
             configurePlayer(with: url, gravity: gravity)
@@ -2211,31 +2221,31 @@ class PlayerUIView: UIView {
             self.player?.play()
         }
     }
-    
+
     override func layoutSubviews() {
         super.layoutSubviews()
         playerLayer?.frame = bounds
     }
-    
 
-    
+
+
     // ✅ FUNCIÓN PARA LIMPIAR EL REPRODUCTOR
     func cleanupPlayer() {
         // ✅ Pausar el video
         player?.pause()
-        
+
         // ✅ Remover el player layer
         playerLayer?.removeFromSuperlayer()
-        
+
         // ✅ Limpiar referencias
         player = nil
         playerLayer = nil
-        
+
         // ✅ Remover observadores
         NotificationCenter.default.removeObserver(self, name: .AVPlayerItemDidPlayToEndTime, object: nil)
-        
+
     }
-    
+
     deinit {
         NotificationCenter.default.removeObserver(self)
         player?.pause()
@@ -2247,7 +2257,7 @@ class PlayerUIView: UIView {
 struct VideoControlsOverlay: View {
     @State private var isPlaying = true
     @State private var showControls = false
-    
+
     var body: some View {
         HStack {
             if showControls {
@@ -2262,9 +2272,9 @@ struct VideoControlsOverlay: View {
                         .clipShape(Circle())
                 }
                 .transition(.opacity)
-                
+
                 Spacer()
-                
+
                 Button(action: {
                     // Restart video
                 }) {
@@ -2283,7 +2293,7 @@ struct VideoControlsOverlay: View {
             withAnimation(.easeInOut(duration: 0.3)) {
                 showControls.toggle()
             }
-            
+
             // Auto-hide controls after 3 seconds
             DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
                 withAnimation(.easeInOut(duration: 0.3)) {
@@ -2309,7 +2319,7 @@ struct EditingToolButton: View {
     let title: String
     let action: () -> Void
     @Environment(\.colorScheme) var colorScheme
-    
+
     var body: some View {
         Button(action: action) {
             VStack(spacing: 8) {
@@ -2326,7 +2336,7 @@ struct EditingToolButton: View {
 struct EditingToolIcon: View {
     let icon: String
     let action: () -> Void
-    
+
     var body: some View {
         Button(action: action) {
             Image(systemName: icon)
@@ -2344,25 +2354,25 @@ struct OptionRow: View {
     let title: String
     let value: String?
     let action: () -> Void
-    
+
     var body: some View {
         Button(action: action) {
             HStack {
                 Image(systemName: icon)
                     .foregroundColor(.white)
                     .frame(width: 30)
-                
+
                 Text(title)
                     .foregroundColor(.white)
-                
+
                 Spacer()
-                
+
                 if let value = value {
                     Text(value)
                         .foregroundColor(.gray)
                         .font(.system(size: 14))
                 }
-                
+
                 Image(systemName: "chevron.right")
                     .foregroundColor(.gray)
                     .font(.caption)
@@ -2378,18 +2388,18 @@ struct ShareOptionToggle: View {
     let icon: String
     let color: Color
     @State private var isOn = false
-    
+
     var body: some View {
         HStack {
             Image(systemName: icon)
                 .foregroundColor(color)
                 .font(.title2)
-            
+
             Text(platform)
                 .foregroundColor(.white)
-            
+
             Spacer()
-            
+
             Toggle("", isOn: $isOn)
                 .labelsHidden()
         }
@@ -2403,7 +2413,7 @@ struct MediaLibraryItem: Identifiable {
     let duration: TimeInterval?
     let videoURL: URL?
     let phAsset: PHAsset? // Reference to actual PHAsset for loading full quality
-    
+
     init(id: String, thumbnail: UIImage, isVideo: Bool, duration: TimeInterval? = nil, videoURL: URL? = nil, phAsset: PHAsset? = nil) {
         self.id = id
         self.thumbnail = thumbnail
@@ -2420,15 +2430,15 @@ struct StickerItem: Identifiable {
     var position: CGPoint
     var scale: CGFloat = 1.0
     var rotation: Angle = .zero
-    
+
     // ✅ NUEVAS PROPIEDADES para GIFs animados y Videos
     let gifURL: URL?  // URL del GIF para mostrar animado
     let videoURL: URL? // URL del Video para mostrar en loop
     let isAnimated: Bool  // Flag para saber si es GIF o Vídeo Animado
-    
+
     let type: StickerType
     var interactionData: StickerInteractionData?
-    
+
     enum StickerType: String, Codable {
         case emoji
         case sticker
@@ -2449,8 +2459,9 @@ struct StickerItem: Identifiable {
         case quiz
         case frame
         case reveal
+        case audio
     }
-    
+
     struct StickerInteractionData {
         var username: String?
         var userId: String?
@@ -2470,17 +2481,24 @@ struct StickerItem: Identifiable {
         var profileImagePath: String?
         var momentId: String?
         var mediaCount: Int?
-        
+
         // Quiz Data
         var quizQuestion: String?
         var quizOptions: [String]?
         var quizCorrectIndex: Int?
-        
+
         // Reveal Data
-        var revealType: String? // "scratch" por defecto
-        
+        var revealType: String? // "scratch" (legacy), "solid", "gradient"
+        var revealPattern: String? // "dots", "noise", "grid", "lines", "none"
+        var revealPrimaryColor: String? // Hex
+        var revealSecondaryColor: String? // Hex (for gradients)
+
         // Polaroid Frame Data
         var frameStyle: String?
+
+        // Audio Data
+        var audioURL: String?
+        var audioDuration: Double?
 
         // ✅ Inicializador
         init(
@@ -2506,7 +2524,12 @@ struct StickerItem: Identifiable {
             quizOptions: [String]? = nil,
             quizCorrectIndex: Int? = nil,
             revealType: String? = nil,
-            frameStyle: String? = nil
+            revealPattern: String? = nil,
+            revealPrimaryColor: String? = nil,
+            revealSecondaryColor: String? = nil,
+            frameStyle: String? = nil,
+            audioURL: String? = nil,
+            audioDuration: Double? = nil
         ) {
             self.username = username
             self.userId = userId
@@ -2530,13 +2553,18 @@ struct StickerItem: Identifiable {
             self.quizOptions = quizOptions
             self.quizCorrectIndex = quizCorrectIndex
             self.revealType = revealType
+            self.revealPattern = revealPattern
+            self.revealPrimaryColor = revealPrimaryColor
+            self.revealSecondaryColor = revealSecondaryColor
             self.frameStyle = frameStyle
+            self.audioURL = audioURL
+            self.audioDuration = audioDuration
         }
     }
-    
+
     // ✅ INICIALIZADORES ACTUALIZADOS
     init(image: UIImage, position: CGPoint, type: StickerType, interactionData: StickerInteractionData?, videoURL: URL? = nil, gifURL: URL? = nil) {
-        self.id = "\(type)_\(position.x)_\(position.y)"
+        self.id = "\(type.rawValue)_\(UUID().uuidString)"
         self.image = image
         self.position = position
         self.type = type
@@ -2545,10 +2573,10 @@ struct StickerItem: Identifiable {
         self.isAnimated = videoURL != nil || gifURL != nil
         self.interactionData = interactionData
     }
-    
+
     // ✅ NUEVO INICIALIZADOR para compatibilidad con GIFs
     init(image: UIImage, gifURL: URL, position: CGPoint, type: StickerType, interactionData: StickerInteractionData?) {
-        self.id = "\(type)_\(position.x)_\(position.y)"
+        self.id = "\(type.rawValue)_\(UUID().uuidString)"
         self.image = image
         self.position = position
         self.type = type
@@ -2557,7 +2585,7 @@ struct StickerItem: Identifiable {
         self.isAnimated = true
         self.interactionData = interactionData
     }
-    
+
     init(id: String, image: UIImage, position: CGPoint, scale: CGFloat, rotation: Angle, gifURL: URL?, videoURL: URL? = nil, isAnimated: Bool, type: StickerType, interactionData: StickerInteractionData?) {
         self.id = id
         self.image = image
@@ -2695,11 +2723,11 @@ private struct StoryDrawingEditorOverlay: View {
                                 .overlay(
                                     Circle().stroke(Color.white.opacity(0.6), lineWidth: 1.5)
                                 )
-                            
+
                             Image(systemName: "eyedropper")
                                 .font(.system(size: 14, weight: .semibold))
                                 .foregroundColor(color == .white ? .black : .white)
-                            
+
                             ColorPicker("", selection: Binding(
                                 get: { Color(color) },
                                 set: { newColor in
@@ -2721,7 +2749,7 @@ private struct StoryDrawingEditorOverlay: View {
                         }
                         .frame(width: 40, height: 40)
                         .contentShape(Rectangle())
-                        
+
                         Divider()
                             .frame(height: 24)
                             .background(Color.white.opacity(0.3))
@@ -3247,7 +3275,7 @@ struct FilterSelectorView: View {
     @Binding var selectedFilter: FilterService.FilterType
     let filters: [FilterService.FilterType]
     let baseImage: UIImage?
-    
+
     var body: some View {
         VStack(spacing: 8) {
             ScrollView(.horizontal, showsIndicators: false) {
@@ -3266,7 +3294,7 @@ struct FilterSelectorView: View {
                 }
                 .padding(.horizontal, 16)
             }
-            
+
             Text(selectedFilter.rawValue)
                 .font(.system(size: 11, weight: .bold))
                 .foregroundColor(.white)
@@ -3283,9 +3311,9 @@ struct FilterItemView: View {
     let isSelected: Bool
     let baseImage: UIImage?
     let action: () -> Void
-    
+
     @State private var previewImage: UIImage? = nil
-    
+
     var body: some View {
         Button(action: action) {
             VStack(spacing: 6) {
@@ -3297,7 +3325,7 @@ struct FilterItemView: View {
                     } else {
                         Color.gray.opacity(0.3)
                     }
-                    
+
                     if isSelected {
                         RoundedRectangle(cornerRadius: 10)
                             .stroke(Color.white, lineWidth: 3)
@@ -3306,7 +3334,7 @@ struct FilterItemView: View {
                 .frame(width: 60, height: 80)
                 .clipShape(RoundedRectangle(cornerRadius: 10))
                 .shadow(radius: isSelected ? 4 : 0)
-                
+
                 Text(type.rawValue)
                     .font(.system(size: 10, weight: isSelected ? .bold : .regular))
                     .foregroundColor(isSelected ? .white : .white.opacity(0.8))
@@ -3316,17 +3344,17 @@ struct FilterItemView: View {
             generatePreview()
         }
     }
-    
+
     private func generatePreview() {
         guard let base = baseImage else { return }
-        
+
         // Generate a very small thumbnail for the carousel to save memory
         let size = CGSize(width: 60, height: 80)
         let renderer = UIGraphicsImageRenderer(size: size)
         let thumb = renderer.image { _ in
             base.draw(in: CGRect(origin: .zero, size: size))
         }
-        
+
         Task.detached(priority: .background) {
             let filtered = FilterService.shared.applyFilterToThumbnail(type, to: thumb)
             await MainActor.run {

@@ -2,7 +2,33 @@
 "storyEditor.customAudience.multiple" = "%d personas";
 "storyEditor.loadingSettings" = "Cargando...";
 "storyEditor.savedToGallery" = "Historia guardada en tu galería";
-"storyEditor.reveal.active" = "Efecto de revelado activo";
+"storyEditor.reveal.active" = "Efecto de revelado activo, toca para personalizar";
+"revealEditor.title" = "Personalizar Revelado";
+"revealEditor.tab.presets" = "Diseños";
+"revealEditor.tab.custom" = "A medida";
+"revealEditor.pattern.none" = "Ninguno";
+"revealEditor.pattern.dots" = "Puntos";
+"revealEditor.pattern.noise" = "Ruido";
+"revealEditor.pattern.grid" = "Rejilla";
+"revealEditor.pattern.lines" = "Líneas";
+"revealEditor.pattern.scanlines" = "CRT (Scanlines)";
+"revealEditor.pattern.waves" = "Ondas";
+"revealEditor.pattern.static" = "Estática (TV)";
+"revealEditor.pattern.matrix" = "Matrix (Digital)";
+"revealEditor.pattern.holographic" = "Holográfico";
+"revealEditor.color1" = "Color 1";
+"revealEditor.color2" = "Color 2";
+"revealEditor.colorPicker.primary" = "Seleccionar Color";
+"revealEditor.colorPicker.secondary" = "Seleccionar Color Secundario";
+"revealEditor.preset.classic" = "Clásico";
+"revealEditor.preset.midnight" = "Medianoche";
+"revealEditor.preset.golden" = "Dorado";
+"revealEditor.preset.neon" = "Neón";
+"revealEditor.preset.silver" = "Plata";
+"revealEditor.preset.retro" = "TV Antigua";
+"revealEditor.preset.matrix" = "Matrix";
+"revealEditor.preset.blueprint" = "Plano Azul";
+"revealEditor.preset.magic" = "Mágico";
 "storyEditor.error.publishStart" = "Error al iniciar la subida de historia";
 
 /* Story Chains */
@@ -1129,7 +1155,7 @@
 "stickerview.category.location" = "Lugar";
 "stickerview.category.mention" = "Mención";
 "stickerview.category.link" = "Enlace";
-"stickerview.category.hashtag" = "#hashtag";
+"stickerview.category.hashtag" = "hashtag";
 "stickerview.category.poll" = "Votación";
 "stickerview.category.question" = "Preguntas";
 "stickerview.category.emojiSlider" = "Emoji slider";
@@ -3137,3 +3163,10 @@
 "reveal.addLayer" = "AÑADIR CAPA";
 "reveal.viewerHint" = "Rasca para descubrir";
 "storyEditor.polaroid.addNote" = "Añade una nota...";
+"stickerview.audio.title" = "Añade tu voz";
+"stickerview.audio.recording" = "Grabando...";
+"stickerview.audio.recorded" = "Listo para añadir";
+"stickerview.audio.tapToRecord" = "Toca para grabar";
+"stickerview.audio.add" = "Añadir a la historia";
+
+"stickerview.category.audio" = "Audio";

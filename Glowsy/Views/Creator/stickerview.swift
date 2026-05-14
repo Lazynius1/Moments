@@ -7,12 +7,15 @@ import CoreLocation
 import MapKit
 import WeatherKit
 import PhotosUI
+import AVFoundation
+import AVKit
 
 
 // MARK: - Sticker Picker
 
 struct StickerPickerView: View {
     @Binding var selectedStickers: [StickerItem]
+    let isVideo: Bool
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) private var colorScheme
 
@@ -48,6 +51,7 @@ struct StickerPickerView: View {
         case quiz
         case frame
         case reveal
+        case audio
 
         var id: String { rawValue }
 
@@ -69,6 +73,7 @@ struct StickerPickerView: View {
             case .quiz: return NSLocalizedString("stickerview.category.quiz", comment: "Quiz category")
             case .frame: return NSLocalizedString("stickerview.category.frame", comment: "Frame category")
             case .reveal: return NSLocalizedString("stickerview.category.reveal", comment: "Reveal category")
+            case .audio: return NSLocalizedString("stickerview.category.audio", comment: "Audio category")
             }
         }
 
@@ -90,6 +95,7 @@ struct StickerPickerView: View {
             case .quiz: return "list.bullet.clipboard.fill"
             case .frame: return "photo.artframe"
             case .reveal: return "eye.slash.fill"
+            case .audio: return "mic.fill"
             }
         }
 
@@ -111,19 +117,32 @@ struct StickerPickerView: View {
             case .quiz: return .orange
             case .frame: return .blue
             case .reveal: return .purple
+            case .audio: return Color(red: 1.0, green: 0.4, blue: 0.3) // Coral/Orange
             }
         }
 
     }
 
     private var catalogCategories: [StickerCategory] {
-        [.location, .mention, .trending, .emoji, .link, .question, .poll, .quiz, .reveal, .frame, .emojiSlider, .hashtag, .countdown, .weather, .time, .selfie]
+        [.location, .mention, .trending, .emoji, .link, .question, .poll, .quiz, .reveal, .audio, .frame, .emojiSlider, .hashtag, .countdown, .weather, .time, .selfie]
     }
 
     private var filteredCatalogCategories: [StickerCategory] {
         let query = catalogSearchText.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !query.isEmpty else { return catalogCategories }
-        return catalogCategories.filter {
+        var baseCategories = catalogCategories
+
+        // ✨ Reveal limit: only one allowed per story
+        if selectedStickers.contains(where: { $0.type == .reveal }) {
+            baseCategories.removeAll(where: { $0 == .reveal })
+        }
+
+        // ✨ Audio limit: only one allowed per story and NO video
+        if isVideo || selectedStickers.contains(where: { $0.type == .audio }) {
+            baseCategories.removeAll(where: { $0 == .audio })
+        }
+
+        guard !query.isEmpty else { return baseCategories }
+        return baseCategories.filter {
             $0.displayName.localizedCaseInsensitiveContains(query)
         }
     }
@@ -260,7 +279,7 @@ struct StickerPickerView: View {
     private func StickerPickerHeader() -> some View {
         HStack(spacing: 12) {
             Button(action: {
-                hapticFeedback(.light)
+                HapticManager.shared.lightImpact()
                 withAnimation(.spring(response: 0.24, dampingFraction: 0.9)) {
                     mode = .catalog
                 }
@@ -286,7 +305,7 @@ struct StickerPickerView: View {
             Spacer()
 
             Button(action: {
-                hapticFeedback(.light)
+                HapticManager.shared.lightImpact()
                 dismiss()
             }) {
                 Image(systemName: "xmark")
@@ -318,7 +337,7 @@ struct StickerPickerView: View {
 
             if !catalogSearchText.isEmpty {
                 Button(action: {
-                    hapticFeedback(.light)
+                    HapticManager.shared.lightImpact()
                     withAnimation(.easeOut(duration: 0.2)) {
                         catalogSearchText = ""
                     }
@@ -350,7 +369,7 @@ struct StickerPickerView: View {
                 .autocorrectionDisabled()
                 .autocapitalization(.none)
                 .onSubmit {
-                    hapticFeedback(.light)
+                    HapticManager.shared.lightImpact()
                     if gifSearchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                         loadTrendingStickers()
                     } else {
@@ -360,7 +379,7 @@ struct StickerPickerView: View {
 
             if !gifSearchText.isEmpty {
                 Button(action: {
-                    hapticFeedback(.light)
+                    HapticManager.shared.lightImpact()
                     withAnimation(.easeOut(duration: 0.2)) {
                         gifSearchText = ""
                         loadTrendingStickers()
@@ -529,7 +548,7 @@ struct StickerPickerView: View {
             HStack(spacing: 8) {
                 ForEach(Array(trendingEmojis.prefix(12)), id: \.self) { emoji in
                     Button(action: {
-                        hapticFeedback(.light)
+                        HapticManager.shared.lightImpact()
                         createEmojiSticker(emoji)
                     }) {
                         Text(emoji)
@@ -612,22 +631,22 @@ struct StickerPickerView: View {
             ModernCountdownInputView { title, targetAtMs in
                 createCountdownSticker(title: title, targetAtMs: targetAtMs)
             }
-            
+
         case .quiz:
             ModernQuizInputView { question, options, correctIndex in
                 createQuizSticker(question: question, options: options, correctIndex: correctIndex)
             }
-            
+
         case .frame:
             VStack(spacing: 25) {
                 Text(NSLocalizedString("polaroid.title", comment: ""))
                     .font(.system(size: 24, weight: .black, design: .rounded))
-                
+
                 Text(NSLocalizedString("polaroid.subtitle", comment: ""))
                     .font(.system(size: 16, weight: .medium))
                     .multilineTextAlignment(.center)
                     .foregroundColor(.secondary)
-                
+
                 PhotosPicker(selection: $photoPickerItem, matching: .images) {
                     Label(NSLocalizedString("polaroid.selectPhoto", comment: ""), systemImage: "photo.on.rectangle.angled")
                         .font(.system(size: 18, weight: .bold))
@@ -652,12 +671,12 @@ struct StickerPickerView: View {
             VStack(spacing: 20) {
                 Text(NSLocalizedString("reveal.title", comment: ""))
                     .font(.system(size: 24, weight: .black, design: .rounded))
-                
+
                 Text(NSLocalizedString("reveal.subtitle", comment: ""))
                     .font(.system(size: 16, weight: .medium))
                     .multilineTextAlignment(.center)
                     .foregroundColor(.secondary)
-                
+
                 Button(action: {
                     createRevealSticker()
                 }) {
@@ -674,6 +693,11 @@ struct StickerPickerView: View {
 
         case .weather, .time, .selfie:
             EmptyView()
+
+        case .audio:
+            AudioStickerRecordingView(onAdd: { data, duration in
+                createAudioSticker(audioData: data, duration: duration)
+            })
         }
     }
 
@@ -684,7 +708,7 @@ struct StickerPickerView: View {
         LazyVGrid(columns: columns, spacing: 8) {
             ForEach(stickers) { sticker in
                 Button(action: {
-                    hapticFeedback(.medium)
+                    HapticManager.shared.mediumImpact()
                     createGiphySticker(from: sticker)
                 }) {
                     GeometryReader { proxy in
@@ -715,7 +739,7 @@ struct StickerPickerView: View {
         LazyVGrid(columns: columns, spacing: 12) {
             ForEach(stickers) { sticker in
                 Button(action: {
-                    hapticFeedback(.medium)
+                    HapticManager.shared.mediumImpact()
                     createGiphySticker(from: sticker)
                 }) {
                     GeometryReader { proxy in
@@ -746,7 +770,7 @@ struct StickerPickerView: View {
         LazyVGrid(columns: columns, spacing: 10) {
             ForEach(trendingEmojis, id: \.self) { emoji in
                 Button(action: {
-                    hapticFeedback(.light)
+                    HapticManager.shared.lightImpact()
                     createEmojiSticker(emoji)
                 }) {
                     Text(emoji)
@@ -814,7 +838,7 @@ struct StickerPickerView: View {
         case .weather, .time, .selfie:
             insertInstantCategory(category)
         default:
-            hapticFeedback(.medium)
+            HapticManager.shared.mediumImpact()
             withAnimation(.spring(response: 0.24, dampingFraction: 0.9)) {
                 selectedCategory = category
                 mode = .detail(category)
@@ -831,7 +855,7 @@ struct StickerPickerView: View {
     }
 
     private func insertInstantCategory(_ category: StickerCategory) {
-        hapticFeedback(.medium)
+        HapticManager.shared.mediumImpact()
 
         switch category {
         case .weather:
@@ -845,34 +869,30 @@ struct StickerPickerView: View {
         }
     }
 
-    private func hapticFeedback(_ style: UIImpactFeedbackGenerator.FeedbackStyle) {
-        let impact = UIImpactFeedbackGenerator(style: style)
-        impact.impactOccurred()
-    }
 
     private var trendingEmojis: [String] {
         ["😍", "🔥", "💯", "✨", "😂", "🥺", "💕", "🎉", "😎", "🤩", "💀", "🙄",
          "😭", "❤️", "🥳", "😘", "🤝", "👑", "💪", "🌟", "🦋", "🌈", "⚡", "💎"]
     }
-    
+
     // MARK: - Giphy API Methods (proxy por Cloud Functions)
-    
+
     private func giphyProxyURL() -> URL? {
         guard let projectID = FirebaseApp.app()?.options.projectID else { return nil }
         return URL(string: "https://\(functionsRegion)-\(projectID).cloudfunctions.net/\(giphyFunctionName)")
     }
-    
+
     private func fetchGiphyStickers(mode: String, query: String? = nil) {
         guard let url = giphyProxyURL() else {
             isLoadingGiphy = false
             return
         }
-        
+
         guard let user = Auth.auth().currentUser else {
             isLoadingGiphy = false
             return
         }
-        
+
         user.getIDTokenForcingRefresh(false) { token, _ in
             guard let token = token else {
                 DispatchQueue.main.async {
@@ -880,7 +900,7 @@ struct StickerPickerView: View {
                 }
                 return
             }
-            
+
             var body: [String: Any] = [
                 "mode": mode,
                 "limit": 24,
@@ -889,21 +909,21 @@ struct StickerPickerView: View {
             if let query = query, !query.isEmpty {
                 body["query"] = query
             }
-            
+
             guard let jsonData = try? JSONSerialization.data(withJSONObject: body) else {
                 DispatchQueue.main.async {
                     self.isLoadingGiphy = false
                 }
                 return
             }
-            
+
             var request = URLRequest(url: url)
             request.httpMethod = "POST"
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
             request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
             request.httpBody = jsonData
             request.timeoutInterval = 20.0
-            
+
             URLSession.shared.dataTask(with: request) { data, _, error in
                 guard let data = data, error == nil else {
                     DispatchQueue.main.async {
@@ -911,7 +931,7 @@ struct StickerPickerView: View {
                     }
                     return
                 }
-                
+
                 do {
                     let response = try JSONDecoder().decode(GiphyResponse.self, from: data)
                     DispatchQueue.main.async {
@@ -926,39 +946,39 @@ struct StickerPickerView: View {
             }.resume()
         }
     }
-    
+
     private func loadTrendingStickers() {
         isLoadingGiphy = true
         fetchGiphyStickers(mode: "trending")
     }
-    
+
     private func searchTrendingStickers() {
         let query = gifSearchText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !query.isEmpty else { return }
-        
+
         isLoadingGiphy = true
         fetchGiphyStickers(mode: "search", query: query)
     }
-    
+
     // MARK: - Sticker Creation Methods (exactamente iguales)
-    
+
     private func createEmojiSticker(_ emoji: String) {
         let renderer = UIGraphicsImageRenderer(size: CGSize(width: 200, height: 200))
         let image = renderer.image { context in
             let rect = CGRect(x: 0, y: 0, width: 200, height: 200)
-            
+
             let paragraphStyle = NSMutableParagraphStyle()
             paragraphStyle.alignment = .center
-            
+
             let attributes: [NSAttributedString.Key: Any] = [
                 .font: UIFont.systemFont(ofSize: 150),
                 .paragraphStyle: paragraphStyle
             ]
-            
+
             let textRect = CGRect(x: 0, y: 25, width: 200, height: 200)
             emoji.draw(in: textRect, withAttributes: attributes)
         }
-        
+
         let sticker = StickerItem(
             image: image,
             position: CGPoint(x: UIScreen.main.bounds.width / 2, y: UIScreen.main.bounds.height / 2),
@@ -968,13 +988,13 @@ struct StickerPickerView: View {
         selectedStickers.append(sticker)
         dismiss()
     }
-    
+
     private func createGiphySticker(from sticker: GiphyGif) {
         guard let url = sticker.preferredStickerURL else { return }
-        
+
         URLSession.shared.dataTask(with: url) { data, _, error in
             guard let data = data, error == nil else { return }
-            
+
             // Crear imagen estática para fallback
             let staticImage: UIImage
             if let animatedImage = UIImage.animatedImageWithData(data) {
@@ -986,25 +1006,25 @@ struct StickerPickerView: View {
             }
 
             let initialStickerImage = self.downscaleImageIfNeeded(staticImage, maxDimension: 180)
-            
+
             DispatchQueue.main.async {
                 let screenCenter = CGPoint(
                     x: UIScreen.main.bounds.width / 2,
                     y: UIScreen.main.bounds.height / 2
                 )
-                
+
                 let randomOffset = CGPoint(
                     x: CGFloat.random(in: -40...40),
                     y: CGFloat.random(in: -40...40)
                 )
-                
+
                 let finalPosition = CGPoint(
                     x: screenCenter.x + randomOffset.x,
                     y: screenCenter.y + randomOffset.y
                 )
-                
+
                 let constrainedPosition = self.constrainPositionToBounds(finalPosition)
-                
+
                 // ✅ CREAR STICKER CON GIF ANIMADO usando el inicializador correcto
                 let stickerItem = StickerItem(
                     image: initialStickerImage, // Tamaño inicial controlado, sin perder aspect ratio
@@ -1013,7 +1033,7 @@ struct StickerPickerView: View {
                     type: .sticker,
                     interactionData: nil
                 )
-                
+
                 self.selectedStickers.append(stickerItem)
                 self.dismiss()
             }
@@ -1024,7 +1044,7 @@ struct StickerPickerView: View {
     private func constrainPositionToBounds(_ position: CGPoint) -> CGPoint {
         let padding: CGFloat = 60
         let bounds = UIScreen.main.bounds
-        
+
         return CGPoint(
             x: max(padding, min(bounds.width - padding, position.x)),
             y: max(padding, min(bounds.height - padding, position.y))
@@ -1129,7 +1149,7 @@ struct StickerPickerView: View {
                 withAttributes: titleAttributes
             )
         }
-        
+
         // ✅ CREAR STICKER CON DATOS DE INTERACCIÓN (TAMAÑO FIJO)
         let sticker = StickerItem(
             image: image,
@@ -1151,11 +1171,11 @@ struct StickerPickerView: View {
         selectedStickers.append(sticker)
         dismiss()
     }
-    
 
 
 
-    
+
+
     // MARK: - ✅ WEATHER STICKER
     private func createWeatherSticker() {
         // ✅ OBTENER CLIMA ACTUAL CON WEATHER KIT
@@ -1173,11 +1193,11 @@ struct StickerPickerView: View {
             }
         }
     }
-    
+
     // ✅ FUNCIÓN PARA OBTENER CLIMA ACTUAL
     private func getCurrentWeather() async throws -> (temperature: Double, condition: String, symbol: String) {
         let locationManager = CLLocationManager()
-        
+
         // ✅ VERIFICAR PERMISOS
         switch locationManager.authorizationStatus {
         case .authorizedWhenInUse, .authorizedAlways:
@@ -1185,31 +1205,31 @@ struct StickerPickerView: View {
         default:
             throw WeatherError.noLocationPermission
         }
-        
+
         // ✅ OBTENER UBICACIÓN ACTUAL
         guard let location = locationManager.location else {
             throw WeatherError.noLocation
         }
-        
+
         // ✅ USAR WEATHERSERVICE EXISTENTE
         let weatherService = WeatherService.shared
         let currentWeather = try await weatherService.getWeather(for: location.coordinate)
-        
+
         let temperature = currentWeather.temperature
         let condition = currentWeather.condition.displayName
         let symbol = getWeatherSymbol(for: condition)
-        
+
         return (temperature: temperature, condition: condition, symbol: symbol)
     }
-    
+
     // ✅ CONVERTIR CONDICIÓN A SÍMBOLO (MEJORADO CON HORA DEL DÍA)
     private func getWeatherSymbol(for condition: String) -> String {
         let lowercased = condition.lowercased()
         let hour = Calendar.current.component(.hour, from: Date())
-        
+
         // ✅ DETECTAR SI ES NOCHE (entre 20:00 y 6:00)
         let isNight = hour >= 20 || hour < 6
-        
+
         if lowercased.contains("clear") || lowercased.contains("sunny") {
             return isNight ? "🌙" : "☀️"
         } else if lowercased.contains("cloud") {
@@ -1232,14 +1252,14 @@ struct StickerPickerView: View {
             return isNight ? "🌙" : "🌤️"
         }
     }
-    
+
     // ✅ CREAR STICKER CON DATOS REALES
     private func createWeatherStickerWithData(_ weather: (temperature: Double, condition: String, symbol: String)) {
         let temperature = Int(round(weather.temperature))
         let weatherText = "\(temperature)°C"
-        
-        
-        
+
+
+
         // ✅ CREAR STICKER ANIMADO
         let sticker = StickerItem(
             image: createWeatherBackgroundImage(for: weather.symbol),
@@ -1261,28 +1281,28 @@ struct StickerPickerView: View {
                 profileImagePath: nil, momentId: nil
             )
         )
-        
-        
-        
+
+
+
         selectedStickers.append(sticker)
-        
+
         dismiss()
     }
-    
+
     // ✅ CREAR IMAGEN DE FONDO PARA ANIMACIÓN
     private func createWeatherBackgroundImage(for symbol: String) -> UIImage {
         let renderer = UIGraphicsImageRenderer(size: CGSize(width: 140, height: 50))
         let image = renderer.image { context in
             let rect = CGRect(x: 0, y: 0, width: 140, height: 50)
-            
+
             // ✅ FONDO CON GRADIENTE SEGÚN CLIMA
             // ✅ FONDO CON GRADIENTE SEGÚN CLIMA
             let colors = getWeatherGradientColors(for: symbol)
-            
+
             let path = UIBezierPath(roundedRect: rect, cornerRadius: 25)
             context.cgContext.saveGState()
             path.addClip()
-            
+
             if let gradient = CGGradient(colorsSpace: CGColorSpaceCreateDeviceRGB(), colors: colors, locations: [0.0, 1.0]) {
                 context.cgContext.drawLinearGradient(gradient, start: CGPoint(x: 0, y: 0), end: CGPoint(x: rect.width, y: rect.height), options: [])
             } else {
@@ -1290,48 +1310,48 @@ struct StickerPickerView: View {
                 context.fill(rect)
             }
             context.cgContext.restoreGState()
-            
+
             // ✅ BORDE ELEGANTE
             UIColor.white.withAlphaComponent(0.3).setStroke()
             path.lineWidth = 1
             path.stroke()
-            
+
             // ✅ TEXTO CENTRADO (solo símbolo del clima)
             let paragraphStyle = NSMutableParagraphStyle()
             paragraphStyle.alignment = .center
-            
+
             let attributes: [NSAttributedString.Key: Any] = [
                 .font: UIFont.systemFont(ofSize: 20, weight: .semibold),
                 .foregroundColor: UIColor.white,
                 .paragraphStyle: paragraphStyle
             ]
-            
+
             symbol.draw(in: CGRect(x: 10, y: 15, width: 120, height: 20), withAttributes: attributes)
         }
-        
+
         return image
     }
-    
+
     // ✅ CREAR STICKER CON PLACEHOLDER
     private func createWeatherStickerWithPlaceholder() {
         let weatherText = "🌤️"
-        
-        
-        
+
+
+
         let renderer = UIGraphicsImageRenderer(size: CGSize(width: 140, height: 50))
         let image = renderer.image { context in
             let rect = CGRect(x: 0, y: 0, width: 140, height: 50)
-            
+
             // ✅ FONDO AZUL POR DEFECTO
             let colors = [
                 UIColor.systemBlue.withAlphaComponent(0.9).cgColor,
                 UIColor.systemCyan.withAlphaComponent(0.9).cgColor
             ] as CFArray
-            
+
             let path = UIBezierPath(roundedRect: rect, cornerRadius: 25)
             context.cgContext.saveGState()
             path.addClip()
-            
+
             if let gradient = CGGradient(colorsSpace: CGColorSpaceCreateDeviceRGB(), colors: colors, locations: [0.0, 1.0]) {
                 context.cgContext.drawLinearGradient(gradient, start: CGPoint(x: 0, y: 0), end: CGPoint(x: rect.width, y: rect.height), options: [])
             } else {
@@ -1339,25 +1359,25 @@ struct StickerPickerView: View {
                 context.fill(rect)
             }
             context.cgContext.restoreGState()
-            
+
             // ✅ BORDE ELEGANTE
             UIColor.white.withAlphaComponent(0.3).setStroke()
             path.lineWidth = 1
             path.stroke()
-            
+
             // ✅ TEXTO CENTRADO
             let paragraphStyle = NSMutableParagraphStyle()
             paragraphStyle.alignment = .center
-            
+
             let attributes: [NSAttributedString.Key: Any] = [
                 .font: UIFont.systemFont(ofSize: 20, weight: .semibold),
                 .foregroundColor: UIColor.white,
                 .paragraphStyle: paragraphStyle
             ]
-            
+
             weatherText.draw(in: CGRect(x: 10, y: 15, width: 120, height: 20), withAttributes: attributes)
         }
-        
+
         let sticker = StickerItem(
             image: image,
             position: constrainPositionToBounds(CGPoint(
@@ -1378,11 +1398,11 @@ struct StickerPickerView: View {
                 profileImagePath: nil, momentId: nil
             )
         )
-        
+
         selectedStickers.append(sticker)
         dismiss()
     }
-    
+
     // ✅ OBTENER COLORES DE GRADIENTE SEGÚN CLIMA
     private func getWeatherGradientColors(for symbol: String) -> CFArray {
         switch symbol {
@@ -1423,34 +1443,34 @@ struct StickerPickerView: View {
             ] as CFArray
         }
     }
-    
+
     // ✅ ENUM PARA ERRORES DE CLIMA
     enum WeatherError: Error {
         case noLocationPermission
         case noLocation
         case unsupportedVersion
     }
-    
+
     // MARK: - ✅ TIME STICKER
     private func createTimeSticker() {
         let now = Date()
-        
+
         // ✅ FORMATO: "14:30" (Hora) + "7 Ago" (Fecha)
         let timeFormatter = DateFormatter()
         timeFormatter.timeStyle = .short
         timeFormatter.locale = Locale(identifier: "es_ES")
-        
+
         let dateFormatter = DateFormatter()
         dateFormatter.dateFormat = "d MMM"
         dateFormatter.locale = Locale(identifier: "es_ES")
-        
+
         let timeString = timeFormatter.string(from: now)
         let dateString = dateFormatter.string(from: now)
-        
+
         let width: CGFloat = 164
         let height: CGFloat = 56
         let cornerRadius: CGFloat = 22
-        
+
         let renderer = UIGraphicsImageRenderer(size: CGSize(width: width, height: height))
         let image = renderer.image { context in
             let rect = CGRect(x: 0, y: 0, width: width, height: height)
@@ -1467,7 +1487,7 @@ struct StickerPickerView: View {
                 .font: UIFont.monospacedDigitSystemFont(ofSize: 17, weight: .semibold),
                 .foregroundColor: UIColor.black.withAlphaComponent(0.92)
             ]
-            
+
             let dateAttributes: [NSAttributedString.Key: Any] = [
                 .font: UIFont.systemFont(ofSize: 11, weight: .medium),
                 .foregroundColor: UIColor.black.withAlphaComponent(0.48)
@@ -1476,7 +1496,7 @@ struct StickerPickerView: View {
             timeString.draw(in: CGRect(x: 52, y: 12, width: 92, height: 20), withAttributes: timeAttributes)
             dateString.draw(in: CGRect(x: 52, y: 31, width: 92, height: 14), withAttributes: dateAttributes)
         }
-        
+
         let sticker = StickerItem(
             image: image,
             position: constrainPositionToBounds(CGPoint(
@@ -1497,11 +1517,11 @@ struct StickerPickerView: View {
                 profileImagePath: nil, momentId: nil
             )
         )
-        
+
         selectedStickers.append(sticker)
         dismiss()
     }
-    
+
     private func cleanupMemory() {
         // ✅ Limpiar recursos pesados
         giphyResults.removeAll()
@@ -1509,7 +1529,7 @@ struct StickerPickerView: View {
         catalogSearchText = ""
         gifSearchText = ""
     }
-    
+
     // MARK: - ✅ SELFIE STICKER
     private func createSelfieSticker() {
         let liveSelfieSticker = StickerItem(
@@ -1550,13 +1570,13 @@ struct StickerPickerView: View {
             ))
         }
     }
-    
+
     // ✅ FUNCIÓN PARA CREAR STICKER DESDE IMAGEN
     func createSelfieStickerFromImage(_ originalImage: UIImage) {
         // ✅ OPTIMIZAR IMAGEN ANTES DE PROCESAR
         // Reducir tamaño masivo (ej. 12MP) a algo manejable para el renderer (800px)
         let selfieImage = downscaleImageIfNeeded(originalImage)
-        
+
         let size: CGFloat = 120
         let renderer = UIGraphicsImageRenderer(size: CGSize(width: size, height: size))
         let stickerImage = renderer.image { context in
@@ -1572,18 +1592,18 @@ struct StickerPickerView: View {
             UIColor.black.withAlphaComponent(0.04).setStroke()
             circlePath.lineWidth = 0.5
             circlePath.stroke()
-            
+
             // ✅ FOTO DEL SELFIE (CIRCULAR)
             let imageRect = rect.insetBy(dx: 1.5, dy: 1.5)
             let imageCirclePath = UIBezierPath(ovalIn: imageRect)
-            
+
             context.cgContext.saveGState()
             imageCirclePath.addClip()
-            
+
             // Redimensionar y centrar la imagen
             let aspectRatio = selfieImage.size.width / selfieImage.size.height
             let drawRect: CGRect
-            
+
             if aspectRatio > 1 {
                 // Imagen más ancha que alta
                 let drawHeight = imageRect.height
@@ -1597,11 +1617,11 @@ struct StickerPickerView: View {
                 let drawY = imageRect.midY - drawHeight / 2
                 drawRect = CGRect(x: imageRect.minX, y: drawY, width: drawWidth, height: drawHeight)
             }
-            
+
             selfieImage.draw(in: drawRect)
             context.cgContext.restoreGState()
         }
-        
+
         // ✅ CREAR STICKER CON LA IMAGEN GENERADA
         let sticker = StickerItem(
             image: stickerImage,
@@ -1609,20 +1629,20 @@ struct StickerPickerView: View {
             type: .selfie,
             interactionData: nil
         )
-        
+
         selectedStickers.append(sticker)
-        
+
         // ✅ LIMPIAR MEMORIA
         cleanupMemory()
         dismiss()
     }
-    
+
     // ✅ HELPER: Downscale large images before processing
     private func downscaleImageIfNeeded(_ image: UIImage, maxDimension: CGFloat = 800) -> UIImage {
         if image.size.width <= maxDimension && image.size.height <= maxDimension {
             return image
         }
-        
+
         let aspectRatio = image.size.width / image.size.height
         let newSize: CGSize
         if image.size.width > image.size.height {
@@ -1630,13 +1650,13 @@ struct StickerPickerView: View {
         } else {
             newSize = CGSize(width: maxDimension * aspectRatio, height: maxDimension)
         }
-        
+
         let renderer = UIGraphicsImageRenderer(size: newSize)
         return renderer.image { _ in
             image.draw(in: CGRect(origin: .zero, size: newSize))
         }
     }
-    
+
     private func createMentionSticker(_ username: String) {
         // Primero buscar el usuario por username para obtener su ID y foto
         searchUserByUsername(username) { userResult in
@@ -1656,7 +1676,7 @@ struct StickerPickerView: View {
     // MARK: - Buscar usuario por username
     private func searchUserByUsername(_ username: String, completion: @escaping (Result<AppUser, Error>) -> Void) {
         let firestoreService = FirestoreService()
-        
+
         // Usar tu método existente de búsqueda
         firestoreService.searchUsers(query: username.lowercased(), limit: 1) { result in
             switch result {
@@ -1677,7 +1697,7 @@ struct StickerPickerView: View {
         // ✅ SOLO CREAR STICKER - la notificación se enviará al publicar
         if let profileImagePath = user.profileImagePath, !profileImagePath.isEmpty,
            let profileURL = URL(string: profileImagePath) {
-            
+
             // Descargar la imagen de perfil
             URLSession.shared.dataTask(with: profileURL) { data, _, error in
                 DispatchQueue.main.async {
@@ -1709,7 +1729,7 @@ struct StickerPickerView: View {
             .font: UIFont.systemFont(ofSize: 18, weight: .semibold),
             .foregroundColor: UIColor.black.withAlphaComponent(0.92)
         ]
-        
+
         let textSize = text.size(withAttributes: textAttributes)
         let horizontalPadding: CGFloat = 20
         let verticalPadding: CGFloat = 14
@@ -1717,7 +1737,7 @@ struct StickerPickerView: View {
         let interItemSpacing: CGFloat = 10
         let width = textSize.width + horizontalPadding * 2 + iconSize + interItemSpacing
         let height = max(textSize.height + verticalPadding * 2, 56)
-        
+
         let renderer = UIGraphicsImageRenderer(size: CGSize(width: width, height: height))
         let image = renderer.image { context in
             let rect = CGRect(x: 0, y: 0, width: width, height: height)
@@ -1736,10 +1756,10 @@ struct StickerPickerView: View {
                 width: textSize.width,
                 height: textSize.height
             )
-            
+
             text.draw(in: textRect, withAttributes: textAttributes)
         }
-        
+
         // ✅ CREAR STICKER CON DATOS DE INTERACCIÓN
         let sticker = StickerItem(
             image: image,
@@ -1761,10 +1781,10 @@ struct StickerPickerView: View {
             selectedStickers.append(sticker)
         dismiss()
     }
-    
+
     private func createHashtagSticker(_ hashtag: String) {
         let displayText = hashtag.count > 18 ? String(hashtag.prefix(18)) + "..." : hashtag
-        let finalText = "#\(displayText)"
+        let finalText = displayText
         let textAttributes: [NSAttributedString.Key: Any] = [
             .font: UIFont.systemFont(ofSize: 15, weight: .semibold),
             .foregroundColor: UIColor.black.withAlphaComponent(0.92)
@@ -1795,7 +1815,7 @@ struct StickerPickerView: View {
                 withAttributes: textAttributes
             )
         }
-        
+
         // ✅ CREAR STICKER CON DATOS DE INTERACCIÓN
         let sticker = StickerItem(
             image: image,
@@ -1887,7 +1907,7 @@ struct StickerPickerView: View {
         selectedStickers.append(sticker)
         dismiss()
     }
-    
+
     private func createPollSticker(_ poll: [String]) {
         guard poll.count >= 3 else { return }
 
@@ -1932,7 +1952,7 @@ struct StickerPickerView: View {
             option1Text.draw(in: CGRect(x: 32, y: 89, width: 232, height: 18), withAttributes: optionAttributes)
             option2Text.draw(in: CGRect(x: 32, y: 129, width: 232, height: 18), withAttributes: optionAttributes)
         }
-        
+
         // ✅ CREAR STICKER CON DATOS DE INTERACCIÓN (TAMAÑO FIJO )
         let sticker = StickerItem(
             image: image,
@@ -1954,10 +1974,10 @@ struct StickerPickerView: View {
         selectedStickers.append(sticker)
         dismiss()
     }
-    
+
     private func createQuizSticker(question: String, options: [String], correctIndex: Int) {
-        hapticFeedback(.heavy)
-        
+        HapticManager.shared.heavyImpact()
+
         // Renderizamos una versión estática para el editor
         let controller = UIHostingController(rootView: StickerQuizCardView(
             question: question,
@@ -1969,12 +1989,12 @@ struct StickerPickerView: View {
         let targetSize = CGSize(width: 300, height: 200) // Tamaño estimado razonable
         controller.view.bounds = CGRect(origin: .zero, size: targetSize)
         controller.view.backgroundColor = .clear
-        
+
         let renderer = UIGraphicsImageRenderer(size: targetSize)
         let image = renderer.image { _ in
             controller.view.drawHierarchy(in: controller.view.bounds, afterScreenUpdates: true)
         }
-        
+
         let sticker = StickerItem(
             image: image,
             position: CGPoint(x: UIScreen.main.bounds.width / 2, y: UIScreen.main.bounds.height / 2),
@@ -1988,10 +2008,10 @@ struct StickerPickerView: View {
         selectedStickers.append(sticker)
         dismiss()
     }
-    
+
     private func createFrameSticker(image: UIImage) {
-        hapticFeedback(.medium)
-        
+        HapticManager.shared.mediumImpact()
+
         // ✅ La imagen REAL del usuario se guarda directamente como content (Base64)
         // El visor la recupera vía sticker.image → InteractiveFrameSticker(image:)
         // La vista previa en el editor muestra el marco Polaroid vacío (progress: 0)
@@ -2008,23 +2028,106 @@ struct StickerPickerView: View {
         selectedStickers.append(sticker)
         dismiss()
     }
-    
+
     private func createRevealSticker() {
-        hapticFeedback(.medium)
-        
+        // ✨ Reveal limit check
+        if selectedStickers.contains(where: { $0.type == .reveal }) {
+            HapticManager.shared.notification(.error)
+            dismiss()
+            return
+        }
+
+        HapticManager.shared.mediumImpact()
+
         let image = UIImage(systemName: "eye.slash.fill")?.withTintColor(.white) ?? UIImage()
-        
+
         let sticker = StickerItem(
             image: image,
             position: CGPoint(x: UIScreen.main.bounds.width / 2, y: 100), // Arriba por defecto
             type: .reveal,
-            interactionData: StickerItem.StickerInteractionData(revealType: "scratch")
+            interactionData: StickerItem.StickerInteractionData(
+                revealType: "solid",
+                revealPattern: "dots",
+                revealPrimaryColor: "#000000",
+                revealSecondaryColor: "#000000"
+            )
         )
         selectedStickers.append(sticker)
         dismiss()
     }
 
-    
+    private func createAudioSticker(audioData: Data, duration: Double) {
+        HapticManager.shared.mediumImpact()
+
+        // 1. Guardar el audio en un archivo temporal para que BackgroundStoryUploadService lo pueda subir
+        let tempDir = FileManager.default.temporaryDirectory
+        let fileName = "story_audio_\(UUID().uuidString).m4a"
+        let fileURL = tempDir.appendingPathComponent(fileName)
+
+        do {
+            try audioData.write(to: fileURL)
+
+            // 2. Crear la imagen "Liquid Glass" circular (72x72) para el editor
+            let size = CGSize(width: 72, height: 72)
+            let renderer = UIGraphicsImageRenderer(size: size)
+            let stickerImage = renderer.image { context in
+                let rect = CGRect(origin: .zero, size: size)
+
+                // Fondo circular con glassmorphism premium
+                let path = UIBezierPath(ovalIn: rect.insetBy(dx: 2, dy: 2))
+
+                // Sombra suave para elevación
+                context.cgContext.setShadow(offset: CGSize(width: 0, height: 4), blur: 12, color: UIColor.black.withAlphaComponent(0.2).cgColor)
+
+                // Relleno glass ultra-limpio
+                UIColor.white.withAlphaComponent(0.25).setFill()
+                path.fill()
+
+                // Borde fino brillante (Liquid Glass style)
+                let borderPath = UIBezierPath(ovalIn: rect.insetBy(dx: 2.5, dy: 2.5))
+                context.cgContext.setLineWidth(1.5)
+                UIColor.white.withAlphaComponent(0.6).setStroke()
+                borderPath.stroke()
+
+                // Icono de audio (onda) en el centro
+                let iconConfig = UIImage.SymbolConfiguration(pointSize: 22, weight: .bold)
+                if let icon = UIImage(systemName: "waveform", withConfiguration: iconConfig)?.withTintColor(.white, renderingMode: .alwaysOriginal) {
+                    let iconRect = CGRect(
+                        x: (size.width - icon.size.width) / 2,
+                        y: (size.height - icon.size.height) / 2,
+                        width: icon.size.width,
+                        height: icon.size.height
+                    )
+                    icon.draw(in: iconRect)
+                }
+            }
+
+            // 3. Crear el StickerItem con los metadatos necesarios
+            let sticker = StickerItem(
+                id: "audio_\(UUID().uuidString)",
+                image: stickerImage,
+                position: CGPoint(x: UIScreen.main.bounds.width / 2, y: UIScreen.main.bounds.height / 2),
+                scale: 1.0,
+                rotation: .zero,
+                gifURL: nil,
+                videoURL: nil,
+                isAnimated: false,
+                type: .audio,
+                interactionData: StickerItem.StickerInteractionData(
+                    audioURL: fileURL.absoluteString,
+                    audioDuration: duration
+                )
+            )
+
+            selectedStickers.append(sticker)
+            dismiss()
+
+        } catch {
+            print("❌ Error saving temporary audio: \(error)")
+        }
+    }
+
+
     private func createQuestionSticker(_ question: String) {
         let renderer = UIGraphicsImageRenderer(size: CGSize(width: 300, height: 132))
         let image = renderer.image { context in
@@ -2051,7 +2154,7 @@ struct StickerPickerView: View {
             NSLocalizedString("question.tapToAnswer", comment: "Tap to answer")
                 .draw(in: CGRect(x: 30, y: 95, width: 240, height: 16), withAttributes: responseAttributes)
         }
-        
+
         // ✅ CREAR STICKER CON DATOS DE INTERACCIÓN
         let sticker = StickerItem(
             image: image,
@@ -2373,7 +2476,7 @@ private struct StickerEmojiSliderPillGlyph: View {
 struct SmartLocationInputView: View {
     let onSelect: (String, CLLocationCoordinate2D?) -> Void
     @Environment(\.colorScheme) private var colorScheme
-    
+
     @State private var searchText = ""
     @State private var nearbyPlaces: [LocationResult] = []
     @State private var searchResults: [LocationResult] = []
@@ -2381,13 +2484,13 @@ struct SmartLocationInputView: View {
     @State private var isSearching = false
     @State private var userLocation: CLLocation?
     @FocusState private var isTextFieldFocused: Bool
-    
+
     @StateObject private var locationManager = LocationManager()
 
     private var palette: StickerDetailPalette {
         StickerDetailPalette(colorScheme: colorScheme)
     }
-    
+
     // Modelo para resultados de ubicación
     struct LocationResult: Identifiable, Hashable, Equatable {
         let id = UUID()
@@ -2397,7 +2500,7 @@ struct SmartLocationInputView: View {
         let distance: Double? // En metros
         let category: String
         let coordinate: CLLocationCoordinate2D
-        
+
         var distanceString: String {
             guard let distance = distance else { return "" }
             if distance < 1000 {
@@ -2406,7 +2509,7 @@ struct SmartLocationInputView: View {
                 return String(format: "%.1fkm", distance / 1000)
             }
         }
-        
+
         var categoryIcon: String {
             switch category.lowercased() {
             case "restaurant", "food": return "fork.knife"
@@ -2421,7 +2524,7 @@ struct SmartLocationInputView: View {
             default: return "mappin"
             }
         }
-        
+
         // MARK: - Conformance to Equatable
         static func == (lhs: LocationResult, rhs: LocationResult) -> Bool {
             return lhs.id == rhs.id &&
@@ -2433,7 +2536,7 @@ struct SmartLocationInputView: View {
                    lhs.coordinate.latitude == rhs.coordinate.latitude &&
                    lhs.coordinate.longitude == rhs.coordinate.longitude
         }
-        
+
         // MARK: - Conformance to Hashable
         func hash(into hasher: inout Hasher) {
             hasher.combine(id)
@@ -2446,7 +2549,7 @@ struct SmartLocationInputView: View {
             hasher.combine(coordinate.longitude)
         }
     }
-    
+
     var body: some View {
         VStack(spacing: 0) {
             VStack(alignment: .leading, spacing: 16) {
@@ -2491,7 +2594,7 @@ struct SmartLocationInputView: View {
                         .font(.system(size: 16))
                         .foregroundColor(searchText.isEmpty ? palette.searchIcon : palette.searchIconActive)
                         .animation(.easeInOut(duration: 0.2), value: searchText)
-                    
+
                     TextField(NSLocalizedString("stickerview.location.searchPlaceholder", comment: "Location search placeholder"), text: $searchText)
                         .font(.system(size: 16, weight: .medium))
                         .foregroundColor(palette.primaryText)
@@ -2506,7 +2609,7 @@ struct SmartLocationInputView: View {
                                 searchPlaces(query: newValue)
                             }
                         }
-                    
+
                     if !searchText.isEmpty {
                         Button(action: {
                             withAnimation(.easeInOut(duration: 0.2)) {
@@ -2527,7 +2630,7 @@ struct SmartLocationInputView: View {
                 .liquidGlass(in: Capsule())
             }
             .padding(.bottom, 20)
-            
+
             // Lista de ubicaciones
             ScrollView {
                 LazyVStack(spacing: 0) {
@@ -2535,7 +2638,7 @@ struct SmartLocationInputView: View {
                         // Ubicaciones cercanas
                         if isLoadingNearby {
                             SectionHeader(title: NSLocalizedString("stickerview.location.searchingNearby", comment: "Searching nearby places"), icon: "location", color: .blue)
-                            
+
                             ForEach(0..<5, id: \.self) { _ in
                                 SkeletonLocationRow()
                             }
@@ -2543,7 +2646,7 @@ struct SmartLocationInputView: View {
                             EmptyNearbyView()
                         } else {
                             SectionHeader(title: NSLocalizedString("stickerview.location.nearby", comment: "Nearby places"), icon: "location.fill", color: .red)
-                            
+
                             ForEach(nearbyPlaces, id: \.id) { place in
                                 LocationRowView(location: place) {
                                     onSelect(place.displayName, place.coordinate)
@@ -2558,7 +2661,7 @@ struct SmartLocationInputView: View {
                         // Resultados de búsqueda
                         if isSearching {
                             SectionHeader(title: NSLocalizedString("stickerview.location.searching", comment: "Searching"), icon: "magnifyingglass", color: .blue)
-                            
+
                             ForEach(0..<3, id: \.self) { _ in
                                 SkeletonLocationRow()
                             }
@@ -2572,7 +2675,7 @@ struct SmartLocationInputView: View {
                                 icon: "mappin.and.ellipse",
                                 color: .green
                             )
-                            
+
                             ForEach(searchResults, id: \.id) { place in
                                 LocationRowView(location: place) {
                                     onSelect(place.displayName, place.coordinate)
@@ -2611,9 +2714,9 @@ struct SmartLocationInputView: View {
             cleanupMemory()
         }
     }
-    
+
     // MARK: - Componentes de UI
-    
+
     private struct LocationRowView: View {
         let location: SmartLocationInputView.LocationResult
         let onTap: () -> Void
@@ -2622,7 +2725,7 @@ struct SmartLocationInputView: View {
         private var palette: StickerDetailPalette {
             StickerDetailPalette(colorScheme: colorScheme)
         }
-        
+
         var body: some View {
             Button(action: onTap) {
                 HStack(spacing: 12) {
@@ -2630,19 +2733,19 @@ struct SmartLocationInputView: View {
                         .font(.system(size: 17, weight: .medium))
                         .foregroundColor(.red)
                         .frame(width: 20, alignment: .leading)
-                    
+
                     VStack(alignment: .leading, spacing: 4) {
                         Text(location.displayName)
                             .font(.system(size: 16, weight: .semibold))
                             .foregroundColor(palette.primaryText)
                             .lineLimit(1)
-                        
+
                         HStack(spacing: 8) {
                             Text(location.address)
                                 .font(.system(size: 14, weight: .medium))
                                 .foregroundColor(palette.secondaryText)
                                 .lineLimit(1)
-                            
+
                             if !location.distanceString.isEmpty {
                                 Text("• \(location.distanceString)")
                                     .font(.system(size: 12, weight: .medium))
@@ -2650,9 +2753,9 @@ struct SmartLocationInputView: View {
                             }
                         }
                     }
-                    
+
                     Spacer()
-                    
+
                     Image(systemName: "chevron.right")
                         .font(.system(size: 12, weight: .medium))
                         .foregroundColor(palette.tertiaryText)
@@ -2662,7 +2765,7 @@ struct SmartLocationInputView: View {
             .buttonStyle(PlainButtonStyle())
         }
     }
-    
+
     private struct SkeletonLocationRow: View {
         @State private var isAnimating = false
         @Environment(\.colorScheme) private var colorScheme
@@ -2670,26 +2773,26 @@ struct SmartLocationInputView: View {
         private var palette: StickerDetailPalette {
             StickerDetailPalette(colorScheme: colorScheme)
         }
-        
+
         var body: some View {
             HStack(spacing: 14) {
                 Circle()
                     .fill(palette.skeletonFill)
                     .frame(width: 44, height: 44)
                     .shimmer(isAnimating)
-                
+
                 VStack(alignment: .leading, spacing: 6) {
                     RoundedRectangle(cornerRadius: 4)
                         .fill(palette.skeletonFill)
                         .frame(width: 140, height: 14)
                         .shimmer(isAnimating)
-                    
+
                     RoundedRectangle(cornerRadius: 4)
                         .fill(palette.skeletonFill)
                         .frame(width: 100, height: 12)
                         .shimmer(isAnimating)
                 }
-                
+
                 Spacer()
             }
             .padding(.vertical, 12)
@@ -2698,7 +2801,7 @@ struct SmartLocationInputView: View {
             }
         }
     }
-    
+
     private struct EmptyNearbyView: View {
         @Environment(\.colorScheme) private var colorScheme
 
@@ -2711,12 +2814,12 @@ struct SmartLocationInputView: View {
                 Image(systemName: "location.slash")
                     .font(.system(size: 40))
                     .foregroundColor(palette.secondaryText)
-                
+
                 VStack(alignment: .leading, spacing: 6) {
                     Text("stickerview.nearbyPlacesError")
                         .font(.system(size: 16, weight: .semibold))
                         .foregroundColor(palette.primaryText)
-                    
+
                     Text("stickerview.locationPermissionError")
                         .font(.system(size: 14, weight: .medium))
                         .foregroundColor(palette.secondaryText)
@@ -2728,7 +2831,7 @@ struct SmartLocationInputView: View {
             .padding(.horizontal, 4)
         }
     }
-    
+
     private struct EmptySearchView: View {
         let searchQuery: String
         @Environment(\.colorScheme) private var colorScheme
@@ -2736,18 +2839,18 @@ struct SmartLocationInputView: View {
         private var palette: StickerDetailPalette {
             StickerDetailPalette(colorScheme: colorScheme)
         }
-        
+
         var body: some View {
             VStack(alignment: .leading, spacing: 16) {
                 Image(systemName: "mappin.slash")
                     .font(.system(size: 40))
                     .foregroundColor(palette.secondaryText)
-                
+
                 VStack(alignment: .leading, spacing: 6) {
                     Text("stickerview.noPlacesFound")
                         .font(.system(size: 16, weight: .semibold))
                         .foregroundColor(palette.primaryText)
-                    
+
                     Text(String(format: NSLocalizedString("stickerview.tryDifferentSearch", comment: "Try different search"), searchQuery))
                         .font(.system(size: 14, weight: .medium))
                         .foregroundColor(palette.secondaryText)
@@ -2759,30 +2862,30 @@ struct SmartLocationInputView: View {
             .padding(.horizontal, 4)
         }
     }
-    
+
     // MARK: - Funciones de búsqueda
-    
+
     private func requestLocationAndSearch() {
         locationManager.requestLocation()
     }
-    
+
     private func refreshLocationAndPlaces() {
         // Recargar ubicación y lugares cercanos
         isLoadingNearby = true
         locationManager.requestLocation()
-        
+
         // Si ya tenemos ubicación, recargar lugares cercanos inmediatamente
         if let currentLocation = locationManager.location {
             userLocation = currentLocation
             searchNearbyPlaces()
         }
     }
-    
+
     private func searchNearbyPlaces() {
         guard let userLocation = userLocation else { return }
-        
+
         isLoadingNearby = true
-        
+
         // Búsqueda más específica para lugares útiles (como en LocationPickerView)
         let searchQueries = [
             NSLocalizedString("stickerview.location.query.restaurants", comment: "Nearby restaurants query"),
@@ -2796,14 +2899,14 @@ struct SmartLocationInputView: View {
             NSLocalizedString("stickerview.location.query.metroStations", comment: "Nearby metro stations query"),
             NSLocalizedString("stickerview.location.query.libraries", comment: "Nearby libraries query")
         ]
-        
+
         var allPlaces: [LocationResult] = []
         let group = DispatchGroup()
-        
+
         // Limitar a 4 búsquedas simultáneas para reducir memoria
         for query in searchQueries.prefix(4) {
             group.enter()
-            
+
             let request = MKLocalSearch.Request()
             request.naturalLanguageQuery = query
             request.region = MKCoordinateRegion(
@@ -2812,23 +2915,23 @@ struct SmartLocationInputView: View {
                 longitudinalMeters: 1500
             )
             request.resultTypes = .pointOfInterest
-            
+
             let search = MKLocalSearch(request: request)
             search.start { response, error in
                 defer { group.leave() }
-                
+
                 if let response = response {
                     let places: [LocationResult] = response.mapItems.prefix(2).compactMap { item in // Máximo 2 por categoría
                         guard let name = item.name else { return nil }
-                        
+
                         let distance = userLocation.distance(from: CLLocation(
                             latitude: item.placemark.coordinate.latitude,
                             longitude: item.placemark.coordinate.longitude
                         ))
-                        
+
                         let fullAddress = formatAddress(item.placemark)
                         let fullName = "\(name), \(fullAddress)"
-                        
+
                         return LocationResult(
                             displayName: name,
                             fullName: fullName,
@@ -2838,19 +2941,19 @@ struct SmartLocationInputView: View {
                             coordinate: item.placemark.coordinate
                         )
                     }
-                    
+
                     DispatchQueue.main.async {
                         allPlaces.append(contentsOf: places)
                     }
                 }
             }
         }
-        
+
         group.notify(queue: .main) {
             // Filtrar duplicados manualmente y ordenar por distancia
             var uniquePlaces: [LocationResult] = []
             var seenCoordinates: Set<String> = []
-            
+
             for place in allPlaces {
                 let coordinateKey = "\(place.coordinate.latitude),\(place.coordinate.longitude)"
                 if !seenCoordinates.contains(coordinateKey) {
@@ -2858,28 +2961,28 @@ struct SmartLocationInputView: View {
                     uniquePlaces.append(place)
                 }
             }
-            
+
             let sortedPlaces = uniquePlaces.sorted { $0.distance ?? 0 < $1.distance ?? 0 }
             self.nearbyPlaces = Array(sortedPlaces.prefix(12)) // 12 lugares totales
             self.isLoadingNearby = false
-            
+
             // Limpiar memoria
             allPlaces.removeAll()
         }
     }
-    
+
     private func searchPlaces(query: String) {
         guard !query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
             searchResults = []
             isSearching = false
             return
         }
-        
+
         isSearching = true
-        
+
         let request = MKLocalSearch.Request()
         request.naturalLanguageQuery = query
-        
+
         if let userLocation = userLocation {
             request.region = MKCoordinateRegion(
                 center: userLocation.coordinate,
@@ -2887,29 +2990,29 @@ struct SmartLocationInputView: View {
                 longitudinalMeters: 5000
             )
         }
-        
+
         let search = MKLocalSearch(request: request)
         search.start { response, error in
             DispatchQueue.main.async {
                 self.isSearching = false
-                
+
                 guard let response = response else {
                     self.searchResults = []
                     return
                 }
-                
+
                 // Ordenamiento inteligente por relevancia y distancia
                 let sortedResults: [LocationResult] = response.mapItems.prefix(15).compactMap { item in
                     guard let name = item.name else { return nil }
-                    
+
                     let distance = self.userLocation?.distance(from: CLLocation(
                         latitude: item.placemark.coordinate.latitude,
                         longitude: item.placemark.coordinate.longitude
                     ))
-                    
+
                     let fullAddress = formatAddress(item.placemark)
                     let fullName = "\(name), \(fullAddress)"
-                    
+
                     return LocationResult(
                         displayName: name,
                         fullName: fullName,
@@ -2922,11 +3025,11 @@ struct SmartLocationInputView: View {
                     // Priorizar lugares con nombre
                     let hasName1 = !item1.displayName.isEmpty
                     let hasName2 = !item2.displayName.isEmpty
-                    
+
                     if hasName1 != hasName2 {
                         return hasName1
                     }
-                    
+
                     // Si ambos tienen nombre, priorizar por tipo (POI primero)
                     if hasName1 && hasName2 {
                         let isPOI1 = item1.category != "place"
@@ -2935,16 +3038,16 @@ struct SmartLocationInputView: View {
                             return isPOI1
                         }
                     }
-                    
+
                     // Finalmente, ordenar por distancia
                     return (item1.distance ?? Double.greatestFiniteMagnitude) < (item2.distance ?? Double.greatestFiniteMagnitude)
                 }
-                
+
                 self.searchResults = sortedResults
             }
         }
     }
-    
+
     private func cleanupMemory() {
         // Limpiar arrays para liberar memoria
         nearbyPlaces.removeAll()
@@ -2953,10 +3056,10 @@ struct SmartLocationInputView: View {
         isSearching = false
         isLoadingNearby = false
     }
-    
+
     private func formatAddress(_ placemark: CLPlacemark) -> String {
         var components: [String] = []
-        
+
         // ✅ NÚMERO Y CALLE
         if let subThoroughfare = placemark.subThoroughfare {
             components.append(subThoroughfare)
@@ -2964,27 +3067,27 @@ struct SmartLocationInputView: View {
         if let thoroughfare = placemark.thoroughfare {
             components.append(thoroughfare)
         }
-        
+
         // ✅ CÓDIGO POSTAL
         if let postalCode = placemark.postalCode {
             components.append(postalCode)
         }
-        
+
         // ✅ CIUDAD
         if let locality = placemark.locality {
             components.append(locality)
         }
-        
+
         // ✅ PROVINCIA/ESTADO
         if let administrativeArea = placemark.administrativeArea {
             components.append(administrativeArea)
         }
-        
+
         // ✅ PAÍS
         if let country = placemark.country {
             components.append(country)
         }
-        
+
         return components.joined(separator: ", ")
     }
 }
@@ -2993,16 +3096,16 @@ struct SmartLocationInputView: View {
 
 class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     private let manager = CLLocationManager()
-    
+
     @Published var location: CLLocation?
     @Published var authorizationStatus: CLAuthorizationStatus = .notDetermined
-    
+
     override init() {
         super.init()
         manager.delegate = self
         manager.desiredAccuracy = kCLLocationAccuracyBest
     }
-    
+
     func requestLocation() {
         switch authorizationStatus {
         case .notDetermined:
@@ -3013,14 +3116,14 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
             break
         }
     }
-    
+
     func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
         location = locations.first
     }
-    
+
     func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
     }
-    
+
     func locationManager(_ manager: CLLocationManager, didChangeAuthorization status: CLAuthorizationStatus) {
         authorizationStatus = status
         if status == .authorizedWhenInUse || status == .authorizedAlways {
@@ -3087,13 +3190,13 @@ struct ModernMentionInputView: View {
     @State private var recentUsers: [AppUser] = []
     @State private var suggestedUsers: [AppUser] = []
     @FocusState private var isTextFieldFocused: Bool
-    
+
     private let firestoreService = FirestoreService()
 
     private var palette: StickerDetailPalette {
         StickerDetailPalette(colorScheme: colorScheme)
     }
-    
+
     var body: some View {
         VStack(spacing: 0) {
             VStack(alignment: .leading, spacing: 16) {
@@ -3112,7 +3215,7 @@ struct ModernMentionInputView: View {
                         .font(.system(size: 16))
                         .foregroundColor(searchText.isEmpty ? palette.searchIcon : palette.searchIconActive)
                         .animation(.easeInOut(duration: 0.2), value: searchText)
-                    
+
                     TextField(NSLocalizedString("stickerview.mention.searchPlaceholder", comment: "Mention search placeholder"), text: $searchText)
                         .font(.system(size: 16, weight: .medium))
                         .foregroundColor(palette.primaryText)
@@ -3127,7 +3230,7 @@ struct ModernMentionInputView: View {
                                 searchUsers(query: newValue)
                             }
                         }
-                    
+
                     if !searchText.isEmpty {
                         Button(action: {
                             withAnimation(.easeInOut(duration: 0.2)) {
@@ -3148,7 +3251,7 @@ struct ModernMentionInputView: View {
                 .liquidGlass(in: Capsule())
             }
             .padding(.bottom, 20)
-            
+
             // Lista de usuarios
             ScrollView {
                 LazyVStack(spacing: 0) {
@@ -3156,7 +3259,7 @@ struct ModernMentionInputView: View {
                         // Sección de recientes
                         if !recentUsers.isEmpty {
                             SectionHeader(title: NSLocalizedString("stickerview.mention.recent", comment: "Recent users"), icon: "clock.fill", color: .orange)
-                            
+
                             ForEach(recentUsers, id: \.id) { user in
                                 StickerUserRowView(user: user) {
                                     onSelect(user.username)
@@ -3166,17 +3269,17 @@ struct ModernMentionInputView: View {
                                     removal: .move(edge: .trailing).combined(with: .opacity)
                                 ))
                             }
-                            
+
                             Divider()
                                 .background(palette.divider)
                                 .padding(.horizontal, 4)
                                 .padding(.vertical, 16)
                         }
-                        
+
                         // Sección de sugerencias
                         if !suggestedUsers.isEmpty {
                             SectionHeader(title: NSLocalizedString("stickerview.mention.suggestions", comment: "Suggested users"), icon: "sparkles", color: .purple)
-                            
+
                             ForEach(suggestedUsers, id: \.id) { user in
                                 StickerUserRowView(user: user) {
                                     onSelect(user.username)
@@ -3189,7 +3292,7 @@ struct ModernMentionInputView: View {
                         } else {
                             // Loading de sugerencias
                             SectionHeader(title: NSLocalizedString("stickerview.mention.suggestions", comment: "Suggested users"), icon: "sparkles", color: .purple)
-                            
+
                             ForEach(0..<4, id: \.self) { _ in
                                 SkeletonUserRow()
                             }
@@ -3198,7 +3301,7 @@ struct ModernMentionInputView: View {
                         // Resultados de búsqueda
                         if isSearching {
                             SectionHeader(title: NSLocalizedString("stickerview.mention.searching", comment: "Searching users"), icon: "magnifyingglass", color: .blue)
-                            
+
                             ForEach(0..<3, id: \.self) { _ in
                                 SkeletonUserRow()
                             }
@@ -3212,7 +3315,7 @@ struct ModernMentionInputView: View {
                                 icon: "person.2.fill",
                                 color: .green
                             )
-                            
+
                             ForEach(searchResults, id: \.id) { user in
                                 StickerUserRowView(user: user) {
                                     saveRecentUser(user)
@@ -3237,7 +3340,7 @@ struct ModernMentionInputView: View {
             isTextFieldFocused = true
         }
     }
-    
+
     // MARK: - Private Methods
     private func searchUsers(query: String) {
         guard !query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
@@ -3245,9 +3348,9 @@ struct ModernMentionInputView: View {
             isSearching = false
             return
         }
-        
+
         isSearching = true
-        
+
         // Debounce la búsqueda
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
             if self.searchText == query { // Solo buscar si no ha cambiado
@@ -3255,7 +3358,7 @@ struct ModernMentionInputView: View {
             }
         }
     }
-    
+
     private func performUserSearch(query: String) {
         firestoreService.searchUsers(query: query.lowercased(), limit: 15) { result in
             DispatchQueue.main.async {
@@ -3280,16 +3383,16 @@ struct ModernMentionInputView: View {
             }
         }
     }
-    
+
     private func loadRecentUsers() {
         // Cargar usuarios recientes desde UserDefaults o Core Data
         if let data = UserDefaults.standard.data(forKey: "recentMentionedUsers"),
            let userIds = try? JSONDecoder().decode([String].self, from: data) {
-            
+
             // Cargar detalles de usuarios
             let group = DispatchGroup()
             var users: [AppUser] = []
-            
+
             for userId in userIds.prefix(5) {
                 group.enter()
                 firestoreService.fetchUserProfile(userId: userId) { result in
@@ -3299,16 +3402,16 @@ struct ModernMentionInputView: View {
                     group.leave()
                 }
             }
-            
+
             group.notify(queue: .main) {
                 self.recentUsers = users
             }
         }
     }
-    
+
     private func loadSuggestedUsers() {
         guard let currentUserId = Auth.auth().currentUser?.uid else { return }
-        
+
         // Cargar usuarios sugeridos (conexiones mutuas, etc.)
         firestoreService.fetchMutualConnections(userId: currentUserId) { result in
             DispatchQueue.main.async {
@@ -3321,18 +3424,18 @@ struct ModernMentionInputView: View {
             }
         }
     }
-    
+
     private func saveRecentUser(_ user: AppUser) {
         var recentIds = [String]()
-        
+
         if let data = UserDefaults.standard.data(forKey: "recentMentionedUsers"),
            let existingIds = try? JSONDecoder().decode([String].self, from: data) {
             recentIds = existingIds.filter { $0 != user.id }
         }
-        
+
         recentIds.insert(user.id, at: 0)
         recentIds = Array(recentIds.prefix(10)) // Mantener solo 10 recientes
-        
+
         if let data = try? JSONEncoder().encode(recentIds) {
             UserDefaults.standard.set(data, forKey: "recentMentionedUsers")
         }
@@ -3349,7 +3452,7 @@ struct StickerUserRowView: View {
     private var palette: StickerDetailPalette {
         StickerDetailPalette(colorScheme: colorScheme)
     }
-    
+
     var body: some View {
         Button(action: onTap) {
             HStack(spacing: 12) {
@@ -3384,14 +3487,14 @@ struct StickerUserRowView: View {
                     Circle()
                         .stroke(palette.divider, lineWidth: 0.5)
                 )
-                
+
                 // Info del usuario
                 VStack(alignment: .leading, spacing: 4) {
                     HStack(spacing: 6) {
                         Text("\(user.username)")
                             .font(.system(size: 16, weight: .semibold))
                             .foregroundColor(palette.primaryText)
-                        
+
                         // Badge de Plus subscriber si aplica
                         if user.isPlusSubscriber {
                             Image(systemName: "star.fill")
@@ -3399,30 +3502,30 @@ struct StickerUserRowView: View {
                                 .foregroundColor(.yellow)
                         }
                     }
-                    
+
                     if let bio = user.bio, !bio.isEmpty {
                         Text(bio)
                             .font(.system(size: 14, weight: .medium))
                             .foregroundColor(palette.secondaryText)
                             .lineLimit(1)
                     }
-                    
+
                     // Mostrar si es cuenta privada
                     if user.isPrivate {
                         HStack(spacing: 4) {
                             Image(systemName: "lock.fill")
                                 .font(.system(size: 10))
                                 .foregroundColor(palette.tertiaryText)
-                            
+
                             Text("stickerview.privateAccount")
                                 .font(.system(size: 11, weight: .medium))
                                 .foregroundColor(palette.tertiaryText)
                         }
                     }
                 }
-                
+
                 Spacer()
-                
+
                 // Flecha de selección
                 Image(systemName: "chevron.right")
                     .font(.system(size: 12, weight: .medium))
@@ -3441,7 +3544,7 @@ struct SkeletonUserRow: View {
     private var palette: StickerDetailPalette {
         StickerDetailPalette(colorScheme: colorScheme)
     }
-    
+
     var body: some View {
         HStack(spacing: 12) {
             // Avatar skeleton
@@ -3449,20 +3552,20 @@ struct SkeletonUserRow: View {
                 .fill(palette.skeletonFill)
                 .frame(width: 50, height: 50)
                 .shimmer(isAnimating)
-            
+
             // Text skeleton
             VStack(alignment: .leading, spacing: 6) {
                 RoundedRectangle(cornerRadius: 4)
                     .fill(palette.skeletonFill)
                     .frame(width: 120, height: 14)
                     .shimmer(isAnimating)
-                
+
                 RoundedRectangle(cornerRadius: 4)
                     .fill(palette.skeletonFill)
                     .frame(width: 80, height: 12)
                     .shimmer(isAnimating)
             }
-            
+
             Spacer()
         }
         .padding(.vertical, 12)
@@ -3481,17 +3584,17 @@ struct SectionHeader: View {
     private var palette: StickerDetailPalette {
         StickerDetailPalette(colorScheme: colorScheme)
     }
-    
+
     var body: some View {
         HStack(spacing: 8) {
             Image(systemName: icon)
                 .font(.system(size: 14, weight: .medium))
                 .foregroundColor(color)
-            
+
             Text(title)
                 .font(.system(size: 14, weight: .bold))
                 .foregroundColor(palette.primaryText)
-            
+
             Spacer()
         }
         .padding(.vertical, 12)
@@ -3506,18 +3609,18 @@ struct StickerEmptySearchView: View {
     private var palette: StickerDetailPalette {
         StickerDetailPalette(colorScheme: colorScheme)
     }
-    
+
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             Image(systemName: "person.2.slash")
                 .font(.system(size: 40))
                 .foregroundColor(palette.secondaryText)
-            
+
             VStack(alignment: .leading, spacing: 6) {
                 Text("stickerview.noUsersFound")
                     .font(.system(size: 16, weight: .semibold))
                     .foregroundColor(palette.primaryText)
-                
+
                 Text(String(format: NSLocalizedString("stickerview.tryDifferentUsername", comment: "Try different username"), searchQuery.lowercased()))
                     .font(.system(size: 14, weight: .medium))
                     .foregroundColor(palette.secondaryText)
@@ -3569,7 +3672,7 @@ struct ModernHashtagInputView: View {
     private var palette: StickerDetailPalette {
         StickerDetailPalette(colorScheme: colorScheme)
     }
-    
+
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
             VStack(alignment: .leading, spacing: 4) {
@@ -3588,7 +3691,7 @@ struct ModernHashtagInputView: View {
                         .font(.system(size: 20, weight: .bold))
                         .foregroundColor(.pink)
                         .frame(width: 18, alignment: .leading)
-                    
+
                     TextField(NSLocalizedString("stickerview.hashtag.placeholder", comment: "Hashtag placeholder"), text: $hashtag)
                         .font(.system(size: 18, weight: .medium))
                         .foregroundColor(palette.primaryText)
@@ -3606,7 +3709,7 @@ struct ModernHashtagInputView: View {
                                 .stroke(isTextFieldFocused ? Color.pink : palette.fieldStroke, lineWidth: 1.5)
                         )
                 )
-                
+
                 // Botón de acción
                 Button(action: {
                     onSelect(hashtag)
@@ -3614,7 +3717,7 @@ struct ModernHashtagInputView: View {
                     HStack(spacing: 10) {
                         Image(systemName: "tag.fill")
                             .font(.system(size: 18, weight: .medium))
-                        
+
                         Text("stickerview.addHashtag")
                             .font(.system(size: 18, weight: .semibold))
                     }
@@ -4033,22 +4136,22 @@ struct ModernQuizInputView: View {
     @State private var options = ["", "", ""]
     @State private var correctIndex = 0
     @FocusState private var focusedField: Int?
-    
+
     private var isDarkMode: Bool { colorScheme == .dark }
-    
+
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
             VStack(alignment: .leading, spacing: 8) {
                 Text(NSLocalizedString("quiz.title", comment: ""))
                     .font(.system(size: 24, weight: .black, design: .rounded))
                     .foregroundColor(isDarkMode ? .white : .black)
-                
+
                 Text(NSLocalizedString("quiz.subtitle", comment: ""))
                     .font(.system(size: 14, weight: .medium))
                     .foregroundColor(isDarkMode ? .white.opacity(0.6) : .black.opacity(0.5))
             }
             .padding(.bottom, 10)
-            
+
             // Campo de Pregunta
             VStack(alignment: .leading, spacing: 10) {
                 TextField(NSLocalizedString("quiz.question.placeholder", comment: ""), text: $question)
@@ -4057,12 +4160,12 @@ struct ModernQuizInputView: View {
                     .background(Color.white.opacity(isDarkMode ? 0.1 : 0.05))
                     .cornerRadius(16)
                     .focused($focusedField, equals: -1)
-                
+
                 // Opciones dinámicas
                 ForEach(0..<options.count, id: \.self) { index in
                     quizOptionField(index: index)
                 }
-                
+
                 // ✅ BOTÓN PARA AÑADIR OPCIÓN EXTRA (Máximo 4) - Liquid Glass Style
                 if options.count < 4 {
                     Button(action: {
@@ -4086,7 +4189,7 @@ struct ModernQuizInputView: View {
                     .padding(.top, 4)
                 }
             }
-            
+
             Button(action: {
                 let filledOptions = options.map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }.filter { !$0.isEmpty }
                 if !question.isEmpty && filledOptions.count >= 2 {
@@ -4107,7 +4210,7 @@ struct ModernQuizInputView: View {
             .padding(.top, 10)
             .disabled(question.isEmpty || options.filter({!$0.isEmpty}).count < 2)
             .opacity(question.isEmpty || options.filter({!$0.isEmpty}).count < 2 ? 0.5 : 1.0)
-            
+
             Spacer()
         }
         .padding(.horizontal, 20)
@@ -4121,16 +4224,16 @@ struct ModernQuizInputView: View {
             focusedField = -1
         }
     }
-    
+
     @ViewBuilder
     private func quizOptionField(index: Int) -> some View {
         HStack {
             TextField(NSLocalizedString("quiz.option.placeholder", comment: "") + " \(index + 1)", text: $options[index])
                 .font(.system(size: 16, weight: .medium))
                 .focused($focusedField, equals: index)
-            
+
             Spacer()
-            
+
             Button(action: {
                 correctIndex = index
                 HapticManager.shared.lightImpact()
@@ -4161,7 +4264,7 @@ struct ModernPollInputView: View {
 
     private let maxPollQuestionLength = 44
     private let maxPollOptionLength = 28
-    
+
     enum Field {
         case question, option1, option2
     }
@@ -4169,7 +4272,7 @@ struct ModernPollInputView: View {
     private var palette: StickerDetailPalette {
         StickerDetailPalette(colorScheme: colorScheme)
     }
-    
+
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
             VStack(alignment: .leading, spacing: 4) {
@@ -4188,7 +4291,7 @@ struct ModernPollInputView: View {
                         .font(.system(size: 12, weight: .bold))
                         .foregroundColor(palette.secondaryText)
                         .kerning(1)
-                    
+
                     TextField(NSLocalizedString("stickerview.poll.placeholder", comment: "Poll question placeholder"), text: $question)
                         .font(.system(size: 18, weight: .medium))
                         .foregroundColor(palette.primaryText)
@@ -4209,19 +4312,19 @@ struct ModernPollInputView: View {
                                 )
                         )
                 }
-                
+
                 VStack(alignment: .leading, spacing: 8) {
                     Text("stickerview.option1")
                         .font(.system(size: 12, weight: .bold))
                         .foregroundColor(palette.secondaryText)
                         .kerning(1)
-                    
+
                     HStack {
                         Image(systemName: "circle.fill")
                             .font(.system(size: 10))
                             .foregroundColor(.blue)
                             .frame(width: 14, alignment: .leading)
-                        
+
                         TextField(NSLocalizedString("stickerview.poll.option1Placeholder", comment: "First option placeholder"), text: $option1)
                             .font(.system(size: 18, weight: .medium))
                             .foregroundColor(palette.primaryText)
@@ -4243,19 +4346,19 @@ struct ModernPollInputView: View {
                             )
                     )
                 }
-                
+
                 VStack(alignment: .leading, spacing: 8) {
                     Text("stickerview.option2")
                         .font(.system(size: 12, weight: .bold))
                         .foregroundColor(palette.secondaryText)
                         .kerning(1)
-                    
+
                     HStack {
                         Image(systemName: "circle.fill")
                             .font(.system(size: 10))
                             .foregroundColor(.pink)
                             .frame(width: 14, alignment: .leading)
-                        
+
                         TextField(NSLocalizedString("stickerview.poll.option2Placeholder", comment: "Second option placeholder"), text: $option2)
                             .font(.system(size: 18, weight: .medium))
                             .foregroundColor(palette.primaryText)
@@ -4277,14 +4380,14 @@ struct ModernPollInputView: View {
                             )
                     )
                 }
-                
+
                 Button(action: {
                     onSelect([question, option1, option2])
                 }) {
                     HStack(spacing: 10) {
                         Image(systemName: "plus.circle.fill")
                             .font(.system(size: 18, weight: .medium))
-                        
+
                         Text("stickerview.createPoll")
                             .font(.system(size: 18, weight: .semibold))
                     }
@@ -4308,7 +4411,7 @@ struct ModernPollInputView: View {
             focusedField = .question
         }
     }
-    
+
     private var isFormValid: Bool {
         !question.isEmpty && !option1.isEmpty && !option2.isEmpty
     }
@@ -4325,7 +4428,7 @@ struct ModernQuestionInputView: View {
     private var palette: StickerDetailPalette {
         StickerDetailPalette(colorScheme: colorScheme)
     }
-    
+
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
             VStack(alignment: .leading, spacing: 4) {
@@ -4344,7 +4447,7 @@ struct ModernQuestionInputView: View {
                         .font(.system(size: 18, weight: .medium))
                         .foregroundColor(.teal)
                         .frame(width: 18, alignment: .leading)
-                    
+
                     TextField(NSLocalizedString("stickerview.question.placeholder", comment: "Question sticker placeholder"), text: $question)
                         .font(.system(size: 18, weight: .medium))
                         .foregroundColor(palette.primaryText)
@@ -4365,7 +4468,7 @@ struct ModernQuestionInputView: View {
                                 .stroke(isTextFieldFocused ? Color.purple : palette.fieldStroke, lineWidth: 1.5)
                         )
                 )
-                
+
                 // Botón de acción
                 Button(action: {
                     onSelect(question.isEmpty ? NSLocalizedString("stickerview.question.defaultPrompt", comment: "Default question prompt") : question)
@@ -4373,7 +4476,7 @@ struct ModernQuestionInputView: View {
                     HStack(spacing: 10) {
                         Image(systemName: "plus.circle.fill")
                             .font(.system(size: 18, weight: .medium))
-                        
+
                         Text("stickerview.addQuestion")
                             .font(.system(size: 18, weight: .semibold))
                     }
@@ -4401,12 +4504,12 @@ struct ModernQuestionInputView: View {
 
 struct ModernEmojiGridView: View {
     let onSelect: (String) -> Void
-    
+
     let emojis = ["😀", "😍", "🥳", "😎", "🤩", "😂", "🥺", "😭",
                   "😡", "🤯", "🥶", "🤗", "🙄", "😴", "🤔", "💀",
                   "❤️", "💔", "💯", "🔥", "⭐", "✨", "🎉", "🎈",
                   "👍", "👎", "👏", "🙏", "💪", "✌️", "🤟", "👌"]
-    
+
     var body: some View {
         LazyVGrid(columns: [
             GridItem(.flexible(), spacing: 15),
@@ -4445,28 +4548,28 @@ struct ModernEmojiGridView: View {
 // MARK: - Animated GIF View
 struct AnimatedGIFView: UIViewRepresentable {
     let url: URL?
-    
+
     func makeUIView(context: Context) -> UIImageView {
         let imageView = UIImageView()
         imageView.contentMode = .scaleAspectFit  // ✅ Cambio clave: aspectFit
         imageView.clipsToBounds = true
         imageView.backgroundColor = UIColor.clear
-        
+
         if let url = url {
             loadAnimatedGIF(url: url, into: imageView)
         }
-        
+
         return imageView
     }
-    
+
     func updateUIView(_ uiView: UIImageView, context: Context) {
         // No necesitamos actualizar
     }
-    
+
     private func loadAnimatedGIF(url: URL, into imageView: UIImageView) {
         URLSession.shared.dataTask(with: url) { data, _, error in
             guard let data = data, error == nil else { return }
-            
+
             DispatchQueue.main.async {
                 if let animatedImage = UIImage.animatedImageWithData(data) {
                     imageView.image = animatedImage
@@ -4484,44 +4587,44 @@ extension UIImage {
         guard let source = CGImageSourceCreateWithData(data as CFData, nil) else {
             return nil
         }
-        
+
         let count = CGImageSourceGetCount(source)
         guard count > 1 else {
             // Si solo hay una imagen, retornar imagen estática
             return UIImage(data: data)
         }
-        
+
         var images: [UIImage] = []
         var totalDuration: Double = 0
-        
+
         for i in 0..<count {
             guard let cgImage = CGImageSourceCreateImageAtIndex(source, i, nil) else { continue }
-            
+
             let image = UIImage(cgImage: cgImage)
             images.append(image)
-            
+
             // ✅ OBTENER DURACIÓN DEL FRAME
             var frameDuration: Double = 0.1 // Duración por defecto
-            
+
             if let properties = CGImageSourceCopyPropertiesAtIndex(source, i, nil) as? [CFString: Any],
                let gifProperties = properties[kCGImagePropertyGIFDictionary] as? [CFString: Any] {
-                
+
                 if let delayTime = gifProperties[kCGImagePropertyGIFDelayTime] as? Double {
                     frameDuration = delayTime
                 } else if let delayTime = gifProperties[kCGImagePropertyGIFUnclampedDelayTime] as? Double {
                     frameDuration = delayTime
                 }
-                
+
                 // ✅ MÍNIMO 0.02 segundos para evitar animaciones demasiado rápidas
                 frameDuration = max(frameDuration, 0.02)
             }
-            
+
             totalDuration += frameDuration
         }
-        
+
         // ✅ CREAR IMAGEN ANIMADA
         guard !images.isEmpty else { return nil }
-        
+
         return UIImage.animatedImage(with: images, duration: totalDuration)
     }
 }
@@ -4529,7 +4632,7 @@ extension UIImage {
 struct ModernGiphyGridView: View {
     let gifs: [GiphyGif]
     let onSelect: (GiphyGif) -> Void
-    
+
     var body: some View {
         LazyVGrid(columns: [
             GridItem(.flexible(), spacing: 12),
@@ -4613,7 +4716,7 @@ extension View {
             .shadow(color: color, radius: radius / 3)
             .shadow(color: color, radius: radius / 3)
     }
-    
+
     func pressAnimation() -> some View {
         self.scaleEffect(1.0)
             .animation(.spring(response: 0.3, dampingFraction: 0.6), value: UUID())
@@ -4626,7 +4729,7 @@ struct MeshGradient: View {
     let height: Int
     let points: [[Float]]
     let colors: [Color]
-    
+
     var body: some View {
         LinearGradient(
             colors: [colors.first ?? .black, colors.last ?? .black],
@@ -4652,15 +4755,15 @@ extension StickerPickerView {
     // ✅ Función para enviar notificaciones de menciones al publicar historia
     static func sendMentionNotificationsForStory(storyId: String, stickers: [StickerItem]) {
         guard let currentUserId = Auth.auth().currentUser?.uid else { return }
-        
+
         // ✅ Filtrar solo stickers de menciones
         let mentionStickers = stickers.filter { $0.type == .mention }
-        
+
         for sticker in mentionStickers {
             if let interactionData = sticker.interactionData,
                let userId = interactionData.userId,
                let username = interactionData.username {
-                
+
                 // ✅ Enviar notificación con storyId real
                 Task { @MainActor in
                     NotificationService.shared.sendMentionNotification(
@@ -4668,11 +4771,11 @@ extension StickerPickerView {
                         storyId: storyId
                     )
                 }
-                
+
             }
         }
     }
-    
+
     // ✅ Función auxiliar para extraer userId de sticker de mención
     private func extractUserIdFromMentionSticker(_ sticker: StickerItem) -> String? {
         if let interactionData = sticker.interactionData {
@@ -4689,23 +4792,23 @@ struct SelfieCameraView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var showingImagePicker = false
     let onImageCaptured: (UIImage) -> Void
-    
+
     var body: some View {
         NavigationView {
             VStack {
                 Spacer()
-                
+
                 Text("stickerview.selfie")
                     .font(.largeTitle)
                     .fontWeight(.bold)
                     .foregroundColor(.white)
-                
+
                 Text("stickerview.tapForFrontCamera")
                     .font(.body)
                     .foregroundColor(.white.opacity(0.8))
                     .multilineTextAlignment(.center)
                     .padding()
-                
+
                 Button(action: {
                     showingImagePicker = true
                 }) {
@@ -4719,14 +4822,14 @@ struct SelfieCameraView: View {
                                 )
                             )
                             .frame(width: 120, height: 120)
-                        
+
                         Image(systemName: "camera.fill")
                             .font(.system(size: 40))
                             .foregroundColor(.white)
                     }
                 }
                 .padding()
-                
+
                 Spacer()
             }
             .background(
@@ -4762,7 +4865,7 @@ struct ImagePicker: UIViewControllerRepresentable {
     let cameraDevice: UIImagePickerController.CameraDevice?
     let onImagePicked: (UIImage) -> Void
     let onCancel: (() -> Void)?
-    
+
     init(
         sourceType: UIImagePickerController.SourceType,
         cameraDevice: UIImagePickerController.CameraDevice? = nil,
@@ -4774,7 +4877,7 @@ struct ImagePicker: UIViewControllerRepresentable {
         self.onImagePicked = onImagePicked
         self.onCancel = onCancel
     }
-    
+
     func makeUIViewController(context: Context) -> UIImagePickerController {
         let picker = UIImagePickerController()
         picker.sourceType = sourceType
@@ -4784,30 +4887,299 @@ struct ImagePicker: UIViewControllerRepresentable {
         picker.delegate = context.coordinator
         return picker
     }
-    
+
     func updateUIViewController(_ uiViewController: UIImagePickerController, context: Context) {}
-    
+
     func makeCoordinator() -> Coordinator {
         Coordinator(self)
     }
-    
+
     class Coordinator: NSObject, UIImagePickerControllerDelegate, UINavigationControllerDelegate {
         let parent: ImagePicker
-        
+
         init(_ parent: ImagePicker) {
             self.parent = parent
         }
-        
+
         func imagePickerController(_ picker: UIImagePickerController, didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey : Any]) {
             if let image = info[.originalImage] as? UIImage {
                 parent.onImagePicked(image)
             }
             picker.dismiss(animated: true)
         }
-        
+
         func imagePickerControllerDidCancel(_ picker: UIImagePickerController) {
             parent.onCancel?()
             picker.dismiss(animated: true)
         }
+    }
+}
+
+struct AudioStickerRecordingView: View {
+    let onAdd: (Data, Double) -> Void
+
+    @StateObject private var recorder = AudioRecordingManager.shared
+    @State private var isRecording = false
+    @State private var recordedData: Data?
+    @State private var duration: Double = 0
+    @State private var timer: Timer?
+    @State private var isPlaying = false
+    @State private var audioPlayer: AVAudioPlayer?
+    @State private var playbackTimer: Timer?
+    @State private var playbackProgress: Double = 0
+    // Stable waveform levels generated once per recording
+    @State private var waveformLevels: [Float] = (0..<30).map { _ in Float.random(in: 0.2...0.8) }
+
+    var body: some View {
+        VStack(spacing: 20) {
+            // — Title —
+            Text(NSLocalizedString("stickerview.audio.title", comment: "Add your voice"))
+                .font(.system(size: 18, weight: .black, design: .rounded))
+                .padding(.top, 8)
+
+            // — Waveform / Mic area (tappable when recorded) —
+            ZStack {
+                if isRecording {
+                    LiveWaveformView(color: Color(red: 1.0, green: 0.4, blue: 0.3))
+                        .frame(height: 44)
+                } else if recordedData != nil {
+                    VisualWaveformView(
+                        levels: waveformLevels,
+                        color: Color.white.opacity(0.2),
+                        activeColor: Color(red: 1.0, green: 0.4, blue: 0.3),
+                        progress: playbackProgress,
+                        height: 35
+                    )
+                    .frame(height: 44)
+                    .contentShape(Rectangle())
+                    .onTapGesture { togglePlayback() }
+                } else {
+                    Image(systemName: "mic.fill")
+                        .font(.system(size: 30))
+                        .foregroundColor(.secondary)
+                        .opacity(0.5)
+                        .frame(height: 44)
+                }
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 12)
+            .background(
+                RoundedRectangle(cornerRadius: 20)
+                    .fill(Color.clear)
+                    .liquidGlass(in: RoundedRectangle(cornerRadius: 20))
+            )
+            .padding(.vertical, 6)
+
+            // — Duration + state label —
+            VStack(spacing: 6) {
+                Text(formatDuration(duration))
+                    .font(.system(size: 20, weight: .bold, design: .monospaced))
+                    .foregroundColor(isRecording ? .red : .primary)
+                    .contentTransition(.numericText())
+
+                Text(statusLabel)
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundColor(.secondary)
+                    .multilineTextAlignment(.center)
+            }
+
+            // — Controls row —
+            HStack(spacing: 32) {
+                // Discard (Icon only, Red)
+                if recordedData != nil && !isRecording {
+                    Button(action: discardRecording) {
+                        ZStack {
+                            Circle()
+                                .fill(Color.clear)
+                                .frame(width: 44, height: 44)
+                                .liquidGlass(in: Circle(), interactive: true)
+
+                            Image(systemName: "trash.fill")
+                                .font(.system(size: 18, weight: .semibold))
+                                .foregroundColor(.red)
+                        }
+                    }
+                }
+
+                // Record / Stop (Liquid Glass circle + Red icon)
+                Button(action: toggleRecording) {
+                    ZStack {
+                        Circle()
+                            .fill(Color.clear)
+                            .frame(width: 72, height: 72)
+                            .liquidGlass(in: Circle(), interactive: true)
+
+                        if isRecording {
+                            RoundedRectangle(cornerRadius: 4)
+                                .fill(.red)
+                                .frame(width: 22, height: 22)
+                        } else {
+                            Image(systemName: "mic.fill")
+                                .font(.system(size: 28))
+                                .foregroundColor(.red)
+                        }
+                    }
+                }
+                .scaleEffect(isRecording ? 1.08 : 1.0)
+                .animation(.spring(response: 0.35, dampingFraction: 0.7), value: isRecording)
+
+                // Play / Pause (Icon only)
+                if recordedData != nil && !isRecording {
+                    Button(action: togglePlayback) {
+                        ZStack {
+                            Circle()
+                                .fill(Color.clear)
+                                .frame(width: 44, height: 44)
+                                .liquidGlass(in: Circle(), interactive: true)
+
+                            Image(systemName: isPlaying ? "pause.fill" : "play.fill")
+                                .font(.system(size: 18, weight: .semibold))
+                                .foregroundColor(.primary)
+                        }
+                    }
+                    .contentTransition(.symbolEffect(.replace))
+                }
+            }
+            .padding(.vertical, 8)
+
+            // — Add to story button (Premium Liquid Glass Pill) —
+            if let data = recordedData, !isRecording {
+                Button(action: {
+                    HapticManager.shared.mediumImpact()
+                    onAdd(data, duration)
+                }) {
+                    Text(NSLocalizedString("stickerview.audio.add", comment: "Add to Story"))
+                        .font(.system(size: 15, weight: .bold, design: .rounded))
+                        .foregroundColor(.primary)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 14)
+                        .background(
+                            Capsule()
+                                .fill(Color.clear)
+                                .liquidGlass(in: Capsule(), interactive: true)
+                        )
+                }
+                .padding(.horizontal, 20)
+                .padding(.bottom, 8)
+                .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
+        }
+        .padding(.horizontal, 24)
+        .padding(.bottom, 16)
+        .onAppear {
+            // Auto-play when sheet opens (if there's already a recording)
+            if recordedData != nil {
+                startPlayback()
+            }
+        }
+        .onDisappear {
+            stopEverything()
+        }
+    }
+
+    private var statusLabel: String {
+        if isRecording { return NSLocalizedString("stickerview.audio.recording", comment: "Recording...") }
+        if recordedData != nil { return isPlaying ? "▶ \(NSLocalizedString("stickerview.audio.recorded", comment: "Ready to add"))" : NSLocalizedString("stickerview.audio.recorded", comment: "Ready to add") }
+        return NSLocalizedString("stickerview.audio.tapToRecord", comment: "Tap to record")
+    }
+
+    private func toggleRecording() {
+        if isRecording {
+            stopRecording()
+        } else {
+            startRecording()
+        }
+    }
+
+    private func startRecording() {
+        stopPlayback()
+        recordedData = nil
+        duration = 0
+        playbackProgress = 0
+        waveformLevels = (0..<30).map { _ in Float.random(in: 0.2...0.8) }
+        isRecording = true
+        recorder.startRecording()
+
+        timer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { _ in
+            duration += 0.1
+            if duration >= 15 {
+                stopRecording()
+            }
+        }
+    }
+
+    private func stopRecording() {
+        isRecording = false
+        timer?.invalidate()
+        timer = nil
+
+        recorder.stopRecording { data in
+            self.recordedData = data
+            // Auto-play the just-recorded clip
+            if data != nil {
+                self.startPlayback()
+            }
+        }
+    }
+
+    private func discardRecording() {
+        stopPlayback()
+        recordedData = nil
+        duration = 0
+        playbackProgress = 0
+    }
+
+    private func togglePlayback() {
+        if isPlaying { stopPlayback() } else { startPlayback() }
+    }
+
+    private func startPlayback() {
+        guard let data = recordedData else { return }
+        do {
+            let session = AVAudioSession.sharedInstance()
+
+            // La preview del sheet debe sonar aunque el dispositivo esté en silencio.
+            try session.setCategory(.playback, mode: .default)
+            try session.setActive(true)
+
+            audioPlayer = try AVAudioPlayer(data: data)
+            audioPlayer?.play()
+            isPlaying = true
+
+            playbackTimer = Timer.scheduledTimer(withTimeInterval: 0.05, repeats: true) { _ in
+                if let player = audioPlayer {
+                    withAnimation(.linear(duration: 0.05)) {
+                        playbackProgress = player.currentTime / player.duration
+                    }
+                    if !player.isPlaying {
+                        stopPlayback()
+                    }
+                }
+            }
+        } catch {
+            print("Failed to play: \(error)")
+        }
+    }
+
+    private func stopPlayback() {
+        audioPlayer?.stop()
+        audioPlayer = nil
+        isPlaying = false
+        playbackProgress = 0
+        playbackTimer?.invalidate()
+        playbackTimer = nil
+        try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+    }
+
+    private func stopEverything() {
+        if isRecording { recorder.stopRecording { _ in } }
+        stopPlayback()
+        timer?.invalidate()
+    }
+
+    private func formatDuration(_ time: Double) -> String {
+        let seconds = Int(time)
+        let millis = Int((time - Double(seconds)) * 10)
+        return String(format: "00:%02d.%d", seconds, millis)
     }
 }

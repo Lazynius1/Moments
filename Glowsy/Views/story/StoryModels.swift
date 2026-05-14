@@ -1459,7 +1459,7 @@ struct GlassmorphicStoryViewer: View {
 
     @ViewBuilder
     private func geometryStackView(for geometry: GeometryProxy) -> some View {
-        let hasReveal = storyStickers.contains { $0.type == .reveal }
+        let revealSticker = storyStickers.first { $0.type == .reveal }
 
         ZStack {
             // MARK: - 1. CONTENIDO MULTIMEDIA (Fijo en el centro - NUNCA SE MUEVE)
@@ -1490,11 +1490,15 @@ struct GlassmorphicStoryViewer: View {
                 .position(x: geometry.size.width / 2, y: geometry.size.height / 2)
 
             // MARK: - 3.5 REVEAL OVERLAY (sobre contenido, debajo de la UI)
-            if hasReveal {
+            if let revealSticker = revealSticker {
                 InteractiveRevealSticker(
                     storyId: story.id ?? "",
                     onPauseStory: { pauseStory() },
-                    onResumeStory: { resumeStory() }
+                    onResumeStory: { resumeStory() },
+                    revealType: revealSticker.interactionData?.revealType,
+                    revealPattern: revealSticker.interactionData?.revealPattern,
+                    revealPrimaryColor: revealSticker.interactionData?.revealPrimaryColor,
+                    revealSecondaryColor: revealSticker.interactionData?.revealSecondaryColor
                 )
                 .frame(width: geometry.size.width, height: geometry.size.height)
                 .position(x: geometry.size.width / 2, y: geometry.size.height / 2)
@@ -5136,6 +5140,7 @@ struct InteractivePollData {
 struct InteractivePollOverlay: View {
     let pollData: [String]
     let storyId: String
+    let userId: String
     let stickerId: String
     @Environment(\.dismiss) private var dismiss
     @State private var selectedOption: Int? = nil
@@ -5213,8 +5218,8 @@ struct InteractivePollOverlay: View {
             "timestamp": FieldValue.serverTimestamp()
         ]
 
-        Firestore.firestore().collection("stories").document(storyId)
-            .collection("pollVotes").document(currentUserId)
+        pollVotesCollection()
+            .document(currentUserId)
             .setData(voteData) { error in
                 if error == nil {
                     DispatchQueue.main.async {
@@ -5226,8 +5231,8 @@ struct InteractivePollOverlay: View {
     }
 
     private func loadVoteCounts() {
-        Firestore.firestore().collection("stories").document(storyId)
-            .collection("pollVotes").getDocuments { snapshot, error in
+        pollVotesCollection()
+            .getDocuments { snapshot, error in
                 guard let documents = snapshot?.documents else { return }
 
                 var counts: [Int: Int] = [0: 0, 1: 0]
@@ -5243,6 +5248,14 @@ struct InteractivePollOverlay: View {
                 }
             }
     }
+
+    private func pollVotesCollection() -> CollectionReference {
+        Firestore.firestore()
+            .collection("users").document(userId)
+            .collection("stories").document(storyId)
+            .collection("pollVotes").document(stickerId)
+            .collection("votes")
+    }
 }
 
 // MARK: - Interactive Poll Sticker (Estilo Nativo)
@@ -5250,6 +5263,7 @@ struct InteractivePollSticker: View {
     let pollData: [String]
     let storyId: String
     let userId: String
+    let stickerId: String
     @Binding var selectedOption: Int?
     @Binding var hasVoted: Bool
     @Binding var voteCounts: [Int: Int]
@@ -5302,18 +5316,15 @@ struct InteractivePollSticker: View {
         // ✅ Cargar votos reales desde Firestore
         guard !storyId.isEmpty else { return }
 
-        // Usar el userId real del story
-        Firestore.firestore().collection("users").document(userId)
-            .collection("stories").document(storyId)
-            .collection("pollVotes").getDocuments { snapshot, error in
+        pollVotesCollection()
+            .getDocuments { snapshot, error in
                 guard let documents = snapshot?.documents else {
                     return
                 }
 
                 var counts: [Int: Int] = [0: 0, 1: 0]
                 for doc in documents {
-                    if doc.documentID != "metadata", // Excluir metadata
-                       let option = doc.data()["option"] as? Int {
+                    if let option = doc.data()["option"] as? Int {
                         counts[option, default: 0] += 1
                     }
                 }
@@ -5326,9 +5337,8 @@ struct InteractivePollSticker: View {
 
         guard let currentUserId = Auth.auth().currentUser?.uid else { return }
 
-        Firestore.firestore().collection("users").document(userId)
-            .collection("stories").document(storyId)
-            .collection("pollVotes").document(currentUserId)
+        pollVotesCollection()
+            .document(currentUserId)
             .getDocument { snapshot, error in
                 guard let data = snapshot?.data(),
                       let option = data["option"] as? Int else { return }
@@ -5338,6 +5348,14 @@ struct InteractivePollSticker: View {
                     hasVoted = true
                 }
             }
+    }
+
+    private func pollVotesCollection() -> CollectionReference {
+        Firestore.firestore()
+            .collection("users").document(userId)
+            .collection("stories").document(storyId)
+            .collection("pollVotes").document(stickerId)
+            .collection("votes")
     }
 }
 
@@ -5440,6 +5458,8 @@ struct InteractivePollOption: View {
 struct PollVoteView: View {
     let pollData: [String]
     let storyId: String
+    let userId: String
+    let stickerId: String
     @Environment(\.dismiss) private var dismiss
     @State private var selectedOption: Int? = nil
     @State private var hasVoted = false
@@ -5539,8 +5559,8 @@ struct PollVoteView: View {
             "timestamp": FieldValue.serverTimestamp()
         ]
 
-        Firestore.firestore().collection("stories").document(storyId)
-            .collection("pollVotes").document(currentUserId)
+        pollVotesCollection()
+            .document(currentUserId)
             .setData(voteData) { error in
                 if error == nil {
                     DispatchQueue.main.async {
@@ -5552,8 +5572,8 @@ struct PollVoteView: View {
     }
 
     private func loadVoteCounts() {
-        Firestore.firestore().collection("stories").document(storyId)
-            .collection("pollVotes").getDocuments { snapshot, error in
+        pollVotesCollection()
+            .getDocuments { snapshot, error in
                 guard let documents = snapshot?.documents else { return }
 
                 var counts: [Int: Int] = [0: 0, 1: 0]
@@ -5567,6 +5587,14 @@ struct PollVoteView: View {
                     voteCounts = counts
                 }
             }
+    }
+
+    private func pollVotesCollection() -> CollectionReference {
+        Firestore.firestore()
+            .collection("users").document(userId)
+            .collection("stories").document(storyId)
+            .collection("pollVotes").document(stickerId)
+            .collection("votes")
     }
 }
 
@@ -5983,6 +6011,7 @@ struct StoryStickerView: View {
                 pollData: pollData,
                 storyId: storyId,
                 userId: userId,
+                stickerId: sticker.id,
                 selectedOption: $selectedPollOption,
                 hasVoted: $hasVoted,
                 voteCounts: $voteCounts,
@@ -6000,6 +6029,7 @@ struct StoryStickerView: View {
                 questionText: questionText,
                 storyId: storyId,
                 userId: userId,
+                stickerId: sticker.id,
                 onPauseStory: onPauseStory,
                 onResumeStory: onResumeStory
             )
@@ -6088,6 +6118,13 @@ struct StoryStickerView: View {
                 stickerId: sticker.id
             )
             .frame(width: emojiSliderRenderingSize(prompt: sliderPrompt).width, height: emojiSliderRenderingSize(prompt: sliderPrompt).height)
+            .scaleEffect(sticker.scale)
+            .rotationEffect(sticker.rotation)
+        } else if sticker.type == .audio, let audioURL = sticker.interactionData?.audioURL {
+            InteractiveAudioStickerView(
+                audioURL: audioURL,
+                duration: sticker.interactionData?.audioDuration ?? 15.0
+            )
             .scaleEffect(sticker.scale)
             .rotationEffect(sticker.rotation)
         } else if sticker.type == .weather, let weatherSymbol = sticker.interactionData?.weatherSymbol {
@@ -6195,10 +6232,14 @@ struct StoryStickerView: View {
         guard let currentUserId = Auth.auth().currentUser?.uid,
               !storyId.isEmpty else { return }
 
-        // Verificar si ya votó
-        Firestore.firestore().collection("users").document(userId)
+        let pollVotesRef = Firestore.firestore()
+            .collection("users").document(userId)
             .collection("stories").document(storyId)
-            .collection("pollVotes").document(currentUserId)
+            .collection("pollVotes").document(sticker.id)
+            .collection("votes")
+
+        // Verificar si ya votó
+        pollVotesRef.document(currentUserId)
             .getDocument { snapshot, error in
                 if let snapshot = snapshot, snapshot.exists {
                     if let option = snapshot.data()?["option"] as? Int {
@@ -6217,9 +6258,7 @@ struct StoryStickerView: View {
                     "timestamp": FieldValue.serverTimestamp()
                 ]
 
-                Firestore.firestore().collection("users").document(userId)
-                    .collection("stories").document(storyId)
-                    .collection("pollVotes").document(currentUserId)
+                pollVotesRef.document(currentUserId)
                     .setData(voteData) { error in
                         if error == nil {
                             DispatchQueue.main.async {
@@ -6240,6 +6279,7 @@ struct InteractiveQuestionSticker: View {
     let questionText: String
     let storyId: String
     let userId: String
+    let stickerId: String
     let onPauseStory: () -> Void
     let onResumeStory: () -> Void
 
@@ -6305,6 +6345,7 @@ struct InteractiveQuestionSticker: View {
                 questionText: questionText,
                 storyId: storyId,
                 userId: userId,
+                stickerId: stickerId,
                 onResponseSubmitted: { count in
                     responseCount = count
                     hasResponded = true
@@ -6322,7 +6363,8 @@ struct InteractiveQuestionSticker: View {
             QuestionResponsesView(
                 questionText: questionText,
                 storyId: storyId,
-                userId: userId
+                userId: userId,
+                stickerId: stickerId
             )
             .onAppear {
                 onPauseStory()
@@ -6350,9 +6392,8 @@ struct InteractiveQuestionSticker: View {
     }
 
     private func loadResponseCount() {
-        let db = Firestore.firestore()
-        db.collection("users").document(userId).collection("stories").document(storyId)
-            .collection("questionResponses").getDocuments { snapshot, error in
+        questionResponsesCollection()
+            .getDocuments { snapshot, error in
                 if let documents = snapshot?.documents {
                     DispatchQueue.main.async {
                         self.responseCount = documents.count
@@ -6364,9 +6405,8 @@ struct InteractiveQuestionSticker: View {
     private func checkIfUserHasResponded() {
         guard let currentUserId = Auth.auth().currentUser?.uid else { return }
 
-        let db = Firestore.firestore()
-        db.collection("users").document(userId).collection("stories").document(storyId)
-            .collection("questionResponses").whereField("userId", isEqualTo: currentUserId)
+        questionResponsesCollection()
+            .whereField("userId", isEqualTo: currentUserId)
             .getDocuments { snapshot, error in
                 DispatchQueue.main.async {
                     self.hasResponded = !(snapshot?.documents.isEmpty ?? true)
@@ -6380,6 +6420,14 @@ struct InteractiveQuestionSticker: View {
             self.isAuthor = currentUserId == userId
         }
     }
+
+    private func questionResponsesCollection() -> CollectionReference {
+        Firestore.firestore()
+            .collection("users").document(userId)
+            .collection("stories").document(storyId)
+            .collection("questionResponses").document(stickerId)
+            .collection("responses")
+    }
 }
 
 
@@ -6389,6 +6437,7 @@ struct QuestionResponseInputView: View {
     let questionText: String
     let storyId: String
     let userId: String
+    let stickerId: String
     let onResponseSubmitted: (Int) -> Void
 
     @Environment(\.dismiss) private var dismiss
@@ -6513,9 +6562,13 @@ struct QuestionResponseInputView: View {
             response: responseText.trimmingCharacters(in: .whitespacesAndNewlines)
         )
 
-        let db = Firestore.firestore()
-        db.collection("users").document(userId).collection("stories").document(storyId)
-            .collection("questionResponses").document(response.id).setData([
+        let responsesRef = Firestore.firestore()
+            .collection("users").document(userId)
+            .collection("stories").document(storyId)
+            .collection("questionResponses").document(stickerId)
+            .collection("responses")
+
+        responsesRef.document(response.id).setData([
                 "userId": response.userId,
                 "response": response.response,
                 "timestamp": Timestamp(date: response.timestamp),
@@ -6525,8 +6578,7 @@ struct QuestionResponseInputView: View {
                     isLoading = false
                     if error == nil {
                         // Actualizar contador de respuestas
-                        db.collection("users").document(userId).collection("stories").document(storyId)
-                            .collection("questionResponses").getDocuments { snapshot, error in
+                        responsesRef.getDocuments { snapshot, error in
                                 let count = snapshot?.documents.count ?? 0
                                 onResponseSubmitted(count)
                             }

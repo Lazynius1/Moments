@@ -91,13 +91,13 @@ struct EchoViewerUI: View {
                     // Overlay UI
                     VStack(spacing: 0) {
                         Color.clear.frame(height: max(geometry.safeAreaInsets.top, 47) + 8)
-                        
+
                         headerUI()
-                        
+
                         locationContextBox(echo: echo)
-                        
+
                         Spacer()
-                        
+
                         perspectiveSwitcher(echo: echo)
                     }
                     .padding(.bottom, 0)

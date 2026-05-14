@@ -2,8 +2,34 @@
 "storyEditor.customAudience.multiple" = "%d people";
 "storyEditor.loadingSettings" = "Loading...";
 "storyEditor.savedToGallery" = "Story saved to your gallery";
-"storyEditor.reveal.active" = "Reveal effect active";
-"storyEditor.error.publishStart" = "Couldn't start story upload";
+"storyEditor.reveal.active" = "Reveal effect active, tap to customize";
+"revealEditor.title" = "Customize Reveal";
+"revealEditor.tab.presets" = "Presets";
+"revealEditor.tab.custom" = "Custom";
+"revealEditor.pattern.none" = "None";
+"revealEditor.pattern.dots" = "Dots";
+"revealEditor.pattern.noise" = "Noise";
+"revealEditor.pattern.grid" = "Grid";
+"revealEditor.pattern.lines" = "Lines";
+"revealEditor.pattern.scanlines" = "CRT (Scanlines)";
+"revealEditor.pattern.waves" = "Waves";
+"revealEditor.pattern.static" = "Static (TV)";
+"revealEditor.pattern.matrix" = "Matrix (Digital)";
+"revealEditor.pattern.holographic" = "Holographic";
+"revealEditor.color1" = "Color 1";
+"revealEditor.color2" = "Color 2";
+"revealEditor.colorPicker.primary" = "Select Color";
+"revealEditor.colorPicker.secondary" = "Select Secondary Color";
+"revealEditor.preset.classic" = "Classic";
+"revealEditor.preset.midnight" = "Midnight";
+"revealEditor.preset.golden" = "Golden";
+"revealEditor.preset.neon" = "Neon Glow";
+"revealEditor.preset.silver" = "Silver";
+"revealEditor.preset.retro" = "Old TV";
+"revealEditor.preset.matrix" = "Matrix";
+"revealEditor.preset.blueprint" = "Blueprint";
+"revealEditor.preset.magic" = "Magic";
+"storyEditor.error.publishStart" = "Could not start story upload";
 
 /* Story Chains */
 "storyEditor.customAudience.single" = "%d person";
@@ -1119,7 +1145,7 @@
 "stickerview.category.location" = "Location";
 "stickerview.category.mention" = "Mention";
 "stickerview.category.link" = "Link";
-"stickerview.category.hashtag" = "#hashtag";
+"stickerview.category.hashtag" = "hashtag";
 "stickerview.category.poll" = "Poll";
 "stickerview.category.question" = "Questions";
 "stickerview.category.emojiSlider" = "Emoji slider";
@@ -3113,3 +3139,10 @@
 "reveal.addLayer" = "ADD LAYER";
 "reveal.viewerHint" = "Scratch to reveal";
 "storyEditor.polaroid.addNote" = "Add a note...";
+"stickerview.audio.title" = "Add your voice";
+"stickerview.audio.recording" = "Recording...";
+"stickerview.audio.recorded" = "Ready to add";
+"stickerview.audio.tapToRecord" = "Tap to record";
+"stickerview.audio.add" = "Add to Story";
+
+"stickerview.category.audio" = "Audio";

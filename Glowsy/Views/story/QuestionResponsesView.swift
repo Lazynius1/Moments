@@ -6,6 +6,7 @@ struct QuestionResponsesView: View {
     let questionText: String
     let storyId: String
     let userId: String
+    let stickerId: String
 
     @Environment(\.dismiss) private var dismiss
     @State private var responses: [QuestionResponse] = []
@@ -232,7 +233,8 @@ struct QuestionResponsesView: View {
     private func loadResponses() {
         let db = Firestore.firestore()
         db.collection("users").document(userId).collection("stories").document(storyId)
-            .collection("questionResponses")
+            .collection("questionResponses").document(stickerId)
+            .collection("responses")
             .order(by: "timestamp", descending: false)
             .getDocuments { snapshot, _ in
                 DispatchQueue.main.async {

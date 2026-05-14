@@ -6686,6 +6686,9 @@ struct StoryOverlaysView: View {
     @State private var originalStickerTransform: (pos: CGPoint, scale: CGFloat, rot: Angle)? = nil
     @State private var keyboardHeight: CGFloat = 0
 
+    // ✨ NUEVO: Estado para editar el diseño del Reveal
+    @State private var editingRevealId: String? = nil
+
     var body: some View {
         ZStack {
             // Drawing overlay
@@ -6766,12 +6769,12 @@ struct StoryOverlaysView: View {
                                         height: value.startLocation.y - textPosition.y
                                     )
                                 }
-                                
+
                                 let newPos = CGPoint(
                                     x: value.location.x - dragOffset.width,
                                     y: value.location.y - dragOffset.height
                                 )
-                                
+
                                 textPosition = newPos
 
                                 if !isDraggingItem {
@@ -6872,26 +6875,36 @@ struct StoryOverlaysView: View {
             if stickers.contains(where: { $0.type == .reveal }) {
                 VStack {
                     HStack {
-                        HStack(spacing: 8) {
+                        Spacer()
+                        HStack(spacing: 6) {
                             Image(systemName: "magicmouse.fill")
-                                .font(.system(size: 14))
+                                .font(.system(size: 12))
                             Text(NSLocalizedString("storyEditor.reveal.active", comment: "Reveal effect active status"))
-                                .font(.custom("Poppins-Medium", size: 13))
-                            
+                                .font(.custom("Poppins-Medium", size: 11))
+
                             Button {
                                 withAnimation(.spring()) {
                                     stickers.removeAll(where: { $0.type == .reveal })
                                 }
                             } label: {
                                 Image(systemName: "xmark.circle.fill")
-                                    .font(.system(size: 18))
+                                    .font(.system(size: 14))
                                     .foregroundColor(.white.opacity(0.6))
                             }
                         }
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 10)
-                        .liquidGlass(in: Capsule())
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 6)
+                        .liquidGlass(in: Capsule(), interactive: true)
                         .shadow(color: .black.opacity(0.2), radius: 10, y: 5)
+                        .onTapGesture {
+                            if let revealSticker = stickers.first(where: { $0.type == .reveal }) {
+                                withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
+                                    editingRevealId = revealSticker.id
+                                }
+                                HapticManager.shared.mediumImpact()
+                            }
+                        }
+                        Spacer()
                     }
                     .padding(.top, 100) // Debajo de los controles superiores
                     Spacer()
@@ -6944,7 +6957,7 @@ struct StoryOverlaysView: View {
                 }
                 .transition(.move(edge: .bottom).combined(with: .opacity))
             }
-            
+
             // 📸 FONDO OSCURO DE EDICIÓN (Dentro del ZStack para controlar el zIndex)
             if editingPolaroidId != nil {
                 Color.black.opacity(0.8)
@@ -6954,7 +6967,7 @@ struct StoryOverlaysView: View {
                         savePolaroidCaption()
                     }
                     .transition(.opacity)
-                
+
                 // INPUT DE TEXTO (Encima de todo)
                 VStack {
                     Spacer()
@@ -6985,11 +6998,26 @@ struct StoryOverlaysView: View {
                     }
                 }
             }
+
+            // ✨ REVEAL EDITOR OVERLAY
+            if editingRevealId != nil {
+                RevealStickerEditorView(
+                    stickers: $stickers,
+                    editingId: $editingRevealId
+                )
+                .zIndex(3000)
+                .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
         }
         .onChange(of: editingPolaroidId) { _, newValue in
             // ✅ AVISAR AL PADRE PARA OCULTAR LA UI
             withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-                isEditingSticker = newValue != nil
+                isEditingSticker = newValue != nil || editingRevealId != nil
+            }
+        }
+        .onChange(of: editingRevealId) { _, newValue in
+            withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                isEditingSticker = newValue != nil || editingPolaroidId != nil
             }
         }
         .coordinateSpace(name: "storyCanvas")
@@ -7061,17 +7089,17 @@ struct StoryOverlaysView: View {
             if let index = stickers.firstIndex(where: { $0.id == sticker.id }) {
                 let original = stickers[index]
                 originalStickerTransform = (original.position, original.scale, original.rotation)
-                
+
                 editingPolaroidId = sticker.id
                 polaroidCaptionBuffer = sticker.interactionData?.caption ?? ""
-                
+
                 withAnimation(.spring(response: 0.45, dampingFraction: 0.75)) {
                     // Mover al centro (un poco arriba por el teclado) y ampliar
                     stickers[index].position = CGPoint(x: UIScreen.main.bounds.width / 2, y: UIScreen.main.bounds.height / 3)
                     stickers[index].scale = 1.4
                     stickers[index].rotation = .zero
                 }
-                
+
                 let haptic = UIImpactFeedbackGenerator(style: .medium)
                 haptic.impactOccurred()
             }
@@ -7084,13 +7112,13 @@ struct StoryOverlaysView: View {
 
     private func savePolaroidCaption() {
         guard let editingId = editingPolaroidId else { return }
-        
+
         if let index = stickers.firstIndex(where: { $0.id == editingId }) {
             // Actualizar el caption en los datos de interacción
             var interactionData = stickers[index].interactionData ?? StickerItem.StickerInteractionData()
             interactionData.caption = polaroidCaptionBuffer
             stickers[index].interactionData = interactionData
-            
+
             // 🚀 VOLVER A LA POSICIÓN ORIGINAL CON ANIMACIÓN
             if let original = originalStickerTransform {
                 withAnimation(.spring(response: 0.45, dampingFraction: 0.8)) {
@@ -7100,13 +7128,13 @@ struct StoryOverlaysView: View {
                 }
             }
         }
-        
+
         withAnimation(.easeOut(duration: 0.25)) {
             editingPolaroidId = nil
             polaroidCaptionBuffer = ""
             originalStickerTransform = nil
         }
-        
+
         // Ocultar teclado
         UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
     }
@@ -7343,6 +7371,7 @@ struct StickerOverlayView: View {
                     pollData: pollData,
                     storyId: "preview",
                     userId: "preview",
+                    stickerId: sticker.id,
                     selectedOption: .constant(nil),
                     hasVoted: .constant(false),
                     voteCounts: .constant([:]),
@@ -7357,6 +7386,7 @@ struct StickerOverlayView: View {
                     questionText: questionText,
                     storyId: "preview",
                     userId: "preview",
+                    stickerId: sticker.id,
                     onPauseStory: {},
                     onResumeStory: {}
                 )
@@ -7548,6 +7578,12 @@ struct StickerOverlayView: View {
                 )
                 .frame(width: 300)
                 .allowsHitTesting(false)
+            } else if sticker.type == .audio {
+                InteractiveAudioStickerView(
+                    audioURL: sticker.interactionData?.audioURL ?? "",
+                    duration: sticker.interactionData?.audioDuration ?? 15.0
+                )
+                .allowsHitTesting(false)
             } else {
                 // STICKER ESTÁTICO / IMAGEN (Emoji, Generic, etc.)
                 // ✅ FIX: Usar tamaño natural de la imagen
@@ -7613,12 +7649,12 @@ struct StickerOverlayView: View {
                             height: value.startLocation.y - currentPosition.y
                         )
                     }
-                    
+
                     let newPos = CGPoint(
                         x: value.location.x - dragOffset.width,
                         y: value.location.y - dragOffset.height
                     )
-                    
+
                     currentPosition = newPos
                     onDragChanged(newPos)
                     sticker.position = newPos
@@ -7694,7 +7730,7 @@ struct StickerOverlayView: View {
         return renderer.image { context in
             let rect = CGRect(x: 0, y: 0, width: size, height: size)
             let circlePath = UIBezierPath(ovalIn: rect)
-            
+
             context.cgContext.saveGState()
             context.cgContext.setShadow(offset: CGSize(width: 0, height: 4), blur: 10, color: UIColor.black.withAlphaComponent(0.12).cgColor)
             UIColor.white.setFill()
@@ -8290,6 +8326,311 @@ fileprivate func ToolIconButton(icon: String, action: @escaping () -> Void) -> s
             .overlay(Circle().stroke(Color.white.opacity(0.1), lineWidth: 0.5))
     }
 }
+
+// MARK: - ✨ REVEAL STICKER EDITOR
+
+struct RevealStickerEditorView: View {
+    @Binding var stickers: [StickerItem]
+    @Binding var editingId: String?
+
+    @State private var selectedTab: EditorTab = .presets
+    @State private var selectedPresetId: String = "classic"
+
+    // Custom state
+    @State private var customType: String = "solid"
+    @State private var customPattern: String = "dots"
+    @State private var customPrimary: Color = .black
+    @State private var customSecondary: Color = .black
+
+    enum EditorTab {
+        case presets
+        case custom
+    }
+
+    private var currentStickerIndex: Int? {
+        stickers.firstIndex(where: { $0.id == editingId })
+    }
+
+    var body: some View {
+        ZStack {
+            // 1. Preview Background (Full Screen)
+            if let index = currentStickerIndex {
+                RevealSurfaceView(
+                    type: stickers[index].interactionData?.revealType,
+                    pattern: stickers[index].interactionData?.revealPattern,
+                    primaryColor: stickers[index].interactionData?.revealPrimaryColor,
+                    secondaryColor: stickers[index].interactionData?.revealSecondaryColor
+                )
+                .ignoresSafeArea()
+            }
+
+            // 2. Editor UI
+            VStack(spacing: 0) {
+                headerView
+
+                Spacer()
+
+                VStack(spacing: 24) {
+                    tabSelector
+
+                    if selectedTab == .presets {
+                        presetsGrid
+                    } else {
+                        customControls
+                    }
+                }
+                .padding(.horizontal, 20)
+                .padding(.bottom, 65) // Ajustado a 65 según preferencia
+                .background(
+                    LinearGradient(
+                        colors: [.clear, .black.opacity(0.6), .black.opacity(0.9)],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                )
+            }
+        }
+        .onAppear {
+            loadCurrentState()
+        }
+    }
+
+    private var headerView: some View {
+        HStack {
+            Button(action: { editingId = nil }) {
+                Image(systemName: "xmark")
+                    .font(.title2)
+                    .foregroundColor(.white)
+                    .padding(12)
+                    .liquidGlass(in: Circle())
+            }
+
+            Spacer()
+
+            Text(NSLocalizedString("revealEditor.title", comment: "Customize Reveal"))
+                .font(.custom("Poppins-SemiBold", size: 17))
+                .foregroundColor(.white)
+                .shadow(radius: 4)
+
+            Spacer()
+
+            Button(action: { editingId = nil }) {
+                Text(NSLocalizedString("common.done", comment: "Done"))
+                    .font(.custom("Poppins-SemiBold", size: 15))
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 20)
+                    .padding(.vertical, 10)
+                    .liquidGlass(in: Capsule())
+            }
+        }
+        .padding(.horizontal, 20)
+        .padding(.top, 60)
+    }
+
+    private var tabSelector: some View {
+        HStack(spacing: 0) {
+            tabButton(title: NSLocalizedString("revealEditor.tab.presets", comment: "Presets"), tab: .presets)
+            tabButton(title: NSLocalizedString("revealEditor.tab.custom", comment: "Custom"), tab: .custom)
+        }
+        .padding(4)
+        .background(Color.white.opacity(0.12))
+        .clipShape(Capsule())
+    }
+
+    private func tabButton(title: String, tab: EditorTab) -> some View {
+        Button(action: {
+            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                selectedTab = tab
+            }
+        }) {
+            Text(title)
+                .font(.custom("Poppins-Medium", size: 14))
+                .foregroundColor(.white)
+                .padding(.vertical, 8)
+                .frame(maxWidth: .infinity)
+                .background(
+                    Capsule()
+                        .fill(selectedTab == tab ? Color.white.opacity(0.2) : Color.clear)
+                )
+        }
+    }
+
+    private var presetsGrid: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 15) {
+                ForEach(revealPresets) { preset in
+                    Button(action: { applyPreset(preset) }) {
+                        VStack(spacing: 8) {
+                            RevealSurfaceView(
+                                type: preset.type,
+                                pattern: preset.pattern,
+                                primaryColor: preset.primary,
+                                secondaryColor: preset.secondary
+                            )
+                            .frame(width: 80, height: 120)
+                            .clipShape(RoundedRectangle(cornerRadius: 16))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 16)
+                                    .stroke(selectedPresetId == preset.id ? Color.white : Color.white.opacity(0.2), lineWidth: 2)
+                            )
+
+                            Text(NSLocalizedString("revealEditor.preset.\(preset.id)", comment: ""))
+                                .font(.custom("Poppins-Medium", size: 12))
+                                .foregroundColor(.white)
+                        }
+                    }
+                }
+            }
+            .padding(.horizontal, 5)
+        }
+        .frame(height: 160)
+    }
+
+    private var customControls: some View {
+        VStack(spacing: 20) {
+            // Pattern Picker
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 12) {
+                    ForEach(["none", "dots", "noise", "static", "scanlines", "grid", "lines", "waves", "matrix", "holographic"], id: \.self) { p in
+                        Button(action: { updateCustomPattern(p) }) {
+                            Text(NSLocalizedString("revealEditor.pattern.\(p)", comment: ""))
+                                .font(.custom("Poppins-Medium", size: 13))
+                                .padding(.horizontal, 16)
+                                .padding(.vertical, 8)
+                                .background(customPattern == p ? Color.white : Color.white.opacity(0.1))
+                                .foregroundColor(customPattern == p ? .black : .white)
+                                .clipShape(Capsule())
+                        }
+                    }
+                }
+            }
+
+            HStack(spacing: 30) {
+                VStack(spacing: 4) {
+                    ColorPicker(selection: $customPrimary, supportsOpacity: false) {
+                        Circle()
+                            .fill(customPrimary)
+                            .frame(width: 44, height: 44)
+                            .overlay(Circle().stroke(Color.white, lineWidth: 2))
+                    }
+                    .labelsHidden()
+
+                    Text(NSLocalizedString("revealEditor.color1", comment: ""))
+                        .font(.caption2)
+                        .foregroundColor(.white.opacity(0.7))
+                }
+                .onChange(of: customPrimary) { updateCustomColors() }
+
+                // Color 2 (Optional)
+                if customType == "gradient" {
+                    VStack(spacing: 4) {
+                        ColorPicker(selection: $customSecondary, supportsOpacity: false) {
+                            Circle()
+                                .fill(customSecondary)
+                                .frame(width: 44, height: 44)
+                                .overlay(Circle().stroke(Color.white, lineWidth: 2))
+                        }
+                        .labelsHidden()
+
+                        Text(NSLocalizedString("revealEditor.color2", comment: ""))
+                            .font(.caption2)
+                            .foregroundColor(.white.opacity(0.7))
+                    }
+                    .onChange(of: customSecondary) { updateCustomColors() }
+                }
+
+                Button(action: toggleType) {
+                    Image(systemName: customType == "solid" ? "plus" : "minus")
+                        .font(.system(size: 18, weight: .bold))
+                        .foregroundColor(.white)
+                        .padding(12)
+                        .background(Color.white.opacity(0.1))
+                        .clipShape(Circle())
+                }
+            }
+        }
+    }
+
+
+    // MARK: - Logic
+
+    private func loadCurrentState() {
+        guard let index = currentStickerIndex else { return }
+        let data = stickers[index].interactionData
+
+        customType = data?.revealType ?? "solid"
+        customPattern = data?.revealPattern ?? "dots"
+        customPrimary = Color(hex: data?.revealPrimaryColor ?? "#000000") ?? .black
+        customSecondary = Color(hex: data?.revealSecondaryColor ?? "#000000") ?? .black
+
+        // Try to match preset
+        if let preset = revealPresets.first(where: {
+            $0.type == customType &&
+            $0.pattern == customPattern &&
+            $0.primary.lowercased() == data?.revealPrimaryColor?.lowercased()
+        }) {
+            selectedPresetId = preset.id
+            selectedTab = .presets
+        } else {
+            selectedTab = .custom
+        }
+    }
+
+    private func applyPreset(_ preset: RevealPreset) {
+        selectedPresetId = preset.id
+        updateSticker(type: preset.type, pattern: preset.pattern, primary: preset.primary, secondary: preset.secondary)
+        HapticManager.shared.lightImpact()
+    }
+
+    private func updateCustomPattern(_ p: String) {
+        customPattern = p
+        updateSticker(type: customType, pattern: p, primary: customPrimary.toHex() ?? "#000000", secondary: customSecondary.toHex() ?? "#000000")
+    }
+
+    private func updateCustomColors() {
+        updateSticker(type: customType, pattern: customPattern, primary: customPrimary.toHex() ?? "#000000", secondary: customSecondary.toHex() ?? "#000000")
+    }
+
+    private func toggleType() {
+        withAnimation {
+            customType = customType == "solid" ? "gradient" : "solid"
+        }
+        updateCustomColors()
+    }
+
+    private func updateSticker(type: String, pattern: String, primary: String, secondary: String) {
+        guard let index = currentStickerIndex else { return }
+        var data = stickers[index].interactionData ?? StickerItem.StickerInteractionData()
+
+        data.revealType = type
+        data.revealPattern = pattern
+        data.revealPrimaryColor = primary
+        data.revealSecondaryColor = secondary
+
+        stickers[index].interactionData = data
+    }
+}
+
+struct RevealPreset: Identifiable {
+    let id: String
+    let name: String
+    let type: String
+    let pattern: String
+    let primary: String
+    let secondary: String
+}
+
+let revealPresets: [RevealPreset] = [
+    RevealPreset(id: "classic", name: "Classic", type: "solid", pattern: "dots", primary: "#000000", secondary: "#000000"),
+    RevealPreset(id: "midnight", name: "Midnight", type: "solid", pattern: "grid", primary: "#0B1215", secondary: "#0B1215"),
+    RevealPreset(id: "golden", name: "Golden", type: "gradient", pattern: "noise", primary: "#BF953F", secondary: "#8E6E2D"),
+    RevealPreset(id: "neon", name: "Neon Glow", type: "gradient", pattern: "lines", primary: "#430089", secondary: "#82009F"),
+    RevealPreset(id: "silver", name: "Silver", type: "gradient", pattern: "dots", primary: "#C0C0C0", secondary: "#708090"),
+    RevealPreset(id: "retro", name: "Old TV", type: "solid", pattern: "static", primary: "#FFFFFF", secondary: "#FFFFFF"),
+    RevealPreset(id: "matrix", name: "Matrix", type: "solid", pattern: "matrix", primary: "#000000", secondary: "#000000"),
+    RevealPreset(id: "blueprint", name: "Blueprint", type: "solid", pattern: "grid", primary: "#003366", secondary: "#003366"),
+    RevealPreset(id: "magic", name: "Magic", type: "solid", pattern: "holographic", primary: "#C8C8C8", secondary: "#C8C8C8")
+]
 
 fileprivate func hapticFeedback(_ style: UIImpactFeedbackGenerator.FeedbackStyle) {
     let generator = UIImpactFeedbackGenerator(style: style)

@@ -7,7 +7,12 @@ class EchoService {
     static let shared = EchoService()
     private let db = Firestore.firestore()
     private let firestoreService = FirestoreService()
-    
+
+    /// Límite de valores en `in` para Firestore (documentación actual; Firebase iOS 11+).
+    private let maxAuthorIdsPerEchoQuery = 30
+    /// Con muchos mutuos (p. ej. 1000), limitar paralelismo evita picos de red y presión sobre Firestore.
+    private let maxConcurrentEchoMomentBatchQueries = 6
+
     private init() {}
     
     // MARK: - Echo Detection Logic
@@ -37,19 +42,13 @@ class EchoService {
                 // 2. Search for recent moments from friends (last 24 hours)
                 // Expanded to 24h to capture "Same Day, Same Place" vibes (events, festivals, etc.)
                 let searchWindow = Date().addingTimeInterval(-86400) // 24 hours
-                
-                // Firestore limit for 'in' query is 10 (or 30 in newer versions, but let's stick to safe/paged if many)
-                let queryIds = Array(friendIds.prefix(10))
-                
-                let momentQuery = db.collectionGroup("moments")
-                    .whereField("authorId", in: queryIds)
-                    .whereField("timestamp", isGreaterThan: Timestamp(date: searchWindow))
-                
-                let snapshot = try await momentQuery.getDocuments()
-                let allNearbyMoments = snapshot.documents.compactMap { doc -> Moment? in
-                    guard let moment = try? doc.data(as: Moment.self) else { return nil }
-                    return moment.isArchived == true ? nil : moment
-                }.filter { moment in
+
+                let recentMoments = try await fetchRecentMomentsFromAuthors(
+                    authorIds: friendIds,
+                    since: searchWindow
+                )
+
+                let allNearbyMoments = recentMoments.filter { moment in
                     guard let friendCoord = moment.locationCoordinate else { return false }
                     let distance = calculateDistance(from: coordinate, to: friendCoord)
                     return distance <= 500 // 500 meters overlap (GPS tolerance)
@@ -78,7 +77,59 @@ class EchoService {
         
         return Array(followingIds.intersection(followerIds))
     }
-    
+
+    /// Firestore limita el operador `in` a 30 valores. Partimos los mutuos en trozos y consultamos por **oleadas**
+    /// (`maxConcurrentEchoMomentBatchQueries` en paralelo) para soportar p. ej. 1000 mutuos sin abrir ~34 queries a la vez.
+    private func fetchRecentMomentsFromAuthors(authorIds: [String], since searchWindow: Date) async throws -> [Moment] {
+        guard !authorIds.isEmpty else { return [] }
+
+        let batchSize = maxAuthorIdsPerEchoQuery
+        let chunks: [[String]] = stride(from: 0, to: authorIds.count, by: batchSize).map { start in
+            Array(authorIds[start..<min(start + batchSize, authorIds.count)])
+        }
+
+        let db = self.db
+        var allDocuments: [QueryDocumentSnapshot] = []
+        allDocuments.reserveCapacity(chunks.count * 32)
+
+        let waveSize = max(1, maxConcurrentEchoMomentBatchQueries)
+        var chunkStart = 0
+        while chunkStart < chunks.count {
+            let chunkEnd = min(chunkStart + waveSize, chunks.count)
+            let wave = Array(chunks[chunkStart..<chunkEnd])
+
+            try await withThrowingTaskGroup(of: [QueryDocumentSnapshot].self) { group in
+                for chunk in wave where !chunk.isEmpty {
+                    group.addTask {
+                        let momentQuery = db.collectionGroup("moments")
+                            .whereField("authorId", in: chunk)
+                            .whereField("timestamp", isGreaterThan: Timestamp(date: searchWindow))
+                        let snapshot = try await momentQuery.getDocuments()
+                        return snapshot.documents
+                    }
+                }
+                for try await docs in group {
+                    allDocuments.append(contentsOf: docs)
+                }
+            }
+
+            chunkStart = chunkEnd
+        }
+
+        var seenDocumentPaths = Set<String>()
+        var moments: [Moment] = []
+        moments.reserveCapacity(allDocuments.count)
+        for doc in allDocuments {
+            let documentPath = doc.reference.path
+            guard !seenDocumentPaths.contains(documentPath) else { continue }
+            seenDocumentPaths.insert(documentPath)
+            guard let moment = try? doc.data(as: Moment.self) else { continue }
+            if moment.isArchived == true { continue }
+            moments.append(moment)
+        }
+        return moments
+    }
+
     // MARK: - Propose Echo
     private func proposeEcho(hostMoment: Moment, nearbyMoments: [Moment]) async {
         let hostId = hostMoment.authorId

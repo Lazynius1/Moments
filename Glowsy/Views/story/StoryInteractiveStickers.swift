@@ -12,11 +12,11 @@ struct InteractiveQuizSticker: View {
     let options: [String]
     let correctIndex: Int
     let isEditing: Bool
-    
+
     @State private var selectedIndex: Int?
     @State private var showConfetti = false
     @State private var confettiStart: Date = .now
-    
+
     init(storyId: String, userId: String, stickerId: String, question: String, options: [String], correctIndex: Int, isEditing: Bool = false) {
         self.storyId = storyId
         self.userId = userId
@@ -26,10 +26,10 @@ struct InteractiveQuizSticker: View {
         self.correctIndex = correctIndex
         self.isEditing = isEditing
     }
-    
+
     private var currentUserId: String? { Auth.auth().currentUser?.uid }
     private var isCorrect: Bool { selectedIndex == correctIndex }
-    
+
     var body: some View {
         ZStack {
             StickerQuizCardView(
@@ -39,7 +39,7 @@ struct InteractiveQuizSticker: View {
                 correctIndex: correctIndex,
                 onSelect: submitVote
             )
-            
+
             // ✅ Confetti encima del sticker solo si acertó
             if showConfetti {
                 TimelineView(.animation) { timeline in
@@ -52,22 +52,22 @@ struct InteractiveQuizSticker: View {
                 .transition(.opacity)
             }
         }
-        .onAppear { 
+        .onAppear {
             if !isEditing {
-                loadVoteState() 
+                loadVoteState()
             }
         }
     }
-    
+
     private func submitVote(_ index: Int) {
         guard let currentUserId, selectedIndex == nil else { return }
-        
+
         let correct = index == correctIndex
-        
+
         withAnimation(.spring(response: 0.3, dampingFraction: 0.65)) {
             selectedIndex = index
         }
-        
+
         if correct {
             // Háptico de éxito
             HapticManager.shared.notification(.success)
@@ -82,7 +82,7 @@ struct InteractiveQuizSticker: View {
             // Háptico de error
             HapticManager.shared.notification(.error)
         }
-        
+
         interactionDocument()?.setData([
             "userId": currentUserId,
             "stickerId": stickerId,
@@ -92,7 +92,7 @@ struct InteractiveQuizSticker: View {
             "timestamp": FieldValue.serverTimestamp()
         ])
     }
-    
+
     private func loadVoteState() {
         interactionDocument()?.getDocument { snapshot, _ in
             if let data = snapshot?.data(), let index = data["selectedIndex"] as? Int {
@@ -100,7 +100,7 @@ struct InteractiveQuizSticker: View {
             }
         }
     }
-    
+
     private func interactionDocument() -> DocumentReference? {
         guard let currentUserId else { return nil }
         return Firestore.firestore()
@@ -118,7 +118,7 @@ private enum QuizConfettiRenderer {
         .systemGreen, .systemYellow, .white,
         .systemCyan, .systemMint, UIColor(red: 0.9, green: 1.0, blue: 0.6, alpha: 1)
     ]
-    
+
     // Partículas: generadas una vez con seed determinista
     static let particles: [(x: CGFloat, vx: CGFloat, vy: CGFloat, color: Int, size: CGFloat, rotSpeed: CGFloat)] = {
         var result: [(CGFloat, CGFloat, CGFloat, Int, CGFloat, CGFloat)] = []
@@ -139,24 +139,24 @@ private enum QuizConfettiRenderer {
         }
         return result
     }()
-    
+
     static func draw(in ctx: GraphicsContext, size: CGSize, elapsed: Double) {
         guard elapsed < 2.5 else { return }
         let t = elapsed
         let gravity: CGFloat = 220
-        
+
         for p in particles {
             let x = size.width * p.x + p.vx * t
             let y = size.height * 0.3 + p.vy * t + 0.5 * gravity * t * t
             let opacity = max(0, 1.0 - t / 2.0)
             let angle = p.rotSpeed * t
-            
+
             guard opacity > 0, y < size.height + 20 else { continue }
-            
+
             let color = Color(colors[p.color % colors.count])
             let rect = CGRect(x: x - p.size/2, y: y - p.size/2,
                               width: p.size, height: p.size * 0.55)
-            
+
             var path = Path(rect)
             // Rotar alrededor del centro
             let cx = x, cy = y
@@ -164,7 +164,7 @@ private enum QuizConfettiRenderer {
                 .rotated(by: angle)
                 .translatedBy(x: -cx, y: -cy)
             path = path.applying(transform)
-            
+
             ctx.fill(path, with: .color(color.opacity(opacity)))
         }
     }
@@ -178,14 +178,14 @@ struct InteractiveFrameSticker: View {
     let isEditing: Bool
     let onPauseStory: (() -> Void)?
     let onResumeStory: (() -> Void)?
-    
+
     @State private var revealProgress: Double
     @State private var motionManager = CMMotionManager()
     @State private var lastAcceleration: CMAcceleration?
     @State private var shakeTimer: Timer? = nil
 
     private var persistenceKey: String { "frame_revealed_\(storyId)" }
-    
+
     init(storyId: String = "", image: UIImage?, caption: String? = nil, isEditing: Bool = false, onPauseStory: (() -> Void)? = nil, onResumeStory: (() -> Void)? = nil) {
         self.storyId = storyId
         self.image = image
@@ -195,7 +195,7 @@ struct InteractiveFrameSticker: View {
         self.onResumeStory = onResumeStory
         self._revealProgress = State(initialValue: isEditing ? 1.0 : 0.0)
     }
-    
+
     var body: some View {
         StickerPolaroidFrameView(image: image, progress: revealProgress, caption: caption)
             .onAppear {
@@ -213,7 +213,7 @@ struct InteractiveFrameSticker: View {
                 }
             }
     }
-    
+
     private func startMotionUpdates() {
         guard motionManager.isAccelerometerAvailable else {
             // Fallback for simulator
@@ -223,26 +223,26 @@ struct InteractiveFrameSticker: View {
             }
             return
         }
-        
+
         motionManager.accelerometerUpdateInterval = 0.1
         motionManager.startAccelerometerUpdates(to: .main) { data, _ in
             guard let acceleration = data?.acceleration else { return }
-            
+
             if let last = lastAcceleration {
                 let delta = abs(acceleration.x - last.x) + abs(acceleration.y - last.y) + abs(acceleration.z - last.z)
-                
+
                 if delta > 1.2 {
                     // Pausar la historia mientras se agita
                     if revealProgress < 1.0 {
                         onPauseStory?()
                         resetShakeTimer()
                     }
-                    
+
                     let increment = 0.06
                     withAnimation(.easeInOut(duration: 0.2)) {
                         revealProgress = min(revealProgress + increment, 1.0)
                     }
-                    
+
                     if revealProgress < 1.0 {
                         HapticManager.shared.lightImpact()
                     } else if revealProgress >= 1.0 && revealProgress - increment < 1.0 {
@@ -258,7 +258,7 @@ struct InteractiveFrameSticker: View {
             lastAcceleration = acceleration
         }
     }
-    
+
     private func resetShakeTimer() {
         shakeTimer?.invalidate()
         shakeTimer = Timer.scheduledTimer(withTimeInterval: 1.5, repeats: false) { _ in
@@ -276,34 +276,40 @@ struct InteractiveFrameSticker: View {
 
 // MARK: - 3. REVEAL STICKER (DITHERED SCRATCH - Solo raspar)
 struct InteractiveRevealSticker: View {
-    /// Identificador único de la historia para persistir el estado revelado
     var storyId: String = ""
     var onPauseStory: (() -> Void)? = nil
     var onResumeStory: (() -> Void)? = nil
-    
+
+    // Design Configuration
+    var revealType: String? = nil // "scratch", "solid", "gradient"
+    var revealPattern: String? = nil // "dots", "noise", "grid", "lines", "none"
+    var revealPrimaryColor: String? = nil // Hex
+    var revealSecondaryColor: String? = nil // Hex
+
     @State private var points: [CGPoint] = []
     @State private var isRevealed = false
     @State private var scratchedGrid: Set<Int> = [] // Para seguimiento de área
     @State private var showHint = false
     @State private var animateHint = false
     private let gridSize: Int = 12 // Cuadrícula de 12x12
-    
+
     private var persistenceKey: String { "reveal_revealed_\(storyId)" }
-    
+
     var body: some View {
         GeometryReader { geo in
             ZStack {
                 if !isRevealed {
-                    ZStack {
-                        // Fondo negro opaco + Patrón
-                        Color.black
-                        StickerDitherPattern(color: .white.opacity(0.8))
-                    }
+                    RevealSurfaceView(
+                        type: revealType,
+                        pattern: revealPattern,
+                        primaryColor: revealPrimaryColor,
+                        secondaryColor: revealSecondaryColor
+                    )
                     .mask(
                         Canvas { context, size in
                             // Dibujar todo como opaco excepto donde rascamos
                             context.fill(Path(CGRect(origin: .zero, size: size)), with: .color(.black))
-                            
+
                             var path = Path()
                             if let first = points.first {
                                 path.move(to: first)
@@ -311,7 +317,7 @@ struct InteractiveRevealSticker: View {
                                     path.addLine(to: points[i])
                                 }
                             }
-                            
+
                             context.blendMode = .destinationOut
                             context.stroke(path, with: .color(.black), style: StrokeStyle(lineWidth: 35, lineCap: .round, lineJoin: .round))
                         }
@@ -387,37 +393,493 @@ struct InteractiveRevealSticker: View {
             }
         }
     }
-    
+
     private func checkRevealStatus(in size: CGSize) {
         guard !isRevealed, let lastPoint = points.last else { return }
-        
+
         // 1. Mapear punto actual a la cuadrícula
         let col = Int((lastPoint.x / size.width) * CGFloat(gridSize))
         let row = Int((lastPoint.y / size.height) * CGFloat(gridSize))
-        
+
         // Validar límites
         if col >= 0 && col < gridSize && row >= 0 && row < gridSize {
             let index = row * gridSize + col
             scratchedGrid.insert(index)
         }
-        
+
         // 2. Calcular porcentaje (Umbral 65%)
         let totalCells = gridSize * gridSize
         let percentage = Double(scratchedGrid.count) / Double(totalCells)
-        
+
         if percentage > 0.65 {
             withAnimation(.easeOut(duration: 0.8)) {
                 isRevealed = true
             }
             HapticManager.shared.notification(.success)
-            
+
             // Reanudar historia inmediatamente al completar el revelado
             onResumeStory?()
-            
+
             // Persistir para no tener que rascar de nuevo
             if !storyId.isEmpty {
                 UserDefaults.standard.set(true, forKey: persistenceKey)
             }
         }
+    }
+}
+
+// MARK: - 🎨 REVEAL SURFACE COMPONENTS
+
+struct RevealSurfaceView: View {
+    let type: String?
+    let pattern: String?
+    let primaryColor: String?
+    let secondaryColor: String?
+
+    var body: some View {
+        ZStack {
+            // 1. Background Layer
+            backgroundLayer
+
+            // 2. Pattern Layer
+            if let patternType = pattern, patternType != "none" {
+                RevealPatternOverlayView(
+                    type: patternType,
+                    color: patternType == "holographic" ? (Color(hex: primaryColor ?? "#C8C8C8") ?? .white) : patternColor,
+                    color2: Color(hex: secondaryColor ?? "#C8C8C8") ?? .white
+                )
+            } else if type == nil || type == "scratch" || type == "none" {
+                // Default legacy style o si no hay tipo definido
+                StickerDitherPattern(color: .white.opacity(0.7))
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    @ViewBuilder
+    private var backgroundLayer: some View {
+        let pColor = Color(hex: primaryColor ?? "#000000")
+        let sColor = Color(hex: secondaryColor ?? "#000000")
+
+        if type == "gradient" {
+            LinearGradient(
+                colors: [pColor, sColor],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+        } else {
+            pColor
+        }
+    }
+
+    private var patternColor: Color {
+        // Decide pattern color based on background brightness
+        let pColor = Color(hex: primaryColor ?? "#000000")
+        return isLight(pColor) ? .black.opacity(0.25) : .white.opacity(0.35)
+    }
+
+    private func isLight(_ color: Color) -> Bool {
+        let uiColor = UIColor(color)
+        var red: CGFloat = 0
+        var green: CGFloat = 0
+        var blue: CGFloat = 0
+        var alpha: CGFloat = 0
+
+        uiColor.getRed(&red, green: &green, blue: &blue, alpha: &alpha)
+
+        // Fórmula estándar de luminancia (ITU-R BT.601)
+        let luminance = 0.299 * red + 0.587 * green + 0.114 * blue
+        return luminance > 0.6
+    }
+}
+
+struct RevealPatternOverlayView: View {
+    let type: String
+    let color: Color
+    var color2: Color = .white
+
+    var body: some View {
+        switch type {
+        case "dots":
+            StickerDitherPattern(color: color)
+        case "grid":
+            RevealGridPattern(color: color)
+        case "lines":
+            RevealLinesPattern(color: color)
+        case "noise":
+            RevealNoisePattern(color: color)
+        case "static":
+            RevealStaticPattern(color: color)
+        case "scanlines":
+            RevealScanlinesPattern(color: color)
+        case "waves":
+            RevealWavesPattern(color: color)
+        case "matrix":
+            RevealMatrixPattern()
+        case "holographic":
+            RevealHolographicPattern(color: color, accentColor: color2)
+        default:
+            EmptyView()
+        }
+    }
+}
+
+struct RevealGridPattern: View {
+    let color: Color
+    var body: some View {
+        TimelineView(.periodic(from: .now, by: 1/30)) { timeline in
+            let time = timeline.date.timeIntervalSince1970
+            Canvas { context, size in
+                let spacing: CGFloat = 30
+
+                // 1. Reja base
+                for x in stride(from: 0, to: size.width, by: spacing) {
+                    context.stroke(Path { p in
+                        p.move(to: CGPoint(x: x, y: 0))
+                        p.addLine(to: CGPoint(x: x, y: size.height))
+                    }, with: .color(color.opacity(0.3)), lineWidth: 0.5)
+                }
+                for y in stride(from: 0, to: size.height, by: spacing) {
+                    context.stroke(Path { p in
+                        p.move(to: CGPoint(x: 0, y: y))
+                        p.addLine(to: CGPoint(x: size.width, y: y))
+                    }, with: .color(color.opacity(0.3)), lineWidth: 0.5)
+                }
+
+                // 2. Línea de escaneo (Efecto radar/plano)
+                let scanY = (time * 60).truncatingRemainder(dividingBy: size.height)
+                context.fill(Path(CGRect(x: 0, y: scanY, width: size.width, height: 2)), with: .color(color.opacity(0.6)))
+
+                // 3. Puntos de intersección sutiles
+                for x in stride(from: 0, to: size.width + spacing, by: spacing) {
+                    for y in stride(from: 0, to: size.height + spacing, by: spacing) {
+                        let rect = CGRect(x: x - 1, y: y - 1, width: 2, height: 2)
+                        context.fill(Path(ellipseIn: rect), with: .color(color.opacity(0.5)))
+                    }
+                }
+            }
+        }
+    }
+}
+
+struct RevealLinesPattern: View {
+    let color: Color
+    var body: some View {
+        Canvas { context, size in
+            let spacing: CGFloat = 15
+            for x in stride(from: -size.height, to: size.width, by: spacing) {
+                context.stroke(Path { p in
+                    p.move(to: CGPoint(x: x, y: 0))
+                    p.addLine(to: CGPoint(x: x + size.height, y: size.height))
+                }, with: .color(color.opacity(0.4)), lineWidth: 1)
+            }
+        }
+    }
+}
+
+struct RevealNoisePattern: View {
+    let color: Color
+    var body: some View {
+        Canvas { context, size in
+            for _ in 0..<Int(size.width * size.height / 50) {
+                let rect = CGRect(
+                    x: CGFloat.random(in: 0...size.width),
+                    y: CGFloat.random(in: 0...size.height),
+                    width: 1.5,
+                    height: 1.5
+                )
+                context.fill(Path(ellipseIn: rect), with: .color(color.opacity(Double.random(in: 0.1...0.5))))
+            }
+        }
+    }
+}
+
+struct RevealStaticPattern: View {
+    let color: Color
+    var body: some View {
+        TimelineView(.periodic(from: .now, by: 1/24)) { timeline in
+            let time = timeline.date.timeIntervalSince1970
+            Canvas { context, size in
+                // 1. Fondo base con micro-flicker
+                let flicker = Double.random(in: 0.96...1.04)
+                context.fill(Path(CGRect(origin: .zero, size: size)), with: .color(color.opacity(0.12 * flicker)))
+
+                // 2. Nieve Analógica (Optimizada)
+                // Reducimos densidad para evitar lag
+                for _ in 0..<Int(size.width * size.height / 120) {
+                    let dotW = CGFloat.random(in: 2...4)
+                    let dotH = CGFloat.random(in: 1...2)
+
+                    let rect = CGRect(
+                        x: CGFloat.random(in: 0...size.width),
+                        y: CGFloat.random(in: 0...size.height),
+                        width: dotW,
+                        height: dotH
+                    )
+
+                    let rand = Double.random(in: 0...1)
+                    let dotColor: Color = rand > 0.6 ? .black : (rand > 0.2 ? .white : .gray)
+                    context.fill(Path(rect), with: .color(dotColor.opacity(Double.random(in: 0.1...0.7))))
+                }
+
+                // 3. Rolling Interference
+                let rollY = (time * 120).truncatingRemainder(dividingBy: size.height + 1200) - 600
+                context.fill(Path(CGRect(x: 0, y: rollY, width: size.width, height: 1.5)), with: .color(.black.opacity(0.2)))
+
+                // 4. Viñeteado suave
+                let gradient = GraphicsContext.Shading.radialGradient(
+                    Gradient(colors: [.clear, .black.opacity(0.1)]),
+                    center: CGPoint(x: size.width/2, y: size.height/2),
+                    startRadius: size.width * 0.4,
+                    endRadius: size.width * 0.8
+                )
+                context.fill(Path(CGRect(origin: .zero, size: size)), with: gradient)
+            }
+        }
+    }
+}
+
+struct RevealMatrixPattern: View {
+    var body: some View {
+        TimelineView(.periodic(from: .now, by: 1/20)) { timeline in
+            let time = timeline.date.timeIntervalSince1970
+            Canvas { context, size in
+                let columns = Int(size.width / 20)
+                let greenColor = Color(red: 0, green: 0.8, blue: 0)
+
+                for i in 0..<columns {
+                    let x = CGFloat(i * 20) + 10
+                    // Velocidad aleatoria por columna
+                    let speed = (sin(Double(i) * 0.5) + 2.0) * 80.0
+                    let yOffset = (time * speed).truncatingRemainder(dividingBy: size.height + 200) - 100
+
+                    // Dibujamos un "rastro" de luz
+                    for segment in 0..<12 {
+                        let segmentY = yOffset - CGFloat(segment * 15)
+                        let opacity = 1.0 - (Double(segment) / 12.0)
+
+                        if segmentY > 0 && segmentY < size.height {
+                            let rect = CGRect(x: x - 4, y: segmentY, width: 8, height: 12)
+                            context.fill(Path(rect), with: .color(greenColor.opacity(opacity * 0.6)))
+
+                            // Un puntito más brillante en la cabeza
+                            if segment == 0 {
+                                context.fill(Path(rect), with: .color(.white.opacity(0.4)))
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+struct RevealScanlinesPattern: View {
+    let color: Color
+    var body: some View {
+        TimelineView(.periodic(from: .now, by: 1/30)) { timeline in
+            let time = timeline.date.timeIntervalSince1970
+            Canvas { context, size in
+                let spacing: CGFloat = 8
+                let offset = (time * 20).truncatingRemainder(dividingBy: spacing)
+
+                for y in stride(from: -spacing, to: size.height + spacing, by: spacing) {
+                    context.fill(
+                        Path(CGRect(x: 0, y: y + offset, width: size.width, height: 2.5)),
+                        with: .color(color.opacity(0.3))
+                    )
+                }
+
+                // Efecto de barra de interferencia que baja lentamente
+                let interferenceY = (time * 40).truncatingRemainder(dividingBy: size.height + 400) - 200
+                let interferenceRect = CGRect(x: 0, y: interferenceY, width: size.width, height: 60)
+                context.fill(Path(interferenceRect), with: .color(color.opacity(0.05)))
+            }
+        }
+    }
+}
+
+struct RevealWavesPattern: View {
+    let color: Color
+    var body: some View {
+        TimelineView(.periodic(from: .now, by: 1/30)) { timeline in
+            let time = timeline.date.timeIntervalSince1970
+            Canvas { context, size in
+                let spacing: CGFloat = 30
+                for y in stride(from: -40, to: size.height + 40, by: spacing) {
+                    var path = Path()
+                    path.move(to: CGPoint(x: 0, y: y))
+
+                    for x in stride(from: 0, to: size.width + 20, by: 10) {
+                        let relativeX = x / 20
+                        let sine = sin(Double(relativeX) + time * 2.5) * 8
+                        path.addLine(to: CGPoint(x: CGFloat(x), y: y + CGFloat(sine)))
+                    }
+                    context.stroke(path, with: .color(color.opacity(0.4)), lineWidth: 2.5)
+                }
+            }
+        }
+    }
+}
+
+struct RevealHolographicPattern: View {
+    let color: Color
+    var accentColor: Color = .purple  // Color 2 — tinte de la ola iridiscente
+    @StateObject private var motion = HolographicMotionManager()
+
+    // Hue base del color 1 (dots de purpurina)
+    private var baseHue: Double {
+        var h: CGFloat = 0
+        UIColor(color).getHue(&h, saturation: nil, brightness: nil, alpha: nil)
+        return Double(h)
+    }
+
+    // Hue del color 2 (tinte de la ola de fondo)
+    private var accentHue: Double {
+        var h: CGFloat = 0
+        UIColor(accentColor).getHue(&h, saturation: nil, brightness: nil, alpha: nil)
+        return Double(h)
+    }
+
+    var body: some View {
+        TimelineView(.periodic(from: .now, by: 1/24)) { timeline in
+            GeometryReader { geometry in
+                let size = geometry.size
+                let time = timeline.date.timeIntervalSince1970
+
+                // El tilt del dispositivo controla el desplazamiento del espectro
+                let tiltX = motion.roll / .pi
+                let tiltY = motion.pitch / (.pi / 2)
+
+                let globalHueShift = (tiltX * 0.4 + tiltY * 0.2).truncatingRemainder(dividingBy: 1.0)
+
+                ZStack {
+                    // --- CAPA 1: Fondo plateado denso ---
+                    LinearGradient(
+                        colors: [Color(white: 0.82), Color(white: 0.70), Color(white: 0.78)],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+
+                    // --- CAPA 2: Ola de color iridiscente (suavizada) ---
+                    Canvas { context, canvasSize in
+                        let cellSize: CGFloat = canvasSize.width < 150 ? 10 : 20
+                        let cols = Int(canvasSize.width / cellSize) + 2
+                        let rows = Int(canvasSize.height / cellSize) + 2
+
+                        for col in 0..<cols {
+                            for row in 0..<rows {
+                                let cx = CGFloat(col) * cellSize
+                                let cy = CGFloat(row) * cellSize
+                                let posX = Double(col) / Double(cols)
+                                let posY = Double(row) / Double(rows)
+
+                                let rawWaveHue = posX + posY * 0.5 + globalHueShift + accentHue * 0.3
+                                var hue = rawWaveHue.truncatingRemainder(dividingBy: 1.0)
+                                if hue < 0 { hue += 1.0 }
+
+                                let waveX = posX * .pi * 3
+                                let waveY = posY * .pi * 2
+                                let waveT = time * 0.4
+                                let saturation = 0.5 + 0.4 * sin(waveX + waveY + waveT)
+
+                                let rect = CGRect(x: cx, y: cy, width: cellSize + 1, height: cellSize + 1)
+                                context.fill(Path(rect), with: .color(Color(hue: hue, saturation: saturation, brightness: 0.95).opacity(0.5)))
+                            }
+                        }
+                    }
+                    .blur(radius: size.width < 150 ? 8 : 18)
+
+                    // --- CAPA 3: Puntos de glitter ---
+                    Canvas { context, canvasSize in
+                        var rng = SeededRandom(seed: 77)
+                        let isPreview = canvasSize.width < 150
+                        let count = isPreview ? 1000 : 5000
+
+                        let motionIntensity = min(1.0, max(0, (motion.rotationRate - 0.1) / 1.5))
+                        let glintAlpha = motionIntensity * 0.95
+
+                        for i in 0..<count {
+                            let x = CGFloat(rng.next()) * canvasSize.width
+                            let y = CGFloat(rng.next()) * canvasSize.height
+                            let dotSize = CGFloat(rng.next()) * (isPreview ? 1.0 : 1.4) + 0.4
+                            let phase = rng.next()
+
+                            let hueShift = globalHueShift * 0.35
+                            let rawHue = baseHue + hueShift + phase * 0.15
+                            var hue = rawHue.truncatingRemainder(dividingBy: 1.0)
+                            if hue < 0 { hue += 1.0 }
+
+                            let isBright = i % 8 == 0
+                            let dotRect = CGRect(x: x - dotSize/2, y: y - dotSize/2, width: dotSize, height: dotSize)
+
+                            if isBright {
+                                let staticShimmer = abs(sin(time * 2.0 + phase * 10.0)) * 0.3
+                                let finalBrightness = 0.7 + staticShimmer + motionIntensity * 0.3
+
+                                let brightColor = Color(hue: hue, saturation: 0.8, brightness: finalBrightness)
+                                context.fill(Path(ellipseIn: dotRect), with: .color(brightColor.opacity(0.95)))
+
+                                if dotSize > 1.2 && (glintAlpha > 0.1 || isPreview) {
+                                    let gAlpha = isPreview ? 0.3 : glintAlpha
+                                    let rayLen = dotSize * (2.5 + motionIntensity * 4.0)
+                                    let opacity = gAlpha * (0.5 + rng.next() * 0.5)
+
+                                    for arm in 0..<4 {
+                                        let armAngle = Double(arm) * .pi / 2 + (time * 0.4) + phase
+                                        var ray = Path()
+                                        ray.move(to: CGPoint(x: x, y: y))
+                                        ray.addLine(to: CGPoint(x: x + cos(armAngle) * rayLen, y: y + sin(armAngle) * rayLen))
+                                        context.stroke(ray, with: .color(.white.opacity(opacity)), lineWidth: 0.4)
+                                    }
+                                }
+                            } else {
+                                let baseColor = Color(hue: hue, saturation: 0.4, brightness: 0.9)
+                                context.fill(Path(ellipseIn: dotRect), with: .color(baseColor.opacity(0.8)))
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+// Helper para aleatorios consistentes en Canvas
+struct SeededRandom {
+    var state: UInt64
+    init(seed: Int) { state = UInt64(abs(seed)) }
+    mutating func next() -> Double {
+        state = state &+ 0x9E3779B97F4A7C15
+        var z = state
+        z = (z ^ (z >> 30)) &* 0xBF58476D1CE4E5B9
+        z = (z ^ (z >> 27)) &* 0x94D049BB133111EB
+        return Double(z ^ (z >> 31)) / Double(UInt64.max)
+    }
+}
+
+class HolographicMotionManager: ObservableObject {
+    private let motionManager = CMMotionManager()
+    @Published var pitch: Double = 0.0
+    @Published var roll: Double = 0.0
+    @Published var rotationRate: Double = 0.0 // Magnitud de la rotación para detectar movimiento
+
+    init() {
+        if motionManager.isDeviceMotionAvailable {
+            motionManager.deviceMotionUpdateInterval = 1/30
+            motionManager.startDeviceMotionUpdates(to: .main) { [weak self] motion, _ in
+                guard let motion = motion else { return }
+                self?.pitch = motion.attitude.pitch
+                self?.roll = motion.attitude.roll
+
+                // Calculamos la magnitud de la rotación (movimiento)
+                let rate = motion.rotationRate
+                self?.rotationRate = sqrt(rate.x * rate.x + rate.y * rate.y + rate.z * rate.z)
+            }
+        }
+    }
+
+    deinit {
+        motionManager.stopDeviceMotionUpdates()
     }
 }

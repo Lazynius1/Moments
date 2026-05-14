@@ -36,15 +36,15 @@ class UploadingStory: ObservableObject, Identifiable {
     let continuationCustomViewers: [String]? // 🔗 AÑADIDO: Usuarios específicos que pueden continuar
     let continuationCustomListId: String? // 🔗 AÑADIDO: Lista específica que puede continuar
     let continuationCustomListName: String? // 🔗 AÑADIDO: Nombre de la lista que puede continuar
-    
+
     @Published var uploadProgress: Double = 0.0
     @Published var status: UploadStatus = .uploading
     @Published var errorMessage: String?
     @Published var storyId: String? // Para almacenar el ID real de Firestore
-    
+
     // 🔥 PARA MOSTRAR EN EL HEADER
     @Published var thumbnailImage: UIImage?
-    
+
     init(
         userId: String,
         mediaItem: ProcessedMedia,
@@ -89,7 +89,7 @@ class UploadingStory: ObservableObject, Identifiable {
         self.continuationCustomListId = continuationCustomListId // 🔗 AÑADIDO: Asignar lista específica
         self.continuationCustomListName = continuationCustomListName // 🔗 AÑADIDO: Asignar nombre de lista
         self.createdAt = Date()
-        
+
         // Configurar thumbnail
         self.thumbnailImage = mediaItem.image
     }
@@ -109,7 +109,7 @@ struct StoryUploadPayload: Codable {
     let customListId: String?
     let selectedListName: String?
     let createdAt: Date
-    
+
     // Story Chain fields
     let chainId: String?
     let chainPosition: Int?
@@ -154,32 +154,37 @@ struct CachedStickerInteractionData: Codable {
     let profileImagePath: String?
     let momentId: String?
     let mediaCount: Int?
-    
+
     // Quiz & Reveal
     let quizQuestion: String?
     let quizOptions: [String]?
     let quizCorrectIndex: Int?
     let revealType: String?
+    let revealPattern: String?
+    let revealPrimaryColor: String?
+    let revealSecondaryColor: String?
     let frameStyle: String?
+    let audioURL: String?
+    let audioDuration: Double?
 }
 
 // MARK: - 🔥 SERVICIO PRINCIPAL DE STORIES
 @MainActor
 class BackgroundStoryUploadService: ObservableObject {
     static let shared = BackgroundStoryUploadService()
-    
+
     @Published var uploadingStory: UploadingStory? // Solo una historia a la vez
     @Published var isProcessing = false
-    
+
     private let pendingUploadsDir: URL = {
         let paths = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)
         return paths[0].appendingPathComponent("pending_story_uploads")
     }()
-    
+
     // ✅ NUEVO: Live Activity para Dynamic Island
     @available(iOS 16.1, *)
     private var liveActivity: Activity<StoryUploadActivityAttributes>?
-    
+
     private init() {
         // ✅ Limpiar actividades huerfanas de sesiones anteriores
         if #available(iOS 16.1, *) {
@@ -188,7 +193,7 @@ class BackgroundStoryUploadService: ObservableObject {
             }
         }
     }
-    
+
     // MARK: - 📤 FUNCIÓN PRINCIPAL: Iniciar upload de historia en background
     func uploadStory(
         mediaItem: ProcessedMedia,
@@ -211,15 +216,15 @@ class BackgroundStoryUploadService: ObservableObject {
         continuationCustomListId: String? = nil, // 🔗 AÑADIDO: Lista específica que puede continuar
         continuationCustomListName: String? = nil // 🔗 AÑADIDO: Nombre de la lista que puede continuar
     ) -> UploadingStory? {
-        
+
         guard let userId = Auth.auth().currentUser?.uid else { return nil }
-        
-        
+
+
         // Si ya hay una historia subiendo, cancelar la anterior
         if let existingStory = uploadingStory {
             cancelUpload(existingStory)
         }
-        
+
         // 🔥 PREPARAR MEDIA ITEM (con imagen renderizada si existe)
         let finalMediaItem: ProcessedMedia
         if let finalImage = finalRenderedImage {
@@ -243,7 +248,7 @@ class BackgroundStoryUploadService: ObservableObject {
                 aspectRatio: mediaItem.aspectRatio
             )
         }
-        
+
         // Crear historia temporal
         let uploadingStory = UploadingStory(
             userId: userId,
@@ -267,73 +272,73 @@ class BackgroundStoryUploadService: ObservableObject {
             continuationCustomListId: continuationCustomListId, // 🔗 AÑADIDO: Pasar lista específica
             continuationCustomListName: continuationCustomListName // 🔗 AÑADIDO: Pasar nombre de lista
         )
-        
+
         // Mostrar en el header inmediatamente
         DispatchQueue.main.async {
             self.uploadingStory = uploadingStory
             self.isProcessing = true
         }
-        
+
         // ✅ NUEVO: Iniciar Live Activity para Dynamic Island
         if #available(iOS 16.1, *) {
             Task { @MainActor in
                 await startLiveActivity(for: uploadingStory)
             }
         }
-        
+
         // ✅ NUEVO: SOLICITUD DE BACKGROUND TASK
         var backgroundTaskID: UIBackgroundTaskIdentifier = .invalid
         backgroundTaskID = UIApplication.shared.beginBackgroundTask(withName: "StoryUpload") {
             UIApplication.shared.endBackgroundTask(backgroundTaskID)
             backgroundTaskID = .invalid
         }
-        
+
         // Procesar en background
         Task {
             // 1. Persistir acción en disco por si la app muere
             await self.persistAction(uploadingStory)
-            
+
             // 2. Ejecutar upload
             await self.processStoryUpload(uploadingStory)
-            
+
             // 3. Limpiar acción y archivos al terminar (éxito o error fatal)
             if uploadingStory.status == .completed || uploadingStory.status == .moderated {
                 await LocalPersistenceService.shared.deleteAction(id: uploadingStory.tempId)
                 self.deleteActionFiles(id: uploadingStory.tempId)
             }
-            
+
             // ✅ Terminar background task
             if backgroundTaskID != .invalid {
                 UIApplication.shared.endBackgroundTask(backgroundTaskID)
                 backgroundTaskID = .invalid
             }
         }
-        
+
         return uploadingStory
     }
-    
+
     // MARK: - 🔄 PROCESAMIENTO COMPLETO DE HISTORIA
     private func processStoryUpload(_ uploadingStory: UploadingStory) async {
-        
+
         do {
             // PASO 1: Preparar media item para upload (0% - 20%)
             let uploadMediaItem = try await prepareMediaItem(uploadingStory)
             await updateProgress(uploadingStory, progress: 0.2)
-            
+
             // PASO 2: Upload archivo (20% - 70%)
             let mediaUrl = try await uploadStoryMedia(uploadingStory, uploadMediaItem: uploadMediaItem)
             await updateProgress(uploadingStory, progress: 0.7)
-            
+
             // PASO 3: Crear historia en Firestore (70% - 90%)
             await updateProgress(uploadingStory, progress: 0.8, status: .processing)
             let storyId = try await createStoryInFirestore(uploadingStory, mediaUrl: mediaUrl)
             await MainActor.run {
                 uploadingStory.storyId = storyId
             }
-            
+
             // PASO 4: Completado (90% - 100%)
             await updateProgress(uploadingStory, progress: 1.0, status: .completed)
-            
+
             // ✅ NUEVO: Actualizar Live Activity a estado "completed" y esperar unos segundos antes de cerrar
             if #available(iOS 16.1, *) {
                 // Actualizar primero el estado a "completed" y esperar a que se complete
@@ -342,7 +347,7 @@ class BackgroundStoryUploadService: ObservableObject {
                 try? await Task.sleep(nanoseconds: 3_000_000_000) // 3 segundos
                 await endLiveActivityAsync()
             }
-            
+
             // PASO 5: Moderar en background silencioso
             Task.detached(priority: .background) {
                 await self.moderateStoryContentSilently(
@@ -351,7 +356,7 @@ class BackgroundStoryUploadService: ObservableObject {
                     mediaUrl: mediaUrl
                 )
             }
-            
+
             // PASO 6: Procesar stickers interactivos con storyId real
             if let stickerData = uploadingStory.stickerData {
                 // Procesar menciones
@@ -362,13 +367,13 @@ class BackgroundStoryUploadService: ObservableObject {
                         stickers: mentionStickers
                     )
                 }
-                
+
                 // ✅ NUEVO: Procesar polls
                 let pollStickers = stickerData.filter { $0.type == .poll }
                 if !pollStickers.isEmpty {
                     await setupPollStickers(storyId: storyId, stickers: pollStickers)
                 }
-                
+
                 // ✅ NUEVO: Procesar questions
                 let questionStickers = stickerData.filter { $0.type == .question }
                 if !questionStickers.isEmpty {
@@ -379,13 +384,13 @@ class BackgroundStoryUploadService: ObservableObject {
                 if !emojiSliderStickers.isEmpty {
                     await setupEmojiSliderStickers(storyId: storyId, stickers: emojiSliderStickers)
                 }
-                
+
                 // ✅ NUEVO: Procesar question responses
                 let questionResponseStickers = stickerData.filter { $0.type == .questionResponse }
                 if !questionResponseStickers.isEmpty {
                     await setupQuestionResponseStickers(storyId: storyId, stickers: questionResponseStickers)
                 }
-                
+
                 // ✅ NUEVO: Procesar weather stickers
                 let weatherStickers = stickerData.filter { $0.type == .weather }
                 if !weatherStickers.isEmpty {
@@ -397,17 +402,23 @@ class BackgroundStoryUploadService: ObservableObject {
                 if !quizStickers.isEmpty {
                     await setupQuizStickers(storyId: storyId, stickers: quizStickers)
                 }
+
+                // ✅ NUEVO: Procesar audio stickers
+                let audioStickers = stickerData.filter { $0.type == .audio }
+                if !audioStickers.isEmpty {
+                    await setupAudioStickers(storyId: storyId, stickers: audioStickers)
+                }
             }
-            
+
             // PASO 7: Remover del header después de 2 segundos
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
                 NotificationCenter.default.post(name: NSNotification.Name("StoryUploaded"), object: nil)
                 self.removeUploadingStory()
             }
-            
+
         } catch {
             await updateProgress(uploadingStory, progress: 0.0, status: .failed, error: error.localizedDescription)
-            
+
             // ✅ NUEVO: Finalizar Live Activity en caso de error
             if #available(iOS 16.1, *) {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
@@ -415,35 +426,35 @@ class BackgroundStoryUploadService: ObservableObject {
                 }
             }
         }
-        
+
         await MainActor.run {
             self.isProcessing = false
         }
     }
-    
+
     // MARK: - 📁 PREPARAR MEDIA ITEM
     // ✅ COMPRESIÓN SIMPLE - PRESERVAR DIMENSIONES ORIGINALES
     // MARK: - 🎥 COMPRESIÓN DE VIDEO (Optimizado a 720p - Igual que Feed)
     private func compressVideoForStory(_ inputURL: URL) async throws -> URL {
         let asset = AVURLAsset(url: inputURL)
-        
+
         // 1. Crear URL de destino
         let tempDir = FileManager.default.temporaryDirectory
         let outputURL = tempDir.appendingPathComponent("compressed_story_\(UUID().uuidString).mp4")
-        
+
         // 2. Configurar Export Session (Preset 720p para balance calidad/tamaño)
         // Esto reduce videos de 100MB+ a ~10-15MB con muy buena calidad visual en móvil
         guard let exportSession = AVAssetExportSession(asset: asset, presetName: AVAssetExportPreset1280x720) else {
             throw NSError(domain: "CompressionError", code: -1, userInfo: [NSLocalizedDescriptionKey: "No se pudo crear export session"])
         }
-        
+
         exportSession.outputURL = outputURL
         exportSession.outputFileType = .mp4
         exportSession.shouldOptimizeForNetworkUse = true
-        
+
         // 3. Exportar
         await exportSession.export()
-        
+
         // 4. Verificar resultado
         switch exportSession.status {
         case .completed:
@@ -463,7 +474,7 @@ class BackgroundStoryUploadService: ObservableObject {
         let imageGenerator = AVAssetImageGenerator(asset: asset)
         imageGenerator.appliesPreferredTrackTransform = true
         imageGenerator.maximumSize = CGSize(width: 400, height: 400) // ✅ TAMAÑO OPTIMIZADO
-        
+
         do {
             let cgImage = try imageGenerator.copyCGImage(at: .zero, actualTime: nil)
             let uiImage = UIImage(cgImage: cgImage)
@@ -486,25 +497,25 @@ class BackgroundStoryUploadService: ObservableObject {
         let downloadURL = try await storageRef.downloadURL()
         return downloadURL.absoluteString
     }
-        
+
         // ✅ DETECTAR SI NECESITA COMPRESIÓN (SOLO POR TAMAÑO/BITRATE)
         private func needsCompressionBySize(_ videoURL: URL) async -> Bool {
         let asset = AVAsset(url: videoURL)
         let fileSize = getFileSizeInBytes(videoURL)
-        
+
         // ✅ SOLO COMPRIMIR SI ES MUY PESADO O TIENE BITRATE ALTO
         if fileSize > 100 * 1024 * 1024 { // Más de 100MB
             return true
         }
-        
+
         if let videoTrack = try? await asset.loadTracks(withMediaType: .video).first {
             let bitrate = try? await videoTrack.load(.estimatedDataRate)
-            
+
             if let rate = bitrate, rate > 15_000_000 { // Más de 15 Mbps
                 return true
             }
         }
-        
+
         return false
     }
 
@@ -512,10 +523,10 @@ class BackgroundStoryUploadService: ObservableObject {
     private func prepareMediaItem(_ uploadingStory: UploadingStory) async throws -> UploadMediaItem {
         if uploadingStory.mediaItem.type == .video,
            let videoURL = uploadingStory.mediaItem.videoURL {
-            
+
             // ✅ SOLO COMPRIMIR SI REALMENTE ES NECESARIO
             let needsCompression = await needsCompressionBySize(videoURL)
-            
+
             if needsCompression {
                 let compressedVideoURL = try await compressVideoForStory(videoURL)
                 return UploadMediaItem(type: .video, image: nil, videoURL: compressedVideoURL)
@@ -554,12 +565,12 @@ class BackgroundStoryUploadService: ObservableObject {
             return "Unknown"
         }
     }
-    
+
     // MARK: - 📁 UPLOAD DE ARCHIVO DE HISTORIA
     private func uploadStoryMedia(_ uploadingStory: UploadingStory, uploadMediaItem: UploadMediaItem) async throws -> String {
-        
+
         let storageService = StorageService()
-        
+
         return try await withCheckedThrowingContinuation { continuation in
             storageService.uploadMedia(userId: uploadingStory.userId, mediaItem: uploadMediaItem) { result in
                 // Simular progreso durante upload (20% - 70%)
@@ -569,24 +580,24 @@ class BackgroundStoryUploadService: ObservableObject {
                         try? await Task.sleep(nanoseconds: 200_000_000) // 0.2 segundos
                     }
                 }
-                
+
                 continuation.resume(with: result)
             }
         }
     }
-    
+
     // MARK: - 📝 CREAR HISTORIA EN FIRESTORE
     private func createStoryInFirestore(_ uploadingStory: UploadingStory, mediaUrl: String) async throws -> String {
         let firestoreService = FirestoreService.shared
-        
+
         // ✅ DETECTAR ASPECT RATIO Y EXTRAER FRAME DE FONDO
         var aspectRatio: String? = nil
         var backgroundFrameURL: String? = nil
-        
+
         if uploadingStory.mediaItem.type == .video,
            let videoURL = uploadingStory.mediaItem.videoURL {
             aspectRatio = await GlassmorphicStoryViewer.detectVideoAspectRatio(from: videoURL)
-            
+
             // Extraer frame cuando el media no debe ir a fill y necesita blur de relleno.
             if let aspectRatio = aspectRatio,
                StoryMediaLayoutRules.presentationMode(
@@ -608,13 +619,13 @@ class BackgroundStoryUploadService: ObservableObject {
                 aspectRatio = "\(width):\(height)"
             }
         }
-        
+
         // 🔥 CREAR MediaItem como en tu función original
         let mediaItem = MediaItem(
             type: uploadingStory.mediaItem.type == .video ? .video : .image,
             url: mediaUrl
         )
-        
+
         // ✅ NORMALIZAR STICKERS EN EL ÁREA REAL DEL CONTENIDO (tipo Instagram)
         // Guardamos posición relativa (u,v) dentro del contentRect y escala relativa al ancho del contentRect.
         // Así se mantiene estable entre móviles con tamaños/ratios distintos.
@@ -623,14 +634,14 @@ class BackgroundStoryUploadService: ObservableObject {
 
         let normalizedStickerData: [StickerData]? = uploadingStory.stickerData?.compactMap { stickerItem in
             var normalizedItem = stickerItem
-            
+
             let safeWidth = max(contentRect.width, 1)
             let safeHeight = max(contentRect.height, 1)
-            
+
             let normalizedX = (stickerItem.position.x - contentRect.minX) / safeWidth
             let normalizedY = (stickerItem.position.y - contentRect.minY) / safeHeight
             let normalizedScale = stickerItem.scale * (referenceContentWidth / safeWidth)
-            
+
             normalizedItem.position = CGPoint(
                 x: normalizedX.isFinite ? normalizedX : 0.5,
                 y: normalizedY.isFinite ? normalizedY : 0.5
@@ -638,7 +649,7 @@ class BackgroundStoryUploadService: ObservableObject {
             normalizedItem.scale = normalizedScale.isFinite ? normalizedScale : stickerItem.scale
             return StickerData.from(normalizedItem)
         }
-        
+
         return try await withCheckedThrowingContinuation { continuation in
             if uploadingStory.audienceSetting == .customList && uploadingStory.customListId != nil {
                 // Lista personalizada
@@ -710,7 +721,7 @@ class BackgroundStoryUploadService: ObservableObject {
             }
         }
     }
-    
+
     // MARK: - 🎯 STICKER LAYOUT HELPERS
     private func storyContentRectInEditor(for uploadingStory: UploadingStory, aspectRatio: String?) -> CGRect {
         let containerSize = UIScreen.main.bounds.size
@@ -721,7 +732,7 @@ class BackgroundStoryUploadService: ObservableObject {
             }
             return imageSize.width / imageSize.height
         }()
-        
+
         let contentMode = StoryMediaLayoutRules.presentationMode(
             for: resolvedAspectRatio,
             canvasAspectRatio: containerSize.width / max(containerSize.height, 1)
@@ -732,7 +743,7 @@ class BackgroundStoryUploadService: ObservableObject {
             contentMode: contentMode
         )
     }
-    
+
     private func parseAspectRatio(_ aspectRatio: String?) -> CGFloat? {
         guard let aspectRatio else { return nil }
         let components = aspectRatio.split(separator: ":")
@@ -741,7 +752,7 @@ class BackgroundStoryUploadService: ObservableObject {
               let heightValue = Double(components[1]) else {
             return nil
         }
-        
+
         let width = CGFloat(widthValue)
         let height = CGFloat(heightValue)
         guard
@@ -751,7 +762,7 @@ class BackgroundStoryUploadService: ObservableObject {
         }
         return width / height
     }
-    
+
     private func contentRect(
         containerSize: CGSize,
         mediaAspectRatio: CGFloat,
@@ -760,13 +771,13 @@ class BackgroundStoryUploadService: ObservableObject {
         let containerWidth = max(containerSize.width, 1)
         let containerHeight = max(containerSize.height, 1)
         let containerAspectRatio = containerWidth / containerHeight
-        
+
         let isFit = contentMode == .fit
         let mediaIsWider = mediaAspectRatio > containerAspectRatio
-        
+
         let width: CGFloat
         let height: CGFloat
-        
+
         if isFit {
             if mediaIsWider {
                 width = containerWidth
@@ -784,7 +795,7 @@ class BackgroundStoryUploadService: ObservableObject {
                 height = containerWidth / max(mediaAspectRatio, 0.0001)
             }
         }
-        
+
         return CGRect(
             x: (containerWidth - width) / 2,
             y: (containerHeight - height) / 2,
@@ -792,16 +803,16 @@ class BackgroundStoryUploadService: ObservableObject {
             height: height
         )
     }
-    
-    
-    
+
+
+
     // MARK: - 🛡️ MODERACIÓN SILENCIOSA DE HISTORIA
     private func moderateStoryContentSilently(
         storyId: String,
         uploadingStory: UploadingStory,
         mediaUrl: String
     ) async {
-        
+
         await withCheckedContinuation { continuation in
             MediaModerationService.shared.moderateMedia(
                 mediaURL: mediaUrl,
@@ -814,22 +825,22 @@ class BackgroundStoryUploadService: ObservableObject {
                 case .approved:
                     // Story approved - no action needed
                     break
-                    
+
                 case .deleted(let reason, let category):
                     // ✅ IGUAL QUE MOMENTOS: MediaModerationService YA ejecutó hideContentUsingOnlyMe()
                     // NO necesitamos llamar a hideStoryUsingOnlyMe() aquí
                     break
-                    
+
                 case .warning(let reason, let category):
                     // ✅ IGUAL QUE MOMENTOS: MediaModerationService YA ejecutó hideContentUsingOnlyMe()
                     // La historia queda visible pero marcada para revisión
                     break
-                    
+
                 case .error(let errorMessage):
                     // Mantener visible si hay error técnico
                     break
                 }
-                
+
                 continuation.resume()
             }
         }
@@ -894,20 +905,20 @@ class BackgroundStoryUploadService: ObservableObject {
             }
         }
     }
-    
+
     // MARK: - 📊 CONFIGURAR POLLS
     private func setupPollStickers(storyId: String, stickers: [StickerItem]) async {
-        
+
         // ✅ CORREGIDO: Unwrap uploadingStory de forma segura
         guard let uploadingStory = uploadingStory else {
             return
         }
-        
+
         for sticker in stickers {
             guard let pollData = sticker.interactionData?.pollData else {
                 continue
             }
-            
+
             // Crear colección de votos para este poll
             let pollVotesRef = Firestore.firestore()
                 .collection("users")
@@ -915,7 +926,7 @@ class BackgroundStoryUploadService: ObservableObject {
                 .collection("stories")
                 .document(storyId)
                 .collection("pollVotes")
-            
+
             // Crear documento inicial del poll con metadata
             let pollMetadata: [String: Any] = [
                 "pollData": pollData,
@@ -925,27 +936,27 @@ class BackgroundStoryUploadService: ObservableObject {
                 "option0Votes": 0,
                 "option1Votes": 0
             ]
-            
+
             do {
-                try await pollVotesRef.document("metadata").setData(pollMetadata)
+                try await pollVotesRef.document(sticker.id).setData(pollMetadata)
             } catch {
             }
         }
     }
-    
+
     // MARK: - ❓ CONFIGURAR QUESTIONS
     private func setupQuestionStickers(storyId: String, stickers: [StickerItem]) async {
-        
+
         // ✅ CORREGIDO: Unwrap uploadingStory de forma segura
         guard let uploadingStory = uploadingStory else {
             return
         }
-        
+
         for sticker in stickers {
             guard let questionText = sticker.interactionData?.questionText else {
                 continue
             }
-            
+
             // Crear colección de respuestas para este question
             let questionResponsesRef = Firestore.firestore()
                 .collection("users")
@@ -953,7 +964,7 @@ class BackgroundStoryUploadService: ObservableObject {
                 .collection("stories")
                 .document(storyId)
                 .collection("questionResponses")
-            
+
             // Crear documento inicial del question con metadata
             let questionMetadata: [String: Any] = [
                 "questionText": questionText,
@@ -961,9 +972,9 @@ class BackgroundStoryUploadService: ObservableObject {
                 "createdAt": FieldValue.serverTimestamp(),
                 "responseCount": 0
             ]
-            
+
             do {
-                try await questionResponsesRef.document("metadata").setData(questionMetadata)
+                try await questionResponsesRef.document(sticker.id).setData(questionMetadata)
             } catch {
             }
         }
@@ -1001,32 +1012,32 @@ class BackgroundStoryUploadService: ObservableObject {
             }
         }
     }
-    
+
     // MARK: - 💬 CONFIGURAR QUESTION RESPONSES
     private func setupQuestionResponseStickers(storyId: String, stickers: [StickerItem]) async {
-        
+
         // Los stickers de respuesta de preguntas son estáticos y se muestran en la historia
         // No necesitan configuración especial en Firestore
         for sticker in stickers {
             guard let questionText = sticker.interactionData?.questionText else {
                 continue
             }
-            
+
         }
     }
-    
+
     // MARK: - 🌤️ CONFIGURAR WEATHER STICKERS
     // MARK: - 📝 CONFIGURAR QUIZ
     private func setupQuizStickers(storyId: String, stickers: [StickerItem]) async {
-        
+
         guard let uploadingStory = uploadingStory else { return }
-        
+
         for sticker in stickers {
             guard let quizQuestion = sticker.interactionData?.quizQuestion,
                   let quizOptions = sticker.interactionData?.quizOptions else {
                 continue
             }
-            
+
             // Colección de respuestas para este quiz
             let quizResponsesRef = Firestore.firestore()
                 .collection("users")
@@ -1034,7 +1045,7 @@ class BackgroundStoryUploadService: ObservableObject {
                 .collection("stories")
                 .document(storyId)
                 .collection("quizResponses")
-            
+
             // Metadata inicial del quiz
             let quizMetadata: [String: Any] = [
                 "question": quizQuestion,
@@ -1044,15 +1055,66 @@ class BackgroundStoryUploadService: ObservableObject {
                 "createdAt": FieldValue.serverTimestamp(),
                 "totalResponses": 0
             ]
-            
+
             do {
-                try await quizResponsesRef.document("metadata").setData(quizMetadata)
+                try await quizResponsesRef.document(sticker.id).setData(quizMetadata)
             } catch { }
         }
     }
-    
+
+    // MARK: - 🎙️ CONFIGURAR AUDIO
+    private func setupAudioStickers(storyId: String, stickers: [StickerItem]) async {
+        guard let userId = Auth.auth().currentUser?.uid else { return }
+
+        for sticker in stickers {
+            guard let localAudioURLString = sticker.interactionData?.audioURL,
+                  let localURL = URL(string: localAudioURLString),
+                  localURL.isFileURL else { continue }
+
+            do {
+                // 1. Upload audio file
+                let audioData = try Data(contentsOf: localURL)
+                let audioPath = "stories/\(userId)/audio/\(sticker.id).m4a"
+                let storageRef = Storage.storage().reference().child(audioPath)
+                let metadata = StorageMetadata()
+                metadata.contentType = "audio/m4a"
+
+                _ = try await storageRef.putDataAsync(audioData, metadata: metadata)
+                let remoteURL = try await storageRef.downloadURL()
+
+                // 2. Update sticker in Firestore
+                let storyRef = Firestore.firestore()
+                    .collection("users").document(userId)
+                    .collection("stories").document(storyId)
+
+                let doc = try await storyRef.getDocument()
+                if var stickerDataList = doc.data()?["stickers"] as? [[String: Any]] {
+                    var found = false
+                    for i in 0..<stickerDataList.count {
+                        if stickerDataList[i]["stickerId"] as? String == sticker.id {
+                            var stickerDict = stickerDataList[i]
+                            stickerDict["audioURL"] = remoteURL.absoluteString
+                            stickerDataList[i] = stickerDict
+                            found = true
+                            break
+                        }
+                    }
+                    if found {
+                        try await storyRef.updateData(["stickers": stickerDataList])
+                    }
+                }
+
+                // Cleanup local temp file
+                try? FileManager.default.removeItem(at: localURL)
+
+            } catch {
+                print("❌ Failed to setup audio sticker: \(error)")
+            }
+        }
+    }
+
     private func setupWeatherStickers(storyId: String, stickers: [StickerItem]) async {
-        
+
         // Los stickers de clima son estáticos y se muestran animados en la historia
         // No necesitan configuración especial en Firestore, solo se guardan los datos
         for sticker in stickers {
@@ -1060,10 +1122,10 @@ class BackgroundStoryUploadService: ObservableObject {
                   let temperature = sticker.interactionData?.questionText else {
                 continue
             }
-            
+
         }
     }
-    
+
     // MARK: - 🔄 HELPERS
     @MainActor
     private func updateProgress(_ story: UploadingStory, progress: Double, status: UploadStatus? = nil, error: String? = nil) {
@@ -1077,39 +1139,39 @@ class BackgroundStoryUploadService: ObservableObject {
             }
         }
     }
-    
+
     @MainActor
     private func removeUploadingStory() {
         // ✅ Asegurar que la Live Activity se cierre si se cancela o elimina
         if #available(iOS 16.1, *) {
             endLiveActivity()
         }
-        
+
         uploadingStory = nil
         isProcessing = false
     }
-    
+
     // MARK: - 🔄 REINTENTAR UPLOAD FALLIDO
     func retryUpload(_ story: UploadingStory) {
         guard story.status == .failed else { return }
-        
+
         DispatchQueue.main.async {
             story.status = .uploading
             story.uploadProgress = 0.0
             story.errorMessage = nil
             self.isProcessing = true
         }
-        
+
         // ✅ NUEVO: SOLICITUD DE BACKGROUND TASK (RETRY)
         var backgroundTaskID: UIBackgroundTaskIdentifier = .invalid
         backgroundTaskID = UIApplication.shared.beginBackgroundTask(withName: "StoryRetryUpload") {
             UIApplication.shared.endBackgroundTask(backgroundTaskID)
             backgroundTaskID = .invalid
         }
-        
+
         Task.detached(priority: .userInitiated) {
             await self.processStoryUpload(story)
-            
+
             // ✅ Terminar background task
             DispatchQueue.main.async {
                 if backgroundTaskID != .invalid {
@@ -1119,16 +1181,16 @@ class BackgroundStoryUploadService: ObservableObject {
             }
         }
     }
-    
+
     // MARK: - 🗑️ CANCELAR UPLOAD
     func cancelUpload(_ story: UploadingStory) {
         if let currentStory = self.uploadingStory, currentStory.id == story.id {
             self.removeUploadingStory()
         }
     }
-    
+
     // MARK: - 💾 PERSISTENCIA: Cola de Outbox
-    
+
     /// Prepara una acción persistente antes de iniciar el upload
     func persistAction(_ uploadingStory: UploadingStory) async {
         do {
@@ -1136,10 +1198,10 @@ class BackgroundStoryUploadService: ObservableObject {
             if !FileManager.default.fileExists(atPath: self.pendingUploadsDir.path) {
                 try FileManager.default.createDirectory(at: self.pendingUploadsDir, withIntermediateDirectories: true)
             }
-            
+
             // 2. Guardar archivo principal en disco
             let cachedMedia = try await self.saveMediaToDisk(uploadingStory.mediaItem)
-            
+
             // 3. Guardar stickers en disco
             var cachedStickers: [CachedSticker] = []
             if let stickers = uploadingStory.stickerData {
@@ -1148,7 +1210,7 @@ class BackgroundStoryUploadService: ObservableObject {
                     cachedStickers.append(cached)
                 }
             }
-            
+
             // 4. Guardar dibujo si existe
             var drawingFileName: String? = nil
             if let drawingData = uploadingStory.drawingData {
@@ -1156,7 +1218,7 @@ class BackgroundStoryUploadService: ObservableObject {
                 let drawingURL = pendingUploadsDir.appendingPathComponent(drawingFileName!)
                 try drawingData.write(to: drawingURL)
             }
-            
+
             // 5. Crear payload
             let payload = StoryUploadPayload(
                 userId: uploadingStory.userId,
@@ -1180,26 +1242,26 @@ class BackgroundStoryUploadService: ObservableObject {
                 continuationCustomListId: uploadingStory.continuationCustomListId,
                 continuationCustomListName: uploadingStory.continuationCustomListName
             )
-            
+
             let encodedPayload = try JSONEncoder().encode(payload)
-            
+
             // 6. Guardar en SwiftData
             let action = CachedAction(
                 id: uploadingStory.tempId,
                 type: CachedAction.ActionType.storyUpload.rawValue,
                 payloadData: encodedPayload
             )
-            
+
             await LocalPersistenceService.shared.saveAction(action)
-            
+
         } catch { }
     }
-    
+
     private func saveMediaToDisk(_ media: ProcessedMedia) async throws -> CachedMediaItem {
         let id = UUID().uuidString
         let fileName = "\(id)_\(media.type == .image ? "img.jpg" : "vid.mp4")"
         let fileURL = pendingUploadsDir.appendingPathComponent(fileName)
-        
+
         if media.type == .image {
             let image = media.image
             if let data = image.jpegData(compressionQuality: 0.8) {
@@ -1208,7 +1270,7 @@ class BackgroundStoryUploadService: ObservableObject {
         } else if media.type == .video, let videoURL = media.videoURL {
             try FileManager.default.copyItem(at: videoURL, to: fileURL)
         }
-        
+
         // Guardar thumbnail si existe
         var thumbName: String? = nil
         if let thumbURL = media.thumbnailURL {
@@ -1216,7 +1278,7 @@ class BackgroundStoryUploadService: ObservableObject {
             let thumbDest = pendingUploadsDir.appendingPathComponent(thumbName!)
             try? FileManager.default.copyItem(at: thumbURL, to: thumbDest)
         }
-        
+
         return CachedMediaItem(
             type: media.type == .image ? "image" : "video",
             localFileName: fileName,
@@ -1228,11 +1290,11 @@ class BackgroundStoryUploadService: ObservableObject {
             tagsData: nil // Historias no usan PhotoTags tradicionales
         )
     }
-    
+
     private func saveStickerToDisk(_ sticker: StickerItem) async throws -> CachedSticker {
         let id = sticker.id
         var localImageName: String? = nil
-        
+
         // Solo guardamos la imagen si no es un sticker animado (GIF)
         if !sticker.isAnimated {
             let fileName = "sticker_\(UUID().uuidString).png"
@@ -1242,7 +1304,7 @@ class BackgroundStoryUploadService: ObservableObject {
                 localImageName = fileName
             }
         }
-        
+
         let interaction = sticker.interactionData.map { data in
             CachedStickerInteractionData(
                 username: data.username,
@@ -1268,10 +1330,15 @@ class BackgroundStoryUploadService: ObservableObject {
                 quizOptions: data.quizOptions,
                 quizCorrectIndex: data.quizCorrectIndex,
                 revealType: data.revealType,
-                frameStyle: data.frameStyle
+                revealPattern: data.revealPattern,
+                revealPrimaryColor: data.revealPrimaryColor,
+                revealSecondaryColor: data.revealSecondaryColor,
+                frameStyle: data.frameStyle,
+                audioURL: data.audioURL,
+                audioDuration: data.audioDuration
             )
         }
-        
+
         return CachedSticker(
             id: sticker.id,
             localImageName: localImageName,
@@ -1285,11 +1352,11 @@ class BackgroundStoryUploadService: ObservableObject {
             interactionData: interaction
         )
     }
-    
+
     /// Borra los archivos temporales asociados a una acción
     func deleteActionFiles(id: String) {
         guard let files = try? FileManager.default.contentsOfDirectory(at: pendingUploadsDir, includingPropertiesForKeys: nil) else { return }
-        
+
         for file in files {
             // Borramos archivos que contengan el ID de la historia (tempId o id de acción)
             if file.lastPathComponent.contains(id) {
@@ -1297,14 +1364,14 @@ class BackgroundStoryUploadService: ObservableObject {
             }
         }
     }
-    
+
     /// Reanuda una subida desde una acción persistida
     func resumeUpload(from action: CachedAction) async {
         guard action.type == CachedAction.ActionType.storyUpload.rawValue else { return }
-        
+
         do {
             let payload = try JSONDecoder().decode(StoryUploadPayload.self, from: action.payloadData)
-            
+
             // ✅ DUPLICATE CHECK: Evitar re-subir si ya está en proceso
             if let currentStory = uploadingStory, currentStory.tempId == action.id {
                  return
@@ -1327,13 +1394,13 @@ class BackgroundStoryUploadService: ObservableObject {
                 default: return .everyone
                 }
             }()
-            
+
             // 1. Reconstruir MediaItem
             let mediaFileURL = pendingUploadsDir.appendingPathComponent(payload.mediaItem.localFileName)
             guard FileManager.default.fileExists(atPath: mediaFileURL.path) else { return }
-            
+
             let thumbURL: URL? = payload.mediaItem.thumbnailFileName != nil ? pendingUploadsDir.appendingPathComponent(payload.mediaItem.thumbnailFileName!) : nil
-            
+
             // Determinar aspect ratio
             let itemAspectRatio: CreatorMedia.AspectRatio = {
                 if let cachedAspectRatio = payload.mediaItem.aspectRatio {
@@ -1344,7 +1411,7 @@ class BackgroundStoryUploadService: ObservableObject {
                 }
                 return .square
             }()
-            
+
             var processedMedia = ProcessedMedia(
                 type: payload.mediaItem.type == "image" ? .image : .video,
                 image: (payload.mediaItem.type == "image" ? UIImage(contentsOfFile: mediaFileURL.path) : nil) ?? UIImage(),
@@ -1355,7 +1422,7 @@ class BackgroundStoryUploadService: ObservableObject {
             processedMedia.videoDuration = payload.mediaItem.videoDuration
             processedMedia.videoFileSize = payload.mediaItem.videoFileSize
             processedMedia.videoResolution = payload.mediaItem.videoResolution
-            
+
             // 2. Reconstruir Stickers
             var stickers: [StickerItem] = []
             if let cachedStickers = payload.stickers {
@@ -1365,7 +1432,7 @@ class BackgroundStoryUploadService: ObservableObject {
                         let path = pendingUploadsDir.appendingPathComponent(localName).path
                         image = UIImage(contentsOfFile: path) ?? UIImage()
                     }
-                    
+
                     let type = StickerItem.StickerType(rawValue: cached.type) ?? .generic
                     let interaction = cached.interactionData.map { data in
                         StickerItem.StickerInteractionData(
@@ -1391,10 +1458,15 @@ class BackgroundStoryUploadService: ObservableObject {
                             quizOptions: data.quizOptions,
                             quizCorrectIndex: data.quizCorrectIndex,
                             revealType: data.revealType,
-                            frameStyle: data.frameStyle
+                            revealPattern: data.revealPattern,
+                            revealPrimaryColor: data.revealPrimaryColor,
+                            revealSecondaryColor: data.revealSecondaryColor,
+                            frameStyle: data.frameStyle,
+                            audioURL: data.audioURL,
+                            audioDuration: data.audioDuration
                         )
                     }
-                    
+
                     var sticker: StickerItem
                     if cached.isAnimated {
                         if let videoURL = cached.videoURL {
@@ -1457,18 +1529,18 @@ class BackgroundStoryUploadService: ObservableObject {
                     stickers.append(sticker)
                 }
             }
-            
+
             // 3. Reconstruir Dibujo
             var drawingData: Data? = nil
             if let drawingName = payload.drawingFileName {
                 let path = pendingUploadsDir.appendingPathComponent(drawingName).path
                 drawingData = try? Data(contentsOf: URL(fileURLWithPath: path))
             }
-            
+
             // 4. Iniciar upload
             // let audience = ContentAudience(rawValue: payload.audienceSetting) ?? .everyone // Eliminado, usamos la variable de arriba
             let continuationAudience = payload.continuationAudience != nil ? ContentAudience(rawValue: payload.continuationAudience!) : nil
-            
+
             _ = uploadStory(
                 mediaItem: processedMedia,
                 storyText: payload.storyText,
@@ -1490,7 +1562,7 @@ class BackgroundStoryUploadService: ObservableObject {
                 continuationCustomListId: payload.continuationCustomListId,
                 continuationCustomListName: payload.continuationCustomListName
             )
-            
+
             LocalPersistenceService.shared.deleteAction(id: action.id)
 
         } catch { }
@@ -1520,7 +1592,7 @@ extension BackgroundStoryUploadService {
         continuationCustomListId: String? = nil, // 🔗 AÑADIDO: Lista específica que puede continuar
         continuationCustomListName: String? = nil // 🔗 AÑADIDO: Nombre de la lista que puede continuar
     ) -> Bool {
-        
+
         let uploadingStory = uploadStory(
             mediaItem: mediaItem,
             storyText: storyText.isEmpty ? nil : storyText,
@@ -1542,60 +1614,60 @@ extension BackgroundStoryUploadService {
             continuationCustomListId: continuationCustomListId, // 🔗 AÑADIDO: Pasar lista específica
             continuationCustomListName: continuationCustomListName // 🔗 AÑADIDO: Pasar nombre de lista
         )
-        
+
         return uploadingStory != nil
     }
-    
+
     // ✅ FUNCIÓN: Optimizar imagen para historias
     private func optimizeImageForStory(_ image: UIImage) -> UIImage {
         // Normalizamos orientación siempre
         let normalizedImage = image.normalized()
-        
+
         // Capped dimension for memory - Stories are typically 1080x1920
         // Using 1440 for high quality but much less memory than camera resolution
         let maxDimension: CGFloat = 1440
-        
+
         if normalizedImage.size.width > maxDimension || normalizedImage.size.height > maxDimension {
             return calculateOptimalSize(for: normalizedImage, maxDimension: maxDimension)
         }
-        
+
         return normalizedImage
     }
-    
+
     // ✅ FUNCIÓN: Calcular tamaño óptimo para redimensionar
     private func calculateOptimalSize(for image: UIImage, maxDimension: CGFloat) -> UIImage {
         let originalSize = image.size
         let widthRatio = maxDimension / originalSize.width
         let heightRatio = maxDimension / originalSize.height
         let scale = min(widthRatio, heightRatio)
-        
+
         let newWidth = originalSize.width * scale
         let newHeight = originalSize.height * scale
         let newSize = CGSize(width: newWidth, height: newHeight)
-        
+
         let renderer = UIGraphicsImageRenderer(size: newSize)
         let resizedImage = renderer.image { context in
             image.draw(in: CGRect(origin: .zero, size: newSize))
         }
-        
+
         // ✅ Normalizar orientación después del redimensionamiento
         return resizedImage.normalized()
     }
-    
+
     // MARK: - 📱 LIVE ACTIVITIES PARA DYNAMIC ISLAND
-    
+
     @available(iOS 16.1, *)
     private func startLiveActivity(for uploadingStory: UploadingStory) async {
         let attributes = StoryUploadActivityAttributes(
             storyId: uploadingStory.tempId,
             mediaType: uploadingStory.mediaItem.type == .video ? "video" : "image"
         )
-        
+
         let initialContentState = StoryUploadActivityAttributes.ContentState(
             progress: 0.0,
             status: "uploading"
         )
-        
+
         do {
             let activity = try Activity<StoryUploadActivityAttributes>.request(
                 attributes: attributes,
@@ -1608,18 +1680,18 @@ extension BackgroundStoryUploadService {
         } catch {
         }
     }
-    
+
     @available(iOS 16.1, *)
     private func updateLiveActivity(progress: Double, status: String) {
         guard let activity = liveActivity else {
             return
         }
-        
+
         let updatedState = StoryUploadActivityAttributes.ContentState(
             progress: progress,
             status: status
         )
-        
+
         Task {
             do {
                 await activity.update(using: updatedState)
@@ -1627,43 +1699,43 @@ extension BackgroundStoryUploadService {
             }
         }
     }
-    
+
     @available(iOS 16.1, *)
     private func updateLiveActivityAsync(progress: Double, status: String) async {
         guard let activity = liveActivity else {
             return
         }
-        
+
         let updatedState = StoryUploadActivityAttributes.ContentState(
             progress: progress,
             status: status
         )
-        
+
         do {
             await activity.update(using: updatedState)
         } catch {
         }
     }
-    
+
     @available(iOS 16.1, *)
     private func endLiveActivity() {
         guard let activity = liveActivity else { return }
-        
+
         let finalState = StoryUploadActivityAttributes.ContentState(
             progress: 1.0,
             status: "completed"
         )
-        
+
         Task {
             await activity.end(using: finalState, dismissalPolicy: .immediate)
             liveActivity = nil
         }
     }
-    
+
     @available(iOS 16.1, *)
     private func endLiveActivityAsync() async {
         guard let activity = liveActivity else { return }
-        
+
         // No necesitamos actualizar el estado aquí porque ya lo hicimos antes
         // Solo cerramos la Live Activity después de que se haya mostrado el emoji
         await activity.end(dismissalPolicy: .immediate)
@@ -1671,7 +1743,7 @@ extension BackgroundStoryUploadService {
             liveActivity = nil
         }
     }
-    
+
     // ✅ NUEVO: Limpiar actividades huerfanas al inicio
     @available(iOS 16.1, *)
     private func cleanupStaleLiveActivities() async {
@@ -1680,16 +1752,16 @@ extension BackgroundStoryUploadService {
             // Si hay una actividad en curso (liveActivity), no la borramos (aunque en init no debería haber)
             // Pero si la app se reinició, activity != liveActivity (que es nil o nueva)
             // Así que borramos TODAS las actividades antiguas almacenadas por el sistema
-            
+
             // Solo borramos si NO es la actual (por si acaso se llama en otro momento)
             if let current = liveActivity, current.id == activity.id {
                 continue
             }
-            
+
             await activity.end(dismissalPolicy: .immediate)
         }
     }
-    
+
     // ✅ NUEVO: Función helper para actualizar progreso (si no existe)
     private func updateProgress(_ uploadingStory: UploadingStory, progress: Double, status: UploadStatus? = nil, error: String? = nil) async {
         await MainActor.run {
@@ -1701,7 +1773,7 @@ extension BackgroundStoryUploadService {
                 uploadingStory.errorMessage = error
             }
         }
-        
+
         // ✅ NUEVO: Actualizar Live Activity
         if #available(iOS 16.1, *) {
             let statusString: String

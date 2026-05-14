@@ -2,7 +2,33 @@
 "storyEditor.customAudience.multiple" = "%d persones";
 "storyEditor.loadingSettings" = "Carregant...";
 "storyEditor.savedToGallery" = "Història desada a la teva galeria";
-"storyEditor.reveal.active" = "Efecte de revelat actiu";
+"storyEditor.reveal.active" = "Efecte de revelat actiu, toca per personalitzar";
+"revealEditor.title" = "Personalitzar Revelat";
+"revealEditor.tab.presets" = "Dissenys";
+"revealEditor.tab.custom" = "A mida";
+"revealEditor.pattern.none" = "Cap";
+"revealEditor.pattern.dots" = "Punts";
+"revealEditor.pattern.noise" = "Soroll";
+"revealEditor.pattern.grid" = "Reixa";
+"revealEditor.pattern.lines" = "Línies";
+"revealEditor.pattern.scanlines" = "CRT (Scanlines)";
+"revealEditor.pattern.waves" = "Ones";
+"revealEditor.pattern.static" = "Estàtica (TV)";
+"revealEditor.pattern.matrix" = "Matrix (Digital)";
+"revealEditor.pattern.holographic" = "Hologràfic";
+"revealEditor.color1" = "Color 1";
+"revealEditor.color2" = "Color 2";
+"revealEditor.colorPicker.primary" = "Seleccionar Color";
+"revealEditor.colorPicker.secondary" = "Seleccionar Color Secundari";
+"revealEditor.preset.classic" = "Clàssic";
+"revealEditor.preset.midnight" = "Mitjanit";
+"revealEditor.preset.golden" = "Daurat";
+"revealEditor.preset.neon" = "Neó";
+"revealEditor.preset.silver" = "Plata";
+"revealEditor.preset.retro" = "Tele Antiga";
+"revealEditor.preset.matrix" = "Matrix";
+"revealEditor.preset.blueprint" = "Plànol Blau";
+"revealEditor.preset.magic" = "Màgic";
 "storyEditor.error.publishStart" = "No s'ha pogut iniciar la pujada de la història";
 
 /* Story Chains */
@@ -1101,7 +1127,7 @@
 "stickerview.category.location" = "Lloc";
 "stickerview.category.mention" = "Menció";
 "stickerview.category.link" = "Enllaç";
-"stickerview.category.hashtag" = "#hashtag";
+"stickerview.category.hashtag" = "hashtag";
 "stickerview.category.poll" = "Votació";
 "stickerview.category.question" = "Preguntes";
 "stickerview.category.emojiSlider" = "Slider emoji";
@@ -3123,3 +3149,10 @@
 "reveal.addLayer" = "AFEGIR CAPA";
 "reveal.viewerHint" = "Rasca per descobrir";
 "storyEditor.polaroid.addNote" = "Afegeix una nota...";
+
+"stickerview.category.audio" = "Àudio";
+"stickerview.audio.title" = "Afegeix la teva veu";
+"stickerview.audio.recording" = "Enregistrant...";
+"stickerview.audio.recorded" = "Llest per afegir";
+"stickerview.audio.tapToRecord" = "Toca per enregistrar";
+"stickerview.audio.add" = "Afegir a la història";
