@@ -1377,11 +1377,26 @@ class FirestoreService: ObservableObject {
                             if let quizCorrectIndex = sticker.quizCorrectIndex {
                                 stickerData["quizCorrectIndex"] = quizCorrectIndex
                             }
-                            if let revealType = sticker.revealType {
+                             if let revealType = sticker.revealType {
                                 stickerData["revealType"] = revealType
+                            }
+                            if let revealPattern = sticker.revealPattern {
+                                stickerData["revealPattern"] = revealPattern
+                            }
+                            if let revealPrimaryColor = sticker.revealPrimaryColor {
+                                stickerData["revealPrimaryColor"] = revealPrimaryColor
+                            }
+                            if let revealSecondaryColor = sticker.revealSecondaryColor {
+                                stickerData["revealSecondaryColor"] = revealSecondaryColor
                             }
                             if let frameStyle = sticker.frameStyle {
                                 stickerData["frameStyle"] = frameStyle
+                            }
+                            if let audioURL = sticker.audioURL {
+                                stickerData["audioURL"] = audioURL
+                            }
+                            if let audioDuration = sticker.audioDuration {
+                                stickerData["audioDuration"] = audioDuration
                             }
                             
                             // ✅ INCLUIR PROPIEDADES DE ANIMACIÓN
@@ -4081,8 +4096,23 @@ extension FirestoreService {
                             if let revealType = sticker.revealType {
                                 stickerData["revealType"] = revealType
                             }
+                            if let revealPattern = sticker.revealPattern {
+                                stickerData["revealPattern"] = revealPattern
+                            }
+                            if let revealPrimaryColor = sticker.revealPrimaryColor {
+                                stickerData["revealPrimaryColor"] = revealPrimaryColor
+                            }
+                            if let revealSecondaryColor = sticker.revealSecondaryColor {
+                                stickerData["revealSecondaryColor"] = revealSecondaryColor
+                            }
                             if let frameStyle = sticker.frameStyle {
                                 stickerData["frameStyle"] = frameStyle
+                            }
+                            if let audioURL = sticker.audioURL {
+                                stickerData["audioURL"] = audioURL
+                            }
+                            if let audioDuration = sticker.audioDuration {
+                                stickerData["audioDuration"] = audioDuration
                             }
                             
                             // ✅ INCLUIR PROPIEDADES DE ANIMACIÓN
@@ -4528,8 +4558,23 @@ extension FirestoreService {
                             if let revealType = sticker.revealType {
                                 stickerData["revealType"] = revealType
                             }
+                            if let revealPattern = sticker.revealPattern {
+                                stickerData["revealPattern"] = revealPattern
+                            }
+                            if let revealPrimaryColor = sticker.revealPrimaryColor {
+                                stickerData["revealPrimaryColor"] = revealPrimaryColor
+                            }
+                            if let revealSecondaryColor = sticker.revealSecondaryColor {
+                                stickerData["revealSecondaryColor"] = revealSecondaryColor
+                            }
                             if let frameStyle = sticker.frameStyle {
                                 stickerData["frameStyle"] = frameStyle
+                            }
+                            if let audioURL = sticker.audioURL {
+                                stickerData["audioURL"] = audioURL
+                            }
+                            if let audioDuration = sticker.audioDuration {
+                                stickerData["audioDuration"] = audioDuration
                             }
 
                             // ✅ INCLUIR PROPIEDADES DE ANIMACIÓN

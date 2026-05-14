@@ -29,6 +29,8 @@ class AudioRecordingManager: ObservableObject {
     }
     
     func startRecording() {
+        setupAudioSession()
+
         let audioFilename = getDocumentsDirectory().appendingPathComponent("recording.m4a")
         
         // ✅ Configuración de ALTA CALIDAD como WhatsApp/Telegram
@@ -135,6 +137,7 @@ struct VisualWaveformView: View {
     let color: Color
     let activeColor: Color
     let progress: Double
+    var height: CGFloat = 30
     
     var body: some View {
         HStack(spacing: 3) {
@@ -144,7 +147,7 @@ struct VisualWaveformView: View {
                 
                 RoundedRectangle(cornerRadius: 1.5)
                     .fill(isActive ? activeColor : color)
-                    .frame(width: 3, height: max(6, CGFloat(level) * 30))
+                    .frame(width: 3, height: max(6, CGFloat(level) * height))
                     .animation(.easeInOut(duration: 0.1), value: isActive)
                     .animation(.spring(response: 0.3, dampingFraction: 0.6), value: level)
             }
@@ -376,6 +379,13 @@ struct GlassmorphicAudioMessage: View {
             isCheckingAvailability = false
             return
         }
+
+        if let cachedURL = PersistentAudioCache.shared.cachedURL(for: url.absoluteString),
+           FileManager.default.fileExists(atPath: cachedURL.path) {
+            isAudioAvailable = true
+            isCheckingAvailability = false
+            return
+        }
         
         var request = URLRequest(url: url)
         request.httpMethod = "HEAD"
@@ -418,52 +428,45 @@ struct GlassmorphicAudioMessage: View {
             isAudioAvailable = false
             return
         }
-        
-        URLSession.shared.dataTask(with: url) { data, response, error in
-            guard let data = data, error == nil else {
-                DispatchQueue.main.async {
-                    self.isAudioAvailable = false
-                    self.showErrorMessage = true
+
+        Task {
+            do {
+                let playbackURL: URL
+                if url.isFileURL {
+                    playbackURL = url
+                } else {
+                    playbackURL = try await PersistentAudioCache.shared.localURL(for: url)
                 }
-                return
-            }
-            
-            if let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode != 200 {
-                DispatchQueue.main.async {
-                    self.isAudioAvailable = false
-                    self.showErrorMessage = true
-                }
-                return
-            }
-            
-            DispatchQueue.main.async {
-                do {
-                    // Crear el player
-                    self.audioPlayer = try AVAudioPlayer(data: data)
-                    self.audioPlayer?.play()
-                    self.isPlaying = true
-                    
-                    // Iniciar proximidad
-                    self.proximityManager.startMonitoring()
-                    
-                    // Empezar en altavoz
-                    self.switchAudioRoute(toEarpiece: false)
-                    
-                    
-                    self.timer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { _ in
-                        if let player = self.audioPlayer {
-                            self.currentTime = player.currentTime
-                            if !player.isPlaying {
-                                self.stopPlayback()
+
+                await MainActor.run {
+                    do {
+                        self.audioPlayer = try AVAudioPlayer(contentsOf: playbackURL)
+                        self.audioPlayer?.play()
+                        self.isPlaying = true
+
+                        self.proximityManager.startMonitoring()
+                        self.switchAudioRoute(toEarpiece: false)
+
+                        self.timer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { _ in
+                            if let player = self.audioPlayer {
+                                self.currentTime = player.currentTime
+                                if !player.isPlaying {
+                                    self.stopPlayback()
+                                }
                             }
                         }
+                    } catch {
+                        self.isAudioAvailable = false
+                        self.showErrorMessage = true
                     }
-                } catch {
+                }
+            } catch {
+                await MainActor.run {
                     self.isAudioAvailable = false
                     self.showErrorMessage = true
                 }
             }
-        }.resume()
+        }
     }
     
     private func pausePlayback() {

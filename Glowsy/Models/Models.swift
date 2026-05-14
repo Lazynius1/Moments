@@ -19,7 +19,7 @@ enum FollowRequestStatus: String, CaseIterable, Codable {
     case accepted = "accepted"
     case rejected = "rejected"
     case cancelled = "cancelled"
-    
+
     var displayName: String {
         switch self {
         case .pending: return "Pendiente"
@@ -39,11 +39,11 @@ struct FollowRequest: Codable, Identifiable {
     let status: FollowRequestStatus
     let timestamp: Date
     let expirationDate: Date?
-    
+
     enum CodingKeys: String, CodingKey {
         case id, senderId, senderUsername, recipientId, status, timestamp, expirationDate
     }
-    
+
     init(senderId: String, senderUsername: String, recipientId: String) {
         self.id = UUID().uuidString
         self.senderId = senderId
@@ -53,7 +53,7 @@ struct FollowRequest: Codable, Identifiable {
         self.timestamp = Date()
         self.expirationDate = Calendar.current.date(byAdding: .day, value: 30, to: Date())
     }
-    
+
     init(id: String, senderId: String, senderUsername: String, recipientId: String, status: FollowRequestStatus, timestamp: Date, expirationDate: Date?) {
         self.id = id
         self.senderId = senderId
@@ -63,27 +63,27 @@ struct FollowRequest: Codable, Identifiable {
         self.timestamp = timestamp
         self.expirationDate = expirationDate
     }
-    
+
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         self.id = try container.decode(String.self, forKey: .id)
         self.senderId = try container.decode(String.self, forKey: .senderId)
         self.senderUsername = try container.decode(String.self, forKey: .senderUsername)
         self.recipientId = try container.decode(String.self, forKey: .recipientId)
-        
+
         let statusString = try container.decode(String.self, forKey: .status)
         self.status = FollowRequestStatus(rawValue: statusString) ?? .pending
-        
+
         let timestampFirestore = try container.decode(Timestamp.self, forKey: .timestamp)
         self.timestamp = timestampFirestore.dateValue()
-        
+
         if let expirationFirestore = try container.decodeIfPresent(Timestamp.self, forKey: .expirationDate) {
             self.expirationDate = expirationFirestore.dateValue()
         } else {
             self.expirationDate = nil
         }
     }
-    
+
     func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(id, forKey: .id)
@@ -96,13 +96,13 @@ struct FollowRequest: Codable, Identifiable {
             try container.encode(Timestamp(date: expirationDate), forKey: .expirationDate)
         }
     }
-    
+
     // Verificar si la solicitud ha expirado
     var isExpired: Bool {
         guard let expirationDate = expirationDate else { return false }
         return Date() > expirationDate
     }
-    
+
     // Verificar si la solicitud es válida (no expirada y pendiente)
     var isValid: Bool {
         return status == .pending && !isExpired
@@ -115,18 +115,18 @@ struct Connection: Identifiable, Codable {
     let id: String
     let userId: String
     let timestamp: Date
-    
+
     enum CodingKeys: String, CodingKey {
         case userId
         case timestamp
     }
-    
+
     init(id: String, userId: String, timestamp: Date) {
         self.id = id
         self.userId = userId
         self.timestamp = timestamp
     }
-    
+
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         self.id = try container.decode(String.self, forKey: .userId)
@@ -134,7 +134,7 @@ struct Connection: Identifiable, Codable {
         let timestamp = try container.decode(Timestamp.self, forKey: .timestamp)
         self.timestamp = timestamp.dateValue()
     }
-    
+
     func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(userId, forKey: .userId)
@@ -146,18 +146,18 @@ struct Admirer: Identifiable, Codable {
     let id: String
     let userId: String
     let timestamp: Date
-    
+
     enum CodingKeys: String, CodingKey {
         case userId
         case timestamp
     }
-    
+
     init(id: String, userId: String, timestamp: Date) {
         self.id = id
         self.userId = userId
         self.timestamp = timestamp
     }
-    
+
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         self.id = try container.decode(String.self, forKey: .userId)
@@ -165,7 +165,7 @@ struct Admirer: Identifiable, Codable {
         let timestamp = try container.decode(Timestamp.self, forKey: .timestamp)
         self.timestamp = timestamp.dateValue()
     }
-    
+
     func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(userId, forKey: .userId)
@@ -252,7 +252,7 @@ struct Comment: Identifiable, Codable, Equatable {
         try container.encodeIfPresent(isEdited, forKey: .isEdited)
         if let editedTimestamp = editedTimestamp {
             try container.encode(Timestamp(date: editedTimestamp), forKey: .editedTimestamp)
-            
+
         }
     }
 
@@ -275,7 +275,7 @@ extension Comment {
     var isEditedFlag: Bool {
         return isEdited ?? false
     }
-    
+
     var wasEdited: Bool {
         return editedTimestamp != nil
     }
@@ -374,7 +374,7 @@ struct MediaItem: Identifiable, Codable {
 
         return nil
     }
-    
+
     // Init completo para imágenes/videos
     init(
         id: String = UUID().uuidString,
@@ -543,24 +543,24 @@ struct Moment: Identifiable, Codable, Equatable {
     func scheduledTimeFormatted() -> String {
         guard let scheduledDate = scheduledDate else { return "" }
         let diff = scheduledDate.timeIntervalSince(Date())
-        
+
         if diff <= 0 { return NSLocalizedString("moment.publishing", comment: "Publishing...") }
-        
+
         let hours = Int(diff) / 3600
         let minutes = (Int(diff) % 3600) / 60
-        
+
         if hours > 0 {
             return "\(hours)h \(minutes)m"
         } else {
             return "\(minutes)m"
         }
     }
-    
+
     // ✅ NUEVOS CAMPOS DE CONFIGURACIÓN AVANZADA
     let disableComments: Bool
     let hideLikeCounts: Bool
     let allowSharing: Bool
-    
+
     // ✅ NUEVOS CAMPOS DE TRENDING (opcionales para compatibilidad)
     let trendingScore: Double?
     let engagementRate: Double?
@@ -569,7 +569,7 @@ struct Moment: Identifiable, Codable, Equatable {
     struct LocationCoordinate: Codable, Equatable {
         let latitude: Double
         let longitude: Double
-        
+
         // ✅ CONVERTIR A CLLocationCoordinate2D
         var toCLLocationCoordinate2D: CLLocationCoordinate2D {
             CLLocationCoordinate2D(latitude: latitude, longitude: longitude)
@@ -589,25 +589,25 @@ struct Moment: Identifiable, Codable, Equatable {
         case thumbnailUrl, videoDuration, videoFileSize, videoResolution
         case trendingScore, engagementRate
     }
-    
+
     // ✅ MANUAL CODABLE: Necesario para que JSONEncoder no falle con @DocumentID
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
-        
+
         // ✅ FIX: Manejar ID para Firestore (@DocumentID) y JSON (String)
         if let docID = try? container.decode(DocumentID<String>.self, forKey: .id) {
             self._id = docID
         } else {
             self.id = try container.decodeIfPresent(String.self, forKey: .id)
         }
-        
+
         // Campos obligatorios con fallbacks seguros
         self.authorId = (try? container.decode(String.self, forKey: .authorId)) ?? ""
         self.username = (try? container.decode(String.self, forKey: .username)) ?? ""
         self.content = (try? container.decode(String.self, forKey: .content)) ?? ""
         self.imagePath = try container.decodeIfPresent(String.self, forKey: .imagePath)
         self.videoUrl = try container.decodeIfPresent(String.self, forKey: .videoUrl)
-        
+
         // Manejo flexible de fechas (Firestore Timestamp o Double/Date)
         if let timestamp = try? container.decode(Timestamp.self, forKey: .timestamp) {
             self.timestamp = timestamp.dateValue()
@@ -616,7 +616,7 @@ struct Moment: Identifiable, Codable, Equatable {
         } else {
             self.timestamp = (try? container.decode(Date.self, forKey: .timestamp)) ?? Date()
         }
-        
+
         self.reactions = (try? container.decode([String: [String]].self, forKey: .reactions)) ?? [:]
         self.commentCount = (try? container.decode(Int.self, forKey: .commentCount)) ?? 0
         self.profileImagePath = try container.decodeIfPresent(String.self, forKey: .profileImagePath)
@@ -631,20 +631,20 @@ struct Moment: Identifiable, Codable, Equatable {
         self.videoDuration = try container.decodeIfPresent(Double.self, forKey: .videoDuration)
         self.videoFileSize = try container.decodeIfPresent(Int64.self, forKey: .videoFileSize)
         self.videoResolution = try container.decodeIfPresent(String.self, forKey: .videoResolution)
-        
+
         if let scheduledTimestamp = try? container.decodeIfPresent(Timestamp.self, forKey: .scheduledDate) {
             self.scheduledDate = scheduledTimestamp.dateValue()
         } else {
             self.scheduledDate = try container.decodeIfPresent(Date.self, forKey: .scheduledDate)
         }
-        
+
         self.isArchived = try container.decodeIfPresent(Bool.self, forKey: .isArchived)
         if let archivedTimestamp = try? container.decodeIfPresent(Timestamp.self, forKey: .archivedAt) {
             self.archivedAt = archivedTimestamp.dateValue()
         } else {
             self.archivedAt = try container.decodeIfPresent(Date.self, forKey: .archivedAt)
         }
-        
+
         self.disableComments = (try? container.decodeIfPresent(Bool.self, forKey: .disableComments)) ?? false
         self.hideLikeCounts = (try? container.decodeIfPresent(Bool.self, forKey: .hideLikeCounts)) ?? false
         self.allowSharing = (try? container.decodeIfPresent(Bool.self, forKey: .allowSharing)) ?? true
@@ -654,19 +654,19 @@ struct Moment: Identifiable, Codable, Equatable {
 
     func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
-        
+
         // 🔥 CRUCIAL: Codificar el ID como String normal (evita error DocumentID con JSONEncoder)
         try container.encodeIfPresent(id, forKey: .id)
-        
+
         try container.encode(authorId, forKey: .authorId)
         try container.encode(username, forKey: .username)
         try container.encode(content, forKey: .content)
         try container.encodeIfPresent(imagePath, forKey: .imagePath)
         try container.encodeIfPresent(videoUrl, forKey: .videoUrl)
-        
+
         // Codificar fecha como Timestamp para compatibilidad con Firestore
         try container.encode(Timestamp(date: timestamp), forKey: .timestamp)
-        
+
         try container.encode(reactions, forKey: .reactions)
         try container.encode(commentCount, forKey: .commentCount)
         try container.encodeIfPresent(profileImagePath, forKey: .profileImagePath)
@@ -681,7 +681,7 @@ struct Moment: Identifiable, Codable, Equatable {
         try container.encodeIfPresent(videoDuration, forKey: .videoDuration)
         try container.encodeIfPresent(videoFileSize, forKey: .videoFileSize)
         try container.encodeIfPresent(videoResolution, forKey: .videoResolution)
-        
+
         if let scheduledDate = scheduledDate {
             try container.encode(Timestamp(date: scheduledDate), forKey: .scheduledDate)
         }
@@ -689,7 +689,7 @@ struct Moment: Identifiable, Codable, Equatable {
             try container.encode(Timestamp(date: archivedAt), forKey: .archivedAt)
         }
         try container.encodeIfPresent(isArchived, forKey: .isArchived)
-        
+
         try container.encode(disableComments, forKey: .disableComments)
         try container.encode(hideLikeCounts, forKey: .hideLikeCounts)
         try container.encode(allowSharing, forKey: .allowSharing)
@@ -700,7 +700,7 @@ struct Moment: Identifiable, Codable, Equatable {
     static func == (lhs: Moment, rhs: Moment) -> Bool {
         return lhs.id == rhs.id
     }
-    
+
     // ✅ NUEVO: Inicializador personalizado con campos de trending
     init(
         id: String?,
@@ -771,9 +771,9 @@ extension Moment {
         guard let scheduledDate = scheduledDate else { return "" }
         let now = Date()
         guard scheduledDate > now else { return "" }
-        
+
         let components = Calendar.current.dateComponents([.day, .hour, .minute], from: now, to: scheduledDate)
-        
+
         if let days = components.day, days > 0 {
             let key = days == 1 ? "moment.scheduled.day" : "moment.scheduled.days"
             return String(format: NSLocalizedString(key, comment: "Scheduled in X days"), days)
@@ -800,7 +800,7 @@ struct HighlightedStory: Identifiable, Codable {
     let createdAt: Date
     let storyIds: [String]
     let authorId: String
-    
+
     enum CodingKeys: String, CodingKey {
         case id, title, coverImageUrl, storiesCount, createdAt, storyIds, authorId
     }
@@ -850,7 +850,7 @@ struct Story: Identifiable, Codable {
         case chainId // 🔗 AÑADIDO: Clave de codificación
         case chainPosition // 🔗 AÑADIDO: Clave de codificación
         case chainTitle // 🔗 AÑADIDO: Clave de codificación
-        
+
         // Claves antiguas para compatibilidad al leer
         case imagePath
         case videoUrl
@@ -912,13 +912,13 @@ struct Story: Identifiable, Codable {
         self.audience = try container.decodeIfPresent(String.self, forKey: .audience)
         self.customListId = try container.decodeIfPresent(String.self, forKey: .customListId) // ✅ AÑADIDO
         self.text = try container.decodeIfPresent(String.self, forKey: .text)
-        
+
         if let textPositionData = try container.decodeIfPresent(Data.self, forKey: .textPosition) {
             self.textPosition = try? JSONDecoder().decode(CGPoint.self, from: textPositionData)
         } else {
             self.textPosition = nil
         }
-        
+
         self.textStyle = try container.decodeIfPresent(String.self, forKey: .textStyle)
         self.stickers = try container.decodeIfPresent([StickerData].self, forKey: .stickers)
         self.drawingData = try container.decodeIfPresent(Data.self, forKey: .drawingData)
@@ -927,7 +927,7 @@ struct Story: Identifiable, Codable {
         self.chainId = try container.decodeIfPresent(String.self, forKey: .chainId) // 🔗 AÑADIDO: Decodificar ID de la cadena
         self.chainPosition = try container.decodeIfPresent(Int.self, forKey: .chainPosition) // 🔗 AÑADIDO: Decodificar posición en la cadena
         self.chainTitle = try container.decodeIfPresent(String.self, forKey: .chainTitle) // 🔗 AÑADIDO: Decodificar título de la cadena
-        
+
         if let mediaItem = try? container.decodeIfPresent(MediaItem.self, forKey: .mediaItem) {
             self.mediaItem = mediaItem
         } else if let imagePath = try container.decodeIfPresent(String.self, forKey: .imagePath), !imagePath.isEmpty {
@@ -952,12 +952,12 @@ struct Story: Identifiable, Codable {
         try container.encodeIfPresent(audience, forKey: .audience)
         try container.encodeIfPresent(customListId, forKey: .customListId) // ✅ AÑADIDO
         try container.encodeIfPresent(text, forKey: .text)
-        
+
         if let textPosition = textPosition {
             let textPositionData = try? JSONEncoder().encode(textPosition)
             try container.encodeIfPresent(textPositionData, forKey: .textPosition)
         }
-        
+
         try container.encodeIfPresent(textStyle, forKey: .textStyle)
         try container.encodeIfPresent(stickers, forKey: .stickers)
         try container.encodeIfPresent(drawingData, forKey: .drawingData)
@@ -966,24 +966,24 @@ struct Story: Identifiable, Codable {
         try container.encodeIfPresent(chainId, forKey: .chainId) // 🔗 AÑADIDO: Codificar ID de la cadena
         try container.encodeIfPresent(chainPosition, forKey: .chainPosition) // 🔗 AÑADIDO: Codificar posición en la cadena
         try container.encodeIfPresent(chainTitle, forKey: .chainTitle) // 🔗 AÑADIDO: Codificar título de la cadena
-        
+
         // Mantener compatibilidad
         try container.encodeIfPresent(mediaItem.type == .image ? mediaItem.url : nil, forKey: .imagePath)
         try container.encodeIfPresent(mediaItem.type == .video ? mediaItem.url : nil, forKey: .videoUrl)
     }
-    
+
     // ✅ FUNCIÓN: Convertir StickerData a StickerItem para la UI
     func convertStickersToStickerItems() -> [StickerItem] {
         guard let stickers = stickers else { return [] }
-        
+
         return stickers.compactMap { stickerData in
             if stickerData.moderationState == "hidden" {
                 return nil
             }
-            
+
             // ✅ RECREAR IMAGEN DEL STICKER basada en el tipo
             let stickerImage: UIImage
-            
+
             switch StickerItem.StickerType(rawValue: stickerData.type) {
             case .mention:
                 // ✅ RECREAR STICKER DE MENCION con estilo nativo
@@ -1052,7 +1052,7 @@ struct Story: Identifiable, Codable {
             default:
                 stickerImage = UIImage(systemName: "sticker") ?? UIImage()
             }
-            
+
             // Crear datos de interacción
             // ✅ CREAR COORDENADAS SI ESTÁN DISPONIBLES
             let locationCoordinate: CLLocationCoordinate2D?
@@ -1061,10 +1061,10 @@ struct Story: Identifiable, Codable {
             } else {
                 locationCoordinate = nil
             }
-            
+
             // ✅ FALLBACK para weather stickers antiguos sin weatherSymbol
             let weatherSymbol = stickerData.weatherSymbol ?? (stickerData.type == "weather" ? stickerData.content : nil)
-            
+
             let interactionData = StickerItem.StickerInteractionData(
                 username: stickerData.username,
                 userId: stickerData.userId,
@@ -1088,16 +1088,21 @@ struct Story: Identifiable, Codable {
                 quizOptions: stickerData.quizOptions,
                 quizCorrectIndex: stickerData.quizCorrectIndex,
                 revealType: stickerData.revealType,
-                frameStyle: stickerData.frameStyle
+                revealPattern: stickerData.revealPattern,
+                revealPrimaryColor: stickerData.revealPrimaryColor,
+                revealSecondaryColor: stickerData.revealSecondaryColor,
+                frameStyle: stickerData.frameStyle,
+                audioURL: stickerData.audioURL,
+                audioDuration: stickerData.audioDuration
             )
-            
+
             // Crear StickerItem con las transformaciones aplicadas
             var stickerItem: StickerItem
-            
+
             // ✅ MANEJAR STICKERS ANIMADOS
             var gifURL: URL? = nil
             var videoURL: URL? = nil
-            
+
             // 1. Intentar obtener la URL del GIF
             if let gifURLString = stickerData.gifURL, let url = URL(string: gifURLString) {
                 gifURL = url
@@ -1105,12 +1110,12 @@ struct Story: Identifiable, Codable {
                 // Fallback for older stickers where URL was in content
                 gifURL = URL(string: stickerData.content)
             }
-            
+
             // 2. Intentar obtener la URL del Vídeo
             if let videoURLString = stickerData.videoURL, let url = URL(string: videoURLString) {
                 videoURL = url
             }
-            
+
             if stickerData.isAnimated {
                 // Crear sticker animado con GIF o Video
                 // ✅ FIX ID: No usar content (Base64) como ID, usar combo estable
@@ -1143,11 +1148,11 @@ struct Story: Identifiable, Codable {
                     interactionData: interactionData
                 )
             }
-            
+
             return stickerItem
         }
     }
-    
+
     // ✅ FUNCIONES AUXILIARES para recrear imágenes de stickers
     private func createMentionStickerImage(username: String) -> UIImage {
         let text = "@\(username)"
@@ -1155,26 +1160,26 @@ struct Story: Identifiable, Codable {
             .font: UIFont.systemFont(ofSize: 18, weight: .semibold),
             .foregroundColor: UIColor.black
         ]
-        
+
         let textSize = text.size(withAttributes: textAttributes)
         let padding: CGFloat = 12
         let width = textSize.width + (padding * 2)
         let height = textSize.height + (padding * 2)
-        
+
         let renderer = UIGraphicsImageRenderer(size: CGSize(width: width, height: height))
         return renderer.image { context in
             let rect = CGRect(x: 0, y: 0, width: width, height: height)
-            
+
             // ✅ FONDO BLANCO
             let backgroundPath = UIBezierPath(roundedRect: rect, cornerRadius: height / 2)
             UIColor.white.setFill()
             backgroundPath.fill()
-            
+
             // ✅ BORDE SUTIL
             UIColor.black.withAlphaComponent(0.1).setStroke()
             backgroundPath.lineWidth = 0.5
             backgroundPath.stroke()
-            
+
             // ✅ TEXTO CENTRADO
             let textRect = CGRect(
                 x: padding,
@@ -1182,26 +1187,26 @@ struct Story: Identifiable, Codable {
                 width: textSize.width,
                 height: textSize.height
             )
-            
+
             text.draw(in: textRect, withAttributes: textAttributes)
         }
     }
-    
+
     private func createHashtagStickerImage(hashtag: String) -> UIImage {
         // Placeholder para hashtag
         return UIImage(systemName: "number") ?? UIImage()
     }
-    
+
     private func createLocationStickerImage(location: String) -> UIImage {
         // Placeholder para ubicación
         return UIImage(systemName: "location.circle") ?? UIImage()
     }
-    
+
     private func createQuestionStickerImage(question: String) -> UIImage {
         // Placeholder para pregunta
         return UIImage(systemName: "questionmark.circle") ?? UIImage()
     }
-    
+
     private func createPollStickerImage(pollOptions: [String]) -> UIImage {
         // Placeholder para encuesta
         return UIImage(systemName: "chart.bar") ?? UIImage()
@@ -1337,7 +1342,7 @@ struct Story: Identifiable, Codable {
     private func createEmojiSliderStickerImage(prompt: String, emoji: String) -> UIImage {
         createEmojiSliderFallbackImage(prompt: prompt, emoji: emoji, value: 0.5)
     }
-    
+
 }
 
 // Modelo para almacenar datos de stickers
@@ -1348,7 +1353,7 @@ struct StickerData: Codable {
     let position: CGPoint
     let scale: CGFloat
     let rotation: Double
-    
+
     // ✅ PROPIEDADES EXISTENTES para interactividad
     let username: String?
     let userId: String?
@@ -1373,22 +1378,32 @@ struct StickerData: Codable {
     let quizOptions: [String]?
     let quizCorrectIndex: Int?
     let revealType: String?
+    let revealPattern: String?
+    let revealPrimaryColor: String?
+    let revealSecondaryColor: String?
     let frameStyle: String?
     let moderationState: String?
     let moderationReason: String?
     let moderationCategory: String?
-    
+
+    // Audio Data
+    let audioURL: String?
+    let audioDuration: Double?
+
     // ✅ NUEVAS PROPIEDADES para animación
     let isAnimated: Bool
     let gifURL: String? // URL como String para Codable
     let videoURL: String? // ✅ NUEVA: URL del vídeo del sticker
 
-    
+
     init(stickerId: String? = nil, type: String, content: String, position: CGPoint, scale: CGFloat, rotation: Double,
          username: String? = nil, userId: String? = nil, hashtag: String? = nil,
          location: String? = nil, latitude: Double? = nil, longitude: Double? = nil, questionText: String? = nil, pollOptions: [String]? = nil, weatherSymbol: String? = nil, linkURL: String? = nil, linkTitle: String? = nil, countdownTitle: String? = nil, countdownTargetAtMs: Double? = nil, sliderEmoji: String? = nil, sliderPrompt: String? = nil, caption: String? = nil, profileImagePath: String? = nil, momentId: String? = nil, mediaCount: Int? = nil,
-         quizQuestion: String? = nil, quizOptions: [String]? = nil, quizCorrectIndex: Int? = nil, revealType: String? = nil, frameStyle: String? = nil,
+         quizQuestion: String? = nil, quizOptions: [String]? = nil, quizCorrectIndex: Int? = nil,
+         revealType: String? = nil, revealPattern: String? = nil, revealPrimaryColor: String? = nil, revealSecondaryColor: String? = nil,
+         frameStyle: String? = nil,
          moderationState: String? = nil, moderationReason: String? = nil, moderationCategory: String? = nil,
+         audioURL: String? = nil, audioDuration: Double? = nil,
          isAnimated: Bool = false, gifURL: String? = nil, videoURL: String? = nil) {
         self.stickerId = stickerId
         self.type = type
@@ -1419,23 +1434,28 @@ struct StickerData: Codable {
         self.quizOptions = quizOptions
         self.quizCorrectIndex = quizCorrectIndex
         self.revealType = revealType
+        self.revealPattern = revealPattern
+        self.revealPrimaryColor = revealPrimaryColor
+        self.revealSecondaryColor = revealSecondaryColor
         self.frameStyle = frameStyle
         self.moderationState = moderationState
         self.moderationReason = moderationReason
         self.moderationCategory = moderationCategory
+        self.audioURL = audioURL
+        self.audioDuration = audioDuration
         self.isAnimated = isAnimated
         self.gifURL = gifURL
         self.videoURL = videoURL
     }
-    
+
     // ✅ INICIALIZADOR PERSONALIZADO para compatibilidad hacia atrás
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
-        
+
         self.stickerId = try container.decodeIfPresent(String.self, forKey: .stickerId)
         self.type = try container.decode(String.self, forKey: .type)
         self.content = try container.decode(String.self, forKey: .content)
-        
+
         // ✅ COMPATIBILIDAD HACIA ATRÁS: Manejar tanto position como positionX/positionY
         let position: CGPoint
         if let positionPoint = try? container.decode(CGPoint.self, forKey: .position) {
@@ -1448,10 +1468,10 @@ struct StickerData: Codable {
             position = CGPoint(x: positionX, y: positionY)
         }
         self.position = position
-        
+
         self.scale = try container.decode(CGFloat.self, forKey: .scale)
         self.rotation = try container.decode(Double.self, forKey: .rotation)
-        
+
 
         self.username = try container.decodeIfPresent(String.self, forKey: .username)
         self.userId = try container.decodeIfPresent(String.self, forKey: .userId)
@@ -1476,23 +1496,28 @@ struct StickerData: Codable {
         self.quizOptions = try container.decodeIfPresent([String].self, forKey: .quizOptions)
         self.quizCorrectIndex = try container.decodeIfPresent(Int.self, forKey: .quizCorrectIndex)
         self.revealType = try container.decodeIfPresent(String.self, forKey: .revealType)
+        self.revealPattern = try container.decodeIfPresent(String.self, forKey: .revealPattern)
+        self.revealPrimaryColor = try container.decodeIfPresent(String.self, forKey: .revealPrimaryColor)
+        self.revealSecondaryColor = try container.decodeIfPresent(String.self, forKey: .revealSecondaryColor)
         self.frameStyle = try container.decodeIfPresent(String.self, forKey: .frameStyle)
         self.moderationState = try container.decodeIfPresent(String.self, forKey: .moderationState)
         self.moderationReason = try container.decodeIfPresent(String.self, forKey: .moderationReason)
         self.moderationCategory = try container.decodeIfPresent(String.self, forKey: .moderationCategory)
-        
+        self.audioURL = try container.decodeIfPresent(String.self, forKey: .audioURL)
+        self.audioDuration = try container.decodeIfPresent(Double.self, forKey: .audioDuration)
+
         // ✅ COMPATIBILIDAD HACIA ATRÁS: Detectar stickers animados basándose en el contenido
         let decodedIsAnimated = try container.decodeIfPresent(Bool.self, forKey: .isAnimated) ?? false
         let decodedGifURL = try container.decodeIfPresent(String.self, forKey: .gifURL)
-        
 
-        
+
+
         // Si no hay isAnimated en la base de datos, intentar detectarlo desde el contenido
         if !decodedIsAnimated && decodedGifURL == nil {
             // Detectar si es un GIF basándose en el contenido o tipo
             let isGifFromContent = self.content.hasPrefix("http") && (self.content.contains(".gif") || self.content.contains("giphy"))
             let isGifFromType = self.type == "sticker" && self.content.hasPrefix("http")
-            
+
             self.isAnimated = isGifFromContent || isGifFromType
             self.gifURL = isGifFromContent ? self.content : nil
             self.videoURL = nil
@@ -1502,11 +1527,11 @@ struct StickerData: Codable {
             self.videoURL = try container.decodeIfPresent(String.self, forKey: .videoURL)
         }
     }
-    
+
     // ✅ FUNCIÓN HELPER: Crear desde StickerItem - ACTUALIZADA
     static func from(_ stickerItem: StickerItem) -> StickerData {
         let interactionData = stickerItem.interactionData
-        
+
         let stickerData = StickerData(
             stickerId: stickerItem.id,
             type: stickerItem.type.rawValue,
@@ -1537,18 +1562,23 @@ struct StickerData: Codable {
             quizOptions: stickerItem.interactionData?.quizOptions,
             quizCorrectIndex: stickerItem.interactionData?.quizCorrectIndex,
             revealType: stickerItem.interactionData?.revealType,
+            revealPattern: stickerItem.interactionData?.revealPattern,
+            revealPrimaryColor: stickerItem.interactionData?.revealPrimaryColor,
+            revealSecondaryColor: stickerItem.interactionData?.revealSecondaryColor,
             frameStyle: stickerItem.interactionData?.frameStyle,
             moderationState: nil,
             moderationReason: nil,
             moderationCategory: nil,
+            audioURL: interactionData?.audioURL,
+            audioDuration: interactionData?.audioDuration,
             isAnimated: stickerItem.isAnimated,
             gifURL: stickerItem.gifURL?.absoluteString,
             videoURL: stickerItem.videoURL?.absoluteString
         )
-        
+
         return stickerData
     }
-    
+
     // ✅ FUNCIÓN extractContent ACTUALIZADA para incluir música y renderizar imágenes a Base64
     private static func extractContent(from sticker: StickerItem) -> String {
         // Selfie stickers need alpha channel to avoid black corners after upload/render.
@@ -1570,7 +1600,7 @@ struct StickerData: Codable {
                 return jpegData.base64EncodedString()
             }
         }
-        
+
         // 2. Stickers interactivos: Guardar metadatos en content por compatibilidad con versiones antiguas
         if let interactionData = sticker.interactionData {
             switch sticker.type {
@@ -1586,12 +1616,12 @@ struct StickerData: Codable {
             default: break
             }
         }
-        
+
         // 3. Stickers animados (GIFs): Guardar URL como contenido principal si existe
         if sticker.isAnimated, let gifURL = sticker.gifURL {
             return gifURL.absoluteString
         }
-        
+
         // 4. Fallback: Identificador basado en tipo
         return "sticker_\(sticker.type.rawValue)"
     }
@@ -1634,15 +1664,20 @@ extension StickerData {
         case quizOptions
         case quizCorrectIndex
         case revealType
+        case revealPattern
+        case revealPrimaryColor
+        case revealSecondaryColor
         case frameStyle
         case moderationState
         case moderationReason
         case moderationCategory
+        case audioURL
+        case audioDuration
     }
-    
+
     func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
-        
+
         try container.encodeIfPresent(stickerId, forKey: .stickerId)
         try container.encode(type, forKey: .type)
         try container.encode(content, forKey: .content)
@@ -1675,10 +1710,15 @@ extension StickerData {
         try container.encodeIfPresent(quizOptions, forKey: .quizOptions)
         try container.encodeIfPresent(quizCorrectIndex, forKey: .quizCorrectIndex)
         try container.encodeIfPresent(revealType, forKey: .revealType)
+        try container.encodeIfPresent(revealPattern, forKey: .revealPattern)
+        try container.encodeIfPresent(revealPrimaryColor, forKey: .revealPrimaryColor)
+        try container.encodeIfPresent(revealSecondaryColor, forKey: .revealSecondaryColor)
         try container.encodeIfPresent(frameStyle, forKey: .frameStyle)
         try container.encodeIfPresent(moderationState, forKey: .moderationState)
         try container.encodeIfPresent(moderationReason, forKey: .moderationReason)
         try container.encodeIfPresent(moderationCategory, forKey: .moderationCategory)
+        try container.encodeIfPresent(audioURL, forKey: .audioURL)
+        try container.encodeIfPresent(audioDuration, forKey: .audioDuration)
     }
 }
 
@@ -1705,9 +1745,10 @@ extension StickerItem.StickerType {
         case .quiz: return "quiz"
         case .frame: return "frame"
         case .reveal: return "reveal"
+        case .audio: return "audio"
         }
     }
-    
+
     init?(rawValue: String) {
         switch rawValue {
         case "emoji": self = .emoji
@@ -1729,6 +1770,7 @@ extension StickerItem.StickerType {
         case "quiz": self = .quiz
         case "frame": self = .frame
         case "reveal": self = .reveal
+        case "audio": self = .audio
         default: return nil
         }
     }
@@ -1758,7 +1800,7 @@ struct Notification: Identifiable, Codable {
     let chainId: String? // 🔗 Story Chains
     let chainTitle: String? // 🔗 Story Chains
     let chainPosition: Int? // 🔗 Story Chains
-    
+
     enum CodingKeys: String, CodingKey {
         case id
         case type
@@ -1807,7 +1849,7 @@ struct Notification: Identifiable, Codable {
          chainId: String? = nil,
          chainTitle: String? = nil,
          chainPosition: Int? = nil) {
-        
+
         self.id = id
         self.type = type
         self.senderId = senderId
@@ -1859,7 +1901,7 @@ struct Notification: Identifiable, Codable {
         self.visitCount = try container.decodeIfPresent(Int.self, forKey: .visitCount)
         self.storyId = try container.decodeIfPresent(String.self, forKey: .storyId)
         self.storyAuthorId = try container.decodeIfPresent(String.self, forKey: .storyAuthorId)
-        
+
         // ✅ MAPEO INTELIGENTE DE CONTENIDO
         // 1. Intentar campo 'reaction' (Stories y manual)
         // 2. Intentar campo 'reactionType' (Moment reactions de Cloud Functions)
@@ -1874,7 +1916,7 @@ struct Notification: Identifiable, Codable {
             self.reaction = nil
         }
         self.reactionCount = try container.decodeIfPresent(Int.self, forKey: .reactionCount)
-        
+
         self.commentId = try container.decodeIfPresent(String.self, forKey: .commentId)
         self.echoId = try container.decodeIfPresent(String.self, forKey: .echoId)
         self.moderationScope = try container.decodeIfPresent(String.self, forKey: .moderationScope)
@@ -1947,7 +1989,7 @@ enum NotificationType: String, Codable, CaseIterable {
         case .mediaModeration: return "Moderación" // 🛡️
         }
     }
-    
+
     var systemIconName: String {
         switch self {
         case .like: return "heart.fill" // Para comentarios
@@ -1981,14 +2023,14 @@ extension CGPoint: Codable {
         case x
         case y
     }
-    
+
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         let x = try container.decode(CGFloat.self, forKey: .x)
         let y = try container.decode(CGFloat.self, forKey: .y)
         self.init(x: x, y: y)
     }
-    
+
     public func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(x, forKey: .x)
@@ -2007,7 +2049,7 @@ extension Array {
 extension Moment: ContentProtocol {
     var visibilityType: ContentVisibilityType {
         guard let audience = self.audience else { return .everyone }
-        
+
         switch audience {
         case "everyone": return .everyone
         case "connections": return .connections
@@ -2016,13 +2058,13 @@ extension Moment: ContentProtocol {
         default: return .everyone
         }
     }
-    
+
     var customViewers: [String]? {
         // Si la audiencia es custom, obtener la lista desde Firestore
         // Por ahora retornar nil, pero esto necesita implementación
         return nil
     }
-    
+
     var hiddenFrom: [String]? {
         // Lista de usuarios que no pueden ver este contenido
         // Se puede obtener de la configuración del usuario
@@ -2034,7 +2076,7 @@ extension Moment: ContentProtocol {
 extension Story: ContentProtocol {
     var visibilityType: ContentVisibilityType {
         guard let audience = self.audience else { return .everyone }
-        
+
         switch audience {
         case "everyone": return .everyone
         case "connections": return .connections
@@ -2043,11 +2085,11 @@ extension Story: ContentProtocol {
         default: return .everyone
         }
     }
-    
+
     var customViewers: [String]? {
         return nil
     }
-    
+
     var hiddenFrom: [String]? {
         return nil
     }
@@ -2062,11 +2104,11 @@ struct QuestionResponse: Codable, Identifiable {
     let response: String        // Texto de la respuesta
     let timestamp: Date
     let isAnonymous: Bool       // Siempre true para privacidad
-    
+
     enum CodingKeys: String, CodingKey {
         case id, userId, response, timestamp, isAnonymous
     }
-    
+
     init(userId: String, response: String) {
         self.id = UUID().uuidString
         self.userId = userId
@@ -2074,19 +2116,19 @@ struct QuestionResponse: Codable, Identifiable {
         self.timestamp = Date()
         self.isAnonymous = true // Siempre true para privacidad
     }
-    
+
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         self.id = try container.decode(String.self, forKey: .id)
         self.userId = try container.decode(String.self, forKey: .userId)
         self.response = try container.decode(String.self, forKey: .response)
-        
+
         let timestampFirestore = try container.decode(Timestamp.self, forKey: .timestamp)
         self.timestamp = timestampFirestore.dateValue()
-        
+
         self.isAnonymous = try container.decodeIfPresent(Bool.self, forKey: .isAnonymous) ?? true
     }
-    
+
     func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(id, forKey: .id)
@@ -2103,28 +2145,28 @@ struct QuestionData: Codable {
     let responses: [QuestionResponse]
     let responseCount: Int
     let createdAt: Date
-    
+
     enum CodingKeys: String, CodingKey {
         case questionText, responses, responseCount, createdAt
     }
-    
+
     init(questionText: String) {
         self.questionText = questionText
         self.responses = []
         self.responseCount = 0
         self.createdAt = Date()
     }
-    
+
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         self.questionText = try container.decode(String.self, forKey: .questionText)
         self.responses = try container.decode([QuestionResponse].self, forKey: .responses)
         self.responseCount = try container.decode(Int.self, forKey: .responseCount)
-        
+
         let timestampFirestore = try container.decode(Timestamp.self, forKey: .createdAt)
         self.createdAt = timestampFirestore.dateValue()
     }
-    
+
     func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(questionText, forKey: .questionText)

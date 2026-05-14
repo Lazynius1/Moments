@@ -105,6 +105,7 @@ class CacheManager: ObservableObject {
         
         // ✅ NUEVO: Limpiar videos antiguos del cache persistente
         cleanupVideoCache()
+        cleanupAudioCache()
     }
     
     private func cleanupVideoCache() {
@@ -127,6 +128,10 @@ class CacheManager: ObservableObject {
         } catch {
             // Silencio si no existe la carpeta o hay error
         }
+    }
+
+    private func cleanupAudioCache() {
+        PersistentAudioCache.shared.cleanupFiles(olderThan: 7)
     }
     
     /// Limpia archivos temporales que pueden estar ocupando mucho espacio
@@ -186,8 +191,9 @@ class CacheManager: ObservableObject {
         
         // ✅ NUEVO: Incluir tamaño de los videos cacheados
         let videoCacheSize = getVideoCacheSize()
-        
-        return urlCacheSize + kingfisherSize + videoCacheSize
+        let audioCacheSize = PersistentAudioCache.shared.cacheSizeInBytes()
+
+        return urlCacheSize + kingfisherSize + videoCacheSize + audioCacheSize
     }
     
     private func getVideoCacheSize() -> Int {

@@ -1,5 +1,6 @@
 import SwiftUI
 import UIKit
+import AVFoundation
 
 func normalizedStickerURL(from raw: String) -> URL? {
     let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -689,5 +690,207 @@ struct StickerDitherPattern: View {
             }
         }
         .opacity(0.85)
+    }
+}
+
+// MARK: - ✅ NEW: AUDIO STICKER VIEW
+struct InteractiveAudioStickerView: View {
+    let audioURL: String
+    let duration: Double
+
+    @State private var isPlaying = false
+    @State private var progress: Double = 0
+    @State private var audioPlayer: AVAudioPlayer?
+    @State private var timer: Timer?
+    @State private var animatedHeights: [CGFloat] = [10, 14, 10]
+    @State private var previousAudioCategory: AVAudioSession.Category?
+    @State private var previousAudioMode: AVAudioSession.Mode?
+    @State private var previousAudioOptions: AVAudioSession.CategoryOptions = []
+    @State private var didConfigureAudioSession = false
+
+    var body: some View {
+        ZStack {
+            // Background with Liquid Glass effect
+            Circle()
+                .fill(Color.clear)
+                .liquidGlass(in: Circle())
+
+            // Progress Ring
+            Circle()
+                .trim(from: 0, to: progress)
+                .stroke(
+                    LinearGradient(colors: [.white, .white.opacity(0.8)], startPoint: .top, endPoint: .bottom),
+                    style: StrokeStyle(lineWidth: 3, lineCap: .round)
+                )
+                .rotationEffect(.degrees(-90))
+
+            VStack(spacing: 6) {
+                // Mic/Pause Icon
+                Image(systemName: isPlaying ? "pause.fill" : "mic.fill")
+                    .font(.system(size: 20, weight: .bold))
+                    .foregroundColor(.white)
+                    .contentTransition(.symbolEffect(.replace))
+
+                // 3 Wave Bars
+                HStack(alignment: .center, spacing: 3) {
+                    ForEach(0..<3) { i in
+                        RoundedRectangle(cornerRadius: 1.5)
+                            .fill(.white)
+                            .frame(width: 3, height: isPlaying ? animatedHeights[i] : 10)
+                    }
+                }
+            }
+        }
+        .frame(width: 72, height: 72)
+        .contentShape(Circle())
+        .highPriorityGesture(
+            TapGesture()
+                .onEnded {
+                    togglePlayback()
+                }
+        )
+        .onAppear {
+            startPlayback()
+        }
+        .onDisappear {
+            stopPlayback()
+        }
+        .onChange(of: isPlaying) { oldValue, newValue in
+            if newValue {
+                startWaveAnimation()
+            }
+        }
+    }
+
+    private func togglePlayback() {
+        if isPlaying {
+            pausePlayback()
+        } else {
+            resumePlayback()
+        }
+    }
+
+    private func startPlayback() {
+        guard let url = URL(string: audioURL) else { return }
+
+        let session = AVAudioSession.sharedInstance()
+
+        if !didConfigureAudioSession {
+            previousAudioCategory = session.category
+            previousAudioMode = session.mode
+            previousAudioOptions = session.categoryOptions
+            didConfigureAudioSession = true
+        }
+
+        try? session.setCategory(.ambient, mode: .default, options: [])
+        try? session.setActive(true)
+
+        Task {
+            do {
+                let player: AVAudioPlayer
+                if url.scheme == "file" {
+                    player = try AVAudioPlayer(contentsOf: url)
+                } else {
+                    let cachedURL = try await PersistentAudioCache.shared.localURL(for: url)
+                    player = try AVAudioPlayer(contentsOf: cachedURL)
+                }
+
+                await MainActor.run {
+                    self.audioPlayer = player
+                    self.audioPlayer?.play()
+                    self.isPlaying = true
+                    self.startProgressTimer()
+                }
+            } catch {
+                print("Failed to play audio: \(error)")
+            }
+        }
+    }
+
+    private func stopPlayback() {
+        audioPlayer?.stop()
+        audioPlayer = nil
+        isPlaying = false
+        withAnimation {
+            progress = 0
+        }
+        timer?.invalidate()
+        timer = nil
+        restoreAudioSessionIfNeeded()
+    }
+
+    private func pausePlayback() {
+        audioPlayer?.pause()
+        isPlaying = false
+        timer?.invalidate()
+        timer = nil
+    }
+
+    private func resumePlayback() {
+        if let audioPlayer {
+            audioPlayer.play()
+            isPlaying = true
+            startProgressTimer()
+        } else {
+            startPlayback()
+        }
+    }
+
+    private func finishPlayback() {
+        audioPlayer?.stop()
+        audioPlayer = nil
+        isPlaying = false
+        withAnimation {
+            progress = 0
+        }
+        timer?.invalidate()
+        timer = nil
+        restoreAudioSessionIfNeeded()
+    }
+
+    private func startProgressTimer() {
+        timer?.invalidate()
+        timer = Timer.scheduledTimer(withTimeInterval: 0.05, repeats: true) { _ in
+            if let player = self.audioPlayer {
+                withAnimation(.linear(duration: 0.05)) {
+                    self.progress = player.currentTime / player.duration
+                }
+                if !player.isPlaying {
+                    finishPlayback()
+                }
+            }
+        }
+    }
+
+    private func startWaveAnimation() {
+        guard isPlaying else { return }
+
+        withAnimation(.easeInOut(duration: 0.2)) {
+            animatedHeights = [
+                CGFloat.random(in: 6...16),
+                CGFloat.random(in: 10...20),
+                CGFloat.random(in: 6...16)
+            ]
+        }
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+            if self.isPlaying {
+                self.startWaveAnimation()
+            } else {
+                withAnimation {
+                    self.animatedHeights = [10, 14, 10]
+                }
+            }
+        }
+    }
+
+    private func restoreAudioSessionIfNeeded() {
+        guard didConfigureAudioSession else { return }
+        let session = AVAudioSession.sharedInstance()
+        if let previousAudioCategory, let previousAudioMode {
+            try? session.setCategory(previousAudioCategory, mode: previousAudioMode, options: previousAudioOptions)
+        }
+        try? session.setActive(false, options: [.notifyOthersOnDeactivation])
+        didConfigureAudioSession = false
     }
 }
