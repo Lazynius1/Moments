@@ -497,7 +497,7 @@ class BackgroundMomentUploadService: ObservableObject {
                 layerId: draft.id,
                 audioURL: audioURL
             )
-            moderationState = .pending
+            moderationState = .visible
         }
 
         return MomentHiddenLayer(

@@ -1582,7 +1582,7 @@ private struct HiddenLayerTextCardPreview: View {
         switch textStyle {
         case .clean: return .system(size: 17, weight: .semibold, design: .rounded)
         case .serif: return .system(size: 18, weight: .semibold, design: .serif)
-        case .handwritten: return .custom("MarkerFelt-Wide", size: 19)
+        case .handwritten: return .custom("Caveat-Medium", size: 23)
         case .mono: return .system(size: 16, weight: .semibold, design: .monospaced)
         case .bubble: return .system(size: 18, weight: .black, design: .rounded)
         case .editorial: return .system(size: 20, weight: .bold, design: .serif)
@@ -1760,8 +1760,8 @@ private struct HiddenLayerPolaroidPreview: View {
         switch captionStyle ?? .handwritten {
         case .clean: return .system(size: 14, weight: .semibold, design: .rounded)
         case .mono: return .system(size: 13, weight: .semibold, design: .monospaced)
-        case .handwritten: return .custom("MarkerFelt-Wide", size: 15)
-        default: return .custom("MarkerFelt-Wide", size: 15)
+        case .handwritten: return .custom("Caveat-Medium", size: 17)
+        default: return .custom("Caveat-Medium", size: 17)
         }
     }
 
@@ -1787,6 +1787,8 @@ struct HiddenLayerRemotePolaroidPreview: View {
     let imageScale: Double
     let canvasSize: CGSize
 
+    @State private var developingProgress: Double = 0
+
     var body: some View {
         let contentWidth = max(88, canvasSize.width)
         let contentHeight = max(96, canvasSize.height)
@@ -1804,6 +1806,23 @@ struct HiddenLayerRemotePolaroidPreview: View {
                     .aspectRatio(contentMode: .fill)
                     .scaleEffect(imageScale)
                     .offset(imageOffset)
+                    .brightness(0.6 * (1.0 - developingProgress))
+                    .contrast(0.4 + (0.6 * developingProgress))
+                    .overlay {
+                        // Micro-granulado mágico temporal
+                        Canvas { context, size in
+                            guard developingProgress < 1 else { return }
+                            for _ in 0..<200 {
+                                let rect = CGRect(
+                                    x: CGFloat.random(in: 0...size.width),
+                                    y: CGFloat.random(in: 0...size.height),
+                                    width: 1.2, height: 1.2
+                                )
+                                context.fill(Path(rect), with: .color(.white.opacity(Double.random(in: 0.1...0.3))))
+                            }
+                        }
+                        .opacity(1.0 - developingProgress)
+                    }
             }
             .frame(width: contentWidth, height: imageAreaHeight)
             .clipped()
@@ -1824,11 +1843,17 @@ struct HiddenLayerRemotePolaroidPreview: View {
                         .padding(.horizontal, 12)
                         .rotationEffect(captionRotation)
                         .offset(y: captionVerticalOffset)
+                        .opacity(developingProgress)
                 }
             }
         }
         .background(frameColor)
         .clipShape(RoundedRectangle(cornerRadius: outerCornerRadius, style: .continuous))
+        .onAppear {
+            withAnimation(.easeIn(duration: 1.2).delay(0.2)) {
+                developingProgress = 1.0
+            }
+        }
     }
 
     private var frameColor: Color {
@@ -1863,8 +1888,8 @@ struct HiddenLayerRemotePolaroidPreview: View {
         switch captionStyle ?? .handwritten {
         case .clean: return .system(size: 14, weight: .semibold, design: .rounded)
         case .mono: return .system(size: 13, weight: .semibold, design: .monospaced)
-        case .handwritten: return .custom("MarkerFelt-Wide", size: 15)
-        default: return .custom("MarkerFelt-Wide", size: 15)
+        case .handwritten: return .custom("Caveat-Medium", size: 17)
+        default: return .custom("Caveat-Medium", size: 17)
         }
     }
 

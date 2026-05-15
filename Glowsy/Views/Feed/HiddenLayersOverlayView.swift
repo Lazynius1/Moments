@@ -93,7 +93,7 @@ struct HiddenLayersOverlayView: View {
             }
 
             if revealBurstLayerIds.contains(layer.id) {
-                HiddenLayerRevealBurst(type: layer.type, shape: layer.shape)
+                HiddenLayerRevealBurst(color: burstColor(for: layer), shape: layer.shape)
                     .allowsHitTesting(false)
                     .transition(.opacity)
             }
@@ -164,22 +164,46 @@ struct HiddenLayersOverlayView: View {
         HiddenLayerLayout.frame(for: layer, in: CGRect(origin: .zero, size: size))
     }
 
+    private func burstColor(for layer: MomentHiddenLayer) -> Color {
+        switch layer.type {
+        case .text:
+            switch layer.presentationStyle {
+            case .markerLabel: return .yellow
+            case .paperNote: return Color(red: 1.0, green: 0.9, blue: 0.6)
+            default: return Color(red: 1.0, green: 0.84, blue: 0.42) // Gold/Glass
+            }
+        case .image: return .white
+        case .audio: return Color(red: 0.4, green: 0.8, blue: 1.0) // Light Blue magic
+        }
+    }
+
     private func revealTransition(for type: MomentHiddenLayer.LayerType) -> AnyTransition {
+        let spring = Animation.spring(response: 0.48, dampingFraction: 0.62, blendDuration: 0)
+        
         switch type {
         case .text:
-            return .modifier(
-                active: HiddenLayerRevealModifier(scale: 0.92, opacity: 0, blur: 16, offsetY: 10, rotation: -1.2),
-                identity: HiddenLayerRevealModifier(scale: 1, opacity: 1, blur: 0, offsetY: 0, rotation: 0)
+            return .asymmetric(
+                insertion: .modifier(
+                    active: HiddenLayerRevealModifier(scale: 0.82, opacity: 0, blur: 12, offsetY: 15, rotation: -2),
+                    identity: HiddenLayerRevealModifier(scale: 1, opacity: 1, blur: 0, offsetY: 0, rotation: 0)
+                ).animation(spring),
+                removal: .opacity
             )
         case .audio:
-            return .modifier(
-                active: HiddenLayerRevealModifier(scale: 0.84, opacity: 0, blur: 10, offsetY: 12, rotation: 0),
-                identity: HiddenLayerRevealModifier(scale: 1, opacity: 1, blur: 0, offsetY: 0, rotation: 0)
+            return .asymmetric(
+                insertion: .modifier(
+                    active: HiddenLayerRevealModifier(scale: 0.75, opacity: 0, blur: 8, offsetY: 20, rotation: 0),
+                    identity: HiddenLayerRevealModifier(scale: 1, opacity: 1, blur: 0, offsetY: 0, rotation: 0)
+                ).animation(spring),
+                removal: .opacity
             )
         case .image:
-            return .modifier(
-                active: HiddenLayerRevealModifier(scale: 0.86, opacity: 0, blur: 10, offsetY: 8, rotation: -4),
-                identity: HiddenLayerRevealModifier(scale: 1, opacity: 1, blur: 0, offsetY: 0, rotation: 0)
+            return .asymmetric(
+                insertion: .modifier(
+                    active: HiddenLayerRevealModifier(scale: 0.88, opacity: 0, blur: 10, offsetY: 12, rotation: -6),
+                    identity: HiddenLayerRevealModifier(scale: 1, opacity: 1, blur: 0, offsetY: 0, rotation: 0)
+                ).animation(spring),
+                removal: .opacity
             )
         }
     }
@@ -423,116 +447,206 @@ private struct HiddenLayerPresenceHint: View {
     let isIntro: Bool
 
     @State private var pulse = false
-    @State private var haloOpacity: Double = 0.18
-    @State private var coreOpacity: Double = 0.34
+    @State private var shimmerPhase: CGFloat = 0
+    @State private var glintOpacity: Double = 0
     @State private var orbitPhase: CGFloat = 0
+
+    private var baseColor: Color {
+        Color(red: 1.0, green: 0.92, blue: 0.62)
+    }
+
+    private var accentColor: Color {
+        Color(red: 0.98, green: 0.82, blue: 0.42)
+    }
 
     var body: some View {
         ZStack {
-            RoundedRectangle(cornerRadius: shape == .circle ? 999 : 14, style: .continuous)
+            // 1. Capa de Bloom Profundo (Fondo)
+            RadialGradient(
+                colors: [
+                    baseColor.opacity(isIntro ? 0.45 : 0.32),
+                    accentColor.opacity(isIntro ? 0.22 : 0.14),
+                    .clear
+                ],
+                center: .center,
+                startRadius: 4,
+                endRadius: radius * 1.6
+            )
+            .blur(radius: isIntro ? 12 : 8)
+            .blendMode(.plusLighter)
+
+            // 2. Capa de Núcleo Líquido
+            ZStack {
+                // Brillo base
+                RadialGradient(
+                    colors: [
+                        .white.opacity(isIntro ? 0.72 : 0.54),
+                        baseColor.opacity(isIntro ? 0.62 : 0.44),
+                        .clear
+                    ],
+                    center: .center,
+                    startRadius: 1,
+                    endRadius: radius
+                )
+
+                // Shimmer de barrido angular (Liquid Glass effect)
+                AngularGradient(
+                    colors: [
+                        .clear,
+                        .white.opacity(0.4),
+                        .clear
+                    ],
+                    center: .center,
+                    angle: .degrees(shimmerPhase * 360)
+                )
+                .blur(radius: 4)
+                .mask {
+                    Circle().inset(by: 4).stroke(lineWidth: 6).blur(radius: 2)
+                }
+            }
+            .scaleEffect(pulse ? 1.06 : 0.94)
+            .blendMode(.screen)
+
+            // 3. Specular Glint (Destello puntual de alta intensidad)
+            Circle()
                 .fill(
                     RadialGradient(
-                        colors: [
-                            Color(red: 1.0, green: 0.9, blue: 0.55).opacity(coreOpacity),
-                            Color(red: 0.96, green: 0.78, blue: 0.34).opacity(haloOpacity),
-                            .clear
-                        ],
+                        colors: [.white, .white.opacity(0.4), .clear],
                         center: .center,
-                        startRadius: 2,
-                        endRadius: type == .audio ? 26 : 42
+                        startRadius: 0.2,
+                        endRadius: 4
                     )
                 )
-                .scaleEffect(pulse ? 1.08 : 0.92)
-                .blur(radius: isIntro ? 0.4 : 0.8)
-                .shadow(color: Color.black.opacity(0.08), radius: isIntro ? 4 : 3, y: 0.5)
+                .frame(width: 8, height: 8)
+                .offset(x: -radius * 0.4, y: -radius * 0.4)
+                .opacity(glintOpacity)
+                .blur(radius: 0.3)
 
-            if isIntro {
-                HiddenLayerHintOrbit(type: type, progress: orbitPhase)
-                    .opacity(1)
+            // 4. Órbita de chispas
+            if isIntro || !isSeen {
+                HiddenLayerHintOrbit(type: type, progress: orbitPhase, isIntro: isIntro)
+                    .opacity(isIntro ? 1 : 0.72)
             }
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .transition(.opacity.combined(with: .scale(scale: 0.94)))
+        .frame(width: radius * 2.5, height: radius * 2.5)
+        .transition(.opacity.combined(with: .scale(scale: 0.88)))
         .onAppear {
-            if isIntro {
-                withAnimation(.easeInOut(duration: 1.1).repeatForever(autoreverses: true).delay(delay)) {
-                    pulse = true
-                    haloOpacity = isSeen ? 0.18 : 0.28
-                    coreOpacity = isSeen ? 0.4 : 0.58
-                }
-                withAnimation(.linear(duration: 2.6).repeatForever(autoreverses: false).delay(delay)) {
-                    orbitPhase = 1
-                }
-            } else {
-                haloOpacity = isSeen ? 0.10 : 0.14
-                coreOpacity = isSeen ? 0.22 : 0.28
-                withAnimation(.easeInOut(duration: 2.2).repeatForever(autoreverses: true).delay(delay)) {
-                    pulse = true
-                    haloOpacity = isSeen ? 0.15 : 0.2
-                    coreOpacity = isSeen ? 0.3 : 0.38
-                }
+            let duration = isIntro ? 1.2 : 2.4
+            
+            withAnimation(.easeInOut(duration: duration).repeatForever(autoreverses: true).delay(delay)) {
+                pulse = true
+            }
+            
+            withAnimation(.linear(duration: 3.2).repeatForever(autoreverses: false).delay(delay)) {
+                shimmerPhase = 1
+            }
+            
+            withAnimation(.linear(duration: 4.5).repeatForever(autoreverses: false).delay(delay)) {
+                orbitPhase = 1
+            }
+            
+            withAnimation(.easeInOut(duration: 1.8).repeatForever(autoreverses: true).delay(delay + 0.4)) {
+                glintOpacity = isIntro ? 0.95 : 0.72
             }
         }
         .onDisappear {
             pulse = false
+            shimmerPhase = 0
             orbitPhase = 0
         }
     }
 
+    private var radius: CGFloat {
+        switch type {
+        case .text: return 16
+        case .audio: return 14
+        case .image: return 18
+        }
+    }
 }
 
 private struct HiddenLayerHintOrbit: View {
     let type: MomentHiddenLayer.LayerType
     let progress: CGFloat
+    let isIntro: Bool
 
     var body: some View {
         ZStack {
-            ForEach(0..<3, id: \.self) { index in
-                Circle()
-                    .fill(goldColor(for: index))
-                    .frame(width: dotSize(for: index), height: dotSize(for: index))
-                    .offset(orbitOffset(for: index))
-                    .blur(radius: index == 1 ? 0 : 0.3)
+            ForEach(0..<12, id: \.self) { index in
+                ZStack {
+                    // Estela de la chispa (más suave para muchas partículas)
+                    Circle()
+                        .fill(sparkColor(for: index).opacity(0.12))
+                        .frame(width: sparkSize(for: index) * 2.5)
+                        .blur(radius: 2.5)
+
+                    // Chispa core
+                    Circle()
+                        .fill(sparkColor(for: index))
+                        .frame(width: sparkSize(for: index), height: sparkSize(for: index))
+                        .shadow(color: sparkColor(for: index).opacity(0.8), radius: 2)
+                }
+                .offset(orbitOffset(for: index))
+                .scaleEffect(sparkScale(for: index))
+                .opacity(sparkOpacity(for: index))
+                .blur(radius: index % 3 == 0 ? 0.3 : 0) // Algunas chispas están "fuera de foco"
             }
         }
     }
 
     private func orbitOffset(for index: Int) -> CGSize {
-        let radius: CGFloat
+        let baseRadius: CGFloat
         switch type {
-        case .text: radius = 18
-        case .audio: radius = 15
-        case .image: radius = 16
+        case .text: baseRadius = 18
+        case .audio: baseRadius = 16
+        case .image: baseRadius = 17
         }
-        let angle = (progress * CGFloat.pi * 2) + (CGFloat.pi * 2 / 3 * CGFloat(index))
+        
+        // Cada partícula tiene su propia órbita única (distancia variable)
+        let uniqueRadius = baseRadius + CGFloat(sin(Double(index) * 1.5)) * 3 + (isIntro ? sin(progress * .pi * 4 + Double(index)) * 2 : 0)
+        
+        // Diferentes velocidades para las partículas (algunas más rápidas que otras)
+        let speedMultiplier = 1.0 + Double(index % 3) * 0.2
+        let angle = (progress * speedMultiplier * CGFloat.pi * 2) + (CGFloat.pi * 2 / 12 * CGFloat(index))
+        
         return CGSize(
-            width: CGFloat(cos(Double(angle))) * radius,
-            height: CGFloat(sin(Double(angle))) * radius
+            width: cos(angle) * uniqueRadius,
+            height: sin(angle) * uniqueRadius
         )
     }
 
-    private func dotSize(for index: Int) -> CGFloat {
-        switch index {
-        case 0: return 3.5
-        case 1: return 5
-        default: return 2.8
-        }
+    private func sparkSize(for index: Int) -> CGFloat {
+        // Tamaños variados reducidos: 1.5pt a 3.5pt
+        let sizes: [CGFloat] = [2.5, 1.8, 3.5, 1.5, 2.2, 2.0, 3.0, 1.6, 2.8, 2.4, 3.2, 1.4]
+        return sizes[index % sizes.count]
     }
 
-    private func goldColor(for index: Int) -> Color {
-        switch index {
-        case 0:
-            return Color(red: 1.0, green: 0.86, blue: 0.42).opacity(0.22)
-        case 1:
-            return Color(red: 1.0, green: 0.9, blue: 0.58).opacity(0.42)
-        default:
-            return Color(red: 0.98, green: 0.76, blue: 0.26).opacity(0.18)
+    private func sparkScale(for index: Int) -> CGFloat {
+        // Twinkle effect (parpadeo de tamaño)
+        let phase = progress * .pi * (8 + Double(index % 4)) + Double(index)
+        return 0.7 + abs(sin(phase)) * 0.6
+    }
+
+    private func sparkOpacity(for index: Int) -> Double {
+        // Twinkle effect (parpadeo de opacidad)
+        let phase = progress * .pi * (6 + Double(index % 3)) + Double(index)
+        let base = isIntro ? 0.6 : 0.4
+        return base + abs(cos(phase)) * (1.0 - base)
+    }
+
+    private func sparkColor(for index: Int) -> Color {
+        // Variación de "oros" y blancos mágicos
+        switch index % 4 {
+        case 0: return Color(red: 1.0, green: 0.98, blue: 0.85) // Blanco puro/cálido
+        case 1: return Color(red: 1.0, green: 0.92, blue: 0.62) // Oro claro
+        case 2: return Color(red: 1.0, green: 0.85, blue: 0.45) // Oro profundo
+        default: return Color(red: 1.0, green: 0.95, blue: 0.75) // Champagne
         }
     }
 }
 
 private struct HiddenLayerRevealBurst: View {
-    let type: MomentHiddenLayer.LayerType
+    let color: Color
     let shape: MomentHiddenLayer.LayerShape
 
     @State private var animate = false
@@ -540,35 +654,28 @@ private struct HiddenLayerRevealBurst: View {
     var body: some View {
         ZStack {
             RoundedRectangle(cornerRadius: shape == .circle ? 999 : 18, style: .continuous)
-                .stroke(.white.opacity(0.34), lineWidth: 1.2)
-                .scaleEffect(animate ? 1.22 : 0.86)
+                .stroke(color.opacity(0.4), lineWidth: 1.5)
+                .scaleEffect(animate ? 1.35 : 0.8)
                 .opacity(animate ? 0 : 1)
-                .blur(radius: 0.4)
+                .blur(radius: 0.5)
 
             Circle()
                 .fill(
                     RadialGradient(
-                        colors: [.white.opacity(0.5), .white.opacity(0.18), .clear],
+                        colors: [color.opacity(0.8), color.opacity(0.3), .clear],
                         center: .center,
-                        startRadius: 2,
-                        endRadius: radialSize
+                        startRadius: 1,
+                        endRadius: 40
                     )
                 )
-                .scaleEffect(animate ? 1.3 : 0.6)
+                .scaleEffect(animate ? 1.5 : 0.4)
                 .opacity(animate ? 0 : 0.9)
+                .blendMode(.plusLighter)
         }
         .onAppear {
-            withAnimation(.easeOut(duration: 0.52)) {
+            withAnimation(.easeOut(duration: 0.65)) {
                 animate = true
             }
-        }
-    }
-
-    private var radialSize: CGFloat {
-        switch type {
-        case .text: return 32
-        case .audio: return 26
-        case .image: return 28
         }
     }
 }
@@ -594,16 +701,78 @@ private struct HiddenLayerTextReveal: View {
     let layer: MomentHiddenLayer
     let frameSize: CGSize
 
+    @State private var appearProgress: Double = 0
+
     var body: some View {
         textRevealContent
             .shadow(color: .black.opacity(0.22), radius: 12, y: 6)
+            .onAppear {
+                let charCount = layer.text?.count ?? 0
+                let duration = max(0.6, min(2.5, Double(charCount) * 0.045))
+                withAnimation(.linear(duration: duration).delay(0.2)) {
+                    appearProgress = 1.0
+                }
+            }
+    }
+
+    @ViewBuilder
+    private var textRevealContent: some View {
+        let shape = RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+        let rawText = layer.text ?? ""
+
+        ZStack {
+            if layer.presentationStyle == .glassCard {
+                Color.clear
+                    .liquidGlass(in: shape)
+                    .frame(width: frameSize.width, height: frameSize.height)
+            } else {
+                shape.fill(background)
+                    .frame(width: frameSize.width, height: frameSize.height)
+            }
+
+            // Texto con animación de caracteres sincronizada con el barrido
+            TypewriterText(
+                text: rawText,
+                font: font,
+                foregroundColor: foreground,
+                appearProgress: appearProgress
+            )
+            .shadow(color: .black.opacity(0.45), radius: 1.5, x: 0, y: 1) // Sombra de definición (nítida)
+            .shadow(color: .black.opacity(0.35), radius: 10, x: 0, y: 2) // Halo de contraste (suave)
+            .lineLimit(5)
+            .minimumScaleFactor(0.6)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 11)
+            .opacity(appearProgress > 0 ? 1 : 0)
+            .scaleEffect(0.96 + (appearProgress * 0.04))
+            .mask {
+                // Mascarilla de desvelado tipo barrido suave
+                HStack(spacing: 0) {
+                    Rectangle()
+                        .fill(.black)
+                        .frame(width: appearProgress * frameSize.width)
+                    
+                    LinearGradient(
+                        colors: [.black, .clear],
+                        startPoint: .leading,
+                        endPoint: .trailing
+                    )
+                    .frame(width: 60)
+                    
+                    Spacer(minLength: 0)
+                }
+                .offset(x: -30) // Offset para que el degradado empiece antes
+            }
+        }
     }
 
     private var font: Font {
         switch layer.textStyle ?? .clean {
         case .clean: return .system(size: 15, weight: .semibold, design: .rounded)
         case .serif: return .system(size: 16, weight: .semibold, design: .serif)
-        case .handwritten: return .custom("Marker Felt", size: 17)
+        case .handwritten: 
+            // Intentar Caveat (Google Font), fallback a Chalkboard SE (Native)
+            return .custom("Caveat-Medium", size: 21, relativeTo: .body)
         case .mono: return .system(size: 14, weight: .semibold, design: .monospaced)
         case .bubble: return .system(size: 16, weight: .black, design: .rounded)
         case .editorial: return .system(size: 18, weight: .bold, design: .serif)
@@ -626,37 +795,6 @@ private struct HiddenLayerTextReveal: View {
         }
     }
 
-    @ViewBuilder
-    private var textRevealContent: some View {
-        let shape = RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-
-        if layer.presentationStyle == .glassCard {
-            Text(layer.text ?? "")
-                .font(font)
-                .foregroundColor(foreground)
-                .multilineTextAlignment(.center)
-                .lineLimit(5)
-                .minimumScaleFactor(0.6)
-                .padding(.horizontal, 14)
-                .padding(.vertical, 11)
-                .frame(width: frameSize.width, height: frameSize.height)
-                .background(Color.clear)
-                .liquidGlass(in: shape)
-        } else {
-            Text(layer.text ?? "")
-                .font(font)
-                .foregroundColor(foreground)
-                .multilineTextAlignment(.center)
-                .lineLimit(5)
-                .minimumScaleFactor(0.6)
-                .padding(.horizontal, 14)
-                .padding(.vertical, 11)
-                .frame(width: frameSize.width, height: frameSize.height)
-                .background(background)
-                .clipShape(shape)
-        }
-    }
-
     private var background: some ShapeStyle {
         switch layer.presentationStyle {
         case .glassCard:
@@ -674,6 +812,26 @@ private struct HiddenLayerTextReveal: View {
         }
     }
 }
+
+private struct TypewriterText: View {
+    let text: String
+    let font: Font
+    let foregroundColor: Color
+    let appearProgress: Double
+    
+    var body: some View {
+        let charCount = text.count
+        let visibleCount = Int(Double(charCount) * appearProgress)
+        
+        Text(text.prefix(visibleCount))
+            .font(font)
+            .foregroundColor(foregroundColor)
+            + Text(text.dropFirst(visibleCount))
+            .font(font)
+            .foregroundColor(.clear)
+    }
+}
+
 
 private struct HiddenLayerAudioReveal: View {
     let audioURL: String
@@ -703,6 +861,7 @@ private struct HiddenLayerAudioTagView: View {
     @State private var audioPlayer: AVAudioPlayer?
     @State private var timer: Timer?
     @State private var animatedHeights: [CGFloat] = [10, 14, 10]
+    @State private var didAppear = false
     @State private var previousAudioCategory: AVAudioSession.Category?
     @State private var previousAudioMode: AVAudioSession.Mode?
     @State private var previousAudioOptions: AVAudioSession.CategoryOptions = []
@@ -721,6 +880,7 @@ private struct HiddenLayerAudioTagView: View {
                     style: StrokeStyle(lineWidth: 3, lineCap: .round)
                 )
                 .rotationEffect(.degrees(-90))
+                .shadow(color: .black.opacity(0.3), radius: 3) // Sombra para el anillo de progreso
 
             VStack(spacing: 6) {
                 Image(systemName: isPreparing ? "arrow.down.circle" : (isPlaying ? "pause.fill" : "play.fill"))
@@ -732,10 +892,11 @@ private struct HiddenLayerAudioTagView: View {
                     ForEach(0..<3, id: \.self) { i in
                         RoundedRectangle(cornerRadius: 1.5)
                             .fill(.white)
-                            .frame(width: 3, height: isPlaying ? animatedHeights[i] : 10)
+                            .frame(width: 3, height: isPlaying ? animatedHeights[i] : (didAppear ? 10 : 0))
                     }
                 }
             }
+            .shadow(color: .black.opacity(0.4), radius: 5, x: 0, y: 1) // Sombra para icono y ondas
         }
         .frame(width: 72, height: 72)
         .contentShape(Circle())
@@ -746,6 +907,9 @@ private struct HiddenLayerAudioTagView: View {
                 }
         )
         .onAppear {
+            withAnimation(.spring(response: 0.45, dampingFraction: 0.6).delay(0.3)) {
+                didAppear = true
+            }
             if shouldAutoplay {
                 startPlayback()
             }
