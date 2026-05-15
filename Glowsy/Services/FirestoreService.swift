@@ -129,6 +129,81 @@ class FirestoreService: ObservableObject {
         }
     }
 
+    func updateMomentDetails(
+        userId: String,
+        momentId: String,
+        content: String,
+        audience: String,
+        customListId: String?,
+        customViewers: [String]?,
+        taggedUsers: [String],
+        location: String?,
+        locationCoordinate: Moment.LocationCoordinate?,
+        mediaItems: [MediaItem]? = nil,
+        completion: @escaping (Error?) -> Void
+    ) {
+        let momentRef = db.collection("users").document(userId).collection("moments").document(momentId)
+        let encoder = Firestore.Encoder()
+
+        var updateData: [String: Any] = [
+            "content": content,
+            "audience": audience,
+            "updatedAt": FieldValue.serverTimestamp()
+        ]
+
+        if let customListId, !customListId.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            updateData["customListId"] = customListId
+        } else {
+            updateData["customListId"] = FieldValue.delete()
+        }
+
+        if taggedUsers.isEmpty {
+            updateData["taggedUsers"] = FieldValue.delete()
+        } else {
+            updateData["taggedUsers"] = taggedUsers
+        }
+
+        if let location, !location.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            updateData["location"] = location
+        } else {
+            updateData["location"] = FieldValue.delete()
+        }
+
+        if let locationCoordinate {
+            updateData["locationCoordinate"] = [
+                "latitude": locationCoordinate.latitude,
+                "longitude": locationCoordinate.longitude
+            ]
+        } else {
+            updateData["locationCoordinate"] = FieldValue.delete()
+        }
+
+        if let mediaItems {
+            updateData["mediaItems"] = serializedMediaItems(mediaItems, encoder: encoder)
+        }
+
+        momentRef.updateData(updateData) { error in
+            if let error {
+                completion(error)
+                return
+            }
+
+            if audience == ContentAudience.custom.rawValue,
+               let customViewers,
+               !customViewers.isEmpty {
+                self.saveCustomAudienceForContent(
+                    contentType: "moment",
+                    authorId: userId,
+                    allowedUsers: customViewers
+                ) { audienceError in
+                    completion(audienceError)
+                }
+            } else {
+                completion(nil)
+            }
+        }
+    }
+
     func deleteMoment(userId: String, momentId: String, completion: @escaping (Error?) -> Void) {
         let userRef = db.collection("users").document(userId)
         let momentRef = userRef.collection("moments").document(momentId)

@@ -2149,6 +2149,19 @@
 "editMoment.description" = "Descripción";
 "editMoment.saving" = "Guardando cambios...";
 "editMoment.placeholder" = "Escribe algo...";
+"editMoment.section.text" = "Texto";
+"editMoment.section.details" = "Detalles";
+"editMoment.section.details.subtitle" = "Audiencia, ubicación y personas";
+"editMoment.location.title" = "Ubicación";
+"editMoment.location.add" = "Añadir ubicación";
+"editMoment.location.subtitle.empty" = "Puedes añadir o cambiar el lugar";
+"editMoment.location.subtitle.set" = "Toca para cambiar o quitar";
+"editMoment.tags.title" = "Etiquetas";
+"editMoment.tags.add" = "Añadir personas";
+"editMoment.tags.count" = "%d personas";
+"editMoment.tags.subtitle" = "Añade o quita personas etiquetadas";
+"editMoment.audience.locked" = "Bloqueado por moderación";
+"editMoment.audience.locked.explainer" = "Este momento fue limitado por moderación y su audiencia no se puede cambiar desde aquí.";
 
 /* Interests */
 "interest.escritura" = "Escritura";

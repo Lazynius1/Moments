@@ -2122,6 +2122,19 @@
 "editMoment.description" = "Description";
 "editMoment.saving" = "Saving changes...";
 "editMoment.placeholder" = "Write something...";
+"editMoment.section.text" = "Text";
+"editMoment.section.details" = "Details";
+"editMoment.section.details.subtitle" = "Audience, location and people";
+"editMoment.location.title" = "Location";
+"editMoment.location.add" = "Add location";
+"editMoment.location.subtitle.empty" = "You can add or change the place";
+"editMoment.location.subtitle.set" = "Tap to change or remove it";
+"editMoment.tags.title" = "Tags";
+"editMoment.tags.add" = "Add people";
+"editMoment.tags.count" = "%d people";
+"editMoment.tags.subtitle" = "Add or remove tagged people";
+"editMoment.audience.locked" = "Locked by moderation";
+"editMoment.audience.locked.explainer" = "This moment was limited by moderation and its audience can't be changed here.";
 
 /* Interests */
 "interest.escritura" = "Writing";

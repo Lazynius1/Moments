@@ -2143,6 +2143,19 @@
 "editMoment.description" = "Descripció";
 "editMoment.saving" = "Desant canvis...";
 "editMoment.placeholder" = "Escriu alguna cosa...";
+"editMoment.section.text" = "Text";
+"editMoment.section.details" = "Detalls";
+"editMoment.section.details.subtitle" = "Audiència, ubicació i persones";
+"editMoment.location.title" = "Ubicació";
+"editMoment.location.add" = "Afegir ubicació";
+"editMoment.location.subtitle.empty" = "Pots afegir o canviar el lloc";
+"editMoment.location.subtitle.set" = "Toca per canviar-la o treure-la";
+"editMoment.tags.title" = "Etiquetes";
+"editMoment.tags.add" = "Afegir persones";
+"editMoment.tags.count" = "%d persones";
+"editMoment.tags.subtitle" = "Afegeix o treu persones etiquetades";
+"editMoment.audience.locked" = "Bloquejat per moderació";
+"editMoment.audience.locked.explainer" = "Aquest moment va ser limitat per moderació i la seva audiència no es pot canviar des d'aquí.";
 
 /* Interests */
 "interest.escritura" = "Escriptura";

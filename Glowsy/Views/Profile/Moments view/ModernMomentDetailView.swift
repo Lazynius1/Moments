@@ -188,9 +188,8 @@ struct ModernMomentDetailView: View {
             if let moment = contextMenuMoment {
                 EditMomentView(
                     moment: moment,
-                    editedContent: $editedContent,
-                    onSave: { newContent in
-                        updateMoment(newContent: newContent)
+                    onSave: { payload in
+                        updateMoment(payload: payload)
                     }
                 )
             }
@@ -387,14 +386,23 @@ struct ModernMomentDetailView: View {
     }
     
     // ✅ Resto de funciones (updateMoment, deleteMoment, etc.)...
-    private func updateMoment(newContent: String) {
+    private func updateMoment(payload: EditMomentPayload) {
         guard let moment = contextMenuMoment,
               let momentId = moment.id else { return }
         
-        firestoreService2.updateMoment(
+        firestoreService2.updateMomentDetails(
             userId: moment.authorId,
             momentId: momentId,
-            content: newContent
+            content: payload.content,
+            audience: payload.audience.rawValue,
+            customListId: payload.customListId,
+            customViewers: payload.customViewers,
+            taggedUsers: payload.taggedUsers,
+            location: payload.locationName.isEmpty ? nil : payload.locationName,
+            locationCoordinate: payload.locationCoordinate.map {
+                Moment.LocationCoordinate(latitude: $0.latitude, longitude: $0.longitude)
+            },
+            mediaItems: payload.mediaItems
         ) { error in
             if let error = error {
             } else {

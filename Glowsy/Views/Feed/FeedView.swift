@@ -391,9 +391,8 @@ struct FeedView: View {
                 if let moment = selectedMomentForMenu {
                     EditMomentView(
                         moment: moment,
-                        editedContent: $editedContent,
-                        onSave: { newContent in
-                            updateMoment(moment: moment, newContent: newContent)
+                        onSave: { payload in
+                            updateMoment(moment: moment, payload: payload)
                         }
                     )
                 }
@@ -528,13 +527,22 @@ struct FeedView: View {
     }
     
     // Mantener funciones existentes como updateMoment y deleteMoment sin cambios
-    private func updateMoment(moment: Moment, newContent: String) {
+    private func updateMoment(moment: Moment, payload: EditMomentPayload) {
         guard let momentId = moment.id else { return }
         
-        firestoreService.updateMoment(
+        firestoreService.updateMomentDetails(
             userId: moment.authorId,
             momentId: momentId,
-            content: newContent
+            content: payload.content,
+            audience: payload.audience.rawValue,
+            customListId: payload.customListId,
+            customViewers: payload.customViewers,
+            taggedUsers: payload.taggedUsers,
+            location: payload.locationName.isEmpty ? nil : payload.locationName,
+            locationCoordinate: payload.locationCoordinate.map {
+                Moment.LocationCoordinate(latitude: $0.latitude, longitude: $0.longitude)
+            },
+            mediaItems: payload.mediaItems
         ) { error in
             if let error = error {
                 // Error al actualizar momento
@@ -925,13 +933,15 @@ struct FeedView: View {
                                         // ✅ PREFETCHING DE LISTA (ESTRATEGIA 1)
                                         // Cuando un post aparece, precargamos las imágenes de los siguientes 5
                                         let nextIndex = index + 1
-                                        let prefetchRange = nextIndex..<(nextIndex + 5)
-                                        let urlsToPrefetch = viewModel.moments[safe: prefetchRange].compactMap { moment -> URL? in
-                                            guard let firstMedia = moment.mediaItems?.first?.url else { return nil }
-                                            return URL(string: firstMedia)
-                                        }
-                                        if !urlsToPrefetch.isEmpty {
-                                            ImagePrefetchManager.shared.prefetch(urls: urlsToPrefetch)
+                                        if nextIndex < viewModel.moments.count {
+                                            let endIndex = min(nextIndex + 5, viewModel.moments.count)
+                                            let urlsToPrefetch = viewModel.moments[nextIndex..<endIndex].compactMap { moment -> URL? in
+                                                guard let firstMedia = moment.mediaItems?.first?.url else { return nil }
+                                                return URL(string: firstMedia)
+                                            }
+                                            if !urlsToPrefetch.isEmpty {
+                                                ImagePrefetchManager.shared.prefetch(urls: urlsToPrefetch)
+                                            }
                                         }
                                     }
                                     .environmentObject(firestoreService)
@@ -5389,6 +5399,7 @@ extension Array {
     subscript(safe range: Range<Index>) -> ArraySlice<Element> {
         let start = Swift.max(range.lowerBound, startIndex)
         let end = Swift.min(range.upperBound, endIndex)
+        guard start <= end else { return self[endIndex..<endIndex] }
         return self[start..<end]
     }
 }

@@ -5173,20 +5173,17 @@ struct LocationPickerView: View {
                     }
                 }
             }
-            .background(
-                LinearGradient(
-                    gradient: Gradient(colors: [
-                        colorScheme == .dark ? Color.black : Color.white,
-                        colorScheme == .dark ? Color(hex: "1a1a2e").opacity(0.9) : Color.gray.opacity(0.1),
-                        colorScheme == .dark ? Color(hex: "16213e").opacity(0.8) : Color.gray.opacity(0.05)
-                    ]),
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
-            )
-            .navigationTitle("creator.addLocation")
+            .background(colorScheme == .dark ? Color(hex: "0B1215") : Color(hex: "FAF9F6"))
+            .toolbarBackground(colorScheme == .dark ? Color(hex: "0B1215") : Color(hex: "FAF9F6"), for: .navigationBar)
+            .toolbarBackground(.visible, for: .navigationBar)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
+                ToolbarItem(placement: .principal) {
+                    Text("creator.addLocation")
+                        .font(.custom("Poppins-SemiBold", size: 17))
+                        .foregroundColor(colorScheme == .dark ? .white : .black)
+                }
+
                 ToolbarItem(placement: .navigationBarLeading) {
                     Button(action: {
                         dismiss()
@@ -5206,11 +5203,6 @@ struct LocationPickerView: View {
                     .disabled(selectedLocation == nil)
                 }
             }
-            .toolbarBackground(
-                colorScheme == .dark ? Color.black : Color.white,
-                for: .navigationBar
-            )
-            .toolbarBackground(.visible, for: .navigationBar)
         }
         .onAppear {
             loadNearbyPlaces()
