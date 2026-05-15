@@ -520,6 +520,9 @@ class BackgroundMomentUploadService: ObservableObject {
             imageFrameStyle: draft.type == .image ? draft.imageFrameStyle : nil,
             textStyle: draft.textStyle,
             presentationStyle: draft.presentationStyle,
+            unlockMode: draft.unlockMode,
+            unlockAt: draft.unlockMode == .scheduled ? draft.unlockAt : nil,
+            authorTimezoneIdentifier: draft.authorTimezoneIdentifier,
             moderationState: moderationState
         )
     }

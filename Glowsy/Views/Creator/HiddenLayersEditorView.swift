@@ -23,6 +23,9 @@ struct HiddenLayerDraft: Identifiable, Equatable {
     var duration: Double?
     var textStyle: HiddenLayerTextStyle
     var presentationStyle: HiddenLayerPresentationStyle
+    var unlockMode: MomentHiddenLayer.UnlockMode
+    var unlockAt: Date?
+    var authorTimezoneIdentifier: String?
 
     init(
         id: String = UUID().uuidString,
@@ -43,7 +46,10 @@ struct HiddenLayerDraft: Identifiable, Equatable {
         localAudioURL: URL? = nil,
         duration: Double? = nil,
         textStyle: HiddenLayerTextStyle = .clean,
-        presentationStyle: HiddenLayerPresentationStyle = .glassCard
+        presentationStyle: HiddenLayerPresentationStyle = .glassCard,
+        unlockMode: MomentHiddenLayer.UnlockMode = .immediate,
+        unlockAt: Date? = nil,
+        authorTimezoneIdentifier: String? = TimeZone.current.identifier
     ) {
         self.id = id
         self.type = type
@@ -64,6 +70,9 @@ struct HiddenLayerDraft: Identifiable, Equatable {
         self.duration = duration
         self.textStyle = textStyle
         self.presentationStyle = presentationStyle
+        self.unlockMode = unlockMode
+        self.unlockAt = unlockAt
+        self.authorTimezoneIdentifier = authorTimezoneIdentifier
     }
 
     var isReadyToPublish: Bool {
@@ -98,6 +107,8 @@ struct HiddenLayersEditorView: View {
     @State private var magnifyBaseSize: CGSize?
     @State private var switcherTransientOffset: CGFloat = 0
     @State private var selectedDockType: MomentHiddenLayer.LayerType = .text
+    @State private var schedulePickerLayerId: String?
+    @State private var pendingScheduleDate = Date()
 
     private let maxLayers = 3
     private var isDark: Bool { colorScheme == .dark }
@@ -125,7 +136,7 @@ struct HiddenLayersEditorView: View {
         if let index = dockEditorLayerIndex {
             switch layers[index].type {
             case .text, .audio, .image:
-                return 232
+                return 272
             }
         }
         return 156
@@ -182,6 +193,34 @@ struct HiddenLayersEditorView: View {
             }
         }
         .photosPicker(isPresented: $showingImagePicker, selection: $photoPickerItem, matching: .images)
+        .sheet(
+            isPresented: Binding(
+                get: { schedulePickerLayerId != nil },
+                set: { isPresented in
+                    if !isPresented {
+                        schedulePickerLayerId = nil
+                    }
+                }
+            )
+        ) {
+            HiddenLayerScheduleSheet(
+                date: Binding(
+                    get: { pendingScheduleDate },
+                    set: { pendingScheduleDate = $0 }
+                ),
+                onCancel: {
+                    schedulePickerLayerId = nil
+                },
+                onApply: {
+                    if let layerId = schedulePickerLayerId {
+                        applyPendingSchedule(to: layerId)
+                        schedulePickerLayerId = nil
+                    }
+                }
+            )
+            .presentationDetents([.medium])
+            .presentationDragIndicator(.visible)
+        }
         .onChange(of: photoPickerItem) { _, newValue in
             guard let newValue else { return }
             Task {
@@ -393,8 +432,13 @@ struct HiddenLayersEditorView: View {
                             }
                             .buttonStyle(.plain)
                         }
+
+                        availabilityControls(for: index)
                     } else if layers[index].type == .audio {
-                        audioControls(for: index)
+                        VStack(spacing: 10) {
+                            audioControls(for: index)
+                            availabilityControls(for: index)
+                        }
                     } else if layers[index].type == .image {
                         VStack(alignment: .leading, spacing: 12) {
                             TextField(
@@ -438,6 +482,8 @@ struct HiddenLayersEditorView: View {
                                 }
                                 .buttonStyle(.plain)
                             }
+
+                            availabilityControls(for: index)
                         }
                     }
                 }
@@ -1221,6 +1267,117 @@ struct HiddenLayersEditorView: View {
         )
     }
 
+    private func availabilityControls(for index: Int) -> some View {
+        HStack(spacing: 8) {
+            Menu {
+                Button(NSLocalizedString("hiddenLayers.unlock.now", value: "Ahora", comment: "Hidden layer unlock now")) {
+                    layers[index].unlockMode = .immediate
+                    layers[index].unlockAt = nil
+                    layers[index].authorTimezoneIdentifier = TimeZone.current.identifier
+                }
+
+                Button(NSLocalizedString("hiddenLayers.unlock.scheduled", value: "Programada", comment: "Hidden layer scheduled unlock")) {
+                    if layers[index].unlockMode != .scheduled {
+                        layers[index].unlockMode = .scheduled
+                        layers[index].unlockAt = defaultScheduledDate()
+                        layers[index].authorTimezoneIdentifier = TimeZone.current.identifier
+                    }
+                }
+            } label: {
+                compactSelectionChip(
+                    title: NSLocalizedString("hiddenLayers.unlock.title", value: "Disponibilidad", comment: "Hidden layer availability title"),
+                    value: unlockModeTitle(layers[index].unlockMode),
+                    systemImage: "clock"
+                )
+            }
+            .buttonStyle(.plain)
+
+            if layers[index].unlockMode == .scheduled {
+                Menu {
+                    Button(NSLocalizedString("hiddenLayers.unlock.tonight", value: "Esta noche", comment: "Hidden layer unlock tonight")) {
+                        layers[index].unlockAt = tonightUnlockDate()
+                        layers[index].authorTimezoneIdentifier = TimeZone.current.identifier
+                    }
+
+                    Button(NSLocalizedString("hiddenLayers.unlock.tomorrow", value: "Mañana", comment: "Hidden layer unlock tomorrow")) {
+                        layers[index].unlockAt = tomorrowUnlockDate()
+                        layers[index].authorTimezoneIdentifier = TimeZone.current.identifier
+                    }
+
+                    Button(NSLocalizedString("hiddenLayers.unlock.pickDate", value: "Elegir fecha", comment: "Hidden layer choose date")) {
+                        pendingScheduleDate = layers[index].unlockAt ?? defaultScheduledDate()
+                        schedulePickerLayerId = layers[index].id
+                    }
+                } label: {
+                    compactSelectionChip(
+                        title: NSLocalizedString("hiddenLayers.unlock.opens", value: "Se abre", comment: "Hidden layer opens title"),
+                        value: formattedUnlockDate(layers[index].unlockAt),
+                        systemImage: "calendar"
+                    )
+                }
+                .buttonStyle(.plain)
+            }
+        }
+    }
+
+    private func unlockModeTitle(_ mode: MomentHiddenLayer.UnlockMode) -> String {
+        switch mode {
+        case .immediate:
+            return NSLocalizedString("hiddenLayers.unlock.now", value: "Ahora", comment: "Hidden layer unlock now")
+        case .scheduled:
+            return NSLocalizedString("hiddenLayers.unlock.scheduled", value: "Programada", comment: "Hidden layer scheduled unlock")
+        }
+    }
+
+    private func formattedUnlockDate(_ date: Date?) -> String {
+        guard let date else {
+            return NSLocalizedString("hiddenLayers.unlock.pickDate", value: "Elegir fecha", comment: "Hidden layer choose date")
+        }
+
+        if Calendar.current.isDateInToday(date) {
+            return String(
+                format: NSLocalizedString("hiddenLayers.unlock.todayTime", value: "Hoy %1$@", comment: "Hidden layer unlock today with time"),
+                date.formatted(date: .omitted, time: .shortened)
+            )
+        }
+
+        if Calendar.current.isDateInTomorrow(date) {
+            return String(
+                format: NSLocalizedString("hiddenLayers.unlock.tomorrowTime", value: "Mañana %1$@", comment: "Hidden layer unlock tomorrow with time"),
+                date.formatted(date: .omitted, time: .shortened)
+            )
+        }
+
+        return date.formatted(date: .abbreviated, time: .shortened)
+    }
+
+    private func defaultScheduledDate() -> Date {
+        tonightUnlockDate()
+    }
+
+    private func tonightUnlockDate() -> Date {
+        let calendar = Calendar.current
+        let now = Date()
+        let todayAtTen = calendar.date(bySettingHour: 22, minute: 0, second: 0, of: now) ?? now.addingTimeInterval(60 * 60 * 2)
+        if todayAtTen > now {
+            return todayAtTen
+        }
+        return tomorrowUnlockDate()
+    }
+
+    private func tomorrowUnlockDate() -> Date {
+        let calendar = Calendar.current
+        let tomorrow = calendar.date(byAdding: .day, value: 1, to: Date()) ?? Date()
+        return calendar.date(bySettingHour: 22, minute: 0, second: 0, of: tomorrow) ?? tomorrow
+    }
+
+    private func applyPendingSchedule(to layerId: String) {
+        guard let index = layers.firstIndex(where: { $0.id == layerId }) else { return }
+        layers[index].unlockMode = .scheduled
+        layers[index].unlockAt = pendingScheduleDate
+        layers[index].authorTimezoneIdentifier = TimeZone.current.identifier
+    }
+
     private func audioCanvasPreview(for layer: HiddenLayerDraft) -> some View {
         InteractiveAudioStickerView(
             audioURL: layer.localAudioURL?.absoluteString ?? "",
@@ -1348,6 +1505,63 @@ private final class HiddenLayerAudioRecorder: NSObject, ObservableObject, AVAudi
         isRecording = false
         timer?.invalidate()
         timer = nil
+    }
+}
+
+private struct HiddenLayerScheduleSheet: View {
+    @Binding var date: Date
+    let onCancel: () -> Void
+    let onApply: () -> Void
+
+    var body: some View {
+        VStack(spacing: 18) {
+            Capsule()
+                .fill(Color.secondary.opacity(0.25))
+                .frame(width: 36, height: 5)
+                .padding(.top, 8)
+
+            VStack(spacing: 4) {
+                Text(NSLocalizedString("hiddenLayers.unlock.sheet.title", value: "Programar secreto", comment: "Hidden layer schedule sheet title"))
+                    .font(.system(size: 18, weight: .bold, design: .rounded))
+
+                Text(NSLocalizedString("hiddenLayers.unlock.sheet.subtitle", value: "El contenido seguirá revelándose al tocarlo.", comment: "Hidden layer schedule sheet subtitle"))
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+            }
+
+            DatePicker(
+                "",
+                selection: $date,
+                in: Date()...,
+                displayedComponents: [.date, .hourAndMinute]
+            )
+            .datePickerStyle(.graphical)
+            .labelsHidden()
+
+            HStack(spacing: 10) {
+                Button(NSLocalizedString("common.cancel", value: "Cancelar", comment: "Cancel")) {
+                    onCancel()
+                }
+                .font(.system(size: 14, weight: .bold, design: .rounded))
+                .foregroundColor(.primary)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 12)
+                .liquidGlass(in: Capsule(), interactive: true)
+
+                Button(NSLocalizedString("common.done", value: "Listo", comment: "Done")) {
+                    onApply()
+                }
+                .font(.system(size: 14, weight: .bold, design: .rounded))
+                .foregroundColor(.primary)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 12)
+                .liquidGlass(in: Capsule(), interactive: true)
+            }
+        }
+        .padding(.horizontal, 20)
+        .padding(.bottom, 20)
+        .presentationBackground(.ultraThinMaterial)
     }
 }
 

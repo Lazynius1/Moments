@@ -2561,7 +2561,7 @@ struct ModernPostCardView: View {
                        mediaItems.count == 1,
                        mediaItems.first?.type == .image,
                        currentImageIndex == 0 {
-                        HiddenLayersOverlayView(moment: moment, isImmersive: isImmersive)
+                        HiddenLayersOverlayView(moment: moment, isImmersive: isImmersive, requiresFocusForIntro: true)
                             .frame(height: max(cardHeight, 200))
                             .clipShape(RoundedRectangle(cornerRadius: isImmersive ? 12 : 20))
                             .zIndex(3)

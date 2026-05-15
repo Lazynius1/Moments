@@ -474,6 +474,9 @@ struct MomentHiddenLayer: Identifiable, Codable, Equatable {
     let imageFrameStyle: HiddenLayerImageFrameStyle?
     let textStyle: HiddenLayerTextStyle?
     let presentationStyle: HiddenLayerPresentationStyle
+    let unlockMode: UnlockMode
+    let unlockAt: Date?
+    let authorTimezoneIdentifier: String?
     let moderationState: ModerationState?
     let moderationReason: String?
     let moderationCategory: String?
@@ -497,6 +500,11 @@ struct MomentHiddenLayer: Identifiable, Codable, Equatable {
         case pending
     }
 
+    enum UnlockMode: String, Codable, CaseIterable {
+        case immediate
+        case scheduled
+    }
+
     init(
         id: String = UUID().uuidString,
         type: LayerType,
@@ -517,6 +525,9 @@ struct MomentHiddenLayer: Identifiable, Codable, Equatable {
         imageFrameStyle: HiddenLayerImageFrameStyle? = nil,
         textStyle: HiddenLayerTextStyle? = nil,
         presentationStyle: HiddenLayerPresentationStyle = .glassCard,
+        unlockMode: UnlockMode = .immediate,
+        unlockAt: Date? = nil,
+        authorTimezoneIdentifier: String? = nil,
         moderationState: ModerationState? = .visible,
         moderationReason: String? = nil,
         moderationCategory: String? = nil,
@@ -542,6 +553,9 @@ struct MomentHiddenLayer: Identifiable, Codable, Equatable {
         self.imageFrameStyle = imageFrameStyle
         self.textStyle = textStyle
         self.presentationStyle = presentationStyle
+        self.unlockMode = unlockMode
+        self.unlockAt = unlockAt
+        self.authorTimezoneIdentifier = authorTimezoneIdentifier
         self.moderationState = moderationState
         self.moderationReason = moderationReason
         self.moderationCategory = moderationCategory
@@ -559,6 +573,16 @@ struct MomentHiddenLayer: Identifiable, Codable, Equatable {
             return true
         case .hidden, .pending:
             return false
+        }
+    }
+
+    func isUnlocked(at date: Date = Date()) -> Bool {
+        switch unlockMode {
+        case .immediate:
+            return true
+        case .scheduled:
+            guard let unlockAt else { return true }
+            return unlockAt <= date
         }
     }
 }
