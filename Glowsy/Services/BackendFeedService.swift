@@ -45,6 +45,8 @@ struct BackendMoment: Codable {
     let scheduledDate: Double? // epoch millis
     let trendingScore: Double?
     let engagementRate: Double?
+    let hasHiddenLayers: Bool?
+    let hiddenLayerCount: Int?
     
     /// Convert to the app's Moment model
     func toMoment() -> Moment {
@@ -75,7 +77,9 @@ struct BackendMoment: Codable {
             allowSharing: allowSharing ?? true,
             scheduledDate: scheduledDate.map { Date(timeIntervalSince1970: $0 / 1000) },
             trendingScore: trendingScore,
-            engagementRate: engagementRate
+            engagementRate: engagementRate,
+            hasHiddenLayers: hasHiddenLayers ?? false,
+            hiddenLayerCount: hiddenLayerCount ?? 0
         )
     }
 }

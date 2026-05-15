@@ -2951,6 +2951,9 @@
 "notification.moderation.storySticker.partial.title" = "Revisió de contingut";
 "notification.moderation.storySticker.partial.body.one" = "Hem ocultat un sticker de la teva història perquè no compleix les nostres Normes de la comunitat. La resta segueix visible.";
 "notification.moderation.storySticker.partial.body.other" = "Hem ocultat %d stickers de la teva història perquè no compleixen les nostres Normes de la comunitat. La resta segueix visible.";
+"notification.moderation.postHiddenLayer.partial.title" = "Revisió de contingut";
+"notification.moderation.postHiddenLayer.partial.body.one" = "Hem ocultat una capa oculta de la teva publicació perquè no compleix les nostres Normes de la comunitat. La resta segueix visible.";
+"notification.moderation.postHiddenLayer.partial.body.other" = "Hem ocultat %d capes ocultes de la teva publicació perquè no compleixen les nostres Normes de la comunitat. La resta segueix visible.";
 "notifications.message.mediaModeration" = "Hem revisat una publicació recent per assegurar que compleix les nostres Normes de la comunitat.";
 
 /* Banner - Moderació de contingut */
@@ -2959,6 +2962,7 @@
 "banner.verb.mediaModeration.story.partial" = "S'ha ocultat contingut de la teva història";
 "banner.verb.mediaModeration.story.full" = "La teva història ara és només per a tu";
 "banner.verb.mediaModeration.storySticker.partial" = "Hem ocultat un sticker de la teva història";
+"banner.verb.mediaModeration.postHiddenLayer.partial" = "Hem ocultat una capa oculta de la teva publicació";
 "appeal.yourAppeal.placeholder" = "Explica'ns per què creus que la suspensió s'hauria de revisar. Afegeix context concret i evita informació sensible.";
 "appeal.additionalInfo.placeholder" = "Afegeix qualsevol detall extra que pugui ajudar a revisar el teu cas.";
 
@@ -3156,3 +3160,46 @@
 "stickerview.audio.recorded" = "Llest per afegir";
 "stickerview.audio.tapToRecord" = "Toca per enregistrar";
 "stickerview.audio.add" = "Afegir a la història";
+
+/* Hidden Layers */
+"hiddenLayers.editor.title" = "Capes ocultes";
+"hiddenLayers.count" = "%d capes";
+"hiddenLayers.count.ready" = "%1$d llestes, %2$d incompletes";
+"hiddenLayers.text.placeholder" = "Escriu el secret...";
+"hiddenLayers.image.replace" = "Canviar imatge";
+"hiddenLayers.image.adjust" = "Ajustar foto";
+"hiddenLayers.size" = "Mida";
+"hiddenLayers.empty.title" = "Afegeix fins a 3 secrets";
+"hiddenLayers.empty.subtitle" = "Text, àudio o una imatge amagada al post.";
+"hiddenLayers.add.text" = "Text";
+"hiddenLayers.add.audio" = "Àudio";
+"hiddenLayers.add.image" = "Imatge";
+"hiddenLayers.audio.stop" = "Aturar";
+"hiddenLayers.audio.record" = "Gravar";
+"hiddenLayers.audio.recording" = "Enregistrant...";
+"hiddenLayers.audio.tapToRecord" = "Toca per gravar";
+"hiddenLayers.audio.ready" = "Llest per revelar";
+"hiddenLayers.audio.preview" = "Escoltar";
+"hiddenLayers.type.text" = "Text ocult";
+"hiddenLayers.type.audio" = "Àudio ocult";
+"hiddenLayers.type.image" = "Imatge oculta";
+"hiddenLayers.viewer.hint" = "Toca els espurnejos";
+"hiddenLayers.viewer.audio" = "Àudio ocult";
+"hiddenLayers.feed.indicator" = "Capes ocultes";
+"hiddenLayers.image.caption" = "ocult";
+"hiddenLayers.image.caption.placeholder" = "Afegeix un caption";
+"hiddenLayers.image.select" = "Selecciona una imatge";
+"hiddenLayers.creator.singleImageOnly" = "Només en una foto";
+"hiddenLayers.empty.text.title" = "Afegeix un text ocult";
+"hiddenLayers.empty.audio.title" = "Afegeix un àudio ocult";
+"hiddenLayers.empty.image.title" = "Afegeix una imatge oculta";
+"hiddenLayers.empty.text.subtitle" = "Amaga un missatge sobre el post i col·loca'l on vulguis.";
+"hiddenLayers.empty.audio.subtitle" = "Grava un àudio curt que només aparegui quan el descobreixin.";
+"hiddenLayers.empty.image.subtitle" = "Fes servir una polaroid oculta per amagar una altra foto dins del post.";
+"hiddenLayers.add.text.cta" = "Afegeix text";
+"hiddenLayers.add.audio.cta" = "Afegeix àudio";
+"hiddenLayers.add.image.cta" = "Afegeix imatge";
+"hiddenLayers.text.style" = "Estil";
+"hiddenLayers.text.font" = "Tipografia";
+"hiddenLayers.image.frame" = "Marc";
+"hiddenLayers.image.font" = "Tipografia";

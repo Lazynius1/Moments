@@ -679,6 +679,17 @@ struct ModernDetailMomentCard: View {
                             detectAspectRatio()
                         }
 
+                        if moment.hasHiddenLayers,
+                           moment.hiddenLayerCount > 0,
+                           mediaItems.count == 1,
+                           mediaItems.first?.type == .image,
+                           currentImageIndex == 0 {
+                            HiddenLayersOverlayView(moment: moment, isImmersive: isImmersive)
+                                .frame(height: max(cardHeight, 200))
+                                .clipShape(RoundedRectangle(cornerRadius: 24))
+                                .zIndex(3)
+                        }
+
                         if let location = moment.location?.trimmingCharacters(in: .whitespacesAndNewlines),
                            !location.isEmpty {
                             VStack {

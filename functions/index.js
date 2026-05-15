@@ -1435,6 +1435,15 @@ async function handleModerationPush(userId, notificationId, notification, userDa
       bodyLocKey = 'notification.moderation.storySticker.partial.body.other';
       bodyLocArgs = [String(moderatedMediaCount)];
     }
+  } else if (moderationScope === 'postHiddenLayer') {
+    titleLocKey = 'notification.moderation.postHiddenLayer.partial.title';
+    if (moderatedMediaCount === 1) {
+      bodyLocKey = 'notification.moderation.postHiddenLayer.partial.body.one';
+      bodyLocArgs = [];
+    } else {
+      bodyLocKey = 'notification.moderation.postHiddenLayer.partial.body.other';
+      bodyLocArgs = [String(moderatedMediaCount)];
+    }
   } else {
     const scopePrefix = moderationScope === 'story' ? 'notification.moderation.story' : 'notification.moderation';
     if (moderationType === 'partial') {
@@ -3624,7 +3633,9 @@ function serializeMoment(docId, data) {
     allowSharing: data.allowSharing !== false,
     scheduledDate: tsToMillis(data.scheduledDate),
     trendingScore: data.trendingScore || null,
-    engagementRate: data.engagementRate || null
+    engagementRate: data.engagementRate || null,
+    hasHiddenLayers: data.hasHiddenLayers === true,
+    hiddenLayerCount: Number.isInteger(data.hiddenLayerCount) ? data.hiddenLayerCount : 0
   };
 }
 

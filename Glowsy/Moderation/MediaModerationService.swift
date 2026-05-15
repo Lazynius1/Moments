@@ -165,7 +165,13 @@ class MediaModerationService {
                             if let contentId = contentId {
                                 switch action {
                                 case .deleted, .warning:
-                                    if contentType == .moment, let mediaItemId = mediaItemId {
+                                    if contentType == .moment,
+                                       let mediaItemId = mediaItemId,
+                                       self?.isHiddenLayerMediaItemId(mediaItemId) == true {
+                                        break
+                                    } else if contentType == .moment,
+                                              let mediaItemId = mediaItemId,
+                                              self?.isHiddenLayerMediaItemId(mediaItemId) == false {
                                         self?.hideMomentMediaItem(
                                             userId: userId,
                                             contentId: contentId,
@@ -345,7 +351,13 @@ class MediaModerationService {
         if let contentId = contentId {
             switch finalResult.action {
             case .deleted, .warning:
-                if contentType == .moment, let mediaItemId = mediaItemId {
+                if contentType == .moment,
+                   let mediaItemId = mediaItemId,
+                   isHiddenLayerMediaItemId(mediaItemId) {
+                    break
+                } else if contentType == .moment,
+                          let mediaItemId = mediaItemId,
+                          !isHiddenLayerMediaItemId(mediaItemId) {
                     hideMomentMediaItem(
                         userId: userId,
                         contentId: contentId,
@@ -1310,6 +1322,10 @@ class MediaModerationService {
                 }
             }
         }
+    }
+
+    private func isHiddenLayerMediaItemId(_ mediaItemId: String) -> Bool {
+        mediaItemId.hasPrefix("hiddenLayer_")
     }
 
     private func hideContentUsingOnlyMe(

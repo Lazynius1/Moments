@@ -412,6 +412,17 @@ struct MomentDetailView: View {
             .onAppear {
                 detectAspectRatio()
             }
+
+            if moment.hasHiddenLayers,
+               moment.hiddenLayerCount > 0,
+               mediaItems.count == 1,
+               mediaItems.first?.type == .image,
+               currentImageIndex == 0 {
+                HiddenLayersOverlayView(moment: moment, isImmersive: isImmersive)
+                    .frame(height: cardHeight)
+                    .clipShape(RoundedRectangle(cornerRadius: 20))
+                    .zIndex(3)
+            }
             
             // ✅ NUEVO: Indicadores de media múltiple mejorados
             if mediaItems.count > 1 {

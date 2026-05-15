@@ -2941,6 +2941,9 @@
 "notification.moderation.storySticker.partial.title" = "Content Review";
 "notification.moderation.storySticker.partial.body.one" = "We've hidden a sticker from your story because it doesn't meet our Community Guidelines. The rest is still visible.";
 "notification.moderation.storySticker.partial.body.other" = "We've hidden %d stickers from your story because they don't meet our Community Guidelines. The rest is still visible.";
+"notification.moderation.postHiddenLayer.partial.title" = "Content Review";
+"notification.moderation.postHiddenLayer.partial.body.one" = "We've hidden a hidden layer from your post because it doesn't meet our Community Guidelines. The rest is still visible.";
+"notification.moderation.postHiddenLayer.partial.body.other" = "We've hidden %d hidden layers from your post because they don't meet our Community Guidelines. The rest is still visible.";
 "notifications.message.mediaModeration" = "We reviewed a recent post to ensure it complies with our Community Guidelines.";
 
 /* Banner - Media Moderation */
@@ -2949,6 +2952,7 @@
 "banner.verb.mediaModeration.story.partial" = "Some content was hidden from your story";
 "banner.verb.mediaModeration.story.full" = "Your story is now only visible to you";
 "banner.verb.mediaModeration.storySticker.partial" = "We hid a sticker from your story";
+"banner.verb.mediaModeration.postHiddenLayer.partial" = "We hid a hidden layer from your post";
 "appeal.yourAppeal.placeholder" = "Tell us why you think the suspension should be reviewed. Add specific context and avoid sensitive information.";
 "appeal.additionalInfo.placeholder" = "Add any extra details that could help us review your case.";
 
@@ -3146,3 +3150,46 @@
 "stickerview.audio.add" = "Add to Story";
 
 "stickerview.category.audio" = "Audio";
+
+/* Hidden Layers */
+"hiddenLayers.editor.title" = "Hidden layers";
+"hiddenLayers.count" = "%d layers";
+"hiddenLayers.count.ready" = "%1$d ready, %2$d incomplete";
+"hiddenLayers.text.placeholder" = "Write the secret...";
+"hiddenLayers.image.replace" = "Replace image";
+"hiddenLayers.image.adjust" = "Adjust photo";
+"hiddenLayers.size" = "Size";
+"hiddenLayers.empty.title" = "Add up to 3 secrets";
+"hiddenLayers.empty.subtitle" = "Text, audio or an image hidden on the post.";
+"hiddenLayers.add.text" = "Text";
+"hiddenLayers.add.audio" = "Audio";
+"hiddenLayers.add.image" = "Image";
+"hiddenLayers.audio.stop" = "Stop";
+"hiddenLayers.audio.record" = "Record";
+"hiddenLayers.audio.recording" = "Recording...";
+"hiddenLayers.audio.tapToRecord" = "Tap to record";
+"hiddenLayers.audio.ready" = "Ready to reveal";
+"hiddenLayers.audio.preview" = "Listen";
+"hiddenLayers.type.text" = "Hidden text";
+"hiddenLayers.type.audio" = "Hidden audio";
+"hiddenLayers.type.image" = "Hidden image";
+"hiddenLayers.viewer.hint" = "Tap the sparkles";
+"hiddenLayers.viewer.audio" = "Hidden audio";
+"hiddenLayers.feed.indicator" = "Hidden layers";
+"hiddenLayers.image.caption" = "hidden";
+"hiddenLayers.image.caption.placeholder" = "Add a caption";
+"hiddenLayers.image.select" = "Select an image";
+"hiddenLayers.creator.singleImageOnly" = "Only on a single photo";
+"hiddenLayers.empty.text.title" = "Add hidden text";
+"hiddenLayers.empty.audio.title" = "Add hidden audio";
+"hiddenLayers.empty.image.title" = "Add a hidden image";
+"hiddenLayers.empty.text.subtitle" = "Hide a message on top of the post and place it wherever you want.";
+"hiddenLayers.empty.audio.subtitle" = "Record a short audio that only appears once someone reveals it.";
+"hiddenLayers.empty.image.subtitle" = "Use a hidden polaroid to tuck another photo inside the post.";
+"hiddenLayers.add.text.cta" = "Add text";
+"hiddenLayers.add.audio.cta" = "Add audio";
+"hiddenLayers.add.image.cta" = "Add image";
+"hiddenLayers.text.style" = "Style";
+"hiddenLayers.text.font" = "Font";
+"hiddenLayers.image.frame" = "Frame";
+"hiddenLayers.image.font" = "Font";

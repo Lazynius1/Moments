@@ -453,6 +453,140 @@ struct MediaItem: Identifiable, Codable {
     }
 }
 
+// MARK: - Hidden Layers for Moments
+struct MomentHiddenLayer: Identifiable, Codable, Equatable {
+    let id: String
+    let type: LayerType
+    let anchorX: Double
+    let anchorY: Double
+    let width: Double
+    let height: Double
+    let shape: LayerShape
+    let zIndex: Int
+    let text: String?
+    let mediaURL: String?
+    let thumbnailURL: String?
+    let duration: Double?
+    let caption: String?
+    let imageOffsetX: Double?
+    let imageOffsetY: Double?
+    let imageScale: Double?
+    let imageFrameStyle: HiddenLayerImageFrameStyle?
+    let textStyle: HiddenLayerTextStyle?
+    let presentationStyle: HiddenLayerPresentationStyle
+    let moderationState: ModerationState?
+    let moderationReason: String?
+    let moderationCategory: String?
+    let moderatedAt: Date?
+    let createdAt: Date
+
+    enum LayerType: String, Codable, CaseIterable {
+        case text
+        case audio
+        case image
+    }
+
+    enum LayerShape: String, Codable, CaseIterable {
+        case circle
+        case roundedRect
+    }
+
+    enum ModerationState: String, Codable {
+        case visible
+        case hidden
+        case pending
+    }
+
+    init(
+        id: String = UUID().uuidString,
+        type: LayerType,
+        anchorX: Double,
+        anchorY: Double,
+        width: Double,
+        height: Double,
+        shape: LayerShape = .roundedRect,
+        zIndex: Int = 0,
+        text: String? = nil,
+        mediaURL: String? = nil,
+        thumbnailURL: String? = nil,
+        duration: Double? = nil,
+        caption: String? = nil,
+        imageOffsetX: Double? = nil,
+        imageOffsetY: Double? = nil,
+        imageScale: Double? = nil,
+        imageFrameStyle: HiddenLayerImageFrameStyle? = nil,
+        textStyle: HiddenLayerTextStyle? = nil,
+        presentationStyle: HiddenLayerPresentationStyle = .glassCard,
+        moderationState: ModerationState? = .visible,
+        moderationReason: String? = nil,
+        moderationCategory: String? = nil,
+        moderatedAt: Date? = nil,
+        createdAt: Date = Date()
+    ) {
+        self.id = id
+        self.type = type
+        self.anchorX = anchorX
+        self.anchorY = anchorY
+        self.width = width
+        self.height = height
+        self.shape = shape
+        self.zIndex = zIndex
+        self.text = text
+        self.mediaURL = mediaURL
+        self.thumbnailURL = thumbnailURL
+        self.duration = duration
+        self.caption = caption
+        self.imageOffsetX = imageOffsetX
+        self.imageOffsetY = imageOffsetY
+        self.imageScale = imageScale
+        self.imageFrameStyle = imageFrameStyle
+        self.textStyle = textStyle
+        self.presentationStyle = presentationStyle
+        self.moderationState = moderationState
+        self.moderationReason = moderationReason
+        self.moderationCategory = moderationCategory
+        self.moderatedAt = moderatedAt
+        self.createdAt = createdAt
+    }
+
+    var isHiddenByModeration: Bool {
+        moderationState == .hidden
+    }
+
+    var isVisibleInViewer: Bool {
+        switch moderationState ?? .visible {
+        case .visible:
+            return true
+        case .hidden, .pending:
+            return false
+        }
+    }
+}
+
+enum HiddenLayerTextStyle: String, Codable, CaseIterable, Equatable {
+    case clean
+    case serif
+    case handwritten
+    case mono
+    case bubble
+    case editorial
+}
+
+enum HiddenLayerPresentationStyle: String, Codable, CaseIterable, Equatable {
+    case glassCard
+    case captionPill
+    case paperNote
+    case markerLabel
+    case floatingQuote
+    case minimalText
+}
+
+enum HiddenLayerImageFrameStyle: String, Codable, CaseIterable, Equatable {
+    case classic
+    case clean
+    case vintage
+}
+
 // ================== MODELO DE MOMENTO (CORREGIDO) ==================
 struct Moment: Identifiable, Codable, Equatable {
     @DocumentID var id: String?
@@ -479,6 +613,8 @@ struct Moment: Identifiable, Codable, Equatable {
     let scheduledDate: Date?         // ✅ NUEVO: Fecha programada
     let isArchived: Bool?             // ✅ NUEVO: Momento archivado
     let archivedAt: Date?             // ✅ NUEVO: Fecha de archivo
+    let hasHiddenLayers: Bool
+    let hiddenLayerCount: Int
     // Helper properties for scheduling
     var isScheduled: Bool {
         guard let scheduledDate = scheduledDate else { return false }
@@ -588,6 +724,7 @@ struct Moment: Identifiable, Codable, Equatable {
         case isArchived, archivedAt
         case thumbnailUrl, videoDuration, videoFileSize, videoResolution
         case trendingScore, engagementRate
+        case hasHiddenLayers, hiddenLayerCount
     }
 
     // ✅ MANUAL CODABLE: Necesario para que JSONEncoder no falle con @DocumentID
@@ -650,6 +787,8 @@ struct Moment: Identifiable, Codable, Equatable {
         self.allowSharing = (try? container.decodeIfPresent(Bool.self, forKey: .allowSharing)) ?? true
         self.trendingScore = try container.decodeIfPresent(Double.self, forKey: .trendingScore)
         self.engagementRate = try container.decodeIfPresent(Double.self, forKey: .engagementRate)
+        self.hasHiddenLayers = (try? container.decodeIfPresent(Bool.self, forKey: .hasHiddenLayers)) ?? false
+        self.hiddenLayerCount = (try? container.decodeIfPresent(Int.self, forKey: .hiddenLayerCount)) ?? 0
     }
 
     func encode(to encoder: Encoder) throws {
@@ -695,6 +834,8 @@ struct Moment: Identifiable, Codable, Equatable {
         try container.encode(allowSharing, forKey: .allowSharing)
         try container.encodeIfPresent(trendingScore, forKey: .trendingScore)
         try container.encodeIfPresent(engagementRate, forKey: .engagementRate)
+        try container.encode(hasHiddenLayers, forKey: .hasHiddenLayers)
+        try container.encode(hiddenLayerCount, forKey: .hiddenLayerCount)
     }
 
     static func == (lhs: Moment, rhs: Moment) -> Bool {
@@ -731,7 +872,9 @@ struct Moment: Identifiable, Codable, Equatable {
         trendingScore: Double? = nil,
         engagementRate: Double? = nil,
         isArchived: Bool? = nil,
-        archivedAt: Date? = nil
+        archivedAt: Date? = nil,
+        hasHiddenLayers: Bool = false,
+        hiddenLayerCount: Int = 0
     ) {
         self.id = id
         self.authorId = authorId
@@ -762,6 +905,8 @@ struct Moment: Identifiable, Codable, Equatable {
         self.engagementRate = engagementRate
         self.isArchived = isArchived
         self.archivedAt = archivedAt
+        self.hasHiddenLayers = hasHiddenLayers
+        self.hiddenLayerCount = hiddenLayerCount
     }
 }
 
