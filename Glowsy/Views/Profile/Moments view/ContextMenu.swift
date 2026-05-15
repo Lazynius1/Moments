@@ -283,11 +283,8 @@ struct ModernContextMenuOverlay: View {
                             isLoadingMore: isLoadingSelectedLayerDiscoveries,
                             canLoadMore: canLoadMoreSelectedLayerDiscoveries,
                             onLoadMore: loadSelectedLayerDiscoveries,
-                            onAvatarTap: { userId, hasStory in
-                                guard hasStory, !userId.isEmpty else { return }
-                                selectedStoryUserId = userId
-                                showSpecificUserStories = true
-                            },
+                            onAvatarTap: openDiscoveryAvatarTarget,
+                            onRowTap: openDiscoveryProfile,
                             totalLayers: hiddenLayerMetrics?.totalLayerCount ?? 0,
                             onBack: {
                                 withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
@@ -497,6 +494,24 @@ struct ModernContextMenuOverlay: View {
                 }
             }
         }
+    }
+
+    private func openDiscoveryAvatarTarget(userId: String, hasStory: Bool) {
+        guard !userId.isEmpty else { return }
+        if hasStory {
+            selectedStoryUserId = userId
+            showSpecificUserStories = true
+        } else {
+            openDiscoveryProfile(userId: userId)
+        }
+    }
+
+    private func openDiscoveryProfile(userId: String) {
+        guard !userId.isEmpty else { return }
+        NotificationCenter.default.post(
+            name: NSNotification.Name("NavigateToProfile"),
+            object: userId
+        )
     }
     
     // ✅ LÓGICA DE COMPARTIR INTEGRADA (Copiada de share.swift para consistencia)
@@ -791,7 +806,7 @@ private struct HiddenLayerMetricsSummaryCard: View {
     @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
-        Button(action: action) {
+        MomentRowButton(action: action) {
             VStack(spacing: 0) {
                 Divider()
                     .background(colorScheme == .dark ? Color.white.opacity(0.16) : Color.black.opacity(0.08))
@@ -839,7 +854,6 @@ private struct HiddenLayerMetricsSummaryCard: View {
                 .padding(.vertical, 8)
             }
         }
-        .buttonStyle(.plain)
     }
 
     private var summaryText: String {
@@ -939,7 +953,7 @@ private struct HiddenLayerMetricsListView: View {
                         .padding(.bottom, 14)
 
                     ForEach(Array(metrics.layers.enumerated()), id: \.element.id) { index, layer in
-                        Button(action: {
+                        MomentRowButton(action: {
                             onSelectLayer(layer)
                         }) {
                             HiddenLayerMetricsRow(
@@ -947,7 +961,6 @@ private struct HiddenLayerMetricsListView: View {
                                 discoveries: metrics.recentDiscoveriesByLayer[layer.id] ?? []
                             )
                         }
-                        .buttonStyle(.plain)
 
                         if index < metrics.layers.count - 1 {
                             Divider()
@@ -1053,6 +1066,7 @@ private struct HiddenLayerMetricDetailView: View {
     let canLoadMore: Bool
     let onLoadMore: () -> Void
     let onAvatarTap: (String, Bool) -> Void
+    let onRowTap: (String) -> Void
     let totalLayers: Int
     let onBack: () -> Void
 
@@ -1135,28 +1149,11 @@ private struct HiddenLayerMetricDetailView: View {
                 } else {
                     LazyVStack(spacing: 0) {
                         ForEach(Array(discoveries.enumerated()), id: \.element.id) { index, discovery in
-                            HStack(spacing: 12) {
-                                StoryRingAvatarView(
-                                    userId: discovery.viewerId,
-                                    size: 32,
-                                    lineWidth: 2.2,
-                                    onTap: { hasStory in
-                                        onAvatarTap(discovery.viewerId, hasStory)
-                                    }
-                                )
-
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text(discovery.username ?? "@\(discovery.viewerId.prefix(6))")
-                                        .font(.custom("Poppins-Medium", size: 13))
-                                        .foregroundColor(colorScheme == .dark ? .white : .black)
-                                    Text(discovery.discoveredAt.formatted(date: .abbreviated, time: .shortened))
-                                        .font(.custom("Poppins-Regular", size: 11))
-                                        .foregroundColor(colorScheme == .dark ? .white.opacity(0.64) : .black.opacity(0.5))
-                                }
-
-                                Spacer(minLength: 0)
-                            }
-                            .padding(.vertical, 8)
+                            HiddenLayerDiscoveryPersonRow(
+                                discovery: discovery,
+                                onAvatarTap: onAvatarTap,
+                                onRowTap: onRowTap
+                            )
                             .onAppear {
                                 if scrollable, index == discoveries.count - 1, canLoadMore {
                                     onLoadMore()
@@ -1204,6 +1201,43 @@ private struct HiddenLayerMetricDetailView: View {
     private func detailCoveragePercent(for layer: MomentHiddenLayer) -> Int {
         guard totalLayers > 0 else { return 0 }
         return Int((Double((layer.discoverCount ?? 0) > 0 ? 1 : 0) / Double(totalLayers) * 100).rounded())
+    }
+}
+
+private struct HiddenLayerDiscoveryPersonRow: View {
+    let discovery: HiddenLayerDiscovery
+    let onAvatarTap: (String, Bool) -> Void
+    let onRowTap: (String) -> Void
+
+    @Environment(\.colorScheme) private var colorScheme
+
+    var body: some View {
+        MomentRowButton(action: {
+            onRowTap(discovery.viewerId)
+        }) {
+            HStack(spacing: 12) {
+                StoryRingAvatarView(
+                    userId: discovery.viewerId,
+                    size: 32,
+                    lineWidth: 2.2,
+                    onTap: { hasStory in
+                        onAvatarTap(discovery.viewerId, hasStory)
+                    }
+                )
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(discovery.username ?? "@\(discovery.viewerId.prefix(6))")
+                        .font(.custom("Poppins-Medium", size: 13))
+                        .foregroundColor(colorScheme == .dark ? .white : .black)
+                    Text(discovery.discoveredAt.formatted(date: .abbreviated, time: .shortened))
+                        .font(.custom("Poppins-Regular", size: 11))
+                        .foregroundColor(colorScheme == .dark ? .white.opacity(0.64) : .black.opacity(0.5))
+                }
+
+                Spacer(minLength: 0)
+            }
+            .padding(.vertical, 8)
+        }
     }
 }
 
@@ -1336,11 +1370,10 @@ struct ContextMenuButton: View {
     let iconColor: Color
     let action: () -> Void
     
-    @State private var isPressed = false
     @Environment(\.colorScheme) var colorScheme
     
     var body: some View {
-        Button(action: action) {
+        MomentRowButton(action: action) {
             HStack(spacing: 16) {
                 Image(systemName: icon)
                     .font(.system(size: 20, weight: .medium))
@@ -1363,26 +1396,8 @@ struct ContextMenuButton: View {
                     .font(.system(size: 14, weight: .medium))
                     .foregroundColor(colorScheme == .dark ? .white.opacity(0.4) : .black.opacity(0.3))
             }
-            .padding(16)
-            .background(
-                RoundedRectangle(cornerRadius: 16)
-                    .fill(backgroundColor)
-            )
-        }
-        .buttonStyle(PlainButtonStyle())
-        .scaleEffect(isPressed ? 0.98 : 1.0)
-        .onLongPressGesture(minimumDuration: 0, maximumDistance: .infinity, pressing: { pressing in
-            withAnimation(.easeInOut(duration: 0.1)) {
-                isPressed = pressing
-            }
-        }, perform: {})
-    }
-    
-    private var backgroundColor: Color {
-        if isPressed {
-            return colorScheme == .dark ? Color.white.opacity(0.08) : Color.black.opacity(0.06)
-        } else {
-            return .clear
+            .padding(.vertical, 12)
+            .padding(.horizontal, 4)
         }
     }
 }
