@@ -6,6 +6,7 @@ import FirebaseAuth
 struct HiddenLayersOverlayView: View {
     let moment: Moment
     let isImmersive: Bool
+    var requiresFocusForIntro: Bool = false
 
     @State private var layers: [MomentHiddenLayer] = []
     @State private var isLoading = false
@@ -13,27 +14,35 @@ struct HiddenLayersOverlayView: View {
     @State private var revealedLayerIds: Set<String> = []
     @State private var autoplayLayerIds: Set<String> = []
     @State private var revealBurstLayerIds: Set<String> = []
+    @State private var viewerNow = Date()
+    @State private var temporaryTopMessage: String?
+    @State private var temporaryLockedLayerId: String?
+    @State private var temporaryLockedMessageExpiry: Date?
+    @State private var temporaryLockedMessageToken = UUID()
+    @State private var isFocusQualified = false
+    @State private var hasPlayedIntro = false
 
     var body: some View {
         GeometryReader { proxy in
+            let focusQualified = !requiresFocusForIntro || overlayHasFocus(frame: proxy.frame(in: .global))
+
             ZStack {
                 if !layers.isEmpty && !isImmersive {
                     ForEach(Array(layers.enumerated()), id: \.element.id) { offset, layer in
                         hotspot(for: layer, index: offset, in: proxy.size)
                     }
 
-                    if showIntroShimmer {
+                    if showIntroShimmer || temporaryTopMessage != nil || temporaryLockedLayer != nil {
                         VStack {
-                            HStack(spacing: 8) {
-                                Image(systemName: "sparkles")
-                                Text(NSLocalizedString("hiddenLayers.viewer.hint", value: "Toca los destellos", comment: "Hidden layers viewer hint"))
+                            if let topHintText {
+                                Text(topHintText)
+                                    .font(.system(size: 12, weight: .semibold, design: .rounded))
+                                    .foregroundColor(.white)
+                                    .padding(.horizontal, 12)
+                                    .padding(.vertical, 8)
+                                    .liquidGlass(in: Capsule())
+                                    .padding(.top, 14)
                             }
-                            .font(.system(size: 12, weight: .semibold, design: .rounded))
-                            .foregroundColor(.white)
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 8)
-                            .liquidGlass(in: Capsule())
-                            .padding(.top, 14)
 
                             Spacer()
                         }
@@ -48,12 +57,19 @@ struct HiddenLayersOverlayView: View {
             .task(id: moment.id ?? "") {
                 await loadLayersIfNeeded()
             }
+            .onAppear {
+                updateFocusQualification(focusQualified)
+            }
+            .onChange(of: focusQualified) { newValue in
+                updateFocusQualification(newValue)
+            }
         }
         .allowsHitTesting(!layers.isEmpty && !isImmersive)
     }
 
     private func hotspot(for layer: MomentHiddenLayer, index: Int, in size: CGSize) -> some View {
         let isRevealed = revealedLayerIds.contains(layer.id)
+        let isUnlocked = layer.isUnlocked(at: viewerNow)
         let frame = layerFrame(layer, in: size)
 
         return ZStack {
@@ -86,6 +102,14 @@ struct HiddenLayersOverlayView: View {
         .contentShape(Rectangle())
         .onTapGesture {
             if !isRevealed {
+                let currentTime = Date()
+                viewerNow = currentTime
+
+                guard layer.isUnlocked(at: currentTime) else {
+                    HapticManager.shared.notification(.warning)
+                    showTemporaryLockedMessage(for: layer)
+                    return
+                }
                 reveal(layer)
             }
         }
@@ -173,15 +197,17 @@ struct HiddenLayersOverlayView: View {
 
                 Task { @MainActor in
                     layers = visible
-                    revealedLayerIds = Set(visible.filter(seen).map(\.id))
+                    viewerNow = Date()
+                    revealedLayerIds = Set(
+                        visible
+                            .filter { seen($0) && $0.isUnlocked(at: viewerNow) }
+                            .map(\.id)
+                    )
                     autoplayLayerIds.removeAll()
+                    hasPlayedIntro = false
                     isLoading = false
-                    if visible.contains(where: { !seen($0) }) {
-                        showIntroShimmer = true
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) {
-                            showIntroShimmer = false
-                        }
-                    }
+                    scheduleIntroIfNeeded()
+                    scheduleNextUnlockUpdate()
                     continuation.resume()
                 }
             }
@@ -199,6 +225,193 @@ struct HiddenLayersOverlayView: View {
 
     private func markSeen(_ layer: MomentHiddenLayer) {
         UserDefaults.standard.set(true, forKey: seenKey(layer))
+    }
+
+    private var topHintText: String? {
+        if let temporaryTopMessage {
+            return temporaryTopMessage
+        }
+
+        if let temporaryLockedLayer {
+            return lockedMessage(for: temporaryLockedLayer)
+        }
+
+        if let lockedSummaryText = lockedSummaryText {
+            return lockedSummaryText
+        }
+
+        return NSLocalizedString("hiddenLayers.viewer.hint", value: "Toca los destellos", comment: "Hidden layers viewer hint")
+    }
+
+    private var lockedSummaryText: String? {
+        let lockedLayers = layers.filter { !$0.isUnlocked(at: viewerNow) }
+        guard !lockedLayers.isEmpty else { return nil }
+
+        if lockedLayers.count == 1, let nextUnlock = lockedLayers.compactMap(\.unlockAt).min() {
+            return String(
+                format: NSLocalizedString("hiddenLayers.viewer.locked.single", value: "Un secreto se abre %@", comment: "Hidden layer single locked summary"),
+                unlockSummaryString(for: nextUnlock)
+            )
+        }
+
+        if let nextUnlock = lockedLayers.compactMap(\.unlockAt).min() {
+            let availableCount = max(0, layers.count - lockedLayers.count)
+            if availableCount == 0 {
+                return String(
+                    format: NSLocalizedString("hiddenLayers.viewer.locked.all", value: "%1$d secretos se abren %@", comment: "Hidden layers all locked summary"),
+                    lockedLayers.count,
+                    unlockSummaryString(for: nextUnlock)
+                )
+            }
+            return String(
+                format: NSLocalizedString("hiddenLayers.viewer.locked.mixed", value: "%1$d secretos ahora · %2$d más %@", comment: "Hidden layers mixed availability summary"),
+                availableCount,
+                lockedLayers.count,
+                unlockSummaryString(for: nextUnlock)
+            )
+        }
+
+        return nil
+    }
+
+    private func lockedMessage(for layer: MomentHiddenLayer) -> String {
+        guard let unlockAt = layer.unlockAt else {
+            return NSLocalizedString("hiddenLayers.viewer.locked.generic", value: "Aún no", comment: "Hidden layer generic locked message")
+        }
+        return String(
+            format: NSLocalizedString("hiddenLayers.viewer.locked.until", value: "Se abre %@", comment: "Hidden layer locked until"),
+            unlockSummaryString(for: unlockAt)
+        )
+    }
+
+    private func unlockSummaryString(for date: Date) -> String {
+        let seconds = date.timeIntervalSince(viewerNow)
+        if seconds > 0, seconds < 24 * 60 * 60 {
+            let formatter = RelativeDateTimeFormatter()
+            formatter.unitsStyle = .short
+            return formatter.localizedString(for: date, relativeTo: viewerNow)
+        }
+
+        if Calendar.current.isDateInToday(date) {
+            return String(
+                format: NSLocalizedString("hiddenLayers.viewer.unlock.today", value: "hoy a las %@", comment: "Hidden layer unlock today"),
+                date.formatted(date: .omitted, time: .shortened)
+            )
+        }
+
+        return date.formatted(date: .abbreviated, time: .shortened)
+    }
+
+    private var temporaryLockedLayer: MomentHiddenLayer? {
+        guard
+            let layerId = temporaryLockedLayerId,
+            let expiry = temporaryLockedMessageExpiry,
+            expiry > Date(),
+            let layer = layers.first(where: { $0.id == layerId }),
+            !layer.isUnlocked(at: viewerNow)
+        else {
+            return nil
+        }
+
+        return layer
+    }
+
+    private func showTemporaryTopMessage(_ message: String) {
+        temporaryTopMessage = message
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.8) {
+            if temporaryTopMessage == message {
+                temporaryTopMessage = nil
+            }
+        }
+    }
+
+    private func showTemporaryLockedMessage(for layer: MomentHiddenLayer) {
+        temporaryTopMessage = nil
+        temporaryLockedLayerId = layer.id
+        temporaryLockedMessageExpiry = Date().addingTimeInterval(2.4)
+        let token = UUID()
+        temporaryLockedMessageToken = token
+        scheduleTemporaryLockedMessageRefresh(token: token)
+    }
+
+    private func scheduleTemporaryLockedMessageRefresh(token: UUID) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+            guard temporaryLockedMessageToken == token else { return }
+
+            viewerNow = Date()
+
+            guard let layer = temporaryLockedLayer else {
+                temporaryLockedLayerId = nil
+                temporaryLockedMessageExpiry = nil
+                return
+            }
+
+            if let expiry = temporaryLockedMessageExpiry, expiry > Date(), !layer.isUnlocked(at: viewerNow) {
+                scheduleTemporaryLockedMessageRefresh(token: token)
+            } else {
+                temporaryLockedLayerId = nil
+                temporaryLockedMessageExpiry = nil
+            }
+        }
+    }
+
+    private func scheduleNextUnlockUpdate() {
+        let nextUnlock = layers
+            .filter { !$0.isUnlocked(at: viewerNow) }
+            .compactMap(\.unlockAt)
+            .min()
+
+        guard let nextUnlock else { return }
+
+        let delay = max(0.2, nextUnlock.timeIntervalSince(Date()))
+        DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
+            let previousLockedIds = Set(layers.filter { !$0.isUnlocked(at: viewerNow) }.map(\.id))
+            viewerNow = Date()
+            let newlyUnlockedIds = previousLockedIds.subtracting(layers.filter { !$0.isUnlocked(at: viewerNow) }.map(\.id))
+            if !newlyUnlockedIds.isEmpty {
+                if let temporaryLockedLayerId, newlyUnlockedIds.contains(temporaryLockedLayerId) {
+                    self.temporaryLockedLayerId = nil
+                    temporaryLockedMessageExpiry = nil
+                }
+                HapticManager.shared.lightImpact()
+                showTemporaryTopMessage(NSLocalizedString("hiddenLayers.viewer.unlocked", value: "Ya puedes descubrirlo", comment: "Hidden layer unlocked message"))
+            }
+            scheduleNextUnlockUpdate()
+        }
+    }
+
+    private func updateFocusQualification(_ value: Bool) {
+        guard isFocusQualified != value else { return }
+        isFocusQualified = value
+        if value {
+            scheduleIntroIfNeeded()
+        }
+    }
+
+    private func scheduleIntroIfNeeded() {
+        guard !hasPlayedIntro else { return }
+        guard !layers.isEmpty, !isLoading else { return }
+        guard layers.contains(where: { !seen($0) }) else { return }
+        guard !isImmersive else { return }
+        guard isFocusQualified else { return }
+
+        hasPlayedIntro = true
+        showIntroShimmer = true
+        DispatchQueue.main.asyncAfter(deadline: .now() + 4.0) {
+            showIntroShimmer = false
+        }
+    }
+
+    private func overlayHasFocus(frame: CGRect) -> Bool {
+        let screen = UIScreen.main.bounds
+        let visibleFrame = frame.intersection(screen)
+        guard !visibleFrame.isNull, frame.height > 0 else { return false }
+
+        let visibleRatio = visibleFrame.height / frame.height
+        let centerDistance = abs(frame.midY - screen.midY)
+        let maxCenterDistance = min(screen.height * 0.18, 150)
+
+        return visibleRatio > 0.72 && centerDistance < maxCenterDistance
     }
 }
 
@@ -220,8 +433,8 @@ private struct HiddenLayerPresenceHint: View {
                 .fill(
                     RadialGradient(
                         colors: [
-                            .white.opacity(coreOpacity),
-                            .white.opacity(haloOpacity),
+                            Color(red: 1.0, green: 0.9, blue: 0.55).opacity(coreOpacity),
+                            Color(red: 0.96, green: 0.78, blue: 0.34).opacity(haloOpacity),
                             .clear
                         ],
                         center: .center,
@@ -231,9 +444,11 @@ private struct HiddenLayerPresenceHint: View {
                 )
                 .scaleEffect(pulse ? 1.08 : 0.92)
                 .blur(radius: isIntro ? 0.4 : 0.8)
+                .shadow(color: Color.black.opacity(0.08), radius: isIntro ? 4 : 3, y: 0.5)
 
             if isIntro {
                 HiddenLayerHintOrbit(type: type, progress: orbitPhase)
+                    .opacity(1)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -274,7 +489,7 @@ private struct HiddenLayerHintOrbit: View {
         ZStack {
             ForEach(0..<3, id: \.self) { index in
                 Circle()
-                    .fill(.white.opacity(index == 1 ? 0.34 : 0.18))
+                    .fill(goldColor(for: index))
                     .frame(width: dotSize(for: index), height: dotSize(for: index))
                     .offset(orbitOffset(for: index))
                     .blur(radius: index == 1 ? 0 : 0.3)
@@ -301,6 +516,17 @@ private struct HiddenLayerHintOrbit: View {
         case 0: return 3.5
         case 1: return 5
         default: return 2.8
+        }
+    }
+
+    private func goldColor(for index: Int) -> Color {
+        switch index {
+        case 0:
+            return Color(red: 1.0, green: 0.86, blue: 0.42).opacity(0.22)
+        case 1:
+            return Color(red: 1.0, green: 0.9, blue: 0.58).opacity(0.42)
+        default:
+            return Color(red: 0.98, green: 0.76, blue: 0.26).opacity(0.18)
         }
     }
 }
