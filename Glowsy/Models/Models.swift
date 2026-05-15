@@ -691,6 +691,10 @@ struct Moment: Identifiable, Codable, Equatable {
     let archivedAt: Date?             // ✅ NUEVO: Fecha de archivo
     let hasHiddenLayers: Bool
     let hiddenLayerCount: Int
+    let isModerationHidden: Bool?
+    let originalAudience: String?
+    let reviewRequired: Bool?
+    let canRestore: Bool?
     // Helper properties for scheduling
     var isScheduled: Bool {
         guard let scheduledDate = scheduledDate else { return false }
@@ -801,6 +805,7 @@ struct Moment: Identifiable, Codable, Equatable {
         case thumbnailUrl, videoDuration, videoFileSize, videoResolution
         case trendingScore, engagementRate
         case hasHiddenLayers, hiddenLayerCount
+        case isModerationHidden, originalAudience, reviewRequired, canRestore
     }
 
     // ✅ MANUAL CODABLE: Necesario para que JSONEncoder no falle con @DocumentID
@@ -865,6 +870,10 @@ struct Moment: Identifiable, Codable, Equatable {
         self.engagementRate = try container.decodeIfPresent(Double.self, forKey: .engagementRate)
         self.hasHiddenLayers = (try? container.decodeIfPresent(Bool.self, forKey: .hasHiddenLayers)) ?? false
         self.hiddenLayerCount = (try? container.decodeIfPresent(Int.self, forKey: .hiddenLayerCount)) ?? 0
+        self.isModerationHidden = try container.decodeIfPresent(Bool.self, forKey: .isModerationHidden)
+        self.originalAudience = try container.decodeIfPresent(String.self, forKey: .originalAudience)
+        self.reviewRequired = try container.decodeIfPresent(Bool.self, forKey: .reviewRequired)
+        self.canRestore = try container.decodeIfPresent(Bool.self, forKey: .canRestore)
     }
 
     func encode(to encoder: Encoder) throws {
@@ -912,6 +921,10 @@ struct Moment: Identifiable, Codable, Equatable {
         try container.encodeIfPresent(engagementRate, forKey: .engagementRate)
         try container.encode(hasHiddenLayers, forKey: .hasHiddenLayers)
         try container.encode(hiddenLayerCount, forKey: .hiddenLayerCount)
+        try container.encodeIfPresent(isModerationHidden, forKey: .isModerationHidden)
+        try container.encodeIfPresent(originalAudience, forKey: .originalAudience)
+        try container.encodeIfPresent(reviewRequired, forKey: .reviewRequired)
+        try container.encodeIfPresent(canRestore, forKey: .canRestore)
     }
 
     static func == (lhs: Moment, rhs: Moment) -> Bool {
@@ -950,7 +963,11 @@ struct Moment: Identifiable, Codable, Equatable {
         isArchived: Bool? = nil,
         archivedAt: Date? = nil,
         hasHiddenLayers: Bool = false,
-        hiddenLayerCount: Int = 0
+        hiddenLayerCount: Int = 0,
+        isModerationHidden: Bool? = nil,
+        originalAudience: String? = nil,
+        reviewRequired: Bool? = nil,
+        canRestore: Bool? = nil
     ) {
         self.id = id
         self.authorId = authorId
@@ -983,6 +1000,10 @@ struct Moment: Identifiable, Codable, Equatable {
         self.archivedAt = archivedAt
         self.hasHiddenLayers = hasHiddenLayers
         self.hiddenLayerCount = hiddenLayerCount
+        self.isModerationHidden = isModerationHidden
+        self.originalAudience = originalAudience
+        self.reviewRequired = reviewRequired
+        self.canRestore = canRestore
     }
 }
 

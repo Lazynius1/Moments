@@ -110,6 +110,7 @@ enum UploadStatus {
 struct MomentUploadPayload: Codable {
     let content: String
     let mediaPaths: [CachedMediaItem]
+    let hiddenLayers: [CachedHiddenLayerDraft]?
     let taggedUsers: [String]?
     let location: String?
     let locationCoordinate: Moment.LocationCoordinate?
@@ -132,6 +133,31 @@ struct CachedMediaItem: Codable {
     let videoFileSize: Int64?
     let videoResolution: String?
     let tagsData: Data?
+}
+
+struct CachedHiddenLayerDraft: Codable {
+    let id: String
+    let type: String
+    let anchorX: Double
+    let anchorY: Double
+    let width: Double
+    let height: Double
+    let shape: String
+    let zIndex: Int
+    let text: String
+    let caption: String
+    let imageOffsetX: Double
+    let imageOffsetY: Double
+    let imageScale: Double
+    let imageFrameStyle: String
+    let localImageFileName: String?
+    let localAudioFileName: String?
+    let duration: Double?
+    let textStyle: String
+    let presentationStyle: String
+    let unlockMode: String
+    let unlockAt: Date?
+    let authorTimezoneIdentifier: String?
 }
 
 // MARK: - 🔥 SERVICIO PRINCIPAL
@@ -983,8 +1009,6 @@ class BackgroundMomentUploadService: ObservableObject {
     func persistAction(_ uploadingMoment: UploadingMoment) {
         Task {
             do {
-                guard uploadingMoment.hiddenLayers.isEmpty else { return }
-
                 // 1. Asegurar que existe el directorio
                 if !FileManager.default.fileExists(atPath: self.pendingUploadsDir.path) {
                     try FileManager.default.createDirectory(at: self.pendingUploadsDir, withIntermediateDirectories: true)
@@ -993,14 +1017,21 @@ class BackgroundMomentUploadService: ObservableObject {
                 // 2. Guardar archivos de media en disco
                 var cachedMediaItems: [CachedMediaItem] = []
                 for media in uploadingMoment.mediaItems {
-                    let cachedItem = try await self.saveMediaToDisk(media)
+                    let cachedItem = try await self.saveMediaToDisk(media, actionId: uploadingMoment.tempId)
                     cachedMediaItems.append(cachedItem)
+                }
+
+                var cachedHiddenLayers: [CachedHiddenLayerDraft] = []
+                for layer in uploadingMoment.hiddenLayers {
+                    let cachedLayer = try await self.saveHiddenLayerToDisk(layer, actionId: uploadingMoment.tempId)
+                    cachedHiddenLayers.append(cachedLayer)
                 }
                 
                 // 3. Crear payload
                 let payload = MomentUploadPayload(
                     content: uploadingMoment.content,
                     mediaPaths: cachedMediaItems,
+                    hiddenLayers: cachedHiddenLayers,
                     taggedUsers: uploadingMoment.taggedUsers,
                     location: uploadingMoment.location,
                     locationCoordinate: uploadingMoment.locationCoordinate,
@@ -1029,9 +1060,9 @@ class BackgroundMomentUploadService: ObservableObject {
         }
     }
     
-    private func saveMediaToDisk(_ media: ProcessedMedia) async throws -> CachedMediaItem {
+    private func saveMediaToDisk(_ media: ProcessedMedia, actionId: String) async throws -> CachedMediaItem {
         let id = UUID().uuidString
-        let fileName = "\(id)_\(media.type == .image ? "img.jpg" : "vid.mp4")"
+        let fileName = "\(actionId)_\(id)_\(media.type == .image ? "img.jpg" : "vid.mp4")"
         let fileURL = pendingUploadsDir.appendingPathComponent(fileName)
         
         if media.type == .image {
@@ -1046,7 +1077,7 @@ class BackgroundMomentUploadService: ObservableObject {
         // Guardar thumbnail si existe
         var thumbName: String? = nil
         if let thumbURL = media.thumbnailURL {
-            thumbName = "\(id)_thumb.jpg"
+            thumbName = "\(actionId)_\(id)_thumb.jpg"
             let thumbDest = pendingUploadsDir.appendingPathComponent(thumbName!)
             try? FileManager.default.copyItem(at: thumbURL, to: thumbDest)
         }
@@ -1062,6 +1093,53 @@ class BackgroundMomentUploadService: ObservableObject {
             videoFileSize: media.videoFileSize,
             videoResolution: media.videoResolution,
             tagsData: tagsData
+        )
+    }
+
+    private func saveHiddenLayerToDisk(_ layer: HiddenLayerDraft, actionId: String) async throws -> CachedHiddenLayerDraft {
+        let filePrefix = "\(actionId)_hidden_\(layer.id)"
+        var imageFileName: String?
+        var audioFileName: String?
+
+        if let image = layer.localImage,
+           let data = image.jpegData(compressionQuality: 0.85) {
+            imageFileName = "\(filePrefix)_img.jpg"
+            let imageURL = pendingUploadsDir.appendingPathComponent(imageFileName!)
+            try data.write(to: imageURL)
+        }
+
+        if let audioURL = layer.localAudioURL {
+            audioFileName = "\(filePrefix)_audio.m4a"
+            let destURL = pendingUploadsDir.appendingPathComponent(audioFileName!)
+            if FileManager.default.fileExists(atPath: destURL.path) {
+                try? FileManager.default.removeItem(at: destURL)
+            }
+            try FileManager.default.copyItem(at: audioURL, to: destURL)
+        }
+
+        return CachedHiddenLayerDraft(
+            id: layer.id,
+            type: layer.type.rawValue,
+            anchorX: layer.anchorX,
+            anchorY: layer.anchorY,
+            width: layer.width,
+            height: layer.height,
+            shape: layer.shape.rawValue,
+            zIndex: layer.zIndex,
+            text: layer.text,
+            caption: layer.caption,
+            imageOffsetX: layer.imageOffsetX,
+            imageOffsetY: layer.imageOffsetY,
+            imageScale: layer.imageScale,
+            imageFrameStyle: layer.imageFrameStyle.rawValue,
+            localImageFileName: imageFileName,
+            localAudioFileName: audioFileName,
+            duration: layer.duration,
+            textStyle: layer.textStyle.rawValue,
+            presentationStyle: layer.presentationStyle.rawValue,
+            unlockMode: layer.unlockMode.rawValue,
+            unlockAt: layer.unlockAt,
+            authorTimezoneIdentifier: layer.authorTimezoneIdentifier
         )
     }
     
@@ -1088,6 +1166,9 @@ class BackgroundMomentUploadService: ObservableObject {
             
             // 2. ✅ DUPLICATE CHECK: Evitar re-subir si ya está en proceso
             let isAlreadyUploading = uploadingMoments.contains { moment in
+                guard moment.status == .uploading || moment.status == .processing else {
+                    return false
+                }
                 // Coincidir por contenido Y audiencia Y (opcionalmente) ubicación
                 return moment.content == payload.content && moment.audienceSetting == audience
             }
@@ -1132,6 +1213,51 @@ class BackgroundMomentUploadService: ObservableObject {
                 
                 mediaItems.append(processed)
             }
+
+            let hiddenLayers: [HiddenLayerDraft] = (payload.hiddenLayers ?? []).compactMap { item in
+                let localImage: UIImage? = item.localImageFileName.flatMap {
+                    let url = pendingUploadsDir.appendingPathComponent($0)
+                    return UIImage(contentsOfFile: url.path)
+                }
+                let localAudioURL: URL? = item.localAudioFileName.flatMap {
+                    let url = pendingUploadsDir.appendingPathComponent($0)
+                    return FileManager.default.fileExists(atPath: url.path) ? url : nil
+                }
+
+                guard let type = MomentHiddenLayer.LayerType(rawValue: item.type),
+                      let shape = MomentHiddenLayer.LayerShape(rawValue: item.shape),
+                      let imageFrameStyle = HiddenLayerImageFrameStyle(rawValue: item.imageFrameStyle),
+                      let textStyle = HiddenLayerTextStyle(rawValue: item.textStyle),
+                      let presentationStyle = HiddenLayerPresentationStyle(rawValue: item.presentationStyle),
+                      let unlockMode = MomentHiddenLayer.UnlockMode(rawValue: item.unlockMode) else {
+                    return nil
+                }
+
+                return HiddenLayerDraft(
+                    id: item.id,
+                    type: type,
+                    anchorX: item.anchorX,
+                    anchorY: item.anchorY,
+                    width: item.width,
+                    height: item.height,
+                    shape: shape,
+                    zIndex: item.zIndex,
+                    text: item.text,
+                    caption: item.caption,
+                    imageOffsetX: item.imageOffsetX,
+                    imageOffsetY: item.imageOffsetY,
+                    imageScale: item.imageScale,
+                    imageFrameStyle: imageFrameStyle,
+                    localImage: localImage,
+                    localAudioURL: localAudioURL,
+                    duration: item.duration,
+                    textStyle: textStyle,
+                    presentationStyle: presentationStyle,
+                    unlockMode: unlockMode,
+                    unlockAt: item.unlockAt,
+                    authorTimezoneIdentifier: item.authorTimezoneIdentifier
+                )
+            }
             
             if !mediaItems.isEmpty {
                 // Iniciar el upload
@@ -1148,7 +1274,8 @@ class BackgroundMomentUploadService: ObservableObject {
                     disableComments: payload.disableComments,
                     hideLikeCounts: payload.hideLikeCounts,
                     allowSharing: payload.allowSharing,
-                    scheduledDate: payload.scheduledDate
+                    scheduledDate: payload.scheduledDate,
+                    hiddenLayers: hiddenLayers
                 )
                 
                 // Importante: Eliminar la acción anterior para que no se duplique

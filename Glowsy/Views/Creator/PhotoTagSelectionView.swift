@@ -4,6 +4,7 @@ import FirebaseAuth
 
 struct PhotoTagSelectionView: View {
     @Binding var mediaItem: CreatorMedia
+    var onClose: (() -> Void)? = nil
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) var colorScheme
     
@@ -71,7 +72,7 @@ struct PhotoTagSelectionView: View {
             VStack {
                 VStack(spacing: 10) {
                     HStack(spacing: 12) {
-                        Button(action: { dismiss() }) {
+                        Button(action: { closeEditor() }) {
                             Image(systemName: "chevron.down")
                                 .font(.system(size: 18, weight: .bold))
                                 .foregroundColor(.primary)
@@ -88,7 +89,7 @@ struct PhotoTagSelectionView: View {
 
                         Spacer()
 
-                        Button(action: { dismiss() }) {
+                        Button(action: { closeEditor() }) {
                             Text(NSLocalizedString("creator.tag.done", comment: ""))
                                 .font(.custom("Poppins-SemiBold", size: 16))
                                 .foregroundColor(.primary)
@@ -168,6 +169,14 @@ struct PhotoTagSelectionView: View {
         mediaItem.tags = currentTags
         let generator = UIImpactFeedbackGenerator(style: .medium)
         generator.impactOccurred()
+    }
+
+    private func closeEditor() {
+        if let onClose {
+            onClose()
+        } else {
+            dismiss()
+        }
     }
 }
 
