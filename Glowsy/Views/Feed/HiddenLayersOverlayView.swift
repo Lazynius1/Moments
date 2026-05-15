@@ -148,6 +148,7 @@ struct HiddenLayersOverlayView: View {
     }
 
     private func reveal(_ layer: MomentHiddenLayer) {
+        let wasSeen = seen(layer)
         HapticManager.shared.lightImpact()
         revealBurstLayerIds.insert(layer.id)
         revealedLayerIds.insert(layer.id)
@@ -155,6 +156,9 @@ struct HiddenLayersOverlayView: View {
             autoplayLayerIds.insert(layer.id)
         }
         markSeen(layer)
+        if !wasSeen {
+            recordDiscovery(for: layer)
+        }
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
             revealBurstLayerIds.remove(layer.id)
         }
@@ -436,6 +440,18 @@ struct HiddenLayersOverlayView: View {
         let maxCenterDistance = min(screen.height * 0.18, 150)
 
         return visibleRatio > 0.72 && centerDistance < maxCenterDistance
+    }
+
+    private func recordDiscovery(for layer: MomentHiddenLayer) {
+        guard let momentId = moment.id else { return }
+        guard let viewerId = Auth.auth().currentUser?.uid, viewerId != moment.authorId else { return }
+
+        FirestoreService.shared.recordHiddenLayerDiscovery(
+            ownerUserId: moment.authorId,
+            momentId: momentId,
+            layerId: layer.id,
+            viewerId: viewerId
+        ) { _ in }
     }
 }
 

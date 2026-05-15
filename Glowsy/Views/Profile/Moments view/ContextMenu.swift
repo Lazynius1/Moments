@@ -145,6 +145,8 @@ struct ModernMomentContextMenu: View {
 // MARK: - ✅ Overlay del Menú Contextual Moderno
 enum ContextMenuViewState {
     case main
+    case hiddenLayerMetrics
+    case hiddenLayerMetricDetail
     case sharing
     case messaging
     case preparingStory
@@ -162,7 +164,17 @@ struct ModernContextMenuOverlay: View {
     @State private var backgroundMedia: [CreatorMedia]? = nil
     @State private var errorMessage: String?
     @State private var showCreatorFullScreen = false // ✅ NUEVO: Control fullScreen
-    
+    @State private var hiddenLayerMetrics: HiddenLayerMetricsSnapshot?
+    @State private var isLoadingHiddenLayerMetrics = false
+    @State private var hiddenLayerMetricsError: String?
+    @State private var selectedMetricsLayer: MomentHiddenLayer?
+    @State private var selectedLayerDiscoveries: [HiddenLayerDiscovery] = []
+    @State private var selectedLayerDiscoveriesCursor: DocumentSnapshot?
+    @State private var isLoadingSelectedLayerDiscoveries = false
+    @State private var canLoadMoreSelectedLayerDiscoveries = false
+    @State private var showSpecificUserStories = false
+    @State private var selectedStoryUserId: String = ""
+
     let onEdit: () -> Void
     let onDelete: () -> Void
     let onReport: () -> Void
@@ -198,11 +210,19 @@ struct ModernContextMenuOverlay: View {
                             moment: moment,
                             isMyMoment: isMyMoment,
                             canShare: canShare,
+                            hiddenLayerMetrics: hiddenLayerMetrics,
+                            isLoadingHiddenLayerMetrics: isLoadingHiddenLayerMetrics,
+                            hiddenLayerMetricsError: hiddenLayerMetricsError,
                             onEdit: {
                                 withAnimation(.easeOut(duration: 0.2)) {
                                     isPresented = false
                                 }
                                 onEdit()
+                            },
+                            onOpenHiddenLayerMetrics: {
+                                withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                                    viewState = .hiddenLayerMetrics
+                                }
                             },
                             onDelete: {
                                 withAnimation(.easeOut(duration: 0.2)) {
@@ -230,6 +250,54 @@ struct ModernContextMenuOverlay: View {
                         .transition(.asymmetric(
                             insertion: .move(edge: .bottom).combined(with: .opacity),
                             removal: .move(edge: .bottom).combined(with: .opacity)
+                        ))
+
+                    case .hiddenLayerMetrics:
+                        HiddenLayerMetricsListView(
+                            metrics: hiddenLayerMetrics,
+                            isLoading: isLoadingHiddenLayerMetrics,
+                            errorMessage: hiddenLayerMetricsError,
+                            onBack: {
+                                withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                                    viewState = .main
+                                }
+                            },
+                            onSelectLayer: { layer in
+                                selectedMetricsLayer = layer
+                                resetSelectedLayerDiscoveries()
+                                loadSelectedLayerDiscoveries()
+                                withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                                    viewState = .hiddenLayerMetricDetail
+                                }
+                            }
+                        )
+                        .transition(.asymmetric(
+                            insertion: .move(edge: .trailing).combined(with: .opacity),
+                            removal: .move(edge: .trailing).combined(with: .opacity)
+                        ))
+
+                    case .hiddenLayerMetricDetail:
+                        HiddenLayerMetricDetailView(
+                            layer: selectedMetricsLayer,
+                            discoveries: selectedLayerDiscoveries,
+                            isLoadingMore: isLoadingSelectedLayerDiscoveries,
+                            canLoadMore: canLoadMoreSelectedLayerDiscoveries,
+                            onLoadMore: loadSelectedLayerDiscoveries,
+                            onAvatarTap: { userId, hasStory in
+                                guard hasStory, !userId.isEmpty else { return }
+                                selectedStoryUserId = userId
+                                showSpecificUserStories = true
+                            },
+                            totalLayers: hiddenLayerMetrics?.totalLayerCount ?? 0,
+                            onBack: {
+                                withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                                    viewState = .hiddenLayerMetrics
+                                }
+                            }
+                        )
+                        .transition(.asymmetric(
+                            insertion: .move(edge: .trailing).combined(with: .opacity),
+                            removal: .move(edge: .trailing).combined(with: .opacity)
                         ))
                         
                     case .sharing:
@@ -315,6 +383,9 @@ struct ModernContextMenuOverlay: View {
                 .padding(.bottom, 20)
             }
         }
+        .onAppear {
+            loadHiddenLayerMetricsIfNeeded()
+        }
         // ✅ FULL SCREEN COVER para el editor de historias (Flujo clásico)
         .fullScreenCover(isPresented: $showCreatorFullScreen, onDismiss: {
             // Al cerrar el editor, cerramos también el menú
@@ -331,12 +402,26 @@ struct ModernContextMenuOverlay: View {
                 .id(sticker.id)
             }
         }
+        .fullScreenCover(isPresented: $showSpecificUserStories) {
+            StoriesView(
+                startWithUserId: Binding(
+                    get: { selectedStoryUserId },
+                    set: { selectedStoryUserId = $0 }
+                )
+            )
+            .environmentObject(FirestoreService.shared)
+            .ignoresSafeArea(.keyboard)
+        }
     }
     
     private func handleBack() {
         switch viewState {
         case .main:
             withAnimation(.easeOut(duration: 0.3)) { isPresented = false }
+        case .hiddenLayerMetrics:
+            withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) { viewState = .main }
+        case .hiddenLayerMetricDetail:
+            withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) { viewState = .hiddenLayerMetrics }
         case .sharing:
             withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) { viewState = .main }
         case .messaging:
@@ -345,6 +430,72 @@ struct ModernContextMenuOverlay: View {
             withAnimation(.spring()) { viewState = .sharing }
         case .reporting:
             withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) { viewState = .main }
+        }
+    }
+
+    private func loadHiddenLayerMetricsIfNeeded() {
+        guard isMyMoment, moment.hasHiddenLayers, moment.hiddenLayerCount > 0, let momentId = moment.id else { return }
+        guard !isLoadingHiddenLayerMetrics else { return }
+
+        isLoadingHiddenLayerMetrics = true
+        hiddenLayerMetricsError = nil
+
+        FirestoreService.shared.fetchHiddenLayerMetrics(
+            userId: moment.authorId,
+            momentId: momentId
+        ) { result in
+            DispatchQueue.main.async {
+                isLoadingHiddenLayerMetrics = false
+                switch result {
+                case .success(let metrics):
+                    hiddenLayerMetrics = metrics
+                case .failure:
+                    hiddenLayerMetricsError = NSLocalizedString("hiddenLayers.metrics.error", value: "No se pudieron cargar las métricas.", comment: "Hidden layer metrics error")
+                }
+            }
+        }
+    }
+
+    private func resetSelectedLayerDiscoveries() {
+        selectedLayerDiscoveries = []
+        selectedLayerDiscoveriesCursor = nil
+        isLoadingSelectedLayerDiscoveries = false
+        canLoadMoreSelectedLayerDiscoveries = false
+    }
+
+    private func loadSelectedLayerDiscoveries() {
+        guard let layer = selectedMetricsLayer, let momentId = moment.id else { return }
+        guard !isLoadingSelectedLayerDiscoveries else { return }
+
+        if selectedLayerDiscoveriesCursor != nil, !canLoadMoreSelectedLayerDiscoveries {
+            return
+        }
+
+        isLoadingSelectedLayerDiscoveries = true
+
+        FirestoreService.shared.fetchHiddenLayerDiscoveriesPage(
+            userId: moment.authorId,
+            momentId: momentId,
+            layerId: layer.id,
+            pageSize: 8,
+            startAfter: selectedLayerDiscoveriesCursor
+        ) { result in
+            DispatchQueue.main.async {
+                isLoadingSelectedLayerDiscoveries = false
+                switch result {
+                case .success(let payload):
+                    let (discoveries, lastDocument, hasMore) = payload
+                    if selectedLayerDiscoveriesCursor == nil {
+                        selectedLayerDiscoveries = discoveries
+                    } else {
+                        selectedLayerDiscoveries.append(contentsOf: discoveries)
+                    }
+                    selectedLayerDiscoveriesCursor = lastDocument
+                    canLoadMoreSelectedLayerDiscoveries = hasMore && lastDocument != nil
+                case .failure:
+                    canLoadMoreSelectedLayerDiscoveries = false
+                }
+            }
         }
     }
     
@@ -517,7 +668,11 @@ struct ModernContextMenuContent: View {
     let moment: Moment
     let isMyMoment: Bool
     let canShare: Bool
+    let hiddenLayerMetrics: HiddenLayerMetricsSnapshot?
+    let isLoadingHiddenLayerMetrics: Bool
+    let hiddenLayerMetricsError: String?
     let onEdit: () -> Void
+    let onOpenHiddenLayerMetrics: () -> Void
     let onDelete: () -> Void
     let onShare: () -> Void
     let onReport: () -> Void
@@ -552,6 +707,15 @@ struct ModernContextMenuContent: View {
             VStack(spacing: 8) {
                 // ✅ Acciones del propietario
                 if isMyMoment {
+                    if moment.hasHiddenLayers, moment.hiddenLayerCount > 0 {
+                        HiddenLayerMetricsSummaryCard(
+                            metrics: hiddenLayerMetrics,
+                            isLoading: isLoadingHiddenLayerMetrics,
+                            errorMessage: hiddenLayerMetricsError,
+                            action: onOpenHiddenLayerMetrics
+                        )
+                    }
+
                     ContextMenuButton(
                         icon: "pencil",
                         title: NSLocalizedString("contextMenu.editMoment", comment: "Edit moment button"),
@@ -615,6 +779,552 @@ struct ModernContextMenuContent: View {
         let formatter = RelativeDateTimeFormatter()
         formatter.unitsStyle = .abbreviated
         return formatter.localizedString(for: date, relativeTo: Date())
+    }
+}
+
+private struct HiddenLayerMetricsSummaryCard: View {
+    let metrics: HiddenLayerMetricsSnapshot?
+    let isLoading: Bool
+    let errorMessage: String?
+    let action: () -> Void
+
+    @Environment(\.colorScheme) private var colorScheme
+
+    var body: some View {
+        Button(action: action) {
+            VStack(spacing: 0) {
+                Divider()
+                    .background(colorScheme == .dark ? Color.white.opacity(0.16) : Color.black.opacity(0.08))
+                    .padding(.bottom, 10)
+
+                HStack(spacing: 12) {
+                    Image(systemName: "sparkles.rectangle.stack.fill")
+                        .font(.system(size: 17, weight: .semibold))
+                        .foregroundStyle(
+                            colorScheme == .dark ? .white : .black,
+                            Color.yellow.opacity(colorScheme == .dark ? 0.82 : 0.72)
+                        )
+                        .frame(width: 24, height: 24)
+
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(NSLocalizedString("hiddenLayers.metrics.title", value: "Capas ocultas", comment: "Hidden layers metrics title"))
+                            .font(.custom("Poppins-SemiBold", size: 15))
+                            .foregroundColor(colorScheme == .dark ? .white : .black)
+
+                        Text(summaryText)
+                            .font(.custom("Poppins-Regular", size: 12))
+                            .foregroundColor(colorScheme == .dark ? .white.opacity(0.7) : .black.opacity(0.6))
+                            .multilineTextAlignment(.leading)
+                            .lineLimit(2)
+                    }
+
+                    Spacer(minLength: 8)
+
+                    if let leadingChip {
+                        Text(leadingChip)
+                            .font(.custom("Poppins-Medium", size: 10))
+                            .foregroundColor(colorScheme == .dark ? .white.opacity(0.82) : .black.opacity(0.72))
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 5)
+                            .background(
+                                Capsule(style: .continuous)
+                                    .fill(colorScheme == .dark ? Color.white.opacity(0.08) : Color.black.opacity(0.05))
+                            )
+                    }
+
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundColor(colorScheme == .dark ? .white.opacity(0.5) : .black.opacity(0.35))
+                }
+                .padding(.vertical, 8)
+            }
+        }
+        .buttonStyle(.plain)
+    }
+
+    private var summaryText: String {
+        if isLoading {
+            return NSLocalizedString("hiddenLayers.metrics.loading", value: "Cargando actividad de tus secretos…", comment: "Hidden layers metrics loading")
+        }
+
+        if errorMessage != nil {
+            return NSLocalizedString("hiddenLayers.metrics.error", value: "No se pudieron cargar las métricas.", comment: "Hidden layers metrics error")
+        }
+
+        guard let metrics else {
+            return NSLocalizedString("hiddenLayers.metrics.empty.subtitle", value: "Cuando alguien toque una capa, lo verás aquí", comment: "Hidden layers metrics empty subtitle")
+        }
+
+        if metrics.totalDiscoveries == 0 {
+            return NSLocalizedString("hiddenLayers.metrics.empty.title", value: "Aún nadie ha descubierto tus secretos", comment: "Hidden layers metrics empty title")
+        }
+
+        return String(
+            format: NSLocalizedString("hiddenLayers.metrics.summary", value: "%1$d descubrimientos en %2$d secretos", comment: "Hidden layers metrics summary"),
+            metrics.totalDiscoveries,
+            metrics.discoveredLayerCount
+        )
+    }
+
+    private var chips: [String] {
+        guard let metrics, metrics.totalDiscoveries > 0 else { return [] }
+        var values: [String] = []
+
+        if let topLayer = metrics.topLayer {
+            values.append(
+                String(
+                    format: NSLocalizedString("hiddenLayers.metrics.chip.top", value: "Más descubierta: %@", comment: "Hidden layers metrics top chip"),
+                    topLayer.metricsDisplayName
+                )
+            )
+        }
+
+        if metrics.uniquePeopleCount > 0 {
+            values.append(
+                String(
+                    format: NSLocalizedString("hiddenLayers.metrics.chip.people", value: "%d personas", comment: "Hidden layers metrics people chip"),
+                    metrics.uniquePeopleCount
+                )
+            )
+        }
+
+        values.append(
+            String(
+                format: NSLocalizedString("hiddenLayers.metrics.chip.coverage", value: "Cobertura %.0f%%", comment: "Hidden layers metrics coverage chip"),
+                metrics.coverageRatio * 100
+            )
+        )
+
+        return Array(values.prefix(3))
+    }
+
+    private var leadingChip: String? {
+        chips.first
+    }
+}
+
+private struct HiddenLayerMetricsListView: View {
+    let metrics: HiddenLayerMetricsSnapshot?
+    let isLoading: Bool
+    let errorMessage: String?
+    let onBack: () -> Void
+    let onSelectLayer: (MomentHiddenLayer) -> Void
+
+    @Environment(\.colorScheme) private var colorScheme
+
+    var body: some View {
+        VStack(spacing: 0) {
+            ContextSubheaderView(
+                title: NSLocalizedString("hiddenLayers.metrics.title", value: "Capas ocultas", comment: "Hidden layers metrics title"),
+                onBack: onBack
+            )
+
+            if isLoading {
+                VStack(spacing: 10) {
+                    ProgressView()
+                    Text(NSLocalizedString("hiddenLayers.metrics.loading", value: "Cargando actividad de tus secretos…", comment: "Hidden layers metrics loading"))
+                        .font(.custom("Poppins-Regular", size: 13))
+                        .foregroundColor(colorScheme == .dark ? .white.opacity(0.66) : .black.opacity(0.56))
+                }
+                .padding(.vertical, 32)
+            } else if let errorMessage {
+                    Text(errorMessage)
+                        .font(.custom("Poppins-Regular", size: 13))
+                        .foregroundColor(colorScheme == .dark ? .white.opacity(0.66) : .black.opacity(0.56))
+                        .padding(.vertical, 32)
+            } else if let metrics {
+                VStack(alignment: .leading, spacing: 0) {
+                    inlineMetricsStrip(metrics: metrics)
+                        .padding(.horizontal, 20)
+                        .padding(.bottom, 14)
+
+                    ForEach(Array(metrics.layers.enumerated()), id: \.element.id) { index, layer in
+                        Button(action: {
+                            onSelectLayer(layer)
+                        }) {
+                            HiddenLayerMetricsRow(
+                                layer: layer,
+                                discoveries: metrics.recentDiscoveriesByLayer[layer.id] ?? []
+                            )
+                        }
+                        .buttonStyle(.plain)
+
+                        if index < metrics.layers.count - 1 {
+                            Divider()
+                                .background(colorScheme == .dark ? Color.white.opacity(0.1) : Color.black.opacity(0.08))
+                                .padding(.leading, 68)
+                        }
+                    }
+                }
+                .padding(.horizontal, 20)
+                .padding(.bottom, 24)
+            }
+        }
+        .fixedSize(horizontal: false, vertical: true)
+    }
+
+    private func inlineMetricsStrip(metrics: HiddenLayerMetricsSnapshot) -> some View {
+        HStack(spacing: 10) {
+            inlineMetricText("\(metrics.totalDiscoveries)", NSLocalizedString("hiddenLayers.metrics.card.discoveries", value: "Descubrimientos", comment: ""))
+            bullet
+            inlineMetricText("\(metrics.uniquePeopleCount)", NSLocalizedString("hiddenLayers.metrics.card.people", value: "Personas", comment: ""))
+            bullet
+            inlineMetricText("\(Int((metrics.coverageRatio * 100).rounded()))%", NSLocalizedString("hiddenLayers.metrics.card.coverage", value: "Cobertura", comment: ""))
+        }
+        .font(.custom("Poppins-Regular", size: 12))
+        .foregroundColor(colorScheme == .dark ? .white.opacity(0.72) : .black.opacity(0.58))
+    }
+
+    private func inlineMetricText(_ value: String, _ label: String) -> some View {
+        HStack(spacing: 4) {
+            Text(value)
+                .font(.custom("Poppins-SemiBold", size: 13))
+                .foregroundColor(colorScheme == .dark ? .white : .black)
+            Text(label)
+        }
+    }
+
+    private var bullet: some View {
+        Circle()
+            .fill(colorScheme == .dark ? Color.white.opacity(0.25) : Color.black.opacity(0.16))
+            .frame(width: 3, height: 3)
+    }
+}
+
+private struct HiddenLayerMetricsRow: View {
+    let layer: MomentHiddenLayer
+    let discoveries: [HiddenLayerDiscovery]
+
+    @Environment(\.colorScheme) private var colorScheme
+
+    var body: some View {
+        HStack(spacing: 12) {
+            HiddenLayerMetricLayerPreview(layer: layer, style: .compact)
+                .frame(width: 34, height: 34)
+
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(spacing: 8) {
+                    Text(layer.metricsDisplayName)
+                        .font(.custom("Poppins-SemiBold", size: 14))
+                        .foregroundColor(colorScheme == .dark ? .white : .black)
+                        .lineLimit(1)
+
+                    if let status = layer.metricsStatusText {
+                        Text(status)
+                            .font(.custom("Poppins-Medium", size: 10))
+                            .foregroundColor(colorScheme == .dark ? .white.opacity(0.78) : .black.opacity(0.65))
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(Capsule().fill(colorScheme == .dark ? Color.white.opacity(0.08) : Color.black.opacity(0.05)))
+                    }
+                }
+
+                HStack(spacing: 10) {
+                    Text(String(format: NSLocalizedString("hiddenLayers.metrics.row.discoveries", value: "%d descubrimientos", comment: ""), layer.discoverCount ?? 0))
+                    Text(String(format: NSLocalizedString("hiddenLayers.metrics.row.people", value: "%d personas", comment: ""), layer.uniqueDiscovererCount ?? 0))
+                }
+                .font(.custom("Poppins-Regular", size: 11))
+                .foregroundColor(colorScheme == .dark ? .white.opacity(0.72) : .black.opacity(0.56))
+
+                if let latest = discoveries.first {
+                    Text(String(
+                        format: NSLocalizedString("hiddenLayers.metrics.row.latest", value: "Última: %@", comment: ""),
+                        latest.discoveredAt.formatted(date: .abbreviated, time: .shortened)
+                    ))
+                    .font(.custom("Poppins-Regular", size: 11))
+                    .foregroundColor(colorScheme == .dark ? .white.opacity(0.55) : .black.opacity(0.45))
+                }
+            }
+
+            Spacer(minLength: 0)
+
+            Image(systemName: "chevron.right")
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundColor(colorScheme == .dark ? .white.opacity(0.45) : .black.opacity(0.3))
+        }
+        .padding(.vertical, 12)
+    }
+}
+
+private struct HiddenLayerMetricDetailView: View {
+    let layer: MomentHiddenLayer?
+    let discoveries: [HiddenLayerDiscovery]
+    let isLoadingMore: Bool
+    let canLoadMore: Bool
+    let onLoadMore: () -> Void
+    let onAvatarTap: (String, Bool) -> Void
+    let totalLayers: Int
+    let onBack: () -> Void
+
+    @Environment(\.colorScheme) private var colorScheme
+
+    var body: some View {
+        VStack(spacing: 0) {
+            ContextSubheaderView(
+                title: layer?.metricsDisplayName ?? NSLocalizedString("hiddenLayers.metrics.detail", value: "Detalle", comment: ""),
+                onBack: onBack
+            )
+
+            if let layer {
+                Group {
+                    if shouldUseScrollableDetail {
+                        ScrollView(.vertical, showsIndicators: false) {
+                            detailContent(layer: layer, scrollable: true)
+                        }
+                        .padding(.top, 8)
+                    } else {
+                        detailContent(layer: layer, scrollable: false)
+                    }
+                }
+            }
+        }
+    }
+
+    private var shouldUseScrollableDetail: Bool {
+        canLoadMore || discoveries.count >= 8
+    }
+
+    @ViewBuilder
+    private func detailContent(layer: MomentHiddenLayer, scrollable: Bool) -> some View {
+        VStack(alignment: .leading, spacing: 16) {
+            HStack(spacing: 12) {
+                HiddenLayerMetricLayerPreview(layer: layer, style: .detail)
+                    .frame(width: 42, height: 42)
+
+                VStack(alignment: .leading, spacing: 6) {
+                            HStack(spacing: 8) {
+                                Text(layer.metricsDisplayName)
+                                    .font(.custom("Poppins-SemiBold", size: 15))
+                                    .foregroundColor(colorScheme == .dark ? .white : .black)
+                                    .lineLimit(1)
+
+                                if let status = layer.metricsStatusText {
+                                    Text(status)
+                                        .font(.custom("Poppins-Medium", size: 10))
+                                        .foregroundColor(colorScheme == .dark ? .white.opacity(0.78) : .black.opacity(0.65))
+                                        .padding(.horizontal, 8)
+                                        .padding(.vertical, 4)
+                                        .background(Capsule().fill(colorScheme == .dark ? Color.white.opacity(0.08) : Color.black.opacity(0.05)))
+                                }
+                            }
+
+                    HStack(spacing: 10) {
+                        inlineStatText("\(layer.discoverCount ?? 0)", NSLocalizedString("hiddenLayers.metrics.card.discoveries", value: "Descubrimientos", comment: ""))
+                        inlineDivider
+                        inlineStatText("\(layer.uniqueDiscovererCount ?? 0)", NSLocalizedString("hiddenLayers.metrics.card.people", value: "Personas", comment: ""))
+                        inlineDivider
+                        inlineStatText("\(detailCoveragePercent(for: layer))%", NSLocalizedString("hiddenLayers.metrics.card.coverage", value: "Cobertura", comment: ""))
+                    }
+                    .font(.custom("Poppins-Regular", size: 12))
+                    .foregroundColor(colorScheme == .dark ? .white.opacity(0.72) : .black.opacity(0.56))
+                }
+            }
+
+            Divider()
+                .background(colorScheme == .dark ? Color.white.opacity(0.1) : Color.black.opacity(0.08))
+
+            VStack(alignment: .leading, spacing: 12) {
+                Text(NSLocalizedString("hiddenLayers.metrics.latestPeople", value: "Últimas personas", comment: "Latest people title"))
+                    .font(.custom("Poppins-SemiBold", size: 14))
+                    .foregroundColor(colorScheme == .dark ? .white : .black)
+
+                if discoveries.isEmpty {
+                    Text(NSLocalizedString("hiddenLayers.metrics.latestPeople.empty", value: "Todavía no hay actividad reciente en esta capa.", comment: "No recent discoveries"))
+                        .font(.custom("Poppins-Regular", size: 12))
+                        .foregroundColor(colorScheme == .dark ? .white.opacity(0.66) : .black.opacity(0.56))
+                } else {
+                    LazyVStack(spacing: 0) {
+                        ForEach(Array(discoveries.enumerated()), id: \.element.id) { index, discovery in
+                            HStack(spacing: 12) {
+                                StoryRingAvatarView(
+                                    userId: discovery.viewerId,
+                                    size: 32,
+                                    lineWidth: 2.2,
+                                    onTap: { hasStory in
+                                        onAvatarTap(discovery.viewerId, hasStory)
+                                    }
+                                )
+
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(discovery.username ?? "@\(discovery.viewerId.prefix(6))")
+                                        .font(.custom("Poppins-Medium", size: 13))
+                                        .foregroundColor(colorScheme == .dark ? .white : .black)
+                                    Text(discovery.discoveredAt.formatted(date: .abbreviated, time: .shortened))
+                                        .font(.custom("Poppins-Regular", size: 11))
+                                        .foregroundColor(colorScheme == .dark ? .white.opacity(0.64) : .black.opacity(0.5))
+                                }
+
+                                Spacer(minLength: 0)
+                            }
+                            .padding(.vertical, 8)
+                            .onAppear {
+                                if scrollable, index == discoveries.count - 1, canLoadMore {
+                                    onLoadMore()
+                                }
+                            }
+
+                            if index < discoveries.count - 1 {
+                                Divider()
+                                    .background(colorScheme == .dark ? Color.white.opacity(0.1) : Color.black.opacity(0.08))
+                                    .padding(.leading, 44)
+                            }
+                        }
+
+                        if isLoadingMore {
+                            HStack {
+                                Spacer()
+                                ProgressView()
+                                    .padding(.vertical, 12)
+                                Spacer()
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        .padding(.horizontal, 20)
+        .padding(.bottom, 24)
+    }
+
+    private func inlineStatText(_ value: String, _ label: String) -> some View {
+        HStack(spacing: 4) {
+            Text(value)
+                .font(.custom("Poppins-SemiBold", size: 13))
+                .foregroundColor(colorScheme == .dark ? .white : .black)
+            Text(label)
+        }
+    }
+
+    private var inlineDivider: some View {
+        Circle()
+            .fill(colorScheme == .dark ? Color.white.opacity(0.25) : Color.black.opacity(0.16))
+            .frame(width: 3, height: 3)
+    }
+
+    private func detailCoveragePercent(for layer: MomentHiddenLayer) -> Int {
+        guard totalLayers > 0 else { return 0 }
+        return Int((Double((layer.discoverCount ?? 0) > 0 ? 1 : 0) / Double(totalLayers) * 100).rounded())
+    }
+}
+
+private struct HiddenLayerMetricLayerPreview: View {
+    let layer: MomentHiddenLayer
+
+    enum Style {
+        case compact
+        case detail
+    }
+
+    var style: Style = .compact
+
+    var body: some View {
+        ZStack {
+            if layer.type == .image {
+                RoundedRectangle(cornerRadius: style == .detail ? 12 : 10, style: .continuous)
+                    .fill(Color.clear)
+                    .liquidGlass(in: RoundedRectangle(cornerRadius: style == .detail ? 12 : 10, style: .continuous))
+                    .frame(
+                        width: style == .detail ? 28 : 22,
+                        height: style == .detail ? 34 : 26
+                    )
+            } else {
+                RoundedRectangle(cornerRadius: style == .detail ? 14 : 12, style: .continuous)
+                    .fill(Color.clear)
+                    .liquidGlass(in: RoundedRectangle(cornerRadius: style == .detail ? 14 : 12, style: .continuous))
+            }
+
+            switch layer.type {
+            case .text:
+                Text(layer.text?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false ? String((layer.text ?? "").prefix(18)) : "Aa")
+                    .font(.system(size: style == .detail ? 12 : 11, weight: .semibold, design: .rounded))
+                    .foregroundColor(.white)
+                    .multilineTextAlignment(.center)
+                    .padding(style == .detail ? 8 : 6)
+            case .audio:
+                Image(systemName: "waveform")
+                    .font(.system(size: style == .detail ? 16 : 15, weight: .semibold))
+                    .foregroundColor(.white)
+            case .image:
+                if let mediaURL = layer.mediaURL, let url = URL(string: mediaURL) {
+                    HiddenLayerRemotePolaroidPreview(
+                        url: url,
+                        caption: layer.caption,
+                        captionStyle: layer.textStyle,
+                        frameStyle: layer.imageFrameStyle ?? .classic,
+                        imageOffset: CGSize(width: layer.imageOffsetX ?? 0, height: layer.imageOffsetY ?? 0),
+                        imageScale: layer.imageScale ?? 1,
+                        canvasSize: style == .detail ? CGSize(width: 22, height: 29) : CGSize(width: 17, height: 22)
+                    )
+                    .scaleEffect(style == .detail ? 0.52 : 0.45)
+                } else {
+                    Image(systemName: "photo")
+                        .font(.system(size: style == .detail ? 16 : 15, weight: .semibold))
+                        .foregroundColor(.white)
+                }
+            }
+        }
+    }
+}
+
+private struct ContextSubheaderView: View {
+    let title: String
+    let onBack: () -> Void
+
+    @Environment(\.colorScheme) private var colorScheme
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Button(action: onBack) {
+                Image(systemName: "chevron.left")
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundColor(colorScheme == .dark ? .white : .black)
+                    .frame(width: 34, height: 34)
+                    .background(
+                        Color.clear
+                            .liquidGlass(in: Circle())
+                    )
+            }
+
+            Text(title)
+                .font(.custom("Poppins-SemiBold", size: 17))
+                .foregroundColor(colorScheme == .dark ? .white : .black)
+
+            Spacer()
+        }
+        .padding(.horizontal, 20)
+        .padding(.top, 18)
+        .padding(.bottom, 18)
+    }
+}
+
+private extension MomentHiddenLayer {
+    var metricsDisplayName: String {
+        switch type {
+        case .text:
+            let trimmed = text?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            return trimmed.isEmpty ? NSLocalizedString("hiddenLayers.metrics.layer.text", value: "Texto oculto", comment: "") : String(trimmed.prefix(24))
+        case .audio:
+            return NSLocalizedString("hiddenLayers.metrics.layer.audio", value: "Audio oculto", comment: "")
+        case .image:
+            let trimmed = caption?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            return trimmed.isEmpty ? NSLocalizedString("hiddenLayers.metrics.layer.image", value: "Polaroid", comment: "") : String(trimmed.prefix(24))
+        }
+    }
+
+    var metricsStatusText: String? {
+        if moderationState == .hidden {
+            return NSLocalizedString("hiddenLayers.metrics.status.moderated", value: "Moderada", comment: "")
+        }
+        if moderationState == .pending {
+            return NSLocalizedString("hiddenLayers.metrics.status.pending", value: "Pendiente", comment: "")
+        }
+        if unlockMode == .scheduled, let unlockAt, unlockAt > Date() {
+            return String(
+                format: NSLocalizedString("hiddenLayers.metrics.status.scheduled", value: "Se abre %@", comment: ""),
+                unlockAt.formatted(date: .abbreviated, time: .shortened)
+            )
+        }
+        return nil
     }
 }
 

@@ -477,6 +477,9 @@ struct MomentHiddenLayer: Identifiable, Codable, Equatable {
     let unlockMode: UnlockMode
     let unlockAt: Date?
     let authorTimezoneIdentifier: String?
+    let discoverCount: Int?
+    let uniqueDiscovererCount: Int?
+    let lastDiscoveredAt: Date?
     let moderationState: ModerationState?
     let moderationReason: String?
     let moderationCategory: String?
@@ -528,6 +531,9 @@ struct MomentHiddenLayer: Identifiable, Codable, Equatable {
         unlockMode: UnlockMode = .immediate,
         unlockAt: Date? = nil,
         authorTimezoneIdentifier: String? = nil,
+        discoverCount: Int? = nil,
+        uniqueDiscovererCount: Int? = nil,
+        lastDiscoveredAt: Date? = nil,
         moderationState: ModerationState? = .visible,
         moderationReason: String? = nil,
         moderationCategory: String? = nil,
@@ -556,6 +562,9 @@ struct MomentHiddenLayer: Identifiable, Codable, Equatable {
         self.unlockMode = unlockMode
         self.unlockAt = unlockAt
         self.authorTimezoneIdentifier = authorTimezoneIdentifier
+        self.discoverCount = discoverCount
+        self.uniqueDiscovererCount = uniqueDiscovererCount
+        self.lastDiscoveredAt = lastDiscoveredAt
         self.moderationState = moderationState
         self.moderationReason = moderationReason
         self.moderationCategory = moderationCategory
@@ -583,6 +592,49 @@ struct MomentHiddenLayer: Identifiable, Codable, Equatable {
         case .scheduled:
             guard let unlockAt else { return true }
             return unlockAt <= date
+        }
+    }
+}
+
+struct HiddenLayerDiscovery: Identifiable, Codable, Equatable {
+    let viewerId: String
+    let username: String?
+    let profileImagePath: String?
+    let discoveredAt: Date
+
+    var id: String { viewerId }
+}
+
+struct HiddenLayerMetricsSnapshot {
+    let layers: [MomentHiddenLayer]
+    let uniquePeopleCount: Int
+    let recentDiscoveriesByLayer: [String: [HiddenLayerDiscovery]]
+
+    var totalDiscoveries: Int {
+        layers.reduce(0) { $0 + max(0, $1.discoverCount ?? 0) }
+    }
+
+    var discoveredLayerCount: Int {
+        layers.filter { ($0.discoverCount ?? 0) > 0 }.count
+    }
+
+    var totalLayerCount: Int {
+        layers.count
+    }
+
+    var coverageRatio: Double {
+        guard totalLayerCount > 0 else { return 0 }
+        return Double(discoveredLayerCount) / Double(totalLayerCount)
+    }
+
+    var topLayer: MomentHiddenLayer? {
+        layers.max {
+            let lhsCount = $0.discoverCount ?? 0
+            let rhsCount = $1.discoverCount ?? 0
+            if lhsCount == rhsCount {
+                return ($0.lastDiscoveredAt ?? .distantPast) < ($1.lastDiscoveredAt ?? .distantPast)
+            }
+            return lhsCount < rhsCount
         }
     }
 }
