@@ -350,6 +350,10 @@ struct InAppBannerView: View {
             return NSLocalizedString("banner.verb.mediaModeration.storySticker.partial", value: "We hid a sticker from your story", comment: "")
         }
 
+        if moderationScope == "postHiddenLayer" {
+            return NSLocalizedString("banner.verb.mediaModeration.postHiddenLayer.partial", value: "We hid a hidden layer from your post", comment: "")
+        }
+
         if moderationScope == "story" {
             if moderationType == "full" {
                 return NSLocalizedString("banner.verb.mediaModeration.story.full", value: "Your story is now only visible to you", comment: "")

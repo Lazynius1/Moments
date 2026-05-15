@@ -32,6 +32,8 @@ final class CachedMoment {
     var hideLikeCounts: Bool?
     var allowSharing: Bool?
     var scheduledDate: Date?
+    var hasHiddenLayers: Bool?
+    var hiddenLayerCount: Int?
     
     // MARK: - Trending
     var trendingScore: Double?
@@ -73,6 +75,8 @@ final class CachedMoment {
         hideLikeCounts: Bool? = false,
         allowSharing: Bool? = true,
         scheduledDate: Date? = nil,
+        hasHiddenLayers: Bool? = false,
+        hiddenLayerCount: Int? = 0,
         trendingScore: Double? = nil,
         engagementRate: Double? = nil,
         locationLatitude: Double? = nil,
@@ -104,6 +108,8 @@ final class CachedMoment {
         self.hideLikeCounts = hideLikeCounts
         self.allowSharing = allowSharing
         self.scheduledDate = scheduledDate
+        self.hasHiddenLayers = hasHiddenLayers
+        self.hiddenLayerCount = hiddenLayerCount
         self.trendingScore = trendingScore
         self.engagementRate = engagementRate
         self.locationLatitude = locationLatitude
@@ -155,6 +161,8 @@ extension CachedMoment {
             hideLikeCounts: moment.hideLikeCounts,
             allowSharing: moment.allowSharing,
             scheduledDate: moment.scheduledDate,
+            hasHiddenLayers: moment.hasHiddenLayers,
+            hiddenLayerCount: moment.hiddenLayerCount,
             trendingScore: moment.trendingScore,
             engagementRate: moment.engagementRate,
             locationLatitude: moment.locationCoordinate?.latitude,
@@ -222,7 +230,9 @@ extension CachedMoment {
             allowSharing: allowSharing ?? true,
             scheduledDate: scheduledDate,
             trendingScore: trendingScore,
-            engagementRate: engagementRate
+            engagementRate: engagementRate,
+            hasHiddenLayers: hasHiddenLayers ?? false,
+            hiddenLayerCount: hiddenLayerCount ?? 0
         )
     }
 }

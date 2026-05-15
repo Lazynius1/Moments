@@ -2555,6 +2555,17 @@ struct ModernPostCardView: View {
                             }
                         }
                     }, perform: {})
+
+                    if moment.hasHiddenLayers,
+                       moment.hiddenLayerCount > 0,
+                       mediaItems.count == 1,
+                       mediaItems.first?.type == .image,
+                       currentImageIndex == 0 {
+                        HiddenLayersOverlayView(moment: moment, isImmersive: isImmersive)
+                            .frame(height: max(cardHeight, 200))
+                            .clipShape(RoundedRectangle(cornerRadius: isImmersive ? 12 : 20))
+                            .zIndex(3)
+                    }
                     
                     if mediaItems.count > 1 {
                         VStack {
@@ -2572,7 +2583,7 @@ struct ModernPostCardView: View {
                         .opacity(isImmersive ? 0 : 1)
                         .animation(.easeInOut(duration: 0.3), value: isImmersive)
                     }
-                    
+
                     let currentMediaItem = mediaItems.indices.contains(currentImageIndex) ? mediaItems[currentImageIndex] : nil
                     if let currentMediaItem, !currentMediaItem.isHiddenByModeration,
                        let tags = currentMediaItem.tags, !tags.isEmpty {

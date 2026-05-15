@@ -2987,8 +2987,11 @@ struct CaptionAndDetailsView: View {
     @State private var isLaunching = false // 🔥 Control para la animación de lanzamiento
     @State private var isPreviewingMedia = false
     @State private var showingTagSelector = false
+    @State private var showingHiddenLayersEditor = false
+    @State private var hiddenLayerDrafts: [HiddenLayerDraft] = []
     @State private var currentMediaTagIndex = 0
     @State private var tagSelectorDetent: PresentationDetent = .large
+    @State private var hiddenLayersDetent: PresentationDetent = .large
 
     enum AudienceSetting {
         case everyone
@@ -3031,6 +3034,21 @@ struct CaptionAndDetailsView: View {
         case .custom: return selectedListId != nil ? .customList : .custom
         case .onlyMe: return .onlyMe
         }
+    }
+
+    private var canUseHiddenLayers: Bool {
+        selectedMediaItems.count == 1 && selectedMediaItems.first?.type == .image
+    }
+    private var hiddenLayerOptionValue: String? {
+        if !canUseHiddenLayers {
+            return NSLocalizedString("hiddenLayers.creator.singleImageOnly", value: "Solo en una foto", comment: "Hidden layers unsupported state")
+        }
+
+        guard !hiddenLayerDrafts.isEmpty else { return nil }
+        return String.localizedStringWithFormat(
+            NSLocalizedString("hiddenLayers.count", value: "%d capas", comment: "Hidden layers count"),
+            hiddenLayerDrafts.count
+        )
     }
 
     var body: some View {
@@ -3147,6 +3165,20 @@ struct CaptionAndDetailsView: View {
                                 ) {
                                     showingLocationPicker = true
                                 }
+
+                                Divider().background(Color.white.opacity(0.1)).padding(.leading, 50)
+
+                                MinimalOptionRow(
+                                    icon: "sparkles.rectangle.stack",
+                                    title: NSLocalizedString("hiddenLayers.editor.title", value: "Capas ocultas", comment: "Hidden layers editor title"),
+                                    value: hiddenLayerOptionValue
+                                ) {
+                                    if canUseHiddenLayers {
+                                        showingHiddenLayersEditor = true
+                                    }
+                                }
+                                .opacity(canUseHiddenLayers ? 1 : 0.45)
+                                .disabled(!canUseHiddenLayers)
 
                                 Divider().background(Color.white.opacity(0.1)).padding(.leading, 50)
 
@@ -3331,8 +3363,23 @@ struct CaptionAndDetailsView: View {
                     .presentationDragIndicator(.visible)
             }
         }
+        .sheet(isPresented: $showingHiddenLayersEditor) {
+            if let image = selectedMediaItems.first?.image, canUseHiddenLayers {
+                    HiddenLayersEditorView(image: image, layers: $hiddenLayerDrafts)
+                        .interactiveDismissDisabled()
+                        .presentationDetents([.large], selection: $hiddenLayersDetent)
+                        .presentationDragIndicator(.hidden)
+                        .presentationBackground(.clear)
+            }
+        }
         .onAppear {
             loadDefaultPostAudience()
+            hiddenLayersDetent = .large
+        }
+        .onChange(of: selectedMediaItems.map(\.id)) { _, _ in
+            if !canUseHiddenLayers {
+                hiddenLayerDrafts.removeAll()
+            }
         }
     }
 
@@ -3372,7 +3419,8 @@ struct CaptionAndDetailsView: View {
             disableComments: finalDisableComments,
             hideLikeCounts: finalHideLikeCounts,
             allowSharing: finalAllowSharing,
-            scheduledDate: finalScheduledDate
+            scheduledDate: finalScheduledDate,
+            hiddenLayers: canUseHiddenLayers ? hiddenLayerDrafts.filter(\.isReadyToPublish) : []
         )
 
         // 🔥 CERRAR PANTALLA CON ANIMACIÓN CINEMÁTICA
@@ -3443,6 +3491,7 @@ struct CaptionAndDetailsView: View {
         selectedListId = nil
         selectedListName = nil
         audienceSetting = .everyone
+        hiddenLayerDrafts = []
     }
 
     // MediaStackPreview eliminado (reemplazado por imagen grande inline)

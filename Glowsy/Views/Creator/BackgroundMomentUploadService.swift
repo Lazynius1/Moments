@@ -6,6 +6,7 @@ import SwiftUI
 import ActivityKit
 import AVFoundation
 import UIKit
+import FirebaseStorage
 
 // MARK: - 📱 MODELO DE MOMENTO EN PROGRESO
 @MainActor
@@ -27,6 +28,7 @@ class UploadingMoment: ObservableObject, Identifiable {
     let hideLikeCounts: Bool
     let allowSharing: Bool
     let scheduledDate: Date?
+    let hiddenLayers: [HiddenLayerDraft]
     
     @Published var uploadProgress: Double = 0.0
     @Published var status: UploadStatus = .uploading
@@ -51,7 +53,8 @@ class UploadingMoment: ObservableObject, Identifiable {
         disableComments: Bool = false,
         hideLikeCounts: Bool = false,
         allowSharing: Bool = true,
-        scheduledDate: Date? = nil
+        scheduledDate: Date? = nil,
+        hiddenLayers: [HiddenLayerDraft] = []
     ) {
         self.tempId = "temp_\(UUID().uuidString)"
         self.userId = userId
@@ -73,6 +76,7 @@ class UploadingMoment: ObservableObject, Identifiable {
         self.hideLikeCounts = hideLikeCounts
         self.allowSharing = allowSharing
         self.scheduledDate = scheduledDate
+        self.hiddenLayers = hiddenLayers
     }
 }
 
@@ -159,7 +163,8 @@ class BackgroundMomentUploadService: ObservableObject {
         disableComments: Bool = false,
         hideLikeCounts: Bool = false,
         allowSharing: Bool = true,
-        scheduledDate: Date? = nil
+        scheduledDate: Date? = nil,
+        hiddenLayers: [HiddenLayerDraft] = []
     ) -> UploadingMoment? {
         
         guard let userId = Auth.auth().currentUser?.uid else { return nil }
@@ -181,7 +186,8 @@ class BackgroundMomentUploadService: ObservableObject {
             disableComments: disableComments,
             hideLikeCounts: hideLikeCounts,
             allowSharing: allowSharing,
-            scheduledDate: scheduledDate
+            scheduledDate: scheduledDate,
+            hiddenLayers: hiddenLayers
         )
         
         // Agregar al feed inmediatamente
@@ -238,6 +244,13 @@ class BackgroundMomentUploadService: ObservableObject {
             await updateProgress(uploadingMoment, progress: 0.8, status: .processing)
             let momentId = try await createMomentInFirestore(uploadingMoment, mediaUrls: mediaUrls)
             uploadingMoment.momentId = momentId
+
+            // PASO 2.5: Capas ocultas opcionales. Si fallan, no bloquean el post principal.
+            await updateProgress(uploadingMoment, progress: 0.88, status: .processing)
+            let uploadedHiddenLayers = await uploadHiddenLayersIfNeeded(
+                uploadingMoment: uploadingMoment,
+                momentId: momentId
+            )
             
             // ✅ NUEVO: Enviar notificaciones a usuarios etiquetados
             if let taggedUsers = uploadingMoment.taggedUsers, !taggedUsers.isEmpty {
@@ -277,6 +290,12 @@ class BackgroundMomentUploadService: ObservableObject {
                     momentId: momentId,
                     uploadingMoment: uploadingMoment,
                     mediaUrls: mediaUrls
+                )
+
+                await self.moderateHiddenLayersSilently(
+                    momentId: momentId,
+                    uploadingMoment: uploadingMoment,
+                    layers: uploadedHiddenLayers
                 )
             }
             
@@ -377,6 +396,176 @@ class BackgroundMomentUploadService: ObservableObject {
         }
         
         return uploadedItems
+    }
+
+    private func uploadHiddenLayersIfNeeded(
+        uploadingMoment: UploadingMoment,
+        momentId: String
+    ) async -> [MomentHiddenLayer] {
+        let readyDrafts = uploadingMoment.hiddenLayers
+            .filter(\.isReadyToPublish)
+            .prefix(3)
+
+        guard !readyDrafts.isEmpty else { return [] }
+
+        var uploadedLayers: [MomentHiddenLayer] = []
+        let storageService = StorageService()
+
+        for (index, draft) in readyDrafts.enumerated() {
+            do {
+                let layer = try await buildHiddenLayer(
+                    from: draft,
+                    index: index,
+                    userId: uploadingMoment.userId,
+                    momentId: momentId,
+                    storageService: storageService
+                )
+                uploadedLayers.append(layer)
+            } catch {
+                continue
+            }
+        }
+
+        guard !uploadedLayers.isEmpty else {
+            await withCheckedContinuation { continuation in
+                FirestoreService.shared.updateMomentHiddenLayerSummary(
+                    userId: uploadingMoment.userId,
+                    momentId: momentId,
+                    count: 0
+                ) { _ in
+                    continuation.resume()
+                }
+            }
+            return []
+        }
+
+        await withCheckedContinuation { continuation in
+            FirestoreService.shared.saveHiddenLayers(
+                userId: uploadingMoment.userId,
+                momentId: momentId,
+                layers: uploadedLayers
+            ) { error in
+                if error != nil {
+                    FirestoreService.shared.updateMomentHiddenLayerSummary(
+                        userId: uploadingMoment.userId,
+                        momentId: momentId,
+                        count: 0
+                    ) { _ in
+                        continuation.resume()
+                    }
+                } else {
+                    continuation.resume()
+                }
+            }
+        }
+
+        return uploadedLayers
+    }
+
+    private func buildHiddenLayer(
+        from draft: HiddenLayerDraft,
+        index: Int,
+        userId: String,
+        momentId: String,
+        storageService: StorageService
+    ) async throws -> MomentHiddenLayer {
+        var mediaURL: String?
+        var thumbnailURL: String?
+        var moderationState: MomentHiddenLayer.ModerationState = .visible
+
+        switch draft.type {
+        case .text:
+            break
+        case .image:
+            guard let image = draft.localImage else { throw StorageError.invalidData }
+            let resizedImage = resizeHiddenLayerImage(image)
+            mediaURL = try await withCheckedThrowingContinuation { continuation in
+                storageService.uploadMedia(
+                    userId: userId,
+                    mediaItem: UploadMediaItem(type: .image, image: resizedImage, videoURL: nil)
+                ) { result in
+                    continuation.resume(with: result)
+                }
+            }
+            thumbnailURL = mediaURL
+            moderationState = .pending
+        case .audio:
+            guard let audioURL = draft.localAudioURL else { throw StorageError.invalidData }
+            mediaURL = try await uploadHiddenLayerAudio(
+                userId: userId,
+                momentId: momentId,
+                layerId: draft.id,
+                audioURL: audioURL
+            )
+            moderationState = .pending
+        }
+
+        return MomentHiddenLayer(
+            id: draft.id,
+            type: draft.type,
+            anchorX: min(0.94, max(0.06, draft.anchorX)),
+            anchorY: min(0.94, max(0.06, draft.anchorY)),
+            width: min(0.55, max(0.12, draft.width)),
+            height: min(0.42, max(0.10, draft.height)),
+            shape: draft.shape,
+            zIndex: index,
+            text: draft.type == .text ? String(draft.text.trimmingCharacters(in: .whitespacesAndNewlines).prefix(120)) : nil,
+            mediaURL: mediaURL,
+            thumbnailURL: thumbnailURL,
+            duration: draft.duration,
+            caption: draft.type == .image ? String(draft.caption.trimmingCharacters(in: .whitespacesAndNewlines).prefix(40)) : nil,
+            imageOffsetX: draft.type == .image ? draft.imageOffsetX : nil,
+            imageOffsetY: draft.type == .image ? draft.imageOffsetY : nil,
+            imageScale: draft.type == .image ? draft.imageScale : nil,
+            imageFrameStyle: draft.type == .image ? draft.imageFrameStyle : nil,
+            textStyle: draft.textStyle,
+            presentationStyle: draft.presentationStyle,
+            moderationState: moderationState
+        )
+    }
+
+    private func uploadHiddenLayerAudio(
+        userId: String,
+        momentId: String,
+        layerId: String,
+        audioURL: URL
+    ) async throws -> String {
+        let ref = Storage.storage().reference()
+            .child("hidden_layers/\(userId)/\(momentId)/\(layerId).m4a")
+        let metadata = StorageMetadata()
+        metadata.contentType = "audio/mp4"
+
+        return try await withCheckedThrowingContinuation { continuation in
+            ref.putFile(from: audioURL, metadata: metadata) { _, error in
+                if let error {
+                    continuation.resume(throwing: error)
+                    return
+                }
+
+                ref.downloadURL { url, error in
+                    if let error {
+                        continuation.resume(throwing: error)
+                    } else if let url {
+                        continuation.resume(returning: url.absoluteString)
+                    } else {
+                        continuation.resume(throwing: StorageError.urlRetrievalFailed)
+                    }
+                }
+            }
+        }
+    }
+
+    private func resizeHiddenLayerImage(_ image: UIImage, maxLongSide: CGFloat = 900) -> UIImage {
+        let size = image.size
+        let longSide = max(size.width, size.height)
+        guard longSide > maxLongSide else { return image }
+
+        let scale = maxLongSide / longSide
+        let targetSize = CGSize(width: size.width * scale, height: size.height * scale)
+        UIGraphicsBeginImageContextWithOptions(targetSize, false, 1)
+        defer { UIGraphicsEndImageContext() }
+        image.draw(in: CGRect(origin: .zero, size: targetSize))
+        return UIGraphicsGetImageFromCurrentImageContext() ?? image
     }
     
     // MARK: - 🎥 COMPRESIÓN DE VIDEO
@@ -516,6 +705,88 @@ class BackgroundMomentUploadService: ObservableObject {
             }
         }
         
+    }
+
+    private func moderateHiddenLayersSilently(
+        momentId: String,
+        uploadingMoment: UploadingMoment,
+        layers: [MomentHiddenLayer]
+    ) async {
+        var hiddenLayerCount = 0
+
+        for layer in layers {
+            guard layer.type == .image, let mediaURL = layer.mediaURL else { continue }
+
+            await withCheckedContinuation { continuation in
+                MediaModerationService.shared.moderateMedia(
+                    mediaURL: mediaURL,
+                    mediaType: .image,
+                    userId: uploadingMoment.userId,
+                    contentId: momentId,
+                    contentType: .moment,
+                    mediaItemId: "hiddenLayer_\(layer.id)"
+                ) { result in
+                    switch result {
+                    case .approved, .warning:
+                        FirestoreService.shared.markHiddenLayerVisible(
+                            userId: uploadingMoment.userId,
+                            momentId: momentId,
+                            layerId: layer.id
+                        ) { _ in }
+                    case .deleted(let reason, let category):
+                        hiddenLayerCount += 1
+                        FirestoreService.shared.hideHiddenLayer(
+                            userId: uploadingMoment.userId,
+                            momentId: momentId,
+                            layerId: layer.id,
+                            reason: reason,
+                            category: category
+                        ) { _ in }
+                    case .error:
+                        FirestoreService.shared.markHiddenLayerVisible(
+                            userId: uploadingMoment.userId,
+                            momentId: momentId,
+                            layerId: layer.id
+                        ) { _ in }
+                    }
+                    continuation.resume()
+                }
+            }
+        }
+
+        if hiddenLayerCount > 0 {
+            createHiddenLayerModerationNotification(
+                userId: uploadingMoment.userId,
+                momentId: momentId,
+                moderatedLayerCount: hiddenLayerCount
+            )
+        }
+    }
+
+    private func createHiddenLayerModerationNotification(
+        userId: String,
+        momentId: String,
+        moderatedLayerCount: Int
+    ) {
+        let notificationId = "moderation_hidden_layer_\(momentId)_\(Int(Date().timeIntervalSince1970))"
+        let notificationRef = Firestore.firestore()
+            .collection("users")
+            .document(userId)
+            .collection("notifications")
+            .document(notificationId)
+
+        notificationRef.setData([
+            "type": "mediaModeration",
+            "senderId": "system_moderation",
+            "senderUsername": "Moments",
+            "momentId": momentId,
+            "moderationType": "partial",
+            "moderationScope": "postHiddenLayer",
+            "moderatedMediaCount": moderatedLayerCount,
+            "totalMediaCount": moderatedLayerCount,
+            "timestamp": FieldValue.serverTimestamp(),
+            "isPending": true
+        ]) { _ in }
     }
     
     // MARK: - 🔄 HELPERS
@@ -709,6 +980,8 @@ class BackgroundMomentUploadService: ObservableObject {
     func persistAction(_ uploadingMoment: UploadingMoment) {
         Task {
             do {
+                guard uploadingMoment.hiddenLayers.isEmpty else { return }
+
                 // 1. Asegurar que existe el directorio
                 if !FileManager.default.fileExists(atPath: self.pendingUploadsDir.path) {
                     try FileManager.default.createDirectory(at: self.pendingUploadsDir, withIntermediateDirectories: true)

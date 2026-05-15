@@ -987,6 +987,8 @@ final class LocalPersistenceService: ObservableObject {
         existing.disableComments = new.disableComments
         existing.hideLikeCounts = new.hideLikeCounts
         existing.allowSharing = new.allowSharing
+        existing.hasHiddenLayers = new.hasHiddenLayers
+        existing.hiddenLayerCount = new.hiddenLayerCount
         existing.trendingScore = new.trendingScore
         existing.engagementRate = new.engagementRate
         existing.reactionsData = new.reactionsData

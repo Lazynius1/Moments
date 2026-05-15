@@ -2966,6 +2966,9 @@
 "notification.moderation.storySticker.partial.title" = "Revisión de contenido";
 "notification.moderation.storySticker.partial.body.one" = "Hemos ocultado un sticker de tu historia porque no cumple nuestras Normas de la comunidad. El resto sigue visible.";
 "notification.moderation.storySticker.partial.body.other" = "Hemos ocultado %d stickers de tu historia porque no cumplen nuestras Normas de la comunidad. El resto sigue visible.";
+"notification.moderation.postHiddenLayer.partial.title" = "Revisión de contenido";
+"notification.moderation.postHiddenLayer.partial.body.one" = "Hemos ocultado una capa oculta de tu publicación porque no cumple nuestras Normas de la comunidad. El resto sigue visible.";
+"notification.moderation.postHiddenLayer.partial.body.other" = "Hemos ocultado %d capas ocultas de tu publicación porque no cumplen nuestras Normas de la comunidad. El resto sigue visible.";
 "notifications.message.mediaModeration" = "Hemos revisado una publicación reciente para asegurar que cumple con nuestras Normas de la comunidad.";
 
 /* Banner - Moderación de contenido */
@@ -2974,6 +2977,7 @@
 "banner.verb.mediaModeration.story.partial" = "Se ha ocultado contenido de tu historia";
 "banner.verb.mediaModeration.story.full" = "Tu historia ahora es solo para ti";
 "banner.verb.mediaModeration.storySticker.partial" = "Hemos ocultado un sticker de tu historia";
+"banner.verb.mediaModeration.postHiddenLayer.partial" = "Hemos ocultado una capa oculta de tu publicación";
 "appeal.yourAppeal.placeholder" = "Cuéntanos por qué crees que la suspensión debería revisarse. Añade contexto concreto y evita información sensible.";
 "appeal.additionalInfo.placeholder" = "Añade cualquier detalle extra que pueda ayudar a revisar tu caso.";
 
@@ -3170,3 +3174,46 @@
 "stickerview.audio.add" = "Añadir a la historia";
 
 "stickerview.category.audio" = "Audio";
+
+/* Hidden Layers */
+"hiddenLayers.editor.title" = "Capas ocultas";
+"hiddenLayers.count" = "%d capas";
+"hiddenLayers.count.ready" = "%1$d listas, %2$d incompletas";
+"hiddenLayers.text.placeholder" = "Escribe el secreto...";
+"hiddenLayers.image.replace" = "Cambiar imagen";
+"hiddenLayers.image.adjust" = "Ajustar foto";
+"hiddenLayers.size" = "Tamaño";
+"hiddenLayers.empty.title" = "Añade hasta 3 secretos";
+"hiddenLayers.empty.subtitle" = "Texto, audio o imagen escondida sobre el post.";
+"hiddenLayers.add.text" = "Texto";
+"hiddenLayers.add.audio" = "Audio";
+"hiddenLayers.add.image" = "Imagen";
+"hiddenLayers.audio.stop" = "Parar";
+"hiddenLayers.audio.record" = "Grabar";
+"hiddenLayers.audio.recording" = "Grabando...";
+"hiddenLayers.audio.tapToRecord" = "Toca para grabar";
+"hiddenLayers.audio.ready" = "Listo para revelar";
+"hiddenLayers.audio.preview" = "Escuchar";
+"hiddenLayers.type.text" = "Texto oculto";
+"hiddenLayers.type.audio" = "Audio oculto";
+"hiddenLayers.type.image" = "Imagen oculta";
+"hiddenLayers.viewer.hint" = "Toca los destellos";
+"hiddenLayers.viewer.audio" = "Audio oculto";
+"hiddenLayers.feed.indicator" = "Capas ocultas";
+"hiddenLayers.image.caption" = "oculto";
+"hiddenLayers.image.caption.placeholder" = "Añade un caption";
+"hiddenLayers.image.select" = "Selecciona una imagen";
+"hiddenLayers.creator.singleImageOnly" = "Solo en una foto";
+"hiddenLayers.empty.text.title" = "Añade un texto oculto";
+"hiddenLayers.empty.audio.title" = "Añade un audio oculto";
+"hiddenLayers.empty.image.title" = "Añade una imagen oculta";
+"hiddenLayers.empty.text.subtitle" = "Esconde un mensaje sobre el post y colócalo donde quieras.";
+"hiddenLayers.empty.audio.subtitle" = "Graba un audio corto que solo aparezca cuando lo descubran.";
+"hiddenLayers.empty.image.subtitle" = "Usa una polaroid oculta para esconder otra foto dentro del post.";
+"hiddenLayers.add.text.cta" = "Añadir texto";
+"hiddenLayers.add.audio.cta" = "Añadir audio";
+"hiddenLayers.add.image.cta" = "Añadir imagen";
+"hiddenLayers.text.style" = "Estilo";
+"hiddenLayers.text.font" = "Fuente";
+"hiddenLayers.image.frame" = "Marco";
+"hiddenLayers.image.font" = "Fuente";

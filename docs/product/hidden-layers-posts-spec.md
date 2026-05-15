@@ -1,8 +1,17 @@
 # Hidden Layers for Posts
 
 Date: 2026-05-14
-Status: Draft
+Status: In progress
 Scope: Moments/posts only. Stories are explicitly out of scope.
+
+## Current Implementation Notes
+
+- Hidden Layers is live only for single-image posts.
+- Text and audio layers are not moderated for now.
+- Image/polaroid layers are the only moderated Hidden Layer media.
+- Hidden image layers stay out of the viewer while `moderationState == pending`.
+- Viewer seen-state is local per user/device using `hiddenLayerSeen:{viewerId}:{momentId}:{layerId}`.
+- Partial moderation feedback for hidden image layers uses its own `postHiddenLayer` notification scope.
 
 ## Goal
 
@@ -24,7 +33,7 @@ The feature should feel like a clean post with secrets, not like stickers pasted
   - Image
 - Normalized layer placement.
 - Secondary media uploaded to Firebase Storage.
-- Moderation per layer.
+- Moderation for image layers.
 - Viewer shimmer hint on first display.
 - Tap to discover.
 - Local seen state per user/device.
@@ -257,7 +266,7 @@ If already seen, the layer can show a small discovered state rather than replayi
 
 ## Moderation
 
-V1 moderation applies to secondary image/audio layers.
+V1 moderation currently applies only to secondary image layers.
 
 Text moderation can start with local validation:
 
@@ -407,4 +416,3 @@ Success criteria:
 For V1, the full interactive experience should live in post detail, not inline in every feed card.
 
 Reason: this avoids scroll/gesture conflicts and keeps feed performance stable. The feed can advertise that a post has hidden layers, then the detail view provides the premium discovery experience.
-

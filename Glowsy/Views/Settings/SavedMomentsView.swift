@@ -1621,6 +1621,17 @@ struct ModernSavedDetailMomentCard: View {
                     .onAppear {
                         detectAspectRatio()
                     }
+
+                    if moment.hasHiddenLayers,
+                       moment.hiddenLayerCount > 0,
+                       mediaItems.count == 1,
+                       mediaItems.first?.type == .image,
+                       currentImageIndex == 0 {
+                        HiddenLayersOverlayView(moment: moment, isImmersive: isImmersive)
+                            .frame(height: max(cardHeight, 200))
+                            .clipShape(RoundedRectangle(cornerRadius: isImmersive ? 12 : 20))
+                            .zIndex(3)
+                    }
                     
                     if mediaItems.count > 1 {
                         VStack {

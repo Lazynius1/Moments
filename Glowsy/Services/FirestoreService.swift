@@ -1229,6 +1229,8 @@ class FirestoreService: ObservableObject {
                     var momentData = try encoder.encode(moment)
                     
                     momentData["mediaItems"] = self.serializedMediaItems(mediaItems, encoder: encoder)
+                    momentData["hasHiddenLayers"] = false
+                    momentData["hiddenLayerCount"] = 0
                     
                     self.db.collection("users")
                         .document(userId)
@@ -1247,6 +1249,184 @@ class FirestoreService: ObservableObject {
             case .failure(let error):
                 completion(error)
             }
+        }
+    }
+
+    func saveHiddenLayers(
+        userId: String,
+        momentId: String,
+        layers: [MomentHiddenLayer],
+        completion: @escaping (Error?) -> Void
+    ) {
+        guard !layers.isEmpty else {
+            updateMomentHiddenLayerSummary(userId: userId, momentId: momentId, count: 0, completion: completion)
+            return
+        }
+
+        let momentRef = db.collection("users").document(userId).collection("moments").document(momentId)
+        let batch = db.batch()
+        let encoder = Firestore.Encoder()
+
+        do {
+            let visibleCount = layers.reduce(into: 0) { partialResult, layer in
+                if layer.isVisibleInViewer {
+                    partialResult += 1
+                }
+            }
+
+            for layer in layers {
+                var layerData = try encoder.encode(layer)
+                layerData["id"] = layer.id
+                batch.setData(layerData, forDocument: momentRef.collection("hiddenLayers").document(layer.id), merge: true)
+            }
+
+            batch.updateData([
+                "hasHiddenLayers": visibleCount > 0,
+                "hiddenLayerCount": visibleCount
+            ], forDocument: momentRef)
+
+            batch.commit(completion: completion)
+        } catch {
+            completion(error)
+        }
+    }
+
+    func updateMomentHiddenLayerSummary(
+        userId: String,
+        momentId: String,
+        count: Int,
+        completion: @escaping (Error?) -> Void
+    ) {
+        db.collection("users")
+            .document(userId)
+            .collection("moments")
+            .document(momentId)
+            .updateData([
+                "hasHiddenLayers": count > 0,
+                "hiddenLayerCount": count
+            ], completion: completion)
+    }
+
+    func fetchHiddenLayers(
+        userId: String,
+        momentId: String,
+        completion: @escaping (Result<[MomentHiddenLayer], Error>) -> Void
+    ) {
+        db.collection("users")
+            .document(userId)
+            .collection("moments")
+            .document(momentId)
+            .collection("hiddenLayers")
+            .order(by: "zIndex")
+            .getDocuments { snapshot, error in
+                if let error = error {
+                    completion(.failure(error))
+                    return
+                }
+
+                let layers = snapshot?.documents.compactMap { document in
+                    try? document.data(as: MomentHiddenLayer.self)
+                } ?? []
+                completion(.success(layers))
+            }
+    }
+
+    func hideHiddenLayer(
+        userId: String,
+        momentId: String,
+        layerId: String,
+        reason: String?,
+        category: String?,
+        completion: @escaping (Error?) -> Void
+    ) {
+        var data: [String: Any] = [
+            "moderationState": MomentHiddenLayer.ModerationState.hidden.rawValue,
+            "moderatedAt": Timestamp(date: Date())
+        ]
+        if let reason {
+            data["moderationReason"] = reason
+        }
+        if let category {
+            data["moderationCategory"] = category
+        }
+
+        db.collection("users")
+            .document(userId)
+            .collection("moments")
+            .document(momentId)
+            .collection("hiddenLayers")
+            .document(layerId)
+            .updateData(data) { error in
+                if let error {
+                    completion(error)
+                    return
+                }
+
+                self.rebuildHiddenLayerSummary(userId: userId, momentId: momentId, completion: completion)
+            }
+    }
+
+    func markHiddenLayerVisible(
+        userId: String,
+        momentId: String,
+        layerId: String,
+        completion: @escaping (Error?) -> Void
+    ) {
+        db.collection("users")
+            .document(userId)
+            .collection("moments")
+            .document(momentId)
+            .collection("hiddenLayers")
+            .document(layerId)
+            .updateData([
+                "moderationState": MomentHiddenLayer.ModerationState.visible.rawValue,
+                "moderatedAt": Timestamp(date: Date()),
+                "moderationReason": FieldValue.delete(),
+                "moderationCategory": FieldValue.delete()
+            ]) { error in
+                if let error {
+                    completion(error)
+                    return
+                }
+
+                self.rebuildHiddenLayerSummary(userId: userId, momentId: momentId, completion: completion)
+            }
+    }
+
+    func rebuildHiddenLayerSummary(
+        userId: String,
+        momentId: String,
+        completion: @escaping (Error?) -> Void
+    ) {
+        let layersRef = db.collection("users")
+            .document(userId)
+            .collection("moments")
+            .document(momentId)
+            .collection("hiddenLayers")
+
+        layersRef.getDocuments { snapshot, error in
+            if let error {
+                completion(error)
+                return
+            }
+
+            let count = snapshot?.documents.reduce(into: 0) { partialResult, document in
+                guard let state = document.data()["moderationState"] as? String else {
+                    partialResult += 1
+                    return
+                }
+
+                if state == MomentHiddenLayer.ModerationState.visible.rawValue {
+                    partialResult += 1
+                }
+            } ?? 0
+
+            self.updateMomentHiddenLayerSummary(
+                userId: userId,
+                momentId: momentId,
+                count: count,
+                completion: completion
+            )
         }
     }
 
@@ -3907,6 +4087,8 @@ extension FirestoreService {
                     var momentData = try encoder.encode(moment)
                     
                     momentData["mediaItems"] = self.serializedMediaItems(mediaItems, encoder: encoder)
+                    momentData["hasHiddenLayers"] = false
+                    momentData["hiddenLayerCount"] = 0
                     
                     if audienceSetting == .custom, let customViewers = customViewers, !customViewers.isEmpty {
                         self.saveCustomAudienceForContent(
@@ -4385,6 +4567,8 @@ extension FirestoreService {
                     var momentData = try encoder.encode(moment)
                     
                     momentData["mediaItems"] = self.serializedMediaItems(mediaItems, encoder: encoder)
+                    momentData["hasHiddenLayers"] = false
+                    momentData["hiddenLayerCount"] = 0
                     
                     var ref: DocumentReference? = nil
                     ref = self.db.collection("users")
