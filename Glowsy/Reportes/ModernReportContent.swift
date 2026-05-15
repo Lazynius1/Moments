@@ -236,7 +236,7 @@ struct CategoryPill: View {
     @Environment(\.colorScheme) var colorScheme
     
     var body: some View {
-        Button(action: onTap) {
+        MomentRowButton(action: onTap) {
             HStack(spacing: 16) {
                 Image(systemName: category.icon)
                     .font(.system(size: 20))
@@ -271,13 +271,8 @@ struct CategoryPill: View {
             .padding(12)
             .background(
                 RoundedRectangle(cornerRadius: 20)
-                    .fill(colorScheme == .dark ? Color.white.opacity(isSelected ? 0.05 : 0.0) : Color.black.opacity(isSelected ? 0.03 : 0.0))
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 20)
                     .stroke(isSelected ? Color.red.opacity(0.5) : Color.clear, lineWidth: 1)
             )
         }
-        .buttonStyle(PlainButtonStyle())
     }
 }

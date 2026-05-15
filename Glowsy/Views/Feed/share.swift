@@ -250,7 +250,7 @@ struct ShareActionButton: View {
     @State private var isPressed = false
     
     var body: some View {
-        Button(action: action) {
+        MomentRowButton(action: action) {
             HStack(spacing: 16) {
                 Group {
                     if usesStoryRingIcon {
@@ -279,32 +279,9 @@ struct ShareActionButton: View {
                     .font(.system(size: 14, weight: .medium))
                     .foregroundColor(.secondary)
             }
-            .padding(16)
-            .background(
-                RoundedRectangle(cornerRadius: 16)
-                    .fill(
-                        isPrimary ?
-                        iconColor.opacity(isPressed ? 0.1 : 0.05) :
-                        Color.white.opacity(isPressed ? 0.1 : 0.05)
-                    )
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 16)
-                            .stroke(
-                                isPrimary ?
-                                iconColor.opacity(0.2) :
-                                Color.white.opacity(0.1),
-                                lineWidth: 0.5
-                            )
-                    )
-            )
+            .padding(.vertical, 14)
+            .padding(.horizontal, 4)
         }
-        .buttonStyle(PlainButtonStyle())
-        .scaleEffect(isPressed ? 0.98 : 1.0)
-        .onLongPressGesture(minimumDuration: 0, maximumDistance: .infinity, pressing: { pressing in
-            withAnimation(.easeInOut(duration: 0.1)) {
-                isPressed = pressing
-            }
-        }, perform: {})
     }
 }
 
