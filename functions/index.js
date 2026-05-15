@@ -1343,6 +1343,48 @@ exports.onMomentReactionAdded = onDocumentCreated('users/{userId}/moments/{momen
   }
 });
 
+exports.onHiddenLayerDiscoveryCreated = onDocumentCreated(
+  'users/{userId}/moments/{momentId}/hiddenLayers/{layerId}/discoveries/{viewerId}',
+  async (event) => {
+    const { userId, momentId, layerId, viewerId } = event.params;
+    const discoveryData = event.data?.data() || {};
+    const discoveredAt = discoveryData.discoveredAt || admin.firestore.FieldValue.serverTimestamp();
+
+    const db = admin.firestore();
+    const layerRef = db
+      .collection('users')
+      .doc(userId)
+      .collection('moments')
+      .doc(momentId)
+      .collection('hiddenLayers')
+      .doc(layerId);
+
+    await layerRef.set({
+      discoverCount: admin.firestore.FieldValue.increment(1),
+      uniqueDiscovererCount: admin.firestore.FieldValue.increment(1),
+      lastDiscoveredAt: discoveredAt
+    }, { merge: true });
+
+    const momentDiscovererRef = db
+      .collection('users')
+      .doc(userId)
+      .collection('moments')
+      .doc(momentId)
+      .collection('hiddenLayerDiscoverers')
+      .doc(viewerId);
+
+    const momentDiscovererSnap = await momentDiscovererRef.get();
+    if (!momentDiscovererSnap.exists) {
+      await momentDiscovererRef.set({
+        viewerId,
+        username: discoveryData.username || null,
+        profileImagePath: discoveryData.profileImagePath || null,
+        lastDiscoveredAt: discoveredAt
+      }, { merge: true });
+    }
+  }
+);
+
 // ✅ ACTUALIZAR BADGE SILENCIOSAMENTE
 // ✅ #1 OPTIMIZADO: Una sola Cloud Function para todas las notificaciones creadas
 // Antes habían 3 funciones disparándose en paralelo (updateBadge, onMentionNotification, onPhotoTagNotification)
