@@ -12,6 +12,8 @@ Scope: Moments/posts only. Stories are explicitly out of scope.
 - Hidden image layers stay out of the viewer while `moderationState == pending`.
 - Viewer seen-state is local per user/device using `hiddenLayerSeen:{viewerId}:{momentId}:{layerId}`.
 - Partial moderation feedback for hidden image layers uses its own `postHiddenLayer` notification scope.
+- The current viewer hint uses a subtle presence/bloom treatment instead of a literal shimmer sweep.
+- Feed/detail behavior has evolved: interactive overlay currently exists in key post surfaces, not only detail.
 
 ## Goal
 
@@ -57,10 +59,10 @@ The feature should feel like a clean post with secrets, not like stickers pasted
 
 - The post remains visually clean by default.
 - Hidden areas should be suggested, not loudly labeled.
-- The first-view hint should be brief: a shimmer/glow around hotspots for 1 to 1.5 seconds.
+- The first-view hint should be brief: a soft glow/presence state around hotspots for roughly 1.5 to 2.5 seconds.
 - After the hint, hotspots become almost invisible.
 - Discovery should feel intentional and tactile: tap, light haptic, small reveal animation.
-- The main interaction should live in the post detail view in V1. Feed cards can show a lightweight indicator only.
+- The interaction should feel premium and low-noise even when rendered over post surfaces outside a dedicated detail screen.
 
 ## Creator Flow
 
@@ -145,6 +147,10 @@ struct HiddenLayerDraft: Identifiable, Codable {
 
     var textStyle: HiddenLayerTextStyle?
     var presentationStyle: HiddenLayerPresentationStyle
+
+    var unlockMode: HiddenLayerUnlockMode
+    var unlockAtUTC: Date?
+    var authorTimezoneIdentifier: String?
 }
 ```
 
@@ -169,6 +175,14 @@ struct MomentHiddenLayer: Identifiable, Codable {
     let textStyle: HiddenLayerTextStyle?
     let presentationStyle: HiddenLayerPresentationStyle
 
+    let unlockMode: HiddenLayerUnlockMode
+    let unlockAtUTC: Date?
+    let authorTimezoneIdentifier: String?
+
+    let discoverCount: Int?
+    let uniqueDiscovererCount: Int?
+    let lastDiscoveredAt: Date?
+
     let moderationState: ModerationState?
     let moderationReason: String?
     let moderationCategory: String?
@@ -190,6 +204,11 @@ struct MomentHiddenLayer: Identifiable, Codable {
         case visible
         case hidden
         case pending
+    }
+
+    enum HiddenLayerUnlockMode: String, Codable {
+        case immediate
+        case scheduled
     }
 }
 ```
@@ -234,12 +253,12 @@ Failure behavior:
 
 ## Viewer Flow
 
-V1 should render full interaction in post detail views. Feed cards only show a small indicator such as `Capas ocultas`.
+V1 currently renders the overlay on key post surfaces when the media is a single image and the viewer context can support the interaction cleanly.
 
 1. If `moment.hasHiddenLayers == true`, fetch `hiddenLayers` lazily.
 2. Filter out `moderationState == hidden`.
-3. On first view, show shimmer/glow over each visible hotspot for 1 to 1.5 seconds.
-4. After shimmer, hotspots become subtle or invisible.
+3. On first view, show a subtle presence hint over each visible hotspot for roughly 1.5 to 2.5 seconds.
+4. After the hint, hotspots become subtle or invisible.
 5. User taps a hotspot.
 6. The layer reveals:
    - Text: styled card/note/quote.
@@ -250,19 +269,196 @@ V1 should render full interaction in post detail views. Feed cards only show a s
 Local seen key:
 
 ```text
-hiddenLayerSeen:{momentId}:{layerId}
+hiddenLayerSeen:{viewerId}:{momentId}:{layerId}
 ```
 
 If already seen, the layer can show a small discovered state rather than replaying the full hint every time.
 
 ## Audio Behavior
 
-- Audio layers should not autoplay.
+- Current product direction: audio can autoplay on reveal using ambient-style behavior, then promote to playback on direct interaction.
 - Tap opens/reveals the player.
 - Playback should pause/resume without resetting.
 - Playback should stop when leaving the post detail view.
 - Use the existing audio cache infrastructure where possible.
 - Avoid interfering with story audio behavior.
+
+## V2: Discovery Metrics
+
+The first V2 layer should give authors feedback without turning Hidden Layers into a dashboard product.
+
+### Author Overlay Placement
+
+- Show a `Capas ocultas` metrics block only to the post author.
+- Place it inside the existing `ModernContextMenuOverlay` flow opened from the three-dot rail action.
+- Within that menu, place it above `Editar momento` / author-only actions.
+- Keep the first level compact:
+  - Title
+  - One primary summary line
+  - Up to 3 supporting chips
+
+Example:
+
+- `Capas ocultas`
+- `18 descubrimientos en 3 secretos`
+- `Más descubierta: Polaroid`
+- `7 personas`
+- `Ratio 42%`
+
+### Overlay States
+
+- No hidden layers: no block.
+- Hidden layers, zero discovery:
+  - `Aún nadie ha descubierto tus secretos`
+  - `Cuando alguien toque una capa, lo verás aquí`
+- With some discovery:
+  - `3 descubrimientos en 2 secretos`
+  - lightweight chips for most-discovered layer and people count
+- With healthy volume:
+  - add ratio as a secondary chip
+
+### Drilldown Flow
+
+- Tap the summary block to open a lightweight activity view inside the current overlay flow.
+- Reuse the same author/non-author split that already governs `Editar momento` and `Eliminar`.
+- Show layers ordered by discovery count.
+- Each layer row should include:
+  - mini preview
+  - short label
+  - status
+  - `discoverCount`
+  - `uniqueDiscovererCount`
+  - `lastDiscoveredAt`
+- Tap a layer for a second-level detail view:
+  - `discoverCount`
+  - `unique discoverers`
+  - ratio
+  - latest 3 people if product decides the social layer is valuable
+
+### Metrics Data Model
+
+Per layer:
+
+- `discoverCount`
+- `uniqueDiscovererCount`
+- `lastDiscoveredAt`
+
+Optional social subcollection:
+
+```text
+users/{userId}/moments/{momentId}/hiddenLayers/{layerId}/discoveries/{viewerId}
+```
+
+Suggested document:
+
+```swift
+struct HiddenLayerDiscovery: Codable {
+    let viewerId: String
+    let discoveredAt: Date
+}
+```
+
+Suggested moment summary helpers:
+
+- `hiddenLayerCountTotal`
+- `hiddenLayerCountUnlockedNow`
+- `hiddenLayerCountLocked`
+- `nextHiddenLayerUnlockAt`
+
+### What Not To Do
+
+- No charts in the first overlay level.
+- No giant analytics vocabulary.
+- No full user list in the first tap.
+- No mixing metrics UI with time-lock controls in the same summary block.
+
+## V2: Time-Locked Layers
+
+Time-locked layers should feel like scheduled secrets, not like another gimmick sticker.
+
+### Core Rule
+
+Separate:
+
+- `unlock`
+- `reveal`
+
+Unlock can happen automatically at a scheduled time.
+Reveal should still require a tap by default.
+
+### Creator Flow
+
+Each layer mini sheet gets a compact `Disponibilidad` section:
+
+- `Ahora`
+- `Programada`
+
+If `Programada` is selected:
+
+- show quick picks:
+  - `Esta noche`
+  - `Mañana`
+  - `Elegir fecha`
+- `Elegir fecha` opens a lightweight date/time picker sheet
+
+Microcopy examples:
+
+- `Se abrirá hoy a las 22:00`
+- `Se abrirá el 18 may a las 22:00`
+
+Canvas/editor hint:
+
+- scheduled layers can show a tiny editorial badge like `22:00` or `18 may`
+- avoid loud clock icons
+
+### Viewer Before Unlock
+
+- Do not reveal content or type.
+- Use a quieter, more sealed hotspot state than a normal hidden layer.
+- If the user taps too early:
+  - small resist/shake feedback
+  - brief microcopy:
+    - `Aún no`
+    - `Se abre en 1 h 12 min`
+
+Global chip/hint examples:
+
+- `Un secreto se abre en 2 h`
+- `Se abre hoy a las 22:00`
+- `2 secretos ahora · 1 más a las 22:00`
+
+### Viewer At Unlock Time
+
+- The layer automatically becomes discoverable.
+- If the viewer is on the post at that moment:
+  - subtle bloom
+  - light haptic
+  - optional brief copy: `Ya puedes descubrirlo`
+- The content should not auto-open by default.
+
+### Time Data Model
+
+Per layer:
+
+- `unlockMode: immediate | scheduled`
+- `unlockAtUTC`
+- `authorTimezoneIdentifier` optional for traceability
+
+Rules:
+
+- store unlock time in UTC
+- author edits in local timezone
+- viewer sees relative countdown and local absolute time
+- a previously discovered layer stays discovered; time-lock only gates availability
+
+### Edge Cases
+
+- Mixed states in the same post:
+  - immediate layers behave normally
+  - scheduled locked layers stay sealed
+  - scheduled unlocked layers behave like normal discoverable layers
+- If the app opens after unlock time, the layer simply starts in discoverable state.
+- If more than one scheduled layer exists, summarize with the nearest unlock.
 
 ## Moderation
 
@@ -317,7 +513,7 @@ Feed response must remain lightweight. Do not include full hidden layer document
   - Gate feature to single-image posts.
 
 - `Glowsy/Views/Creator/BackgroundMomentUploadService.swift`
-  - Persist drafts.
+  - Persist drafts or explicitly skip recovery until hidden-layer recovery is implemented.
   - Upload secondary media.
   - Write hidden layer subcollection.
 
@@ -329,11 +525,16 @@ Feed response must remain lightweight. Do not include full hidden layer document
   - Decode hidden layer summary from function response.
 
 - `Glowsy/Views/Feed/FeedView.swift`
-  - Lightweight indicator in feed.
-  - Potential shared render hook for detail if needed.
+  - Shared overlay hook for supported single-image post surfaces.
 
 - `Glowsy/Views/Profile/Moments view/ModernMomentDetailView.swift`
-  - Full hidden layer viewer interaction.
+  - Hidden layer viewer interaction.
+
+- `Glowsy/Views/Feed/HiddenLayersOverlayView.swift`
+  - Hidden layer viewer interaction and V2 unlock states.
+
+- Post author overlay views
+  - Hidden layer metrics summary block and drilldown.
 
 - `Glowsy/Moderation/MediaModerationService.swift`
   - Hidden layer moderation task support.
@@ -390,7 +591,7 @@ Success criteria:
 
 ### Phase 4: Viewer Polish
 
-- Add shimmer intro.
+- Add subtle hotspot intro.
 - Add haptics.
 - Add local seen state.
 - Add discovered state.
@@ -410,9 +611,10 @@ Success criteria:
 - Upload complexity because secondary media is optional.
 - Moderation race conditions where a layer appears briefly before being hidden.
 - Local cache inconsistencies if the main Moment is cached without hidden layer summaries.
+- Complexity growth if per-layer metrics and time-locking ship without clear summary fields.
 
 ## Design Decision
 
-For V1, the full interactive experience should live in post detail, not inline in every feed card.
+V1 is allowed to render Hidden Layers on supported single-image post surfaces as long as the interaction remains visually clean and does not introduce gesture conflicts.
 
-Reason: this avoids scroll/gesture conflicts and keeps feed performance stable. The feed can advertise that a post has hidden layers, then the detail view provides the premium discovery experience.
+Reason: the premium part of the feature is the discovery itself, so the product can expose it beyond a strict detail screen if the overlay remains lightweight and the media rect is stable.
