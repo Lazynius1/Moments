@@ -14,6 +14,7 @@ struct GlowsyApp: App {
     @State private var showSplash = true
     @State private var showWhatsNew = false
     @AppStorage("lastVersionPrompted") private var lastVersionPrompted: String = "1.0.0"
+    @AppStorage("lastAppOpenSyncAt") private var lastAppOpenSyncAt: Double = 0
 
     // Agregar una propiedad para almacenar el listener de autenticación
     @State private var authListenerHandle: AuthStateDidChangeListenerHandle?
@@ -81,6 +82,7 @@ struct GlowsyApp: App {
                             if user != nil {
                                 // Usuario logueado - configurar badge service
                                 NotificationBadgeService.shared.setupListeners()
+                                syncLastAppOpenIfNeeded(force: true)
                             } else {
                                 // Usuario deslogueado - limpiar todo
                                 NotificationBadgeService.shared.cleanup()
@@ -99,6 +101,7 @@ struct GlowsyApp: App {
 
                         // ✅ WIDGET FIX: Forzar actualización del widget al abrir la app
                         NotificationBadgeService.shared.refreshAllCounts()
+                        syncLastAppOpenIfNeeded()
                     }
                     .onReceive(NotificationCenter.default.publisher(for: UIApplication.willResignActiveNotification)) { _ in
                     }
@@ -155,5 +158,16 @@ struct GlowsyApp: App {
                 lastVersionPrompted = currentVersion
             }
         }
+    }
+
+    private func syncLastAppOpenIfNeeded(force: Bool = false) {
+        guard Auth.auth().currentUser != nil else { return }
+
+        let now = Date().timeIntervalSince1970
+        let minimumInterval: TimeInterval = 15 * 60
+        guard force || (now - lastAppOpenSyncAt) >= minimumInterval else { return }
+
+        lastAppOpenSyncAt = now
+        FirestoreService.shared.updateLastAppOpenAt()
     }
 }

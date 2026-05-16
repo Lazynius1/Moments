@@ -136,7 +136,6 @@ struct ModernTabView: View {
     @ObservedObject var exploreViewModel: ExploreViewModel
     @ObservedObject var authService: AuthService
     @ObservedObject var navigationService: NotificationNavigationService
-
     // This struct owns modernTab so @available is not needed on a stored property
     @State private var modernTab: AppTab = .home
 
@@ -179,6 +178,7 @@ struct ModernTabView: View {
             }
         }
         .tabViewStyle(.automatic)
+        .tint(.primary)
         .tabBarMinimizeBehavior(.onScrollDown)
         .environmentObject(authService)
         .ignoresSafeArea(.keyboard, edges: .bottom)
@@ -337,6 +337,10 @@ struct ModernTabView: View {
         case .notifications(let filter):
             selectedTab = 4
             NotificationCenter.default.post(name: NSNotification.Name("NavigateToNotifications"), object: filter)
+
+        case .creator:
+            selectedTab = 0
+            self.showCreatorView = true
             
         case .echoSuggestion(let echoId):
             self.pendingEchoId = echoId
@@ -454,17 +458,11 @@ struct CustomTabBar: View {
     
     // Colores según HIG: activo usa el color del sistema, inactivo con opacidad
     private var activeColor: Color {
-        colorScheme == .dark ? .white : .black
+        colorScheme == .dark ? .white : Color(hex: "0B1215")
     }
     
     private var inactiveColor: Color {
-        colorScheme == .dark ? .white.opacity(0.6) : .black.opacity(0.6)
-    }
-    
-    private var gradientColors: [Color] {
-        colorScheme == .dark ?
-        [Color(hex: "6B73FF"), Color(hex: "9B59B6")] :
-        [Color(hex: "007AFF"), Color(hex: "5856D6")]
+        colorScheme == .dark ? .white.opacity(0.62) : Color(hex: "0B1215").opacity(0.62)
     }
     
     var body: some View {
@@ -659,7 +657,7 @@ extension View {
             .onChange(of: navigationService.pendingNavigation) { navigation in
                 if let navigation = navigation {
                     switch navigation {
-                    case .moment(let momentId):
+                    case .moment(let momentId, _):
                         selectedTab.wrappedValue = 0
                         NotificationCenter.default.post(name: NSNotification.Name("NavigateToMoment"), object: momentId)
                         
@@ -689,6 +687,10 @@ extension View {
                     case .notifications(let filter):
                         selectedTab.wrappedValue = 4
                         NotificationCenter.default.post(name: NSNotification.Name("NavigateToNotifications"), object: filter)
+
+                    case .creator:
+                        selectedTab.wrappedValue = 0
+                        showCreatorView.wrappedValue = true
                         
                     case .echoSuggestion(let echoId):
                         pendingEchoId.wrappedValue = echoId

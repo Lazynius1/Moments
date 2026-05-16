@@ -2102,6 +2102,16 @@ struct NotificationSettingsView: View {
                                         Divider().padding(.leading, 4)
                                     }
                                 }
+
+                                Divider().padding(.leading, 4)
+
+                                notificationToggleRow(
+                                    title: NSLocalizedString("settings.notifications.gentleReminders.title", comment: "Gentle reminders"),
+                                    isOn: Binding(
+                                        get: { viewModel.notificationPreferences["gentleReminders"] ?? true },
+                                        set: { viewModel.updateNotificationPreference(type: "gentleReminders", isEnabled: $0) }
+                                    )
+                                )
                             }
                         }
 
@@ -2134,6 +2144,11 @@ struct NotificationSettingsView: View {
                                 .font(.caption)
                                 .foregroundColor(.gray)
                                 .padding(.top, 4)
+
+                            Text(NSLocalizedString("settings.notifications.gentleReminders.description", comment: "Gentle reminders description"))
+                                .font(.caption)
+                                .foregroundColor(.gray)
+                                .padding(.top, 2)
                         }
                     }
                     .padding(.horizontal, 20)
@@ -2201,7 +2216,6 @@ struct NotificationSettingsView: View {
         Toggle(title, isOn: isOn)
             .font(.custom("Poppins-Regular", size: 14))
             .foregroundColor(colorScheme == .dark ? .white : .black)
-            .tint(Color(hex: "4F46E5"))
             .padding(.vertical, 10)
     }
 }
@@ -2301,16 +2315,19 @@ class SettingsViewModel: ObservableObject {
         firestoreService.fetchUser(userId: userId) { result in
             switch result {
             case .success(let user):
-                self.notificationPreferences = user.notificationPreferences ?? [
+                let defaultPreferences: [String: Bool] = [
                     NotificationType.like.rawValue: true,
                     NotificationType.newFollower.rawValue: true,
                     NotificationType.followRequest.rawValue: true,
                     NotificationType.mutualConnection.rawValue: true,
                     NotificationType.profileVisit.rawValue: true,
                     NotificationType.comment.rawValue: true,
+                    NotificationType.storyReaction.rawValue: true,
+                    "gentleReminders": true,
                     "commentsMutualsOnly": false,
                     "muteOldPostReactions": false
                 ]
+                self.notificationPreferences = defaultPreferences.merging(user.notificationPreferences ?? [:]) { _, persisted in persisted }
                 completion(.success(user))
             case .failure(let error):
                 completion(.failure(error))

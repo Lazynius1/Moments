@@ -1,0 +1,6 @@
+"NSCameraUsageDescription" = "Autorisez l’appareil photo pour capturer des photos et des vidéos pour vos stories, vos moments et votre profil.";
+"NSMicrophoneUsageDescription" = "Autorisez le microphone pour enregistrer de l’audio pour vos stories et vos messages vocaux.";
+"NSLocationWhenInUseUsageDescription" = "Autorisez la localisation pour taguer des publications, afficher du contenu pertinent à proximité et améliorer les suggestions de Nova AI.";
+"NSUserTrackingUsageDescription" = "Cet identifiant sera utilisé pour vous montrer des publicités personnalisées et améliorer votre expérience dans l’app.";
+"NSPhotoLibraryUsageDescription" = "Autorisez l’accès à votre photothèque pour importer des photos dans vos stories, changer votre photo de profil et permettre à Nova AI d’analyser vos images.";
+"NSPhotoLibraryAddUsageDescription" = "Autorisez l’enregistrement de photos et de vidéos (comme votre QR code ou vos stories modifiées) directement dans votre galerie.";

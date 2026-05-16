@@ -16,6 +16,24 @@ const SIGHTENGINE_SECRET = defineSecret('SIGHTENGINE_SECRET');
 const GOOGLE_SPEECH_API_KEY = defineSecret('GOOGLE_SPEECH_API_KEY');
 const GIPHY_API_KEY = defineSecret('GIPHY_API_KEY');
 
+const GENTLE_REMINDER_VARIANTS = {
+  neutralDay: 'neutral_day',
+  neutralAvailable: 'neutral_available',
+  editorialBeautiful: 'editorial_beautiful',
+  editorialYours: 'editorial_yours',
+  inactiveAnyMoment: 'inactive_anymoment'
+};
+
+const GENTLE_REMINDER_LIMITS = {
+  minHoursSinceOpen: 18,
+  editorialHoursSinceOpen: 24,
+  editorialDaysSinceMoment: 2,
+  inactiveDaysSinceMoment: 4,
+  cooldownDays: 7,
+  responseWindowHours: 24,
+  maxPerRollingWeek: 3
+};
+
 function setProxyCors(res) {
   res.set('Access-Control-Allow-Origin', '*');
   res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
@@ -826,6 +844,259 @@ function isDoNotDisturbActive(userData) {
     return currentMinutes >= startMinutes || currentMinutes <= endMinutes;
   }
   return currentMinutes >= startMinutes && currentMinutes <= endMinutes;
+}
+
+function asDate(value) {
+  if (!value) return null;
+  if (value instanceof Date) return value;
+  if (value instanceof admin.firestore.Timestamp) return value.toDate();
+  if (typeof value.toDate === 'function') {
+    try {
+      return value.toDate();
+    } catch (error) {
+      return null;
+    }
+  }
+  return null;
+}
+
+function hoursSince(date, now) {
+  if (!date) return Number.POSITIVE_INFINITY;
+  return (now.getTime() - date.getTime()) / (1000 * 60 * 60);
+}
+
+function daysSince(date, now) {
+  if (!date) return Number.POSITIVE_INFINITY;
+  return (now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24);
+}
+
+function startOfTodayInTimezone(date, timezone) {
+  if (!timezone) {
+    const local = new Date(date);
+    local.setHours(0, 0, 0, 0);
+    return local;
+  }
+
+  try {
+    const parts = new Intl.DateTimeFormat('en-CA', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      timeZone: timezone
+    }).formatToParts(date);
+
+    const year = parts.find((p) => p.type === 'year')?.value;
+    const month = parts.find((p) => p.type === 'month')?.value;
+    const day = parts.find((p) => p.type === 'day')?.value;
+    if (!year || !month || !day) return null;
+    return new Date(`${year}-${month}-${day}T00:00:00Z`);
+  } catch (error) {
+    const local = new Date(date);
+    local.setHours(0, 0, 0, 0);
+    return local;
+  }
+}
+
+function hasPostedToday(userData, now) {
+  const lastMomentCreatedAt = asDate(userData.lastMomentCreatedAt);
+  if (!lastMomentCreatedAt) return false;
+  const timezone = userData.notificationTimeZone || userData.timeZone || userData.timezone || null;
+  try {
+    const formatter = new Intl.DateTimeFormat('en-CA', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      timeZone: timezone || 'UTC'
+    });
+    return formatter.format(lastMomentCreatedAt) === formatter.format(now);
+  } catch (error) {
+    const localNow = new Date(now);
+    const localMoment = new Date(lastMomentCreatedAt);
+    return (
+      localNow.getFullYear() === localMoment.getFullYear() &&
+      localNow.getMonth() === localMoment.getMonth() &&
+      localNow.getDate() === localMoment.getDate()
+    );
+  }
+}
+
+function gentleRemindersEnabled(userData) {
+  const prefs = userData && typeof userData.notificationPreferences === 'object' && userData.notificationPreferences !== null
+    ? userData.notificationPreferences
+    : {};
+  return prefs.gentleReminders !== false;
+}
+
+function normalizeReminderHistory(history, now) {
+  const cutoff = new Date(now.getTime() - (7 * 24 * 60 * 60 * 1000));
+  return Array.isArray(history)
+    ? history
+      .map(asDate)
+      .filter((date) => date && date >= cutoff)
+      .sort((a, b) => a.getTime() - b.getTime())
+    : [];
+}
+
+function buildGentleReminderState(userData, now) {
+  const state = {
+    lastGentleReminderAt: asDate(userData.lastGentleReminderAt),
+    lastGentleReminderVariant: typeof userData.lastGentleReminderVariant === 'string' ? userData.lastGentleReminderVariant : null,
+    lastAppOpenAt: asDate(userData.lastAppOpenAt),
+    lastMomentCreatedAt: asDate(userData.lastMomentCreatedAt),
+    notificationTimeZone: userData.notificationTimeZone || userData.timeZone || userData.timezone || null,
+    gentleReminderIgnoreCount: Number.isFinite(userData.gentleReminderIgnoreCount) ? userData.gentleReminderIgnoreCount : 0,
+    gentleReminderAwaitingResponse: userData.gentleReminderAwaitingResponse === true,
+    gentleReminderCooldownUntil: asDate(userData.gentleReminderCooldownUntil),
+    gentleReminderSentHistory: normalizeReminderHistory(userData.gentleReminderSentHistory, now)
+  };
+
+  const updates = {};
+  const responseWindowMs = GENTLE_REMINDER_LIMITS.responseWindowHours * 60 * 60 * 1000;
+
+  if (state.gentleReminderCooldownUntil && state.gentleReminderCooldownUntil <= now) {
+    state.gentleReminderCooldownUntil = null;
+    updates.gentleReminderCooldownUntil = admin.firestore.FieldValue.delete();
+  }
+
+  if (
+    state.gentleReminderAwaitingResponse &&
+    state.lastGentleReminderAt &&
+    (now.getTime() - state.lastGentleReminderAt.getTime()) >= responseWindowMs
+  ) {
+    const engaged =
+      state.lastAppOpenAt &&
+      state.lastAppOpenAt > state.lastGentleReminderAt &&
+      (state.lastAppOpenAt.getTime() - state.lastGentleReminderAt.getTime()) <= responseWindowMs;
+
+    state.gentleReminderAwaitingResponse = false;
+    updates.gentleReminderAwaitingResponse = false;
+
+    if (engaged) {
+      state.gentleReminderIgnoreCount = 0;
+      updates.gentleReminderIgnoreCount = 0;
+      if (state.gentleReminderCooldownUntil) {
+        state.gentleReminderCooldownUntil = null;
+        updates.gentleReminderCooldownUntil = admin.firestore.FieldValue.delete();
+      }
+    } else {
+      const nextIgnoreCount = state.gentleReminderIgnoreCount + 1;
+      if (nextIgnoreCount >= 3) {
+        const cooldownUntil = new Date(now.getTime() + (GENTLE_REMINDER_LIMITS.cooldownDays * 24 * 60 * 60 * 1000));
+        state.gentleReminderCooldownUntil = cooldownUntil;
+        state.gentleReminderIgnoreCount = 0;
+        updates.gentleReminderCooldownUntil = cooldownUntil;
+        updates.gentleReminderIgnoreCount = 0;
+      } else {
+        state.gentleReminderIgnoreCount = nextIgnoreCount;
+        updates.gentleReminderIgnoreCount = nextIgnoreCount;
+      }
+    }
+  }
+
+  if (Array.isArray(userData.gentleReminderSentHistory)) {
+    const originalCount = userData.gentleReminderSentHistory.length;
+    if (originalCount !== state.gentleReminderSentHistory.length) {
+      updates.gentleReminderSentHistory = state.gentleReminderSentHistory;
+    }
+  }
+
+  return { state, updates };
+}
+
+function chooseGentleReminderVariant(state, now) {
+  if (hoursSince(state.lastAppOpenAt, now) < GENTLE_REMINDER_LIMITS.minHoursSinceOpen) {
+    return null;
+  }
+
+  if (hasPostedToday({
+    lastMomentCreatedAt: state.lastMomentCreatedAt,
+    notificationTimeZone: state.notificationTimeZone
+  }, now)) {
+    return null;
+  }
+
+  if (state.lastGentleReminderAt && hoursSince(state.lastGentleReminderAt, now) < 24) {
+    return null;
+  }
+
+  if (state.gentleReminderCooldownUntil && state.gentleReminderCooldownUntil > now) {
+    return null;
+  }
+
+  if (state.gentleReminderSentHistory.length >= GENTLE_REMINDER_LIMITS.maxPerRollingWeek) {
+    return null;
+  }
+
+  const eligibleGroups = [];
+  const hoursWithoutOpen = hoursSince(state.lastAppOpenAt, now);
+  const daysWithoutMoment = daysSince(state.lastMomentCreatedAt, now);
+
+  if (daysWithoutMoment >= GENTLE_REMINDER_LIMITS.inactiveDaysSinceMoment) {
+    eligibleGroups.push([
+      GENTLE_REMINDER_VARIANTS.inactiveAnyMoment
+    ]);
+  }
+  if (
+    hoursWithoutOpen >= GENTLE_REMINDER_LIMITS.editorialHoursSinceOpen &&
+    daysWithoutMoment >= GENTLE_REMINDER_LIMITS.editorialDaysSinceMoment
+  ) {
+    eligibleGroups.push([
+      GENTLE_REMINDER_VARIANTS.editorialBeautiful,
+      GENTLE_REMINDER_VARIANTS.editorialYours
+    ]);
+  }
+  if (hoursWithoutOpen >= GENTLE_REMINDER_LIMITS.minHoursSinceOpen) {
+    eligibleGroups.push([
+      GENTLE_REMINDER_VARIANTS.neutralDay,
+      GENTLE_REMINDER_VARIANTS.neutralAvailable
+    ]);
+  }
+
+  if (eligibleGroups.length === 0) {
+    return null;
+  }
+
+  for (const group of eligibleGroups) {
+    const preferred = group.find((variant) => variant !== state.lastGentleReminderVariant);
+    if (preferred) {
+      return preferred;
+    }
+  }
+
+  return null;
+}
+
+async function sendGentleReminderPush(userId, userData, variant) {
+  const fcmToken = userData.fcmToken || null;
+  if (!fcmToken) return;
+
+  const message = {
+    token: fcmToken,
+    data: {
+      type: 'gentle_reminder',
+      targetType: 'creator',
+      targetId: '',
+      reminderVariant: variant
+    },
+    apns: {
+      headers: {
+        'apns-collapse-id': `gentle_reminder_${userId}`
+      },
+      payload: {
+        aps: {
+          alert: {
+            'title-loc-key': 'notification.gentleReminder.title',
+            'loc-key': `notification.gentleReminder.body.${variant}`,
+            'loc-args': []
+          },
+          sound: 'default',
+          'thread-id': 'gentle_reminders'
+        }
+      }
+    }
+  };
+
+  await admin.messaging().send(message);
 }
 
 function normalizeMutedWords(words) {
@@ -1807,6 +2078,86 @@ exports.cleanOldNotifications = onSchedule(
       console.log(`✅ Limpieza total: ${totalDeleted} notificaciones antiguas eliminadas`);
     } catch (error) {
       console.error('❌ Error en limpieza de notificaciones:', error);
+    }
+  });
+
+exports.sendDailyGentleReminders = onSchedule(
+  { schedule: '0 18 * * *', timeZone: 'Europe/Madrid', region: 'us-central1' },
+  async () => {
+    const db = admin.firestore();
+    const now = new Date();
+    const batchSize = 200;
+    let lastDoc = null;
+    let scanned = 0;
+    let sent = 0;
+    let updated = 0;
+
+    try {
+      do {
+        let query = db
+          .collection('users')
+          .where('isActive', '==', true)
+          .orderBy(admin.firestore.FieldPath.documentId())
+          .limit(batchSize);
+
+        if (lastDoc) {
+          query = query.startAfter(lastDoc);
+        }
+
+        const snapshot = await query.get();
+        if (snapshot.empty) break;
+
+        for (const doc of snapshot.docs) {
+          scanned += 1;
+          const userId = doc.id;
+          const userData = doc.data() || {};
+          const { state, updates } = buildGentleReminderState(userData, now);
+
+          if (Object.keys(updates).length > 0) {
+            await doc.ref.update(updates);
+            updated += 1;
+          }
+
+          if (!userData.fcmToken) continue;
+          if (!gentleRemindersEnabled(userData)) continue;
+          if (isDoNotDisturbActive(userData)) continue;
+          if (!state.lastAppOpenAt) continue;
+
+          const variant = chooseGentleReminderVariant(state, now);
+          if (!variant) continue;
+
+          try {
+            await sendGentleReminderPush(userId, userData, variant);
+
+            const sentHistory = [...state.gentleReminderSentHistory, now]
+              .filter((date) => date instanceof Date)
+              .sort((a, b) => a.getTime() - b.getTime());
+
+            await doc.ref.update({
+              lastGentleReminderAt: now,
+              lastGentleReminderVariant: variant,
+              gentleReminderAwaitingResponse: true,
+              gentleReminderSentHistory: normalizeReminderHistory(sentHistory, now),
+              gentleReminderCooldownUntil: state.gentleReminderCooldownUntil || admin.firestore.FieldValue.delete()
+            });
+
+            sent += 1;
+          } catch (error) {
+            if (error.code === 'messaging/registration-token-not-registered') {
+              await removeInvalidToken(userId, userData.fcmToken);
+            } else {
+              console.error(`❌ Error enviando gentle reminder a ${userId}:`, error);
+            }
+          }
+        }
+
+        lastDoc = snapshot.docs[snapshot.docs.length - 1];
+        if (snapshot.size < batchSize) break;
+      } while (lastDoc);
+
+      console.log(`✅ Gentle reminders: revisados=${scanned}, enviados=${sent}, reconciliados=${updated}`);
+    } catch (error) {
+      console.error('❌ Error en gentle reminders:', error);
     }
   });
 

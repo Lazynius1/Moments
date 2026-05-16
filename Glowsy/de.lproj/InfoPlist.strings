@@ -1,0 +1,6 @@
+"NSCameraUsageDescription" = "Erlaube den Kamerazugriff, um Fotos und Videos für deine Stories, Momente und dein Profil aufzunehmen.";
+"NSMicrophoneUsageDescription" = "Erlaube den Mikrofonzugriff, um Audio für deine Stories und Sprachnachrichten aufzunehmen.";
+"NSLocationWhenInUseUsageDescription" = "Erlaube den Standortzugriff, um Beiträge zu markieren, relevante Inhalte in der Nähe anzuzeigen und die Vorschläge von Nova AI zu verbessern.";
+"NSUserTrackingUsageDescription" = "Diese Kennung wird verwendet, um dir personalisierte Werbung zu zeigen und dein Erlebnis in der App zu verbessern.";
+"NSPhotoLibraryUsageDescription" = "Erlaube den Zugriff auf deine Fotomediathek, um Fotos in deine Stories hochzuladen, dein Profilbild zu ändern und Nova AI deine Bilder analysieren zu lassen.";
+"NSPhotoLibraryAddUsageDescription" = "Erlaube das Speichern von Fotos und Videos (wie deinem QR-Code oder bearbeiteten Stories) direkt in deiner Galerie.";

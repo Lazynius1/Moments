@@ -626,6 +626,8 @@
 "settings.notifications.schedule.start" = "Desde";
 "settings.notifications.schedule.end" = "Hasta";
 "settings.notifications.types.title" = "Tipos de notificaciones";
+"settings.notifications.gentleReminders.title" = "Recordatorios diarios";
+"settings.notifications.gentleReminders.description" = "Pequeños recordatorios para volver a compartir algo cuando te apetezca.";
 "settings.notifications.advanced.title" = "Configuración avanzada";
 "settings.advanced.title" = "Gestión avanzada";
 
@@ -2603,6 +2605,12 @@
 "notification.message.single.viewOnce" = "Te envió un mensaje que desaparece 👀";
 "notification.message.single.moment" = "Te envió un momento 📸";
 "notification.message.single.default" = "Te envió un mensaje";
+"notification.gentleReminder.title" = "Moments";
+"notification.gentleReminder.body.neutral_day" = "Comparte algo de tu día, si te apetece.";
+"notification.gentleReminder.body.neutral_available" = "Si hoy te apetece compartir algo, Moments está aquí.";
+"notification.gentleReminder.body.editorial_beautiful" = "Hoy puede ser un buen día para compartir algo bonito.";
+"notification.gentleReminder.body.editorial_yours" = "Tu próximo momento no tiene que ser perfecto. Solo tuyo.";
+"notification.gentleReminder.body.inactive_anymoment" = "Hace unos días que no subes nada. Tu próximo momento puede ser cualquier momento.";
 "notification.message.multiple" = "Te envió %@ mensajes";
 
 /* Push Notifications - Followers */

@@ -42,6 +42,39 @@ class FirestoreService: ObservableObject {
         db = Firestore.firestore()
         self.db.enableNetwork()
     }
+
+    private func updateUserActivityMetadata(userId: String, fields: [String: Any], completion: ((Error?) -> Void)? = nil) {
+        guard !fields.isEmpty else {
+            completion?(nil)
+            return
+        }
+
+        db.collection("users").document(userId).updateData(fields) { error in
+            completion?(error)
+        }
+    }
+
+    func updateLastAppOpenAt(userId: String? = nil, completion: ((Error?) -> Void)? = nil) {
+        let resolvedUserId = userId ?? Auth.auth().currentUser?.uid
+        guard let resolvedUserId else {
+            completion?(NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "Usuario no autenticado"]))
+            return
+        }
+
+        updateUserActivityMetadata(
+            userId: resolvedUserId,
+            fields: ["lastAppOpenAt": FieldValue.serverTimestamp()],
+            completion: completion
+        )
+    }
+
+    func updateLastMomentCreatedAt(userId: String, completion: ((Error?) -> Void)? = nil) {
+        updateUserActivityMetadata(
+            userId: userId,
+            fields: ["lastMomentCreatedAt": FieldValue.serverTimestamp()],
+            completion: completion
+        )
+    }
     
     // 🔗 HELPER: Calcular fecha de expiración para historias
     private func calculateStoryExpirationDate(isChain: Bool = false, chainId: String? = nil) -> Date {
@@ -692,6 +725,7 @@ class FirestoreService: ObservableObject {
                 NotificationType.profileVisit.rawValue: true,
                 NotificationType.comment.rawValue: true,
                 NotificationType.storyReaction.rawValue: true,
+                "gentleReminders": true,
                 "commentsMutualsOnly": false,
                 "muteOldPostReactions": false
             ],
@@ -1314,7 +1348,9 @@ class FirestoreService: ObservableObject {
                             if let error = error {
                                 completion(error)
                             } else {
-                                completion(nil)
+                                self.updateLastMomentCreatedAt(userId: userId) { _ in
+                                    completion(nil)
+                                }
                             }
                         }
                 } catch {
@@ -4379,7 +4415,9 @@ extension FirestoreService {
                             if let error = error {
                                 completion(nil, error)
                             } else {
-                                completion(ref!.documentID, nil)
+                                self.updateLastMomentCreatedAt(userId: userId) { _ in
+                                    completion(ref!.documentID, nil)
+                                }
                             }
                         }
                 } catch {
@@ -4849,7 +4887,9 @@ extension FirestoreService {
                             if let error = error {
                                 completion(nil, error)
                             } else {
-                                completion(ref!.documentID, nil)
+                                self.updateLastMomentCreatedAt(userId: userId) { _ in
+                                    completion(ref!.documentID, nil)
+                                }
                             }
                         }
                 } catch {
