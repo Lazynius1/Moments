@@ -579,20 +579,78 @@ struct RevealLinesPattern: View {
 
 struct RevealNoisePattern: View {
     let color: Color
+
     var body: some View {
-        Canvas { context, size in
-            for _ in 0..<Int(size.width * size.height / 50) {
-                let rect = CGRect(
-                    x: CGFloat.random(in: 0...size.width),
-                    y: CGFloat.random(in: 0...size.height),
-                    width: 1.5,
-                    height: 1.5
-                )
-                context.fill(Path(ellipseIn: rect), with: .color(color.opacity(Double.random(in: 0.1...0.5))))
+        // Volvemos a un refresco fluido de 30 o 60fps, ya que el movimiento del video es suave y continuo
+        TimelineView(.animation(minimumInterval: 1/30)) { timeline in
+            let time = timeline.date.timeIntervalSinceReferenceDate
+
+            Canvas { context, size in
+                let area = max(size.width * size.height, 1)
+
+                // 1. MOTAS BLANCAS PRINCIPALES (El núcleo visual de tu video)
+                // Usamos un número fijo de partículas con un generador determinista (Seeded)
+                // para que mantengan su identidad y no aparezcan/desaparezcan salvajemente.
+                var rng = SeededRandom(seed: 42)
+                let particleCount = min(max(Int(area / 90), 80), 600) // Densidad elegante y exacta
+
+                for index in 0..<particleCount {
+                    // Posición base fija para esta partícula en el lienzo
+                    let baseX = CGFloat(rng.next()) * size.width
+                    let baseY = CGFloat(rng.next()) * size.height
+
+                    // Factores únicos por partícula para romper la simetría del movimiento
+                    let speedX = rng.next() * 3.5 + 1.5
+                    let speedY = rng.next() * 4.0 + 2.0
+                    let driftPhase = rng.next() * .pi * 2
+
+                    // 🌀 Movimiento de flotación flotante (deriva lenta en X e Y)
+                    // Usamos combinaciones de funciones trigonométricas para que el recorrido sea un bucle orgánico, no lineal
+                    let offsetX = sin(time * 0.25 * speedX + driftPhase) * 12.0
+                    let offsetY = cos(time * 0.18 * speedY + driftPhase) * 15.0
+
+                    // Envoltorio suave de coordenadas para que si salen de la pantalla vuelvan por el lado opuesto
+                    let x = (baseX + offsetX).truncatingRemainder(dividingBy: size.width)
+                    let y = (baseY + offsetY).truncatingRemainder(dividingBy: size.height)
+
+                    // Tamaños variados tal como se aprecia en los fotogramas (de 1.0pt a 3.2pt)
+                    let dotSize = CGFloat(rng.next() * 2.2 + 1.0)
+
+                    // ✨ Efecto Shimmer (Destello / Desvanecimiento lento)
+                    // Las partículas aumentan y disminuyen su brillo de forma asíncrona
+                    let shimmer = 0.4 + sin(time * 0.85 * speedX + driftPhase) * 0.4
+                    let opacity = (0.35 + rng.next() * 0.45) * shimmer
+
+                    let rect = CGRect(x: x >= 0 ? x : x + size.width,
+                                      y: y >= 0 ? y : y + size.height,
+                                      width: dotSize, height: dotSize)
+
+                    // Renderizado de las micro-texturas
+                    if index % 7 == 0 {
+                        // Un pequeño porcentaje de motas ligeramente más difusas o del color del fondo
+                        context.fill(Path(ellipseIn: rect), with: .color(color.opacity(opacity * 0.8)))
+                    } else {
+                        // La mayoría son blancas puras y brillantes como en tu video
+                        context.fill(Path(ellipseIn: rect), with: .color(.white.opacity(opacity)))
+                    }
+                }
+
+                // 2. MICRO POLVO DE FONDO (Capa casi imperceptible que da profundidad)
+                let microCount = min(max(Int(area / 150), 40), 250)
+                for _ in 0..<microCount {
+                    let mx = (CGFloat(rng.next()) * size.width + CGFloat(sin(time * 0.15)))
+                        .truncatingRemainder(dividingBy: size.width)
+                    let my = (CGFloat(rng.next()) * size.height + CGFloat(cos(time * 0.1)))
+                        .truncatingRemainder(dividingBy: size.height)
+
+                    let mRect = CGRect(x: mx, y: my, width: 0.8, height: 0.8)
+                    context.fill(Path(mRect), with: .color(.white.opacity(0.22)))
+                }
             }
         }
     }
 }
+
 
 struct RevealStaticPattern: View {
     let color: Color

@@ -8376,6 +8376,7 @@ struct RevealStickerEditorView: View {
 
     @State private var selectedTab: EditorTab = .presets
     @State private var selectedPresetId: String = "classic"
+    @State private var tabTransientOffset: CGFloat = 0
 
     // Custom state
     @State private var customType: String = "solid"
@@ -8383,7 +8384,7 @@ struct RevealStickerEditorView: View {
     @State private var customPrimary: Color = .black
     @State private var customSecondary: Color = .black
 
-    enum EditorTab {
+    enum EditorTab: CaseIterable, Hashable {
         case presets
         case custom
     }
@@ -8469,31 +8470,63 @@ struct RevealStickerEditorView: View {
     }
 
     private var tabSelector: some View {
-        HStack(spacing: 0) {
-            tabButton(title: NSLocalizedString("revealEditor.tab.presets", comment: "Presets"), tab: .presets)
-            tabButton(title: NSLocalizedString("revealEditor.tab.custom", comment: "Custom"), tab: .custom)
-        }
-        .padding(4)
-        .background(Color.white.opacity(0.12))
-        .clipShape(Capsule())
-    }
+        GeometryReader { proxy in
+            ZStack {
+                Capsule()
+                    .fill(Color.clear)
+                    .liquidGlass(in: Capsule())
+                    .overlay(
+                        Capsule()
+                            .stroke(Color.white.opacity(0.08), lineWidth: 0.75)
+                    )
 
-    private func tabButton(title: String, tab: EditorTab) -> some View {
-        Button(action: {
-            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                selectedTab = tab
+                Capsule()
+                    .fill(Color.white.opacity(0.055))
+                    .frame(width: tabSegmentWidth(for: proxy.size.width), height: 34)
+                    .liquidGlass(in: Capsule(), interactive: true)
+                    .shadow(color: .black.opacity(0.24), radius: 7, x: 0, y: 2)
+                    .offset(x: tabPillOffset(for: proxy.size.width))
+
+                HStack(spacing: 0) {
+                    ForEach(Array(EditorTab.allCases.enumerated()), id: \.element) { index, tab in
+                        HStack(spacing: 6) {
+                            Image(systemName: icon(for: tab))
+                                .font(.system(size: 13, weight: .semibold))
+
+                            Text(title(for: tab))
+                                .font(.custom("Poppins-Medium", size: 13))
+                        }
+                        .foregroundColor(tabLabelColor(for: index, width: proxy.size.width))
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .contentShape(Rectangle())
+                    }
+                }
+                .padding(.horizontal, 3)
+                .animation(.smooth(duration: 0.18, extraBounce: 0.01), value: tabVisualIndex(for: proxy.size.width))
+
+                Capsule()
+                    .fill(Color.black.opacity(0.001))
+                    .contentShape(Capsule())
+                    .highPriorityGesture(
+                        DragGesture(minimumDistance: 0, coordinateSpace: .local)
+                            .onChanged { value in
+                                var transaction = Transaction()
+                                transaction.animation = nil
+                                withTransaction(transaction) {
+                                    tabTransientOffset = constrainedTabTranslation(value.translation.width, width: proxy.size.width)
+                                }
+                            }
+                            .onEnded { value in
+                                settleTabSelection(
+                                    translation: value.translation.width,
+                                    locationX: value.location.x,
+                                    width: proxy.size.width
+                                )
+                            }
+                    )
             }
-        }) {
-            Text(title)
-                .font(.custom("Poppins-Medium", size: 14))
-                .foregroundColor(.white)
-                .padding(.vertical, 8)
-                .frame(maxWidth: .infinity)
-                .background(
-                    Capsule()
-                        .fill(selectedTab == tab ? Color.white.opacity(0.2) : Color.clear)
-                )
         }
+        .frame(height: 42)
     }
 
     private var presetsGrid: some View {
@@ -8592,6 +8625,91 @@ struct RevealStickerEditorView: View {
         }
     }
 
+    private var currentTabIndex: Int {
+        EditorTab.allCases.firstIndex(of: selectedTab) ?? 0
+    }
+
+    private func title(for tab: EditorTab) -> String {
+        switch tab {
+        case .presets:
+            return NSLocalizedString("revealEditor.tab.presets", comment: "Presets")
+        case .custom:
+            return NSLocalizedString("revealEditor.tab.custom", comment: "Custom")
+        }
+    }
+
+    private func icon(for tab: EditorTab) -> String {
+        switch tab {
+        case .presets:
+            return "sparkles"
+        case .custom:
+            return "slider.horizontal.3"
+        }
+    }
+
+    private func tabSegmentWidth(for totalWidth: CGFloat) -> CGFloat {
+        let innerWidth = totalWidth - 6
+        return innerWidth / CGFloat(EditorTab.allCases.count)
+    }
+
+    private func tabBaseOffset(for totalWidth: CGFloat) -> CGFloat {
+        let segmentWidth = tabSegmentWidth(for: totalWidth)
+        let start = -((CGFloat(EditorTab.allCases.count - 1) * segmentWidth) / 2)
+        return start + (CGFloat(currentTabIndex) * segmentWidth)
+    }
+
+    private func tabPillOffset(for totalWidth: CGFloat) -> CGFloat {
+        tabBaseOffset(for: totalWidth) + tabTransientOffset
+    }
+
+    private func tabVisualIndex(for totalWidth: CGFloat) -> Int {
+        let width = tabSegmentWidth(for: totalWidth)
+        let start = -((CGFloat(EditorTab.allCases.count - 1) * width) / 2)
+        let raw = ((tabPillOffset(for: totalWidth) - start) / width).rounded()
+        return min(max(Int(raw), 0), EditorTab.allCases.count - 1)
+    }
+
+    private func tabLabelColor(for index: Int, width: CGFloat) -> Color {
+        tabVisualIndex(for: width) == index ? .white.opacity(0.96) : .white.opacity(0.58)
+    }
+
+    private func constrainedTabTranslation(_ translation: CGFloat, width: CGFloat) -> CGFloat {
+        let segment = tabSegmentWidth(for: width)
+        let minOffset = -((CGFloat(EditorTab.allCases.count - 1) * segment) / 2)
+        let maxOffset = ((CGFloat(EditorTab.allCases.count - 1) * segment) / 2)
+        let proposed = tabBaseOffset(for: width) + translation
+        let clamped = min(max(proposed, minOffset), maxOffset)
+        return clamped - tabBaseOffset(for: width)
+    }
+
+    private func settleTabSelection(translation: CGFloat, locationX: CGFloat, width: CGFloat) {
+        let segment = tabSegmentWidth(for: width)
+        let proposedOffset = tabBaseOffset(for: width) + translation
+        let start = -((CGFloat(EditorTab.allCases.count - 1) * segment) / 2)
+        let fractionalIndex = (proposedOffset - start) / segment
+        let threshold = min(segment * 0.28, 36)
+
+        let targetIndex: Int
+        if abs(translation) > threshold && abs(translation) < segment * 0.5 {
+            let direction = translation > 0 ? 1 : -1
+            targetIndex = min(max(currentTabIndex + direction, 0), EditorTab.allCases.count - 1)
+        } else if abs(translation) < 5 {
+            targetIndex = min(max(Int(locationX / segment), 0), EditorTab.allCases.count - 1)
+        } else {
+            targetIndex = min(max(Int(fractionalIndex.rounded()), 0), EditorTab.allCases.count - 1)
+        }
+
+        let targetTab = EditorTab.allCases[targetIndex]
+        if targetTab != selectedTab {
+            HapticManager.shared.selection()
+        }
+
+        withAnimation(.smooth(duration: 0.18, extraBounce: 0.01)) {
+            selectedTab = targetTab
+            tabTransientOffset = 0
+        }
+    }
+
 
     // MARK: - Logic
 
@@ -8612,8 +8730,10 @@ struct RevealStickerEditorView: View {
         }) {
             selectedPresetId = preset.id
             selectedTab = .presets
+            tabTransientOffset = 0
         } else {
             selectedTab = .custom
+            tabTransientOffset = 0
         }
     }
 
