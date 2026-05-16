@@ -2371,34 +2371,34 @@
 
 /* Whats New v2.8 */
 "whatsNew.title" = "New in Moments!";
-"whatsNew.subtitle" = "Version 2.10.0";
-"whatsNew.button" = "Explore Moments 2.10";
+"whatsNew.subtitle" = "Version 2.11.0";
+"whatsNew.button" = "Explore Moments 2.11";
 
 /* Nova */
-"whatsNew.nova.title" = "Smoother Messaging";
-"whatsNew.nova.description" = "Viewing photos and videos in messages now feels more natural, with a cleaner and more comfortable media viewer.";
+"whatsNew.nova.title" = "New story stickers";
+"whatsNew.nova.description" = "Reveal lets you scratch to uncover content, Polaroid adds a captioned frame, and Audio lets you add voice or ambience directly to stories.";
 
-"whatsNew.account.title" = "Passkeys";
-"whatsNew.account.description" = "You can now sign in faster and more securely with Face ID thanks to new Passkey support.";
+"whatsNew.account.title" = "A more polished camera";
+"whatsNew.account.description" = "We refined capture, previews, and photo and video controls so creating and sharing feels much smoother.";
 
 /* Liquid glass */
-"whatsNew.glass.title" = "Better Media Flow";
-"whatsNew.glass.description" = "We’ve also refined replies, overlays, and video playback to make shared content feel smoother and easier to revisit.";
+"whatsNew.glass.title" = "Hidden Layers for posts";
+"whatsNew.glass.description" = "You can now hide secrets inside a photo using text, audio, or a hidden image for other people to discover with a tap.";
 
 /* Creator */
-"whatsNew.creator.title" = "More Privacy and Control";
-"whatsNew.creator.description" = "The privacy and ad consent flow now feels clearer and better integrated throughout the app.";
+"whatsNew.creator.title" = "Scheduled secrets and metrics";
+"whatsNew.creator.description" = "Schedule hidden layers for later and see how people interact with them thanks to new discovery metrics if you’re the author.";
 
 /* Feed */
-"whatsNew.feed.title" = "Clearer Settings";
-"whatsNew.feed.description" = "We’ve refined several settings and security sections so everything is easier to find and understand.";
+"whatsNew.feed.title" = "Better moment editing";
+"whatsNew.feed.description" = "We redesigned moment editing so changing text, audience, location, and tags feels cleaner, clearer, and more consistent.";
 
-"whatsNew.social.title" = "More Refined Details";
-"whatsNew.social.description" = "Small updates across profile, tabs, and internal views make the app feel more consistent day to day.";
+"whatsNew.social.title" = "More polished stickers";
+"whatsNew.social.description" = "We also redesigned several stickers and refined questions, replies, and story views so everything looks much more intentional.";
 
 /* Fixes */
-"whatsNew.fixes.title" = "Better Overall Stability";
-"whatsNew.fixes.description" = "We also fixed issues affecting authentication, notifications, visual states, and several internal flows.";
+"whatsNew.fixes.title" = "More reliable uploads";
+"whatsNew.fixes.description" = "Recovery is now better when the connection drops, including posts with Hidden Layers, along with several stability fixes.";
 
 /* Best Friends */
 "bestFriends.title" = "Best Friends";

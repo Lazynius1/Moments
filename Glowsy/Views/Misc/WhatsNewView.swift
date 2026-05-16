@@ -8,37 +8,37 @@ struct WhatsNewView: View {
     private var features: [WhatsNewFeature] {
         [
             WhatsNewFeature(
-                icon: "bubble.left.and.bubble.right.fill",
+                icon: "sparkles",
                 title: NSLocalizedString("whatsNew.nova.title", comment: ""),
                 description: NSLocalizedString("whatsNew.nova.description", comment: "")
             ),
             WhatsNewFeature(
-                icon: "faceid",
+                icon: "camera.fill",
                 title: NSLocalizedString("whatsNew.account.title", comment: ""),
                 description: NSLocalizedString("whatsNew.account.description", comment: "")
             ),
             WhatsNewFeature(
-                icon: "play.rectangle.on.rectangle",
+                icon: "eye.slash.fill",
                 title: NSLocalizedString("whatsNew.glass.title", comment: ""),
                 description: NSLocalizedString("whatsNew.glass.description", comment: "")
             ),
             WhatsNewFeature(
-                icon: "hand.raised.fill",
+                icon: "clock.badge.fill",
                 title: NSLocalizedString("whatsNew.creator.title", comment: ""),
                 description: NSLocalizedString("whatsNew.creator.description", comment: "")
             ),
             WhatsNewFeature(
-                icon: "key.fill",
+                icon: "pencil.and.outline",
                 title: NSLocalizedString("whatsNew.feed.title", comment: ""),
                 description: NSLocalizedString("whatsNew.feed.description", comment: "")
             ),
             WhatsNewFeature(
-                icon: "person.crop.circle",
+                icon: "swatchpalette.fill",
                 title: NSLocalizedString("whatsNew.social.title", comment: ""),
                 description: NSLocalizedString("whatsNew.social.description", comment: "")
             ),
             WhatsNewFeature(
-                icon: "checkmark.circle",
+                icon: "arrow.triangle.2.circlepath.circle.fill",
                 title: NSLocalizedString("whatsNew.fixes.title", comment: ""),
                 description: NSLocalizedString("whatsNew.fixes.description", comment: "")
             )
@@ -108,13 +108,8 @@ struct WhatsNewView: View {
                 dismiss()
             }
         } label: {
-            HStack(spacing: 10) {
-                Image(systemName: "sparkles")
-                    .font(.system(size: 16, weight: .semibold))
-
-                Text(NSLocalizedString("whatsNew.button", comment: ""))
-                    .font(.custom("Poppins-SemiBold", size: 16))
-            }
+            Text(NSLocalizedString("whatsNew.button", comment: ""))
+                .font(.custom("Poppins-SemiBold", size: 16))
             .foregroundColor(.primary)
             .frame(maxWidth: .infinity)
             .padding(.vertical, 16)
