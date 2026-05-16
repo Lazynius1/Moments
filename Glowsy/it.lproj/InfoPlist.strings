@@ -1,0 +1,6 @@
+"NSCameraUsageDescription" = "Consenti l’accesso alla fotocamera per catturare foto e video per le tue storie, i tuoi momenti e il tuo profilo.";
+"NSMicrophoneUsageDescription" = "Consenti l’accesso al microfono per registrare audio per le tue storie e i tuoi messaggi vocali.";
+"NSLocationWhenInUseUsageDescription" = "Consenti l’accesso alla posizione per taggare i post, mostrare contenuti rilevanti nelle vicinanze e migliorare i suggerimenti di Nova AI.";
+"NSUserTrackingUsageDescription" = "Questo identificatore verrà usato per mostrarti annunci personalizzati e migliorare la tua esperienza nell’app.";
+"NSPhotoLibraryUsageDescription" = "Consenti l’accesso alla libreria foto per caricare foto nelle tue storie, cambiare la foto del profilo e permettere a Nova AI di analizzare le tue immagini.";
+"NSPhotoLibraryAddUsageDescription" = "Consenti di salvare foto e video (come il tuo codice QR o le storie modificate) direttamente nella tua galleria.";

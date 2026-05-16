@@ -1,0 +1,30 @@
+/* Widget */
+"widget.createStory.title" = "Carica storia";
+"widget.createStory.subtitle" = "Tocca per creare in Moments";
+"widget.metrics.visits" = "Visite";
+"widget.metrics.messages" = "Messaggi";
+"widget.metrics.notifications" = "Notifiche";
+"widget.echoes.singular" = "1 amico nelle vicinanze";
+"widget.echoes.plural" = "%d amici nelle vicinanze";
+"widget.tags.singular" = "1 nuovo tag";
+"widget.tags.plural" = "%d nuovi tag";
+"widget.visits.singular" = "1 persona ha visitato il tuo profilo oggi";
+"widget.visits.plural" = "%d persone hanno visitato il tuo profilo oggi";
+"widget.messages.singular" = "Hai 1 messaggio non letto";
+"widget.messages.plural" = "Hai %d messaggi non letti";
+"widget.notifications.singular" = "Hai 1 nuova notifica";
+"widget.notifications.plural" = "Hai %d nuove notifiche";
+"widget.stories.singular" = "1 nuova storia";
+"widget.stories.plural" = "%d nuove storie";
+"widget.messageRequests.singular" = "1 richiesta di messaggio in sospeso";
+"widget.messageRequests.plural" = "%d richieste di messaggio in sospeso";
+
+"widget.allCaughtUp" = "Tutto aggiornato";
+
+/* Live Activities */
+"liveActivity.uploadingStory" = "Caricamento storia";
+"liveActivity.uploadingMoment" = "Caricamento momento";
+"liveActivity.uploading" = "Caricamento...";
+"liveActivity.processing" = "Elaborazione...";
+"liveActivity.completed" = "Completato";
+"liveActivity.error" = "Errore";

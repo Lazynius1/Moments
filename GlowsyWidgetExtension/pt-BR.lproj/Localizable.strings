@@ -1,0 +1,30 @@
+/* Widget */
+"widget.createStory.title" = "Publicar story";
+"widget.createStory.subtitle" = "Toque para criar no Moments";
+"widget.metrics.visits" = "Visitas";
+"widget.metrics.messages" = "Mensagens";
+"widget.metrics.notifications" = "Notificações";
+"widget.echoes.singular" = "1 amigo por perto";
+"widget.echoes.plural" = "%d amigos por perto";
+"widget.tags.singular" = "1 nova marcação";
+"widget.tags.plural" = "%d novas marcações";
+"widget.visits.singular" = "1 pessoa visitou seu perfil hoje";
+"widget.visits.plural" = "%d pessoas visitaram seu perfil hoje";
+"widget.messages.singular" = "Você tem 1 mensagem não lida";
+"widget.messages.plural" = "Você tem %d mensagens não lidas";
+"widget.notifications.singular" = "Você tem 1 nova notificação";
+"widget.notifications.plural" = "Você tem %d novas notificações";
+"widget.stories.singular" = "1 novo story";
+"widget.stories.plural" = "%d novos stories";
+"widget.messageRequests.singular" = "1 solicitação de mensagem pendente";
+"widget.messageRequests.plural" = "%d solicitações de mensagem pendentes";
+
+"widget.allCaughtUp" = "Tudo em dia";
+
+/* Live Activities */
+"liveActivity.uploadingStory" = "Enviando story";
+"liveActivity.uploadingMoment" = "Enviando moment";
+"liveActivity.uploading" = "Enviando...";
+"liveActivity.processing" = "Processando...";
+"liveActivity.completed" = "Concluído";
+"liveActivity.error" = "Erro";

@@ -1,0 +1,30 @@
+/* Widget */
+"widget.createStory.title" = "Story hochladen";
+"widget.createStory.subtitle" = "Tippe, um in Moments zu erstellen";
+"widget.metrics.visits" = "Besuche";
+"widget.metrics.messages" = "Nachrichten";
+"widget.metrics.notifications" = "Benachrichtigungen";
+"widget.echoes.singular" = "1 Freund in der Nähe";
+"widget.echoes.plural" = "%d Freunde in der Nähe";
+"widget.tags.singular" = "1 neuer Tag";
+"widget.tags.plural" = "%d neue Tags";
+"widget.visits.singular" = "1 Person hat heute dein Profil besucht";
+"widget.visits.plural" = "%d Personen haben heute dein Profil besucht";
+"widget.messages.singular" = "Du hast 1 ungelesene Nachricht";
+"widget.messages.plural" = "Du hast %d ungelesene Nachrichten";
+"widget.notifications.singular" = "Du hast 1 neue Benachrichtigung";
+"widget.notifications.plural" = "Du hast %d neue Benachrichtigungen";
+"widget.stories.singular" = "1 neue Story";
+"widget.stories.plural" = "%d neue Stories";
+"widget.messageRequests.singular" = "1 ausstehende Nachrichtenanfrage";
+"widget.messageRequests.plural" = "%d ausstehende Nachrichtenanfragen";
+
+"widget.allCaughtUp" = "Alles erledigt";
+
+/* Live Activities */
+"liveActivity.uploadingStory" = "Story wird hochgeladen";
+"liveActivity.uploadingMoment" = "Moment wird hochgeladen";
+"liveActivity.uploading" = "Wird hochgeladen...";
+"liveActivity.processing" = "Wird verarbeitet...";
+"liveActivity.completed" = "Abgeschlossen";
+"liveActivity.error" = "Fehler";

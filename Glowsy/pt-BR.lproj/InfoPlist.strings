@@ -1,0 +1,6 @@
+"NSCameraUsageDescription" = "Permita o acesso à câmera para capturar fotos e vídeos para seus stories, moments e perfil.";
+"NSMicrophoneUsageDescription" = "Permita o acesso ao microfone para gravar áudio para seus stories e mensagens de voz.";
+"NSLocationWhenInUseUsageDescription" = "Permita o acesso à localização para marcar posts, mostrar conteúdo relevante por perto e melhorar as sugestões da Nova AI.";
+"NSUserTrackingUsageDescription" = "Esse identificador será usado para mostrar anúncios personalizados e melhorar sua experiência no app.";
+"NSPhotoLibraryUsageDescription" = "Permita o acesso à biblioteca de fotos para enviar imagens para seus stories, mudar sua foto de perfil e permitir que a Nova AI analise suas imagens.";
+"NSPhotoLibraryAddUsageDescription" = "Permita salvar fotos e vídeos (como seu QR code ou stories editados) diretamente na sua galeria.";

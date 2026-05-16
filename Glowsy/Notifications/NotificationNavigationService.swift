@@ -14,6 +14,7 @@ class NotificationNavigationService: ObservableObject {
         case storyChain(String, String)        // 🔗 Ir a cadena de historias (chainId, chainTitle)
         case followRequests(String)            // Ir a solicitudes de seguimiento
         case notifications(String?)            // Ir a notificaciones (con filtro opcional)
+        case creator                           // Abrir creador para un nuevo momento
         case echoSuggestion(String)              // ✅ NUEVO: Ir a invitación de Echo
         case echo(String)                        // ✅ NUEVO: Ir a visor de Echo (activo)
     }
@@ -40,6 +41,10 @@ class NotificationNavigationService: ObservableObject {
     
     func navigateToConversation(conversationId: String) {
         pendingNavigation = .conversation(conversationId)
+    }
+
+    func navigateToCreator() {
+        pendingNavigation = .creator
     }
     
     // ✅ SIMPLIFICADO: Método para procesar datos de notificación
@@ -90,6 +95,9 @@ class NotificationNavigationService: ObservableObject {
             if let userId = userInfo["senderId"] as? String {
                 pendingNavigation = .profile(userId)
             }
+
+        case "gentle_reminder":
+            pendingNavigation = .creator
             
         // 🔗 STORY CHAINS: Notificación cuando alguien continúa una cadena
         case "story_chain_continued":
@@ -145,6 +153,8 @@ extension NotificationNavigationService.PendingNavigation {
             return "solicitudes(\(id))"
         case .notifications(let filter):
             return "notificaciones(\(filter ?? "todas"))"
+        case .creator:
+            return "creator"
         case .echoSuggestion(let id):
             return "invitacionEcho(\(id))"
         case .echo(let id):
@@ -162,6 +172,7 @@ extension NotificationNavigationService.PendingNavigation {
         case .storyChain: return "story_chain"  // 🔗 AÑADIDO
         case .followRequests: return "social"
         case .notifications: return "notifications"
+        case .creator: return "creator"
         case .echoSuggestion: return "echo_invite"
         case .echo: return "echo_view"
         }

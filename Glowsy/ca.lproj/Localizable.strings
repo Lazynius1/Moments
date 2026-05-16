@@ -618,6 +618,8 @@
 "settings.notifications.schedule.start" = "Des de";
 "settings.notifications.schedule.end" = "Fins a";
 "settings.notifications.types.title" = "Tipus de notificacions";
+"settings.notifications.gentleReminders.title" = "Recordatoris diaris";
+"settings.notifications.gentleReminders.description" = "Petits recordatoris per tornar a compartir alguna cosa quan et vingui de gust.";
 "settings.notifications.advanced.title" = "Configuració avançada";
 "settings.advanced.title" = "Gestió avançada";
 
@@ -2590,6 +2592,12 @@
 "notification.message.single.viewOnce" = "T'ha enviat un missatge que desapareix 👀";
 "notification.message.single.moment" = "T'ha enviat un moment 📸";
 "notification.message.single.default" = "T'ha enviat un missatge";
+"notification.gentleReminder.title" = "Moments";
+"notification.gentleReminder.body.neutral_day" = "Comparteix alguna cosa del teu dia, si et ve de gust.";
+"notification.gentleReminder.body.neutral_available" = "Si avui et ve de gust compartir alguna cosa, Moments és aquí.";
+"notification.gentleReminder.body.editorial_beautiful" = "Avui pot ser un bon dia per compartir alguna cosa bonica.";
+"notification.gentleReminder.body.editorial_yours" = "El teu pròxim moment no ha de ser perfecte. Només teu.";
+"notification.gentleReminder.body.inactive_anymoment" = "Fa uns dies que no puges res. El teu pròxim moment pot ser qualsevol moment.";
 "notification.message.multiple" = "T'ha enviat %@ missatges";
 
 /* Push Notifications - Followers */

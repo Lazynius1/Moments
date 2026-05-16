@@ -333,6 +333,11 @@
 				Base,
 				es,
 				ca,
+				"pt-PT",
+				de,
+				"pt-BR",
+				fr,
+				it,
 			);
 			mainGroup = 0D4FD1B02DB27BFE00CA6DB1;
 			minimizedProjectReferenceProxies = 1;
