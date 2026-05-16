@@ -2393,34 +2393,34 @@
 
 /* Whats New v2.8 */
 "whatsNew.title" = "¡Novedades en Moments!";
-"whatsNew.subtitle" = "Versión 2.10.0";
-"whatsNew.button" = "Explorar Moments 2.10";
+"whatsNew.subtitle" = "Versión 2.11.0";
+"whatsNew.button" = "Explorar Moments 2.11";
 
 /* Nova */
-"whatsNew.nova.title" = "Mensajes Más Fluidos";
-"whatsNew.nova.description" = "Ver fotos y vídeos en mensajes ahora se siente más natural, con un visor más cómodo y mejor integrado.";
+"whatsNew.nova.title" = "Nuevos stickers en historias";
+"whatsNew.nova.description" = "Llegan Reveal para rascar y descubrir, Polaroid con caption, y Audio para añadir voz o ambiente directamente a tus historias.";
 
-"whatsNew.account.title" = "Llaves de Acceso";
-"whatsNew.account.description" = "Ahora puedes iniciar sesión de forma más rápida y segura con Face ID gracias al soporte para Passkeys.";
+"whatsNew.account.title" = "Cámara y multimedia más pulidas";
+"whatsNew.account.description" = "Hemos refinado la captura, las previews y los controles de foto y vídeo para que crear y compartir se sienta mucho más fluido.";
 
 /* Liquid glass */
-"whatsNew.glass.title" = "Multimedia Mejor Resuelta";
-"whatsNew.glass.description" = "También hemos pulido respuestas, overlays y reproducción de vídeo para que compartir y revisar contenido resulte más agradable.";
+"whatsNew.glass.title" = "Capas ocultas en posts";
+"whatsNew.glass.description" = "Ahora puedes publicar secretos dentro de una foto usando texto, audio o una imagen oculta para que otras personas la descubran al tocarla.";
 
 /* Creator */
-"whatsNew.creator.title" = "Más Privacidad y Control";
-"whatsNew.creator.description" = "El flujo de privacidad y consentimiento de anuncios ahora se presenta de forma más clara y mejor integrada.";
+"whatsNew.creator.title" = "Secretos programados y métricas";
+"whatsNew.creator.description" = "Programa capas para más tarde y descubre cómo interactúa la gente con ellas gracias a nuevas métricas si eres el autor.";
 
 /* Feed */
-"whatsNew.feed.title" = "Ajustes Más Claros";
-"whatsNew.feed.description" = "Hemos refinado varias secciones de ajustes y seguridad para que todo sea más fácil de encontrar y entender.";
+"whatsNew.feed.title" = "Editar momentos, mejor que nunca";
+"whatsNew.feed.description" = "Rediseñamos la edición para que cambiar texto, audiencia, ubicación y etiquetas se sienta más limpio, claro y consistente.";
 
-"whatsNew.social.title" = "Perfil y Detalles Más Cuidados";
-"whatsNew.social.description" = "Pequeños ajustes en perfil, pestañas y vistas internas hacen que la app se sienta más consistente en el día a día.";
+"whatsNew.social.title" = "Stickers más cuidados";
+"whatsNew.social.description" = "También hemos rediseñado varios stickers y pulido preguntas, respuestas y vistas para que las historias se vean mucho mejor.";
 
 /* Fixes */
-"whatsNew.fixes.title" = "Más Estabilidad General";
-"whatsNew.fixes.description" = "Además, hemos corregido errores en autenticación, notificaciones, estados visuales y varios flujos internos.";
+"whatsNew.fixes.title" = "Subidas más fiables";
+"whatsNew.fixes.description" = "Mejor recuperación cuando falla la red, también en publicaciones con Capas Ocultas, además de varias correcciones de estabilidad.";
 
 /* Best Friends */
 "bestFriends.title" = "Mejores Amigos";
