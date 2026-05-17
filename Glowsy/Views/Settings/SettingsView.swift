@@ -186,7 +186,7 @@ struct SettingsView: View {
             .alert(isPresented: $showError) {
                 Alert(
                     title: Text("settings.error.title"),
-                    message: Text(errorMessage ?? "Ocurrió un error desconocido"),
+                    message: Text(errorMessage ?? NSLocalizedString("settings.error.unknown", comment: "Unknown settings error")),
                     dismissButton: .default(Text("settings.ok"))
                 )
             }
@@ -2308,7 +2308,11 @@ class SettingsViewModel: ObservableObject {
 
     func fetchUserSettings(completion: @escaping (Result<AppUser, Error>) -> Void) {
         guard let userId = Auth.auth().currentUser?.uid else {
-            completion(.failure(NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "Usuario no autenticado"])))
+            completion(.failure(NSError(
+                domain: "",
+                code: -1,
+                userInfo: [NSLocalizedDescriptionKey: NSLocalizedString("settings.error.notAuthenticated", comment: "Settings user not authenticated")]
+            )))
             return
         }
 

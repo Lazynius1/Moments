@@ -373,6 +373,7 @@ struct TrendingMomentCard: View {
 struct ForYouSection: View {
     let moments: [TrendingService.TrendingMoment]
     let onMomentTap: (Moment) -> Void
+    let onHashtagTap: (String) -> Void
     let onSeeAllTap: () -> Void
     
     private let columns = [
@@ -403,7 +404,8 @@ struct ForYouSection: View {
                     ForEach(moments.prefix(6)) { trendingMoment in
                         ForYouMomentCard(
                             trendingMoment: trendingMoment,
-                            onTap: { onMomentTap(trendingMoment.moment) }
+                            onTap: { onMomentTap(trendingMoment.moment) },
+                            onHashtagTap: onHashtagTap
                         )
                     }
                 }
@@ -418,54 +420,57 @@ struct ForYouSection: View {
 struct ForYouMomentCard: View {
     let trendingMoment: TrendingService.TrendingMoment
     let onTap: () -> Void
+    let onHashtagTap: (String) -> Void
     @State private var isPressed = false
     
     var body: some View {
-        Button(action: onTap) {
-            ZStack {
-                RoundedRectangle(cornerRadius: 16)
-                    .fill(.ultraThinMaterial)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 16)
-                            .stroke(
-                                LinearGradient(
-                                    colors: [Color.white.opacity(0.4), Color.clear],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                ),
-                                lineWidth: 1
-                            )
-                    )
-                    .shadow(color: .black.opacity(0.1), radius: 12, x: 0, y: 6)
-                
-                if let imagePath = trendingMoment.moment.imagePath,
-                   let url = getImageURL(from: imagePath) {
-                    KFImage(url)
-                        .placeholder {
-                            RoundedRectangle(cornerRadius: 16)
-                                .fill(Color.gray.opacity(0.2))
-                                .overlay(
-                                    ProgressView()
-                                        .progressViewStyle(CircularProgressViewStyle(tint: Color(hex: "667eea")))
-                                )
-                        }
-                        .resizable()
-                        .scaledToFill()
-                        .frame(height: 200)
-                        .clipShape(RoundedRectangle(cornerRadius: 16))
-                        .overlay(forYouOverlay)
-                } else {
+        ZStack {
+            RoundedRectangle(cornerRadius: 16)
+                .fill(.ultraThinMaterial)
+                .overlay(
                     RoundedRectangle(cornerRadius: 16)
-                        .fill(Color.gray.opacity(0.2))
-                        .frame(height: 200)
-                        .overlay(
-                            Image(systemName: "photo.fill")
-                                .font(.system(size: 32))
-                                .foregroundColor(.white.opacity(0.6))
+                        .stroke(
+                            LinearGradient(
+                                colors: [Color.white.opacity(0.4), Color.clear],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            ),
+                            lineWidth: 1
                         )
-                        .overlay(forYouOverlay)
-                }
+                )
+                .shadow(color: .black.opacity(0.1), radius: 12, x: 0, y: 6)
+
+            if let imagePath = trendingMoment.moment.imagePath,
+               let url = getImageURL(from: imagePath) {
+                KFImage(url)
+                    .placeholder {
+                        RoundedRectangle(cornerRadius: 16)
+                            .fill(Color.gray.opacity(0.2))
+                            .overlay(
+                                ProgressView()
+                                    .progressViewStyle(CircularProgressViewStyle(tint: Color(hex: "667eea")))
+                            )
+                    }
+                    .resizable()
+                    .scaledToFill()
+                    .frame(height: 200)
+                    .clipShape(RoundedRectangle(cornerRadius: 16))
+                    .overlay(forYouOverlay)
+            } else {
+                RoundedRectangle(cornerRadius: 16)
+                    .fill(Color.gray.opacity(0.2))
+                    .frame(height: 200)
+                    .overlay(
+                        Image(systemName: "photo.fill")
+                            .font(.system(size: 32))
+                            .foregroundColor(.white.opacity(0.6))
+                    )
+                    .overlay(forYouOverlay)
             }
+        }
+        .contentShape(RoundedRectangle(cornerRadius: 16))
+        .onTapGesture {
+            onTap()
         }
         .scaleEffect(isPressed ? 0.98 : 1.0)
         .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isPressed)
@@ -509,11 +514,19 @@ struct ForYouMomentCard: View {
                 }
                 
                 if !trendingMoment.moment.content.isEmpty {
-                    Text(trendingMoment.moment.content)
-                        .font(.custom("Poppins-Regular", size: 11))
-                        .foregroundColor(.white.opacity(0.9))
-                        .lineLimit(2)
-                        .shadow(color: .black.opacity(0.8), radius: 2, x: 0, y: 1)
+                    MomentHashtagText(
+                        content: trendingMoment.moment.content,
+                        textFont: .custom("Poppins-Regular", size: 11),
+                        hashtagFont: .custom("Poppins-SemiBold", size: 11),
+                        baseColor: .white.opacity(0.9),
+                        textAlignment: .leading,
+                        shadowColor: .black.opacity(0.8),
+                        shadowRadius: 2,
+                        shadowX: 0,
+                        shadowY: 1,
+                        lineLimit: 2,
+                        onHashtagTap: onHashtagTap
+                    )
                 }
             }
             .padding(.horizontal, 12)

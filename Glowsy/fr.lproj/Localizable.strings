@@ -3256,3 +3256,13 @@
 "hiddenLayers.metrics.status.pending" = "En attente";
 "hiddenLayers.metrics.status.scheduled" = "S’ouvre %@";
 "hiddenLayers.metrics.status.available" = "Actif";
+"explore.error.notAuthenticated" = "Utilisateur non authentifié. Veuillez vous connecter.";
+"explore.error.loadProfile" = "Impossible de charger votre profil : %@";
+"explore.error.loadMoments" = "Impossible de charger les moments : %@";
+"explore.error.requestFollow" = "Impossible d'envoyer la demande : %@";
+"explore.error.followUser" = "Impossible de suivre cet utilisateur : %@";
+"explore.error.fetchProfile" = "Impossible de charger le profil : %@";
+"explore.error.trending" = "Impossible de charger les tendances : %@";
+"explore.error.searchUsers" = "Impossible de rechercher des utilisateurs : %@";
+"settings.error.unknown" = "Une erreur inconnue s'est produite";
+"settings.error.notAuthenticated" = "Utilisateur non authentifié";

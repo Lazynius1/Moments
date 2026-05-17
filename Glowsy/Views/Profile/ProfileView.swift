@@ -252,6 +252,8 @@ struct ProfileView: View {
     @State private var showProfileImageFullscreen = false // ✅ NUEVO: Estado para ver foto grande
     @State private var selectedExternalProfileUserId: String? = nil
     @State private var showExternalProfile = false
+    @State private var editingMoment: Moment? = nil
+    @State private var pendingDeleteMoment: Moment? = nil
     
 
     enum UserListType: Identifiable {
@@ -313,7 +315,9 @@ struct ProfileView: View {
                         showingThemeSelector: $showingThemeSelector,
                         selectedProfileTab: $selectedProfileTab,  // ✅ NUEVO
                         showingQRCode: $isShowingQRCode, // ✅ NUEVO: Binding
-                        showProfileImageFullscreen: $showProfileImageFullscreen // ✅ NUEVO
+                        showProfileImageFullscreen: $showProfileImageFullscreen, // ✅ NUEVO
+                        editingMoment: $editingMoment,
+                        pendingDeleteMoment: $pendingDeleteMoment
                     )
 
                 }
@@ -352,6 +356,14 @@ struct ProfileView: View {
                         .presentationDragIndicator(.hidden)
                         .presentationBackground(.clear)
                     }
+                }
+                .sheet(item: $editingMoment) { moment in
+                    EditMomentView(
+                        moment: moment,
+                        onSave: { payload in
+                            updateMoment(payload: payload, for: moment)
+                        }
+                    )
                 }
                 
                 .fullScreenCover(isPresented: $showMomentDetail) {
@@ -398,6 +410,23 @@ struct ProfileView: View {
                     if let userId = selectedExternalProfileUserId {
                         UserProfileView(userId: userId)
                     }
+                }
+                .alert(
+                    NSLocalizedString("contextMenu.delete.title", comment: "Delete moment alert title"),
+                    isPresented: Binding(
+                        get: { pendingDeleteMoment != nil },
+                        set: { if !$0 { pendingDeleteMoment = nil } }
+                    ),
+                    presenting: pendingDeleteMoment
+                ) { moment in
+                    Button(NSLocalizedString("contextMenu.delete.cancel", comment: "Cancel button"), role: .cancel) {
+                        pendingDeleteMoment = nil
+                    }
+                    Button(NSLocalizedString("contextMenu.delete.confirm", comment: "Delete button"), role: .destructive) {
+                        deleteMoment(moment)
+                    }
+                } message: { _ in
+                    Text(NSLocalizedString("contextMenu.delete.message", comment: "Delete moment confirmation message"))
                 }
                 .fullScreenCover(isPresented: $showStoryViewer) {
                     if let userId = Auth.auth().currentUser?.uid,
@@ -485,6 +514,44 @@ struct ProfileView: View {
         selectedExternalProfileUserId = userId
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
             showExternalProfile = true
+        }
+    }
+
+    private func updateMoment(payload: EditMomentPayload, for moment: Moment) {
+        guard let momentId = moment.id else { return }
+
+        FirestoreService.shared.updateMomentDetails(
+            userId: moment.authorId,
+            momentId: momentId,
+            content: payload.content,
+            audience: payload.audience.rawValue,
+            customListId: payload.customListId,
+            customViewers: payload.customViewers,
+            taggedUsers: payload.taggedUsers,
+            location: payload.locationName.isEmpty ? nil : payload.locationName,
+            locationCoordinate: payload.locationCoordinate.map {
+                Moment.LocationCoordinate(latitude: $0.latitude, longitude: $0.longitude)
+            },
+            mediaItems: payload.mediaItems
+        ) { error in
+            guard error == nil else { return }
+
+            DispatchQueue.main.async {
+                editingMoment = nil
+                viewModel.refreshProfile()
+            }
+        }
+    }
+
+    private func deleteMoment(_ moment: Moment) {
+        guard let momentId = moment.id else { return }
+
+        FirestoreService.shared.deleteMoment(userId: moment.authorId, momentId: momentId) { _ in
+            DispatchQueue.main.async {
+                viewModel.moments.removeAll { $0.id == momentId }
+                LocalPersistenceService.shared.deleteMoment(momentId: momentId)
+                pendingDeleteMoment = nil
+            }
         }
     }
     
@@ -579,6 +646,8 @@ struct ModernProfileContentView: View {
     @Binding var selectedProfileTab: ProfileTabType  // ✅ NUEVO: Tab selector
     @Binding var showingQRCode: Bool // ✅ NUEVO: Binding para QR
     @Binding var showProfileImageFullscreen: Bool // ✅ NUEVO
+    @Binding var editingMoment: Moment?
+    @Binding var pendingDeleteMoment: Moment?
     @StateObject private var savedMomentsViewModel = SavedMomentsViewModel()  // ✅ NUEVO: Guardados
     @State private var showingFullInfo = false // ✅ NUEVO: Para expandir intereses dentro del bloque social
 
@@ -682,22 +751,13 @@ struct ModernProfileContentView: View {
                                                     }
 
                                                     Button {
-                                                        // Abrir edición: reutilizar el mismo flujo que el menú contextual
-                                                        NotificationCenter.default.post(
-                                                            name: NSNotification.Name("EditMoment"),
-                                                            object: moment
-                                                        )
+                                                        editingMoment = moment
                                                     } label: {
                                                         Label(NSLocalizedString("contextMenu.editMoment", comment: "Edit"), systemImage: "pencil")
                                                     }
 
                                                     Button(role: .destructive) {
-                                                        if let momentId = moment.id {
-                                                            FirestoreService.shared.deleteMoment(userId: moment.authorId, momentId: momentId) { _ in
-                                                                viewModel.moments.removeAll { $0.id == momentId }
-                                                                LocalPersistenceService.shared.deleteMoment(momentId: momentId)
-                                                            }
-                                                        }
+                                                        pendingDeleteMoment = moment
                                                     } label: {
                                                         Label(NSLocalizedString("contextMenu.deleteMoment", comment: "Delete"), systemImage: "trash")
                                                     }

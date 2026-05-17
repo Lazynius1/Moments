@@ -610,23 +610,52 @@ struct StickerPolaroidFrameView: View {
     let progress: Double // 0.0 to 1.0 (revelado)
     let caption: String? // ✅ Nuevo: Texto opcional
     
+    @State private var isShaking = false
+    @State private var shakeTask: Task<Void, Never>? = nil
+    
     var body: some View {
         VStack(spacing: 0) {
             ZStack {
-                Rectangle()
-                    .fill(Color.black)
+                // Fondo de emulsión fotosensible oscura inicial (plata/haluro)
+                LinearGradient(
+                    colors: [Color(red: 0.08, green: 0.09, blue: 0.12), Color(red: 0.04, green: 0.04, blue: 0.06)],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
                 
+                // Brillo químico/metálico satinado inicial
+                if progress < 1.0 {
+                    RoundedRectangle(cornerRadius: 0)
+                        .fill(
+                            LinearGradient(
+                                colors: [.white.opacity(0.10), .clear, .black.opacity(0.25)],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+                        .blendMode(.overlay)
+                }
+
                 if let image = image {
                     Image(uiImage: image)
                         .resizable()
                         .aspectRatio(contentMode: .fill)
-                        .opacity(progress)
-                        .blur(radius: (1.0 - progress) * 20)
+                        .opacity(progress > 0.05 ? min(1.0, (progress - 0.05) / 0.95) : 0.0)
+                        .blur(radius: (1.0 - progress) * 16)
+                        .brightness((progress - 1.0) * 0.42) // Comienza oscuro
+                        .contrast(0.55 + (progress * 0.45)) // Comienza plano y gana contraste
+                        .colorMultiply(
+                            Color(
+                                red: 1.0,
+                                green: 0.88 + (0.12 * progress),
+                                blue: 0.62 + (0.38 * progress)
+                            )
+                        ) // Transición química ámbar/sepia
                 }
                 
-                // Efecto de "vaho" o revelado químico
+                // Efecto de "vaho" químico que se disuelve
                 if progress < 1.0 {
-                    Color.white.opacity((1.0 - progress) * 0.2)
+                    Color.white.opacity((1.0 - progress) * 0.18)
                         .blendMode(.overlay)
                 }
             }
@@ -642,22 +671,119 @@ struct StickerPolaroidFrameView: View {
                     .frame(width: 200, height: 40)
                 
                 if let caption = caption, !caption.isEmpty {
-                    Text(caption)
-                        .font(.custom("MarkerFelt-Wide", size: 15)) // Fuente tipo rotulador
-                        .foregroundColor(.black.opacity(0.85))
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.5)
-                        .padding(.horizontal, 12)
-                        .rotationEffect(.degrees(-1)) // Pequeño ángulo para naturalidad
-                        .offset(y: -2)
+                    let visibleCount = Int(Double(caption.count) * progress)
+                    (
+                        Text(caption.prefix(visibleCount))
+                            .font(.custom("Caveat-Medium", size: 21))
+                            .foregroundColor(.black.opacity(0.85))
+                        +
+                        Text(caption.dropFirst(visibleCount))
+                            .font(.custom("Caveat-Medium", size: 21))
+                            .foregroundColor(.clear)
+                    )
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.5)
+                    .padding(.horizontal, 12)
+                    .rotationEffect(.degrees(-1)) // Pequeño ángulo para naturalidad
+                    .offset(y: -2)
                 }
             }
         }
         .background(Color.white)
         .shadow(color: .black.opacity(0.2), radius: 8, y: 4)
         .rotationEffect(.degrees(-2)) // Un toque "tirado"
+        .overlay {
+            // El lienzo mágico cubre TODA la Polaroid y se extiende fuera de ella de forma circular/difuminada
+            if progress < 1.0 {
+                Canvas { context, size in
+                    var rng = StickerSeededRandom(seed: 77)
+                    let area = max(size.width * size.height, 1)
+                    let particleCount = min(max(Int(area / 110), 90), 320)
+                    
+                    let timeFactor = progress * 30.0
+                    
+                    let centerX = size.width / 2.0
+                    let centerY = size.height / 2.0
+                    // Radio máximo para calcular la atenuación radial
+                    let maxDist = sqrt(centerX * centerX + centerY * centerY)
+                    
+                    for _ in 0..<particleCount {
+                        let baseX = CGFloat(rng.next()) * size.width
+                        let baseY = CGFloat(rng.next()) * size.height
+                        
+                        let speedX = rng.next() * 3.5 + 1.5
+                        let speedY = rng.next() * 4.0 + 2.0
+                        let driftPhase = rng.next() * .pi * 2
+                        
+                        // Deriva mágica que fluye cruzando el marco
+                        let offsetX = sin(timeFactor * 0.25 * speedX + driftPhase) * 22.0
+                        let offsetY = cos(timeFactor * 0.18 * speedY + driftPhase) * 26.0
+                        
+                        let x = baseX + offsetX
+                        let y = baseY + offsetY
+                        
+                        let dotSize = CGFloat(rng.next() * 2.5 + 1.0)
+                        
+                        // Hermoso decaimiento radial (Vignette) para evitar recortes cuadrados abruptos en los bordes
+                        let dx = x - centerX
+                        let dy = y - centerY
+                        let dist = sqrt(dx * dx + dy * dy)
+                        let edgeFade = max(0.0, min(1.0, 1.0 - pow(dist / maxDist, 2.5)))
+                        
+                        // Si no se está agitando, las motas se desvanecen completamente
+                        let shakeOpacityFactor = isShaking ? 1.0 : 0.0
+                        let opacity = (0.28 + rng.next() * 0.42) * (1.0 - progress) * shakeOpacityFactor * edgeFade
+                        
+                        let rect = CGRect(
+                            x: x,
+                            y: y,
+                            width: dotSize,
+                            height: dotSize
+                        )
+                        
+                        context.fill(Path(ellipseIn: rect), with: .color(.white.opacity(opacity)))
+                    }
+                }
+                .blendMode(.screen)
+                .allowsHitTesting(false)
+                .padding(-36) // Amplio espacio para que el desvanecimiento ocurra 100% de forma natural
+            }
+        }
+        .onChange(of: progress) { _, _ in
+            // Al detectar cambio de progreso por sacudida, hacemos aparecer las motas
+            withAnimation(.easeOut(duration: 0.25)) {
+                isShaking = true
+            }
+            // Temporizador para desvanecerlas suavemente tras 0.4s sin movimiento
+            shakeTask?.cancel()
+            shakeTask = Task {
+                try? await Task.sleep(nanoseconds: 400_000_000)
+                guard !Task.isCancelled else { return }
+                withAnimation(.easeOut(duration: 0.45)) {
+                    isShaking = false
+                }
+            }
+        }
+        .onDisappear {
+            shakeTask?.cancel()
+        }
     }
 }
+
+// Helper para aleatorios consistentes en Canvas del sticker
+private struct StickerSeededRandom {
+    var state: UInt64
+    init(seed: Int) { state = UInt64(abs(seed)) }
+    mutating func next() -> Double {
+        state = state &+ 0x9E3779B97F4A7C15
+        var z = state
+        z = (z ^ (z >> 30)) &* 0xBF58476D1CE4E5B9
+        z = (z ^ (z >> 27)) &* 0x94D049BB133111EB
+        return Double(z ^ (z >> 31)) / Double(UInt64.max)
+    }
+}
+
+
 
 // MARK: - ✅ NEW: DITHER PATTERN (Reveal Surface)
 struct StickerDitherPattern: View {
