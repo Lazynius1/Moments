@@ -41,6 +41,8 @@ struct LocationMomentDetailView: View {
     @State private var isDeleting = false
     @State private var showSpecificUserStories = false
     @State private var selectedStoryUserId: String = ""
+    @State private var selectedHashtag: String = ""
+    @State private var showExploreWithHashtag = false
     
     private var adaptiveColors: AdaptiveColors {
         AdaptiveColors(colorScheme: colorScheme)
@@ -151,6 +153,9 @@ struct LocationMomentDetailView: View {
             )
             .environmentObject(firestoreService)
             .ignoresSafeArea(.keyboard)
+        }
+        .sheet(isPresented: $showExploreWithHashtag) {
+            ExploreView(initialSearchQuery: selectedHashtag)
         }
         .alert(NSLocalizedString("locationMomentDetail.delete.title", comment: "Delete moment"), isPresented: $showDeleteAlert) {
             Button(NSLocalizedString("locationMomentDetail.delete.cancel", comment: "Cancel"), role: .cancel) { }
@@ -471,6 +476,10 @@ struct LocationMomentDetailView: View {
                             contextMenuMoment = moment
                             showContextMenu = true
                         },
+                        onHashtagTap: { hashtag in
+                            selectedHashtag = "#\(hashtag)"
+                            showExploreWithHashtag = true
+                        },
                         onAvatarTap: { userId, hasStory in
                             handleAvatarTap(userId: userId, hasStory: hasStory)
                         }
@@ -561,6 +570,7 @@ struct LocationMomentCard: View {
     let onComment: () -> Void
     let onSave: () -> Void
     let onContextMenu: () -> Void
+    let onHashtagTap: (String) -> Void
     let onAvatarTap: (String, Bool) -> Void
     
     @EnvironmentObject private var firestoreService: FirestoreService
@@ -918,12 +928,16 @@ struct LocationMomentCard: View {
     // ✅ Texto del contenido (como MomentDetailView)
     private var locationMomentContentText: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text(moment.content)
-                .font(.custom("Poppins-Regular", size: 16))
-                .foregroundColor(colorScheme == .dark ? .white.opacity(0.9) : .black.opacity(0.9))
-                .multilineTextAlignment(.leading)
-                .padding(.trailing, isImmersive ? 0 : 140) // ✅ Protección contra el rail
-                .frame(maxWidth: .infinity, alignment: .leading)
+            MomentHashtagText(
+                content: moment.content,
+                textFont: .custom("Poppins-Regular", size: 16),
+                hashtagFont: .custom("Poppins-SemiBold", size: 16),
+                baseColor: colorScheme == .dark ? .white.opacity(0.9) : .black.opacity(0.9),
+                textAlignment: .leading,
+                onHashtagTap: onHashtagTap
+            )
+            .padding(.trailing, isImmersive ? 0 : 140)
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
         .padding(.horizontal, 18)
         .padding(.vertical, 14)

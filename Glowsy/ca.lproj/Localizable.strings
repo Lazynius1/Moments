@@ -3266,3 +3266,13 @@
 "hiddenLayers.metrics.status.pending" = "Pendent";
 "hiddenLayers.metrics.status.scheduled" = "S’obri %@";
 "hiddenLayers.metrics.status.available" = "Activa";
+"explore.error.notAuthenticated" = "Usuari no autenticat. Si us plau, inicia sessió.";
+"explore.error.loadProfile" = "No s'ha pogut carregar el teu perfil: %@";
+"explore.error.loadMoments" = "No s'han pogut carregar els moments: %@";
+"explore.error.requestFollow" = "No s'ha pogut enviar la sol·licitud: %@";
+"explore.error.followUser" = "No s'ha pogut seguir l'usuari: %@";
+"explore.error.fetchProfile" = "No s'ha pogut obtenir el perfil: %@";
+"explore.error.trending" = "No s'han pogut carregar les tendències: %@";
+"explore.error.searchUsers" = "No s'han pogut cercar usuaris: %@";
+"settings.error.unknown" = "S'ha produït un error desconegut";
+"settings.error.notAuthenticated" = "Usuari no autenticat";

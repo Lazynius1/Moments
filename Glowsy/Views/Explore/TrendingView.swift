@@ -133,6 +133,11 @@ struct TrendingView: View {
                             ExploreHapticFeedback.impact(.light)
                             selectedMoment = moment
                         },
+                        onHashtagTap: { hashtag in
+                            ExploreHapticFeedback.impact(.light)
+                            selectedHashtag = hashtag.hasPrefix("#") ? hashtag : "#\(hashtag)"
+                            showExploreWithHashtag = true
+                        },
                         onSeeAllTap: {
                             // Scroll to trending moments section
                             withAnimation(.easeInOut(duration: 0.8)) {

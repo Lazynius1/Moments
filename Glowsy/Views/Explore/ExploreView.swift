@@ -546,15 +546,15 @@ struct SuggestedUsersSection: View {
     
     var body: some View {
         if !users.isEmpty {
-            VStack(alignment: .leading, spacing: 20) {
+            VStack(alignment: .leading, spacing: 14) {
                 HStack {
                     VStack(alignment: .leading, spacing: 4) {
                         Text("explore.suggestedUsers.title")
-                            .font(.custom("Poppins-SemiBold", size: 22))
+                            .font(.custom("Poppins-SemiBold", size: 20))
                             .foregroundColor(.primary)
                         
                         Text("explore.suggestedUsers.subtitle")
-                            .font(.custom("Poppins-Regular", size: 14))
+                            .font(.custom("Poppins-Regular", size: 13))
                             .foregroundColor(.secondary)
                     }
                     
@@ -567,10 +567,10 @@ struct SuggestedUsersSection: View {
                     .foregroundColor(Color(hex: "667eea"))
                 }
                 .padding(.horizontal, 10)
-                .padding(.top, 16)
+                .padding(.top, 10)
                 
                 ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 16) {
+                    HStack(spacing: 12) {
                         ForEach(users) { user in
                             // ✅ Buscar el último momento visible de este usuario
                             let latestMoment = moments.first(where: { $0.authorId == user.id })
@@ -616,13 +616,13 @@ struct SuggestedUserCard: View {
                         }
                         .resizable()
                         .aspectRatio(contentMode: .fill)
-                        .frame(width: 160, height: 220)
+                        .frame(width: 132, height: 176)
                         .clipped()
-                        .blur(radius: 8)
+                        .blur(radius: 4)
                         .overlay(
                             // Overlay oscuro para legibilidad
                             LinearGradient(
-                                colors: [.black.opacity(0.7), .black.opacity(0.3)],
+                                colors: [.black.opacity(0.50), .black.opacity(0.18)],
                                 startPoint: .bottom,
                                 endPoint: .top
                             )
@@ -633,68 +633,68 @@ struct SuggestedUserCard: View {
             }
             
             // ✅ CONTENIDO
-            VStack(spacing: 12) {
+            VStack(spacing: 9) {
                 Spacer()
                 
                 // Profile Image with Glow
                 ZStack {
                     Circle()
                         .fill(Color(hex: "667eea").opacity(0.3))
-                        .frame(width: 68, height: 68)
-                        .blur(radius: 8)
+                        .frame(width: 48, height: 48)
+                        .blur(radius: 6)
                     
-                    ProfileImageeView(imagePath: user.profileImagePath, size: 60)
+                    ProfileImageeView(imagePath: user.profileImagePath, size: 42)
                         .overlay(
                             Circle()
-                                .stroke(Color.white, lineWidth: 2)
+                                .stroke(Color.white, lineWidth: 1.5)
                         )
                 }
                 
-                VStack(spacing: 4) {
+                VStack(spacing: 3) {
                     HStack(spacing: 4) {
                         Text(user.username)
-                            .font(.custom("Poppins-SemiBold", size: 15))
+                            .font(.custom("Poppins-SemiBold", size: 13))
                             .foregroundColor(.white) // ✅ Texto blanco siempre
                             .lineLimit(1)
                             .shadow(radius: 2)
                         
-                        VerifiedBadgeView(userId: user.id, size: 12)
+                        VerifiedBadgeView(userId: user.id, size: 10)
                     }
                     
                     if commonInterests > 0 {
                         Text(String(format: NSLocalizedString("explore.commonInterests", comment: "Common interests"), commonInterests))
-                            .font(.custom("Poppins-Medium", size: 11))
-                            .foregroundColor(.white.opacity(0.9))
+                            .font(.custom("Poppins-Medium", size: 10))
+                            .foregroundColor(.white.opacity(0.82))
                             .lineLimit(1)
                     } else {
                         Text(NSLocalizedString("explore.suggestedUsers.suggestedForYou", comment: ""))
-                             .font(.custom("Poppins-Medium", size: 11))
-                             .foregroundColor(.white.opacity(0.9))
+                             .font(.custom("Poppins-Medium", size: 10))
+                             .foregroundColor(.white.opacity(0.82))
                     }
                 }
                 
                 Button(action: onFollow) {
                     Text(buttonTitle)
-                        .font(.custom("Poppins-SemiBold", size: 13))
+                        .font(.custom("Poppins-SemiBold", size: 11))
                         .foregroundColor(.primary)
                         .frame(maxWidth: .infinity)
-                        .padding(.vertical, 8)
+                        .padding(.vertical, 6)
                         .liquidGlass(in: Capsule(), interactive: buttonState.isActionable)
                 }
                 .disabled(!buttonState.isActionable)
                 .opacity(isPassiveButtonState ? 0.78 : 1)
             }
-            .padding(12)
-            .padding(.bottom, 12)
+            .padding(10)
+            .padding(.bottom, 8)
         }
-        .frame(width: 160, height: 220)
+        .frame(width: 132, height: 176)
         .background(Color.black) // Fallback color
-        .clipShape(RoundedRectangle(cornerRadius: 20))
+        .clipShape(RoundedRectangle(cornerRadius: 18))
         .overlay(
-            RoundedRectangle(cornerRadius: 20)
-                .stroke(Color.white.opacity(0.3), lineWidth: 1)
+            RoundedRectangle(cornerRadius: 18)
+                .stroke(Color.white.opacity(0.24), lineWidth: 0.8)
         )
-        .shadow(color: .black.opacity(0.15), radius: 8, x: 0, y: 4)
+        .shadow(color: .black.opacity(0.10), radius: 6, x: 0, y: 3)
         .scaleEffect(isPressed ? 0.96 : 1.0)
         .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isPressed)
         .onTapGesture { onTap() }
@@ -900,7 +900,7 @@ struct DynamicMomentsGrid: View {
     // Mejor ciclo: Row(3) -> BigLeft(3 consumidos) -> Row(3) -> BigRight(3 consumidos). Total 12 items.
     
     var body: some View {
-        VStack(spacing: 2) { // Spacing vertical del grid = 2
+        VStack(spacing: 4) {
             let chunked = moments.chunked(into: 12)
             
             ForEach(0..<chunked.count, id: \.self) { index in
@@ -959,8 +959,9 @@ struct MomentsRowView: View {
     
     var body: some View {
         GeometryReader { geo in
-            let width = (geo.size.width - 4) / 3 // 2 gaps of 2px
-            HStack(spacing: 2) {
+            let spacing: CGFloat = 4
+            let width = (geo.size.width - (spacing * 2)) / 3
+            HStack(spacing: spacing) {
                 ForEach(moments) { moment in
                     MomentCard(moment: moment, onTap: { onTap(moment) })
                         .frame(width: width, height: width)
@@ -984,10 +985,11 @@ struct BigLeftRowView: View {
     
     var body: some View {
         GeometryReader { geo in
-            let oneUnit = (geo.size.width - 4) / 3
-            let twoUnits = oneUnit * 2 + 2
+            let spacing: CGFloat = 4
+            let oneUnit = (geo.size.width - (spacing * 2)) / 3
+            let twoUnits = oneUnit * 2 + spacing
             
-            HStack(alignment: .top, spacing: 2) {
+            HStack(alignment: .top, spacing: spacing) {
                 // Item 0: Grande
                 if moments.indices.contains(0) {
                     MomentCard(moment: moments[0], onTap: { onTap(moments[0]) })
@@ -995,8 +997,7 @@ struct BigLeftRowView: View {
                         .clipped()
                 }
                 
-                // Stack Derecha: Items 1, 2
-                VStack(spacing: 2) {
+                VStack(spacing: spacing) {
                     if moments.indices.contains(1) {
                         MomentCard(moment: moments[1], onTap: { onTap(moments[1]) })
                             .frame(width: oneUnit, height: oneUnit)
@@ -1010,7 +1011,7 @@ struct BigLeftRowView: View {
                 }
             }
         }
-        .frame(height: (UIScreen.main.bounds.width / 3) * 2 + 2)
+        .frame(height: (UIScreen.main.bounds.width / 3) * 2 + 4)
     }
 }
 
@@ -1021,12 +1022,13 @@ struct BigRightRowView: View {
     
     var body: some View {
         GeometryReader { geo in
-            let oneUnit = (geo.size.width - 4) / 3
-            let twoUnits = oneUnit * 2 + 2
+            let spacing: CGFloat = 4
+            let oneUnit = (geo.size.width - (spacing * 2)) / 3
+            let twoUnits = oneUnit * 2 + spacing
             
-            HStack(alignment: .top, spacing: 2) {
+            HStack(alignment: .top, spacing: spacing) {
                 // Stack Izquierda: Items 0, 1
-                VStack(spacing: 2) {
+                VStack(spacing: spacing) {
                     if moments.indices.contains(0) {
                         MomentCard(moment: moments[0], onTap: { onTap(moments[0]) })
                             .frame(width: oneUnit, height: oneUnit)
@@ -1047,7 +1049,7 @@ struct BigRightRowView: View {
                 }
             }
         }
-        .frame(height: (UIScreen.main.bounds.width / 3) * 2 + 2)
+        .frame(height: (UIScreen.main.bounds.width / 3) * 2 + 4)
     }
 }
 
@@ -1063,7 +1065,8 @@ struct MomentCard: View {
             Button(action: onTap) {
                 GeometryReader { geometry in
                     ZStack {
-                        Color.gray.opacity(0.1)
+                        RoundedRectangle(cornerRadius: 14, style: .continuous)
+                            .fill(Color.gray.opacity(0.08))
                         
                         if let mediaItem = moment.primaryVisibleMediaItem, mediaItem.type == .video {
                             ExploreVideoThumbnailView(videoUrl: mediaItem.url, thumbnailUrl: mediaItem.thumbnailUrl ?? moment.thumbnailUrl)
@@ -1074,13 +1077,13 @@ struct MomentCard: View {
                                     ZStack {
                                         Circle()
                                             .fill(.ultraThinMaterial)
-                                            .frame(width: 24, height: 24)
+                                            .frame(width: 22, height: 22)
                                         
                                         Image(systemName: "play.fill")
-                                            .font(.system(size: 12))
+                                            .font(.system(size: 10))
                                             .foregroundColor(.white)
                                     }
-                                    .padding(8),
+                                    .padding(7),
                                     alignment: .bottomTrailing
                                 )
                         } else if let imagePath = moment.previewImageURLString, let url = getImageURL(from: imagePath) {
@@ -1094,6 +1097,7 @@ struct MomentCard: View {
                                 .clipped()
                         }
                     }
+                    .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
                 }
                 .aspectRatio(1, contentMode: .fit) 
             }

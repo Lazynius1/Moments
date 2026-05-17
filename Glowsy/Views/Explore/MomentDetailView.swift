@@ -39,6 +39,8 @@ struct MomentDetailView: View {
     @State private var isImmersive: Bool = false // ✅ NUEVO: Soporte para modo inmersivo
     @State private var showingStories = false
     @State private var selectedLocationMoment: Moment? // ✅ Usar Item Binding para evitar race conditions en SwiftUI
+    @State private var selectedHashtag: String = ""
+    @State private var showExploreWithHashtag = false
     private let firestoreService = FirestoreService()
     
 
@@ -181,6 +183,9 @@ struct MomentDetailView: View {
         }
         .sheet(isPresented: $showingStories) {
             StoriesView(startWithUserId: .constant(moment.authorId))
+        }
+        .sheet(isPresented: $showExploreWithHashtag) {
+            ExploreView(initialSearchQuery: selectedHashtag)
         }
         .fullScreenCover(item: $selectedLocationMoment) { moment in
             LocationMapView(
@@ -584,18 +589,24 @@ struct MomentDetailView: View {
     private var momentContentText: some View {
         VStack(alignment: .leading, spacing: 12) {
             VStack(alignment: .leading, spacing: 8) {
-                Text(moment.content)
-                    .font(.custom("Poppins-Regular", size: 16))
-                    .foregroundColor(colorScheme == .dark ? .white.opacity(0.9) : .black.opacity(0.9))
-                    .multilineTextAlignment(.leading)
-                    .padding(.trailing, 0) // ✅ ELIMINADO: No necesita padding de 140 aquí
-                    .lineLimit(isContentExpanded ? nil : 3) // ✅ AUMENTADO: Mostrar más líneas por defecto
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .animation(.easeInOut(duration: 0.3), value: isContentExpanded)
-                    .onAppear {
-                        // Detectar si el contenido necesita expansión
-                        needsContentExpansion = moment.content.count > 50 || moment.content.contains("\n")
+                MomentHashtagText(
+                    content: moment.content,
+                    textFont: .custom("Poppins-Regular", size: 16),
+                    hashtagFont: .custom("Poppins-SemiBold", size: 16),
+                    baseColor: colorScheme == .dark ? .white.opacity(0.9) : .black.opacity(0.9),
+                    textAlignment: .leading,
+                    lineLimit: isContentExpanded ? nil : 3,
+                    onHashtagTap: { hashtag in
+                        selectedHashtag = "#\(hashtag)"
+                        showExploreWithHashtag = true
                     }
+                )
+                .padding(.trailing, 0)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .animation(.easeInOut(duration: 0.3), value: isContentExpanded)
+                .onAppear {
+                    needsContentExpansion = moment.content.count > 50 || moment.content.contains("\n")
+                }
                 
                 // Botón "ver más" solo si el contenido es largo
                 if needsContentExpansion {

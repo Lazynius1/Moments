@@ -322,18 +322,8 @@ class TrendingService: ObservableObject {
     
     // MARK: - 🔧 UTILIDADES
     private func extractHashtags(from text: String) -> [String] {
-        let pattern = #"#\w+"#
-        let regex = try? NSRegularExpression(pattern: pattern, options: .caseInsensitive)
-        let range = NSRange(location: 0, length: text.utf16.count)
-        let matches = regex?.matches(in: text, options: [], range: range) ?? []
-        
-        return matches.compactMap { match in
-            if let range = Range(match.range, in: text) {
-                let hashtag = String(text[range])
-                return hashtag.lowercased().replacingOccurrences(of: "#", with: "")
-            }
-            return nil
-        }.filter { $0.count > 1 } // Filtrar hashtags muy cortos
+        MomentHashtagParser.extractHashtags(from: text)
+            .map { $0.lowercased() }
     }
     
     private func categorizeHashtag(_ hashtag: String) -> TrendingHashtag.HashtagCategory {

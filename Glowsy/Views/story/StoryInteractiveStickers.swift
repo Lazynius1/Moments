@@ -216,9 +216,9 @@ struct InteractiveFrameSticker: View {
 
     private func startMotionUpdates() {
         guard motionManager.isAccelerometerAvailable else {
-            // Fallback for simulator
+            // Fallback for simulator (punto medio perfecto de 3.3s)
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
-                withAnimation(.linear(duration: 2.5)) { revealProgress = 1.0 }
+                withAnimation(.linear(duration: 3.3)) { revealProgress = 1.0 }
                 markAsRevealed()
             }
             return
@@ -238,8 +238,9 @@ struct InteractiveFrameSticker: View {
                         resetShakeTimer()
                     }
 
-                    let increment = 0.06
-                    withAnimation(.easeInOut(duration: 0.2)) {
+                    // Punto medio dulce: incremento balanceado y transición responsiva
+                    let increment = 0.038
+                    withAnimation(.easeInOut(duration: 0.26)) {
                         revealProgress = min(revealProgress + increment, 1.0)
                     }
 
@@ -255,6 +256,8 @@ struct InteractiveFrameSticker: View {
                     }
                 }
             }
+
+
             lastAcceleration = acceleration
         }
     }

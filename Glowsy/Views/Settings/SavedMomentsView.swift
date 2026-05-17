@@ -1231,6 +1231,8 @@ struct ModernSavedMomentsDetailView: View {
     @State private var isPeeking = false
     @State private var peekOverlayProgress: CGFloat = 0
     @State private var peekIsProtected = false
+    @State private var selectedHashtag: String = ""
+    @State private var showExploreWithHashtag = false
     
     init(moments: [Moment], initialIndex: Int, onDismiss: @escaping () -> Void, onRemoveMoment: ((Moment) -> Void)? = nil) {
         self.moments = moments
@@ -1308,6 +1310,9 @@ struct ModernSavedMomentsDetailView: View {
                 .presentationDetents([.medium, .large])
                 .presentationDragIndicator(.visible)
         }
+        .sheet(isPresented: $showExploreWithHashtag) {
+            ExploreView(initialSearchQuery: selectedHashtag)
+        }
                         .alert(NSLocalizedString("savedMoments.remove.title", comment: "Remove from saved"), isPresented: $showingRemoveAlert) {
             Button(NSLocalizedString("savedMoments.cancel", comment: "Cancel"), role: .cancel) {}
             Button(NSLocalizedString("savedMoments.remove.confirm", comment: "Remove"), role: .destructive) {
@@ -1349,6 +1354,10 @@ struct ModernSavedMomentsDetailView: View {
                                 availableHeight: geometry.size.height - 200,
                                 onComment: {
                                     commentsRoute = SavedMomentCommentsRoute(moment: moment)
+                                },
+                                onHashtagTap: { hashtag in
+                                    selectedHashtag = "#\(hashtag)"
+                                    showExploreWithHashtag = true
                                 },
                                 onRemove: {
                                     momentToRemove = moment
@@ -1509,6 +1518,7 @@ struct ModernSavedDetailMomentCard: View {
     let moment: Moment
     let availableHeight: CGFloat
     let onComment: () -> Void
+    let onHashtagTap: (String) -> Void
     let onRemove: () -> Void
     let onPeek: ((String, CGFloat, Bool) -> Void)?
     
@@ -1687,7 +1697,7 @@ struct ModernSavedDetailMomentCard: View {
                                 ExpandableContentView(
                                     content: moment.content,
                                     colorScheme: colorScheme,
-                                    onHashtagTap: { _ in }
+                                    onHashtagTap: onHashtagTap
                                 )
                                 .padding(.leading, 14)
                                 .padding(.trailing, isImmersive ? 14 : 124)

@@ -3256,3 +3256,13 @@
 "hiddenLayers.metrics.status.pending" = "Pending";
 "hiddenLayers.metrics.status.scheduled" = "Opens %@";
 "hiddenLayers.metrics.status.available" = "Live";
+"explore.error.notAuthenticated" = "User not authenticated. Please sign in.";
+"explore.error.loadProfile" = "Could not load your profile: %@";
+"explore.error.loadMoments" = "Could not load moments: %@";
+"explore.error.requestFollow" = "Could not send follow request: %@";
+"explore.error.followUser" = "Could not follow user: %@";
+"explore.error.fetchProfile" = "Could not load profile: %@";
+"explore.error.trending" = "Could not load trending content: %@";
+"explore.error.searchUsers" = "Could not search users: %@";
+"settings.error.unknown" = "An unknown error occurred";
+"settings.error.notAuthenticated" = "User not authenticated";

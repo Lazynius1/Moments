@@ -3881,20 +3881,18 @@ struct ExpandableContentView: View {
     
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            // ✅ MEJORADO: Usar AttributedText personalizado con tap gestures específicos
-            if isExpanded {
-                HashtagText(
-                    content: content,
-                    colorScheme: colorScheme,
-                    onHashtagTap: onHashtagTap
-                )
-            } else {
-                HashtagText(
-                    content: String(content.prefix(maxCharacters)) + (content.count > maxCharacters ? "..." : ""),
-                    colorScheme: colorScheme,
-                    onHashtagTap: onHashtagTap
-                )
-            }
+            MomentHashtagText(
+                content: isExpanded ? content : String(content.prefix(maxCharacters)) + (content.count > maxCharacters ? "..." : ""),
+                textFont: .custom("Poppins-Regular", size: 14),
+                hashtagFont: .custom("Poppins-SemiBold", size: 14),
+                baseColor: .white,
+                textAlignment: .leading,
+                shadowColor: .black.opacity(0.4),
+                shadowRadius: 3,
+                shadowX: 0,
+                shadowY: 1,
+                onHashtagTap: onHashtagTap
+            )
             
             if needsExpansion {
                 Button(action: {
@@ -3928,74 +3926,6 @@ struct ExpandableContentView: View {
         .onAppear {
             needsExpansion = content.count > maxCharacters
         }
-    }
-}
-
-struct HashtagText: View {
-    let content: String
-    let colorScheme: ColorScheme
-    let onHashtagTap: (String) -> Void
-    
-    var body: some View {
-        // ✅ SOLUCIÓN FINAL: Usar Text con enlaces tappables
-        Text(buildAttributedString())
-            .font(.custom("Poppins-Regular", size: 14))
-            .multilineTextAlignment(.leading)
-            .lineLimit(nil)
-            .shadow(color: .black.opacity(0.4), radius: 3, x: 0, y: 1)
-            .environment(\.openURL, OpenURLAction { url in
-                // ✅ Manejar taps en hashtags a través de URLs personalizadas
-                if url.scheme == "hashtag", let hashtag = url.host {
-    
-                    onHashtagTap(hashtag)
-                    return .handled
-                }
-                return .systemAction
-            })
-    }
-    
-    // ✅ CLAVE: Construir AttributedString con enlaces en hashtags
-    private func buildAttributedString() -> AttributedString {
-        var attributed = AttributedString(content)
-        
-        // Color base blanco para el degradado oscuro
-        attributed.foregroundColor = .white
-        
-        // Buscar y procesar hashtags
-        let pattern = "#(\\w+)"
-        if let regex = try? NSRegularExpression(pattern: pattern) {
-            let nsString = NSString(string: content)
-            let range = NSRange(location: 0, length: nsString.length)
-            let matches = regex.matches(in: content, range: range).reversed() // Reversed para no alterar índices
-            
-            for match in matches {
-                // Obtener el hashtag completo y el término sin #
-                let fullHashtag = nsString.substring(with: match.range) // #barcelona
-                let hashtagTerm = nsString.substring(with: match.range(at: 1)) // barcelona
-                
-                // Convertir a rangos de Swift
-                if let swiftRange = Range(match.range, in: content),
-                   let attributedRange = swiftRange.toAttributedStringRange(in: attributed) {
-                    
-                    // Aplicar estilo al hashtag
-                    attributed[attributedRange].foregroundColor = Color(hex: "667eea")
-                    attributed[attributedRange].font = .custom("Poppins-SemiBold", size: 14)
-                    attributed[attributedRange].link = URL(string: "hashtag://\(hashtagTerm)")
-                }
-            }
-        }
-        
-        return attributed
-    }
-}
-
-extension Range where Bound == String.Index {
-    func toAttributedStringRange(in attributedString: AttributedString) -> Range<AttributedString.Index>? {
-        guard let lowerBound = AttributedString.Index(self.lowerBound, within: attributedString),
-              let upperBound = AttributedString.Index(self.upperBound, within: attributedString) else {
-            return nil
-        }
-        return lowerBound..<upperBound
     }
 }
 // MARK: - FeedViewModel CORREGIDO - Versión que funciona
