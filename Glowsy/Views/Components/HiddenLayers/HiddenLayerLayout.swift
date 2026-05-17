@@ -2,13 +2,20 @@ import SwiftUI
 
 enum HiddenLayerLayout {
     static let imageAspectRatio: CGFloat = 1.26
+    static let textAspectRatio: CGFloat = 0.18 / 0.34
     static let minimumPostAspectRatio: CGFloat = 0.8
     static let maximumPostAspectRatio: CGFloat = 4.0 / 3.0
 
-    static func displayedPostAspectRatio(for imageSize: CGSize) -> CGFloat {
-        let safeRatio = imageSize.width / max(imageSize.height, 1)
-        guard safeRatio.isFinite, safeRatio > 0 else { return 1.0 }
-        return min(max(safeRatio, minimumPostAspectRatio), maximumPostAspectRatio)
+    static func displayedPostAspectRatio(for imageSize: CGSize, preferredAspectRatio: CGFloat? = nil) -> CGFloat {
+        let sourceRatio: CGFloat
+        if let preferredAspectRatio, preferredAspectRatio.isFinite, preferredAspectRatio > 0 {
+            sourceRatio = preferredAspectRatio
+        } else {
+            sourceRatio = imageSize.width / max(imageSize.height, 1)
+        }
+
+        guard sourceRatio.isFinite, sourceRatio > 0 else { return 1.0 }
+        return min(max(sourceRatio, minimumPostAspectRatio), maximumPostAspectRatio)
     }
 
     static func fixedAspectRect(aspectRatio: CGFloat, containerSize: CGSize) -> CGRect {

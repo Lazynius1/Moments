@@ -3364,8 +3364,12 @@ struct CaptionAndDetailsView: View {
             }
         }
         .sheet(isPresented: $showingHiddenLayersEditor) {
-            if let image = selectedMediaItems.first?.image, canUseHiddenLayers {
-                    HiddenLayersEditorView(image: image, layers: $hiddenLayerDrafts)
+            if let mediaItem = selectedMediaItems.first, canUseHiddenLayers {
+                    HiddenLayersEditorView(
+                        image: mediaItem.image,
+                        postAspectRatio: preferredMomentDisplayAspectRatioValue(for: selectedMediaItems),
+                        layers: $hiddenLayerDrafts
+                    )
                         .interactiveDismissDisabled()
                         .presentationDetents([.large], selection: $hiddenLayersDetent)
                         .presentationDragIndicator(.hidden)
@@ -3479,6 +3483,29 @@ struct CaptionAndDetailsView: View {
         } ?? .square
 
         return mostVerticalRatio.displayName
+    }
+
+    private func preferredMomentDisplayAspectRatioValue(for mediaItems: [CreatorMedia]) -> CGFloat {
+        guard !mediaItems.isEmpty else { return 1.0 }
+
+        let preferredRatios = mediaItems.map { mediaItem -> CreatorMedia.AspectRatio in
+            if let recommended = mediaItem.recommendedAspectRatio {
+                return recommended
+            }
+
+            if mediaItem.aspectRatio != .square {
+                return mediaItem.aspectRatio
+            }
+
+            let imageRatio = mediaItem.image.size.width / max(mediaItem.image.size.height, 1)
+            return CreatorMedia.AspectRatio.fromRatio(imageRatio)
+        }
+
+        let mostVerticalRatio = preferredRatios.min { lhs, rhs in
+            lhs.value < rhs.value
+        } ?? .square
+
+        return mostVerticalRatio.value
     }
 
     // 🧹 NUEVA FUNCIÓN: Limpiar formulario después de publicar
@@ -6871,6 +6898,7 @@ struct StoryOverlaysView: View {
                         sticker: $stickers[index],
                         isSelected: selectedStickerId == stickers[index].id,
                         isDragging: isDraggingItem && selectedStickerId == stickers[index].id,
+                        isContentEditing: editingPolaroidId == stickers[index].id,
                         onUpdate: { updatedSticker in
                             stickers[index] = updatedSticker
                         },
@@ -7229,6 +7257,7 @@ struct StickerOverlayView: View {
     @Binding var sticker: StickerItem // ✅ USAR BINDING PARA ACTUALIZACIÓN DIRECTA
     let isSelected: Bool
     let isDragging: Bool
+    let isContentEditing: Bool
     let onUpdate: (StickerItem) -> Void
     let onDelete: () -> Void
     let onDragChanged: (CGPoint) -> Void
@@ -7243,8 +7272,11 @@ struct StickerOverlayView: View {
     @State private var selfieSwitchCameraTrigger = false
     @State private var lastSelfieSwitchAt: Date = .distantPast
     @State private var dragOffset: CGSize = .zero // ✅ Offset para evitar el salto al centro al tocar
+    @State private var contentDragStartOffset: CGSize?
+    @State private var contentPinchStartScale: CGFloat?
 
     init(sticker: Binding<StickerItem>, isSelected: Bool, isDragging: Bool,
+         isContentEditing: Bool,
          onUpdate: @escaping (StickerItem) -> Void,
          onDelete: @escaping () -> Void,
          onDragChanged: @escaping (CGPoint) -> Void,
@@ -7253,6 +7285,7 @@ struct StickerOverlayView: View {
         self._sticker = sticker
         self.isSelected = isSelected
         self.isDragging = isDragging
+        self.isContentEditing = isContentEditing
         self.onUpdate = onUpdate
         self.onDelete = onDelete
         self.onDragChanged = onDragChanged
@@ -7601,6 +7634,11 @@ struct StickerOverlayView: View {
                 InteractiveFrameSticker(
                     image: sticker.image,
                     caption: sticker.interactionData?.caption,
+                    contentScale: sticker.interactionData?.contentScale ?? 1.0,
+                    contentOffset: CGSize(
+                        width: sticker.interactionData?.contentOffsetX ?? 0,
+                        height: sticker.interactionData?.contentOffsetY ?? 0
+                    ),
                     isEditing: true
                 )
                 .frame(width: 200, height: 240)
@@ -7683,6 +7721,22 @@ struct StickerOverlayView: View {
         .gesture(
             DragGesture(coordinateSpace: .named("storyCanvas")) // ✅ Usar el canvas global para estabilidad absoluta
                 .onChanged { value in
+                    if isContentEditing, sticker.type == .frame {
+                        let baseOffset = contentDragStartOffset ?? frameContentOffset
+                        if contentDragStartOffset == nil {
+                            contentDragStartOffset = baseOffset
+                        }
+
+                        let stickerScale = max(scale, 0.0001)
+                        let proposedOffset = CGSize(
+                            width: baseOffset.width + (value.translation.width / stickerScale),
+                            height: baseOffset.height + (value.translation.height / stickerScale)
+                        )
+
+                        updateFrameContentOffset(proposedOffset)
+                        return
+                    }
+
                     if dragOffset == .zero {
                         // Calcular la distancia desde el centro del sticker hasta donde pusimos el dedo
                         dragOffset = CGSize(
@@ -7701,6 +7755,11 @@ struct StickerOverlayView: View {
                     sticker.position = newPos
                 }
                 .onEnded { _ in
+                    if isContentEditing, sticker.type == .frame {
+                        contentDragStartOffset = nil
+                        return
+                    }
+
                     dragOffset = .zero // Resetear para el próximo arrastre
                     onDragEnded(currentPosition)
                 }
@@ -7708,19 +7767,36 @@ struct StickerOverlayView: View {
         .simultaneousGesture(
             MagnificationGesture()
                 .onChanged { value in
+                    if isContentEditing, sticker.type == .frame {
+                        let baseScale = contentPinchStartScale ?? max(sticker.interactionData?.contentScale ?? 1.0, 1.0)
+                        if contentPinchStartScale == nil {
+                            contentPinchStartScale = baseScale
+                        }
+
+                        updateFrameContentScale(baseScale * value)
+                        return
+                    }
+
                     let newScale = sticker.scale * value
                     scale = min(max(newScale, minimumStickerScale), maximumStickerScale)
                 }
                 .onEnded { _ in
+                    if isContentEditing, sticker.type == .frame {
+                        contentPinchStartScale = nil
+                        return
+                    }
+
                     sticker.scale = scale
                 }
         )
         .simultaneousGesture(
             RotationGesture()
                 .onChanged { value in
+                    guard !(isContentEditing && sticker.type == .frame) else { return }
                     rotation = sticker.rotation + value
                 }
                 .onEnded { value in
+                    guard !(isContentEditing && sticker.type == .frame) else { return }
                     sticker.rotation = rotation
                 }
         )
@@ -7763,6 +7839,70 @@ struct StickerOverlayView: View {
 
     private var isLiveSelfieSticker: Bool {
         sticker.type == .selfie && sticker.interactionData?.caption == "selfie_live"
+    }
+
+    private var frameContentOffset: CGSize {
+        CGSize(
+            width: sticker.interactionData?.contentOffsetX ?? 0,
+            height: sticker.interactionData?.contentOffsetY ?? 0
+        )
+    }
+
+    private func updateFrameContentOffset(_ proposedOffset: CGSize) {
+        let clamped = clampedFrameContentOffset(
+            proposedOffset,
+            imageSize: sticker.image.size,
+            contentScale: sticker.interactionData?.contentScale ?? 1.0
+        )
+
+        var interaction = sticker.interactionData ?? StickerItem.StickerInteractionData()
+        interaction.contentOffsetX = clamped.width
+        interaction.contentOffsetY = clamped.height
+        sticker.interactionData = interaction
+    }
+
+    private func updateFrameContentScale(_ proposedScale: CGFloat) {
+        let clampedScale = min(max(proposedScale, 1.0), 4.0)
+        var interaction = sticker.interactionData ?? StickerItem.StickerInteractionData()
+        interaction.contentScale = clampedScale
+
+        let currentOffset = CGSize(
+            width: interaction.contentOffsetX ?? 0,
+            height: interaction.contentOffsetY ?? 0
+        )
+        let clampedOffset = clampedFrameContentOffset(
+            currentOffset,
+            imageSize: sticker.image.size,
+            contentScale: clampedScale
+        )
+        interaction.contentOffsetX = clampedOffset.width
+        interaction.contentOffsetY = clampedOffset.height
+        sticker.interactionData = interaction
+    }
+
+    private func clampedFrameContentOffset(_ offset: CGSize, imageSize: CGSize, contentScale: CGFloat) -> CGSize {
+        let viewportSize = CGSize(width: 180, height: 180)
+        let imageRatio = imageSize.width / max(imageSize.height, 0.0001)
+        let viewportRatio = viewportSize.width / max(viewportSize.height, 0.0001)
+
+        let baseSize: CGSize
+        if imageRatio > viewportRatio {
+            let height = viewportSize.height
+            baseSize = CGSize(width: height * imageRatio, height: height)
+        } else {
+            let width = viewportSize.width
+            baseSize = CGSize(width: width, height: width / max(imageRatio, 0.0001))
+        }
+
+        let safeScale = max(contentScale, 1.0)
+        let drawSize = CGSize(width: baseSize.width * safeScale, height: baseSize.height * safeScale)
+        let maxOffsetX = max(0, (drawSize.width - viewportSize.width) / 2)
+        let maxOffsetY = max(0, (drawSize.height - viewportSize.height) / 2)
+
+        return CGSize(
+            width: min(max(offset.width, -maxOffsetX), maxOffsetX),
+            height: min(max(offset.height, -maxOffsetY), maxOffsetY)
+        )
     }
 
     private func makeCapturedSelfieStickerImage(from originalImage: UIImage, size: CGFloat) -> UIImage {

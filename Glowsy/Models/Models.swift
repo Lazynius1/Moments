@@ -1334,6 +1334,9 @@ struct Story: Identifiable, Codable {
                 revealPrimaryColor: stickerData.revealPrimaryColor,
                 revealSecondaryColor: stickerData.revealSecondaryColor,
                 frameStyle: stickerData.frameStyle,
+                contentScale: stickerData.contentScale,
+                contentOffsetX: stickerData.contentOffsetX,
+                contentOffsetY: stickerData.contentOffsetY,
                 audioURL: stickerData.audioURL,
                 audioDuration: stickerData.audioDuration
             )
@@ -1624,6 +1627,9 @@ struct StickerData: Codable {
     let revealPrimaryColor: String?
     let revealSecondaryColor: String?
     let frameStyle: String?
+    let contentScale: CGFloat?
+    let contentOffsetX: CGFloat?
+    let contentOffsetY: CGFloat?
     let moderationState: String?
     let moderationReason: String?
     let moderationCategory: String?
@@ -1644,6 +1650,7 @@ struct StickerData: Codable {
          quizQuestion: String? = nil, quizOptions: [String]? = nil, quizCorrectIndex: Int? = nil,
          revealType: String? = nil, revealPattern: String? = nil, revealPrimaryColor: String? = nil, revealSecondaryColor: String? = nil,
          frameStyle: String? = nil,
+         contentScale: CGFloat? = nil, contentOffsetX: CGFloat? = nil, contentOffsetY: CGFloat? = nil,
          moderationState: String? = nil, moderationReason: String? = nil, moderationCategory: String? = nil,
          audioURL: String? = nil, audioDuration: Double? = nil,
          isAnimated: Bool = false, gifURL: String? = nil, videoURL: String? = nil) {
@@ -1680,6 +1687,9 @@ struct StickerData: Codable {
         self.revealPrimaryColor = revealPrimaryColor
         self.revealSecondaryColor = revealSecondaryColor
         self.frameStyle = frameStyle
+        self.contentScale = contentScale
+        self.contentOffsetX = contentOffsetX
+        self.contentOffsetY = contentOffsetY
         self.moderationState = moderationState
         self.moderationReason = moderationReason
         self.moderationCategory = moderationCategory
@@ -1742,6 +1752,9 @@ struct StickerData: Codable {
         self.revealPrimaryColor = try container.decodeIfPresent(String.self, forKey: .revealPrimaryColor)
         self.revealSecondaryColor = try container.decodeIfPresent(String.self, forKey: .revealSecondaryColor)
         self.frameStyle = try container.decodeIfPresent(String.self, forKey: .frameStyle)
+        self.contentScale = try container.decodeIfPresent(CGFloat.self, forKey: .contentScale)
+        self.contentOffsetX = try container.decodeIfPresent(CGFloat.self, forKey: .contentOffsetX)
+        self.contentOffsetY = try container.decodeIfPresent(CGFloat.self, forKey: .contentOffsetY)
         self.moderationState = try container.decodeIfPresent(String.self, forKey: .moderationState)
         self.moderationReason = try container.decodeIfPresent(String.self, forKey: .moderationReason)
         self.moderationCategory = try container.decodeIfPresent(String.self, forKey: .moderationCategory)
@@ -1808,6 +1821,9 @@ struct StickerData: Codable {
             revealPrimaryColor: stickerItem.interactionData?.revealPrimaryColor,
             revealSecondaryColor: stickerItem.interactionData?.revealSecondaryColor,
             frameStyle: stickerItem.interactionData?.frameStyle,
+            contentScale: stickerItem.interactionData?.contentScale,
+            contentOffsetX: stickerItem.interactionData?.contentOffsetX,
+            contentOffsetY: stickerItem.interactionData?.contentOffsetY,
             moderationState: nil,
             moderationReason: nil,
             moderationCategory: nil,
@@ -1910,6 +1926,9 @@ extension StickerData {
         case revealPrimaryColor
         case revealSecondaryColor
         case frameStyle
+        case contentScale
+        case contentOffsetX
+        case contentOffsetY
         case moderationState
         case moderationReason
         case moderationCategory
@@ -1956,6 +1975,9 @@ extension StickerData {
         try container.encodeIfPresent(revealPrimaryColor, forKey: .revealPrimaryColor)
         try container.encodeIfPresent(revealSecondaryColor, forKey: .revealSecondaryColor)
         try container.encodeIfPresent(frameStyle, forKey: .frameStyle)
+        try container.encodeIfPresent(contentScale, forKey: .contentScale)
+        try container.encodeIfPresent(contentOffsetX, forKey: .contentOffsetX)
+        try container.encodeIfPresent(contentOffsetY, forKey: .contentOffsetY)
         try container.encodeIfPresent(moderationState, forKey: .moderationState)
         try container.encodeIfPresent(moderationReason, forKey: .moderationReason)
         try container.encodeIfPresent(moderationCategory, forKey: .moderationCategory)

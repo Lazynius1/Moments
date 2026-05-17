@@ -2495,6 +2495,9 @@ struct StickerItem: Identifiable {
 
         // Polaroid Frame Data
         var frameStyle: String?
+        var contentScale: CGFloat?
+        var contentOffsetX: CGFloat?
+        var contentOffsetY: CGFloat?
 
         // Audio Data
         var audioURL: String?
@@ -2528,6 +2531,9 @@ struct StickerItem: Identifiable {
             revealPrimaryColor: String? = nil,
             revealSecondaryColor: String? = nil,
             frameStyle: String? = nil,
+            contentScale: CGFloat? = nil,
+            contentOffsetX: CGFloat? = nil,
+            contentOffsetY: CGFloat? = nil,
             audioURL: String? = nil,
             audioDuration: Double? = nil
         ) {
@@ -2557,6 +2563,9 @@ struct StickerItem: Identifiable {
             self.revealPrimaryColor = revealPrimaryColor
             self.revealSecondaryColor = revealSecondaryColor
             self.frameStyle = frameStyle
+            self.contentScale = contentScale
+            self.contentOffsetX = contentOffsetX
+            self.contentOffsetY = contentOffsetY
             self.audioURL = audioURL
             self.audioDuration = audioDuration
         }
