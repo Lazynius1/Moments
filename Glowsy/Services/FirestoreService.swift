@@ -1879,6 +1879,15 @@ class FirestoreService: ObservableObject {
                             if let frameStyle = sticker.frameStyle {
                                 stickerData["frameStyle"] = frameStyle
                             }
+                            if let contentScale = sticker.contentScale {
+                                stickerData["contentScale"] = contentScale
+                            }
+                            if let contentOffsetX = sticker.contentOffsetX {
+                                stickerData["contentOffsetX"] = contentOffsetX
+                            }
+                            if let contentOffsetY = sticker.contentOffsetY {
+                                stickerData["contentOffsetY"] = contentOffsetY
+                            }
                             if let audioURL = sticker.audioURL {
                                 stickerData["audioURL"] = audioURL
                             }
@@ -4599,6 +4608,15 @@ extension FirestoreService {
                             if let frameStyle = sticker.frameStyle {
                                 stickerData["frameStyle"] = frameStyle
                             }
+                            if let contentScale = sticker.contentScale {
+                                stickerData["contentScale"] = contentScale
+                            }
+                            if let contentOffsetX = sticker.contentOffsetX {
+                                stickerData["contentOffsetX"] = contentOffsetX
+                            }
+                            if let contentOffsetY = sticker.contentOffsetY {
+                                stickerData["contentOffsetY"] = contentOffsetY
+                            }
                             if let audioURL = sticker.audioURL {
                                 stickerData["audioURL"] = audioURL
                             }
@@ -5064,6 +5082,15 @@ extension FirestoreService {
                             }
                             if let frameStyle = sticker.frameStyle {
                                 stickerData["frameStyle"] = frameStyle
+                            }
+                            if let contentScale = sticker.contentScale {
+                                stickerData["contentScale"] = contentScale
+                            }
+                            if let contentOffsetX = sticker.contentOffsetX {
+                                stickerData["contentOffsetX"] = contentOffsetX
+                            }
+                            if let contentOffsetY = sticker.contentOffsetY {
+                                stickerData["contentOffsetY"] = contentOffsetY
                             }
                             if let audioURL = sticker.audioURL {
                                 stickerData["audioURL"] = audioURL

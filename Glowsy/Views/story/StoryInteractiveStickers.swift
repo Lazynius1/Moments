@@ -175,6 +175,8 @@ struct InteractiveFrameSticker: View {
     let storyId: String
     let image: UIImage?
     let caption: String? // ✅ Nuevo
+    let contentScale: CGFloat
+    let contentOffset: CGSize
     let isEditing: Bool
     let onPauseStory: (() -> Void)?
     let onResumeStory: (() -> Void)?
@@ -186,10 +188,21 @@ struct InteractiveFrameSticker: View {
 
     private var persistenceKey: String { "frame_revealed_\(storyId)" }
 
-    init(storyId: String = "", image: UIImage?, caption: String? = nil, isEditing: Bool = false, onPauseStory: (() -> Void)? = nil, onResumeStory: (() -> Void)? = nil) {
+    init(
+        storyId: String = "",
+        image: UIImage?,
+        caption: String? = nil,
+        contentScale: CGFloat = 1.0,
+        contentOffset: CGSize = .zero,
+        isEditing: Bool = false,
+        onPauseStory: (() -> Void)? = nil,
+        onResumeStory: (() -> Void)? = nil
+    ) {
         self.storyId = storyId
         self.image = image
         self.caption = caption
+        self.contentScale = contentScale
+        self.contentOffset = contentOffset
         self.isEditing = isEditing
         self.onPauseStory = onPauseStory
         self.onResumeStory = onResumeStory
@@ -197,7 +210,13 @@ struct InteractiveFrameSticker: View {
     }
 
     var body: some View {
-        StickerPolaroidFrameView(image: image, progress: revealProgress, caption: caption)
+        StickerPolaroidFrameView(
+            image: image,
+            progress: revealProgress,
+            caption: caption,
+            contentScale: contentScale,
+            contentOffset: contentOffset
+        )
             .onAppear {
                 if !storyId.isEmpty, UserDefaults.standard.bool(forKey: persistenceKey) {
                     revealProgress = 1.0

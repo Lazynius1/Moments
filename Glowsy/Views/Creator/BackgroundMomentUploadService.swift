@@ -294,7 +294,24 @@ class BackgroundMomentUploadService: ObservableObject {
                 }
             }
             
-            // PASO 3: Completado (90% - 100%)
+            // PASO 3: Moderación silenciosa en paralelo, sin esperar a delays cosméticos
+            Task.detached(priority: .background) {
+                async let contentModeration: Void = self.moderateContentSilently(
+                    momentId: momentId,
+                    uploadingMoment: uploadingMoment,
+                    mediaUrls: mediaUrls
+                )
+
+                async let hiddenLayersModeration: Void = self.moderateHiddenLayersSilently(
+                    momentId: momentId,
+                    uploadingMoment: uploadingMoment,
+                    layers: uploadedHiddenLayers
+                )
+
+                _ = await (contentModeration, hiddenLayersModeration)
+            }
+
+            // PASO 4: Completado (90% - 100%)
             await updateProgress(uploadingMoment, progress: 1.0, status: .completed)
             
             // ✅ NUEVO: Actualizar Live Activity a estado "completed" y esperar unos segundos antes de cerrar
@@ -309,21 +326,6 @@ class BackgroundMomentUploadService: ObservableObject {
             // ✅ NUEVO: Reanudar listeners con delay para evitar conflictos
             try? await Task.sleep(nanoseconds: 1_000_000_000) // 1 segundo
             self.feedViewModel?.resumeListenersAfterUpload()
-            
-            // PASO 4: Moderar en background silencioso
-            Task.detached(priority: .background) {
-                await self.moderateContentSilently(
-                    momentId: momentId,
-                    uploadingMoment: uploadingMoment,
-                    mediaUrls: mediaUrls
-                )
-
-                await self.moderateHiddenLayersSilently(
-                    momentId: momentId,
-                    uploadingMoment: uploadingMoment,
-                    layers: uploadedHiddenLayers
-                )
-            }
             
             // PASO 5: Remover del feed después de 2 segundos (reducido)
             try? await Task.sleep(nanoseconds: 2_000_000_000) // 2 segundos
@@ -514,7 +516,7 @@ class BackgroundMomentUploadService: ObservableObject {
                 }
             }
             thumbnailURL = mediaURL
-            moderationState = .pending
+            moderationState = .visible
         case .audio:
             guard let audioURL = draft.localAudioURL else { throw StorageError.invalidData }
             mediaURL = try await uploadHiddenLayerAudio(

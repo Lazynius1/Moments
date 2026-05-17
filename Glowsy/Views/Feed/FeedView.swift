@@ -5055,6 +5055,8 @@ class FeedViewModel: ObservableObject {
         hasher.combine(moment.imagePath)
         hasher.combine(moment.videoUrl)
         hasher.combine(moment.aspectRatio)
+        hasher.combine(moment.hasHiddenLayers)
+        hasher.combine(moment.hiddenLayerCount)
         
         // ✅ NO incluir: authorId, username, profileImagePath (no cambian)
         // ✅ NO incluir: taggedUsers, location, audience (no cambian después de crear)

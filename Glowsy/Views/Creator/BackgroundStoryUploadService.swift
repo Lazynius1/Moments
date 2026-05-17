@@ -164,6 +164,9 @@ struct CachedStickerInteractionData: Codable {
     let revealPrimaryColor: String?
     let revealSecondaryColor: String?
     let frameStyle: String?
+    let contentScale: CGFloat?
+    let contentOffsetX: CGFloat?
+    let contentOffsetY: CGFloat?
     let audioURL: String?
     let audioDuration: Double?
 }
@@ -1334,6 +1337,9 @@ class BackgroundStoryUploadService: ObservableObject {
                 revealPrimaryColor: data.revealPrimaryColor,
                 revealSecondaryColor: data.revealSecondaryColor,
                 frameStyle: data.frameStyle,
+                contentScale: data.contentScale,
+                contentOffsetX: data.contentOffsetX,
+                contentOffsetY: data.contentOffsetY,
                 audioURL: data.audioURL,
                 audioDuration: data.audioDuration
             )
@@ -1462,6 +1468,9 @@ class BackgroundStoryUploadService: ObservableObject {
                             revealPrimaryColor: data.revealPrimaryColor,
                             revealSecondaryColor: data.revealSecondaryColor,
                             frameStyle: data.frameStyle,
+                            contentScale: data.contentScale,
+                            contentOffsetX: data.contentOffsetX,
+                            contentOffsetY: data.contentOffsetY,
                             audioURL: data.audioURL,
                             audioDuration: data.audioDuration
                         )

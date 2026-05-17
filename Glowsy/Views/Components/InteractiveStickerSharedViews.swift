@@ -609,9 +609,13 @@ struct StickerPolaroidFrameView: View {
     let image: UIImage?
     let progress: Double // 0.0 to 1.0 (revelado)
     let caption: String? // ✅ Nuevo: Texto opcional
+    let contentScale: CGFloat
+    let contentOffset: CGSize
     
     @State private var isShaking = false
     @State private var shakeTask: Task<Void, Never>? = nil
+
+    private let imageViewportSize = CGSize(width: 180, height: 180)
     
     var body: some View {
         VStack(spacing: 0) {
@@ -639,7 +643,14 @@ struct StickerPolaroidFrameView: View {
                 if let image = image {
                     Image(uiImage: image)
                         .resizable()
-                        .aspectRatio(contentMode: .fill)
+                        .frame(
+                            width: frameImageSize(for: image).width,
+                            height: frameImageSize(for: image).height
+                        )
+                        .position(
+                            x: imageViewportSize.width / 2 + clampedContentOffset(for: image).width,
+                            y: imageViewportSize.height / 2 + clampedContentOffset(for: image).height
+                        )
                         .opacity(progress > 0.05 ? min(1.0, (progress - 0.05) / 0.95) : 0.0)
                         .blur(radius: (1.0 - progress) * 16)
                         .brightness((progress - 1.0) * 0.42) // Comienza oscuro
@@ -659,7 +670,7 @@ struct StickerPolaroidFrameView: View {
                         .blendMode(.overlay)
                 }
             }
-            .frame(width: 180, height: 180)
+            .frame(width: imageViewportSize.width, height: imageViewportSize.height)
             .clipped()
             .padding(10)
             .background(Color.white)
@@ -767,6 +778,35 @@ struct StickerPolaroidFrameView: View {
         .onDisappear {
             shakeTask?.cancel()
         }
+    }
+
+    private func frameImageSize(for image: UIImage) -> CGSize {
+        let safeScale = max(contentScale, 1.0)
+        let imageSize = image.size
+        let imageRatio = imageSize.width / max(imageSize.height, 0.0001)
+        let viewportRatio = imageViewportSize.width / max(imageViewportSize.height, 0.0001)
+
+        let baseSize: CGSize
+        if imageRatio > viewportRatio {
+            let height = imageViewportSize.height
+            baseSize = CGSize(width: height * imageRatio, height: height)
+        } else {
+            let width = imageViewportSize.width
+            baseSize = CGSize(width: width, height: width / max(imageRatio, 0.0001))
+        }
+
+        return CGSize(width: baseSize.width * safeScale, height: baseSize.height * safeScale)
+    }
+
+    private func clampedContentOffset(for image: UIImage) -> CGSize {
+        let drawSize = frameImageSize(for: image)
+        let maxOffsetX = max(0, (drawSize.width - imageViewportSize.width) / 2)
+        let maxOffsetY = max(0, (drawSize.height - imageViewportSize.height) / 2)
+
+        return CGSize(
+            width: min(max(contentOffset.width, -maxOffsetX), maxOffsetX),
+            height: min(max(contentOffset.height, -maxOffsetY), maxOffsetY)
+        )
     }
 }
 

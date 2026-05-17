@@ -6082,6 +6082,11 @@ struct StoryStickerView: View {
                 storyId: storyId,
                 image: sticker.image,
                 caption: sticker.interactionData?.caption,
+                contentScale: sticker.interactionData?.contentScale ?? 1.0,
+                contentOffset: CGSize(
+                    width: sticker.interactionData?.contentOffsetX ?? 0,
+                    height: sticker.interactionData?.contentOffsetY ?? 0
+                ),
                 onPauseStory: onPauseStory,
                 onResumeStory: onResumeStory
             )

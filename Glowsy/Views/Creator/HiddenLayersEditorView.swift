@@ -89,6 +89,7 @@ struct HiddenLayerDraft: Identifiable, Equatable {
 
 struct HiddenLayersEditorView: View {
     let image: UIImage
+    let postAspectRatio: CGFloat?
     @Binding var layers: [HiddenLayerDraft]
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.dismiss) private var dismiss
@@ -124,13 +125,17 @@ struct HiddenLayersEditorView: View {
     private var hotspotSelectedStrokeColor: Color { isDark ? .white.opacity(0.9) : .black.opacity(0.5) }
     private var sheetTintColor: Color { isDark ? .clear : .white.opacity(0.58) }
     private var displayedPostAspectRatio: CGFloat {
-        HiddenLayerLayout.displayedPostAspectRatio(for: image.size)
+        HiddenLayerLayout.displayedPostAspectRatio(for: image.size, preferredAspectRatio: postAspectRatio)
+    }
+    private var mediaAspectRatio: CGFloat {
+        let ratio = image.size.width / max(image.size.height, 1)
+        return (ratio > 0 && ratio.isFinite) ? ratio : displayedPostAspectRatio
     }
     private var dockEditorLayerIndex: Int? {
         if let selectedLayerIndex, layers[selectedLayerIndex].type == selectedDockType {
             return selectedLayerIndex
         }
-        return layers.lastIndex(where: { $0.type == selectedDockType })
+        return nil
     }
     private var dockHeight: CGFloat {
         if let index = dockEditorLayerIndex {
@@ -165,9 +170,13 @@ struct HiddenLayersEditorView: View {
             let verticalSpacing: CGFloat = 10
             let topPadding: CGFloat = 6
             let bottomPadding: CGFloat = 8
-            let canvasHeight = max(
-                340,
+            let maxCanvasHeight = max(
+                260,
                 proxy.size.height - headerHeight - dockHeight - topPadding - bottomPadding - (verticalSpacing * 2)
+            )
+            let canvasHeight = min(
+                maxCanvasHeight,
+                previewCanvasHeight(for: proxy.size.width - (horizontalPadding * 2))
             )
 
             ZStack {
@@ -183,6 +192,7 @@ struct HiddenLayersEditorView: View {
                         .padding(.top, topPadding)
 
                     editorCanvas(height: canvasHeight)
+                        .frame(height: maxCanvasHeight, alignment: .center)
                         .padding(.horizontal, horizontalPadding)
 
                     dockContent
@@ -285,9 +295,10 @@ struct HiddenLayersEditorView: View {
 
     private func editorCanvas(height: CGFloat) -> some View {
         GeometryReader { proxy in
-            let imageRect = Self.fixedAspectRect(
-                aspectRatio: displayedPostAspectRatio,
-                containerSize: proxy.size
+            let imageRect = editorPreviewRect(in: proxy.size)
+            let presentationMode = MomentCarouselLayoutRules.presentationMode(
+                for: mediaAspectRatio,
+                canvasAspectRatio: displayedPostAspectRatio
             )
 
             ZStack {
@@ -299,16 +310,31 @@ struct HiddenLayersEditorView: View {
                         selectedLayerId = nil
                     }
 
+                if presentationMode == .fitWithBlur {
+                    Image(uiImage: image)
+                        .resizable()
+                        .aspectRatio(contentMode: .fill)
+                        .frame(width: imageRect.width, height: imageRect.height)
+                        .blur(radius: 30)
+                        .saturation(0.9)
+                        .overlay(Color.black.opacity(0.18))
+                        .clipShape(RoundedRectangle(cornerRadius: 26, style: .continuous))
+                        .position(x: imageRect.midX, y: imageRect.midY)
+                        .allowsHitTesting(false)
+                }
+
                 Image(uiImage: image)
                     .resizable()
-                    .aspectRatio(contentMode: .fill)
+                    .aspectRatio(contentMode: presentationMode.swiftUIContentMode)
                     .frame(width: imageRect.width, height: imageRect.height)
-                    .position(x: imageRect.midX, y: imageRect.midY)
                     .clipShape(RoundedRectangle(cornerRadius: 26, style: .continuous))
                     .contentShape(RoundedRectangle(cornerRadius: 26, style: .continuous))
+                    .position(x: imageRect.midX, y: imageRect.midY)
                     .onTapGesture {
                         selectedLayerId = nil
                     }
+
+                editorGhostRail(in: imageRect)
 
                 ForEach(layers) { layer in
                     hiddenLayerHotspot(layer, imageRect: imageRect)
@@ -319,6 +345,58 @@ struct HiddenLayersEditorView: View {
         }
         .frame(height: height)
     }
+
+    private func editorPreviewRect(in containerSize: CGSize) -> CGRect {
+        guard containerSize.width > 0, containerSize.height > 0 else {
+            return CGRect(origin: .zero, size: containerSize)
+        }
+
+        let availableWidth = containerSize.width
+        let availableHeight = previewCanvasHeight(for: containerSize.width)
+
+        guard availableWidth > 0, availableHeight > 0 else {
+            return CGRect(origin: .zero, size: containerSize)
+        }
+
+        return CGRect(
+            x: 0,
+            y: (containerSize.height - availableHeight) / 2,
+            width: availableWidth,
+            height: availableHeight
+        )
+    }
+
+    private func previewCanvasHeight(for availableWidth: CGFloat) -> CGFloat {
+        guard availableWidth > 0 else { return 340 }
+
+        let ratio = (displayedPostAspectRatio > 0 && displayedPostAspectRatio.isFinite) ? displayedPostAspectRatio : 1.0
+        let canonicalFeedWidth = max(0, UIScreen.main.bounds.width - 16)
+        let canonicalFeedHeight = feedCardHeight(for: canonicalFeedWidth, ratio: ratio)
+        let scaledWidth = availableWidth
+
+        guard canonicalFeedWidth > 0, canonicalFeedHeight > 0, scaledWidth > 0 else { return 340 }
+
+        let scale = min(scaledWidth / canonicalFeedWidth, 1.0)
+        let scaledHeight = canonicalFeedHeight * scale
+        return scaledHeight
+    }
+
+    private func feedCardHeight(for width: CGFloat, ratio: CGFloat) -> CGFloat {
+        guard width > 0 else { return 300 }
+
+        let safeRatio = (ratio > 0 && ratio.isFinite) ? ratio : 1.0
+        let idealHeight = width / safeRatio
+        let screenHeight = UIScreen.main.bounds.height
+        let feedHeaderHeight: CGFloat = 88
+        let feedSelectorHeight: CGFloat = 35
+        let tabbarHeight: CGFloat = 50
+        let availableHeight = screenHeight - feedHeaderHeight - feedSelectorHeight - tabbarHeight - 60
+        let maxAllowed = availableHeight * 0.95
+
+        return max(max(min(idealHeight, maxAllowed), 150), 200)
+    }
+
+
 
     @ViewBuilder
     private var dockContent: some View {
@@ -406,6 +484,7 @@ struct HiddenLayersEditorView: View {
                                 ForEach(HiddenLayerPresentationStyle.allCases, id: \.self) { style in
                                     Button(style.displayName) {
                                         layers[index].presentationStyle = style
+                                        resizeTextLayerToFitContent(at: index)
                                     }
                                 }
                             } label: {
@@ -421,6 +500,7 @@ struct HiddenLayersEditorView: View {
                                 ForEach(HiddenLayerTextStyle.allCases, id: \.self) { style in
                                     Button(style.displayName) {
                                         layers[index].textStyle = style
+                                        resizeTextLayerToFitContent(at: index)
                                     }
                                 }
                             } label: {
@@ -719,6 +799,10 @@ struct HiddenLayersEditorView: View {
                         aspect = HiddenLayerLayout.imageAspectRatio
                         minWidth = max(0.12, 0.10 / aspect)
                         maxWidth = min(0.55, 0.42 / aspect)
+                    } else if layer.type == .text {
+                        aspect = HiddenLayerLayout.textAspectRatio
+                        minWidth = 0.16
+                        maxWidth = 0.62
                     } else {
                         aspect = max(base.height / max(base.width, 0.001), 0.25)
                         minWidth = 0.12
@@ -728,8 +812,8 @@ struct HiddenLayersEditorView: View {
                     let newHeight = layer.type == .image
                         ? (newWidth * aspect)
                         : min(0.42, max(0.10, newWidth * aspect))
-                    layers[index].width = newWidth
-                    layers[index].height = newHeight
+                    layers[index].width = Double(newWidth)
+                    layers[index].height = Double(newHeight)
                     let halfWidthRatio = min(0.5, max(0, newWidth / 2))
                     let halfHeightRatio = min(0.5, max(0, newHeight / 2))
                     layers[index].anchorX = min(1 - halfWidthRatio, max(halfWidthRatio, layers[index].anchorX))
@@ -748,18 +832,41 @@ struct HiddenLayersEditorView: View {
     }
 
     @ViewBuilder
+    private func editorGhostRail(in imageRect: CGRect) -> some View {
+        let railWidth: CGFloat = min(max(imageRect.width * 0.52, 164), 214)
+        let railHeight: CGFloat = 56
+        let railX = imageRect.maxX - 16 - (railWidth / 2)
+        let railY = imageRect.maxY - 16 - (railHeight / 2)
+
+        HStack(spacing: 8) {
+            ForEach(0..<4, id: \.self) { index in
+                Circle()
+                    .fill(.white.opacity(index == 0 ? 0.26 : 0.14))
+                    .frame(width: 44, height: 44)
+                    .overlay(
+                        Circle()
+                            .stroke(.white.opacity(index == 0 ? 0.24 : 0.10), lineWidth: 1)
+                    )
+            }
+        }
+        .padding(6)
+        .background(.ultraThinMaterial, in: Capsule())
+        .overlay(
+            Capsule()
+                .stroke(.white.opacity(0.12), lineWidth: 0.8)
+        )
+        .opacity(0.5)
+        .allowsHitTesting(false)
+        .position(x: railX, y: railY)
+    }
+
+    @ViewBuilder
     private func canvasPreview(for layer: HiddenLayerDraft, size: CGSize, isSelected: Bool) -> some View {
         switch layer.type {
         case .text:
-            HiddenLayerTextCardPreview(
-                text: layer.text.isEmpty ? NSLocalizedString("hiddenLayers.text.placeholder", value: "Escribe el secreto...", comment: "Hidden layer text placeholder") : layer.text,
-                textStyle: layer.textStyle,
-                presentationStyle: layer.presentationStyle,
-                isPlaceholder: layer.text.isEmpty,
-                colorScheme: colorScheme
-            )
-            .frame(width: size.width, height: size.height)
-            .allowsHitTesting(false)
+            textCanvasPreview(for: layer, size: size)
+                .frame(width: size.width, height: size.height)
+                .allowsHitTesting(false)
         case .audio:
             audioCanvasPreview(for: layer)
                 .frame(width: size.width, height: size.height)
@@ -901,8 +1008,20 @@ struct HiddenLayersEditorView: View {
     private func addTextLayer() {
         guard layers.count < maxLayers else { return }
         let origin = nextLayerOrigin()
-        let layer = HiddenLayerDraft(type: .text, anchorX: origin.x, anchorY: origin.y, width: 0.34, height: 0.18, zIndex: layers.count, text: "")
+        let textWidth: CGFloat = 0.34
+        let layer = HiddenLayerDraft(
+            type: .text,
+            anchorX: origin.x,
+            anchorY: origin.y,
+            width: Double(textWidth),
+            height: Double(textWidth * HiddenLayerLayout.textAspectRatio),
+            zIndex: layers.count,
+            text: ""
+        )
         layers.append(layer)
+        if let index = layers.indices.last {
+            resizeTextLayerToFitContent(at: index)
+        }
         selectedLayerId = layer.id
         selectedDockType = .text
     }
@@ -933,8 +1052,8 @@ struct HiddenLayersEditorView: View {
             type: .image,
             anchorX: origin.x,
             anchorY: origin.y,
-            width: imageWidth,
-            height: imageHeight,
+            width: Double(imageWidth),
+            height: Double(imageHeight),
             zIndex: layers.count,
             localImage: image,
             presentationStyle: .paperNote
@@ -1106,6 +1225,7 @@ struct HiddenLayersEditorView: View {
             get: { layers[index].text },
             set: { newValue in
                 layers[index].text = String(newValue.prefix(120))
+                resizeTextLayerToFitContent(at: index)
             }
         )
     }
@@ -1386,6 +1506,45 @@ struct HiddenLayersEditorView: View {
         .scaleEffect(max(0.7, min(2.4, layer.width / 0.18)))
     }
 
+    private func textCanvasPreview(for layer: HiddenLayerDraft, size: CGSize) -> some View {
+        let baseSize = hiddenLayerTextCardBaseSize(
+            text: layer.text.isEmpty ? NSLocalizedString("hiddenLayers.text.placeholder", value: "Escribe el secreto...", comment: "Hidden layer text placeholder") : layer.text,
+            textStyle: layer.textStyle
+        )
+        let scale = min(
+            max(size.width / max(baseSize.width, 1), 0.72),
+            max(size.height / max(baseSize.height, 1), 0.72)
+        )
+
+        return HiddenLayerTextCardPreview(
+            text: layer.text.isEmpty ? NSLocalizedString("hiddenLayers.text.placeholder", value: "Escribe el secreto...", comment: "Hidden layer text placeholder") : layer.text,
+            textStyle: layer.textStyle,
+            presentationStyle: layer.presentationStyle,
+            isPlaceholder: layer.text.isEmpty,
+            colorScheme: colorScheme
+        )
+        .frame(width: baseSize.width, height: baseSize.height)
+        .scaleEffect(scale)
+    }
+
+    private func resizeTextLayerToFitContent(at index: Int) {
+        guard layers.indices.contains(index), layers[index].type == .text else { return }
+
+        let measuredSize = hiddenLayerTextCardBaseSize(
+            text: layers[index].text.isEmpty
+                ? NSLocalizedString("hiddenLayers.text.placeholder", value: "Escribe el secreto...", comment: "Hidden layer text placeholder")
+                : layers[index].text,
+            textStyle: layers[index].textStyle
+        )
+
+        let referenceWidth: CGFloat = 220
+        let widthRatio = min(0.62, max(0.16, 0.34 * (measuredSize.width / referenceWidth)))
+        let heightRatio = min(0.32, max(0.10, widthRatio * HiddenLayerLayout.textAspectRatio))
+
+        layers[index].width = Double(widthRatio)
+        layers[index].height = Double(heightRatio)
+    }
+
     private func startAudioPreview(for index: Int) {
         guard layers.indices.contains(index),
               let localAudioURL = layers[index].localAudioURL
@@ -1451,6 +1610,42 @@ struct HiddenLayersEditorView: View {
 
     private static func fixedAspectRect(aspectRatio: CGFloat, containerSize: CGSize) -> CGRect {
         HiddenLayerLayout.fixedAspectRect(aspectRatio: aspectRatio, containerSize: containerSize)
+    }
+}
+
+private func hiddenLayerTextCardBaseSize(text: String, textStyle: HiddenLayerTextStyle) -> CGSize {
+    let clampedText = text.isEmpty
+        ? NSLocalizedString("hiddenLayers.text.placeholder", value: "Escribe el secreto...", comment: "Hidden layer text placeholder")
+        : text
+
+    let font = hiddenLayerTextUIFont(for: textStyle)
+    let horizontalPadding: CGFloat = 32
+    let verticalPadding: CGFloat = 24
+    let minWidth: CGFloat = 132
+    let maxWidth: CGFloat = 248
+    let minHeight: CGFloat = 74
+
+    let measuredWidth = ceil((clampedText as NSString).size(withAttributes: [.font: font]).width)
+    let width = min(max(measuredWidth + horizontalPadding, minWidth), maxWidth)
+    let height = max(minHeight, ceil(font.lineHeight + verticalPadding))
+
+    return CGSize(width: width, height: height)
+}
+
+private func hiddenLayerTextUIFont(for textStyle: HiddenLayerTextStyle) -> UIFont {
+    switch textStyle {
+    case .clean:
+        return .systemFont(ofSize: 17, weight: .semibold)
+    case .serif:
+        return .systemFont(ofSize: 18, weight: .semibold)
+    case .handwritten:
+        return UIFont(name: "Caveat-Medium", size: 23) ?? .systemFont(ofSize: 23, weight: .medium)
+    case .mono:
+        return .monospacedSystemFont(ofSize: 16, weight: .semibold)
+    case .bubble:
+        return .systemFont(ofSize: 18, weight: .black)
+    case .editorial:
+        return .systemFont(ofSize: 20, weight: .bold)
     }
 }
 
@@ -1614,8 +1809,8 @@ private struct HiddenLayerTextCardPreview: View {
                 .font(font)
                 .foregroundColor(foreground)
                 .multilineTextAlignment(.center)
-                .lineLimit(4)
-                .minimumScaleFactor(0.65)
+                .lineLimit(1)
+                .truncationMode(.tail)
                 .padding(.horizontal, 16)
                 .padding(.vertical, 12)
                 .frame(maxWidth: .infinity, minHeight: 74)
@@ -1626,8 +1821,8 @@ private struct HiddenLayerTextCardPreview: View {
                 .font(font)
                 .foregroundColor(foreground)
                 .multilineTextAlignment(.center)
-                .lineLimit(4)
-                .minimumScaleFactor(0.65)
+                .lineLimit(1)
+                .truncationMode(.tail)
                 .padding(.horizontal, 16)
                 .padding(.vertical, 12)
                 .frame(maxWidth: .infinity, minHeight: 74)
@@ -1696,11 +1891,6 @@ private struct HiddenLayerPolaroidPreview: View {
                     .scaleEffect(imageScale)
                     .offset(imageOffset)
 
-                if showsAdjustingMask {
-                    RoundedRectangle(cornerRadius: 14, style: .continuous)
-                        .stroke(Color.white.opacity(0.92), lineWidth: 1.5)
-                        .padding(inset)
-                }
             }
             .frame(width: contentWidth, height: imageAreaHeight)
             .clipped()
