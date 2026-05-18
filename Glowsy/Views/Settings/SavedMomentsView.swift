@@ -14,7 +14,7 @@ class SavedMomentsViewModel: ObservableObject {
     @Published private(set) var mutedUserIds: Set<String> = []
     @Published var isLoading = false
     @Published var error: Error?
-    
+
     private let firestoreService = FirestoreService()
     private let privacyService = PrivacyService.shared
     private var visibilityValidationToken = UUID()
@@ -32,12 +32,12 @@ class SavedMomentsViewModel: ObservableObject {
                 self?.mutedUserIds = mutedIds
             }
         }
-        
+
         // Cargar los IDs de momentos guardados primero
         firestoreService.db.collection("users").document(userId).collection("savedMoments")
             .getDocuments { [weak self] snapshot, error in
                 guard let self = self else { return }
-                
+
                 if let error = error {
                     DispatchQueue.main.async {
                         self.error = error
@@ -46,14 +46,14 @@ class SavedMomentsViewModel: ObservableObject {
                     }
                     return
                 }
-                
+
                 let savedDocuments = snapshot?.documents ?? []
                 let momentIds = savedDocuments.compactMap { $0.documentID }
-                
+
                 DispatchQueue.main.async {
                     self.savedMomentIds = momentIds
                 }
-                
+
                 // Si no hay momentos guardados
                 guard !momentIds.isEmpty else {
                     DispatchQueue.main.async {
@@ -64,40 +64,40 @@ class SavedMomentsViewModel: ObservableObject {
                     }
                     return
                 }
-                
+
                 // ✅ BUSCAR MOMENTOS SIN FILTROS DE PRIVACIDAD
                 self.fetchSavedMomentsDirectly(momentIds: momentIds, completion: completion)
             }
     }
-    
+
     // ✅ NUEVA FUNCIÓN: Buscar momentos guardados directamente sin filtros de privacidad
     private func fetchSavedMomentsDirectly(momentIds: [String], completion: @escaping (Error?) -> Void) {
         let group = DispatchGroup()
         var foundMoments: [Moment] = []
         var notFoundMomentIds: [String] = []
         let syncQueue = DispatchQueue(label: "saved.moments.direct.sync")
-        
-        
+
+
         // Obtener usuarios activos para buscar
         fetchActiveUsers { [weak self] userIds in
             guard let self = self else {
                 completion(NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "Self deallocated"]))
                 return
             }
-            
+
             for userId in userIds {
                 group.enter()
-                
+
                 // Buscar momentos de este usuario
                 self.fetchMomentsFromUser(userId: userId) { userMoments in
                     defer { group.leave() }
-                    
+
                     // Filtrar solo los momentos que están en nuestros guardados
                     let matchingMoments = userMoments.filter { moment in
                         guard let momentId = moment.id else { return false }
                         return momentIds.contains(momentId)
                     }
-                    
+
                     if !matchingMoments.isEmpty {
                         syncQueue.async {
                             foundMoments.append(contentsOf: matchingMoments)
@@ -105,20 +105,20 @@ class SavedMomentsViewModel: ObservableObject {
                     }
                 }
             }
-            
+
             group.notify(queue: .main) {
                 // Identificar momentos no encontrados para limpieza
                 let foundMomentIds = Set(foundMoments.compactMap { $0.id })
                 notFoundMomentIds = momentIds.filter { !foundMomentIds.contains($0) }
-                
+
                 // Limpiar momentos que ya no existen
                 if !notFoundMomentIds.isEmpty {
                     self.cleanupMissingMoments(missingIds: notFoundMomentIds)
                 }
-                
+
                 // Ordenar por timestamp
                 let sortedMoments = foundMoments.sorted { $0.timestamp > $1.timestamp }
-                
+
                 self.moments = sortedMoments
                 self.validateVisibilityForLoadedMoments(sortedMoments)
                 self.isLoading = false
@@ -126,7 +126,7 @@ class SavedMomentsViewModel: ObservableObject {
             }
         }
     }
-    
+
     // ✅ FUNCIÓN AUXILIAR: Obtener momentos de un usuario específico
     private func fetchMomentsFromUser(userId: String, completion: @escaping ([Moment]) -> Void) {
         firestoreService.fetchMoments(for: userId) { result in
@@ -138,12 +138,12 @@ class SavedMomentsViewModel: ObservableObject {
             }
         }
     }
-    
+
     // ✅ FUNCIÓN AUXILIAR: Obtener usuarios activos
     private func fetchActiveUsers(completion: @escaping ([String]) -> Void) {
         // Obtener usuarios que han estado activos en los últimos 6 meses
         let recentDate = Calendar.current.date(byAdding: .month, value: -6, to: Date()) ?? Date()
-        
+
         firestoreService.db.collection("users")
             .whereField("lastActiveAt", isGreaterThan: Timestamp(date: recentDate))
             .limit(to: 100) // Aumentar límite para mejor cobertura
@@ -153,12 +153,12 @@ class SavedMomentsViewModel: ObservableObject {
                     self.fetchAllUsers(completion: completion)
                     return
                 }
-                
+
                 let userIds = snapshot?.documents.compactMap { doc in
                     doc.documentID
                 } ?? []
-                
-                
+
+
                 if userIds.isEmpty {
                     // Fallback si no hay usuarios con lastActiveAt
                     self.fetchAllUsers(completion: completion)
@@ -167,7 +167,7 @@ class SavedMomentsViewModel: ObservableObject {
                 }
             }
     }
-    
+
     // ✅ FUNCIÓN FALLBACK: Obtener todos los usuarios
     private func fetchAllUsers(completion: @escaping ([String]) -> Void) {
         firestoreService.db.collection("users")
@@ -177,24 +177,24 @@ class SavedMomentsViewModel: ObservableObject {
                     completion([])
                     return
                 }
-                
+
                 let userIds = snapshot?.documents.compactMap { doc in
                     doc.documentID
                 } ?? []
-                
+
                 completion(userIds)
             }
     }
-    
+
     // ✅ FUNCIÓN DE LIMPIEZA: Remover momentos que ya no existen
     private func cleanupMissingMoments(missingIds: [String]) {
         guard let userId = Auth.auth().currentUser?.uid else { return }
-        
+
         let group = DispatchGroup()
-        
+
         for momentId in missingIds {
             group.enter()
-            
+
             firestoreService.db.collection("users").document(userId)
                 .collection("savedMoments").document(momentId)
                 .delete { error in
@@ -204,13 +204,13 @@ class SavedMomentsViewModel: ObservableObject {
                     group.leave()
                 }
         }
-        
+
         group.notify(queue: .main) {
             // Actualizar IDs locales
             self.savedMomentIds.removeAll { missingIds.contains($0) }
         }
     }
-    
+
     // MARK: - Public Methods
     func isMomentSaved(momentId: String) -> Bool {
         return savedMomentIds.contains(momentId)
@@ -226,7 +226,7 @@ class SavedMomentsViewModel: ObservableObject {
             return
         }
 
-        
+
         firestoreService.toggleSaveMoment(userId: userId, momentId: momentId) { [weak self] error in
             DispatchQueue.main.async {
                 if let error = error {
@@ -240,14 +240,14 @@ class SavedMomentsViewModel: ObservableObject {
             }
         }
     }
-    
+
     func addSavedMoment(_ moment: Moment) {
         guard let momentId = moment.id else { return }
-        
+
         if !savedMomentIds.contains(momentId) {
             savedMomentIds.append(momentId)
             visibilityByMomentId[momentId] = true
-            
+
             if !moments.contains(where: { $0.id == momentId }) {
                 moments.append(moment)
                 moments.sort { $0.timestamp > $1.timestamp }
@@ -269,24 +269,24 @@ class SavedMomentsViewModel: ObservableObject {
             }
         }
     }
-    
+
     // MARK: - Debug Methods
     func debugSavedMoments() {
         guard let userId = Auth.auth().currentUser?.uid else { return }
-        
+
         firestoreService.db.collection("users").document(userId).collection("savedMoments")
             .getDocuments { snapshot, error in
                 if let error = error {
                     return
                 }
-                
+
                 let docs = snapshot?.documents ?? []
-                
+
                 docs.forEach { doc in
                 }
             }
     }
-    
+
     func forceRefresh() {
         moments = []
         savedMomentIds = []
@@ -329,7 +329,7 @@ private enum SavedMediaFilter: CaseIterable {
     case all
     case photos
     case videos
-    
+
     var title: String {
         switch self {
         case .all:
@@ -347,7 +347,7 @@ private enum SavedCollectionFilter: CaseIterable {
     case location
     case text
     case multiple
-    
+
     var title: String {
         switch self {
         case .all:
@@ -366,7 +366,7 @@ private enum SavedSortMode: CaseIterable {
     case newest
     case oldest
     case author
-    
+
     var title: String {
         switch self {
         case .newest:
@@ -394,21 +394,21 @@ struct SavedMomentsView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) private var colorScheme
     @StateObject private var viewModel = SavedMomentsViewModel()
-    
+
     @State private var searchText = ""
     @State private var mediaFilter: SavedMediaFilter = .all
     @State private var collectionFilter: SavedCollectionFilter = .all
     @State private var sortMode: SavedSortMode = .newest
-    
+
     @State private var isSelectionMode = false
     @State private var selectedMomentIds: Set<String> = []
-    
+
     @State private var detailRoute: SavedMomentsDetailRoute?
-    
+
     @State private var showRemoveSelectionAlert = false
     @State private var restrictedMomentToRemove: Moment?
     @State private var showingRestrictedRemoveAlert = false
-    
+
     private var filteredMoments: [Moment] {
         let searched = viewModel.moments.filter { moment in
             guard !searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return true }
@@ -417,7 +417,7 @@ struct SavedMomentsView: View {
                 moment.content.lowercased().contains(query) ||
                 (moment.location?.lowercased().contains(query) ?? false)
         }
-        
+
         let byMedia = searched.filter { moment in
             switch mediaFilter {
             case .all:
@@ -428,7 +428,7 @@ struct SavedMomentsView: View {
                 return hasVideo(moment)
             }
         }
-        
+
         let byCollection = byMedia.filter { moment in
             switch collectionFilter {
             case .all:
@@ -441,7 +441,7 @@ struct SavedMomentsView: View {
                 return (moment.mediaItems?.count ?? 0) > 1
             }
         }
-        
+
         switch sortMode {
         case .newest:
             return byCollection.sorted { $0.timestamp > $1.timestamp }
@@ -451,14 +451,14 @@ struct SavedMomentsView: View {
             return byCollection.sorted { $0.username.localizedCaseInsensitiveCompare($1.username) == .orderedAscending }
         }
     }
-    
+
     var body: some View {
         ZStack(alignment: .bottom) {
             background
-            
+
             VStack(spacing: 14) {
                 header
-                
+
                 if viewModel.isLoading {
                     loadingView
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -473,7 +473,7 @@ struct SavedMomentsView: View {
                 }
             }
             .padding(.top, 8)
-            
+
             if isSelectionMode {
                 selectionBar
                     .transition(.move(edge: .bottom).combined(with: .opacity))
@@ -538,13 +538,13 @@ struct SavedMomentsView: View {
             selectedMomentIds = Set(selectedMomentIds.filter { validSet.contains($0) })
         }
     }
-    
+
     private var background: some View {
         ZStack {
             (colorScheme == .dark ? Color(hex: "0B1215") : Color(hex: "FAF9F6")).ignoresSafeArea()
         }
     }
-    
+
     private var content: some View {
         VStack(spacing: 14) {
             searchBar
@@ -552,7 +552,7 @@ struct SavedMomentsView: View {
             gridContent
         }
     }
-    
+
     private var header: some View {
         HStack(spacing: 12) {
             Button(action: { dismiss() }) {
@@ -562,7 +562,7 @@ struct SavedMomentsView: View {
                     .frame(width: 38, height: 38)
                     .background(Circle().fill(.ultraThinMaterial))
             }
-            
+
             VStack(alignment: .leading, spacing: 2) {
                 Text(NSLocalizedString("profile.tab.saved", comment: "Saved tab title"))
                     .font(.custom("Poppins-SemiBold", size: 22))
@@ -575,9 +575,9 @@ struct SavedMomentsView: View {
                     .foregroundColor(.secondary)
                     .lineLimit(1)
             }
-            
+
             Spacer()
-            
+
             Button(isSelectionMode ? NSLocalizedString("savedMoments.cancel", comment: "Cancel selection mode") : NSLocalizedString("savedMoments.select", comment: "Enable selection mode")) {
                 withAnimation(.spring(response: 0.32, dampingFraction: 0.82)) {
                     isSelectionMode.toggle()
@@ -594,7 +594,7 @@ struct SavedMomentsView: View {
         }
         .padding(.horizontal, 14)
     }
-    
+
     private var searchBar: some View {
         HStack(spacing: 10) {
             Image(systemName: "magnifyingglass")
@@ -603,7 +603,7 @@ struct SavedMomentsView: View {
                 .font(.custom("Poppins-Regular", size: 15))
                 .textInputAutocapitalization(.never)
                 .autocorrectionDisabled()
-            
+
             if !searchText.isEmpty {
                 Button(action: { searchText = "" }) {
                     Image(systemName: "xmark.circle.fill")
@@ -616,12 +616,12 @@ struct SavedMomentsView: View {
         .background(Color.clear.liquidGlass(in: Capsule()))
         .padding(.horizontal, 14)
     }
-    
+
     private var filterPanel: some View {
         VStack(spacing: 10) {
             HStack(spacing: 8) {
                 mediaSegments
-                
+
                 Menu {
                     ForEach(SavedSortMode.allCases, id: \.self) { mode in
                         Button(mode.title) { sortMode = mode }
@@ -640,12 +640,12 @@ struct SavedMomentsView: View {
                     .background(Color.clear.liquidGlass(in: Capsule(), interactive: true))
                 }
             }
-            
+
             collectionRail
         }
         .padding(.horizontal, 14)
     }
-    
+
     private var mediaSegments: some View {
         HStack(spacing: 8) {
             ForEach(SavedMediaFilter.allCases, id: \.self) { filter in
@@ -677,7 +677,7 @@ struct SavedMomentsView: View {
             }
         }
     }
-    
+
     private var collectionRail: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 8) {
@@ -711,7 +711,7 @@ struct SavedMomentsView: View {
             }
         }
     }
-    
+
     private var gridContent: some View {
         ScrollView {
             if filteredMoments.isEmpty {
@@ -726,7 +726,7 @@ struct SavedMomentsView: View {
                         .foregroundColor(.secondary)
                         .multilineTextAlignment(.center)
                         .padding(.horizontal, 32)
-                    
+
                     Button(NSLocalizedString("savedMoments.clearFilters", comment: "Clear filters action")) {
                         searchText = ""
                         mediaFilter = .all
@@ -749,7 +749,7 @@ struct SavedMomentsView: View {
                         let momentId = moment.id ?? UUID().uuidString
                         let isRestricted = !(viewModel.visibilityByMomentId[momentId] ?? true)
                         let isMutedRestriction = isRestricted && viewModel.isMomentFromMutedUser(moment)
-                        
+
                         ScreenshotProtectedView(
                             isProtected: (moment.audience?.lowercased() ?? "") != "everyone"
                         ) {
@@ -779,14 +779,14 @@ struct SavedMomentsView: View {
             }
         }
     }
-    
+
     private var selectionBar: some View {
         HStack(spacing: 10) {
             Text(String(format: NSLocalizedString("savedMoments.selection.count", comment: "Selected items count"), selectedMomentIds.count))
                 .font(.custom("Poppins-SemiBold", size: 14))
-            
+
             Spacer()
-            
+
             Button(action: shareSelectedLinks) {
                 Label(NSLocalizedString("savedMoments.share", comment: "Share action"), systemImage: "square.and.arrow.up")
                     .font(.custom("Poppins-SemiBold", size: 13))
@@ -795,7 +795,7 @@ struct SavedMomentsView: View {
             .padding(.vertical, 10)
             .background(Color.clear.liquidGlass(in: Capsule(), interactive: true))
             .disabled(selectedMomentIds.isEmpty)
-            
+
             Button(action: { showRemoveSelectionAlert = true }) {
                 Label(NSLocalizedString("savedMoments.remove", comment: "Remove action"), systemImage: "bookmark.slash")
                     .font(.custom("Poppins-SemiBold", size: 13))
@@ -817,7 +817,7 @@ struct SavedMomentsView: View {
                 )
         )
     }
-    
+
     private var loadingView: some View {
         VStack(spacing: 12) {
             ProgressView().scaleEffect(1.2)
@@ -826,7 +826,7 @@ struct SavedMomentsView: View {
                 .foregroundColor(.secondary)
         }
     }
-    
+
     private func errorView(_ error: Error) -> some View {
         VStack(spacing: 14) {
             Image(systemName: "wifi.exclamationmark")
@@ -849,7 +849,7 @@ struct SavedMomentsView: View {
             .background(Capsule().fill(.ultraThinMaterial))
         }
     }
-    
+
     private var emptyStateView: some View {
         VStack(spacing: 16) {
             Image(systemName: "bookmark.circle")
@@ -869,37 +869,37 @@ struct SavedMomentsView: View {
                 .padding(.horizontal, 30)
         }
     }
-    
+
     private func hasVideo(_ moment: Moment) -> Bool {
         if let first = moment.primaryVisibleMediaItem {
             return first.type == .video
         }
         return moment.previewVideoURLString != nil
     }
-    
+
     private func hasImage(_ moment: Moment) -> Bool {
         if let first = moment.primaryVisibleMediaItem {
             return first.type == .image
         }
         return moment.previewImageURLString != nil
     }
-    
+
     private func toggleSelection(moment: Moment) {
         guard let momentId = moment.id else { return }
-        
+
         // Block restricted moments from being selected
         if let canView = viewModel.visibilityByMomentId[momentId], !canView {
             HapticManager.shared.notification(.warning)
             return
         }
-        
+
         if selectedMomentIds.contains(momentId) {
             selectedMomentIds.remove(momentId)
         } else {
             selectedMomentIds.insert(momentId)
         }
     }
-    
+
     private func handleTap(moment: Moment, currentList: [Moment]) {
         if isSelectionMode {
             toggleSelection(moment: moment)
@@ -943,20 +943,20 @@ struct SavedMomentsView: View {
             initialIndex: resolvedIndex
         )
     }
-    
+
     private func removeSelected() {
         let ids = selectedMomentIds
         ids.forEach { viewModel.removeMoment(momentId: $0) }
         selectedMomentIds.removeAll()
         isSelectionMode = false
     }
-    
+
     private func shareSelectedLinks() {
         let selectedMoments = viewModel.moments.filter { moment in
             guard let id = moment.id else { return false }
             return selectedMomentIds.contains(id)
         }
-        
+
         let urls: [URL] = selectedMoments.compactMap { moment in
             guard let momentId = moment.id else { return nil }
             var components = URLComponents(string: "https://momentsapp.app/moment/\(momentId)")
@@ -965,9 +965,9 @@ struct SavedMomentsView: View {
             }
             return components?.url
         }
-        
+
         guard !urls.isEmpty else { return }
-        
+
         let controller = UIActivityViewController(activityItems: urls, applicationActivities: nil)
         if let scene = UIApplication.shared.connectedScenes
             .compactMap({ $0 as? UIWindowScene })
@@ -987,7 +987,7 @@ struct SavedMomentsView: View {
             presenter.present(controller, animated: true)
         }
     }
-    
+
     private func topViewController(from root: UIViewController?) -> UIViewController? {
         if let nav = root as? UINavigationController {
             return topViewController(from: nav.visibleViewController)
@@ -1000,7 +1000,7 @@ struct SavedMomentsView: View {
         }
         return root
     }
-    
+
     @MainActor
     private func refreshMoments() async {
         await withCheckedContinuation { continuation in
@@ -1019,9 +1019,9 @@ private struct SavedMomentGridCard: View {
     let isSelected: Bool
     let onTap: () -> Void
     let onLongPress: () -> Void
-    
+
     @State private var generatedThumbnail: UIImage?
-    
+
     var body: some View {
         ZStack(alignment: .topTrailing) {
             Button(action: onTap) {
@@ -1031,7 +1031,7 @@ private struct SavedMomentGridCard: View {
                         .frame(maxWidth: .infinity)
                         .aspectRatio(1, contentMode: .fit)
                         .clipShape(RoundedRectangle(cornerRadius: 8))
-                    
+
                     if isRestricted {
                         savedRestrictedOverlay
                     }
@@ -1053,7 +1053,7 @@ private struct SavedMomentGridCard: View {
                 RoundedRectangle(cornerRadius: 8)
                     .stroke(isSelected ? Color(hex: "2563EB") : Color.clear, lineWidth: 2)
             )
-            
+
             if isSelectionMode && !isRestricted {
                 Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
                     .font(.system(size: 20, weight: .semibold))
@@ -1103,7 +1103,7 @@ private struct SavedMomentGridCard: View {
         }
         .allowsHitTesting(false)
     }
-    
+
     @ViewBuilder
     private var preview: some View {
         if let media = moment.primaryVisibleMediaItem {
@@ -1141,7 +1141,7 @@ private struct SavedMomentGridCard: View {
             }
         }
     }
-    
+
     @ViewBuilder
     private func savedVideoPreview(url: String, thumbnail: String?) -> some View {
         ZStack {
@@ -1164,7 +1164,7 @@ private struct SavedMomentGridCard: View {
                         generateThumbnail(for: url)
                     }
             }
-            
+
             if !isRestricted {
                 VStack {
                     HStack {
@@ -1181,7 +1181,7 @@ private struct SavedMomentGridCard: View {
             }
         }
     }
-    
+
     private var mediaCount: Int {
         if let items = moment.mediaItems, !items.isEmpty {
             return items.count
@@ -1191,15 +1191,15 @@ private struct SavedMomentGridCard: View {
         if moment.videoUrl != nil { count += 1 }
         return max(count, 1)
     }
-    
+
     private func generateThumbnail(for videoPath: String) {
         guard generatedThumbnail == nil, let videoURL = URL(string: videoPath) else { return }
-        
+
         DispatchQueue.global(qos: .userInitiated).async {
             let asset = AVAsset(url: videoURL)
             let generator = AVAssetImageGenerator(asset: asset)
             generator.appliesPreferredTrackTransform = true
-            
+
             do {
                 let cgImage = try generator.copyCGImage(at: CMTime(seconds: 0.8, preferredTimescale: 600), actualTime: nil)
                 let thumbnail = UIImage(cgImage: cgImage)
@@ -1219,7 +1219,7 @@ struct ModernSavedMomentsDetailView: View {
     let initialIndex: Int
     let onDismiss: () -> Void
     let onRemoveMoment: ((Moment) -> Void)?
-    
+
     @StateObject private var firestoreService = FirestoreService()
     @State private var currentIndex: Int
     @State private var commentsRoute: SavedMomentCommentsRoute?
@@ -1233,7 +1233,7 @@ struct ModernSavedMomentsDetailView: View {
     @State private var peekIsProtected = false
     @State private var selectedHashtag: String = ""
     @State private var showExploreWithHashtag = false
-    
+
     init(moments: [Moment], initialIndex: Int, onDismiss: @escaping () -> Void, onRemoveMoment: ((Moment) -> Void)? = nil) {
         self.moments = moments
         self.initialIndex = initialIndex
@@ -1241,39 +1241,39 @@ struct ModernSavedMomentsDetailView: View {
         self.onRemoveMoment = onRemoveMoment
         self._currentIndex = State(initialValue: initialIndex)
     }
-    
+
     var body: some View {
         GeometryReader { geometry in
             let safeAreaTop = geometry.safeAreaInsets.top
             let safeAreaBottom = geometry.safeAreaInsets.bottom
-            
-            ZStack {
+
+            ZStack(alignment: .top) {
                 // ✅ Fondo moderno igual que el feed
-                ModernSavedDetailBackground(scrollOffset: scrollOffset)
+                ModernDetailBackground(scrollOffset: scrollOffset)
                     .ignoresSafeArea(.all)
-                
-                VStack(spacing: 0) {
-                    // ✅ Header específico para momentos guardados
-                    ModernSavedDetailHeader(
-                        moment: moments[safe: currentIndex],
-                        onDismiss: onDismiss,
-                        onRemove: {
-                            if let moment = moments[safe: currentIndex] {
-                                momentToRemove = moment
-                                showingRemoveAlert = true
-                            }
+
+                // ✅ ScrollView con momentos guardados
+                modernSavedMomentsScrollView(
+                    geometry: geometry,
+                    safeAreaBottom: safeAreaBottom,
+                    topContentInset: 18
+                )
+
+                // ✅ Header flotante, igual que el detalle de perfil/tagged
+                ModernSavedDetailHeader(
+                    moment: moments[safe: currentIndex],
+                    safeAreaTop: safeAreaTop,
+                    onDismiss: onDismiss,
+                    onRemove: {
+                        if let moment = moments[safe: currentIndex] {
+                            momentToRemove = moment
+                            showingRemoveAlert = true
                         }
-                    )
-                    .padding(.top, max(safeAreaTop * 0.15, 4))
-                    .padding(.bottom, 6)
-                    
-                    // ✅ ScrollView con momentos guardados
-                    modernSavedMomentsScrollView(
-                        geometry: geometry,
-                        safeAreaBottom: safeAreaBottom
-                    )
-                }
-                
+                    }
+                )
+                .ignoresSafeArea(.container, edges: .top)
+                .zIndex(10)
+
                 if (isPeeking || peekOverlayProgress > 0.01), let imageURL = peekImageURL {
                     ZStack {
                         ScreenshotProtectedView(isProtected: peekIsProtected, fillsContainer: true) {
@@ -1281,7 +1281,7 @@ struct ModernSavedMomentsDetailView: View {
                                 Rectangle()
                                     .fill(.ultraThinMaterial)
                                     .ignoresSafeArea()
-                                
+
                                 KFImage(URL(string: imageURL))
                                     .resizable()
                                     .scaledToFill()
@@ -1318,7 +1318,7 @@ struct ModernSavedMomentsDetailView: View {
             Button(NSLocalizedString("savedMoments.remove.confirm", comment: "Remove"), role: .destructive) {
                 if let moment = momentToRemove {
                     onRemoveMoment?(moment)
-                    
+
                     // Si solo hay un momento, cerrar la vista
                     if moments.count == 1 {
                         onDismiss()
@@ -1339,12 +1339,15 @@ struct ModernSavedMomentsDetailView: View {
         }
         .environmentObject(firestoreService)
     }
-    
+
     // ✅ ScrollView principal para momentos guardados
-    private func modernSavedMomentsScrollView(geometry: GeometryProxy, safeAreaBottom: CGFloat) -> some View {
+    private func modernSavedMomentsScrollView(geometry: GeometryProxy, safeAreaBottom: CGFloat, topContentInset: CGFloat) -> some View {
         ScrollViewReader { proxy in
             ScrollView(.vertical, showsIndicators: false) {
                 LazyVStack(spacing: 40) {
+                    Color.clear
+                        .frame(height: topContentInset)
+
                     ForEach(Array(moments.enumerated()), id: \.offset) { index, moment in
                         ScreenshotProtectedView(
                             isProtected: (moment.audience?.lowercased() ?? "") != "everyone"
@@ -1396,7 +1399,7 @@ struct ModernSavedMomentsDetailView: View {
                         }
                     }
                 }
-                .padding(.vertical, 14)
+                .padding(.top, 0)
                 .padding(.bottom, safeAreaBottom + 40)
                 .background(
                     GeometryReader { geo in
@@ -1421,46 +1424,43 @@ struct ModernSavedMomentsDetailView: View {
 // MARK: - ✅ Header específico para momentos guardados
 struct ModernSavedDetailHeader: View {
     let moment: Moment?
+    let safeAreaTop: CGFloat
     let onDismiss: () -> Void
     let onRemove: () -> Void
     @Environment(\.colorScheme) private var colorScheme
-    
+
     private var primaryTextColor: Color {
         colorScheme == .dark ? .white : .black.opacity(0.9)
     }
-    
+
     private var secondaryTextColor: Color {
         colorScheme == .dark ? .white.opacity(0.65) : .black.opacity(0.55)
     }
-    
+
     private var iconColor: Color {
         colorScheme == .dark ? .white : .black.opacity(0.85)
     }
-    
+
     var body: some View {
-        HStack(spacing: 10) {
-            Button(action: onDismiss) {
-                Image(systemName: "chevron.left")
-                    .font(.system(size: 18, weight: .semibold))
-                    .foregroundColor(iconColor)
-                    .frame(width: 44, height: 44)
-                    .background(.ultraThinMaterial)
-                    .clipShape(Circle())
-                    .overlay(
-                        Circle().stroke(
-                            colorScheme == .dark ? Color.white.opacity(0.2) : Color.black.opacity(0.12),
-                            lineWidth: 1
-                        )
-                    )
-            }
-            
-            if let moment = moment {
-                HStack(spacing: 10) {
-                    Spacer(minLength: 0)
-                    
+        VStack(spacing: 0) {
+            Color.clear
+                .frame(height: max(24, safeAreaTop - 6))
+
+            HStack(spacing: 12) {
+                Button(action: onDismiss) {
+                    Image(systemName: "chevron.left")
+                        .font(.system(size: 16, weight: .bold))
+                        .foregroundColor(iconColor)
+                        .frame(width: 38, height: 38)
+                        .liquidGlass(in: Circle(), interactive: true)
+                }
+                .buttonStyle(.plain)
+                .contentShape(Circle())
+
+                if let moment = moment {
                     HStack(spacing: 10) {
                         AsyncSavedProfileImageView(userId: moment.authorId)
-                            .frame(width: 34, height: 34)
+                            .frame(width: 38, height: 38)
                             .clipShape(Circle())
                             .overlay(
                                 Circle().stroke(
@@ -1468,44 +1468,39 @@ struct ModernSavedDetailHeader: View {
                                     lineWidth: 1
                                 )
                             )
-                        
-                        VStack(alignment: .leading, spacing: 1) {
+
+                        VStack(alignment: .leading, spacing: 0) {
                             LiveUsernameText(userId: moment.authorId, fallbackUsername: moment.username)
-                                .font(.custom("Poppins-SemiBold", size: 14))
+                                .font(.custom("Poppins-SemiBold", size: 16))
                                 .foregroundColor(primaryTextColor)
                                 .lineLimit(1)
-                            
+
                             Text(timeAgo(from: moment.timestamp))
-                                .font(.custom("Poppins-Regular", size: 11))
+                                .font(.custom("Poppins-Regular", size: 10))
                                 .foregroundColor(secondaryTextColor)
                         }
                     }
-                    
-                    Spacer(minLength: 0)
                 }
-                .frame(maxWidth: .infinity)
-            } else {
-                Spacer()
+
+                Spacer(minLength: 0)
+
+                Button(action: onRemove) {
+                    Image(systemName: "bookmark.slash")
+                        .font(.system(size: 15, weight: .bold))
+                        .foregroundColor(iconColor)
+                        .frame(width: 38, height: 38)
+                        .liquidGlass(in: Circle(), interactive: true)
+                }
+                .buttonStyle(.plain)
+                .contentShape(Circle())
             }
-            
-            Button(action: onRemove) {
-                Image(systemName: "bookmark.slash")
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundColor(iconColor)
-                    .frame(width: 44, height: 44)
-                    .background(.ultraThinMaterial)
-                    .clipShape(Circle())
-                    .overlay(
-                        Circle().stroke(
-                            colorScheme == .dark ? Color.white.opacity(0.2) : Color.black.opacity(0.12),
-                            lineWidth: 1
-                        )
-                    )
-            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 8)
+            .liquidGlass(in: Capsule(), interactive: false)
+            .padding(.horizontal, 14)
         }
-        .padding(.horizontal, 16)
     }
-    
+
     private func timeAgo(from date: Date) -> String {
         let formatter = RelativeDateTimeFormatter()
         formatter.unitsStyle = .abbreviated
@@ -1521,11 +1516,11 @@ struct ModernSavedDetailMomentCard: View {
     let onHashtagTap: (String) -> Void
     let onRemove: () -> Void
     let onPeek: ((String, CGFloat, Bool) -> Void)?
-    
+
     @EnvironmentObject private var firestoreService: FirestoreService
     @Environment(\.colorScheme) var colorScheme  // ✅ AGREGAR esta línea
     @State private var currentImageIndex = 0
-    
+
     @State private var detectedAspectRatio: CGFloat = 1.0
     @State private var commentCount: Int = 0
     @State private var hasLoadedInitialData: Bool = false
@@ -1539,24 +1534,26 @@ struct ModernSavedDetailMomentCard: View {
     @State private var showDeleteAlert = false
     @State private var editedContent = ""
     @State private var isDeleting = false
-    
-    
+
+
     enum AspectRatioType {
-        case square, portrait, landscape
-        
+        case square, portrait, landscape, reels
+
         var maxHeight: CGFloat {
             switch self {
-            case .square: return 400
-            case .portrait: return 500
-            case .landscape: return 280
+            case .square: return 450
+            case .portrait: return 550
+            case .landscape: return 300
+            case .reels: return 1000
             }
         }
-        
+
         var exactRatio: CGFloat {
             switch self {
             case .square: return 1.0
             case .portrait: return 0.8
-            case .landscape: return 1.78
+            case .landscape: return 16.0/9.0
+            case .reels: return 9.0/16.0
             }
         }
     }
@@ -1571,7 +1568,7 @@ struct ModernSavedDetailMomentCard: View {
         guard moment.shouldUseLegacyMediaFallback else {
             return [MediaItem(type: .image, url: "")]
         }
-        
+
         // ✅ FALLBACK: Para momentos legacy que solo tienen imagePath/videoUrl
         var items: [MediaItem] = []
         if let imagePath = moment.imagePath, !imagePath.isEmpty {
@@ -1582,25 +1579,35 @@ struct ModernSavedDetailMomentCard: View {
         }
         return items.isEmpty ? [MediaItem(type: .image, url: "")] : items
     }
-    
+
     private var cardHeight: CGFloat {
-        let maxWidth = UIScreen.main.bounds.width - 30
+        let maxWidth = UIScreen.main.bounds.width - 32
+        guard maxWidth > 0 else { return 350 }
+
         let aspectRatio = detectedAspectRatio > 0 ? detectedAspectRatio : aspectRatioType.exactRatio
         let calculatedHeight = maxWidth / aspectRatio
-        let maxAllowedHeight = min(aspectRatioType.maxHeight, availableHeight - 80)
-        return min(calculatedHeight, maxAllowedHeight)
+
+        if aspectRatioType == .reels {
+            return min(calculatedHeight, availableHeight + 100)
+        }
+
+        return min(calculatedHeight, aspectRatioType.maxHeight)
     }
-    
+
+    private var activeMediaItem: MediaItem? {
+        mediaItems.indices.contains(currentImageIndex) ? mediaItems[currentImageIndex] : mediaItems.first
+    }
+
     var body: some View {
-        VStack(spacing: 10) {
+        VStack(alignment: .leading, spacing: 12) {
             ZStack(alignment: .bottom) {
-                ZStack {
+                ZStack(alignment: .topLeading) {
                     EnhancedCarouselView(
                         mediaItems: mediaItems,
                         currentIndex: $currentImageIndex,
                         showTags: $showTags,
                         aspectRatio: detectedAspectRatio,
-                        allMoments: [],
+                        allMoments: [moment],
                         currentMoment: moment,
                         isImmersive: $isImmersive // ✅ NUEVO
                     )
@@ -1613,21 +1620,9 @@ struct ModernSavedDetailMomentCard: View {
                         }
                     }, perform: {})
                     .frame(height: max(cardHeight, 200))
-                    .clipShape(RoundedRectangle(cornerRadius: isImmersive ? 12 : 20))
+                    .clipShape(RoundedRectangle(cornerRadius: isImmersive ? 12 : 28, style: .continuous))
+                    .contentShape(RoundedRectangle(cornerRadius: isImmersive ? 12 : 28, style: .continuous))
                     .animation(.spring(response: 0.4, dampingFraction: 0.8), value: isImmersive)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: isImmersive ? 12 : 20)
-                            .stroke(
-                                LinearGradient(
-                                    colors: [.white.opacity(0.3), .white.opacity(0.1)],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                ),
-                                lineWidth: 1
-                            )
-                    )
-                    .shadow(color: colorScheme == .dark ? .black.opacity(0.4) : .black.opacity(0.12), radius: 15, x: 0, y: 10)
-                    .shadow(color: colorScheme == .dark ? .white.opacity(0.05) : .black.opacity(0.08), radius: 1, x: 0, y: 1)
                     .onAppear {
                         detectAspectRatio()
                     }
@@ -1639,109 +1634,31 @@ struct ModernSavedDetailMomentCard: View {
                        currentImageIndex == 0 {
                         HiddenLayersOverlayView(moment: moment, isImmersive: isImmersive)
                             .frame(height: max(cardHeight, 200))
-                            .clipShape(RoundedRectangle(cornerRadius: isImmersive ? 12 : 20))
+                            .clipShape(RoundedRectangle(cornerRadius: isImmersive ? 12 : 28, style: .continuous))
                             .zIndex(3)
                     }
-                    
-                    if mediaItems.count > 1 {
-                        VStack {
-                            HStack(spacing: 8) {
-                                ForEach(0..<mediaItems.count, id: \.self) { index in
-                                    Circle()
-                                        .fill(currentImageIndex == index ? Color.white : Color.white.opacity(0.35))
-                                        .frame(width: currentImageIndex == index ? 8 : 6, height: currentImageIndex == index ? 8 : 6)
-                                        .animation(.easeInOut(duration: 0.3), value: currentImageIndex)
-                                        .shadow(color: .black.opacity(0.35), radius: 2, x: 0, y: 1)
-                                }
-                            }
-                            .padding(.top, 20)
-                            Spacer()
-                        }
-                        .opacity(isImmersive ? 0 : 1)
-                        .animation(.easeInOut(duration: 0.3), value: isImmersive)
-                    }
-                    
-                    if mediaItems.count > 1 {
-                        VStack {
-                            HStack {
-                                Spacer()
-                                Text("\(currentImageIndex + 1)/\(mediaItems.count)")
-                                    .font(.custom("Poppins-Medium", size: 11))
-                                    .foregroundColor(.white.opacity(0.9))
-                                    .padding(.horizontal, 8)
-                                    .padding(.vertical, 4)
-                                    .background(Capsule().fill(Color.black.opacity(0.4)))
-                                    .overlay(
-                                        Capsule()
-                                            .stroke(Color.white.opacity(0.18), lineWidth: 1)
-                                    )
-                            }
-                            .padding(.top, 14)
-                            .padding(.trailing, 14)
-                            Spacer()
-                        }
-                        .opacity(isImmersive ? 0 : 1)
-                        .animation(.easeInOut(duration: 0.3), value: isImmersive)
-                    }
 
-                    if !moment.content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                        VStack {
-                            Spacer()
-                            LinearGradient(
-                                colors: [Color.clear, Color.black.opacity(0.55)],
-                                startPoint: .top,
-                                endPoint: .bottom
-                            )
-                            .frame(height: 130)
-                            .overlay(alignment: .bottomLeading) {
-                                ExpandableContentView(
-                                    content: moment.content,
-                                    colorScheme: colorScheme,
-                                    onHashtagTap: onHashtagTap
-                                )
-                                .padding(.leading, 14)
-                                .padding(.trailing, isImmersive ? 14 : 124)
-                                .padding(.bottom, 14)
-                            }
-                        }
-                        .clipShape(RoundedRectangle(cornerRadius: 20))
+                    savedMediaBadges
+                        .padding(.top, 14)
+                        .padding(.leading, 14)
                         .opacity(isImmersive ? 0 : 1)
                         .animation(.easeInOut(duration: 0.3), value: isImmersive)
-                    }
 
-                    let currentMediaItem = mediaItems.indices.contains(currentImageIndex) ? mediaItems[currentImageIndex] : nil
-                    if let currentMediaItem, !currentMediaItem.isHiddenByModeration,
-                       let tags = currentMediaItem.tags, !tags.isEmpty {
-                        VStack {
-                            HStack {
-                                Button(action: {
-                                    withAnimation(.spring()) {
-                                        showTags.toggle()
-                                    }
-                                }) {
-                                    ZStack {
-                                        Circle()
-                                            .fill(showTags ? Color(hex: "007AFF") : Color.black.opacity(0.6))
-                                            .frame(width: 32, height: 32)
-                                            .overlay(Circle().stroke(Color.white.opacity(0.4), lineWidth: 1))
-                                        Image(systemName: "tag.fill")
-                                            .font(.system(size: 13, weight: .bold))
-                                            .foregroundColor(.white)
-                                    }
-                                    .shadow(color: .black.opacity(0.4), radius: 6, x: 0, y: 3)
-                                }
-                                .padding(.leading, 12)
-                                .padding(.top, 12)
-                                Spacer()
+                    if mediaItems.count > 1 {
+                        HStack(spacing: 6) {
+                            ForEach(0..<mediaItems.count, id: \.self) { index in
+                                Capsule()
+                                    .fill(currentImageIndex == index ? .white : .white.opacity(0.4))
+                                    .frame(width: currentImageIndex == index ? 24 : 6, height: 4)
+                                    .animation(.spring(response: 0.3, dampingFraction: 0.7), value: currentImageIndex)
                             }
-                            Spacer()
                         }
-                        .zIndex(100)
+                        .frame(maxWidth: .infinity, alignment: .center)
+                        .padding(.top, aspectRatioType == .reels ? 80 : 18)
                         .opacity(isImmersive ? 0 : 1)
-                        .animation(.easeInOut(duration: 0.3), value: isImmersive)
                     }
                 }
-                
+
                 ModernActionButtons(
                     moment: moment, // Sin likes, solo rail y acciones existentes
                     isSaved: .constant(true),
@@ -1768,9 +1685,22 @@ struct ModernSavedDetailMomentCard: View {
                     isImmersive: $isImmersive
                 )
                 .environmentObject(firestoreService)
+                .padding(.bottom, 6)
+                .opacity(isImmersive ? 0 : 1)
+                .animation(.easeInOut(duration: 0.3), value: isImmersive)
             }
-            .padding(.horizontal, 15)
+            .shadow(color: .black.opacity(colorScheme == .dark ? 0.22 : 0.10), radius: 18, x: 0, y: 12)
+
+            MomentCaptionView(
+                moment: moment,
+                style: .detail,
+                colorScheme: colorScheme,
+                onHashtagTap: onHashtagTap
+            )
+            .padding(.horizontal, 4)
         }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 4)
         .onAppear {
             if !hasLoadedInitialData {
                 loadMomentData()
@@ -1818,7 +1748,7 @@ struct ModernSavedDetailMomentCard: View {
     // ✅ Funciones auxiliares
     private func loadMomentData() {
         guard let momentId = moment.id else { return }
-        
+
         // Cargar conteo de comentarios
         firestoreService.db.collection("users").document(moment.authorId)
             .collection("moments").document(momentId)
@@ -1827,7 +1757,7 @@ struct ModernSavedDetailMomentCard: View {
                 if let error = error {
                     return
                 }
-                
+
                 DispatchQueue.main.async {
                     let newCount = snapshot?.documents.count ?? 0
                     withAnimation(.easeInOut(duration: 0.3)) {
@@ -1836,16 +1766,16 @@ struct ModernSavedDetailMomentCard: View {
                 }
             }
     }
-    
+
     private func detectAspectRatio() {
         if let savedAspectRatio = moment.aspectRatio {
             let safeRatio = ProcessedMedia.AspectRatio(from: savedAspectRatio).value
             let displayRatio = safeRatio < 0.8 ? 0.8 : safeRatio
-            
+
             DispatchQueue.main.async {
                 self.realAspectRatio = safeRatio
                 self.detectedAspectRatio = displayRatio
-                
+
                 if displayRatio > 1.4 {
                     self.aspectRatioType = .landscape
                 } else if displayRatio < 0.9 {
@@ -1858,27 +1788,27 @@ struct ModernSavedDetailMomentCard: View {
             }
             return
         }
-        
+
         guard let firstItem = mediaItems.first, !firstItem.url.isEmpty else {
             realAspectRatio = 0.8
             detectedAspectRatio = 0.8
             aspectRatioType = .portrait
             return
         }
-        
+
         if firstItem.type == .image {
             KFImage(URL(string: firstItem.url))
                 .onSuccess { result in
                     let imageSize = result.image.size
                     let ratio = imageSize.width / imageSize.height
                     let displayRatio = ratio < 0.8 ? 0.8 : ratio
-                    
+
                     DispatchQueue.main.async {
                         self.realAspectRatio = ratio
                         self.detectedAspectRatio = displayRatio
-                        
+
                         let tolerance: CGFloat = 0.05
-                        
+
                         if abs(displayRatio - 1.0) < tolerance {
                             self.aspectRatioType = .square
                         } else if abs(displayRatio - 0.8) < tolerance {
@@ -1905,7 +1835,7 @@ struct ModernSavedDetailMomentCard: View {
             aspectRatioType = .landscape
         }
     }
-    
+
     private func updateMoment(payload: EditMomentPayload) {
         guard let momentId = moment.id else { return }
 
@@ -1943,10 +1873,61 @@ struct ModernSavedDetailMomentCard: View {
             }
         }
     }
-    
+
+    @ViewBuilder
+    private var savedMediaBadges: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            if let location = moment.location?.trimmingCharacters(in: .whitespacesAndNewlines),
+               !location.isEmpty {
+                HStack(spacing: 6) {
+                    Image(systemName: "location.fill")
+                        .font(.system(size: 11, weight: .bold))
+
+                    Text(location)
+                        .font(.custom("Poppins-SemiBold", size: 11))
+                        .lineLimit(1)
+                }
+                .foregroundColor(.white)
+                .padding(.horizontal, 11)
+                .padding(.vertical, 8)
+                .liquidGlass(in: Capsule(), interactive: false)
+                .shadow(color: .black.opacity(0.25), radius: 8, y: 4)
+            }
+
+            if let currentMediaItem = activeMediaItem,
+               !currentMediaItem.isHiddenByModeration,
+               let tags = currentMediaItem.tags,
+               !tags.isEmpty {
+                Button(action: {
+                    withAnimation(.spring(response: 0.32, dampingFraction: 0.78)) {
+                        showTags.toggle()
+                    }
+                }) {
+                    HStack(spacing: 6) {
+                        Image(systemName: showTags ? "person.fill" : "person.crop.circle")
+                            .font(.system(size: 11, weight: .bold))
+
+                        Text("\(tags.count)")
+                            .font(.custom("Poppins-SemiBold", size: 11))
+                    }
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 11)
+                    .padding(.vertical, 8)
+                    .liquidGlass(in: Capsule(), interactive: true)
+                    .overlay(
+                        Capsule()
+                            .stroke(showTags ? Color.white.opacity(0.75) : Color.white.opacity(0.14), lineWidth: 1)
+                    )
+                    .shadow(color: .black.opacity(0.25), radius: 8, y: 4)
+                }
+                .buttonStyle(.plain)
+            }
+        }
+    }
+
     private func scheduleImmersiveActivation() {
         cancelImmersiveActivation()
-        
+
         let task = DispatchWorkItem {
             withAnimation(.spring(response: 0.36, dampingFraction: 0.82)) {
                 self.isImmersive = true
@@ -1967,16 +1948,16 @@ struct ModernSavedDetailMomentCard: View {
                 }
             }
         }
-        
+
         immersiveActivationTask = task
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.22, execute: task)
     }
-    
+
     private func cancelImmersiveActivation() {
         immersiveActivationTask?.cancel()
         immersiveActivationTask = nil
     }
-    
+
     private func endImmersive() {
         withAnimation(.spring(response: 0.32, dampingFraction: 0.86)) {
             self.isImmersive = false
@@ -1984,50 +1965,6 @@ struct ModernSavedDetailMomentCard: View {
         }
     }
 }
-// MARK: - ✅ Componentes auxiliares específicos para guardados
-struct ModernSavedDetailBackground: View {
-    let scrollOffset: CGFloat
-    @Environment(\.colorScheme) private var colorScheme
-    
-    var body: some View {
-        ZStack {
-            if colorScheme == .dark {
-                // Igual que el feed en modo oscuro: base profunda y uniforme.
-                LinearGradient(
-                    gradient: Gradient(stops: [
-                        .init(color: Color(hex: "080808"), location: 0),
-                        .init(color: Color(hex: "080808"), location: 0.3),
-                        .init(color: Color(hex: "0C0C0C"), location: 0.7),
-                        .init(color: Color(hex: "080808"), location: 1.0)
-                    ]),
-                    startPoint: .top,
-                    endPoint: .bottom
-                )
-                .ignoresSafeArea()
-            } else {
-                // Igual que el feed en modo claro: blanco limpio con profundidad suave.
-                LinearGradient(
-                    gradient: Gradient(stops: [
-                        .init(color: .white, location: 0),
-                        .init(color: .white, location: 0.2),
-                        .init(color: Color(hex: "f8f9fa"), location: 0.5),
-                        .init(color: Color(hex: "e9ecef"), location: 0.8),
-                        .init(color: .white, location: 1.0)
-                    ]),
-                    startPoint: .top,
-                    endPoint: .bottom
-                )
-                .ignoresSafeArea()
-            }
-            
-            Rectangle()
-                .fill(.ultraThinMaterial)
-                .opacity((colorScheme == .dark ? 0.06 : 0.03) + abs(scrollOffset) * 0.00015)
-                .ignoresSafeArea()
-        }
-    }
-}
-
 struct SavedDetailScrollOffsetKey: PreferenceKey {
     static var defaultValue: CGFloat = 0
     static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
@@ -2041,7 +1978,7 @@ struct AsyncSavedProfileImageView: View {
     @State private var profileImageURL: String?
     @State private var pendingUserId: String?
     @EnvironmentObject private var firestoreService: FirestoreService
-    
+
     var body: some View {
         AsyncImage(url: URL(string: profileImageURL ?? "")) { image in
             image
@@ -2062,12 +1999,12 @@ struct AsyncSavedProfileImageView: View {
             loadProfileImage(for: newUserId)
         }
     }
-    
+
     private func loadProfileImage(for requestedUserId: String) {
         // Evita mostrar la foto previa mientras llega el nuevo fetch.
         pendingUserId = requestedUserId
         profileImageURL = nil
-        
+
         firestoreService.fetchUser(userId: requestedUserId) { result in
             switch result {
             case .success(let user):

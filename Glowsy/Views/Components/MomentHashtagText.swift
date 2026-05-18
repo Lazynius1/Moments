@@ -64,6 +64,7 @@ struct MomentHashtagText: View {
     let textFont: Font
     let hashtagFont: Font
     let baseColor: Color
+    let hashtagColor: Color
     let textAlignment: TextAlignment
     let shadowColor: Color
     let shadowRadius: CGFloat
@@ -77,6 +78,7 @@ struct MomentHashtagText: View {
         textFont: Font,
         hashtagFont: Font,
         baseColor: Color,
+        hashtagColor: Color = MomentHashtagParser.hashtagColor,
         textAlignment: TextAlignment = .leading,
         shadowColor: Color = .clear,
         shadowRadius: CGFloat = 0,
@@ -89,6 +91,7 @@ struct MomentHashtagText: View {
         self.textFont = textFont
         self.hashtagFont = hashtagFont
         self.baseColor = baseColor
+        self.hashtagColor = hashtagColor
         self.textAlignment = textAlignment
         self.shadowColor = shadowColor
         self.shadowRadius = shadowRadius
@@ -123,7 +126,7 @@ struct MomentHashtagText: View {
                 continue
             }
 
-            attributed[attributedRange].foregroundColor = MomentHashtagParser.hashtagColor
+            attributed[attributedRange].foregroundColor = hashtagColor
             attributed[attributedRange].font = hashtagFont
             attributed[attributedRange].link = MomentHashtagLink.url(for: match.term)
         }

@@ -401,6 +401,7 @@ struct UserProfileView: View {
             ModernMomentDetailView(
                 moments: selectedTab == .moments ? viewModel.moments : viewModel.taggedMoments,
                 initialIndex: selectedMomentIndex,
+                topContentInset: selectedTab == .moments ? 24 : 64,
                 onDismiss: {
                     showMomentDetail = false
                 }

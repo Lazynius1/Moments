@@ -28,9 +28,6 @@ struct MomentDetailView: View {
     @State private var detectedAspectRatio: CGFloat = 1.0
     @State private var aspectRatioType: AspectRatioType = .square
     
-    // ✅ NUEVOS: Estados para expansión de contenido
-    @State private var isContentExpanded: Bool = false
-    @State private var needsContentExpansion: Bool = false
     @State private var hasTrackedMomentView = false
     
     // ✅ NUEVO: Estado para navegación al perfil
@@ -334,10 +331,16 @@ struct MomentDetailView: View {
                 .environmentObject(FirestoreService())
             }
             
-            // ✅ Contenido del momento si no está en la imagen
-            if !moment.content.isEmpty {
-                momentContentText
-            }
+            MomentCaptionView(
+                moment: moment,
+                style: .detail,
+                colorScheme: colorScheme,
+                onHashtagTap: { hashtag in
+                    selectedHashtag = "#\(hashtag)"
+                    showExploreWithHashtag = true
+                }
+            )
+            .padding(.horizontal, 4)
         }
         .padding(.horizontal, 15)
         .padding(.top, 20)
@@ -586,58 +589,6 @@ struct MomentDetailView: View {
         return min(calculatedHeight, aspectRatioType.maxHeight)
     }
 
-    private var momentContentText: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            VStack(alignment: .leading, spacing: 8) {
-                MomentHashtagText(
-                    content: moment.content,
-                    textFont: .custom("Poppins-Regular", size: 16),
-                    hashtagFont: .custom("Poppins-SemiBold", size: 16),
-                    baseColor: colorScheme == .dark ? .white.opacity(0.9) : .black.opacity(0.9),
-                    textAlignment: .leading,
-                    lineLimit: isContentExpanded ? nil : 3,
-                    onHashtagTap: { hashtag in
-                        selectedHashtag = "#\(hashtag)"
-                        showExploreWithHashtag = true
-                    }
-                )
-                .padding(.trailing, 0)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .animation(.easeInOut(duration: 0.3), value: isContentExpanded)
-                .onAppear {
-                    needsContentExpansion = moment.content.count > 50 || moment.content.contains("\n")
-                }
-                
-                // Botón "ver más" solo si el contenido es largo
-                if needsContentExpansion {
-                    Button(action: {
-                        withAnimation(.easeInOut(duration: 0.3)) {
-                            isContentExpanded.toggle()
-                        }
-                    }) {
-                        Text(isContentExpanded ? NSLocalizedString("momentDetail.showLess", comment: "") : NSLocalizedString("momentDetail.showMore", comment: ""))
-                            .font(.custom("Poppins-SemiBold", size: 14))
-                            .foregroundColor(colorScheme == .dark ? .white.opacity(0.82) : .black.opacity(0.72))
-                            .padding(.horizontal, 10)
-                            .padding(.vertical, 5)
-                            .liquidGlass(in: Capsule(), interactive: true)
-                    }
-                    .buttonStyle(PlainButtonStyle())
-                }
-            }
-        }
-        .padding(.horizontal, 20)
-        .padding(.vertical, 16)
-        .background(
-            RoundedRectangle(cornerRadius: 16)
-                .fill(.ultraThinMaterial)
-        )
-        .padding(.horizontal, 16)
-        .padding(.top, 12)
-    }
-    
-
-    
     // MARK: - Comentarios Inline
     
     private var inlineCommentsSection: some View {

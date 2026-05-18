@@ -370,6 +370,7 @@ struct ProfileView: View {
                     ModernMomentDetailView(
                         moments: selectedProfileTab == .tagged ? viewModel.taggedMoments : viewModel.moments,
                         initialIndex: selectedMomentIndex,
+                        topContentInset: selectedProfileTab == .tagged ? 64 : 24,
                         onDismiss: {
                             showMomentDetail = false
                         }
