@@ -409,7 +409,7 @@ struct UserProfileView: View {
         }
         .fullScreenCover(isPresented: $showStoryViewer) {
             if let stories = storyViewModel.stories[userId], !stories.isEmpty {
-                GlassmorphicStoryViewer(
+                StoryViewerScreen(
                     story: stories[selectedStoryIndex],
                     storyCount: stories.count,
                     storyIndex: selectedStoryIndex,

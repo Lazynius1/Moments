@@ -168,7 +168,7 @@ extension FirestoreService {
             case .success(let user):
                 let isChain = chainId != nil
                 let expirationDate = self.calculateStoryExpirationDate(isChain: isChain, chainId: chainId)
-                let duration = mediaItem.type == .video ? 60.0 : 10.0
+                let duration = mediaItem.type == .video ? 60.0 : 15.0
                 let storyId = UUID().uuidString
 
                 let story = Story(

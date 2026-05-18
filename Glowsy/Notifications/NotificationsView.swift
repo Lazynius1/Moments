@@ -91,7 +91,7 @@ struct NotificationsView: View {
         }
         .fullScreenCover(isPresented: $showStoryViewer) {
             if let story = selectedStory {
-                GlassmorphicStoryViewer(
+                StoryViewerScreen(
                     story: story,
                     storyCount: 1,
                     storyIndex: 0,

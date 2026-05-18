@@ -599,7 +599,7 @@ class BackgroundStoryUploadService: ObservableObject {
 
         if uploadingStory.mediaItem.type == .video,
            let videoURL = uploadingStory.mediaItem.videoURL {
-            aspectRatio = await GlassmorphicStoryViewer.detectVideoAspectRatio(from: videoURL)
+            aspectRatio = await StoryViewerScreen.detectVideoAspectRatio(from: videoURL)
 
             // Extraer frame cuando el media no debe ir a fill y necesita blur de relleno.
             if let aspectRatio = aspectRatio,

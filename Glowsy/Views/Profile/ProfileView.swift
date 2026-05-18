@@ -432,7 +432,7 @@ struct ProfileView: View {
                 .fullScreenCover(isPresented: $showStoryViewer) {
                     if let userId = Auth.auth().currentUser?.uid,
                        let stories = storyViewModel.stories[userId], !stories.isEmpty {
-                        GlassmorphicStoryViewer(
+                        StoryViewerScreen(
                             story: stories[selectedStoryIndex],
                             storyCount: stories.count,
                             storyIndex: selectedStoryIndex,
