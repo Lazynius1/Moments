@@ -261,32 +261,30 @@ struct FeedView: View {
                     )
                 }
             }
-            .onReceive(NotificationCenter.default.publisher(for: UIApplication.willResignActiveNotification)) { _ in
-                notificationSummaryService.markAppClosed()
-            }
-            .onReceive(NotificationCenter.default.publisher(for: UIApplication.willEnterForegroundNotification)) { _ in
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                    notificationSummaryService.checkShouldShowSummary(
-                        unreadNotifications: badgeService.unreadNotificationsCount,
-                        unreadMessages: badgeService.unreadMessagesCount
-                    )
-                }
-            }
-            .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("ShowMessages"))) { _ in
-                showMessages = true
-            }
-            .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("ShowNotifications"))) { _ in
-                showNotifications = true
-            }
-            .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("ShowCreatorView"))) { _ in
-                showCreatorView = true
-            }
-            .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("ShowExploreView"))) { _ in
-                showExplore = true
-            }
         .onDisappear {
             // cleanupListeners() // ❌ ELIMINAR
         }
+        .feedNotificationRouting(
+            showMessages: $showMessages,
+            showNotifications: $showNotifications,
+            showCreatorView: $showCreatorView,
+            showExplore: $showExplore,
+            showMomentDetail: $showMomentDetail,
+            targetConversationId: $targetConversationId,
+            targetMomentId: $targetMomentId,
+            targetMomentUserId: $targetMomentUserId,
+            notificationSummaryService: notificationSummaryService,
+            badgeService: badgeService,
+            navigationService: navigationService,
+            storyRingCoordinator: storyRingCoordinator,
+            firestoreService: firestoreService,
+            onOpenUserProfile: openUserProfile,
+            onOpenStoryChain: { chainId, chainTitle in
+                selectedChainId = chainId
+                selectedChainTitle = chainTitle
+                showStoryChain = true
+            }
+        )
             .fullScreenCover(isPresented: $showNotifications) {
                 NotificationsView(onNotificationsCleared: {
 
@@ -392,62 +390,6 @@ struct FeedView: View {
                     ReportBottomSheet(moment: moment)
                 }
             }*/
-        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("OpenNotifications"))) { _ in
-            showNotifications = true
-        }
-        .onReceive(navigationService.$pendingNavigation) { navigation in
-            guard let navigation = navigation else { return }
-            
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                switch navigation {
-                case .conversation(let conversationId):
-                    targetConversationId = conversationId  // ✅ PASAR el ID
-                    showMessages = true
-                    
-                case .moment(let momentId, let userId):  // ✅ AHORA CON userId
-                    targetMomentId = momentId
-                    targetMomentUserId = userId  // ✅ NUEVA variable
-                    showMomentDetail = true
-                    
-                case .profile(let userId):
-                    // Navegando a perfil
-                    break
-                    
-                case .notifications(let filter):
-                    showNotifications = true
-                    
-                default:
-                    // Tipo de navegación no implementado
-                    break
-                }
-                
-                navigationService.clearPendingNavigation()
-            }
-        }
-        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("StoryUploaded"))) { _ in
-            if let userId = Auth.auth().currentUser?.uid {
-                Task {
-                    await storyRingCoordinator.loadStoryUsers(userId: userId, firestoreService: firestoreService)
-                }
-            }
-        }
-        // ✅ RESTAURADO: Listener para navegación a perfil interna
-        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("NavigateToUserProfileInFeed"))) { notification in
-            if let userId = notification.object as? String, !userId.isEmpty {
-                openUserProfile(userId)
-            }
-        }
-        // 🔗 STORY CHAINS: Listener para navegación a cadenas
-        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("NavigateToStoryChainInFeed"))) { notification in
-            if let userInfo = notification.userInfo,
-               let chainId = userInfo["chainId"] as? String,
-               let chainTitle = userInfo["chainTitle"] as? String {
-                selectedChainId = chainId
-                selectedChainTitle = chainTitle
-                showStoryChain = true
-            }
-        }
-
         .onChange(of: badgeService.unreadNotificationsCount) { count in
 
         }
