@@ -1102,7 +1102,7 @@ struct ArchiveDayStoriesViewer: View {
     var body: some View {
         ZStack {
             if let story = currentStory {
-                GlassmorphicStoryViewer(
+                StoryViewerScreen(
                     story: story,
                     storyCount: stories.count,
                     storyIndex: currentIndex,
@@ -1159,7 +1159,7 @@ struct ArchiveDayStoriesViewer: View {
 
     private func hydrateStoryViewerContext() {
         guard let authorId = stories.first?.authorId else { return }
-        // GlassmorphicStoryViewer usa storyViewModel.stories[authorId] para colorear
+        // StoryViewerScreen usa storyViewModel.stories[authorId] para colorear
         // la barra por audiencia en cada segmento.
         storyViewModel.stories[authorId] = stories
     }

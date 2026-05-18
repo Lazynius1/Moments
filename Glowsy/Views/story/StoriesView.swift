@@ -134,7 +134,7 @@ struct StoriesView: View {
                       currentStoryIndex < stories.count,
                       let story = stories[safe: currentStoryIndex] {
                 
-                GlassmorphicStoryViewer(
+                StoryViewerScreen(
                     story: story,
                     storyCount: stories.count,
                     storyIndex: currentStoryIndex,
