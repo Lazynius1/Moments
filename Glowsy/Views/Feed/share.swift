@@ -1133,20 +1133,8 @@ struct SharedMomentMessageBubble: View {
             return
         }
         
-        let db = Firestore.firestore()
-        db.collection("users").document(authorId).collection("moments").document(momentId).getDocument { snapshot, error in
-            guard error == nil,
-                  let snapshot = snapshot,
-                  snapshot.exists,
-                  let moment = try? snapshot.data(as: Moment.self) else {
-                DispatchQueue.main.async {
-                    self.canViewMoment = false
-                    self.isLoading = false
-                }
-                return
-            }
-
-            guard moment.isArchived != true else {
+        FirestoreService.shared.fetchMoment(momentId: momentId, userId: authorId) { result in
+            guard case .success(let moment) = result else {
                 DispatchQueue.main.async {
                     self.canViewMoment = false
                     self.isLoading = false

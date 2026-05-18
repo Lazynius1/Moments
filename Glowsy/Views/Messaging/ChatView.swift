@@ -1301,26 +1301,16 @@ extension GlassmorphicChatView {
             // ✅ CORREGIDO: Obtener el authorId del momento compartido o usar el senderId como fallback
             let authorId = sharedMomentData["momentAuthorId"] as? String ?? message.senderId
             
-            // ✅ CORREGIDO: Usar la estructura correcta de Firestore (users/{userId}/moments/{momentId})
-            let db = Firestore.firestore()
-            db.collection("users").document(authorId).collection("moments").document(momentId).getDocument { document, error in
+            firestoreService.fetchMoment(momentId: momentId, userId: authorId) { result in
                 DispatchQueue.main.async {
-                    if let document = document, document.exists {
-                        do {
-                            var moment = try document.data(as: Moment.self)
-                            guard moment.isArchived != true else {
-                                self.showingMomentError = true
-                                return
-                            }
-                            moment.id = document.documentID
-                            
-                            self.selectedMoment = moment
-                            self.showingMomentDetail = true
-                            
-                        } catch {
-                            self.showingMomentError = true
+                    switch result {
+                    case .success(var moment):
+                        if moment.id == nil {
+                            moment.id = momentId
                         }
-                    } else {
+                        self.selectedMoment = moment
+                        self.showingMomentDetail = true
+                    case .failure:
                         self.showingMomentError = true
                     }
                 }
