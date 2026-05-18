@@ -25,18 +25,6 @@ private extension Moment {
     }
 }
 
-private struct FeedProfileSheetRoute: Identifiable {
-    let userId: String
-
-    var id: String { userId }
-}
-
-private struct FeedEchoInvitationRoute: Identifiable {
-    let echoId: String
-
-    var id: String { echoId }
-}
-
 struct FeedView: View {
     @EnvironmentObject var authService: AuthService
     @StateObject private var viewModel = FeedViewModel()
@@ -285,128 +273,44 @@ struct FeedView: View {
                 showStoryChain = true
             }
         )
-            .fullScreenCover(isPresented: $showNotifications) {
-                NotificationsView(onNotificationsCleared: {
-
-                // ✅ No es necesario actualizar hasUnreadNotifications localmente
-                // badgeService.clearAppBadge() // ❌ No llamar aquí, NotificationsView ya lo maneja
-                    NotificationCenter.default.post(
-                        name: NSNotification.Name("NotificationsCleared"),
-                        object: nil
-                    )
-                })
-            }
-            .fullScreenCover(isPresented: $showMessages) {
-                MessagingView(targetConversationId: $targetConversationId, onDismiss: {
-                    showMessages = false
-                })
-                .environmentObject(messagingViewModel)
-                .environmentObject(firestoreService)
-            }
-            .fullScreenCover(isPresented: $showSpecificUserStories) {
-                StoriesView(startWithUserId: $selectedStoryUserId)
-                    .environmentObject(firestoreService)
-                    .ignoresSafeArea(.keyboard) // ✅ Agregar aquí
-            }
-            .fullScreenCover(isPresented: $showStories) {
-                StoriesView()
-                    .environmentObject(firestoreService)
-                    .ignoresSafeArea(.keyboard) // ✅ Agregar aquí
-            }
-            .sheet(
-                isPresented: Binding(
-                    get: { selectedMoment != nil },
-                    set: { isPresented in
-                        if !isPresented {
-                            selectedMoment = nil
-                        }
-                    }
-                )
-            ) {
-                if let moment = selectedMoment {
-                    ModernCommentsView(moment: moment)
-                        .environmentObject(firestoreService)
-                        .presentationDetents([.medium, .large])
-                        .presentationDragIndicator(.visible)
-                }
-            }
-            .sheet(isPresented: $showExploreWithHashtag) {
-                ExploreView(initialSearchQuery: selectedHashtag)
-            }
-            .sheet(isPresented: $showExplore) {
-                ExploreView()
-            }
-            .fullScreenCover(isPresented: $showingLocationMap) {
-                LocationMapView(
-                    locationName: selectedLocationName.isEmpty ? NSLocalizedString("feed.location.default", comment: "Default location name") : selectedLocationName,
-                    coordinate: selectedLocationCoordinate,
-                    isPresented: $showingLocationMap
-                )
-            }
         .onChange(of: showingLocationMap) { isShowing in
             if isShowing {
                 // ✅ El onChange es crucial para el funcionamiento, pero sin prints
             }
         }
 
-
-            .sheet(isPresented: $showMomentDetail) {
-                if let momentId = targetMomentId, let userId = targetMomentUserId {
-                    MomentDetailFromNotificationView(
-                        momentId: momentId,
-                        userId: userId,
-                        isPresented: $showMomentDetail
-                    )
-                    .presentationDetents([.large])
-                    .presentationDragIndicator(.visible)
-                    .onDisappear {
-                        targetMomentId = nil
-                        targetMomentUserId = nil
-                    }
-                }
-            }
-            .sheet(isPresented: $showEditSheet) {
-                if let moment = selectedMomentForMenu {
-                    EditMomentView(
-                        moment: moment,
-                        onSave: { payload in
-                            updateMoment(moment: moment, payload: payload)
-                        }
-                    )
-                }
-            }
-            .alert(NSLocalizedString("feed.actions.delete.title", comment: "Delete moment alert title"), isPresented: $showDeleteAlert) {
-                Button(NSLocalizedString("feed.actions.cancel", comment: "Cancel action"), role: .cancel) { }
-                Button(NSLocalizedString("feed.actions.delete", comment: "Delete action"), role: .destructive) {
-                    if let moment = selectedMomentForMenu {
-                        deleteMoment(moment: moment)
-                    }
-                }
-            } message: {
-                Text("feed.delete.confirm")
-            }
-            /*.sheet(isPresented: $showReportSheet) {
-                if let moment = selectedMomentForMenu {
-                    ReportBottomSheet(moment: moment)
-                }
-            }*/
         .onChange(of: badgeService.unreadNotificationsCount) { count in
 
         }
         .environmentObject(firestoreService)
-            .sheet(item: $selectedProfileRoute, onDismiss: {
-                selectedUserId = ""
-                selectedProfileRoute = nil
-            }) {
-                UserProfileView(userId: $0.userId)
-                    .id($0.userId)
-            }
-            // 🌊 ECHOES: Sheet para invitación pendiente
-            // 🌊 ECHOES: Sheet para historial
-            .sheet(isPresented: $showEchoHistory) {
-                EchoHistoryView()
-                    .presentationDetents([.medium, .large])
-            }
+        .feedPresentations(
+            showNotifications: $showNotifications,
+            showMessages: $showMessages,
+            showSpecificUserStories: $showSpecificUserStories,
+            selectedStoryUserId: $selectedStoryUserId,
+            showStories: $showStories,
+            selectedMoment: $selectedMoment,
+            showExploreWithHashtag: $showExploreWithHashtag,
+            selectedHashtag: $selectedHashtag,
+            showExplore: $showExplore,
+            showingLocationMap: $showingLocationMap,
+            selectedLocationName: $selectedLocationName,
+            selectedLocationCoordinate: $selectedLocationCoordinate,
+            showMomentDetail: $showMomentDetail,
+            targetMomentId: $targetMomentId,
+            targetMomentUserId: $targetMomentUserId,
+            showEditSheet: $showEditSheet,
+            showDeleteAlert: $showDeleteAlert,
+            selectedMomentForMenu: $selectedMomentForMenu,
+            selectedProfileRoute: $selectedProfileRoute,
+            selectedUserId: $selectedUserId,
+            showEchoHistory: $showEchoHistory,
+            targetConversationId: $targetConversationId,
+            messagingViewModel: messagingViewModel,
+            firestoreService: firestoreService,
+            updateMoment: updateMoment,
+            deleteMoment: deleteMoment
+        )
         // 🔗 STORY CHAINS: Eliminado en Feed; centralizado en StoryModels
     }
     
