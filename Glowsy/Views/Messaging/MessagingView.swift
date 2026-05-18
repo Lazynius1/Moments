@@ -1,6 +1,5 @@
 import SwiftUI
 import FirebaseAuth
-import FirebaseFirestore
 import FirebaseStorage
 import Kingfisher
 import Combine
@@ -63,7 +62,6 @@ struct MessagingView: View {
     @FocusState private var isSearchFocused: Bool
     @StateObject private var navigationService = NotificationNavigationService.shared
     // ✅ HISTORIAS: Estados para anillos de historias
-    @State private var userStories: [String: (hasStory: Bool, hasUnseenStory: Bool)] = [:]
     // ✅ SOLICITUDES: Estado para mostrar solicitudes
     @State private var showingMessageRequests = false
     @State private var pendingRequestCount = 0
@@ -229,64 +227,6 @@ struct MessagingView: View {
                 }
             }
         }
-    }
-
-    // ✅ NUEVO: Función para verificar historias de usuarios
-    private func checkUserStories() {
-        guard let currentUserId = Auth.auth().currentUser?.uid else { return }
-
-        for conversation in viewModel.conversations {
-            let otherUserId = conversation.otherParticipantId ?? ""
-            if !otherUserId.isEmpty {
-                checkUserStoryStatus(userId: otherUserId, currentUserId: currentUserId)
-            }
-        }
-    }
-
-    private func checkUserStoryStatus(userId: String, currentUserId: String) {
-        Firestore.firestore().collection("users").document(userId).collection("stories")
-            .whereField("expirationDate", isGreaterThan: Date())
-            .getDocuments { snapshot, error in
-                guard let documents = snapshot?.documents, !documents.isEmpty else {
-                    DispatchQueue.main.async {
-                        userStories[userId] = (hasStory: false, hasUnseenStory: false)
-                    }
-                    return
-                }
-
-                let stories = documents.compactMap { doc -> Story? in
-                    try? doc.data(as: Story.self)
-                }
-
-                guard !stories.isEmpty else {
-                    DispatchQueue.main.async {
-                        userStories[userId] = (hasStory: false, hasUnseenStory: false)
-                    }
-                    return
-                }
-
-                // Verificar si alguna historia no ha sido vista
-                var hasUnseenStory = false
-                let group = DispatchGroup()
-
-                for story in stories {
-                    group.enter()
-                    Firestore.firestore().collection("users").document(story.authorId)
-                        .collection("stories").document(story.id ?? "")
-                        .collection("viewers").document(currentUserId)
-                        .getDocument { viewerDoc, _ in
-                            let wasViewed = viewerDoc?.exists == true
-                            if !wasViewed {
-                                hasUnseenStory = true
-                            }
-                            group.leave()
-                        }
-                }
-
-                group.notify(queue: .main) {
-                    userStories[userId] = (hasStory: true, hasUnseenStory: hasUnseenStory)
-                }
-            }
     }
 
     // ✅ SOLICITUDES: Función para actualizar el conteo de solicitudes pendientes
@@ -1007,11 +947,6 @@ struct GlassmorphicConversationRow: View {
     let conversation: Conversation
     let onTap: () -> Void // ✅ NUEVO: Callback para abrir el chat
     @Environment(\.colorScheme) var colorScheme
-    @State private var hasStory: Bool = false
-    @State private var hasUnseenStory: Bool = false
-    @State private var storyCount: Int = 0
-    @State private var storyViewedStatus: [Bool] = []
-    @State private var storyAudiences: [String?] = []
 
     // ✅ NUEVO: Estados para navegación
     @State private var showingUserProfile = false
@@ -1020,7 +955,6 @@ struct GlassmorphicConversationRow: View {
     @State private var liveOtherParticipantUsername: String = ""
     @State private var isOtherParticipantUnavailable: Bool = false
     @State private var isOtherParticipantBlockedByCurrentUser: Bool = false
-    private let privacyService = PrivacyService()
     private let firestoreService = FirestoreService()
 
     private var displayUsername: String {
@@ -1032,41 +966,34 @@ struct GlassmorphicConversationRow: View {
     var body: some View {
         HStack(spacing: 14) {
             ZStack {
-                // ✅ SEPARADO: Botón solo para la foto (historias o perfil)
-                Button(action: {
-                    if isOtherParticipantUnavailable && !isOtherParticipantBlockedByCurrentUser {
+                if isOtherParticipantUnavailable && !isOtherParticipantBlockedByCurrentUser {
+                    Button(action: {
                         showingUserProfile = true
-                    } else if hasStory && !isOtherParticipantBlockedByCurrentUser {
-                        // ✅ SI TIENE HISTORIAS: Establecer userId y abrir StoriesView
-                        storiesUserId = conversation.otherParticipantId
-                        showingStories = true
-                    } else {
-                        // ✅ SI NO TIENE HISTORIAS: Ir al perfil
-                        showingUserProfile = true
-                    }
-                }) {
-                    if isOtherParticipantUnavailable && !isOtherParticipantBlockedByCurrentUser {
+                    }) {
                         ProfileUnavailableAvatar(size: 56)
-                    } else {
-                        AsyncProfileImageView(userId: conversation.otherParticipantId)
-                            .frame(width: 56, height: 56)
-                            .clipShape(Circle())
-                            .overlay(
-                                StorySegmentedRing(
-                                    storyCount: storyCount,
-                                    hasStory: hasStory,
-                                    hasUnseenStory: hasUnseenStory,
-                                    storyViewedStatus: storyViewedStatus,
-                                    storyAudiences: storyAudiences,
-                                    isOwnStory: false,
-                                    colorScheme: colorScheme,
-                                    ringSize: 56,
-                                    lineWidth: 2.5
-                                )
-                            )
+                    }
+                    .buttonStyle(PlainButtonStyle())
+                } else {
+                    StoryRingAvatarView(
+                        userId: conversation.otherParticipantId,
+                        size: 56,
+                        lineWidth: 2.5,
+                        isOwnStory: false,
+                        hapticsEnabled: true
+                    ) { hasStory in
+                        guard !isOtherParticipantBlockedByCurrentUser else {
+                            showingUserProfile = true
+                            return
+                        }
+
+                        if hasStory {
+                            storiesUserId = conversation.otherParticipantId
+                            showingStories = true
+                        } else {
+                            showingUserProfile = true
+                        }
                     }
                 }
-                .buttonStyle(PlainButtonStyle())
             }
 
             VStack(alignment: .leading, spacing: 4) {
@@ -1139,7 +1066,6 @@ struct GlassmorphicConversationRow: View {
         .padding(.vertical, 10)
         .background(Color.clear)
         .onAppear {
-            checkUserStories()
             refreshOtherParticipantUsername()
             refreshOtherParticipantAvailability()
         }
@@ -1155,25 +1081,6 @@ struct GlassmorphicConversationRow: View {
         // ✅ NUEVO: Sheet para navegación al perfil del usuario
         .sheet(isPresented: $showingUserProfile) {
             UserProfileView(userId: conversation.otherParticipantId)
-        }
-    }
-
-    // ✅ ACTUALIZADO: Función para verificar historias del usuario (con filtrado de privacidad como en reels)
-    private func checkUserStories() {
-        guard let currentUserId = Auth.auth().currentUser?.uid else { return }
-        let otherUserId = conversation.otherParticipantId ?? ""
-        guard !otherUserId.isEmpty else { return }
-
-        StoryRingResolverService.shared.resolve(
-            viewerId: currentUserId,
-            authorId: otherUserId,
-            privacyService: privacyService
-        ) { snapshot in
-            self.hasStory = snapshot.hasStory
-            self.hasUnseenStory = snapshot.hasUnseenStory
-            self.storyCount = snapshot.storyCount
-            self.storyViewedStatus = snapshot.storyViewedStatus
-            self.storyAudiences = snapshot.storyAudiences
         }
     }
 
@@ -1238,11 +1145,8 @@ struct GlassmorphicConversationRow: View {
     }
 
     private func disableUnavailableParticipantStories() {
-        hasStory = false
-        hasUnseenStory = false
-        storyCount = 0
-        storyViewedStatus = []
-        storyAudiences = []
+        storiesUserId = ""
+        showingStories = false
     }
 
     private func formattedTimestamp(_ date: Date) -> String {
@@ -1531,195 +1435,6 @@ struct GlassmorphicUserRow: View {
 }
 
 // MARK: - Message Composer View
-struct MessageComposerView: View {
-    let selectedUser: AppUser?
-    @Binding var messageText: String
-    let onSend: () -> Void
-
-    @Environment(\.colorScheme) var colorScheme
-    @Environment(\.dismiss) var dismiss
-
-    private var adaptiveColors: AdaptiveColors {
-        AdaptiveColors(colorScheme: colorScheme)
-    }
-
-    var body: some View {
-        NavigationView {
-            ZStack {
-                LinearGradient(
-                    gradient: Gradient(colors: [Color(hex: "007AFF").opacity(0.1), Color(hex: "02C39A").opacity(0.1)]),
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
-                .ignoresSafeArea()
-
-                VStack(spacing: 20) {
-                    // User Info
-                    if let user = selectedUser {
-                        VStack(spacing: 12) {
-                            AsyncProfileImageView(userId: user.id)
-                                .frame(width: 60, height: 60)
-                                .clipShape(Circle())
-
-                            Text(user.username)
-                                .font(.title2)
-                                .fontWeight(.semibold)
-                                .foregroundColor(adaptiveColors.primary)
-
-                            Text("messaging.writeMessageToStart")
-                                .font(.body)
-                                .foregroundColor(adaptiveColors.secondary)
-                                .multilineTextAlignment(.center)
-                        }
-                        .padding(.top, 20)
-                    }
-
-                    Spacer()
-
-                    // Message Input
-                    VStack(spacing: 16) {
-                        TextField(NSLocalizedString("messaging.compose.placeholder", comment: "Message composer placeholder"), text: $messageText, axis: .vertical)
-                            .font(.body)
-                            .foregroundColor(adaptiveColors.primary)
-                            .padding(16)
-                            .background(
-                                RoundedRectangle(cornerRadius: 16)
-                                    .fill(adaptiveColors.cardBackground)
-                                    .overlay(
-                                        RoundedRectangle(cornerRadius: 16)
-                                            .stroke(adaptiveColors.secondary.opacity(0.3), lineWidth: 1)
-                                    )
-                            )
-                            .lineLimit(3...6)
-
-                        Button(action: {
-                            onSend()
-                        }) {
-                            HStack {
-                                Image(systemName: "paperplane.fill")
-                                Text("messaging.sendMessage")
-                            }
-                            .font(.headline)
-                            .foregroundColor(.white)
-                            .frame(maxWidth: .infinity)
-                            .padding()
-                            .background(
-                                RoundedRectangle(cornerRadius: 12)
-                                    .fill(messageText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ?
-                                          adaptiveColors.secondary : Color(hex: "007AFF"))
-                            )
-                        }
-                        .disabled(messageText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                    }
-                    .padding(.horizontal, 20)
-                    .padding(.bottom, 20)
-                }
-            }
-            .navigationTitle(NSLocalizedString("messaging.compose.title", comment: "New message title"))
-            .navigationBarTitleDisplayMode(.inline)
-            .navigationBarBackButtonHidden(true)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button(NSLocalizedString("common.cancel", comment: "Cancel")) {
-                        dismiss()
-                    }
-                }
-            }
-        }
-    }
-}
-
-// ✅ NUEVO: Vista para seleccionar estado online
-struct OnlineStatusSelectorView: View {
-    @Environment(\.colorScheme) var colorScheme
-    @Environment(\.dismiss) var dismiss
-
-    let currentStatus: OnlineStatus
-    let onStatusSelected: (OnlineStatus) -> Void
-
-    private var adaptiveColors: AdaptiveColors {
-        AdaptiveColors(colorScheme: colorScheme)
-    }
-
-    var body: some View {
-        NavigationView {
-            VStack(spacing: 24) {
-                // Header
-                VStack(spacing: 8) {
-                    Text(NSLocalizedString("messaging.status.current", comment: "Current status"))
-                        .font(.custom("Poppins-Regular", size: 14))
-                        .foregroundColor(adaptiveColors.secondary)
-
-                    HStack(spacing: 10) {
-                        Image(systemName: "circle.fill")
-                            .font(.system(size: 12))
-                            .foregroundColor(currentStatus.color)
-
-                        Text(currentStatus.displayName)
-                            .font(.custom("Poppins-Bold", size: 24))
-                            .foregroundColor(adaptiveColors.primary)
-                    }
-                }
-                .padding(.top, 20)
-
-                // Estados disponibles
-                VStack(spacing: 0) {
-                    ForEach(Array(OnlineStatus.allCases.enumerated()), id: \.element) { index, status in
-                        Button(action: {
-                            onStatusSelected(status)
-                            dismiss()
-                        }) {
-                            HStack(spacing: 16) {
-                                Image(systemName: status.icon)
-                                    .font(.system(size: 20))
-                                    .foregroundColor(status.color)
-                                    .frame(width: 24)
-
-                                Text(status.displayName)
-                                    .font(.custom("Poppins-Regular", size: 16))
-                                    .foregroundColor(adaptiveColors.primary)
-
-                                Spacer()
-
-                                if status == currentStatus {
-                                    Image(systemName: "checkmark.circle.fill")
-                                        .font(.system(size: 20))
-                                        .foregroundColor(adaptiveColors.accent)
-                                }
-                            }
-                            .padding(.horizontal, 20)
-                            .padding(.vertical, 16)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .background(
-                                (colorScheme == .dark ? Color.white : Color.black)
-                                    .opacity(status == currentStatus ? 0.06 : 0)
-                            )
-                            .contentShape(Rectangle())
-                        }
-                        .buttonStyle(PlainButtonStyle())
-
-                        if index < OnlineStatus.allCases.count - 1 {
-                            Divider()
-                                .overlay(
-                                    (colorScheme == .dark ? Color.white : Color.black)
-                                        .opacity(0.08)
-                                )
-                                .padding(.leading, 64)
-                                .padding(.trailing, 20)
-                        }
-                    }
-                }
-                .padding(.top, 4)
-
-                Spacer(minLength: 20)
-            }
-            .navigationBarHidden(true)
-        }
-        .presentationDetents([.medium, .large])
-        .presentationDragIndicator(.visible)
-    }
-}
-
 struct MessagingView_Previews: PreviewProvider {
     static var previews: some View {
         MessagingView(targetConversationId: .constant(nil))
