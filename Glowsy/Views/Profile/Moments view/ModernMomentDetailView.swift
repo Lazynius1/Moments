@@ -10,6 +10,7 @@ import CoreLocation
 struct ModernMomentDetailView: View {
     let moments: [Moment]
     let initialIndex: Int
+    let topContentInset: CGFloat
     let onDismiss: () -> Void
     
     @StateObject private var firestoreService = FirestoreService()
@@ -52,9 +53,10 @@ struct ModernMomentDetailView: View {
     private let privacyService = PrivacyService()
     private let firestoreService2 = FirestoreService()
     
-    init(moments: [Moment], initialIndex: Int, onDismiss: @escaping () -> Void) {
+    init(moments: [Moment], initialIndex: Int, topContentInset: CGFloat = 64, onDismiss: @escaping () -> Void) {
         self.moments = moments
         self.initialIndex = initialIndex
+        self.topContentInset = topContentInset
         self.onDismiss = onDismiss
         self._currentIndex = State(initialValue: initialIndex)
     }
@@ -75,6 +77,7 @@ struct ModernMomentDetailView: View {
                 ModernDetailHeader(
                     moment: moments[safe: currentIndex],
                     safeAreaTop: safeAreaTop,
+                    onDismiss: onDismiss,
                     onAvatarTap: { userId, hasStory in
                         let normalizedUserId = userId.trimmingCharacters(in: .whitespacesAndNewlines)
                         guard !normalizedUserId.isEmpty else { return }
@@ -95,7 +98,7 @@ struct ModernMomentDetailView: View {
                     modernMomentsScrollView(
                         geometry: geometry,
                         safeAreaBottom: safeAreaBottom,
-                        topContentInset: safeAreaTop + 18
+                        topContentInset: topContentInset
                     )
                 }
                 .offset(x: dragOffset)
@@ -432,6 +435,7 @@ struct ModernMomentDetailView: View {
 struct ModernDetailHeader: View {
     let moment: Moment?
     let safeAreaTop: CGFloat
+    let onDismiss: () -> Void
     let onAvatarTap: (String, Bool) -> Void
     @Environment(\.colorScheme) var colorScheme
     @State private var liveUsername: String = ""
@@ -440,11 +444,23 @@ struct ModernDetailHeader: View {
         VStack(spacing: 0) {
             // Relleno ajustado para el área segura (notch)
             Color.clear
-                .frame(height: max(20, safeAreaTop - 10))
+                .frame(height: max(24, safeAreaTop - 6))
 
-            HStack {
-                Spacer()
-                
+            HStack(spacing: 12) {
+                Button {
+                    withAnimation(.easeOut(duration: 0.18)) {
+                        onDismiss()
+                    }
+                } label: {
+                    Image(systemName: "chevron.left")
+                        .font(.system(size: 16, weight: .bold))
+                        .foregroundColor(.primary)
+                        .frame(width: 38, height: 38)
+                        .liquidGlass(in: Circle(), interactive: true)
+                }
+                .buttonStyle(.plain)
+                .contentShape(Circle())
+
                 if let moment = moment {
                     let authorId = moment.authorId.trimmingCharacters(in: .whitespacesAndNewlines)
 
@@ -481,15 +497,11 @@ struct ModernDetailHeader: View {
 
                 Spacer()
             }
-            .padding(.horizontal, 20)
-            .padding(.vertical, 10)
-            
-            Divider()
-                .background(Color.white.opacity(0.04)) // Más sutil
+            .padding(.horizontal, 16)
+            .padding(.vertical, 8)
+            .liquidGlass(in: Capsule(), interactive: false)
+            .padding(.horizontal, 14)
         }
-        .background(
-            colorScheme == .dark ? Color(hex: "0B1215") : Color(hex: "FAF9F6")
-        )
         .onAppear {
             resolveAuthorUsername()
         }
@@ -634,190 +646,119 @@ struct ModernDetailMomentCard: View {
         
         return min(calculatedHeight, aspectRatioType.maxHeight)
     }
+
+    private var activeMediaItem: MediaItem? {
+        mediaItems.indices.contains(currentImageIndex) ? mediaItems[currentImageIndex] : mediaItems.first
+    }
     
     var body: some View {
-        VStack(spacing: 12) {
-            // ✅ Contenido principal con diseño del feed
-            ZStack(alignment: .topTrailing) {
-                ZStack(alignment: .bottom) {
-                    // ✅ Media content with height logic
-                    ZStack(alignment: .bottomLeading) {
-                        EnhancedCarouselView(
-                            mediaItems: mediaItems,
-                            currentIndex: $currentImageIndex,
-                            showTags: $showTags, // ✅ PASAR binding
-                            aspectRatio: detectedAspectRatio > 0 && detectedAspectRatio.isFinite ? detectedAspectRatio : 1.0,
-                            allMoments: [moment],
-                            currentMoment: moment,
-                            onTagTap: onTagTap, // ✅ Propagate
-                            isImmersive: $isImmersive // ✅ NUEVO
-                        )
-                        .simultaneousGesture(
-                            LongPressGesture(minimumDuration: 0.1)
-                                .sequenced(before: DragGesture(minimumDistance: 0, coordinateSpace: .local))
-                                .onEnded { _ in }
-                        )
-                        .onLongPressGesture(minimumDuration: .infinity, pressing: { isPressing in
-                            withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
-                                self.isImmersive = isPressing
-                                if isPressing {
-                                    HapticManager.shared.mediumImpact()
-                                    let currentItem = mediaItems.indices.contains(currentImageIndex) ? mediaItems[currentImageIndex] : mediaItems.first
-                                    let shouldUseFullscreenPeek = mediaItems.count > 1 &&
-                                        currentItem?.type == .image &&
-                                        currentItem?.isHiddenByModeration != true
-
-                                    if let item = currentItem, item.type == .image, !item.isHiddenByModeration {
-                                        let currentItemRatio = item.resolvedAspectRatioValue ?? realAspectRatio
-                                        if currentItemRatio > 0,
-                                           currentItemRatio.isFinite,
-                                           (shouldUseFullscreenPeek || abs(currentItemRatio - detectedAspectRatio) > 0.035) {
-                                            onPeek?(item.url, currentItemRatio, true)
-                                        }
-                                    }
-                                } else {
-                                    onPeek?("", 1.0, false)
-                                }
-                            }
-                        }, perform: {})
-                        .frame(height: max(cardHeight, 200))
-                        .clipShape(RoundedRectangle(cornerRadius: 24))
-                        .shadow(color: .black.opacity(0.15), radius: 15, x: 0, y: 10)
-                        .onAppear {
-                            detectAspectRatio()
-                        }
-
-                        if moment.hasHiddenLayers,
-                           moment.hiddenLayerCount > 0,
-                           mediaItems.count == 1,
-                           mediaItems.first?.type == .image,
-                           currentImageIndex == 0 {
-                            HiddenLayersOverlayView(moment: moment, isImmersive: isImmersive)
-                                .frame(height: max(cardHeight, 200))
-                                .clipShape(RoundedRectangle(cornerRadius: 24))
-                                .zIndex(3)
-                        }
-
-                        if let location = moment.location?.trimmingCharacters(in: .whitespacesAndNewlines),
-                           !location.isEmpty {
-                            VStack {
-                                HStack {
-                                    Button(action: {
-                                        onLocationTap?()
-                                    }) {
-                                        HStack(spacing: 6) {
-                                            Image(systemName: "location.fill")
-                                                .font(.system(size: 11, weight: .semibold))
-
-                                            Text(location)
-                                                .font(.custom("Poppins-Medium", size: 12))
-                                                .lineLimit(1)
-                                        }
-                                        .padding(.horizontal, 12)
-                                        .padding(.vertical, 8)
-                                        .liquidGlass(in: Capsule())
-                                    }
-                                    .buttonStyle(PlainButtonStyle())
-
-                                    Spacer()
-                                }
-
-                                Spacer()
-                            }
-                            .padding(.top, 14)
-                            .padding(.leading, 14)
-                        }
-                        
-                        // Los indicadores de Reels y botón de mute ya los proporciona el CroppedVideoPlayer
-                        // que está dentro del EnhancedCarouselView, así mantenemos consistencia con el Feed.
-                        
-                        // Indicadores de media múltiples...
-                        if mediaItems.count > 1 {
-                            VStack {
-                                HStack(spacing: 6) {
-                                    ForEach(0..<mediaItems.count, id: \.self) { index in
-                                        Capsule()
-                                            .fill(currentImageIndex == index ? .white : .white.opacity(0.4))
-                                            .frame(width: currentImageIndex == index ? 24 : 6, height: 4)
-                                            .animation(.spring(response: 0.3, dampingFraction: 0.7), value: currentImageIndex)
-                                    }
-                                }
-                                .padding(.top, (aspectRatioType == .reels ? 80 : 20))
-                                Spacer()
-                            }
-                        }
-                        
-                        // ✅ Contenido Inferior (Tags + Caption)
-                        VStack(alignment: .leading, spacing: 10) {
-                            Spacer()
-                            
-                            // 1. Botón de Etiquetas
-                            let currentMediaItem = mediaItems.indices.contains(currentImageIndex) ? mediaItems[currentImageIndex] : nil
-                            if let currentMediaItem, !currentMediaItem.isHiddenByModeration,
-                               let tags = currentMediaItem.tags, !tags.isEmpty {
-                                Button(action: {
-                                    withAnimation(.spring()) {
-                                        showTags.toggle()
-                                    }
-                                }) {
-                                    ZStack {
-                                        Circle()
-                                            .fill(.ultraThinMaterial)
-                                            .frame(width: 36, height: 36)
-                                        
-                                        Circle()
-                                            .stroke(
-                                                LinearGradient(
-                                                    colors: showTags ? [Color(hex: "007AFF"), Color(hex: "007AFF").opacity(0.6)] : [.white.opacity(0.6), .white.opacity(0.2)],
-                                                    startPoint: .topLeading,
-                                                    endPoint: .bottomTrailing
-                                                ),
-                                                lineWidth: 1.5
-                                            )
-                                            .frame(width: 36, height: 36)
-                                        
-                                        Image(systemName: showTags ? "person.fill" : "person.circle.fill")
-                                            .font(.system(size: 15, weight: .bold))
-                                            .foregroundColor(showTags ? Color(hex: "007AFF") : .white)
-                                    }
-                                    .shadow(color: .black.opacity(0.3), radius: 6, x: 0, y: 3)
-                                }
-                                .padding(.leading, 4) // Ligero ajuste visual
-                            }
-                            
-                            // 2. Descripción
-                            if !moment.content.isEmpty {
-                                DetailExpandableContentView(
-                                    content: moment.content,
-                                    colorScheme: .dark,
-                                    onHashtagTap: onHashtagTap
-                                )
-                                .padding(.trailing, 0) // ✅ Sin padding extra innecesario
-                            }
-                        }
-                        .padding(.horizontal, 15)
-                        .padding(.bottom, 65) // ✅ Ajustado para mejor posicionamiento sobre el Rail
-                        .opacity(isImmersive ? 0 : 1)
-                        .animation(.easeInOut(duration: 0.3), value: isImmersive)
-                    } // Cierra ZStack (449)
-                    
-                    // ✅ Botones de acción estilo rail (horizontal)
-                    ModernActionButtons(
-                        moment: moment,
-                        isSaved: $isSaved,
-                        isSaveLoading: $isSaveLoading,
-                        commentCount: $commentCount,
-                        onComment: onComment,
-                        onSave: toggleSave,
-                        onContextMenu: onContextMenu,
+        VStack(alignment: .leading, spacing: 12) {
+            ZStack(alignment: .bottom) {
+                ZStack(alignment: .topLeading) {
+                    EnhancedCarouselView(
+                        mediaItems: mediaItems,
+                        currentIndex: $currentImageIndex,
+                        showTags: $showTags,
+                        aspectRatio: detectedAspectRatio > 0 && detectedAspectRatio.isFinite ? detectedAspectRatio : 1.0,
+                        allMoments: [moment],
+                        currentMoment: moment,
+                        onTagTap: onTagTap,
                         isImmersive: $isImmersive
                     )
-                    .environmentObject(firestoreService)
-                } // Cierra ZStack(alignment: .bottom) (447)
-            } // Cierra ZStack(alignment: .topTrailing)
-                
-            .padding(.horizontal, 15)
+                    .simultaneousGesture(
+                        LongPressGesture(minimumDuration: 0.1)
+                            .sequenced(before: DragGesture(minimumDistance: 0, coordinateSpace: .local))
+                            .onEnded { _ in }
+                    )
+                    .onLongPressGesture(minimumDuration: .infinity, pressing: { isPressing in
+                        withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                            self.isImmersive = isPressing
+                            if isPressing {
+                                HapticManager.shared.mediumImpact()
+                                let currentItem = activeMediaItem
+                                let shouldUseFullscreenPeek = mediaItems.count > 1 &&
+                                    currentItem?.type == .image &&
+                                    currentItem?.isHiddenByModeration != true
+
+                                if let item = currentItem, item.type == .image, !item.isHiddenByModeration {
+                                    let currentItemRatio = item.resolvedAspectRatioValue ?? realAspectRatio
+                                    if currentItemRatio > 0,
+                                       currentItemRatio.isFinite,
+                                       (shouldUseFullscreenPeek || abs(currentItemRatio - detectedAspectRatio) > 0.035) {
+                                        onPeek?(item.url, currentItemRatio, true)
+                                    }
+                                }
+                            } else {
+                                onPeek?("", 1.0, false)
+                            }
+                        }
+                    }, perform: {})
+                    .frame(height: max(cardHeight, 200))
+                    .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
+                    .contentShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
+                    .onAppear {
+                        detectAspectRatio()
+                    }
+
+                    if moment.hasHiddenLayers,
+                       moment.hiddenLayerCount > 0,
+                       mediaItems.count == 1,
+                       mediaItems.first?.type == .image,
+                       currentImageIndex == 0 {
+                        HiddenLayersOverlayView(moment: moment, isImmersive: isImmersive)
+                            .frame(height: max(cardHeight, 200))
+                            .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
+                            .zIndex(3)
+                    }
+
+                    profileMediaBadges
+                        .padding(.top, 14)
+                        .padding(.leading, 14)
+                        .opacity(isImmersive ? 0 : 1)
+                        .animation(.easeInOut(duration: 0.3), value: isImmersive)
+
+                    if mediaItems.count > 1 {
+                        HStack(spacing: 6) {
+                            ForEach(0..<mediaItems.count, id: \.self) { index in
+                                Capsule()
+                                    .fill(currentImageIndex == index ? .white : .white.opacity(0.4))
+                                    .frame(width: currentImageIndex == index ? 24 : 6, height: 4)
+                                    .animation(.spring(response: 0.3, dampingFraction: 0.7), value: currentImageIndex)
+                            }
+                        }
+                        .frame(maxWidth: .infinity, alignment: .center)
+                        .padding(.top, aspectRatioType == .reels ? 80 : 18)
+                        .opacity(isImmersive ? 0 : 1)
+                    }
+                }
+
+                ModernActionButtons(
+                    moment: moment,
+                    isSaved: $isSaved,
+                    isSaveLoading: $isSaveLoading,
+                    commentCount: $commentCount,
+                    onComment: onComment,
+                    onSave: toggleSave,
+                    onContextMenu: onContextMenu,
+                    isImmersive: $isImmersive
+                )
+                .environmentObject(firestoreService)
+                .padding(.bottom, 6)
+                .opacity(isImmersive ? 0 : 1)
+                .animation(.easeInOut(duration: 0.3), value: isImmersive)
+            }
+            .shadow(color: .black.opacity(colorScheme == .dark ? 0.22 : 0.10), radius: 18, x: 0, y: 12)
+
+            MomentCaptionView(
+                moment: moment,
+                style: .detail,
+                colorScheme: colorScheme,
+                onHashtagTap: onHashtagTap
+            )
+            .padding(.horizontal, 4)
         }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 4)
         .onAppear {
             if !hasLoadedInitialData {
                 loadMomentData()
@@ -825,7 +766,63 @@ struct ModernDetailMomentCard: View {
             }
         }
     }
-    
+
+    @ViewBuilder
+    private var profileMediaBadges: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            if let location = moment.location?.trimmingCharacters(in: .whitespacesAndNewlines),
+               !location.isEmpty {
+                Button(action: {
+                    onLocationTap?()
+                }) {
+                    HStack(spacing: 6) {
+                        Image(systemName: "location.fill")
+                            .font(.system(size: 11, weight: .bold))
+
+                        Text(location)
+                            .font(.custom("Poppins-SemiBold", size: 11))
+                            .lineLimit(1)
+                    }
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 11)
+                    .padding(.vertical, 8)
+                    .liquidGlass(in: Capsule(), interactive: true)
+                    .shadow(color: .black.opacity(0.25), radius: 8, y: 4)
+                }
+                .buttonStyle(.plain)
+            }
+
+            if let currentMediaItem = activeMediaItem,
+               !currentMediaItem.isHiddenByModeration,
+               let tags = currentMediaItem.tags,
+               !tags.isEmpty {
+                Button(action: {
+                    withAnimation(.spring(response: 0.32, dampingFraction: 0.78)) {
+                        showTags.toggle()
+                    }
+                }) {
+                    HStack(spacing: 6) {
+                        Image(systemName: showTags ? "person.fill" : "person.crop.circle")
+                            .font(.system(size: 11, weight: .bold))
+
+                        Text("\(tags.count)")
+                            .font(.custom("Poppins-SemiBold", size: 11))
+                    }
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 11)
+                    .padding(.vertical, 8)
+                    .liquidGlass(in: Capsule(), interactive: true)
+                    .overlay(
+                        Capsule()
+                            .stroke(showTags ? Color.white.opacity(0.75) : Color.white.opacity(0.14), lineWidth: 1)
+                    )
+                    .shadow(color: .black.opacity(0.25), radius: 8, y: 4)
+                }
+                .buttonStyle(.plain)
+            }
+        }
+    }
+
     // ✅ CORREGIDO: Detectar aspect ratio con mejor manejo de videos y validaciones
     private func detectAspectRatio() {
         // ✅ PRIMERO: Intentar usar aspect ratio guardado en el momento
@@ -1013,18 +1010,31 @@ struct DetailExpandableContentView: View {
     @State private var needsExpansion: Bool = false
     
     private let maxLines = 2
-    private let maxCharacters = 15
+    private let maxCharacters = 140
+
+    private var baseTextColor: Color {
+        colorScheme == .dark ? .white.opacity(0.94) : .black.opacity(0.86)
+    }
+
+    private var hashtagTextColor: Color {
+        colorScheme == .dark ? .white : Color(hex: "007AFF")
+    }
+
+    private var textShadowColor: Color {
+        colorScheme == .dark ? .black.opacity(0.45) : .clear
+    }
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: 8) {
             MomentHashtagText(
                 content: isExpanded ? content : String(content.prefix(maxCharacters)) + (content.count > maxCharacters ? "..." : ""),
                 textFont: .custom("Poppins-Regular", size: 15),
                 hashtagFont: .custom("Poppins-SemiBold", size: 15),
-                baseColor: .white.opacity(0.95),
+                baseColor: baseTextColor,
+                hashtagColor: hashtagTextColor,
                 textAlignment: .leading,
-                shadowColor: .black.opacity(0.8),
-                shadowRadius: 4,
+                shadowColor: textShadowColor,
+                shadowRadius: colorScheme == .dark ? 3 : 0,
                 shadowX: 0,
                 shadowY: 2,
                 onHashtagTap: onHashtagTap
@@ -1039,11 +1049,11 @@ struct DetailExpandableContentView: View {
                     HStack(spacing: 4) {
                         Text(NSLocalizedString(isExpanded ? "feed.seeLess" : "feed.seeMore", comment: "See more/less"))
                             .font(.custom("Poppins-SemiBold", size: 12))
-                            .foregroundColor(.white)
+                            .foregroundColor(baseTextColor)
                         
                         Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
                             .font(.system(size: 10, weight: .semibold))
-                            .foregroundColor(.white)
+                            .foregroundColor(baseTextColor)
                     }
                     .padding(.horizontal, 12)
                     .padding(.vertical, 6)
@@ -1057,8 +1067,8 @@ struct DetailExpandableContentView: View {
                 .animation(.spring(response: 0.3, dampingFraction: 0.6), value: isExpanded)
             }
         }
-        .padding(.horizontal, 4)
-        .padding(.vertical, 8)
+        .padding(.horizontal, 2)
+        .padding(.vertical, 4)
         .onAppear {
             needsExpansion = content.count > maxCharacters
         }

@@ -679,10 +679,13 @@ struct LocationMomentCard: View {
                 .clipShape(RoundedRectangle(cornerRadius: 24))
                 .shadow(color: .black.opacity(0.15), radius: 10, x: 0, y: 5)
                 
-                // ✅ Contenido del momento si no está vacío
-                if !moment.content.isEmpty {
-                    locationMomentContentText
-                }
+                MomentCaptionView(
+                    moment: moment,
+                    style: .detail,
+                    colorScheme: colorScheme,
+                    onHashtagTap: onHashtagTap
+                )
+                .padding(.horizontal, 4)
                 
                 // ✅ Comentarios inline (como MomentDetailView)
                 if !moment.disableComments {
@@ -923,34 +926,6 @@ struct LocationMomentCard: View {
                 .zIndex(110)
             }
         }
-    }
-    
-    // ✅ Texto del contenido (como MomentDetailView)
-    private var locationMomentContentText: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            MomentHashtagText(
-                content: moment.content,
-                textFont: .custom("Poppins-Regular", size: 16),
-                hashtagFont: .custom("Poppins-SemiBold", size: 16),
-                baseColor: colorScheme == .dark ? .white.opacity(0.9) : .black.opacity(0.9),
-                textAlignment: .leading,
-                onHashtagTap: onHashtagTap
-            )
-            .padding(.trailing, isImmersive ? 0 : 140)
-            .frame(maxWidth: .infinity, alignment: .leading)
-        }
-        .padding(.horizontal, 18)
-        .padding(.vertical, 14)
-        .background(
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .fill(.ultraThinMaterial.opacity(0.72))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 18, style: .continuous)
-                        .stroke(Color.white.opacity(0.08), lineWidth: 0.8)
-                )
-        )
-        .padding(.horizontal, 16)
-        .padding(.top, 14)
     }
     
     // ✅ Comentarios inline (como MomentDetailView)

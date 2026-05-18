@@ -2622,7 +2622,7 @@ struct ModernPostCardView: View {
                                     .shadow(color: .black.opacity(0.3), radius: 6, x: 0, y: 3)
                                 }
                                 .padding(.leading, 12)
-                                .padding(.bottom, moment.content.isEmpty ? 20 : 70) // Ajustar si hay texto
+                                .padding(.bottom, 20)
                                 Spacer()
                             }
                         }
@@ -2650,42 +2650,6 @@ struct ModernPostCardView: View {
                         }
                     }
                     
-                    // ✅ NUEVO: Gradiente protector para el texto (Cinematic feel)
-                    VStack {
-                        Spacer()
-                        LinearGradient(
-                            gradient: Gradient(colors: [.clear, .black.opacity(0.4), .black.opacity(0.7)]),
-                            startPoint: .top,
-                            endPoint: .bottom
-                        )
-                        .frame(height: 120) // Altura suficiente para cubrir el caption
-                    }
-                    .clipShape(RoundedRectangle(cornerRadius: 20))
-                    .allowsHitTesting(false)
-                    .opacity(isImmersive ? 0 : 1)
-                    .animation(.easeInOut(duration: 0.3), value: isImmersive)
-
-                    if !moment.content.isEmpty {
-                        VStack {
-                            Spacer()
-                            HStack {
-                                ExpandableContentView(
-                                    content: moment.content,
-                                    colorScheme: colorScheme,
-                                    onHashtagTap: { hashtag in
-
-                                        onHashtagTap(hashtag)
-                                    }
-                                )
-                                Spacer()
-                            }
-                            .padding(.horizontal, 12)
-                            .padding(.trailing, 140) // ✅ Más espacio de seguridad
-                            .padding(.bottom, 20)
-                        }
-                        .opacity(isImmersive ? 0 : 1)
-                        .animation(.easeInOut(duration: 0.3), value: isImmersive)
-                    }
                 }
                 
                 ModernActionButtons(
@@ -2701,6 +2665,15 @@ struct ModernPostCardView: View {
                 .environmentObject(firestoreService)
             }
             .padding(.horizontal, 8)
+
+            MomentCaptionView(
+                moment: moment,
+                style: .feed,
+                colorScheme: colorScheme,
+                onHashtagTap: onHashtagTap
+            )
+            .opacity(isImmersive ? 0 : 1)
+            .animation(.easeInOut(duration: 0.3), value: isImmersive)
         }
         .onAppear {
             if !hasLoadedInitialData {
