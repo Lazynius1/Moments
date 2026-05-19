@@ -735,6 +735,10 @@ extension View {
                     }
                 }
             }
+            .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("ReturnToFeedAfterMomentPublish"))) { _ in
+                previousSelectedTab.wrappedValue = 0
+                selectedTab.wrappedValue = 0
+            }
             .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("OpenCreatorForChain"))) { notification in
                 if let userInfo = notification.userInfo,
                    let chainId = userInfo["chainId"] as? String,
