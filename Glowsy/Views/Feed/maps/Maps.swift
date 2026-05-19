@@ -1674,30 +1674,18 @@ extension LocationMapView {
         
         private func createRainDropImage() -> UIImage? {
             let size = CGSize(width: 2, height: 12)
-            UIGraphicsBeginImageContextWithOptions(size, false, 0)
-            
-            let context = UIGraphicsGetCurrentContext()
-            context?.setFillColor(UIColor.cyan.withAlphaComponent(0.6).cgColor)
-            context?.fill(CGRect(origin: .zero, size: size))
-            
-            let image = UIGraphicsGetImageFromCurrentImageContext()
-            UIGraphicsEndImageContext()
-            
-            return image
+            return UIGraphicsImageRenderer(size: size).image { context in
+                context.cgContext.setFillColor(UIColor.cyan.withAlphaComponent(0.6).cgColor)
+                context.cgContext.fill(CGRect(origin: .zero, size: size))
+            }
         }
         
         private func createSnowflakeImage() -> UIImage? {
             let size = CGSize(width: 8, height: 8)
-            UIGraphicsBeginImageContextWithOptions(size, false, 0)
-            
-            let context = UIGraphicsGetCurrentContext()
-            context?.setFillColor(UIColor.white.withAlphaComponent(0.8).cgColor)
-            context?.fillEllipse(in: CGRect(origin: .zero, size: size))
-            
-            let image = UIGraphicsGetImageFromCurrentImageContext()
-            UIGraphicsEndImageContext()
-            
-            return image
+            return UIGraphicsImageRenderer(size: size).image { context in
+                context.cgContext.setFillColor(UIColor.white.withAlphaComponent(0.8).cgColor)
+                context.cgContext.fillEllipse(in: CGRect(origin: .zero, size: size))
+            }
         }
     }
     

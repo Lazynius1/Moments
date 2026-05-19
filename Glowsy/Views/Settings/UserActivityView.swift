@@ -629,8 +629,7 @@ private struct ActivityInteractionDetailView: View {
     @State private var selectedAuthorId: String?
     @State private var showingAuthorFilterSheet = false
     @State private var selectedMomentForDetail: Moment?
-    @State private var showingStories = false
-    @State private var storiesUserId = ""
+    @State private var storyRoute: IdentifiableString?
     @State private var selectedProfileUserIdForSheet: String?
     @State private var isSelectionMode = false
     @State private var selectedReactionIds: Set<String> = []
@@ -758,8 +757,8 @@ private struct ActivityInteractionDetailView: View {
                 MomentDetailView(moment: moment)
             }
         }
-        .sheet(isPresented: $showingStories) {
-            StoriesView(startWithUserId: .constant(storiesUserId))
+        .fullScreenCover(item: $storyRoute) { route in
+            StoriesView(startWithUserId: .constant(route.id))
         }
         .sheet(isPresented: Binding(
             get: { selectedProfileUserIdForSheet != nil },
@@ -1842,8 +1841,7 @@ private struct ActivityInteractionDetailView: View {
     private func openAuthor(authorId: String, hasStory: Bool) {
         guard !authorId.isEmpty else { return }
         if hasStory {
-            storiesUserId = authorId
-            showingStories = true
+            storyRoute = IdentifiableString(id: authorId)
         } else {
             selectedProfileUserIdForSheet = authorId
         }

@@ -5,6 +5,10 @@ import Kingfisher
 import Combine
 import WidgetKit
 
+private struct MessagingStoryRoute: Identifiable {
+    let id: String
+}
+
 // MARK: - Glassmorphic Components
 struct GlassmorphicBackground: View {
     let adaptiveColors: AdaptiveColors
@@ -950,8 +954,7 @@ struct GlassmorphicConversationRow: View {
 
     // ✅ NUEVO: Estados para navegación
     @State private var showingUserProfile = false
-    @State private var showingStories = false
-    @State private var storiesUserId: String = ""
+    @State private var storyRoute: MessagingStoryRoute?
     @State private var liveOtherParticipantUsername: String = ""
     @State private var isOtherParticipantUnavailable: Bool = false
     @State private var isOtherParticipantBlockedByCurrentUser: Bool = false
@@ -987,8 +990,7 @@ struct GlassmorphicConversationRow: View {
                         }
 
                         if hasStory {
-                            storiesUserId = conversation.otherParticipantId
-                            showingStories = true
+                            storyRoute = MessagingStoryRoute(id: conversation.otherParticipantId)
                         } else {
                             showingUserProfile = true
                         }
@@ -1074,8 +1076,8 @@ struct GlassmorphicConversationRow: View {
             refreshOtherParticipantAvailability()
         }
         // ✅ NUEVO: Sheet para mostrar historias del usuario
-        .sheet(isPresented: $showingStories) {
-            StoriesView(startWithUserId: .constant(storiesUserId))
+        .fullScreenCover(item: $storyRoute) { route in
+            StoriesView(startWithUserId: .constant(route.id))
                 .ignoresSafeArea(.keyboard) // ✅ Prevenir shift del keyboard
         }
         // ✅ NUEVO: Sheet para navegación al perfil del usuario
@@ -1145,8 +1147,7 @@ struct GlassmorphicConversationRow: View {
     }
 
     private func disableUnavailableParticipantStories() {
-        storiesUserId = ""
-        showingStories = false
+        storyRoute = nil
     }
 
     private func formattedTimestamp(_ date: Date) -> String {

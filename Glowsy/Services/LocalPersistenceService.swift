@@ -764,8 +764,12 @@ final class LocalPersistenceService: ObservableObject {
         context.insert(action)
         saveContext()
         
-        // ✅ TRIGGER: Si hay conexión, intentar procesar la cola inmediatamente
-        if NetworkMonitor.shared.isConnected {
+        // ✅ TRIGGER: Si hay conexión, intentar procesar la cola inmediatamente.
+        // Las subidas ya tienen su propio proceso en vivo; sincronizarlas al guardarlas
+        // puede detectar un falso duplicado y perder la acción de recuperación.
+        let isUploadAction = action.type == CachedAction.ActionType.momentUpload.rawValue ||
+            action.type == CachedAction.ActionType.storyUpload.rawValue
+        if NetworkMonitor.shared.isConnected && !isUploadAction {
             Task { @MainActor in
                 await OfflineSyncService.shared.syncPendingActions()
             }

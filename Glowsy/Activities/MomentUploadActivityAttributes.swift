@@ -11,7 +11,6 @@ import ActivityKit
 
 // MARK: - Moment Upload Activity Attributes
 // Estos tipos deben ser idénticos a los del Widget Extension
-@available(iOS 16.1, *)
 public struct MomentUploadActivityAttributes: ActivityAttributes {
     public struct ContentState: Codable, Hashable {
         public var progress: Double
@@ -36,4 +35,3 @@ public struct MomentUploadActivityAttributes: ActivityAttributes {
         self.mediaCount = mediaCount
     }
 }
-

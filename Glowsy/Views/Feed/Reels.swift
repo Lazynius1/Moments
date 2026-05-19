@@ -4,6 +4,10 @@ import AVKit
 import FirebaseAuth
 import Combine
 
+private struct ReelsStoryRoute: Identifiable {
+    let id: String
+}
+
 // ✅ PRIVACIDAD: ReelsViewer solo muestra videos que ya pasaron los filtros de privacidad
 struct ReelsViewer: View {
     let videos: [VideoMoment]
@@ -140,8 +144,7 @@ struct ReelVideoView: View {
     @State private var storyCount: Int = 0
     @State private var storyViewedStatus: [Bool] = []
     @State private var storyAudiences: [String?] = []
-    @State private var showingStories = false
-    @State private var storiesUserId: String = ""
+    @State private var storyRoute: ReelsStoryRoute?
     @State private var liveAuthorUsername: String = ""
     
     @Environment(\.colorScheme) var colorScheme
@@ -279,8 +282,7 @@ struct ReelVideoView: View {
                                     if !video.moment.authorId.isEmpty {
                                         if hasStory {
                                             // ✅ Si tiene historias, abrir StoriesView
-                                            storiesUserId = video.moment.authorId
-                                            showingStories = true
+                                            storyRoute = ReelsStoryRoute(id: video.moment.authorId)
                                         } else {
                                             // ✅ Si no tiene historias, ir al perfil
                                             navigateToProfile = true
@@ -546,8 +548,8 @@ struct ReelVideoView: View {
         .sheet(isPresented: $navigateToProfile) {
             UserProfileView(userId: video.moment.authorId)
         }
-        .sheet(isPresented: $showingStories) {
-            StoriesView(startWithUserId: .constant(storiesUserId))
+        .fullScreenCover(item: $storyRoute) { route in
+            StoriesView(startWithUserId: .constant(route.id))
         }
         .alert("reels.delete.title", isPresented: $showDeleteAlert) {
             Button("common.delete", role: .destructive) {
