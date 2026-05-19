@@ -2,6 +2,52 @@ import FirebaseAuth
 import Kingfisher
 import SwiftUI
 
+private struct StickerGlassFieldModifier: ViewModifier {
+    let accentColor: Color
+    let isFocused: Bool
+    let cornerRadius: CGFloat
+
+    func body(content: Content) -> some View {
+        content
+            .background {
+                Color.clear
+                    .liquidGlass(in: RoundedRectangle(cornerRadius: cornerRadius, style: .continuous), interactive: true)
+                    .overlay {
+                        RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                            .stroke(
+                                isFocused ? accentColor.opacity(0.18) : Color.clear,
+                                lineWidth: 1
+                            )
+                    }
+            }
+    }
+}
+
+private struct StickerGlassActionBackground: ViewModifier {
+    let accentColor: Color
+    let isEnabled: Bool
+    let cornerRadius: CGFloat
+
+    func body(content: Content) -> some View {
+        content
+            .background {
+                Color.clear
+                    .liquidGlass(in: RoundedRectangle(cornerRadius: cornerRadius, style: .continuous), interactive: isEnabled)
+            }
+            .opacity(isEnabled ? 1.0 : 0.62)
+    }
+}
+
+private extension View {
+    func stickerGlassField(accentColor: Color, isFocused: Bool, cornerRadius: CGFloat = 16) -> some View {
+        modifier(StickerGlassFieldModifier(accentColor: accentColor, isFocused: isFocused, cornerRadius: cornerRadius))
+    }
+
+    func stickerGlassActionBackground(accentColor: Color, isEnabled: Bool, cornerRadius: CGFloat = 16) -> some View {
+        modifier(StickerGlassActionBackground(accentColor: accentColor, isEnabled: isEnabled, cornerRadius: cornerRadius))
+    }
+}
+
 // MARK: - Modern Mention Input with Real User Search
 struct ModernMentionInputView: View {
     let onSelect: (String) -> Void
@@ -70,7 +116,14 @@ struct ModernMentionInputView: View {
                 }
                 .padding(.horizontal, 16)
                 .padding(.vertical, 12)
-                .liquidGlass(in: Capsule())
+                .background {
+                    Color.clear
+                        .liquidGlass(in: Capsule(), interactive: true)
+                }
+                .overlay(
+                    Capsule()
+                        .stroke(isTextFieldFocused ? palette.searchIconActive.opacity(0.18) : Color.clear, lineWidth: 1)
+                )
             }
             .padding(.bottom, 20)
 
@@ -156,10 +209,13 @@ struct ModernMentionInputView: View {
                 .padding(.horizontal, 4)
             }
         }
-                        .onAppear {
+        .contentShape(Rectangle())
+        .onTapGesture {
+            isTextFieldFocused = false
+        }
+        .onAppear {
             loadRecentUsers()
             loadSuggestedUsers()
-            isTextFieldFocused = true
         }
     }
 
@@ -276,9 +332,8 @@ struct StickerUserRowView: View {
     }
 
     var body: some View {
-        Button(action: onTap) {
+        MomentRowButton(action: onTap) {
             HStack(spacing: 12) {
-                // Avatar con mejor handling de errores
                 Group {
                     if let imagePath = user.profileImagePath, !imagePath.isEmpty, !imageLoadFailed {
                         KFImage(URL(string: imagePath))
@@ -353,9 +408,11 @@ struct StickerUserRowView: View {
                     .font(.system(size: 12, weight: .medium))
                     .foregroundColor(palette.tertiaryText)
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .contentShape(Rectangle())
+            .padding(.horizontal, 12)
             .padding(.vertical, 12)
         }
-        .buttonStyle(PlainButtonStyle())
     }
 }
 
@@ -523,16 +580,8 @@ struct ModernHashtagInputView: View {
                 }
                 .padding(.horizontal, 20)
                 .padding(.vertical, 16)
-                .background(
-                    RoundedRectangle(cornerRadius: 16)
-                        .fill(palette.fieldFill)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 16)
-                                .stroke(isTextFieldFocused ? Color.pink : palette.fieldStroke, lineWidth: 1.5)
-                        )
-                )
+                .stickerGlassField(accentColor: .pink, isFocused: isTextFieldFocused)
 
-                // Botón de acción
                 Button(action: {
                     onSelect(hashtag)
                 }) {
@@ -543,14 +592,11 @@ struct ModernHashtagInputView: View {
                         Text("stickerview.addHashtag")
                             .font(.system(size: 18, weight: .semibold))
                     }
-                    .foregroundColor(.white)
+                    .foregroundColor(hashtag.isEmpty ? palette.secondaryText : palette.primaryText)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 16)
-                    .background(
-                        RoundedRectangle(cornerRadius: 16)
-                            .fill(hashtag.isEmpty ? Color.gray.opacity(0.3) : Color.pink)
-                    )
                 }
+                .stickerGlassActionBackground(accentColor: .pink, isEnabled: !hashtag.isEmpty)
                 .disabled(hashtag.isEmpty)
                 .animation(.easeInOut(duration: 0.2), value: hashtag.isEmpty)
             }
@@ -559,8 +605,9 @@ struct ModernHashtagInputView: View {
             Spacer()
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .onAppear {
-            isTextFieldFocused = true
+        .contentShape(Rectangle())
+        .onTapGesture {
+            isTextFieldFocused = false
         }
     }
 }
@@ -614,14 +661,7 @@ struct ModernLinkInputView: View {
                 }
                 .padding(.horizontal, 20)
                 .padding(.vertical, 16)
-                .background(
-                    RoundedRectangle(cornerRadius: 16)
-                        .fill(palette.fieldFill)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 16)
-                                .stroke(focusedField == .url ? Color(red: 0.29, green: 0.72, blue: 0.98) : palette.fieldStroke, lineWidth: 1.5)
-                        )
-                )
+                .stickerGlassField(accentColor: Color(red: 0.29, green: 0.72, blue: 0.98), isFocused: focusedField == .url)
 
                 HStack {
                     Image(systemName: "text.cursor")
@@ -636,14 +676,7 @@ struct ModernLinkInputView: View {
                 }
                 .padding(.horizontal, 20)
                 .padding(.vertical, 16)
-                .background(
-                    RoundedRectangle(cornerRadius: 16)
-                        .fill(palette.fieldFill)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 16)
-                                .stroke(focusedField == .title ? Color(red: 0.29, green: 0.72, blue: 0.98) : palette.fieldStroke, lineWidth: 1.5)
-                        )
-                )
+                .stickerGlassField(accentColor: Color(red: 0.29, green: 0.72, blue: 0.98), isFocused: focusedField == .title)
 
                 Button(action: {
                     onSelect(urlString, customTitle)
@@ -655,14 +688,11 @@ struct ModernLinkInputView: View {
                         Text("stickerview.addLink")
                             .font(.system(size: 18, weight: .semibold))
                     }
-                    .foregroundColor(.white)
+                    .foregroundColor(isFormValid ? palette.primaryText : palette.secondaryText)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 16)
-                    .background(
-                        RoundedRectangle(cornerRadius: 16)
-                            .fill(isFormValid ? Color(red: 0.29, green: 0.72, blue: 0.98) : Color.gray.opacity(0.3))
-                    )
                 }
+                .stickerGlassActionBackground(accentColor: Color(red: 0.29, green: 0.72, blue: 0.98), isEnabled: isFormValid)
                 .disabled(!isFormValid)
                 .animation(.easeInOut(duration: 0.2), value: isFormValid)
             }
@@ -671,8 +701,9 @@ struct ModernLinkInputView: View {
             Spacer()
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .onAppear {
-            focusedField = .url
+        .contentShape(Rectangle())
+        .onTapGesture {
+            focusedField = nil
         }
     }
 }
@@ -718,14 +749,7 @@ struct ModernCountdownInputView: View {
                 }
                 .padding(.horizontal, 20)
                 .padding(.vertical, 16)
-                .background(
-                    RoundedRectangle(cornerRadius: 16)
-                        .fill(palette.fieldFill)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 16)
-                                .stroke(isTextFieldFocused ? Color(red: 0.61, green: 0.34, blue: 0.97) : palette.fieldStroke, lineWidth: 1.5)
-                        )
-                )
+                .stickerGlassField(accentColor: Color(red: 0.61, green: 0.34, blue: 0.97), isFocused: isTextFieldFocused)
 
                 VStack(alignment: .leading, spacing: 8) {
                     Text("stickerview.countdown.endsLabel")
@@ -745,14 +769,7 @@ struct ModernCountdownInputView: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.horizontal, 20)
                     .padding(.vertical, 16)
-                    .background(
-                        RoundedRectangle(cornerRadius: 16)
-                            .fill(palette.fieldFill)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 16)
-                                    .stroke(palette.fieldStroke, lineWidth: 1.5)
-                            )
-                    )
+                    .stickerGlassField(accentColor: Color(red: 0.61, green: 0.34, blue: 0.97), isFocused: false)
                 }
 
                 Button(action: {
@@ -765,14 +782,11 @@ struct ModernCountdownInputView: View {
                         Text("stickerview.createCountdown")
                             .font(.system(size: 18, weight: .semibold))
                     }
-                    .foregroundColor(.white)
+                    .foregroundColor(isFormValid ? palette.primaryText : palette.secondaryText)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 16)
-                    .background(
-                        RoundedRectangle(cornerRadius: 16)
-                            .fill(isFormValid ? Color(red: 0.61, green: 0.34, blue: 0.97) : Color.gray.opacity(0.3))
-                    )
                 }
+                .stickerGlassActionBackground(accentColor: Color(red: 0.61, green: 0.34, blue: 0.97), isEnabled: isFormValid)
                 .disabled(!isFormValid)
                 .animation(.easeInOut(duration: 0.2), value: isFormValid)
             }
@@ -781,8 +795,9 @@ struct ModernCountdownInputView: View {
             Spacer()
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .onAppear {
-            isTextFieldFocused = true
+        .contentShape(Rectangle())
+        .onTapGesture {
+            isTextFieldFocused = false
         }
     }
 }
@@ -839,14 +854,7 @@ struct ModernEmojiSliderInputView: View {
                 }
                 .padding(.horizontal, 20)
                 .padding(.vertical, 16)
-                .background(
-                    RoundedRectangle(cornerRadius: 16)
-                        .fill(palette.fieldFill)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 16)
-                                .stroke(focusedField == .prompt ? Color(red: 0.99, green: 0.56, blue: 0.21) : palette.fieldStroke, lineWidth: 1.5)
-                        )
-                )
+                .stickerGlassField(accentColor: Color(red: 0.99, green: 0.56, blue: 0.21), isFocused: focusedField == .prompt)
 
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 12) {
@@ -858,15 +866,15 @@ struct ModernEmojiSliderInputView: View {
                                 Text(emoji)
                                     .font(.system(size: 26))
                                     .frame(width: 48, height: 48)
-                                    .background(
+                                    .background {
+                                        Color.clear
+                                            .liquidGlass(in: Circle(), interactive: true)
+                                    }
+                                    .overlay(
                                         Circle()
-                                            .fill(palette.fieldFill)
-                                            .overlay(
-                                                Circle()
-                                                    .stroke(
-                                                        selectedEmoji == emoji ? Color(red: 0.99, green: 0.56, blue: 0.21) : palette.fieldStroke,
-                                                        lineWidth: selectedEmoji == emoji ? 2 : 1
-                                                    )
+                                            .stroke(
+                                                selectedEmoji == emoji ? Color(red: 0.99, green: 0.56, blue: 0.21) : Color.white.opacity(0.08),
+                                                lineWidth: selectedEmoji == emoji ? 1.8 : 0.9
                                             )
                                     )
                             }
@@ -883,17 +891,17 @@ struct ModernEmojiSliderInputView: View {
                                 .font(.system(size: 18, weight: .bold))
                                 .foregroundColor(palette.primaryText)
                                 .frame(width: 48, height: 48)
-                                .background(
+                                .background {
+                                    Color.clear
+                                        .liquidGlass(in: Circle(), interactive: true)
+                                }
+                                .overlay(
                                     Circle()
-                                        .fill(palette.fieldFill)
-                                        .overlay(
-                                            Circle()
-                                                .stroke(
-                                                    (isEmojiPickerExpanded || !presetEmojis.contains(selectedEmoji))
-                                                    ? Color(red: 0.99, green: 0.56, blue: 0.21)
-                                                    : palette.fieldStroke,
-                                                    lineWidth: (isEmojiPickerExpanded || !presetEmojis.contains(selectedEmoji)) ? 2 : 1
-                                                )
+                                        .stroke(
+                                            (isEmojiPickerExpanded || !presetEmojis.contains(selectedEmoji))
+                                            ? Color(red: 0.99, green: 0.56, blue: 0.21)
+                                            : Color.white.opacity(0.08),
+                                            lineWidth: (isEmojiPickerExpanded || !presetEmojis.contains(selectedEmoji)) ? 1.8 : 0.9
                                         )
                                 )
                         }
@@ -931,14 +939,11 @@ struct ModernEmojiSliderInputView: View {
                         Text("stickerview.createEmojiSlider")
                             .font(.system(size: 18, weight: .semibold))
                     }
-                    .foregroundColor(.white)
+                    .foregroundColor(palette.primaryText)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 16)
-                    .background(
-                        RoundedRectangle(cornerRadius: 16)
-                            .fill(Color(red: 0.99, green: 0.56, blue: 0.21))
-                    )
                 }
+                .stickerGlassActionBackground(accentColor: Color(red: 0.99, green: 0.56, blue: 0.21), isEnabled: true)
                 .buttonStyle(.plain)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -946,8 +951,9 @@ struct ModernEmojiSliderInputView: View {
             Spacer()
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .onAppear {
-            focusedField = .prompt
+        .contentShape(Rectangle())
+        .onTapGesture {
+            focusedField = nil
         }
     }
 }
@@ -959,36 +965,38 @@ struct ModernQuizInputView: View {
     @State private var correctIndex = 0
     @FocusState private var focusedField: Int?
 
-    private var isDarkMode: Bool { colorScheme == .dark }
+    private var palette: StickerDetailPalette { StickerDetailPalette(colorScheme: colorScheme) }
+    private let accentColor = Color.orange
+
+    private var isFormValid: Bool {
+        !question.isEmpty && options.filter { !$0.isEmpty }.count >= 2
+    }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 20) {
-            VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 18) {
+            VStack(alignment: .leading, spacing: 4) {
                 Text(NSLocalizedString("quiz.title", comment: ""))
-                    .font(.system(size: 24, weight: .black, design: .rounded))
-                    .foregroundColor(isDarkMode ? .white : .black)
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundColor(palette.primaryText)
 
                 Text(NSLocalizedString("quiz.subtitle", comment: ""))
-                    .font(.system(size: 14, weight: .medium))
-                    .foregroundColor(isDarkMode ? .white.opacity(0.6) : .black.opacity(0.5))
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundColor(palette.secondaryText)
             }
-            .padding(.bottom, 10)
 
-            // Campo de Pregunta
             VStack(alignment: .leading, spacing: 10) {
                 TextField(NSLocalizedString("quiz.question.placeholder", comment: ""), text: $question)
-                    .font(.system(size: 18, weight: .bold))
-                    .padding()
-                    .background(Color.white.opacity(isDarkMode ? 0.1 : 0.05))
-                    .cornerRadius(16)
+                    .font(.system(size: 18, weight: .medium))
+                    .foregroundColor(palette.primaryText)
+                    .padding(.horizontal, 20)
+                    .padding(.vertical, 16)
+                    .stickerGlassField(accentColor: accentColor, isFocused: focusedField == -1)
                     .focused($focusedField, equals: -1)
 
-                // Opciones dinámicas
                 ForEach(0..<options.count, id: \.self) { index in
                     quizOptionField(index: index)
                 }
 
-                // ✅ BOTÓN PARA AÑADIR OPCIÓN EXTRA (Máximo 4) - Liquid Glass Style
                 if options.count < 4 {
                     Button(action: {
                         withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
@@ -999,14 +1007,15 @@ struct ModernQuizInputView: View {
                             Image(systemName: "plus.circle.fill")
                                 .font(.system(size: 14, weight: .bold))
                             Text(NSLocalizedString("quiz.addOption", comment: ""))
-                                .font(.system(size: 13, weight: .bold, design: .rounded))
+                                .font(.system(size: 13, weight: .semibold))
                         }
-                        .foregroundColor(isDarkMode ? .white : .black)
+                        .foregroundColor(palette.primaryText)
                         .padding(.vertical, 8)
                         .padding(.horizontal, 14)
-                        .background(
-                            Color.clear.liquidGlass(in: Capsule(), interactive: true)
-                        )
+                    }
+                    .background {
+                        Color.clear
+                            .liquidGlass(in: Capsule(), interactive: true)
                     }
                     .padding(.top, 4)
                 }
@@ -1018,32 +1027,27 @@ struct ModernQuizInputView: View {
                     onSelect(question, filledOptions, min(correctIndex, filledOptions.count - 1))
                 }
             }) {
-                Text(NSLocalizedString("quiz.done", comment: ""))
-                    .font(.system(size: 16, weight: .black))
-                    .foregroundColor(.white)
+                HStack(spacing: 10) {
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.system(size: 18, weight: .medium))
+                    Text(NSLocalizedString("quiz.done", comment: ""))
+                        .font(.system(size: 16, weight: .semibold))
+                }
+                    .foregroundColor(isFormValid ? palette.primaryText : palette.secondaryText)
                     .frame(maxWidth: .infinity)
-                    .frame(height: 56)
-                    .background(
-                        Capsule()
-                            .fill(LinearGradient(colors: [.orange, .pink], startPoint: .leading, endPoint: .trailing))
-                    )
-                    .shadow(color: .orange.opacity(0.3), radius: 10, y: 5)
+                    .padding(.vertical, 16)
             }
-            .padding(.top, 10)
-            .disabled(question.isEmpty || options.filter({!$0.isEmpty}).count < 2)
-            .opacity(question.isEmpty || options.filter({!$0.isEmpty}).count < 2 ? 0.5 : 1.0)
+            .stickerGlassActionBackground(accentColor: accentColor, isEnabled: isFormValid)
+            .padding(.top, 2)
+            .disabled(!isFormValid)
+            .opacity(isFormValid ? 1.0 : 0.72)
 
             Spacer()
         }
-        .padding(.horizontal, 20)
-        .padding(.top, 20)
-        // ✅ TAP FUERA PARA BAJAR TECLADO
+        .frame(maxWidth: .infinity, alignment: .leading)
         .contentShape(Rectangle())
         .onTapGesture {
             focusedField = nil
-        }
-        .onAppear {
-            focusedField = -1
         }
     }
 
@@ -1052,6 +1056,7 @@ struct ModernQuizInputView: View {
         HStack {
             TextField(NSLocalizedString("quiz.option.placeholder", comment: "") + " \(index + 1)", text: $options[index])
                 .font(.system(size: 16, weight: .medium))
+                .foregroundColor(palette.primaryText)
                 .focused($focusedField, equals: index)
 
             Spacer()
@@ -1065,13 +1070,9 @@ struct ModernQuizInputView: View {
                     .foregroundColor(correctIndex == index ? .green : .gray.opacity(0.5))
             }
         }
-        .padding()
-        .background(Color.white.opacity(isDarkMode ? 0.08 : 0.04))
-        .cornerRadius(14)
-        .overlay(
-            RoundedRectangle(cornerRadius: 14)
-                .stroke(correctIndex == index ? Color.green.opacity(0.3) : Color.clear, lineWidth: 2)
-        )
+        .padding(.horizontal, 20)
+        .padding(.vertical, 16)
+        .stickerGlassField(accentColor: correctIndex == index ? .green : accentColor, isFocused: focusedField == index || correctIndex == index)
     }
 }
 
@@ -1125,14 +1126,7 @@ struct ModernPollInputView: View {
                         }
                         .padding(.horizontal, 20)
                         .padding(.vertical, 16)
-                        .background(
-                            RoundedRectangle(cornerRadius: 16)
-                                .fill(palette.fieldFill)
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 16)
-                                        .stroke(focusedField == .question ? Color.indigo : palette.fieldStroke, lineWidth: 1.5)
-                                )
-                        )
+                        .stickerGlassField(accentColor: .indigo, isFocused: focusedField == .question)
                 }
 
                 VStack(alignment: .leading, spacing: 8) {
@@ -1159,14 +1153,7 @@ struct ModernPollInputView: View {
                     }
                     .padding(.horizontal, 20)
                     .padding(.vertical, 16)
-                    .background(
-                        RoundedRectangle(cornerRadius: 16)
-                            .fill(palette.fieldFill)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 16)
-                                    .stroke(focusedField == .option1 ? Color.blue : palette.fieldStroke, lineWidth: 1.5)
-                            )
-                    )
+                    .stickerGlassField(accentColor: .blue, isFocused: focusedField == .option1)
                 }
 
                 VStack(alignment: .leading, spacing: 8) {
@@ -1193,14 +1180,7 @@ struct ModernPollInputView: View {
                     }
                     .padding(.horizontal, 20)
                     .padding(.vertical, 16)
-                    .background(
-                        RoundedRectangle(cornerRadius: 16)
-                            .fill(palette.fieldFill)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 16)
-                                    .stroke(focusedField == .option2 ? Color.pink : palette.fieldStroke, lineWidth: 1.5)
-                            )
-                    )
+                    .stickerGlassField(accentColor: .pink, isFocused: focusedField == .option2)
                 }
 
                 Button(action: {
@@ -1213,14 +1193,11 @@ struct ModernPollInputView: View {
                         Text("stickerview.createPoll")
                             .font(.system(size: 18, weight: .semibold))
                     }
-                    .foregroundColor(.white)
+                    .foregroundColor(isFormValid ? palette.primaryText : palette.secondaryText)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 16)
-                    .background(
-                        RoundedRectangle(cornerRadius: 16)
-                            .fill(isFormValid ? Color.indigo : Color.gray.opacity(0.3))
-                    )
                 }
+                .stickerGlassActionBackground(accentColor: .indigo, isEnabled: isFormValid)
                 .disabled(!isFormValid)
                 .animation(.easeInOut(duration: 0.2), value: isFormValid)
             }
@@ -1229,8 +1206,9 @@ struct ModernPollInputView: View {
             Spacer()
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .onAppear {
-            focusedField = .question
+        .contentShape(Rectangle())
+        .onTapGesture {
+            focusedField = nil
         }
     }
 
@@ -1282,16 +1260,8 @@ struct ModernQuestionInputView: View {
                 }
                 .padding(.horizontal, 20)
                 .padding(.vertical, 16)
-                .background(
-                    RoundedRectangle(cornerRadius: 16)
-                        .fill(palette.fieldFill)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 16)
-                                .stroke(isTextFieldFocused ? Color.purple : palette.fieldStroke, lineWidth: 1.5)
-                        )
-                )
+                .stickerGlassField(accentColor: .purple, isFocused: isTextFieldFocused)
 
-                // Botón de acción
                 Button(action: {
                     onSelect(question.isEmpty ? NSLocalizedString("stickerview.question.defaultPrompt", comment: "Default question prompt") : question)
                 }) {
@@ -1302,22 +1272,20 @@ struct ModernQuestionInputView: View {
                         Text("stickerview.addQuestion")
                             .font(.system(size: 18, weight: .semibold))
                     }
-                    .foregroundColor(.white)
+                    .foregroundColor(palette.primaryText)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 16)
-                    .background(
-                        RoundedRectangle(cornerRadius: 16)
-                            .fill(Color.purple)
-                    )
                 }
+                .stickerGlassActionBackground(accentColor: .purple, isEnabled: true)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
 
             Spacer()
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .onAppear {
-            isTextFieldFocused = true
+        .contentShape(Rectangle())
+        .onTapGesture {
+            isTextFieldFocused = false
         }
     }
 }
@@ -1366,4 +1334,3 @@ struct ModernEmojiGridView: View {
         .padding(.bottom, 20)
     }
 }
-

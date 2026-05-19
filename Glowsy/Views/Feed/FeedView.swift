@@ -110,6 +110,10 @@ struct FeedView: View {
                 .ignoresSafeArea(.all)
             
             mainContent
+
+            FloatingMomentUploadOverlay(topInset: isFeedHeaderHidden ? 18 : feedHeaderHeight + 12)
+                .environmentObject(uploadService)
+                .zIndex(1200)
             
             // ✅ Pill flotante sobre el contenido
             floatingFeedSelector
@@ -420,12 +424,7 @@ struct FeedView: View {
             scrollableContent
                 .ignoresSafeArea(edges: .top)
             
-            VStack(spacing: 0) {
-                modernHeaderView
-                
-                // 🔥 NUEVO: Barra de progreso de uploads
-                uploadProgressBar
-            }
+            modernHeaderView
             .offset(y: isFeedHeaderHidden ? -(feedHeaderHeight + 20) : 0)
             .opacity(isFeedHeaderHidden ? 0 : 1)
             .allowsHitTesting(!isFeedHeaderHidden)
@@ -679,10 +678,9 @@ struct FeedView: View {
                 ScrollView(.vertical, showsIndicators: false) {
                     let screenHeight = UIScreen.main.bounds.height
                     let headerHeight = feedHeaderHeight
-                    let progressBarHeight = uploadService.uploadingMoments.isEmpty ? 0.0 : 50.0
                     let segmentedToggleHeight = feedSelectorHeight
                     let tabbarHeight = 50.0
-                    let availableHeight = screenHeight - headerHeight - progressBarHeight - segmentedToggleHeight - tabbarHeight - 60
+                    let availableHeight = screenHeight - headerHeight - segmentedToggleHeight - tabbarHeight - 60
                     
                     LazyVStack(spacing: max(15, screenHeight * 0.02)) {
                         // ✅ Espacio para que el primer post empiece debajo del header
@@ -1027,43 +1025,6 @@ struct FeedView: View {
                 return Image(systemName: "checkmark")
             case .failed:
                 return Image(systemName: "exclamationmark.triangle")
-            }
-        }
-    }
-    
-    /// ///
-    //Progeso subida Momentos
-    ///
-    private var uploadProgressBar: some View {
-        Group {
-            if !uploadService.uploadingMoments.isEmpty {
-                VStack(spacing: 0) {
-                    // Contenedor principal
-                    ForEach(uploadService.uploadingMoments.prefix(3)) { uploadingMoment in
-                        UploadProgressRow(uploadingMoment: uploadingMoment)
-                            .environmentObject(uploadService)
-                    }
-                    
-                    // Si hay más de 3, mostrar contador
-                    if uploadService.uploadingMoments.count > 3 {
-                        HStack {
-                            Text("+ \(uploadService.uploadingMoments.count - 3) \(NSLocalizedString("feed.uploading.more", comment: "More uploading"))")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                            Spacer()
-                        }
-                        .padding(.horizontal, 16)
-                        .padding(.bottom, 8)
-                    }
-                }
-                .background(.ultraThinMaterial)
-                .overlay(
-                    Rectangle()
-                        .fill(Color(hex: "007AFF").opacity(0.3))
-                        .frame(height: 2),
-                    alignment: .bottom
-                )
-                .animation(.easeInOut(duration: 0.3), value: uploadService.uploadingMoments.count)
             }
         }
     }

@@ -111,21 +111,32 @@ class StorageService {
     }
     
     // MARK: - 🔥 FUNCIÓN PRINCIPAL ACTUALIZADA: uploadMedia - AHORA CON MODERACIÓN
-    func uploadMedia(userId: String, mediaItem: UploadMediaItem, completion: @escaping (Result<String, Error>) -> Void) {
+    func uploadMedia(
+        userId: String,
+        mediaItem: UploadMediaItem,
+        progress: ((Double) -> Void)? = nil,
+        completion: @escaping (Result<String, Error>) -> Void
+    ) {
         let fileName = "\(UUID().uuidString)_\(userId)"
 
         
         switch mediaItem.type {
         case .image:
-            uploadImageMedia(image: mediaItem.image, fileName: fileName, userId: userId, completion: completion)
+            uploadImageMedia(image: mediaItem.image, fileName: fileName, userId: userId, progress: progress, completion: completion)
             
         case .video:
-            uploadVideoMedia(videoURL: mediaItem.videoURL, fileName: fileName, userId: userId, completion: completion)
+            uploadVideoMedia(videoURL: mediaItem.videoURL, fileName: fileName, userId: userId, progress: progress, completion: completion)
         }
     }
     
     // 🔥 FUNCIÓN ACTUALIZADA: Upload de imagen SIN moderación automática
-    private func uploadImageMedia(image: UIImage?, fileName: String, userId: String, completion: @escaping (Result<String, Error>) -> Void) {
+    private func uploadImageMedia(
+        image: UIImage?,
+        fileName: String,
+        userId: String,
+        progress: ((Double) -> Void)?,
+        completion: @escaping (Result<String, Error>) -> Void
+    ) {
         guard let image = image else {
             completion(.failure(StorageError.invalidData))
             return
@@ -141,7 +152,7 @@ class StorageService {
         metadata.contentType = "image/jpeg"
         
         
-        imageRef.putData(imageData, metadata: metadata) { _, error in
+        let uploadTask = imageRef.putData(imageData, metadata: metadata) { _, error in
             if let error = error {
                 completion(.failure(StorageError.uploadFailed))
                 return
@@ -165,10 +176,21 @@ class StorageService {
                 // 🚫 MODERACIÓN REMOVIDA - Se hará en BackgroundMomentUploadService
             }
         }
+
+        uploadTask.observe(.progress) { snapshot in
+            guard let uploadProgress = snapshot.progress, uploadProgress.totalUnitCount > 0 else { return }
+            progress?(Double(uploadProgress.completedUnitCount) / Double(uploadProgress.totalUnitCount))
+        }
     }
 
     // 🔥 FUNCIÓN ACTUALIZADA: Upload de video SIN moderación automática
-    private func uploadVideoMedia(videoURL: URL?, fileName: String, userId: String, completion: @escaping (Result<String, Error>) -> Void) {
+    private func uploadVideoMedia(
+        videoURL: URL?,
+        fileName: String,
+        userId: String,
+        progress: ((Double) -> Void)?,
+        completion: @escaping (Result<String, Error>) -> Void
+    ) {
         guard let sourceURL = videoURL else {
             completion(.failure(StorageError.invalidData))
             return
@@ -187,7 +209,7 @@ class StorageService {
             case .success(let tempURL):
                 
                 // ✅ PASO 2: Subir desde directorio temporal
-                self?.uploadVideoFromTemp(tempURL: tempURL, fileName: fileName, userId: userId) { uploadResult in
+                self?.uploadVideoFromTemp(tempURL: tempURL, fileName: fileName, userId: userId, progress: progress) { uploadResult in
                     // ✅ PASO 3: Limpiar archivo temporal
                     self?.cleanupTempFile(at: tempURL)
                     
@@ -248,7 +270,13 @@ class StorageService {
     }
 
     // 🔥 FUNCIÓN ACTUALIZADA: Upload desde directorio temporal SIN moderación
-    private func uploadVideoFromTemp(tempURL: URL, fileName: String, userId: String, completion: @escaping (Result<String, Error>) -> Void) {
+    private func uploadVideoFromTemp(
+        tempURL: URL,
+        fileName: String,
+        userId: String,
+        progress: ((Double) -> Void)?,
+        completion: @escaping (Result<String, Error>) -> Void
+    ) {
         
         let videoRef = storage.child("videos/\(fileName).mp4")
         let metadata = StorageMetadata()
@@ -264,9 +292,8 @@ class StorageService {
         
         // Observar progreso
         uploadTask.observe(.progress) { snapshot in
-            if let progress = snapshot.progress {
-                let percent = Double(progress.completedUnitCount) / Double(progress.totalUnitCount) * 100
-            }
+            guard let uploadProgress = snapshot.progress, uploadProgress.totalUnitCount > 0 else { return }
+            progress?(Double(uploadProgress.completedUnitCount) / Double(uploadProgress.totalUnitCount))
         }
         
         // Observar éxito

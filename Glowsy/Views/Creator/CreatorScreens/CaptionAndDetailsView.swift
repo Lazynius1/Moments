@@ -518,9 +518,11 @@ struct CaptionAndDetailsView: View {
 
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
             self.isPublishing = false
-            self.showCreatorView = false
 
             if uploadingMoment != nil {
+                NotificationCenter.default.post(name: NSNotification.Name("ReturnToFeedAfterMomentPublish"), object: nil)
+                self.showCreatorView = false
+
                 // 🧹 Limpiar formulario para próximo uso
                 self.resetForm()
 

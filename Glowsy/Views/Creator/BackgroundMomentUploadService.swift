@@ -38,6 +38,8 @@ class UploadingMoment: ObservableObject, Identifiable {
     // 🔥 PARA MOSTRAR EN EL FEED
     @Published var thumbnailImage: UIImage?
     @Published var mediaCount: Int = 1
+    @Published var currentMediaIndex: Int = 0
+    @Published var currentMediaThumbnailImage: UIImage?
     
     init(
         userId: String,
@@ -72,6 +74,7 @@ class UploadingMoment: ObservableObject, Identifiable {
         // Configurar thumbnail y conteo
         self.thumbnailImage = mediaItems.first?.image
         self.mediaCount = mediaItems.count
+        self.currentMediaThumbnailImage = mediaItems.first?.image
         self.disableComments = disableComments
         self.hideLikeCounts = hideLikeCounts
         self.allowSharing = allowSharing
@@ -361,8 +364,15 @@ class BackgroundMomentUploadService: ObservableObject {
         let totalFiles = uploadingMoment.mediaItems.count
         
         for (index, media) in uploadingMoment.mediaItems.enumerated() {
-            // Actualizar progreso
+            await MainActor.run {
+                uploadingMoment.currentMediaIndex = index
+                uploadingMoment.currentMediaThumbnailImage = media.image
+            }
+
             let baseProgress = Double(index) / Double(totalFiles) * 0.7
+            let fileProgressSpan = 0.7 / Double(totalFiles)
+            let thumbnailProgressShare = media.type == .video ? 0.1 : 0.0
+            let mediaProgressShare = 1.0 - thumbnailProgressShare
             await updateProgress(uploadingMoment, progress: baseProgress)
             
             var finalMediaItem: UploadMediaItem
@@ -393,17 +403,40 @@ class BackgroundMomentUploadService: ObservableObject {
                 let thumbnailImg = media.image
                 let thumbnailMedia = UploadMediaItem(type: .image, image: thumbnailImg, videoURL: nil)
                 thumbnailUrlString = try await withCheckedThrowingContinuation { continuation in
-                    storageService.uploadMedia(userId: uploadingMoment.userId, mediaItem: thumbnailMedia) { result in
-                        continuation.resume(with: result)
-                    }
+                    storageService.uploadMedia(
+                        userId: uploadingMoment.userId,
+                        mediaItem: thumbnailMedia,
+                        progress: { [weak uploadingMoment] progress in
+                            guard let uploadingMoment else { return }
+                            let totalProgress = baseProgress + (fileProgressSpan * thumbnailProgressShare * progress)
+                            Task { @MainActor in
+                                await self.updateProgress(uploadingMoment, progress: totalProgress, status: .uploading)
+                            }
+                        },
+                        completion: { result in
+                            continuation.resume(with: result)
+                        }
+                    )
                 }
             }
             
             // 🔥 USAR uploadMedia NORMAL para el archivo principal
             let urlString = try await withCheckedThrowingContinuation { continuation in
-                storageService.uploadMedia(userId: uploadingMoment.userId, mediaItem: finalMediaItem) { result in
-                    continuation.resume(with: result)
-                }
+                storageService.uploadMedia(
+                    userId: uploadingMoment.userId,
+                    mediaItem: finalMediaItem,
+                    progress: { [weak uploadingMoment] progress in
+                        guard let uploadingMoment else { return }
+                        let mediaStart = baseProgress + (fileProgressSpan * thumbnailProgressShare)
+                        let totalProgress = mediaStart + (fileProgressSpan * mediaProgressShare * progress)
+                        Task { @MainActor in
+                            await self.updateProgress(uploadingMoment, progress: totalProgress, status: .uploading)
+                        }
+                    },
+                    completion: { result in
+                        continuation.resume(with: result)
+                    }
+                )
             }
             
             let mediaItemType: MediaItem.MediaType = media.type == .image ? .image : .video
@@ -868,6 +901,8 @@ class BackgroundMomentUploadService: ObservableObject {
         moment.status = .uploading
         moment.uploadProgress = 0.0
         moment.errorMessage = nil
+        moment.currentMediaIndex = 0
+        moment.currentMediaThumbnailImage = moment.mediaItems.first?.image
         self.isProcessing = true
         
         Task.detached(priority: .userInitiated) {
