@@ -1686,6 +1686,8 @@ extension UIImage {
     func resized(toMaxDimension maxDimension: CGFloat) -> UIImage {
         let currentWidth = self.size.width
         let currentHeight = self.size.height
+        guard currentWidth > 0, currentHeight > 0 else { return self }
+
         var newWidth: CGFloat = 0
         var newHeight: CGFloat = 0
 
@@ -1701,11 +1703,10 @@ extension UIImage {
         newHeight = max(1, newHeight)
         let newSize = CGSize(width: newWidth, height: newHeight)
 
-        UIGraphicsBeginImageContextWithOptions(newSize, false, 1.0)
-        self.draw(in: CGRect(origin: .zero, size: newSize))
-        let newImage = UIGraphicsGetImageFromCurrentImageContext()
-        UIGraphicsEndImageContext()
-
-        return newImage ?? self
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 1.0
+        return UIGraphicsImageRenderer(size: newSize, format: format).image { _ in
+            self.draw(in: CGRect(origin: .zero, size: newSize))
+        }
     }
 }

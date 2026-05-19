@@ -8,6 +8,10 @@ import AVFoundation
 import CoreLocation
 import MapKit
 
+private struct ChatStoryRoute: Identifiable {
+    let id: String
+}
+
 // MARK: - Glassmorphic Chat View
 // Actualizar GlassmorphicChatView para incluir navegación
 struct GlassmorphicChatView: View {
@@ -55,11 +59,8 @@ struct GlassmorphicChatView: View {
     @State private var selectedMoment: Moment?
     @State private var showingMomentError = false
     
-    // ✅ NUEVO: Estado para mostrar historias
-    @State private var showingStories = false
-    
-    // ✅ NUEVO: Estado para el userId de las historias
-    @State private var storiesUserId: String = ""
+    // ✅ NUEVO: Ruta estable para presentar historias sin carreras de estado
+    @State private var storyRoute: ChatStoryRoute?
     
     // ✅ HISTORIAS: Estados para anillo de historias
     @State private var hasStory: Bool = false
@@ -125,8 +126,8 @@ struct GlassmorphicChatView: View {
                 ConversationSettingsView(conversation: viewModel.conversation)
             }
             // ✅ NUEVO: Sheet para mostrar historias del usuario
-            .sheet(isPresented: $showingStories) {
-                StoriesView(startWithUserId: .constant(storiesUserId))
+            .fullScreenCover(item: $storyRoute) { route in
+                StoriesView(startWithUserId: .constant(route.id))
             }
             // ✅ NUEVO: Sheet para navegación al detalle del momento
             .sheet(isPresented: $showingMomentDetail) {
@@ -285,9 +286,8 @@ struct GlassmorphicChatView: View {
                     if isOtherParticipantUnavailable && !isOtherParticipantBlockedByCurrentUser {
                         showingUserProfile = true
                     } else if hasStory && !isOtherParticipantBlockedByCurrentUser {
-                        // ✅ SI TIENE HISTORIAS: Establecer userId y abrir StoriesView
-                        storiesUserId = viewModel.conversation.otherParticipantId
-                        showingStories = true
+                        // ✅ SI TIENE HISTORIAS: Presentar la ruta con userId en un único estado
+                        storyRoute = ChatStoryRoute(id: viewModel.conversation.otherParticipantId)
                     } else {
                         // ✅ SI NO TIENE HISTORIAS: Ir al perfil
                         showingUserProfile = true
@@ -1115,6 +1115,7 @@ struct GlassmorphicChatView: View {
     }
 
     private func disableUnavailableParticipantStories() {
+        storyRoute = nil
         hasStory = false
         hasUnseenStory = false
         storyCount = 0

@@ -51,6 +51,12 @@ struct GlowsyApp: App {
                             DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
                                 // Inicializar AdMob tras primer frame
                                 AdMobConfiguration.shared.initialize()
+                                OfflineSyncService.shared.enableAutomaticSync()
+
+                                Task {
+                                    await BackgroundMomentUploadService.shared.cleanupStaleUploadActivities()
+                                    await BackgroundStoryUploadService.shared.cleanupStaleUploadActivities()
+                                }
 
                                 // Configurar caches con tamaños más moderados
                                 let memoryCapacity = 20 * 1024 * 1024

@@ -81,13 +81,13 @@ class StorageService {
     // MARK: - FUNCIÓN AUXILIAR: Procesar imagen de perfil
     private func processProfileImage(_ image: UIImage) -> UIImage {
         let targetSize = CGSize(width: 400, height: 400)
-        
-        // Crear contexto de imagen con escala de pantalla
-        UIGraphicsBeginImageContextWithOptions(targetSize, false, 0.0)
-        defer { UIGraphicsEndImageContext() }
-        
+
         // Calcular el rect para centrar la imagen manteniendo aspect ratio
         let imageSize = image.size
+        guard imageSize.width > 0, imageSize.height > 0 else {
+            return image
+        }
+
         let scale = max(targetSize.width / imageSize.width, targetSize.height / imageSize.height)
         let scaledWidth = imageSize.width * scale
         let scaledHeight = imageSize.height * scale
@@ -98,16 +98,10 @@ class StorageService {
             width: scaledWidth,
             height: scaledHeight
         )
-        
-        // Dibujar la imagen escalada y centrada
-        image.draw(in: drawRect)
-        
-        // Obtener la imagen procesada
-        guard let processedImage = UIGraphicsGetImageFromCurrentImageContext() else {
-            return image // Fallback a la imagen original
+
+        return UIGraphicsImageRenderer(size: targetSize).image { _ in
+            image.draw(in: drawRect)
         }
-        
-        return processedImage
     }
     
     // MARK: - 🔥 FUNCIÓN PRINCIPAL ACTUALIZADA: uploadMedia - AHORA CON MODERACIÓN
@@ -137,7 +131,9 @@ class StorageService {
         progress: ((Double) -> Void)?,
         completion: @escaping (Result<String, Error>) -> Void
     ) {
-        guard let image = image else {
+        guard let image = image,
+              image.size.width > 0,
+              image.size.height > 0 else {
             completion(.failure(StorageError.invalidData))
             return
         }

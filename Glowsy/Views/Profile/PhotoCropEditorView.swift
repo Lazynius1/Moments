@@ -5,11 +5,13 @@ import Photos
 // MARK: - Extensión para normalizar orientación de imagen
 extension UIImage {
     func normalized() -> UIImage {
-        UIGraphicsBeginImageContextWithOptions(size, false, scale)
-        draw(in: CGRect(origin: .zero, size: size))
-        let normalizedImage = UIGraphicsGetImageFromCurrentImageContext()
-        UIGraphicsEndImageContext()
-        return normalizedImage ?? self
+        guard size.width > 0, size.height > 0 else { return self }
+
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = scale
+        return UIGraphicsImageRenderer(size: size, format: format).image { _ in
+            draw(in: CGRect(origin: .zero, size: size))
+        }
     }
     
     // ✅ EXTENSIÓN PARA BLUR: Crear fondo desenfocado
@@ -503,14 +505,11 @@ struct PhotoCropEditorView: View {
     // MARK: - Crop final - PERFECTO PARA PROFILEVIEW (110x110)
     private func cropSquareImage(from image: UIImage) -> UIImage? {
         let imageSize = image.size
+        guard imageSize.width > 0, imageSize.height > 0, outputSize.width > 0, outputSize.height > 0 else {
+            return nil
+        }
+
         let baseSize = foregroundDisplaySize(for: imageSize)
-        
-        // ✅ GENERAR IMAGEN DE 400x400 (mismo tamaño que cropSize)
-        UIGraphicsBeginImageContextWithOptions(outputSize, false, 0)
-        defer { UIGraphicsEndImageContext() }
-        
-        guard let context = UIGraphicsGetCurrentContext() else { return nil }
-        
         let scaledWidth = baseSize.width * scale
         let scaledHeight = baseSize.height * scale
         let outputFactor = outputSize.width / cropSize
@@ -519,29 +518,26 @@ struct PhotoCropEditorView: View {
         let finalY = ((cropSize - scaledHeight) / 2 + offset.height) * outputFactor
         let finalWidth = scaledWidth * outputFactor
         let finalHeight = scaledHeight * outputFactor
-        
-        // ✅ PRIMERO: Dibujar fondo blur de la imagen completa
-        let blurImage = image.withBlur(radius: 25) // ✅ BLUR INTENSO para fondo real
-        let backgroundRect = CGRect(origin: .zero, size: outputSize)
-        blurImage.draw(in: backgroundRect)
-        
-        // ✅ SEGUNDO: Agregar overlay oscuro sobre el blur para fondo real
-        let overlayColor = UIColor.black.withAlphaComponent(0.3)
-        overlayColor.setFill()
-        context.fill(backgroundRect)
-        
-        // ✅ TERCERO: Dibujar la imagen principal en la posición elegida por el usuario
-        let drawRect = CGRect(
-            x: finalX,
-            y: finalY,
-            width: finalWidth,
-            height: finalHeight
-        )
-        image.draw(in: drawRect)
-        
-        let resultImage = UIGraphicsGetImageFromCurrentImageContext()
-        
-        return resultImage
+
+        return UIGraphicsImageRenderer(size: outputSize).image { context in
+            // ✅ PRIMERO: Dibujar fondo blur de la imagen completa
+            let blurImage = image.withBlur(radius: 25) // ✅ BLUR INTENSO para fondo real
+            let backgroundRect = CGRect(origin: .zero, size: outputSize)
+            blurImage.draw(in: backgroundRect)
+
+            // ✅ SEGUNDO: Agregar overlay oscuro sobre el blur para fondo real
+            UIColor.black.withAlphaComponent(0.3).setFill()
+            context.cgContext.fill(backgroundRect)
+
+            // ✅ TERCERO: Dibujar la imagen principal en la posición elegida por el usuario
+            let drawRect = CGRect(
+                x: finalX,
+                y: finalY,
+                width: finalWidth,
+                height: finalHeight
+            )
+            image.draw(in: drawRect)
+        }
     }
     
     // MARK: - Funciones para el grid de fotos

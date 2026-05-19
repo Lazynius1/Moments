@@ -65,9 +65,10 @@ class UploadingStory: ObservableObject, Identifiable {
         continuationAudience: ContentAudience? = nil, // 🔗 AÑADIDO: Audiencia que puede continuar
         continuationCustomViewers: [String]? = nil, // 🔗 AÑADIDO: Usuarios específicos que pueden continuar
         continuationCustomListId: String? = nil, // 🔗 AÑADIDO: Lista específica que puede continuar
-        continuationCustomListName: String? = nil // 🔗 AÑADIDO: Nombre de la lista que puede continuar
+        continuationCustomListName: String? = nil, // 🔗 AÑADIDO: Nombre de la lista que puede continuar
+        tempId: String? = nil
     ) {
-        self.tempId = "temp_story_\(UUID().uuidString)"
+        self.tempId = tempId ?? "temp_story_\(UUID().uuidString)"
         self.userId = userId
         self.mediaItem = mediaItem
         self.storyText = storyText
@@ -185,15 +186,12 @@ class BackgroundStoryUploadService: ObservableObject {
     }()
 
     // ✅ NUEVO: Live Activity para Dynamic Island
-    @available(iOS 16.1, *)
     private var liveActivity: Activity<StoryUploadActivityAttributes>?
 
     private init() {
         // ✅ Limpiar actividades huerfanas de sesiones anteriores
-        if #available(iOS 16.1, *) {
-            Task {
-                await cleanupStaleLiveActivities()
-            }
+        Task {
+            await cleanupStaleLiveActivities()
         }
     }
 
@@ -217,7 +215,9 @@ class BackgroundStoryUploadService: ObservableObject {
         continuationAudience: ContentAudience? = nil, // 🔗 AÑADIDO: Audiencia que puede continuar
         continuationCustomViewers: [String]? = nil, // 🔗 AÑADIDO: Usuarios específicos que pueden continuar
         continuationCustomListId: String? = nil, // 🔗 AÑADIDO: Lista específica que puede continuar
-        continuationCustomListName: String? = nil // 🔗 AÑADIDO: Nombre de la lista que puede continuar
+        continuationCustomListName: String? = nil, // 🔗 AÑADIDO: Nombre de la lista que puede continuar
+        recoveryActionId: String? = nil,
+        shouldPersistAction: Bool = true
     ) -> UploadingStory? {
 
         guard let userId = Auth.auth().currentUser?.uid else { return nil }
@@ -273,7 +273,8 @@ class BackgroundStoryUploadService: ObservableObject {
             continuationAudience: continuationAudience, // 🔗 AÑADIDO: Pasar audiencia que puede continuar
             continuationCustomViewers: continuationCustomViewers, // 🔗 AÑADIDO: Pasar usuarios específicos
             continuationCustomListId: continuationCustomListId, // 🔗 AÑADIDO: Pasar lista específica
-            continuationCustomListName: continuationCustomListName // 🔗 AÑADIDO: Pasar nombre de lista
+            continuationCustomListName: continuationCustomListName, // 🔗 AÑADIDO: Pasar nombre de lista
+            tempId: recoveryActionId
         )
 
         // Mostrar en el header inmediatamente
@@ -283,10 +284,8 @@ class BackgroundStoryUploadService: ObservableObject {
         }
 
         // ✅ NUEVO: Iniciar Live Activity para Dynamic Island
-        if #available(iOS 16.1, *) {
-            Task { @MainActor in
-                await startLiveActivity(for: uploadingStory)
-            }
+        Task { @MainActor in
+            await startLiveActivity(for: uploadingStory)
         }
 
         // ✅ NUEVO: SOLICITUD DE BACKGROUND TASK
@@ -299,7 +298,9 @@ class BackgroundStoryUploadService: ObservableObject {
         // Procesar en background
         Task {
             // 1. Persistir acción en disco por si la app muere
-            await self.persistAction(uploadingStory)
+            if shouldPersistAction {
+                await self.persistAction(uploadingStory)
+            }
 
             // 2. Ejecutar upload
             await self.processStoryUpload(uploadingStory)
@@ -343,13 +344,10 @@ class BackgroundStoryUploadService: ObservableObject {
             await updateProgress(uploadingStory, progress: 1.0, status: .completed)
 
             // ✅ NUEVO: Actualizar Live Activity a estado "completed" y esperar unos segundos antes de cerrar
-            if #available(iOS 16.1, *) {
-                // Actualizar primero el estado a "completed" y esperar a que se complete
-                await updateLiveActivityAsync(progress: 1.0, status: "completed")
-                // Esperar 3 segundos para mostrar el emoji antes de cerrar
-                try? await Task.sleep(nanoseconds: 3_000_000_000) // 3 segundos
-                await endLiveActivityAsync()
-            }
+            await updateLiveActivityAsync(progress: 1.0, status: "completed")
+            // Esperar 3 segundos para mostrar el emoji antes de cerrar
+            try? await Task.sleep(nanoseconds: 3_000_000_000) // 3 segundos
+            await endLiveActivityAsync()
 
             // PASO 5: Moderar en background silencioso
             Task.detached(priority: .background) {
@@ -423,10 +421,8 @@ class BackgroundStoryUploadService: ObservableObject {
             await updateProgress(uploadingStory, progress: 0.0, status: .failed, error: error.localizedDescription)
 
             // ✅ NUEVO: Finalizar Live Activity en caso de error
-            if #available(iOS 16.1, *) {
-                DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
-                    self.endLiveActivity()
-                }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+                self.endLiveActivity()
             }
         }
 
@@ -1146,9 +1142,7 @@ class BackgroundStoryUploadService: ObservableObject {
     @MainActor
     private func removeUploadingStory() {
         // ✅ Asegurar que la Live Activity se cierre si se cancela o elimina
-        if #available(iOS 16.1, *) {
-            endLiveActivity()
-        }
+        endLiveActivity()
 
         uploadingStory = nil
         isProcessing = false
@@ -1280,6 +1274,13 @@ class BackgroundStoryUploadService: ObservableObject {
             thumbName = "\(id)_thumb.jpg"
             let thumbDest = pendingUploadsDir.appendingPathComponent(thumbName!)
             try? FileManager.default.copyItem(at: thumbURL, to: thumbDest)
+        } else if media.type == .video,
+                  media.image.size.width > 0,
+                  media.image.size.height > 0,
+                  let thumbnailData = media.image.jpegData(compressionQuality: 0.75) {
+            thumbName = "\(id)_thumb.jpg"
+            let thumbDest = pendingUploadsDir.appendingPathComponent(thumbName!)
+            try? thumbnailData.write(to: thumbDest)
         }
 
         return CachedMediaItem(
@@ -1359,6 +1360,18 @@ class BackgroundStoryUploadService: ObservableObject {
         )
     }
 
+    private func loadCachedImage(from url: URL?) -> UIImage? {
+        guard let url,
+              FileManager.default.fileExists(atPath: url.path),
+              let image = UIImage(contentsOfFile: url.path),
+              image.size.width > 0,
+              image.size.height > 0 else {
+            return nil
+        }
+
+        return image
+    }
+
     /// Borra los archivos temporales asociados a una acción
     func deleteActionFiles(id: String) {
         guard let files = try? FileManager.default.contentsOfDirectory(at: pendingUploadsDir, includingPropertiesForKeys: nil) else { return }
@@ -1380,6 +1393,7 @@ class BackgroundStoryUploadService: ObservableObject {
 
             // ✅ DUPLICATE CHECK: Evitar re-subir si ya está en proceso
             if let currentStory = uploadingStory, currentStory.tempId == action.id {
+                 LocalPersistenceService.shared.updateActionStatus(id: action.id, status: .pending)
                  return
             }
 
@@ -1403,16 +1417,41 @@ class BackgroundStoryUploadService: ObservableObject {
 
             // 1. Reconstruir MediaItem
             let mediaFileURL = pendingUploadsDir.appendingPathComponent(payload.mediaItem.localFileName)
-            guard FileManager.default.fileExists(atPath: mediaFileURL.path) else { return }
+            guard FileManager.default.fileExists(atPath: mediaFileURL.path) else {
+                LocalPersistenceService.shared.updateActionStatus(
+                    id: action.id,
+                    status: .failed,
+                    error: "Missing cached media for pending story upload"
+                )
+                return
+            }
 
             let thumbURL: URL? = payload.mediaItem.thumbnailFileName != nil ? pendingUploadsDir.appendingPathComponent(payload.mediaItem.thumbnailFileName!) : nil
+            let thumbnailImage = loadCachedImage(from: thumbURL)
+
+            let image: UIImage?
+            if payload.mediaItem.type == "image" {
+                guard let decodedImage = UIImage(contentsOfFile: mediaFileURL.path),
+                      decodedImage.size.width > 0,
+                      decodedImage.size.height > 0 else {
+                    LocalPersistenceService.shared.updateActionStatus(
+                        id: action.id,
+                        status: .failed,
+                        error: "Invalid cached image for pending story upload"
+                    )
+                    return
+                }
+                image = decodedImage
+            } else {
+                image = nil
+            }
 
             // Determinar aspect ratio
             let itemAspectRatio: CreatorMedia.AspectRatio = {
                 if let cachedAspectRatio = payload.mediaItem.aspectRatio {
                     return CreatorMedia.AspectRatio(from: cachedAspectRatio)
                 }
-                if payload.mediaItem.type == "image", let uiImage = UIImage(contentsOfFile: mediaFileURL.path) {
+                if let uiImage = image {
                     return CreatorMedia.AspectRatio.fromRatio(uiImage.size.width / uiImage.size.height)
                 }
                 return .square
@@ -1420,7 +1459,7 @@ class BackgroundStoryUploadService: ObservableObject {
 
             var processedMedia = ProcessedMedia(
                 type: payload.mediaItem.type == "image" ? .image : .video,
-                image: (payload.mediaItem.type == "image" ? UIImage(contentsOfFile: mediaFileURL.path) : nil) ?? UIImage(),
+                image: image ?? thumbnailImage ?? UIImage(),
                 videoURL: payload.mediaItem.type == "video" ? mediaFileURL : nil,
                 aspectRatio: itemAspectRatio
             )
@@ -1569,12 +1608,18 @@ class BackgroundStoryUploadService: ObservableObject {
                 continuationAudience: continuationAudience,
                 continuationCustomViewers: payload.continuationCustomViewers,
                 continuationCustomListId: payload.continuationCustomListId,
-                continuationCustomListName: payload.continuationCustomListName
+                continuationCustomListName: payload.continuationCustomListName,
+                recoveryActionId: action.id,
+                shouldPersistAction: false
             )
 
-            LocalPersistenceService.shared.deleteAction(id: action.id)
-
-        } catch { }
+        } catch {
+            LocalPersistenceService.shared.updateActionStatus(
+                id: action.id,
+                status: .failed,
+                error: error.localizedDescription
+            )
+        }
     }
 }
 // MARK: - 🔄 EXTENSIÓN PARA INTEGRAR CON TU CREATOR VIEW
@@ -1665,7 +1710,6 @@ extension BackgroundStoryUploadService {
 
     // MARK: - 📱 LIVE ACTIVITIES PARA DYNAMIC ISLAND
 
-    @available(iOS 16.1, *)
     private func startLiveActivity(for uploadingStory: UploadingStory) async {
         let attributes = StoryUploadActivityAttributes(
             storyId: uploadingStory.tempId,
@@ -1690,7 +1734,6 @@ extension BackgroundStoryUploadService {
         }
     }
 
-    @available(iOS 16.1, *)
     private func updateLiveActivity(progress: Double, status: String) {
         guard let activity = liveActivity else {
             return
@@ -1709,7 +1752,6 @@ extension BackgroundStoryUploadService {
         }
     }
 
-    @available(iOS 16.1, *)
     private func updateLiveActivityAsync(progress: Double, status: String) async {
         guard let activity = liveActivity else {
             return
@@ -1726,7 +1768,6 @@ extension BackgroundStoryUploadService {
         }
     }
 
-    @available(iOS 16.1, *)
     private func endLiveActivity() {
         guard let activity = liveActivity else { return }
 
@@ -1741,7 +1782,6 @@ extension BackgroundStoryUploadService {
         }
     }
 
-    @available(iOS 16.1, *)
     private func endLiveActivityAsync() async {
         guard let activity = liveActivity else { return }
 
@@ -1754,7 +1794,6 @@ extension BackgroundStoryUploadService {
     }
 
     // ✅ NUEVO: Limpiar actividades huerfanas al inicio
-    @available(iOS 16.1, *)
     private func cleanupStaleLiveActivities() async {
         // Obtener todas las actividades de este tipo
         for activity in Activity<StoryUploadActivityAttributes>.activities {
@@ -1771,6 +1810,10 @@ extension BackgroundStoryUploadService {
         }
     }
 
+    func cleanupStaleUploadActivities() async {
+        await cleanupStaleLiveActivities()
+    }
+
     // ✅ NUEVO: Función helper para actualizar progreso (si no existe)
     private func updateProgress(_ uploadingStory: UploadingStory, progress: Double, status: UploadStatus? = nil, error: String? = nil) async {
         await MainActor.run {
@@ -1784,25 +1827,23 @@ extension BackgroundStoryUploadService {
         }
 
         // ✅ NUEVO: Actualizar Live Activity
-        if #available(iOS 16.1, *) {
-            let statusString: String
-            if let status = status {
-                switch status {
-                case .uploading:
-                    statusString = "uploading"
-                case .processing:
-                    statusString = "processing"
-                case .completed:
-                    statusString = "completed"
-                case .failed:
-                    statusString = "failed"
-                case .moderated:
-                    statusString = "processing" // Tratar moderated como processing para la Live Activity
-                }
-            } else {
-                statusString = progress < 0.7 ? "uploading" : "processing"
+        let statusString: String
+        if let status = status {
+            switch status {
+            case .uploading:
+                statusString = "uploading"
+            case .processing:
+                statusString = "processing"
+            case .completed:
+                statusString = "completed"
+            case .failed:
+                statusString = "failed"
+            case .moderated:
+                statusString = "processing" // Tratar moderated como processing para la Live Activity
             }
-            updateLiveActivity(progress: progress, status: statusString)
+        } else {
+            statusString = progress < 0.7 ? "uploading" : "processing"
         }
+        updateLiveActivity(progress: progress, status: statusString)
     }
 }

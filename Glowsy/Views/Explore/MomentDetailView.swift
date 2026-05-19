@@ -178,7 +178,7 @@ struct MomentDetailView: View {
         .sheet(isPresented: $navigateToProfile) {
             UserProfileView(userId: moment.authorId)
         }
-        .sheet(isPresented: $showingStories) {
+        .fullScreenCover(isPresented: $showingStories) {
             StoriesView(startWithUserId: .constant(moment.authorId))
         }
         .sheet(isPresented: $showExploreWithHashtag) {

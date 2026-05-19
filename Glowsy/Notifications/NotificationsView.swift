@@ -584,7 +584,7 @@ struct EnhancedNotificationRow: View {
         .sheet(isPresented: $showProfile) {
             UserProfileView(userId: group.notifications.first!.senderId)
         }
-        .sheet(isPresented: $showStories) {
+        .fullScreenCover(isPresented: $showStories) {
             StoriesView(startWithUserId: .constant(group.notifications.first?.senderId ?? ""))
         }
         .confirmationDialog(

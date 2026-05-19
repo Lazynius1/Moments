@@ -56,9 +56,10 @@ class UploadingMoment: ObservableObject, Identifiable {
         hideLikeCounts: Bool = false,
         allowSharing: Bool = true,
         scheduledDate: Date? = nil,
-        hiddenLayers: [HiddenLayerDraft] = []
+        hiddenLayers: [HiddenLayerDraft] = [],
+        tempId: String? = nil
     ) {
-        self.tempId = "temp_\(UUID().uuidString)"
+        self.tempId = tempId ?? "temp_\(UUID().uuidString)"
         self.userId = userId
         self.content = content
         self.mediaItems = mediaItems
@@ -173,7 +174,6 @@ class BackgroundMomentUploadService: ObservableObject {
     weak var feedViewModel: FeedViewModel?
     
     // ✅ NUEVO: Live Activity para Dynamic Island
-    @available(iOS 16.1, *)
     private var liveActivity: Activity<MomentUploadActivityAttributes>?
     
     private init() {}
@@ -193,7 +193,9 @@ class BackgroundMomentUploadService: ObservableObject {
         hideLikeCounts: Bool = false,
         allowSharing: Bool = true,
         scheduledDate: Date? = nil,
-        hiddenLayers: [HiddenLayerDraft] = []
+        hiddenLayers: [HiddenLayerDraft] = [],
+        recoveryActionId: String? = nil,
+        shouldPersistAction: Bool = true
     ) -> UploadingMoment? {
         
         guard let userId = Auth.auth().currentUser?.uid else { return nil }
@@ -216,7 +218,8 @@ class BackgroundMomentUploadService: ObservableObject {
             hideLikeCounts: hideLikeCounts,
             allowSharing: allowSharing,
             scheduledDate: scheduledDate,
-            hiddenLayers: hiddenLayers
+            hiddenLayers: hiddenLayers,
+            tempId: recoveryActionId
         )
         
         // Agregar al feed inmediatamente
@@ -224,10 +227,8 @@ class BackgroundMomentUploadService: ObservableObject {
         self.isProcessing = true
         
         // ✅ NUEVO: Iniciar Live Activity
-        if #available(iOS 16.1, *) {
-            Task { @MainActor in
-                await startLiveActivity(for: uploadingMoment)
-            }
+        Task { @MainActor in
+            await startLiveActivity(for: uploadingMoment)
         }
         
         // ✅ NUEVO: Solicitar tiempo de ejecución en background
@@ -241,7 +242,9 @@ class BackgroundMomentUploadService: ObservableObject {
         // Procesar en background
         Task {
             // 1. Persistir acción en disco por si la app muere
-            await self.persistAction(uploadingMoment)
+            if shouldPersistAction {
+                await self.persistAction(uploadingMoment)
+            }
             
             // 2. Ejecutar upload
             await self.processUpload(uploadingMoment)
@@ -318,13 +321,10 @@ class BackgroundMomentUploadService: ObservableObject {
             await updateProgress(uploadingMoment, progress: 1.0, status: .completed)
             
             // ✅ NUEVO: Actualizar Live Activity a estado "completed" y esperar unos segundos antes de cerrar
-            if #available(iOS 16.1, *) {
-                // Actualizar primero el estado a "completed" y esperar a que se complete
-                await updateLiveActivityAsync(progress: 1.0, status: "completed")
-                // Esperar 3 segundos para mostrar el emoji antes de cerrar
-                try? await Task.sleep(nanoseconds: 3_000_000_000) // 3 segundos
-                await endLiveActivityAsync()
-            }
+            await updateLiveActivityAsync(progress: 1.0, status: "completed")
+            // Esperar 3 segundos para mostrar el emoji antes de cerrar
+            try? await Task.sleep(nanoseconds: 3_000_000_000) // 3 segundos
+            await endLiveActivityAsync()
             
             // ✅ NUEVO: Reanudar listeners con delay para evitar conflictos
             try? await Task.sleep(nanoseconds: 1_000_000_000) // 1 segundo
@@ -371,7 +371,10 @@ class BackgroundMomentUploadService: ObservableObject {
 
             let baseProgress = Double(index) / Double(totalFiles) * 0.7
             let fileProgressSpan = 0.7 / Double(totalFiles)
-            let thumbnailProgressShare = media.type == .video ? 0.1 : 0.0
+            let hasValidVideoThumbnail = media.type == .video &&
+                media.image.size.width > 0 &&
+                media.image.size.height > 0
+            let thumbnailProgressShare = hasValidVideoThumbnail ? 0.1 : 0.0
             let mediaProgressShare = 1.0 - thumbnailProgressShare
             await updateProgress(uploadingMoment, progress: baseProgress)
             
@@ -399,7 +402,7 @@ class BackgroundMomentUploadService: ObservableObject {
             
             // ✅ SUBIR THUMBNAIL SI ES VIDEO
             var thumbnailUrlString: String? = nil
-            if media.type == .video {
+            if hasValidVideoThumbnail {
                 let thumbnailImg = media.image
                 let thumbnailMedia = UploadMediaItem(type: .image, image: thumbnailImg, videoURL: nil)
                 thumbnailUrlString = try await withCheckedThrowingContinuation { continuation in
@@ -621,15 +624,16 @@ class BackgroundMomentUploadService: ObservableObject {
 
     private func resizeHiddenLayerImage(_ image: UIImage, maxLongSide: CGFloat = 900) -> UIImage {
         let size = image.size
+        guard size.width > 0, size.height > 0 else { return image }
+
         let longSide = max(size.width, size.height)
         guard longSide > maxLongSide else { return image }
 
         let scale = maxLongSide / longSide
         let targetSize = CGSize(width: size.width * scale, height: size.height * scale)
-        UIGraphicsBeginImageContextWithOptions(targetSize, false, 1)
-        defer { UIGraphicsEndImageContext() }
-        image.draw(in: CGRect(origin: .zero, size: targetSize))
-        return UIGraphicsGetImageFromCurrentImageContext() ?? image
+        return UIGraphicsImageRenderer(size: targetSize).image { _ in
+            image.draw(in: CGRect(origin: .zero, size: targetSize))
+        }
     }
     
     // MARK: - 🎥 COMPRESIÓN DE VIDEO
@@ -866,26 +870,24 @@ class BackgroundMomentUploadService: ObservableObject {
         }
         
         // ✅ NUEVO: Actualizar Live Activity
-        if #available(iOS 16.1, *) {
-            let statusString: String
-            if let status = status {
-                switch status {
-                case .uploading:
-                    statusString = "uploading"
-                case .processing:
-                    statusString = "processing"
-                case .completed:
-                    statusString = "completed"
-                case .failed:
-                    statusString = "failed"
-                case .moderated:
-                    statusString = "processing" // Tratar moderated como processing para la Live Activity
-                }
-            } else {
-                statusString = progress < 0.7 ? "uploading" : "processing"
+        let statusString: String
+        if let status = status {
+            switch status {
+            case .uploading:
+                statusString = "uploading"
+            case .processing:
+                statusString = "processing"
+            case .completed:
+                statusString = "completed"
+            case .failed:
+                statusString = "failed"
+            case .moderated:
+                statusString = "processing" // Tratar moderated como processing para la Live Activity
             }
-            updateLiveActivity(progress: progress, status: statusString)
+        } else {
+            statusString = progress < 0.7 ? "uploading" : "processing"
         }
+        updateLiveActivity(progress: progress, status: statusString)
     }
     
     @MainActor
@@ -928,7 +930,6 @@ class BackgroundMomentUploadService: ObservableObject {
     }
     
     // MARK: - ✅ LIVE ACTIVITY FUNCTIONS
-    @available(iOS 16.1, *)
     private func startLiveActivity(for uploadingMoment: UploadingMoment) async {
         // Determinar tipo de media
         let hasVideo = uploadingMoment.mediaItems.contains { $0.type == .video }
@@ -967,7 +968,6 @@ class BackgroundMomentUploadService: ObservableObject {
         }
     }
     
-    @available(iOS 16.1, *)
     private func updateLiveActivity(progress: Double, status: String) {
         guard let activity = liveActivity else {
             return
@@ -986,7 +986,6 @@ class BackgroundMomentUploadService: ObservableObject {
         }
     }
     
-    @available(iOS 16.1, *)
     private func updateLiveActivityAsync(progress: Double, status: String) async {
         guard let activity = liveActivity else {
             return
@@ -1003,7 +1002,6 @@ class BackgroundMomentUploadService: ObservableObject {
         }
     }
     
-    @available(iOS 16.1, *)
     private func endLiveActivity() {
         guard let activity = liveActivity else {
             return
@@ -1019,7 +1017,6 @@ class BackgroundMomentUploadService: ObservableObject {
         liveActivity = nil
     }
     
-    @available(iOS 16.1, *)
     private func endLiveActivityAsync() async {
         guard let activity = liveActivity else {
             return
@@ -1032,6 +1029,16 @@ class BackgroundMomentUploadService: ObservableObject {
         
         await MainActor.run {
             liveActivity = nil
+        }
+    }
+
+    func cleanupStaleUploadActivities() async {
+        for activity in Activity<MomentUploadActivityAttributes>.activities {
+            if let current = liveActivity, current.id == activity.id {
+                continue
+            }
+
+            await activity.end(dismissalPolicy: .immediate)
         }
     }
 
@@ -1117,6 +1124,13 @@ class BackgroundMomentUploadService: ObservableObject {
             thumbName = "\(actionId)_\(id)_thumb.jpg"
             let thumbDest = pendingUploadsDir.appendingPathComponent(thumbName!)
             try? FileManager.default.copyItem(at: thumbURL, to: thumbDest)
+        } else if media.type == .video,
+                  media.image.size.width > 0,
+                  media.image.size.height > 0,
+                  let thumbnailData = media.image.jpegData(compressionQuality: 0.75) {
+            thumbName = "\(actionId)_\(id)_thumb.jpg"
+            let thumbDest = pendingUploadsDir.appendingPathComponent(thumbName!)
+            try? thumbnailData.write(to: thumbDest)
         }
         
         let tagsData = try? JSONEncoder().encode(media.tags)
@@ -1179,6 +1193,18 @@ class BackgroundMomentUploadService: ObservableObject {
             authorTimezoneIdentifier: layer.authorTimezoneIdentifier
         )
     }
+
+    private func loadCachedImage(from url: URL?) -> UIImage? {
+        guard let url,
+              FileManager.default.fileExists(atPath: url.path),
+              let image = UIImage(contentsOfFile: url.path),
+              image.size.width > 0,
+              image.size.height > 0 else {
+            return nil
+        }
+
+        return image
+    }
     
     /// Intenta retomar una subida desde una acción persistente
     func resumeUpload(from action: CachedAction) async {
@@ -1211,7 +1237,7 @@ class BackgroundMomentUploadService: ObservableObject {
             }
             
             if isAlreadyUploading {
-                LocalPersistenceService.shared.deleteAction(id: action.id)
+                LocalPersistenceService.shared.updateActionStatus(id: action.id, status: .pending)
                 return
             }
             
@@ -1220,16 +1246,29 @@ class BackgroundMomentUploadService: ObservableObject {
             for item in payload.mediaPaths {
                 let fileURL = pendingUploadsDir.appendingPathComponent(item.localFileName)
                 guard FileManager.default.fileExists(atPath: fileURL.path) else { continue }
-                
+
+                let image: UIImage?
+                if item.type == "image" {
+                    guard let decodedImage = UIImage(contentsOfFile: fileURL.path),
+                          decodedImage.size.width > 0,
+                          decodedImage.size.height > 0 else {
+                        continue
+                    }
+                    image = decodedImage
+                } else {
+                    image = nil
+                }
+
                 let thumbURL: URL? = item.thumbnailFileName != nil ? pendingUploadsDir.appendingPathComponent(item.thumbnailFileName!) : nil
                 let tags: [PhotoTag]? = item.tagsData != nil ? try? JSONDecoder().decode([PhotoTag].self, from: item.tagsData!) : nil
+                let thumbnailImage = loadCachedImage(from: thumbURL)
                 
                 // Determinar aspect ratio del item
                 let itemAspectRatio: CreatorMedia.AspectRatio = {
                     if let cachedAspectRatio = item.aspectRatio {
                         return CreatorMedia.AspectRatio(from: cachedAspectRatio)
                     }
-                    if item.type == "image", let uiImage = UIImage(contentsOfFile: fileURL.path) {
+                    if let uiImage = image {
                         return CreatorMedia.AspectRatio.fromRatio(uiImage.size.width / uiImage.size.height)
                     }
                     return .square
@@ -1237,7 +1276,7 @@ class BackgroundMomentUploadService: ObservableObject {
                 
                 var processed = ProcessedMedia(
                     type: item.type == "image" ? .image : .video,
-                    image: (item.type == "image" ? UIImage(contentsOfFile: fileURL.path) : nil) ?? UIImage(),
+                    image: image ?? thumbnailImage ?? UIImage(),
                     videoURL: item.type == "video" ? fileURL : nil,
                     aspectRatio: itemAspectRatio
                 )
@@ -1254,7 +1293,12 @@ class BackgroundMomentUploadService: ObservableObject {
             let hiddenLayers: [HiddenLayerDraft] = (payload.hiddenLayers ?? []).compactMap { item in
                 let localImage: UIImage? = item.localImageFileName.flatMap {
                     let url = pendingUploadsDir.appendingPathComponent($0)
-                    return UIImage(contentsOfFile: url.path)
+                    guard let image = UIImage(contentsOfFile: url.path),
+                          image.size.width > 0,
+                          image.size.height > 0 else {
+                        return nil
+                    }
+                    return image
                 }
                 let localAudioURL: URL? = item.localAudioFileName.flatMap {
                     let url = pendingUploadsDir.appendingPathComponent($0)
@@ -1296,30 +1340,42 @@ class BackgroundMomentUploadService: ObservableObject {
                 )
             }
             
-            if !mediaItems.isEmpty {
-                // Iniciar el upload
-                _ = self.uploadMoment(
-                    content: payload.content,
-                    mediaItems: mediaItems,
-                    taggedUsers: payload.taggedUsers,
-                    location: payload.location,
-                    locationCoordinate: payload.locationCoordinate,
-                    audienceSetting: audience,
-                    customViewers: payload.customViewers,
-                    customListId: payload.customListId,
-                    aspectRatio: payload.aspectRatio,
-                    disableComments: payload.disableComments,
-                    hideLikeCounts: payload.hideLikeCounts,
-                    allowSharing: payload.allowSharing,
-                    scheduledDate: payload.scheduledDate,
-                    hiddenLayers: hiddenLayers
+            guard !mediaItems.isEmpty else {
+                LocalPersistenceService.shared.updateActionStatus(
+                    id: action.id,
+                    status: .failed,
+                    error: "Missing cached media for pending moment upload"
                 )
-                
-                // Importante: Eliminar la acción anterior para que no se duplique
-                LocalPersistenceService.shared.deleteAction(id: action.id)
+                return
             }
+
+            // Iniciar el upload
+            _ = self.uploadMoment(
+                content: payload.content,
+                mediaItems: mediaItems,
+                taggedUsers: payload.taggedUsers,
+                location: payload.location,
+                locationCoordinate: payload.locationCoordinate,
+                audienceSetting: audience,
+                customViewers: payload.customViewers,
+                customListId: payload.customListId,
+                aspectRatio: payload.aspectRatio,
+                disableComments: payload.disableComments,
+                hideLikeCounts: payload.hideLikeCounts,
+                allowSharing: payload.allowSharing,
+                scheduledDate: payload.scheduledDate,
+                hiddenLayers: hiddenLayers,
+                recoveryActionId: action.id,
+                shouldPersistAction: false
+            )
             
-        } catch { }
+        } catch {
+            LocalPersistenceService.shared.updateActionStatus(
+                id: action.id,
+                status: .failed,
+                error: error.localizedDescription
+            )
+        }
     }
     
     private func deleteActionFiles(id: String) {

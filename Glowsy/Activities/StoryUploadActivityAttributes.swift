@@ -11,7 +11,6 @@ import ActivityKit
 
 // MARK: - Story Upload Activity Attributes
 // Estos tipos deben ser idénticos a los del Widget Extension
-@available(iOS 16.1, *)
 public struct StoryUploadActivityAttributes: ActivityAttributes {
     public struct ContentState: Codable, Hashable {
         public var progress: Double
@@ -34,4 +33,3 @@ public struct StoryUploadActivityAttributes: ActivityAttributes {
         self.mediaType = mediaType
     }
 }
-

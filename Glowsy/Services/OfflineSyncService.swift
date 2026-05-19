@@ -9,11 +9,19 @@ class OfflineSyncService: ObservableObject {
     
     private var cancellables = Set<AnyCancellable>()
     private var isSyncing = false
+    private var isAutomaticSyncEnabled = false
     
     private init() {
         setupConnectivityListener()
-        // Disparar sincronización inicial al arrancar
+    }
+
+    func enableAutomaticSync() {
+        guard !isAutomaticSyncEnabled else { return }
+        isAutomaticSyncEnabled = true
+
+        // Disparar sincronización inicial cuando la UI ya tuvo tiempo de arrancar.
         Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 2_000_000_000)
             await syncPendingActions()
         }
     }
@@ -22,9 +30,10 @@ class OfflineSyncService: ObservableObject {
     private func setupConnectivityListener() {
         NetworkMonitor.shared.$isConnected
             .sink { [weak self] isConnected in
+                guard let self, self.isAutomaticSyncEnabled, isConnected else { return }
                 if isConnected {
                     Task { @MainActor in
-                        await self?.syncPendingActions()
+                        await self.syncPendingActions()
                     }
                 }
             }
@@ -33,7 +42,7 @@ class OfflineSyncService: ObservableObject {
     
     /// Empieza a procesar la cola de acciones persistente
     func syncPendingActions() async {
-        guard !isSyncing && NetworkMonitor.shared.isConnected else { return }
+        guard isAutomaticSyncEnabled && !isSyncing && NetworkMonitor.shared.isConnected else { return }
         
         isSyncing = true
         defer { isSyncing = false }
