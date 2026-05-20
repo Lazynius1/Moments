@@ -53,7 +53,15 @@ final class StoryPlaybackCoordinator: ObservableObject {
 
     func updateVideoProgress(_ newProgress: Double, for story: Story) {
         guard currentStoryId == story.id else { return }
-        progress = newProgress
+        let storyId = story.id
+        let clampedProgress = min(max(newProgress, 0.0), 1.0)
+
+        Task { @MainActor [weak self] in
+            guard let self,
+                  self.currentStoryId == storyId,
+                  self.progress != clampedProgress else { return }
+            self.progress = clampedProgress
+        }
     }
 
     func canAdvanceAfterVideoComplete() -> Bool {

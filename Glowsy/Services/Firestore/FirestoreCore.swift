@@ -125,6 +125,12 @@ extension FirestoreService {
             if let videoResolution = item.videoResolution {
                 mediaData["videoResolution"] = videoResolution
             }
+            if let videoProcessingStatus = item.videoProcessingStatus?.rawValue {
+                mediaData["videoProcessingStatus"] = videoProcessingStatus
+            }
+            if let originalVideoUrl = item.originalVideoUrl {
+                mediaData["originalVideoUrl"] = originalVideoUrl
+            }
             if let tags = item.tags, !tags.isEmpty {
                 mediaData["tags"] = tags.compactMap { tag in
                     try? encoder.encode(tag)

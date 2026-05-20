@@ -22,9 +22,42 @@ struct StoryViewerScreen: View {
     let onReportStory: () -> Void
     let onBlockUser: () -> Void
     let onNext: () -> Void
+    let onStoryDeleted: (() -> Void)?
     let onPrevious: () -> Void
     let onClose: () -> Void
     let onProfileTap: () -> Void
+
+    init(
+        story: Story,
+        storyCount: Int,
+        storyIndex: Int,
+        screenSize: CGSize,
+        storyViewModel: StoryViewModel,
+        showingReportSheet: Binding<Bool>,
+        showingBlockConfirmation: Binding<Bool>,
+        onReportStory: @escaping () -> Void,
+        onBlockUser: @escaping () -> Void,
+        onNext: @escaping () -> Void,
+        onStoryDeleted: (() -> Void)? = nil,
+        onPrevious: @escaping () -> Void,
+        onClose: @escaping () -> Void,
+        onProfileTap: @escaping () -> Void
+    ) {
+        self.story = story
+        self.storyCount = storyCount
+        self.storyIndex = storyIndex
+        self.screenSize = screenSize
+        self.storyViewModel = storyViewModel
+        self._showingReportSheet = showingReportSheet
+        self._showingBlockConfirmation = showingBlockConfirmation
+        self.onReportStory = onReportStory
+        self.onBlockUser = onBlockUser
+        self.onNext = onNext
+        self.onStoryDeleted = onStoryDeleted
+        self.onPrevious = onPrevious
+        self.onClose = onClose
+        self.onProfileTap = onProfileTap
+    }
 
     @State private var showMomentDetail: Bool = false
     @State private var targetMomentId: String? = nil
@@ -90,157 +123,6 @@ struct StoryViewerScreen: View {
             .replacingOccurrences(of: "_", with: "")
             .replacingOccurrences(of: "-", with: "") ?? ""
         return normalizedAudience == "bestfriends"
-    }
-
-    // ✅ FUNCIÓN HELPER: Detectar aspect ratio de un video (CORREGIDA)
-    static func detectVideoAspectRatio(from url: URL) async -> String? {
-        let asset = AVAsset(url: url)
-        let tracks = try? await asset.loadTracks(withMediaType: .video)
-
-        if let videoTrack = tracks?.first {
-            let naturalSize = try? await videoTrack.load(.naturalSize)
-            let preferredTransform = try? await videoTrack.load(.preferredTransform)
-
-            if let size = naturalSize, let transform = preferredTransform {
-                // ✅ CALCULAR DIMENSIONES REALES DESPUÉS DE TRANSFORM
-                let transformedSize = size.applying(transform)
-                let width = Int(abs(transformedSize.width))
-                let height = Int(abs(transformedSize.height))
-                let aspectRatio = "\(width):\(height)"
-
-
-                return aspectRatio
-            }
-        }
-
-        return nil
-    }
-
-    // ✅ FUNCIÓN HELPER: Detectar aspect ratio de una imagen
-    static func detectImageAspectRatio(from url: URL) async -> String? {
-        guard let data = try? Data(contentsOf: url),
-              let image = UIImage(data: data) else {
-            return nil
-        }
-
-        let width = Int(image.size.width)
-        let height = Int(image.size.height)
-        let aspectRatio = "\(width):\(height)"
-
-
-        return aspectRatio
-    }
-
-    // ✅ FUNCIÓN HELPER: Determinar si un aspect ratio es horizontal
-    static func isHorizontalAspectRatio(_ aspectRatio: String?) -> Bool {
-        guard let aspectRatio = aspectRatio else {
-            return false
-        }
-
-        let components = aspectRatio.split(separator: ":")
-        if components.count == 2,
-           let width = Int(components[0]),
-           let height = Int(components[1]) {
-            let isHorizontal = width > height
-            return isHorizontal
-        }
-
-        return false
-    }
-
-    private func stickerContentRect(containerSize: CGSize) -> CGRect {
-        let resolvedContainerSize = CGSize(
-            width: max(containerSize.width, 1),
-            height: max(containerSize.height, 1)
-        )
-        let mediaAspectRatio = Self.parseAspectRatio(story.aspectRatio)
-            ?? (resolvedContainerSize.width / resolvedContainerSize.height)
-        let contentMode = StoryMediaLayoutRules.presentationMode(
-            for: mediaAspectRatio,
-            canvasAspectRatio: resolvedContainerSize.width / max(resolvedContainerSize.height, 1)
-        ).swiftUIContentMode
-
-        return Self.contentRect(
-            containerSize: resolvedContainerSize,
-            mediaAspectRatio: mediaAspectRatio,
-            contentMode: contentMode
-        )
-    }
-
-    private static func parseAspectRatio(_ aspectRatio: String?) -> CGFloat? {
-        guard let aspectRatio else { return nil }
-        let components = aspectRatio.split(separator: ":")
-        guard components.count == 2,
-              let widthValue = Double(components[0]),
-              let heightValue = Double(components[1]) else {
-            return nil
-        }
-
-        let width = CGFloat(widthValue)
-        let height = CGFloat(heightValue)
-        guard
-              width > 0,
-              height > 0 else {
-            return nil
-        }
-        return width / height
-    }
-
-    private static func contentRect(
-        containerSize: CGSize,
-        mediaAspectRatio: CGFloat,
-        contentMode: SwiftUI.ContentMode
-    ) -> CGRect {
-        let containerWidth = max(containerSize.width, 1)
-        let containerHeight = max(containerSize.height, 1)
-        let containerAspectRatio = containerWidth / containerHeight
-
-        let isFit = contentMode == .fit
-        let mediaIsWider = mediaAspectRatio > containerAspectRatio
-
-        let width: CGFloat
-        let height: CGFloat
-
-        if isFit {
-            if mediaIsWider {
-                width = containerWidth
-                height = containerWidth / max(mediaAspectRatio, 0.0001)
-            } else {
-                height = containerHeight
-                width = containerHeight * mediaAspectRatio
-            }
-        } else {
-            if mediaIsWider {
-                height = containerHeight
-                width = containerHeight * mediaAspectRatio
-            } else {
-                width = containerWidth
-                height = containerWidth / max(mediaAspectRatio, 0.0001)
-            }
-        }
-
-        return CGRect(
-            x: (containerWidth - width) / 2,
-            y: (containerHeight - height) / 2,
-            width: width,
-            height: height
-        )
-    }
-
-    private func stickerDisplayPosition(_ sticker: StickerItem, containerSize: CGSize) -> CGPoint {
-        let contentRect = stickerContentRect(containerSize: containerSize)
-        return CGPoint(
-            x: contentRect.minX + (sticker.position.x * contentRect.width),
-            y: contentRect.minY + (sticker.position.y * contentRect.height)
-        )
-    }
-
-    private func stickerForDisplay(_ sticker: StickerItem, containerSize: CGSize) -> StickerItem {
-        let contentRect = stickerContentRect(containerSize: containerSize)
-        let scaleFactor = max(contentRect.width, 1) / 375.0
-        var displaySticker = sticker
-        displaySticker.scale = sticker.scale * scaleFactor
-        return displaySticker
     }
 
     private enum StoryConfirmationKind {
@@ -439,7 +321,7 @@ struct StoryViewerScreen: View {
                 navigationTouchAreas
                     .frame(width: geometry.size.width, height: geometry.size.height)
                     .position(x: geometry.size.width / 2, y: geometry.size.height / 2)
-                    .allowsHitTesting(!isMenuInteractionActive)
+                    .allowsHitTesting(!isStoryInteractionBlocked)
             }
 
             // MARK: - 6. INPUT AREA - Se mueve manualmente con keyboardHeight
@@ -518,10 +400,6 @@ struct StoryViewerScreen: View {
         .ignoresSafeArea(.all)
         .background(Color.black)
         .scaleEffect(zoomScale)
-
-        if isMenuInteractionActive {
-            return AnyView(base)
-        }
 
         return AnyView(
             base
@@ -842,127 +720,41 @@ struct StoryViewerScreen: View {
     }
 
     private var storyQuickActionsDropdown: some View {
-        VStack(spacing: 0) {
-            if story.authorId == Auth.auth().currentUser?.uid {
-                quickActionRow(
-                    title: NSLocalizedString("storyContextMenu.viewActivity", comment: "View activity button")
-                ) {
-                    dismissQuickActions(resume: false)
-                    fetchViewersAndShow()
-                }
-
-                quickActionDivider
-
-                quickActionRow(
-                    title: NSLocalizedString("storyContextMenu.save", comment: "Save story button")
-                ) {
-                    dismissQuickActions(resume: false)
-                    saveStoryToDevice()
-                }
-
-                quickActionDivider
-
-                quickActionRow(
-                    title: NSLocalizedString("storyContextMenu.delete", comment: "Delete story button"),
-                    isDestructive: true
-                ) {
-                    dismissQuickActions(resume: false)
-                    deleteStory()
-                }
-            } else {
-                quickActionRow(
-                    title: NSLocalizedString("storyContextMenu.unfollow", comment: "Unfollow user button")
-                ) {
-                    dismissQuickActions(resume: false)
-                    showUnfollowConfirmation = true
-                }
-
-                quickActionDivider
-
-                quickActionRow(
-                    title: NSLocalizedString("storyContextMenu.mute", comment: "Mute user button")
-                ) {
-                    dismissQuickActions(resume: false)
-                    showMuteConfirmation = true
-                }
-
-                quickActionDivider
-
-                quickActionRow(
-                    title: NSLocalizedString("storyContextMenu.report", comment: "Report story button"),
-                    isDestructive: true
-                ) {
-                    dismissQuickActions(resume: false)
-                    onReportStory()
-                }
-
-                if canOptOutFromAuthorBestFriends {
-                    quickActionDivider
-
-                    quickActionRow(
-                        title: NSLocalizedString("storyContextMenu.leaveBestFriends", comment: "Leave best friends")
-                    ) {
-                        dismissQuickActions(resume: false)
-                        showBestFriendsOptOutConfirmation = true
-                    }
-                }
-            }
-        }
-        .frame(minWidth: 200)
-        .fixedSize(horizontal: true, vertical: false)
-        .background(Color.white.opacity(0.001))
-        .liquidGlass(in: RoundedRectangle(cornerRadius: 22, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: 22, style: .continuous)
-                .stroke(quickActionBorderColor, lineWidth: 1)
-        )
-        .shadow(color: Color.black.opacity(0.28), radius: 24, x: 0, y: 14)
-        .contentShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
-        .onTapGesture {
-        }
-    }
-
-    private var quickActionDivider: some View {
-        Divider()
-            .background(quickActionDividerColor)
-    }
-
-    private func quickActionRow(
-        title: String,
-        isDestructive: Bool = false,
-        action: @escaping () -> Void
-    ) -> some View {
-        MenuActionRow(
-            title: title,
+        StoryQuickActionsMenu(
+            isOwnStory: story.authorId == Auth.auth().currentUser?.uid,
+            canLeaveBestFriends: canOptOutFromAuthorBestFriends,
             textColor: quickActionTextColor,
-            isDestructive: isDestructive,
-            action: action
-        )
-    }
-
-    // MARK: - Menu Action Row (vertical list style)
-    struct MenuActionRow: View {
-        let title: String
-        let textColor: Color
-        var isDestructive: Bool = false
-        let action: () -> Void
-
-        var body: some View {
-            Button(action: action) {
-                HStack {
-                    Spacer(minLength: 0)
-                    Text(title)
-                        .font(.system(size: 15, weight: .semibold))
-                        .foregroundColor(isDestructive ? .red : textColor)
-                        .multilineTextAlignment(.center)
-                    Spacer()
-                }
-                .padding(.horizontal, 18)
-                .padding(.vertical, 15)
-                .contentShape(Rectangle())
+            dividerColor: quickActionDividerColor,
+            borderColor: quickActionBorderColor,
+            onViewActivity: {
+                dismissQuickActions(resume: false)
+                fetchViewersAndShow()
+            },
+            onSave: {
+                dismissQuickActions(resume: false)
+                saveStoryToDevice()
+            },
+            onDelete: {
+                dismissQuickActions(resume: false)
+                deleteStory()
+            },
+            onUnfollow: {
+                dismissQuickActions(resume: false)
+                showUnfollowConfirmation = true
+            },
+            onMute: {
+                dismissQuickActions(resume: false)
+                showMuteConfirmation = true
+            },
+            onReport: {
+                dismissQuickActions(resume: false)
+                onReportStory()
+            },
+            onLeaveBestFriends: {
+                dismissQuickActions(resume: false)
+                showBestFriendsOptOutConfirmation = true
             }
-            .buttonStyle(PlainButtonStyle())
-        }
+        )
     }
 
 
@@ -972,45 +764,11 @@ struct StoryViewerScreen: View {
         return VStack(spacing: 12) {
             // ✅ REACCIONES: Solo mostrar si el autor las permite
             if showReactions && authorAllowsReactions {
-                VStack(spacing: 8) {
-                    // Indicador de scroll
-                    HStack {
-                        Spacer()
-                        Text(NSLocalizedString("storyContextMenu.scrollReactions", comment: "Scroll for more reactions"))
-                            .font(.custom("Poppins-Regular", size: 10))
-                            .foregroundColor(.white.opacity(0.7))
-                        Spacer()
-                    }
-
-                    ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: 16) {
-                            ForEach(reactions, id: \.self) { reaction in
-                                Button(action: {
-                                    sendReaction(reaction)
-                                }) {
-                                    Text(reaction)
-                                        .font(.system(size: 32))
-                                        .frame(width: 52, height: 52)
-                                        .background(Color.white.opacity(0.001))
-                                        .liquidGlass(in: Circle(), interactive: true)
-                                }
-                                .scaleEffect(showReactions ? 1.0 : 0.5)
-                                .animation(
-                                    .spring(response: 0.3)
-                                        .delay(Double(reactions.firstIndex(of: reaction) ?? 0) * 0.03),
-                                    value: showReactions
-                                )
-                            }
-                        }
-                        .padding(.horizontal, 20)
-                        .padding(.vertical, 8)
-                    }
-                    .frame(height: 70)
-                }
-                .transition(.asymmetric(
-                    insertion: .move(edge: .bottom).combined(with: .opacity),
-                    removal: .move(edge: .bottom).combined(with: .opacity)
-                ))
+                StoryReactionsStrip(
+                    reactions: reactions,
+                    showReactions: showReactions,
+                    onReaction: sendReaction
+                )
             }
 
             // ✅ ÁREA DE INTERACCIÓN: Solo para historias de otros usuarios
@@ -1117,22 +875,7 @@ struct StoryViewerScreen: View {
 
                 } else {
                     // ✅ MENSAJE: Cuando no permite ninguna interacción
-                    VStack(spacing: 8) {
-                        Image(systemName: "eye.slash")
-                            .font(.system(size: 20))
-                            .foregroundColor(.white.opacity(0.6))
-
-                        Text("stories.noInteractions")
-                            .font(.custom("Poppins-Regular", size: 14))
-                            .foregroundColor(.white.opacity(0.7))
-                            .multilineTextAlignment(.center)
-                    }
-                    .padding(.horizontal, 20)
-                    .padding(.vertical, 16)
-                    .background(
-                        Color.white.opacity(0.001)
-                            .liquidGlass(in: RoundedRectangle(cornerRadius: 18, style: .continuous))
-                    )
+                    StoryNoInteractionsNotice()
                 }
             }
 
@@ -1333,31 +1076,12 @@ struct StoryViewerScreen: View {
     }
 
     private var navigationTouchAreas: some View {
-        GeometryReader { geometry in
-            HStack(spacing: 0) {
-                Rectangle()
-                    .fill(Color.clear)
-                    .frame(width: geometry.size.width * 0.15) // Reduced from 0.2 to 0.15
-                    .contentShape(Rectangle())
-                    .onTapGesture {
-                        guard !shouldSuppressNavigationTap else { return }
-                        onPrevious()
-                    }
-
-                Spacer()
-
-                Rectangle()
-                    .fill(Color.clear)
-                    .frame(width: geometry.size.width * 0.15) // Reduced from 0.2 to 0.15
-                    .contentShape(Rectangle())
-                    .onTapGesture {
-                        guard !shouldSuppressNavigationTap else { return }
-                        onNext()
-                    }
-            }
-            .frame(height: geometry.size.height * 0.5) // ✅ MUY REDUCIDO: Solo área central
-            .offset(y: 150) // ✅ MUY AUMENTADO: Muy abajo para evitar completamente el header
-        }
+        StoryNavigationTouchAreas(
+            screenSize: screenSize,
+            shouldSuppressNavigationTap: shouldSuppressNavigationTap,
+            onPrevious: onPrevious,
+            onNext: onNext
+        )
     }
 
     // MARK: - ✅ PRELOADING
@@ -1440,6 +1164,21 @@ struct StoryViewerScreen: View {
         return false
     }
 
+    private var isStoryInteractionBlocked: Bool {
+        isMenuInteractionActive
+            || showQuickActions
+            || showViewers
+            || showingReportSheet
+            || showingBlockConfirmation
+            || showUserProfile
+            || showChainView
+            || showReactions
+            || showEphemeralPicker
+            || showBestFriendsOptOutConfirmation
+            || showUnfollowConfirmation
+            || showMuteConfirmation
+    }
+
     private var holdToPauseGesture: some Gesture {
         DragGesture(minimumDistance: 0)
             .onChanged { value in
@@ -1516,7 +1255,7 @@ struct StoryViewerScreen: View {
     private var unifiedDragGesture: some Gesture {
         DragGesture(minimumDistance: 8)
             .onChanged { value in
-                guard !isMenuInteractionActive else { return }
+                guard !isStoryInteractionBlocked else { return }
 
                 if isProtectedGestureStart(value.startLocation) {
                     return
@@ -1557,7 +1296,7 @@ struct StoryViewerScreen: View {
                 }
             }
             .onEnded { value in
-                guard !isMenuInteractionActive else { return }
+                guard !isStoryInteractionBlocked else { return }
 
                 if isProtectedGestureStart(value.startLocation) {
                     return
@@ -1584,10 +1323,12 @@ struct StoryViewerScreen: View {
     private var pinchGesture: some Gesture {
         MagnificationGesture()
             .onChanged { scale in
+                guard !isStoryInteractionBlocked else { return }
                 let newScale = lastZoomScale * scale
                 zoomScale = min(max(newScale, 1.0), 3.0) // Limitar zoom entre 1x y 3x
             }
             .onEnded { _ in
+                guard !isStoryInteractionBlocked else { return }
                 lastZoomScale = zoomScale
 
                 // Volver a escala normal si es muy pequeña
@@ -1772,8 +1513,13 @@ struct StoryViewerScreen: View {
 
         storyViewModel.deleteStory(userId: story.authorId, storyId: storyId) { error in
             if error == nil {
-                // ✅ PASAR A LA SIGUIENTE HISTORIA en lugar de cerrar
-                onNext()
+                // Deleting a story changes the source list, so let the presenter
+                // reconcile the current index instead of treating it as playback.
+                if let onStoryDeleted {
+                    onStoryDeleted()
+                } else {
+                    onNext()
+                }
             }
         }
         showQuickActions = false
@@ -1845,10 +1591,13 @@ struct StoryViewerScreen: View {
                 || self.showUnfollowConfirmation
                 || self.showMuteConfirmation
 
-            self.isMenuInteractionActive = false
-            if !isAnyOverlayVisible {
-                self.resumeStory()
+            if isAnyOverlayVisible {
+                self.menuAutoResumeWorkItem = nil
+                return
             }
+
+            self.isMenuInteractionActive = false
+            self.resumeStory()
             self.menuAutoResumeWorkItem = nil
         }
 

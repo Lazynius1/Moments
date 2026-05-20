@@ -1009,6 +1009,7 @@
 "common.searching" = "Buscando...";
 "common.noResults" = "Nenhum resultado";
 "common.clear" = "Limpar";
+"common.selectAll" = "Selecionar tudo";
 
 /* Login Activity */
 "loginActivity.navigation.title" = "Atividade de login";
@@ -2769,6 +2770,12 @@
 "userActivity.simple.recentlyDeleted.restore.multiple" = "Restaurar";
 "userActivity.simple.recentlyDeleted.delete.single" = "Excluir permanentemente";
 "userActivity.simple.recentlyDeleted.delete.multiple" = "Excluir permanentemente";
+"userActivity.simple.recentlyDeleted.confirm.restore.title" = "Restaurar conteúdo";
+"userActivity.simple.recentlyDeleted.confirm.restore.message" = "Deseja restaurar o conteúdo selecionado?";
+"userActivity.simple.recentlyDeleted.confirm.delete.title" = "Excluir permanentemente";
+"userActivity.simple.recentlyDeleted.confirm.delete.message" = "Isso excluirá permanentemente o conteúdo selecionado.";
+"userActivity.simple.recentlyDeleted.success.restore" = "Conteúdo restaurado";
+"userActivity.simple.recentlyDeleted.success.delete" = "Conteúdo excluído permanentemente";
 "userActivity.simple.retry" = "Tentar novamente";
 "userActivity.event.archived.action.restore" = "Restaurar";
 "userActivity.simple.reaction.unknown" = "Reação";
@@ -2795,14 +2802,30 @@
 "userActivity.simple.tags.selectedCount" = "%d selecionados";
 "userActivity.simple.reactions.delete.single" = "Excluir reação";
 "userActivity.simple.reactions.delete.multiple" = "Excluir reações";
+"userActivity.simple.reactions.confirm.delete.title" = "Excluir reações";
+"userActivity.simple.reactions.confirm.delete.message" = "Deseja excluir as reações selecionadas?";
+"userActivity.simple.reactions.success.delete" = "Reações excluídas";
 "userActivity.simple.tags.remove.single" = "Remover marcação";
 "userActivity.simple.tags.remove.multiple" = "Remover marcações";
+"userActivity.simple.tags.confirm.remove.title" = "Remover marcações";
+"userActivity.simple.tags.confirm.remove.message" = "Deseja remover as marcações selecionadas?";
+"userActivity.simple.tags.success.remove" = "Marcações removidas";
 "userActivity.simple.comments.selectedCount" = "%d selecionados";
 "userActivity.simple.comments.delete.single" = "Excluir comentário";
 "userActivity.simple.comments.delete.multiple" = "Excluir comentários";
+"userActivity.simple.comments.confirm.delete.title" = "Excluir comentários";
+"userActivity.simple.comments.confirm.delete.message" = "Deseja excluir os comentários selecionados?";
+"userActivity.simple.comments.success.delete" = "Comentários excluídos";
 "userActivity.simple.comments.yourComment" = "Seu comentário";
 "userActivity.simple.comments.momentNoContent" = "Momento sem texto";
 "userActivity.simple.comments.emptyComment" = "Sem texto";
+"userActivity.event.archived.action.restore" = "Restaurar";
+"userActivity.event.archived.confirm.restore.title" = "Restaurar conteúdo arquivado";
+"userActivity.event.archived.confirm.restore.message" = "Deseja restaurar o conteúdo arquivado selecionado?";
+"userActivity.event.archived.success.restore" = "Conteúdo arquivado restaurado";
+"userActivity.simple.stickers.confirm.delete.title" = "Excluir respostas";
+"userActivity.simple.stickers.confirm.delete.message" = "Deseja excluir as respostas selecionadas?";
+"userActivity.simple.stickers.success.delete" = "Respostas excluídas";
 
 /* Your Activity - Error States */
 "userActivity.error.offline.title" = "Sem conexão";
@@ -3276,6 +3299,7 @@
 "storyVideo.tooLong.message" = "Este vídeo tem %@. Stories aceitam vídeos de até %@ pela galeria. Escolha um vídeo mais curto para continuar.";
 "momentVideo.tooLong.title" = "Vídeo longo demais";
 "momentVideo.tooLong.message" = "Este vídeo tem %@. Momentos aceitam vídeos de até %@. Escolha um vídeo mais curto para continuar.";
+"momentVideo.fileTooLargeAfterCompression.message" = "Este vídeo ainda está grande demais após a otimização (%@). Momentos aceitam vídeos de até %@.";
 "storyVideo.editor.autoSplitNotice" = "Será publicado em %d partes. Os stickers aparecem só na primeira story, exceto Reveal.";
 "storyVideo.trim.title" = "Escolha 60 segundos";
 "storyVideo.trim.dragHint" = "Arraste a seleção ou as bordas. Máximo de 60 segundos.";

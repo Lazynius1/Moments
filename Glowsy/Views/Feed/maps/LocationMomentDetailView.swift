@@ -13,23 +13,23 @@ struct LocationMomentDetailView: View {
     @Binding var momentAvailability: [String: Bool]
     @Binding var isPresented: Bool
     @Environment(\.colorScheme) var colorScheme
-    
+
     @StateObject private var firestoreService = FirestoreService()
     @State private var currentIndex: Int
     @State private var selectedMoment: Moment?
     @State private var scrollOffset: CGFloat = 0
     @State private var trackedMomentViewIds: Set<String> = []
-    
+
     // ✅ NUEVOS: Estados para drag transition
     @State private var dragOffset: CGFloat = 0
     @State private var isDragging: Bool = false
     @State private var backgroundOpacity: Double = 1.0
-    
+
     // ✅ Estados para interacciones
     @State private var commentCounts: [String: Int] = [:]
     @State private var savedStates: [String: Bool] = [:]
     @State private var loadingStates: [String: Bool] = [:]
-    
+
     // ✅ NUEVOS: Estados para menú contextual
     @State private var showContextMenu = false
     @State private var contextMenuMoment: Moment?
@@ -43,11 +43,11 @@ struct LocationMomentDetailView: View {
     @State private var selectedStoryUserId: String = ""
     @State private var selectedHashtag: String = ""
     @State private var showExploreWithHashtag = false
-    
+
     private var adaptiveColors: AdaptiveColors {
         AdaptiveColors(colorScheme: colorScheme)
     }
-    
+
     private var currentHeaderLocationName: String {
         guard let moment = locationMoments[safe: currentIndex],
               let location = moment.location?.trimmingCharacters(in: .whitespacesAndNewlines),
@@ -56,7 +56,7 @@ struct LocationMomentDetailView: View {
         }
         return location
     }
-    
+
     init(
         locationMoments: [Moment],
         initialIndex: Int,
@@ -71,29 +71,29 @@ struct LocationMomentDetailView: View {
         self._isPresented = isPresented
         self._currentIndex = State(initialValue: initialIndex)
     }
-    
+
     var body: some View {
         return GeometryReader { geometry in
             let safeAreaTop = geometry.safeAreaInsets.top
             let headerReservedHeight: CGFloat = locationMoments.count > 1 ? 72 : 52
-            
+
             ZStack(alignment: .top) {
                 // ✅ Fondo moderno como el feed
                 modernBackgroundView
                     .ignoresSafeArea(.all)
                     .opacity(backgroundOpacity)
-                
+
                 // ✅ Header flotante más ligero y contextual
                 locationDetailHeader(safeAreaTop: safeAreaTop)
                     .zIndex(10)
                     .offset(x: dragOffset * 0.3)
                     .opacity(backgroundOpacity)
-                
+
                 locationMomentsCarousel(geometry: geometry)
                     .padding(.top, headerReservedHeight)
                     .offset(x: dragOffset)
                     .scaleEffect(isDragging ? max(0.85, 1 - abs(dragOffset) / 1000) : 1.0)
-                
+
                 // ✅ NUEVO: Overlay del menú contextual
                 if showContextMenu, let moment = contextMenuMoment {
                     ModernContextMenuOverlay(
@@ -194,7 +194,7 @@ struct LocationMomentDetailView: View {
                 .onEnded { value in
                     let dismissThreshold: CGFloat = 120
                     let velocity = value.predictedEndTranslation.width
-                    
+
                     if value.translation.width > dismissThreshold || velocity > 300 {
                         withAnimation(.easeOut(duration: 0.3)) {
                             dragOffset = UIScreen.main.bounds.width
@@ -213,12 +213,12 @@ struct LocationMomentDetailView: View {
                 }
         )
     }
-    
+
     private func trackMomentViewIfNeeded(for moment: Moment?) {
         guard let moment = moment, let momentId = moment.id else { return }
         guard !moment.authorId.isEmpty else { return }
         guard !trackedMomentViewIds.contains(momentId) else { return }
-        
+
         trackedMomentViewIds.insert(momentId)
         Task { @MainActor in
             AffinityTracker.shared.trackInteraction(type: .momentView, with: moment.authorId)
@@ -239,7 +239,7 @@ struct LocationMomentDetailView: View {
             )
         }
     }
-    
+
     // ✅ Fondo moderno como el feed
     private var modernBackgroundView: some View {
         ZStack {
@@ -248,13 +248,13 @@ struct LocationMomentDetailView: View {
             } else {
                 Color(hex: "FAF9F6")
             }
-            
+
             Rectangle()
                 .fill(.ultraThinMaterial)
                 .opacity(colorScheme == .dark ? 0.05 : 0.02)
         }
     }
-    
+
     // ✅ Header centrado rediseñado (Estilo ZStack para equilibrio perfecto)
     private func locationDetailHeader(safeAreaTop: CGFloat) -> some View {
         VStack(spacing: 8) {
@@ -355,7 +355,7 @@ struct LocationMomentDetailView: View {
             }
         }
     }
-    
+
     // ✅ NUEVOS: Helpers para información contextual
     private func getAudienceIcon(_ audience: String) -> String {
         switch audience {
@@ -366,7 +366,7 @@ struct LocationMomentDetailView: View {
         default: return "globe"
         }
     }
-    
+
     private func getAudienceColor(_ audience: String) -> Color {
         switch audience {
         case "everyone": return .green
@@ -376,7 +376,7 @@ struct LocationMomentDetailView: View {
         default: return Color(hex: "007AFF")
         }
     }
-    
+
     private func getAudienceText(_ audience: String) -> String {
         switch audience {
         case "everyone": return "Público"
@@ -386,13 +386,13 @@ struct LocationMomentDetailView: View {
         default: return "Público"
         }
     }
-    
-    
+
+
     // ✅ NUEVOS: Funciones auxiliares para menú contextual
     private func updateMoment(payload: EditMomentPayload) {
         guard let moment = contextMenuMoment,
               let momentId = moment.id else { return }
-        
+
         let firestoreService = FirestoreService()
         firestoreService.updateMomentDetails(
             userId: moment.authorId,
@@ -417,21 +417,21 @@ struct LocationMomentDetailView: View {
             }
         }
     }
-    
+
     private func deleteMoment() {
         guard let moment = contextMenuMoment,
               let momentId = moment.id else { return }
-        
+
         isDeleting = true
         let firestoreService = FirestoreService()
-        
+
         firestoreService.deleteMoment(
             userId: moment.authorId,
             momentId: momentId
         ) { error in
             DispatchQueue.main.async {
                 self.isDeleting = false
-                
+
                 if let error = error {
                 } else {
                     // ✅ Cerrar la vista si se elimina el momento actual
@@ -450,7 +450,7 @@ struct LocationMomentDetailView: View {
             }
         }
     }
-    
+
     private func locationMomentsCarousel(geometry: GeometryProxy) -> some View {
         TabView(selection: $currentIndex) {
             ForEach(Array(locationMoments.enumerated()), id: \.offset) { index, moment in
@@ -495,15 +495,15 @@ struct LocationMomentDetailView: View {
         .onChange(of: currentIndex) { newIndex in
         }
     }
-    
+
     private func loadAllMomentsData() {
         guard let currentUserId = Auth.auth().currentUser?.uid else { return }
-        
+
         for moment in locationMoments {
             guard let momentId = moment.id else { continue }
-            
+
             loadCommentCount(for: moment)
-            
+
             firestoreService.checkIfSaved(userId: currentUserId, momentId: momentId) { result in
                 switch result {
                 case .success(let saved):
@@ -516,10 +516,10 @@ struct LocationMomentDetailView: View {
             }
         }
     }
-    
+
     private func loadCommentCount(for moment: Moment) {
         guard let momentId = moment.id else { return }
-        
+
         firestoreService.db.collection("users").document(moment.authorId)
             .collection("moments").document(momentId)
             .collection("comments")
@@ -527,24 +527,24 @@ struct LocationMomentDetailView: View {
                 if let error = error {
                     return
                 }
-                
+
                 DispatchQueue.main.async {
                     let count = snapshot?.documents.count ?? 0
                     self.commentCounts[momentId] = count
                 }
             }
     }
-    
+
     private func toggleSave(for moment: Moment) {
         guard let currentUserId = Auth.auth().currentUser?.uid,
               let momentId = moment.id else { return }
-        
+
         loadingStates[momentId] = true
-        
+
         withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
             savedStates[momentId] = !(savedStates[momentId] ?? false)
         }
-        
+
         firestoreService.toggleSaveMoment(userId: currentUserId, momentId: momentId) { error in
             DispatchQueue.main.async {
                 self.loadingStates[momentId] = false
@@ -572,20 +572,20 @@ struct LocationMomentCard: View {
     let onContextMenu: () -> Void
     let onHashtagTap: (String) -> Void
     let onAvatarTap: (String, Bool) -> Void
-    
+
     @EnvironmentObject private var firestoreService: FirestoreService
     @State private var detectedAspectRatio: CGFloat = 1.0
     @State private var showTags: Bool = false // ✅ NUEVO: Control de etiquetas
     @State private var isImmersive: Bool = false // ✅ NUEVO: Soporte para modo inmersivo
     @State private var aspectRatioType: AspectRatioType = .square
-    
+
     private var adaptiveColors: AdaptiveColors {
         AdaptiveColors(colorScheme: colorScheme)
     }
-    
+
     enum AspectRatioType {
         case square, portrait, landscape, reels
-        
+
         var exactRatio: CGFloat {
             switch self {
             case .square: return 1.0
@@ -595,23 +595,23 @@ struct LocationMomentCard: View {
             }
         }
     }
-    
+
     private var cardHeight: CGFloat {
         let maxWidth = UIScreen.main.bounds.width - 32
-        
+
         guard maxWidth > 0 else {
             return 400 // Fallback seguro
         }
-        
+
         let aspectRatio: CGFloat
         if detectedAspectRatio > 0 && detectedAspectRatio.isFinite {
             aspectRatio = detectedAspectRatio
         } else {
             aspectRatio = aspectRatioType.exactRatio
         }
-        
+
         let calculatedHeight = maxWidth / aspectRatio
-        
+
         let dynamicMaxHeight: CGFloat
         switch aspectRatioType {
         case .square:
@@ -623,16 +623,16 @@ struct LocationMomentCard: View {
         case .reels:
             dynamicMaxHeight = availableHeight * 1.02
         }
-        
+
         // Para Reels, ocupar casi todo el viewport disponible para evitar huecos inferiores.
         if aspectRatioType == .reels {
             let minReelsHeight = availableHeight * 0.96
             return min(max(calculatedHeight, minReelsHeight), dynamicMaxHeight)
         }
-        
+
         return min(calculatedHeight, dynamicMaxHeight)
     }
-    
+
     var body: some View {
         ScrollView(.vertical, showsIndicators: false) {
             VStack(spacing: 0) {
@@ -653,7 +653,7 @@ struct LocationMomentCard: View {
                             Spacer()
                         }
                         .zIndex(120)
-                        
+
                         // ✅ Glow Rail (Mismo que en Feed)
                         ModernActionButtons(
                             moment: moment,
@@ -678,7 +678,7 @@ struct LocationMomentCard: View {
                 )
                 .clipShape(RoundedRectangle(cornerRadius: 24))
                 .shadow(color: .black.opacity(0.15), radius: 10, x: 0, y: 5)
-                
+
                 MomentCaptionView(
                     moment: moment,
                     style: .detail,
@@ -686,12 +686,12 @@ struct LocationMomentCard: View {
                     onHashtagTap: onHashtagTap
                 )
                 .padding(.horizontal, 4)
-                
+
                 // ✅ Comentarios inline (como MomentDetailView)
                 if !moment.disableComments {
                     locationInlineCommentsSection
                 }
-                
+
                 // Espacio inferior eliminado
             }
             .padding(.horizontal, 15)
@@ -708,7 +708,7 @@ struct LocationMomentCard: View {
         .background(Color.clear)
         .ignoresSafeArea(.container, edges: .top)
     }
-    
+
     // ✅ Header compacto de autor dentro de la card
     private var authorCompactHeader: some View {
         HStack(spacing: 12) {
@@ -723,16 +723,16 @@ struct LocationMomentCard: View {
                     onAvatarTap(moment.authorId, hasStory)
                 }
             )
-            
+
             VStack(alignment: .leading, spacing: 1) {
                 HStack(spacing: 3) {
                     LiveUsernameText(userId: moment.authorId, fallbackUsername: moment.username)
                         .font(.custom("Poppins-SemiBold", size: 14))
                         .foregroundColor(adaptiveColors.primary)
-                    
+
                     VerifiedBadgeView(userId: moment.authorId, size: 12)
                 }
-                
+
                 Text(moment.timestamp.timeAgoDisplay())
                     .font(.custom("Poppins-Regular", size: 11))
                     .foregroundColor(colorScheme == .dark ? .white.opacity(0.9) : .black.opacity(0.75))
@@ -749,8 +749,8 @@ struct LocationMomentCard: View {
                 )
         )
     }
-    
-    
+
+
     // ✅ NUEVO: Computed property para mediaItems (consistente con otras vistas)
     private var mediaItems: [MediaItem] {
         // ✅ MODERACIÓN: Usar visibleMediaItems para excluir archivos moderados del carrusel
@@ -762,7 +762,7 @@ struct LocationMomentCard: View {
         guard moment.shouldUseLegacyMediaFallback else {
             return [MediaItem(type: .image, url: "")]
         }
-        
+
         // ✅ FALLBACK: Para momentos legacy que solo tienen imagePath/videoUrl
         var items: [MediaItem] = []
         if let imagePath = moment.imagePath, !imagePath.isEmpty {
@@ -773,10 +773,10 @@ struct LocationMomentCard: View {
         }
         return items.isEmpty ? [MediaItem(type: .image, url: "")] : items
     }
-    
+
     // ✅ NUEVO: Estado para carrusel
     @State private var currentImageIndex = 0
-    
+
     // ✅ NUEVO: Función para colores de indicadores multicolores
     private func getIndicatorColor(for index: Int) -> Color {
         let colors: [Color] = [
@@ -789,10 +789,10 @@ struct LocationMomentCard: View {
             Color(hex: "#96ceb4"), // Verde menta
             Color(hex: "#feca57")  // Amarillo
         ]
-        
+
         return colors[index % colors.count]
     }
-    
+
     // ✅ Imagen principal con aspect ratio dinámico
     private var locationMomentImageView: some View {
         ZStack {
@@ -836,7 +836,7 @@ struct LocationMomentCard: View {
                     .clipShape(RoundedRectangle(cornerRadius: 20))
                     .zIndex(3)
             }
-            
+
             // ✅ NUEVO: Indicadores de media múltiple mejorados
             if mediaItems.count > 1 {
                 VStack {
@@ -853,7 +853,7 @@ struct LocationMomentCard: View {
                     Spacer()
                 }
             }
-            
+
             // ✅ NUEVO: BOTONES DE ETIQUETAS (Nivel superior del card)
             let currentMediaItem = mediaItems.indices.contains(currentImageIndex) ? mediaItems[currentImageIndex] : nil
             if let tags = currentMediaItem?.tags, !tags.isEmpty {
@@ -898,7 +898,7 @@ struct LocationMomentCard: View {
                                 Circle()
                                     .fill(.ultraThinMaterial)
                                     .frame(width: 36, height: 36)
-                                
+
                                 // Border Gradient Glass
                                 Circle()
                                     .stroke(
@@ -910,7 +910,7 @@ struct LocationMomentCard: View {
                                         lineWidth: 1.5
                                     )
                                     .frame(width: 36, height: 36)
-                                
+
                                 // Icon tinted if active
                                 Image(systemName: showTags ? "person.fill" : "person.circle.fill")
                                     .font(.system(size: 15, weight: .bold))
@@ -927,7 +927,7 @@ struct LocationMomentCard: View {
             }
         }
     }
-    
+
     // ✅ Comentarios inline (como MomentDetailView)
     private var locationInlineCommentsSection: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -936,11 +936,11 @@ struct LocationMomentCard: View {
                 Image(systemName: "bubble.left.and.bubble.right.fill")
                     .font(.system(size: 15))
                     .foregroundColor(Color(hex: "007AFF").opacity(0.9))
-                
+
                 Text("locationMomentDetail.comments")
                     .font(.custom("Poppins-SemiBold", size: 17))
                     .foregroundColor(colorScheme == .dark ? .white : .black)
-                
+
                 if commentCount > 0 {
                     Text("(\(commentCount))")
                         .font(.custom("Poppins-Medium", size: 12))
@@ -957,9 +957,9 @@ struct LocationMomentCard: View {
                         .clipShape(Capsule())
                         .shadow(color: Color(hex: "007AFF").opacity(0.3), radius: 4, x: 0, y: 2)
                 }
-                
+
                 Spacer()
-                
+
                 Button(NSLocalizedString("locationMomentDetail.viewAll", comment: "View all")) {
                     onComment()
                 }
@@ -971,7 +971,7 @@ struct LocationMomentCard: View {
                 .clipShape(Capsule())
             }
             .padding(.horizontal, 18)
-            
+
             if commentCount == 0 {
                 // Estado vacío de comentarios
                 VStack(spacing: 14) {
@@ -983,23 +983,23 @@ struct LocationMomentCard: View {
                                 Circle()
                                     .stroke(Color(hex: "007AFF").opacity(0.25), lineWidth: 1.2)
                             )
-                        
+
                         Image(systemName: "bubble.left")
                             .font(.system(size: 22))
                             .foregroundColor(Color(hex: "007AFF"))
                     }
-                    
+
                     VStack(spacing: 8) {
                         Text("locationMomentDetail.noComments.title")
                             .font(.custom("Poppins-SemiBold", size: 16))
                             .foregroundColor(colorScheme == .dark ? .white.opacity(0.9) : .black.opacity(0.9))
-                        
+
                         Text("locationMomentDetail.noComments.description")
                             .font(.custom("Poppins-Regular", size: 14))
                             .foregroundColor(.gray.opacity(0.8))
                             .multilineTextAlignment(.center)
                     }
-                    
+
                     Button(NSLocalizedString("locationMomentDetail.comment", comment: "Comment")) {
                         onComment()
                     }
@@ -1041,13 +1041,13 @@ struct LocationMomentCard: View {
         .padding(.top, 18)
         .padding(.bottom, 0) // Eliminado padding inferior
     }
-    
+
     // ✅ NUEVO: Función para detectar aspect ratio
     private func detectAspectRatio() {
         // ✅ PRIMERO: Intentar usar aspect ratio guardado en el momento
         if let savedAspectRatio = moment.aspectRatio {
             let aspectRatioFromDB = ProcessedMedia.AspectRatio(from: savedAspectRatio)
-            
+
             DispatchQueue.main.async {
                 // ✅ Validar que el valor sea finito y positivo
                 let ratioValue = aspectRatioFromDB.value
@@ -1056,7 +1056,7 @@ struct LocationMomentCard: View {
                 } else {
                     self.detectedAspectRatio = 1.0 // Fallback a square
                 }
-                
+
                 // Clasificar el tipo con ratios exactos
                 switch aspectRatioFromDB {
                 case .landscape:
@@ -1071,7 +1071,7 @@ struct LocationMomentCard: View {
             }
             return
         }
-        
+
         // ✅ FALLBACK: Si no hay aspect ratio guardado, detectar de la imagen
         guard let firstItem = mediaItems.first, !firstItem.url.isEmpty else {
             DispatchQueue.main.async {
@@ -1080,13 +1080,13 @@ struct LocationMomentCard: View {
             }
             return
         }
-        
+
         if firstItem.type == .image {
             KFImage(URL(string: firstItem.url))
                 .onSuccess { result in
                     let imageSize = result.image.size
                     let ratio = imageSize.width / imageSize.height
-                    
+
                     DispatchQueue.main.async {
                         // ✅ Validar ratio calculado
                         if ratio > 0 && ratio.isFinite {
@@ -1117,19 +1117,19 @@ struct LocationMomentCard: View {
             }
         }
     }
-    
+
     private func detectVideoAspectRatio(from urlString: String) {
         guard let url = URL(string: urlString) else { return }
-        
+
         Task {
             do {
                 let asset = AVAsset(url: url)
                 let track = try await asset.loadTracks(withMediaType: .video).first
-                
+
                 if let track = track {
                     let size = try await track.load(.naturalSize)
                     let videoRatio = size.width / size.height
-                    
+
                     await MainActor.run {
                         if videoRatio > 0 && videoRatio.isFinite {
                             self.detectedAspectRatio = videoRatio
@@ -1146,11 +1146,11 @@ struct LocationMomentCard: View {
             }
         }
     }
-    
+
     // ✅ Clasificar aspect ratio
     private func classifyAspectRatio(_ ratio: CGFloat) {
         let tolerance: CGFloat = 0.05
-        
+
         if abs(ratio - 1.0) < tolerance {
             self.aspectRatioType = .square
         } else if abs(ratio - 0.8) < tolerance {
@@ -1167,15 +1167,6 @@ struct LocationMomentCard: View {
     }
 }
 
-private extension Moment {
-    var mapAvailabilityKey: String {
-        if let id = id?.trimmingCharacters(in: .whitespacesAndNewlines), !id.isEmpty {
-            return id
-        }
-        return "\(authorId)|\(Int(timestamp.timeIntervalSince1970))|\(content)"
-    }
-}
-
 // MARK: - ✅ Botones de acción REFACTORIZADOS
 struct LocationActionButtons: View {
     let moment: Moment  // ✅ CAMBIO AQUÍ
@@ -1185,13 +1176,13 @@ struct LocationActionButtons: View {
     let colorScheme: ColorScheme
     let onComment: () -> Void
     let onSave: () -> Void
-    
+
     @EnvironmentObject private var firestoreService: FirestoreService
-    
+
     private var adaptiveColors: AdaptiveColors {
         AdaptiveColors(colorScheme: colorScheme)
     }
-    
+
     var body: some View {
         HStack(spacing: 12) {
             Button(action: onComment) {
@@ -1207,7 +1198,7 @@ struct LocationActionButtons: View {
                                 endPoint: .bottomTrailing
                             )
                         )
-                    
+
                     if commentCount > 0 {
                         Text("\(commentCount)")
                             .font(.custom("Poppins-Medium", size: 12))
@@ -1236,7 +1227,7 @@ struct LocationActionButtons: View {
             }
             .scaleEffect(commentCount > 0 ? 1.05 : 1.0)
             .animation(.spring(response: 0.3, dampingFraction: 0.6), value: commentCount)
-            
+
             Button(action: onSave) {
                 HStack(spacing: 4) {
                     if isSaveLoading {
@@ -1281,7 +1272,7 @@ struct LocationActionButtons: View {
             .scaleEffect(isSaved ? 1.05 : 1.0)
             .animation(.spring(response: 0.3, dampingFraction: 0.6), value: isSaved)
             .disabled(isSaveLoading)
-            
+
             Spacer()
         }
     }
@@ -1293,14 +1284,14 @@ struct LocationExpandableContentView: View {
     let colorScheme: ColorScheme
     @State private var isExpanded: Bool = false
     @State private var needsExpansion: Bool = false
-    
+
     private let maxLines = 2
     private let maxCharacters = 80
-    
+
     private var adaptiveColors: AdaptiveColors {
         AdaptiveColors(colorScheme: colorScheme)
     }
-    
+
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             Text(content)
@@ -1325,7 +1316,7 @@ struct LocationExpandableContentView: View {
                         )
                         .hidden()
                 )
-            
+
             if needsExpansion {
                 Button(action: {
                     withAnimation(.easeInOut(duration: 0.25)) {
@@ -1336,7 +1327,7 @@ struct LocationExpandableContentView: View {
                         Text(isExpanded ? "menos" : "más")
                             .font(.custom("Poppins-SemiBold", size: 11))
                             .foregroundColor(adaptiveColors.primary)
-                        
+
                         Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
                             .font(.system(size: 9, weight: .semibold))
                             .foregroundColor(adaptiveColors.primary)
@@ -1392,11 +1383,11 @@ struct FollowButtonForLocation: View {
     @State private var followButtonState: FollowButtonState = .canFollow
     @State private var isLoading = false
     @State private var showingUnfollowConfirmation = false
-    
+
     private var adaptiveColors: AdaptiveColors {
         AdaptiveColors(colorScheme: colorScheme)
     }
-    
+
     var body: some View {
         Button(action: toggleFollow) {
             HStack(spacing: 6) {
@@ -1409,7 +1400,7 @@ struct FollowButtonForLocation: View {
                     Image(systemName: followIcon)
                         .font(.system(size: 10, weight: .semibold))
                 }
-                
+
                 Text(followTitle)
                     .font(.custom("Poppins-SemiBold", size: 11))
             }
@@ -1445,14 +1436,14 @@ struct FollowButtonForLocation: View {
             Text(NSLocalizedString("userProfile.unfollow.confirm.message", comment: ""))
         }
     }
-    
+
     private func checkFollowStatus() {
         guard let currentUserId = Auth.auth().currentUser?.uid else { return }
 
         if let cachedState = FollowStateStore.shared.state(for: targetUserId) {
             followButtonState = cachedState
         }
-        
+
         PrivacyService().getFollowButtonState(viewerId: currentUserId, targetUserId: targetUserId) { state in
             DispatchQueue.main.async {
                 let reconciledState = FollowStateStore.shared.reconciledState(state, for: self.targetUserId)
@@ -1461,7 +1452,7 @@ struct FollowButtonForLocation: View {
             }
         }
     }
-    
+
     private func toggleFollow() {
         if followButtonState == .following {
             showingUnfollowConfirmation = true
@@ -1473,11 +1464,11 @@ struct FollowButtonForLocation: View {
 
     private func performFollowToggle() {
         guard let currentUserId = Auth.auth().currentUser?.uid else { return }
-        
+
         isLoading = true
-        
+
         let firestoreService = FirestoreService()
-        
+
         if followButtonState == .following {
             firestoreService.unfollowUser(currentUserId: currentUserId, targetUserId: targetUserId) { error in
                 DispatchQueue.main.async {
@@ -1549,11 +1540,11 @@ struct LocationCommentRow: View {
     let comment: Comment
     let colorScheme: ColorScheme
     var onAvatarTap: ((String, Bool) -> Void)? = nil
-    
+
     private var adaptiveColors: AdaptiveColors {
         AdaptiveColors(colorScheme: colorScheme)
     }
-    
+
     var body: some View {
         HStack(alignment: .top, spacing: 10) {
             StoryRingAvatarView(
@@ -1574,31 +1565,31 @@ struct LocationCommentRow: View {
                     }
                 }
             )
-            
+
             VStack(alignment: .leading, spacing: 3) {
                 HStack(spacing: 6) {
                     HStack(spacing: 3) {
                         Text(comment.username)
                             .font(.custom("Poppins-SemiBold", size: 13))
                             .foregroundColor(adaptiveColors.primary)
-                        
+
                         // ✅ INSIGNIA DE VERIFICADO
                         VerifiedBadgeView(userId: comment.authorId, size: 10)
                     }
-                    
+
                     Text(comment.timestamp.timeAgoDisplay())
                         .font(.custom("Poppins-Regular", size: 10))
                         .foregroundColor(colorScheme == .dark ? .white.opacity(0.85) : .black.opacity(0.7))
-                    
+
                     Spacer()
                 }
-                
+
                 Text(comment.content)
                     .font(.custom("Poppins-Regular", size: 13))
                     .foregroundColor(adaptiveColors.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
-            
+
             Spacer()
         }
         .padding(.horizontal, 12)
@@ -1620,5 +1611,5 @@ struct LocationCommentRow: View {
         )
         .shadow(color: adaptiveColors.shadowColor, radius: 3, x: 0, y: 1)
     }
-    
+
 }

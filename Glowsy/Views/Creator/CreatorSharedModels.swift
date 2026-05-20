@@ -58,6 +58,8 @@ typealias ProcessedMedia = CreatorMedia
 
 struct CreatorMedia: Identifiable {
     static let maxMomentVideoDuration: Double = 5 * 60
+    static let maxMomentVideoUploadSizeBytes: Int64 = 300 * 1024 * 1024
+    static let maxMomentVideoReadySizeBytes: Int64 = 100 * 1024 * 1024
 
     let id: String
     var image: UIImage
@@ -72,12 +74,12 @@ struct CreatorMedia: Identifiable {
     var videoResolution: String?
     var tags: [PhotoTag]? = nil // ✅ Etiquetas espaciales para esta imagen
     var storyVideoMode: StoryVideoMode = .normal
-    
+
     // Helper para acceder al thumbnail de manera segura
     var thumbnail: UIImage? {
         return image
     }
-    
+
     enum MediaType {
         case image, video
     }
@@ -87,13 +89,13 @@ struct CreatorMedia: Identifiable {
         case trimmed
         case autoSplit
     }
-    
+
     enum AspectRatio: Equatable {
         case square          // 1:1
         case portrait        // 4:5
         case landscape       // 16:9
         case nineBySixteen   // 9:16 (stories)
-        
+
         var value: CGFloat {
             switch self {
             case .square: return 1.0
@@ -102,7 +104,7 @@ struct CreatorMedia: Identifiable {
             case .nineBySixteen: return 0.5625 // 9:16
             }
         }
-        
+
         var displayName: String {
             switch self {
             case .square: return "1:1"
@@ -111,7 +113,7 @@ struct CreatorMedia: Identifiable {
             case .nineBySixteen: return "9:16"
             }
         }
-        
+
         var ratio: CGFloat {
             switch self {
             case .square: return 1.0
@@ -120,24 +122,24 @@ struct CreatorMedia: Identifiable {
             case .nineBySixteen: return 9.0/16.0
             }
         }
-        
+
         static func fromRatio(_ ratio: CGFloat) -> AspectRatio {
             let tolerance: CGFloat = 0.15
-            
+
             if abs(ratio - 0.5625) < tolerance { return .nineBySixteen }
             if abs(ratio - 0.8) < tolerance { return .portrait }
             if abs(ratio - 1.0) < tolerance { return .square }
             if abs(ratio - 1.777) < tolerance { return .landscape }
-            
+
             if ratio < 0.65 { return .nineBySixteen }
             else if ratio < 0.85 { return .portrait }
             else if ratio < 1.15 { return .square }
             else { return .landscape }
         }
     }
-    
+
     // MARK: - Initializers & Helpers
-    
+
     init(id: String, image: UIImage, videoURL: URL?, type: MediaType, aspectRatio: AspectRatio, recommendedAspectRatio: AspectRatio? = nil, hasEdits: Bool = false, thumbnailURL: URL? = nil, tags: [PhotoTag]? = nil, storyVideoMode: StoryVideoMode = .normal, videoDuration: Double? = nil, videoFileSize: Int64? = nil, videoResolution: String? = nil) {
         self.id = id
         self.image = image
@@ -153,7 +155,7 @@ struct CreatorMedia: Identifiable {
         self.videoFileSize = videoFileSize
         self.videoResolution = videoResolution
     }
-    
+
     init(type: MediaType, image: UIImage, videoURL: URL?, aspectRatio: AspectRatio, recommendedAspectRatio: AspectRatio? = nil, thumbnailURL: URL? = nil, storyVideoMode: StoryVideoMode = .normal, videoDuration: Double? = nil, videoFileSize: Int64? = nil, videoResolution: String? = nil) {
         self.id = UUID().uuidString
         self.image = image
@@ -168,7 +170,7 @@ struct CreatorMedia: Identifiable {
         self.videoFileSize = videoFileSize
         self.videoResolution = videoResolution
     }
-    
+
     func with(videoURL: URL? = nil, aspectRatio: AspectRatio? = nil, recommendedAspectRatio: AspectRatio? = nil, hasEdits: Bool? = nil, thumbnailURL: URL? = nil, image: UIImage? = nil, tags: [PhotoTag]? = nil, storyVideoMode: StoryVideoMode? = nil, videoDuration: Double? = nil, videoFileSize: Int64? = nil, videoResolution: String? = nil) -> CreatorMedia {
         CreatorMedia(
             id: self.id,
@@ -186,21 +188,21 @@ struct CreatorMedia: Identifiable {
             videoResolution: videoResolution ?? self.videoResolution
         )
     }
-    
+
     var isValidVideo: Bool {
         return type == .video && videoURL != nil && FileManager.default.fileExists(atPath: videoURL!.path)
     }
-    
+
     var videoInfo: (duration: Double, fileSize: Int64)? {
         guard let videoURL = videoURL, type == .video else { return nil }
-        
+
         do {
             let asset = AVAsset(url: videoURL)
             let duration = asset.duration.seconds
-            
+
             let fileAttributes = try FileManager.default.attributesOfItem(atPath: videoURL.path)
             let fileSize = fileAttributes[FileAttributeKey.size] as? Int64 ?? 0
-            
+
             return (duration: duration, fileSize: fileSize)
         } catch {
             return nil
@@ -216,7 +218,7 @@ struct GlowSharePill: View {
     var isLoading: Bool = false
     var isSmall: Bool = false
     let action: () -> Void
-    
+
     var body: some View {
         Button(action: {
             // Haptic feedback should be handled by a global helper if available,
@@ -255,7 +257,7 @@ struct GlowSharePill: View {
                             )
                         )
                         .shadow(color: Color.pink.opacity(0.4), radius: 8, x: 0, y: 4)
-                    
+
                     // Glass shine
                     Capsule()
                         .stroke(Color.white.opacity(0.3), lineWidth: 1)
@@ -282,16 +284,16 @@ struct CreatorScaleButtonStyle: ButtonStyle {
 struct SelectedMediaBlurView: View {
     let mediaItems: [CreatorMedia]
     @Environment(\.colorScheme) var colorScheme
-    
+
     var body: some View {
         ZStack {
             // Base background
             Color.black.ignoresSafeArea()
-            
+
             if !mediaItems.isEmpty {
                 GeometryReader { geometry in
                     let displayItems = Array(mediaItems.prefix(4))
-                    
+
                     ZStack {
                         // Dynamic layout based on count to fill space
                         switch displayItems.count {
@@ -302,7 +304,7 @@ struct SelectedMediaBlurView: View {
                                 .aspectRatio(contentMode: .fill)
                                 .frame(width: geometry.size.width, height: geometry.size.height)
                                 .position(x: geometry.size.width / 2, y: geometry.size.height / 2)
-                                
+
                         case 2:
                             // Split vertically (Top/Bottom) with slight overlap
                             ForEach(0..<2, id: \.self) { index in
@@ -315,7 +317,7 @@ struct SelectedMediaBlurView: View {
                                         y: index == 0 ? geometry.size.height * 0.25 : geometry.size.height * 0.75
                                     )
                             }
-                            
+
                         case 3:
                             // Top half full width, bottom half split
                             ForEach(0..<3, id: \.self) { index in
@@ -340,14 +342,14 @@ struct SelectedMediaBlurView: View {
                                         )
                                 }
                             }
-                            
+
                         default: // 4 or more
                             // 2x2 Grid with overlap
                             ForEach(0..<displayItems.count, id: \.self) { index in
                                 let item = displayItems[index]
                                 let isRight = index % 2 != 0
                                 let isBottom = index >= 2
-                                
+
                                 Image(uiImage: item.image)
                                     .resizable()
                                     .aspectRatio(contentMode: .fill)

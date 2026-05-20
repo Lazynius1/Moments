@@ -1,0 +1,1817 @@
+import SwiftUI
+import Kingfisher
+import AVFoundation
+
+struct ActivityInteractionDetailView: View {
+    @Environment(\.colorScheme) private var colorScheme
+    let category: ActivityInteractionCategory
+    let recentlyDeletedKind: RecentlyDeletedContentKind
+
+    @StateObject private var viewModel: ActivityInteractionDetailViewModel
+    @State private var reactionsSort: ReactionsSortOption = .newest
+    @State private var reactionsDateFilter: ReactionsDateFilter = .all
+    @State private var customDateFrom: Date = Calendar.current.date(byAdding: .month, value: -1, to: Date()) ?? Date()
+    @State private var customDateTo: Date = Date()
+    @State private var selectedAuthorId: String?
+    @State private var showingAuthorFilterSheet = false
+    @State private var selectedMomentForDetail: Moment?
+    @State private var storyRoute: IdentifiableString?
+    @State private var selectedProfileUserIdForSheet: String?
+    @State private var isSelectionMode = false
+    @State private var selectedReactionIds: Set<String> = []
+    @State private var selectedCommentIds: Set<String> = []
+    @State private var selectedEventIds: Set<String> = []
+    @State private var selectedEchoId: String?
+    @State private var longPressActivatedItemId: String?
+    @State private var isDeletingSelectedReactions = false
+    @State private var isRemovingSelectedTags = false
+    @State private var isDeletingSelectedComments = false
+    @State private var isDeletingSelectedEvents = false
+    @State private var gridSelectionDragMode: SelectionDragMode?
+    @State private var gridSelectionDragTouchedIds: Set<String> = []
+    @State private var pendingActivitySelectionConfirmation: ActivitySelectionConfirmationAction?
+    @State private var pendingRecentlyDeletedConfirmation: RecentlyDeletedConfirmationAction?
+    @State private var activitySelectionSuccessBannerKey: String?
+    @State private var recentlyDeletedSuccessBannerKey: String?
+    @State private var recentlyDeletedAutoScrollDirection: RecentlyDeletedAutoScrollDirection?
+    @State private var recentlyDeletedAutoScrollTask: Task<Void, Never>?
+    @State private var recentlyDeletedDragCurrentId: String?
+
+    init(category: ActivityInteractionCategory, recentlyDeletedKind: RecentlyDeletedContentKind = .moments) {
+        self.category = category
+        self.recentlyDeletedKind = recentlyDeletedKind
+        _viewModel = StateObject(wrappedValue: ActivityInteractionDetailViewModel(category: category, recentlyDeletedKind: recentlyDeletedKind))
+    }
+
+    private var sectionHorizontalPadding: CGFloat { 8 }
+
+    private var detailNavigationTitleKey: String {
+        switch category {
+        case .archived:
+            return "userActivity.simple.item.archived.headerTitle"
+        default:
+            return category.titleKey
+        }
+    }
+
+    private var selectionToolbarButtonTitle: String? {
+        switch category {
+        case .reactions, .comments, .tags, .stickerReplies, .recentlyDeleted:
+            return isSelectionMode
+                ? NSLocalizedString("savedMoments.cancel", comment: "Cancel")
+                : NSLocalizedString("savedMoments.select", comment: "Select")
+        case .archived:
+            return isSelectionMode
+                ? NSLocalizedString("savedMoments.cancel", comment: "Cancel")
+                : nil
+        default:
+            return nil
+        }
+    }
+
+    private func handleSelectionToolbarTap() {
+        switch category {
+        case .reactions, .comments, .tags, .stickerReplies:
+            withAnimation(.spring(response: 0.28, dampingFraction: 0.84)) {
+                isSelectionMode.toggle()
+                if !isSelectionMode {
+                    selectedReactionIds.removeAll()
+                    selectedCommentIds.removeAll()
+                    selectedEventIds.removeAll()
+                }
+            }
+        case .recentlyDeleted:
+            withAnimation(.spring(response: 0.28, dampingFraction: 0.84)) {
+                isSelectionMode.toggle()
+                if !isSelectionMode {
+                    selectedReactionIds.removeAll()
+                }
+            }
+        case .archived:
+            withAnimation(.spring(response: 0.28, dampingFraction: 0.84)) {
+                isSelectionMode = false
+                selectedReactionIds.removeAll()
+            }
+        default:
+            break
+        }
+    }
+
+    var body: some View {
+        ZStack {
+            (colorScheme == .dark ? Color(hex: "0B1215") : Color(hex: "FAF9F6"))
+                .ignoresSafeArea()
+
+            mainContent
+        }
+        .navigationTitle(NSLocalizedString(detailNavigationTitleKey, comment: "Interaction detail title"))
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            navigationToolbar
+        }
+        .alert(item: $pendingActivitySelectionConfirmation) { action in
+            activitySelectionConfirmationAlert(for: action)
+        }
+        .alert(item: $pendingRecentlyDeletedConfirmation) { action in
+            recentlyDeletedConfirmationAlert(for: action)
+        }
+        .onAppear {
+            viewModel.loadIfNeeded()
+        }
+        .onChange(of: filteredReactionItems.map(\.id)) { visibleIds in
+            let validIds = Set(visibleIds)
+            selectedReactionIds = Set(selectedReactionIds.filter { validIds.contains($0) })
+        }
+        .onChange(of: selectedReactionIds) { ids in
+            if (category == .archived || category == .recentlyDeleted), isSelectionMode, ids.isEmpty {
+                isSelectionMode = false
+            }
+        }
+        .onChange(of: isSelectionMode) { isEnabled in
+            if !isEnabled {
+                stopRecentlyDeletedAutoScroll()
+            }
+        }
+        .onChange(of: filteredCommentItems.map(\.id)) { visibleIds in
+            let validIds = Set(visibleIds)
+            selectedCommentIds = Set(selectedCommentIds.filter { validIds.contains($0) })
+        }
+        .onChange(of: filteredEventItems.map(\.id)) { visibleIds in
+            let validIds = Set(visibleIds)
+            selectedEventIds = Set(selectedEventIds.filter { validIds.contains($0) })
+        }
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            selectionBars
+        }
+        .overlay(alignment: .top) {
+            if let successKey = activitySelectionSuccessBannerKey {
+                selectionSuccessBanner(textKey: successKey)
+                    .padding(.top, 12)
+                    .transition(.move(edge: .top).combined(with: .opacity))
+            }
+            if let successKey = recentlyDeletedSuccessBannerKey {
+                selectionSuccessBanner(textKey: successKey)
+                    .padding(.top, 12)
+                    .transition(.move(edge: .top).combined(with: .opacity))
+            }
+        }
+        .sheet(isPresented: $showingAuthorFilterSheet) {
+            AuthorFilterSheet(
+                selectedAuthorId: $selectedAuthorId,
+                availableAuthorIds: availableAuthorIds,
+                authorUsernameMap: authorUsernameMap
+            )
+            .presentationDetents([.medium, .large])
+            .presentationDragIndicator(.visible)
+        }
+        .sheet(isPresented: Binding(
+            get: { selectedMomentForDetail != nil },
+            set: { isPresented in
+                if !isPresented {
+                    selectedMomentForDetail = nil
+                }
+            }
+        )) {
+            if let moment = selectedMomentForDetail {
+                MomentDetailView(moment: moment)
+            }
+        }
+        .fullScreenCover(item: $storyRoute) { route in
+            StoriesView(startWithUserId: .constant(route.id))
+        }
+        .sheet(isPresented: Binding(
+            get: { selectedProfileUserIdForSheet != nil },
+            set: { isPresented in
+                if !isPresented {
+                    selectedProfileUserIdForSheet = nil
+                }
+            }
+        )) {
+            if let userId = selectedProfileUserIdForSheet {
+                UserProfileView(userId: userId)
+            }
+        }
+        .fullScreenCover(item: Binding(
+            get: { selectedEchoId.map { IdentifiableString(id: $0) } },
+            set: { newVal in selectedEchoId = newVal?.id }
+        )) { ident in
+            EchoViewerUI(echoId: ident.id)
+        }
+        .onDisappear {
+            stopRecentlyDeletedAutoScroll()
+        }
+    }
+
+    @ViewBuilder
+    private var mainContent: some View {
+        if viewModel.isLoading {
+            ProgressView(NSLocalizedString("userActivity.loading", comment: "Loading activity"))
+                .tint(Color(hex: "4F46E5"))
+        } else if let errorMessage = viewModel.errorMessage {
+            errorStateView(errorMessage: errorMessage)
+        } else if category == .recentlyDeleted, recentlyDeletedKind == .stories {
+            recentlyDeletedStoriesContent
+        } else if category == .reactions || category == .tags || category == .recentlyDeleted || category == .archived {
+            reactionsContent
+        } else if category == .comments {
+            commentsContent
+        } else if category == .moments || category == .reels {
+            momentsContent
+        } else {
+            eventsContent
+        }
+    }
+
+    @ViewBuilder
+    private func errorStateView(errorMessage: String) -> some View {
+        let isOffline = errorMessage.localizedCaseInsensitiveContains("offline")
+            || errorMessage.localizedCaseInsensitiveContains("internet")
+            || errorMessage.localizedCaseInsensitiveContains("network")
+            || errorMessage.localizedCaseInsensitiveContains("connection")
+        let errorIcon = isOffline ? "📡" : "⚠️"
+        let titleKey = isOffline
+            ? "userActivity.error.offline.title"
+            : "userActivity.error.generic.title"
+        let subtitleKey = isOffline
+            ? "userActivity.error.offline.subtitle"
+            : "userActivity.error.generic.subtitle"
+
+        VStack(spacing: 16) {
+            Text(errorIcon)
+                .font(.system(size: 48))
+
+            VStack(spacing: 6) {
+                Text(NSLocalizedString(titleKey, comment: "Error title"))
+                    .font(.custom("Poppins-SemiBold", size: 16))
+                    .foregroundColor(colorScheme == .dark ? .white : .black)
+                    .multilineTextAlignment(.center)
+
+                Text(NSLocalizedString(subtitleKey, comment: "Error subtitle"))
+                    .font(.custom("Poppins-Regular", size: 13))
+                    .foregroundColor(.secondary)
+                    .multilineTextAlignment(.center)
+            }
+
+            Button(action: { viewModel.reload() }) {
+                Text(NSLocalizedString("userActivity.simple.retry", comment: "Retry activity load"))
+                    .font(.custom("Poppins-SemiBold", size: 14))
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 24)
+                    .padding(.vertical, 10)
+                    .background(Capsule().fill(Color(hex: "007AFF")))
+            }
+        }
+        .padding(.horizontal, 32)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    @ToolbarContentBuilder
+    private var navigationToolbar: some ToolbarContent {
+        if let title = selectionToolbarButtonTitle {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Button(title) {
+                    handleSelectionToolbarTap()
+                }
+                .font(.custom("Poppins-SemiBold", size: 14))
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var selectionBars: some View {
+        if (category == .reactions || category == .tags), isSelectionMode {
+            reactionsSelectionBar
+        } else if category == .comments, isSelectionMode {
+            commentsSelectionBar
+        } else if category == .stickerReplies, isSelectionMode {
+            eventsSelectionBar
+        } else if category == .recentlyDeleted, isSelectionMode {
+            recentlyDeletedSelectionBar
+        } else if category == .archived, isSelectionMode {
+            archivedSelectionBar
+        }
+    }
+
+    private struct IdentifiableString: Identifiable {
+        let id: String
+    }
+
+    private var reactionsContent: some View {
+        VStack(spacing: 0) {
+            reactionsFiltersBar
+
+            if reactionsDateFilter == .custom {
+                customDateRangeControls
+            }
+
+            reactionsGrid
+        }
+    }
+
+    private var recentlyDeletedStoriesContent: some View {
+        VStack(spacing: 0) {
+            reactionsFiltersBar
+
+            if reactionsDateFilter == .custom {
+                customDateRangeControls
+            }
+
+            recentlyDeletedStoriesGrid
+        }
+    }
+
+    private var commentsContent: some View {
+        VStack(spacing: 0) {
+            reactionsFiltersBar
+
+            if reactionsDateFilter == .custom {
+                customDateRangeControls
+            }
+
+            commentsList
+        }
+    }
+
+    private var momentsContent: some View {
+        VStack(spacing: 0) {
+            // Keep the same filters bar for consistency (Sort, and eventually Date)
+            reactionsFiltersBar
+
+            if reactionsDateFilter == .custom {
+                customDateRangeControls
+            }
+
+            momentsGrid
+        }
+    }
+
+    private var reactionsGrid: some View {
+        GeometryReader { geometry in
+            if filteredReactionItems.isEmpty {
+                emptyState(textKey: category.emptyKey)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+            } else {
+                let spacing: CGFloat = 2
+                let totalSpacing: CGFloat = spacing * 2
+                let side = floor((geometry.size.width - (sectionHorizontalPadding * 2) - totalSpacing) / 3)
+                let columns = [
+                    GridItem(.fixed(side), spacing: spacing),
+                    GridItem(.fixed(side), spacing: spacing),
+                    GridItem(.fixed(side), spacing: spacing)
+                ]
+
+                ScrollViewReader { proxy in
+                    ScrollView {
+                        LazyVGrid(columns: columns, spacing: spacing) {
+                            ForEach(Array(filteredReactionItems.enumerated()), id: \.element.id) { _, item in
+                                ActivityReactionMomentCard(
+                                    item: item,
+                                    size: side,
+                                    isSelectionMode: isSelectionMode,
+                                    isSelected: selectedReactionIds.contains(item.id)
+                                )
+                                .frame(width: side, height: side)
+                                .contentShape(RoundedRectangle(cornerRadius: 8))
+                                .id(item.id)
+                                .onTapGesture {
+                                    if longPressActivatedItemId == item.id {
+                                        longPressActivatedItemId = nil
+                                        return
+                                    }
+                                    if isSelectionMode {
+                                        toggleSelection(for: item.id)
+                                        return
+                                    }
+                                    guard item.canView, let moment = item.moment else { return }
+                                    selectedMomentForDetail = moment
+                                }
+                                .onLongPressGesture(minimumDuration: 0.3) {
+                                    guard category == .archived || category == .recentlyDeleted else { return }
+                                    longPressActivatedItemId = item.id
+                                    if !isSelectionMode {
+                                        withAnimation(.spring(response: 0.28, dampingFraction: 0.84)) {
+                                            isSelectionMode = true
+                                        }
+                                    }
+                                    selectedReactionIds.insert(item.id)
+                                }
+                            }
+                        }
+                        .padding(.horizontal, sectionHorizontalPadding)
+                        .padding(.top, 8)
+                        .padding(.bottom, isSelectionMode ? 88 : 12)
+                        .simultaneousGesture(
+                            recentlyDeletedDragSelectionGesture(
+                                items: filteredReactionItems.map(\.id),
+                                side: side,
+                                spacing: spacing,
+                                viewportHeight: geometry.size.height,
+                                scrollProxy: proxy
+                            )
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    private var recentlyDeletedStoriesGrid: some View {
+        GeometryReader { geometry in
+            if filteredDeletedStoryItems.isEmpty {
+                emptyState(textKey: category.emptyKey)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+            } else {
+                let spacing: CGFloat = 2
+                let totalSpacing: CGFloat = spacing * 2
+                let side = floor((geometry.size.width - (sectionHorizontalPadding * 2) - totalSpacing) / 3)
+                let columns = [
+                    GridItem(.fixed(side), spacing: spacing),
+                    GridItem(.fixed(side), spacing: spacing),
+                    GridItem(.fixed(side), spacing: spacing)
+                ]
+
+                ScrollViewReader { proxy in
+                    ScrollView {
+                        LazyVGrid(columns: columns, spacing: spacing) {
+                            ForEach(Array(filteredDeletedStoryItems.enumerated()), id: \.element.id) { _, item in
+                                ActivityDeletedStoryCard(
+                                    item: item,
+                                    size: side,
+                                    isSelectionMode: isSelectionMode,
+                                    isSelected: selectedReactionIds.contains(item.id)
+                                )
+                                .frame(width: side, height: side)
+                                .contentShape(RoundedRectangle(cornerRadius: 8))
+                                .id(item.id)
+                                .onTapGesture {
+                                    if longPressActivatedItemId == item.id {
+                                        longPressActivatedItemId = nil
+                                        return
+                                    }
+                                    if isSelectionMode {
+                                        toggleSelection(for: item.id)
+                                    }
+                                }
+                                .onLongPressGesture(minimumDuration: 0.3) {
+                                    longPressActivatedItemId = item.id
+                                    if !isSelectionMode {
+                                        withAnimation(.spring(response: 0.28, dampingFraction: 0.84)) {
+                                            isSelectionMode = true
+                                        }
+                                    }
+                                    selectedReactionIds.insert(item.id)
+                                }
+                            }
+                        }
+                        .padding(.horizontal, sectionHorizontalPadding)
+                        .padding(.top, 8)
+                        .padding(.bottom, isSelectionMode ? 88 : 12)
+                        .simultaneousGesture(
+                            recentlyDeletedDragSelectionGesture(
+                                items: filteredDeletedStoryItems.map(\.id),
+                                side: side,
+                                spacing: spacing,
+                                viewportHeight: geometry.size.height,
+                                scrollProxy: proxy
+                            )
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    private var momentsGrid: some View {
+        GeometryReader { geometry in
+            if filteredMoments.isEmpty {
+                emptyState(textKey: category.emptyKey)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+            } else {
+                let spacing: CGFloat = 2
+                let totalSpacing: CGFloat = spacing * 2
+                let side = floor((geometry.size.width - (sectionHorizontalPadding * 2) - totalSpacing) / 3)
+                let columns = [
+                    GridItem(.fixed(side), spacing: spacing),
+                    GridItem(.fixed(side), spacing: spacing),
+                    GridItem(.fixed(side), spacing: spacing)
+                ]
+
+                ScrollView {
+                    LazyVGrid(columns: columns, spacing: spacing) {
+                        ForEach(filteredMoments) { moment in
+                            ScreenshotProtectedView(isProtected: (moment.audience?.lowercased() ?? "") != "everyone") {
+                                ModernMomentThumbnail(
+                                    moment: moment,
+                                    size: side,
+                                    customListNamesById: viewModel.customListNamesById,
+                                    onTap: {
+                                        selectedMomentForDetail = moment
+                                    }
+                                )
+                                .frame(width: side, height: side)
+                            }
+                        }
+                    }
+                    .padding(.horizontal, sectionHorizontalPadding)
+                    .padding(.top, 8)
+                    .padding(.bottom, 20)
+                }
+            }
+        }
+    }
+
+    private var commentsList: some View {
+        Group {
+            if filteredCommentItems.isEmpty {
+                emptyState(textKey: category.emptyKey)
+            } else {
+                ScrollView {
+                    VStack(spacing: 10) {
+                        ForEach(filteredCommentItems) { item in
+                            ActivityCommentItemRow(
+                                item: item,
+                                isSelectionMode: isSelectionMode,
+                                isSelected: selectedCommentIds.contains(item.id),
+                                onOpenMoment: {
+                                    guard item.canView, let moment = item.moment else { return }
+                                    selectedMomentForDetail = moment
+                                },
+                                onOpenAuthorAvatar: { hasStory in
+                                    openAuthor(authorId: item.authorId, hasStory: hasStory)
+                                },
+                                onOpenAuthorProfile: {
+                                    openAuthor(authorId: item.authorId, hasStory: false)
+                                },
+                                onToggleSelection: {
+                                    toggleCommentSelection(for: item.id)
+                                }
+                            )
+                        }
+                    }
+                    .padding(.horizontal, sectionHorizontalPadding)
+                    .padding(.top, 10)
+                    .padding(.bottom, isSelectionMode ? 88 : 16)
+                }
+            }
+        }
+    }
+
+    private var filteredReactionItems: [ActivityReactionItem] {
+        let filteredByDate = viewModel.reactionItems.filter { item in
+            switch reactionsDateFilter {
+            case .all:
+                return true
+            case .week:
+                let from = Calendar.current.date(byAdding: .day, value: -7, to: Date()) ?? Date.distantPast
+                return item.reactedAt >= from
+            case .month:
+                let from = Calendar.current.date(byAdding: .month, value: -1, to: Date()) ?? Date.distantPast
+                return item.reactedAt >= from
+            case .year:
+                let from = Calendar.current.date(byAdding: .year, value: -1, to: Date()) ?? Date.distantPast
+                return item.reactedAt >= from
+            case .custom:
+                let calendar = Calendar.current
+                let start = calendar.startOfDay(for: min(customDateFrom, customDateTo))
+                let endBase = max(customDateFrom, customDateTo)
+                let end = calendar.date(bySettingHour: 23, minute: 59, second: 59, of: endBase) ?? endBase
+                return item.reactedAt >= start && item.reactedAt <= end
+            }
+        }
+
+        let authorFiltered: [ActivityReactionItem]
+        if supportsAuthorFilter {
+            authorFiltered = filteredByDate.filter { item in
+                guard let selectedAuthorId, !selectedAuthorId.isEmpty else { return true }
+                return item.authorId == selectedAuthorId
+            }
+        } else {
+            authorFiltered = filteredByDate
+        }
+
+        switch reactionsSort {
+        case .newest:
+            return authorFiltered.sorted { $0.reactedAt > $1.reactedAt }
+        case .oldest:
+            return authorFiltered.sorted { $0.reactedAt < $1.reactedAt }
+        }
+    }
+
+    private var filteredDeletedStoryItems: [ActivityDeletedStoryItem] {
+        let filteredByDate = viewModel.deletedStoryItems.filter { item in
+            switch reactionsDateFilter {
+            case .all:
+                return true
+            case .week:
+                let from = Calendar.current.date(byAdding: .day, value: -7, to: Date()) ?? Date.distantPast
+                return item.deletedAt >= from
+            case .month:
+                let from = Calendar.current.date(byAdding: .month, value: -1, to: Date()) ?? Date.distantPast
+                return item.deletedAt >= from
+            case .year:
+                let from = Calendar.current.date(byAdding: .year, value: -1, to: Date()) ?? Date.distantPast
+                return item.deletedAt >= from
+            case .custom:
+                let calendar = Calendar.current
+                let start = calendar.startOfDay(for: min(customDateFrom, customDateTo))
+                let endBase = max(customDateFrom, customDateTo)
+                let end = calendar.date(bySettingHour: 23, minute: 59, second: 59, of: endBase) ?? endBase
+                return item.deletedAt >= start && item.deletedAt <= end
+            }
+        }
+
+        switch reactionsSort {
+        case .newest:
+            return filteredByDate.sorted { $0.deletedAt > $1.deletedAt }
+        case .oldest:
+            return filteredByDate.sorted { $0.deletedAt < $1.deletedAt }
+        }
+    }
+
+    private var filteredCommentItems: [ActivityCommentItem] {
+        let filteredByDate = viewModel.commentItems.filter { item in
+            switch reactionsDateFilter {
+            case .all:
+                return true
+            case .week:
+                let from = Calendar.current.date(byAdding: .day, value: -7, to: Date()) ?? Date.distantPast
+                return item.commentedAt >= from
+            case .month:
+                let from = Calendar.current.date(byAdding: .month, value: -1, to: Date()) ?? Date.distantPast
+                return item.commentedAt >= from
+            case .year:
+                let from = Calendar.current.date(byAdding: .year, value: -1, to: Date()) ?? Date.distantPast
+                return item.commentedAt >= from
+            case .custom:
+                let calendar = Calendar.current
+                let start = calendar.startOfDay(for: min(customDateFrom, customDateTo))
+                let endBase = max(customDateFrom, customDateTo)
+                let end = calendar.date(bySettingHour: 23, minute: 59, second: 59, of: endBase) ?? endBase
+                return item.commentedAt >= start && item.commentedAt <= end
+            }
+        }
+
+        let authorFiltered = filteredByDate.filter { item in
+            guard let selectedAuthorId, !selectedAuthorId.isEmpty else { return true }
+            return item.authorId == selectedAuthorId
+        }
+
+        switch reactionsSort {
+        case .newest:
+            return authorFiltered.sorted { $0.commentedAt > $1.commentedAt }
+        case .oldest:
+            return authorFiltered.sorted { $0.commentedAt < $1.commentedAt }
+        }
+    }
+
+    private var filteredMoments: [Moment] {
+        let filteredByDate = viewModel.moments.filter { moment in
+            let date = moment.timestamp
+            switch reactionsDateFilter {
+            case .all:
+                return true
+            case .week:
+                let from = Calendar.current.date(byAdding: .day, value: -7, to: Date()) ?? Date.distantPast
+                return date >= from
+            case .month:
+                let from = Calendar.current.date(byAdding: .month, value: -1, to: Date()) ?? Date.distantPast
+                return date >= from
+            case .year:
+                let from = Calendar.current.date(byAdding: .year, value: -1, to: Date()) ?? Date.distantPast
+                return date >= from
+            case .custom:
+                let calendar = Calendar.current
+                let start = calendar.startOfDay(for: min(customDateFrom, customDateTo))
+                let endBase = max(customDateFrom, customDateTo)
+                let end = calendar.date(bySettingHour: 23, minute: 59, second: 59, of: endBase) ?? endBase
+                return date >= start && date <= end
+            }
+        }
+
+        switch reactionsSort {
+        case .newest:
+            return filteredByDate.sorted { $0.timestamp > $1.timestamp }
+        case .oldest:
+            return filteredByDate.sorted { $0.timestamp < $1.timestamp }
+        }
+    }
+
+    private var availableAuthorIds: [String] {
+        let usernames = authorUsernameMap
+        let sourceAuthorIds: [String] = {
+            switch category {
+            case .reactions, .tags:
+                return viewModel.reactionItems.map { $0.authorId }
+            case .comments:
+                return viewModel.commentItems.map { $0.authorId }
+            case .stickerReplies:
+                return viewModel.events.compactMap { $0.targetAuthorId }
+            default:
+                return []
+            }
+        }()
+
+        let set = Set(
+            sourceAuthorIds
+                .filter { authorId in
+                    guard !authorId.isEmpty else { return false }
+                    guard let username = usernames[authorId] else { return false }
+                    return !username.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                }
+        )
+
+        return Array(set).sorted { lhs, rhs in
+            let lhsName = usernames[lhs] ?? ""
+            let rhsName = usernames[rhs] ?? ""
+            return lhsName.localizedCaseInsensitiveCompare(rhsName) == .orderedAscending
+        }
+    }
+
+    private var authorUsernameMap: [String: String] {
+        var map: [String: String] = [:]
+        switch category {
+        case .reactions, .tags:
+            for item in viewModel.reactionItems {
+                if map[item.authorId] == nil,
+                   let username = item.moment?.username,
+                   !username.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    map[item.authorId] = username
+                }
+            }
+        case .comments:
+            for item in viewModel.commentItems {
+                if map[item.authorId] == nil,
+                   let username = item.moment?.username,
+                   !username.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    map[item.authorId] = username
+                }
+            }
+        case .stickerReplies:
+            for item in viewModel.events {
+                guard let authorId = item.targetAuthorId, !authorId.isEmpty else { continue }
+                if map[authorId] == nil,
+                   let username = item.targetUsername,
+                   !username.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    map[authorId] = username
+                }
+            }
+        default:
+            break
+        }
+        return map
+    }
+
+    private var reactionsFiltersBar: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                Menu {
+                    ForEach(ReactionsSortOption.allCases) { option in
+                        Button {
+                            reactionsSort = option
+                        } label: {
+                            HStack {
+                                Text(NSLocalizedString(option.titleKey, comment: "Reactions sort option"))
+                                if reactionsSort == option {
+                                    Image(systemName: "checkmark")
+                                }
+                            }
+                        }
+                    }
+                } label: {
+                    filterChip(
+                        title: NSLocalizedString("userActivity.simple.filters.sort", comment: "Sort filter title"),
+                        value: NSLocalizedString(reactionsSort.titleKey, comment: "Selected sort option")
+                    )
+                }
+
+                Menu {
+                    ForEach(ReactionsDateFilter.allCases) { option in
+                        Button {
+                            reactionsDateFilter = option
+                        } label: {
+                            HStack {
+                                Text(NSLocalizedString(option.titleKey, comment: "Reactions date filter option"))
+                                if reactionsDateFilter == option {
+                                    Image(systemName: "checkmark")
+                                }
+                            }
+                        }
+                    }
+                } label: {
+                    filterChip(
+                        title: NSLocalizedString("userActivity.simple.filters.date", comment: "Date filter title"),
+                        value: NSLocalizedString(reactionsDateFilter.titleKey, comment: "Selected date filter")
+                    )
+                }
+
+                if supportsAuthorFilter {
+                    Button {
+                        showingAuthorFilterSheet = true
+                    } label: {
+                        filterChip(
+                            title: NSLocalizedString("userActivity.simple.filters.author", comment: "Author filter title"),
+                            value: selectedAuthorLabel
+                        )
+                    }
+                }
+            }
+            .padding(.horizontal, sectionHorizontalPadding)
+            .padding(.top, 8)
+            .padding(.bottom, 6)
+        }
+    }
+
+    private var supportsAuthorFilter: Bool {
+        switch category {
+        case .reactions, .comments, .tags, .stickerReplies:
+            return true
+        default:
+            return false
+        }
+    }
+
+    private var selectedAuthorLabel: String {
+        guard let selectedAuthorId, !selectedAuthorId.isEmpty else {
+            return NSLocalizedString("userActivity.simple.filters.author", comment: "Author filter title")
+        }
+
+        if let username = authorUsernameMap[selectedAuthorId], !username.isEmpty {
+            return username
+        }
+        return NSLocalizedString("onlineStatus.unknown", comment: "Unknown")
+    }
+
+    private func filterChip(title: String, value: String) -> some View {
+        HStack(spacing: 6) {
+            Text(title)
+                .font(.custom("Poppins-Medium", size: 11))
+                .foregroundColor(.gray)
+            Text(value)
+                .font(.custom("Poppins-SemiBold", size: 12))
+                .foregroundColor(colorScheme == .dark ? .white : .black)
+                .lineLimit(1)
+            Image(systemName: "chevron.down")
+                .font(.system(size: 10, weight: .semibold))
+                .foregroundColor(.gray)
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 8)
+        .background(
+            Capsule()
+                .fill(Color(colorScheme == .dark ? .white : .black).opacity(0.07))
+                .overlay(
+                    Capsule()
+                        .stroke(Color.gray.opacity(0.22), lineWidth: 1)
+                )
+        )
+    }
+
+    private var customDateRangeControls: some View {
+        HStack(spacing: 8) {
+            DatePicker(
+                NSLocalizedString("userActivity.simple.filters.from", comment: "From date"),
+                selection: $customDateFrom,
+                displayedComponents: .date
+            )
+            .datePickerStyle(.compact)
+            .labelsHidden()
+            .padding(.horizontal, 10)
+            .padding(.vertical, 8)
+            .background(
+                Capsule()
+                    .fill(Color(colorScheme == .dark ? .white : .black).opacity(0.07))
+                    .overlay(
+                        Capsule()
+                            .stroke(Color.gray.opacity(0.22), lineWidth: 1)
+                    )
+            )
+
+            DatePicker(
+                NSLocalizedString("userActivity.simple.filters.to", comment: "To date"),
+                selection: $customDateTo,
+                displayedComponents: .date
+            )
+            .datePickerStyle(.compact)
+            .labelsHidden()
+            .padding(.horizontal, 10)
+            .padding(.vertical, 8)
+            .background(
+                Capsule()
+                    .fill(Color(colorScheme == .dark ? .white : .black).opacity(0.07))
+                    .overlay(
+                        Capsule()
+                            .stroke(Color.gray.opacity(0.22), lineWidth: 1)
+                    )
+            )
+        }
+        .padding(.horizontal, sectionHorizontalPadding)
+        .padding(.bottom, 6)
+    }
+
+    private var eventsContent: some View {
+        VStack(spacing: 0) {
+            reactionsFiltersBar
+
+            if reactionsDateFilter == .custom {
+                customDateRangeControls
+            }
+
+            if category == .echoes {
+                echoesSummaryHeader
+            }
+
+            eventsList
+        }
+    }
+
+    private var eventsList: some View {
+        Group {
+            if filteredEventItems.isEmpty {
+                emptyState(textKey: category.emptyKey)
+            } else {
+                ScrollView {
+                    VStack(spacing: 10) {
+                        ForEach(filteredEventItems) { item in
+                            Button {
+                                if isSelectionMode {
+                                    toggleEventSelection(for: item.id)
+                                }
+                            } label: {
+                                ActivityEventRow(
+                                    item: item,
+                                    isSelectionMode: isSelectionMode,
+                                    isSelected: selectedEventIds.contains(item.id),
+                                    onOpenTargetProfile: {
+                                        guard let authorId = item.targetAuthorId, !authorId.isEmpty else { return }
+                                        openAuthor(authorId: authorId, hasStory: false)
+                                    },
+                                    onRowTap: {
+                                        if isSelectionMode {
+                                            toggleEventSelection(for: item.id)
+                                        } else {
+                                            handleEventTap(item)
+                                        }
+                                    }
+                                )
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                    .padding(.horizontal, sectionHorizontalPadding)
+                    .padding(.top, 10)
+                    .padding(.bottom, isSelectionMode ? 88 : 20)
+                }
+            }
+        }
+    }
+
+    private var filteredEventItems: [ActivityEventItem] {
+        let filteredByDate = viewModel.events.filter { item in
+            switch reactionsDateFilter {
+            case .all:
+                return true
+            case .week:
+                let from = Calendar.current.date(byAdding: .day, value: -7, to: Date()) ?? Date.distantPast
+                return item.timestamp >= from
+            case .month:
+                let from = Calendar.current.date(byAdding: .month, value: -1, to: Date()) ?? Date.distantPast
+                return item.timestamp >= from
+            case .year:
+                let from = Calendar.current.date(byAdding: .year, value: -1, to: Date()) ?? Date.distantPast
+                return item.timestamp >= from
+            case .custom:
+                let calendar = Calendar.current
+                let start = calendar.startOfDay(for: min(customDateFrom, customDateTo))
+                let endBase = max(customDateFrom, customDateTo)
+                let end = calendar.date(bySettingHour: 23, minute: 59, second: 59, of: endBase) ?? endBase
+                return item.timestamp >= start && item.timestamp <= end
+            }
+        }
+
+        let authorFiltered = filteredByDate.filter { item in
+            guard let selectedAuthorId, !selectedAuthorId.isEmpty else { return true }
+            return item.targetAuthorId == selectedAuthorId
+        }
+
+        switch reactionsSort {
+        case .newest:
+            return authorFiltered.sorted { $0.timestamp > $1.timestamp }
+        case .oldest:
+            return authorFiltered.sorted { $0.timestamp < $1.timestamp }
+        }
+    }
+
+    private var echoesSummaryHeader: some View {
+        HStack(spacing: 10) {
+            echoesInfoChip(icon: "waveform.path.ecg", text: "\(viewModel.events.count) Echoes")
+            echoesInfoChip(icon: "dot.radiowaves.left.and.right", text: "\(activeEchoesCount) active")
+        }
+        .padding(.horizontal, sectionHorizontalPadding)
+        .padding(.top, 10)
+        .padding(.bottom, 2)
+    }
+
+    private var activeEchoesCount: Int {
+        viewModel.events.filter { $0.echoStatusRaw?.lowercased() == EchoStatus.active.rawValue }.count
+    }
+
+    private func echoesInfoChip(icon: String, text: String) -> some View {
+        HStack(spacing: 6) {
+            Image(systemName: icon)
+                .font(.system(size: 11, weight: .semibold))
+            Text(text)
+                .font(.custom("Poppins-SemiBold", size: 11))
+        }
+        .foregroundColor(.secondary)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 8)
+        .background(
+            Capsule()
+                .fill(Color(colorScheme == .dark ? .white : .black).opacity(0.06))
+        )
+    }
+
+    private func handleEventTap(_ item: ActivityEventItem) {
+        switch item.kind {
+        case "echo":
+            if let echoId = item.sourceId {
+                selectedEchoId = echoId
+            }
+        case "follower", "visit":
+            if let actorId = item.actorId {
+                selectedProfileUserIdForSheet = actorId
+            }
+        case "sticker_reply", "poll", "question":
+             // Handle if needed, or default to profile
+             if let actorId = item.actorId {
+                 selectedProfileUserIdForSheet = actorId
+             }
+        default:
+            break
+        }
+    }
+
+    private func emptyState(textKey: String) -> some View {
+        VStack(spacing: 10) {
+            Image(systemName: "tray")
+                .font(.system(size: 28, weight: .regular))
+                .foregroundColor(.gray.opacity(0.7))
+
+            Text(NSLocalizedString(textKey, comment: "Empty state text"))
+                .font(.custom("Poppins-Regular", size: 13))
+                .foregroundColor(.gray)
+        }
+    }
+
+    private var archivedSelectionBar: some View {
+        let selectedCount = selectedReactionIds.count
+        let countText = String(format: NSLocalizedString("userActivity.simple.reactions.selectedCount", comment: "Selected items count"), selectedCount)
+
+        return VStack(spacing: 10) {
+            Divider()
+                .opacity(0.15)
+
+            HStack(spacing: 10) {
+                Text("\(selectedCount)")
+                    .font(.custom("Poppins-Bold", size: 14))
+                    .foregroundColor(colorScheme == .dark ? .white : .black)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 6)
+                    .background(Capsule().fill(Color(colorScheme == .dark ? .white : .black).opacity(0.08)))
+
+                Text(countText)
+                    .font(.custom("Poppins-Regular", size: 12))
+                    .foregroundColor(.gray)
+
+                Spacer()
+
+                HStack(spacing: 12) {
+                    Button {
+                        pendingActivitySelectionConfirmation = .archivedRestore
+                    } label: {
+                        Text(NSLocalizedString("userActivity.event.archived.action.restore", comment: "Restore action"))
+                            .font(.custom("Poppins-SemiBold", size: 13))
+                            .foregroundColor(Color(hex: "4F46E5"))
+                    }
+                    .disabled(selectedCount == 0 || viewModel.isLoading)
+                }
+            }
+            .padding(.horizontal, sectionHorizontalPadding)
+            .padding(.bottom, 8)
+        }
+        .background(.ultraThinMaterial)
+        .transition(.move(edge: .bottom).combined(with: .opacity))
+    }
+
+    private var recentlyDeletedSelectionBar: some View {
+        let selectedCount = selectedReactionIds.count
+        let countText = String(format: NSLocalizedString("userActivity.simple.reactions.selectedCount", comment: "Selected items count"), selectedCount)
+
+        return VStack(spacing: 10) {
+            Divider()
+                .opacity(0.15)
+
+            HStack(spacing: 10) {
+                Text("\(selectedCount)")
+                    .font(.custom("Poppins-Bold", size: 14))
+                    .foregroundColor(colorScheme == .dark ? .white : .black)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 6)
+                    .background(Capsule().fill(Color(colorScheme == .dark ? .white : .black).opacity(0.08)))
+
+                Text(countText)
+                    .font(.custom("Poppins-Regular", size: 12))
+                    .foregroundColor(.gray)
+
+                Spacer()
+
+                HStack(spacing: 12) {
+                    Button {
+                        toggleAllVisibleRecentlyDeletedSelection()
+                    } label: {
+                        Text(NSLocalizedString(allVisibleRecentlyDeletedSelected ? "common.clear" : "common.selectAll", comment: "Select all visible deleted content"))
+                            .font(.custom("Poppins-SemiBold", size: 13))
+                            .foregroundColor(colorScheme == .dark ? .white.opacity(0.88) : .black.opacity(0.78))
+                    }
+                    .disabled(visibleRecentlyDeletedIds.isEmpty || viewModel.isLoading)
+
+                    Button {
+                        pendingRecentlyDeletedConfirmation = .restore
+                    } label: {
+                        Text(NSLocalizedString("userActivity.simple.recentlyDeleted.restore.single", comment: "Restore action"))
+                            .font(.custom("Poppins-SemiBold", size: 13))
+                            .foregroundColor(Color(hex: "4F46E5"))
+                    }
+                    .disabled(selectedCount == 0 || viewModel.isLoading)
+
+                    Button {
+                        pendingRecentlyDeletedConfirmation = .permanentlyDelete
+                    } label: {
+                        Text(NSLocalizedString("userActivity.simple.recentlyDeleted.delete.single", comment: "Delete action"))
+                            .font(.custom("Poppins-SemiBold", size: 13))
+                            .foregroundColor(.red)
+                    }
+                    .disabled(selectedCount == 0 || viewModel.isLoading)
+                }
+            }
+            .padding(.horizontal, sectionHorizontalPadding)
+            .padding(.bottom, 8)
+        }
+        .background(.ultraThinMaterial)
+        .transition(.move(edge: .bottom).combined(with: .opacity))
+    }
+
+    private var reactionsSelectionBar: some View {
+        let selectedCount = selectedReactionIds.count
+        let isTagsCategory = (category == .tags)
+        let countText = isTagsCategory
+            ? String(format: NSLocalizedString("userActivity.simple.tags.selectedCount", comment: "Selected tagged moments count"), selectedCount)
+            : String(format: NSLocalizedString("userActivity.simple.reactions.selectedCount", comment: "Selected reactions count"), selectedCount)
+
+        return VStack(spacing: 10) {
+            Divider()
+                .opacity(0.15)
+
+            HStack(spacing: 10) {
+                Text("\(selectedCount)")
+                    .font(.custom("Poppins-Bold", size: 14))
+                    .foregroundColor(colorScheme == .dark ? .white : .black)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 6)
+                    .background(Capsule().fill(Color(colorScheme == .dark ? .white : .black).opacity(0.08)))
+
+                Text(countText)
+                    .font(.custom("Poppins-Regular", size: 12))
+                    .foregroundColor(.gray)
+
+                Spacer()
+
+                Button {
+                    pendingActivitySelectionConfirmation = isTagsCategory ? .tagsRemove : .reactionsDelete
+                } label: {
+                    HStack(spacing: 6) {
+                        if isTagsCategory ? isRemovingSelectedTags : isDeletingSelectedReactions {
+                            ProgressView()
+                                .tint(.white)
+                                .scaleEffect(0.8)
+                        } else {
+                            Image(systemName: isTagsCategory ? "tag.slash.fill" : "heart.slash.fill")
+                                .font(.system(size: 12, weight: .semibold))
+                        }
+
+                        Text(isTagsCategory
+                             ? (selectedCount == 1
+                                ? NSLocalizedString("userActivity.simple.tags.remove.single", comment: "Remove one tag")
+                                : NSLocalizedString("userActivity.simple.tags.remove.multiple", comment: "Remove multiple tags"))
+                             : (selectedCount == 1
+                                ? NSLocalizedString("userActivity.simple.reactions.delete.single", comment: "Delete one reaction")
+                                : NSLocalizedString("userActivity.simple.reactions.delete.multiple", comment: "Delete multiple reactions")))
+                            .font(.custom("Poppins-SemiBold", size: 13))
+                    }
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 10)
+                    .background(Capsule().fill(Color.red.opacity(selectedCount > 0 ? 0.9 : 0.45)))
+                }
+                .disabled(selectedCount == 0 || (isTagsCategory ? isRemovingSelectedTags : isDeletingSelectedReactions))
+                .buttonStyle(.plain)
+            }
+            .padding(.horizontal, sectionHorizontalPadding)
+            .padding(.bottom, 8)
+        }
+        .background(.ultraThinMaterial)
+    }
+
+    private var commentsSelectionBar: some View {
+        let selectedCount = selectedCommentIds.count
+
+        return VStack(spacing: 10) {
+            Divider()
+                .opacity(0.15)
+
+            HStack(spacing: 10) {
+                Text("\(selectedCount)")
+                    .font(.custom("Poppins-Bold", size: 14))
+                    .foregroundColor(colorScheme == .dark ? .white : .black)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 6)
+                    .background(Capsule().fill(Color(colorScheme == .dark ? .white : .black).opacity(0.08)))
+
+                Text(String(format: NSLocalizedString("userActivity.simple.comments.selectedCount", comment: "Selected comments count"), selectedCount))
+                    .font(.custom("Poppins-Regular", size: 12))
+                    .foregroundColor(.gray)
+
+                Spacer()
+
+                Button {
+                    pendingActivitySelectionConfirmation = .commentsDelete
+                } label: {
+                    HStack(spacing: 6) {
+                        if isDeletingSelectedComments {
+                            ProgressView()
+                                .tint(.white)
+                                .scaleEffect(0.8)
+                        } else {
+                            Image(systemName: "trash.fill")
+                                .font(.system(size: 12, weight: .semibold))
+                        }
+
+                        Text(selectedCount == 1
+                             ? NSLocalizedString("userActivity.simple.comments.delete.single", comment: "Delete one comment")
+                             : NSLocalizedString("userActivity.simple.comments.delete.multiple", comment: "Delete multiple comments"))
+                            .font(.custom("Poppins-SemiBold", size: 13))
+                    }
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 10)
+                    .background(Capsule().fill(Color.red.opacity(selectedCount > 0 ? 0.9 : 0.45)))
+                }
+                .disabled(selectedCount == 0 || isDeletingSelectedComments)
+                .buttonStyle(.plain)
+            }
+            .padding(.horizontal, sectionHorizontalPadding)
+            .padding(.bottom, 8)
+        }
+        .background(.ultraThinMaterial)
+    }
+
+    private var eventsSelectionBar: some View {
+        let selectedCount = selectedEventIds.count
+
+        return VStack(spacing: 10) {
+            Divider()
+                .opacity(0.15)
+
+            HStack(spacing: 10) {
+                Text("\(selectedCount)")
+                    .font(.custom("Poppins-Bold", size: 14))
+                    .foregroundColor(colorScheme == .dark ? .white : .black)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 6)
+                    .background(Capsule().fill(Color(colorScheme == .dark ? .white : .black).opacity(0.08)))
+
+                Text(String(format: NSLocalizedString("userActivity.simple.stickers.selectedCount", comment: "Selected sticker replies count"), selectedCount))
+                    .font(.custom("Poppins-Regular", size: 12))
+                    .foregroundColor(.gray)
+
+                Spacer()
+
+                Button {
+                    pendingActivitySelectionConfirmation = .stickerRepliesDelete
+                } label: {
+                    HStack(spacing: 6) {
+                        if isDeletingSelectedEvents {
+                            ProgressView()
+                                .tint(.white)
+                                .scaleEffect(0.8)
+                        } else {
+                            Image(systemName: "trash.fill")
+                                .font(.system(size: 12, weight: .semibold))
+                        }
+
+                        Text(selectedCount == 1
+                             ? NSLocalizedString("userActivity.simple.stickers.delete.single", comment: "Delete one sticker reply")
+                             : NSLocalizedString("userActivity.simple.stickers.delete.multiple", comment: "Delete multiple sticker replies"))
+                            .font(.custom("Poppins-SemiBold", size: 13))
+                    }
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 10)
+                    .background(Capsule().fill(Color.red.opacity(selectedCount > 0 ? 0.9 : 0.45)))
+                }
+                .disabled(selectedCount == 0 || isDeletingSelectedEvents)
+                .buttonStyle(.plain)
+            }
+            .padding(.horizontal, sectionHorizontalPadding)
+            .padding(.bottom, 8)
+        }
+        .background(.ultraThinMaterial)
+    }
+
+    private func toggleSelection(for reactionId: String) {
+        if selectedReactionIds.contains(reactionId) {
+            selectedReactionIds.remove(reactionId)
+        } else {
+            selectedReactionIds.insert(reactionId)
+        }
+    }
+
+    private func recentlyDeletedDragSelectionGesture(
+        items: [String],
+        side: CGFloat,
+        spacing: CGFloat,
+        viewportHeight: CGFloat,
+        scrollProxy: ScrollViewProxy
+    ) -> some Gesture {
+        DragGesture(minimumDistance: 8, coordinateSpace: .local)
+            .onChanged { value in
+                guard category == .recentlyDeleted, isSelectionMode else { return }
+                updateRecentlyDeletedAutoScroll(
+                    for: value.location.y,
+                    viewportHeight: viewportHeight,
+                    items: items,
+                    scrollProxy: scrollProxy
+                )
+                guard let id = recentlyDeletedItemId(
+                    at: value.location,
+                    items: items,
+                    side: side,
+                    spacing: spacing
+                ) else { return }
+                recentlyDeletedDragCurrentId = id
+                applyRecentlyDeletedDragSelection(to: id)
+            }
+            .onEnded { _ in
+                stopRecentlyDeletedAutoScroll()
+            }
+    }
+
+    private func recentlyDeletedItemId(
+        at location: CGPoint,
+        items: [String],
+        side: CGFloat,
+        spacing: CGFloat
+    ) -> String? {
+        let x = location.x - sectionHorizontalPadding
+        let y = location.y - 8
+        guard x >= 0, y >= 0 else { return nil }
+
+        let columnWidth = side + spacing
+        let rowHeight = side + spacing
+        guard columnWidth > 0, rowHeight > 0 else { return nil }
+
+        let column = Int(x / columnWidth)
+        let row = Int(y / rowHeight)
+        guard (0..<3).contains(column) else { return nil }
+
+        let columnRemainder = x.truncatingRemainder(dividingBy: columnWidth)
+        let rowRemainder = y.truncatingRemainder(dividingBy: rowHeight)
+        guard columnRemainder <= side, rowRemainder <= side else { return nil }
+
+        let index = row * 3 + column
+        guard items.indices.contains(index) else { return nil }
+        return items[index]
+    }
+
+    private func applyRecentlyDeletedDragSelection(to id: String) {
+        if gridSelectionDragMode == nil {
+            gridSelectionDragMode = selectedReactionIds.contains(id) ? .deselecting : .selecting
+        }
+
+        guard !gridSelectionDragTouchedIds.contains(id) else { return }
+        gridSelectionDragTouchedIds.insert(id)
+
+        switch gridSelectionDragMode {
+        case .selecting:
+            selectedReactionIds.insert(id)
+        case .deselecting:
+            selectedReactionIds.remove(id)
+        case .none:
+            break
+        }
+    }
+
+    private func updateRecentlyDeletedAutoScroll(
+        for locationY: CGFloat,
+        viewportHeight: CGFloat,
+        items: [String],
+        scrollProxy: ScrollViewProxy
+    ) {
+        let edgeThreshold: CGFloat = 72
+        let direction: RecentlyDeletedAutoScrollDirection?
+        if locationY <= edgeThreshold {
+            direction = .up
+        } else if locationY >= (viewportHeight - edgeThreshold) {
+            direction = .down
+        } else {
+            direction = nil
+        }
+
+        guard direction != recentlyDeletedAutoScrollDirection else { return }
+        if let direction {
+            startRecentlyDeletedAutoScroll(direction: direction, items: items, scrollProxy: scrollProxy)
+        } else {
+            stopRecentlyDeletedAutoScroll()
+        }
+    }
+
+    private func startRecentlyDeletedAutoScroll(
+        direction: RecentlyDeletedAutoScrollDirection,
+        items: [String],
+        scrollProxy: ScrollViewProxy
+    ) {
+        stopRecentlyDeletedAutoScroll(resetSelectionState: false)
+        recentlyDeletedAutoScrollDirection = direction
+
+        recentlyDeletedAutoScrollTask = Task {
+            while !Task.isCancelled {
+                try? await Task.sleep(nanoseconds: 140_000_000)
+                await MainActor.run {
+                    advanceRecentlyDeletedAutoScroll(direction: direction, items: items, scrollProxy: scrollProxy)
+                }
+            }
+        }
+    }
+
+    private func advanceRecentlyDeletedAutoScroll(
+        direction: RecentlyDeletedAutoScrollDirection,
+        items: [String],
+        scrollProxy: ScrollViewProxy
+    ) {
+        guard category == .recentlyDeleted, isSelectionMode else {
+            stopRecentlyDeletedAutoScroll()
+            return
+        }
+        guard !items.isEmpty else { return }
+        guard let currentId = recentlyDeletedDragCurrentId,
+              let currentIndex = items.firstIndex(of: currentId) else { return }
+
+        let rowStep = 3
+        let proposedIndex = direction == .down ? currentIndex + rowStep : currentIndex - rowStep
+        let targetIndex = min(max(proposedIndex, 0), items.count - 1)
+        guard targetIndex != currentIndex else { return }
+
+        let lowerBound = min(currentIndex, targetIndex)
+        let upperBound = max(currentIndex, targetIndex)
+        for index in lowerBound...upperBound {
+            applyRecentlyDeletedDragSelection(to: items[index])
+        }
+
+        recentlyDeletedDragCurrentId = items[targetIndex]
+        withAnimation(.linear(duration: 0.12)) {
+            scrollProxy.scrollTo(
+                items[targetIndex],
+                anchor: direction == .down ? .bottom : .top
+            )
+        }
+    }
+
+    private func stopRecentlyDeletedAutoScroll(resetSelectionState: Bool = true) {
+        recentlyDeletedAutoScrollTask?.cancel()
+        recentlyDeletedAutoScrollTask = nil
+        recentlyDeletedAutoScrollDirection = nil
+        if resetSelectionState {
+            gridSelectionDragMode = nil
+            gridSelectionDragTouchedIds.removeAll()
+            recentlyDeletedDragCurrentId = nil
+        }
+    }
+
+    private var visibleRecentlyDeletedIds: [String] {
+        if category == .recentlyDeleted, recentlyDeletedKind == .stories {
+            return filteredDeletedStoryItems.map(\.id)
+        }
+        return filteredReactionItems.map(\.id)
+    }
+
+    private var allVisibleRecentlyDeletedSelected: Bool {
+        let ids = visibleRecentlyDeletedIds
+        return !ids.isEmpty && Set(ids).isSubset(of: selectedReactionIds)
+    }
+
+    private func toggleAllVisibleRecentlyDeletedSelection() {
+        let ids = visibleRecentlyDeletedIds
+        guard !ids.isEmpty else { return }
+
+        if allVisibleRecentlyDeletedSelected {
+            selectedReactionIds.subtract(ids)
+        } else {
+            selectedReactionIds.formUnion(ids)
+        }
+    }
+
+    private func toggleCommentSelection(for commentId: String) {
+        if selectedCommentIds.contains(commentId) {
+            selectedCommentIds.remove(commentId)
+        } else {
+            selectedCommentIds.insert(commentId)
+        }
+    }
+
+    private func toggleEventSelection(for eventId: String) {
+        if selectedEventIds.contains(eventId) {
+            selectedEventIds.remove(eventId)
+        } else {
+            selectedEventIds.insert(eventId)
+        }
+    }
+
+    private func recentlyDeletedConfirmationAlert(for action: RecentlyDeletedConfirmationAction) -> Alert {
+        switch action {
+        case .restore:
+            return Alert(
+                title: Text(NSLocalizedString("userActivity.simple.recentlyDeleted.confirm.restore.title", comment: "Restore recently deleted confirmation title")),
+                message: Text(NSLocalizedString("userActivity.simple.recentlyDeleted.confirm.restore.message", comment: "Restore recently deleted confirmation message")),
+                primaryButton: .default(
+                    Text(NSLocalizedString("userActivity.simple.recentlyDeleted.restore.single", comment: "Restore action")),
+                    action: {
+                        Task { await performRecentlyDeletedRestore() }
+                    }
+                ),
+                secondaryButton: .cancel(Text(NSLocalizedString("common.cancel", comment: "Cancel")))
+            )
+        case .permanentlyDelete:
+            return Alert(
+                title: Text(NSLocalizedString("userActivity.simple.recentlyDeleted.confirm.delete.title", comment: "Delete recently deleted confirmation title")),
+                message: Text(NSLocalizedString("userActivity.simple.recentlyDeleted.confirm.delete.message", comment: "Delete recently deleted confirmation message")),
+                primaryButton: .destructive(
+                    Text(NSLocalizedString("userActivity.simple.recentlyDeleted.delete.single", comment: "Delete action")),
+                    action: {
+                        Task { await performRecentlyDeletedPermanentDelete() }
+                    }
+                ),
+                secondaryButton: .cancel(Text(NSLocalizedString("common.cancel", comment: "Cancel")))
+            )
+        }
+    }
+
+    private func selectionSuccessBanner(textKey: String) -> some View {
+        HStack(spacing: 10) {
+            Image(systemName: "checkmark.circle.fill")
+                .font(.system(size: 16, weight: .semibold))
+                .foregroundColor(Color(hex: "22C55E"))
+
+            Text(NSLocalizedString(textKey, comment: "Selection success banner"))
+                .font(.custom("Poppins-SemiBold", size: 13))
+                .foregroundColor(colorScheme == .dark ? .white : .black)
+                .multilineTextAlignment(.leading)
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 12)
+        .background(.ultraThinMaterial)
+        .clipShape(Capsule())
+        .overlay(
+            Capsule()
+                .stroke(Color.white.opacity(colorScheme == .dark ? 0.10 : 0.35), lineWidth: 0.8)
+        )
+        .shadow(color: Color.black.opacity(colorScheme == .dark ? 0.18 : 0.08), radius: 16, y: 6)
+    }
+
+    private func activitySelectionConfirmationAlert(for action: ActivitySelectionConfirmationAction) -> Alert {
+        switch action {
+        case .archivedRestore:
+            return Alert(
+                title: Text(NSLocalizedString("userActivity.event.archived.confirm.restore.title", comment: "Archived restore confirmation title")),
+                message: Text(NSLocalizedString("userActivity.event.archived.confirm.restore.message", comment: "Archived restore confirmation message")),
+                primaryButton: .default(
+                    Text(NSLocalizedString("userActivity.event.archived.action.restore", comment: "Restore action")),
+                    action: {
+                        Task { await performArchivedRestore() }
+                    }
+                ),
+                secondaryButton: .cancel(Text(NSLocalizedString("common.cancel", comment: "Cancel")))
+            )
+        case .reactionsDelete:
+            return Alert(
+                title: Text(NSLocalizedString("userActivity.simple.reactions.confirm.delete.title", comment: "Reactions delete confirmation title")),
+                message: Text(NSLocalizedString("userActivity.simple.reactions.confirm.delete.message", comment: "Reactions delete confirmation message")),
+                primaryButton: .destructive(
+                    Text(NSLocalizedString("userActivity.simple.reactions.delete.single", comment: "Delete reaction")),
+                    action: {
+                        Task { await deleteSelectedReactions() }
+                    }
+                ),
+                secondaryButton: .cancel(Text(NSLocalizedString("common.cancel", comment: "Cancel")))
+            )
+        case .tagsRemove:
+            return Alert(
+                title: Text(NSLocalizedString("userActivity.simple.tags.confirm.remove.title", comment: "Tags remove confirmation title")),
+                message: Text(NSLocalizedString("userActivity.simple.tags.confirm.remove.message", comment: "Tags remove confirmation message")),
+                primaryButton: .destructive(
+                    Text(NSLocalizedString("userActivity.simple.tags.remove.single", comment: "Remove tag")),
+                    action: {
+                        Task { await removeSelectedTags() }
+                    }
+                ),
+                secondaryButton: .cancel(Text(NSLocalizedString("common.cancel", comment: "Cancel")))
+            )
+        case .commentsDelete:
+            return Alert(
+                title: Text(NSLocalizedString("userActivity.simple.comments.confirm.delete.title", comment: "Comments delete confirmation title")),
+                message: Text(NSLocalizedString("userActivity.simple.comments.confirm.delete.message", comment: "Comments delete confirmation message")),
+                primaryButton: .destructive(
+                    Text(NSLocalizedString("userActivity.simple.comments.delete.single", comment: "Delete comment")),
+                    action: {
+                        Task { await deleteSelectedComments() }
+                    }
+                ),
+                secondaryButton: .cancel(Text(NSLocalizedString("common.cancel", comment: "Cancel")))
+            )
+        case .stickerRepliesDelete:
+            return Alert(
+                title: Text(NSLocalizedString("userActivity.simple.stickers.confirm.delete.title", comment: "Sticker replies delete confirmation title")),
+                message: Text(NSLocalizedString("userActivity.simple.stickers.confirm.delete.message", comment: "Sticker replies delete confirmation message")),
+                primaryButton: .destructive(
+                    Text(NSLocalizedString("userActivity.simple.stickers.delete.single", comment: "Delete sticker reply")),
+                    action: {
+                        Task { await deleteSelectedEvents() }
+                    }
+                ),
+                secondaryButton: .cancel(Text(NSLocalizedString("common.cancel", comment: "Cancel")))
+            )
+        }
+    }
+
+    private func performArchivedRestore() async {
+        let result = await viewModel.unarchiveSelection(withIds: selectedReactionIds)
+        await MainActor.run {
+            switch result {
+            case .success:
+                selectedReactionIds.removeAll()
+                isSelectionMode = false
+                showActivitySelectionSuccessBanner("userActivity.event.archived.success.restore")
+            case .failure(let error):
+                viewModel.errorMessage = error.localizedDescription
+            }
+        }
+    }
+
+    private func performRecentlyDeletedRestore() async {
+        let result = await viewModel.restoreSelection(withIds: selectedReactionIds)
+        await MainActor.run {
+            switch result {
+            case .success:
+                selectedReactionIds.removeAll()
+                isSelectionMode = false
+                showRecentlyDeletedSuccessBanner("userActivity.simple.recentlyDeleted.success.restore")
+            case .failure(let error):
+                viewModel.errorMessage = error.localizedDescription
+            }
+        }
+    }
+
+    private func performRecentlyDeletedPermanentDelete() async {
+        let result = await viewModel.permanentlyDeleteSelection(withIds: selectedReactionIds)
+        await MainActor.run {
+            switch result {
+            case .success:
+                selectedReactionIds.removeAll()
+                isSelectionMode = false
+                showRecentlyDeletedSuccessBanner("userActivity.simple.recentlyDeleted.success.delete")
+            case .failure(let error):
+                viewModel.errorMessage = error.localizedDescription
+            }
+        }
+    }
+
+    private func showRecentlyDeletedSuccessBanner(_ textKey: String) {
+        withAnimation(.spring(response: 0.32, dampingFraction: 0.84)) {
+            recentlyDeletedSuccessBannerKey = textKey
+        }
+
+        Task {
+            try? await Task.sleep(nanoseconds: 2_000_000_000)
+            await MainActor.run {
+                guard recentlyDeletedSuccessBannerKey == textKey else { return }
+                withAnimation(.easeInOut(duration: 0.22)) {
+                    recentlyDeletedSuccessBannerKey = nil
+                }
+            }
+        }
+    }
+
+    private func showActivitySelectionSuccessBanner(_ textKey: String) {
+        withAnimation(.spring(response: 0.32, dampingFraction: 0.84)) {
+            activitySelectionSuccessBannerKey = textKey
+        }
+
+        Task {
+            try? await Task.sleep(nanoseconds: 2_000_000_000)
+            await MainActor.run {
+                guard activitySelectionSuccessBannerKey == textKey else { return }
+                withAnimation(.easeInOut(duration: 0.22)) {
+                    activitySelectionSuccessBannerKey = nil
+                }
+            }
+        }
+    }
+
+    private func openAuthor(authorId: String, hasStory: Bool) {
+        guard !authorId.isEmpty else { return }
+        if hasStory {
+            storyRoute = IdentifiableString(id: authorId)
+        } else {
+            selectedProfileUserIdForSheet = authorId
+        }
+    }
+
+    private func deleteSelectedReactions() async {
+        guard !selectedReactionIds.isEmpty else { return }
+        isDeletingSelectedReactions = true
+        let idsToDelete = selectedReactionIds
+
+        let result = await viewModel.removeReactions(withIds: idsToDelete)
+
+        await MainActor.run {
+            isDeletingSelectedReactions = false
+            switch result {
+            case .success:
+                selectedReactionIds.removeAll()
+                isSelectionMode = false
+                showActivitySelectionSuccessBanner("userActivity.simple.reactions.success.delete")
+            case .failure(let error):
+                viewModel.errorMessage = error.localizedDescription
+            }
+        }
+    }
+
+    private func removeSelectedTags() async {
+        guard !selectedReactionIds.isEmpty else { return }
+        isRemovingSelectedTags = true
+        let idsToRemove = selectedReactionIds
+
+        let result = await viewModel.removeTags(withIds: idsToRemove)
+
+        await MainActor.run {
+            isRemovingSelectedTags = false
+            switch result {
+            case .success:
+                selectedReactionIds.removeAll()
+                isSelectionMode = false
+                showActivitySelectionSuccessBanner("userActivity.simple.tags.success.remove")
+            case .failure(let error):
+                viewModel.errorMessage = error.localizedDescription
+            }
+        }
+    }
+
+    private func deleteSelectedComments() async {
+        guard !selectedCommentIds.isEmpty else { return }
+        isDeletingSelectedComments = true
+        let idsToDelete = selectedCommentIds
+
+        let result = await viewModel.removeComments(withIds: idsToDelete)
+
+        await MainActor.run {
+            isDeletingSelectedComments = false
+            switch result {
+            case .success:
+                selectedCommentIds.removeAll()
+                isSelectionMode = false
+                showActivitySelectionSuccessBanner("userActivity.simple.comments.success.delete")
+            case .failure(let error):
+                viewModel.errorMessage = error.localizedDescription
+            }
+        }
+    }
+
+    private func deleteSelectedEvents() async {
+        guard !selectedEventIds.isEmpty else { return }
+        isDeletingSelectedEvents = true
+        let idsToDelete = selectedEventIds
+
+        let result = await viewModel.removeStickerReplies(withIds: idsToDelete)
+
+        await MainActor.run {
+            isDeletingSelectedEvents = false
+            switch result {
+            case .success:
+                selectedEventIds.removeAll()
+                isSelectionMode = false
+                showActivitySelectionSuccessBanner("userActivity.simple.stickers.success.delete")
+            case .failure(let error):
+                viewModel.errorMessage = error.localizedDescription
+            }
+        }
+    }
+}

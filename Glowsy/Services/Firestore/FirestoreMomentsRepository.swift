@@ -1,4 +1,5 @@
 import FirebaseAuth
+import FirebaseCore
 import FirebaseFirestore
 import Foundation
 
@@ -54,48 +55,57 @@ extension FirestoreService {
     }
 
     func permanentlyDeleteMoment(userId: String, momentId: String, completion: @escaping (Error?) -> Void) {
-        let recentlyDeletedRef = db.collection("users").document(userId).collection("recentlyDeleted").document(momentId)
+        guard Auth.auth().currentUser?.uid == userId else {
+            completion(NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: NSLocalizedString("messaging.error.notAuthenticated", comment: "Not authenticated")]))
+            return
+        }
 
-        recentlyDeletedRef.getDocument { [weak self] snapshot, error in
-            if let error = error {
-                completion(error)
-                return
-            }
-
-            guard let self = self else { return }
-
-            let data = snapshot?.data()
-            let imagePath = data?["imagePath"] as? String
-            let videoUrl = data?["videoUrl"] as? String
-
-            recentlyDeletedRef.delete { error in
-                if let error = error {
-                    completion(error)
-                    return
-                }
-
-                let storageService = StorageService()
-                if let imagePath = imagePath, !imagePath.isEmpty {
-                    storageService.deleteMedia(path: imagePath) { _ in }
-                }
-                if let videoUrl = videoUrl, !videoUrl.isEmpty {
-                    storageService.deleteMedia(path: videoUrl) { _ in }
-                }
-
+        Task {
+            do {
+                try await permanentlyDeleteRecentlyDeleted(ids: [momentId])
                 completion(nil)
+            } catch {
+                completion(error)
             }
         }
     }
 
     func permanentlyDeleteMoment(momentId: String, userId: String) async throws {
-        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
-            permanentlyDeleteMoment(userId: userId, momentId: momentId) { error in
-                if let error = error {
-                    continuation.resume(throwing: error)
-                } else {
-                    continuation.resume()
-                }
-            }
+        guard Auth.auth().currentUser?.uid == userId else {
+            throw NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: NSLocalizedString("messaging.error.notAuthenticated", comment: "Not authenticated")])
+        }
+
+        try await permanentlyDeleteRecentlyDeleted(ids: [momentId])
+    }
+
+    func permanentlyDeleteRecentlyDeleted(ids: [String]) async throws {
+        let cleanIds = Array(Set(ids.map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }.filter { !$0.isEmpty }))
+        guard !cleanIds.isEmpty else { return }
+        guard let currentUser = Auth.auth().currentUser else {
+            throw NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: NSLocalizedString("messaging.error.notAuthenticated", comment: "Not authenticated")])
+        }
+        guard let projectId = FirebaseApp.app()?.options.projectID, !projectId.isEmpty else {
+            throw NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "Missing Firebase project ID"])
+        }
+        guard let url = URL(string: "https://europe-southwest1-\(projectId).cloudfunctions.net/permanentlyDeleteRecentlyDeletedBatch") else {
+            throw NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "Invalid backend URL"])
+        }
+
+        let idToken = try await currentUser.getIDToken()
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.timeoutInterval = 60
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
+        request.httpBody = try JSONSerialization.data(withJSONObject: ["ids": cleanIds])
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+        guard let http = response as? HTTPURLResponse else {
+            throw NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "Invalid backend response"])
+        }
+        guard (200..<300).contains(http.statusCode) else {
+            let message = String(data: data, encoding: .utf8) ?? "Backend error \(http.statusCode)"
+            throw NSError(domain: "", code: http.statusCode, userInfo: [NSLocalizedDescriptionKey: message])
         }
     }
 

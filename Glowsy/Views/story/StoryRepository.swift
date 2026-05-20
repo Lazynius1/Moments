@@ -1,4 +1,5 @@
 import Foundation
+import FirebaseAuth
 import FirebaseFirestore
 import FirebaseStorage
 
@@ -174,33 +175,17 @@ final class StoryRepository {
     }
 
     func permanentlyDeleteStory(userId: String, storyId: String, completion: @escaping (Error?) -> Void) {
-        let recentlyDeletedRef = firestoreService.db.collection("users").document(userId).collection("recentlyDeleted").document(storyId)
+        guard Auth.auth().currentUser?.uid == userId else {
+            completion(NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: NSLocalizedString("messaging.error.notAuthenticated", comment: "Not authenticated")]))
+            return
+        }
 
-        recentlyDeletedRef.getDocument { [weak self] snapshot, error in
-            if let error {
-                completion(error)
-                return
-            }
-
-            guard let self, let data = snapshot?.data() else {
-                completion(NSError(domain: "", code: -404, userInfo: [NSLocalizedDescriptionKey: NSLocalizedString("errors.storyNotFound", comment: "Story not found")]))
-                return
-            }
-
-            let mediaItemData = data["mediaItem"] as? [String: Any]
-            let mediaUrl = mediaItemData?["url"] as? String
-
-            recentlyDeletedRef.delete { error in
-                if let error {
-                    completion(error)
-                    return
-                }
-
-                if let mediaUrl {
-                    self.deleteMediaFromStorage(mediaUrl: mediaUrl) { _ in }
-                }
-
+        Task {
+            do {
+                try await FirestoreService.shared.permanentlyDeleteRecentlyDeleted(ids: [storyId])
                 completion(nil)
+            } catch {
+                completion(error)
             }
         }
     }

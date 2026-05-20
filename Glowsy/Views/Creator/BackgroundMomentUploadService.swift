@@ -110,6 +110,21 @@ enum UploadStatus {
     }
 }
 
+enum MomentVideoUploadPreparationError: LocalizedError {
+    case compressedVideoTooLarge(size: Int64)
+
+    var errorDescription: String? {
+        switch self {
+        case .compressedVideoTooLarge(let size):
+            return String(
+                format: NSLocalizedString("momentVideo.fileTooLargeAfterCompression.message", comment: "Moment video remains too large after local compression"),
+                ByteCountFormatter.string(fromByteCount: size, countStyle: .file),
+                ByteCountFormatter.string(fromByteCount: CreatorMedia.maxMomentVideoUploadSizeBytes, countStyle: .file)
+            )
+        }
+    }
+}
+
 // MARK: - 📦 PERSISTENCE PAYLOADS
 struct MomentUploadPayload: Codable {
     let content: String
@@ -379,21 +394,16 @@ class BackgroundMomentUploadService: ObservableObject {
             await updateProgress(uploadingMoment, progress: baseProgress)
 
             var finalMediaItem: UploadMediaItem
+            var finalVideoFileSize = media.videoFileSize
 
-            if media.type == .video, let videoURL = media.videoURL {
-                if media.hasEdits {
-                    finalMediaItem = UploadMediaItem(type: .video, image: nil, videoURL: videoURL)
-                } else {
-                    // Raw gallery videos are still normalized before upload for now.
-                    do {
-                        await updateProgress(uploadingMoment, progress: baseProgress, status: .processing)
-
-                        let compressedURL = try await compressVideo(inputURL: videoURL)
-                        finalMediaItem = UploadMediaItem(type: .video, image: nil, videoURL: compressedURL)
-                    } catch {
-                        finalMediaItem = UploadMediaItem(type: .video, image: nil, videoURL: videoURL)
-                    }
-                }
+            if media.type == .video, media.videoURL != nil {
+                let preparedVideoURL = try await prepareVideoURLForMomentUpload(
+                    media,
+                    uploadingMoment: uploadingMoment,
+                    baseProgress: baseProgress
+                )
+                finalVideoFileSize = try? fileSize(at: preparedVideoURL)
+                finalMediaItem = UploadMediaItem(type: .video, image: nil, videoURL: preparedVideoURL)
             } else {
                 finalMediaItem = UploadMediaItem(
                     type: media.type == .image ? .image : .video,
@@ -445,14 +455,18 @@ class BackgroundMomentUploadService: ObservableObject {
             }
 
             let mediaItemType: MediaItem.MediaType = media.type == .image ? .image : .video
+            let shouldProcessVideo = mediaItemType == .video &&
+                (finalVideoFileSize ?? 0) > CreatorMedia.maxMomentVideoReadySizeBytes
             uploadedItems.append(MediaItem(
                 type: mediaItemType,
                 url: urlString,
                 aspectRatio: media.aspectRatio.displayName,
                 thumbnailUrl: thumbnailUrlString, // ✅ Usar el URL del thumbnail recién subido
                 videoDuration: media.videoDuration,
-                videoFileSize: media.videoFileSize,
+                videoFileSize: finalVideoFileSize,
                 videoResolution: media.videoResolution,
+                videoProcessingStatus: mediaItemType == .video ? (shouldProcessVideo ? .pending : .ready) : nil,
+                originalVideoUrl: shouldProcessVideo ? urlString : nil,
                 tags: media.tags // ✅ Etiquetas espaciales
             ))
 
@@ -636,6 +650,37 @@ class BackgroundMomentUploadService: ObservableObject {
         return UIGraphicsImageRenderer(size: targetSize).image { _ in
             image.draw(in: CGRect(origin: .zero, size: targetSize))
         }
+    }
+
+    private func prepareVideoURLForMomentUpload(
+        _ media: ProcessedMedia,
+        uploadingMoment: UploadingMoment,
+        baseProgress: Double
+    ) async throws -> URL {
+        guard let videoURL = media.videoURL else {
+            throw StorageError.invalidData
+        }
+
+        let originalFileSize = media.videoFileSize ?? (try? fileSize(at: videoURL)) ?? 0
+        guard originalFileSize > CreatorMedia.maxMomentVideoUploadSizeBytes else {
+            return videoURL
+        }
+
+        await updateProgress(uploadingMoment, progress: baseProgress, status: .processing)
+        let compressedURL = try await compressVideo(inputURL: videoURL)
+        let compressedFileSize = try fileSize(at: compressedURL)
+
+        guard compressedFileSize <= CreatorMedia.maxMomentVideoUploadSizeBytes else {
+            throw MomentVideoUploadPreparationError.compressedVideoTooLarge(size: compressedFileSize)
+        }
+
+        await updateProgress(uploadingMoment, progress: baseProgress, status: .uploading)
+        return compressedURL
+    }
+
+    private func fileSize(at url: URL) throws -> Int64 {
+        let attributes = try FileManager.default.attributesOfItem(atPath: url.path)
+        return attributes[.size] as? Int64 ?? 0
     }
 
     // MARK: - 🎥 COMPRESIÓN DE VIDEO
