@@ -29,18 +29,18 @@ class UploadingMoment: ObservableObject, Identifiable {
     let allowSharing: Bool
     let scheduledDate: Date?
     let hiddenLayers: [HiddenLayerDraft]
-    
+
     @Published var uploadProgress: Double = 0.0
     @Published var status: UploadStatus = .uploading
     @Published var errorMessage: String?
     @Published var momentId: String? // 🔥 Nuevo: Para almacenar el ID real de Firestore
-    
+
     // 🔥 PARA MOSTRAR EN EL FEED
     @Published var thumbnailImage: UIImage?
     @Published var mediaCount: Int = 1
     @Published var currentMediaIndex: Int = 0
     @Published var currentMediaThumbnailImage: UIImage?
-    
+
     init(
         userId: String,
         content: String,
@@ -71,7 +71,7 @@ class UploadingMoment: ObservableObject, Identifiable {
         self.customListId = customListId
         self.aspectRatio = aspectRatio
         self.createdAt = Date()
-        
+
         // Configurar thumbnail y conteo
         self.thumbnailImage = mediaItems.first?.image
         self.mediaCount = mediaItems.count
@@ -90,7 +90,7 @@ enum UploadStatus {
     case completed
     case failed
     case moderated // 🚨 Nuevo: Oculto por moderación
-    
+
     var displayText: String {
         switch self {
         case .uploading: return "Subiendo..."
@@ -100,7 +100,7 @@ enum UploadStatus {
         case .moderated: return "Publicado" // 🤫 Usuario no sabe que fue moderado
         }
     }
-    
+
     var shouldShowInFeed: Bool {
         switch self {
         case .uploading, .processing: return true
@@ -168,16 +168,16 @@ struct CachedHiddenLayerDraft: Codable {
 @MainActor
 class BackgroundMomentUploadService: ObservableObject {
     static let shared = BackgroundMomentUploadService()
-    
+
     @Published var uploadingMoments: [UploadingMoment] = []
     @Published var isProcessing = false
     weak var feedViewModel: FeedViewModel?
-    
+
     // ✅ NUEVO: Live Activity para Dynamic Island
     private var liveActivity: Activity<MomentUploadActivityAttributes>?
-    
+
     private init() {}
-    
+
     // MARK: - 📤 FUNCIÓN PRINCIPAL: Iniciar upload en background
     func uploadMoment(
         content: String,
@@ -197,11 +197,11 @@ class BackgroundMomentUploadService: ObservableObject {
         recoveryActionId: String? = nil,
         shouldPersistAction: Bool = true
     ) -> UploadingMoment? {
-        
+
         guard let userId = Auth.auth().currentUser?.uid else { return nil }
-        
+
         feedViewModel?.pauseListenersForUpload()
-        
+
         // Crear momento temporal
         let uploadingMoment = UploadingMoment(
             userId: userId,
@@ -221,16 +221,16 @@ class BackgroundMomentUploadService: ObservableObject {
             hiddenLayers: hiddenLayers,
             tempId: recoveryActionId
         )
-        
+
         // Agregar al feed inmediatamente
         self.uploadingMoments.append(uploadingMoment)
         self.isProcessing = true
-        
+
         // ✅ NUEVO: Iniciar Live Activity
         Task { @MainActor in
             await startLiveActivity(for: uploadingMoment)
         }
-        
+
         // ✅ NUEVO: Solicitar tiempo de ejecución en background
         var backgroundTaskID: UIBackgroundTaskIdentifier = .invalid
         backgroundTaskID = UIApplication.shared.beginBackgroundTask(withName: "MomentUpload") {
@@ -238,40 +238,40 @@ class BackgroundMomentUploadService: ObservableObject {
             UIApplication.shared.endBackgroundTask(backgroundTaskID)
             backgroundTaskID = .invalid
         }
-        
+
         // Procesar en background
         Task {
             // 1. Persistir acción en disco por si la app muere
             if shouldPersistAction {
                 await self.persistAction(uploadingMoment)
             }
-            
+
             // 2. Ejecutar upload
             await self.processUpload(uploadingMoment)
-            
+
             // 3. Limpiar acción y archivos al terminar (éxito o error fatal)
             if uploadingMoment.status == .completed || uploadingMoment.status == .moderated {
                 await LocalPersistenceService.shared.deleteAction(id: uploadingMoment.tempId)
                 self.deleteActionFiles(id: uploadingMoment.tempId)
             }
-            
+
             // ✅ Terminar la tarea de background cuando finalice
             if backgroundTaskID != .invalid {
                 UIApplication.shared.endBackgroundTask(backgroundTaskID)
                 backgroundTaskID = .invalid
             }
         }
-        
+
         return uploadingMoment
     }
-    
+
     // MARK: - 🔄 PROCESAMIENTO COMPLETO
     private func processUpload(_ uploadingMoment: UploadingMoment) async {
-        
+
         do {
             // PASO 1: Upload archivos (0% - 70%)
             let mediaUrls = try await uploadMediaFiles(uploadingMoment)
-            
+
             // PASO 2: Crear momento en Firestore (70% - 90%)
             await updateProgress(uploadingMoment, progress: 0.8, status: .processing)
             let momentId = try await createMomentInFirestore(uploadingMoment, mediaUrls: mediaUrls)
@@ -283,7 +283,7 @@ class BackgroundMomentUploadService: ObservableObject {
                 uploadingMoment: uploadingMoment,
                 momentId: momentId
             )
-            
+
             // ✅ NUEVO: Enviar notificaciones a usuarios etiquetados
             if let taggedUsers = uploadingMoment.taggedUsers, !taggedUsers.isEmpty {
                 for taggedUserId in taggedUsers {
@@ -299,7 +299,7 @@ class BackgroundMomentUploadService: ObservableObject {
                     }
                 }
             }
-            
+
             // PASO 3: Moderación silenciosa en paralelo, sin esperar a delays cosméticos
             Task.detached(priority: .background) {
                 async let contentModeration: Void = self.moderateContentSilently(
@@ -319,50 +319,50 @@ class BackgroundMomentUploadService: ObservableObject {
 
             // PASO 4: Completado (90% - 100%)
             await updateProgress(uploadingMoment, progress: 1.0, status: .completed)
-            
+
             // ✅ NUEVO: Actualizar Live Activity a estado "completed" y esperar unos segundos antes de cerrar
             await updateLiveActivityAsync(progress: 1.0, status: "completed")
             // Esperar 3 segundos para mostrar el emoji antes de cerrar
             try? await Task.sleep(nanoseconds: 3_000_000_000) // 3 segundos
             await endLiveActivityAsync()
-            
+
             // ✅ NUEVO: Reanudar listeners con delay para evitar conflictos
             try? await Task.sleep(nanoseconds: 1_000_000_000) // 1 segundo
             self.feedViewModel?.resumeListenersAfterUpload()
-            
+
             // PASO 5: Remover del feed después de 2 segundos (reducido)
             try? await Task.sleep(nanoseconds: 2_000_000_000) // 2 segundos
             self.removeUploadingMoment(uploadingMoment)
-            
+
             // 🔥 TRIGGER ECHO DETECTION
             EchoService.shared.checkForEchoOverlap(
                 momentId: momentId,
                 userId: uploadingMoment.userId
             )
-            
+
         } catch {
             await updateProgress(uploadingMoment, progress: 0.0, status: .failed, error: error.localizedDescription)
-            
+
             // ✅ NUEVO: Reanudar listeners incluso si falló
             try? await Task.sleep(nanoseconds: 500_000_000) // 0.5 segundos
             self.feedViewModel?.resumeListenersAfterUpload()
         }
-        
+
         self.isProcessing = self.uploadingMoments.contains { $0.status == .uploading || $0.status == .processing }
     }
-    
+
     // ✅ FUNCIÓN NUEVA: Configurar referencia al FeedViewModel
     func setFeedViewModel(_ feedViewModel: FeedViewModel) {
         self.feedViewModel = feedViewModel
     }
-    
+
     // MARK: - 📁 UPLOAD DE ARCHIVOS
     private func uploadMediaFiles(_ uploadingMoment: UploadingMoment) async throws -> [MediaItem] {
-        
+
         var uploadedItems: [MediaItem] = []
         let storageService = StorageService() // Asume que StorageService está definido
         let totalFiles = uploadingMoment.mediaItems.count
-        
+
         for (index, media) in uploadingMoment.mediaItems.enumerated() {
             await MainActor.run {
                 uploadingMoment.currentMediaIndex = index
@@ -377,20 +377,22 @@ class BackgroundMomentUploadService: ObservableObject {
             let thumbnailProgressShare = hasValidVideoThumbnail ? 0.1 : 0.0
             let mediaProgressShare = 1.0 - thumbnailProgressShare
             await updateProgress(uploadingMoment, progress: baseProgress)
-            
+
             var finalMediaItem: UploadMediaItem
-            
+
             if media.type == .video, let videoURL = media.videoURL {
-                // ✅ COMPRESIÓN DE VIDEO: Comprimir antes de subir
-                do {
-                     // Notificar estado de compresión
-                    await updateProgress(uploadingMoment, progress: baseProgress, status: .processing)
-                    
-                    let compressedURL = try await compressVideo(inputURL: videoURL)
-                    finalMediaItem = UploadMediaItem(type: .video, image: nil, videoURL: compressedURL)
-                } catch {
-                    // Si falla la compresión, usar original
+                if media.hasEdits {
                     finalMediaItem = UploadMediaItem(type: .video, image: nil, videoURL: videoURL)
+                } else {
+                    // Raw gallery videos are still normalized before upload for now.
+                    do {
+                        await updateProgress(uploadingMoment, progress: baseProgress, status: .processing)
+
+                        let compressedURL = try await compressVideo(inputURL: videoURL)
+                        finalMediaItem = UploadMediaItem(type: .video, image: nil, videoURL: compressedURL)
+                    } catch {
+                        finalMediaItem = UploadMediaItem(type: .video, image: nil, videoURL: videoURL)
+                    }
                 }
             } else {
                 finalMediaItem = UploadMediaItem(
@@ -399,7 +401,7 @@ class BackgroundMomentUploadService: ObservableObject {
                     videoURL: media.type == .video ? media.videoURL : nil
                 )
             }
-            
+
             // ✅ SUBIR THUMBNAIL SI ES VIDEO
             var thumbnailUrlString: String? = nil
             if hasValidVideoThumbnail {
@@ -422,7 +424,7 @@ class BackgroundMomentUploadService: ObservableObject {
                     )
                 }
             }
-            
+
             // 🔥 USAR uploadMedia NORMAL para el archivo principal
             let urlString = try await withCheckedThrowingContinuation { continuation in
                 storageService.uploadMedia(
@@ -441,7 +443,7 @@ class BackgroundMomentUploadService: ObservableObject {
                     }
                 )
             }
-            
+
             let mediaItemType: MediaItem.MediaType = media.type == .image ? .image : .video
             uploadedItems.append(MediaItem(
                 type: mediaItemType,
@@ -453,12 +455,12 @@ class BackgroundMomentUploadService: ObservableObject {
                 videoResolution: media.videoResolution,
                 tags: media.tags // ✅ Etiquetas espaciales
             ))
-            
+
             // Progreso por archivo completado
             let fileProgress = Double(index + 1) / Double(totalFiles) * 0.7
             await updateProgress(uploadingMoment, progress: fileProgress)
         }
-        
+
         return uploadedItems
     }
 
@@ -635,28 +637,28 @@ class BackgroundMomentUploadService: ObservableObject {
             image.draw(in: CGRect(origin: .zero, size: targetSize))
         }
     }
-    
+
     // MARK: - 🎥 COMPRESIÓN DE VIDEO
     private func compressVideo(inputURL: URL) async throws -> URL {
         let asset = AVURLAsset(url: inputURL)
-        
+
         // 1. Crear URL de destino
         let tempDir = FileManager.default.temporaryDirectory
         let outputURL = tempDir.appendingPathComponent("compressed_\(UUID().uuidString).mp4")
-        
+
         // 2. Configurar Export Session (Preset Medium Quality = 720p/1080p H.264 balanceado)
         // AVAssetExportPreset1280x720 o AVAssetExportPresetMediumQuality son buenas opciones para redes sociales
         guard let exportSession = AVAssetExportSession(asset: asset, presetName: AVAssetExportPreset1280x720) else {
             throw NSError(domain: "CompressionError", code: -1, userInfo: [NSLocalizedDescriptionKey: "No se pudo crear export session"])
         }
-        
+
         exportSession.outputURL = outputURL
         exportSession.outputFileType = .mp4
         exportSession.shouldOptimizeForNetworkUse = true
-        
+
         // 3. Exportar
         await exportSession.export()
-        
+
         // 4. Verificar resultado
         switch exportSession.status {
         case .completed:
@@ -669,12 +671,12 @@ class BackgroundMomentUploadService: ObservableObject {
             throw NSError(domain: "CompressionError", code: -4, userInfo: [NSLocalizedDescriptionKey: "Estado desconocido"])
         }
     }
-    
+
     // MARK: - 📝 CREAR MOMENTO EN FIRESTORE
     // 🔥 MODIFICADO: Ahora devuelve el momentId real de Firestore
     private func createMomentInFirestore(_ uploadingMoment: UploadingMoment, mediaUrls: [MediaItem]) async throws -> String {
         let firestoreService = FirestoreService() // Asume que FirestoreService está definido
-        
+
         return try await withCheckedThrowingContinuation { continuation in
             if uploadingMoment.audienceSetting == .custom && uploadingMoment.customListId != nil {
                 // Lista personalizada
@@ -703,7 +705,7 @@ class BackgroundMomentUploadService: ObservableObject {
             } else {
                 // Audiencia predefinida
                 // La conversión a string ya la tienes en convertAudienceSettingToString
-                
+
                 firestoreService.createMomentWithVisibility(
                     userId: uploadingMoment.userId,
                     content: uploadingMoment.content,
@@ -730,7 +732,7 @@ class BackgroundMomentUploadService: ObservableObject {
             }
         }
     }
-    
+
     // MARK: - 🛡️ MODERACIÓN SILENCIOSA
     // MARK: - 🛡️ MODERACIÓN SILENCIOSA
     private func moderateContentSilently(
@@ -738,7 +740,7 @@ class BackgroundMomentUploadService: ObservableObject {
         uploadingMoment: UploadingMoment,
         mediaUrls: [MediaItem]
     ) async {
-        
+
         for mediaUrl in mediaUrls {
             await withCheckedContinuation { continuation in
                 MediaModerationService.shared.moderateMedia(
@@ -753,26 +755,26 @@ class BackgroundMomentUploadService: ObservableObject {
                     case .approved:
                         // Content approved - no action needed
                         break
-                        
+
                     case .deleted(let reason, let category):
                         if let index = self.uploadingMoments.firstIndex(where: { $0.id == uploadingMoment.id }) {
                             self.uploadingMoments[index].status = .moderated
                         }
-                        
+
                     case .warning(let reason, let category):
                         // Content has warning - no action needed
                         break
-                        
+
                     case .error(let errorMessage):
                         // Technical error - no action needed
                         break
                     }
-                    
+
                     continuation.resume()
                 }
             }
         }
-        
+
     }
 
     private func moderateHiddenLayersSilently(
@@ -856,7 +858,7 @@ class BackgroundMomentUploadService: ObservableObject {
             "isPending": true
         ]) { _ in }
     }
-    
+
     // MARK: - 🔄 HELPERS
     private func updateProgress(_ moment: UploadingMoment, progress: Double, status: UploadStatus? = nil, error: String? = nil) async {
         if let index = uploadingMoments.firstIndex(where: { $0.id == moment.id }) {
@@ -868,7 +870,7 @@ class BackgroundMomentUploadService: ObservableObject {
                 uploadingMoments[index].errorMessage = error
             }
         }
-        
+
         // ✅ NUEVO: Actualizar Live Activity
         let statusString: String
         if let status = status {
@@ -889,34 +891,34 @@ class BackgroundMomentUploadService: ObservableObject {
         }
         updateLiveActivity(progress: progress, status: statusString)
     }
-    
+
     @MainActor
     private func removeUploadingMoment(_ moment: UploadingMoment) {
         uploadingMoments.removeAll { $0.id == moment.id }
         isProcessing = uploadingMoments.contains { $0.status == .uploading || $0.status == .processing }
     }
-    
+
     // MARK: - 🔄 REINTENTAR UPLOAD FALLIDO
     func retryUpload(_ moment: UploadingMoment) {
         guard moment.status == .failed else { return }
-        
+
         moment.status = .uploading
         moment.uploadProgress = 0.0
         moment.errorMessage = nil
         moment.currentMediaIndex = 0
         moment.currentMediaThumbnailImage = moment.mediaItems.first?.image
         self.isProcessing = true
-        
+
         Task.detached(priority: .userInitiated) {
             await self.processUpload(moment)
         }
     }
-    
+
     // MARK: - 🗑️ CANCELAR UPLOAD
     func cancelUpload(_ moment: UploadingMoment) {
         self.removeUploadingMoment(moment)
     }
-    
+
     // MARK: - 🔄 HELPER: Convertir AudienceSetting a String
     private func convertAudienceSettingToString(_ setting: CaptionAndDetailsView.AudienceSetting) -> String {
         switch setting {
@@ -928,7 +930,7 @@ class BackgroundMomentUploadService: ObservableObject {
         case .onlyMe: return "onlyMe"
         }
     }
-    
+
     // MARK: - ✅ LIVE ACTIVITY FUNCTIONS
     private func startLiveActivity(for uploadingMoment: UploadingMoment) async {
         // Determinar tipo de media
@@ -942,18 +944,18 @@ class BackgroundMomentUploadService: ObservableObject {
         } else {
             mediaType = "image"
         }
-        
+
         let attributes = MomentUploadActivityAttributes(
             momentId: uploadingMoment.tempId,
             mediaType: mediaType,
             mediaCount: uploadingMoment.mediaItems.count
         )
-        
+
         let initialContentState = MomentUploadActivityAttributes.ContentState(
             progress: 0.0,
             status: "uploading"
         )
-        
+
         do {
             let activity = try Activity<MomentUploadActivityAttributes>.request(
                 attributes: attributes,
@@ -967,17 +969,17 @@ class BackgroundMomentUploadService: ObservableObject {
             // Error al iniciar Live Activity - puede ser que el tipo no esté disponible en el widget extension
         }
     }
-    
+
     private func updateLiveActivity(progress: Double, status: String) {
         guard let activity = liveActivity else {
             return
         }
-        
+
         let updatedState = MomentUploadActivityAttributes.ContentState(
             progress: progress,
             status: status
         )
-        
+
         Task {
             do {
                 await activity.update(using: updatedState)
@@ -985,48 +987,48 @@ class BackgroundMomentUploadService: ObservableObject {
             }
         }
     }
-    
+
     private func updateLiveActivityAsync(progress: Double, status: String) async {
         guard let activity = liveActivity else {
             return
         }
-        
+
         let updatedState = MomentUploadActivityAttributes.ContentState(
             progress: progress,
             status: status
         )
-        
+
         do {
             await activity.update(using: updatedState)
         } catch {
         }
     }
-    
+
     private func endLiveActivity() {
         guard let activity = liveActivity else {
             return
         }
-        
+
         Task {
             do {
                 await activity.end(using: nil, dismissalPolicy: .after(Date().addingTimeInterval(3)))
             } catch {
             }
         }
-        
+
         liveActivity = nil
     }
-    
+
     private func endLiveActivityAsync() async {
         guard let activity = liveActivity else {
             return
         }
-        
+
         do {
             await activity.end(using: nil, dismissalPolicy: .after(Date().addingTimeInterval(3)))
         } catch {
         }
-        
+
         await MainActor.run {
             liveActivity = nil
         }
@@ -1043,12 +1045,12 @@ class BackgroundMomentUploadService: ObservableObject {
     }
 
     // MARK: - 💾 PERSISTENCE & RECOVERY
-    
+
     private var pendingUploadsDir: URL {
         let paths = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)
         return paths[0].appendingPathComponent("pending_uploads")
     }
-    
+
     /// Prepara una acción persistente antes de iniciar el upload
     func persistAction(_ uploadingMoment: UploadingMoment) {
         Task {
@@ -1057,7 +1059,7 @@ class BackgroundMomentUploadService: ObservableObject {
                 if !FileManager.default.fileExists(atPath: self.pendingUploadsDir.path) {
                     try FileManager.default.createDirectory(at: self.pendingUploadsDir, withIntermediateDirectories: true)
                 }
-                
+
                 // 2. Guardar archivos de media en disco
                 var cachedMediaItems: [CachedMediaItem] = []
                 for media in uploadingMoment.mediaItems {
@@ -1070,7 +1072,7 @@ class BackgroundMomentUploadService: ObservableObject {
                     let cachedLayer = try await self.saveHiddenLayerToDisk(layer, actionId: uploadingMoment.tempId)
                     cachedHiddenLayers.append(cachedLayer)
                 }
-                
+
                 // 3. Crear payload
                 let payload = MomentUploadPayload(
                     content: uploadingMoment.content,
@@ -1088,27 +1090,27 @@ class BackgroundMomentUploadService: ObservableObject {
                     allowSharing: uploadingMoment.allowSharing,
                     scheduledDate: uploadingMoment.scheduledDate
                 )
-                
+
                 let encodedPayload = try JSONEncoder().encode(payload)
-                
+
                 // 4. Guardar en SwiftData
                 let action = CachedAction(
                     id: uploadingMoment.tempId,
                     type: CachedAction.ActionType.momentUpload.rawValue,
                     payloadData: encodedPayload
                 )
-                
+
                 await LocalPersistenceService.shared.saveAction(action)
 
             } catch { }
         }
     }
-    
+
     private func saveMediaToDisk(_ media: ProcessedMedia, actionId: String) async throws -> CachedMediaItem {
         let id = UUID().uuidString
         let fileName = "\(actionId)_\(id)_\(media.type == .image ? "img.jpg" : "vid.mp4")"
         let fileURL = pendingUploadsDir.appendingPathComponent(fileName)
-        
+
         if media.type == .image {
             let image = media.image
             if let data = image.jpegData(compressionQuality: 0.8) {
@@ -1117,7 +1119,7 @@ class BackgroundMomentUploadService: ObservableObject {
         } else if media.type == .video, let videoURL = media.videoURL {
             try FileManager.default.copyItem(at: videoURL, to: fileURL)
         }
-        
+
         // Guardar thumbnail si existe
         var thumbName: String? = nil
         if let thumbURL = media.thumbnailURL {
@@ -1132,9 +1134,9 @@ class BackgroundMomentUploadService: ObservableObject {
             let thumbDest = pendingUploadsDir.appendingPathComponent(thumbName!)
             try? thumbnailData.write(to: thumbDest)
         }
-        
+
         let tagsData = try? JSONEncoder().encode(media.tags)
-        
+
         return CachedMediaItem(
             type: media.type == .image ? "image" : "video",
             localFileName: fileName,
@@ -1205,14 +1207,14 @@ class BackgroundMomentUploadService: ObservableObject {
 
         return image
     }
-    
+
     /// Intenta retomar una subida desde una acción persistente
     func resumeUpload(from action: CachedAction) async {
         guard action.type == CachedAction.ActionType.momentUpload.rawValue else { return }
-        
+
         do {
             let payload = try JSONDecoder().decode(MomentUploadPayload.self, from: action.payloadData)
-            
+
             // 1. Obtener el tipo de audiencia correcto (Decoding first for safer comparison)
             let audience: CaptionAndDetailsView.AudienceSetting = {
                 switch payload.audienceSetting {
@@ -1226,7 +1228,7 @@ class BackgroundMomentUploadService: ObservableObject {
                 default: return .everyone
                 }
             }()
-            
+
             // 2. ✅ DUPLICATE CHECK: Evitar re-subir si ya está en proceso
             let isAlreadyUploading = uploadingMoments.contains { moment in
                 guard moment.status == .uploading || moment.status == .processing else {
@@ -1235,12 +1237,12 @@ class BackgroundMomentUploadService: ObservableObject {
                 // Coincidir por contenido Y audiencia Y (opcionalmente) ubicación
                 return moment.content == payload.content && moment.audienceSetting == audience
             }
-            
+
             if isAlreadyUploading {
                 LocalPersistenceService.shared.updateActionStatus(id: action.id, status: .pending)
                 return
             }
-            
+
             // 3. Reconstruir ProcessedMedia
             var mediaItems: [ProcessedMedia] = []
             for item in payload.mediaPaths {
@@ -1262,7 +1264,7 @@ class BackgroundMomentUploadService: ObservableObject {
                 let thumbURL: URL? = item.thumbnailFileName != nil ? pendingUploadsDir.appendingPathComponent(item.thumbnailFileName!) : nil
                 let tags: [PhotoTag]? = item.tagsData != nil ? try? JSONDecoder().decode([PhotoTag].self, from: item.tagsData!) : nil
                 let thumbnailImage = loadCachedImage(from: thumbURL)
-                
+
                 // Determinar aspect ratio del item
                 let itemAspectRatio: CreatorMedia.AspectRatio = {
                     if let cachedAspectRatio = item.aspectRatio {
@@ -1273,20 +1275,20 @@ class BackgroundMomentUploadService: ObservableObject {
                     }
                     return .square
                 }()
-                
+
                 var processed = ProcessedMedia(
                     type: item.type == "image" ? .image : .video,
                     image: image ?? thumbnailImage ?? UIImage(),
                     videoURL: item.type == "video" ? fileURL : nil,
                     aspectRatio: itemAspectRatio
                 )
-                
+
                 processed.thumbnailURL = thumbURL
                 processed.videoDuration = item.videoDuration
                 processed.videoFileSize = item.videoFileSize
                 processed.videoResolution = item.videoResolution
                 processed.tags = tags
-                
+
                 mediaItems.append(processed)
             }
 
@@ -1339,7 +1341,7 @@ class BackgroundMomentUploadService: ObservableObject {
                     authorTimezoneIdentifier: item.authorTimezoneIdentifier
                 )
             }
-            
+
             guard !mediaItems.isEmpty else {
                 LocalPersistenceService.shared.updateActionStatus(
                     id: action.id,
@@ -1368,7 +1370,7 @@ class BackgroundMomentUploadService: ObservableObject {
                 recoveryActionId: action.id,
                 shouldPersistAction: false
             )
-            
+
         } catch {
             LocalPersistenceService.shared.updateActionStatus(
                 id: action.id,
@@ -1377,7 +1379,7 @@ class BackgroundMomentUploadService: ObservableObject {
             )
         }
     }
-    
+
     private func deleteActionFiles(id: String) {
         do {
             if FileManager.default.fileExists(atPath: pendingUploadsDir.path) {
