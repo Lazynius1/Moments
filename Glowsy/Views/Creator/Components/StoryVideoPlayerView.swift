@@ -5,15 +5,36 @@ import UIKit
 struct StoryVideoPlayerView: UIViewRepresentable {
     let videoURL: URL
     var videoGravity: AVLayerVideoGravity = .resizeAspect
+    var isMuted: Bool = false
+    var trimStart: Double = 0.0
+    var trimEnd: Double = 0.0
+    var previewTime: Double? = nil
+    var onPlayProgress: ((Double) -> Void)? = nil
 
     func makeUIView(context: Context) -> PlayerUIView {
         let playerView = PlayerUIView()
-        playerView.update(with: videoURL, gravity: videoGravity)
+        playerView.onPlayProgress = onPlayProgress
+        playerView.update(
+            with: videoURL,
+            gravity: videoGravity,
+            isMuted: isMuted,
+            trimStart: trimStart,
+            trimEnd: trimEnd,
+            previewTime: previewTime
+        )
         return playerView
     }
 
     func updateUIView(_ uiView: PlayerUIView, context: Context) {
-        uiView.update(with: videoURL, gravity: videoGravity)
+        uiView.onPlayProgress = onPlayProgress
+        uiView.update(
+            with: videoURL,
+            gravity: videoGravity,
+            isMuted: isMuted,
+            trimStart: trimStart,
+            trimEnd: trimEnd,
+            previewTime: previewTime
+        )
     }
 }
 
@@ -22,6 +43,12 @@ class PlayerUIView: UIView {
     private var playerLayer: AVPlayerLayer?
     private var currentURL: URL?
     private var currentGravity: AVLayerVideoGravity?
+    private var timeObserverToken: Any?
+
+    var onPlayProgress: ((Double) -> Void)?
+    private var trimStart: Double = 0.0
+    private var trimEnd: Double = 0.0
+    private var isScrubbing: Bool = false
 
     override init(frame: CGRect) {
         super.init(frame: frame)
@@ -40,30 +67,61 @@ class PlayerUIView: UIView {
             forName: NSNotification.Name("CleanupVideoPlayer"),
             object: nil,
             queue: .main
-        ) { _ in
-            self.cleanupPlayer()
+        ) { [weak self] _ in
+            self?.cleanupPlayer()
         }
     }
 
-    func update(with url: URL, gravity: AVLayerVideoGravity = .resizeAspect) {
+    func update(
+        with url: URL,
+        gravity: AVLayerVideoGravity = .resizeAspect,
+        isMuted: Bool = false,
+        trimStart: Double,
+        trimEnd: Double,
+        previewTime: Double?
+    ) {
+        self.trimStart = trimStart
+        self.trimEnd = trimEnd
+
         if currentURL != url || player == nil || playerLayer == nil {
-            configurePlayer(with: url, gravity: gravity)
-            return
+            configurePlayer(with: url, gravity: gravity, isMuted: isMuted)
+        } else {
+            if currentGravity != gravity {
+                currentGravity = gravity
+                playerLayer?.videoGravity = gravity
+            }
+            player?.isMuted = isMuted
         }
 
-        if currentGravity != gravity {
-            currentGravity = gravity
-            playerLayer?.videoGravity = gravity
+        // Handle scrubbing seek vs normal playback
+        if let preview = previewTime {
+            if !isScrubbing {
+                isScrubbing = true
+                player?.pause()
+            }
+            let targetTime = CMTime(seconds: preview, preferredTimescale: 600)
+            player?.seek(to: targetTime, toleranceBefore: .zero, toleranceAfter: .zero)
+        } else {
+            if isScrubbing {
+                isScrubbing = false
+                // Seek to current trimStart when finishing scrubbing drag, then play
+                let targetTime = CMTime(seconds: trimStart, preferredTimescale: 600)
+                player?.seek(to: targetTime, toleranceBefore: .zero, toleranceAfter: .zero) { [weak self] _ in
+                    self?.player?.play()
+                }
+            }
         }
     }
 
-    private func configurePlayer(with url: URL, gravity: AVLayerVideoGravity) {
+    private func configurePlayer(with url: URL, gravity: AVLayerVideoGravity, isMuted: Bool) {
+        cleanupTimeObserver()
         player?.pause()
         playerLayer?.removeFromSuperlayer()
 
         currentURL = url
         currentGravity = gravity
         player = AVPlayer(url: url)
+        player?.isMuted = isMuted
 
         let layer = AVPlayerLayer(player: player)
         layer.videoGravity = gravity
@@ -71,15 +129,47 @@ class PlayerUIView: UIView {
         self.playerLayer = layer
         self.layer.addSublayer(layer)
 
+        setupTimeObserver()
         player?.play()
 
         NotificationCenter.default.addObserver(
             forName: .AVPlayerItemDidPlayToEndTime,
             object: player?.currentItem,
             queue: .main
-        ) { _ in
-            self.player?.seek(to: .zero)
+        ) { [weak self] _ in
+            guard let self = self else { return }
+            let targetTime = CMTime(seconds: self.trimStart, preferredTimescale: 600)
+            self.player?.seek(to: targetTime, toleranceBefore: .zero, toleranceAfter: .zero)
             self.player?.play()
+        }
+    }
+
+    private func setupTimeObserver() {
+        guard let player = player else { return }
+        cleanupTimeObserver()
+
+        // 0.05 seconds interval (20 times per second) for highly smooth playhead movement
+        let interval = CMTime(seconds: 0.05, preferredTimescale: 600)
+        timeObserverToken = player.addPeriodicTimeObserver(forInterval: interval, queue: .main) { [weak self] time in
+            guard let self = self else { return }
+            let currentSeconds = time.seconds
+
+            // Invoke progress callback
+            self.onPlayProgress?(currentSeconds)
+
+            // Loop range boundary checking: only loop if we're not scrubbing and active trim is specified (trimEnd > 0)
+            if !self.isScrubbing && self.trimEnd > 0.0 && (currentSeconds >= self.trimEnd || currentSeconds < self.trimStart - 0.2) {
+                let targetTime = CMTime(seconds: self.trimStart, preferredTimescale: 600)
+                self.player?.seek(to: targetTime, toleranceBefore: .zero, toleranceAfter: .zero)
+                self.player?.play()
+            }
+        }
+    }
+
+    private func cleanupTimeObserver() {
+        if let token = timeObserverToken {
+            player?.removeTimeObserver(token)
+            timeObserverToken = nil
         }
     }
 
@@ -89,6 +179,7 @@ class PlayerUIView: UIView {
     }
 
     func cleanupPlayer() {
+        cleanupTimeObserver()
         player?.pause()
         playerLayer?.removeFromSuperlayer()
         player = nil
@@ -98,7 +189,6 @@ class PlayerUIView: UIView {
 
     deinit {
         NotificationCenter.default.removeObserver(self)
-        player?.pause()
         cleanupPlayer()
     }
 }

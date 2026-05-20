@@ -57,6 +57,8 @@ enum StoryMediaLayoutRules {
 typealias ProcessedMedia = CreatorMedia
 
 struct CreatorMedia: Identifiable {
+    static let maxMomentVideoDuration: Double = 5 * 60
+
     let id: String
     var image: UIImage
     var videoURL: URL?
@@ -69,6 +71,7 @@ struct CreatorMedia: Identifiable {
     var videoFileSize: Int64?
     var videoResolution: String?
     var tags: [PhotoTag]? = nil // ✅ Etiquetas espaciales para esta imagen
+    var storyVideoMode: StoryVideoMode = .normal
     
     // Helper para acceder al thumbnail de manera segura
     var thumbnail: UIImage? {
@@ -77,6 +80,12 @@ struct CreatorMedia: Identifiable {
     
     enum MediaType {
         case image, video
+    }
+
+    enum StoryVideoMode: String, Codable, Equatable {
+        case normal
+        case trimmed
+        case autoSplit
     }
     
     enum AspectRatio: Equatable {
@@ -129,7 +138,7 @@ struct CreatorMedia: Identifiable {
     
     // MARK: - Initializers & Helpers
     
-    init(id: String, image: UIImage, videoURL: URL?, type: MediaType, aspectRatio: AspectRatio, recommendedAspectRatio: AspectRatio? = nil, hasEdits: Bool = false, thumbnailURL: URL? = nil, tags: [PhotoTag]? = nil) {
+    init(id: String, image: UIImage, videoURL: URL?, type: MediaType, aspectRatio: AspectRatio, recommendedAspectRatio: AspectRatio? = nil, hasEdits: Bool = false, thumbnailURL: URL? = nil, tags: [PhotoTag]? = nil, storyVideoMode: StoryVideoMode = .normal, videoDuration: Double? = nil) {
         self.id = id
         self.image = image
         self.videoURL = videoURL
@@ -139,9 +148,11 @@ struct CreatorMedia: Identifiable {
         self.hasEdits = hasEdits
         self.thumbnailURL = thumbnailURL
         self.tags = tags
+        self.storyVideoMode = storyVideoMode
+        self.videoDuration = videoDuration
     }
     
-    init(type: MediaType, image: UIImage, videoURL: URL?, aspectRatio: AspectRatio, recommendedAspectRatio: AspectRatio? = nil, thumbnailURL: URL? = nil) {
+    init(type: MediaType, image: UIImage, videoURL: URL?, aspectRatio: AspectRatio, recommendedAspectRatio: AspectRatio? = nil, thumbnailURL: URL? = nil, storyVideoMode: StoryVideoMode = .normal, videoDuration: Double? = nil) {
         self.id = UUID().uuidString
         self.image = image
         self.videoURL = videoURL
@@ -150,9 +161,11 @@ struct CreatorMedia: Identifiable {
         self.recommendedAspectRatio = recommendedAspectRatio ?? aspectRatio
         self.hasEdits = false
         self.thumbnailURL = thumbnailURL
+        self.storyVideoMode = storyVideoMode
+        self.videoDuration = videoDuration
     }
     
-    func with(videoURL: URL? = nil, aspectRatio: AspectRatio? = nil, recommendedAspectRatio: AspectRatio? = nil, hasEdits: Bool? = nil, thumbnailURL: URL? = nil, image: UIImage? = nil, tags: [PhotoTag]? = nil) -> CreatorMedia {
+    func with(videoURL: URL? = nil, aspectRatio: AspectRatio? = nil, recommendedAspectRatio: AspectRatio? = nil, hasEdits: Bool? = nil, thumbnailURL: URL? = nil, image: UIImage? = nil, tags: [PhotoTag]? = nil, storyVideoMode: StoryVideoMode? = nil, videoDuration: Double? = nil) -> CreatorMedia {
         CreatorMedia(
             id: self.id,
             image: image ?? self.image,
@@ -162,7 +175,9 @@ struct CreatorMedia: Identifiable {
             recommendedAspectRatio: recommendedAspectRatio ?? self.recommendedAspectRatio,
             hasEdits: hasEdits ?? self.hasEdits,
             thumbnailURL: thumbnailURL ?? self.thumbnailURL,
-            tags: tags ?? self.tags
+            tags: tags ?? self.tags,
+            storyVideoMode: storyVideoMode ?? self.storyVideoMode,
+            videoDuration: videoDuration ?? self.videoDuration
         )
     }
     

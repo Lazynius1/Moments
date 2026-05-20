@@ -13,6 +13,12 @@ struct StoryCameraView: View {
     private var safeAreaTintColor: Color {
         colorScheme == .dark ? Color(hex: "0B1215") : Color(hex: "FAF9F6")
     }
+    private var topControlForegroundColor: Color {
+        colorScheme == .dark ? .white : Color.black.opacity(0.82)
+    }
+    private var topControlStrokeColor: Color {
+        colorScheme == .dark ? Color.white.opacity(0.12) : Color.black.opacity(0.08)
+    }
 
     @State private var showingGallery = false
     @State private var cameraPosition: AVCaptureDevice.Position = .back
@@ -85,7 +91,7 @@ struct StoryCameraView: View {
                         }) {
                             Image(systemName: "xmark")
                                 .font(.system(size: 18, weight: .semibold))
-                                .foregroundColor(.white)
+                                .foregroundColor(topControlForegroundColor)
                                 .frame(width: 42, height: 42)
                                 .background {
                                     Color.clear
@@ -93,7 +99,7 @@ struct StoryCameraView: View {
                                 }
                                 .overlay(
                                     Circle()
-                                        .stroke(Color.white.opacity(0.12), lineWidth: 1)
+                                        .stroke(topControlStrokeColor, lineWidth: 1)
                                 )
                         }
                         .rotationEffect(.degrees(rotationAngle))
@@ -107,7 +113,7 @@ struct StoryCameraView: View {
                         }) {
                             Image(systemName: flashIcon)
                                 .font(.system(size: 18, weight: .semibold))
-                                .foregroundColor(.white)
+                                .foregroundColor(topControlForegroundColor)
                                 .frame(width: 42, height: 42)
                                 .background {
                                     Color.clear
@@ -115,7 +121,7 @@ struct StoryCameraView: View {
                                 }
                                 .overlay(
                                     Circle()
-                                        .stroke(Color.white.opacity(0.12), lineWidth: 1)
+                                        .stroke(topControlStrokeColor, lineWidth: 1)
                                 )
                         }
                         .rotationEffect(.degrees(rotationAngle))

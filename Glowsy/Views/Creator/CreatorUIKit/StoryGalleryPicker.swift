@@ -10,7 +10,10 @@ struct StoryGalleryPicker: View {
     @State private var selectedImage: UIImage?
     @State private var selectedVideoURL: URL?
     @State private var showingMediaPicker = false
-    @State private var showingVideoLengthAlert = false
+    @State private var showingLongVideoDecision = false
+    @State private var showingTrimEditor = false
+    @State private var showingVideoTooLongAlert = false
+    @State private var pendingLongVideoMedia: CreatorMedia?
     @State private var videoDuration: Double = 0
     @State private var authorizationStatus: PHAuthorizationStatus = .notDetermined
 
@@ -49,54 +52,41 @@ struct StoryGalleryPicker: View {
                             onSelect(media)
                             dismiss()
                         } else if let videoURL = videoURL {
-                            let asset = AVAsset(url: videoURL)
-                            asset.loadValuesAsynchronously(forKeys: ["duration"]) {
-                                DispatchQueue.main.async {
-                                    let duration = CMTimeGetSeconds(asset.duration)
-
-                                    if duration <= 60.0 {
-                                        let imageGenerator = AVAssetImageGenerator(asset: asset)
-                                        imageGenerator.appliesPreferredTrackTransform = true
-                                        imageGenerator.maximumSize = CGSize(width: 300, height: 300)
-
-                                        let time = CMTime(seconds: 0.1, preferredTimescale: 600)
-                                        imageGenerator.generateCGImagesAsynchronously(forTimes: [NSValue(time: time)]) { requestedTime, cgImage, actualTime, result, error in
-                                            DispatchQueue.main.async {
-                                                let thumbnail: UIImage
-                                                if let cgImage = cgImage {
-                                                    thumbnail = UIImage(cgImage: cgImage)
-                                                } else {
-                                                    thumbnail = UIImage(systemName: "video.fill") ?? UIImage()
-                                                }
-
-                                                let media = CreatorMedia(
-                                                    id: UUID().uuidString,
-                                                    image: thumbnail,
-                                                    videoURL: videoURL,
-                                                    type: .video,
-                                                    aspectRatio: .nineBySixteen,
-                                                    recommendedAspectRatio: .nineBySixteen
-                                                )
-                                                onSelect(media)
-                                                dismiss()
-                                            }
-                                        }
-                                    } else {
-                                        videoDuration = duration
-                                        showingVideoLengthAlert = true
-                                    }
-                                }
+                            Task {
+                                await handleSelectedVideo(videoURL)
                             }
                         }
                     }
                 )
             }
-            .alert("creator.video.length.title", isPresented: $showingVideoLengthAlert) {
+            .fullScreenCover(isPresented: $showingTrimEditor) {
+                if let media = pendingLongVideoMedia, let videoURL = media.videoURL {
+                    StoryVideoTrimEditorView(
+                        videoURL: videoURL,
+                        duration: videoDuration,
+                        onCancel: {
+                            showingTrimEditor = false
+                            showingLongVideoDecision = true
+                        },
+                        onComplete: { trimmedMedia in
+                            showingTrimEditor = false
+                            onSelect(trimmedMedia)
+                            dismiss()
+                        }
+                    )
+                }
+            }
+            .alert("storyVideo.tooLong.title", isPresented: $showingVideoTooLongAlert) {
                 Button("common.understood") {
-                    showingVideoLengthAlert = false
+                    showingVideoTooLongAlert = false
+                    showingMediaPicker = true
                 }
             } message: {
-                Text(String(format: NSLocalizedString("creator.video.length.warning", comment: "Video length warning"), String(format: "%.0f", videoDuration)))
+                Text(String(
+                    format: NSLocalizedString("storyVideo.tooLong.message", comment: "Story video exceeds maximum gallery duration message"),
+                    formatDuration(videoDuration),
+                    formatDuration(StoryVideoProcessingService.maxAutoSplitDuration)
+                ))
             }
             .overlay(
                 Group {
@@ -105,6 +95,79 @@ struct StoryGalleryPicker: View {
                     }
                 }
             )
+            .overlay {
+                if showingLongVideoDecision, let media = pendingLongVideoMedia {
+                    StoryLongVideoDecisionOverlay(
+                        duration: videoDuration,
+                        partCount: Int(ceil(videoDuration / StoryVideoProcessingService.maxStorySegmentDuration)),
+                        canAutoSplit: videoDuration <= StoryVideoProcessingService.maxAutoSplitDuration,
+                        thumbnail: media.image,
+                        onConfirmSplit: {
+                            withAnimation(.spring(response: 0.34, dampingFraction: 0.88)) {
+                                showingLongVideoDecision = false
+                            }
+                            onSelect(media.with(storyVideoMode: .autoSplit, videoDuration: videoDuration))
+                            dismiss()
+                        },
+                        onEdit: {
+                            withAnimation(.spring(response: 0.34, dampingFraction: 0.88)) {
+                                showingLongVideoDecision = false
+                            }
+                            showingTrimEditor = true
+                        },
+                        onCancel: {
+                            withAnimation(.spring(response: 0.34, dampingFraction: 0.88)) {
+                                showingLongVideoDecision = false
+                            }
+                            pendingLongVideoMedia = nil
+                            showingMediaPicker = true
+                        }
+                    )
+                    .transition(.opacity.combined(with: .scale(scale: 0.96)))
+                }
+            }
+    }
+
+    private func handleSelectedVideo(_ videoURL: URL) async {
+        do {
+            let duration = try await StoryVideoProcessingService.shared.duration(for: videoURL)
+            let thumbnail = (try? await StoryVideoProcessingService.shared.generateStoryThumbnail(videoURL: videoURL, time: 0.1))
+                ?? UIImage(systemName: "video.fill")
+                ?? UIImage()
+            let media = CreatorMedia(
+                id: UUID().uuidString,
+                image: thumbnail,
+                videoURL: videoURL,
+                type: .video,
+                aspectRatio: .nineBySixteen,
+                recommendedAspectRatio: .nineBySixteen,
+                videoDuration: duration
+            )
+
+            await MainActor.run {
+                videoDuration = duration
+                if duration > StoryVideoProcessingService.maxAutoSplitDuration {
+                    pendingLongVideoMedia = nil
+                    showingMediaPicker = false
+                    showingVideoTooLongAlert = true
+                } else if duration <= StoryVideoProcessingService.maxStorySegmentDuration {
+                    onSelect(media)
+                    dismiss()
+                } else {
+                    pendingLongVideoMedia = media
+                    showingMediaPicker = false
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+                        withAnimation(.spring(response: 0.34, dampingFraction: 0.88)) {
+                            showingLongVideoDecision = true
+                        }
+                    }
+                }
+            }
+        } catch {
+            await MainActor.run {
+                showingMediaPicker = true
+            }
+        }
     }
 
     private func checkPhotoLibraryPermission() {
@@ -171,5 +234,129 @@ struct StoryGalleryPicker: View {
                 .foregroundColor(colorScheme == .dark ? .gray : .gray.opacity(0.7))
             }
         }
+    }
+
+    private func formatDuration(_ duration: Double) -> String {
+        let seconds = max(0, Int(duration.rounded()))
+        return String(format: "%d:%02d", seconds / 60, seconds % 60)
+    }
+}
+
+private struct StoryLongVideoDecisionOverlay: View {
+    let duration: Double
+    let partCount: Int
+    let canAutoSplit: Bool
+    let thumbnail: UIImage
+    let onConfirmSplit: () -> Void
+    let onEdit: () -> Void
+    let onCancel: () -> Void
+
+    @Environment(\.colorScheme) private var colorScheme
+
+    private var primaryTextColor: Color {
+        colorScheme == .dark ? .white : Color.black.opacity(0.86)
+    }
+
+    private var secondaryTextColor: Color {
+        colorScheme == .dark ? Color.white.opacity(0.72) : Color.black.opacity(0.58)
+    }
+
+    private var tertiaryTextColor: Color {
+        colorScheme == .dark ? Color.white.opacity(0.62) : Color.black.opacity(0.5)
+    }
+
+    var body: some View {
+        ZStack {
+            Rectangle()
+                .fill(.ultraThinMaterial)
+                .opacity(colorScheme == .dark ? 0.34 : 0.42)
+                .ignoresSafeArea()
+                .onTapGesture(perform: onCancel)
+
+            VStack(spacing: 18) {
+                HStack(spacing: 14) {
+                    Image(uiImage: thumbnail)
+                        .resizable()
+                        .scaledToFill()
+                        .frame(width: 62, height: 82)
+                        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("storyVideo.long.title")
+                            .font(.custom("Poppins-SemiBold", size: 17))
+                            .foregroundColor(primaryTextColor)
+                        Text(decisionMessage)
+                            .font(.custom("Poppins-Regular", size: 13))
+                            .foregroundColor(secondaryTextColor)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    Spacer()
+                }
+
+                if canAutoSplit {
+                    Text("storyVideo.long.revealHint")
+                        .font(.custom("Poppins-Regular", size: 12))
+                        .foregroundColor(tertiaryTextColor)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+
+                HStack(spacing: 18) {
+                    Button(action: onCancel) {
+                        Text("common.cancel")
+                            .font(.custom("Poppins-Medium", size: 13))
+                            .foregroundColor(secondaryTextColor)
+                            .padding(.horizontal, 4)
+                            .frame(minHeight: 44)
+                    }
+                    .buttonStyle(MomentRowButtonStyle())
+
+                    Spacer()
+
+                    Button(action: onEdit) {
+                        Label("storyVideo.long.edit", systemImage: "slider.horizontal.3")
+                            .padding(.horizontal, 4)
+                            .frame(minHeight: 44)
+                    }
+                    .buttonStyle(MomentRowButtonStyle())
+
+                    if canAutoSplit {
+                        Button(action: onConfirmSplit) {
+                            Label("storyVideo.long.confirm", systemImage: "scissors")
+                                .padding(.horizontal, 4)
+                                .frame(minHeight: 44)
+                        }
+                        .buttonStyle(MomentRowButtonStyle())
+                    }
+                }
+                .font(.custom("Poppins-SemiBold", size: 14))
+                .foregroundColor(primaryTextColor)
+            }
+            .padding(.horizontal, 20)
+            .padding(.vertical, 18)
+            .liquidGlass(in: RoundedRectangle(cornerRadius: 30, style: .continuous), interactive: false)
+            .padding(.horizontal, 18)
+        }
+    }
+
+    private var decisionMessage: String {
+        if canAutoSplit {
+            return String(
+                format: NSLocalizedString("storyVideo.long.message", comment: "Long story video message"),
+                formatDuration(duration),
+                partCount
+            )
+        }
+
+        return String(
+            format: NSLocalizedString("storyVideo.long.tooLongForSplit", comment: "Story video too long for automatic split message"),
+            formatDuration(duration),
+            formatDuration(StoryVideoProcessingService.maxAutoSplitDuration),
+            StoryVideoProcessingService.maxAutoSplitPartCount
+        )
+    }
+
+    private func formatDuration(_ duration: Double) -> String {
+        let seconds = max(0, Int(duration.rounded()))
+        return String(format: "%d:%02d", seconds / 60, seconds % 60)
     }
 }
