@@ -917,6 +917,8 @@ struct StoryEditingView: View {
                 .padding(.horizontal, 16)
             }
 
+            autoSplitNoticeView()
+
             if activeEditorMode == .idle && !isCreatingChain {
                 HStack {
                     // Story settings
@@ -955,6 +957,32 @@ struct StoryEditingView: View {
         }
         .padding(.horizontal)
         .padding(.bottom, bottomControlsBottomPadding(bottomInset: bottomInset))
+    }
+
+    @ViewBuilder
+    private func autoSplitNoticeView() -> some View {
+        if activeEditorMode == .idle,
+           let media = selectedMediaItems.first,
+           media.storyVideoMode == .autoSplit,
+           let duration = media.videoDuration {
+            let partCount = max(2, Int(ceil(duration / StoryVideoProcessingService.maxStorySegmentDuration)))
+
+            HStack(spacing: 8) {
+                Image(systemName: "square.stack.3d.up")
+                    .font(.system(size: 12, weight: .semibold))
+
+                Text(String(format: NSLocalizedString("storyVideo.editor.autoSplitNotice", comment: "Auto split publish notice"), partCount))
+                    .font(.custom("Poppins-Medium", size: 12))
+                    .lineLimit(2)
+
+                Spacer(minLength: 0)
+            }
+            .foregroundColor(.white.opacity(0.86))
+            .padding(.horizontal, 12)
+            .padding(.vertical, 9)
+            .liquidGlass(in: RoundedRectangle(cornerRadius: 14, style: .continuous), interactive: false)
+            .padding(.horizontal, 16)
+        }
     }
 
     private func bottomControlsBottomPadding(bottomInset: CGFloat) -> CGFloat {
@@ -1573,7 +1601,7 @@ struct StoryEditingView: View {
     }
 
     private func shouldBakeCurrentOverlaysIntoVideo(_ media: ProcessedMedia) -> Bool {
-        guard media.type == .video else { return false }
+        guard media.type == .video, media.storyVideoMode != .autoSplit else { return false }
         return drawingImage != nil || !storyText.isEmpty
     }
 

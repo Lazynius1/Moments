@@ -14,6 +14,7 @@ extension FirestoreService {
         chainId: String? = nil,
         chainPosition: Int? = nil,
         chainTitle: String? = nil,
+        duration: Double? = nil,
         completion: @escaping (Error?) -> Void
     ) {
         createStoryDocument(
@@ -36,7 +37,8 @@ extension FirestoreService {
             continuationAudience: nil,
             continuationCustomViewers: nil,
             continuationCustomListId: nil,
-            continuationCustomListName: nil
+            continuationCustomListName: nil,
+            duration: duration
         ) { _, error in
             completion(error)
         }
@@ -62,6 +64,7 @@ extension FirestoreService {
         continuationCustomViewers: [String]? = nil,
         continuationCustomListId: String? = nil,
         continuationCustomListName: String? = nil,
+        duration: Double? = nil,
         completion: @escaping (String?, Error?) -> Void
     ) {
         createStoryDocument(
@@ -85,6 +88,7 @@ extension FirestoreService {
             continuationCustomViewers: continuationCustomViewers,
             continuationCustomListId: continuationCustomListId,
             continuationCustomListName: continuationCustomListName,
+            duration: duration,
             completion: completion
         )
     }
@@ -108,6 +112,7 @@ extension FirestoreService {
         continuationCustomViewers: [String]? = nil,
         continuationCustomListId: String? = nil,
         continuationCustomListName: String? = nil,
+        duration: Double? = nil,
         completion: @escaping (String?, Error?) -> Void
     ) {
         createStoryDocument(
@@ -131,6 +136,7 @@ extension FirestoreService {
             continuationCustomViewers: continuationCustomViewers,
             continuationCustomListId: continuationCustomListId,
             continuationCustomListName: continuationCustomListName,
+            duration: duration,
             completion: completion
         )
     }
@@ -156,6 +162,7 @@ extension FirestoreService {
         continuationCustomViewers: [String]?,
         continuationCustomListId: String?,
         continuationCustomListName: String?,
+        duration: Double?,
         completion: @escaping (String?, Error?) -> Void
     ) {
         fetchUser(userId: userId) { [weak self] result in
@@ -168,7 +175,7 @@ extension FirestoreService {
             case .success(let user):
                 let isChain = chainId != nil
                 let expirationDate = self.calculateStoryExpirationDate(isChain: isChain, chainId: chainId)
-                let duration = mediaItem.type == .video ? 60.0 : 15.0
+                let duration = duration ?? (mediaItem.type == .video ? 60.0 : 15.0)
                 let storyId = UUID().uuidString
 
                 let story = Story(

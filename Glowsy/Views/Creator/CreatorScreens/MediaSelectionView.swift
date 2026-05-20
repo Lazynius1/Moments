@@ -18,6 +18,8 @@ struct MediaSelectionView: View {
     @State private var isLoadingLibrary = true
     @State private var showingCamera = false
     @State private var authorizationStatus: PHAuthorizationStatus = .notDetermined
+    @State private var showingVideoTooLongAlert = false
+    @State private var rejectedVideoDuration: TimeInterval = 0
 
     // ✅ Estados para manejo de álbumes
     @State private var availableAlbums: [AlbumInfo] = []
@@ -50,9 +52,27 @@ struct MediaSelectionView: View {
         }
         .fullScreenCover(isPresented: $showingCamera) {
             CameraCapture { media in
+                if media.type == .video,
+                   let duration = media.videoDuration,
+                   duration > CreatorMedia.maxMomentVideoDuration {
+                    rejectedVideoDuration = duration
+                    showingVideoTooLongAlert = true
+                    return
+                }
                 selectedMediaItems.append(media)
                 currentFlow = .mediaEditing
             }
+        }
+        .alert("momentVideo.tooLong.title", isPresented: $showingVideoTooLongAlert) {
+            Button("common.understood") {
+                showingVideoTooLongAlert = false
+            }
+        } message: {
+            Text(String(
+                format: NSLocalizedString("momentVideo.tooLong.message", comment: "Moment video exceeds maximum duration message"),
+                formatDuration(rejectedVideoDuration),
+                formatDuration(CreatorMedia.maxMomentVideoDuration)
+            ))
         }
     }
 
@@ -536,6 +556,12 @@ struct MediaSelectionView: View {
         if selectedAssetIDs.contains(assetID) {
             selectedAssetIDs.removeAll { $0 == assetID }
         } else {
+            if asset.mediaType == .video, asset.duration > CreatorMedia.maxMomentVideoDuration {
+                rejectedVideoDuration = asset.duration
+                showingVideoTooLongAlert = true
+                return
+            }
+
             if selectedAssetIDs.count < 10 {
                 selectedAssetIDs.append(assetID)
             }
@@ -573,6 +599,14 @@ struct MediaSelectionView: View {
 
             for assetID in selectedAssetIDs {
                 guard let asset = mediaAssets.first(where: { $0.localIdentifier == assetID }) else { continue }
+                if asset.mediaType == .video, asset.duration > CreatorMedia.maxMomentVideoDuration {
+                    await MainActor.run {
+                        rejectedVideoDuration = asset.duration
+                        selectedAssetIDs.removeAll { $0 == assetID }
+                        showingVideoTooLongAlert = true
+                    }
+                    return
+                }
 
                 if asset.mediaType == .image {
                     if let image = await loadFullImage(for: asset) {

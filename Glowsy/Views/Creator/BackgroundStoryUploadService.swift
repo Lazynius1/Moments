@@ -36,6 +36,7 @@ class UploadingStory: ObservableObject, Identifiable {
     let continuationCustomViewers: [String]? // 🔗 AÑADIDO: Usuarios específicos que pueden continuar
     let continuationCustomListId: String? // 🔗 AÑADIDO: Lista específica que puede continuar
     let continuationCustomListName: String? // 🔗 AÑADIDO: Nombre de la lista que puede continuar
+    let storyVideoMode: CreatorMedia.StoryVideoMode
 
     @Published var uploadProgress: Double = 0.0
     @Published var status: UploadStatus = .uploading
@@ -66,6 +67,7 @@ class UploadingStory: ObservableObject, Identifiable {
         continuationCustomViewers: [String]? = nil, // 🔗 AÑADIDO: Usuarios específicos que pueden continuar
         continuationCustomListId: String? = nil, // 🔗 AÑADIDO: Lista específica que puede continuar
         continuationCustomListName: String? = nil, // 🔗 AÑADIDO: Nombre de la lista que puede continuar
+        storyVideoMode: CreatorMedia.StoryVideoMode = .normal,
         tempId: String? = nil
     ) {
         self.tempId = tempId ?? "temp_story_\(UUID().uuidString)"
@@ -89,6 +91,7 @@ class UploadingStory: ObservableObject, Identifiable {
         self.continuationCustomViewers = continuationCustomViewers // 🔗 AÑADIDO: Asignar usuarios específicos
         self.continuationCustomListId = continuationCustomListId // 🔗 AÑADIDO: Asignar lista específica
         self.continuationCustomListName = continuationCustomListName // 🔗 AÑADIDO: Asignar nombre de lista
+        self.storyVideoMode = storyVideoMode
         self.createdAt = Date()
 
         // Configurar thumbnail
@@ -110,6 +113,7 @@ struct StoryUploadPayload: Codable {
     let customListId: String?
     let selectedListName: String?
     let createdAt: Date
+    let storyVideoMode: String?
 
     // Story Chain fields
     let chainId: String?
@@ -238,7 +242,12 @@ class BackgroundStoryUploadService: ObservableObject {
                 image: optimizedImage,
                 videoURL: mediaItem.videoURL, // 🔥 videoURL va antes que type
                 type: mediaItem.type,
-                aspectRatio: mediaItem.aspectRatio
+                aspectRatio: mediaItem.aspectRatio,
+                recommendedAspectRatio: mediaItem.recommendedAspectRatio,
+                hasEdits: mediaItem.hasEdits,
+                thumbnailURL: mediaItem.thumbnailURL,
+                storyVideoMode: mediaItem.storyVideoMode,
+                videoDuration: mediaItem.videoDuration
             )
         } else {
             // ✅ OPTIMIZAR IMAGEN ORIGINAL para historias
@@ -248,7 +257,12 @@ class BackgroundStoryUploadService: ObservableObject {
                 image: optimizedImage,
                 videoURL: mediaItem.videoURL,
                 type: mediaItem.type,
-                aspectRatio: mediaItem.aspectRatio
+                aspectRatio: mediaItem.aspectRatio,
+                recommendedAspectRatio: mediaItem.recommendedAspectRatio,
+                hasEdits: mediaItem.hasEdits,
+                thumbnailURL: mediaItem.thumbnailURL,
+                storyVideoMode: mediaItem.storyVideoMode,
+                videoDuration: mediaItem.videoDuration
             )
         }
 
@@ -274,6 +288,7 @@ class BackgroundStoryUploadService: ObservableObject {
             continuationCustomViewers: continuationCustomViewers, // 🔗 AÑADIDO: Pasar usuarios específicos
             continuationCustomListId: continuationCustomListId, // 🔗 AÑADIDO: Pasar lista específica
             continuationCustomListName: continuationCustomListName, // 🔗 AÑADIDO: Pasar nombre de lista
+            storyVideoMode: finalMediaItem.storyVideoMode,
             tempId: recoveryActionId
         )
 
@@ -325,6 +340,26 @@ class BackgroundStoryUploadService: ObservableObject {
     private func processStoryUpload(_ uploadingStory: UploadingStory) async {
 
         do {
+            if uploadingStory.storyVideoMode == .autoSplit {
+                let firstStoryId = try await processAutoSplitStoryUpload(uploadingStory)
+                await MainActor.run {
+                    uploadingStory.storyId = firstStoryId
+                }
+                await updateProgress(uploadingStory, progress: 1.0, status: .completed)
+                await updateLiveActivityAsync(progress: 1.0, status: "completed")
+                try? await Task.sleep(nanoseconds: 3_000_000_000)
+                await endLiveActivityAsync()
+
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                    NotificationCenter.default.post(name: NSNotification.Name("StoryUploaded"), object: nil)
+                    self.removeUploadingStory()
+                }
+                await MainActor.run {
+                    self.isProcessing = false
+                }
+                return
+            }
+
             // PASO 1: Preparar media item para upload (0% - 20%)
             let uploadMediaItem = try await prepareMediaItem(uploadingStory)
             await updateProgress(uploadingStory, progress: 0.2)
@@ -335,7 +370,11 @@ class BackgroundStoryUploadService: ObservableObject {
 
             // PASO 3: Crear historia en Firestore (70% - 90%)
             await updateProgress(uploadingStory, progress: 0.8, status: .processing)
-            let storyId = try await createStoryInFirestore(uploadingStory, mediaUrl: mediaUrl)
+            let storyId = try await createStoryInFirestore(
+                uploadingStory,
+                mediaUrl: mediaUrl,
+                duration: uploadingStory.mediaItem.videoDuration
+            )
             await MainActor.run {
                 uploadingStory.storyId = storyId
             }
@@ -359,57 +398,7 @@ class BackgroundStoryUploadService: ObservableObject {
             }
 
             // PASO 6: Procesar stickers interactivos con storyId real
-            if let stickerData = uploadingStory.stickerData {
-                // Procesar menciones
-                let mentionStickers = stickerData.filter { $0.type == .mention }
-                if !mentionStickers.isEmpty {
-                    StickerPickerView.sendMentionNotificationsForStory(
-                        storyId: storyId, // ✅ Usar storyId real
-                        stickers: mentionStickers
-                    )
-                }
-
-                // ✅ NUEVO: Procesar polls
-                let pollStickers = stickerData.filter { $0.type == .poll }
-                if !pollStickers.isEmpty {
-                    await setupPollStickers(storyId: storyId, stickers: pollStickers)
-                }
-
-                // ✅ NUEVO: Procesar questions
-                let questionStickers = stickerData.filter { $0.type == .question }
-                if !questionStickers.isEmpty {
-                    await setupQuestionStickers(storyId: storyId, stickers: questionStickers)
-                }
-
-                let emojiSliderStickers = stickerData.filter { $0.type == .emojiSlider }
-                if !emojiSliderStickers.isEmpty {
-                    await setupEmojiSliderStickers(storyId: storyId, stickers: emojiSliderStickers)
-                }
-
-                // ✅ NUEVO: Procesar question responses
-                let questionResponseStickers = stickerData.filter { $0.type == .questionResponse }
-                if !questionResponseStickers.isEmpty {
-                    await setupQuestionResponseStickers(storyId: storyId, stickers: questionResponseStickers)
-                }
-
-                // ✅ NUEVO: Procesar weather stickers
-                let weatherStickers = stickerData.filter { $0.type == .weather }
-                if !weatherStickers.isEmpty {
-                    await setupWeatherStickers(storyId: storyId, stickers: weatherStickers)
-                }
-
-                // ✅ NUEVO: Procesar quiz stickers
-                let quizStickers = stickerData.filter { $0.type == .quiz }
-                if !quizStickers.isEmpty {
-                    await setupQuizStickers(storyId: storyId, stickers: quizStickers)
-                }
-
-                // ✅ NUEVO: Procesar audio stickers
-                let audioStickers = stickerData.filter { $0.type == .audio }
-                if !audioStickers.isEmpty {
-                    await setupAudioStickers(storyId: storyId, stickers: audioStickers)
-                }
-            }
+            await processInteractiveStickers(storyId: storyId, stickers: uploadingStory.stickerData)
 
             // PASO 7: Remover del header después de 2 segundos
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
@@ -428,6 +417,135 @@ class BackgroundStoryUploadService: ObservableObject {
 
         await MainActor.run {
             self.isProcessing = false
+        }
+    }
+
+    private func processAutoSplitStoryUpload(_ uploadingStory: UploadingStory) async throws -> String {
+        guard let videoURL = uploadingStory.mediaItem.videoURL else {
+            throw StoryVideoProcessingError.missingVideo
+        }
+
+        await updateProgress(uploadingStory, progress: 0.1, status: .processing)
+        let clips = try await StoryVideoProcessingService.shared.splitStoryVideo(videoURL: videoURL)
+        guard !clips.isEmpty else {
+            throw StoryVideoProcessingError.invalidDuration
+        }
+
+        var firstStoryId: String?
+        let revealStickers = uploadingStory.stickerData?.filter { $0.type == .reveal }
+
+        for (index, clip) in clips.enumerated() {
+            let isFirstClip = index == 0
+            let clipProgressBase = Double(index) / Double(clips.count)
+            let clipProgressEnd = Double(index + 1) / Double(clips.count)
+
+            await updateProgress(
+                uploadingStory,
+                progress: 0.1 + (clipProgressBase * 0.8),
+                status: .uploading
+            )
+
+            let segmentStory = UploadingStory(
+                userId: uploadingStory.userId,
+                mediaItem: clip.media,
+                storyText: isFirstClip ? uploadingStory.storyText : nil,
+                textPosition: isFirstClip ? uploadingStory.textPosition : nil,
+                selectedTextStyle: isFirstClip ? uploadingStory.selectedTextStyle : nil,
+                stickerData: isFirstClip ? uploadingStory.stickerData : revealStickers,
+                drawingData: isFirstClip ? uploadingStory.drawingData : nil,
+                audienceSetting: uploadingStory.audienceSetting,
+                customViewers: uploadingStory.customViewers,
+                customListId: uploadingStory.customListId,
+                selectedListName: uploadingStory.selectedListName,
+                finalRenderedImage: isFirstClip ? uploadingStory.finalRenderedImage : nil,
+                chainId: uploadingStory.chainId,
+                chainPosition: uploadingStory.chainPosition.map { $0 + index },
+                chainTitle: uploadingStory.chainTitle,
+                allowOthersToContinue: uploadingStory.allowOthersToContinue,
+                continuationAudience: uploadingStory.continuationAudience,
+                continuationCustomViewers: uploadingStory.continuationCustomViewers,
+                continuationCustomListId: uploadingStory.continuationCustomListId,
+                continuationCustomListName: uploadingStory.continuationCustomListName
+            )
+
+            let uploadMediaItem = try await prepareMediaItem(segmentStory)
+            let mediaUrl = try await uploadStoryMedia(uploadingStory, uploadMediaItem: uploadMediaItem)
+            let storyId = try await createStoryInFirestore(
+                segmentStory,
+                mediaUrl: mediaUrl,
+                duration: clip.duration
+            )
+
+            if firstStoryId == nil {
+                firstStoryId = storyId
+            }
+
+            Task.detached(priority: .background) {
+                await self.moderateStoryContentSilently(
+                    storyId: storyId,
+                    uploadingStory: segmentStory,
+                    mediaUrl: mediaUrl
+                )
+            }
+
+            if isFirstClip {
+                await processInteractiveStickers(storyId: storyId, stickers: segmentStory.stickerData)
+            }
+
+            await updateProgress(
+                uploadingStory,
+                progress: 0.1 + (clipProgressEnd * 0.8),
+                status: .uploading
+            )
+        }
+
+        return firstStoryId ?? ""
+    }
+
+    private func processInteractiveStickers(storyId: String, stickers: [StickerItem]?) async {
+        guard let stickers else { return }
+
+        let mentionStickers = stickers.filter { $0.type == .mention }
+        if !mentionStickers.isEmpty {
+            StickerPickerView.sendMentionNotificationsForStory(
+                storyId: storyId,
+                stickers: mentionStickers
+            )
+        }
+
+        let pollStickers = stickers.filter { $0.type == .poll }
+        if !pollStickers.isEmpty {
+            await setupPollStickers(storyId: storyId, stickers: pollStickers)
+        }
+
+        let questionStickers = stickers.filter { $0.type == .question }
+        if !questionStickers.isEmpty {
+            await setupQuestionStickers(storyId: storyId, stickers: questionStickers)
+        }
+
+        let emojiSliderStickers = stickers.filter { $0.type == .emojiSlider }
+        if !emojiSliderStickers.isEmpty {
+            await setupEmojiSliderStickers(storyId: storyId, stickers: emojiSliderStickers)
+        }
+
+        let questionResponseStickers = stickers.filter { $0.type == .questionResponse }
+        if !questionResponseStickers.isEmpty {
+            await setupQuestionResponseStickers(storyId: storyId, stickers: questionResponseStickers)
+        }
+
+        let weatherStickers = stickers.filter { $0.type == .weather }
+        if !weatherStickers.isEmpty {
+            await setupWeatherStickers(storyId: storyId, stickers: weatherStickers)
+        }
+
+        let quizStickers = stickers.filter { $0.type == .quiz }
+        if !quizStickers.isEmpty {
+            await setupQuizStickers(storyId: storyId, stickers: quizStickers)
+        }
+
+        let audioStickers = stickers.filter { $0.type == .audio }
+        if !audioStickers.isEmpty {
+            await setupAudioStickers(storyId: storyId, stickers: audioStickers)
         }
     }
 
@@ -586,7 +704,11 @@ class BackgroundStoryUploadService: ObservableObject {
     }
 
     // MARK: - 📝 CREAR HISTORIA EN FIRESTORE
-    private func createStoryInFirestore(_ uploadingStory: UploadingStory, mediaUrl: String) async throws -> String {
+    private func createStoryInFirestore(
+        _ uploadingStory: UploadingStory,
+        mediaUrl: String,
+        duration: Double? = nil
+    ) async throws -> String {
         let firestoreService = FirestoreService.shared
 
         // ✅ DETECTAR ASPECT RATIO Y EXTRAER FRAME DE FONDO
@@ -670,7 +792,8 @@ class BackgroundStoryUploadService: ObservableObject {
                     continuationAudience: uploadingStory.continuationAudience, // 🔗 AÑADIDO: Audiencia de continuación
                     continuationCustomViewers: uploadingStory.continuationCustomViewers, // 🔗 AÑADIDO: Usuarios específicos de continuación
                     continuationCustomListId: uploadingStory.continuationCustomListId, // 🔗 AÑADIDO: Lista específica de continuación
-                    continuationCustomListName: uploadingStory.continuationCustomListName // 🔗 AÑADIDO: Nombre de lista de continuación
+                    continuationCustomListName: uploadingStory.continuationCustomListName, // 🔗 AÑADIDO: Nombre de lista de continuación
+                    duration: duration
                 ) { storyId, error in // 🔥 AHORA CAPTURA EL storyId REAL
                     if let error = error {
                         continuation.resume(throwing: error)
@@ -704,7 +827,8 @@ class BackgroundStoryUploadService: ObservableObject {
                     continuationAudience: uploadingStory.continuationAudience, // 🔗 AÑADIDO: Audiencia de continuación
                     continuationCustomViewers: uploadingStory.continuationCustomViewers, // 🔗 AÑADIDO: Usuarios específicos de continuación
                     continuationCustomListId: uploadingStory.continuationCustomListId, // 🔗 AÑADIDO: Lista específica de continuación
-                    continuationCustomListName: uploadingStory.continuationCustomListName // 🔗 AÑADIDO: Nombre de lista de continuación
+                    continuationCustomListName: uploadingStory.continuationCustomListName, // 🔗 AÑADIDO: Nombre de lista de continuación
+                    duration: duration
                 ) { storyId, error in // 🔥 AHORA CAPTURA EL storyId REAL
                     if let error = error {
                         continuation.resume(throwing: error)
@@ -1230,6 +1354,7 @@ class BackgroundStoryUploadService: ObservableObject {
                 customListId: uploadingStory.customListId,
                 selectedListName: uploadingStory.selectedListName,
                 createdAt: uploadingStory.createdAt,
+                storyVideoMode: uploadingStory.storyVideoMode.rawValue,
                 chainId: uploadingStory.chainId,
                 chainPosition: uploadingStory.chainPosition,
                 chainTitle: uploadingStory.chainTitle,
@@ -1467,6 +1592,7 @@ class BackgroundStoryUploadService: ObservableObject {
             processedMedia.videoDuration = payload.mediaItem.videoDuration
             processedMedia.videoFileSize = payload.mediaItem.videoFileSize
             processedMedia.videoResolution = payload.mediaItem.videoResolution
+            processedMedia.storyVideoMode = CreatorMedia.StoryVideoMode(rawValue: payload.storyVideoMode ?? "") ?? .normal
 
             // 2. Reconstruir Stickers
             var stickers: [StickerItem] = []
