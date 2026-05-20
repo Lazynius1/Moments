@@ -12,6 +12,12 @@ import CoreImage
 
 // ✅ Importar para usar StickerPickerView.sendMentionNotificationsForStory
 
+private struct PreparedStoryMedia {
+    let url: String
+    let videoFileSize: Int64?
+    let videoResolution: String?
+}
+
 // MARK: - 📱 MODELO DE HISTORIA EN PROGRESO
 class UploadingStory: ObservableObject, Identifiable {
     let id = UUID()
@@ -192,6 +198,9 @@ class BackgroundStoryUploadService: ObservableObject {
 
     // ✅ NUEVO: Live Activity para Dynamic Island
     private var liveActivity: Activity<StoryUploadActivityAttributes>?
+    private var lastLiveActivityProgress: Double = -1
+    private var lastLiveActivityUpdateAt: Date = .distantPast
+    private var lastLiveActivityStatus: String = ""
 
     private init() {
         // ✅ Limpiar actividades huerfanas de sesiones anteriores
@@ -318,6 +327,12 @@ class BackgroundStoryUploadService: ObservableObject {
                 await self.persistAction(uploadingStory)
             }
 
+            // ✅ No mantener un background task vivo mientras el servidor procesa vídeo.
+            if backgroundTaskID != .invalid {
+                UIApplication.shared.endBackgroundTask(backgroundTaskID)
+                backgroundTaskID = .invalid
+            }
+
             // 2. Ejecutar upload
             await self.processStoryUpload(uploadingStory)
 
@@ -327,11 +342,7 @@ class BackgroundStoryUploadService: ObservableObject {
                 self.deleteActionFiles(id: uploadingStory.tempId)
             }
 
-            // ✅ Terminar background task
-            if backgroundTaskID != .invalid {
-                UIApplication.shared.endBackgroundTask(backgroundTaskID)
-                backgroundTaskID = .invalid
-            }
+            // El procesamiento largo queda en Firestore/Functions; no envolvemos esa espera en background task.
         }
 
         return uploadingStory
@@ -343,6 +354,9 @@ class BackgroundStoryUploadService: ObservableObject {
         do {
             if uploadingStory.storyVideoMode == .autoSplit {
                 let firstStoryId = try await processAutoSplitStoryUpload(uploadingStory)
+                if firstStoryId.isEmpty {
+                    return
+                }
                 await MainActor.run {
                     uploadingStory.storyId = firstStoryId
                 }
@@ -365,16 +379,25 @@ class BackgroundStoryUploadService: ObservableObject {
             let uploadMediaItem = try await prepareMediaItem(uploadingStory)
             await updateProgress(uploadingStory, progress: 0.2)
 
-            // PASO 2: Upload archivo (20% - 70%)
-            let mediaUrl = try await uploadStoryMedia(uploadingStory, uploadMediaItem: uploadMediaItem)
-            await updateProgress(uploadingStory, progress: 0.7)
+            // PASO 2: Upload/preparación final del archivo (20% - 70%)
+            let preparedMedia = try await prepareStoryMediaForPublication(
+                uploadingStory,
+                uploadMediaItem: uploadMediaItem
+            )
+            if uploadingStory.uploadProgress < 0.7 {
+                await updateProgress(uploadingStory, progress: 0.7)
+            }
 
             // PASO 3: Crear historia en Firestore (70% - 90%)
             await updateProgress(uploadingStory, progress: 0.8, status: .processing)
             let storyId = try await createStoryInFirestore(
                 uploadingStory,
-                mediaUrl: mediaUrl,
-                duration: uploadingStory.mediaItem.videoDuration
+                mediaUrl: preparedMedia.url,
+                videoFileSize: preparedMedia.videoFileSize,
+                videoResolution: preparedMedia.videoResolution,
+                duration: uploadingStory.mediaItem.videoDuration,
+                videoProcessingStatus: shouldUseStoryPostProcessing(uploadMediaItem: uploadMediaItem) ? .pending : .ready,
+                originalVideoUrl: shouldUseStoryPostProcessing(uploadMediaItem: uploadMediaItem) ? preparedMedia.url : nil
             )
             await MainActor.run {
                 uploadingStory.storyId = storyId
@@ -394,7 +417,7 @@ class BackgroundStoryUploadService: ObservableObject {
                 await self.moderateStoryContentSilently(
                     storyId: storyId,
                     uploadingStory: uploadingStory,
-                    mediaUrl: mediaUrl
+                    mediaUrl: preparedMedia.url
                 )
             }
 
@@ -470,11 +493,24 @@ class BackgroundStoryUploadService: ObservableObject {
             )
 
             let uploadMediaItem = try await prepareMediaItem(segmentStory)
-            let mediaUrl = try await uploadStoryMedia(uploadingStory, uploadMediaItem: uploadMediaItem)
+            let segmentStartProgress = 0.1 + (clipProgressBase * 0.8)
+            let segmentEndProgress = 0.1 + (clipProgressEnd * 0.8)
+            let segmentUploadEndProgress = segmentStartProgress + ((segmentEndProgress - segmentStartProgress) * 0.55)
+            let preparedMedia = try await prepareStoryMediaForPublication(
+                uploadingStory,
+                uploadMediaItem: uploadMediaItem,
+                uploadProgressRange: segmentStartProgress...segmentUploadEndProgress
+            )
+
+            let shouldPostProcess = shouldUseStoryPostProcessing(uploadMediaItem: uploadMediaItem)
             let storyId = try await createStoryInFirestore(
                 segmentStory,
-                mediaUrl: mediaUrl,
-                duration: clip.duration
+                mediaUrl: preparedMedia.url,
+                videoFileSize: preparedMedia.videoFileSize,
+                videoResolution: preparedMedia.videoResolution,
+                duration: clip.duration,
+                videoProcessingStatus: shouldPostProcess ? .pending : .ready,
+                originalVideoUrl: shouldPostProcess ? preparedMedia.url : nil
             )
 
             if firstStoryId == nil {
@@ -485,7 +521,7 @@ class BackgroundStoryUploadService: ObservableObject {
                 await self.moderateStoryContentSilently(
                     storyId: storyId,
                     uploadingStory: segmentStory,
-                    mediaUrl: mediaUrl
+                    mediaUrl: preparedMedia.url
                 )
             }
 
@@ -766,22 +802,70 @@ class BackgroundStoryUploadService: ObservableObject {
     }
 
     // MARK: - 📁 UPLOAD DE ARCHIVO DE HISTORIA
-    private func uploadStoryMedia(_ uploadingStory: UploadingStory, uploadMediaItem: UploadMediaItem) async throws -> String {
+    private func prepareStoryMediaForPublication(
+        _ uploadingStory: UploadingStory,
+        uploadMediaItem: UploadMediaItem,
+        uploadProgressRange: ClosedRange<Double> = 0.2...0.55
+    ) async throws -> PreparedStoryMedia {
+        guard uploadMediaItem.type == .video,
+              let videoURL = uploadMediaItem.videoURL else {
+            let mediaUrl = try await uploadStoryMedia(
+                uploadingStory,
+                uploadMediaItem: uploadMediaItem,
+                progressRange: uploadProgressRange
+            )
+            return PreparedStoryMedia(url: mediaUrl, videoFileSize: nil, videoResolution: nil)
+        }
+
+        let candidateFileSize = getFileSizeInBytes(videoURL)
+        let mediaUrl = try await uploadStoryMedia(
+            uploadingStory,
+            uploadMediaItem: uploadMediaItem,
+            progressRange: uploadProgressRange
+        )
+        return PreparedStoryMedia(
+            url: mediaUrl,
+            videoFileSize: candidateFileSize > 0 ? candidateFileSize : nil,
+            videoResolution: uploadingStory.mediaItem.videoResolution
+        )
+    }
+
+    private func shouldUseServerCompression(videoURL: URL) -> Bool {
+        getFileSizeInBytes(videoURL) > CreatorMedia.maxStoryVideoReadySizeBytes
+    }
+
+    private func shouldUseStoryPostProcessing(uploadMediaItem: UploadMediaItem) -> Bool {
+        guard uploadMediaItem.type == .video,
+              let videoURL = uploadMediaItem.videoURL else {
+            return false
+        }
+        return shouldUseServerCompression(videoURL: videoURL)
+    }
+
+    private func uploadStoryMedia(
+        _ uploadingStory: UploadingStory,
+        uploadMediaItem: UploadMediaItem,
+        progressRange: ClosedRange<Double> = 0.2...0.7
+    ) async throws -> String {
 
         let storageService = StorageService()
 
         return try await withCheckedThrowingContinuation { continuation in
-            storageService.uploadMedia(userId: uploadingStory.userId, mediaItem: uploadMediaItem) { result in
-                // Simular progreso durante upload (20% - 70%)
-                Task {
-                    for progress in stride(from: 0.2, through: 0.7, by: 0.1) {
-                        await self.updateProgress(uploadingStory, progress: progress)
-                        try? await Task.sleep(nanoseconds: 200_000_000) // 0.2 segundos
+            storageService.uploadMedia(
+                userId: uploadingStory.userId,
+                mediaItem: uploadMediaItem,
+                progress: { [weak uploadingStory] progress in
+                    guard let uploadingStory else { return }
+                    let clampedProgress = min(max(progress, 0), 1)
+                    let totalProgress = progressRange.lowerBound + (clampedProgress * (progressRange.upperBound - progressRange.lowerBound))
+                    Task { @MainActor in
+                        await self.updateProgress(uploadingStory, progress: totalProgress, status: .uploading)
                     }
+                },
+                completion: { result in
+                    continuation.resume(with: result)
                 }
-
-                continuation.resume(with: result)
-            }
+            )
         }
     }
 
@@ -789,7 +873,11 @@ class BackgroundStoryUploadService: ObservableObject {
     private func createStoryInFirestore(
         _ uploadingStory: UploadingStory,
         mediaUrl: String,
-        duration: Double? = nil
+        videoFileSize: Int64? = nil,
+        videoResolution: String? = nil,
+        duration: Double? = nil,
+        videoProcessingStatus: MediaItem.VideoProcessingStatus? = nil,
+        originalVideoUrl: String? = nil
     ) async throws -> String {
         let firestoreService = FirestoreService.shared
 
@@ -827,7 +915,12 @@ class BackgroundStoryUploadService: ObservableObject {
         // 🔥 CREAR MediaItem como en tu función original
         let mediaItem = MediaItem(
             type: uploadingStory.mediaItem.type == .video ? .video : .image,
-            url: mediaUrl
+            url: mediaUrl,
+            videoDuration: duration,
+            videoFileSize: videoFileSize,
+            videoResolution: videoResolution,
+            videoProcessingStatus: uploadingStory.mediaItem.type == .video ? (videoProcessingStatus ?? .ready) : nil,
+            originalVideoUrl: originalVideoUrl
         )
 
         // ✅ NORMALIZAR STICKERS EN EL ÁREA REAL DEL CONTENIDO (tipo Instagram)
@@ -1949,6 +2042,10 @@ extension BackgroundStoryUploadService {
         guard let activity = liveActivity else {
             return
         }
+        guard shouldUpdateLiveActivity(progress: progress, status: status) else {
+            return
+        }
+        recordLiveActivityUpdate(progress: progress, status: status)
 
         let updatedState = StoryUploadActivityAttributes.ContentState(
             progress: progress,
@@ -1967,6 +2064,10 @@ extension BackgroundStoryUploadService {
         guard let activity = liveActivity else {
             return
         }
+        guard shouldUpdateLiveActivity(progress: progress, status: status) else {
+            return
+        }
+        recordLiveActivityUpdate(progress: progress, status: status)
 
         let updatedState = StoryUploadActivityAttributes.ContentState(
             progress: progress,
@@ -1977,6 +2078,21 @@ extension BackgroundStoryUploadService {
             await activity.update(using: updatedState)
         } catch {
         }
+    }
+
+    private func shouldUpdateLiveActivity(progress: Double, status: String) -> Bool {
+        if progress >= 1.0 { return true }
+        if status == "failed" { return true }
+        if status != lastLiveActivityStatus { return true }
+        let progressDelta = abs(progress - lastLiveActivityProgress)
+        let elapsed = Date().timeIntervalSince(lastLiveActivityUpdateAt)
+        return progressDelta >= 0.05 || elapsed >= 3.0
+    }
+
+    private func recordLiveActivityUpdate(progress: Double, status: String) {
+        lastLiveActivityProgress = progress
+        lastLiveActivityStatus = status
+        lastLiveActivityUpdateAt = Date()
     }
 
     private func endLiveActivity() {

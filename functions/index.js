@@ -297,6 +297,19 @@ async function deleteOriginalMomentVideoIfSafe({ originalUrl, processedUrl }) {
   }
 }
 
+async function deleteStorageUrlIfSafe({ url, allowedPrefixes }) {
+  const bucket = admin.storage().bucket();
+  const objectName = storageObjectNameFromFirebaseUrl(url, bucket.name);
+
+  if (!objectName) return false;
+  if (!Array.isArray(allowedPrefixes) || !allowedPrefixes.some((prefix) => objectName.startsWith(prefix))) {
+    return false;
+  }
+
+  await bucket.file(objectName).delete({ ignoreNotFound: true });
+  return true;
+}
+
 async function transcodeMomentVideo({ userId, momentId, mediaItem }) {
   const bucket = admin.storage().bucket();
   const tempBase = path.join(os.tmpdir(), `moment_video_${momentId}_${mediaItem.id}_${Date.now()}`);
@@ -352,6 +365,59 @@ async function transcodeMomentVideo({ userId, momentId, mediaItem }) {
   }
 }
 
+async function transcodeStoryVideo({ userId, uploadId, segmentId, temporaryUrl }) {
+  const bucket = admin.storage().bucket();
+  const tempBase = path.join(os.tmpdir(), `story_video_${uploadId}_${segmentId}_${Date.now()}`);
+  const inputPath = `${tempBase}_input.mp4`;
+  const outputPath = `${tempBase}_processed.mp4`;
+
+  try {
+    await downloadUrlToFile(temporaryUrl, inputPath);
+
+    await runFfmpeg([
+      '-y',
+      '-i', inputPath,
+      '-vf', 'scale=1280:1280:force_original_aspect_ratio=decrease,format=yuv420p',
+      '-c:v', 'libx264',
+      '-preset', 'veryfast',
+      '-crf', '24',
+      '-c:a', 'aac',
+      '-b:a', '128k',
+      '-movflags', '+faststart',
+      outputPath
+    ]);
+
+    const objectName = `processed_videos/stories/${userId}/${uploadId}/${segmentId}.mp4`;
+    const token = crypto.randomUUID();
+
+    await bucket.upload(outputPath, {
+      destination: objectName,
+      metadata: {
+        contentType: 'video/mp4',
+        metadata: {
+          firebaseStorageDownloadTokens: token,
+          sourceUploadId: uploadId,
+          sourceSegmentId: segmentId,
+          processedBy: 'processStoryVideos'
+        }
+      }
+    });
+
+    return {
+      url: firebaseStorageDownloadUrl(bucket.name, objectName, token),
+      fileSize: fs.statSync(outputPath).size
+    };
+  } finally {
+    for (const filePath of [inputPath, outputPath]) {
+      try {
+        if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+      } catch (error) {
+        console.warn('Story video temp cleanup failed', filePath, error.message);
+      }
+    }
+  }
+}
+
 function addStorageUrl(targetSet, value) {
   if (typeof value !== 'string') return;
   const trimmed = value.trim();
@@ -361,6 +427,7 @@ function addStorageUrl(targetSet, value) {
     trimmed.startsWith('images/') ||
     trimmed.startsWith('videos/') ||
     trimmed.startsWith('processed_videos/') ||
+    trimmed.startsWith('story_processing_uploads/') ||
     trimmed.startsWith('stories/') ||
     trimmed.startsWith('background_frames/') ||
     trimmed.startsWith('story_frames/') ||
@@ -695,6 +762,80 @@ exports.processMomentVideos = onDocumentCreated(
       ...finalLegacyFields,
       videoProcessingUpdatedAt: admin.firestore.FieldValue.serverTimestamp()
     });
+  }
+);
+
+exports.processStoryVideos = onDocumentCreated(
+  {
+    document: 'users/{userId}/stories/{storyId}',
+    memory: '2GiB',
+    timeoutSeconds: 540,
+    concurrency: 1,
+    retry: false
+  },
+  async (event) => {
+    const snap = event.data;
+    if (!snap) return;
+
+    const { userId, storyId } = event.params;
+    const storyRef = snap.ref;
+    const data = snap.data() || {};
+    const mediaItem = data.mediaItem || {};
+
+    if (
+      mediaItem.type !== 'video' ||
+      mediaItem.videoProcessingStatus !== 'pending' ||
+      !mediaItem.url
+    ) {
+      return;
+    }
+
+    const originalVideoUrl = mediaItem.originalVideoUrl || mediaItem.url;
+
+    await storyRef.update({
+      'mediaItem.originalVideoUrl': originalVideoUrl,
+      'mediaItem.videoProcessingStatus': 'processing',
+      videoProcessingStatus: 'processing',
+      videoProcessingUpdatedAt: admin.firestore.FieldValue.serverTimestamp()
+    });
+
+    try {
+      const processed = await transcodeStoryVideo({
+        userId,
+        uploadId: storyId,
+        segmentId: mediaItem.id || 'single',
+        temporaryUrl: originalVideoUrl
+      });
+
+      const originalDeleted = await deleteStorageUrlIfSafe({
+        url: originalVideoUrl,
+        allowedPrefixes: ['videos/']
+      });
+
+      await storyRef.update({
+        'mediaItem.url': processed.url,
+        'mediaItem.originalVideoUrl': originalDeleted ? null : originalVideoUrl,
+        'mediaItem.videoFileSize': processed.fileSize,
+        'mediaItem.videoProcessingStatus': 'ready',
+        'mediaItem.originalVideoDeletedAt': originalDeleted ? admin.firestore.Timestamp.now() : null,
+        'mediaItem.videoProcessingError': null,
+        videoUrl: processed.url,
+        videoFileSize: processed.fileSize,
+        videoProcessingStatus: 'ready',
+        videoProcessingError: null,
+        videoProcessingUpdatedAt: admin.firestore.FieldValue.serverTimestamp()
+      });
+    } catch (error) {
+      console.error(`processStoryVideos failed for ${userId}/${storyId}`, error);
+      await storyRef.update({
+        'mediaItem.originalVideoUrl': originalVideoUrl,
+        'mediaItem.videoProcessingStatus': 'failed',
+        'mediaItem.videoProcessingError': error.message || 'Story video processing failed',
+        videoProcessingStatus: 'failed',
+        videoProcessingError: error.message || 'Story video processing failed',
+        videoProcessingUpdatedAt: admin.firestore.FieldValue.serverTimestamp()
+      });
+    }
   }
 );
 

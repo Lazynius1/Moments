@@ -871,16 +871,15 @@ struct StoryStickerView: View {
                     .clipShape(RoundedRectangle(cornerRadius: 28 * sticker.scale))
                     .frame(width: sticker.image.size.width * sticker.scale, height: sticker.image.size.height * sticker.scale)
                 } else if sticker.gifURL != nil {
+                    let renderSize = genericGIFRenderSize
+
                     AnimatedStickerView(
                         sticker: sticker,
-                        size: CGSize(
-                            width: sticker.image.size.width * sticker.scale,
-                            height: sticker.image.size.height * sticker.scale
-                        )
+                        size: renderSize
                     )
                     .frame(
-                        width: sticker.image.size.width * sticker.scale,
-                        height: sticker.image.size.height * sticker.scale
+                        width: renderSize.width,
+                        height: renderSize.height
                     )
                 }
             }
@@ -1050,6 +1049,26 @@ struct StoryStickerView: View {
             .clipShape(RoundedRectangle(cornerRadius: 28 * sticker.scale))
             .rotationEffect(sticker.rotation)
         }
+    }
+
+    private var genericGIFRenderSize: CGSize {
+        let baseSize = cappedGenericStickerSize(sticker.image.size)
+        return CGSize(
+            width: baseSize.width * sticker.scale,
+            height: baseSize.height * sticker.scale
+        )
+    }
+
+    private func cappedGenericStickerSize(_ size: CGSize) -> CGSize {
+        let maxSide: CGFloat = 540
+        let longestSide = max(size.width, size.height)
+
+        guard longestSide > maxSide, longestSide > 0 else {
+            return size
+        }
+
+        let ratio = maxSide / longestSide
+        return CGSize(width: size.width * ratio, height: size.height * ratio)
     }
 
     // ✅ MANEJAR TAP EN STICKERS
