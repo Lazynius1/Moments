@@ -362,6 +362,7 @@ function addStorageUrl(targetSet, value) {
     trimmed.startsWith('videos/') ||
     trimmed.startsWith('processed_videos/') ||
     trimmed.startsWith('stories/') ||
+    trimmed.startsWith('background_frames/') ||
     trimmed.startsWith('story_frames/') ||
     trimmed.startsWith('story_audio/') ||
     trimmed.startsWith('hidden_layers/')
@@ -379,6 +380,8 @@ function collectDeletedContentStorageUrls(data = {}) {
   addStorageUrl(urls, data.thumbnailUrl);
   addStorageUrl(urls, data.mediaUrl);
   addStorageUrl(urls, data.mediaURL);
+  addStorageUrl(urls, data.backgroundFrameURL);
+  addStorageUrl(urls, data.backgroundBlurredFrameURL);
 
   const mediaItems = Array.isArray(data.mediaItems) ? data.mediaItems : [];
   for (const item of mediaItems) {
@@ -787,6 +790,8 @@ function collectMediaUrlsFromPayload(payload) {
     const mediaItem = story.mediaItem || {};
     push(mediaItem.url);
     push(mediaItem.thumbnailUrl);
+    push(story.backgroundFrameURL);
+    push(story.backgroundBlurredFrameURL);
   }
 
   for (const convo of payload.conversations || []) {

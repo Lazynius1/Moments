@@ -20,6 +20,7 @@ final class CachedStory {
     var drawingData: Data?
     var aspectRatio: String?
     var backgroundFrameURL: String?
+    var backgroundBlurredFrameURL: String?
     var chainId: String?
     var chainPosition: Int?
     var chainTitle: String?
@@ -42,6 +43,7 @@ final class CachedStory {
          drawingData: Data? = nil,
          aspectRatio: String? = nil,
          backgroundFrameURL: String? = nil,
+         backgroundBlurredFrameURL: String? = nil,
          chainId: String? = nil,
          chainPosition: Int? = nil,
          chainTitle: String? = nil) {
@@ -61,6 +63,7 @@ final class CachedStory {
         self.drawingData = drawingData
         self.aspectRatio = aspectRatio
         self.backgroundFrameURL = backgroundFrameURL
+        self.backgroundBlurredFrameURL = backgroundBlurredFrameURL
         self.chainId = chainId
         self.chainPosition = chainPosition
         self.chainTitle = chainTitle
@@ -92,6 +95,7 @@ final class CachedStory {
             drawingData: story.drawingData,
             aspectRatio: story.aspectRatio,
             backgroundFrameURL: story.backgroundFrameURL,
+            backgroundBlurredFrameURL: story.backgroundBlurredFrameURL,
             chainId: story.chainId,
             chainPosition: story.chainPosition,
             chainTitle: story.chainTitle
@@ -122,6 +126,7 @@ final class CachedStory {
             drawingData: drawingData,
             aspectRatio: aspectRatio,
             backgroundFrameURL: backgroundFrameURL,
+            backgroundBlurredFrameURL: backgroundBlurredFrameURL,
             chainId: chainId,
             chainPosition: chainPosition,
             chainTitle: chainTitle

@@ -193,10 +193,6 @@ struct StoryViewerScreen: View {
         colorScheme == .dark ? Color.white.opacity(0.12) : Color.black.opacity(0.10)
     }
 
-    private var quickActionBorderColor: Color {
-        colorScheme == .dark ? Color.white.opacity(0.14) : Color.black.opacity(0.08)
-    }
-
     private func clearAllStoryConfirmations() {
         showUnfollowConfirmation = false
         showMuteConfirmation = false
@@ -706,7 +702,7 @@ struct StoryViewerScreen: View {
 
     private func storyQuickActionsOverlay(topInset: CGFloat) -> some View {
         ZStack(alignment: .topTrailing) {
-            Color.black.opacity(0.001)
+            Color.clear
                 .ignoresSafeArea()
                 .contentShape(Rectangle())
                 .onTapGesture {
@@ -725,7 +721,6 @@ struct StoryViewerScreen: View {
             canLeaveBestFriends: canOptOutFromAuthorBestFriends,
             textColor: quickActionTextColor,
             dividerColor: quickActionDividerColor,
-            borderColor: quickActionBorderColor,
             onViewActivity: {
                 dismissQuickActions(resume: false)
                 fetchViewersAndShow()
@@ -1007,8 +1002,16 @@ struct StoryViewerScreen: View {
                     .background(
                         Group {
                             if presentationMode == .fitWithBlur,
-                               let backgroundFrameURL = story.backgroundFrameURL,
-                               let url = URL(string: backgroundFrameURL) {
+                               let blurredFrameURL = story.backgroundBlurredFrameURL,
+                               let url = URL(string: blurredFrameURL) {
+                                KFImage(url)
+                                    .resizable()
+                                    .aspectRatio(contentMode: .fill)
+                                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                                    .clipped()
+                            } else if presentationMode == .fitWithBlur,
+                                      let backgroundFrameURL = story.backgroundFrameURL,
+                                      let url = URL(string: backgroundFrameURL) {
                                 KFImage(url)
                                     .resizable()
                                     .aspectRatio(contentMode: .fill)

@@ -8,6 +8,7 @@ import AVFoundation
 import FirebaseStorage
 import ActivityKit
 import UIKit
+import CoreImage
 
 // ✅ Importar para usar StickerPickerView.sendMentionNotificationsForStory
 
@@ -587,6 +588,18 @@ class BackgroundStoryUploadService: ObservableObject {
 
     // ✅ EXTRACCION DE FRAME DE FONDO
     private func extractBackgroundFrame(from videoURL: URL) async -> String? {
+        guard let frameImage = extractBackgroundFrameImage(from: videoURL) else {
+            return nil
+        }
+
+        do {
+            return try await uploadBackgroundFrameImage(frameImage)
+        } catch {
+            return nil
+        }
+    }
+
+    private func extractBackgroundFrameImage(from videoURL: URL) -> UIImage? {
         let asset = AVAsset(url: videoURL)
         let imageGenerator = AVAssetImageGenerator(asset: asset)
         imageGenerator.appliesPreferredTrackTransform = true
@@ -594,8 +607,7 @@ class BackgroundStoryUploadService: ObservableObject {
 
         do {
             let cgImage = try imageGenerator.copyCGImage(at: .zero, actualTime: nil)
-            let uiImage = UIImage(cgImage: cgImage)
-            return try await uploadBackgroundFrameImage(uiImage)
+            return UIImage(cgImage: cgImage)
         } catch {
             return nil
         }
@@ -613,6 +625,76 @@ class BackgroundStoryUploadService: ObservableObject {
         _ = try await storageRef.putDataAsync(imageData, metadata: metadata)
         let downloadURL = try await storageRef.downloadURL()
         return downloadURL.absoluteString
+    }
+
+    private func uploadBlurredBackgroundFrameImage(_ image: UIImage) async throws -> String? {
+        let blurredImage = makePreblurredStoryBackground(from: image)
+        guard let imageData = blurredImage.jpegData(compressionQuality: 0.72) else { return nil }
+
+        let frameFileName = "background_frames/blurred_\(UUID().uuidString).jpg"
+        let storageRef = Storage.storage().reference().child(frameFileName)
+
+        let metadata = StorageMetadata()
+        metadata.contentType = "image/jpeg"
+
+        _ = try await storageRef.putDataAsync(imageData, metadata: metadata)
+        let downloadURL = try await storageRef.downloadURL()
+        return downloadURL.absoluteString
+    }
+
+    private func makePreblurredStoryBackground(from image: UIImage) -> UIImage {
+        let screenSize = UIScreen.main.bounds.size
+        let screenAspectRatio = max(screenSize.height / max(screenSize.width, 1), 1)
+        let downsampledWidth: CGFloat = 260
+        let downsampledSize = CGSize(
+            width: downsampledWidth,
+            height: min(max(downsampledWidth * screenAspectRatio, 360), 620)
+        )
+
+        let renderer = UIGraphicsImageRenderer(size: downsampledSize)
+        let downsampledImage = renderer.image { _ in
+            image.draw(in: aspectFillRect(for: image.size, in: CGRect(origin: .zero, size: downsampledSize)))
+        }
+
+        guard
+            let ciImage = CIImage(image: downsampledImage),
+            let clampFilter = CIFilter(name: "CIAffineClamp"),
+            let blurFilter = CIFilter(name: "CIGaussianBlur")
+        else {
+            return downsampledImage
+        }
+
+        clampFilter.setValue(ciImage, forKey: kCIInputImageKey)
+        blurFilter.setValue(clampFilter.outputImage, forKey: kCIInputImageKey)
+        blurFilter.setValue(18, forKey: kCIInputRadiusKey)
+
+        let ciContext = CIContext(options: [.useSoftwareRenderer: false])
+        guard
+            let outputImage = blurFilter.outputImage?.cropped(to: ciImage.extent),
+            let cgImage = ciContext.createCGImage(outputImage, from: outputImage.extent)
+        else {
+            return downsampledImage
+        }
+
+        return UIImage(cgImage: cgImage)
+    }
+
+    private func aspectFillRect(for imageSize: CGSize, in bounds: CGRect) -> CGRect {
+        guard imageSize.width > 0, imageSize.height > 0 else {
+            return bounds
+        }
+
+        let widthScale = bounds.width / imageSize.width
+        let heightScale = bounds.height / imageSize.height
+        let scale = max(widthScale, heightScale)
+        let scaledSize = CGSize(width: imageSize.width * scale, height: imageSize.height * scale)
+
+        return CGRect(
+            x: bounds.midX - scaledSize.width / 2,
+            y: bounds.midY - scaledSize.height / 2,
+            width: scaledSize.width,
+            height: scaledSize.height
+        )
     }
 
         // ✅ DETECTAR SI NECESITA COMPRESIÓN (SOLO POR TAMAÑO/BITRATE)
@@ -714,6 +796,7 @@ class BackgroundStoryUploadService: ObservableObject {
         // ✅ DETECTAR ASPECT RATIO Y EXTRAER FRAME DE FONDO
         var aspectRatio: String? = nil
         var backgroundFrameURL: String? = nil
+        var backgroundBlurredFrameURL: String? = nil
 
         if uploadingStory.mediaItem.type == .video,
            let videoURL = uploadingStory.mediaItem.videoURL {
@@ -725,10 +808,10 @@ class BackgroundStoryUploadService: ObservableObject {
                    for: parseAspectRatio(aspectRatio) ?? 0.0,
                    canvasAspectRatio: UIScreen.main.bounds.width / max(UIScreen.main.bounds.height, 1)
                ) == .fitWithBlur {
-                if let finalRenderedImage = uploadingStory.finalRenderedImage {
-                    backgroundFrameURL = try await uploadBackgroundFrameImage(finalRenderedImage)
-                } else {
-                    backgroundFrameURL = await extractBackgroundFrame(from: videoURL)
+                let backgroundImage = uploadingStory.finalRenderedImage ?? extractBackgroundFrameImage(from: videoURL)
+                if let backgroundImage {
+                    backgroundFrameURL = try await uploadBackgroundFrameImage(backgroundImage)
+                    backgroundBlurredFrameURL = try await uploadBlurredBackgroundFrameImage(backgroundImage)
                 }
             }
         } else if uploadingStory.mediaItem.type == .image {
@@ -785,6 +868,7 @@ class BackgroundStoryUploadService: ObservableObject {
                     drawingData: uploadingStory.drawingData,
                     aspectRatio: aspectRatio, // ✅ AÑADIDO: Pasar aspect ratio
                     backgroundFrameURL: backgroundFrameURL, // ✅ AÑADIDO: Pasar URL del frame de fondo
+                    backgroundBlurredFrameURL: backgroundBlurredFrameURL,
                     chainId: uploadingStory.chainId, // 🔗 AÑADIDO: Pasar ID de la cadena
                     chainPosition: uploadingStory.chainPosition, // 🔗 AÑADIDO: Pasar posición en la cadena
                     chainTitle: uploadingStory.chainTitle, // 🔗 AÑADIDO: Pasar título de la cadena
@@ -820,6 +904,7 @@ class BackgroundStoryUploadService: ObservableObject {
                     drawingData: uploadingStory.drawingData,
                     aspectRatio: aspectRatio, // ✅ AÑADIDO: Pasar aspect ratio
                     backgroundFrameURL: backgroundFrameURL, // ✅ AÑADIDO: Pasar URL del frame de fondo
+                    backgroundBlurredFrameURL: backgroundBlurredFrameURL,
                     chainId: uploadingStory.chainId, // 🔗 AÑADIDO: Pasar ID de la cadena
                     chainPosition: uploadingStory.chainPosition, // 🔗 AÑADIDO: Pasar posición en la cadena
                     chainTitle: uploadingStory.chainTitle, // 🔗 AÑADIDO: Pasar título de la cadena
