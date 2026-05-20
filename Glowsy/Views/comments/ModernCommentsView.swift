@@ -10,14 +10,28 @@ struct ModernCommentsView: View {
         let mutedWordMaskedIds: Set<String>
     }
 
+    private struct MentionDraftToken {
+        let query: String
+        let fullRange: Range<String.Index>
+    }
+
+    private enum MentionInputTarget {
+        case newComment
+        case editing
+    }
+
     let moment: Moment
     @State private var comments: [Comment] = []
     @State private var mutedUserIds: Set<String> = []
     @State private var mutedWordsNormalized: [String] = []
     @State private var temporarilyRevealedCommentIds: Set<String> = []
     @State private var newComment: String = ""
+    @State private var newCommentMentions: [CommentMentionEntity] = []
+    @State private var activeNewCommentMention: MentionDraftToken?
     @State private var editingCommentId: String? = nil
     @State private var editingCommentContent: String = ""
+    @State private var editingCommentMentions: [CommentMentionEntity] = []
+    @State private var activeEditingCommentMention: MentionDraftToken?
     @State private var replyToComment: Comment? = nil
     @State private var showDeleteAlert = false
     @State private var commentToDelete: Comment? = nil
@@ -302,6 +316,8 @@ struct ModernCommentsView: View {
                             onEdit: { comment in
                                 editingCommentId = comment.id
                                 editingCommentContent = comment.content
+                                editingCommentMentions = comment.mentions
+                                activeEditingCommentMention = detectMentionToken(in: comment.content)
                             },
                             onDelete: { comment in
                                 commentToDelete = comment
@@ -324,6 +340,13 @@ struct ModernCommentsView: View {
                             },
                             onAvatarTap: { userId, hasStory in
                                 guard !userId.isEmpty else { return }
+                                if userId == Auth.auth().currentUser?.uid {
+                                    NotificationCenter.default.post(
+                                        name: NSNotification.Name("NavigateToOwnProfileTab"),
+                                        object: nil
+                                    )
+                                    return
+                                }
                                 if hasStory {
                                     selectedStoryUserId = userId
                                     showSpecificUserStories = true
@@ -332,6 +355,44 @@ struct ModernCommentsView: View {
                                         name: NSNotification.Name("NavigateToProfile"),
                                         object: userId
                                     )
+                                }
+                            },
+                            onMentionTap: { identifier in
+                                guard !identifier.isEmpty else { return }
+                                if identifier.hasPrefix("@") {
+                                    let username = String(identifier.dropFirst())
+                                    firestoreService.fetchUserByUsername(username) { result in
+                                        switch result {
+                                        case .success(let user):
+                                            DispatchQueue.main.async {
+                                                if user.id == Auth.auth().currentUser?.uid {
+                                                    NotificationCenter.default.post(
+                                                        name: NSNotification.Name("NavigateToOwnProfileTab"),
+                                                        object: nil
+                                                    )
+                                                } else {
+                                                    NotificationCenter.default.post(
+                                                        name: NSNotification.Name("NavigateToProfile"),
+                                                        object: user.id
+                                                    )
+                                                }
+                                            }
+                                        case .failure(let error):
+                                            print("Error resolving username from comment mention: \(error.localizedDescription)")
+                                        }
+                                    }
+                                } else {
+                                    if identifier == Auth.auth().currentUser?.uid {
+                                        NotificationCenter.default.post(
+                                            name: NSNotification.Name("NavigateToOwnProfileTab"),
+                                            object: nil
+                                        )
+                                    } else {
+                                        NotificationCenter.default.post(
+                                            name: NSNotification.Name("NavigateToProfile"),
+                                            object: identifier
+                                        )
+                                    }
                                 }
                             },
                             maskedCommentIds: mutedWordMaskedCommentIds,
@@ -393,6 +454,7 @@ struct ModernCommentsView: View {
     // ✅ Input de comentario moderno (Diseño Floating Glass)
     private var commentInputView: some View {
         VStack(spacing: 0) {
+            mentionSearchOverlay
             
             HStack(spacing: 12) {
                 if editingCommentId != nil {
@@ -416,6 +478,10 @@ struct ModernCommentsView: View {
                                 .foregroundColor(colorScheme == .dark ? .white : .black)
                                 .lineLimit(1...4)
                                 .disabled(isLoading)
+                                .onChange(of: editingCommentContent) { _, newValue in
+                                    activeEditingCommentMention = detectMentionToken(in: newValue)
+                                    editingCommentMentions = sanitizedMentionEntities(editingCommentMentions, in: newValue)
+                                }
                         }
                         .padding(.horizontal, 16)
                         .padding(.vertical, 12)
@@ -431,9 +497,12 @@ struct ModernCommentsView: View {
                                 if let commentId = editingCommentId, !editingCommentContent.isEmpty {
                                     let generator = UIImpactFeedbackGenerator(style: .medium)
                                     generator.impactOccurred()
-                                    updateComment(commentId: commentId, content: editingCommentContent)
+                                    let mentions = sanitizedMentionEntities(editingCommentMentions, in: editingCommentContent)
+                                    updateComment(commentId: commentId, content: editingCommentContent, mentions: mentions)
                                     editingCommentId = nil
                                     editingCommentContent = ""
+                                    editingCommentMentions = []
+                                    activeEditingCommentMention = nil
                                 }
                             }) {
                                 if isLoading {
@@ -460,6 +529,8 @@ struct ModernCommentsView: View {
                             Button(action: {
                                 editingCommentId = nil
                                 editingCommentContent = ""
+                                editingCommentMentions = []
+                                activeEditingCommentMention = nil
                             }) {
                                 Image(systemName: "xmark")
                                     .font(.system(size: 14))
@@ -512,13 +583,20 @@ struct ModernCommentsView: View {
                                     )
                             )
                             .disabled(isLoading)
+                            .onChange(of: newComment) { _, newValue in
+                                activeNewCommentMention = detectMentionToken(in: newValue)
+                                newCommentMentions = sanitizedMentionEntities(newCommentMentions, in: newValue)
+                            }
                         
                         Button(action: {
                             if !newComment.isEmpty {
                                 let generator = UIImpactFeedbackGenerator(style: .medium)
                                 generator.impactOccurred()
-                                addComment(content: newComment, parentCommentId: replyToComment?.id)
+                                let mentions = sanitizedMentionEntities(newCommentMentions, in: newComment)
+                                addComment(content: newComment, parentCommentId: replyToComment?.id, mentions: mentions)
                                 newComment = ""
+                                newCommentMentions = []
+                                activeNewCommentMention = nil
                                 replyToComment = nil
                             }
                         }) {
@@ -558,6 +636,123 @@ struct ModernCommentsView: View {
             .padding(.vertical, 12)
             .padding(.bottom, 8) // Espacio extra abajo
         }
+    }
+
+    @ViewBuilder
+    private var mentionSearchOverlay: some View {
+        if let editingMention = activeEditingCommentMention {
+            CommentMentionSearchOverlay(
+                query: editingMention.query,
+                showsSearchField: false,
+                onSelect: { user in
+                    insertMention(user, into: .editing)
+                },
+                onCancel: {
+                    activeEditingCommentMention = nil
+                }
+            )
+            .padding(.horizontal, 16)
+            .padding(.bottom, 6)
+            .transition(.move(edge: .bottom).combined(with: .opacity))
+        } else if let newMention = activeNewCommentMention {
+            CommentMentionSearchOverlay(
+                query: newMention.query,
+                showsSearchField: false,
+                onSelect: { user in
+                    insertMention(user, into: .newComment)
+                },
+                onCancel: {
+                    activeNewCommentMention = nil
+                }
+            )
+            .padding(.horizontal, 16)
+            .padding(.bottom, 6)
+            .transition(.move(edge: .bottom).combined(with: .opacity))
+        }
+    }
+
+    private func detectMentionToken(in text: String) -> MentionDraftToken? {
+        guard !text.isEmpty else { return nil }
+
+        let tokenStart = text.lastIndex(where: { $0.isWhitespace }).map { text.index(after: $0) } ?? text.startIndex
+        let tokenRange = tokenStart..<text.endIndex
+        let token = String(text[tokenRange])
+        guard token.hasPrefix("@"), token.count > 1 else {
+            return nil
+        }
+
+        let query = String(token.dropFirst())
+        guard query.count <= 30,
+              query.allSatisfy({ $0.isLetter || $0.isNumber || $0 == "_" }) else {
+            return nil
+        }
+
+        return MentionDraftToken(
+            query: query,
+            fullRange: tokenRange
+        )
+    }
+
+    private func insertMention(_ user: AppUser, into target: MentionInputTarget) {
+        switch target {
+        case .newComment:
+            guard let token = activeNewCommentMention else { return }
+            let entity = insertMention(user, token: token, text: &newComment)
+            newCommentMentions = replacingMention(entity, in: newCommentMentions)
+            activeNewCommentMention = nil
+        case .editing:
+            guard let token = activeEditingCommentMention else { return }
+            let entity = insertMention(user, token: token, text: &editingCommentContent)
+            editingCommentMentions = replacingMention(entity, in: editingCommentMentions)
+            activeEditingCommentMention = nil
+        }
+
+        HapticManager.shared.selection()
+    }
+
+    private func insertMention(_ user: AppUser, token: MentionDraftToken, text: inout String) -> CommentMentionEntity {
+        let rangeStart = text.distance(from: text.startIndex, to: token.fullRange.lowerBound)
+        let replacement = "@\(user.username) "
+        text.replaceSubrange(token.fullRange, with: replacement)
+
+        return CommentMentionEntity(
+            userId: user.id,
+            username: user.username,
+            rangeStart: rangeStart,
+            rangeLength: replacement.trimmingCharacters(in: .whitespaces).count
+        )
+    }
+
+    private func replacingMention(_ entity: CommentMentionEntity, in mentions: [CommentMentionEntity]) -> [CommentMentionEntity] {
+        var next = mentions.filter { $0.userId != entity.userId }
+        next.append(entity)
+        return next
+    }
+
+    private func sanitizedMentionEntities(_ mentions: [CommentMentionEntity], in text: String) -> [CommentMentionEntity] {
+        var seenUserIds = Set<String>()
+        var sanitized: [CommentMentionEntity] = []
+
+        for mention in mentions {
+            guard !seenUserIds.contains(mention.userId),
+                  let range = text.range(of: "@\(mention.username)", options: [.caseInsensitive, .diacriticInsensitive]) else {
+                continue
+            }
+
+            seenUserIds.insert(mention.userId)
+            let rangeStart = text.distance(from: text.startIndex, to: range.lowerBound)
+            let rangeLength = text.distance(from: range.lowerBound, to: range.upperBound)
+            sanitized.append(
+                CommentMentionEntity(
+                    userId: mention.userId,
+                    username: mention.username,
+                    rangeStart: rangeStart,
+                    rangeLength: rangeLength
+                )
+            )
+        }
+
+        return sanitized
     }
     
     // ✅ Función auxiliar para obtener comentarios anidados
@@ -802,7 +997,7 @@ struct ModernCommentsView: View {
     }
     
     // MARK: - Tu función addComment corregida
-    private func addComment(content: String, parentCommentId: String?) {
+    private func addComment(content: String, parentCommentId: String?, mentions: [CommentMentionEntity]) {
         guard let userId = Auth.auth().currentUser?.uid, let momentId = moment.id else { return }
         
         // ✅ OPTIMISTIC UPDATE: Add a temporary pending comment
@@ -816,6 +1011,7 @@ struct ModernCommentsView: View {
             profileImagePath: currentUser?.profileImagePath,
             reactions: [:],
             parentCommentId: parentCommentId,
+            mentions: mentions,
             isPending: true
         )
         
@@ -829,7 +1025,8 @@ struct ModernCommentsView: View {
             userId: moment.authorId,
             authorId: userId,
             content: content,
-            parentCommentId: parentCommentId
+            parentCommentId: parentCommentId,
+            mentions: mentions
         ) { result in
             switch result {
             case .success:
@@ -969,9 +1166,9 @@ struct ModernCommentsView: View {
         }
     }
     
-    private func updateComment(commentId: String, content: String) {
+    private func updateComment(commentId: String, content: String, mentions: [CommentMentionEntity]) {
         guard let userId = Auth.auth().currentUser?.uid, let momentId = moment.id else { return }
-        firestoreService.updateComment(momentId: momentId, userId: moment.authorId, commentId: commentId, content: content) { result in
+        firestoreService.updateComment(momentId: momentId, userId: moment.authorId, commentId: commentId, content: content, mentions: mentions) { result in
             switch result {
             case .success:
                 DispatchQueue.main.async {
@@ -1030,6 +1227,101 @@ enum CommentSortOption {
     case newest, oldest, mostLiked
 }
 
+private struct CommentTextSegment: Identifiable {
+    let id: Int
+    let text: String
+    let userId: String?
+    let isMention: Bool
+}
+
+private struct CommentWrappingLayout: Layout {
+    var horizontalSpacing: CGFloat = 0
+    var verticalSpacing: CGFloat = 2
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        let maxWidth = proposal.width ?? .infinity
+        var currentX: CGFloat = 0
+        var currentY: CGFloat = 0
+        var lineHeight: CGFloat = 0
+        var measuredWidth: CGFloat = 0
+
+        for subview in subviews {
+            let size = subview.sizeThatFits(.unspecified)
+            if currentX > 0, currentX + size.width > maxWidth {
+                currentY += lineHeight + verticalSpacing
+                currentX = 0
+                lineHeight = 0
+            }
+
+            measuredWidth = max(measuredWidth, currentX + size.width)
+            currentX += size.width + horizontalSpacing
+            lineHeight = max(lineHeight, size.height)
+        }
+
+        return CGSize(width: min(measuredWidth, maxWidth), height: currentY + lineHeight)
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        let maxWidth = bounds.width
+        var currentX: CGFloat = bounds.minX
+        var currentY: CGFloat = bounds.minY
+        var lineHeight: CGFloat = 0
+
+        for subview in subviews {
+            let size = subview.sizeThatFits(.unspecified)
+            if currentX > bounds.minX, currentX + size.width > bounds.minX + maxWidth {
+                currentY += lineHeight + verticalSpacing
+                currentX = bounds.minX
+                lineHeight = 0
+            }
+
+            subview.place(
+                at: CGPoint(x: currentX, y: currentY),
+                proposal: ProposedViewSize(size)
+            )
+            currentX += size.width + horizontalSpacing
+            lineHeight = max(lineHeight, size.height)
+        }
+    }
+}
+
+private struct CommentMentionText: View {
+    let segments: [CommentTextSegment]
+    let fontSize: CGFloat
+    let baseColor: Color
+    let mentionColor: Color
+    let isBlurred: Bool
+    let onMentionTap: (String) -> Void
+
+    var body: some View {
+        CommentWrappingLayout {
+            ForEach(segments) { segment in
+                if segment.isMention {
+                    Button {
+                        if let userId = segment.userId {
+                            onMentionTap(userId)
+                        } else {
+                            onMentionTap(segment.text)
+                        }
+                    } label: {
+                        Text(segment.text)
+                            .font(.custom("Poppins-SemiBold", size: fontSize))
+                            .foregroundColor(mentionColor)
+                    }
+                    .buttonStyle(.plain)
+                    .contentShape(Rectangle())
+                    .disabled(isBlurred)
+                } else {
+                    Text(segment.text)
+                        .font(.custom("Poppins-Regular", size: fontSize))
+                        .foregroundColor(baseColor)
+                }
+            }
+        }
+        .blur(radius: isBlurred ? 8 : 0)
+    }
+}
+
 // ✅ NUEVA FILA DE COMENTARIO CON ANIDACIÓN COMO 
 struct EnhancedModernCommentRow: View {
     let comment: Comment
@@ -1042,6 +1334,7 @@ struct EnhancedModernCommentRow: View {
     let isExpanded: Bool
     let onToggleExpand: (String) -> Void
     let onAvatarTap: (String, Bool) -> Void
+    let onMentionTap: (String) -> Void
     let maskedCommentIds: Set<String>
     let temporarilyRevealedCommentIds: Set<String>
     let onRevealTemporarily: (String) -> Void
@@ -1138,6 +1431,7 @@ struct EnhancedModernCommentRow: View {
                             isExpanded: false,
                             onToggleExpand: onToggleExpand,
                             onAvatarTap: onAvatarTap,
+                            onMentionTap: onMentionTap,
                             maskedCommentIds: maskedCommentIds,
                             temporarilyRevealedCommentIds: temporarilyRevealedCommentIds,
                             onRevealTemporarily: onRevealTemporarily,
@@ -1192,138 +1486,73 @@ struct EnhancedModernCommentRow: View {
     
 
     
-    // ✅ Contenido principal del comentario CON SWIPE
+    // ✅ Contenido principal del comentario
     private var commentContent: some View {
-        ZStack(alignment: .trailing) {
-            // Fondo de acciones de deslizar
-            if shouldShowSwipeActions {
-                HStack(spacing: 0) {
-                    Spacer()
-                    
-                    if canEdit {
-                        Button(action: {
-                            withAnimation { offset = 0 }
-                            onEdit(comment)
-                        }) {
-                            VStack {
-                                Image(systemName: "pencil")
-                                    .font(.system(size: 18))
-                                    .foregroundColor(.white)
-                            }
-                            .frame(width: 60, height: nestingLevel == 0 ? 80 : 60) // Ajustar altura
-                            .background(Color.blue)
-                        }
-                    }
-                    
-                    if canDelete {
-                        Button(action: {
-                            withAnimation { offset = 0 }
-                            onDelete(comment)
-                        }) {
-                            VStack {
-                                Image(systemName: "trash")
-                                    .font(.system(size: 18))
-                                    .foregroundColor(.white)
-                            }
-                            .frame(width: 60, height: nestingLevel == 0 ? 80 : 60) // Ajustar altura
-                            .background(Color.red)
-                            .clipShape(
-                                .rect(
-                                    topLeadingRadius: 0,
-                                    bottomLeadingRadius: 0,
-                                    bottomTrailingRadius: nestingLevel == 0 ? 16 : 12,
-                                    topTrailingRadius: nestingLevel == 0 ? 16 : 12
-                                )
-                            )
-                        }
-                    }
+        HStack(alignment: .top, spacing: 12) {
+            // ✅ Avatar con borde gradiente
+            StoryRingAvatarView(
+                userId: comment.authorId,
+                size: avatarSize,
+                lineWidth: nestingLevel == 0 ? 2.3 : 2.0,
+                onTap: { hasStory in
+                    onAvatarTap(comment.authorId, hasStory)
                 }
-                .padding(.vertical, nestingLevel == 0 ? 12 : 8) // Coincidir con padding del row
-            }
-            
-            // Contenido visible
-            HStack(alignment: .top, spacing: 12) {
-                // ✅ Avatar con borde gradiente
-                StoryRingAvatarView(
-                    userId: comment.authorId,
-                    size: avatarSize,
-                    lineWidth: nestingLevel == 0 ? 2.3 : 2.0,
-                    onTap: { hasStory in
-                        onAvatarTap(comment.authorId, hasStory)
-                    }
-                )
-                .overlay(
-                    Circle()
-                        .stroke(
-                            LinearGradient(
-                                colors: nestingLevel == 0 ?
-                                [Color.blue.opacity(0.6), Color.purple.opacity(0.6)] :
-                                [Color.white.opacity(0.3), Color.white.opacity(0.2)],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            ),
-                            lineWidth: nestingLevel == 0 ? 1.5 : 1
-                        )
-                )
-                .shadow(
-                    color: nestingLevel == 0 ? Color.purple.opacity(0.2) : .clear,
-                    radius: 4,
-                    x: 0,
-                    y: 2
-                )
-                
-                VStack(alignment: .leading, spacing: 8) {
-                    // ✅ Header del comentario
-                    commentHeader
-                    
-                    // ✅ Contenido con @menciones destacadas
-                    contentWithMentions
-                    
-                    // ✅ Botones de acción
-                    actionButtons
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-            }
-            .padding(.horizontal, 16)
-            .padding(.vertical, nestingLevel == 0 ? 12 : 8)
-            .background(commentBackground)
-            .clipShape(RoundedRectangle(cornerRadius: nestingLevel == 0 ? 16 : 12))
+            )
             .overlay(
-                RoundedRectangle(cornerRadius: nestingLevel == 0 ? 16 : 12)
-                    .stroke(commentBorder, lineWidth: nestingLevel == 0 ? 1 : 0.5)
+                Circle()
+                    .stroke(
+                        LinearGradient(
+                            colors: nestingLevel == 0 ?
+                            [Color.blue.opacity(0.6), Color.purple.opacity(0.6)] :
+                            [Color.white.opacity(0.3), Color.white.opacity(0.2)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        ),
+                        lineWidth: nestingLevel == 0 ? 1.5 : 1
+                    )
             )
-            .offset(x: offset)
-            .gesture(
-                DragGesture()
-                    .onChanged { gesture in
-                        if shouldShowSwipeActions {
-                            // Solo permitir deslizar a la izquierda
-                            if gesture.translation.width < 0 {
-                                offset = gesture.translation.width
-                            }
-                        }
-                    }
-                    .onEnded { _ in
-                        if shouldShowSwipeActions {
-                            if offset < -50 {
-                                withAnimation {
-                                    offset = -actionWidth
-                                }
-                            } else {
-                                withAnimation {
-                                    offset = 0
-                                }
-                            }
-                        }
-                    }
+            .shadow(
+                color: nestingLevel == 0 ? Color.purple.opacity(0.2) : .clear,
+                radius: 4,
+                x: 0,
+                y: 2
             )
+
+            VStack(alignment: .leading, spacing: 8) {
+                // ✅ Header del comentario
+                commentHeader
+
+                // ✅ Contenido con @menciones destacadas
+                contentWithMentions
+
+                // ✅ Botones de acción
+                actionButtons
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .padding(.horizontal, nestingLevel == 0 ? 10 : 6)
+        .padding(.vertical, nestingLevel == 0 ? 12 : 8)
+        .contentShape(Rectangle())
+        .contextMenu {
+            if !isMaskApplied && canEdit {
+                Button {
+                    onEdit(comment)
+                } label: {
+                    Label(NSLocalizedString("comments.actions.edit", comment: "Edit comment action"), systemImage: "pencil")
+                }
+            }
+
+            if !isMaskApplied && canDelete {
+                Button(role: .destructive) {
+                    onDelete(comment)
+                } label: {
+                    Label(NSLocalizedString("comments.actions.delete", comment: "Delete comment action"), systemImage: "trash")
+                }
+            }
         }
         // Animación de entrada "Pop"
         .transition(.scale.combined(with: .opacity))
     }
-    
-    // ✅ Propiedades para SWIPE
-    @State private var offset: CGFloat = 0
     
     private var canEdit: Bool {
         comment.authorId == Auth.auth().currentUser?.uid
@@ -1331,17 +1560,6 @@ struct EnhancedModernCommentRow: View {
     
     private var canDelete: Bool {
         comment.authorId == Auth.auth().currentUser?.uid || moment.authorId == Auth.auth().currentUser?.uid
-    }
-    
-    private var shouldShowSwipeActions: Bool {
-        !isMaskApplied && (canEdit || canDelete)
-    }
-    
-    private var actionWidth: CGFloat {
-        var width: CGFloat = 0
-        if canEdit { width += 60 }
-        if canDelete { width += 60 }
-        return width
     }
     
     // ✅ Tamaño de avatar variable
@@ -1352,29 +1570,6 @@ struct EnhancedModernCommentRow: View {
         case 2: return 28
         default: return 24
         }
-    }
-    
-    private var commentBackground: some View {
-        Group {
-            if nestingLevel == 0 {
-                // Background sólido con efecto glass
-                Color.black.opacity(colorScheme == .dark ? 0.3 : 0.05)
-                    .background(.ultraThinMaterial)
-            } else {
-                Color.clear
-            }
-        }
-    }
-    
-    // ✅ Borde del comentario según nivel
-    private var commentBorder: LinearGradient {
-        LinearGradient(
-            colors: nestingLevel == 0 ?
-                [Color.white.opacity(0.15), Color.white.opacity(0.05)] :
-                [Color.clear, Color.clear],
-            startPoint: .topLeading,
-            endPoint: .bottomTrailing
-        )
     }
     
     // ✅ Header del comentario mejorado
@@ -1396,6 +1591,10 @@ struct EnhancedModernCommentRow: View {
                     // ✅ INSIGNIA DE VERIFICADO
                     VerifiedBadgeView(userId: comment.authorId, size: nestingLevel == 0 ? 12 : 10)
                 }
+            }
+            .contentShape(Rectangle())
+            .onTapGesture {
+                onAvatarTap(comment.authorId, false)
             }
             
             // ✅ Indicador de editado
@@ -1433,15 +1632,14 @@ struct EnhancedModernCommentRow: View {
     private var contentWithMentions: some View {
         VStack(alignment: .leading, spacing: 4) {
             ZStack(alignment: .leading) {
-                Text(displayContent)
-                    .font(.custom("Poppins-Regular", size: nestingLevel == 0 ? 14 : 13))
-                    .foregroundColor(colorScheme == .dark ? .white.opacity(0.9) : .black.opacity(0.9))
-                    .multilineTextAlignment(.leading)
-                    .overlay(
-                        // ✅ Destacar @menciones
-                        mentionOverlay
-                    )
-                    .blur(radius: isMaskApplied ? 8 : 0)
+                CommentMentionText(
+                    segments: commentTextSegments,
+                    fontSize: nestingLevel == 0 ? 14 : 13,
+                    baseColor: colorScheme == .dark ? .white.opacity(0.9) : .black.opacity(0.9),
+                    mentionColor: mentionAccentColor,
+                    isBlurred: isMaskApplied,
+                    onMentionTap: onMentionTap
+                )
 
                 if isMaskApplied {
                     VStack(alignment: .leading, spacing: 6) {
@@ -1484,49 +1682,90 @@ struct EnhancedModernCommentRow: View {
             }
         }
     }
-    
-    // ✅ Overlay para destacar menciones
-    private var mentionOverlay: some View {
-        Text(displayContent)
-            .font(.custom("Poppins-Regular", size: nestingLevel == 0 ? 14 : 13))
-            .foregroundColor(.clear)
-            .overlay(
-                Text(highlightMentions(in: displayContent))
-                    .font(.custom("Poppins-SemiBold", size: nestingLevel == 0 ? 14 : 13))
-                    .foregroundColor(colorScheme == .dark ? .white : .black)
-            )
-            .allowsHitTesting(false)
+
+    private var mentionAccentColor: Color {
+        colorScheme == .dark ? Color(red: 0.52, green: 0.78, blue: 1.0) : Color(red: 0.05, green: 0.42, blue: 0.95)
     }
-    
-    // ✅ Función para destacar menciones
-    private func highlightMentions(in text: String) -> String {
+
+    private var commentTextSegments: [CommentTextSegment] {
+        var rawSegments: [(text: String, userId: String?, isMention: Bool)] = []
+        var currentIndex = displayContent.startIndex
+
+        for mentionRange in mentionRanges(in: displayContent) {
+            if currentIndex < mentionRange.range.lowerBound {
+                rawSegments.append(contentsOf: splitPlainText(String(displayContent[currentIndex..<mentionRange.range.lowerBound])))
+            }
+
+            rawSegments.append((
+                text: String(displayContent[mentionRange.range]),
+                userId: mentionRange.userId,
+                isMention: true
+            ))
+            currentIndex = mentionRange.range.upperBound
+        }
+
+        if currentIndex < displayContent.endIndex {
+            rawSegments.append(contentsOf: splitPlainText(String(displayContent[currentIndex...])))
+        }
+
+        if rawSegments.isEmpty {
+            rawSegments = splitPlainText(displayContent)
+        }
+
+        return rawSegments.enumerated().map { index, segment in
+            CommentTextSegment(
+                id: index,
+                text: segment.text,
+                userId: segment.userId,
+                isMention: segment.isMention
+            )
+        }
+    }
+
+    private func splitPlainText(_ text: String) -> [(text: String, userId: String?, isMention: Bool)] {
+        var segments: [(text: String, userId: String?, isMention: Bool)] = []
+        var current = ""
+        var currentIsWhitespace: Bool?
+
+        for character in text {
+            let isWhitespace = character.isWhitespace
+            if let currentIsWhitespace, currentIsWhitespace != isWhitespace {
+                segments.append((text: current, userId: nil, isMention: false))
+                current = ""
+            }
+
+            current.append(character)
+            currentIsWhitespace = isWhitespace
+        }
+
+        if !current.isEmpty {
+            segments.append((text: current, userId: nil, isMention: false))
+        }
+
+        return segments
+    }
+
+    private func mentionRanges(in text: String) -> [(range: Range<String.Index>, userId: String?)] {
+        if !comment.mentions.isEmpty {
+            return comment.mentions.compactMap { mention in
+                guard let range = text.range(of: "@\(mention.username)", options: [.caseInsensitive, .diacriticInsensitive]) else {
+                    return nil
+                }
+                return (range, mention.userId)
+            }.sorted { first, second in
+                first.range.lowerBound < second.range.lowerBound
+            }
+        }
+
         let pattern = #"@(\w+)"#
-        guard let regex = try? NSRegularExpression(pattern: pattern) else { return "" }
-        
+        guard let regex = try? NSRegularExpression(pattern: pattern) else { return [] }
+
         let range = NSRange(text.startIndex..., in: text)
         let matches = regex.matches(in: text, range: range)
-        
-        var result = ""
-        var lastEndIndex = text.startIndex
-        
-        for match in matches {
-            guard let matchRange = Range(match.range, in: text) else { continue }
-            
-            // Agregar texto antes de la mención (invisible)
-            let beforeMatch = String(text[lastEndIndex..<matchRange.lowerBound])
-            result += String(repeating: " ", count: beforeMatch.count)
-            
-            // Agregar la mención (visible)
-            result += String(text[matchRange])
-            
-            lastEndIndex = matchRange.upperBound
+        return matches.compactMap { match in
+            guard let range = Range(match.range, in: text) else { return nil }
+            return (range, nil)
         }
-        
-        // Texto restante (invisible)
-        let remaining = String(text[lastEndIndex...])
-        result += String(repeating: " ", count: remaining.count)
-        
-        return result
     }
     
 

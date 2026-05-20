@@ -2321,6 +2321,13 @@ exports.onNotificationCreated = onDocumentCreated('users/{userId}/notifications/
       case 'photoTag':
         await handlePhotoTagPush(userId, notificationId, notification, userData);
         break;
+      case 'comment':
+        if (notification.mentionContext === 'reply') {
+          await handleReplyPush(userId, notificationId, notification, userData);
+        } else {
+          await handleBadgeUpdate(userId, userData);
+        }
+        break;
       case 'mediaModeration':
         await handleModerationPush(userId, notificationId, notification, userData);
         break;
@@ -2535,18 +2542,40 @@ async function handleMentionPush(userId, notificationId, notification, userData)
       return;
     }
 
+    const mentionContext = notification.mentionContext
+      || (notification.storyId ? 'story' : (notification.commentId ? 'comment' : 'moment'));
+
     let contentType = 'contenido';
     let targetType = 'moment';
     let targetId = notification.momentId;
-    if (notification.storyId) {
+    if (mentionContext === 'story' && notification.storyId) {
       contentType = 'historia';
       targetType = 'story';
       targetId = notification.storyId;
+    } else if (mentionContext === 'comment' && notification.momentId) {
+      contentType = 'comentario';
+      targetType = 'comment';
+      targetId = notification.commentId || notification.momentId;
     } else if (notification.momentId) {
       contentType = 'momento';
       targetType = 'moment';
       targetId = notification.momentId;
     }
+
+    const mentionTitleKey = mentionContext === 'story'
+      ? 'notification.mention.story.title'
+      : mentionContext === 'comment'
+        ? (notification.targetAuthorUsername
+          ? 'notification.mention.comment.withAuthor.title'
+          : 'notification.mention.comment.title')
+        : mentionContext === 'moment'
+          ? 'notification.mention.moment.title'
+          : 'notification.mention.title';
+    const mentionTitleArgs = mentionTitleKey === 'notification.mention.title'
+      ? [senderData.username, contentType]
+      : mentionTitleKey === 'notification.mention.comment.withAuthor.title'
+        ? [senderData.username, notification.targetAuthorUsername]
+      : [senderData.username];
 
     const counts = await getUnreadCounts(userId, { type: 'notification', notificationType: 'mention' });
 
@@ -2558,6 +2587,13 @@ async function handleMentionPush(userId, notificationId, notification, userData)
         userId: userId,
         targetType: targetType,
         targetId: targetId,
+        mentionContext: mentionContext,
+        momentId: notification.momentId || '',
+        storyId: notification.storyId || '',
+        storyAuthorId: notification.storyAuthorId || notification.targetAuthorId || notification.senderId || '',
+        targetAuthorId: notification.targetAuthorId || notification.storyAuthorId || notification.senderId || '',
+        targetAuthorUsername: notification.targetAuthorUsername || '',
+        commentId: notification.commentId || '',
         senderUsername: senderData.username,
         senderProfileImage: senderData.profileImagePath || '',
         unreadMessages: String(counts.unreadMessages),
@@ -2570,8 +2606,8 @@ async function handleMentionPush(userId, notificationId, notification, userData)
         payload: {
           aps: {
             alert: {
-              'title-loc-key': 'notification.mention.title',
-              'title-loc-args': [senderData.username, contentType],
+              'title-loc-key': mentionTitleKey,
+              'title-loc-args': mentionTitleArgs,
               'loc-key': 'notification.mention.body',
               'loc-args': []
             },
@@ -2592,6 +2628,96 @@ async function handleMentionPush(userId, notificationId, notification, userData)
     console.log(`✅ Mención push: ${senderData.username} -> ${userData.username} en ${contentType}`);
   } catch (error) {
     await releaseProcessingLock(mentionRef, { processingField: 'processingUntil' }).catch(() => null);
+    if (error.code === 'messaging/registration-token-not-registered') {
+      await removeInvalidToken(userId, fcmToken);
+    }
+    throw error;
+  }
+}
+
+async function handleReplyPush(userId, notificationId, notification, userData) {
+  const senderDoc = await admin.firestore().doc(`users/${notification.senderId}`).get();
+  if (!senderDoc.exists) return;
+  const senderData = senderDoc.data();
+  if (!validateUserData(senderData) || !senderData.isActive || !userData.isActive) return;
+
+  const replyRef = admin.firestore().doc(`users/${userId}/notifications/${notificationId}`);
+  const isSilenced = shouldSilenceNotificationForUser(userData, {
+    senderId: notification.senderId,
+    candidateTexts: [notification.reaction, notification.commentText, notification.text, notification.content]
+  });
+  if (isSilenced) {
+    await replyRef.delete().catch(() => null);
+    return;
+  }
+
+  const fcmToken = userData.fcmToken;
+  const lockAcquired = await claimProcessingLock(replyRef, {
+    processedField: 'processed',
+    processingField: 'processingUntil'
+  });
+  if (!lockAcquired) return;
+
+  try {
+    if (!fcmToken || isDoNotDisturbActive(userData)) {
+      await markProcessingDone(replyRef, {
+        processedField: 'processed',
+        processingField: 'processingUntil'
+      });
+      return;
+    }
+
+    const counts = await getUnreadCounts(userId, { type: 'notification', notificationType: 'reply', notificationId });
+    const replyPreview = notification.reaction || notification.commentText || '';
+
+    const message = {
+      token: fcmToken,
+      data: {
+        type: 'moment_comment',
+        mentionContext: 'reply',
+        senderId: notification.senderId,
+        userId,
+        momentId: notification.momentId || '',
+        momentOwnerId: notification.targetAuthorId || '',
+        targetAuthorId: notification.targetAuthorId || '',
+        targetAuthorUsername: notification.targetAuthorUsername || '',
+        commentId: notification.commentId || '',
+        senderUsername: senderData.username,
+        senderProfileImage: senderData.profileImagePath || '',
+        unreadMessages: String(counts.unreadMessages),
+        unreadNotifications: String(counts.unreadNotifications),
+        unreadEchoes: String(counts.unreadEchoes),
+        unreadTags: String(counts.unreadTags),
+      },
+      apns: {
+        headers: { 'apns-collapse-id': `reply_${notification.commentId || notificationId}` },
+        payload: {
+          aps: {
+            alert: replyPreview ? {
+              'title-loc-key': 'notification.reply.title',
+              'title-loc-args': [senderData.username],
+              body: `"${String(replyPreview).substring(0, 80)}${String(replyPreview).length > 80 ? '...' : ''}"`
+            } : {
+              'title-loc-key': 'notification.reply.title',
+              'title-loc-args': [senderData.username]
+            },
+            badge: Math.max(1, counts.unreadNotifications + counts.unreadMessages),
+            sound: 'default',
+            'mutable-content': 1,
+            'thread-id': `moment_replies_${notification.momentId || userId}`
+          }
+        }
+      }
+    };
+
+    await admin.messaging().send(message);
+    await markProcessingDone(replyRef, {
+      processedField: 'processed',
+      processingField: 'processingUntil'
+    });
+    console.log(`✅ Reply push: ${senderData.username} -> ${userData.username}`);
+  } catch (error) {
+    await releaseProcessingLock(replyRef, { processingField: 'processingUntil' }).catch(() => null);
     if (error.code === 'messaging/registration-token-not-registered') {
       await removeInvalidToken(userId, fcmToken);
     }
@@ -2633,6 +2759,13 @@ async function handlePhotoTagPush(userId, notificationId, notification, userData
     }
 
     const counts = await getUnreadCounts(userId, { type: 'notification', notificationType: 'photoTag' });
+    const momentTitle = typeof notification.reaction === 'string' ? notification.reaction.trim() : '';
+    const titleLocKey = momentTitle
+      ? 'notification.photoTag.withTitle.title'
+      : 'notification.photoTag.title';
+    const titleLocArgs = momentTitle
+      ? [senderData.username, momentTitle]
+      : [senderData.username];
 
     const message = {
       token: fcmToken,
@@ -2644,6 +2777,7 @@ async function handlePhotoTagPush(userId, notificationId, notification, userData
         targetId: notification.momentId || '',
         senderUsername: senderData.username,
         senderProfileImage: senderData.profileImagePath || '',
+        momentTitle,
         unreadMessages: String(counts.unreadMessages),
         unreadNotifications: String(counts.unreadNotifications),
         unreadEchoes: String(counts.unreadEchoes),
@@ -2654,8 +2788,8 @@ async function handlePhotoTagPush(userId, notificationId, notification, userData
         payload: {
           aps: {
             alert: {
-              'title-loc-key': 'notification.photoTag.title',
-              'title-loc-args': [senderData.username],
+              'title-loc-key': titleLocKey,
+              'title-loc-args': titleLocArgs,
               'loc-key': 'notification.photoTag.body',
               'loc-args': []
             },

@@ -301,14 +301,16 @@ class BackgroundMomentUploadService: ObservableObject {
 
             // ✅ NUEVO: Enviar notificaciones a usuarios etiquetados
             if let taggedUsers = uploadingMoment.taggedUsers, !taggedUsers.isEmpty {
-                for taggedUserId in taggedUsers {
+                for taggedUserId in Set(taggedUsers) {
                     // Evitar notificarse a sí mismo
                     if taggedUserId != uploadingMoment.userId {
                         Task { @MainActor in
-                            NotificationService.shared.sendInteractionNotification(
-                                type: .photoTag,
+                            NotificationService.shared.sendPhotoTagNotification(
                                 to: taggedUserId,
-                                momentId: momentId
+                                momentId: momentId,
+                                momentAuthorId: uploadingMoment.userId,
+                                momentAuthorUsername: UserDefaults.standard.string(forKey: "current_username"),
+                                momentTitle: uploadingMoment.content.trimmingCharacters(in: .whitespacesAndNewlines)
                             )
                         }
                     }

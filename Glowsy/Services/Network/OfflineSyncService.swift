@@ -108,7 +108,8 @@ class OfflineSyncService: ObservableObject {
                             authorId: payload.senderId,
                             content: payload.content,
                             parentCommentId: payload.parentCommentId,
-                            commentId: payload.commentId // ✅ Usar ID persistido para coincidir con eventuales deletes
+                            commentId: payload.commentId, // ✅ Usar ID persistido para coincidir con eventuales deletes
+                            mentions: payload.mentions
                         ) { result in
                             if case .success = result {
                                 LocalPersistenceService.shared.deleteAction(id: action.id)

@@ -174,6 +174,15 @@ struct Admirer: Identifiable, Codable {
 }
 
 
+struct CommentMentionEntity: Codable, Equatable, Identifiable {
+    let userId: String
+    let username: String
+    let rangeStart: Int
+    let rangeLength: Int
+
+    var id: String { userId }
+}
+
 struct Comment: Identifiable, Codable, Equatable {
     @DocumentID var id: String? = nil
     let authorId: String
@@ -186,6 +195,7 @@ struct Comment: Identifiable, Codable, Equatable {
     let parentCommentId: String?
     let isEdited: Bool?              // NUEVO CAMPO
     let editedTimestamp: Date?
+    let mentions: [CommentMentionEntity]
     var isPending: Bool? = false     // NUEVO CAMPO PARA OFFLINE
 
     enum CodingKeys: String, CodingKey {
@@ -200,10 +210,11 @@ struct Comment: Identifiable, Codable, Equatable {
         case parentCommentId
         case isEdited
         case editedTimestamp
+        case mentions
         case isPending               // NUEVO
     }
 
-    init(id: String? = nil, authorId: String, username: String, content: String, timestamp: Date, profileImagePath: String? = nil, updatedAt: Date? = nil, reactions: [String: [String]] = [:], parentCommentId: String? = nil, isEdited: Bool? = nil, editedTimestamp: Date? = nil, isPending: Bool? = false) {
+    init(id: String? = nil, authorId: String, username: String, content: String, timestamp: Date, profileImagePath: String? = nil, updatedAt: Date? = nil, reactions: [String: [String]] = [:], parentCommentId: String? = nil, isEdited: Bool? = nil, editedTimestamp: Date? = nil, mentions: [CommentMentionEntity] = [], isPending: Bool? = false) {
         self.id = id
         self.authorId = authorId
         self.username = username
@@ -215,6 +226,7 @@ struct Comment: Identifiable, Codable, Equatable {
         self.parentCommentId = parentCommentId
         self.isEdited = isEdited
         self.editedTimestamp = editedTimestamp
+        self.mentions = mentions
         self.isPending = isPending
     }
 
@@ -234,6 +246,7 @@ struct Comment: Identifiable, Codable, Equatable {
         self.isEdited = try container.decodeIfPresent(Bool.self, forKey: .isEdited) ?? false
         let editedTimestamp = try container.decodeIfPresent(Timestamp.self, forKey: .editedTimestamp)
         self.editedTimestamp = editedTimestamp?.dateValue()
+        self.mentions = try container.decodeIfPresent([CommentMentionEntity].self, forKey: .mentions) ?? []
     }
 
     func encode(to encoder: Encoder) throws {
@@ -254,6 +267,7 @@ struct Comment: Identifiable, Codable, Equatable {
             try container.encode(Timestamp(date: editedTimestamp), forKey: .editedTimestamp)
 
         }
+        try container.encode(mentions, forKey: .mentions)
     }
 
     static func == (lhs: Comment, rhs: Comment) -> Bool {
@@ -267,7 +281,8 @@ struct Comment: Identifiable, Codable, Equatable {
                lhs.reactions == rhs.reactions &&
                lhs.parentCommentId == rhs.parentCommentId &&
                lhs.isEdited == rhs.isEdited &&
-               lhs.editedTimestamp == rhs.editedTimestamp
+               lhs.editedTimestamp == rhs.editedTimestamp &&
+               lhs.mentions == rhs.mentions
     }
 }
 
@@ -2082,6 +2097,9 @@ struct Notification: Identifiable, Codable {
     let visitCount: Int?
     let storyId: String?
     let storyAuthorId: String?
+    let mentionContext: String?
+    let targetAuthorId: String?
+    let targetAuthorUsername: String?
     let reaction: String?
     let reactionCount: Int?
     let commentId: String? // ✅ NUEVO: Para identificar comentarios específicos
@@ -2106,6 +2124,9 @@ struct Notification: Identifiable, Codable {
         case visitCount
         case storyId
         case storyAuthorId
+        case mentionContext
+        case targetAuthorId
+        case targetAuthorUsername
         case reaction
         case reactionCount
         case reactionType // ✅ COMPATIBILIDAD: El servidor usa este campo para momentos
@@ -2131,6 +2152,9 @@ struct Notification: Identifiable, Codable {
          visitCount: Int? = nil,
          storyId: String? = nil,
          storyAuthorId: String? = nil,
+         mentionContext: String? = nil,
+         targetAuthorId: String? = nil,
+         targetAuthorUsername: String? = nil,
          reaction: String? = nil,
          reactionCount: Int? = nil,
          commentId: String? = nil,
@@ -2153,6 +2177,9 @@ struct Notification: Identifiable, Codable {
         self.visitCount = visitCount
         self.storyId = storyId
         self.storyAuthorId = storyAuthorId
+        self.mentionContext = mentionContext
+        self.targetAuthorId = targetAuthorId
+        self.targetAuthorUsername = targetAuthorUsername
         self.reaction = reaction
         self.reactionCount = reactionCount
         self.commentId = commentId
@@ -2191,6 +2218,9 @@ struct Notification: Identifiable, Codable {
         self.visitCount = try container.decodeIfPresent(Int.self, forKey: .visitCount)
         self.storyId = try container.decodeIfPresent(String.self, forKey: .storyId)
         self.storyAuthorId = try container.decodeIfPresent(String.self, forKey: .storyAuthorId)
+        self.mentionContext = try container.decodeIfPresent(String.self, forKey: .mentionContext)
+        self.targetAuthorId = try container.decodeIfPresent(String.self, forKey: .targetAuthorId)
+        self.targetAuthorUsername = try container.decodeIfPresent(String.self, forKey: .targetAuthorUsername)
 
         // ✅ MAPEO INTELIGENTE DE CONTENIDO
         // 1. Intentar campo 'reaction' (Stories y manual)
@@ -2230,6 +2260,9 @@ struct Notification: Identifiable, Codable {
         try container.encodeIfPresent(visitCount, forKey: .visitCount)
         try container.encodeIfPresent(storyId, forKey: .storyId)
         try container.encodeIfPresent(storyAuthorId, forKey: .storyAuthorId)
+        try container.encodeIfPresent(mentionContext, forKey: .mentionContext)
+        try container.encodeIfPresent(targetAuthorId, forKey: .targetAuthorId)
+        try container.encodeIfPresent(targetAuthorUsername, forKey: .targetAuthorUsername)
         try container.encodeIfPresent(reaction, forKey: .reaction)
         try container.encodeIfPresent(reactionCount, forKey: .reactionCount)
         try container.encodeIfPresent(commentId, forKey: .commentId)

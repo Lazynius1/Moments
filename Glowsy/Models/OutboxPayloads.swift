@@ -23,6 +23,7 @@ struct CommentPayload: Codable {
     let content: String
     let parentCommentId: String?
     let commentId: String? // ✅ Added for offline matching
+    let mentions: [CommentMentionEntity]?
 }
 
 /// Payload for persisting a comment deletion action

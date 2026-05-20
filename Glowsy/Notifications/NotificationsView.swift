@@ -11,12 +11,17 @@ struct NotificationsView: View {
     @Environment(\.dismiss) var dismiss
     @Environment(\.colorScheme) var colorScheme // ✅ AGREGADO
     @State private var selectedMoment: Moment?
-    @State private var showStoryViewer = false // ✅ AGREGADO
-    @State private var selectedStory: Story? // ✅ AGREGADO
+    @State private var storyViewerPresentation: StoryViewerPresentation?
     @State private var selectedConversation: Conversation?
     @State private var showChat = false
     @Namespace private var tabAnimation
     let onNotificationsCleared: (() -> Void)?
+
+    private struct StoryViewerPresentation: Identifiable {
+        let id = UUID()
+        let story: Story
+        let authorId: String
+    }
     
     init(onNotificationsCleared: (() -> Void)? = nil) {
         self.onNotificationsCleared = onNotificationsCleared
@@ -89,28 +94,26 @@ struct NotificationsView: View {
                 .presentationDetents([.large])
                 .presentationDragIndicator(.visible)
         }
-        .fullScreenCover(isPresented: $showStoryViewer) {
-            if let story = selectedStory {
-                StoryViewerScreen(
-                    story: story,
-                    storyCount: 1,
-                    storyIndex: 0,
-                    screenSize: UIScreen.main.bounds.size,
-                    storyViewModel: storyViewModel,
-                    showingReportSheet: .constant(false),
-                    showingBlockConfirmation: .constant(false),
-                    onReportStory: { },
-                    onBlockUser: { },
-                    onNext: {
-                        showStoryViewer = false
-                    },
-                    onPrevious: { },
-                    onClose: { showStoryViewer = false },
-                    onProfileTap: { }
-                )
-                .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("CloseStoryViewer"))) { _ in
-                    showStoryViewer = false
-                }
+        .fullScreenCover(item: $storyViewerPresentation) { presentation in
+            StoryViewerScreen(
+                story: presentation.story,
+                storyCount: 1,
+                storyIndex: 0,
+                screenSize: UIScreen.main.bounds.size,
+                storyViewModel: storyViewModel,
+                showingReportSheet: .constant(false),
+                showingBlockConfirmation: .constant(false),
+                onReportStory: { },
+                onBlockUser: { },
+                onNext: {
+                    storyViewerPresentation = nil
+                },
+                onPrevious: { },
+                onClose: { storyViewerPresentation = nil },
+                onProfileTap: { }
+            )
+            .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("CloseStoryViewer"))) { _ in
+                storyViewerPresentation = nil
             }
         }
     }
@@ -352,13 +355,16 @@ struct NotificationsView: View {
         switch firstNotification.type {
         case .like, .reaction, .comment, .photoTag: // ✅ AÑADIDO .photoTag
             if let momentId = firstNotification.momentId {
-                fetchMoment(momentId: momentId)
+                fetchMoment(momentId: momentId, authorId: momentAuthorId(for: firstNotification))
             }
         case .mention: // ✅ Manejar menciones (cualquier contenido)
             if let storyId = firstNotification.storyId {
-                navigateToStory(storyId: storyId)
+                navigateToStory(
+                    storyId: storyId,
+                    authorId: storyAuthorId(for: firstNotification)
+                )
             } else if let momentId = firstNotification.momentId {
-                fetchMoment(momentId: momentId)
+                fetchMoment(momentId: momentId, authorId: momentAuthorId(for: firstNotification))
             }
         case .newFollower, .followRequest, .mutualConnection, .requestAccepted:
             // Handle follower-related notifications
@@ -394,15 +400,20 @@ struct NotificationsView: View {
         case .mediaModeration:
             // 🛡️ Navegar al momento moderado
             if let momentId = firstNotification.momentId {
-                fetchMoment(momentId: momentId)
+                fetchMoment(momentId: momentId, authorId: momentAuthorId(for: firstNotification))
             }
         }
     }
 
-    private func fetchMoment(momentId: String) {
+    private func momentAuthorId(for notification: Notification) -> String? {
+        notification.targetAuthorId
+    }
+
+    private func fetchMoment(momentId: String, authorId: String? = nil) {
         guard let userId = Auth.auth().currentUser?.uid else { return }
+        let ownerId = authorId?.trimmingCharacters(in: .whitespacesAndNewlines)
         let firestoreService = FirestoreService()
-        firestoreService.fetchMoment(momentId: momentId, userId: userId) { result in
+        firestoreService.fetchMoment(momentId: momentId, userId: ownerId?.isEmpty == false ? ownerId! : userId) { result in
             switch result {
             case .success(let moment):
                 DispatchQueue.main.async {
@@ -415,17 +426,20 @@ struct NotificationsView: View {
     }
     
     // ✅ Navegación real a historias
-    private func navigateToStory(storyId: String) {
+    private func storyAuthorId(for notification: Notification) -> String? {
+        notification.storyAuthorId ?? notification.targetAuthorId ?? notification.senderId
+    }
+
+    private func navigateToStory(storyId: String, authorId: String?) {
         
         // ✅ Buscar la historia usando StoryViewModel
-        guard let userId = Auth.auth().currentUser?.uid else { return }
+        let targetAuthorId = authorId?.trimmingCharacters(in: .whitespacesAndNewlines)
         
         // ✅ Buscar en las historias existentes del StoryViewModel
         for (authorId, stories) in storyViewModel.stories {
             if let story = stories.first(where: { $0.id == storyId }) {
                 DispatchQueue.main.async {
-                    self.selectedStory = story
-                    self.showStoryViewer = true
+                    self.presentStory(story, authorId: authorId)
                 }
                 return
             }
@@ -433,21 +447,28 @@ struct NotificationsView: View {
         
         // ✅ Si no está en cache, buscar en Firestore
         let db = Firestore.firestore()
-        db.collection("users").document(userId).collection("stories").document(storyId).getDocument { snapshot, error in
+        guard let targetAuthorId, !targetAuthorId.isEmpty else { return }
+
+        db.collection("users").document(targetAuthorId).collection("stories").document(storyId).getDocument { snapshot, error in
             if let error = error {
                 return
             }
             
-            guard let data = snapshot?.data(),
-                  let story = try? Firestore.Decoder().decode(Story.self, from: data) else {
+            guard let snapshot,
+                  let story = try? snapshot.data(as: Story.self) else {
                 return
             }
             
             DispatchQueue.main.async {
-                self.selectedStory = story
-                self.showStoryViewer = true
+                self.presentStory(story, authorId: targetAuthorId)
             }
         }
+    }
+
+    private func presentStory(_ story: Story, authorId: String) {
+        let resolvedAuthorId = story.authorId.isEmpty ? authorId : story.authorId
+        storyViewModel.stories[resolvedAuthorId] = [story]
+        storyViewerPresentation = StoryViewerPresentation(story: story, authorId: resolvedAuthorId)
     }
     
     // ✅ Navegación a chat
@@ -615,11 +636,14 @@ struct EnhancedNotificationRow: View {
     
     private func setupPreviews() {
         let first = group.notifications.first!
-        if first.type == .like || first.type == .comment || first.type == .reaction || first.type == .photoTag { // ✅ AÑADIDO .photoTag
+        if first.type == .like || first.type == .comment || first.type == .reaction || first.type == .photoTag || isMomentMention(first) { // ✅ AÑADIDO .photoTag
             if let momentId = first.momentId {
-                fetchMomentPreview(momentId: momentId)
+                fetchMomentPreview(
+                    momentId: momentId,
+                    authorId: momentAuthorId(for: first)
+                )
             }
-        } else if first.type == .storyReaction || first.type == .storyChainContinued {
+        } else if first.type == .storyReaction || first.type == .storyChainContinued || isStoryMention(first) {
             if let storyId = first.storyId {
                 fetchStoryPreview(storyId: storyId)
             }
@@ -675,6 +699,36 @@ struct EnhancedNotificationRow: View {
                                     .black.opacity(0.5)
                                 ) // ✅ ADAPTATIVO
                                 .font(.system(size: 16))
+                        )
+                }
+
+            case .mention:
+                if let first = group.notifications.first, isStoryMention(first) {
+                    storyMentionThumbnail
+                } else if let path = momentImagePath, let url = URL(string: path), !momentImageLoadFailed {
+                    KFImage(url)
+                        .placeholder {
+                            RoundedRectangle(cornerRadius: 8)
+                                .fill(.ultraThinMaterial)
+                                .frame(width: 44, height: 44)
+                                .overlay(
+                                    ProgressView()
+                                        .scaleEffect(0.8)
+                                        .tint(Color(hex: "007AFF"))
+                                )
+                        }
+                        .resizable()
+                        .scaledToFill()
+                        .frame(width: 44, height: 44)
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                } else {
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(.ultraThinMaterial)
+                        .frame(width: 44, height: 44)
+                        .overlay(
+                            Image(systemName: "at")
+                                .foregroundColor(colorScheme == .dark ? .white.opacity(0.7) : .black.opacity(0.55))
+                                .font(.system(size: 16, weight: .semibold))
                         )
                 }
 
@@ -952,15 +1006,68 @@ struct EnhancedNotificationRow: View {
         }
     }
 
+    private var storyMentionThumbnail: some View {
+        Group {
+            if let path = storyImagePath, let url = URL(string: path), !storyImageLoadFailed {
+                KFImage(url)
+                    .placeholder {
+                        RoundedRectangle(cornerRadius: 8)
+                            .fill(.ultraThinMaterial)
+                            .frame(width: 44, height: 44)
+                    }
+                    .resizable()
+                    .scaledToFill()
+                    .frame(width: 44, height: 44)
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 8)
+                            .stroke(
+                                LinearGradient(
+                                    gradient: Gradient(colors: [.pink, .orange, .yellow]),
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                ),
+                                lineWidth: 2
+                            )
+                    )
+            } else {
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(.ultraThinMaterial)
+                    .frame(width: 44, height: 44)
+                    .overlay(
+                        Image(systemName: "play.rectangle.fill")
+                            .foregroundColor(colorScheme == .dark ? .white.opacity(0.7) : .black.opacity(0.55))
+                            .font(.system(size: 16, weight: .semibold))
+                    )
+            }
+        }
+    }
+
     private var isModerationNotification: Bool {
         group.notifications.first?.type == .mediaModeration
+    }
+
+    private func isStoryMention(_ notification: Notification) -> Bool {
+        notification.type == .mention && (notification.mentionContext == "story" || notification.storyId != nil)
+    }
+
+    private func isMomentMention(_ notification: Notification) -> Bool {
+        notification.type == .mention && !isStoryMention(notification) && notification.momentId != nil
+    }
+
+    private func storyAuthorId(for notification: Notification) -> String {
+        notification.storyAuthorId ?? notification.targetAuthorId ?? notification.senderId
+    }
+
+    private func momentAuthorId(for notification: Notification) -> String? {
+        notification.targetAuthorId
     }
 
     // MARK: - Métodos auxiliares (mantenidos del original)
     
     private func fetchStoryPreview(storyId: String) {
         guard let firstNotification = group.notifications.first else { return }
-        let userId = firstNotification.storyAuthorId ?? firstNotification.senderId
+        let userId = storyAuthorId(for: firstNotification)
         guard !userId.isEmpty else { return }
         isLoadingStoryImage = true
         
@@ -986,10 +1093,9 @@ struct EnhancedNotificationRow: View {
                     return
                 }
                 
-                if let mediaItem = data["mediaItem"] as? [String: Any],
-                   let mediaUrl = mediaItem["url"] as? String {
+                if let previewURL = storyPreviewURL(from: data) {
                     DispatchQueue.main.async {
-                        self.storyImagePath = mediaUrl
+                        self.storyImagePath = previewURL
                         self.isLoadingStoryImage = false
                         self.storyImageLoadFailed = false
                     }
@@ -1000,6 +1106,34 @@ struct EnhancedNotificationRow: View {
                     }
                 }
             }
+    }
+
+    private func storyPreviewURL(from data: [String: Any]) -> String? {
+        let mediaItem = data["mediaItem"] as? [String: Any]
+        let mediaType = mediaItem?["type"] as? String
+
+        if mediaType == MediaItem.MediaType.image.rawValue {
+            return nonEmptyString(mediaItem?["url"])
+                ?? nonEmptyString(data["imagePath"])
+        }
+
+        if mediaType == MediaItem.MediaType.video.rawValue {
+            return nonEmptyString(mediaItem?["thumbnailUrl"])
+                ?? nonEmptyString(data["backgroundFrameURL"])
+                ?? nonEmptyString(data["backgroundBlurredFrameURL"])
+        }
+
+        return nonEmptyString(data["imagePath"])
+            ?? nonEmptyString(mediaItem?["thumbnailUrl"])
+            ?? nonEmptyString(data["backgroundFrameURL"])
+            ?? nonEmptyString(data["backgroundBlurredFrameURL"])
+            ?? nonEmptyString(mediaItem?["url"])
+    }
+
+    private func nonEmptyString(_ value: Any?) -> String? {
+        guard let string = value as? String else { return nil }
+        let trimmed = string.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? nil : trimmed
     }
 
     private func messageForGroup(_ group: NotificationGroup) -> AttributedString {
@@ -1033,7 +1167,11 @@ struct EnhancedNotificationRow: View {
                     return AttributedString(String(format: NSLocalizedString("notifications.message.reaction.multiple", comment: "Multiple reactions"), effectiveSenderUsername, reactionAggregateCount - 1))
                 }
             case .mention:
-                return AttributedString(String(format: NSLocalizedString("notifications.message.mention.multiple", comment: "Multiple mentions"), effectiveSenderUsername, group.notifications.count - 1))
+                return mentionMessage(
+                    for: firstNotification,
+                    senderUsername: effectiveSenderUsername,
+                    additionalCount: group.notifications.count - 1
+                )
             case .newFollower:
                 return AttributedString(String(format: NSLocalizedString("notifications.message.follow.multiple", comment: "Multiple follows"), effectiveSenderUsername, group.notifications.count - 1))
             case .followRequest:
@@ -1043,7 +1181,11 @@ struct EnhancedNotificationRow: View {
             case .mutualConnection:
                 return AttributedString(String(format: NSLocalizedString("notifications.message.mutual.multiple", comment: "Multiple mutual connections"), effectiveSenderUsername, group.notifications.count - 1))
             case .comment:
-                return AttributedString(String(format: NSLocalizedString("notifications.message.comment.multiple", comment: "Multiple comments"), effectiveSenderUsername, group.notifications.count - 1))
+                return commentMessage(
+                    for: firstNotification,
+                    senderUsername: effectiveSenderUsername,
+                    additionalCount: group.notifications.count - 1
+                )
             case .storyReaction:
                 return AttributedString(String(format: NSLocalizedString("notifications.message.story.multiple", comment: "Multiple story reactions"), effectiveSenderUsername, group.notifications.count - 1))
             case .profileVisit:
@@ -1051,7 +1193,11 @@ struct EnhancedNotificationRow: View {
             case .message:
                 return AttributedString(String(format: NSLocalizedString("notifications.message.message.multiple", comment: "Multiple messages"), effectiveSenderUsername, group.notifications.count - 1))
             case .photoTag:
-                return AttributedString(String(format: NSLocalizedString("notifications.message.tagged.multiple", comment: "Multiple photo tags"), effectiveSenderUsername, group.notifications.count - 1))
+                return photoTagMessage(
+                    for: firstNotification,
+                    senderUsername: effectiveSenderUsername,
+                    additionalCount: group.notifications.count - 1
+                )
             case .echoSuggestion:
                 return AttributedString(NSLocalizedString("notifications.message.echo", comment: "Echo suggestion"))
             case .dataExportReady:
@@ -1084,7 +1230,11 @@ struct EnhancedNotificationRow: View {
                     return AttributedString(String(format: NSLocalizedString("notifications.message.reaction.single", comment: "Single reaction"), effectiveSenderUsername))
                 }
             case .mention:
-                return AttributedString(String(format: NSLocalizedString("notifications.message.mention.single", comment: "Single mention"), effectiveSenderUsername))
+                return mentionMessage(
+                    for: firstNotification,
+                    senderUsername: effectiveSenderUsername,
+                    additionalCount: nil
+                )
             case .newFollower:
                 return AttributedString(String(format: NSLocalizedString("notifications.message.follow.single", comment: "Single follow"), effectiveSenderUsername))
             case .followRequest:
@@ -1094,7 +1244,11 @@ struct EnhancedNotificationRow: View {
             case .mutualConnection:
                 return AttributedString(String(format: NSLocalizedString("notifications.message.mutual.single", comment: "Single mutual connection"), effectiveSenderUsername))
             case .comment:
-                return AttributedString(String(format: NSLocalizedString("notifications.message.comment.single", comment: "Single comment"), effectiveSenderUsername))
+                return commentMessage(
+                    for: firstNotification,
+                    senderUsername: effectiveSenderUsername,
+                    additionalCount: nil
+                )
             case .storyReaction:
                 return AttributedString(String(format: NSLocalizedString("notifications.message.story.single", comment: "Single story reaction"), effectiveSenderUsername))
             case .profileVisit:
@@ -1102,7 +1256,11 @@ struct EnhancedNotificationRow: View {
             case .message:
                 return AttributedString(String(format: NSLocalizedString("notifications.message.message.single", comment: "Single message"), effectiveSenderUsername))
             case .photoTag:
-                return AttributedString(String(format: NSLocalizedString("notifications.message.tagged.single", comment: "Single photo tag"), effectiveSenderUsername))
+                return photoTagMessage(
+                    for: firstNotification,
+                    senderUsername: effectiveSenderUsername,
+                    additionalCount: nil
+                )
             case .echoSuggestion:
                 return AttributedString(NSLocalizedString("notifications.message.echo", comment: "Echo suggestion"))
             case .dataExportReady:
@@ -1118,6 +1276,138 @@ struct EnhancedNotificationRow: View {
                 return AttributedString(NSLocalizedString("notifications.message.mediaModeration", comment: "Media moderation notification"))
             }
         }
+    }
+
+    private func mentionMessage(
+        for notification: Notification,
+        senderUsername: String,
+        additionalCount: Int?
+    ) -> AttributedString {
+        let context = notification.mentionContext
+            ?? (notification.storyId != nil ? "story" : (notification.commentId != nil ? "comment" : "moment"))
+
+        let keyPrefix: String
+        switch context {
+        case "story":
+            keyPrefix = "notifications.message.mention.story"
+        case "comment":
+            keyPrefix = notification.targetAuthorUsername?.isEmpty == false
+                ? "notifications.message.mention.comment.withAuthor"
+                : "notifications.message.mention.comment"
+        default:
+            keyPrefix = "notifications.message.mention.moment"
+        }
+
+        if let additionalCount {
+            if context == "comment", let targetAuthorUsername = notification.targetAuthorUsername, !targetAuthorUsername.isEmpty {
+                return AttributedString(
+                    String(
+                        format: NSLocalizedString("\(keyPrefix).multiple", comment: "Multiple contextual comment mentions with moment author"),
+                        senderUsername,
+                        additionalCount,
+                        targetAuthorUsername
+                    )
+                )
+            }
+
+            return AttributedString(
+                String(
+                    format: NSLocalizedString("\(keyPrefix).multiple", comment: "Multiple contextual mentions"),
+                    senderUsername,
+                    additionalCount
+                )
+            )
+        }
+
+        if context == "comment", let targetAuthorUsername = notification.targetAuthorUsername, !targetAuthorUsername.isEmpty {
+            return AttributedString(
+                String(
+                    format: NSLocalizedString("\(keyPrefix).single", comment: "Single contextual comment mention with moment author"),
+                    senderUsername,
+                    targetAuthorUsername
+                )
+            )
+        }
+
+        return AttributedString(
+            String(
+                format: NSLocalizedString("\(keyPrefix).single", comment: "Single contextual mention"),
+                senderUsername
+            )
+        )
+    }
+
+    private func photoTagMessage(
+        for notification: Notification,
+        senderUsername: String,
+        additionalCount: Int?
+    ) -> AttributedString {
+        let momentTitle = notification.reaction?.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        if let additionalCount {
+            if let momentTitle, !momentTitle.isEmpty {
+                return AttributedString(
+                    String(
+                        format: NSLocalizedString("notifications.message.tagged.withTitle.multiple", comment: "Multiple photo tags with moment title"),
+                        senderUsername,
+                        additionalCount,
+                        momentTitle
+                    )
+                )
+            }
+
+            return AttributedString(
+                String(
+                    format: NSLocalizedString("notifications.message.tagged.multiple", comment: "Multiple photo tags"),
+                    senderUsername,
+                    additionalCount
+                )
+            )
+        }
+
+        if let momentTitle, !momentTitle.isEmpty {
+            return AttributedString(
+                String(
+                    format: NSLocalizedString("notifications.message.tagged.withTitle.single", comment: "Single photo tag with moment title"),
+                    senderUsername,
+                    momentTitle
+                )
+            )
+        }
+
+        return AttributedString(
+            String(
+                format: NSLocalizedString("notifications.message.tagged.single", comment: "Single photo tag"),
+                senderUsername
+            )
+        )
+    }
+
+    private func commentMessage(
+        for notification: Notification,
+        senderUsername: String,
+        additionalCount: Int?
+    ) -> AttributedString {
+        let keyPrefix = notification.mentionContext == "reply"
+            ? "notifications.message.reply"
+            : "notifications.message.comment"
+
+        if let additionalCount {
+            return AttributedString(
+                String(
+                    format: NSLocalizedString("\(keyPrefix).multiple", comment: "Multiple comments or replies"),
+                    senderUsername,
+                    additionalCount
+                )
+            )
+        }
+
+        return AttributedString(
+            String(
+                format: NSLocalizedString("\(keyPrefix).single", comment: "Single comment or reply"),
+                senderUsername
+            )
+        )
     }
 
     private func senderDisplayName(for notification: Notification) -> String {
@@ -1155,18 +1445,17 @@ struct EnhancedNotificationRow: View {
         }
     }
 
-    private func fetchMomentPreview(momentId: String) {
+    private func fetchMomentPreview(momentId: String, authorId: String? = nil) {
         guard let userId = Auth.auth().currentUser?.uid else { return }
+        let ownerId = authorId?.trimmingCharacters(in: .whitespacesAndNewlines)
         let firestoreService = FirestoreService()
         isLoadingMomentImage = true
-        firestoreService.fetchMoment(momentId: momentId, userId: userId) { result in
+        firestoreService.fetchMoment(momentId: momentId, userId: ownerId?.isEmpty == false ? ownerId! : userId) { result in
             switch result {
             case .success(let fetchedMoment):
                 DispatchQueue.main.async {
-                    if let thumbnail = fetchedMoment.thumbnailUrl, !thumbnail.isEmpty {
-                        self.loadMomentImage(from: thumbnail)
-                    } else if let imagePath = fetchedMoment.imagePath, !imagePath.isEmpty {
-                        self.loadMomentImage(from: imagePath)
+                    if let previewPath = fetchedMoment.previewImageURLString, !previewPath.isEmpty {
+                        self.loadMomentImage(from: previewPath)
                     } else {
                         self.isLoadingMomentImage = false
                         self.momentImageLoadFailed = true
@@ -1535,9 +1824,9 @@ class NotificationsViewModel: ObservableObject {
             case .follows:
                 return notification.type == .newFollower || notification.type == .mutualConnection || notification.type == .requestAccepted
             case .comments:
-                return notification.type == .comment || notification.type == .like || notification.type == .mention
+                return notification.type == .comment || notification.type == .like || isMomentOrCommentMention(notification)
             case .storyReactions:
-                return notification.type == .storyReaction || notification.type == .storyChainContinued
+                return notification.type == .storyReaction || notification.type == .storyChainContinued || isStoryMention(notification)
             case .requests:
                 return notification.type == .followRequest
             }
@@ -1554,8 +1843,9 @@ class NotificationsViewModel: ObservableObject {
                 key = "visit_\(dateFormatter.string(from: notification.timestamp))"
             } else {
                 // ✅ Agrupar por CONTENIDO (sin senderId) para que "User A" y "User B" se agrupen en "User A y 1 persona más"
-                let contentId = notification.momentId ?? notification.storyId ?? notification.commentId ?? "general"
-                key = "\(notification.type.rawValue)_\(contentId)"
+                let contentId = notification.commentId ?? notification.storyId ?? notification.momentId ?? "general"
+                let context = notification.mentionContext ?? inferredMentionContext(notification)
+                key = "\(notification.type.rawValue)_\(context)_\(contentId)"
             }
             
             if groupedDict[key] == nil {
@@ -1614,6 +1904,22 @@ class NotificationsViewModel: ObservableObject {
                     }
                 }
         }
+    }
+
+    private func isStoryMention(_ notification: Notification) -> Bool {
+        notification.type == .mention && (notification.mentionContext == "story" || notification.storyId != nil)
+    }
+
+    private func isMomentOrCommentMention(_ notification: Notification) -> Bool {
+        notification.type == .mention && !isStoryMention(notification)
+    }
+
+    private func inferredMentionContext(_ notification: Notification) -> String {
+        guard notification.type == .mention else { return "default" }
+        if notification.storyId != nil { return "story" }
+        if notification.commentId != nil { return "comment" }
+        if notification.momentId != nil { return "moment" }
+        return "mention"
     }
 
     private func getSectionKey(for date: Date) -> String {

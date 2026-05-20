@@ -1284,6 +1284,8 @@
 "notifications.message.requestAccepted.single" = "%@ aceitou o teu pedido para seguir.";
 "notifications.message.tagged.single" = "%@ identificou-te num moment.";
 "notifications.message.tagged.multiple" = "%@ e mais %d pessoas identificaram-te em Moments.";
+"notifications.message.tagged.withTitle.single" = "%@ identificou-te em \"%@\".";
+"notifications.message.tagged.withTitle.multiple" = "%@ e mais %d pessoas identificaram-te em \"%@\".";
 
 /* Messages */
 "messages.count" = "%d";
@@ -3438,6 +3440,7 @@
 
 /* Push Notifications - Photo Tags */
 "notification.photoTag.title" = "%@ etiquetou-te num moment";
+"notification.photoTag.withTitle.title" = "%@ etiquetou-te em \"%@\"";
 "notification.photoTag.body" = "Toca para ver o moment";
 
 /* Push Notifications - Story Chains */
@@ -4119,3 +4122,26 @@
 "storyVideo.error.exceedsAutoSplitLimit" = "Este vídeo é demasiado longo para dividir automaticamente. Escolhe um excerto de 60 segundos.";
 "storyVideo.error.exportFailed" = "Não conseguimos preparar este vídeo.";
 "storyVideo.error.thumbnailFailed" = "Não conseguimos gerar a pré-visualização do vídeo.";
+
+"notifications.message.mention.story.single" = "%@ mencionou-te numa história";
+"notifications.message.mention.story.multiple" = "%@ e mais %d pessoas mencionaram-te em histórias";
+"notifications.message.mention.comment.single" = "%@ mencionou-te num comentário";
+"notifications.message.mention.comment.multiple" = "%@ e mais %d pessoas mencionaram-te em comentários";
+"notifications.message.mention.comment.withAuthor.single" = "%@ mencionou-te no momento de %@";
+"notifications.message.mention.comment.withAuthor.multiple" = "%@ e mais %d pessoas mencionaram-te no momento de %@";
+"notifications.message.mention.moment.single" = "%@ mencionou-te num momento";
+"notifications.message.mention.moment.multiple" = "%@ e mais %d pessoas mencionaram-te em momentos";
+"notifications.message.reply.single" = "%@ respondeu ao teu comentário";
+"notifications.message.reply.multiple" = "%@ e mais %d pessoas responderam aos teus comentários";
+"banner.verb.mention.story" = "mencionou-te numa história";
+"banner.verb.mention.comment" = "mencionou-te num comentário";
+"banner.verb.mention.moment" = "mencionou-te num momento";
+"banner.verb.tagged" = "etiquetou-te no seu moment";
+"banner.verb.tagged.withTitle" = "etiquetou-te em \"%@\"";
+"banner.verb.reply" = "respondeu ao teu comentário";
+"banner.subtitle.mention.comment.withAuthor" = "no momento de %@";
+"notification.mention.story.title" = "%@ mencionou-te numa história";
+"notification.mention.comment.title" = "%@ mencionou-te num comentário";
+"notification.mention.comment.withAuthor.title" = "%@ mencionou-te no momento de %@";
+"notification.mention.moment.title" = "%@ mencionou-te num momento";
+"notification.reply.title" = "%@ respondeu ao teu comentário";
