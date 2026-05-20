@@ -92,7 +92,19 @@ class NotificationNavigationService: ObservableObject {
             }
             
         case "mention":
-            if let userId = userInfo["senderId"] as? String {
+            if let momentId = userInfo["momentId"] as? String, !momentId.isEmpty {
+                let userId = userInfo["targetAuthorId"] as? String
+                    ?? userInfo["momentOwnerId"] as? String
+                    ?? userInfo["senderId"] as? String
+                    ?? ""
+                if !userId.isEmpty {
+                    pendingNavigation = .moment(momentId, userId)
+                } else {
+                    pendingNavigation = .notifications(nil)
+                }
+            } else if let storyId = userInfo["storyId"] as? String, !storyId.isEmpty {
+                pendingNavigation = .story(storyId)
+            } else if let userId = userInfo["senderId"] as? String {
                 pendingNavigation = .profile(userId)
             }
 

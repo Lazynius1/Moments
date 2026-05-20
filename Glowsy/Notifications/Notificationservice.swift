@@ -154,7 +154,20 @@ class NotificationService: ObservableObject {
     
     // MARK: - Public Sending Methods
     
-    func sendInteractionNotification(type: NotificationType, to targetUserId: String, momentId: String? = nil, storyId: String? = nil, commentId: String? = nil, reaction: String? = nil, senderUsername: String? = nil, echoId: String? = nil) {
+    func sendInteractionNotification(
+        type: NotificationType,
+        to targetUserId: String,
+        momentId: String? = nil,
+        storyId: String? = nil,
+        storyAuthorId: String? = nil,
+        commentId: String? = nil,
+        reaction: String? = nil,
+        senderUsername: String? = nil,
+        echoId: String? = nil,
+        mentionContext: String? = nil,
+        targetAuthorId: String? = nil,
+        targetAuthorUsername: String? = nil
+    ) {
         guard let currentUserId = Auth.auth().currentUser?.uid else { return }
         
         let username = senderUsername ?? UserDefaults.standard.string(forKey: "current_username") ?? "Alguien"
@@ -167,6 +180,10 @@ class NotificationService: ObservableObject {
             isPending: true,
             momentId: momentId,
             storyId: storyId,
+            storyAuthorId: storyAuthorId,
+            mentionContext: mentionContext,
+            targetAuthorId: targetAuthorId,
+            targetAuthorUsername: targetAuthorUsername,
             reaction: reaction,
             commentId: commentId,
             echoId: echoId
@@ -176,7 +193,73 @@ class NotificationService: ObservableObject {
     }
     
     func sendMentionNotification(to userId: String, momentId: String? = nil, storyId: String? = nil) {
-        sendInteractionNotification(type: .mention, to: userId, momentId: momentId, storyId: storyId)
+        let currentUserId = Auth.auth().currentUser?.uid
+        let context = storyId != nil ? "story" : (momentId != nil ? "moment" : nil)
+        sendInteractionNotification(
+            type: .mention,
+            to: userId,
+            momentId: momentId,
+            storyId: storyId,
+            storyAuthorId: storyId != nil ? currentUserId : nil,
+            mentionContext: context,
+            targetAuthorId: storyId != nil ? currentUserId : nil
+        )
+    }
+
+    func sendStoryMentionNotification(to userId: String, storyId: String, storyAuthorId: String) {
+        sendInteractionNotification(
+            type: .mention,
+            to: userId,
+            storyId: storyId,
+            storyAuthorId: storyAuthorId,
+            mentionContext: "story",
+            targetAuthorId: storyAuthorId
+        )
+    }
+
+    func sendMomentMentionNotification(to userId: String, momentId: String, momentAuthorId: String? = nil, momentAuthorUsername: String? = nil, commentText: String? = nil, senderUsername: String? = nil) {
+        sendInteractionNotification(
+            type: .mention,
+            to: userId,
+            momentId: momentId,
+            reaction: commentText,
+            senderUsername: senderUsername,
+            mentionContext: "moment",
+            targetAuthorId: momentAuthorId,
+            targetAuthorUsername: momentAuthorUsername
+        )
+    }
+
+    func sendCommentMentionNotification(to userId: String, momentId: String, momentAuthorId: String? = nil, momentAuthorUsername: String? = nil, commentId: String, commentText: String? = nil, senderUsername: String? = nil) {
+        sendInteractionNotification(
+            type: .mention,
+            to: userId,
+            momentId: momentId,
+            commentId: commentId,
+            reaction: commentText,
+            senderUsername: senderUsername,
+            mentionContext: "comment",
+            targetAuthorId: momentAuthorId,
+            targetAuthorUsername: momentAuthorUsername
+        )
+    }
+
+    func sendPhotoTagNotification(
+        to userId: String,
+        momentId: String,
+        momentAuthorId: String,
+        momentAuthorUsername: String? = nil,
+        momentTitle: String? = nil
+    ) {
+        sendInteractionNotification(
+            type: .photoTag,
+            to: userId,
+            momentId: momentId,
+            reaction: momentTitle,
+            mentionContext: "photoTag",
+            targetAuthorId: momentAuthorId,
+            targetAuthorUsername: momentAuthorUsername
+        )
     }
     
     func updateVisitNotification(to userId: String, visitorUsername: String, visitorId: String, count: Int) {

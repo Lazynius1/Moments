@@ -33,6 +33,7 @@ extension FirestoreService {
                 let parentCommentId = data["parentCommentId"] as? String
                 let isEdited = data["isEdited"] as? Bool ?? false
                 let editedTimestamp = (data["editedTimestamp"] as? Timestamp)?.dateValue()
+                let mentions = Self.decodeCommentMentions(from: data["mentions"])
 
                 return Comment(
                     id: document.documentID,
@@ -45,7 +46,8 @@ extension FirestoreService {
                     reactions: reactions,
                     parentCommentId: parentCommentId,
                     isEdited: isEdited,
-                    editedTimestamp: editedTimestamp
+                    editedTimestamp: editedTimestamp,
+                    mentions: mentions
                 )
             }.filter { $0.id != nil } ?? []
 
@@ -54,8 +56,10 @@ extension FirestoreService {
         }
     }
 
-    func addComment(to momentId: String, userId: String, authorId: String, content: String, parentCommentId: String? = nil, commentId: String? = nil, completion: @escaping (Result<Void, Error>) -> Void) {
+    func addComment(to momentId: String, userId: String, authorId: String, content: String, parentCommentId: String? = nil, commentId: String? = nil, mentions: [CommentMentionEntity]? = nil, completion: @escaping (Result<Void, Error>) -> Void) {
         let commentId = commentId ?? UUID().uuidString
+        let usesValidatedMentions = mentions != nil
+        let sanitizedMentions = sanitizeCommentMentions(mentions ?? [], in: content)
 
         if !NetworkMonitor.shared.isConnected {
             let payload = CommentPayload(
@@ -64,7 +68,8 @@ extension FirestoreService {
                 senderId: authorId,
                 content: content,
                 parentCommentId: parentCommentId,
-                commentId: commentId
+                commentId: commentId,
+                mentions: sanitizedMentions
             )
 
             if let data = try? JSONEncoder().encode(payload) {
@@ -107,7 +112,8 @@ extension FirestoreService {
                     "updatedAt": NSNull(),
                     "reactions": [:] as [String: [String]],
                     "isEdited": false,
-                    "editedTimestamp": NSNull()
+                    "editedTimestamp": NSNull(),
+                    "mentions": sanitizedMentions.map(commentMentionData)
                 ]
 
                 if let parentCommentId = parentCommentId {
@@ -131,19 +137,55 @@ extension FirestoreService {
                     } else {
                         completion(.success(()))
 
+                        let sendMentions: (String?, Set<String>) -> Void = { momentAuthorUsername, excludedUserIds in
+                            if usesValidatedMentions {
+                                self.handleMentions(
+                                    sanitizedMentions,
+                                    momentId: momentId,
+                                    momentAuthorId: userId,
+                                    momentAuthorUsername: momentAuthorUsername,
+                                    commentId: commentId,
+                                    fromUserId: authorId,
+                                    fromUsername: user.username,
+                                    content: content,
+                                    excludedUserIds: excludedUserIds
+                                )
+                            } else {
+                                self.handleMentions(
+                                    self.extractMentions(from: content),
+                                    momentId: momentId,
+                                    momentAuthorId: userId,
+                                    momentAuthorUsername: momentAuthorUsername,
+                                    commentId: commentId,
+                                    fromUserId: authorId,
+                                    fromUsername: user.username,
+                                    content: content,
+                                    excludedUserIds: excludedUserIds
+                                )
+                            }
+                        }
+
                         if let parentCommentId = parentCommentId {
                             self.notifyCommentReply(
                                 parentCommentId: parentCommentId,
+                                replyCommentId: commentId,
                                 momentId: momentId,
                                 momentAuthorId: userId,
                                 fromUserId: authorId,
                                 fromUsername: user.username,
                                 content: content
-                            )
+                            ) { parentAuthorId, momentAuthorUsername in
+                                var excludedUserIds = Set([authorId])
+                                if let parentAuthorId {
+                                    excludedUserIds.insert(parentAuthorId)
+                                }
+                                sendMentions(momentAuthorUsername, excludedUserIds)
+                            }
+                        } else {
+                            self.fetchUsername(userId: userId) { momentAuthorUsername in
+                                sendMentions(momentAuthorUsername, Set([authorId]))
+                            }
                         }
-
-                        let mentions = self.extractMentions(from: content)
-                        self.handleMentions(mentions, momentId: momentId, fromUserId: authorId, fromUsername: user.username, content: content)
                     }
                 }
 
@@ -153,27 +195,67 @@ extension FirestoreService {
         }
     }
 
-    func updateComment(momentId: String, userId: String, commentId: String, content: String, completion: @escaping (Result<Void, Error>) -> Void) {
+    func updateComment(momentId: String, userId: String, commentId: String, content: String, mentions: [CommentMentionEntity]? = nil, completion: @escaping (Result<Void, Error>) -> Void) {
         let commentRef = db.collection("users").document(userId).collection("moments").document(momentId).collection("comments").document(commentId)
 
-        commentRef.updateData([
-            "content": content,
-            "isEdited": true,
-            "editedTimestamp": Timestamp(date: Date())
-        ]) { [weak self] error in
-            if let error = error {
-                completion(.failure(error))
-            } else {
-                completion(.success(()))
+        commentRef.getDocument { [weak self] snapshot, _ in
+            let usesValidatedMentions = mentions != nil
+            let previousContent = snapshot?.data()?["content"] as? String ?? ""
+            let previousEntities = Self.decodeCommentMentions(from: snapshot?.data()?["mentions"])
+            let previousMentionUserIds = Set(previousEntities.map(\.userId))
+            let previousMentions = Set(self?.extractMentions(from: previousContent).map { $0.lowercased() } ?? [])
+            let sanitizedMentions = self?.sanitizeCommentMentions(mentions ?? [], in: content) ?? []
 
-                let mentions = self?.extractMentions(from: content) ?? []
-                if !mentions.isEmpty {
-                    let currentUserId = Auth.auth().currentUser?.uid ?? ""
-                    self?.fetchUserProfile(userId: currentUserId) { result in
-                        if case .success(let user) = result {
-                            self?.handleMentions(mentions, momentId: momentId, fromUserId: currentUserId, fromUsername: user.username, content: content)
-                        } else {
-                            self?.handleMentions(mentions, momentId: momentId, fromUserId: currentUserId, fromUsername: "Alguien", content: content)
+            commentRef.updateData([
+                "content": content,
+                "isEdited": true,
+                "editedTimestamp": Timestamp(date: Date()),
+                "mentions": sanitizedMentions.map { self?.commentMentionData($0) ?? [:] }
+            ]) { [weak self] error in
+                if let error = error {
+                    completion(.failure(error))
+                } else {
+                    completion(.success(()))
+
+                    let mentionsToNotify = sanitizedMentions.filter { !previousMentionUserIds.contains($0.userId) }
+                    let regexMentions = self?.extractMentions(from: content) ?? []
+                    let newRegexMentions = regexMentions.filter { !previousMentions.contains($0.lowercased()) }
+
+                    if !mentionsToNotify.isEmpty || (!usesValidatedMentions && !regexMentions.isEmpty && sanitizedMentions.isEmpty && !newRegexMentions.isEmpty) {
+                        let currentUserId = Auth.auth().currentUser?.uid ?? ""
+                        self?.fetchUserProfile(userId: currentUserId) { result in
+                            let senderUsername: String
+                            if case .success(let user) = result {
+                                senderUsername = user.username
+                            } else {
+                                senderUsername = "Alguien"
+                            }
+
+                            if !mentionsToNotify.isEmpty {
+                                self?.handleMentions(
+                                    mentionsToNotify,
+                                    momentId: momentId,
+                                    momentAuthorId: userId,
+                                    momentAuthorUsername: nil,
+                                    commentId: commentId,
+                                    fromUserId: currentUserId,
+                                    fromUsername: senderUsername,
+                                    content: content,
+                                    excludedUserIds: Set([currentUserId])
+                                )
+                            } else if !usesValidatedMentions {
+                                self?.handleMentions(
+                                    newRegexMentions,
+                                    momentId: momentId,
+                                    momentAuthorId: userId,
+                                    momentAuthorUsername: nil,
+                                    commentId: commentId,
+                                    fromUserId: currentUserId,
+                                    fromUsername: senderUsername,
+                                    content: content,
+                                    excludedUserIds: Set([currentUserId])
+                                )
+                            }
                         }
                     }
                 }
@@ -387,20 +469,43 @@ extension FirestoreService {
         }
     }
 
-    private func notifyCommentReply(parentCommentId: String, momentId: String, momentAuthorId: String, fromUserId: String, fromUsername: String, content: String) {
+    private func notifyCommentReply(
+        parentCommentId: String,
+        replyCommentId: String,
+        momentId: String,
+        momentAuthorId: String,
+        fromUserId: String,
+        fromUsername: String,
+        content: String,
+        completion: @escaping (String?, String?) -> Void
+    ) {
         db.collection("users").document(momentAuthorId).collection("moments").document(momentId).collection("comments").document(parentCommentId).getDocument { snapshot, _ in
             guard let data = snapshot?.data(),
-                  let parentAuthorId = data["authorId"] as? String else { return }
+                  let parentAuthorId = data["authorId"] as? String else {
+                completion(nil, nil)
+                return
+            }
 
-            Task { @MainActor in
-                NotificationService.shared.sendInteractionNotification(
-                    type: .comment,
-                    to: parentAuthorId,
-                    momentId: momentId,
-                    commentId: parentCommentId,
-                    reaction: content,
-                    senderUsername: fromUsername
-                )
+            self.fetchUsername(userId: momentAuthorId) { momentAuthorUsername in
+                completion(parentAuthorId, momentAuthorUsername)
+
+                self.canUserViewMoment(momentId: momentId, momentAuthorId: momentAuthorId, viewerId: parentAuthorId) { canView in
+                    guard canView else { return }
+
+                    Task { @MainActor in
+                        NotificationService.shared.sendInteractionNotification(
+                            type: .comment,
+                            to: parentAuthorId,
+                            momentId: momentId,
+                            commentId: replyCommentId,
+                            reaction: content,
+                            senderUsername: fromUsername,
+                            mentionContext: "reply",
+                            targetAuthorId: momentAuthorId,
+                            targetAuthorUsername: momentAuthorUsername
+                        )
+                    }
+                }
             }
         }
     }
@@ -417,23 +522,249 @@ extension FirestoreService {
         }
     }
 
-    private func handleMentions(_ mentions: [String], momentId: String, fromUserId: String, fromUsername: String, content: String) {
+    private static func decodeCommentMentions(from value: Any?) -> [CommentMentionEntity] {
+        guard let rawMentions = value as? [[String: Any]] else { return [] }
+
+        return rawMentions.compactMap { data in
+            guard let userId = data["userId"] as? String,
+                  let username = data["username"] as? String else { return nil }
+
+            let rangeStart = data["rangeStart"] as? Int ?? 0
+            let rangeLength = data["rangeLength"] as? Int ?? 0
+            return CommentMentionEntity(
+                userId: userId,
+                username: username,
+                rangeStart: rangeStart,
+                rangeLength: rangeLength
+            )
+        }
+    }
+
+    private func commentMentionData(_ mention: CommentMentionEntity) -> [String: Any] {
+        [
+            "userId": mention.userId,
+            "username": mention.username,
+            "rangeStart": mention.rangeStart,
+            "rangeLength": mention.rangeLength
+        ]
+    }
+
+    private func sanitizeCommentMentions(_ mentions: [CommentMentionEntity], in text: String) -> [CommentMentionEntity] {
+        var seenUserIds = Set<String>()
+        var sanitized: [CommentMentionEntity] = []
+
         for mention in mentions {
+            guard !seenUserIds.contains(mention.userId),
+                  let range = text.range(of: "@\(mention.username)", options: [.caseInsensitive, .diacriticInsensitive]) else {
+                continue
+            }
+
+            seenUserIds.insert(mention.userId)
+            let rangeStart = text.distance(from: text.startIndex, to: range.lowerBound)
+            let rangeLength = text.distance(from: range.lowerBound, to: range.upperBound)
+            sanitized.append(
+                CommentMentionEntity(
+                    userId: mention.userId,
+                    username: mention.username,
+                    rangeStart: rangeStart,
+                    rangeLength: rangeLength
+                )
+            )
+        }
+
+        return sanitized
+    }
+
+    private func handleMentions(
+        _ mentions: [String],
+        momentId: String,
+        momentAuthorId: String,
+        momentAuthorUsername: String?,
+        commentId: String,
+        fromUserId: String,
+        fromUsername: String,
+        content: String,
+        excludedUserIds: Set<String>
+    ) {
+        for mention in Set(mentions.map { $0.lowercased() }) {
             db.collection("users").whereField("username", isEqualTo: mention.lowercased()).getDocuments(source: .default) { snapshot, _ in
                 guard let documents = snapshot?.documents, let userDoc = documents.first else { return }
 
                 let mentionedUserId = userDoc.documentID
+                guard !excludedUserIds.contains(mentionedUserId) else { return }
+
+                self.canUserViewMoment(momentId: momentId, momentAuthorId: momentAuthorId, viewerId: mentionedUserId) { canView in
+                    guard canView else { return }
+
+                    Task { @MainActor in
+                        NotificationService.shared.sendCommentMentionNotification(
+                            to: mentionedUserId,
+                            momentId: momentId,
+                            momentAuthorId: momentAuthorId,
+                            momentAuthorUsername: momentAuthorUsername,
+                            commentId: commentId,
+                            commentText: content,
+                            senderUsername: fromUsername
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    private func handleMentions(
+        _ mentions: [CommentMentionEntity],
+        momentId: String,
+        momentAuthorId: String,
+        momentAuthorUsername: String?,
+        commentId: String,
+        fromUserId: String,
+        fromUsername: String,
+        content: String,
+        excludedUserIds: Set<String>
+    ) {
+        for mention in mentions {
+            let mentionedUserId = mention.userId
+            guard !excludedUserIds.contains(mentionedUserId) else { continue }
+
+            canUserViewMoment(momentId: momentId, momentAuthorId: momentAuthorId, viewerId: mentionedUserId) { canView in
+                guard canView else { return }
+
                 Task { @MainActor in
-                    NotificationService.shared.sendInteractionNotification(
-                        type: .mention,
+                    NotificationService.shared.sendCommentMentionNotification(
                         to: mentionedUserId,
                         momentId: momentId,
-                        reaction: content,
+                        momentAuthorId: momentAuthorId,
+                        momentAuthorUsername: momentAuthorUsername,
+                        commentId: commentId,
+                        commentText: content,
                         senderUsername: fromUsername
                     )
                 }
             }
         }
+    }
+
+    private func fetchUsername(userId: String, completion: @escaping (String?) -> Void) {
+        guard !userId.isEmpty else {
+            completion(nil)
+            return
+        }
+
+        db.collection("users").document(userId).getDocument { snapshot, _ in
+            completion(snapshot?.data()?["username"] as? String)
+        }
+    }
+
+    private func canUserViewMoment(
+        momentId: String,
+        momentAuthorId: String,
+        viewerId: String,
+        completion: @escaping (Bool) -> Void
+    ) {
+        guard !momentId.isEmpty, !momentAuthorId.isEmpty, !viewerId.isEmpty else {
+            completion(false)
+            return
+        }
+
+        if momentAuthorId == viewerId {
+            completion(true)
+            return
+        }
+
+        db.collection("users")
+            .document(momentAuthorId)
+            .collection("moments")
+            .document(momentId)
+            .getDocument { [weak self] snapshot, _ in
+                guard let self, let data = snapshot?.data() else {
+                    completion(false)
+                    return
+                }
+
+                let audience = data["audience"] as? String ?? ContentAudience.everyone.rawValue
+
+                switch audience {
+                case ContentAudience.onlyMe.rawValue:
+                    completion(false)
+                case ContentAudience.custom.rawValue:
+                    self.fetchCustomMomentAudience(momentId: momentId, authorId: momentAuthorId) { allowedUsers in
+                        ContentVisibilityService.shared.canUserSeeContent(
+                            contentOwnerId: momentAuthorId,
+                            viewerId: viewerId,
+                            contentType: .custom,
+                            customViewers: allowedUsers,
+                            completion: completion
+                        )
+                    }
+                case ContentAudience.customList.rawValue:
+                    guard let customListId = data["customListId"] as? String, !customListId.isEmpty else {
+                        completion(false)
+                        return
+                    }
+                    self.fetchCustomListMembers(listId: customListId, ownerId: momentAuthorId) { members in
+                        ContentVisibilityService.shared.canUserSeeContent(
+                            contentOwnerId: momentAuthorId,
+                            viewerId: viewerId,
+                            contentType: .custom,
+                            customViewers: members,
+                            completion: completion
+                        )
+                    }
+                default:
+                    let visibilityType: ContentVisibilityType
+                    switch audience {
+                    case ContentAudience.connections.rawValue:
+                        visibilityType = .connections
+                    case ContentAudience.bestFriends.rawValue:
+                        visibilityType = .bestFriends
+                    default:
+                        visibilityType = .everyone
+                    }
+
+                    ContentVisibilityService.shared.canUserSeeContent(
+                        contentOwnerId: momentAuthorId,
+                        viewerId: viewerId,
+                        contentType: visibilityType,
+                        completion: completion
+                    )
+                }
+            }
+    }
+
+    private func fetchCustomMomentAudience(
+        momentId: String,
+        authorId: String,
+        completion: @escaping ([String]) -> Void
+    ) {
+        let customAudiencesRef = db.collection("users").document(authorId).collection("customAudiences")
+
+        customAudiencesRef.document("moment_\(momentId)").getDocument { snapshot, _ in
+            if let allowedUsers = snapshot?.data()?["allowedUsers"] as? [String], !allowedUsers.isEmpty {
+                completion(allowedUsers)
+                return
+            }
+
+            customAudiencesRef.document("default_moment").getDocument { snapshot, _ in
+                let allowedUsers = snapshot?.data()?["allowedUsers"] as? [String] ?? []
+                completion(allowedUsers)
+            }
+        }
+    }
+
+    private func fetchCustomListMembers(
+        listId: String,
+        ownerId: String,
+        completion: @escaping ([String]) -> Void
+    ) {
+        db.collection("users")
+            .document(ownerId)
+            .collection("customAudienceLists")
+            .document(listId)
+            .getDocument { snapshot, _ in
+                let members = snapshot?.data()?["members"] as? [String] ?? []
+                completion(members)
+            }
     }
 
     private func sendCommentReactionNotification(to recipientId: String, from senderId: String, momentId: String, commentId: String, reaction: String) {

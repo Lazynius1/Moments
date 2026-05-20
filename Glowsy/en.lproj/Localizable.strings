@@ -474,6 +474,8 @@
 "notifications.message.requestAccepted.single" = "%@ accepted your follow request.";
 "notifications.message.tagged.single" = "%@ tagged you in a moment.";
 "notifications.message.tagged.multiple" = "%@ and %d others tagged you in moments.";
+"notifications.message.tagged.withTitle.single" = "%@ tagged you in \"%@\".";
+"notifications.message.tagged.withTitle.multiple" = "%@ and %d others tagged you in \"%@\".";
 
 /* Messages */
 "messages.count" = "%d";
@@ -2628,6 +2630,7 @@
 
 /* Push Notifications - Photo Tags */
 "notification.photoTag.title" = "%@ tagged you in a moment";
+"notification.photoTag.withTitle.title" = "%@ tagged you in \"%@\"";
 "notification.photoTag.body" = "Tap to see the moment";
 
 /* Push Notifications - Story Chains */
@@ -3309,3 +3312,26 @@
 "storyVideo.error.exceedsAutoSplitLimit" = "This video is too long to split automatically. Choose a 60-second fragment instead.";
 "storyVideo.error.exportFailed" = "We could not prepare this video.";
 "storyVideo.error.thumbnailFailed" = "We could not generate the video preview.";
+
+"notifications.message.mention.story.single" = "%@ mentioned you in a story";
+"notifications.message.mention.story.multiple" = "%@ and %d others mentioned you in stories";
+"notifications.message.mention.comment.single" = "%@ mentioned you in a comment";
+"notifications.message.mention.comment.multiple" = "%@ and %d others mentioned you in comments";
+"notifications.message.mention.comment.withAuthor.single" = "%@ mentioned you in %@'s moment";
+"notifications.message.mention.comment.withAuthor.multiple" = "%@ and %d others mentioned you in %@'s moment";
+"notifications.message.mention.moment.single" = "%@ mentioned you in a moment";
+"notifications.message.mention.moment.multiple" = "%@ and %d others mentioned you in moments";
+"notifications.message.reply.single" = "%@ replied to your comment";
+"notifications.message.reply.multiple" = "%@ and %d others replied to your comments";
+"banner.verb.mention.story" = "mentioned you in a story";
+"banner.verb.mention.comment" = "mentioned you in a comment";
+"banner.verb.mention.moment" = "mentioned you in a moment";
+"banner.verb.tagged" = "tagged you in their moment";
+"banner.verb.tagged.withTitle" = "tagged you in \"%@\"";
+"banner.verb.reply" = "replied to your comment";
+"banner.subtitle.mention.comment.withAuthor" = "in %@'s moment";
+"notification.mention.story.title" = "%@ mentioned you in a story";
+"notification.mention.comment.title" = "%@ mentioned you in a comment";
+"notification.mention.comment.withAuthor.title" = "%@ mentioned you in %@'s moment";
+"notification.mention.moment.title" = "%@ mentioned you in a moment";
+"notification.reply.title" = "%@ replied to your comment";

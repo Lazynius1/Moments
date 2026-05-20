@@ -44,6 +44,7 @@ struct FeedView: View {
     @State private var showMessages = false
     @State private var showStories = false
     @State private var selectedMoment: Moment?
+    @State private var suspendedMomentForComments: Moment? = nil
     @Binding var showCreatorView: Bool
     @State private var currentTime = Date()
     @Environment(\.colorScheme) var colorScheme
@@ -282,6 +283,14 @@ struct FeedView: View {
                 // ✅ El onChange es crucial para el funcionamiento, pero sin prints
             }
         }
+        .onChange(of: selectedProfileRoute) { newRoute in
+            if newRoute == nil, let suspended = suspendedMomentForComments {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+                    selectedMoment = suspended
+                    suspendedMomentForComments = nil
+                }
+            }
+        }
 
         .onChange(of: badgeService.unreadNotificationsCount) { count in
 
@@ -474,6 +483,9 @@ struct FeedView: View {
         guard !trimmedUserId.isEmpty else { return }
 
         if trimmedUserId == Auth.auth().currentUser?.uid {
+            if selectedMoment != nil {
+                selectedMoment = nil
+            }
             selectedUserId = ""
             selectedProfileRoute = nil
             NotificationCenter.default.post(name: NSNotification.Name("NavigateToOwnProfileTab"), object: nil)
@@ -481,7 +493,21 @@ struct FeedView: View {
         }
 
         selectedUserId = trimmedUserId
-        selectedProfileRoute = FeedProfileSheetRoute(userId: trimmedUserId)
+
+        if let currentMoment = selectedMoment {
+            // Guardamos el momento actual para volver a abrir los comentarios después
+            suspendedMomentForComments = currentMoment
+
+            // Cerramos el comments sheet primero
+            selectedMoment = nil
+
+            // Esperamos a que termine la animación de cierre del sheet de comentarios antes de abrir el perfil
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.45) {
+                selectedProfileRoute = FeedProfileSheetRoute(userId: trimmedUserId)
+            }
+        } else {
+            selectedProfileRoute = FeedProfileSheetRoute(userId: trimmedUserId)
+        }
     }
 
     private struct FeedRefreshIndicator: View {

@@ -79,7 +79,7 @@ struct InAppBannerView: View {
                             .foregroundColor(.primary)
 
                         if !isSystem {
-                            Text(verbFor(notification.type))
+                            Text(verbFor(notification))
                                 .font(.custom("Poppins-Medium", size: 13))
                                 .foregroundColor(.secondary)
                                 .lineLimit(1)
@@ -100,6 +100,14 @@ struct InAppBannerView: View {
                                 .lineLimit(2)
                         } else if notification.type == .storyChainContinued {
                             Text(storyChainSubtitle(for: notification))
+                                .font(.custom("Poppins-Regular", size: 13))
+                                .foregroundColor(.secondary.opacity(0.8))
+                                .lineLimit(1)
+                        } else if notification.type == .mention,
+                                  notification.mentionContext == "comment",
+                                  let targetAuthorUsername = notification.targetAuthorUsername,
+                                  !targetAuthorUsername.isEmpty {
+                            Text(String(format: NSLocalizedString("banner.subtitle.mention.comment.withAuthor", value: "in %@'s moment", comment: ""), targetAuthorUsername))
                                 .font(.custom("Poppins-Regular", size: 13))
                                 .foregroundColor(.secondary.opacity(0.8))
                                 .lineLimit(1)
@@ -212,7 +220,9 @@ struct InAppBannerView: View {
         // 1. Avatar handled by AsyncProfileImageView
         
         // 2. Cargar Preview (Moment o Story)
-        if notification.type == .like || notification.type == .comment || notification.type == .reaction || notification.type == .mention {
+        if notification.type == .mention, let storyId = notification.storyId {
+            fetchStoryPreview(storyId: storyId, authorId: storyAuthorId(for: notification))
+        } else if notification.type == .like || notification.type == .comment || notification.type == .reaction || notification.type == .mention {
             if let momentId = notification.momentId {
                 fetchMomentPreview(momentId: momentId)
             }
@@ -276,9 +286,18 @@ struct InAppBannerView: View {
         }
         
         switch notification.type {
-        case .comment, .like, .reaction, .mention:
+        case .comment, .like, .reaction, .photoTag:
             if let momentId = notification.momentId {
-                navigationService.navigateToMoment(momentId: momentId, userId: notification.senderId)
+                navigationService.navigateToMoment(momentId: momentId, userId: momentAuthorId(for: notification))
+            }
+        case .mention:
+            if let storyId = notification.storyId {
+                navigationService.navigateToStory(storyId: storyId)
+            } else if let momentId = notification.momentId {
+                navigationService.navigateToMoment(
+                    momentId: momentId,
+                    userId: momentAuthorId(for: notification)
+                )
             }
         case .newFollower:
             navigationService.navigateToProfile(userId: notification.senderId)
@@ -308,15 +327,44 @@ struct InAppBannerView: View {
         }
     }
     
-    private func verbFor(_ type: NotificationType) -> String {
-        switch type {
+    private func storyAuthorId(for notification: Notification) -> String? {
+        notification.storyAuthorId ?? notification.targetAuthorId ?? notification.senderId
+    }
+
+    private func momentAuthorId(for notification: Notification) -> String {
+        let currentUserId = Auth.auth().currentUser?.uid
+        return notification.targetAuthorId ?? currentUserId ?? notification.senderId
+    }
+
+    private func verbFor(_ notification: Notification) -> String {
+        switch notification.type {
         case .like: return NSLocalizedString("banner.verb.like", value: "liked your moment", comment: "")
-        case .comment: return NSLocalizedString("banner.verb.comment", value: "commented on your moment", comment: "")
+        case .comment:
+            if notification.mentionContext == "reply" {
+                return NSLocalizedString("banner.verb.reply", value: "replied to your comment", comment: "")
+            }
+            return NSLocalizedString("banner.verb.comment", value: "commented on your moment", comment: "")
         case .reaction: return NSLocalizedString("banner.verb.reaction", value: "reacted to your moment", comment: "")
+        case .photoTag:
+            if let title = notification.reaction?.trimmingCharacters(in: .whitespacesAndNewlines), !title.isEmpty {
+                return String(
+                    format: NSLocalizedString("banner.verb.tagged.withTitle", value: "tagged you in \"%@\"", comment: ""),
+                    title
+                )
+            }
+            return NSLocalizedString("banner.verb.tagged", value: "tagged you in their moment", comment: "")
         case .newFollower: return NSLocalizedString("banner.verb.follow", value: "started following you", comment: "")
         case .followRequest: return NSLocalizedString("banner.verb.request", value: "sent a request", comment: "")
         case .requestAccepted: return NSLocalizedString("banner.verb.accepted", value: "accepted your request", comment: "")
-        case .mention: return NSLocalizedString("banner.verb.mention", value: "mentioned you", comment: "")
+        case .mention:
+            switch notification.mentionContext ?? (notification.storyId != nil ? "story" : (notification.commentId != nil ? "comment" : "moment")) {
+            case "story":
+                return NSLocalizedString("banner.verb.mention.story", value: "mentioned you in a story", comment: "")
+            case "comment":
+                return NSLocalizedString("banner.verb.mention.comment", value: "mentioned you in a comment", comment: "")
+            default:
+                return NSLocalizedString("banner.verb.mention.moment", value: "mentioned you in a moment", comment: "")
+            }
         case .storyReaction: return NSLocalizedString("banner.verb.story", value: "reacted to your story", comment: "")
         case .storyChainContinued: return NSLocalizedString("banner.verb.storyChain", value: "continued your story chain", comment: "")
         case .message: return NSLocalizedString("banner.verb.message", value: "sent you a message", comment: "")

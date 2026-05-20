@@ -422,7 +422,11 @@ class BackgroundStoryUploadService: ObservableObject {
             }
 
             // PASO 6: Procesar stickers interactivos con storyId real
-            await processInteractiveStickers(storyId: storyId, stickers: uploadingStory.stickerData)
+            await processInteractiveStickers(
+                storyId: storyId,
+                uploadingStory: uploadingStory,
+                stickers: uploadingStory.stickerData
+            )
 
             // PASO 7: Remover del header después de 2 segundos
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
@@ -526,7 +530,11 @@ class BackgroundStoryUploadService: ObservableObject {
             }
 
             if isFirstClip {
-                await processInteractiveStickers(storyId: storyId, stickers: segmentStory.stickerData)
+                await processInteractiveStickers(
+                    storyId: storyId,
+                    uploadingStory: segmentStory,
+                    stickers: segmentStory.stickerData
+                )
             }
 
             await updateProgress(
@@ -539,13 +547,21 @@ class BackgroundStoryUploadService: ObservableObject {
         return firstStoryId ?? ""
     }
 
-    private func processInteractiveStickers(storyId: String, stickers: [StickerItem]?) async {
+    private func processInteractiveStickers(
+        storyId: String,
+        uploadingStory: UploadingStory,
+        stickers: [StickerItem]?
+    ) async {
         guard let stickers else { return }
 
         let mentionStickers = stickers.filter { $0.type == .mention }
         if !mentionStickers.isEmpty {
-            StickerPickerView.sendMentionNotificationsForStory(
+            _ = await StickerPickerView.sendMentionNotificationsForStory(
                 storyId: storyId,
+                storyAuthorId: uploadingStory.userId,
+                audience: uploadingStory.audienceSetting,
+                customViewers: uploadingStory.customViewers,
+                customListId: uploadingStory.customListId,
                 stickers: mentionStickers
             )
         }

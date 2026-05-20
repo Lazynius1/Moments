@@ -471,6 +471,8 @@
 "notifications.message.requestAccepted.single" = "%@ ha acceptat la teva sol·licitud de seguiment.";
 "notifications.message.tagged.single" = "%@ t'ha etiquetat en un moment.";
 "notifications.message.tagged.multiple" = "%@ i %d més t'han etiquetat en moments.";
+"notifications.message.tagged.withTitle.single" = "%@ t'ha etiquetat en el moment \"%@\".";
+"notifications.message.tagged.withTitle.multiple" = "%@ i %d més t'han etiquetat en el moment \"%@\".";
 
 /* Messages */
 "messages.count" = "%d";
@@ -2639,6 +2641,7 @@
 
 /* Push Notifications - Photo Tags */
 "notification.photoTag.title" = "%@ t'ha etiquetat en un moment";
+"notification.photoTag.withTitle.title" = "%@ t'ha etiquetat en el moment \"%@\"";
 "notification.photoTag.body" = "Toca per veure el moment";
 
 /* Push Notifications - Story Chains */
@@ -3318,3 +3321,26 @@
 "storyVideo.error.exceedsAutoSplitLimit" = "Aquest vídeo és massa llarg per dividir-lo automàticament. Tria un fragment de 60 segons.";
 "storyVideo.error.exportFailed" = "No hem pogut preparar aquest vídeo.";
 "storyVideo.error.thumbnailFailed" = "No hem pogut generar la previsualització del vídeo.";
+
+"notifications.message.mention.story.single" = "%@ t'ha mencionat en una història";
+"notifications.message.mention.story.multiple" = "%@ i %d persones més t'han mencionat en històries";
+"notifications.message.mention.comment.single" = "%@ t'ha mencionat en un comentari";
+"notifications.message.mention.comment.multiple" = "%@ i %d persones més t'han mencionat en comentaris";
+"notifications.message.mention.comment.withAuthor.single" = "%@ t'ha mencionat al moment de %@";
+"notifications.message.mention.comment.withAuthor.multiple" = "%@ i %d persones més t'han mencionat al moment de %@";
+"notifications.message.mention.moment.single" = "%@ t'ha mencionat en un moment";
+"notifications.message.mention.moment.multiple" = "%@ i %d persones més t'han mencionat en moments";
+"notifications.message.reply.single" = "%@ ha respost al teu comentari";
+"notifications.message.reply.multiple" = "%@ i %d persones més han respost als teus comentaris";
+"banner.verb.mention.story" = "t'ha mencionat en una història";
+"banner.verb.mention.comment" = "t'ha mencionat en un comentari";
+"banner.verb.mention.moment" = "t'ha mencionat en un moment";
+"banner.verb.tagged" = "t'ha etiquetat en el seu moment";
+"banner.verb.tagged.withTitle" = "t'ha etiquetat en \"%@\"";
+"banner.verb.reply" = "ha respost al teu comentari";
+"banner.subtitle.mention.comment.withAuthor" = "al moment de %@";
+"notification.mention.story.title" = "%@ t'ha mencionat en una història";
+"notification.mention.comment.title" = "%@ t'ha mencionat en un comentari";
+"notification.mention.comment.withAuthor.title" = "%@ t'ha mencionat al moment de %@";
+"notification.mention.moment.title" = "%@ t'ha mencionat en un moment";
+"notification.reply.title" = "%@ ha respost al teu comentari";

@@ -474,6 +474,8 @@
 "notifications.message.requestAccepted.single" = "%@ ha accettato la tua richiesta di follow.";
 "notifications.message.tagged.single" = "%@ ti ha taggato in un momento.";
 "notifications.message.tagged.multiple" = "%@ e altre %d persone ti hanno taggato in momenti.";
+"notifications.message.tagged.withTitle.single" = "%@ ti ha taggato in \"%@\".";
+"notifications.message.tagged.withTitle.multiple" = "%@ e altre %d persone ti hanno taggato in \"%@\".";
 
 /* Messages */
 "messages.count" = "%d";
@@ -2628,6 +2630,7 @@
 
 /* Push Notifications - Photo Tags */
 "notification.photoTag.title" = "%@ ti ha taggato in un momento";
+"notification.photoTag.withTitle.title" = "%@ ti ha taggato in \"%@\"";
 "notification.photoTag.body" = "Tocca per vedere il momento";
 
 /* Push Notifications - Story Chains */
@@ -3309,3 +3312,26 @@
 "storyVideo.error.exceedsAutoSplitLimit" = "Questo video è troppo lungo per la divisione automatica. Scegli invece un frammento di 60 secondi.";
 "storyVideo.error.exportFailed" = "Non siamo riusciti a preparare questo video.";
 "storyVideo.error.thumbnailFailed" = "Non siamo riusciti a generare l'anteprima del video.";
+
+"notifications.message.mention.story.single" = "%@ ti ha menzionato in una storia";
+"notifications.message.mention.story.multiple" = "%@ e altre %d persone ti hanno menzionato nelle storie";
+"notifications.message.mention.comment.single" = "%@ ti ha menzionato in un commento";
+"notifications.message.mention.comment.multiple" = "%@ e altre %d persone ti hanno menzionato nei commenti";
+"notifications.message.mention.comment.withAuthor.single" = "%@ ti ha menzionato nel momento di %@";
+"notifications.message.mention.comment.withAuthor.multiple" = "%@ e altre %d persone ti hanno menzionato nel momento di %@";
+"notifications.message.mention.moment.single" = "%@ ti ha menzionato in un momento";
+"notifications.message.mention.moment.multiple" = "%@ e altre %d persone ti hanno menzionato nei momenti";
+"notifications.message.reply.single" = "%@ ha risposto al tuo commento";
+"notifications.message.reply.multiple" = "%@ e altre %d persone hanno risposto ai tuoi commenti";
+"banner.verb.mention.story" = "ti ha menzionato in una storia";
+"banner.verb.mention.comment" = "ti ha menzionato in un commento";
+"banner.verb.mention.moment" = "ti ha menzionato in un momento";
+"banner.verb.tagged" = "ti ha taggato nel suo momento";
+"banner.verb.tagged.withTitle" = "ti ha taggato in \"%@\"";
+"banner.verb.reply" = "ha risposto al tuo commento";
+"banner.subtitle.mention.comment.withAuthor" = "nel momento di %@";
+"notification.mention.story.title" = "%@ ti ha menzionato in una storia";
+"notification.mention.comment.title" = "%@ ti ha menzionato in un commento";
+"notification.mention.comment.withAuthor.title" = "%@ ti ha menzionato nel momento di %@";
+"notification.mention.moment.title" = "%@ ti ha menzionato in un momento";
+"notification.reply.title" = "%@ ha risposto al tuo commento";
