@@ -138,7 +138,7 @@ struct CreatorMedia: Identifiable {
     
     // MARK: - Initializers & Helpers
     
-    init(id: String, image: UIImage, videoURL: URL?, type: MediaType, aspectRatio: AspectRatio, recommendedAspectRatio: AspectRatio? = nil, hasEdits: Bool = false, thumbnailURL: URL? = nil, tags: [PhotoTag]? = nil, storyVideoMode: StoryVideoMode = .normal, videoDuration: Double? = nil) {
+    init(id: String, image: UIImage, videoURL: URL?, type: MediaType, aspectRatio: AspectRatio, recommendedAspectRatio: AspectRatio? = nil, hasEdits: Bool = false, thumbnailURL: URL? = nil, tags: [PhotoTag]? = nil, storyVideoMode: StoryVideoMode = .normal, videoDuration: Double? = nil, videoFileSize: Int64? = nil, videoResolution: String? = nil) {
         self.id = id
         self.image = image
         self.videoURL = videoURL
@@ -150,9 +150,11 @@ struct CreatorMedia: Identifiable {
         self.tags = tags
         self.storyVideoMode = storyVideoMode
         self.videoDuration = videoDuration
+        self.videoFileSize = videoFileSize
+        self.videoResolution = videoResolution
     }
     
-    init(type: MediaType, image: UIImage, videoURL: URL?, aspectRatio: AspectRatio, recommendedAspectRatio: AspectRatio? = nil, thumbnailURL: URL? = nil, storyVideoMode: StoryVideoMode = .normal, videoDuration: Double? = nil) {
+    init(type: MediaType, image: UIImage, videoURL: URL?, aspectRatio: AspectRatio, recommendedAspectRatio: AspectRatio? = nil, thumbnailURL: URL? = nil, storyVideoMode: StoryVideoMode = .normal, videoDuration: Double? = nil, videoFileSize: Int64? = nil, videoResolution: String? = nil) {
         self.id = UUID().uuidString
         self.image = image
         self.videoURL = videoURL
@@ -163,9 +165,11 @@ struct CreatorMedia: Identifiable {
         self.thumbnailURL = thumbnailURL
         self.storyVideoMode = storyVideoMode
         self.videoDuration = videoDuration
+        self.videoFileSize = videoFileSize
+        self.videoResolution = videoResolution
     }
     
-    func with(videoURL: URL? = nil, aspectRatio: AspectRatio? = nil, recommendedAspectRatio: AspectRatio? = nil, hasEdits: Bool? = nil, thumbnailURL: URL? = nil, image: UIImage? = nil, tags: [PhotoTag]? = nil, storyVideoMode: StoryVideoMode? = nil, videoDuration: Double? = nil) -> CreatorMedia {
+    func with(videoURL: URL? = nil, aspectRatio: AspectRatio? = nil, recommendedAspectRatio: AspectRatio? = nil, hasEdits: Bool? = nil, thumbnailURL: URL? = nil, image: UIImage? = nil, tags: [PhotoTag]? = nil, storyVideoMode: StoryVideoMode? = nil, videoDuration: Double? = nil, videoFileSize: Int64? = nil, videoResolution: String? = nil) -> CreatorMedia {
         CreatorMedia(
             id: self.id,
             image: image ?? self.image,
@@ -177,7 +181,9 @@ struct CreatorMedia: Identifiable {
             thumbnailURL: thumbnailURL ?? self.thumbnailURL,
             tags: tags ?? self.tags,
             storyVideoMode: storyVideoMode ?? self.storyVideoMode,
-            videoDuration: videoDuration ?? self.videoDuration
+            videoDuration: videoDuration ?? self.videoDuration,
+            videoFileSize: videoFileSize ?? self.videoFileSize,
+            videoResolution: videoResolution ?? self.videoResolution
         )
     }
     

@@ -1346,6 +1346,9 @@ struct SocialVideoEditorView: View {
 
                             updatedMedia.videoURL = processedData.compressedVideoURL
                             updatedMedia.image = processedData.thumbnailImage
+                            updatedMedia.videoDuration = processedData.duration
+                            updatedMedia.videoFileSize = processedData.fileSize
+                            updatedMedia.videoResolution = "\(Int(processedData.resolution.width))x\(Int(processedData.resolution.height))"
 
                             self.selectedMediaItems[originalIndex] = updatedMedia
                         }
