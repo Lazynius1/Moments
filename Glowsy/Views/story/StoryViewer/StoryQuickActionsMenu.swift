@@ -5,7 +5,6 @@ struct StoryQuickActionsMenu: View {
     let canLeaveBestFriends: Bool
     let textColor: Color
     let dividerColor: Color
-    let borderColor: Color
     let onViewActivity: () -> Void
     let onSave: () -> Void
     let onDelete: () -> Void
@@ -69,13 +68,7 @@ struct StoryQuickActionsMenu: View {
         }
         .frame(minWidth: 200)
         .fixedSize(horizontal: true, vertical: false)
-        .background(Color.white.opacity(0.001))
         .liquidGlass(in: RoundedRectangle(cornerRadius: 22, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: 22, style: .continuous)
-                .stroke(borderColor, lineWidth: 1)
-        )
-        .shadow(color: Color.black.opacity(0.28), radius: 24, x: 0, y: 14)
         .contentShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
         .onTapGesture {
         }
