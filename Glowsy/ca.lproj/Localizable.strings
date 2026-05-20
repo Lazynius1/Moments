@@ -993,6 +993,7 @@
 "common.searching" = "Cercant...";
 "common.noResults" = "Sense resultats";
 "common.clear" = "Netejar";
+"common.selectAll" = "Seleccionar-ho tot";
 
 /* Login Activity */
 "loginActivity.navigation.title" = "Activitat d'Inici";
@@ -2796,14 +2797,35 @@
 "userActivity.simple.tags.selectedCount" = "%d seleccionats";
 "userActivity.simple.reactions.delete.single" = "Eliminar reacció";
 "userActivity.simple.reactions.delete.multiple" = "Eliminar reaccions";
+"userActivity.simple.reactions.confirm.delete.title" = "Eliminar reaccions";
+"userActivity.simple.reactions.confirm.delete.message" = "Vols eliminar les reaccions seleccionades?";
+"userActivity.simple.reactions.success.delete" = "Reaccions eliminades";
 "userActivity.simple.tags.remove.single" = "Treure etiqueta";
 "userActivity.simple.tags.remove.multiple" = "Treure etiquetes";
+"userActivity.simple.tags.confirm.remove.title" = "Treure etiquetes";
+"userActivity.simple.tags.confirm.remove.message" = "Vols treure les etiquetes seleccionades?";
+"userActivity.simple.tags.success.remove" = "Etiquetes eliminades";
 "userActivity.simple.comments.selectedCount" = "%d seleccionats";
 "userActivity.simple.comments.delete.single" = "Eliminar comentari";
 "userActivity.simple.comments.delete.multiple" = "Eliminar comentaris";
+"userActivity.simple.comments.confirm.delete.title" = "Eliminar comentaris";
+"userActivity.simple.comments.confirm.delete.message" = "Vols eliminar els comentaris seleccionats?";
+"userActivity.simple.comments.success.delete" = "Comentaris eliminats";
 "userActivity.simple.recentlyDeleted.restore.single" = "Restaurar";
 "userActivity.simple.recentlyDeleted.delete.single" = "Eliminar permanentment";
+"userActivity.simple.recentlyDeleted.confirm.restore.title" = "Restaurar contingut";
+"userActivity.simple.recentlyDeleted.confirm.restore.message" = "Vols restaurar el contingut seleccionat?";
+"userActivity.simple.recentlyDeleted.confirm.delete.title" = "Eliminar permanentment";
+"userActivity.simple.recentlyDeleted.confirm.delete.message" = "Això esborrarà el contingut seleccionat de manera permanent.";
+"userActivity.simple.recentlyDeleted.success.restore" = "Contingut restaurat";
+"userActivity.simple.recentlyDeleted.success.delete" = "Contingut eliminat permanentment";
 "userActivity.event.archived.action.restore" = "Restaurar";
+"userActivity.event.archived.confirm.restore.title" = "Restaurar arxivats";
+"userActivity.event.archived.confirm.restore.message" = "Vols restaurar el contingut arxivat seleccionat?";
+"userActivity.event.archived.success.restore" = "Contingut arxivat restaurat";
+"userActivity.simple.stickers.confirm.delete.title" = "Eliminar respostes";
+"userActivity.simple.stickers.confirm.delete.message" = "Vols eliminar les respostes seleccionades?";
+"userActivity.simple.stickers.success.delete" = "Respostes eliminades";
 "userActivity.simple.comments.yourComment" = "El teu comentari";
 "userActivity.simple.comments.momentNoContent" = "Moment sense text";
 "userActivity.simple.comments.emptyComment" = "Sense text";
@@ -3286,6 +3308,7 @@
 "storyVideo.tooLong.message" = "Aquest vídeo dura %@. Les històries admeten vídeos de fins a %@ des de la galeria. Tria un vídeo més curt per continuar.";
 "momentVideo.tooLong.title" = "Vídeo massa llarg";
 "momentVideo.tooLong.message" = "Aquest vídeo dura %@. Els moments admeten vídeos de fins a %@. Tria un vídeo més curt per continuar.";
+"momentVideo.fileTooLargeAfterCompression.message" = "Aquest vídeo encara ocupa massa després d'optimitzar-lo (%@). Els moments admeten vídeos de fins a %@.";
 "storyVideo.editor.autoSplitNotice" = "Es publicarà en %d parts. Els stickers només apareixeran a la primera història, excepte Reveal.";
 "storyVideo.trim.title" = "Tria 60 segons";
 "storyVideo.trim.dragHint" = "Arrossega la selecció o les vores. Màxim 60 segons.";

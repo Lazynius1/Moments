@@ -624,7 +624,7 @@ struct MediaSelectionView: View {
                         processedMedia.append(media)
                     }
                 } else if asset.mediaType == .video {
-                    let (thumbnail, videoURL) = await loadFullVideo(for: asset)
+                    let (thumbnail, videoURL, videoFileSize) = await loadFullVideo(for: asset)
 
                     let finalImage = thumbnail ?? createVideoPlaceholder()
 
@@ -637,7 +637,9 @@ struct MediaSelectionView: View {
                         videoURL: videoURL,
                         type: .video,
                         aspectRatio: detectedAspectRatio,
-                        recommendedAspectRatio: detectedAspectRatio // ✅ Guardar el aspect ratio detectado como recomendado
+                        recommendedAspectRatio: detectedAspectRatio, // ✅ Guardar el aspect ratio detectado como recomendado
+                        videoDuration: asset.duration,
+                        videoFileSize: videoFileSize
                     )
                     processedMedia.append(media)
                 }
@@ -749,13 +751,13 @@ struct MediaSelectionView: View {
         }
     }
 
-    private func loadFullVideo(for asset: PHAsset) async -> (UIImage?, URL?) {
+    private func loadFullVideo(for asset: PHAsset) async -> (UIImage?, URL?, Int64?) {
 
         // Cargar thumbnail del video
         let thumbnail = await loadFullImage(for: asset)
 
         // ✅ MÉTODO MEJORADO: Solicitar video con opciones específicas
-        let videoURL: URL? = await withCheckedContinuation { continuation in
+        let videoResult: (URL?, Int64?) = await withCheckedContinuation { continuation in
             let options = PHVideoRequestOptions()
             options.isNetworkAccessAllowed = true
             options.deliveryMode = .highQualityFormat
@@ -772,7 +774,7 @@ struct MediaSelectionView: View {
 
                 // Verificar si hay error
                 if let error = info?[PHImageErrorKey] as? Error {
-                    continuation.resume(returning: nil)
+                    continuation.resume(returning: (nil, nil))
                     return
                 }
 
@@ -784,28 +786,29 @@ struct MediaSelectionView: View {
 
                 // Extraer URL del AVAsset
                 guard let urlAsset = avAsset as? AVURLAsset else {
-                    continuation.resume(returning: nil)
+                    continuation.resume(returning: (nil, nil))
                     return
                 }
 
                 let videoURL = urlAsset.url
+                var fileSize: Int64?
 
                 // Verificar tamaño del archivo
                 do {
                     let fileAttributes = try FileManager.default.attributesOfItem(atPath: videoURL.path)
-                    let fileSize = fileAttributes[FileAttributeKey.size] as? Int64 ?? 0
+                    fileSize = fileAttributes[FileAttributeKey.size] as? Int64
                 } catch {
                 }
 
-                continuation.resume(returning: videoURL)
+                continuation.resume(returning: (videoURL, fileSize))
             }
         }
 
-        if let videoURL = videoURL {
+        if let videoURL = videoResult.0 {
         } else {
         }
 
-        return (thumbnail, videoURL)
+        return (thumbnail, videoResult.0, videoResult.1)
     }
 
     // ✅ FUNCIÓN AUXILIAR: Verificar permisos de acceso a video

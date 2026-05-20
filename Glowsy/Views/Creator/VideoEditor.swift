@@ -215,7 +215,7 @@ struct SocialVideoEditorView: View {
 
                     if let _ = currentVideo {
                         trimTimelineSection
-                            .padding(.bottom, 14)
+                            .padding(.bottom, proxy.safeAreaInsets.bottom > 0 ? proxy.safeAreaInsets.bottom + 14 : 24)
                     }
                 }
                 .background(workspaceBg)
@@ -501,52 +501,46 @@ struct SocialVideoEditorView: View {
 
     // MARK: - Trim Timeline Area
     private var trimTimelineSection: some View {
-        GeometryReader { proxy in
-            let timelineWidth = min(proxy.size.width - 32, 360)
+        VStack(spacing: 8) {
+            HStack {
+                Text(formatTime(max(trimStartTime, currentTime)))
+                    .font(.custom("Poppins-Medium", size: 12))
+                    .foregroundColor(colorScheme == .dark ? .white : .black)
 
-            VStack(spacing: 8) {
-                HStack {
-                    Text(formatTime(max(trimStartTime, currentTime)))
-                        .font(.custom("Poppins-Medium", size: 12))
-                        .foregroundColor(colorScheme == .dark ? .white : .black)
+                Spacer()
 
-                    Spacer()
+                Text("\(formatTime(trimEndTime - trimStartTime)) de \(formatTime(duration))")
+                    .font(.custom("Poppins-Regular", size: 11))
+                    .foregroundColor(.gray)
 
-                    Text("\(formatTime(trimEndTime - trimStartTime)) de \(formatTime(duration))")
-                        .font(.custom("Poppins-Regular", size: 11))
-                        .foregroundColor(.gray)
+                Spacer()
 
-                    Spacer()
-
-                    Text(formatTime(trimEndTime))
-                        .font(.custom("Poppins-Medium", size: 12))
-                        .foregroundColor(colorScheme == .dark ? .white : .black)
-                }
-
-                timelineView
+                Text(formatTime(trimEndTime))
+                    .font(.custom("Poppins-Medium", size: 12))
+                    .foregroundColor(colorScheme == .dark ? .white : .black)
             }
-            .frame(width: max(260, timelineWidth), height: proxy.size.height)
-            .frame(maxWidth: .infinity, alignment: .center)
+
+            timelineView
         }
         .frame(height: 84)
-        .padding(.vertical, 8)
+        .padding(.horizontal, 16)
         .opacity(isProcessing ? 0.5 : 1.0)
     }
 
     private var timelineView: some View {
-        ZStack(alignment: .center) {
-            // 1. Thumbnail strip (44pt high, centered vertically in the 52pt parent ZStack, rounded corners clip to remove spikes)
-            thumbnailStrip
-                .frame(height: 44)
-                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+        GeometryReader { timelineGeo in
+            let width = timelineGeo.size.width
+            let startX = width * (trimStartTime / max(duration, 0.1))
+            let windowWidth = max(44, width * ((trimEndTime - trimStartTime) / max(duration, 0.1)))
+            let clampedStartX = min(startX, max(width - windowWidth, 0))
 
-            // 2. Inactive dimming overlays (clipped to a centered 44pt frame so outer corners clip perfectly, inner borders remain straight)
-            GeometryReader { geometry in
-                let width = geometry.size.width
-                let startX = width * (trimStartTime / max(duration, 0.1))
-                let windowWidth = max(44, width * ((trimEndTime - trimStartTime) / max(duration, 0.1)))
-                let clampedStartX = min(startX, max(width - windowWidth, 0))
+            ZStack(alignment: .center) {
+                // 1. Thumbnail strip (44pt high, centered vertically in the 52pt parent ZStack, rounded corners clip to remove spikes)
+                thumbnailStrip(width: width)
+                    .frame(width: width, height: 44)
+                    .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
 
+                // 2. Inactive dimming overlays (clipped to a centered 44pt frame so outer corners clip perfectly, inner borders remain straight)
                 ZStack(alignment: .leading) {
                     // Left Inactive range dimming
                     Rectangle()
@@ -559,28 +553,22 @@ struct SocialVideoEditorView: View {
                         .frame(width: max(0, width - clampedStartX - windowWidth), height: 44)
                         .offset(x: clampedStartX + windowWidth)
                 }
-            }
-            .frame(height: 44)
-            .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                .frame(width: width, height: 44)
+                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
 
-            // Outer outline frame of the timeline strip
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .stroke(colorScheme == .dark ? Color.white.opacity(0.12) : Color.black.opacity(0.08), lineWidth: 1)
-                .frame(height: 44)
+                // Outer outline frame of the timeline strip
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .stroke(colorScheme == .dark ? Color.white.opacity(0.12) : Color.black.opacity(0.08), lineWidth: 1)
+                    .frame(width: width, height: 44)
 
-            // 3. Selection border window & handles (Centered vertically in the 52pt parent ZStack)
-            GeometryReader { geometry in
-                let width = geometry.size.width
-                let startX = width * (trimStartTime / max(duration, 0.1))
-                let windowWidth = max(44, width * ((trimEndTime - trimStartTime) / max(duration, 0.1)))
-                let clampedStartX = min(startX, max(width - windowWidth, 0))
-
+                // 3. Selection border window & handles (Centered vertically in the 52pt parent ZStack)
                 ZStack(alignment: .leading) {
                     // Outer selection outline frame (48pt high, centered at offset y: 2, perfectly overlapping by 2pt top/bottom)
                     RoundedRectangle(cornerRadius: 11, style: .continuous)
                         .stroke(selectionColor, lineWidth: 4)
                         .frame(width: windowWidth, height: 48)
                         .offset(x: clampedStartX, y: 2)
+                        .gesture(selectionDragGesture(totalWidth: width))
 
                     // Playback progress playhead needle cursor (Centered at offset y: 3, wrapped in a 32pt grab hitbox!)
                     if !isDraggingTrimHandle || isScrubbingPlayhead {
@@ -607,8 +595,9 @@ struct SocialVideoEditorView: View {
                         .offset(x: min(width - 14, clampedStartX + windowWidth - 7), y: 0)
                         .gesture(trailingHandleGesture(totalWidth: width))
                 }
+                .frame(width: width, height: 52)
             }
-            .frame(height: 52) // Explicit height ensures rendering in ZStack
+            .frame(width: width, height: 52)
         }
         .frame(height: 52)
         .allowsHitTesting(!isProcessing)
@@ -631,7 +620,7 @@ struct SocialVideoEditorView: View {
             )
     }
 
-    private var thumbnailStrip: some View {
+    private func thumbnailStrip(width: CGFloat) -> some View {
         HStack(spacing: 0) {
             if timelineThumbnails.isEmpty {
                 ForEach(0..<8, id: \.self) { _ in
@@ -639,12 +628,12 @@ struct SocialVideoEditorView: View {
                         .fill(textPrimaryColor.opacity(0.08))
                 }
             } else {
+                let thumbnailWidth = width / CGFloat(max(1, timelineThumbnails.count))
                 ForEach(Array(timelineThumbnails.enumerated()), id: \.offset) { _, image in
                     Image(uiImage: image)
                         .resizable()
                         .scaledToFill()
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 44)
+                        .frame(width: thumbnailWidth, height: 44)
                         .clipped()
                 }
             }
@@ -1163,6 +1152,8 @@ struct SocialVideoEditorView: View {
                 if dragStartTrimStart == nil {
                     isDraggingTrimHandle = true
                     HapticManager.shared.lightImpact()
+                    player?.pause()
+                    isPlaying = false
                     dragStartTrimStart = trimStartTime
                     dragStartTrimDuration = trimEndTime - trimStartTime
                     draggingHandle = .start
@@ -1196,6 +1187,8 @@ struct SocialVideoEditorView: View {
                 if dragStartTrimDuration == nil {
                     isDraggingTrimHandle = true
                     HapticManager.shared.lightImpact()
+                    player?.pause()
+                    isPlaying = false
                     dragStartTrimDuration = trimEndTime - trimStartTime
                     draggingHandle = .end
                 }
@@ -1217,6 +1210,35 @@ struct SocialVideoEditorView: View {
                 isDraggingTrimHandle = false
                 dragStartTrimDuration = nil
                 draggingHandle = nil
+            }
+    }
+
+    private func selectionDragGesture(totalWidth: CGFloat) -> some Gesture {
+        DragGesture()
+            .onChanged { value in
+                if dragStartTrimStart == nil {
+                    isDraggingTrimHandle = true
+                    HapticManager.shared.lightImpact()
+                    player?.pause()
+                    isPlaying = false
+                    dragStartTrimStart = trimStartTime
+                    dragStartTrimDuration = trimEndTime - trimStartTime
+                }
+                let delta = secondsDelta(for: value.translation.width, totalWidth: totalWidth)
+                let newStart = (dragStartTrimStart ?? trimStartTime) + delta
+                let windowDuration = dragStartTrimDuration ?? (trimEndTime - trimStartTime)
+                let clampedStart = min(max(newStart, 0), max(duration - windowDuration, 0))
+
+                trimStartTime = clampedStart
+                currentTime = clampedStart
+                trimEndTime = clampedStart + windowDuration
+                seekTo(time: clampedStart)
+                triggerTickHaptic(for: clampedStart)
+            }
+            .onEnded { _ in
+                isDraggingTrimHandle = false
+                dragStartTrimStart = nil
+                dragStartTrimDuration = nil
             }
     }
 

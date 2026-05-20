@@ -1009,6 +1009,7 @@
 "common.searching" = "Suche läuft...";
 "common.noResults" = "Keine Ergebnisse";
 "common.clear" = "Löschen";
+"common.selectAll" = "Alle auswählen";
 
 /* Login Activity */
 "loginActivity.navigation.title" = "Anmeldeaktivität";
@@ -2769,6 +2770,12 @@
 "userActivity.simple.recentlyDeleted.restore.multiple" = "Wiederherstellen";
 "userActivity.simple.recentlyDeleted.delete.single" = "Dauerhaft löschen";
 "userActivity.simple.recentlyDeleted.delete.multiple" = "Dauerhaft löschen";
+"userActivity.simple.recentlyDeleted.confirm.restore.title" = "Inhalt wiederherstellen";
+"userActivity.simple.recentlyDeleted.confirm.restore.message" = "Möchtest du den ausgewählten Inhalt wiederherstellen?";
+"userActivity.simple.recentlyDeleted.confirm.delete.title" = "Dauerhaft löschen";
+"userActivity.simple.recentlyDeleted.confirm.delete.message" = "Dadurch wird der ausgewählte Inhalt dauerhaft gelöscht.";
+"userActivity.simple.recentlyDeleted.success.restore" = "Inhalt wiederhergestellt";
+"userActivity.simple.recentlyDeleted.success.delete" = "Inhalt dauerhaft gelöscht";
 "userActivity.simple.retry" = "Erneut versuchen";
 "userActivity.event.archived.action.restore" = "Wiederherstellen";
 "userActivity.simple.reaction.unknown" = "Reaktion";
@@ -2795,14 +2802,30 @@
 "userActivity.simple.tags.selectedCount" = "%d ausgewählt";
 "userActivity.simple.reactions.delete.single" = "Reaktion löschen";
 "userActivity.simple.reactions.delete.multiple" = "Reaktionen löschen";
+"userActivity.simple.reactions.confirm.delete.title" = "Reaktionen löschen";
+"userActivity.simple.reactions.confirm.delete.message" = "Möchtest du die ausgewählten Reaktionen löschen?";
+"userActivity.simple.reactions.success.delete" = "Reaktionen gelöscht";
 "userActivity.simple.tags.remove.single" = "Markierung entfernen";
 "userActivity.simple.tags.remove.multiple" = "Markierungen entfernen";
+"userActivity.simple.tags.confirm.remove.title" = "Markierungen entfernen";
+"userActivity.simple.tags.confirm.remove.message" = "Möchtest du die ausgewählten Markierungen entfernen?";
+"userActivity.simple.tags.success.remove" = "Markierungen entfernt";
 "userActivity.simple.comments.selectedCount" = "%d ausgewählt";
 "userActivity.simple.comments.delete.single" = "Kommentar löschen";
 "userActivity.simple.comments.delete.multiple" = "Kommentare löschen";
+"userActivity.simple.comments.confirm.delete.title" = "Kommentare löschen";
+"userActivity.simple.comments.confirm.delete.message" = "Möchtest du die ausgewählten Kommentare löschen?";
+"userActivity.simple.comments.success.delete" = "Kommentare gelöscht";
 "userActivity.simple.comments.yourComment" = "Dein Kommentar";
 "userActivity.simple.comments.momentNoContent" = "Moment ohne Text";
 "userActivity.simple.comments.emptyComment" = "Kein Text";
+"userActivity.event.archived.action.restore" = "Wiederherstellen";
+"userActivity.event.archived.confirm.restore.title" = "Archivierte Inhalte wiederherstellen";
+"userActivity.event.archived.confirm.restore.message" = "Möchtest du die ausgewählten archivierten Inhalte wiederherstellen?";
+"userActivity.event.archived.success.restore" = "Archivierte Inhalte wiederhergestellt";
+"userActivity.simple.stickers.confirm.delete.title" = "Antworten löschen";
+"userActivity.simple.stickers.confirm.delete.message" = "Möchtest du die ausgewählten Antworten löschen?";
+"userActivity.simple.stickers.success.delete" = "Antworten gelöscht";
 
 /* Your Activity - Error States */
 "userActivity.error.offline.title" = "Keine Verbindung";
@@ -3276,6 +3299,7 @@
 "storyVideo.tooLong.message" = "Dieses Video ist %@ lang. Stories unterstützen Videos aus der Galerie bis zu %@. Wähle ein kürzeres Video, um fortzufahren.";
 "momentVideo.tooLong.title" = "Video zu lang";
 "momentVideo.tooLong.message" = "Dieses Video ist %@ lang. Momente unterstützen Videos bis zu %@. Wähle ein kürzeres Video, um fortzufahren.";
+"momentVideo.fileTooLargeAfterCompression.message" = "Dieses Video ist nach der Optimierung immer noch zu groß (%@). Momente unterstützen Videos bis zu %@.";
 "storyVideo.editor.autoSplitNotice" = "Wird in %d Teilen veröffentlicht. Sticker erscheinen nur in der ersten Story, außer Reveal.";
 "storyVideo.trim.title" = "60 Sekunden wählen";
 "storyVideo.trim.dragHint" = "Ziehe die Auswahl oder ihre Kanten. Maximal 60 Sekunden.";

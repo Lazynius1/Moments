@@ -295,6 +295,14 @@ struct MediaItem: Identifiable, Codable {
         case hidden
     }
 
+    enum VideoProcessingStatus: String, Codable {
+        case pending
+        case processing
+        case ready
+        case failed
+        case skipped
+    }
+
     let id: String
     let type: MediaType
     let url: String
@@ -304,6 +312,8 @@ struct MediaItem: Identifiable, Codable {
     let videoDuration: Double?
     let videoFileSize: Int64?
     let videoResolution: String?
+    let videoProcessingStatus: VideoProcessingStatus?
+    let originalVideoUrl: String?
     let tags: [PhotoTag]? // ✅ Etiquetas espaciales para esta imagen
     let moderationState: ModerationState?
     let moderationReason: String?
@@ -325,6 +335,8 @@ struct MediaItem: Identifiable, Codable {
         case videoDuration
         case videoFileSize
         case videoResolution
+        case videoProcessingStatus
+        case originalVideoUrl
         case tags
         case moderationState
         case moderationReason
@@ -385,6 +397,8 @@ struct MediaItem: Identifiable, Codable {
         videoDuration: Double? = nil,
         videoFileSize: Int64? = nil,
         videoResolution: String? = nil,
+        videoProcessingStatus: VideoProcessingStatus? = nil,
+        originalVideoUrl: String? = nil,
         tags: [PhotoTag]? = nil,
         moderationState: ModerationState? = nil,
         moderationReason: String? = nil,
@@ -400,6 +414,8 @@ struct MediaItem: Identifiable, Codable {
         self.videoDuration = videoDuration
         self.videoFileSize = videoFileSize
         self.videoResolution = videoResolution
+        self.videoProcessingStatus = videoProcessingStatus
+        self.originalVideoUrl = originalVideoUrl
         self.tags = tags
         self.moderationState = moderationState
         self.moderationReason = moderationReason
@@ -418,6 +434,8 @@ struct MediaItem: Identifiable, Codable {
         self.videoDuration = try container.decodeIfPresent(Double.self, forKey: .videoDuration)
         self.videoFileSize = try container.decodeIfPresent(Int64.self, forKey: .videoFileSize)
         self.videoResolution = try container.decodeIfPresent(String.self, forKey: .videoResolution)
+        self.videoProcessingStatus = try container.decodeIfPresent(VideoProcessingStatus.self, forKey: .videoProcessingStatus)
+        self.originalVideoUrl = try container.decodeIfPresent(String.self, forKey: .originalVideoUrl)
         self.tags = try container.decodeIfPresent([PhotoTag].self, forKey: .tags)
         self.moderationState = try container.decodeIfPresent(ModerationState.self, forKey: .moderationState)
         self.moderationReason = try container.decodeIfPresent(String.self, forKey: .moderationReason)
@@ -444,6 +462,8 @@ struct MediaItem: Identifiable, Codable {
         try container.encodeIfPresent(videoDuration, forKey: .videoDuration)
         try container.encodeIfPresent(videoFileSize, forKey: .videoFileSize)
         try container.encodeIfPresent(videoResolution, forKey: .videoResolution)
+        try container.encodeIfPresent(videoProcessingStatus, forKey: .videoProcessingStatus)
+        try container.encodeIfPresent(originalVideoUrl, forKey: .originalVideoUrl)
         try container.encodeIfPresent(tags, forKey: .tags)
         try container.encodeIfPresent(moderationState, forKey: .moderationState)
         try container.encodeIfPresent(moderationReason, forKey: .moderationReason)

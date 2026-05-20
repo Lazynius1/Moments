@@ -16,13 +16,13 @@ struct StoriesView: View {
     @State private var showingBlockConfirmation = false
     @State private var currentStory: Story?
     @State private var showAd: Bool = false
-    
+
     // Variables para controlar anuncios
     @State private var otherUsersStoryCount: Int = 0
     @State private var adStoryCount: Int = 1
     @State private var adStoryIndex: Int = 0
     @State private var totalStoriesViewed: Int = 0
-    
+
     // 🔗 STORY CHAINS: Variables para navegación entre partes
     @State private var chainStories: [Story] = []
     @State private var currentChainIndex: Int = 0
@@ -45,7 +45,7 @@ struct StoriesView: View {
         )
         self.shouldIncludeConnections = false
     }
-    
+
     // 🔗 STORY CHAINS: Inicializador para cadenas de historias
     init(chainStories: [Story], startAtIndex: Int = 0) {
         self._startWithUserId = .constant(nil)
@@ -126,14 +126,14 @@ struct StoriesView: View {
                     )
                     .environmentObject(authService)
                 }
-                
+
             } else if currentUserIndex < userIds.count,
                       let userId = userIds[safe: currentUserIndex],
                       let stories = storyViewModel.stories[userId],
                       !stories.isEmpty,
                       currentStoryIndex < stories.count,
                       let story = stories[safe: currentStoryIndex] {
-                
+
                 StoryViewerScreen(
                     story: story,
                     storyCount: stories.count,
@@ -153,6 +153,9 @@ struct StoriesView: View {
                     onNext: {
                         handleStoryNext(currentUserId: Auth.auth().currentUser?.uid,
                                       viewedUserId: isInChainMode ? story.authorId : userId)
+                    },
+                    onStoryDeleted: {
+                        handleStoryDeleted(story, fallbackUserId: userId)
                     },
                     onPrevious: {
                         if currentStoryIndex > 0 {
@@ -230,7 +233,7 @@ struct StoriesView: View {
 
     // Manejar navegación de historias
     private func handleStoryNext(currentUserId: String?, viewedUserId: String) {
-        
+
         guard let currentUserId = currentUserId else {
             // ✅ AGREGAR DELAY PARA ASEGURAR CLEANUP DEL VIDEO ANTERIOR
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
@@ -238,20 +241,20 @@ struct StoriesView: View {
             }
             return
         }
-        
+
         totalStoriesViewed += 1
-        
+
         // Solo contar si NO es historia propia
         if viewedUserId != currentUserId {
             otherUsersStoryCount += 1
-            
+
             // Verificar si debe mostrar anuncio
             if shouldShowStoryAd() {
                 activateAdWithLoading()
                 return
             }
         }
-        
+
         // 🔗 STORY CHAINS: En modo cadena, navegar por índice global de la cadena
         if isInChainMode && !chainStories.isEmpty {
             if currentChainIndex < chainStories.count - 1 {
@@ -264,18 +267,18 @@ struct StoriesView: View {
                 return
             }
         }
-        
+
         // ✅ AGREGAR DELAY PARA ASEGURAR CLEANUP DEL VIDEO ANTERIOR
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
             self.moveToNextStoryOrUser()
         }
     }
-    
+
     // Activar anuncio con loading inmediato
     private func activateAdWithLoading() {
         adStoryCount = 1
         adStoryIndex = 0
-        
+
         DispatchQueue.main.async {
             self.showAd = true
         }
@@ -286,7 +289,7 @@ struct StoriesView: View {
         let shouldShow = (otherUsersStoryCount % 4 == 0) && // ANUNCIO CADA 4 HISTORIAS
                         otherUsersStoryCount > 0 &&
                         PlusStatusHelper.shouldShowAds(for: authService.currentUser)
-        
+
         return shouldShow
     }
 
@@ -294,7 +297,7 @@ struct StoriesView: View {
     private func blockUserConfirmed() {
         guard let currentUserId = Auth.auth().currentUser?.uid,
               let story = currentStory else { return }
-        
+
         firestoreService.blockUser(
             currentUserId: currentUserId,
             targetUserId: story.authorId
@@ -329,7 +332,7 @@ struct StoriesView: View {
             isLoading = false
             return
         }
-        
+
         guard let currentUserId = Auth.auth().currentUser?.uid else {
             isLoading = false
             errorMessage = NSLocalizedString("stories.error.notAuthenticated", comment: "User not authenticated error")
@@ -337,7 +340,7 @@ struct StoriesView: View {
         }
 
         isLoading = true
-        
+
         if let specificUserId = startWithUserId, !specificUserId.isEmpty {
             storyViewModel.fetchStoriesForSpecificUser(userId: specificUserId, viewerId: currentUserId)
         } else {
@@ -348,12 +351,12 @@ struct StoriesView: View {
     // Actualizar IDs de usuarios
     private func updateUserIds(from stories: [String: [Story]]) {
         guard let currentUserId = Auth.auth().currentUser?.uid else { return }
-        
+
         DispatchQueue.main.async {
             if let specificUserId = self.startWithUserId, !specificUserId.isEmpty {
                 self.userIds = stories.keys.contains(specificUserId) ? [specificUserId] : []
                 self.currentUserIndex = 0
-                
+
                 // ✅ CORREGIDO: Si es otro usuario, empezar en la primera historia no vista
                 // Necesitamos verificar los viewers directamente desde Firestore
                 if let userStories = stories[specificUserId] {
@@ -375,9 +378,9 @@ struct StoriesView: View {
                 } else {
                     newUserIds = stories.keys.sorted()
                 }
-                
+
                 self.userIds = newUserIds
-                
+
                 if !newUserIds.isEmpty {
                     if let index = newUserIds.firstIndex(of: currentUserId) {
                         self.currentUserIndex = index
@@ -386,14 +389,14 @@ struct StoriesView: View {
                     }
                 }
             }
-            
+
             // ✅ CORREGIDO: Solo resetear currentStoryIndex si NO es usuario específico
             if self.startWithUserId == nil || self.startWithUserId?.isEmpty == true {
                 self.currentStoryIndex = 0
             }
-            
+
             self.isLoading = false
-            
+
             // Reset contadores al cargar nuevas historias
             self.otherUsersStoryCount = 0
             self.totalStoriesViewed = 0
@@ -402,7 +405,7 @@ struct StoriesView: View {
 
     // Mover a siguiente historia o usuario
     private func moveToNextStoryOrUser() {
-        
+
         // ✅ AGREGAR DELAY PARA TRANSICIÓN SUAVE
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
             if let userId = self.userIds[safe: self.currentUserIndex],
@@ -416,6 +419,39 @@ struct StoriesView: View {
                 self.dismiss()
             }
         }
+    }
+
+    private func handleStoryDeleted(_ deletedStory: Story, fallbackUserId: String) {
+        let activeUserId = isInChainMode ? chainModeUserId : fallbackUserId
+
+        if isInChainMode {
+            chainStories.removeAll { $0.id == deletedStory.id }
+            storyViewModel.stories[chainModeUserId] = chainStories
+            currentChainIndex = min(currentChainIndex, max(chainStories.count - 1, 0))
+        }
+
+        if let remainingStories = storyViewModel.stories[activeUserId], !remainingStories.isEmpty {
+            currentStoryIndex = min(currentStoryIndex, remainingStories.count - 1)
+            return
+        }
+
+        if isInChainMode {
+            dismiss()
+            return
+        }
+
+        let remainingUserIds = userIds.filter { userId in
+            !(storyViewModel.stories[userId]?.isEmpty ?? true)
+        }
+
+        guard !remainingUserIds.isEmpty else {
+            dismiss()
+            return
+        }
+
+        userIds = remainingUserIds
+        currentUserIndex = min(currentUserIndex, remainingUserIds.count - 1)
+        currentStoryIndex = 0
     }
 
     // Mover a siguiente usuario
@@ -445,59 +481,59 @@ struct StoriesView: View {
             }
         }
     }
-    
+
     // ✅ CORREGIDO: Obtener índice de la primera historia no vista (versión asíncrona que verifica desde Firestore)
     private func getFirstUnseenStoryIndexAsync(for stories: [Story], userId: String, completion: @escaping (Int) -> Void) {
         guard let currentUserId = Auth.auth().currentUser?.uid else {
             completion(0)
             return
         }
-        
+
         // Si no hay historias, empezar desde 0
         guard !stories.isEmpty else {
             completion(0)
             return
         }
-        
+
         // Verificar viewers para cada historia en orden
         let group = DispatchGroup()
         var firstUnseenIndex: Int? = nil
         let syncQueue = DispatchQueue(label: "story.viewers.check")
-        
+
         for (index, story) in stories.enumerated() {
             guard let storyId = story.id else { continue }
-            
+
             group.enter()
-            
+
             // Verificar directamente desde Firestore si el usuario ha visto esta historia
             firestoreService.db.collection("users").document(userId)
                 .collection("stories").document(storyId)
                 .collection("viewers").document(currentUserId)
                 .getDocument { document, error in
                     let wasViewed = document?.exists == true
-                    
+
                     syncQueue.async {
                         // Si encontramos la primera no vista y aún no hemos encontrado ninguna, guardar este índice
                         if !wasViewed && firstUnseenIndex == nil {
                             firstUnseenIndex = index
                         }
                     }
-                    
+
                     group.leave()
                 }
         }
-        
+
         group.notify(queue: .main) {
             // Si encontramos una historia no vista, empezar ahí
             // Si todas están vistas, empezar desde el principio
             completion(firstUnseenIndex ?? 0)
         }
     }
-    
+
     // ✅ Versión síncrona para cuando los viewers ya están cargados
     private func getFirstUnseenStoryIndex(for stories: [Story]) -> Int {
         guard let currentUserId = Auth.auth().currentUser?.uid else { return 0 }
-        
+
         // Buscar desde el principio hacia el final (primera no vista)
         for index in 0..<stories.count {
             let story = stories[index]
@@ -505,17 +541,17 @@ struct StoriesView: View {
                 let wasViewed = storyViewModel.storyViewers[storyId]?.contains { viewer in
                     viewer.userId == currentUserId
                 } ?? false
-                
+
                 if !wasViewed {
                     return index
                 }
             }
         }
-        
+
         // Si todas están vistas, empezar desde el principio
         return 0
     }
-    
+
     // 🔗 STORY CHAINS: Navegar a una historia específica de la cadena
     private func navigateToChainStory(storyId: String, chainIndex: Int) {
         // Buscar la historia en todas las historias cargadas
@@ -527,7 +563,7 @@ struct StoriesView: View {
                     currentStoryIndex = storyIndex
                     currentChainIndex = chainIndex
                     isInChainMode = true
-                    
+
                     // Cargar todas las historias de la cadena si no están cargadas
                     if chainStories.isEmpty {
                         loadChainStories(for: stories[storyIndex])
@@ -537,11 +573,11 @@ struct StoriesView: View {
             }
         }
     }
-    
+
     // 🔗 STORY CHAINS: Cargar todas las historias de una cadena
     private func loadChainStories(for story: Story) {
         guard let chainId = story.chainId else { return }
-        
+
         Task {
             do {
                 let storiesSnapshot = try await firestoreService.db
@@ -549,11 +585,11 @@ struct StoriesView: View {
                     .whereField("chainId", isEqualTo: chainId)
                     .order(by: "chainPosition")
                     .getDocuments()
-                
+
                 let stories = storiesSnapshot.documents.compactMap { doc in
                     try? doc.data(as: Story.self)
                 }
-                
+
                 await MainActor.run {
                     chainStories = stories
                 }

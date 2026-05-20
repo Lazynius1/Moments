@@ -1009,6 +1009,7 @@
 "common.searching" = "Searching...";
 "common.noResults" = "No results";
 "common.clear" = "Clear";
+"common.selectAll" = "Select all";
 
 /* Login Activity */
 "loginActivity.navigation.title" = "Login Activity";
@@ -2769,6 +2770,12 @@
 "userActivity.simple.recentlyDeleted.restore.multiple" = "Restore";
 "userActivity.simple.recentlyDeleted.delete.single" = "Delete permanently";
 "userActivity.simple.recentlyDeleted.delete.multiple" = "Delete permanently";
+"userActivity.simple.recentlyDeleted.confirm.restore.title" = "Restore content";
+"userActivity.simple.recentlyDeleted.confirm.restore.message" = "Do you want to restore the selected content?";
+"userActivity.simple.recentlyDeleted.confirm.delete.title" = "Delete permanently";
+"userActivity.simple.recentlyDeleted.confirm.delete.message" = "This will permanently delete the selected content.";
+"userActivity.simple.recentlyDeleted.success.restore" = "Content restored";
+"userActivity.simple.recentlyDeleted.success.delete" = "Content deleted permanently";
 "userActivity.simple.retry" = "Retry";
 "userActivity.event.archived.action.restore" = "Restore";
 "userActivity.simple.reaction.unknown" = "Reaction";
@@ -2795,14 +2802,30 @@
 "userActivity.simple.tags.selectedCount" = "%d selected";
 "userActivity.simple.reactions.delete.single" = "Delete reaction";
 "userActivity.simple.reactions.delete.multiple" = "Delete reactions";
+"userActivity.simple.reactions.confirm.delete.title" = "Delete reactions";
+"userActivity.simple.reactions.confirm.delete.message" = "Do you want to delete the selected reactions?";
+"userActivity.simple.reactions.success.delete" = "Reactions deleted";
 "userActivity.simple.tags.remove.single" = "Remove tag";
 "userActivity.simple.tags.remove.multiple" = "Remove tags";
+"userActivity.simple.tags.confirm.remove.title" = "Remove tags";
+"userActivity.simple.tags.confirm.remove.message" = "Do you want to remove the selected tags?";
+"userActivity.simple.tags.success.remove" = "Tags removed";
 "userActivity.simple.comments.selectedCount" = "%d selected";
 "userActivity.simple.comments.delete.single" = "Delete comment";
 "userActivity.simple.comments.delete.multiple" = "Delete comments";
+"userActivity.simple.comments.confirm.delete.title" = "Delete comments";
+"userActivity.simple.comments.confirm.delete.message" = "Do you want to delete the selected comments?";
+"userActivity.simple.comments.success.delete" = "Comments deleted";
 "userActivity.simple.comments.yourComment" = "Your comment";
 "userActivity.simple.comments.momentNoContent" = "Moment without text";
 "userActivity.simple.comments.emptyComment" = "No text";
+"userActivity.event.archived.action.restore" = "Restore";
+"userActivity.event.archived.confirm.restore.title" = "Restore archived content";
+"userActivity.event.archived.confirm.restore.message" = "Do you want to restore the selected archived content?";
+"userActivity.event.archived.success.restore" = "Archived content restored";
+"userActivity.simple.stickers.confirm.delete.title" = "Delete replies";
+"userActivity.simple.stickers.confirm.delete.message" = "Do you want to delete the selected sticker replies?";
+"userActivity.simple.stickers.success.delete" = "Replies deleted";
 
 /* Your Activity - Error States */
 "userActivity.error.offline.title" = "No connection";
@@ -3276,6 +3299,7 @@
 "storyVideo.tooLong.message" = "This video is %@. Stories support videos up to %@ from the gallery. Choose a shorter video to continue.";
 "momentVideo.tooLong.title" = "Video too long";
 "momentVideo.tooLong.message" = "This video is %@. Moments support videos up to %@. Choose a shorter video to continue.";
+"momentVideo.fileTooLargeAfterCompression.message" = "This video is still too large after optimizing it (%@). Moments support videos up to %@.";
 "storyVideo.editor.autoSplitNotice" = "Will publish in %d parts. Stickers appear only on the first story, except Reveal.";
 "storyVideo.trim.title" = "Choose 60 seconds";
 "storyVideo.trim.dragHint" = "Drag the selection or its edges. Maximum 60 seconds.";

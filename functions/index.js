@@ -6,6 +6,11 @@ const { defineSecret } = require('firebase-functions/params');
 const JSZip = require('jszip');
 const crypto = require('crypto');
 const path = require('path');
+const fs = require('fs');
+const os = require('os');
+const https = require('https');
+const { spawn } = require('child_process');
+const ffmpegPath = require('ffmpeg-static');
 setGlobalOptions({ region: 'europe-southwest1', memory: '256MiB', concurrency: 80, retry: true });
 const admin = require('firebase-admin');
 admin.initializeApp();
@@ -198,6 +203,497 @@ function inferFileExtension(url, contentType = '') {
   }
   return 'bin';
 }
+
+function downloadUrlToFile(url, destinationPath, redirectCount = 0) {
+  return new Promise((resolve, reject) => {
+    if (!url || redirectCount > 4) {
+      reject(new Error('Invalid video download URL'));
+      return;
+    }
+
+    const request = https.get(url, (response) => {
+      if ([301, 302, 303, 307, 308].includes(response.statusCode)) {
+        response.resume();
+        downloadUrlToFile(response.headers.location, destinationPath, redirectCount + 1)
+          .then(resolve)
+          .catch(reject);
+        return;
+      }
+
+      if (response.statusCode !== 200) {
+        response.resume();
+        reject(new Error(`Video download failed with status ${response.statusCode}`));
+        return;
+      }
+
+      const stream = fs.createWriteStream(destinationPath);
+      response.pipe(stream);
+      stream.on('finish', () => stream.close(resolve));
+      stream.on('error', reject);
+    });
+
+    request.on('error', reject);
+  });
+}
+
+function runFfmpeg(args) {
+  return new Promise((resolve, reject) => {
+    if (!ffmpegPath) {
+      reject(new Error('ffmpeg binary is not available'));
+      return;
+    }
+
+    const process = spawn(ffmpegPath, args, { stdio: ['ignore', 'ignore', 'pipe'] });
+    let stderr = '';
+
+    process.stderr.on('data', (chunk) => {
+      stderr += chunk.toString();
+    });
+
+    process.on('error', reject);
+    process.on('close', (code) => {
+      if (code === 0) {
+        resolve();
+      } else {
+        reject(new Error(`ffmpeg exited with code ${code}: ${stderr.slice(-1200)}`));
+      }
+    });
+  });
+}
+
+function firebaseStorageDownloadUrl(bucketName, objectName, token) {
+  return `https://firebasestorage.googleapis.com/v0/b/${bucketName}/o/${encodeURIComponent(objectName)}?alt=media&token=${token}`;
+}
+
+function storageObjectNameFromFirebaseUrl(url, expectedBucketName) {
+  try {
+    const parsed = new URL(url);
+    const match = parsed.pathname.match(/^\/v0\/b\/([^/]+)\/o\/(.+)$/);
+    if (!match) return null;
+
+    const bucketName = decodeURIComponent(match[1]);
+    if (bucketName !== expectedBucketName) return null;
+
+    return decodeURIComponent(match[2]);
+  } catch (error) {
+    return null;
+  }
+}
+
+async function deleteOriginalMomentVideoIfSafe({ originalUrl, processedUrl }) {
+  const bucket = admin.storage().bucket();
+  const objectName = storageObjectNameFromFirebaseUrl(originalUrl, bucket.name);
+  const processedObjectName = storageObjectNameFromFirebaseUrl(processedUrl, bucket.name);
+
+  if (!objectName || objectName === processedObjectName) return false;
+  if (!objectName.startsWith('videos/')) return false;
+
+  try {
+    await bucket.file(objectName).delete({ ignoreNotFound: true });
+    return true;
+  } catch (error) {
+    console.warn('Could not delete original moment video after processing', objectName, error.message);
+    return false;
+  }
+}
+
+async function transcodeMomentVideo({ userId, momentId, mediaItem }) {
+  const bucket = admin.storage().bucket();
+  const tempBase = path.join(os.tmpdir(), `moment_video_${momentId}_${mediaItem.id}_${Date.now()}`);
+  const inputPath = `${tempBase}_input`;
+  const outputPath = `${tempBase}_processed.mp4`;
+  const sourceUrl = mediaItem.originalVideoUrl || mediaItem.url;
+
+  try {
+    await downloadUrlToFile(sourceUrl, inputPath);
+
+    await runFfmpeg([
+      '-y',
+      '-i', inputPath,
+      '-vf', 'scale=1280:1280:force_original_aspect_ratio=decrease,format=yuv420p',
+      '-c:v', 'libx264',
+      '-preset', 'veryfast',
+      '-crf', '23',
+      '-c:a', 'aac',
+      '-b:a', '128k',
+      '-movflags', '+faststart',
+      outputPath
+    ]);
+
+    const objectName = `processed_videos/moments/${userId}/${momentId}/${mediaItem.id}.mp4`;
+    const token = crypto.randomUUID();
+
+    await bucket.upload(outputPath, {
+      destination: objectName,
+      metadata: {
+        contentType: 'video/mp4',
+        metadata: {
+          firebaseStorageDownloadTokens: token,
+          sourceMomentId: momentId,
+          sourceMediaItemId: mediaItem.id,
+          processedBy: 'processMomentVideos'
+        }
+      }
+    });
+
+    const fileSize = fs.statSync(outputPath).size;
+    return {
+      url: firebaseStorageDownloadUrl(bucket.name, objectName, token),
+      fileSize
+    };
+  } finally {
+    for (const filePath of [inputPath, outputPath]) {
+      try {
+        if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+      } catch (error) {
+        console.warn('Video temp cleanup failed', filePath, error.message);
+      }
+    }
+  }
+}
+
+function addStorageUrl(targetSet, value) {
+  if (typeof value !== 'string') return;
+  const trimmed = value.trim();
+  if (!trimmed) return;
+  if (
+    trimmed.includes('firebasestorage.googleapis.com') ||
+    trimmed.startsWith('images/') ||
+    trimmed.startsWith('videos/') ||
+    trimmed.startsWith('processed_videos/') ||
+    trimmed.startsWith('stories/') ||
+    trimmed.startsWith('story_frames/') ||
+    trimmed.startsWith('story_audio/') ||
+    trimmed.startsWith('hidden_layers/')
+  ) {
+    targetSet.add(trimmed);
+  }
+}
+
+function collectDeletedContentStorageUrls(data = {}) {
+  const urls = new Set();
+
+  // Legacy/top-level media fields. Do not include profileImagePath; it belongs to the user profile.
+  addStorageUrl(urls, data.imagePath);
+  addStorageUrl(urls, data.videoUrl);
+  addStorageUrl(urls, data.thumbnailUrl);
+  addStorageUrl(urls, data.mediaUrl);
+  addStorageUrl(urls, data.mediaURL);
+
+  const mediaItems = Array.isArray(data.mediaItems) ? data.mediaItems : [];
+  for (const item of mediaItems) {
+    if (!item || typeof item !== 'object') continue;
+    addStorageUrl(urls, item.url);
+    addStorageUrl(urls, item.thumbnailUrl);
+    addStorageUrl(urls, item.originalVideoUrl);
+  }
+
+  const mediaItem = data.mediaItem && typeof data.mediaItem === 'object' ? data.mediaItem : null;
+  if (mediaItem) {
+    addStorageUrl(urls, mediaItem.url);
+    addStorageUrl(urls, mediaItem.thumbnailUrl);
+    addStorageUrl(urls, mediaItem.originalVideoUrl);
+  }
+
+  const hiddenLayers = Array.isArray(data.hiddenLayers) ? data.hiddenLayers : [];
+  for (const layer of hiddenLayers) {
+    if (!layer || typeof layer !== 'object') continue;
+    addStorageUrl(urls, layer.mediaURL);
+    addStorageUrl(urls, layer.thumbnailURL);
+    addStorageUrl(urls, layer.audioURL);
+  }
+
+  const stickers = Array.isArray(data.stickers) ? data.stickers : [];
+  for (const sticker of stickers) {
+    if (!sticker || typeof sticker !== 'object') continue;
+    addStorageUrl(urls, sticker.mediaURL);
+    addStorageUrl(urls, sticker.audioURL);
+    const interactionData = sticker.interactionData && typeof sticker.interactionData === 'object'
+      ? sticker.interactionData
+      : null;
+    if (interactionData) {
+      addStorageUrl(urls, interactionData.audioURL);
+      addStorageUrl(urls, interactionData.mediaURL);
+    }
+  }
+
+  return [...urls];
+}
+
+async function permanentlyDeleteRecentlyDeletedDoc(doc) {
+  if (!doc.exists) {
+    return {
+      id: doc.id,
+      status: 'missing',
+      deletedDocuments: 0,
+      storageDeleted: 0,
+      storageSkipped: 0
+    };
+  }
+
+  const data = doc.data() || {};
+  const type = typeof data.type === 'string' ? data.type : 'moment';
+  const userRef = doc.ref.parent.parent;
+  const uid = userRef?.id;
+  const storageUrls = collectDeletedContentStorageUrls(data);
+
+  await admin.firestore().recursiveDelete(doc.ref);
+
+  if (uid) {
+    if (type === 'story') {
+      await admin.firestore().recursiveDelete(admin.firestore().doc(`users/${uid}/stories/${doc.id}`));
+    } else {
+      await admin.firestore().recursiveDelete(admin.firestore().doc(`users/${uid}/moments/${doc.id}`));
+    }
+  }
+
+  const storageResult = await deleteStorageUrls(storageUrls);
+  return {
+    id: doc.id,
+    type,
+    uid,
+    status: 'deleted',
+    deletedDocuments: 1,
+    storageDeleted: storageResult.deleted.length,
+    storageSkipped: storageResult.skipped.length
+  };
+}
+
+async function deleteStorageUrls(urls) {
+  const bucket = admin.storage().bucket();
+  const deleted = [];
+  const skipped = [];
+
+  for (const url of urls) {
+    const objectName = storageObjectNameFromFirebaseUrl(url, bucket.name) || (
+      typeof url === 'string' && !url.startsWith('http') ? url : null
+    );
+
+    if (!objectName) {
+      skipped.push({ url, reason: 'invalid_storage_url' });
+      continue;
+    }
+
+    try {
+      await bucket.file(objectName).delete({ ignoreNotFound: true });
+      deleted.push(objectName);
+    } catch (error) {
+      skipped.push({ url, objectName, reason: error.message || 'delete_failed' });
+    }
+  }
+
+  return { deleted, skipped };
+}
+
+exports.permanentlyDeleteRecentlyDeletedBatch = onRequest(
+  {
+    timeoutSeconds: 120,
+    memory: '512MiB',
+    concurrency: 10
+  },
+  async (req, res) => {
+    setProxyCors(res);
+    if (req.method === 'OPTIONS') {
+      res.status(204).send('');
+      return;
+    }
+    if (req.method !== 'POST') {
+      res.status(405).json({ error: 'Method not allowed' });
+      return;
+    }
+
+    const uid = await verifyFirebaseAuth(req, res);
+    if (!uid) return;
+
+    const body = parseJsonBody(req);
+    const rawIds = Array.isArray(body.ids) ? body.ids : [];
+    const ids = [...new Set(rawIds
+      .map((id) => (typeof id === 'string' ? id.trim() : ''))
+      .filter(Boolean))]
+      .slice(0, 50);
+
+    if (ids.length === 0) {
+      res.status(400).json({ error: 'No ids provided' });
+      return;
+    }
+
+    const db = admin.firestore();
+    const recentlyDeletedRefs = ids.map((id) => db.doc(`users/${uid}/recentlyDeleted/${id}`));
+
+    try {
+      const docs = await db.getAll(...recentlyDeletedRefs);
+      let deletedDocuments = 0;
+      let missing = 0;
+      let storageDeleted = 0;
+      let storageSkipped = 0;
+      const details = [];
+
+      for (const doc of docs) {
+        const result = await permanentlyDeleteRecentlyDeletedDoc(doc);
+        if (result.status === 'missing') {
+          missing += 1;
+          details.push({ id: result.id, status: 'missing' });
+          continue;
+        }
+
+        deletedDocuments += result.deletedDocuments;
+        storageDeleted += result.storageDeleted;
+        storageSkipped += result.storageSkipped;
+        details.push({
+          id: result.id,
+          type: result.type,
+          status: 'deleted',
+          storageDeleted: result.storageDeleted,
+          storageSkipped: result.storageSkipped
+        });
+      }
+
+      console.log(
+        `✅ permanentlyDeleteRecentlyDeletedBatch: uid=${uid}, docs=${deletedDocuments}, missing=${missing}, storageDeleted=${storageDeleted}, storageSkipped=${storageSkipped}`
+      );
+      res.status(200).json({ deletedDocuments, missing, storageDeleted, storageSkipped, details });
+    } catch (error) {
+      console.error('❌ permanentlyDeleteRecentlyDeletedBatch error:', error);
+      res.status(500).json({ error: 'Permanent delete failed', details: error.message });
+    }
+  }
+);
+
+exports.cleanExpiredRecentlyDeleted = onSchedule(
+  {
+    schedule: '15 3 * * *',
+    timeZone: 'Europe/Madrid',
+    region: 'us-central1',
+    timeoutSeconds: 540,
+    memory: '512MiB',
+    concurrency: 1
+  },
+  async () => {
+    const db = admin.firestore();
+    const retentionDays = 30;
+    const cutoff = admin.firestore.Timestamp.fromDate(
+      new Date(Date.now() - retentionDays * 24 * 60 * 60 * 1000)
+    );
+    const batchLimit = 100;
+    const maxBatches = 20;
+    let batches = 0;
+    let deletedDocuments = 0;
+    let storageDeleted = 0;
+    let storageSkipped = 0;
+    let failed = 0;
+
+    try {
+      while (batches < maxBatches) {
+        const snapshot = await db
+          .collectionGroup('recentlyDeleted')
+          .where('deletedAt', '<', cutoff)
+          .limit(batchLimit)
+          .get();
+
+        if (snapshot.empty) break;
+
+        batches += 1;
+        for (const doc of snapshot.docs) {
+          try {
+            const result = await permanentlyDeleteRecentlyDeletedDoc(doc);
+            deletedDocuments += result.deletedDocuments;
+            storageDeleted += result.storageDeleted;
+            storageSkipped += result.storageSkipped;
+          } catch (error) {
+            failed += 1;
+            console.error(`❌ cleanExpiredRecentlyDeleted failed for ${doc.ref.path}:`, error);
+          }
+        }
+
+        if (snapshot.size < batchLimit) break;
+      }
+
+      console.log(
+        `✅ cleanExpiredRecentlyDeleted: deleted=${deletedDocuments}, storageDeleted=${storageDeleted}, storageSkipped=${storageSkipped}, failed=${failed}, batches=${batches}`
+      );
+    } catch (error) {
+      console.error('❌ cleanExpiredRecentlyDeleted error:', error);
+    }
+  }
+);
+
+exports.processMomentVideos = onDocumentCreated(
+  {
+    document: 'users/{userId}/moments/{momentId}',
+    memory: '2GiB',
+    timeoutSeconds: 540,
+    concurrency: 1,
+    retry: false
+  },
+  async (event) => {
+    const snap = event.data;
+    if (!snap) return;
+
+    const { userId, momentId } = event.params;
+    const momentRef = snap.ref;
+    const data = snap.data() || {};
+    const mediaItems = Array.isArray(data.mediaItems) ? data.mediaItems : [];
+    const pendingIndexes = mediaItems
+      .map((item, index) => ({ item, index }))
+      .filter(({ item }) => item && item.type === 'video' && item.videoProcessingStatus === 'pending' && item.url);
+
+    if (pendingIndexes.length === 0) return;
+
+    let updatedItems = mediaItems.map((item, index) => {
+      if (pendingIndexes.some((entry) => entry.index === index)) {
+        return {
+          ...item,
+          originalVideoUrl: item.originalVideoUrl || item.url,
+          videoProcessingStatus: 'processing'
+        };
+      }
+      return item;
+    });
+
+    const processingLegacyFields = buildLegacyMomentMediaFields(updatedItems);
+    await momentRef.update({
+      mediaItems: updatedItems,
+      ...processingLegacyFields,
+      videoProcessingUpdatedAt: admin.firestore.FieldValue.serverTimestamp()
+    });
+
+    for (const { item, index } of pendingIndexes) {
+      try {
+        const processed = await transcodeMomentVideo({ userId, momentId, mediaItem: item });
+        const originalVideoUrl = item.originalVideoUrl || item.url;
+        const originalDeleted = await deleteOriginalMomentVideoIfSafe({
+          originalUrl: originalVideoUrl,
+          processedUrl: processed.url
+        });
+
+        updatedItems[index] = {
+          ...updatedItems[index],
+          url: processed.url,
+          originalVideoUrl: originalDeleted ? null : originalVideoUrl,
+          videoFileSize: processed.fileSize,
+          videoProcessingStatus: 'ready',
+          originalVideoDeletedAt: originalDeleted ? admin.firestore.Timestamp.now() : null,
+          videoProcessingError: null
+        };
+      } catch (error) {
+        console.error(`processMomentVideos failed for ${userId}/${momentId}/${item.id}`, error);
+        updatedItems[index] = {
+          ...updatedItems[index],
+          originalVideoUrl: item.originalVideoUrl || item.url,
+          videoProcessingStatus: 'failed',
+          videoProcessingError: error.message || 'Video processing failed'
+        };
+      }
+    }
+
+    const finalLegacyFields = buildLegacyMomentMediaFields(updatedItems);
+    await momentRef.update({
+      mediaItems: updatedItems,
+      ...finalLegacyFields,
+      videoProcessingUpdatedAt: admin.firestore.FieldValue.serverTimestamp()
+    });
+  }
+);
 
 async function addMediaFilesToZip(zip, mediaUrls) {
   const uniqueUrls = Array.from(new Set((mediaUrls || []).filter((url) => typeof url === 'string' && url.trim().length > 0)));
@@ -3960,6 +4456,8 @@ function serializeMediaItem(item) {
     videoDuration: item.videoDuration || null,
     videoFileSize: item.videoFileSize || null,
     videoResolution: item.videoResolution || null,
+    videoProcessingStatus: item.videoProcessingStatus || null,
+    originalVideoUrl: item.originalVideoUrl || null,
     tags: Array.isArray(item.tags) ? item.tags : null,
     moderationState: item.moderationState || null,
     moderationReason: item.moderationReason || null,
@@ -3973,6 +4471,50 @@ function hasVisibleMediaItem(item) {
   if (!item || typeof item !== 'object') return false;
   if (item.moderationState === 'hidden') return false;
   return typeof item.url === 'string' && item.url.trim().length > 0;
+}
+
+function buildLegacyMomentMediaFields(mediaItems) {
+  if (!Array.isArray(mediaItems)) return {};
+
+  const visibleMediaItems = mediaItems.filter((item) => hasVisibleMediaItem(item));
+  const primaryVisibleMediaItem = visibleMediaItems[0] || null;
+  if (!primaryVisibleMediaItem) {
+    return {
+      imageUrl: null,
+      videoUrl: null,
+      thumbnailUrl: null,
+      videoDuration: null,
+      videoFileSize: null,
+      videoResolution: null
+    };
+  }
+
+  const normalizedUrl = typeof primaryVisibleMediaItem.url === 'string'
+    ? primaryVisibleMediaItem.url.trim()
+    : null;
+  const normalizedThumbnailUrl = typeof primaryVisibleMediaItem.thumbnailUrl === 'string'
+    ? primaryVisibleMediaItem.thumbnailUrl.trim()
+    : null;
+
+  if (primaryVisibleMediaItem.type === 'video') {
+    return {
+      imageUrl: null,
+      videoUrl: normalizedUrl || null,
+      thumbnailUrl: normalizedThumbnailUrl || normalizedUrl || null,
+      videoDuration: primaryVisibleMediaItem.videoDuration || null,
+      videoFileSize: primaryVisibleMediaItem.videoFileSize || null,
+      videoResolution: primaryVisibleMediaItem.videoResolution || null
+    };
+  }
+
+  return {
+    imageUrl: normalizedUrl || null,
+    videoUrl: null,
+    thumbnailUrl: null,
+    videoDuration: null,
+    videoFileSize: null,
+    videoResolution: null
+  };
 }
 
 function serializeMoment(docId, data) {
