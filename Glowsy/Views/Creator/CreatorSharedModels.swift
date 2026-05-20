@@ -60,6 +60,7 @@ struct CreatorMedia: Identifiable {
     static let maxMomentVideoDuration: Double = 5 * 60
     static let maxMomentVideoUploadSizeBytes: Int64 = 300 * 1024 * 1024
     static let maxMomentVideoReadySizeBytes: Int64 = 100 * 1024 * 1024
+    static let maxStoryVideoReadySizeBytes: Int64 = 60 * 1024 * 1024
 
     let id: String
     var image: UIImage
