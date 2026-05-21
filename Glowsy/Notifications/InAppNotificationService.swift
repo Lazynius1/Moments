@@ -70,6 +70,11 @@ class InAppNotificationService: ObservableObject {
                         // Si readStatus[userId] es false, es un mensaje NUEVO para mí
                         if let readStatus = data["readStatus"] as? [String: Bool],
                            readStatus[userId] == false {
+                            let mutedByUserIds = data["mutedByUserIds"] as? [String] ?? []
+                            let isMutedForUser =
+                                mutedByUserIds.contains(userId) ||
+                                ((data["isMuted"] as? Bool) == true && (data["mutedBy"] as? String) == userId)
+                            guard !isMutedForUser else { return }
                             
                             // 3. Identificar al remitente (el otro participante)
                             guard let participants = data["participants"] as? [String] else { return }
@@ -102,8 +107,8 @@ class InAppNotificationService: ObservableObject {
                                 senderUsername: senderName,
                                 timestamp: lastUpdated,
                                 isPending: true,
-                                momentId: conversationId, // Guardamos ID conversación
-                                reaction: lastMessagePreview // Guardamos preview del mensaje
+                                reaction: lastMessagePreview, // Guardamos preview del mensaje
+                                conversationId: conversationId
                             )
                             
                             // 6. Mostrar banner

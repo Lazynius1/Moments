@@ -2631,6 +2631,8 @@
 "notification.followRequest.single.body" = "Toca per acceptar o rebutjar la sol·licitud";
 "notification.followRequest.multiple.title" = "%@ i %@ més volen seguir-te";
 "notification.followRequest.multiple.body" = "%@ sol·licituds pendents";
+"notification.requestAccepted.title" = "%@ ha acceptat la teva sol·licitud de seguiment";
+"notification.requestAccepted.body" = "Toca per veure el seu perfil";
 
 /* Push Notifications - Mentions */
 "notification.mention.title" = "%@ t'ha mencionat en un %@";

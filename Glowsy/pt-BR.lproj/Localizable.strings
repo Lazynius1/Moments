@@ -2620,6 +2620,8 @@
 "notification.followRequest.single.body" = "Toque para aceitar ou recusar a solicitação";
 "notification.followRequest.multiple.title" = "%@ e mais %@ pessoas querem seguir você";
 "notification.followRequest.multiple.body" = "%@ solicitações pendentes";
+"notification.requestAccepted.title" = "%@ aceitou sua solicitação para seguir";
+"notification.requestAccepted.body" = "Toque para ver o perfil";
 
 /* Push Notifications - Mentions */
 "notification.mention.title" = "%@ mentioned you in a %@";

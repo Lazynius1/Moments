@@ -382,7 +382,12 @@ class FirestoreService: ObservableObject {
                 return
             }
 
-            self.performFollow(currentUserId: senderId, targetUserId: recipientId, sendNotification: false) { error in
+            self.performFollow(
+                currentUserId: senderId,
+                targetUserId: recipientId,
+                sendNotification: false,
+                acceptedFollowRequestId: request.id
+            ) { error in
                 if let error = error {
                     completion(error)
                     return
@@ -411,25 +416,7 @@ class FirestoreService: ObservableObject {
                         return
                     }
 
-                    // ✅ Notificar al solicitante que su solicitud fue aceptada
-                    // Usar username real del usuario que acepta para evitar fallback "Alguien".
-                    self.fetchUserProfile(userId: recipientId) { result in
-                        let accepterUsername: String?
-                        switch result {
-                        case .success(let accepterUser):
-                            accepterUsername = accepterUser.username
-                        case .failure:
-                            accepterUsername = nil
-                        }
-
-                        Task { @MainActor in
-                            NotificationService.shared.sendInteractionNotification(
-                                type: .requestAccepted,
-                                to: senderId,
-                                senderUsername: accepterUsername
-                            )
-                        }
-                    }
+                    // El servidor crea la notificación requestAccepted desde onFollowerAdded.
                     completion(nil)
                 }
             }
@@ -591,7 +578,13 @@ class FirestoreService: ObservableObject {
         }
     }
 
-    private func performFollow(currentUserId: String, targetUserId: String, sendNotification: Bool = true, completion: @escaping (Error?) -> Void) {
+    private func performFollow(
+        currentUserId: String,
+        targetUserId: String,
+        sendNotification: Bool = true,
+        acceptedFollowRequestId: String? = nil,
+        completion: @escaping (Error?) -> Void
+    ) {
         fetchUserProfile(userId: currentUserId) { [weak self] result in
             guard let self = self else { return }
 
@@ -609,10 +602,15 @@ class FirestoreService: ObservableObject {
 
                 // Añadir a followers del usuario objetivo
                 let followerRef = db.collection("users").document(targetUserId).collection("followers").document(currentUserId)
-                let followerData: [String: Any] = [
+                var followerData: [String: Any] = [
                     "userId": currentUserId,
                     "timestamp": Timestamp(date: Date())
                 ]
+                if let acceptedFollowRequestId {
+                    followerData["acceptedFollowRequestId"] = acceptedFollowRequestId
+                    followerData["source"] = "followRequestAccepted"
+                    followerData["acceptedAt"] = Timestamp(date: Date())
+                }
                 batch.setData(followerData, forDocument: followerRef)
 
 
@@ -1566,27 +1564,6 @@ class FirestoreService: ObservableObject {
             return scheduledDate <= now
         }
     }
-}
-
-// MARK: - ✨ NUEVOS: Métodos para comentarios avanzados
-extension FirestoreService {
-
-    func notifyUserMention(username: String, commentContent: String, momentId: String) {
-        db.collection("users")
-            .whereField("username", isEqualTo: username.lowercased())
-            .getDocuments { [weak self] snapshot, error in
-
-                guard let self = self,
-                      let documents = snapshot?.documents,
-                      let userDoc = documents.first else { return }
-
-                let mentionedUserId = userDoc.documentID
-                Task { @MainActor in
-                    NotificationService.shared.sendInteractionNotification(type: .mention, to: mentionedUserId, momentId: momentId, reaction: commentContent)
-                }
-            }
-    }
-
 }
 
 extension FirestoreService {

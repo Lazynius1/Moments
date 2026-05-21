@@ -17,6 +17,7 @@ struct FeedNotificationRoutingModifier: ViewModifier {
     let storyRingCoordinator: FeedStoryRingCoordinator
     let firestoreService: FirestoreService
     let onOpenUserProfile: (String) -> Void
+    let onOpenStory: (_ storyId: String, _ authorId: String?) -> Void
     let onOpenStoryChain: (_ chainId: String, _ chainTitle: String) -> Void
 
     func body(content: Content) -> some View {
@@ -61,6 +62,8 @@ struct FeedNotificationRoutingModifier: ViewModifier {
                         showMomentDetail = true
                     case .profile:
                         break
+                    case .story(let storyId, let authorId):
+                        onOpenStory(storyId, authorId)
                     case .notifications:
                         showNotifications = true
                     default:
@@ -89,6 +92,12 @@ struct FeedNotificationRoutingModifier: ViewModifier {
                     onOpenStoryChain(chainId, chainTitle)
                 }
             }
+            .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("NavigateToStoryInFeed"))) { notification in
+                guard let userInfo = notification.userInfo,
+                      let storyId = userInfo["storyId"] as? String else { return }
+                let authorId = (userInfo["authorId"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines)
+                onOpenStory(storyId, authorId?.isEmpty == false ? authorId : nil)
+            }
     }
 }
 
@@ -108,6 +117,7 @@ extension View {
         storyRingCoordinator: FeedStoryRingCoordinator,
         firestoreService: FirestoreService,
         onOpenUserProfile: @escaping (String) -> Void,
+        onOpenStory: @escaping (_ storyId: String, _ authorId: String?) -> Void,
         onOpenStoryChain: @escaping (_ chainId: String, _ chainTitle: String) -> Void
     ) -> some View {
         modifier(
@@ -126,6 +136,7 @@ extension View {
                 storyRingCoordinator: storyRingCoordinator,
                 firestoreService: firestoreService,
                 onOpenUserProfile: onOpenUserProfile,
+                onOpenStory: onOpenStory,
                 onOpenStoryChain: onOpenStoryChain
             )
         )

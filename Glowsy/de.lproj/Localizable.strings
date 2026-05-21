@@ -2620,6 +2620,8 @@
 "notification.followRequest.single.body" = "Tippe, um die Anfrage anzunehmen oder abzulehnen";
 "notification.followRequest.multiple.title" = "%@ und %@ weitere möchten dir folgen";
 "notification.followRequest.multiple.body" = "%@ ausstehende Anfragen";
+"notification.requestAccepted.title" = "%@ hat deine Folgeanfrage angenommen";
+"notification.requestAccepted.body" = "Tippe, um das Profil anzusehen";
 
 /* Push Notifications - Mentions */
 "notification.mention.title" = "%@ hat dich in einem %@ erwähnt";

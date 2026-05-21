@@ -307,7 +307,7 @@ struct ModernTabView: View {
         guard let navigation = navigation else { return }
         
         switch navigation {
-        case .moment(let momentId):
+        case .moment(let momentId, _):
             selectedTab = 0
             NotificationCenter.default.post(name: NSNotification.Name("NavigateToMoment"), object: momentId)
             
@@ -318,9 +318,13 @@ struct ModernTabView: View {
         case .conversation(let conversationId):
             NotificationCenter.default.post(name: NSNotification.Name("NavigateToConversation"), object: conversationId)
             
-        case .story(let storyId):
+        case .story(let storyId, let authorId):
             selectedTab = 0
-            NotificationCenter.default.post(name: NSNotification.Name("NavigateToStory"), object: storyId)
+            NotificationCenter.default.post(
+                name: NSNotification.Name("NavigateToStoryInFeed"),
+                object: nil,
+                userInfo: ["storyId": storyId, "authorId": authorId ?? ""]
+            )
             
         case .storyChain(let chainId, let chainTitle):
             selectedTab = 0
@@ -668,9 +672,13 @@ extension View {
                     case .conversation(let conversationId):
                         NotificationCenter.default.post(name: NSNotification.Name("NavigateToConversation"), object: conversationId)
                         
-                    case .story(let storyId):
+                    case .story(let storyId, let authorId):
                         selectedTab.wrappedValue = 0
-                        NotificationCenter.default.post(name: NSNotification.Name("NavigateToStory"), object: storyId)
+                        NotificationCenter.default.post(
+                            name: NSNotification.Name("NavigateToStoryInFeed"),
+                            object: nil,
+                            userInfo: ["storyId": storyId, "authorId": authorId ?? ""]
+                        )
                         
                     case .storyChain(let chainId, let chainTitle):
                         selectedTab.wrappedValue = 0

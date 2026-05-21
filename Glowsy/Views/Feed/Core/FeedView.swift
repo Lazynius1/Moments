@@ -272,6 +272,14 @@ struct FeedView: View {
             storyRingCoordinator: storyRingCoordinator,
             firestoreService: firestoreService,
             onOpenUserProfile: openUserProfile,
+            onOpenStory: { _, authorId in
+                if let authorId, !authorId.isEmpty {
+                    selectedStoryUserId = authorId
+                    showSpecificUserStories = true
+                } else {
+                    showStories = true
+                }
+            },
             onOpenStoryChain: { chainId, chainTitle in
                 selectedChainId = chainId
                 selectedChainTitle = chainTitle
