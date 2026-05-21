@@ -18,7 +18,7 @@
                BlueprintIdentifier = "0D4FD1B82DB27BFE00CA6DB1"
                BuildableName = "Moments Social.app"
                BlueprintName = "Moments Social"
-               ReferencedContainer = "container:Glowsy.xcodeproj">
+               ReferencedContainer = "container:Moments.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
       </BuildActionEntries>
@@ -48,11 +48,11 @@
             BlueprintIdentifier = "0D4FD1B82DB27BFE00CA6DB1"
             BuildableName = "Moments Social.app"
             BlueprintName = "Moments Social"
-            ReferencedContainer = "container:Glowsy.xcodeproj">
+            ReferencedContainer = "container:Moments.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
       <StoreKitConfigurationFileReference
-         identifier = "../../Glowsy/storekit/Moments.storekit">
+         identifier = "../../Moments/storekit/Moments.storekit">
       </StoreKitConfigurationFileReference>
    </LaunchAction>
    <ProfileAction
@@ -68,7 +68,7 @@
             BlueprintIdentifier = "0D4FD1B82DB27BFE00CA6DB1"
             BuildableName = "Moments Social.app"
             BlueprintName = "Moments Social"
-            ReferencedContainer = "container:Glowsy.xcodeproj">
+            ReferencedContainer = "container:Moments.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
    </ProfileAction>

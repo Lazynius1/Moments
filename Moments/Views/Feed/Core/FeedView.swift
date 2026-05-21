@@ -935,7 +935,7 @@ struct FeedView: View {
     }
     
     // ✅ NOTA: StorySegmentedRing y StorySegment ahora están en un archivo compartido
-    // Glowsy/Views/story/StorySegmentedRing.swift
+    // Moments/Views/story/StorySegmentedRing.swift
     
     /// ///
     //Progeso subida Stories

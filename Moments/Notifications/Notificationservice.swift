@@ -3,7 +3,7 @@ import FirebaseFirestore
 import FirebaseAuth
 import UserNotifications
 
-// MARK: - ✨ Glowsy Notification Service (Unified Source of Truth)
+// MARK: - ✨ Moments Notification Service (Unified Source of Truth)
 @MainActor
 class NotificationService: ObservableObject {
     static let shared = NotificationService()

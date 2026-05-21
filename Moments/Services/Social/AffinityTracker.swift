@@ -28,7 +28,7 @@ enum AffinityInteractionType: String {
 class AffinityTracker {
     static let shared = AffinityTracker()
     
-    // Configured via Dependency Injection from GlowsyApp
+    // Configured via Dependency Injection from MomentsApp
     var modelContainer: ModelContainer?
     
     private init() {}
