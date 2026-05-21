@@ -132,7 +132,7 @@ struct ModernLoadingMoreView: View {
 
     var body: some View {
         HStack(spacing: 16) {
-            // Círculo que "respira" con gradiente de Glowsy
+            // Círculo que "respira" con gradiente de Moments
             Circle()
                 .fill(
                     LinearGradient(

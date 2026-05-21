@@ -6,7 +6,7 @@ import Kingfisher
 import GoogleMobileAds
 
 @main
-struct GlowsyApp: App {
+struct MomentsApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) var delegate
     @StateObject private var ephemeralCleanupManager = EphemeralCleanupManager()
     @StateObject private var cacheManager = CacheManager.shared

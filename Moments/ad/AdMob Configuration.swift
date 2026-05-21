@@ -11,8 +11,8 @@ class AdMobConfiguration: NSObject {
     static let shared = AdMobConfiguration()
 
     // IDs de AdMob
-    static let appId = "ca-app-pub-7805678909278568~7091658934" // ✅ App ID real de Glowsy
-    static let nativeAdUnitId = "ca-app-pub-7805678909278568/9925436334" // ✅ ID Real (Glowsy)
+    static let appId = "ca-app-pub-7805678909278568~7091658934" // App ID real de Moments
+    static let nativeAdUnitId = "ca-app-pub-7805678909278568/9925436334" // ID real de Moments
 
     // Para testing (usar si el usuario lo solicita)
     static let testNativeAdUnitId = "ca-app-pub-3940256099942544/3986624511"

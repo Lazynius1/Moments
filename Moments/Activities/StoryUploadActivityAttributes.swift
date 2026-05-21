@@ -1,17 +1,17 @@
 //
-//  MomentUploadActivityAttributes.swift
-//  Glowsy
+//  StoryUploadActivityAttributes.swift
+//  Moments
 //
-//  Tipos compartidos para Live Activities de momentos
+//  Tipos compartidos para Live Activities de historias
 //  Estos tipos deben coincidir exactamente con los del Widget Extension
 //
 
 import Foundation
 import ActivityKit
 
-// MARK: - Moment Upload Activity Attributes
+// MARK: - Story Upload Activity Attributes
 // Estos tipos deben ser idénticos a los del Widget Extension
-public struct MomentUploadActivityAttributes: ActivityAttributes {
+public struct StoryUploadActivityAttributes: ActivityAttributes {
     public struct ContentState: Codable, Hashable {
         public var progress: Double
         public var status: String // "uploading", "processing", "completed", "failed"
@@ -25,13 +25,11 @@ public struct MomentUploadActivityAttributes: ActivityAttributes {
         }
     }
     
-    public var momentId: String
-    public var mediaType: String // "image", "video", o "mixed"
-    public var mediaCount: Int
+    public var storyId: String
+    public var mediaType: String // "image" o "video"
     
-    public init(momentId: String, mediaType: String, mediaCount: Int) {
-        self.momentId = momentId
+    public init(storyId: String, mediaType: String) {
+        self.storyId = storyId
         self.mediaType = mediaType
-        self.mediaCount = mediaCount
     }
 }
