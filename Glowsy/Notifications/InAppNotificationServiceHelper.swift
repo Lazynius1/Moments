@@ -27,8 +27,8 @@ extension InAppNotificationService {
             senderUsername: senderName,
             timestamp: partialNotification.timestamp,
             isPending: true,
-            momentId: partialNotification.momentId, // conversationId
-            reaction: partialNotification.reaction  // message preview
+            reaction: partialNotification.reaction,  // message preview
+            conversationId: partialNotification.conversationId ?? partialNotification.momentId
         )
         
         // Pasamos al handler estándar

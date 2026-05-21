@@ -292,7 +292,7 @@ struct InAppBannerView: View {
             }
         case .mention:
             if let storyId = notification.storyId {
-                navigationService.navigateToStory(storyId: storyId)
+                navigationService.navigateToStory(storyId: storyId, authorId: storyAuthorId(for: notification))
             } else if let momentId = notification.momentId {
                 navigationService.navigateToMoment(
                     momentId: momentId,
@@ -306,16 +306,16 @@ struct InAppBannerView: View {
              navigationService.navigateToNotifications(filter: "requests")
         case .storyReaction:
             if let storyId = notification.storyId {
-                navigationService.navigateToStory(storyId: storyId)
+                navigationService.navigateToStory(storyId: storyId, authorId: storyAuthorId(for: notification))
             }
         case .storyChainContinued:
             if let chainId = notification.chainId {
                 navigationService.pendingNavigation = .storyChain(chainId, notification.chainTitle ?? "")
             } else if let storyId = notification.storyId {
-                navigationService.navigateToStory(storyId: storyId)
+                navigationService.navigateToStory(storyId: storyId, authorId: storyAuthorId(for: notification))
             }
         case .message:
-            if let conversationId = notification.momentId { // momentId guarda conversationId temporalmente
+            if let conversationId = notification.conversationId ?? notification.momentId {
                 navigationService.navigateToConversation(conversationId: conversationId)
             }
         case .echoSuggestion:
@@ -328,7 +328,13 @@ struct InAppBannerView: View {
     }
     
     private func storyAuthorId(for notification: Notification) -> String? {
-        notification.storyAuthorId ?? notification.targetAuthorId ?? notification.senderId
+        if notification.type == .storyReaction {
+            return notification.storyAuthorId
+                ?? notification.targetAuthorId
+                ?? Auth.auth().currentUser?.uid
+                ?? notification.senderId
+        }
+        return notification.storyAuthorId ?? notification.targetAuthorId ?? notification.senderId
     }
 
     private func momentAuthorId(for notification: Notification) -> String {

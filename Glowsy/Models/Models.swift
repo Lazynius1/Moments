@@ -2103,6 +2103,7 @@ struct Notification: Identifiable, Codable {
     let reaction: String?
     let reactionCount: Int?
     let commentId: String? // ✅ NUEVO: Para identificar comentarios específicos
+    let conversationId: String?
     let echoId: String? // ✅ NUEVO: Para identificar el Echo sugerido
     let moderationScope: String? // 🛡️ Contexto de moderación: post, story, storySticker
     let chainId: String? // 🔗 Story Chains
@@ -2132,6 +2133,7 @@ struct Notification: Identifiable, Codable {
         case reactionType // ✅ COMPATIBILIDAD: El servidor usa este campo para momentos
         case commentText  // ✅ COMPATIBILIDAD: El servidor usa este campo para comentarios
         case commentId
+        case conversationId
         case echoId
         case moderationScope
         case chainId
@@ -2158,6 +2160,7 @@ struct Notification: Identifiable, Codable {
          reaction: String? = nil,
          reactionCount: Int? = nil,
          commentId: String? = nil,
+         conversationId: String? = nil,
          echoId: String? = nil,
          moderationScope: String? = nil,
          chainId: String? = nil,
@@ -2183,6 +2186,7 @@ struct Notification: Identifiable, Codable {
         self.reaction = reaction
         self.reactionCount = reactionCount
         self.commentId = commentId
+        self.conversationId = conversationId
         self.echoId = echoId
         self.moderationScope = moderationScope
         self.chainId = chainId
@@ -2238,6 +2242,7 @@ struct Notification: Identifiable, Codable {
         self.reactionCount = try container.decodeIfPresent(Int.self, forKey: .reactionCount)
 
         self.commentId = try container.decodeIfPresent(String.self, forKey: .commentId)
+        self.conversationId = try container.decodeIfPresent(String.self, forKey: .conversationId)
         self.echoId = try container.decodeIfPresent(String.self, forKey: .echoId)
         self.moderationScope = try container.decodeIfPresent(String.self, forKey: .moderationScope)
         self.chainId = try container.decodeIfPresent(String.self, forKey: .chainId)
@@ -2266,6 +2271,7 @@ struct Notification: Identifiable, Codable {
         try container.encodeIfPresent(reaction, forKey: .reaction)
         try container.encodeIfPresent(reactionCount, forKey: .reactionCount)
         try container.encodeIfPresent(commentId, forKey: .commentId)
+        try container.encodeIfPresent(conversationId, forKey: .conversationId)
         try container.encodeIfPresent(echoId, forKey: .echoId)
         try container.encodeIfPresent(moderationScope, forKey: .moderationScope)
         try container.encodeIfPresent(chainId, forKey: .chainId)

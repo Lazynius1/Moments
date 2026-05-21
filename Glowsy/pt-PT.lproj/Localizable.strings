@@ -3430,6 +3430,8 @@
 "notification.followRequest.single.body" = "Toca para aceitar ou recusar o pedido";
 "notification.followRequest.multiple.title" = "%@ e mais %@ pessoas querem seguir-te";
 "notification.followRequest.multiple.body" = "%@ pedidos pendentes";
+"notification.requestAccepted.title" = "%@ aceitou o teu pedido para seguir";
+"notification.requestAccepted.body" = "Toca para ver o perfil";
 
 /* Push Notifications - Mentions */
 "notification.mention.title" = "%@ mencionou-te num %@";

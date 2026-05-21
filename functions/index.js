@@ -3125,6 +3125,22 @@ exports.onFollowerAdded = onDocumentCreated('users/{userId}/followers/{followerI
     });
     if (already) return null;
 
+    const followData = snap.data() || {};
+    const wasAcceptedRequest =
+      followData.source === 'followRequestAccepted' ||
+      typeof followData.acceptedFollowRequestId === 'string';
+
+    if (wasAcceptedRequest) {
+      await sendRequestAcceptedNotification({
+        requesterId: followerId,
+        accepterId: userId,
+        requesterData: followerData,
+        accepterData: userData,
+        requestId: followData.acceptedFollowRequestId || ''
+      });
+      return null;
+    }
+
     const isSilencedForUser = shouldSilenceNotificationForUser(userData, {
       senderId: followerId,
       candidateTexts: [followerData.username]
@@ -3253,6 +3269,88 @@ exports.onFollowerAdded = onDocumentCreated('users/{userId}/followers/{followerI
     console.error('❌ Error sending follower notification:', error);
   }
 });
+
+async function sendRequestAcceptedNotification({ requesterId, accepterId, requesterData, accepterData, requestId }) {
+  const isSilencedForRequester = shouldSilenceNotificationForUser(requesterData, {
+    senderId: accepterId,
+    candidateTexts: [accepterData.username]
+  });
+  if (isSilencedForRequester) {
+    return;
+  }
+
+  const notificationId = `requestAccepted_${accepterId}`;
+  const notificationRef = admin.firestore().doc(`users/${requesterId}/notifications/${notificationId}`);
+  const notificationPayload = {
+    type: 'requestAccepted',
+    senderId: accepterId,
+    senderUsername: accepterData.username,
+    senderProfileImage: accepterData.profileImagePath || '',
+    requestId: requestId || null,
+    timestamp: admin.firestore.FieldValue.serverTimestamp(),
+    isPending: true
+  };
+
+  const fcmToken = requesterData.fcmToken || null;
+  const shouldSendPush = Boolean(fcmToken) && !isDoNotDisturbActive(requesterData);
+
+  if (shouldSendPush) {
+    const counts = await getUnreadCounts(requesterId, {
+      type: 'notification',
+      notificationType: 'requestAccepted',
+      notificationId
+    });
+
+    const message = {
+      token: fcmToken,
+      data: {
+        type: 'requestAccepted',
+        requestId: requestId || '',
+        senderId: accepterId,
+        userId: requesterId,
+        targetType: 'profile',
+        targetId: accepterId,
+        senderUsername: accepterData.username,
+        senderProfileImage: accepterData.profileImagePath || '',
+        unreadMessages: String(counts.unreadMessages),
+        unreadNotifications: String(counts.unreadNotifications),
+        unreadEchoes: String(counts.unreadEchoes),
+        unreadTags: String(counts.unreadTags)
+      },
+      apns: {
+        headers: {
+          'apns-collapse-id': `request_accepted_${requesterId}_${accepterId}`
+        },
+        payload: {
+          aps: {
+            alert: {
+              'title-loc-key': 'notification.requestAccepted.title',
+              'title-loc-args': [accepterData.username],
+              'loc-key': 'notification.requestAccepted.body',
+              'loc-args': []
+            },
+            badge: Math.max(1, counts.unreadNotifications + counts.unreadMessages),
+            sound: 'default',
+            'mutable-content': 1,
+            'thread-id': `request_accepted_${requesterId}`
+          }
+        }
+      }
+    };
+
+    try {
+      await admin.messaging().send(message);
+      console.log(`✅ Solicitud aceptada enviada: ${accepterData.username} -> ${requesterData.username}`);
+    } catch (error) {
+      if (error.code === 'messaging/registration-token-not-registered') {
+        await removeInvalidToken(requesterId, fcmToken);
+      }
+      throw error;
+    }
+  }
+
+  await notificationRef.set(notificationPayload, { merge: true });
+}
 
 // ✅ FUNCIÓN AUXILIAR: Verificar conexión mutua
 async function checkMutualConnection(user1Id, user2Id) {

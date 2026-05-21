@@ -263,7 +263,12 @@ class NotificationService: ObservableObject {
     }
     
     func updateVisitNotification(to userId: String, visitorUsername: String, visitorId: String, count: Int) {
-        let dateString = DateFormatter.localizedString(from: Date(), dateStyle: .short, timeStyle: .none)
+        let formatter = DateFormatter()
+        formatter.calendar = Calendar(identifier: .gregorian)
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = .current
+        formatter.dateFormat = "yyyy-MM-dd"
+        let dateString = formatter.string(from: Date())
         let notificationId = "visit_\(dateString)"
         
         let notification = Notification(

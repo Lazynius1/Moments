@@ -376,7 +376,7 @@ struct NotificationsView: View {
             // Handle story reaction notifications
             break
         case .message:
-            if let conversationId = firstNotification.momentId {
+            if let conversationId = firstNotification.conversationId ?? firstNotification.momentId {
                 fetchAndNavigateToChat(conversationId: conversationId)
             }
         case .echoSuggestion:
@@ -592,7 +592,11 @@ struct EnhancedNotificationRow: View {
                 .padding(.leading, 70)
         }
         .onTapGesture {
-            onTapAction()
+            if opensSenderProfileOnTap {
+                showProfile = true
+            } else {
+                onTapAction()
+            }
         }
         .onLongPressGesture(
             minimumDuration: 0,
@@ -632,6 +636,14 @@ struct EnhancedNotificationRow: View {
                   let state = notification.userInfo?["state"] as? FollowButtonState else { return }
             followButtonState = state
         }
+    }
+
+    private var opensSenderProfileOnTap: Bool {
+        guard let type = group.notifications.first?.type else { return false }
+        return type == .newFollower
+            || type == .followRequest
+            || type == .mutualConnection
+            || type == .requestAccepted
     }
     
     private func setupPreviews() {
@@ -1839,6 +1851,9 @@ class NotificationsViewModel: ObservableObject {
             let key: String
             if notification.type == .profileVisit {
                 let dateFormatter = DateFormatter()
+                dateFormatter.calendar = Calendar(identifier: .gregorian)
+                dateFormatter.locale = Locale(identifier: "en_US_POSIX")
+                dateFormatter.timeZone = .current
                 dateFormatter.dateFormat = "yyyy-MM-dd"
                 key = "visit_\(dateFormatter.string(from: notification.timestamp))"
             } else {

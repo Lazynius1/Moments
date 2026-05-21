@@ -564,18 +564,6 @@ class StoryViewModel: ObservableObject {
         }
     }
 
-    // NUEVA función para enviar notificación de reacción
-    private func sendStoryReactionNotification(to storyAuthorId: String, storyId: String, reaction: String, from senderId: String) {
-        Task { @MainActor in
-            NotificationService.shared.sendInteractionNotification(
-                type: .storyReaction,
-                to: storyAuthorId,
-                storyId: storyId,
-                reaction: reaction
-            )
-        }
-    }
-
     private func createNewConversation(between senderId: String, and receiverId: String, completion: @escaping (String?, Error?) -> Void) {
         let participants = [senderId, receiverId]
         var readStatus: [String: Bool] = [:]

@@ -3,7 +3,7 @@
 	archiveVersion = 1;
 	classes = {
 	};
-	objectVersion = 77;
+	objectVersion = 100;
 	objects = {
 
 /* Begin PBXBuildFile section */
@@ -49,15 +49,13 @@
 /* Begin PBXCopyFilesBuildPhase section */
 		36BDF4172ED7DD7B00683AB4 /* Embed Foundation Extensions */ = {
 			isa = PBXCopyFilesBuildPhase;
-			buildActionMask = 2147483647;
 			dstPath = "";
-			dstSubfolderSpec = 13;
+			dstSubfolder = PlugIns;
 			files = (
 				36A036E52F38B220002B2937 /* MomentsNotificationService.appex in Embed Foundation Extensions */,
 				36BDF4122ED7DD7B00683AB4 /* GlowsyWidgetExtensionExtension.appex in Embed Foundation Extensions */,
 			);
 			name = "Embed Foundation Extensions";
-			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXCopyFilesBuildPhase section */
 
@@ -142,7 +140,6 @@
 /* Begin PBXFrameworksBuildPhase section */
 		0D4FD1B62DB27BFE00CA6DB1 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
-			buildActionMask = 2147483647;
 			files = (
 				368B7D842DE79DC6001D7971 /* FirebaseMessaging in Frameworks */,
 				36267A602E06374300A99130 /* CropViewController in Frameworks */,
@@ -157,26 +154,21 @@
 				36A036D32F36BCDB002B2937 /* GoogleUserMessagingPlatform in Frameworks */,
 				36CE4D382E0A18F400901FD0 /* ZIPFoundation in Frameworks */,
 			);
-			runOnlyForDeploymentPostprocessing = 0;
 		};
 		36A036DB2F38B220002B2937 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
-			buildActionMask = 2147483647;
 			files = (
 				36A036F02F38B5B2002B2937 /* FirebaseMessaging in Frameworks */,
 				36A036EC2F38B596002B2937 /* FirebaseAuth in Frameworks */,
 				36A036EE2F38B59C002B2937 /* FirebaseFirestore in Frameworks */,
 			);
-			runOnlyForDeploymentPostprocessing = 0;
 		};
 		36BDF3F92ED7DD7800683AB4 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
-			buildActionMask = 2147483647;
 			files = (
 				36BDF4012ED7DD7800683AB4 /* SwiftUI.framework in Frameworks */,
 				36BDF3FF2ED7DD7800683AB4 /* WidgetKit.framework in Frameworks */,
 			);
-			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXFrameworksBuildPhase section */
 
@@ -264,8 +256,6 @@
 			);
 			buildRules = (
 			);
-			dependencies = (
-			);
 			fileSystemSynchronizedGroups = (
 				36A036DF2F38B220002B2937 /* MomentsNotificationService */,
 			);
@@ -289,14 +279,10 @@
 			);
 			buildRules = (
 			);
-			dependencies = (
-			);
 			fileSystemSynchronizedGroups = (
 				36BDF4022ED7DD7800683AB4 /* GlowsyWidgetExtension */,
 			);
 			name = GlowsyWidgetExtensionExtension;
-			packageProductDependencies = (
-			);
 			productName = GlowsyWidgetExtensionExtension;
 			productReference = 36BDF3FC2ED7DD7800683AB4 /* GlowsyWidgetExtensionExtension.appex */;
 			productType = "com.apple.product-type.app-extension";
@@ -349,7 +335,7 @@
 				36CE4D4C2E0DEE4400901FD0 /* XCRemoteSwiftPackageReference "swift-package-manager-google-mobile-ads" */,
 				36A036D12F36BCDB002B2937 /* XCRemoteSwiftPackageReference "swift-package-manager-google-user-messaging-platform" */,
 			);
-			preferredProjectObjectVersion = 77;
+			preferredProjectObjectVersion = 100;
 			productRefGroup = 0D4FD1BA2DB27BFE00CA6DB1 /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
@@ -364,49 +350,37 @@
 /* Begin PBXResourcesBuildPhase section */
 		0D4FD1B72DB27BFE00CA6DB1 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
-			buildActionMask = 2147483647;
 			files = (
 			);
-			runOnlyForDeploymentPostprocessing = 0;
 		};
 		36A036DC2F38B220002B2937 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
-			buildActionMask = 2147483647;
 			files = (
 			);
-			runOnlyForDeploymentPostprocessing = 0;
 		};
 		36BDF3FA2ED7DD7800683AB4 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
-			buildActionMask = 2147483647;
 			files = (
 			);
-			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		0D4FD1B52DB27BFE00CA6DB1 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
-			buildActionMask = 2147483647;
 			files = (
 			);
-			runOnlyForDeploymentPostprocessing = 0;
 		};
 		36A036DA2F38B220002B2937 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
-			buildActionMask = 2147483647;
 			files = (
 			);
-			runOnlyForDeploymentPostprocessing = 0;
 		};
 		36BDF3F82ED7DD7800683AB4 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
-			buildActionMask = 2147483647;
 			files = (
 				36E6065C2F12A6B100879F23 /* Untitled.gpx in Sources */,
 			);
-			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXSourcesBuildPhase section */
 
@@ -424,7 +398,7 @@
 /* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
-		0D4FD1C22DB27C0000CA6DB1 /* Debug */ = {
+		0D4FD1C22DB27C0000CA6DB1 /* Debug configuration for PBXProject "Glowsy" */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
@@ -489,7 +463,7 @@
 			};
 			name = Debug;
 		};
-		0D4FD1C32DB27C0000CA6DB1 /* Release */ = {
+		0D4FD1C32DB27C0000CA6DB1 /* Release configuration for PBXProject "Glowsy" */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
@@ -551,7 +525,7 @@
 			};
 			name = Release;
 		};
-		0D4FD1C52DB27C0000CA6DB1 /* Debug */ = {
+		0D4FD1C52DB27C0000CA6DB1 /* Debug configuration for PBXNativeTarget "Moments Social" */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
@@ -604,7 +578,7 @@
 			};
 			name = Debug;
 		};
-		0D4FD1C62DB27C0000CA6DB1 /* Release */ = {
+		0D4FD1C62DB27C0000CA6DB1 /* Release configuration for PBXNativeTarget "Moments Social" */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
@@ -657,7 +631,7 @@
 			};
 			name = Release;
 		};
-		36A036E72F38B220002B2937 /* Debug */ = {
+		36A036E72F38B220002B2937 /* Debug configuration for PBXNativeTarget "MomentsNotificationService" */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_ENTITLEMENTS = MomentsNotificationService/MomentsNotificationService.entitlements;
@@ -688,7 +662,7 @@
 			};
 			name = Debug;
 		};
-		36A036E82F38B220002B2937 /* Release */ = {
+		36A036E82F38B220002B2937 /* Release configuration for PBXNativeTarget "MomentsNotificationService" */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_ENTITLEMENTS = MomentsNotificationService/MomentsNotificationService.entitlements;
@@ -720,7 +694,7 @@
 			};
 			name = Release;
 		};
-		36BDF4142ED7DD7B00683AB4 /* Debug */ = {
+		36BDF4142ED7DD7B00683AB4 /* Debug configuration for PBXNativeTarget "GlowsyWidgetExtensionExtension" */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
@@ -753,7 +727,7 @@
 			};
 			name = Debug;
 		};
-		36BDF4152ED7DD7B00683AB4 /* Release */ = {
+		36BDF4152ED7DD7B00683AB4 /* Release configuration for PBXNativeTarget "GlowsyWidgetExtensionExtension" */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
@@ -793,37 +767,33 @@
 		0D4FD1B42DB27BFE00CA6DB1 /* Build configuration list for PBXProject "Glowsy" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				0D4FD1C22DB27C0000CA6DB1 /* Debug */,
-				0D4FD1C32DB27C0000CA6DB1 /* Release */,
+				0D4FD1C22DB27C0000CA6DB1 /* Debug configuration for PBXProject "Glowsy" */,
+				0D4FD1C32DB27C0000CA6DB1 /* Release configuration for PBXProject "Glowsy" */,
 			);
-			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
 		0D4FD1C42DB27C0000CA6DB1 /* Build configuration list for PBXNativeTarget "Moments Social" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				0D4FD1C52DB27C0000CA6DB1 /* Debug */,
-				0D4FD1C62DB27C0000CA6DB1 /* Release */,
+				0D4FD1C52DB27C0000CA6DB1 /* Debug configuration for PBXNativeTarget "Moments Social" */,
+				0D4FD1C62DB27C0000CA6DB1 /* Release configuration for PBXNativeTarget "Moments Social" */,
 			);
-			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
 		36A036E62F38B220002B2937 /* Build configuration list for PBXNativeTarget "MomentsNotificationService" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				36A036E72F38B220002B2937 /* Debug */,
-				36A036E82F38B220002B2937 /* Release */,
+				36A036E72F38B220002B2937 /* Debug configuration for PBXNativeTarget "MomentsNotificationService" */,
+				36A036E82F38B220002B2937 /* Release configuration for PBXNativeTarget "MomentsNotificationService" */,
 			);
-			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
 		36BDF4132ED7DD7B00683AB4 /* Build configuration list for PBXNativeTarget "GlowsyWidgetExtensionExtension" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				36BDF4142ED7DD7B00683AB4 /* Debug */,
-				36BDF4152ED7DD7B00683AB4 /* Release */,
+				36BDF4142ED7DD7B00683AB4 /* Debug configuration for PBXNativeTarget "GlowsyWidgetExtensionExtension" */,
+				36BDF4152ED7DD7B00683AB4 /* Release configuration for PBXNativeTarget "GlowsyWidgetExtensionExtension" */,
 			);
-			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
