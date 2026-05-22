@@ -40,7 +40,9 @@ class ExploreViewModel: ObservableObject {
         ) { [weak self] notification in
             guard let userId = notification.userInfo?["userId"] as? String,
                   let state = notification.userInfo?["state"] as? FollowButtonState else { return }
-            self?.userButtonStates[userId] = state
+            Task { @MainActor in
+                self?.userButtonStates[userId] = state
+            }
         }
 
         loadRecentSearches()
@@ -80,7 +82,7 @@ class ExploreViewModel: ObservableObject {
             switch result {
             case .success(let currentUserProfile):
                 self.currentUserInterests = currentUserProfile.interests
-                self.blockedUsers = Set(currentUserProfile.blockedUsers ?? [])
+                self.blockedUsers = Set(currentUserProfile.blockedUsers)
 
                 // 2. Cargar conexiones (usuarios seguidos) primero
                 self.loadConnectionsFirst { [weak self] in
@@ -112,7 +114,7 @@ class ExploreViewModel: ObservableObject {
         self.firestoreService.fetchUsersWithSharedInterests(
             interests: self.currentUserInterests,
             excludingUserId: userId
-        ) { [weak self] result in
+        ) { result in
             defer { group.leave() }
 
             if case .success(let users) = result {
@@ -124,7 +126,7 @@ class ExploreViewModel: ObservableObject {
 
         // 2. Usuarios sugeridos (algoritmo interno de Firebase)
         group.enter()
-        self.firestoreService.fetchSuggestedUsers { [weak self] result in
+        self.firestoreService.fetchSuggestedUsers { result in
             defer { group.leave() }
 
             if case .success(let users) = result {
@@ -136,7 +138,7 @@ class ExploreViewModel: ObservableObject {
 
         // 3. Usuarios populares (fallback)
         group.enter()
-        self.fetchPopularUsersForExplore(excludingUserId: userId) { [weak self] users in
+        self.fetchPopularUsersForExplore(excludingUserId: userId) { users in
             syncQueue.async {
                 allDiscoveredUsers.formUnion(users)
             }
@@ -157,7 +159,7 @@ class ExploreViewModel: ObservableObject {
             // Filtro COMPLETO - bloqueos Y usuarios ya seguidos
             let filteredUsers = Array(finalUsers).filter { user in
                 !self.blockedUsers.contains(user.id) &&
-                !(user.blockedUsers ?? []).contains(userId) &&
+                !user.blockedUsers.contains(userId) &&
                 !currentFollowedUserIds.contains(user.id) // ✅ Usar la copia capturada
             }
 
@@ -187,8 +189,8 @@ class ExploreViewModel: ObservableObject {
         firestoreService.db.collection("users")
             .whereField("isPrivate", isEqualTo: false) // Solo perfiles públicos para Explore
             .limit(to: 30)
-            .getDocuments { [weak self] snapshot, error in
-                if let error = error {
+            .getDocuments { snapshot, error in
+                if error != nil {
                     completion([])
                     return
                 }
@@ -271,7 +273,7 @@ class ExploreViewModel: ObservableObject {
             group.enter()
 
             // ✅ USAR LA NUEVA FUNCIÓN ESPECÍFICA PARA EXPLORE
-            privacyService.canUserViewMomentInExplore(moment, viewerId: currentUserId) { [weak self] canView in
+            privacyService.canUserViewMomentInExplore(moment, viewerId: currentUserId) { canView in
                 if canView {
                     syncQueue.sync {
                         visibleMoments.append(moment)
@@ -311,7 +313,7 @@ class ExploreViewModel: ObservableObject {
 
         // Cargar usuarios seguidos (Colección 'following' correcta)
         group.enter()
-        firestoreService.fetchFollowing(userId: userId) { [weak self] result in
+        firestoreService.fetchFollowing(userId: userId) { result in
             defer { group.leave() }
             if case .success(let users) = result {
                 loadedFollowing = users
@@ -320,7 +322,7 @@ class ExploreViewModel: ObservableObject {
 
         // Cargar seguidores (para Social Status)
         group.enter()
-        firestoreService.fetchFollowers(userId: userId) { [weak self] result in
+        firestoreService.fetchFollowers(userId: userId) { result in
             defer { group.leave() }
             if case .success(let followers) = result {
                 loadedFollowers = followers
@@ -329,7 +331,7 @@ class ExploreViewModel: ObservableObject {
 
         // Cargar solicitudes pendientes
         group.enter()
-        NotificationService.shared.fetchNotificationsOnce(userId: userId) { [weak self] result in
+        NotificationService.shared.fetchNotificationsOnce(userId: userId) { result in
             defer { group.leave() }
             switch result {
             case .success(let notifications):
@@ -536,7 +538,7 @@ extension ExploreViewModel {
 
     // ✅ FUNCIÓN DE DEBUG: Verificar contenido visible
     func debugVisibleContent() {
-        guard let userId = currentUserId else { return }
+        guard currentUserId != nil else { return }
 
         // Mostrar distribución por audiencia
         let audienceDistribution = moments.reduce(into: [String: Int]()) { counts, moment in
@@ -544,7 +546,7 @@ extension ExploreViewModel {
             counts[audience, default: 0] += 1
         }
 
-        for (audience, count) in audienceDistribution {
+        for _ in audienceDistribution {
 
         }
     }
@@ -817,7 +819,7 @@ extension ExploreViewModel {
                 let filteredUsers = users.filter { user in
                     guard user.id != currentUserId else { return false }
                     guard !self.blockedUsers.contains(user.id) else { return false }
-                    guard !(user.blockedUsers ?? []).contains(currentUserId) else { return false }
+                    guard !user.blockedUsers.contains(currentUserId) else { return false }
                     return true
                 }
 
@@ -831,7 +833,7 @@ extension ExploreViewModel {
 
 
         // Debug de cada momento
-        for (index, moment) in moments.enumerated() {
+        for _ in moments.enumerated() {
 
 
         }

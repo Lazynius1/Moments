@@ -391,7 +391,7 @@ struct EnhancedStep1View: View {
                     isError: usernameError != nil,
                     autocapitalization: .none
                 )
-                .onChange(of: username) { newValue in
+                .onChange(of: username) { _, newValue in
                     validateUsername(newValue)
                 }
 

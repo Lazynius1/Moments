@@ -53,20 +53,14 @@ class SettingsViewModel: ObservableObject {
             showMutualConnections: showMutualConnections,
             showFollowing: showFollowing,
             showAdmirers: showAdmirers
-        ) { error in
-            if let error = error {
-            }
-        }
+        ) { _ in }
     }
 
     func updateReadReceiptsPrivacy(enabled: Bool) {
         guard let userId = Auth.auth().currentUser?.uid else { return }
         firestoreService.db.collection("users").document(userId).updateData([
             "showReadReceipts": enabled
-        ]) { error in
-            if let error = error {
-            }
-        }
+        ]) { _ in }
     }
 
     func updateActiveHours(startTime: Date, endTime: Date, completion: ((Error?) -> Void)? = nil) {
@@ -74,28 +68,19 @@ class SettingsViewModel: ObservableObject {
         let startHour = dateFormatter.string(from: startTime)
         let endHour = dateFormatter.string(from: endTime)
         firestoreService.updateActiveHours(userId: userId, startHour: startHour, endHour: endHour) { error in
-            if let error = error {
-            }
             completion?(error)
         }
     }
 
     func clearActiveHours() {
         guard let userId = Auth.auth().currentUser?.uid else { return }
-        firestoreService.clearActiveHours(userId: userId) { error in
-            if let error = error {
-                // Handle error
-            }
-        }
+        firestoreService.clearActiveHours(userId: userId) { _ in }
     }
 
     func updateNotificationPreference(type: String, isEnabled: Bool) {
         guard let userId = Auth.auth().currentUser?.uid else { return }
         notificationPreferences[type] = isEnabled
-        firestoreService.updateNotificationPreferences(userId: userId, preferences: notificationPreferences) { error in
-            if let error = error {
-            }
-        }
+        firestoreService.updateNotificationPreferences(userId: userId, preferences: notificationPreferences) { _ in }
     }
 }
 

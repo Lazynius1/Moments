@@ -59,7 +59,7 @@ extension Character {
     }
 }
 
-class NovaMemoryService {
+class NovaMemoryService: @unchecked Sendable {
     private let db = Firestore.firestore()
     private let vertexAI = VertexAI.vertexAI(location: "global")
     private lazy var model = vertexAI.generativeModel(modelName: "gemini-3.1-flash-lite-preview")
@@ -275,7 +275,7 @@ class NovaMemoryService {
             }
 
             // 🔄 MIGRACIÓN AUTOMÁTICA de memoria antigua a nueva estructura
-            if var memory = NovaMemory(dictionary: data) {
+            if let memory = NovaMemory(dictionary: data) {
                 // 🔍 RAG: Verificar si faltan embeddings y generarlos al vuelo
                 let factsWithoutEmbedding = memory.facts.filter { $0.embedding == nil }
                 if !factsWithoutEmbedding.isEmpty {
@@ -333,8 +333,8 @@ class NovaMemoryService {
                 if let nsError = error as NSError? {
                     LogConfig.log("🔍 DEBUG - Código de error: \(nsError.code)", category: "Memory")
                     LogConfig.log("🔍 DEBUG - Dominio: \(nsError.domain)", category: "Memory")
-                    if let userInfo = nsError.userInfo as? [String: Any] {
-                        LogConfig.log("🔍 DEBUG - UserInfo: \(userInfo)", category: "Memory")
+                    if !nsError.userInfo.isEmpty {
+                        LogConfig.log("🔍 DEBUG - UserInfo: \(nsError.userInfo)", category: "Memory")
                     }
                 }
 
@@ -427,7 +427,7 @@ class NovaMemoryService {
 
         Task {
             do {
-                let response = try await model.generateContent(prompt)
+                let response = try await self.model.generateContent(prompt)
                 guard let responseText = response.text?.trimmingCharacters(in: .whitespacesAndNewlines) else {
                     DispatchQueue.main.async {
                         self.isProcessingMemory = false

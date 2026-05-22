@@ -371,7 +371,7 @@ class NovaMemoryViewModel: ObservableObject {
     }
 
     func deleteFact(_ fact: NovaFact) {
-        guard let memory = memory, let userId = userId else { return }
+        guard let memory = memory, userId != nil else { return }
         let updatedMemory = memory.removingFact(withId: fact.id)
 
         self.memory = updatedMemory

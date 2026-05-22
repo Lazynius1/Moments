@@ -258,7 +258,9 @@ class BackgroundMomentUploadService: ObservableObject {
         Task {
             // 1. Persistir acción en disco por si la app muere
             if shouldPersistAction {
-                await self.persistAction(uploadingMoment)
+                await MainActor.run {
+                    self.persistAction(uploadingMoment)
+                }
             }
 
             // 2. Ejecutar upload
@@ -266,8 +268,10 @@ class BackgroundMomentUploadService: ObservableObject {
 
             // 3. Limpiar acción y archivos al terminar (éxito o error fatal)
             if uploadingMoment.status == .completed || uploadingMoment.status == .moderated {
-                await LocalPersistenceService.shared.deleteAction(id: uploadingMoment.tempId)
-                self.deleteActionFiles(id: uploadingMoment.tempId)
+                await MainActor.run {
+                    LocalPersistenceService.shared.deleteAction(id: uploadingMoment.tempId)
+                    self.deleteActionFiles(id: uploadingMoment.tempId)
+                }
             }
 
             // ✅ Terminar la tarea de background cuando finalice
@@ -694,29 +698,15 @@ class BackgroundMomentUploadService: ObservableObject {
         let outputURL = tempDir.appendingPathComponent("compressed_\(UUID().uuidString).mp4")
 
         // 2. Configurar Export Session (Preset Medium Quality = 720p/1080p H.264 balanceado)
-        // AVAssetExportPreset1280x720 o AVAssetExportPresetMediumQuality son buenas opciones para redes sociales
         guard let exportSession = AVAssetExportSession(asset: asset, presetName: AVAssetExportPreset1280x720) else {
             throw NSError(domain: "CompressionError", code: -1, userInfo: [NSLocalizedDescriptionKey: "No se pudo crear export session"])
         }
 
-        exportSession.outputURL = outputURL
-        exportSession.outputFileType = .mp4
         exportSession.shouldOptimizeForNetworkUse = true
 
-        // 3. Exportar
-        await exportSession.export()
-
-        // 4. Verificar resultado
-        switch exportSession.status {
-        case .completed:
-            return outputURL
-        case .failed:
-            throw exportSession.error ?? NSError(domain: "CompressionError", code: -2, userInfo: [NSLocalizedDescriptionKey: "Compresión fallida"])
-        case .cancelled:
-            throw NSError(domain: "CompressionError", code: -3, userInfo: [NSLocalizedDescriptionKey: "Compresión cancelada"])
-        default:
-            throw NSError(domain: "CompressionError", code: -4, userInfo: [NSLocalizedDescriptionKey: "Estado desconocido"])
-        }
+        // 3. Exportar con la nueva API de iOS 18+
+        try await exportSession.export(to: outputURL, as: .mp4)
+        return outputURL
     }
 
     // MARK: - 📝 CREAR MOMENTO EN FIRESTORE
@@ -803,16 +793,16 @@ class BackgroundMomentUploadService: ObservableObject {
                         // Content approved - no action needed
                         break
 
-                    case .deleted(let reason, let category):
+                    case .deleted(_, _):
                         if let index = self.uploadingMoments.firstIndex(where: { $0.id == uploadingMoment.id }) {
                             self.uploadingMoments[index].status = .moderated
                         }
 
-                    case .warning(let reason, let category):
+                    case .warning(_, _):
                         // Content has warning - no action needed
                         break
 
-                    case .error(let errorMessage):
+                    case .error(_):
                         // Technical error - no action needed
                         break
                     }
@@ -1004,9 +994,10 @@ class BackgroundMomentUploadService: ObservableObject {
         )
 
         do {
+            let content = ActivityContent(state: initialContentState, staleDate: nil)
             let activity = try Activity<MomentUploadActivityAttributes>.request(
                 attributes: attributes,
-                contentState: initialContentState,
+                content: content,
                 pushType: nil
             )
             await MainActor.run {
@@ -1028,10 +1019,8 @@ class BackgroundMomentUploadService: ObservableObject {
         )
 
         Task {
-            do {
-                await activity.update(using: updatedState)
-            } catch {
-            }
+            let content = ActivityContent(state: updatedState, staleDate: nil)
+            await activity.update(content)
         }
     }
 
@@ -1045,10 +1034,8 @@ class BackgroundMomentUploadService: ObservableObject {
             status: status
         )
 
-        do {
-            await activity.update(using: updatedState)
-        } catch {
-        }
+        let content = ActivityContent(state: updatedState, staleDate: nil)
+        await activity.update(content)
     }
 
     private func endLiveActivity() {
@@ -1057,10 +1044,7 @@ class BackgroundMomentUploadService: ObservableObject {
         }
 
         Task {
-            do {
-                await activity.end(using: nil, dismissalPolicy: .after(Date().addingTimeInterval(3)))
-            } catch {
-            }
+            await activity.end(nil, dismissalPolicy: .after(Date().addingTimeInterval(3)))
         }
 
         liveActivity = nil
@@ -1071,10 +1055,7 @@ class BackgroundMomentUploadService: ObservableObject {
             return
         }
 
-        do {
-            await activity.end(using: nil, dismissalPolicy: .after(Date().addingTimeInterval(3)))
-        } catch {
-        }
+        await activity.end(nil, dismissalPolicy: .after(Date().addingTimeInterval(3)))
 
         await MainActor.run {
             liveActivity = nil
@@ -1087,7 +1068,7 @@ class BackgroundMomentUploadService: ObservableObject {
                 continue
             }
 
-            await activity.end(dismissalPolicy: .immediate)
+            await activity.end(nil, dismissalPolicy: .immediate)
         }
     }
 
@@ -1147,7 +1128,7 @@ class BackgroundMomentUploadService: ObservableObject {
                     payloadData: encodedPayload
                 )
 
-                await LocalPersistenceService.shared.saveAction(action)
+                LocalPersistenceService.shared.saveAction(action)
 
             } catch { }
         }

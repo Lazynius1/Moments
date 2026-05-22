@@ -216,15 +216,9 @@ struct ArchivedMomentsView: View {
                     }
                 }
             }
-            .background(
-                NavigationLink(
-                    destination: ArchiveView(embedInNavigation: false, showsCustomDismiss: false),
-                    isActive: $navigateToStoriesArchive
-                ) {
-                    EmptyView()
-                }
-                .hidden()
-            )
+            .navigationDestination(isPresented: $navigateToStoriesArchive) {
+                ArchiveView(embedInNavigation: false, showsCustomDismiss: false)
+            }
     }
 }
 

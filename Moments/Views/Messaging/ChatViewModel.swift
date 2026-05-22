@@ -74,7 +74,9 @@ class EnhancedChatViewModel: ObservableObject {
             
             
             // ✅ Usar la nueva función para actualizar el array
-            self?.updateMessageInArray(messageId: messageId, newStatus: status)
+            Task { @MainActor [weak self] in
+                self?.updateMessageInArray(messageId: messageId, newStatus: status)
+            }
         }
         
         // ✅ Progress Listener
@@ -771,7 +773,7 @@ class EnhancedChatViewModel: ObservableObject {
             messageIds: messageIds,
             readerId: currentUserId
         ) { error in
-            if let error = error {
+            if error != nil {
                 // Error marking messages as read
             }
         }
@@ -795,7 +797,9 @@ class EnhancedChatViewModel: ObservableObject {
             chatService.startTyping(conversationId: conversationId, userId: currentUserId)
             
             typingTimer = Timer.scheduledTimer(withTimeInterval: 3.0, repeats: false) { [weak self] _ in
-                self?.isTyping = false
+                Task { @MainActor [weak self] in
+                    self?.isTyping = false
+                }
             }
         } else {
             chatService.stopTyping(conversationId: conversationId, userId: currentUserId)
@@ -812,7 +816,7 @@ class EnhancedChatViewModel: ObservableObject {
         chatService.searchMessages(conversationId: conversationId, query: query) { [weak self] result in
             DispatchQueue.main.async {
                 switch result {
-                case .success(let messages):
+                case .success:
                     // Messages found successfully
                     break
                 case .failure(let error):
@@ -839,7 +843,7 @@ class EnhancedChatViewModel: ObservableObject {
         ) { [weak self] result in
             DispatchQueue.main.async {
                 switch result {
-                case .success(_):
+                case .success:
                     // Ephemeral message sent successfully
                     break
                 case .failure(let error):
@@ -858,7 +862,7 @@ class EnhancedChatViewModel: ObservableObject {
             conversationId: conversationId,
             messageId: message.id
         ) { error in
-            if let error = error {
+            if error != nil {
                 // Error marking ephemeral as viewed
             }
         }

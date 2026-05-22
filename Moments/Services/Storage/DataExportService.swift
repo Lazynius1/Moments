@@ -703,9 +703,7 @@ class DataExportService: ObservableObject {
     
     // MARK: - iOS Compatible ZIP Creation
     private func createZIPWithFoundation(sourceDirectory: URL, destinationURL: URL) throws {
-        guard let archive = Archive(url: destinationURL, accessMode: .create) else {
-            throw NSError(domain: "ZIPError", code: -1, userInfo: [NSLocalizedDescriptionKey: "No se pudo crear el archivo ZIP"])
-        }
+        let archive = try Archive(url: destinationURL, accessMode: .create)
         
         let fileManager = FileManager.default
         guard let enumerator = fileManager.enumerator(at: sourceDirectory, includingPropertiesForKeys: [.isDirectoryKey]) else {
@@ -970,12 +968,12 @@ class BackgroundExportManager: ObservableObject {
                             // Send notification email (in production)
                             self.sendCompletionEmail(userId: userId, downloadURL: downloadURL)
                             
-                        case .failure(let error):
+                        case .failure:
                             self.exportService.updateExportRequestProgress(userId: userId, requestId: requestId, progress: 0.0, status: "failed")
                         }
                     }
                     
-                case .failure(let error):
+                case .failure:
                     self.exportService.updateExportRequestProgress(userId: userId, requestId: requestId, progress: 0.0, status: "failed")
                 }
             }

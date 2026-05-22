@@ -405,7 +405,7 @@ class MediaModerationService {
             return
         }
 
-        let asset = AVAsset(url: url)
+        let asset = AVURLAsset(url: url)
         Task {
             do {
                 let duration = try await asset.load(.duration)
@@ -432,7 +432,7 @@ class MediaModerationService {
             return
         }
 
-        let asset = AVAsset(url: url)
+        let asset = AVURLAsset(url: url)
         let generator = AVAssetImageGenerator(asset: asset)
         generator.appliesPreferredTrackTransform = true
         generator.maximumSize = CGSize(width: 640, height: 360) // ✅ REDUCIDO para mayor velocidad
@@ -637,12 +637,12 @@ class MediaModerationService {
                             }
                         }
 
-                    case .failure(let error):
+                    case .failure(_):
                         completion(nil)
                     }
                 }
 
-            case .failure(let error):
+            case .failure(_):
                 completion(nil)
             }
         }
@@ -654,7 +654,7 @@ class MediaModerationService {
         duration: Double,
         completion: @escaping (Result<Data, Error>) -> Void
     ) {
-        let asset = AVAsset(url: url)
+        let asset = AVURLAsset(url: url)
         guard let exportSession = AVAssetExportSession(asset: asset, presetName: AVAssetExportPresetAppleM4A) else {
             completion(.failure(StorageError.invalidData))
             return
@@ -682,23 +682,15 @@ class MediaModerationService {
         exportSession.timeRange = timeRange
 
 
-        exportSession.exportAsynchronously {
-            switch exportSession.status {
-            case .completed:
-                do {
-                    let audioData = try Data(contentsOf: audioURL)
-                    try? FileManager.default.removeItem(at: audioURL)
-                    completion(.success(audioData))
-                } catch {
-                    completion(.failure(error))
-                }
-
-            case .failed, .cancelled:
-                let error = exportSession.error ?? StorageError.invalidData
+        Task {
+            do {
+                try await exportSession.export(to: audioURL, as: .m4a)
+                let audioData = try Data(contentsOf: audioURL)
+                try? FileManager.default.removeItem(at: audioURL)
+                completion(.success(audioData))
+            } catch {
                 try? FileManager.default.removeItem(at: audioURL)
                 completion(.failure(error))
-            default:
-                break
             }
         }
     }
@@ -791,7 +783,6 @@ class MediaModerationService {
         }
 
         var maxAdultScore = 0.0
-        var maxViolenceScore = 0.0
         var problematicFrames: [String] = []
         var finalAction: MediaModerationAction = .approved
 
@@ -802,11 +793,6 @@ class MediaModerationService {
                 let sexualActivity = nudity["sexual_activity"] as? Double ?? 0.0
                 let erotic = nudity["erotica"] as? Double ?? 0.0
                 let sexting = nudity["sexting"] as? Double ?? 0.0
-                
-                // Estos son los que permitimos (Fitness y Swimwear)
-                let fitness = nudity["fitness"] as? Double ?? 0.0
-                let swimwear = nudity["swimwear"] as? Double ?? 0.0
-                
                 // Lógica "Modo Instagram": 
                 // Si es fitness o swimwear, ignoramos si no hay contenido sexual explícito
                 let combinedAdult = max(sexualDisplay, sexualActivity, erotic * 0.8, sexting)
@@ -1139,10 +1125,7 @@ class MediaModerationService {
                 logData["visionData"] = visionData
             }
 
-            db.collection("mediaModerationLogs").addDocument(data: logData) { error in
-                if let error = error {
-                } else {
-                }
+            db.collection("mediaModerationLogs").addDocument(data: logData) { _ in
             }
         }
     }
@@ -1179,10 +1162,7 @@ class MediaModerationService {
                 logData["contentId"] = contentId
             }
 
-            db.collection("mediaModerationLogs").addDocument(data: logData) { error in
-                if let error = error {
-                } else {
-                }
+            db.collection("mediaModerationLogs").addDocument(data: logData) { _ in
             }
         }
     }
@@ -1390,11 +1370,10 @@ class MediaModerationService {
                 if let audioScore = audioScore { hideData["audioScore"] = audioScore }
                 if let combinedScore = combinedScore { hideData["combinedScore"] = combinedScore }
 
-                contentRef.updateData(hideData) { [weak self] error in
-                    if let error = error {
-                    } else {
+                contentRef.updateData(hideData) { error in
+                    if error == nil {
                         // ✅ MODERACIÓN: Crear notificación para moderación completa (onlyMe)
-                        self?.createModerationNotification(
+                        self.createModerationNotification(
                             userId: userId,
                             contentId: contentId,
                             contentType: contentType,
@@ -1585,7 +1564,7 @@ class MediaModerationService {
     private func loadModerationSettings(completion: @escaping ([String: Any]?) -> Void) {
         let db = Firestore.firestore()
         db.collection("moderationSettings").document("media").getDocument { document, error in
-            if let error = error {
+            if error != nil {
                 completion(nil)
                 return
             }
@@ -1598,7 +1577,7 @@ class MediaModerationService {
     }
 
     private func determineActionFromScoresWithConfig(adult: Double, violence: Double, racy: Double, completion: @escaping (MediaModerationAction) -> Void) {
-        loadModerationSettings { [weak self] config in
+        loadModerationSettings { config in
             // ✅ UMBRALES EQUILIBRADOS Y MÁS TOLERANTES
             // Modificado para permitir fotos "racy" (sin camiseta, playa, fitness) y evitar falsos positivos con pájaros (spoofed)
             let deleteThresholds = config?["deleteThresholds"] as? [String: Double] ?? [

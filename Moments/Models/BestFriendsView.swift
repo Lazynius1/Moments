@@ -43,7 +43,7 @@ struct BestFriendsView: View {
                 viewModel.fetchBestFriends()
                 viewModel.fetchConnections()
             }
-            .onChange(of: searchText) { _ in
+            .onChange(of: searchText) { _, _ in
                 visibleUserLimit = 30
                 viewModel.searchUsersGlobally(query: searchText)
             }
@@ -597,7 +597,7 @@ class BestFriendsViewModel: ObservableObject {
                             return true
                         }
                         self.remoteSearchResults = filtered
-                    case .failure(let error):
+                    case .failure(_):
                         self.remoteSearchResults = []
                     }
                 }
@@ -622,7 +622,7 @@ class BestFriendsViewModel: ObservableObject {
             firestoreService.db.collection("users").whereField("__name__", in: batchIds).getDocuments { snapshot, error in
                 defer { dispatchGroup.leave() }
                 
-                if let error = error {
+                if error != nil {
                     // Error fetching batch
                     return
                 }

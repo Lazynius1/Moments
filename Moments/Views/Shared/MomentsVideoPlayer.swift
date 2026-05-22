@@ -180,11 +180,22 @@ struct MomentsVideoPlayer: UIViewControllerRepresentable {
                 case .readyToPlay:
                     print("🎬 MomentsVideoPlayer: Ready to play. Duration: \(CMTimeGetSeconds(item.duration))")
                     let itemDuration = CMTimeGetSeconds(item.duration)
-                    let assetDuration = CMTimeGetSeconds(item.asset.duration)
-                    let resolvedDuration = (!itemDuration.isNaN && !itemDuration.isInfinite && itemDuration > 0) ? itemDuration : assetDuration
-                    if !resolvedDuration.isNaN && !resolvedDuration.isInfinite && resolvedDuration > 0 {
+                    if !itemDuration.isNaN && !itemDuration.isInfinite && itemDuration > 0 {
                         DispatchQueue.main.async {
-                            self.parent.onDurationReceived?(resolvedDuration)
+                            self.parent.onDurationReceived?(itemDuration)
+                        }
+                    } else {
+                        // Fallback: load asset duration async (iOS 16+ non-deprecated API)
+                        Task { [weak self] in
+                            guard let self else { return }
+                            if let assetDuration = try? await item.asset.load(.duration) {
+                                let resolved = CMTimeGetSeconds(assetDuration)
+                                if !resolved.isNaN && !resolved.isInfinite && resolved > 0 {
+                                    await MainActor.run {
+                                        self.parent.onDurationReceived?(resolved)
+                                    }
+                                }
+                            }
                         }
                     }
                     if !self.parent.isPaused {

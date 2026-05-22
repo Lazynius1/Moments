@@ -2,7 +2,7 @@ import SwiftUI
 import FirebaseAuth
 import FirebaseFirestore
 
-final class ActivitySummaryViewModel: ObservableObject {
+final class ActivitySummaryViewModel: ObservableObject, @unchecked Sendable {
     @Published var summaries: [ActivityInteractionCategory: ActivityCategorySummary] = [:]
     private var dummyVMs: [ActivityInteractionDetailViewModel] = []
     private var isRefreshing = false
@@ -53,7 +53,7 @@ final class ActivitySummaryViewModel: ObservableObject {
             let db = Firestore.firestore()
 
             async let echoesCount = await withCheckedContinuation { continuation in
-                EchoService.shared.fetchEchoHistory(userId: userId) { echoes in
+                _ = EchoService.shared.fetchEchoHistory(userId: userId) { echoes in
                     continuation.resume(returning: echoes.count)
                 }
             }
@@ -109,8 +109,8 @@ final class ActivitySummaryViewModel: ObservableObject {
                 .archived: ActivityCategorySummary(count: await archivedCount, thumbnails: []),
                 .storiesArchive: ActivityCategorySummary(count: (await storiesArchiveCount) ?? 0, thumbnails: []),
                 .echoes: ActivityCategorySummary(count: await echoesCount, thumbnails: []),
-                .followers: ActivityCategorySummary(count: (try? await followersCount) ?? 0, thumbnails: []),
-                .visits: ActivityCategorySummary(count: (try? await visitsCount) ?? 0, thumbnails: []),
+                .followers: ActivityCategorySummary(count: (await followersCount) ?? 0, thumbnails: []),
+                .visits: ActivityCategorySummary(count: (await visitsCount) ?? 0, thumbnails: []),
                 .moments: ActivityCategorySummary(count: momentsCount, thumbnails: []),
                 .reels: ActivityCategorySummary(count: reelsCount, thumbnails: [])
             ]

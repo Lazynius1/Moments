@@ -739,7 +739,7 @@ final class LocalPersistenceService: ObservableObject {
         guard let context = modelContext else { return }
         
         let predicate = #Predicate<CachedMessage> { $0.conversationId == conversationId }
-        var descriptor = FetchDescriptor<CachedMessage>(
+        let descriptor = FetchDescriptor<CachedMessage>(
             predicate: predicate,
             sortBy: [SortDescriptor(\.timestamp, order: .reverse)]
         )
@@ -935,7 +935,7 @@ final class LocalPersistenceService: ObservableObject {
         
         let section = "feed"
         let predicate = #Predicate<CachedMoment> { $0.feedSection == section }
-        var descriptor = FetchDescriptor<CachedMoment>(
+        let descriptor = FetchDescriptor<CachedMoment>(
             predicate: predicate,
             sortBy: [SortDescriptor(\.timestamp, order: .reverse)]
         )
@@ -957,7 +957,7 @@ final class LocalPersistenceService: ObservableObject {
         
         let section = "explore"
         let predicate = #Predicate<CachedMoment> { $0.feedSection == section }
-        var descriptor = FetchDescriptor<CachedMoment>(
+        let descriptor = FetchDescriptor<CachedMoment>(
             predicate: predicate,
             sortBy: [SortDescriptor(\.timestamp, order: .reverse)]
         )
@@ -1238,7 +1238,7 @@ final class LocalPersistenceService: ObservableObject {
                 type: CachedAction.ActionType.updateProfile.rawValue,
                 payloadData: data
             )
-            await saveAction(action)
+            saveAction(action)
         }
     }
     
@@ -1269,7 +1269,7 @@ final class LocalPersistenceService: ObservableObject {
                 type: CachedAction.ActionType.acceptFollowRequest.rawValue,
                 payloadData: data
             )
-            await saveAction(action)
+            saveAction(action)
         }
     }
     
@@ -1297,7 +1297,7 @@ final class LocalPersistenceService: ObservableObject {
                 type: CachedAction.ActionType.rejectFollowRequest.rawValue,
                 payloadData: data
             )
-            await saveAction(action)
+            saveAction(action)
         }
     }
     
@@ -1328,7 +1328,7 @@ final class LocalPersistenceService: ObservableObject {
                 type: CachedAction.ActionType.reportContent.rawValue,
                 payloadData: data
             )
-            await saveAction(action)
+            saveAction(action)
         }
     }
     
@@ -1353,7 +1353,7 @@ final class LocalPersistenceService: ObservableObject {
                 type: CachedAction.ActionType.markAsRead.rawValue,
                 payloadData: data
             )
-            await saveAction(action)
+            saveAction(action)
         }
 
     }

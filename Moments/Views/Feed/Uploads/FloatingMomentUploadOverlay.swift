@@ -72,7 +72,7 @@ struct FloatingMomentUploadOverlay: View {
                 }
             }
         }
-        .onChange(of: uploadService.uploadingMoments.count) { count in
+        .onChange(of: uploadService.uploadingMoments.count) { _, count in
             if let first = uploadService.uploadingMoments.first {
                 activeMoment = first
                 withAnimation(.spring(response: 0.38, dampingFraction: 0.78)) {

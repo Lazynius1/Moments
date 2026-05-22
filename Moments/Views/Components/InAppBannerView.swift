@@ -177,7 +177,7 @@ struct InAppBannerView: View {
             HapticManager.shared.notification(.success)
             loadImages(for: notification)
         }
-        .onChange(of: notification.id) { _ in
+        .onChange(of: notification.id) { _, _ in
             // Reset y recargar si cambia la notificación en vuelo
             contentPreviewImage = nil
             loadImages(for: notification)

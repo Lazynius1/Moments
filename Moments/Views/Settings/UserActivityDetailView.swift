@@ -118,26 +118,26 @@ struct ActivityInteractionDetailView: View {
         .onAppear {
             viewModel.loadIfNeeded()
         }
-        .onChange(of: filteredReactionItems.map(\.id)) { visibleIds in
-            let validIds = Set(visibleIds)
+        .onChange(of: filteredReactionItems.map(\.id)) {
+            let validIds = Set(filteredReactionItems.map(\.id))
             selectedReactionIds = Set(selectedReactionIds.filter { validIds.contains($0) })
         }
-        .onChange(of: selectedReactionIds) { ids in
-            if (category == .archived || category == .recentlyDeleted), isSelectionMode, ids.isEmpty {
+        .onChange(of: selectedReactionIds) {
+            if (category == .archived || category == .recentlyDeleted), isSelectionMode, selectedReactionIds.isEmpty {
                 isSelectionMode = false
             }
         }
-        .onChange(of: isSelectionMode) { isEnabled in
-            if !isEnabled {
+        .onChange(of: isSelectionMode) {
+            if !isSelectionMode {
                 stopRecentlyDeletedAutoScroll()
             }
         }
-        .onChange(of: filteredCommentItems.map(\.id)) { visibleIds in
-            let validIds = Set(visibleIds)
+        .onChange(of: filteredCommentItems.map(\.id)) {
+            let validIds = Set(filteredCommentItems.map(\.id))
             selectedCommentIds = Set(selectedCommentIds.filter { validIds.contains($0) })
         }
-        .onChange(of: filteredEventItems.map(\.id)) { visibleIds in
-            let validIds = Set(visibleIds)
+        .onChange(of: filteredEventItems.map(\.id)) {
+            let validIds = Set(filteredEventItems.map(\.id))
             selectedEventIds = Set(selectedEventIds.filter { validIds.contains($0) })
         }
         .safeAreaInset(edge: .bottom, spacing: 0) {

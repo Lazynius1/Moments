@@ -524,7 +524,9 @@ class StoryViewModel: ObservableObject {
                 }
 
                 guard let documents = snapshot?.documents else {
-                    self?.createNewConversation(between: senderId, and: receiverId, completion: completion)
+                    Task { @MainActor in
+                        self?.createNewConversation(between: senderId, and: receiverId, completion: completion)
+                    }
                     return
                 }
 
@@ -539,7 +541,9 @@ class StoryViewModel: ObservableObject {
                     let conversationId = conversation.documentID
                     completion(conversationId, nil)
                 } else {
-                    self?.createNewConversation(between: senderId, and: receiverId, completion: completion)
+                    Task { @MainActor in
+                        self?.createNewConversation(between: senderId, and: receiverId, completion: completion)
+                    }
                 }
             }
     }

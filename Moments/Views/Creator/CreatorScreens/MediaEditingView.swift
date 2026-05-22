@@ -159,7 +159,7 @@ struct MediaEditingView: View {
 
                                     Slider(value: $tempFilterIntensity, in: 0...1)
                                         .tint(.pink)
-                                        .onChange(of: tempFilterIntensity) { _ in
+                                        .onChange(of: tempFilterIntensity) { _, _ in
                                             updatePreviewTask()
                                         }
                                 }

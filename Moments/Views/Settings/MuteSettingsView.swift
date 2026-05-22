@@ -148,7 +148,7 @@ struct MuteSettingsView: View {
                                 }
                             }
                             .tint(Color(hex: "4F46E5"))
-                            .onChange(of: viewModel.muteNotifications) { _ in
+                            .onChange(of: viewModel.muteNotifications) { _, _ in
                                 viewModel.saveSettings()
                             }
                             
@@ -164,7 +164,7 @@ struct MuteSettingsView: View {
                                 }
                             }
                             .tint(Color(hex: "4F46E5"))
-                            .onChange(of: viewModel.hideFromSearch) { _ in
+                            .onChange(of: viewModel.hideFromSearch) { _, _ in
                                 viewModel.saveSettings()
                             }
                         }
@@ -325,7 +325,7 @@ struct AddMutedUserView: View {
                     TextField(NSLocalizedString("muteSettings.search.placeholder", comment: "Search users placeholder"), text: $searchText)
                         .font(.custom("Poppins-Regular", size: 16))
                         .foregroundColor(colorScheme == .dark ? .white : .black)
-                        .onChange(of: searchText) { newValue in
+                        .onChange(of: searchText) { _, newValue in
                             if !newValue.isEmpty {
                                 searchUsers(query: newValue)
                             } else {
@@ -430,7 +430,7 @@ struct AddMutedUserView: View {
                 switch result {
                 case .success(let users):
                     self.searchResults = users
-                case .failure(let error):
+                case .failure:
                     self.searchResults = []
                 }
             }
@@ -610,10 +610,7 @@ class MuteSettingsViewModel: ObservableObject {
         
         firestoreService.db.collection("users").document(userId).updateData([
             "muteSettings": settings
-        ]) { error in
-            if let error = error {
-            }
-        }
+        ]) { _ in }
     }
 }
 

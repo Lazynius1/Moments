@@ -21,7 +21,7 @@ class AudioRecordingManager: ObservableObject {
         self.recordingSession = session
         
         do {
-            try session.setCategory(.playAndRecord, mode: .default, options: [.defaultToSpeaker, .allowBluetooth])
+            try session.setCategory(.playAndRecord, mode: .default, options: [.defaultToSpeaker, .allowBluetoothHFP])
             try session.setActive(true)
         } catch {
             print("Failed to set up audio session: \(error.localizedDescription)")
@@ -305,7 +305,7 @@ struct GlassmorphicAudioMessage: View {
         .onDisappear {
             stopPlayback()
         }
-        .onChange(of: proximityManager.isNearEar) { isNear in
+        .onChange(of: proximityManager.isNearEar) { _, isNear in
             guard isPlaying else { return }
             switchAudioRoute(toEarpiece: isNear)
         }
@@ -395,7 +395,7 @@ struct GlassmorphicAudioMessage: View {
             DispatchQueue.main.async {
                 self.isCheckingAvailability = false
                 
-                if let error = error {
+                if error != nil {
                     self.isAudioAvailable = false
                 } else if let httpResponse = response as? HTTPURLResponse {
                     if httpResponse.statusCode == 200 {

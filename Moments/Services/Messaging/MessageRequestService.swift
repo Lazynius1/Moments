@@ -70,51 +70,45 @@ class MessageRequestService: ObservableObject {
                     return
                 }
                 
-                for (index, doc) in documents.enumerated() {
-                }
                 
                 let requests = documents.compactMap { document -> MessageRequest? in
-                    do {
-                        let data = document.data()
-                        
-                        // Extraer campos directamente
-                        guard let senderId = data["senderId"] as? String,
-                              let receiverId = data["receiverId"] as? String,
-                              let message = data["message"] as? String,
-                              let statusRaw = data["status"] as? String,
-                              let messageTypeRaw = data["messageType"] as? String,
-                              let timestamp = data["timestamp"] as? Timestamp else {
-                            return nil
-                        }
-                        
-                        let senderUsername = data["senderUsername"] as? String
-                        let senderProfileImagePath = data["senderProfileImagePath"] as? String
-                        let mediaUrl = data["mediaUrl"] as? String
-                        let thumbnailUrl = data["thumbnailUrl"] as? String
-                        
-                        guard let status = MessageRequest.RequestStatus(rawValue: statusRaw),
-                              let messageType = MessageType(rawValue: messageTypeRaw) else {
-                            return nil
-                        }
-                        
-                        let request = MessageRequest(
-                            id: document.documentID,
-                            senderId: senderId,
-                            senderUsername: senderUsername,
-                            senderProfileImagePath: senderProfileImagePath,
-                            receiverId: receiverId,
-                            message: message,
-                            timestamp: timestamp.dateValue(),
-                            status: status,
-                            messageType: messageType,
-                            mediaUrl: mediaUrl,
-                            thumbnailUrl: thumbnailUrl
-                        )
-                        
-                        return request
-                    } catch {
+                    let data = document.data()
+                    
+                    // Extraer campos directamente
+                    guard let senderId = data["senderId"] as? String,
+                          let receiverId = data["receiverId"] as? String,
+                          let message = data["message"] as? String,
+                          let statusRaw = data["status"] as? String,
+                          let messageTypeRaw = data["messageType"] as? String,
+                          let timestamp = data["timestamp"] as? Timestamp else {
                         return nil
                     }
+                    
+                    let senderUsername = data["senderUsername"] as? String
+                    let senderProfileImagePath = data["senderProfileImagePath"] as? String
+                    let mediaUrl = data["mediaUrl"] as? String
+                    let thumbnailUrl = data["thumbnailUrl"] as? String
+                    
+                    guard let status = MessageRequest.RequestStatus(rawValue: statusRaw),
+                          let messageType = MessageType(rawValue: messageTypeRaw) else {
+                        return nil
+                    }
+                    
+                    let request = MessageRequest(
+                        id: document.documentID,
+                        senderId: senderId,
+                        senderUsername: senderUsername,
+                        senderProfileImagePath: senderProfileImagePath,
+                        receiverId: receiverId,
+                        message: message,
+                        timestamp: timestamp.dateValue(),
+                        status: status,
+                        messageType: messageType,
+                        mediaUrl: mediaUrl,
+                        thumbnailUrl: thumbnailUrl
+                    )
+                    
+                    return request
                 }
                 
                 DispatchQueue.main.async {
@@ -196,49 +190,45 @@ class MessageRequestService: ObservableObject {
                     return
                 }
                 
-                do {
-                    let data = document.data()
-                    
-                    // Extraer campos directamente (mismo método que listenToPendingRequests)
-                    guard let senderId = data["senderId"] as? String,
-                          let receiverId = data["receiverId"] as? String,
-                          let message = data["message"] as? String,
-                          let statusRaw = data["status"] as? String,
-                          let messageTypeRaw = data["messageType"] as? String,
-                          let timestamp = data["timestamp"] as? Timestamp else {
-                        completion(.failure(NSError(domain: "Request", code: 400, userInfo: [NSLocalizedDescriptionKey: "Datos de solicitud incompletos"])))
-                        return
-                    }
-                    
-                    let senderUsername = data["senderUsername"] as? String
-                    let senderProfileImagePath = data["senderProfileImagePath"] as? String
-                    let mediaUrl = data["mediaUrl"] as? String
-                    let thumbnailUrl = data["thumbnailUrl"] as? String
-                    
-                    guard let status = MessageRequest.RequestStatus(rawValue: statusRaw),
-                          let messageType = MessageType(rawValue: messageTypeRaw) else {
-                        completion(.failure(NSError(domain: "Request", code: 400, userInfo: [NSLocalizedDescriptionKey: "Estado o tipo de mensaje inválido"])))
-                        return
-                    }
-                    
-                    let request = MessageRequest(
-                        id: document.documentID,
-                        senderId: senderId,
-                        senderUsername: senderUsername,
-                        senderProfileImagePath: senderProfileImagePath,
-                        receiverId: receiverId,
-                        message: message,
-                        timestamp: timestamp.dateValue(),
-                        status: status,
-                        messageType: messageType,
-                        mediaUrl: mediaUrl,
-                        thumbnailUrl: thumbnailUrl
-                    )
-                    
-                    completion(.success(request))
-                } catch {
-                    completion(.failure(error))
+                let data = document.data()
+                
+                // Extraer campos directamente (mismo método que listenToPendingRequests)
+                guard let senderId = data["senderId"] as? String,
+                      let receiverId = data["receiverId"] as? String,
+                      let message = data["message"] as? String,
+                      let statusRaw = data["status"] as? String,
+                      let messageTypeRaw = data["messageType"] as? String,
+                      let timestamp = data["timestamp"] as? Timestamp else {
+                    completion(.failure(NSError(domain: "Request", code: 400, userInfo: [NSLocalizedDescriptionKey: "Datos de solicitud incompletos"])))
+                    return
                 }
+                
+                let senderUsername = data["senderUsername"] as? String
+                let senderProfileImagePath = data["senderProfileImagePath"] as? String
+                let mediaUrl = data["mediaUrl"] as? String
+                let thumbnailUrl = data["thumbnailUrl"] as? String
+                
+                guard let status = MessageRequest.RequestStatus(rawValue: statusRaw),
+                      let messageType = MessageType(rawValue: messageTypeRaw) else {
+                    completion(.failure(NSError(domain: "Request", code: 400, userInfo: [NSLocalizedDescriptionKey: "Estado o tipo de mensaje inválido"])))
+                    return
+                }
+                
+                let request = MessageRequest(
+                    id: document.documentID,
+                    senderId: senderId,
+                    senderUsername: senderUsername,
+                    senderProfileImagePath: senderProfileImagePath,
+                    receiverId: receiverId,
+                    message: message,
+                    timestamp: timestamp.dateValue(),
+                    status: status,
+                    messageType: messageType,
+                    mediaUrl: mediaUrl,
+                    thumbnailUrl: thumbnailUrl
+                )
+                
+                completion(.success(request))
             }
     }
     
@@ -350,13 +340,8 @@ class MessageRequestService: ObservableObject {
             switch result {
             case .success:
                 // Eliminar la solicitud después de crear la conversación
-                self?.db.collection("messageRequests").document(requestId).delete { error in
-                    if let error = error {
-                        // Aún completamos con éxito porque la conversación se creó
-                        completion(.success(()))
-                    } else {
-                        completion(.success(()))
-                    }
+                self?.db.collection("messageRequests").document(requestId).delete { _ in
+                    completion(.success(()))
                 }
             case .failure(let error):
                 completion(.failure(error))
@@ -398,24 +383,24 @@ class MessageRequestService: ObservableObject {
     
     // MARK: - Create Conversation From Request
     private func createConversationFromRequest(_ request: MessageRequest, completion: @escaping (Result<Void, Error>) -> Void) {
-        let chatService = ChatService.shared
-        chatService.createBidirectionalConversation(user1Id: request.senderId, user2Id: request.receiverId) { [weak self] result in
-            switch result {
-            case .success(let conversationId):
-                
-                // Enviar el mensaje original de la solicitud
-                self?.sendOriginalMessage(from: request, in: conversationId) { messageResult in
-                    switch messageResult {
-                    case .success:
-                        completion(.success(()))
-                    case .failure(let error):
-                        // Aún completamos con éxito porque la conversación se creó
-                        completion(.success(()))
+        Task { @MainActor [weak self] in
+            let chatService = ChatService.shared
+            chatService.createBidirectionalConversation(user1Id: request.senderId, user2Id: request.receiverId) { [weak self] result in
+                switch result {
+                case .success(let conversationId):
+                    // Enviar el mensaje original de la solicitud
+                    self?.sendOriginalMessage(from: request, in: conversationId) { messageResult in
+                        switch messageResult {
+                        case .success:
+                            completion(.success(()))
+                        case .failure:
+                            // Aún completamos con éxito porque la conversación se creó
+                            completion(.success(()))
+                        }
                     }
+                case .failure(let error):
+                    completion(.failure(error))
                 }
-                
-            case .failure(let error):
-                completion(.failure(error))
             }
         }
     }
@@ -451,14 +436,16 @@ class MessageRequestService: ObservableObject {
             sharedMomentData: nil
         )
         
-        // Usar ChatService para enviar el mensaje con encriptación
-        let chatService = ChatService()
-        chatService.sendMessage(message, useServerTimestamp: true) { result in
-            switch result {
-            case .success:
-                completion(.success(()))
-            case .failure(let error):
-                completion(.failure(error))
+        // Usar ChatService.shared para enviar el mensaje con encriptación
+        Task { @MainActor in
+            let chatService = ChatService.shared
+            chatService.sendMessage(message, useServerTimestamp: true) { result in
+                switch result {
+                case .success:
+                    completion(.success(()))
+                case .failure(let error):
+                    completion(.failure(error))
+                }
             }
         }
     }
@@ -469,7 +456,7 @@ class MessageRequestService: ObservableObject {
             .whereField("receiverId", isEqualTo: userId)
             .whereField("status", isEqualTo: MessageRequest.RequestStatus.pending.rawValue)
             .getDocuments { snapshot, error in
-                if let error = error {
+                if error != nil {
                     completion(0)
                     return
                 }
@@ -496,7 +483,7 @@ class MessageRequestService: ObservableObject {
 // MARK: - MessageRequest Extension for Encoding
 extension MessageRequest {
     func encode() throws -> [String: Any] {
-        var firestoreData: [String: Any] = [
+        let firestoreData: [String: Any] = [
             "senderId": senderId,
             "senderUsername": senderUsername as Any,
             "senderProfileImagePath": senderProfileImagePath as Any,

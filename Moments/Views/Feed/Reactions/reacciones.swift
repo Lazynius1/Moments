@@ -237,7 +237,7 @@ struct ModernReactionButton: View {
     
     private func loadReactionState() {
         guard let currentUserId = Auth.auth().currentUser?.uid,
-              let momentId = moment.id else { return }
+              let _ = moment.id else { return }
         
         // Verificar si el usuario ya reaccionó y con qué reacción
         for reactionType in ReactionType.allCases {
@@ -272,7 +272,7 @@ struct ModernReactionButton: View {
             userId: currentUserId,
             authorId: moment.authorId
         ) { error in
-            if let error = error {
+            if error != nil {
                 // Revertir si hay error
                 DispatchQueue.main.async {
                     withAnimation {
@@ -303,7 +303,7 @@ struct ModernReactionButton: View {
             userId: currentUserId,
             authorId: moment.authorId
         ) { error in
-            if let error = error {
+            if error != nil {
                 // Revertir si hay error
                 DispatchQueue.main.async {
                     withAnimation {
@@ -491,7 +491,7 @@ extension FirestoreService {
             .collection("reactions")
             .addSnapshotListener { snapshot, error in
                 
-                if let error = error {
+                if error != nil {
                     return
                 }
                 
@@ -521,7 +521,7 @@ extension FirestoreService {
             .collection("reactions").document(userId)
             .getDocument { snapshot, error in
                 
-                if let error = error {
+                if error != nil {
                     completion(nil)
                     return
                 }

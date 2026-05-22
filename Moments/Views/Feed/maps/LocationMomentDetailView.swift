@@ -175,7 +175,7 @@ struct LocationMomentDetailView: View {
             loadAllMomentsData()
             trackMomentViewIfNeeded(for: locationMoments[safe: initialIndex])
         }
-        .onChange(of: currentIndex) { newIndex in
+        .onChange(of: currentIndex) { _, newIndex in
             trackMomentViewIfNeeded(for: locationMoments[safe: newIndex])
         }
         .gesture(
@@ -408,10 +408,9 @@ struct LocationMomentDetailView: View {
             },
             mediaItems: payload.mediaItems
         ) { error in
-            if let error = error {
-            } else {
+            if error == nil {
                 // ✅ Actualizar el momento en el array local
-                if let index = locationMoments.firstIndex(where: { $0.id == moment.id }) {
+                if locationMoments.contains(where: { $0.id == moment.id }) {
                     // TODO: Actualizar el array de momentos si es necesario
                 }
             }
@@ -432,8 +431,7 @@ struct LocationMomentDetailView: View {
             DispatchQueue.main.async {
                 self.isDeleting = false
 
-                if let error = error {
-                } else {
+                if error == nil {
                     // ✅ Cerrar la vista si se elimina el momento actual
                     if let index = locationMoments.firstIndex(where: { $0.id == moment.id }) {
                         if index == currentIndex {
@@ -492,7 +490,7 @@ struct LocationMomentDetailView: View {
         .tabViewStyle(PageTabViewStyle(indexDisplayMode: .never))
         .background(Color.clear)
         .ignoresSafeArea(.container, edges: [.top, .bottom])
-        .onChange(of: currentIndex) { newIndex in
+        .onChange(of: currentIndex) { _, newIndex in
         }
     }
 
@@ -524,7 +522,7 @@ struct LocationMomentDetailView: View {
             .collection("moments").document(momentId)
             .collection("comments")
             .getDocuments { snapshot, error in
-                if let error = error {
+                if error != nil {
                     return
                 }
 
@@ -548,7 +546,7 @@ struct LocationMomentDetailView: View {
         firestoreService.toggleSaveMoment(userId: currentUserId, momentId: momentId) { error in
             DispatchQueue.main.async {
                 self.loadingStates[momentId] = false
-                if let error = error {
+                if error != nil {
                     withAnimation {
                         self.savedStates[momentId] = !(self.savedStates[momentId] ?? false)
                     }
@@ -1082,7 +1080,7 @@ struct LocationMomentCard: View {
         }
 
         if firstItem.type == .image {
-            KFImage(URL(string: firstItem.url))
+            _ = KFImage(URL(string: firstItem.url))
                 .onSuccess { result in
                     let imageSize = result.image.size
                     let ratio = imageSize.width / imageSize.height
@@ -1123,7 +1121,7 @@ struct LocationMomentCard: View {
 
         Task {
             do {
-                let asset = AVAsset(url: url)
+                let asset = AVURLAsset(url: url)
                 let track = try await asset.loadTracks(withMediaType: .video).first
 
                 if let track = track {

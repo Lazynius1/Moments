@@ -674,10 +674,8 @@ struct MediaSelectionView: View {
     private func validateSelectedMedia() {
         let videoItems = selectedMediaItems.filter { $0.type == .video }
 
-        for (index, videoItem) in videoItems.enumerated() {
-            if videoItem.videoURL == nil {
-            } else {
-            }
+        for videoItem in videoItems {
+            _ = videoItem.videoURL
         }
     }
 
@@ -773,7 +771,7 @@ struct MediaSelectionView: View {
                 }
 
                 // Verificar si hay error
-                if let error = info?[PHImageErrorKey] as? Error {
+                if info?[PHImageErrorKey] as? Error != nil {
                     continuation.resume(returning: (nil, nil))
                     return
                 }
@@ -804,10 +802,6 @@ struct MediaSelectionView: View {
             }
         }
 
-        if let videoURL = videoResult.0 {
-        } else {
-        }
-
         return (thumbnail, videoResult.0, videoResult.1)
     }
 
@@ -819,7 +813,7 @@ struct MediaSelectionView: View {
 
         PHImageManager.default().requestAVAsset(forVideo: asset, options: options) { avAsset, audioMix, info in
             DispatchQueue.main.async {
-                if let error = info?[PHImageErrorKey] as? Error {
+                if info?[PHImageErrorKey] as? Error != nil {
                 } else if let isInCloud = info?[PHImageResultIsInCloudKey] as? Bool, isInCloud {
                 } else if avAsset != nil {
                 }

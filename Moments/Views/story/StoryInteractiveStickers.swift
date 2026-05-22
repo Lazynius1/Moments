@@ -467,8 +467,8 @@ struct RevealSurfaceView: View {
             if let patternType = pattern, patternType != "none" {
                 RevealPatternOverlayView(
                     type: patternType,
-                    color: patternType == "holographic" ? (Color(hex: primaryColor ?? "#C8C8C8") ?? .white) : patternColor,
-                    color2: Color(hex: secondaryColor ?? "#C8C8C8") ?? .white
+                    color: patternType == "holographic" ? Color(hex: primaryColor ?? "#C8C8C8") : patternColor,
+                    color2: Color(hex: secondaryColor ?? "#C8C8C8")
                 )
             } else if type == nil || type == "scratch" || type == "none" {
                 // Default legacy style o si no hay tipo definido

@@ -114,7 +114,7 @@ struct SocialProfileCompletionView: View {
                                         isError: usernameError != nil,
                                         autocapitalization: .none
                                     )
-                                    .onChange(of: username) { newValue in
+                                    .onChange(of: username) { _, newValue in
                                         validateUsername(newValue)
                                     }
                                     
@@ -294,8 +294,6 @@ struct SocialProfileCompletionView: View {
         animationFinished = false
         firebaseOperationsCompleted = false // Reiniciar estado
         isCreatingProfile = true // Mostrar animación
-        
-        let startTime = Date()
         
         authService.completeSocialRegistration(
             username: username,

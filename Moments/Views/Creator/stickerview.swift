@@ -656,7 +656,7 @@ struct StickerPickerView: View {
                         .background(Color.blue)
                         .cornerRadius(16)
                 }
-                .onChange(of: photoPickerItem) { newItem in
+                .onChange(of: photoPickerItem) { _, newItem in
                     Task {
                         if let data = try? await newItem?.loadTransferable(type: Data.self),
                            let uiImage = UIImage(data: data) {
@@ -965,8 +965,6 @@ struct StickerPickerView: View {
     private func createEmojiSticker(_ emoji: String) {
         let renderer = UIGraphicsImageRenderer(size: CGSize(width: 200, height: 200))
         let image = renderer.image { context in
-            let rect = CGRect(x: 0, y: 0, width: 200, height: 200)
-
             let paragraphStyle = NSMutableParagraphStyle()
             paragraphStyle.alignment = .center
 

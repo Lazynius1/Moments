@@ -228,7 +228,7 @@ struct UsernameChangeContent: View {
                             .font(.custom("Poppins-Regular", size: 17))
                             .autocorrectionDisabled()
                             .textInputAutocapitalization(.never)
-                            .onChange(of: newUsername) { _ in
+                            .onChange(of: newUsername) { _, _ in
                                 triggerAvailabilityCheck()
                             }
 
@@ -319,11 +319,13 @@ struct UsernameChangeContent: View {
         checkTask = Task {
             try? await Task.sleep(nanoseconds: 600_000_000) // 0.6s debounce
             guard !Task.isCancelled else { return }
-            firestoreService.db.collection("usernames").document(username).getDocument { snap, _ in
-                DispatchQueue.main.async {
-                    isChecking = false
-                    isAvailable = !(snap?.exists ?? false)
-                }
+            let snap = try? await firestoreService.db
+                .collection("usernames")
+                .document(username)
+                .getDocument()
+            await MainActor.run {
+                isChecking = false
+                isAvailable = !(snap?.exists ?? false)
             }
         }
     }

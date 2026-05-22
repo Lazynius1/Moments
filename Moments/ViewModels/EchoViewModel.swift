@@ -120,7 +120,7 @@ class EchoViewModel: ObservableObject {
         // 1. Filtrado Estricto de Momentos:
         // - Veo mis propios momentos (aunque esté pending, pero ahora todos empiezan pending)
         // - Veo los momentos de los demás SOLO si ellos han aceptado (.accepted)
-        var rawMoments = echo.moments.filter { moment in
+        let rawMoments = echo.moments.filter { moment in
             if moment.authorId == currentUserId {
                 // Si el usuario actual ha aceptado, ve sus momentos.
                 // Si aún no ha aceptado, también los ve (es su propia cámara)

@@ -12,9 +12,11 @@ struct ArchiveView: View {
     @State private var storyViewerPresentation: StoryViewerPresentation?
     @State private var storyStatsPresentation: StoryStatsPresentation?
     @State private var selectedDisplayMode: ArchiveDisplayMode = .stories
-    @State private var mapRegion = MKCoordinateRegion(
-        center: CLLocationCoordinate2D(latitude: 20.0, longitude: 0.0),
-        span: MKCoordinateSpan(latitudeDelta: 100, longitudeDelta: 100)
+    @State private var mapPosition: MapCameraPosition = .region(
+        MKCoordinateRegion(
+            center: CLLocationCoordinate2D(latitude: 20.0, longitude: 0.0),
+            span: MKCoordinateSpan(latitudeDelta: 100, longitudeDelta: 100)
+        )
     )
     @State private var geocodedCoordinatesByStoryId: [String: CLLocationCoordinate2D] = [:]
     @State private var isResolvingMapCoordinates = false
@@ -203,17 +205,17 @@ struct ArchiveView: View {
         .onAppear {
             viewModel.loadArchivedStories()
         }
-        .onChange(of: mapPins.map(\.id)) { _ in
+        .onChange(of: mapPins.map(\.id)) { _, _ in
             if selectedDisplayMode == .map {
                 fitMapToPins()
             }
         }
-        .onChange(of: allStories.count) { _ in
+        .onChange(of: allStories.count) { _, _ in
             if selectedDisplayMode == .map {
                 resolveMissingMapCoordinates()
             }
         }
-        .onChange(of: selectedDisplayMode) { mode in
+        .onChange(of: selectedDisplayMode) { _, mode in
             if mode == .map {
                 fitMapToPins()
                 resolveMissingMapCoordinates()
@@ -228,15 +230,9 @@ struct ArchiveView: View {
         .sheet(item: $storyStatsPresentation) { presentation in
             StoryStatsView(story: presentation.story)
         }
-        .background(
-            NavigationLink(
-                destination: ArchivedMomentsView(),
-                isActive: $navigateToArchivedMoments
-            ) {
-                EmptyView()
-            }
-            .hidden()
-        )
+        .navigationDestination(isPresented: $navigateToArchivedMoments) {
+            ArchivedMomentsView()
+        }
     }
 
     private func archiveEmptyView(icon: String, text: String) -> some View {
@@ -335,40 +331,42 @@ struct ArchiveView: View {
 
     private var archiveMapView: some View {
         ZStack {
-            Map(coordinateRegion: $mapRegion, annotationItems: mapPins) { pin in
-                MapAnnotation(coordinate: pin.coordinate) {
-                    Button {
-                        openCalendarStories(pin.stories)
-                    } label: {
-                        ZStack(alignment: .topTrailing) {
-                            if let story = pin.stories.first, let url = URL(string: mapPreviewURL(for: story)) {
-                                KFImage(url)
-                                    .resizable()
-                                    .scaledToFill()
-                                    .frame(width: 48, height: 48)
-                                    .clipShape(RoundedRectangle(cornerRadius: 10))
-                                    .overlay(
-                                        RoundedRectangle(cornerRadius: 10)
-                                            .stroke(Color.white.opacity(0.95), lineWidth: 2)
-                                    )
-                            } else {
-                                Image(systemName: "mappin.circle.fill")
-                                    .font(.system(size: 34))
-                                    .foregroundColor(Color(hex: "0A84FF"))
-                            }
+            Map(position: $mapPosition) {
+                ForEach(mapPins) { pin in
+                    Annotation("", coordinate: pin.coordinate) {
+                        Button {
+                            openCalendarStories(pin.stories)
+                        } label: {
+                            ZStack(alignment: .topTrailing) {
+                                if let story = pin.stories.first, let url = URL(string: mapPreviewURL(for: story)) {
+                                    KFImage(url)
+                                        .resizable()
+                                        .scaledToFill()
+                                        .frame(width: 48, height: 48)
+                                        .clipShape(RoundedRectangle(cornerRadius: 10))
+                                        .overlay(
+                                            RoundedRectangle(cornerRadius: 10)
+                                                .stroke(Color.white.opacity(0.95), lineWidth: 2)
+                                        )
+                                } else {
+                                    Image(systemName: "mappin.circle.fill")
+                                        .font(.system(size: 34))
+                                        .foregroundColor(Color(hex: "0A84FF"))
+                                }
 
-                            if pin.stories.count > 1 {
-                                Text("\(pin.stories.count)")
-                                    .font(.custom("Poppins-Bold", size: 10))
-                                    .foregroundColor(.white)
-                                    .padding(.horizontal, 5)
-                                    .padding(.vertical, 2)
-                                    .background(Capsule().fill(Color(hex: "0A84FF")))
-                                    .offset(x: 8, y: -8)
+                                if pin.stories.count > 1 {
+                                    Text("\(pin.stories.count)")
+                                        .font(.custom("Poppins-Bold", size: 10))
+                                        .foregroundColor(.white)
+                                        .padding(.horizontal, 5)
+                                        .padding(.vertical, 2)
+                                        .background(Capsule().fill(Color(hex: "0A84FF")))
+                                        .offset(x: 8, y: -8)
+                                }
                             }
                         }
+                        .buttonStyle(.plain)
                     }
-                    .buttonStyle(.plain)
                 }
             }
             .mapStyle(.standard(elevation: .realistic))
@@ -595,10 +593,10 @@ struct ArchiveView: View {
         guard !mapPins.isEmpty else { return }
 
         if mapPins.count == 1, let first = mapPins.first {
-            mapRegion = MKCoordinateRegion(
+            mapPosition = .region(MKCoordinateRegion(
                 center: first.coordinate,
                 span: MKCoordinateSpan(latitudeDelta: 0.08, longitudeDelta: 0.08)
-            )
+            ))
             return
         }
 
@@ -615,10 +613,10 @@ struct ArchiveView: View {
         )
         let latDelta = max((maxLat - minLat) * 1.5, 0.08)
         let lonDelta = max((maxLon - minLon) * 1.5, 0.08)
-        mapRegion = MKCoordinateRegion(
+        mapPosition = .region(MKCoordinateRegion(
             center: center,
             span: MKCoordinateSpan(latitudeDelta: latDelta, longitudeDelta: lonDelta)
-        )
+        ))
     }
 
 }
@@ -1571,7 +1569,7 @@ class ArchiveViewModel: ObservableObject {
                 DispatchQueue.main.async {
                     self?.isLoading = false
                     
-                    if let error = error {
+                    if error != nil {
                         return
                     }
                     
@@ -1635,7 +1633,7 @@ class StoryStatsViewModel: ObservableObject {
             .getDocuments { [weak self] snapshot, error in
                 defer { group.leave() }
                 
-                if let error = error {
+                if error != nil {
                     return
                 }
                 
@@ -1671,7 +1669,7 @@ class StoryStatsViewModel: ObservableObject {
             .getDocuments { [weak self] snapshot, error in
                 defer { group.leave() }
                 
-                if let error = error {
+                if error != nil {
                     return
                 }
                 

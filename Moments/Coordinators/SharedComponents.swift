@@ -178,7 +178,7 @@ struct AsyncProfileImageView: View {
         }
         // ✅ CRÍTICO: Fix para el bug de fotos equivocadas en listas (Cell Reuse)
         .id(userId) // 👈 ESTO FUERZA QUE LA VISTA SE RECREE SI CAMBIA EL ID
-        .onChange(of: userId) { newUserId in
+        .onChange(of: userId) { _, newUserId in
             resetAndReload(for: newUserId)
         }
     }
@@ -207,7 +207,7 @@ struct AsyncProfileImageView: View {
         db.collection("users").document(userId).getDocument { document, error in
             DispatchQueue.main.async {
                 self.isLoading = false
-                if let error = error {
+                if error != nil {
                     return
                 }
 
@@ -361,10 +361,7 @@ struct ActionSubCardView: View {
     private func toggleLike() {
         guard let userId = Auth.auth().currentUser?.uid, let momentId = moment.id else { return }
         // Usar addReaction en lugar de toggleMomentLike
-        firestoreService.addReaction(to: momentId, reaction: "heart", userId: userId, authorId: moment.authorId) { error in
-            if let error = error {
-            }
-        }
+        firestoreService.addReaction(to: momentId, reaction: "heart", userId: userId, authorId: moment.authorId) { _ in }
     }
     
     private func checkIfSaved() {
@@ -386,8 +383,7 @@ struct ActionSubCardView: View {
         guard let userId = Auth.auth().currentUser?.uid, let momentId = moment.id else { return }
         // Usar toggleSaveMoment en lugar de saveMoment/removeSavedMoment
         firestoreService.toggleSaveMoment(userId: userId, momentId: momentId) { error in
-            if let error = error {
-            } else {
+            if error == nil {
                 DispatchQueue.main.async {
                     self.isSaved.toggle() // Actualizar estado local
                 }

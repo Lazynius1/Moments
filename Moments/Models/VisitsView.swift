@@ -450,7 +450,7 @@ class VisitsViewModel: ObservableObject {
             .addSnapshotListener { [weak self] snapshot, error in
                 guard let self = self else { return }
                 
-                if let error = error {
+                if error != nil {
                     DispatchQueue.main.async {
                         self.isLoading = false
                     }
@@ -524,7 +524,7 @@ class VisitsViewModel: ObservableObject {
                             self.analyzeStalkers(allVisits: visits, userDict: userDict)
                         }
                         
-                    case .failure(let error):
+                    case .failure(_):
                         DispatchQueue.main.async {
                             self.groupedVisits = []
                             self.isLoading = false

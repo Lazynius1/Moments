@@ -1,7 +1,7 @@
 import SwiftUI
 import Firebase
 import FirebaseVertexAI
-import FirebaseFirestore
+@preconcurrency import FirebaseFirestore
 import FirebaseAuth
 import UIKit
 import PhotosUI
@@ -93,7 +93,7 @@ class GeminiViewModel: ObservableObject {
 
     // ✅ NUEVA: Configurar el modelo con instrucciones del sistema y sesión de chat
     private func setupModelAndSession(excluding messageId: UUID? = nil) {
-        guard let userData = userData else { return }
+        guard userData != nil else { return }
 
         let config = GenerationConfig(
             temperature: 0.7,
@@ -281,11 +281,13 @@ class GeminiViewModel: ObservableObject {
     func fetchMutualConnections(userId: String) {
 
         // Obtener following directamente de Firestore
-        firestoreService.db.collection("users").document(userId).collection("following")
+        nonisolated(unsafe) let db = firestoreService.db
+        nonisolated(unsafe) let fsService = firestoreService
+        db.collection("users").document(userId).collection("following")
             .getDocuments { [weak self] followingSnapshot, error in
                 guard let self = self else { return }
 
-                if let error = error {
+                if error != nil {
                     return
                 }
 
@@ -295,11 +297,11 @@ class GeminiViewModel: ObservableObject {
 
 
                 // Obtener followers
-                self.firestoreService.db.collection("users").document(userId).collection("followers")
+                db.collection("users").document(userId).collection("followers")
                     .getDocuments { [weak self] followersSnapshot, error in
                         guard let self = self else { return }
 
-                        if let error = error {
+                        if error != nil {
                             return
                         }
 
@@ -315,14 +317,16 @@ class GeminiViewModel: ObservableObject {
 
 
                         if mutualIds.isEmpty {
-                            self.mutualConnections = []
-                            self.objectWillChange.send() // ✅ Forzar actualización de UI
+                            Task { @MainActor in
+                                self.mutualConnections = []
+                                self.objectWillChange.send() // ✅ Forzar actualización de UI
+                            }
                             return
                         }
 
                         // Obtener usuarios mutuos
-                        self.firestoreService.fetchUsers(userIds: mutualIds) { result in
-                            Task {
+                        fsService.fetchUsers(userIds: mutualIds) { result in
+                            Task { @MainActor in
                                 switch result {
                                 case .success(let users):
                                     self.mutualConnections = users
@@ -336,6 +340,7 @@ class GeminiViewModel: ObservableObject {
                     }
             }
     }
+
 
     func fetchUsersWithSharedInterests(userId: String) {
         guard let userData = userData else {
@@ -557,7 +562,7 @@ class GeminiViewModel: ObservableObject {
             return
         }
 
-        guard let userId = Auth.auth().currentUser?.uid, let userData = userData else {
+        guard let userId = Auth.auth().currentUser?.uid, userData != nil else {
             let lang = NovaLanguageService.getPreferredLanguage() ?? .es
             switch lang {
             case .es: responseText = "Error: No se pudieron cargar los datos del usuario. Por favor, intenta de nuevo."
@@ -625,11 +630,12 @@ class GeminiViewModel: ObservableObject {
                 .filter { $0.isUser }
                 .suffix(10)
                 .map { $0.text }
+            let memoryCopy = memory
 
-            Task.detached(priority: .background) { [weak self] in
-                let updatedMemory = NovaBehaviorService.shared.updateBehaviorProfile(memory: memory, recentMessages: Array(recentTexts))
+            Task.detached(priority: .background) {
+                let updatedMemory = NovaBehaviorService.shared.updateBehaviorProfile(memory: memoryCopy, recentMessages: Array(recentTexts))
 
-                await MainActor.run {
+                await MainActor.run { [weak self] in
                     self?.saveBehaviorProfileSafely(updatedMemory.behaviorProfile)
                 }
             }
@@ -1136,7 +1142,9 @@ class GeminiViewModel: ObservableObject {
         memoryProcessingTimer = Timer.scheduledTimer(withTimeInterval: 3.0, repeats: false) { [weak self] _ in
             guard let self = self else { return }
 
-            self.lastMemoryProcessTime = Date()
+            Task { @MainActor [weak self] in
+                self?.lastMemoryProcessTime = Date()
+            }
 
             Task.detached { [weak self] in
                 await self?.processMemoryAfterConversationSafely(userId: userId)

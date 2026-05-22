@@ -358,7 +358,7 @@ class PasswordChangeViewModel: ObservableObject {
         
         user.reauthenticate(with: credential) { [weak self] result, error in
             DispatchQueue.main.async {
-                if let error = error {
+                if error != nil {
                     self?.isLoading = false
                     self?.currentPasswordError = true
                     self?.showErrorAlert("La contraseña actual es incorrecta")

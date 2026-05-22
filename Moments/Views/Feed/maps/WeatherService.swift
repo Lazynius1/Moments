@@ -286,7 +286,11 @@ class WeatherService: ObservableObject {
 
         // Fallback: usar daily forecast
         if let firstDay = daily.first {
-            return firstDay.precipitationAmount.value
+            if #available(iOS 18.0, *) {
+                return firstDay.precipitationAmountByType.precipitation.value
+            } else {
+                return firstDay.precipitationAmount.value
+            }
         }
 
         // Último fallback: estimar basado en condición actual

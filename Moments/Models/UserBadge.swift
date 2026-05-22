@@ -253,7 +253,7 @@ class BadgeService: ObservableObject {
                 "ownedBadges": badgesData,
                 "updatedAt": FieldValue.serverTimestamp()
             ]) { error in
-                if let error = error {
+                if error != nil {
                     completion(false)
                 } else {
                     completion(true)

@@ -90,8 +90,6 @@ class NotificationService: UNNotificationServiceExtension {
     
     // ✅ NUEVO: Leer conteos del servidor y actualizar Widget instantáneamente
     private func handleServerCounts(userInfo: [AnyHashable: Any]) -> Bool {
-        // Log para debug (aparecerá en la notificación si funciona)
-        var debugMarker = ""
         
         func parseCount(_ key: String) -> Int? {
             if let str = userInfo[key] as? String {
@@ -181,7 +179,7 @@ class NotificationService: UNNotificationServiceExtension {
         
         Firestore.firestore().collection("conversations")
             .whereField("participants", arrayContains: userId)
-            .getDocuments { [weak self] snapshot, error in
+            .getDocuments { snapshot, error in
                 defer { completion() } // ✅ Siempre llamar completion
                 guard let documents = snapshot?.documents else { return }
                 

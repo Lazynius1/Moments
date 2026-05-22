@@ -505,22 +505,22 @@ struct ProfileSavedMomentThumbnail: View {
 
         isLoadingVideoThumbnail = true
 
-        DispatchQueue.global(qos: .userInitiated).async {
-            let asset = AVAsset(url: url)
+        Task {
+            let asset = AVURLAsset(url: url)
             let imageGenerator = AVAssetImageGenerator(asset: asset)
             imageGenerator.appliesPreferredTrackTransform = true
             imageGenerator.maximumSize = CGSize(width: size * 2, height: size * 2)
 
             do {
-                let cgImage = try imageGenerator.copyCGImage(at: CMTime(seconds: 1, preferredTimescale: 600), actualTime: nil)
+                let (cgImage, _) = try await imageGenerator.image(at: CMTime(seconds: 1, preferredTimescale: 600))
                 let uiImage = UIImage(cgImage: cgImage)
 
-                DispatchQueue.main.async {
+                await MainActor.run {
                     self.videoThumbnail = uiImage
                     self.isLoadingVideoThumbnail = false
                 }
             } catch {
-                DispatchQueue.main.async {
+                await MainActor.run {
                     self.isLoadingVideoThumbnail = false
                 }
             }

@@ -193,7 +193,7 @@ struct StoriesView: View {
                 updateUserIds(from: stories)
             }
         }
-        .onChange(of: startWithUserId) { newUserId in
+        .onChange(of: startWithUserId) { _, newUserId in
             // 🔗 STORY CHAINS: Solo cargar si NO estamos en modo cadena
             if !isInChainMode, let userId = newUserId, !userId.isEmpty {
                 loadStories()

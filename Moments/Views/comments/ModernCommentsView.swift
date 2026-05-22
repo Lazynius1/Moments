@@ -161,7 +161,7 @@ struct ModernCommentsView: View {
                 await initializeCommentsView()
             }
         }
-        .onChange(of: moment.id) { newMomentId in
+        .onChange(of: moment.id) { _, newMomentId in
             
             // ✅ NUEVO: Resetear estado cuando cambia el momento
             DispatchQueue.main.async {
@@ -940,7 +940,7 @@ struct ModernCommentsView: View {
             .order(by: "timestamp", descending: false)
             .addSnapshotListener { snapshot, error in
                 
-                if let error = error {
+                if error != nil {
                     DispatchQueue.main.async {
                         self.isLoading = false
                     }
@@ -1167,7 +1167,7 @@ struct ModernCommentsView: View {
     }
     
     private func updateComment(commentId: String, content: String, mentions: [CommentMentionEntity]) {
-        guard let userId = Auth.auth().currentUser?.uid, let momentId = moment.id else { return }
+        guard let _ = Auth.auth().currentUser?.uid, let momentId = moment.id else { return }
         firestoreService.updateComment(momentId: momentId, userId: moment.authorId, commentId: commentId, content: content, mentions: mentions) { result in
             switch result {
             case .success:
@@ -1201,7 +1201,7 @@ struct ModernCommentsView: View {
     
     private func toggleLike(_ comment: Comment) {
         guard let commentId = comment.id,
-              let currentUserId = Auth.auth().currentUser?.uid,
+              let _ = Auth.auth().currentUser?.uid,
               let momentId = moment.id else { return }
         
         
@@ -1212,11 +1212,9 @@ struct ModernCommentsView: View {
             userId: moment.authorId,  // ✅ CAMBIO: usar moment.authorId en lugar de currentUserId
             authorId: comment.authorId
         ) { error in
-            if let error = error {
-            } else {
-                DispatchQueue.main.async {
-                    self.fetchComments()
-                }
+            guard error == nil else { return }
+            DispatchQueue.main.async {
+                self.fetchComments()
             }
         }
     }

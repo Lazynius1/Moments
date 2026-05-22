@@ -64,7 +64,7 @@ class GlobalVideoManager: ObservableObject {
     
     func pauseAllVideos() {
         activeVideoId = nil
-        for (id, manager) in allPlayers {
+        for (_, manager) in allPlayers {
             manager.pauseVideo()
         }
     }

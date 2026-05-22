@@ -189,10 +189,12 @@ struct UserModernPublicProfileView: View {
                 await withCheckedContinuation { continuation in
                     viewModel.refreshProfile()
 
-                    let timer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { timer in
-                        if !viewModel.isRefreshing {
-                            timer.invalidate()
-                            continuation.resume()
+                    _ = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { timer in
+                        Task { @MainActor in
+                            if !viewModel.isRefreshing {
+                                timer.invalidate()
+                                continuation.resume()
+                            }
                         }
                     }
                 }

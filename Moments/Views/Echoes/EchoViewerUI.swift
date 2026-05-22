@@ -116,7 +116,7 @@ struct EchoViewerUI: View {
             }
         }
         .onAppear { viewModel.loadEcho() }
-        .onChange(of: currentToneAssetKey) { _ in
+        .onChange(of: currentToneAssetKey) { _, _ in
             refreshOverlayTextTone()
         }
         .fullScreenCover(item: $selectedLocationPresentation) { presentation in

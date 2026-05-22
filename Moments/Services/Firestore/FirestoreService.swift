@@ -150,12 +150,7 @@ class FirestoreService: ObservableObject {
             .collection("reactions").document(userId) // Usar userId como ID del documento
 
         // Primero verificar si ya existe una reacción de este usuario
-        reactionRef.getDocument { [weak self] snapshot, error in
-            guard let self = self else {
-                completion(NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: NSLocalizedString("errors.operationCancelled", comment: "Operation cancelled")]))
-                return
-            }
-
+        reactionRef.getDocument { snapshot, error in
             if let error = error {
                 completion(error)
                 return
@@ -326,13 +321,8 @@ class FirestoreService: ObservableObject {
                 .collection("receivedFollowRequests").document(followRequest.id)
             batch.setData(requestData, forDocument: recipientRequestRef)
 
-            batch.commit { [weak self] error in
-                if let error = error {
-                    completion(error)
-                } else {
-                    // Eliminamos notificación manual: servidor se encarga
-                    completion(nil)
-                }
+            batch.commit { error in
+                completion(error)
             }
         } catch {
             completion(error)
@@ -345,7 +335,7 @@ class FirestoreService: ObservableObject {
             .order(by: "timestamp", descending: true)
             .limit(to: 1)
             .getDocuments { snapshot, error in
-                if let error = error {
+                if error != nil {
                     completion(nil)
                     return
                 }
@@ -463,10 +453,10 @@ class FirestoreService: ObservableObject {
             .whereField("status", isEqualTo: FollowRequestStatus.pending.rawValue)
             .limit(to: 1)
             .getDocuments { snapshot, error in
-                if let error = error {
+                if error != nil {
                     completion(nil)
-                return
-            }
+                    return
+                }
 
                 guard let document = snapshot?.documents.first else {
                     completion(nil)
@@ -589,7 +579,7 @@ class FirestoreService: ObservableObject {
             guard let self = self else { return }
 
             switch result {
-            case .success(let currentUser):
+            case .success(_):
                 let batch = db.batch()
 
                 // Añadir a following del usuario actual
@@ -614,11 +604,11 @@ class FirestoreService: ObservableObject {
                 batch.setData(followerData, forDocument: followerRef)
 
 
-                batch.commit { [weak self] error in
+                batch.commit { error in
                     if let error = error {
                         completion(error)
                     } else {
-                        self?.invalidateFollowingCache(currentUserId: currentUserId, targetUserId: targetUserId)
+                        self.invalidateFollowingCache(currentUserId: currentUserId, targetUserId: targetUserId)
 
                         // Eliminamos notificación manual: servidor se encarga (onFollowerAdded)
                         completion(nil)
@@ -720,8 +710,7 @@ class FirestoreService: ObservableObject {
                     // VERIFICACIÓN POST-UNFOLLOW CON DELAY (sin cache)
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                         self.db.collection("users").document(currentUserId).collection("following").document(targetUserId).getDocument { snapshot, error in
-                            if let error = error {
-                            } else {
+                            if error == nil {
                                 let stillFollowing = snapshot?.exists == true
 
                                 if stillFollowing {
@@ -754,7 +743,7 @@ class FirestoreService: ObservableObject {
             lastCacheUpdate = Date()
         }
         db.collection("users").document(currentUserId).collection("following").document(targetUserId).getDocument { [weak self] snapshot, error in
-            if let error = error {
+            if error != nil {
                 completion(false)
             } else {
                 let isFollowing = snapshot?.exists == true
@@ -1360,7 +1349,7 @@ class FirestoreService: ObservableObject {
 
             switch result {
             case .success(let currentUser):
-                let blockedUsers = Set(currentUser.blockedUsers ?? [])
+                let blockedUsers = Set(currentUser.blockedUsers)
 
                 var allUsers: [AppUser] = []
                 let group = DispatchGroup()
@@ -1376,7 +1365,7 @@ class FirestoreService: ObservableObject {
                         .whereField("interests", arrayContainsAny: batch)
                         .limit(to: 50)
                         .getDocuments { snapshot, error in
-                            if let error = error {
+                            if error != nil {
                                 group.leave()
                                 return
                             }
@@ -1393,7 +1382,7 @@ class FirestoreService: ObservableObject {
                     let filteredUsers = allUsers.filter { user in
                         guard user.id != excludingUserId else { return false }
                         if blockedUsers.contains(user.id) { return false }
-                        if (user.blockedUsers ?? []).contains(excludingUserId) { return false }
+                        if user.blockedUsers.contains(excludingUserId) { return false }
                         return true
                     }
 

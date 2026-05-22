@@ -92,12 +92,12 @@ extension FirestoreService {
     private func verifyUserCreation(userId: String, completion: @escaping (Bool) -> Void) {
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
             self.db.collection("users").document(userId).getDocument { snapshot, error in
-                if let error = error {
+                if error != nil {
                     completion(false)
                     return
                 }
 
-                if let data = snapshot?.data() {
+                if snapshot?.exists == true {
                     completion(true)
                 } else {
                     completion(false)
@@ -455,7 +455,7 @@ extension FirestoreService {
         self.db.collection("users").document(userId).updateData([
             "profileImagePath": profileImagePath
         ]) { error in
-            if let error = error {
+            if error != nil {
                 // Handle error silently
             } else {
                 // Success

@@ -43,7 +43,7 @@ class NovaActivityService {
                         .getDocuments { snapshot, error in
                             defer { group.leave() }
                             
-                            if let error = error {
+                            if error != nil {
                                 return
                             }
                             
@@ -123,7 +123,7 @@ class NovaActivityService {
                         .getDocuments { snapshot, error in
                             defer { group.leave() }
                             
-                            if let error = error {
+                            if error != nil {
                                 return
                             }
                             
@@ -857,7 +857,7 @@ struct StoryChainViewersSummary {
             if !recentViewers.isEmpty {
                 summary += "Los 5 más recientes:\n"
                 for (index, viewer) in recentViewers.enumerated() {
-                    summary += "\(index + 1). \(viewer.username)\n"
+                    summary += "\(index + 1). \(viewer.username ?? "-")\n"
                 }
                 if totalCount > 5 {
                     summary += "\n... y \(totalCount - 5) más"
@@ -872,7 +872,7 @@ struct StoryChainViewersSummary {
             if !recentViewers.isEmpty {
                 summary += "The 5 most recent:\n"
                 for (index, viewer) in recentViewers.enumerated() {
-                    summary += "\(index + 1). \(viewer.username)\n"
+                    summary += "\(index + 1). \(viewer.username ?? "-")\n"
                 }
                 if totalCount > 5 {
                     summary += "\n... and \(totalCount - 5) more"
@@ -887,7 +887,7 @@ struct StoryChainViewersSummary {
             if !recentViewers.isEmpty {
                 summary += "Els 5 més recents:\n"
                 for (index, viewer) in recentViewers.enumerated() {
-                    summary += "\(index + 1). \(viewer.username)\n"
+                    summary += "\(index + 1). \(viewer.username ?? "-")\n"
                 }
                 if totalCount > 5 {
                     summary += "\n... i \(totalCount - 5) més"

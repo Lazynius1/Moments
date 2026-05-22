@@ -95,7 +95,7 @@ struct OfflineBanner: View {
                 }
             }
         }
-        .onChange(of: networkMonitor.isConnected) { connected in
+        .onChange(of: networkMonitor.isConnected) { _, connected in
             if !connected {
                 // Si se pierde la conexión, mostrar banner siempre
                 withAnimation(.spring()) {
@@ -181,7 +181,7 @@ struct SlowConnectionBanner: View {
                 }
             }
         }
-        .onChange(of: networkMonitor.isSlowConnection) { slow in
+        .onChange(of: networkMonitor.isSlowConnection) { _, slow in
             if slow {
                 withAnimation { isVisible = true }
             }

@@ -18,7 +18,7 @@ struct ActivityCategorySummary {
     let thumbnails: [ThumbInfo]
 }
 
-final class ActivityInteractionDetailViewModel: ObservableObject {
+final class ActivityInteractionDetailViewModel: ObservableObject, @unchecked Sendable {
     @Published var isLoading = false
     @Published var errorMessage: String?
     @Published var reactionItems: [ActivityReactionItem] = []
@@ -712,7 +712,7 @@ final class ActivityInteractionDetailViewModel: ObservableObject {
     }
 
     private func loadEchoes(for userId: String) {
-        EchoService.shared.fetchEchoHistory(userId: userId) { [weak self] echoes in
+        _ = EchoService.shared.fetchEchoHistory(userId: userId) { [weak self] echoes in
             guard let self = self else { return }
 
             let mapped: [ActivityEventItem] = echoes.compactMap { (echo: Echo) -> ActivityEventItem? in

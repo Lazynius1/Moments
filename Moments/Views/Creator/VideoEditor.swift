@@ -963,7 +963,7 @@ struct SocialVideoEditorView: View {
         player = AVPlayer(url: videoURL)
         generateTimelineThumbnails()
 
-        let asset = AVAsset(url: videoURL)
+        let asset = AVURLAsset(url: videoURL)
         Task {
             do {
                 let duration = try await asset.load(.duration)
@@ -1027,7 +1027,7 @@ struct SocialVideoEditorView: View {
         isGeneratingThumbnails = true
         timelineThumbnails.removeAll()
 
-        let asset = AVAsset(url: videoURL)
+        let asset = AVURLAsset(url: videoURL)
         let imageGenerator = AVAssetImageGenerator(asset: asset)
         imageGenerator.appliesPreferredTrackTransform = true
         imageGenerator.maximumSize = CGSize(width: 120, height: 80)
@@ -1036,34 +1036,25 @@ struct SocialVideoEditorView: View {
         let timeInterval = duration / Double(thumbnailCount)
 
         Task {
-            do {
-                for i in 0..<thumbnailCount {
-                    let time = CMTime(seconds: Double(i) * timeInterval, preferredTimescale: 600)
+            for i in 0..<thumbnailCount {
+                let time = CMTime(seconds: Double(i) * timeInterval, preferredTimescale: 600)
 
-                    do {
-                        let cgImage = try await imageGenerator.image(at: time).image
-                        let uiImage = UIImage(cgImage: cgImage)
+                do {
+                    let cgImage = try await imageGenerator.image(at: time).image
+                    let uiImage = UIImage(cgImage: cgImage)
 
-                        await MainActor.run {
-                            timelineThumbnails.append(uiImage)
-                        }
-                    } catch {
-                        await MainActor.run {
-                            timelineThumbnails.append(createDefaultThumbnail())
-                        }
+                    await MainActor.run {
+                        timelineThumbnails.append(uiImage)
                     }
-                }
-
-                await MainActor.run {
-                    isGeneratingThumbnails = false
-                }
-            } catch {
-                await MainActor.run {
-                    isGeneratingThumbnails = false
-                    for _ in 0..<thumbnailCount {
+                } catch {
+                    await MainActor.run {
                         timelineThumbnails.append(createDefaultThumbnail())
                     }
                 }
+            }
+
+            await MainActor.run {
+                isGeneratingThumbnails = false
             }
         }
     }
@@ -1399,7 +1390,7 @@ struct SocialVideoEditorView: View {
     private func processVideoWithThumbnail(videoURL: URL, format: VideoFormat, completion: @escaping (Result<ProcessedVideoData, Error>) -> Void) {
         Task {
             do {
-                let asset = AVAsset(url: videoURL)
+                let asset = AVURLAsset(url: videoURL)
                 let videoTracks = try await asset.loadTracks(withMediaType: .video)
 
                 guard let videoTrack = videoTracks.first else {
@@ -1515,7 +1506,7 @@ struct SocialVideoEditorView: View {
 
     // MARK: - Compresión de Video
     private func compressVideo(inputURL: URL, targetSize: CGSize, targetBitrate: Int) async throws -> URL {
-        let asset = AVAsset(url: inputURL)
+        let asset = AVURLAsset(url: inputURL)
         let tempDir = FileManager.default.temporaryDirectory
         let outputURL = tempDir.appendingPathComponent("compressed_\(UUID().uuidString).mp4")
 
@@ -1587,31 +1578,23 @@ struct SocialVideoEditorView: View {
         exportSession.shouldOptimizeForNetworkUse = true
         exportSession.videoComposition = videoComposition
 
-        return try await withCheckedThrowingContinuation { continuation in
-            let progressTimer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { _ in
-                DispatchQueue.main.async {
+        let progressTask = Task {
+            for try await _ in exportSession.states(updateInterval: 0.1) {
+                await MainActor.run {
                     self.processingProgress = Double(exportSession.progress) * 0.8 + 0.2
                 }
             }
-
-            exportSession.exportAsynchronously {
-                progressTimer.invalidate()
-
-                DispatchQueue.main.async {
-                    switch exportSession.status {
-                    case .completed:
-                        self.processingProgress = 1.0
-                        continuation.resume(returning: outputURL)
-                    case .failed:
-                        let error = exportSession.error ?? ProcessingError.compressionFailed
-                        continuation.resume(throwing: error)
-                    case .cancelled:
-                        continuation.resume(throwing: ProcessingError.compressionCancelled)
-                    default:
-                        continuation.resume(throwing: ProcessingError.unexpectedState)
-                    }
-                }
+        }
+        do {
+            try await exportSession.export(to: outputURL, as: .mp4)
+            progressTask.cancel()
+            await MainActor.run {
+                self.processingProgress = 1.0
             }
+            return outputURL
+        } catch {
+            progressTask.cancel()
+            throw error
         }
     }
 
@@ -1851,7 +1834,7 @@ struct ThumbnailPickerView: View {
 
                         Slider(value: $currentTime, in: 0...max(duration, 0.1))
                             .tint(selectionColor)
-                            .onChange(of: currentTime) { newValue in
+                            .onChange(of: currentTime) { _, newValue in
                                 generateFrame(at: newValue)
                             }
                     }
@@ -1893,7 +1876,7 @@ struct ThumbnailPickerView: View {
 
     private func setupGenerator() {
         guard let url = videoURL else { return }
-        let asset = AVAsset(url: url)
+        let asset = AVURLAsset(url: url)
         let generator = AVAssetImageGenerator(asset: asset)
         generator.appliesPreferredTrackTransform = true
         generator.requestedTimeToleranceBefore = .zero
@@ -1903,7 +1886,7 @@ struct ThumbnailPickerView: View {
 
     private func loadDurationAndGenerateTimeline() {
         guard let url = videoURL else { return }
-        let asset = AVAsset(url: url)
+        let asset = AVURLAsset(url: url)
 
         Task {
             do {

@@ -130,7 +130,7 @@ struct SmartLocationInputView: View {
                         .focused($isTextFieldFocused)
                         .autocapitalization(.words)
                         .disableAutocorrection(true)
-                        .onChange(of: searchText) { newValue in
+                        .onChange(of: searchText) { _, newValue in
                             if newValue.isEmpty {
                                 searchResults = []
                                 isSearching = false
@@ -227,13 +227,13 @@ struct SmartLocationInputView: View {
             isTextFieldFocused = true
             requestLocationAndSearch()
         }
-        .onChange(of: locationManager.location) { newLocation in
+        .onChange(of: locationManager.location) { _, newLocation in
             if let location = newLocation {
                 userLocation = location
                 searchNearbyPlaces()
             }
         }
-        .onChange(of: locationManager.authorizationStatus) { status in
+        .onChange(of: locationManager.authorizationStatus) { _, status in
             if status == .authorizedWhenInUse || status == .authorizedAlways {
                 requestLocationAndSearch()
             }

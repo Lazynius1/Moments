@@ -122,11 +122,7 @@ struct ModernMomentContextMenu: View {
                 Moment.LocationCoordinate(latitude: $0.latitude, longitude: $0.longitude)
             },
             mediaItems: payload.mediaItems
-        ) { error in
-            if let error = error {
-            } else {
-            }
-        }
+        ) { _ in }
     }
     
     private func deleteMoment() {
@@ -137,14 +133,10 @@ struct ModernMomentContextMenu: View {
         firestoreService.deleteMoment(
             userId: moment.authorId,
             momentId: momentId
-        ) { [self] error in
+        ) { _ in
             DispatchQueue.main.async {
                 self.isDeleting = false
-                
-                if let error = error {
-                } else {
-                    LocalPersistenceService.shared.deleteMoment(momentId: momentId)
-                }
+                LocalPersistenceService.shared.deleteMoment(momentId: momentId)
             }
         }
     }
@@ -600,36 +592,17 @@ struct ModernContextMenuOverlay: View {
         // 2. Pre-fetch todas las imágenes para tenerlas en caché
         ImagePrefetchManager.shared.prefetch(urls: urls)
         
-        // 3. Obtener las imágenes reales de Kingfisher caché
-        DispatchQueue.main.async {
-            var profileImg: UIImage? = nil
-            var contentImg: UIImage? = nil
-            
-            let group = DispatchGroup()
-            
-            // Cargar imagen de perfil
-            if urls.count > 1 {
-                group.enter()
-                KingfisherManager.shared.retrieveImage(with: urls[1]) { result in
-                    if let image = try? result.get().image {
-                        profileImg = image
-                    }
-                    group.leave()
-                }
-            }
-            
-            // Cargar imagen de contenido
-            group.enter()
-            KingfisherManager.shared.retrieveImage(with: urls[0]) { result in
-                if let image = try? result.get().image {
-                    contentImg = image
-                }
-                group.leave()
-            }
-            
-            group.notify(queue: .main) {
-                self.performFinalRender(profile: profileImg, content: contentImg)
-            }
+        // 3. Obtener las imágenes reales de Kingfisher — async/await para evitar mutaciones concurrentes
+        Task { @MainActor in
+            async let profileImgTask: UIImage? = urls.count > 1
+                ? (try? await KingfisherManager.shared.retrieveImage(with: urls[1]).image)
+                : nil
+            async let contentImgTask: UIImage? = try? await KingfisherManager.shared.retrieveImage(with: urls[0]).image
+
+            let profileImg = await profileImgTask
+            let contentImg = await contentImgTask
+
+            self.performFinalRender(profile: profileImg, content: contentImg)
         }
     }
     

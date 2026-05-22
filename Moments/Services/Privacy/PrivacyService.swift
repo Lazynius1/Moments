@@ -58,7 +58,7 @@ class PrivacyService {
                         } else {
                             completion(true)
                         }
-                    case .failure(let error):
+                    case .failure(_):
                         completion(false)
                     }
                 }
@@ -149,7 +149,7 @@ class PrivacyService {
                         completion(isFollowing)
                     }
                     
-                case .failure(let error):
+                case .failure:
                     completion(false)
                 }
             }
@@ -277,7 +277,7 @@ class PrivacyService {
     // ✅ FUNCIÓN SIMPLIFICADA: Solo verificar si el target ha bloqueado al viewer
     private func checkIfBlocked(viewerId: String, targetUserId: String, completion: @escaping (Bool) -> Void) {
         db.collection("users").document(targetUserId).getDocument { snapshot, error in
-            if let error = error {
+            if error != nil {
                 completion(false)
                 return
             }
@@ -483,7 +483,7 @@ class PrivacyService {
             .whereField("status", isEqualTo: FollowRequestStatus.pending.rawValue)
             .limit(to: 1)
             .getDocuments { snapshot, error in
-                if let error = error {
+                if error != nil {
                     completion(false)
                     return
                 }
@@ -510,9 +510,6 @@ class PrivacyService {
             .collection("customAudiences")
             .document("moment_\(momentId)")
             .setData(data) { error in
-                if let error = error {
-                } else {
-                }
                 completion(error)
             }
     }
@@ -535,9 +532,6 @@ class PrivacyService {
             .collection("customAudiences")
             .document("story_\(storyId)")
             .setData(data) { error in
-                if let error = error {
-                } else {
-                }
                 completion(error)
             }
     }
@@ -548,7 +542,7 @@ class PrivacyService {
         db.collection("users").document(authorId)
             .collection("customAudiences")
             .getDocuments { snapshot, error in
-                if let error = error {
+                if error != nil {
                     return
                 }
                 
@@ -558,7 +552,7 @@ class PrivacyService {
                 
                 for document in documents {
                     let data = document.data()
-                    let allowedUsers = data["allowedUsers"] as? [String] ?? []
+                    _ = data["allowedUsers"] as? [String] ?? []
                 }
             }
     }
@@ -721,7 +715,7 @@ extension PrivacyService {
             .collection("customAudiences")
             .document("\(contentType)_\(contentId)")
             .getDocument { snapshot, error in
-                if let error = error {
+                if error != nil {
                     completion(false)
                     return
                 }
@@ -740,7 +734,7 @@ extension PrivacyService {
     // MARK: - Verificar configuración de visibilidad de historias
     private func checkStoryVisibilitySettings(authorId: String, viewerId: String, completion: @escaping (Bool) -> Void) {
         db.collection("users").document(authorId).getDocument { snapshot, error in
-            if let error = error {
+            if error != nil {
                 completion(false)
                 return
             }
@@ -1415,7 +1409,7 @@ extension PrivacyService {
                     }
                 }
                 
-            case .failure(let error):
+            case .failure:
                 completion(false)
             }
         }

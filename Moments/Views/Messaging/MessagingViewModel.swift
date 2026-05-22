@@ -89,7 +89,9 @@ class MessagingViewModel: ObservableObject {
         searchWorkItem?.cancel()
         userSearchWorkItem?.cancel()
         if let userId = Auth.auth().currentUser?.uid {
-            chatService.removeConversationsListener(for: userId)
+            Task { @MainActor in
+                ChatService.shared.removeConversationsListener(for: userId)
+            }
         }
     }
 

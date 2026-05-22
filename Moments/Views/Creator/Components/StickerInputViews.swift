@@ -90,7 +90,7 @@ struct ModernMentionInputView: View {
                         .focused($isTextFieldFocused)
                         .autocapitalization(.none)
                         .disableAutocorrection(true)
-                        .onChange(of: searchText) { newValue in
+                        .onChange(of: searchText) { _, newValue in
                             if newValue.isEmpty {
                                 searchResults = []
                                 isSearching = false
@@ -254,7 +254,7 @@ struct ModernMentionInputView: View {
                             }
                             return user1.username < user2.username
                         }
-                case .failure(let error):
+                case .failure(_):
                     self.searchResults = []
                 }
                 self.isSearching = false
@@ -1119,7 +1119,7 @@ struct ModernPollInputView: View {
                         .font(.system(size: 18, weight: .medium))
                         .foregroundColor(palette.primaryText)
                         .focused($focusedField, equals: .question)
-                        .onChange(of: question) { newValue in
+                        .onChange(of: question) { _, newValue in
                             if newValue.count > maxPollQuestionLength {
                                 question = String(newValue.prefix(maxPollQuestionLength))
                             }
@@ -1145,7 +1145,7 @@ struct ModernPollInputView: View {
                             .font(.system(size: 18, weight: .medium))
                             .foregroundColor(palette.primaryText)
                             .focused($focusedField, equals: .option1)
-                            .onChange(of: option1) { newValue in
+                            .onChange(of: option1) { _, newValue in
                                 if newValue.count > maxPollOptionLength {
                                     option1 = String(newValue.prefix(maxPollOptionLength))
                                 }
@@ -1172,7 +1172,7 @@ struct ModernPollInputView: View {
                             .font(.system(size: 18, weight: .medium))
                             .foregroundColor(palette.primaryText)
                             .focused($focusedField, equals: .option2)
-                            .onChange(of: option2) { newValue in
+                            .onChange(of: option2) { _, newValue in
                                 if newValue.count > maxPollOptionLength {
                                     option2 = String(newValue.prefix(maxPollOptionLength))
                                 }
@@ -1252,7 +1252,7 @@ struct ModernQuestionInputView: View {
                         .font(.system(size: 18, weight: .medium))
                         .foregroundColor(palette.primaryText)
                         .focused($isTextFieldFocused)
-                        .onChange(of: question) { newValue in
+                        .onChange(of: question) { _, newValue in
                             if newValue.count > maxQuestionLength {
                                 question = String(newValue.prefix(maxQuestionLength))
                             }

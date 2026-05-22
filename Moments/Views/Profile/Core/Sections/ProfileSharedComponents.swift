@@ -109,8 +109,6 @@ struct ExpandableBioView: View {
                         .lineLimit(3)
                         .background(GeometryReader { geometry in
                             Color.clear.onAppear {
-                                let limitedHeight = geometry.size.height
-
                                 DispatchQueue.main.async {
                                     // Mejor cálculo: si supera 100 caracteres o tiene más de 2 saltos de línea
                                     needsExpansion = bio.count > 100 || bio.filter { $0 == "\n" }.count > 2

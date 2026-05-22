@@ -335,13 +335,13 @@ struct StoryCameraView: View {
 
     private func handleCapturedVideo(_ videoURL: URL) {
         // Generate thumbnail from video
-        let asset = AVAsset(url: videoURL)
+        let asset = AVURLAsset(url: videoURL)
         let generator = AVAssetImageGenerator(asset: asset)
         generator.appliesPreferredTrackTransform = true
 
         Task {
             do {
-                let cgImage = try generator.copyCGImage(at: .zero, actualTime: nil)
+                let (cgImage, _) = try await generator.image(at: .zero)
                 let thumbnail = UIImage(cgImage: cgImage)
 
                 let detectedRatio = CreatorMedia.AspectRatio.fromRatio(thumbnail.size.width / thumbnail.size.height)
@@ -366,31 +366,28 @@ struct StoryCameraView: View {
     private func loadLastGalleryImage() {
         // ✅ Cargar la última imagen de la galería en background
         Task {
-            do {
-                let fetchOptions = PHFetchOptions()
-                fetchOptions.sortDescriptors = [NSSortDescriptor(key: "creationDate", ascending: false)]
-                fetchOptions.fetchLimit = 1
+            let fetchOptions = PHFetchOptions()
+            fetchOptions.sortDescriptors = [NSSortDescriptor(key: "creationDate", ascending: false)]
+            fetchOptions.fetchLimit = 1
 
-                let fetchResult = PHAsset.fetchAssets(with: .image, options: fetchOptions)
+            let fetchResult = PHAsset.fetchAssets(with: .image, options: fetchOptions)
 
-                if let lastAsset = fetchResult.firstObject {
-                    let manager = PHImageManager.default()
-                    let options = PHImageRequestOptions()
-                    options.deliveryMode = .fastFormat
-                    options.isSynchronous = false
+            if let lastAsset = fetchResult.firstObject {
+                let manager = PHImageManager.default()
+                let options = PHImageRequestOptions()
+                options.deliveryMode = .fastFormat
+                options.isSynchronous = false
 
-                    manager.requestImage(
-                        for: lastAsset,
-                        targetSize: CGSize(width: 120, height: 120),
-                        contentMode: .aspectFill,
-                        options: options
-                    ) { image, _ in
-                        DispatchQueue.main.async {
-                            self.lastGalleryImage = image
-                        }
+                manager.requestImage(
+                    for: lastAsset,
+                    targetSize: CGSize(width: 120, height: 120),
+                    contentMode: .aspectFill,
+                    options: options
+                ) { image, _ in
+                    DispatchQueue.main.async {
+                        self.lastGalleryImage = image
                     }
                 }
-            } catch {
             }
         }
     }

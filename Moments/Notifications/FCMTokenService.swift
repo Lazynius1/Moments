@@ -35,7 +35,7 @@ class FCMTokenService {
         }
         
         Messaging.messaging().token { [weak self] token, error in
-            if let error = error {
+            if error != nil {
                 // Reintentar después de 5 segundos si falla
                 DispatchQueue.main.asyncAfter(deadline: .now() + 5.0) {
                     self?.updateFCMToken()
@@ -67,7 +67,7 @@ class FCMTokenService {
         ]
         
         Firestore.firestore().collection("users").document(userId).updateData(userData) { error in
-            if let error = error {
+            if error != nil {
                 // ✅ RETRY: Intentar de nuevo en 30 segundos
                 DispatchQueue.main.asyncAfter(deadline: .now() + 30) {
                     FCMTokenService.shared.updateFCMToken()
@@ -84,8 +84,7 @@ class FCMTokenService {
             "fcmToken": FieldValue.delete(),
             "fcmTokenUpdatedAt": FieldValue.serverTimestamp()
         ]) { error in
-            if let error = error {
-            } else {
+            if error == nil {
                 // ✅ NUEVO: Notificar al backend para evitar enviar notificaciones
                 self.notifyBackendTokenCleared(userId: userId)
             }

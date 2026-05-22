@@ -485,7 +485,7 @@ struct ChainContinuationSelectorView: View {
             .getDocuments { snapshot, error in
                 DispatchQueue.main.async {
                     isLoadingLists = false
-                    if let error = error {
+                    if error != nil {
                         return
                     }
                     

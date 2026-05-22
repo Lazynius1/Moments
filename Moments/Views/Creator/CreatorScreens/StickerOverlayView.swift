@@ -136,7 +136,7 @@ struct StickerOverlayView: View {
                     .clipShape(RoundedRectangle(cornerRadius: 28))
                     .frame(width: sticker.image.size.width, height: sticker.image.size.height)
                 }
-                else if let gifURL = sticker.gifURL {
+                else if sticker.gifURL != nil {
                     AnimatedStickerView(
                         sticker: sticker,
                         size: CGSize(width: sticker.image.size.width, height: sticker.image.size.height)
@@ -806,8 +806,8 @@ final class SelfieStickerCameraPreviewView: UIView, AVCapturePhotoCaptureDelegat
             let settings = AVCapturePhotoSettings()
             settings.flashMode = .off
             if let connection = self.photoOutput.connection(with: .video) {
-                if connection.isVideoOrientationSupported {
-                    connection.videoOrientation = .portrait
+                if connection.isVideoRotationAngleSupported(90) {
+                    connection.videoRotationAngle = 90
                 }
                 if connection.isVideoMirroringSupported {
                     connection.automaticallyAdjustsVideoMirroring = false
@@ -883,7 +883,6 @@ final class SelfieStickerCameraPreviewView: UIView, AVCapturePhotoCaptureDelegat
             }
 
             self.session.addOutput(self.photoOutput)
-            self.photoOutput.isHighResolutionCaptureEnabled = false
             self.session.commitConfiguration()
             self.isConfigured = true
 
@@ -902,8 +901,8 @@ final class SelfieStickerCameraPreviewView: UIView, AVCapturePhotoCaptureDelegat
 
     private func applyPreviewConnectionConfiguration() {
         guard let previewConnection = previewLayer?.connection else { return }
-        if previewConnection.isVideoOrientationSupported {
-            previewConnection.videoOrientation = .portrait
+        if previewConnection.isVideoRotationAngleSupported(90) {
+            previewConnection.videoRotationAngle = 90
         }
         if previewConnection.isVideoMirroringSupported {
             previewConnection.automaticallyAdjustsVideoMirroring = false

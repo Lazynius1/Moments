@@ -303,14 +303,13 @@ extension EncryptionService {
         
         // Test encryption/decryption
         let testMessage = "health_check_\(Date().timeIntervalSince1970)"
-        if let testKey = try? SymmetricKey(size: .bits256) {
-            do {
-                let encrypted = try encrypt(text: testMessage, with: testKey)
-                let decrypted = try decrypt(encryptedText: encrypted, with: testKey)
-                report.encryptionStatus = decrypted == testMessage ? .healthy : .unhealthy("Encryption test failed")
-            } catch {
-                report.encryptionStatus = .unhealthy("Encryption error: \(error.localizedDescription)")
-            }
+        let testKey = SymmetricKey(size: .bits256)
+        do {
+            let encrypted = try encrypt(text: testMessage, with: testKey)
+            let decrypted = try decrypt(encryptedText: encrypted, with: testKey)
+            report.encryptionStatus = decrypted == testMessage ? .healthy : .unhealthy("Encryption test failed")
+        } catch {
+            report.encryptionStatus = .unhealthy("Encryption error: \(error.localizedDescription)")
         }
         
         // Check keychain accessibility
@@ -674,11 +673,11 @@ class EncryptionService: ObservableObject {
         let deviceId: String
         let lastRotation: Date?
         
-        init(keyId: String, version: String = "2.0") {
+        init(keyId: String, version: String = "2.0", deviceId: String) {
             self.keyId = keyId
             self.version = version
             self.createdAt = Date()
-            self.deviceId = UIDevice.current.identifierForVendor?.uuidString ?? "unknown"
+            self.deviceId = deviceId
             self.lastRotation = nil
         }
     }
@@ -1752,11 +1751,12 @@ class EncryptionService: ObservableObject {
     
     // MARK: - 🛡️ ATOMIC Key Creation (evita race conditions)
     private func createNewSharedConversationKey(conversationId: String) async throws -> SymmetricKey {
+        let deviceId = await MainActor.run { UIDevice.current.identifierForVendor?.uuidString ?? "unknown" }
         
         let newKey = SymmetricKey(size: .bits256)
         let keyData = newKey.withUnsafeBytes { Data($0) }
         let keyDataString = keyData.base64EncodedString()
-        let metadata = KeyMetadata(keyId: UUID().uuidString)
+        let metadata = KeyMetadata(keyId: UUID().uuidString, deviceId: deviceId)
         
         let uploadData: [String: Any] = [
             "sharedEncryptionKey": keyDataString,
@@ -1764,7 +1764,7 @@ class EncryptionService: ObservableObject {
             "encryptionVersion": "2.0",
             "keyMetadata": try JSONEncoder().encode(metadata).base64EncodedString(),
             "lastKeyUpdate": FieldValue.serverTimestamp(),
-            "createdByDevice": UIDevice.current.identifierForVendor?.uuidString ?? "unknown"
+            "createdByDevice": deviceId
         ]
         
         // Atomic write with merge
@@ -1854,17 +1854,14 @@ class EncryptionService: ObservableObject {
                     // Extraer userId del tag
                     let userId = String(account.dropFirst(self.userKeysPrefix.count))
                     
-                    do {
-                        let symmetricKey = SymmetricKey(data: keyData)
-                        let cachedKey = CachedKey(key: symmetricKey)
-                        
-                        Task { @MainActor in
-                            self.userKeys[userId] = cachedKey
-                        }
-                        
-                        loadedCount += 1
-                    } catch {
+                    let symmetricKey = SymmetricKey(data: keyData)
+                    let cachedKey = CachedKey(key: symmetricKey)
+                    
+                    Task { @MainActor in
+                        self.userKeys[userId] = cachedKey
                     }
+                    
+                    loadedCount += 1
                 }
                 
                 continuation.resume()
@@ -1905,17 +1902,14 @@ class EncryptionService: ObservableObject {
                     // Extraer conversationId del tag
                     let conversationId = String(account.dropFirst(self.conversationKeysPrefix.count))
                     
-                    do {
-                        let symmetricKey = SymmetricKey(data: keyData)
-                        let cachedKey = CachedKey(key: symmetricKey)
-                        
-                        Task { @MainActor in
-                            self.conversationKeys[conversationId] = cachedKey
-                        }
-                        
-                        loadedCount += 1
-                    } catch {
+                    let symmetricKey = SymmetricKey(data: keyData)
+                    let cachedKey = CachedKey(key: symmetricKey)
+                    
+                    Task { @MainActor in
+                        self.conversationKeys[conversationId] = cachedKey
                     }
+                    
+                    loadedCount += 1
                 }
                 
                 continuation.resume()
@@ -1945,6 +1939,15 @@ class EncryptionService: ObservableObject {
     }
     
     private func cleanupExpiredKeysFromKeychain(prefix: String, type: String) async {
+        // Capture expired IDs on MainActor before entering queue
+        let expiredIds: Set<String> = await MainActor.run {
+            if type == "user" {
+                return Set(self.userKeys.compactMap { $0.value.isExpired ? $0.key : nil })
+            } else {
+                return Set(self.conversationKeys.compactMap { $0.value.isExpired ? $0.key : nil })
+            }
+        }
+        
         await withCheckedContinuation { continuation in
             keyAccessQueue.async {
                 let query: [String: Any] = [
@@ -1973,9 +1976,7 @@ class EncryptionService: ObservableObject {
                     
                     // Check if this key should be deleted
                     let id = String(account.dropFirst(prefix.count))
-                    let shouldDelete = type == "user" ?
-                        (self.userKeys[id]?.isExpired ?? false) :
-                        (self.conversationKeys[id]?.isExpired ?? false)
+                    let shouldDelete = expiredIds.contains(id)
                     
                     if shouldDelete {
                         let deleteQuery: [String: Any] = [
@@ -1997,6 +1998,10 @@ class EncryptionService: ObservableObject {
     }
     
     private func cleanupOrphanedKeys() async {
+        // Capture existing IDs on MainActor before entering queue
+        let existingUserIds: Set<String> = await MainActor.run { Set(self.userKeys.keys) }
+        let existingConversationIds: Set<String> = await MainActor.run { Set(self.conversationKeys.keys) }
+        
         await withCheckedContinuation { continuation in
             keyAccessQueue.async {
                 let query: [String: Any] = [
@@ -2031,10 +2036,10 @@ class EncryptionService: ObservableObject {
                     
                     if account.hasPrefix(self.userKeysPrefix) {
                         let userId = String(account.dropFirst(self.userKeysPrefix.count))
-                        isOrphaned = self.userKeys[userId] == nil
+                        isOrphaned = !existingUserIds.contains(userId)
                     } else if account.hasPrefix(self.conversationKeysPrefix) {
                         let conversationId = String(account.dropFirst(self.conversationKeysPrefix.count))
-                        isOrphaned = self.conversationKeys[conversationId] == nil
+                        isOrphaned = !existingConversationIds.contains(conversationId)
                     }
                     
                     if isOrphaned {
@@ -2058,6 +2063,10 @@ class EncryptionService: ObservableObject {
     
     // MARK: - 📊 KEYCHAIN STATISTICS
     func getKeychainStatistics() async -> KeychainStatistics {
+        // Capture counts on MainActor before entering queue
+        let userCacheCount = await MainActor.run { self.userKeys.count }
+        let conversationCacheCount = await MainActor.run { self.conversationKeys.count }
+        
         return await withCheckedContinuation { continuation in
             keyAccessQueue.async {
                 let query: [String: Any] = [
@@ -2104,8 +2113,8 @@ class EncryptionService: ObservableObject {
                     conversationKeysInKeychain: conversationKeysInKeychain,
                     otherKeysInKeychain: otherKeysInKeychain,
                     totalSizeBytes: totalSizeBytes,
-                    userKeysInCache: self.userKeys.count,
-                    conversationKeysInCache: self.conversationKeys.count
+                    userKeysInCache: userCacheCount,
+                    conversationKeysInCache: conversationCacheCount
                 )
                 
                 continuation.resume(returning: stats)
@@ -2367,7 +2376,7 @@ class EncryptionService: ObservableObject {
     }
     
     // MARK: - KEYCHAIN OPERATIONS (Mejoradas con mejor error handling)
-    private func storeKeyInKeychain(key: SymmetricKey, tag: String) throws {
+    nonisolated private func storeKeyInKeychain(key: SymmetricKey, tag: String) throws {
         let keyData = key.withUnsafeBytes { Data($0) }
         
         let query: [String: Any] = [
@@ -2389,7 +2398,7 @@ class EncryptionService: ObservableObject {
         }
     }
     
-    private func retrieveKeyFromKeychain(tag: String) throws -> SymmetricKey {
+    nonisolated private func retrieveKeyFromKeychain(tag: String) throws -> SymmetricKey {
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: keyChainService,
@@ -2662,10 +2671,7 @@ class EncryptionService: ObservableObject {
         } catch {
             
             // Log más detallado del error
-            if let firestoreError = error as NSError? {
-                if let userInfo = firestoreError.userInfo["NSUnderlyingError"] as? NSError {
-                }
-            }
+            _ = error
         }
     }
     

@@ -60,7 +60,7 @@ struct HiddenLayersOverlayView: View {
             .onAppear {
                 updateFocusQualification(focusQualified)
             }
-            .onChange(of: focusQualified) { newValue in
+            .onChange(of: focusQualified) { _, newValue in
                 updateFocusQualification(newValue)
             }
         }
@@ -69,7 +69,7 @@ struct HiddenLayersOverlayView: View {
 
     private func hotspot(for layer: MomentHiddenLayer, index: Int, in size: CGSize) -> some View {
         let isRevealed = revealedLayerIds.contains(layer.id)
-        let isUnlocked = layer.isUnlocked(at: viewerNow)
+        let _ = layer.isUnlocked(at: viewerNow)
         let frame = layerFrame(layer, in: size)
 
         return ZStack {

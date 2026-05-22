@@ -1,6 +1,6 @@
 import SwiftUI
 import FirebaseAuth
-import FirebaseFirestore
+@preconcurrency import FirebaseFirestore
 import SwiftData
 
 // MARK: - FeedViewModel CORREGIDO - Versión que funciona
@@ -41,10 +41,19 @@ class FeedViewModel: ObservableObject {
 
     // ✅ NUEVO: Queue para sincronización segura de arrays
     private let momentsQueue = DispatchQueue(label: "moments.sync", attributes: .concurrent)
-    private let listenersQueue = DispatchQueue(label: "listeners.sync", attributes: .concurrent)
 
     deinit {
-        performCleanup() // Usar la nueva función de cleanup
+        let momentListenersToClear = momentListeners
+        let commentListenersToClear = commentListeners
+        let userListenerToClear = userListener
+        let pendingUpdatesToClear = pendingUpdates
+        
+        Task { @MainActor in
+            momentListenersToClear.values.forEach { $0.remove() }
+            commentListenersToClear.values.forEach { $0.remove() }
+            userListenerToClear?.remove()
+            pendingUpdatesToClear.values.forEach { $0.cancel() }
+        }
     }
 
     @MainActor
@@ -839,63 +848,63 @@ class FeedViewModel: ObservableObject {
              }
 
              let cacheKey = privacyDecisionCacheKey(for: moment, viewerId: viewerId)
-             var shouldStartRequest = false
-
-             cacheLock.lock()
-             if let cached = decisionCache[cacheKey] {
-                 cacheLock.unlock()
-                 completion(cached)
-                 return
-             }
-
-             if inFlightDecisions[cacheKey] != nil {
-                 inFlightDecisions[cacheKey]?.append(completion)
-                 cacheLock.unlock()
-                 return
-             }
-
-             inFlightDecisions[cacheKey] = [completion]
-             shouldStartRequest = true
-             cacheLock.unlock()
-
-             guard shouldStartRequest else { return }
-
-             let requestLock = NSLock()
-             var didComplete = false
-
-             func resolveRequest(_ canView: Bool) {
-                 var callbacks: [(Bool) -> Void] = []
-
-                 cacheLock.lock()
-                 decisionCache[cacheKey] = canView
-                 callbacks = inFlightDecisions[cacheKey] ?? []
-                 inFlightDecisions[cacheKey] = nil
-                 cacheLock.unlock()
-
-                 callbacks.forEach { $0(canView) }
-             }
-
-             privacyService.canUserViewMomentEnhanced(moment, viewerId: viewerId) { canView in
-                 requestLock.lock()
-                 if didComplete {
-                     requestLock.unlock()
-                     return
-                 }
-                 didComplete = true
-                 requestLock.unlock()
-                 resolveRequest(canView)
-             }
-
-             DispatchQueue.global().asyncAfter(deadline: .now() + 8) {
-                 requestLock.lock()
-                 if didComplete {
-                     requestLock.unlock()
-                     return
-                 }
-                 didComplete = true
-                 requestLock.unlock()
-                 resolveRequest(false) // Fail closed on timeout.
-             }
+ 
+              cacheLock.lock()
+              if let cached = decisionCache[cacheKey] {
+                  cacheLock.unlock()
+                  completion(cached)
+                  return
+              }
+ 
+              if inFlightDecisions[cacheKey] != nil {
+                  inFlightDecisions[cacheKey]?.append(completion)
+                  cacheLock.unlock()
+                  return
+              }
+ 
+              inFlightDecisions[cacheKey] = [completion]
+              cacheLock.unlock()
+ 
+              let requestLock = NSLock()
+              var didComplete = false
+ 
+              func resolveRequest(_ canView: Bool) {
+                  var callbacks: [(Bool) -> Void] = []
+ 
+                  cacheLock.lock()
+                  decisionCache[cacheKey] = canView
+                  callbacks = inFlightDecisions[cacheKey] ?? []
+                  inFlightDecisions[cacheKey] = nil
+                  cacheLock.unlock()
+ 
+                  callbacks.forEach { $0(canView) }
+              }
+ 
+              privacyService.canUserViewMomentEnhanced(moment, viewerId: viewerId) { canView in
+                  requestLock.lock()
+                  if didComplete {
+                      requestLock.unlock()
+                      return
+                  }
+                  didComplete = true
+                  requestLock.unlock()
+                  DispatchQueue.main.async {
+                      resolveRequest(canView)
+                  }
+              }
+ 
+              DispatchQueue.global().asyncAfter(deadline: .now() + 8) {
+                  requestLock.lock()
+                  if didComplete {
+                      requestLock.unlock()
+                      return
+                  }
+                  didComplete = true
+                  requestLock.unlock()
+                  DispatchQueue.main.async {
+                      resolveRequest(false) // Fail closed on timeout.
+                  }
+              }
          }
 
          func processBatch(startIndex: Int) {
@@ -911,14 +920,14 @@ class FeedViewModel: ObservableObject {
 
                  group.enter()
 
-                 evaluateMomentAccess(moment) { canView in
-                     if canView {
-                         syncQueue.sync {
-                             visibleMomentIds.insert(momentId)
-                         }
-                     }
-                     group.leave()
-                 }
+                  evaluateMomentAccess(moment) { canView in
+                      if canView {
+                          _ = syncQueue.sync {
+                              visibleMomentIds.insert(momentId)
+                          }
+                      }
+                      group.leave()
+                  }
              }
 
              group.notify(queue: .main) {
@@ -957,84 +966,67 @@ class FeedViewModel: ObservableObject {
     }
 
     // MARK: - Listeners
-    nonisolated private func clearListeners() {
-        // ✅ MEJORADO: Limpieza thread-safe
-        listenersQueue.async(flags: .barrier) {
-            // Cancelar todos los updates pendientes
-            self.pendingUpdates.values.forEach { $0.cancel() }
-            self.pendingUpdates.removeAll()
-            self.lastUpdateHashes.removeAll()
+    private func clearListeners() {
+        // Cancelar todos los updates pendientes
+        self.pendingUpdates.values.forEach { $0.cancel() }
+        self.pendingUpdates.removeAll()
+        self.lastUpdateHashes.removeAll()
 
-            // Remover listeners de forma segura
-            self.momentListeners.values.forEach { $0.remove() }
-            self.momentListeners.removeAll()
-            self.commentListeners.values.forEach { $0.remove() }
-            self.commentListeners.removeAll()
-        }
+        // Remover listeners de forma segura
+        self.momentListeners.values.forEach { $0.remove() }
+        self.momentListeners.removeAll()
+        self.commentListeners.values.forEach { $0.remove() }
+        self.commentListeners.removeAll()
     }
 
     private func setupListenersForMoments(_ moments: [Moment]) {
-        // ✅ MEJORADO: Setup de listeners de forma segura
-        DispatchQueue.global(qos: .userInitiated).async {
-            for moment in moments {
-                if let momentId = moment.id {
-                    self.listenForCommentUpdates(momentId: momentId, authorId: moment.authorId)
-                }
+        for moment in moments {
+            if let momentId = moment.id {
+                self.listenForCommentUpdates(momentId: momentId, authorId: moment.authorId)
             }
         }
     }
 
     func listenForCommentUpdates(momentId: String, authorId: String) {
-        // ✅ MEJORADO: Protección contra listeners duplicados
-        listenersQueue.async(flags: .barrier) {
-            if self.commentListeners[momentId] != nil || self.momentListeners[momentId] != nil {
-                return
-            }
+        if self.commentListeners[momentId] != nil || self.momentListeners[momentId] != nil {
+            return
         }
 
         // ✅ VALIDAR: Solo crear listener si el usuario puede ver el momento
         guard let currentUserId = Auth.auth().currentUser?.uid else { return }
 
-        // ✅ DECLARAR commentListener en el scope correcto
-        var commentListener: ListenerRegistration?
-
         firestoreService.canViewContent(currentUserId: currentUserId, targetUserId: authorId) { [weak self] result in
-            switch result {
-            case .success(let canView):
-                guard canView else { return } // No crear listener si no puede ver el momento
+            Task { @MainActor in
+                guard let self = self else { return }
+                switch result {
+                case .success(let canView):
+                    guard canView else { return } // No crear listener si no puede ver el momento
 
-                // ✅ Solo crear listener si tiene permisos
-                commentListener = self?.firestoreService.db.collection("users").document(authorId)
-                    .collection("moments").document(momentId)
-                    .collection("comments")
-                    .addSnapshotListener { snapshot, error in
-                        guard error == nil else { return }
+                    // ✅ Solo crear listener si tiene permisos
+                    let commentListener = self.firestoreService.db.collection("users").document(authorId)
+                        .collection("moments").document(momentId)
+                        .collection("comments")
+                        .addSnapshotListener { snapshot, error in
+                            guard error == nil else { return }
 
-                        DispatchQueue.main.async {
-                            NotificationCenter.default.post(
-                                name: NSNotification.Name("CommentAdded"),
-                                object: momentId
-                            )
+                            Task { @MainActor in
+                                NotificationCenter.default.post(
+                                    name: NSNotification.Name("CommentAdded"),
+                                    object: momentId
+                                )
+                            }
                         }
-                    }
 
-                // ✅ Guardar el listener solo si se creó correctamente
-                if let listener = commentListener {
-                    self?.listenersQueue.async(flags: .barrier) {
-                        self?.commentListeners[momentId] = listener
-                    }
+                    self.commentListeners[momentId] = commentListener
+
+                case .failure(_):
+                    return
                 }
-
-            case .failure(_):
-                // Si falla la verificación de permisos, no crear listener
-                return
             }
         }
 
-        // 🔥 LISTENER ARREGLADO: Con debounce y comparación inteligente
-        listenersQueue.async(flags: .barrier) {
-            if self.momentListeners[momentId] == nil {
-                let momentListener = self.firestoreService.db.collection("users").document(authorId)
+        if self.momentListeners[momentId] == nil {
+            let momentListener = self.firestoreService.db.collection("users").document(authorId)
                 .collection("moments").document(momentId)
                 .addSnapshotListener { [weak self] document, error in
                     guard let self = self,
@@ -1044,57 +1036,51 @@ class FeedViewModel: ObservableObject {
                         return
                     }
 
-                    // ✅ NUEVO: Pausa durante uploads para evitar conflictos
-                    if self.isPausedForUploads {
-                        return
-                    }
-
-                    do {
-                        // ✅ MEJORADO: Verificación segura de documentID
-                        let documentID = document.documentID
-                        guard !documentID.isEmpty else {
+                    Task { @MainActor in
+                        // ✅ Pausa durante uploads para evitar conflictos
+                        if self.isPausedForUploads {
                             return
                         }
 
-                        var updatedMoment = try document.data(as: Moment.self)
-                        updatedMoment.id = documentID
+                        do {
+                            let documentID = document.documentID
+                            guard !documentID.isEmpty else { return }
 
-                        // Si se archiva en tiempo real, retirarlo inmediatamente del feed.
-                        if updatedMoment.isArchived == true {
-                            DispatchQueue.main.async {
+                            var updatedMoment = try document.data(as: Moment.self)
+                            updatedMoment.id = documentID
+
+                            // Si se archiva en tiempo real, retirarlo inmediatamente del feed.
+                            if updatedMoment.isArchived == true {
                                 self.moments.removeAll { $0.id == momentId }
                                 self.followingMoments.removeAll { $0.id == momentId }
                                 self.forYouMoments.removeAll { $0.id == momentId }
                                 self.saveFeedToCache(moments: self.followingMoments, type: .following, sync: false)
                                 self.saveFeedToCache(moments: self.forYouMoments, type: .forYou, sync: false)
+                                return
                             }
-                            return
+
+                            // ✅ Solo actualizar si hay cambios significativos
+                            guard self.shouldUpdateMoment(momentId: momentId, newMoment: updatedMoment) else {
+                                return
+                            }
+
+                            // ✅ Debounce para agrupar múltiples updates
+                            self.debouncedUpdateMoment(momentId: momentId, updatedMoment: updatedMoment)
+
+                        } catch {
                         }
-
-                        // ✅ NUEVO: Solo actualizar si hay cambios significativos
-                        guard self.shouldUpdateMoment(momentId: momentId, newMoment: updatedMoment) else {
-                            return
-                        }
-
-                        // ✅ NUEVO: Debounce para agrupar múltiples updates
-                        self.debouncedUpdateMoment(momentId: momentId, updatedMoment: updatedMoment)
-
-                    } catch {
                     }
                 }
 
             self.momentListeners[momentId] = momentListener
         }
-        }
     }
 
     private func shouldUpdateMoment(momentId: String, newMoment: Moment) -> Bool {
         // Buscar momento actual
-        guard let currentIndex = moments.firstIndex(where: { $0.id == momentId }) else {
+        guard moments.first(where: { $0.id == momentId }) != nil else {
             return true // Es nuevo, siempre actualizar
         }
-
-        let currentMoment = moments[currentIndex]
 
         // ✅ Generar hash de propiedades importantes para comparar
         let newHash = generateMomentHash(moment: newMoment)
@@ -1109,7 +1095,7 @@ class FeedViewModel: ObservableObject {
         return false
     }
 
-    // ✅ NUEVA FUNCIÓN: Generar hash de propiedades importantes
+    // ✅ Generar hash de propiedades importantes
     private func generateMomentHash(moment: Moment) -> Int {
         var hasher = Hasher()
 
@@ -1133,44 +1119,35 @@ class FeedViewModel: ObservableObject {
         hasher.combine(moment.hasHiddenLayers)
         hasher.combine(moment.hiddenLayerCount)
 
-        // ✅ NO incluir: authorId, username, profileImagePath (no cambian)
-        // ✅ NO incluir: taggedUsers, location, audience (no cambian después de crear)
-
         return hasher.finalize()
     }
 
-    // ✅ MEJORADO: Update con debounce thread-safe
+    // ✅ Update con debounce thread-safe
     private func debouncedUpdateMoment(momentId: String, updatedMoment: Moment) {
-        listenersQueue.async(flags: .barrier) {
-            // Cancelar update pendiente si existe
-            self.pendingUpdates[momentId]?.cancel()
+        // Cancelar update pendiente si existe
+        self.pendingUpdates[momentId]?.cancel()
 
-            // Crear nuevo update con delay
-            let workItem = DispatchWorkItem { [weak self] in
-                guard let self = self else { return }
-                DispatchQueue.main.async {
-                    if let index = self.moments.firstIndex(where: { $0.id == momentId }) {
-                        self.moments[index] = updatedMoment
+        // Crear nuevo update con delay
+        let workItem = DispatchWorkItem { [weak self] in
+            guard let self = self else { return }
+            if let index = self.moments.firstIndex(where: { $0.id == momentId }) {
+                self.moments[index] = updatedMoment
 
-                        // Actualizar caché correspondiente sin trigger adicional
-                        self.updateMomentInCache(momentId: momentId, updatedMoment: updatedMoment)
-                    }
-
-                    // Limpiar trabajo completado de forma segura
-                    self.listenersQueue.async(flags: .barrier) {
-                        self.pendingUpdates.removeValue(forKey: momentId)
-                    }
-                }
+                // Actualizar caché correspondiente sin trigger adicional
+                self.updateMomentInCache(momentId: momentId, updatedMoment: updatedMoment)
             }
 
-            self.pendingUpdates[momentId] = workItem
-
-            // Ejecutar después del debounce time
-            DispatchQueue.main.asyncAfter(deadline: .now() + self.updateDebounceTime, execute: workItem)
+            // Limpiar trabajo completado
+            self.pendingUpdates.removeValue(forKey: momentId)
         }
+
+        self.pendingUpdates[momentId] = workItem
+
+        // Ejecutar después del debounce time
+        DispatchQueue.main.asyncAfter(deadline: .now() + self.updateDebounceTime, execute: workItem)
     }
 
-    // ✅ NUEVA FUNCIÓN: Actualizar caché sin trigger re-renders adicionales
+    // ✅ Actualizar caché sin trigger re-renders adicionales
     private func updateMomentInCache(momentId: String, updatedMoment: Moment) {
         if currentFeedType == .following {
             if let cacheIndex = followingMoments.firstIndex(where: { $0.id == momentId }) {
@@ -1183,7 +1160,7 @@ class FeedViewModel: ObservableObject {
         }
     }
 
-    // ✅ MEJORADO: Pausar listeners durante uploads
+    // ✅ Pausar listeners durante uploads
     func pauseListenersForUpload() {
         isPausedForUploads = true
 
@@ -1193,29 +1170,9 @@ class FeedViewModel: ObservableObject {
         }
     }
 
-    // ✅ MEJORADO: Reanudar listeners después de upload
+    // ✅ Reanudar listeners después de upload
     func resumeListenersAfterUpload() {
         isPausedForUploads = false
-    }
-
-    // ✅ NUEVO: Función de cleanup mejorada para deinit
-    nonisolated private func performCleanup() {
-        listenersQueue.async(flags: .barrier) {
-            // Cancelar todos los updates pendientes
-            self.pendingUpdates.values.forEach { $0.cancel() }
-            self.pendingUpdates.removeAll()
-            self.lastUpdateHashes.removeAll()
-
-            // Remover listeners
-            self.momentListeners.values.forEach { $0.remove() }
-            self.momentListeners.removeAll()
-            self.commentListeners.values.forEach { $0.remove() }
-            self.commentListeners.removeAll()
-
-            // Remover user listener
-            self.userListener?.remove()
-            self.userListener = nil
-        }
     }
 
     // MARK: - User Data
@@ -1234,7 +1191,7 @@ class FeedViewModel: ObservableObject {
 
     func fetchConnections(userId: String) {
         firestoreService.fetchConnections(userId: userId) { result in
-            if case .success(let connections) = result {
+            if case .success = result {
                 DispatchQueue.main.async {
                     self.objectWillChange.send()
                 }
@@ -1244,11 +1201,9 @@ class FeedViewModel: ObservableObject {
 
     // ✅ NUEVO: Remover listener específico (Lazy Loading)
     func removeCommentListener(momentId: String) {
-        listenersQueue.async(flags: .barrier) {
-            if let listener = self.commentListeners[momentId] {
-                listener.remove()
-                self.commentListeners.removeValue(forKey: momentId)
-            }
+        if let listener = self.commentListeners[momentId] {
+            listener.remove()
+            self.commentListeners.removeValue(forKey: momentId)
         }
     }
 
@@ -1302,6 +1257,6 @@ extension FeedViewModel {
     }
 
     func trackFeedUsage() {
-        let currentPreference = UserDefaults.standard.selectedFeedType
+        _ = UserDefaults.standard.selectedFeedType
     }
 }

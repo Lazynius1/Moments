@@ -338,7 +338,7 @@ class BackgroundStoryUploadService: ObservableObject {
 
             // 3. Limpiar acción y archivos al terminar (éxito o error fatal)
             if uploadingStory.status == .completed || uploadingStory.status == .moderated {
-                await LocalPersistenceService.shared.deleteAction(id: uploadingStory.tempId)
+                LocalPersistenceService.shared.deleteAction(id: uploadingStory.tempId)
                 self.deleteActionFiles(id: uploadingStory.tempId)
             }
 
@@ -623,24 +623,17 @@ class BackgroundStoryUploadService: ObservableObject {
         exportSession.shouldOptimizeForNetworkUse = true
 
         // 3. Exportar
-        await exportSession.export()
-
-        // 4. Verificar resultado
-        switch exportSession.status {
-        case .completed:
+        do {
+            try await exportSession.export(to: outputURL, as: .mp4)
             return outputURL
-        case .failed:
-            throw exportSession.error ?? NSError(domain: "CompressionError", code: -2, userInfo: [NSLocalizedDescriptionKey: "Compresión fallida"])
-        case .cancelled:
-            throw NSError(domain: "CompressionError", code: -3, userInfo: [NSLocalizedDescriptionKey: "Compresión cancelada"])
-        default:
-            throw NSError(domain: "CompressionError", code: -4, userInfo: [NSLocalizedDescriptionKey: "Estado desconocido"])
+        } catch {
+            throw error
         }
     }
 
     // ✅ EXTRACCION DE FRAME DE FONDO
     private func extractBackgroundFrame(from videoURL: URL) async -> String? {
-        guard let frameImage = extractBackgroundFrameImage(from: videoURL) else {
+        guard let frameImage = await extractBackgroundFrameImage(from: videoURL) else {
             return nil
         }
 
@@ -651,14 +644,14 @@ class BackgroundStoryUploadService: ObservableObject {
         }
     }
 
-    private func extractBackgroundFrameImage(from videoURL: URL) -> UIImage? {
-        let asset = AVAsset(url: videoURL)
+    private func extractBackgroundFrameImage(from videoURL: URL) async -> UIImage? {
+        let asset = AVURLAsset(url: videoURL)
         let imageGenerator = AVAssetImageGenerator(asset: asset)
         imageGenerator.appliesPreferredTrackTransform = true
         imageGenerator.maximumSize = CGSize(width: 400, height: 400) // ✅ TAMAÑO OPTIMIZADO
 
         do {
-            let cgImage = try imageGenerator.copyCGImage(at: .zero, actualTime: nil)
+            let (cgImage, _) = try await imageGenerator.image(at: .zero)
             return UIImage(cgImage: cgImage)
         } catch {
             return nil
@@ -751,7 +744,7 @@ class BackgroundStoryUploadService: ObservableObject {
 
         // ✅ DETECTAR SI NECESITA COMPRESIÓN (SOLO POR TAMAÑO/BITRATE)
         private func needsCompressionBySize(_ videoURL: URL) async -> Bool {
-        let asset = AVAsset(url: videoURL)
+        let asset = AVURLAsset(url: videoURL)
         let fileSize = getFileSizeInBytes(videoURL)
 
         // ✅ SOLO COMPRIMIR SI ES MUY PESADO O TIENE BITRATE ALTO
@@ -907,15 +900,23 @@ class BackgroundStoryUploadService: ObservableObject {
             aspectRatio = await StoryViewerScreen.detectVideoAspectRatio(from: videoURL)
 
             // Extraer frame cuando el media no debe ir a fill y necesita blur de relleno.
-            if let aspectRatio = aspectRatio,
-               StoryMediaLayoutRules.presentationMode(
-                   for: parseAspectRatio(aspectRatio) ?? 0.0,
-                   canvasAspectRatio: UIScreen.main.bounds.width / max(UIScreen.main.bounds.height, 1)
-               ) == .fitWithBlur {
-                let backgroundImage = uploadingStory.finalRenderedImage ?? extractBackgroundFrameImage(from: videoURL)
-                if let backgroundImage {
-                    backgroundFrameURL = try await uploadBackgroundFrameImage(backgroundImage)
-                    backgroundBlurredFrameURL = try await uploadBlurredBackgroundFrameImage(backgroundImage)
+            if let aspectRatio = aspectRatio {
+                let parsedRatio = parseAspectRatio(aspectRatio) ?? 0.0
+                let screenBounds = UIScreen.main.bounds
+                let canvasRatio = screenBounds.width / max(screenBounds.height, 1)
+
+                if StoryMediaLayoutRules.presentationMode(
+                    for: parsedRatio,
+                    canvasAspectRatio: canvasRatio
+                ) == .fitWithBlur {
+                    var backgroundImage = uploadingStory.finalRenderedImage
+                    if backgroundImage == nil {
+                        backgroundImage = await extractBackgroundFrameImage(from: videoURL)
+                    }
+                    if let backgroundImage {
+                        backgroundFrameURL = try await uploadBackgroundFrameImage(backgroundImage)
+                        backgroundBlurredFrameURL = try await uploadBlurredBackgroundFrameImage(backgroundImage)
+                    }
                 }
             }
         } else if uploadingStory.mediaItem.type == .image {
@@ -1143,17 +1144,17 @@ class BackgroundStoryUploadService: ObservableObject {
                     // Story approved - no action needed
                     break
 
-                case .deleted(let reason, let category):
+                case .deleted(_, _):
                     // ✅ IGUAL QUE MOMENTOS: MediaModerationService YA ejecutó hideContentUsingOnlyMe()
                     // NO necesitamos llamar a hideStoryUsingOnlyMe() aquí
                     break
 
-                case .warning(let reason, let category):
+                case .warning(_, _):
                     // ✅ IGUAL QUE MOMENTOS: MediaModerationService YA ejecutó hideContentUsingOnlyMe()
                     // La historia queda visible pero marcada para revisión
                     break
 
-                case .error(let errorMessage):
+                case .error(_):
                     // Mantener visible si hay error técnico
                     break
                 }
@@ -1336,7 +1337,7 @@ class BackgroundStoryUploadService: ObservableObject {
         // Los stickers de respuesta de preguntas son estáticos y se muestran en la historia
         // No necesitan configuración especial en Firestore
         for sticker in stickers {
-            guard let questionText = sticker.interactionData?.questionText else {
+            guard sticker.interactionData?.questionText != nil else {
                 continue
             }
 
@@ -1435,8 +1436,8 @@ class BackgroundStoryUploadService: ObservableObject {
         // Los stickers de clima son estáticos y se muestran animados en la historia
         // No necesitan configuración especial en Firestore, solo se guardan los datos
         for sticker in stickers {
-            guard let weatherSymbol = sticker.interactionData?.weatherSymbol,
-                  let temperature = sticker.interactionData?.questionText else {
+            guard sticker.interactionData?.weatherSymbol != nil,
+                  sticker.interactionData?.questionText != nil else {
                 continue
             }
 
@@ -1568,7 +1569,7 @@ class BackgroundStoryUploadService: ObservableObject {
                 payloadData: encodedPayload
             )
 
-            await LocalPersistenceService.shared.saveAction(action)
+            LocalPersistenceService.shared.saveAction(action)
 
         } catch { }
     }
@@ -1615,7 +1616,6 @@ class BackgroundStoryUploadService: ObservableObject {
     }
 
     private func saveStickerToDisk(_ sticker: StickerItem) async throws -> CachedSticker {
-        let id = sticker.id
         var localImageName: String? = nil
 
         // Solo guardamos la imagen si no es un sticker animado (GIF)
@@ -2042,9 +2042,10 @@ extension BackgroundStoryUploadService {
         )
 
         do {
+            let content = ActivityContent(state: initialContentState, staleDate: nil)
             let activity = try Activity<StoryUploadActivityAttributes>.request(
                 attributes: attributes,
-                contentState: initialContentState,
+                content: content,
                 pushType: nil
             )
             await MainActor.run {
@@ -2069,10 +2070,8 @@ extension BackgroundStoryUploadService {
         )
 
         Task {
-            do {
-                await activity.update(using: updatedState)
-            } catch {
-            }
+            let content = ActivityContent(state: updatedState, staleDate: nil)
+            await activity.update(content)
         }
     }
 
@@ -2090,10 +2089,8 @@ extension BackgroundStoryUploadService {
             status: status
         )
 
-        do {
-            await activity.update(using: updatedState)
-        } catch {
-        }
+        let content = ActivityContent(state: updatedState, staleDate: nil)
+        await activity.update(content)
     }
 
     private func shouldUpdateLiveActivity(progress: Double, status: String) -> Bool {
@@ -2120,7 +2117,8 @@ extension BackgroundStoryUploadService {
         )
 
         Task {
-            await activity.end(using: finalState, dismissalPolicy: .immediate)
+            let finalContent = ActivityContent(state: finalState, staleDate: nil)
+            await activity.end(finalContent, dismissalPolicy: .immediate)
             liveActivity = nil
         }
     }
@@ -2130,7 +2128,7 @@ extension BackgroundStoryUploadService {
 
         // No necesitamos actualizar el estado aquí porque ya lo hicimos antes
         // Solo cerramos la Live Activity después de que se haya mostrado el emoji
-        await activity.end(dismissalPolicy: .immediate)
+        await activity.end(nil, dismissalPolicy: .immediate)
         await MainActor.run {
             liveActivity = nil
         }
@@ -2149,7 +2147,7 @@ extension BackgroundStoryUploadService {
                 continue
             }
 
-            await activity.end(dismissalPolicy: .immediate)
+            await activity.end(nil, dismissalPolicy: .immediate)
         }
     }
 

@@ -169,7 +169,7 @@ struct EnhancedChatBubble: View {
             animationTimer?.invalidate()
         }
         // ✅ SOPORTE PARA STREAMING: Cuando el texto del mensaje cambie (vía ViewModel)
-        .onChange(of: message.text) { newText in
+        .onChange(of: message.text) { _, newText in
             if !message.isHistorical && !message.isUser {
                 // Si el texto está creciendo vía stream, lo mostramos directamente
                 // sin la animación artificial de "startNaturalAnimation"
@@ -379,7 +379,7 @@ struct EnhancedFormattedText: View {
 
     private func parseLinksInLine(_ line: String) -> [TextSection] {
         var sections: [TextSection] = []
-        var remainingText = line
+        let remainingText = line
 
         let linkPattern = #"\[([^\]]+)\]\(([^)]+)\)"#
         let regex = try! NSRegularExpression(pattern: linkPattern, options: [])
@@ -651,7 +651,7 @@ struct RegularTextView: View {
         // Procesar en reversa
         for match in matches.reversed() {
             let matchText = (originalText as NSString).substring(with: match.range)
-            let startIndex = attributedString.startIndex
+            _ = attributedString.startIndex
 
             // Aproximación simplificada para encontrar o rango en AttributedString
             // Nota: En una app de producción real, esto requiere un mapeo más robusto de índices

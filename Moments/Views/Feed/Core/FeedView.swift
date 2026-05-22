@@ -286,12 +286,12 @@ struct FeedView: View {
                 showStoryChain = true
             }
         )
-        .onChange(of: showingLocationMap) { isShowing in
+        .onChange(of: showingLocationMap) { _, isShowing in
             if isShowing {
                 // ✅ El onChange es crucial para el funcionamiento, pero sin prints
             }
         }
-        .onChange(of: selectedProfileRoute) { newRoute in
+        .onChange(of: selectedProfileRoute) { _, newRoute in
             if newRoute == nil, let suspended = suspendedMomentForComments {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
                     selectedMoment = suspended
@@ -300,7 +300,7 @@ struct FeedView: View {
             }
         }
 
-        .onChange(of: badgeService.unreadNotificationsCount) { count in
+        .onChange(of: badgeService.unreadNotificationsCount) { _, count in
 
         }
         .environmentObject(firestoreService)
@@ -391,7 +391,7 @@ struct FeedView: View {
             },
             mediaItems: payload.mediaItems
         ) { error in
-            if let error = error {
+            if error != nil {
                 // Error al actualizar momento
             } else {
                 // Momento actualizado exitosamente
@@ -411,7 +411,7 @@ struct FeedView: View {
             DispatchQueue.main.async {
                 self.isDeleting = false
                 
-                if let error = error {
+                if error != nil {
                     // Error al eliminar momento
                 } else {
                     // Momento eliminado exitosamente
@@ -471,7 +471,7 @@ struct FeedView: View {
         .padding(.horizontal, 12)
         .shadow(color: Color.black.opacity(0.15), radius: 12, x: 0, y: 4)
         .animation(.spring(response: 0.32, dampingFraction: 0.86), value: isFeedHeaderHidden)
-        .onChange(of: selectedFeedType) { newFeedType in
+        .onChange(of: selectedFeedType) { _, newFeedType in
             // ✅ NUEVO: Guardar la preferencia del usuario
             UserDefaults.standard.selectedFeedType = newFeedType
             

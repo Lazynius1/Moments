@@ -1,5 +1,6 @@
 import SwiftUI
 
+@MainActor
 protocol UserListViewModel {
     func followUser(userId: String)
     func unfollowUser(userId: String)

@@ -161,7 +161,7 @@ struct MessagingView: View {
                         navigateToConversation(id: targetId)
                     }
                 }
-                .onChange(of: authService.currentUser) { _ in
+                .onChange(of: authService.currentUser) { _, _ in
                     if let userId = Auth.auth().currentUser?.uid {
                         viewModel.errorMessage = nil
                         viewModel.fetchConversations(for: userId)
@@ -179,7 +179,7 @@ struct MessagingView: View {
                     }
                 }
                 // ✅ AGREGAR: Listener para cuando cambie targetConversationId
-                .onChange(of: targetConversationId) { newTargetId in
+                .onChange(of: targetConversationId) { _, newTargetId in
                     if let targetId = newTargetId {
                         navigateToConversation(id: targetId)
                     }
@@ -378,7 +378,7 @@ struct MessagingView: View {
                     .font(.custom("Poppins-Regular", size: 15))
                     .foregroundColor(adaptiveColors.primary)
                     .focused($isSearchFocused)
-                    .onChange(of: searchText) { newValue in
+                    .onChange(of: searchText) { _, newValue in
                         withAnimation(.easeInOut(duration: 0.3)) {
                             isSearching = !newValue.isEmpty
                         }
@@ -593,26 +593,12 @@ struct MessagingView: View {
         if conversation.isPinned == true {
             viewModel.applyLocalConversationState(conversationId: conversationId, isPinned: false)
             // Si ya está pinnada, despinnarla
-            chatService.unpinConversation(conversationId, for: currentUserId) { error in
-                DispatchQueue.main.async {
-                    if let error = error {
-                        // Error unpinning conversation
-                    } else {
-                        // Conversation unpinned successfully
-                    }
-                }
+            chatService.unpinConversation(conversationId, for: currentUserId) { _ in
             }
         } else {
             viewModel.applyLocalConversationState(conversationId: conversationId, isPinned: true)
             // Si no está pinnada, pinnarla
-            chatService.pinConversation(conversationId, for: currentUserId) { error in
-                DispatchQueue.main.async {
-                    if let error = error {
-                        // Error pinning conversation
-                    } else {
-                        // Conversation pinned successfully
-                    }
-                }
+            chatService.pinConversation(conversationId, for: currentUserId) { _ in
             }
         }
     }
@@ -625,26 +611,12 @@ struct MessagingView: View {
         if conversation.isMuted == true {
             viewModel.applyLocalConversationState(conversationId: conversationId, isMuted: false)
             // Si ya está silenciada, desilenciarla
-            chatService.unmuteConversation(conversationId, for: currentUserId) { error in
-                DispatchQueue.main.async {
-                    if let error = error {
-                        // Error unmuting conversation
-                    } else {
-                        // Conversation unmuted successfully
-                    }
-                }
+            chatService.unmuteConversation(conversationId, for: currentUserId) { _ in
             }
         } else {
             viewModel.applyLocalConversationState(conversationId: conversationId, isMuted: true)
             // Si no está silenciada, silenciarla
-            chatService.muteConversation(conversationId, for: currentUserId) { error in
-                DispatchQueue.main.async {
-                    if let error = error {
-                        // Error muting conversation
-                    } else {
-                        // Conversation muted successfully
-                    }
-                }
+            chatService.muteConversation(conversationId, for: currentUserId) { _ in
             }
         }
     }
@@ -835,7 +807,7 @@ struct SearchConversationRow: View {
 
     var body: some View {
         HStack(spacing: 14) {
-            AsyncProfileImageView(userId: conversation.otherParticipantId ?? "")
+            AsyncProfileImageView(userId: conversation.otherParticipantId)
                 .frame(width: 48, height: 48)
 
             VStack(alignment: .leading, spacing: 4) {
@@ -861,7 +833,7 @@ struct SearchConversationRow: View {
         .onAppear {
             refreshOtherParticipantUsername()
         }
-        .onChange(of: conversation.otherParticipantId) { _ in
+        .onChange(of: conversation.otherParticipantId) { _, _ in
             refreshOtherParticipantUsername()
         }
     }
@@ -909,7 +881,7 @@ struct SearchUserRow: View {
 
                             onTap(conversation)
 
-                        case .failure(let error):
+                        case .failure:
                             onTap(nil)
                         }
                     }
@@ -1071,7 +1043,7 @@ struct GlassmorphicConversationRow: View {
             refreshOtherParticipantUsername()
             refreshOtherParticipantAvailability()
         }
-        .onChange(of: conversation.otherParticipantId) { _ in
+        .onChange(of: conversation.otherParticipantId) { _, _ in
             refreshOtherParticipantUsername()
             refreshOtherParticipantAvailability()
         }
@@ -1152,7 +1124,6 @@ struct GlassmorphicConversationRow: View {
 
     private func formattedTimestamp(_ date: Date) -> String {
         let calendar = Calendar.current
-        let now = Date()
 
         if calendar.isDateInToday(date) {
             let formatter = DateFormatter()
@@ -1222,7 +1193,7 @@ struct GlassmorphicNewConversationView: View {
                         .font(.system(size: 17, weight: .regular))
                         .foregroundColor(colorScheme == .dark ? .white : .black)
                         .accentColor(Color(hex: "4F46E5"))
-                        .onChange(of: searchText) { newValue in
+                        .onChange(of: searchText) { _, newValue in
                             viewModel.searchUsers(query: newValue)
                         }
 
@@ -1270,7 +1241,7 @@ struct GlassmorphicNewConversationView: View {
                         .padding(.top, 8)
                     }
 
-                    if let selectedUser = selectedUser {
+                    if selectedUser != nil {
                         Button(action: {
                             showingMessageComposer = true
                         }) {
@@ -1347,7 +1318,7 @@ struct GlassmorphicNewConversationView: View {
     // ✅ NUEVA: Función para enviar solicitud de mensaje
     private func sendMessageRequest() {
         guard let selectedUser = selectedUser,
-              let userId = Auth.auth().currentUser?.uid else {
+              Auth.auth().currentUser?.uid != nil else {
             return
         }
 

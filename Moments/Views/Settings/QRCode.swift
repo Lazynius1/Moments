@@ -92,7 +92,7 @@ struct QRCodeView: View {
             viewModel.loadUserData()
             generateQRCode()
         }
-        .onChange(of: viewModel.user) { _ in
+        .onChange(of: viewModel.user) { _, _ in
             generateQRCode()
         }
         .sheet(isPresented: $showShareSheet) {
@@ -148,7 +148,7 @@ class QRCodeViewModel: ObservableObject {
                 switch result {
                 case .success(let user):
                     self?.user = user
-                case .failure(let error):
+                case .failure:
                     break
                 }
             }

@@ -148,10 +148,10 @@ struct EditMomentView: View {
             .task {
                 hydrateCustomAudienceIfNeeded()
             }
-            .onChange(of: selectedAudience) { _ in
+            .onChange(of: selectedAudience) { _, _ in
                 hydrateCustomAudienceIfNeeded()
             }
-            .onChange(of: selectedListId) { _ in
+            .onChange(of: selectedListId) { _, _ in
                 hydrateCustomAudienceIfNeeded()
             }
         }

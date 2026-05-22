@@ -185,7 +185,7 @@ class UserProfileViewModel: ObservableObject, UserListViewModel {
                 DispatchQueue.main.async {
                     self?.userProfile = profile
                 }
-            case .failure(let error):
+            case .failure:
                 hasErrors = true
             }
             refreshGroup.leave()
@@ -221,7 +221,7 @@ class UserProfileViewModel: ObservableObject, UserListViewModel {
                     }
                     refreshGroup.leave()
                 }
-            case .failure(let error):
+            case .failure:
                 hasErrors = true
                 refreshGroup.leave()
             }
@@ -292,6 +292,8 @@ class UserProfileViewModel: ObservableObject, UserListViewModel {
 
         if visibleConnectionTypes.canViewConnections || visibleConnectionTypes.canViewMutualConnections {
             group.enter()
+            let snapshotUnfollowTime = self.lastUnfollowTime
+            let snapshotRecentUnfollows = self.recentUnfollows
             firestoreService.db.collection("users").document(userId).collection("following")
                 .getDocuments { [weak self] followingSnapshot, error in
                     defer { group.leave() }
@@ -302,17 +304,32 @@ class UserProfileViewModel: ObservableObject, UserListViewModel {
                         doc.data()["userId"] as? String
                     } ?? []
 
+                    var localUnfollowTime = snapshotUnfollowTime
+                    var localRecentUnfollows = snapshotRecentUnfollows
+                    var expiredKeys: [String] = []
+
                     targetFollowingIds = followingIds.filter { followedUserId in
-                        if let unfollowTime = self.lastUnfollowTime[followedUserId] {
+                        if let unfollowTime = localUnfollowTime[followedUserId] {
                             let timeSinceUnfollow = Date().timeIntervalSince(unfollowTime)
                             if timeSinceUnfollow < 5.0 {
                                 return false
                             } else {
-                                self.lastUnfollowTime.removeValue(forKey: followedUserId)
-                                self.recentUnfollows.remove(followedUserId)
+                                expiredKeys.append(followedUserId)
+                                localUnfollowTime.removeValue(forKey: followedUserId)
+                                localRecentUnfollows.remove(followedUserId)
                             }
                         }
                         return true
+                    }
+
+                    if !expiredKeys.isEmpty {
+                        let keysToRemove = expiredKeys
+                        Task { @MainActor [weak self] in
+                            for key in keysToRemove {
+                                self?.lastUnfollowTime.removeValue(forKey: key)
+                                self?.recentUnfollows.remove(key)
+                            }
+                        }
                     }
                 }
         }
@@ -382,11 +399,15 @@ class UserProfileViewModel: ObservableObject, UserListViewModel {
                 }
 
                 // ✅ IMPORTANTE: Filtrar por audiencia usando PrivacyService
-                self.privacyService.filterVisibleContent(moments: allMoments, for: currentUserId) { filteredMoments in
-                    DispatchQueue.main.async {
-                        self.taggedMoments = filteredMoments
-                        self.isLoadingTagged = false
-                        completion?()
+                // Capture privacyService before this Sendable closure to avoid main-actor isolation warning
+                Task { @MainActor in
+                    let ps = self.privacyService
+                    ps.filterVisibleContent(moments: allMoments, for: currentUserId) { filteredMoments in
+                        DispatchQueue.main.async {
+                            self.taggedMoments = filteredMoments
+                            self.isLoadingTagged = false
+                            completion?()
+                        }
                     }
                 }
             }
@@ -482,7 +503,7 @@ class UserProfileViewModel: ObservableObject, UserListViewModel {
                 switch result {
                 case .success(let users):
                     allUsers.append(contentsOf: users)
-                case .failure(let error):
+                case .failure:
                     break
                 }
             }
@@ -509,8 +530,7 @@ class UserProfileViewModel: ObservableObject, UserListViewModel {
                         self.moments = filteredMoments
                     }
                 }
-
-            case .failure(let error):
+            case .failure:
                 DispatchQueue.main.async {
                     self.moments = []
                 }
@@ -700,14 +720,16 @@ class UserProfileViewModel: ObservableObject, UserListViewModel {
 
             muteSettings["mutedUsers"] = Array(mutedUsers)
 
-            self.firestoreService.db.collection("users").document(currentUserId).updateData([
-                "muteSettings": muteSettings
-            ]) { error in
-                DispatchQueue.main.async {
+            Task { @MainActor in
+                do {
+                    try await self.firestoreService.db
+                        .collection("users")
+                        .document(currentUserId)
+                        .updateData(["muteSettings": muteSettings])
                     self.isUpdatingMute = false
-                    if error == nil {
-                        self.isMutedByCurrentUser = shouldMute
-                    }
+                    self.isMutedByCurrentUser = shouldMute
+                } catch {
+                    self.isUpdatingMute = false
                 }
             }
         }
@@ -742,7 +764,7 @@ class UserProfileViewModel: ObservableObject, UserListViewModel {
             firestoreService.sendFollowRequest(currentUserId: currentUserId, targetUserId: userId) { [weak self] error in
                 DispatchQueue.main.async {
                     guard let self = self else { return }
-                    if let error = error {
+                    if error != nil {
                         return
                     }
                     self.followButtonState = .requestPending
@@ -753,7 +775,7 @@ class UserProfileViewModel: ObservableObject, UserListViewModel {
             firestoreService.followUser(currentUserId: currentUserId, targetUserId: userId) { [weak self] error in
                 DispatchQueue.main.async {
                     guard let self = self else { return }
-                    if let error = error {
+                    if error != nil {
                         return
                     }
 
@@ -795,7 +817,7 @@ class UserProfileViewModel: ObservableObject, UserListViewModel {
 
         firestoreService.unfollowUser(currentUserId: currentUserId, targetUserId: userId) { [weak self] error in
             guard let self = self else { return }
-            if let error = error {
+            if error != nil {
                 // Limpiar cache de unfollow si falló
                 self.recentUnfollows.remove(userId)
                 self.lastUnfollowTime.removeValue(forKey: userId)
@@ -839,7 +861,7 @@ class UserProfileViewModel: ObservableObject, UserListViewModel {
         guard let currentUserId = Auth.auth().currentUser?.uid else { return }
         firestoreService.checkIfBlocked(currentUserId: currentUserId, targetUserId: userId) { [weak self] isBlockedByCurrentUser, isCurrentUserBlocked, error in
             guard let self = self else { return }
-            if let error = error {
+            if error != nil {
                 return
             }
             DispatchQueue.main.async {
@@ -855,7 +877,7 @@ class UserProfileViewModel: ObservableObject, UserListViewModel {
         guard let currentUserId = Auth.auth().currentUser?.uid else { return }
         firestoreService.blockUser(currentUserId: currentUserId, targetUserId: userId) { [weak self] error in
             guard let self = self else { return }
-            if let error = error {
+            if error != nil {
                 return
             }
             DispatchQueue.main.async {
@@ -871,7 +893,7 @@ class UserProfileViewModel: ObservableObject, UserListViewModel {
         guard let currentUserId = Auth.auth().currentUser?.uid else { return }
         firestoreService.unblockUser(currentUserId: currentUserId, targetUserId: userId) { [weak self] error in
             guard let self = self else { return }
-            if let error = error {
+            if error != nil {
                 return
             }
             DispatchQueue.main.async {

@@ -26,7 +26,6 @@
 		36BDF4122ED7DD7B00683AB4 /* GlowsyWidgetExtensionExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 36BDF3FC2ED7DD7800683AB4 /* GlowsyWidgetExtensionExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		36CE4D382E0A18F400901FD0 /* ZIPFoundation in Frameworks */ = {isa = PBXBuildFile; productRef = 36CE4D372E0A18F400901FD0 /* ZIPFoundation */; };
 		36CE4D4E2E0DEE4400901FD0 /* GoogleMobileAds in Frameworks */ = {isa = PBXBuildFile; productRef = 36CE4D4D2E0DEE4400901FD0 /* GoogleMobileAds */; };
-		36E6065C2F12A6B100879F23 /* Untitled.gpx in Sources */ = {isa = PBXBuildFile; fileRef = 36E6065B2F12A6AF00879F23 /* Untitled.gpx */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -67,7 +66,6 @@
 		36BDF3FC2ED7DD7800683AB4 /* GlowsyWidgetExtensionExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = GlowsyWidgetExtensionExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		36BDF3FE2ED7DD7800683AB4 /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
 		36BDF4002ED7DD7800683AB4 /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
-		36E6065B2F12A6AF00879F23 /* Untitled.gpx */ = {isa = PBXFileReference; lastKnownFileType = text; path = Untitled.gpx; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -177,7 +175,6 @@
 			isa = PBXGroup;
 			children = (
 				36AD0CE62EE1D97100C4FC30 /* GlowsyWidgetExtensionExtension.entitlements */,
-				36E6065B2F12A6AF00879F23 /* Untitled.gpx */,
 				368B7D822DE792C2001D7971 /* Moments.entitlements */,
 				0D4FD1BB2DB27BFE00CA6DB1 /* Moments */,
 				36BDF4022ED7DD7800683AB4 /* GlowsyWidgetExtension */,
@@ -298,7 +295,7 @@
 					New,
 				);
 				LastSwiftUpdateCheck = 2600;
-				LastUpgradeCheck = 1640;
+				LastUpgradeCheck = 2650;
 				TargetAttributes = {
 					0D4FD1B82DB27BFE00CA6DB1 = {
 						CreatedOnToolsVersion = 16.3;
@@ -379,7 +376,6 @@
 		36BDF3F82ED7DD7800683AB4 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			files = (
-				36E6065C2F12A6B100879F23 /* Untitled.gpx in Sources */,
 			);
 		};
 /* End PBXSourcesBuildPhase section */
@@ -403,6 +399,7 @@
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_LOCALIZABILITY_NONLOCALIZED = YES;
 				CLANG_ANALYZER_NONNULL = YES;
 				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
@@ -451,12 +448,13 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 18.4;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.6;
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
 				SDKROOT = iphoneos;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_VERSION = 6.0;
@@ -468,6 +466,7 @@
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_LOCALIZABILITY_NONLOCALIZED = YES;
 				CLANG_ANALYZER_NONNULL = YES;
 				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
@@ -511,12 +510,13 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 18.4;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.6;
 				LLVM_LTO = thin;
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				SDKROOT = iphoneos;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				STRIP_DEBUG_SYMBOLS = YES;
 				SWIFT_COMPILATION_MODE = wholemodule;
 				SWIFT_OPTIMIZATION_LEVEL = "-Osize";
@@ -545,7 +545,7 @@
 				INFOPLIST_KEY_LSSupportsOpeningDocumentsInPlace = YES;
 				INFOPLIST_KEY_NSCameraUsageDescription = "Permite usar la cámara para capturar fotos y vídeos para tus historias, momentos y perfil.";
 				INFOPLIST_KEY_NSLocationAlwaysAndWhenInUseUsageDescription = "Necesitamos tu ubicación para mostrarte contenido cercano y etiquetar tus momentos.";
-				INFOPLIST_KEY_NSLocationAlwaysUsageDescription = "";
+				INFOPLIST_KEY_NSLocationAlwaysUsageDescription = "Permite usar tu ubicación en segundo plano para mostrarte contenido cercano y etiquetar tus momentos.";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Permite usar tu ubicación para etiquetar publicaciones, mostrar contenido cercano y mejorar las sugerencias de Nova AI.";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Permite usar el micrófono para grabar audio en tus historias y mensajes de voz.";
 				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "Permite guardar fotos y vídeos (como tu código QR o historias editadas) directamente en tu galería.";
@@ -562,7 +562,6 @@
 				IPHONEOS_DEPLOYMENT_TARGET = 18.6;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
-					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 2.11.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.glowsyapp;
@@ -598,7 +597,7 @@
 				INFOPLIST_KEY_LSSupportsOpeningDocumentsInPlace = YES;
 				INFOPLIST_KEY_NSCameraUsageDescription = "Permite usar la cámara para capturar fotos y vídeos para tus historias, momentos y perfil.";
 				INFOPLIST_KEY_NSLocationAlwaysAndWhenInUseUsageDescription = "Necesitamos tu ubicación para mostrarte contenido cercano y etiquetar tus momentos.";
-				INFOPLIST_KEY_NSLocationAlwaysUsageDescription = "";
+				INFOPLIST_KEY_NSLocationAlwaysUsageDescription = "Permite usar tu ubicación en segundo plano para mostrarte contenido cercano y etiquetar tus momentos.";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Permite usar tu ubicación para etiquetar publicaciones, mostrar contenido cercano y mejorar las sugerencias de Nova AI.";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Permite usar el micrófono para grabar audio en tus historias y mensajes de voz.";
 				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "Permite guardar fotos y vídeos (como tu código QR o historias editadas) directamente en tu galería.";
@@ -615,7 +614,6 @@
 				IPHONEOS_DEPLOYMENT_TARGET = 18.6;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
-					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 2.11.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.glowsyapp;
@@ -643,13 +641,15 @@
 				INFOPLIST_FILE = MomentsNotificationService/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = MomentsNotificationService;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
-				IPHONEOS_DEPLOYMENT_TARGET = 17.6;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.6;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
-					"@executable_path/Frameworks",
+				);
+				"LD_RUNPATH_SEARCH_PATHS[sdk=iphoneos*]" = (
+					"$(inherited)",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 2.3.0;
+				MARKETING_VERSION = 2.11.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.glowsyapp.MomentsNotificationService;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
@@ -675,13 +675,15 @@
 				INFOPLIST_FILE = MomentsNotificationService/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = MomentsNotificationService;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
-				IPHONEOS_DEPLOYMENT_TARGET = 17.6;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.6;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
-					"@executable_path/Frameworks",
+				);
+				"LD_RUNPATH_SEARCH_PATHS[sdk=iphoneos*]" = (
+					"$(inherited)",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 2.3.0;
+				MARKETING_VERSION = 2.11.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.glowsyapp.MomentsNotificationService;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
@@ -708,13 +710,15 @@
 				INFOPLIST_FILE = GlowsyWidgetExtension/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = MomentsWidgetExtension;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
-				IPHONEOS_DEPLOYMENT_TARGET = 17.6;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.6;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
-					"@executable_path/Frameworks",
+				);
+				"LD_RUNPATH_SEARCH_PATHS[sdk=iphoneos*]" = (
+					"$(inherited)",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 2.3.0;
+				MARKETING_VERSION = 2.11.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.glowsyapp.GlowsyWidgetExtension;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
@@ -742,13 +746,15 @@
 				INFOPLIST_FILE = GlowsyWidgetExtension/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = MomentsWidgetExtension;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
-				IPHONEOS_DEPLOYMENT_TARGET = 17.6;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.6;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
-					"@executable_path/Frameworks",
+				);
+				"LD_RUNPATH_SEARCH_PATHS[sdk=iphoneos*]" = (
+					"$(inherited)",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 2.3.0;
+				MARKETING_VERSION = 2.11.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.glowsyapp.GlowsyWidgetExtension;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;

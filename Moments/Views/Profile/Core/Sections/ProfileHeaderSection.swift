@@ -145,7 +145,7 @@ struct ModernProfileHeader: View {
                 // }
             }
             .onTapGesture {
-                if storyViewModel.hasActiveStory, let userId = Auth.auth().currentUser?.uid {
+                if storyViewModel.hasActiveStory, Auth.auth().currentUser?.uid != nil {
                     showStoryViewer = true
                     selectedStoryIndex = 0
                 } else {

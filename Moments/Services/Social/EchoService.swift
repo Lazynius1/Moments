@@ -233,7 +233,7 @@ class EchoService {
         guard let hostUser = try? await firestoreService.db.collection("users").document(hostId).getDocument(as: AppUser.self) else { return }
         
         do {
-            try await db.runTransaction { (transaction, errorPointer) -> Any? in
+            _ = try await db.runTransaction { (transaction, errorPointer) -> Any? in
                 let snapshot: DocumentSnapshot
                 do {
                     try snapshot = transaction.getDocument(echoRef)
@@ -289,7 +289,7 @@ class EchoService {
     func acceptEcho(echoId: String, userId: String) async throws {
         let docRef = db.collection("echoes").document(echoId)
         
-        try await db.runTransaction { (transaction, errorPointer) -> Any? in
+        _ = try await db.runTransaction { (transaction, errorPointer) -> Any? in
             let snapshot: DocumentSnapshot
             do {
                 try snapshot = transaction.getDocument(docRef)
@@ -332,7 +332,7 @@ class EchoService {
     func declineEcho(echoId: String, userId: String) async throws {
         let docRef = db.collection("echoes").document(echoId)
         
-        try await db.runTransaction { (transaction, errorPointer) -> Any? in
+        _ = try await db.runTransaction { (transaction, errorPointer) -> Any? in
             let snapshot: DocumentSnapshot
             do {
                 try snapshot = transaction.getDocument(docRef)

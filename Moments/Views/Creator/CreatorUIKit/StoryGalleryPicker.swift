@@ -28,7 +28,7 @@ struct StoryGalleryPicker: View {
                     }
                 }
             }
-            .onChange(of: authorizationStatus) { newStatus in
+            .onChange(of: authorizationStatus) { _, newStatus in
                 if (newStatus == .authorized || newStatus == .limited) && !showingMediaPicker {
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                         showingMediaPicker = true

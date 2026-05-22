@@ -5,7 +5,7 @@ import UIKit
 extension StoryViewerScreen {
     // ✅ FUNCIÓN HELPER: Detectar aspect ratio de un video (CORREGIDA)
     static func detectVideoAspectRatio(from url: URL) async -> String? {
-        let asset = AVAsset(url: url)
+        let asset = AVURLAsset(url: url)
         let tracks = try? await asset.loadTracks(withMediaType: .video)
 
         if let videoTrack = tracks?.first {

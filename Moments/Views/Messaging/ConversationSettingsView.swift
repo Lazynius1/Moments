@@ -307,7 +307,7 @@ struct ConversationSettingsView: View {
                     }
                 }
                 .toggleStyle(SwitchToggleStyle(tint: .green))
-                .onChange(of: viewModel.notificationsEnabled) { _ in
+                .onChange(of: viewModel.notificationsEnabled) { _, _ in
                     HapticManager.shared.lightImpact()
                     viewModel.toggleNotifications()
                 }
@@ -325,7 +325,7 @@ struct ConversationSettingsView: View {
                     }
                 }
                 .toggleStyle(SwitchToggleStyle(tint: .green))
-                .onChange(of: viewModel.readReceiptsEnabled) { _ in
+                .onChange(of: viewModel.readReceiptsEnabled) { _, _ in
                     HapticManager.shared.lightImpact()
                     viewModel.toggleReadReceipts()
                 }
@@ -343,7 +343,7 @@ struct ConversationSettingsView: View {
                     }
                 }
                 .toggleStyle(SwitchToggleStyle(tint: .green))
-                .onChange(of: viewModel.typingIndicatorEnabled) { _ in
+                .onChange(of: viewModel.typingIndicatorEnabled) { _, _ in
                     HapticManager.shared.lightImpact()
                     viewModel.toggleTypingIndicator()
                 }
@@ -470,6 +470,7 @@ struct SharedMediaThumbnail: View {
 }
 
 // MARK: - View Model
+@MainActor
 class ConversationSettingsViewModel: ObservableObject {
     @Published var currentUserId = Auth.auth().currentUser?.uid ?? ""
     @Published var conversationCreatedDate = "Desconocida"
@@ -593,7 +594,7 @@ class ConversationSettingsViewModel: ObservableObject {
 
         let completion: (Error?) -> Void = { error in
             DispatchQueue.main.async {
-                if let error = error {
+                if error != nil {
                     self.notificationAlertMessage = NSLocalizedString("conversationSettings.notificationConfig.error", comment: "")
                 } else {
                     NotificationCenter.default.post(
@@ -700,37 +701,25 @@ class ConversationSettingsViewModel: ObservableObject {
 
     func clearConversation() {
         guard let currentUserId = Auth.auth().currentUser?.uid,
-              let conversationId = currentConversation?.id else { return }
+              currentConversation?.id != nil else { return }
 
         // Obtener el ID del otro participante
         let otherParticipantId = currentConversation?.otherParticipantId ?? ""
 
         // Eliminar conversación usando ChatService
-        chatService.deleteConversationsBetweenUsers(user1Id: currentUserId, user2Id: otherParticipantId) { [weak self] error in
-            DispatchQueue.main.async {
-                if let error = error {
-                } else {
-                    // Aquí podrías cerrar la vista o navegar de vuelta
-                }
-            }
+        chatService.deleteConversationsBetweenUsers(user1Id: currentUserId, user2Id: otherParticipantId) { _ in
         }
     }
 
     func blockUser() {
         guard let currentUserId = Auth.auth().currentUser?.uid,
-              let conversationId = currentConversation?.id else { return }
+              currentConversation?.id != nil else { return }
 
         // Obtener el ID del otro participante
         let otherParticipantId = currentConversation?.otherParticipantId ?? ""
 
         // Bloquear usuario usando FirestoreService
-        firestoreService.blockUser(currentUserId: currentUserId, targetUserId: otherParticipantId) { [weak self] error in
-            DispatchQueue.main.async {
-                if let error = error {
-                } else {
-                    // Aquí podrías cerrar la vista o mostrar una confirmación
-                }
-            }
+        firestoreService.blockUser(currentUserId: currentUserId, targetUserId: otherParticipantId) { _ in
         }
     }
 }
@@ -983,12 +972,12 @@ struct FullScreenMediaView: View {
                 dismissButton: .default(Text("common.ok"))
             )
         }
-        .onChange(of: selectedIndex) { _ in
+        .onChange(of: selectedIndex) { _, _ in
             videoProgress = 0
             videoDuration = 0
             isVideoPaused = false
         }
-        .onChange(of: showExpandedVideo) { isShown in
+        .onChange(of: showExpandedVideo) { _, isShown in
             if !isShown {
                 expandedVideoURL = nil
             }

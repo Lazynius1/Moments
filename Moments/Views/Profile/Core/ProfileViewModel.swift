@@ -117,61 +117,67 @@ class ProfileViewModel: ObservableObject, UserListViewModel {
     private func fetchConnections(userId: String) {
 
         // Primero obtener following directamente de Firestore
-        firestoreService.db.collection("users").document(userId).collection("following")
+        let db = firestoreService.db
+        db.collection("users").document(userId).collection("following")
             .getDocuments { [weak self] followingSnapshot, error in
-                guard let self = self else { return }
+                Task { @MainActor [weak self] in
+                    guard let self = self else { return }
 
-                if let error = error {
-                    self.errorMessage = "Error al cargar conexiones: \(error.localizedDescription)"
-                    self.isLoading = false
-                    return
-                }
-
-                let followingIds = followingSnapshot?.documents.compactMap { doc in
-                    doc.data()["userId"] as? String
-                } ?? []
-
-
-                // Filtrar unfollows recientes
-                let filteredFollowingIds = followingIds.filter { userId in
-                    if let unfollowTime = self.lastUnfollowTime[userId] {
-                        // Si el unfollow fue hace menos de 5 segundos, no incluir
-                        let timeSinceUnfollow = Date().timeIntervalSince(unfollowTime)
-                        if timeSinceUnfollow < 5.0 {
-                            return false
-                        } else {
-                            // Limpiar el cache después de 5 segundos
-                            self.lastUnfollowTime.removeValue(forKey: userId)
-                            self.recentUnfollows.remove(userId)
-                        }
+                    if let error = error {
+                        self.errorMessage = "Error al cargar conexiones: \(error.localizedDescription)"
+                        self.isLoading = false
+                        return
                     }
-                    return true
-                }
+
+                    let followingIds = followingSnapshot?.documents.compactMap { doc in
+                        doc.data()["userId"] as? String
+                    } ?? []
 
 
-                // Luego obtener followers
-                self.firestoreService.db.collection("users").document(userId).collection("followers")
-                    .getDocuments { [weak self] followersSnapshot, error in
+                    // Filtrar unfollows recientes
+                    let filteredFollowingIds = followingIds.filter { userId in
+                        if let unfollowTime = self.lastUnfollowTime[userId] {
+                            // Si el unfollow fue hace menos de 5 segundos, no incluir
+                            let timeSinceUnfollow = Date().timeIntervalSince(unfollowTime)
+                            if timeSinceUnfollow < 5.0 {
+                                return false
+                            } else {
+                                // Limpiar el cache después de 5 segundos
+                                self.lastUnfollowTime.removeValue(forKey: userId)
+                                self.recentUnfollows.remove(userId)
+                            }
+                        }
+                        return true
+                    }
+
+
+                    // Luego obtener followers
+                    let db2 = self.firestoreService.db
+                    Task { @MainActor [weak self] in
                         guard let self = self else { return }
+                        do {
+                            let followersSnapshot = try await db2
+                                .collection("users")
+                                .document(userId)
+                                .collection("followers")
+                                .getDocuments()
 
-                        if let error = error {
+                            let followerIds = followersSnapshot.documents.compactMap { doc in
+                                doc.data()["userId"] as? String
+                            }
+
+                            // Categorizar conexiones con IDs filtrados
+                            self.categorizeConnections(
+                                userId: userId,
+                                followingIds: filteredFollowingIds,
+                                followerIds: followerIds
+                            )
+                        } catch {
                             self.errorMessage = "Error al cargar admiradores: \(error.localizedDescription)"
                             self.isLoading = false
-                            return
                         }
-
-                        let followerIds = followersSnapshot?.documents.compactMap { doc in
-                            doc.data()["userId"] as? String
-                        } ?? []
-
-
-                        // Categorizar conexiones con IDs filtrados
-                        self.categorizeConnections(
-                            userId: userId,
-                            followingIds: filteredFollowingIds,
-                            followerIds: followerIds
-                        )
                     }
+                }
             }
     }
 
