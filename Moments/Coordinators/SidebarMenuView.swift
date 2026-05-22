@@ -136,7 +136,7 @@ struct SidebarMenuView: View {
             }
         }
         .ignoresSafeArea()
-        .onChange(of: isShowingSidebar) { newValue in
+        .onChange(of: isShowingSidebar) { _, newValue in
             if !newValue {
                 dragOffset = 0
             }

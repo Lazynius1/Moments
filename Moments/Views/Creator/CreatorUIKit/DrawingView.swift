@@ -114,14 +114,17 @@ class DrawingViewController: UIViewController {
         let redoButton = createToolButton(imageName: "arrow.uturn.forward", action: #selector(redoTapped))
         topToolbar.addSubview(redoButton)
 
-        let doneButton = UIButton(type: .system)
+        var doneButtonConfig = UIButton.Configuration.filled()
+        var doneTitleAttr = AttributeContainer()
+        doneTitleAttr.font = UIFont.systemFont(ofSize: 17, weight: .semibold)
+        doneButtonConfig.attributedTitle = AttributedString(NSLocalizedString("creator.done", comment: "Done"), attributes: doneTitleAttr)
+        doneButtonConfig.contentInsets = NSDirectionalEdgeInsets(top: 8, leading: 14, bottom: 8, trailing: 14)
+        doneButtonConfig.background.backgroundColor = UIColor.black.withAlphaComponent(0.22)
+        doneButtonConfig.background.cornerRadius = 15
+        doneButtonConfig.baseForegroundColor = .white
+
+        let doneButton = UIButton(configuration: doneButtonConfig)
         doneButton.translatesAutoresizingMaskIntoConstraints = false
-        doneButton.setTitle(NSLocalizedString("creator.done", comment: "Done"), for: .normal)
-        doneButton.titleLabel?.font = .systemFont(ofSize: 17, weight: .semibold)
-        doneButton.setTitleColor(.white, for: .normal)
-        doneButton.backgroundColor = UIColor.black.withAlphaComponent(0.22)
-        doneButton.layer.cornerRadius = 15
-        doneButton.contentEdgeInsets = UIEdgeInsets(top: 8, left: 14, bottom: 8, right: 14)
         doneButton.addTarget(self, action: #selector(doneTapped), for: .touchUpInside)
         topToolbar.addSubview(doneButton)
 

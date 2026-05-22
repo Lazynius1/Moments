@@ -189,7 +189,7 @@ struct DeleteAccountVerificationView: View {
         .animation(.spring(response: 0.36, dampingFraction: 0.86), value: flowDestination)
         .animation(.easeInOut(duration: 0.2), value: isProcessing)
         .animation(.easeInOut(duration: 0.18), value: passwordErrorMessage)
-        .onChange(of: password) { _ in
+        .onChange(of: password) { _, _ in
             passwordErrorMessage = nil
         }
         .disabled(isProcessing)

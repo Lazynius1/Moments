@@ -64,7 +64,7 @@ class ConversationService: ObservableObject {
 
     // MARK: - 🔓 Helper: Decrypt Conversation Title
     private func decryptConversationTitle(from document: QueryDocumentSnapshot, userId: String) async -> ConversationTitle? {
-        guard var title = ConversationTitle(dictionary: document.data()) else {
+        guard let title = ConversationTitle(dictionary: document.data()) else {
             return nil
         }
 
@@ -662,7 +662,8 @@ class ConversationService: ObservableObject {
             await encryptionService.preloadConversationKeys(for: conversationIds)
 
 
-        } catch {
+        } catch _ {
+            // Silently ignore preloading errors
         }
     }
 }

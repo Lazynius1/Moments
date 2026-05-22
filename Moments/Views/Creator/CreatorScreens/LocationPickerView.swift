@@ -15,6 +15,10 @@ struct LocationPickerView: View {
         center: CLLocationCoordinate2D(latitude: 41.3874, longitude: 2.1686), // Barcelona por defecto
         span: MKCoordinateSpan(latitudeDelta: 0.05, longitudeDelta: 0.05)
     )
+    @State private var position: MapCameraPosition = .region(MKCoordinateRegion(
+        center: CLLocationCoordinate2D(latitude: 41.3874, longitude: 2.1686),
+        span: MKCoordinateSpan(latitudeDelta: 0.05, longitudeDelta: 0.05)
+    ))
     @State private var searchResults: [MKMapItem] = []
     @State private var isSearching = false
     @State private var showingNearbyPlaces = true
@@ -59,8 +63,14 @@ struct LocationPickerView: View {
                 .padding()
 
                 // Map
-                Map(coordinateRegion: $region, annotationItems: selectedLocation != nil ? [LocationAnnotation(coordinate: selectedLocation!)] : []) { location in
-                    MapMarker(coordinate: location.coordinate, tint: .blue)
+                Map(position: $position) {
+                    if let selectedLocation = selectedLocation {
+                        Marker(locationName.isEmpty ? "Ubicación" : locationName, coordinate: selectedLocation)
+                            .tint(.blue)
+                    }
+                }
+                .onMapCameraChange { context in
+                    region = context.region
                 }
                 .frame(height: 200)
                 .cornerRadius(10)
@@ -195,8 +205,10 @@ struct LocationPickerView: View {
                 // Usar geocoding inverso para obtener el nombre real de la ubicación
                 getLocationNameFromCoordinates(coordinate)
 
+                let newRegion = MKCoordinateRegion(center: coordinate, span: region.span)
+                region = newRegion
                 withAnimation {
-                    region.center = coordinate
+                    position = .region(newRegion)
                 }
                 isRequestingLocation = false
                 loadNearbyPlaces() // Recargar lugares cercanos con nueva ubicación
@@ -343,8 +355,10 @@ struct LocationPickerView: View {
                 // Usar geocoding inverso para obtener el nombre real de la ubicación
                 getLocationNameFromCoordinates(coordinate)
 
+                let newRegion = MKCoordinateRegion(center: coordinate, span: region.span)
+                region = newRegion
                 withAnimation {
-                    region.center = coordinate
+                    position = .region(newRegion)
                 }
                 isRequestingLocation = false
             } else {
@@ -415,8 +429,10 @@ struct LocationPickerView: View {
             let coordinate = currentLocation.coordinate
 
             // Actualizar la región del mapa
+            let newRegion = MKCoordinateRegion(center: coordinate, span: region.span)
+            region = newRegion
             withAnimation {
-                region.center = coordinate
+                position = .region(newRegion)
             }
 
             // Actualizar la ubicación seleccionada si no hay ninguna
@@ -434,8 +450,10 @@ struct LocationPickerView: View {
         selectedLocation = place.placemark.coordinate
         locationName = place.name ?? NSLocalizedString("creator.location.selected", comment: "")
 
+        let newRegion = MKCoordinateRegion(center: place.placemark.coordinate, span: region.span)
+        region = newRegion
         withAnimation {
-            region.center = place.placemark.coordinate
+            position = .region(newRegion)
         }
     }
 }

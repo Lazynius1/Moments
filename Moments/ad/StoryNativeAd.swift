@@ -109,8 +109,10 @@ struct StoryNativeAdView: View {
                 }
                 
                 debugTimer = Timer.scheduledTimer(withTimeInterval: 10.0, repeats: false) { _ in
-                    if self.storyAdManager.isLoading {
-                        self.cleanupAndNext()
+                    Task { @MainActor in
+                        if self.storyAdManager.isLoading {
+                            self.cleanupAndNext()
+                        }
                     }
                 }
             }
@@ -758,27 +760,27 @@ class StoryNativeAdManager: NSObject, ObservableObject {
 }
 
 // MARK: - AdLoaderDelegate
-extension StoryNativeAdManager: AdLoaderDelegate {
+extension StoryNativeAdManager: @preconcurrency AdLoaderDelegate {
     func adLoader(_ adLoader: AdLoader, didFailToReceiveAdWithError error: Error) {
-        DispatchQueue.main.async {
-            self.isLoading = false
-            self.hasError = true
-            self.nativeAd = nil
+        Task { @MainActor [weak self] in
+            self?.isLoading = false
+            self?.hasError = true
+            self?.nativeAd = nil
         }
     }
 }
 
 // MARK: - NativeAdLoaderDelegate
-extension StoryNativeAdManager: NativeAdLoaderDelegate {
+extension StoryNativeAdManager: @preconcurrency NativeAdLoaderDelegate {
     func adLoader(_ adLoader: AdLoader, didReceive nativeAd: NativeAd) {
-        DispatchQueue.main.async {
+        Task { @MainActor [weak self] in
             if nativeAd.mediaContent.hasVideoContent {
                 nativeAd.mediaContent.videoController.isMuted = false
             }
             
-            self.nativeAd = nativeAd
-            self.isLoading = false
-            self.hasError = false
+            self?.nativeAd = nativeAd
+            self?.isLoading = false
+            self?.hasError = false
         }
     }
 }

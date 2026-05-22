@@ -147,10 +147,7 @@ extension AppDelegate: UNUserNotificationCenterDelegate {
             .document(userId)
             .collection("notifications")
             .document(notificationId)
-            .updateData(["isPending": false]) { error in
-                if let error = error {
-                } else {
-                }
+            .updateData(["isPending": false]) { _ in
             }
     }
 }

@@ -326,7 +326,7 @@ class LocationUtilities: NSObject, ObservableObject, CLLocationManagerDelegate {
         super.init()
         locationManager.delegate = self
         locationManager.desiredAccuracy = kCLLocationAccuracyBest
-        authorizationStatus = CLLocationManager.authorizationStatus()
+        authorizationStatus = locationManager.authorizationStatus
     }
 
     func requestLocationPermission() {
@@ -374,7 +374,7 @@ class LocationUtilities: NSObject, ObservableObject, CLLocationManagerDelegate {
     }
 
     static func getCoordinates(for locationName: String, completion: @escaping (CLLocationCoordinate2D?) -> Void) {
-        let authStatus = CLLocationManager.authorizationStatus()
+        let authStatus = CLLocationManager().authorizationStatus
         if authStatus == .denied || authStatus == .restricted {
             completion(nil)
             return
@@ -382,7 +382,7 @@ class LocationUtilities: NSObject, ObservableObject, CLLocationManagerDelegate {
 
         let geocoder = CLGeocoder()
         geocoder.geocodeAddressString(locationName) { placemarks, error in
-            if let error = error {
+            guard error == nil else {
                 completion(nil)
                 return
             }
@@ -401,7 +401,7 @@ class LocationUtilities: NSObject, ObservableObject, CLLocationManagerDelegate {
         let location = CLLocation(latitude: coordinate.latitude, longitude: coordinate.longitude)
 
         geocoder.reverseGeocodeLocation(location) { placemarks, error in
-            if let error = error {
+            guard error == nil else {
                 completion(nil)
                 return
             }
@@ -466,7 +466,7 @@ class LocationUtilities: NSObject, ObservableObject, CLLocationManagerDelegate {
     }
 
     static func getLocationPermissionStatus() -> String {
-        switch CLLocationManager.authorizationStatus() {
+        switch CLLocationManager().authorizationStatus {
         case .notDetermined:
             return "No determinado"
         case .restricted:

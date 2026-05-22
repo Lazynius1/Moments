@@ -28,8 +28,11 @@ class VideoPreloader {
                     } else {
                         // Si no está en disco, lo cargamos remoto y lo mandamos a descargar
                         let asset = AVURLAsset(url: url)
-                        let keys = ["duration", "playable", "tracks"]
-                        asset.loadValuesAsynchronously(forKeys: keys) { }
+                        Task {
+                            _ = try? await asset.load(.duration)
+                            _ = try? await asset.load(.isPlayable)
+                            _ = try? await asset.load(.tracks)
+                        }
                         self.assetCache[urlString] = asset
                         
                         // ✅ Descargar para futuras sesiones

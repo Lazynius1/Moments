@@ -160,7 +160,7 @@ struct ExploreView: View {
                 // El tipo se detectará automáticamente en saveSearchRecord si es necesario,
                 // o podemos ser más específicos aquí.
             }
-            .onChange(of: searchText) { newValue in
+            .onChange(of: searchText) { _, newValue in
                 viewModel.smartSearch(query: newValue)
             }
             .onAppear {

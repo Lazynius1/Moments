@@ -477,14 +477,14 @@ struct ProfileView: View {
                     }
                 }
                 .animation(.easeInOut(duration: 0.3), value: showingUserList)
-                .onChange(of: selectedTab) { newTab in
+                .onChange(of: selectedTab) { _, newTab in
                     if newTab == 4 {
                         isShowingSettings = false
                         isShowingEditProfile = false
                     }
                 }
                 .onAppear {
-                    Auth.auth().addStateDidChangeListener { auth, user in
+                    _ = Auth.auth().addStateDidChangeListener { _, user in
                         if let userId = user?.uid {
                             viewModel.fetchProfile(userId: userId)
                             storyViewModel.fetchStories(for: userId, includeConnections: false)

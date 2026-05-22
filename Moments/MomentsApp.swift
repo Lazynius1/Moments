@@ -112,7 +112,7 @@ struct MomentsApp: App {
                     .onReceive(NotificationCenter.default.publisher(for: UIApplication.willResignActiveNotification)) { _ in
                     }
                     .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("NavigateToMoment"))) { notification in
-                        if let momentId = notification.object as? String {
+                        if notification.object is String {
                         }
                     }
                     .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("NavigateToProfile"))) { notification in
@@ -122,7 +122,7 @@ struct MomentsApp: App {
                         }
                     }
                     .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("NavigateToConversation"))) { notification in
-                        if let conversationId = notification.object as? String {
+                        if notification.object is String {
                         }
                     }
                     .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("NavigateToStoryChain"))) { notification in

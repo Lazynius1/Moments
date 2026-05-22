@@ -63,14 +63,14 @@ struct LocationBottomSheet: View {
                 showBottomSheet()
             }
         }
-        .onChange(of: isPresented) { presented in
+        .onChange(of: isPresented) { _, presented in
             if presented {
                 showBottomSheet()
             } else {
                 hideBottomSheet()
             }
         }
-        .onChange(of: moments.count) { _ in
+        .onChange(of: moments.count) { _, _ in
             if isPresented && offset > 50 {
                 showBottomSheet()
             }

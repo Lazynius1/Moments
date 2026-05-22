@@ -64,7 +64,7 @@ struct CustomAudienceSelector: View {
                     TextField("Buscar personas...", text: $searchText)
                         .font(.custom("Poppins-Regular", size: 16))
                         .foregroundColor(colorScheme == .dark ? .white : .black)
-                        .onChange(of: searchText) { newValue in
+                        .onChange(of: searchText) { _, newValue in
                             if !newValue.isEmpty {
                                 searchUsers(query: newValue)
                             }
@@ -129,7 +129,7 @@ struct CustomAudienceSelector: View {
                 switch result {
                 case .success(let users):
                     self.searchResults = users
-                case .failure(let error):
+                case .failure:
                     self.searchResults = []
                 }
             }
@@ -242,7 +242,7 @@ struct CustomAudienceListsView: View {
         .onAppear {
             viewModel.loadLists()
         }
-        .onChange(of: viewModel.lists) { _ in
+        .onChange(of: viewModel.lists) { _, _ in
             onListsChanged?()
         }
         .overlay(alignment: .bottom) {
@@ -555,10 +555,7 @@ class CustomAudienceListsViewModel: ObservableObject {
         db.collection("users").document(userId)
             .collection("customAudienceLists")
             .document(listId)
-            .delete { error in
-                if let error = error {
-                }
-            }
+            .delete { _ in }
     }
 }
 

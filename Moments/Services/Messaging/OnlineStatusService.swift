@@ -87,7 +87,7 @@ class OnlineStatusService: ObservableObject {
         
         
         db.collection("users").document(userId).updateData(data) { error in
-            if let error = error {
+            if error != nil {
                 // ✅ NUEVO: Revertir estado local si hay error
                 DispatchQueue.main.async {
                     self.currentUserStatus = .offline
@@ -114,10 +114,7 @@ class OnlineStatusService: ObservableObject {
             ]
         ]
         
-        db.collection("users").document(userId).updateData(data) { error in
-            if let error = error {
-            } else {
-            }
+        db.collection("users").document(userId).updateData(data) { _ in
         }
     }
     
@@ -194,10 +191,7 @@ class OnlineStatusService: ObservableObject {
             "lastSeen": FieldValue.serverTimestamp()
         ]
         
-        db.collection("users").document(userId).updateData(data) { error in
-            if let error = error {
-            } else {
-            }
+        db.collection("users").document(userId).updateData(data) { _ in
         }
     }
     
@@ -208,10 +202,7 @@ class OnlineStatusService: ObservableObject {
             "lastSeen": FieldValue.serverTimestamp()
         ]
         
-        db.collection("users").document(userId).updateData(data) { error in
-            if let error = error {
-            } else {
-            }
+        db.collection("users").document(userId).updateData(data) { _ in
         }
     }
     
@@ -221,7 +212,7 @@ class OnlineStatusService: ObservableObject {
         
         
         db.collection("users").document(userId).getDocument { [weak self] document, error in
-            if let error = error {
+            if error != nil {
                 return
             }
             

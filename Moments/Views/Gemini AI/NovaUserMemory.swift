@@ -751,7 +751,7 @@ extension String {
     /// Calcula similitud básica entre strings (0.0 a 1.0)
     func similarityScore(to other: String) -> Double {
         let longer = self.count > other.count ? self : other
-        let shorter = self.count > other.count ? other : self
+        _ = self.count > other.count ? other : self
         
         if longer.count == 0 {
             return 1.0

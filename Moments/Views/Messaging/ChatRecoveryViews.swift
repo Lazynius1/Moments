@@ -251,7 +251,7 @@ private struct CreateChatPINView: View {
         .onAppear {
             activeField = .primary
         }
-        .onChange(of: pin) { newValue in
+        .onChange(of: pin) { _, newValue in
             if newValue.count == pinLength && activeField == .primary {
                 activeField = .confirmation
             }
@@ -664,7 +664,7 @@ private struct ChatRecoveryPINField: View {
                     .focused($isFocused)
                     .frame(width: 1, height: 1)
                     .opacity(0.01)
-                    .onChange(of: text) { newValue in
+                    .onChange(of: text) { _, newValue in
                         let filtered = filteredPIN(newValue, length: length)
                         if filtered != newValue {
                             text = filtered
@@ -692,7 +692,7 @@ private struct ChatRecoveryPINField: View {
                 isFocused = true
             }
         }
-        .onChange(of: activeField) { newValue in
+        .onChange(of: activeField) { _, newValue in
             isFocused = newValue == kind
         }
     }

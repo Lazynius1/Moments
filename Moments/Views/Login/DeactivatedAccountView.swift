@@ -32,14 +32,14 @@ struct DeactivatedAccountView: View {
         } message: {
             Text(errorMessage)
         }
-        .onChange(of: authService.isVerifyingAccount) { newValue in
+        .onChange(of: authService.isVerifyingAccount) { _, newValue in
             if !newValue && isReactivating {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                     isReactivating = false
                 }
             }
         }
-        .onChange(of: authService.authState) { newState in
+        .onChange(of: authService.authState) { _, newState in
             if newState == .authenticated {
                 isReactivating = false
             }

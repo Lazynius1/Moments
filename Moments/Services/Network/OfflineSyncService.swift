@@ -69,8 +69,7 @@ class OfflineSyncService: ObservableObject {
     private func executeAction(_ action: CachedAction) async {
         LocalPersistenceService.shared.updateActionStatus(id: action.id, status: .executing)
         
-        do {
-            switch action.type {
+        switch action.type {
             case CachedAction.ActionType.momentUpload.rawValue:
                 // Retomar la subida usando el servicio especializado
                 await BackgroundMomentUploadService.shared.resumeUpload(from: action)
@@ -352,12 +351,15 @@ class OfflineSyncService: ObservableObject {
                 
             case CachedAction.ActionType.markAsRead.rawValue:
                 if let payload = try? JSONDecoder().decode(MarkAsReadPayload.self, from: action.payloadData) {
+                    let actionId = action.id
                     await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
                         Firestore.firestore().collection("users").document(payload.userId).collection("notifications").document(payload.notificationId).updateData([
                             "isPending": false
                         ]) { error in
                             if error == nil {
-                                LocalPersistenceService.shared.deleteAction(id: action.id)
+                                Task { @MainActor in
+                                    LocalPersistenceService.shared.deleteAction(id: actionId)
+                                }
                             }
                             continuation.resume()
                         }
@@ -370,6 +372,7 @@ class OfflineSyncService: ObservableObject {
                 
             case CachedAction.ActionType.deleteMoment.rawValue:
                 if let payload = try? JSONDecoder().decode(DeleteMomentPayload.self, from: action.payloadData) {
+                    let actionId = action.id
                     await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
                         // 1. Eliminar documento de Firestore
                         Firestore.firestore().collection("users").document(payload.userId).collection("moments").document(payload.momentId).delete { error in
@@ -386,7 +389,9 @@ class OfflineSyncService: ObservableObject {
                             }
                             
                             if error == nil {
-                                LocalPersistenceService.shared.deleteAction(id: action.id)
+                                Task { @MainActor in
+                                    LocalPersistenceService.shared.deleteAction(id: actionId)
+                                }
                             }
                             continuation.resume()
                         }
@@ -401,15 +406,11 @@ class OfflineSyncService: ObservableObject {
             }
             
             LocalPersistenceService.shared.updateActionStatus(id: action.id, status: .pending) // Si no se borró, vuelve a pendiente
-        } catch {
-            print("❌ OfflineSync: Error al ejecutar acción \(action.id): \(error)")
-            LocalPersistenceService.shared.updateActionStatus(id: action.id, status: .failed, error: error.localizedDescription)
-        }
     }
     
     /// Optimiza la lista de acciones eliminando las que se cancelan entre sí
     private func optimizePendingActions(_ actions: [CachedAction]) async -> [CachedAction] {
-        var optimizedActions = actions
+        let optimizedActions = actions
         var actionsToDelete: Set<String> = []
         
         // 1. OPTIMIZAR COMENTARIOS (Crear + Borrar = Nada)

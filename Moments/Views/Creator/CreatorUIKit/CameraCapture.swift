@@ -41,24 +41,28 @@ struct CameraCapture: UIViewControllerRepresentable {
                 )
                 parent.onCapture(media)
             } else if let videoURL = info[.mediaURL] as? URL {
-                let asset = AVAsset(url: videoURL)
+                let asset = AVURLAsset(url: videoURL)
                 let generator = AVAssetImageGenerator(asset: asset)
                 generator.appliesPreferredTrackTransform = true
 
-                do {
-                    let cgImage = try generator.copyCGImage(at: .zero, actualTime: nil)
-                    let thumbnail = UIImage(cgImage: cgImage)
-                    let detectedRatio = CreatorMedia.AspectRatio.fromRatio(thumbnail.size.width / thumbnail.size.height)
-                    let media = CreatorMedia(
-                        id: UUID().uuidString,
-                        image: thumbnail,
-                        videoURL: videoURL,
-                        type: .video,
-                        aspectRatio: detectedRatio,
-                        recommendedAspectRatio: detectedRatio
-                    )
-                    parent.onCapture(media)
-                } catch {
+                Task {
+                    do {
+                        let (cgImage, _) = try await generator.image(at: .zero)
+                        let thumbnail = UIImage(cgImage: cgImage)
+                        let detectedRatio = CreatorMedia.AspectRatio.fromRatio(thumbnail.size.width / thumbnail.size.height)
+                        let media = CreatorMedia(
+                            id: UUID().uuidString,
+                            image: thumbnail,
+                            videoURL: videoURL,
+                            type: .video,
+                            aspectRatio: detectedRatio,
+                            recommendedAspectRatio: detectedRatio
+                        )
+                        await MainActor.run {
+                            parent.onCapture(media)
+                        }
+                    } catch {
+                    }
                 }
             }
 

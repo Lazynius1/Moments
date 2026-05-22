@@ -89,7 +89,7 @@ struct LoginView: View {
             }
         }
         // ✅ NUEVO: Observar cambios en el estado de autenticación
-        .onChange(of: authService.authState) { newState in
+        .onChange(of: authService.authState) { _, newState in
         }
     }
 
@@ -359,16 +359,10 @@ struct EnhancedFormView: View {
             LoginDisclaimerView()
                 .padding(.top, 14)
         }
-            // ✅ CHANGE: Use NavigationLink instead of fullScreenCover to avoid sheet dismissal issues
-            // This pushes the view onto the navigation stack, which feels more integrated and
-            // avoids the "flash of login" when dismissing a sheet before replacing the root view.
-            .background(
-                NavigationLink(
-                    destination: SocialProfileCompletionView(),
-                    isActive: $authService.isRegistering,
-                    label: { EmptyView() }
-                )
-            )
+            // ✅ Modern navigation: uses navigationDestination(isPresented:) instead of deprecated NavigationLink(isActive:)
+            .navigationDestination(isPresented: $authService.isRegistering) {
+                SocialProfileCompletionView()
+            }
 
         .padding(.horizontal, 24)
         .padding(.bottom, 18)

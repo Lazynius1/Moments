@@ -64,7 +64,7 @@ struct EnhancedInputBar: View {
                                 .foregroundColor(ModernGeminiColors.textPrimary)
                                 .frame(width: 34, height: 34)
                         }
-                        .onChange(of: selectedItem) { newItem in
+                        .onChange(of: selectedItem) { _, newItem in
                             Task {
                                 if let data = try? await newItem?.loadTransferable(type: Data.self),
                                    let image = UIImage(data: data) {
@@ -82,7 +82,7 @@ struct EnhancedInputBar: View {
                             .foregroundColor(ModernGeminiColors.textPrimary)
                             .padding(.vertical, 12)
                             .focused($isTextFieldFocused)
-                            .onChange(of: isTextFieldFocused) { focused in
+                            .onChange(of: isTextFieldFocused) { _, focused in
                                 onFocusChange?(focused)
                             }
                             .onSubmit {
@@ -190,10 +190,10 @@ struct SmartSuggestionChips: View {
         .onAppear {
             loadDynamicSuggestions()
         }
-        .onChange(of: viewModel.userData) { _ in
+        .onChange(of: viewModel.userData) { _, _ in
             loadDynamicSuggestions()
         }
-        .onChange(of: viewModel.userMemory?.id ?? "") { _ in
+        .onChange(of: viewModel.userMemory?.id ?? "") { _, _ in
             loadDynamicSuggestions()
         }
     }
@@ -298,10 +298,10 @@ struct DynamicWelcomeSuggestions: View {
         .onAppear {
             loadDynamicSuggestions()
         }
-        .onChange(of: viewModel.userData) { _ in
+        .onChange(of: viewModel.userData) { _, _ in
             loadDynamicSuggestions()
         }
-        .onChange(of: viewModel.userMemory?.id ?? "") { _ in
+        .onChange(of: viewModel.userMemory?.id ?? "") { _, _ in
             loadDynamicSuggestions()
         }
     }

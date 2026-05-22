@@ -45,7 +45,7 @@ struct GlassmorphicInputBar: View {
                         .textFieldStyle(PlainTextFieldStyle())
                         .padding(.leading, 2)
                         .padding(.vertical, 10)
-                        .onChange(of: text) { newValue in
+                        .onChange(of: text) { _, newValue in
                             isTyping = !newValue.isEmpty
                         }
 

@@ -537,7 +537,7 @@ class DataExportViewModel: ObservableObject {
             .limit(to: 1)
             .getDocuments { [weak self] snapshot, error in
                 DispatchQueue.main.async {
-                    if let error = error {
+                    if error != nil {
                         return
                     }
                     

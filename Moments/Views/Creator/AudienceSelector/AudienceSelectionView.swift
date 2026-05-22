@@ -439,7 +439,7 @@ struct AudienceSelectionView: View {
                 switch result {
                 case .success(let lists):
                     self.customLists = lists
-                case .failure(let error):
+                case .failure:
                     self.customLists = []
                 }
                 self.isLoadingLists = false
@@ -1017,12 +1017,12 @@ struct EditCustomListView: View {
         .onAppear {
             loadCurrentMembers()
         }
-        .onChange(of: showingMemberPicker) { isPresented in
+        .onChange(of: showingMemberPicker) { _, isPresented in
             if !isPresented {
                 loadCurrentMembers()
             }
         }
-        .onChange(of: searchText) { _ in
+        .onChange(of: searchText) { _, _ in
             filterMembers()
         }
     }
@@ -1456,7 +1456,7 @@ struct EditCustomListView: View {
                     self.currentMembers = users
                     self.filterMembers()
                     self.visibleMembersLimit = self.membersPageSize
-                case .failure(let error):
+                case .failure:
                     self.currentMembers = []
                     self.filteredMembers = []
                     self.visibleMembersLimit = self.membersPageSize
@@ -1608,7 +1608,7 @@ struct MemberPickerView: View {
         .onAppear {
             preloadSelectedUsersData()
         }
-        .onChange(of: selectedMembers) { _ in
+        .onChange(of: selectedMembers) { _, _ in
             selectedUsersData.removeAll { !selectedMembers.contains($0.id) }
             selectedCarouselVisibleLimit = 12
             if selectedMembers.isEmpty {
@@ -1766,7 +1766,7 @@ struct MemberPickerView: View {
                         searchUsers(query: searchText)
                     }
                 }
-                .onChange(of: searchText) { newValue in
+                .onChange(of: searchText) { _, newValue in
                     if newValue.isEmpty {
                         hasSearched = false
                         searchResults = []
@@ -1935,7 +1935,7 @@ struct MemberPickerView: View {
                 switch result {
                 case .success(let users):
                     self.searchResults = users
-                case .failure(let error):
+                case .failure:
                     self.searchResults = []
                 }
             }
@@ -2132,8 +2132,7 @@ class CreateListViewModel: ObservableObject {
                 .collection("customAudienceLists")
                 .addDocument(from: newList) { [weak self] error in
                     self?.isLoading = false
-                    if let error = error {
-                    } else {
+                    if error == nil {
                         completion()
                     }
                 }
@@ -2165,8 +2164,7 @@ class EditListViewModel: ObservableObject {
             .document(listId)
             .updateData(updateData) { [weak self] error in
                 self?.isLoading = false
-                if let error = error {
-                } else {
+                if error == nil {
                     completion()
                 }
             }

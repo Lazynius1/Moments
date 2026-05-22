@@ -144,7 +144,7 @@ extension FirestoreService {
             "visitCount": FieldValue.increment(Int64(1)),
             "timestamp": Timestamp(date: Date())
         ], merge: true) { error in
-            if let error = error {
+            if error != nil {
                 // Error silencioso al actualizar resumen
             }
         }

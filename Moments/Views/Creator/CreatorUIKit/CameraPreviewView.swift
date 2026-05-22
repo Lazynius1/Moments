@@ -286,18 +286,18 @@ class CameraPreviewView: UIView {
 
         if let photoConnection = photoOutput.connection(with: .video) {
             let orientation = currentDeviceOrientation
-            let videoOrientation: AVCaptureVideoOrientation = {
+            let rotationAngle: CGFloat = {
                 switch orientation {
-                case .portrait: return .portrait
-                case .portraitUpsideDown: return .portraitUpsideDown
-                case .landscapeLeft: return .landscapeRight
-                case .landscapeRight: return .landscapeLeft
-                default: return .portrait
+                case .portrait: return 90.0
+                case .portraitUpsideDown: return 270.0
+                case .landscapeLeft: return 0.0
+                case .landscapeRight: return 180.0
+                default: return 90.0
                 }
             }()
 
-            if photoConnection.isVideoOrientationSupported {
-                photoConnection.videoOrientation = videoOrientation
+            if photoConnection.isVideoRotationAngleSupported(rotationAngle) {
+                photoConnection.videoRotationAngle = rotationAngle
             }
             if photoConnection.isVideoMirroringSupported {
                 photoConnection.isVideoMirrored = (currentPosition == .front)
@@ -313,18 +313,18 @@ class CameraPreviewView: UIView {
 
         if let videoConnection = movieOutput.connection(with: .video) {
             let orientation = currentDeviceOrientation
-            let videoOrientation: AVCaptureVideoOrientation = {
+            let rotationAngle: CGFloat = {
                 switch orientation {
-                case .portrait: return .portrait
-                case .portraitUpsideDown: return .portraitUpsideDown
-                case .landscapeLeft: return .landscapeRight
-                case .landscapeRight: return .landscapeLeft
-                default: return .portrait
+                case .portrait: return 90.0
+                case .portraitUpsideDown: return 270.0
+                case .landscapeLeft: return 0.0
+                case .landscapeRight: return 180.0
+                default: return 90.0
                 }
             }()
 
-            if videoConnection.isVideoOrientationSupported {
-                videoConnection.videoOrientation = videoOrientation
+            if videoConnection.isVideoRotationAngleSupported(rotationAngle) {
+                videoConnection.videoRotationAngle = rotationAngle
             }
             if videoConnection.isVideoMirroringSupported {
                 videoConnection.isVideoMirrored = (currentPosition == .front)
@@ -357,66 +357,83 @@ class CameraPreviewView: UIView {
     }
 
     private func exportVideoMatchingVisiblePreview(from inputURL: URL, completion: @escaping (URL?) -> Void) {
-        let asset = AVAsset(url: inputURL)
-        guard let videoTrack = asset.tracks(withMediaType: .video).first else {
-            completion(nil)
-            return
-        }
+        let asset = AVURLAsset(url: inputURL)
 
-        let composition = AVMutableComposition()
-        guard let compositionVideoTrack = composition.addMutableTrack(withMediaType: .video, preferredTrackID: kCMPersistentTrackID_Invalid) else {
-            completion(nil)
-            return
-        }
+        Task {
+            do {
+                let videoTracks = try await asset.loadTracks(withMediaType: .video)
+                guard let videoTrack = videoTracks.first else {
+                    await MainActor.run {
+                        completion(nil)
+                    }
+                    return
+                }
 
-        do {
-            try compositionVideoTrack.insertTimeRange(CMTimeRange(start: .zero, duration: asset.duration), of: videoTrack, at: .zero)
-        } catch {
-            completion(nil)
-            return
-        }
+                let duration = try await asset.load(.duration)
 
-        if let audioTrack = asset.tracks(withMediaType: .audio).first,
-           let compositionAudioTrack = composition.addMutableTrack(withMediaType: .audio, preferredTrackID: kCMPersistentTrackID_Invalid) {
-            try? compositionAudioTrack.insertTimeRange(CMTimeRange(start: .zero, duration: asset.duration), of: audioTrack, at: .zero)
-        }
+                let composition = AVMutableComposition()
+                guard let compositionVideoTrack = composition.addMutableTrack(withMediaType: .video, preferredTrackID: kCMPersistentTrackID_Invalid) else {
+                    await MainActor.run {
+                        completion(nil)
+                    }
+                    return
+                }
 
-        let transformedRect = CGRect(origin: .zero, size: videoTrack.naturalSize).applying(videoTrack.preferredTransform).standardized
-        let orientedSize = transformedRect.size
-        let cropRect = creatorMomentsAspectRect(aspectRatio: creatorMomentsCaptureAspectRatio, in: CGRect(origin: .zero, size: orientedSize)).integral
+                try compositionVideoTrack.insertTimeRange(CMTimeRange(start: .zero, duration: duration), of: videoTrack, at: .zero)
 
-        let instruction = AVMutableVideoCompositionInstruction()
-        instruction.timeRange = CMTimeRange(start: .zero, duration: asset.duration)
+                let audioTracks = try await asset.loadTracks(withMediaType: .audio)
+                if let audioTrack = audioTracks.first,
+                   let compositionAudioTrack = composition.addMutableTrack(withMediaType: .audio, preferredTrackID: kCMPersistentTrackID_Invalid) {
+                    try? compositionAudioTrack.insertTimeRange(CMTimeRange(start: .zero, duration: duration), of: audioTrack, at: .zero)
+                }
 
-        let layerInstruction = AVMutableVideoCompositionLayerInstruction(assetTrack: compositionVideoTrack)
-        let translationToOrigin = CGAffineTransform(translationX: -transformedRect.origin.x, y: -transformedRect.origin.y)
-        let cropTranslation = CGAffineTransform(translationX: -cropRect.origin.x, y: -cropRect.origin.y)
-        let finalTransform = videoTrack.preferredTransform.concatenating(translationToOrigin).concatenating(cropTranslation)
-        layerInstruction.setTransform(finalTransform, at: .zero)
+                let naturalSize = try await videoTrack.load(.naturalSize)
+                let preferredTransform = try await videoTrack.load(.preferredTransform)
 
-        instruction.layerInstructions = [layerInstruction]
+                let transformedRect = CGRect(origin: .zero, size: naturalSize).applying(preferredTransform).standardized
+                let orientedSize = transformedRect.size
+                let cropRect = creatorMomentsAspectRect(aspectRatio: creatorMomentsCaptureAspectRatio, in: CGRect(origin: .zero, size: orientedSize)).integral
 
-        let videoComposition = AVMutableVideoComposition()
-        videoComposition.instructions = [instruction]
-        videoComposition.renderSize = cropRect.size
-        videoComposition.frameDuration = CMTime(value: 1, timescale: max(Int32(videoTrack.nominalFrameRate.rounded()), 30))
+                let instruction = AVMutableVideoCompositionInstruction()
+                instruction.timeRange = CMTimeRange(start: .zero, duration: duration)
 
-        let outputURL = FileManager.default.temporaryDirectory.appendingPathComponent("story_cropped_\(UUID().uuidString).mov")
-        try? FileManager.default.removeItem(at: outputURL)
+                let layerInstruction = AVMutableVideoCompositionLayerInstruction(assetTrack: compositionVideoTrack)
+                let translationToOrigin = CGAffineTransform(translationX: -transformedRect.origin.x, y: -transformedRect.origin.y)
+                let cropTranslation = CGAffineTransform(translationX: -cropRect.origin.x, y: -cropRect.origin.y)
+                let finalTransform = preferredTransform.concatenating(translationToOrigin).concatenating(cropTranslation)
+                layerInstruction.setTransform(finalTransform, at: .zero)
 
-        guard let exportSession = AVAssetExportSession(asset: composition, presetName: AVAssetExportPresetHighestQuality) else {
-            completion(nil)
-            return
-        }
+                instruction.layerInstructions = [layerInstruction]
 
-        exportSession.outputURL = outputURL
-        exportSession.outputFileType = .mov
-        exportSession.shouldOptimizeForNetworkUse = true
-        exportSession.videoComposition = videoComposition
+                let videoComposition = AVMutableVideoComposition()
+                videoComposition.instructions = [instruction]
+                videoComposition.renderSize = cropRect.size
+                let nominalFrameRate = try await videoTrack.load(.nominalFrameRate)
+                videoComposition.frameDuration = CMTime(value: 1, timescale: max(Int32(nominalFrameRate.rounded()), 30))
 
-        exportSession.exportAsynchronously {
-            DispatchQueue.main.async {
-                completion(exportSession.status == .completed ? outputURL : nil)
+                let outputURL = FileManager.default.temporaryDirectory.appendingPathComponent("story_cropped_\(UUID().uuidString).mov")
+                try? FileManager.default.removeItem(at: outputURL)
+
+                guard let exportSession = AVAssetExportSession(asset: composition, presetName: AVAssetExportPresetHighestQuality) else {
+                    await MainActor.run {
+                        completion(nil)
+                    }
+                    return
+                }
+
+                exportSession.outputURL = outputURL
+                exportSession.outputFileType = .mov
+                exportSession.shouldOptimizeForNetworkUse = true
+                exportSession.videoComposition = videoComposition
+
+                try await exportSession.export(to: outputURL, as: .mov)
+                await MainActor.run {
+                    completion(outputURL)
+                }
+            } catch {
+                await MainActor.run {
+                    completion(nil)
+                }
             }
         }
     }
@@ -475,7 +492,7 @@ extension CameraPreviewView: AVCaptureFileOutputRecordingDelegate {
     }
 
     func fileOutput(_ output: AVCaptureFileOutput, didFinishRecordingTo outputFileURL: URL, from connections: [AVCaptureConnection], error: Error?) {
-        if let error = error {
+        if error != nil {
             return
         }
 

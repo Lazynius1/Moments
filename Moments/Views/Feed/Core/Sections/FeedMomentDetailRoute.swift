@@ -37,7 +37,7 @@ struct MomentDetailFromNotificationView: View {
                 switch result {
                 case .success(let loadedMoment):
                     moment = loadedMoment
-                case .failure(let error):
+                case .failure:
                     errorMessage = "No se pudo cargar el momento"
                 }
             }

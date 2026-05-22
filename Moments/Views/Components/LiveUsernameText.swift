@@ -12,10 +12,10 @@ struct LiveUsernameContent<Content: View>: View {
             .onAppear {
                 refreshUsername()
             }
-            .onChange(of: userId) { _ in
+            .onChange(of: userId) { _, _ in
                 refreshUsername()
             }
-            .onChange(of: fallbackUsername) { _ in
+            .onChange(of: fallbackUsername) { _, _ in
                 if liveUsername.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                     refreshUsername()
                 }

@@ -485,7 +485,7 @@ struct StoryEditingView: View {
                 .frame(width: canvasSize.width, height: canvasSize.height)
                 .clipped()
                 .ignoresSafeArea()
-                .onChange(of: selectedFilter) { _ in
+                .onChange(of: selectedFilter) { _, _ in
                     applySelectedFilter()
                 }
             }
@@ -493,9 +493,9 @@ struct StoryEditingView: View {
             // ✅ Fondo por defecto cuando se comparte un sticker (ej. share to story)
             LinearGradient(
                 colors: [
-                    Color(hex: "4158D0") ?? .blue,
-                    Color(hex: "C850C0") ?? .purple,
-                    Color(hex: "FFCC70") ?? .pink
+                    Color(hex: "4158D0"),
+                    Color(hex: "C850C0"),
+                    Color(hex: "FFCC70")
                 ],
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
@@ -695,7 +695,7 @@ struct StoryEditingView: View {
                         Slider(value: $filterIntensity, in: 0...1.0)
                             .accentColor(.white)
                             .padding(.horizontal, 40)
-                            .onChange(of: filterIntensity) { _ in
+                            .onChange(of: filterIntensity) { _, _ in
                                 applySelectedFilter()
                             }
                     }
@@ -708,7 +708,7 @@ struct StoryEditingView: View {
                         filters: FilterService.FilterType.allCases,
                         baseImage: selectedMediaItems.first?.image
                     )
-                        .onChange(of: selectedFilter) { _ in
+                        .onChange(of: selectedFilter) { _, _ in
                             if selectedFilter != .normal {
                                 withAnimation(.spring()) {
                                     showingIntensitySlider = true
@@ -1216,14 +1216,11 @@ struct StoryEditingView: View {
 
         writerInput.markAsFinished()
 
-        return try await withCheckedThrowingContinuation { continuation in
-            writer.finishWriting {
-                if writer.status == .completed {
-                    continuation.resume(returning: outputURL)
-                } else {
-                    continuation.resume(throwing: writer.error ?? NSError(domain: "StoryEditor", code: 11, userInfo: [NSLocalizedDescriptionKey: "Unable to finish background video writer"]))
-                }
-            }
+        await writer.finishWriting()
+        if writer.status == .completed {
+            return outputURL
+        } else {
+            throw writer.error ?? NSError(domain: "StoryEditor", code: 11, userInfo: [NSLocalizedDescriptionKey: "Unable to finish background video writer"])
         }
     }
 
@@ -1548,17 +1545,11 @@ struct StoryEditingView: View {
         exportSession.shouldOptimizeForNetworkUse = true
         exportSession.videoComposition = videoComposition
 
-        await exportSession.export()
-
-        switch exportSession.status {
-        case .completed:
+        do {
+            try await exportSession.export(to: outputURL, as: .mp4)
             return outputURL
-        case .failed:
-            throw exportSession.error ?? NSError(domain: "StoryEditor", code: 5, userInfo: [NSLocalizedDescriptionKey: "Video export failed"])
-        case .cancelled:
-            throw NSError(domain: "StoryEditor", code: 6, userInfo: [NSLocalizedDescriptionKey: "Video export cancelled"])
-        default:
-            throw NSError(domain: "StoryEditor", code: 7, userInfo: [NSLocalizedDescriptionKey: "Video export did not finish"])
+        } catch {
+            throw NSError(domain: "StoryEditor", code: 5, userInfo: [NSLocalizedDescriptionKey: "Video export failed: \(error.localizedDescription)", NSUnderlyingErrorKey: error])
         }
     }
 
@@ -1582,7 +1573,7 @@ struct StoryEditingView: View {
     // ✅ FUNCIÓN ACTUALIZADA: Publicar historia con soporte para listas
     private func publishStory() {
         guard let userId = Auth.auth().currentUser?.uid,
-              let media = selectedMediaItems.first else { return }
+              !selectedMediaItems.isEmpty else { return }
 
         // 🔗 VALIDAR LÍMITES DE STORY CHAINS
         Task {
@@ -1592,7 +1583,7 @@ struct StoryEditingView: View {
                     try StoryChainLimitsService.shared.validateChainTitle(chainTitle)
                 } else if isContinuingChain, let existingChainId = chainId {
                     // Validar que se puede continuar la cadena
-                    try await StoryChainLimitsService.shared.canContinueChain(chainId: existingChainId, userId: userId)
+                    _ = try await StoryChainLimitsService.shared.canContinueChain(chainId: existingChainId, userId: userId)
                 }
 
                 // Continuar con la publicación

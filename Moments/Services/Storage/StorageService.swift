@@ -58,14 +58,14 @@ class StorageService {
         
         
         profileRef.putData(imageData, metadata: metadata) { metadata, error in
-            if let error = error {
+            if error != nil {
                 completion(.failure(StorageError.uploadFailed))
                 return
             }
             
             // Retrieve download URL
             profileRef.downloadURL { url, error in
-                if let error = error {
+                if error != nil {
                     completion(.failure(StorageError.urlRetrievalFailed))
                     return
                 }
@@ -149,13 +149,13 @@ class StorageService {
         
         
         let uploadTask = imageRef.putData(imageData, metadata: metadata) { _, error in
-            if let error = error {
+            if error != nil {
                 completion(.failure(StorageError.uploadFailed))
                 return
             }
             
             imageRef.downloadURL { url, error in
-                if let error = error {
+                if error != nil {
                     completion(.failure(StorageError.urlRetrievalFailed))
                     return
                 }
@@ -238,7 +238,7 @@ class StorageService {
                 
                 // Obtener tamaño original
                 let originalAttributes = try FileManager.default.attributesOfItem(atPath: sourceURL.path)
-                let originalSize = originalAttributes[.size] as? Int64 ?? 0
+                _ = originalAttributes[.size] as? Int64 ?? 0
                 
                 
                 // Copiar archivo
@@ -250,7 +250,7 @@ class StorageService {
                 }
                 
                 let copiedAttributes = try FileManager.default.attributesOfItem(atPath: tempURL.path)
-                let copiedSize = copiedAttributes[.size] as? Int64 ?? 0
+                _ = copiedAttributes[.size] as? Int64 ?? 0
                 
                 
                 DispatchQueue.main.async {
@@ -297,7 +297,7 @@ class StorageService {
             
             // Obtener URL de descarga
             videoRef.downloadURL { url, error in
-                if let error = error {
+                if error != nil {
                     completion(.failure(StorageError.urlRetrievalFailed))
                     return
                 }
@@ -394,7 +394,7 @@ class StorageService {
         // Crear referencia y borrar
         let fileRef = storage.child(storagePath)
         fileRef.delete { error in
-            if let error = error {
+            if error != nil {
                 completion(StorageError.deleteFailed)
             } else {
                 completion(nil)

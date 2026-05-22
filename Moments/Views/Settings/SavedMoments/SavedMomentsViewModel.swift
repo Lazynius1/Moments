@@ -128,7 +128,7 @@ class SavedMomentsViewModel: ObservableObject {
             switch result {
             case .success(let moments):
                 completion(moments)
-            case .failure(let error):
+            case .failure:
                 completion([])
             }
         }
@@ -143,7 +143,7 @@ class SavedMomentsViewModel: ObservableObject {
             .whereField("lastActiveAt", isGreaterThan: Timestamp(date: recentDate))
             .limit(to: 100) // Aumentar límite para mejor cobertura
             .getDocuments { snapshot, error in
-                if let error = error {
+                if error != nil {
                     // Fallback: buscar en todos los usuarios (menos eficiente pero funcional)
                     self.fetchAllUsers(completion: completion)
                     return
@@ -168,7 +168,7 @@ class SavedMomentsViewModel: ObservableObject {
         firestoreService.db.collection("users")
             .limit(to: 200)
             .getDocuments { snapshot, error in
-                if let error = error {
+                if error != nil {
                     completion([])
                     return
                 }
@@ -192,10 +192,7 @@ class SavedMomentsViewModel: ObservableObject {
 
             firestoreService.db.collection("users").document(userId)
                 .collection("savedMoments").document(momentId)
-                .delete { error in
-                    if let error = error {
-                    } else {
-                    }
+                .delete { _ in
                     group.leave()
                 }
         }
@@ -271,7 +268,7 @@ class SavedMomentsViewModel: ObservableObject {
 
         firestoreService.db.collection("users").document(userId).collection("savedMoments")
             .getDocuments { snapshot, error in
-                if let error = error {
+                if error != nil {
                     return
                 }
 

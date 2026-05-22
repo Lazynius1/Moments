@@ -143,7 +143,7 @@ struct EpicReactionButton: View {
         .onDisappear {
             reactionListener?.remove()
         }
-        .onChange(of: hasReacted) { _ in
+        .onChange(of: hasReacted) { _, _ in
             if hasReacted {
                 triggerSuccessAnimation()
             }
@@ -316,9 +316,8 @@ struct EpicReactionButton: View {
             userId: currentUserId,
             authorId: moment.authorId
         ) { error in
-            if let error = error {
+            if error != nil {
                 // El estado se actualizará automáticamente via el listener
-            } else {
             }
         }
     }
@@ -336,9 +335,8 @@ struct EpicReactionButton: View {
             userId: currentUserId,
             authorId: moment.authorId
         ) { error in
-            if let error = error {
+            if error != nil {
                 // El estado se actualizará automáticamente via el listener
-            } else {
             }
         }
     }
@@ -363,7 +361,7 @@ struct ParticleView: View {
                 x: cos(angle * .pi / 180) * offset,
                 y: sin(angle * .pi / 180) * offset
             )
-            .onChange(of: show) { showing in
+            .onChange(of: show) { _, showing in
                 if showing {
                     withAnimation(.easeOut(duration: 0.8)) {
                         offset = 30
@@ -842,7 +840,7 @@ struct ReactionsListSheet: View {
                 case .success(let fetchedReactions):
                     self.reactions = fetchedReactions
                     self.loadUserProfiles(for: fetchedReactions)
-                case .failure(let error):
+                case .failure:
                     self.isLoading = false
                 }
             }

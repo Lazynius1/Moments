@@ -34,7 +34,7 @@ class ImagePrefetchManager {
         if urlsToProcess.isEmpty { return }
         
         // Comenzar la precarga de las nuevas URLs
-        let prefetcher = ImagePrefetcher(urls: urlsToProcess) { skipped, failed, completed in
+        let prefetcher = ImagePrefetcher(urls: urlsToProcess, completionHandler: { [self] skipped, failed, completed in
             // Cuando termine (independientemente si falla, se salta porque ya estaba en caché, o termina bien),
             // limpiamos las URLs del Set para liberar memoria y permitir futuros prefetchs si se borra el caché.
             
@@ -45,12 +45,7 @@ class ImagePrefetchManager {
                 
                 self.currentlyPrefetchingUrls.subtract(processedUrlSet)
             }
-            
-            #if DEBUG
-            let total = skipped.count + failed.count + completed.count
-            // print("🖼️ [ImagePrefetchManager] \(urlsToProcess.count) pedidas | Terminado total: \(total) (S:\(skipped.count) F:\(failed.count) C:\(completed.count))")
-            #endif
-        }
+        })
         
         prefetcher.start()
     }

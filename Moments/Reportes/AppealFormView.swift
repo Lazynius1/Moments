@@ -384,7 +384,7 @@ struct AppealMessageField: View {
                     .padding(12)
                     .background(Color.clear)
                     .scrollContentBackground(.hidden)
-                    .onChange(of: message) { _ in
+                    .onChange(of: message) { _, _ in
                         updateCharacterCount()
                     }
                     .onTapGesture {

@@ -1536,16 +1536,12 @@ struct InteractiveLocationSticker: View {
                 isPresented: $showingLocationMap
             )
         }
-        .onChange(of: showingLocationMap) { isPresented in
+        .onChange(of: showingLocationMap) { _, isPresented in
             if !isPresented {
                 onResumeStory() // ✅ REANUDAR HISTORIA CUANDO SE CIERRA
             }
         }
-        .onAppear {
-            if let coord = coordinate {
-            } else {
-            }
-        }
+        .onAppear { }
     }
 }
 
@@ -1601,7 +1597,7 @@ struct InteractiveHashtagSticker: View {
         .fullScreenCover(isPresented: $showingHashtagExplore) {
             ExploreView(initialSearchQuery: "#\(hashtag)", isDismissable: true)
         }
-        .onChange(of: showingHashtagExplore) { isPresented in
+        .onChange(of: showingHashtagExplore) { _, isPresented in
             if !isPresented {
                 onResumeStory() // ✅ REANUDAR HISTORIA CUANDO SE CIERRA
             }

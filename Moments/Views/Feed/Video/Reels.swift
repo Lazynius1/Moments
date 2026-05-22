@@ -73,7 +73,7 @@ struct ReelsViewer: View {
                     // ✅ INSTANT PLAYBACK: Precargar los primeros videos al abrir
                      preloadUpcomingVideos(from: currentIndex)
                 }
-                .onChange(of: currentIndex) { newIndex in
+                .onChange(of: currentIndex) { _, newIndex in
                     // ✅ INSTANT PLAYBACK: Precargar dinámicamente al scrollear
                     preloadUpcomingVideos(from: newIndex)
                 }
@@ -573,7 +573,7 @@ struct ReelVideoView: View {
                 }
             }
         }
-        .onChange(of: isCurrentVideo) { isActive in
+        .onChange(of: isCurrentVideo) { _, isActive in
             if isActive {
                 // Pequeño delay para transiciones suaves
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
@@ -665,7 +665,7 @@ struct ReelVideoView: View {
             momentId: momentId
         ) { error in
             DispatchQueue.main.async {
-                if let error = error {
+                if error != nil {
                     // Aquí podrías mostrar un alert de error
                 } else {
                     // ✅ SwiftData: Eliminar del caché local
@@ -701,7 +701,7 @@ struct ReelVideoView: View {
             userId: currentUserId,
             authorId: video.moment.authorId
         ) { error in
-            if let error = error {
+            if error != nil {
             } else {
             }
         }
@@ -763,7 +763,7 @@ struct ReelVideoView: View {
         let shareURL = components?.url
         
         let activityViewController = UIActivityViewController(
-            activityItems: [shareText, shareURL].compactMap { $0 },
+            activityItems: ([shareText] as [Any]) + ([shareURL].compactMap { $0 } as [Any]),
             applicationActivities: nil
         )
         
@@ -894,7 +894,7 @@ struct EnhancedReelReactionButton: View {
                 .transition(.scale.combined(with: .opacity))
             }
         }
-        .onChange(of: hasReacted) { reacted in
+        .onChange(of: hasReacted) { _, reacted in
             if reacted {
                 pulseAnimation = true
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
@@ -920,7 +920,7 @@ struct EnhancedReelReactionButton: View {
             userId: currentUserId,
             authorId: moment.authorId
         ) { error in
-            if let error = error {
+            if error != nil {
                 DispatchQueue.main.async {
                     withAnimation {
                         self.hasReacted = false
@@ -949,7 +949,7 @@ struct EnhancedReelReactionButton: View {
             userId: currentUserId,
             authorId: moment.authorId
         ) { error in
-            if let error = error {
+            if error != nil {
                 DispatchQueue.main.async {
                     withAnimation {
                         self.hasReacted = true
@@ -1152,7 +1152,7 @@ class ReelVideoPlayerManager: ObservableObject {
     private func configureAudioSession() {
         do {
             let audioSession = AVAudioSession.sharedInstance()
-            try audioSession.setCategory(.playback, mode: .moviePlayback, options: [.mixWithOthers, .allowBluetooth])
+            try audioSession.setCategory(.playback, mode: .moviePlayback, options: [.mixWithOthers, .allowBluetoothHFP])
             try audioSession.setActive(true)
         } catch {
         }

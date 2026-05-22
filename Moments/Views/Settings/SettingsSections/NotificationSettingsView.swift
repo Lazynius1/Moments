@@ -28,7 +28,7 @@ struct NotificationSettingsView: View {
                                 title: NSLocalizedString("settings.notifications.schedule.enable", comment: "Set schedule"),
                                 isOn: $isScheduleEnabled
                             )
-                            .onChange(of: isScheduleEnabled) { enabled in
+                            .onChange(of: isScheduleEnabled) { _, enabled in
                                 if !enabled {
                                     viewModel.clearActiveHours()
                                 }

@@ -155,7 +155,7 @@ class NovaSuggestionService {
         }
         
         // Si hay último Story Chain pero pocas visitas
-        if let chain = summary.latestStoryChain, summary.recentVisits.count < 3 {
+        if summary.latestStoryChain != nil, summary.recentVisits.count < 3 {
             suggestions.append(DynamicSuggestion(
                 text: getLocalizedText(key: "suggestions.shareMore", lang: lang),
                 icon: "square.and.arrow.up.fill",

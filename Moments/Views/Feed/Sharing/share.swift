@@ -377,7 +377,6 @@ private struct StoryAddGlyphSegment: View {
 
     private var startTrim: CGFloat {
         let segmentAngle = 360.0 / Double(totalSegments)
-        let visibleAngle = max(segmentAngle - gapAngle, 1)
         return CGFloat((Double(index) * segmentAngle + gapAngle / 2) / 360.0)
     }
 
@@ -482,7 +481,7 @@ struct ModernShareSheet: View {
                     .font(.custom("Poppins-Regular", size: 16))
                     .textFieldStyle(PlainTextFieldStyle())
                     .autocorrectionDisabled()
-                    .onChange(of: searchText) { newValue in
+                    .onChange(of: searchText) { _, newValue in
                         performGlobalSearch(query: newValue)
                     }
             }
@@ -977,40 +976,34 @@ struct AddToStoryView: View {
         }
     }
     
+    private func retrieveImageAsync(url: URL) async -> UIImage? {
+        await withCheckedContinuation { continuation in
+            KingfisherManager.shared.retrieveImage(with: url) { result in
+                switch result {
+                case .success(let value):
+                    continuation.resume(returning: value.image)
+                case .failure:
+                    continuation.resume(returning: nil)
+                }
+            }
+        }
+    }
+    
     private func renderSticker(urls: [URL]) {
         // 2. Pre-fetch todas las imágenes para tenerlas en caché
         ImagePrefetchManager.shared.prefetch(urls: urls)
         
         // 3. Obtener las imágenes reales de Kingfisher caché
-        DispatchQueue.main.async {
+        Task { @MainActor in
             var profileImg: UIImage? = nil
             var contentImg: UIImage? = nil
             
-            let group = DispatchGroup()
-            
-            // Cargar imagen de perfil
             if urls.count > 1 {
-                group.enter()
-                KingfisherManager.shared.retrieveImage(with: urls[1]) { result in
-                    if let image = try? result.get().image {
-                        profileImg = image
-                    }
-                    group.leave()
-                }
+                profileImg = await retrieveImageAsync(url: urls[1])
             }
+            contentImg = await retrieveImageAsync(url: urls[0])
             
-            // Cargar imagen de contenido
-            group.enter()
-            KingfisherManager.shared.retrieveImage(with: urls[0]) { result in
-                if let image = try? result.get().image {
-                    contentImg = image
-                }
-                group.leave()
-            }
-            
-            group.notify(queue: .main) {
-                self.performFinalRender(profile: profileImg, content: contentImg)
-            }
+            self.performFinalRender(profile: profileImg, content: contentImg)
         }
     }
     
@@ -1399,7 +1392,7 @@ struct VideoThumbnailView: View {
             return
         }
         
-        let asset = AVAsset(url: url)
+        let asset = AVURLAsset(url: url)
         let imageGenerator = AVAssetImageGenerator(asset: asset)
         imageGenerator.appliesPreferredTrackTransform = true
         imageGenerator.maximumSize = CGSize(width: 400, height: 710) // High res vertical

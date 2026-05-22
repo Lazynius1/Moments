@@ -754,7 +754,7 @@ struct PrivacySection: View {
 
                     Toggle("", isOn: $isPrivate)
                         .labelsHidden()
-                        .onChange(of: isPrivate) { newValue in
+                        .onChange(of: isPrivate) { _, newValue in
                             viewModel.updatePrivacySettings(isPrivate: newValue)
                         }
                 }
@@ -809,7 +809,7 @@ struct PrivacySection: View {
 
                 Toggle("", isOn: $showReadReceipts)
                     .labelsHidden()
-                    .onChange(of: showReadReceipts) { newValue in
+                    .onChange(of: showReadReceipts) { _, newValue in
                         viewModel.updateReadReceiptsPrivacy(enabled: newValue)
                     }
             }

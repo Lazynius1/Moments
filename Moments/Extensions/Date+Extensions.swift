@@ -8,8 +8,6 @@ extension Date {
         let calendar = Calendar.current
         let components = calendar.dateComponents([.year, .month, .weekOfYear, .day, .hour, .minute, .second], from: self, to: now)
         
-        // Determinar idioma para sufijos claros
-        let lang = NovaLanguageService.getPreferredLanguage() ?? .es
         
         var timeString = ""
         

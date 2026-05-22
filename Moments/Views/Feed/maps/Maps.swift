@@ -35,6 +35,10 @@ struct LocationMapView: View {
         center: CLLocationCoordinate2D(latitude: 40.7128, longitude: -74.0060),
         span: MKCoordinateSpan(latitudeDelta: 0.01, longitudeDelta: 0.01)
     )
+    @State private var mapPosition = MapCameraPosition.region(MKCoordinateRegion(
+        center: CLLocationCoordinate2D(latitude: 40.7128, longitude: -74.0060),
+        span: MKCoordinateSpan(latitudeDelta: 0.01, longitudeDelta: 0.01)
+    ))
     @State private var annotations: [MapsLocationAnnotation] = []
     @State private var isLoading = true
     @State private var errorMessage: String?
@@ -195,22 +199,22 @@ struct LocationMapView: View {
                 checkLocationPermissionsAndSetup()
             }
         }
-        .onChange(of: coordinate?.latitude) { _ in
+        .onChange(of: coordinate?.latitude) { _, _ in
             // ✅ NUEVO: Reaccionar a cambios en las coordenadas usando latitude como trigger
             if let newCoordinate = coordinate, CLLocationCoordinate2DIsValid(newCoordinate), !hasInitializedMap {
                 setupMapWithCoordinate(newCoordinate)
             }
         }
-        .onChange(of: region.center.latitude) { _ in
+        .onChange(of: region.center.latitude) { _, _ in
             handleMapRegionChanged()
         }
-        .onChange(of: region.center.longitude) { _ in
+        .onChange(of: region.center.longitude) { _, _ in
             handleMapRegionChanged()
         }
-        .onChange(of: region.span.latitudeDelta) { _ in
+        .onChange(of: region.span.latitudeDelta) { _, _ in
             handleMapRegionChanged()
         }
-        .onChange(of: region.span.longitudeDelta) { _ in
+        .onChange(of: region.span.longitudeDelta) { _, _ in
             handleMapRegionChanged()
         }
         .onReceive(locationManager.$authorizationStatus) { status in
@@ -239,7 +243,7 @@ struct LocationMapView: View {
                 isPresented: $showingDetail
             )
         }
-        .onChange(of: showingDetail) { _ in
+        .onChange(of: showingDetail) { _, _ in
             // ✅ onChange vacío para mantener la funcionalidad
         }
 
@@ -539,23 +543,29 @@ struct LocationMapView: View {
             } else {
                 ZStack {
                     // ✅ MAPA BASE
-                    Map(coordinateRegion: $region, annotationItems: mapCombinedAnnotations) { annotation in
-                        MapAnnotation(coordinate: annotation.coordinate) {
-                            if let moment = annotation.primaryMoment {
-                                Button {
-                                    openMomentFromMapAnnotation(annotation)
-                                } label: {
-                                    MapMomentPin(
-                                        moment: moment,
-                                        colorScheme: colorScheme,
-                                        count: annotation.count
-                                    )
+                    Map(position: $mapPosition) {
+                        ForEach(mapCombinedAnnotations) { annotation in
+                            Annotation(annotation.locationTitle ?? "", coordinate: annotation.coordinate) {
+                                if let moment = annotation.primaryMoment {
+                                    Button {
+                                        openMomentFromMapAnnotation(annotation)
+                                    } label: {
+                                        MapMomentPin(
+                                            moment: moment,
+                                            colorScheme: colorScheme,
+                                            count: annotation.count
+                                        )
+                                    }
+                                    .buttonStyle(.plain)
                                 }
-                                .buttonStyle(.plain)
                             }
                         }
                     }
                     .mapStyle(getMapStyle())
+                    .onMapCameraChange { context in
+                        self.region = context.region
+                    }
+
 
                     // ✅ OVERLAY DE COLOR SEGÚN CLIMA
                     if let weather = currentWeather, weatherEffectsEnabled {
@@ -801,7 +811,7 @@ extension LocationMapView {
 
     // MARK: - Funciones de permisos y setup
     func checkLocationPermissionsAndSetup() {
-        let currentStatus = CLLocationManager.authorizationStatus()
+        let currentStatus = CLLocationManager().authorizationStatus // ✅ instance property (iOS 14+)
 
         // ✅ MEJORADO: Priorizar coordenadas existentes sobre permisos
         if let coordinate = coordinate, CLLocationCoordinate2DIsValid(coordinate) {
@@ -952,10 +962,12 @@ extension LocationMapView {
         DispatchQueue.main.async {
             // ✅ MEJORADO: Configurar región con animación suave
             withAnimation(.easeInOut(duration: 0.5)) {
-                self.region = MKCoordinateRegion(
+                let newRegion = MKCoordinateRegion(
                     center: coordinate,
                     span: MKCoordinateSpan(latitudeDelta: 0.01, longitudeDelta: 0.01)
                 )
+                self.region = newRegion
+                self.mapPosition = .region(newRegion)
             }
 
             // ✅ MEJORADO: Limpiar anotaciones anteriores y agregar la nueva
@@ -991,10 +1003,12 @@ extension LocationMapView {
 
         DispatchQueue.main.async {
             withAnimation(.easeInOut(duration: 0.5)) {
-                self.region = MKCoordinateRegion(
+                let defaultRegion = MKCoordinateRegion(
                     center: defaultCoordinate,
                     span: MKCoordinateSpan(latitudeDelta: 0.05, longitudeDelta: 0.05)
                 )
+                self.region = defaultRegion
+                self.mapPosition = .region(defaultRegion)
             }
 
             // ✅ Limpiar anotaciones y agregar anotación por defecto
@@ -1805,7 +1819,7 @@ extension LocationMapView {
         }
 
         private func getWeatherAwareGradient() -> LinearGradient {
-            guard let weather = weather, effectsEnabled else {
+            guard weather != nil, effectsEnabled else {
                 return LinearGradient(
                     colors: [adaptiveColors.accent, adaptiveColors.accent.opacity(0.8)],
                     startPoint: .topLeading,

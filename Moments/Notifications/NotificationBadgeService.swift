@@ -165,10 +165,7 @@ class NotificationBadgeService: ObservableObject {
         let totalBadge = unreadNotificationsCount + unreadMessagesCount
         
         DispatchQueue.main.async {
-            UIApplication.shared.applicationIconBadgeNumber = totalBadge
-            if #available(iOS 16.0, *) {
-                UNUserNotificationCenter.current().setBadgeCount(totalBadge)
-            }
+            UNUserNotificationCenter.current().setBadgeCount(totalBadge) { _ in }
         }
     }
     
@@ -192,7 +189,7 @@ class NotificationBadgeService: ObservableObject {
     
     func clearAppBadge() {
         DispatchQueue.main.async {
-            UIApplication.shared.applicationIconBadgeNumber = 0
+            UNUserNotificationCenter.current().setBadgeCount(0) { _ in }
         }
     }
     

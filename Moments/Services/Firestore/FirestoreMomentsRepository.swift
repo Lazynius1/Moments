@@ -455,7 +455,7 @@ extension FirestoreService {
                         .order(by: "timestamp", descending: true)
                         .limit(to: 10)
                         .getDocuments { snapshot, error in
-                            if let error = error {
+                            if error != nil {
                                 group.leave()
                                 return
                             }
@@ -510,7 +510,7 @@ extension FirestoreService {
                         .start(afterDocument: startAfter)
                         .limit(to: 10)
                         .getDocuments { snapshot, error in
-                            if let error = error {
+                            if error != nil {
                                 group.leave()
                                 return
                             }

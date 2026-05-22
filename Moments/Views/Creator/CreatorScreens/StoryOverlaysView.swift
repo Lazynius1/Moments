@@ -412,7 +412,7 @@ struct StoryOverlaysView: View {
             }
 
         case .hashtag:
-            if let hashtag = sticker.interactionData?.hashtag {
+            if sticker.interactionData?.hashtag != nil {
                 // Handle hashtag tap
             }
 
@@ -498,7 +498,7 @@ struct StoryOverlaysView: View {
                 } else {
                     completion(nil)
                 }
-            case .failure(let error):
+            case .failure(_):
                 completion(nil)
             }
         }

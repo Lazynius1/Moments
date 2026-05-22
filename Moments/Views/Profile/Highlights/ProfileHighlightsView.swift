@@ -140,7 +140,7 @@ struct ProfileHighlightsView: View {
                 viewModel.loadHighlights(userId: userId)
             }
         }
-        .onChange(of: userId) { newId in
+        .onChange(of: userId) { _, newId in
             if !newId.isEmpty {
                 viewModel.loadHighlights(userId: newId)
             }

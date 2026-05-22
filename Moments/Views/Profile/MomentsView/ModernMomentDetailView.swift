@@ -248,7 +248,7 @@ struct ModernMomentDetailView: View {
             currentIndex = initialIndex
             trackMomentViewIfNeeded(for: moments[safe: initialIndex])
         }
-        .onChange(of: currentIndex) { newIndex in
+        .onChange(of: currentIndex) { _, newIndex in
             trackMomentViewIfNeeded(for: moments[safe: newIndex])
         }
         .gesture(
@@ -406,11 +406,7 @@ struct ModernMomentDetailView: View {
                 Moment.LocationCoordinate(latitude: $0.latitude, longitude: $0.longitude)
             },
             mediaItems: payload.mediaItems
-        ) { error in
-            if let error = error {
-            } else {
-            }
-        }
+        ) { _ in }
     }
     
     private func deleteMoment() {
@@ -505,10 +501,10 @@ struct ModernDetailHeader: View {
         .onAppear {
             resolveAuthorUsername()
         }
-        .onChange(of: moment?.authorId) { _ in
+        .onChange(of: moment?.authorId) { _, _ in
             resolveAuthorUsername()
         }
-        .onChange(of: moment?.username) { _ in
+        .onChange(of: moment?.username) { _, _ in
             if liveUsername.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                 resolveAuthorUsername()
             }
@@ -868,7 +864,7 @@ struct ModernDetailMomentCard: View {
         }
         
         if firstItem.type == .image {
-            KFImage(URL(string: firstItem.url))
+            _ = KFImage(URL(string: firstItem.url))
                 .onSuccess { result in
                     let imageSize = result.image.size
                     let ratio = imageSize.width / imageSize.height
@@ -884,7 +880,7 @@ struct ModernDetailMomentCard: View {
                         }
                     }
                 }
-                .onFailure { error in
+                .onFailure { _ in
                     DispatchQueue.main.async {
                         self.detectedAspectRatio = 0.8 // Fallback a 4:5
                         self.aspectRatioType = .portrait
@@ -897,7 +893,7 @@ struct ModernDetailMomentCard: View {
             }
             
             if let url = URL(string: firstItem.url) {
-                let asset = AVAsset(url: url)
+                let asset = AVURLAsset(url: url)
                 Task {
                     do {
                         let track = try await asset.loadTracks(withMediaType: .video).first
@@ -952,7 +948,7 @@ struct ModernDetailMomentCard: View {
             .collection("moments").document(momentId)
             .collection("comments")
             .getDocuments { snapshot, error in
-                if let error = error {
+                if let _ = error {
                     return
                 }
                 
@@ -991,7 +987,7 @@ struct ModernDetailMomentCard: View {
         firestoreService.toggleSaveMoment(userId: currentUserId, momentId: momentId) { error in
             DispatchQueue.main.async {
                 self.isSaveLoading = false
-                if let error = error {
+                if let _ = error {
                     withAnimation {
                         self.isSaved.toggle()
                     }

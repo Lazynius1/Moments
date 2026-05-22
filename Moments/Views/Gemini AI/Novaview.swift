@@ -75,13 +75,13 @@ struct GeminiView: View {
                                     }
                                 )
                                 // ✅ CAMBIO 1: Scroll cuando CAMBIAN los mensajes - MEJORADO
-                                .onChange(of: viewModel.conversationHistory) { _ in
+                                .onChange(of: viewModel.conversationHistory) { _, _ in
                                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                                         scrollToBottom()
                                     }
                                 }
                                 // ✅ CAMBIO 2: Scroll cuando aparece el teclado - MEJORADO
-                                .onChange(of: keyboardHeight) { height in
+                                .onChange(of: keyboardHeight) { _, height in
                                     if height > 0 {
                                         // ✅ DELAY MÁS LARGO PARA SINCRONIZAR CON EL TECLADO
                                         DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
@@ -90,7 +90,7 @@ struct GeminiView: View {
                                     }
                                 }
                                 // ✅ NUEVO: Scroll cuando el teclado está visible y hay foco
-                                .onChange(of: isKeyboardVisible) { visible in
+                                .onChange(of: isKeyboardVisible) { _, visible in
                                     if visible && !viewModel.conversationHistory.isEmpty {
                                         DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
                                             scrollToBottom()
@@ -170,7 +170,7 @@ struct GeminiView: View {
                             // ✅ SCROLL CUANDO EL TEXTOFIELD OBTIENE FOCUS
                             if focused && !viewModel.conversationHistory.isEmpty {
                                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
-                                    if let lastMessage = viewModel.conversationHistory.last {
+                                    if viewModel.conversationHistory.last != nil {
                                         withAnimation(.easeInOut(duration: 0.4)) {
                                             // El scroll se maneja en el onChange del keyboardHeight
                                         }
@@ -223,7 +223,7 @@ struct GeminiView: View {
 
                     // ✅ SCROLL AUTOMÁTICO CUANDO APARECE EL TECLADO
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                        if let lastMessage = viewModel.conversationHistory.last {
+                        if viewModel.conversationHistory.last != nil {
                             withAnimation(.easeInOut(duration: 0.4)) {
                                 // Usar ScrollViewReader para hacer scroll
                                 // Esto se maneja en el onChange del keyboardHeight

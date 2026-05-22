@@ -252,21 +252,21 @@ struct ActivityCommentMomentPreview: View {
         guard !isGeneratingThumbnail, generatedVideoThumbnail == nil, let videoURL = URL(string: videoPath) else { return }
         isGeneratingThumbnail = true
 
-        DispatchQueue.global(qos: .userInitiated).async {
-            let asset = AVAsset(url: videoURL)
+        Task {
+            let asset = AVURLAsset(url: videoURL)
             let generator = AVAssetImageGenerator(asset: asset)
             generator.appliesPreferredTrackTransform = true
             generator.maximumSize = CGSize(width: 500, height: 500)
 
             do {
-                let cgImage = try generator.copyCGImage(at: CMTime(seconds: 0.8, preferredTimescale: 600), actualTime: nil)
+                let (cgImage, _) = try await generator.image(at: CMTime(seconds: 0.8, preferredTimescale: 600))
                 let thumbnail = UIImage(cgImage: cgImage)
-                DispatchQueue.main.async {
+                await MainActor.run {
                     self.generatedVideoThumbnail = thumbnail
                     self.isGeneratingThumbnail = false
                 }
             } catch {
-                DispatchQueue.main.async {
+                await MainActor.run {
                     self.isGeneratingThumbnail = false
                 }
             }
@@ -708,21 +708,21 @@ struct ActivityReactionMomentCard: View {
         guard !isGeneratingThumbnail, generatedVideoThumbnail == nil, let videoURL = URL(string: videoPath) else { return }
         isGeneratingThumbnail = true
 
-        DispatchQueue.global(qos: .userInitiated).async {
-            let asset = AVAsset(url: videoURL)
+        Task {
+            let asset = AVURLAsset(url: videoURL)
             let generator = AVAssetImageGenerator(asset: asset)
             generator.appliesPreferredTrackTransform = true
             generator.maximumSize = CGSize(width: 700, height: 700)
 
             do {
-                let cgImage = try generator.copyCGImage(at: CMTime(seconds: 0.8, preferredTimescale: 600), actualTime: nil)
+                let (cgImage, _) = try await generator.image(at: CMTime(seconds: 0.8, preferredTimescale: 600))
                 let thumbnail = UIImage(cgImage: cgImage)
-                DispatchQueue.main.async {
+                await MainActor.run {
                     self.generatedVideoThumbnail = thumbnail
                     self.isGeneratingThumbnail = false
                 }
             } catch {
-                DispatchQueue.main.async {
+                await MainActor.run {
                     self.isGeneratingThumbnail = false
                 }
             }

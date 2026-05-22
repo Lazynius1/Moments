@@ -592,10 +592,7 @@ class ContentVisibilityViewModel: ObservableObject {
             "contentVisibilitySettings.allowStoryMessages": allowStoryMessages,
             "contentVisibilitySettings.allowStoryReactions": allowStoryReactions,
             "contentVisibilitySettings.allowStoryEphemeralPhotos": allowStoryEphemeralPhotos
-        ]) { error in
-            if let error = error {
-            }
-        }
+        ]) { _ in }
     }
     
     private func saveSettings(
@@ -628,10 +625,7 @@ class ContentVisibilityViewModel: ObservableObject {
             updates["contentVisibilitySettings.\(listNameKey)"] = FieldValue.delete()
         }
 
-        firestoreService.db.collection("users").document(userId).updateData(updates) { error in
-            if let error = error {
-            }
-        }
+        firestoreService.db.collection("users").document(userId).updateData(updates) { _ in }
     }
     
     private func loadHiddenUsers(userIds: [String]) {
@@ -642,7 +636,7 @@ class ContentVisibilityViewModel: ObservableObject {
                 switch result {
                 case .success(let users):
                     self?.hiddenFromUsers = users
-                case .failure(let error):
+                case .failure:
                     break
                 }
             }
@@ -696,7 +690,7 @@ struct HiddenFromView: View {
 
                         TextField(NSLocalizedString("audience.picker.searchPlaceholder", comment: ""), text: $searchText)
                             .font(.custom("Poppins-Regular", size: 16))
-                            .onChange(of: searchText) { newValue in
+                            .onChange(of: searchText) { _, newValue in
                                 if !newValue.isEmpty {
                                     searchUsers(query: newValue)
                                 } else {
@@ -786,7 +780,7 @@ struct HiddenFromView: View {
                 switch result {
                 case .success(let users):
                     self.searchResults = users
-                case .failure(let error):
+                case .failure:
                     self.searchResults = []
                 }
             }

@@ -64,19 +64,13 @@ final class StoryVideoProcessingService {
             throw StoryVideoProcessingError.exportFailed
         }
 
-        exportSession.outputURL = outputURL
-        exportSession.outputFileType = .mp4
         exportSession.shouldOptimizeForNetworkUse = true
         exportSession.timeRange = CMTimeRange(
             start: CMTime(seconds: safeStart, preferredTimescale: 600),
             duration: CMTime(seconds: clipDuration, preferredTimescale: 600)
         )
 
-        await exportSession.export()
-
-        guard exportSession.status == .completed else {
-            throw exportSession.error ?? StoryVideoProcessingError.exportFailed
-        }
+        try await exportSession.export(to: outputURL, as: .mp4)
 
         let thumbnail = try await generateStoryThumbnail(videoURL: outputURL, time: 0.1)
         return CreatorMedia(

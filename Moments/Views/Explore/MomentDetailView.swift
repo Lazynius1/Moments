@@ -536,7 +536,7 @@ struct MomentDetailView: View {
         }
         
         if firstItem.type == .image {
-            KFImage(URL(string: firstItem.url))
+            _ = KFImage(URL(string: firstItem.url))
                 .onSuccess { result in
                     let imageSize = result.image.size
                     let ratio = imageSize.width / imageSize.height
@@ -778,7 +778,7 @@ struct MomentDetailView: View {
         
         Task {
             do {
-                let asset = AVAsset(url: url)
+                let asset = AVURLAsset(url: url)
                 let track = try await asset.loadTracks(withMediaType: .video).first
                 
                 if let track = track {
@@ -825,11 +825,7 @@ struct MomentDetailView: View {
                 Moment.LocationCoordinate(latitude: $0.latitude, longitude: $0.longitude)
             },
             mediaItems: payload.mediaItems
-        ) { error in
-            if let error = error {
-            } else {
-            }
-        }
+        ) { _ in }
     }
     
     private func deleteMoment() {
@@ -1149,7 +1145,7 @@ struct VerticalReactionButton: View {
             userId: currentUserId,
             authorId: moment.authorId
         ) { error in
-            if let error = error {
+            if error != nil {
                 // Revertir si hay error
                 DispatchQueue.main.async {
                     withAnimation {
@@ -1180,7 +1176,7 @@ struct VerticalReactionButton: View {
             userId: currentUserId,
             authorId: moment.authorId
         ) { error in
-            if let error = error {
+            if error != nil {
                 // Revertir si hay error
                 DispatchQueue.main.async {
                     withAnimation {
@@ -1471,7 +1467,7 @@ class MomentDetailViewModel: ObservableObject {
     }
 
     func updateComment() {
-        guard let momentId = moment.id, let currentUserId = currentUserId, let commentId = editingCommentId else {
+        guard let momentId = moment.id, currentUserId != nil, let commentId = editingCommentId else {
             errorMessage = "No se pudo actualizar el comentario."
             return
         }

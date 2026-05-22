@@ -58,7 +58,7 @@ class UserCacheService: ObservableObject {
                         callback(user)
                     }
                     
-                case .failure(let error):
+                case .failure:
                     
                     // ✅ Ejecutar callbacks con cache antiguo si existe
                     let cachedUser = self.userCache[userId]

@@ -108,7 +108,7 @@ class NotificationService: ObservableObject {
     
     private func updateUnreadCount() {
         self.unreadCount = notifications.filter { $0.isPending }.count
-        UIApplication.shared.applicationIconBadgeNumber = self.unreadCount
+        UNUserNotificationCenter.current().setBadgeCount(self.unreadCount) { _ in }
     }
 
     private func decodeNotificationDocument(_ doc: QueryDocumentSnapshot) -> Notification? {
@@ -314,99 +314,86 @@ class NotificationService: ObservableObject {
         }
         notifications.indices.forEach { notifications[$0].isPending = false }
         unreadCount = 0
-        UIApplication.shared.applicationIconBadgeNumber = 0
+        UNUserNotificationCenter.current().setBadgeCount(0) { _ in }
         
-        // ✅ Compatibilidad: marcar también docs visibles (incluye esquemas legacy sin isPending)
-        markSpecificNotificationsAsRead(userId: userId, ids: visiblePendingIds)
-        
-        // ✅ Recursive batch: procesa 500 docs por ciclo hasta que no queden más
-        markAllAsReadBatch(userId: userId)
-        
-        // ✅ Legacy-safe final pass: cubre documentos antiguos sin isPending/isRead
-        markAllAsReadByScan(userId: userId)
+        Task {
+            await markSpecificNotificationsAsRead(userId: userId, ids: visiblePendingIds)
+            await markAllAsReadBatch(userId: userId)
+            await markAllAsReadByScan(userId: userId)
+        }
     }
     
-    private func markAllAsReadBatch(userId: String) {
-        db.collection("users").document(userId).collection("notifications")
-            .whereField("isPending", isEqualTo: true)
-            .limit(to: 500)
-            .getDocuments { [weak self] snapshot, error in
-                guard let self = self else { return }
-                
-                Task { @MainActor in
-                    guard let documents = snapshot?.documents, !documents.isEmpty else {
-                        self.markAllAsReadLegacyBatch(userId: userId)
-                        return
-                    }
-                    
-                    let batch = self.db.batch()
-                    for doc in documents {
-                        batch.updateData([
-                            "isPending": false,
-                            "isRead": true
-                        ], forDocument: doc.reference)
-                    }
-                    
-                    batch.commit { [weak self] error in
-                        if let error = error {
-                            print("❌ Error marking batch as read: \(error)")
-                            return
-                        }
-                        // Si había exactamente 500, probablemente hay más
-                        if documents.count == 500 {
-                            Task { @MainActor in
-                                self?.markAllAsReadBatch(userId: userId)
-                            }
-                        } else {
-                            Task { @MainActor in
-                                self?.markAllAsReadLegacyBatch(userId: userId)
-                            }
-                        }
-                    }
-                }
+    private func markAllAsReadBatch(userId: String) async {
+        let db = self.db
+        do {
+            let snapshot = try await db.collection("users").document(userId).collection("notifications")
+                .whereField("isPending", isEqualTo: true)
+                .limit(to: 500)
+                .getDocuments()
+            
+            let documents = snapshot.documents
+            guard !documents.isEmpty else {
+                await markAllAsReadLegacyBatch(userId: userId)
+                return
             }
+            
+            let batch = db.batch()
+            for doc in documents {
+                batch.updateData([
+                    "isPending": false,
+                    "isRead": true
+                ], forDocument: doc.reference)
+            }
+            
+            try await batch.commit()
+            
+            if documents.count == 500 {
+                await markAllAsReadBatch(userId: userId)
+            } else {
+                await markAllAsReadLegacyBatch(userId: userId)
+            }
+        } catch {
+            print("❌ Error marking batch as read: \(error)")
+        }
     }
 
-    private func markAllAsReadLegacyBatch(userId: String) {
-        db.collection("users").document(userId).collection("notifications")
-            .whereField("isRead", isEqualTo: false)
-            .limit(to: 500)
-            .getDocuments { [weak self] snapshot, error in
-                guard let self = self else { return }
-
-                Task { @MainActor in
-                    guard let documents = snapshot?.documents, !documents.isEmpty else { return }
-
-                    let batch = self.db.batch()
-                    for doc in documents {
-                        batch.updateData([
-                            "isPending": false,
-                            "isRead": true
-                        ], forDocument: doc.reference)
-                    }
-
-                    batch.commit { [weak self] error in
-                        if let error = error {
-                            print("❌ Error marking legacy batch as read: \(error)")
-                            return
-                        }
-                        if documents.count == 500 {
-                            Task { @MainActor in
-                                self?.markAllAsReadLegacyBatch(userId: userId)
-                            }
-                        }
-                    }
-                }
+    private func markAllAsReadLegacyBatch(userId: String) async {
+        let db = self.db
+        do {
+            let snapshot = try await db.collection("users").document(userId).collection("notifications")
+                .whereField("isRead", isEqualTo: false)
+                .limit(to: 500)
+                .getDocuments()
+            
+            let documents = snapshot.documents
+            guard !documents.isEmpty else { return }
+            
+            let batch = db.batch()
+            for doc in documents {
+                batch.updateData([
+                    "isPending": false,
+                    "isRead": true
+                ], forDocument: doc.reference)
             }
+            
+            try await batch.commit()
+            
+            if documents.count == 500 {
+                await markAllAsReadLegacyBatch(userId: userId)
+            }
+        } catch {
+            print("❌ Error marking legacy batch as read: \(error)")
+        }
     }
 
-    private func markSpecificNotificationsAsRead(userId: String, ids: [String]) {
+    private func markSpecificNotificationsAsRead(userId: String, ids: [String]) async {
         guard !ids.isEmpty else { return }
         let uniqueIds = Array(Set(ids))
         let chunks = stride(from: 0, to: uniqueIds.count, by: 400).map {
             Array(uniqueIds[$0..<min($0 + 400, uniqueIds.count)])
         }
 
+        let db = self.db
         for chunk in chunks {
             let batch = db.batch()
             for id in chunk {
@@ -416,34 +403,35 @@ class NotificationService: ObservableObject {
                     "isRead": true
                 ], forDocument: ref, merge: true)
             }
-            batch.commit { error in
-                if let error = error {
-                    print("❌ Error marking specific notifications as read: \(error)")
-                }
+            do {
+                try await batch.commit()
+            } catch {
+                print("❌ Error marking specific notifications as read: \(error)")
             }
         }
     }
     
-    private func markAllAsReadByScan(userId: String, startAfter: DocumentSnapshot? = nil) {
-        var query: Query = db.collection("users").document(userId).collection("notifications")
-            .order(by: "timestamp", descending: true)
+    private func markAllAsReadByScan(userId: String, startAfter: DocumentSnapshot? = nil) async {
+        let db = self.db
+        var query = db.collection("users").document(userId).collection("notifications")
+            .whereField("isRead", isEqualTo: false)
             .limit(to: 500)
         
         if let startAfter {
             query = query.start(afterDocument: startAfter)
         }
         
-        query.getDocuments { [weak self] snapshot, error in
-            guard let self = self else { return }
-            guard let documents = snapshot?.documents, !documents.isEmpty else { return }
+        do {
+            let snapshot = try await query.getDocuments()
+            let documents = snapshot.documents
+            guard !documents.isEmpty else { return }
             
-            let batch = self.db.batch()
+            let batch = db.batch()
             for doc in documents {
                 let data = doc.data()
                 let isPending = data["isPending"] as? Bool
                 let isRead = data["isRead"] as? Bool
                 
-                // Evitar writes innecesarias: solo normalizar si aún no está leído.
                 if isPending != false || isRead != true {
                     batch.setData([
                         "isPending": false,
@@ -452,11 +440,13 @@ class NotificationService: ObservableObject {
                 }
             }
             
-            batch.commit { [weak self] error in
-                guard error == nil else { return }
-                guard documents.count == 500, let last = documents.last else { return }
-                self?.markAllAsReadByScan(userId: userId, startAfter: last)
+            try await batch.commit()
+            
+            if documents.count == 500, let last = documents.last {
+                await markAllAsReadByScan(userId: userId, startAfter: last)
             }
+        } catch {
+            print("❌ Error marking scan batch as read: \(error)")
         }
     }
     
@@ -488,22 +478,18 @@ class NotificationService: ObservableObject {
             query = query.whereField("reaction", isEqualTo: reaction)
         }
         
-        query.getDocuments { [weak self] snapshot, error in
-            guard let self = self else { return }
-            
-            Task { @MainActor in
-                guard let documents = snapshot?.documents else { return }
-                
-                let batch = self.db.batch()
-                for doc in documents {
+        let db = self.db
+        Task {
+            do {
+                let snapshot = try await query.getDocuments()
+                let batch = db.batch()
+                for doc in snapshot.documents {
                     batch.deleteDocument(doc.reference)
                 }
-                
-                batch.commit { error in
-                    if error == nil {
-                        print("✅ Notification removed successfully")
-                    }
-                }
+                try await batch.commit()
+                print("✅ Notification removed successfully")
+            } catch {
+                print("❌ Error removing notification: \(error)")
             }
         }
     }

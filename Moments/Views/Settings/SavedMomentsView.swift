@@ -150,7 +150,7 @@ struct SavedMomentsView: View {
                 Text(NSLocalizedString("savedMoments.remove.message.restricted", comment: "This moment is no longer available. Do you want to remove it from your collection?"))
             }
         }
-        .onChange(of: filteredMoments.map { $0.id ?? "" }) { validIds in
+        .onChange(of: filteredMoments.map { $0.id ?? "" }) { _, validIds in
             let validSet = Set(validIds)
             selectedMomentIds = Set(selectedMomentIds.filter { validSet.contains($0) })
         }
@@ -812,15 +812,15 @@ private struct SavedMomentGridCard: View {
     private func generateThumbnail(for videoPath: String) {
         guard generatedThumbnail == nil, let videoURL = URL(string: videoPath) else { return }
 
-        DispatchQueue.global(qos: .userInitiated).async {
-            let asset = AVAsset(url: videoURL)
+        Task {
+            let asset = AVURLAsset(url: videoURL)
             let generator = AVAssetImageGenerator(asset: asset)
             generator.appliesPreferredTrackTransform = true
 
             do {
-                let cgImage = try generator.copyCGImage(at: CMTime(seconds: 0.8, preferredTimescale: 600), actualTime: nil)
+                let (cgImage, _) = try await generator.image(at: CMTime(seconds: 0.8, preferredTimescale: 600))
                 let thumbnail = UIImage(cgImage: cgImage)
-                DispatchQueue.main.async {
+                await MainActor.run {
                     self.generatedThumbnail = thumbnail
                 }
             } catch {
@@ -1371,7 +1371,7 @@ struct ModernSavedDetailMomentCard: View {
             .collection("moments").document(momentId)
             .collection("comments")
             .getDocuments { snapshot, error in
-                if let error = error {
+                if error != nil {
                     return
                 }
 
@@ -1414,7 +1414,7 @@ struct ModernSavedDetailMomentCard: View {
         }
 
         if firstItem.type == .image {
-            KFImage(URL(string: firstItem.url))
+            _ = KFImage(URL(string: firstItem.url))
                 .onSuccess { result in
                     let imageSize = result.image.size
                     let ratio = imageSize.width / imageSize.height
@@ -1612,7 +1612,7 @@ struct AsyncSavedProfileImageView: View {
         .onAppear {
             loadProfileImage(for: userId)
         }
-        .onChange(of: userId) { newUserId in
+        .onChange(of: userId) { _, newUserId in
             loadProfileImage(for: newUserId)
         }
     }

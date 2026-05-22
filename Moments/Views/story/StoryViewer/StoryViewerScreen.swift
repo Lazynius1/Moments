@@ -430,7 +430,7 @@ struct StoryViewerScreen: View {
                         loadChainStories()
                     }
                 }
-                .onChange(of: story.id) { newId in
+                .onChange(of: story.id) { _, newId in
                     if let chainId = story.chainId {
                         checkCanContinueChain(chainId: chainId)
                     }
@@ -471,10 +471,10 @@ struct StoryViewerScreen: View {
                     }
 
             }
-            .onChange(of: selectedPhoto) { newPhoto in
+            .onChange(of: selectedPhoto) { _, newPhoto in
                 handleEphemeralPhoto(newPhoto)
             }
-            .onChange(of: showReactions) { isOpen in
+            .onChange(of: showReactions) { _, isOpen in
                 if isOpen {
                     pauseStory()
                 } else {
@@ -483,7 +483,7 @@ struct StoryViewerScreen: View {
                     }
                 }
             }
-            .onChange(of: showEphemeralPicker) { isOpen in
+            .onChange(of: showEphemeralPicker) { _, isOpen in
                 if isOpen {
                     pauseStory()
                 } else {
@@ -582,7 +582,7 @@ struct StoryViewerScreen: View {
                     )
                     .background(Color.clear)
                 }
-                .onChange(of: showChainView) { isOpen in
+                .onChange(of: showChainView) { _, isOpen in
                     if isOpen {
                         pauseStory()
                     }
@@ -789,7 +789,7 @@ struct StoryViewerScreen: View {
                                             sendMessage()
                                         }
                                     }
-                                    .onChange(of: isTextFieldFocused) { focused in
+                                    .onChange(of: isTextFieldFocused) { _, focused in
                                         if focused {
                                             pauseStory()
                                         } else {
@@ -809,7 +809,7 @@ struct StoryViewerScreen: View {
                                         .foregroundColor(.white)
                                         .font(.system(size: 18))
                                 }
-                                .onChange(of: showReactions) { isOpen in
+                                .onChange(of: showReactions) { _, isOpen in
                                     if isOpen {
                                         pauseStory() // ✅ Pausar historia cuando se abren reacciones
                                     } else {
@@ -839,7 +839,7 @@ struct StoryViewerScreen: View {
                                     .liquidGlass(in: Circle(), interactive: true)
                             }
                             .photosPicker(isPresented: $showEphemeralPicker, selection: $selectedPhoto, matching: .images)
-                            .onChange(of: showEphemeralPicker) { isOpen in
+                            .onChange(of: showEphemeralPicker) { _, isOpen in
                                 if isOpen {
                                     pauseStory() // ✅ Pausar historia cuando se abre selector de fotos
                                 } else {
@@ -1288,7 +1288,7 @@ struct StoryViewerScreen: View {
                 }
 
                 // HORIZONTAL SWIPE (Navigation) - Solo si es cadena
-                else if let chainId = story.chainId, !chainStories.isEmpty {
+                else if story.chainId != nil, !chainStories.isEmpty {
                     if value.translation.width > 60 {
                          goToPreviousChainPart()
                          gestureActionTriggered = true
@@ -1891,14 +1891,14 @@ struct StoryViewerScreen: View {
             .whereField("chainPosition", isEqualTo: 1)
             .limit(to: 1)
             .getDocuments { snapshot, error in
-                guard let document = snapshot?.documents.first,
-                      let data = document.data() as? [String: Any] else {
+                guard let document = snapshot?.documents.first else {
 
                     DispatchQueue.main.async {
                         self.canContinueChain = false
                     }
                     return
                 }
+                let data = document.data()
 
 
                 self.processChainMetadata(data, currentUserId: currentUserId)

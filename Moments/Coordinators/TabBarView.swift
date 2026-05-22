@@ -205,7 +205,7 @@ struct ModernTabView: View {
             navigationService: navigationService
         )
         // Keep modernTab in sync when navigationService changes selectedTab
-        .onChange(of: selectedTab) { newInt in
+        .onChange(of: selectedTab) { _, newInt in
             modernTab = intToAppTab(newInt)
         }
     }
@@ -631,7 +631,7 @@ extension View {
         self
             .onAppear {
                 previousSelectedTab.wrappedValue = selectedTab.wrappedValue
-                if let userId = Auth.auth().currentUser?.uid {
+                if (Auth.auth().currentUser?.uid) != nil {
                     DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
                         if !hasPreloadedExplore.wrappedValue {
                             exploreViewModel.fetchMomentsByInterestsWithTrending()
@@ -642,7 +642,7 @@ extension View {
                 
                 FCMTokenService.shared.updateFCMToken()
             }
-            .onChange(of: selectedTab.wrappedValue) { newSelection in
+            .onChange(of: selectedTab.wrappedValue) { _, newSelection in
                 if newSelection == 3 && !hasPreloadedExplore.wrappedValue {
                     exploreViewModel.fetchMomentsByInterestsWithTrending()
                     hasPreloadedExplore.wrappedValue = true
@@ -658,7 +658,7 @@ extension View {
                     previousSelectedTab.wrappedValue = newSelection
                 }
             }
-            .onChange(of: navigationService.pendingNavigation) { navigation in
+            .onChange(of: navigationService.pendingNavigation) { _, navigation in
                 if let navigation = navigation {
                     switch navigation {
                     case .moment(let momentId, _):

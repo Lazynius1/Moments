@@ -34,8 +34,10 @@ class AdMobConfiguration: NSObject {
             print("⚠️ AdMob: GADApplicationIdentifier NO DETECTADO en Info.plist")
         }
         
-        MobileAds.shared.start { status in
-            self.isInitialized = true
+        MobileAds.shared.start { [weak self] _ in
+            Task { @MainActor [weak self] in
+                self?.isInitialized = true
+            }
         }
     }
     
@@ -105,7 +107,9 @@ class AdMobConfiguration: NSObject {
             }
             
             // Paso 2: Mostrar formulario si es necesario
-            self?.loadAndShowConsentFormIfRequired(completion: completion)
+            Task { @MainActor [weak self] in
+                self?.loadAndShowConsentFormIfRequired(completion: completion)
+            }
         }
     }
     
@@ -314,19 +318,19 @@ class AdMobConfiguration: NSObject {
     }
 }
 
-extension AdMobConfiguration: AdLoaderDelegate {
+extension AdMobConfiguration: @preconcurrency AdLoaderDelegate {
     func adLoader(_ adLoader: AdLoader, didFailToReceiveAdWithError error: Error) {
         print("❌ AdMob: Error al precargar anuncio nativo: \(error.localizedDescription)")
-        DispatchQueue.main.async {
-            self.preloadedNativeAd = nil
+        Task { @MainActor [weak self] in
+            self?.preloadedNativeAd = nil
         }
     }
 }
 
-extension AdMobConfiguration: NativeAdLoaderDelegate {
+extension AdMobConfiguration: @preconcurrency NativeAdLoaderDelegate {
     func adLoader(_ adLoader: AdLoader, didReceive nativeAd: NativeAd) {
-        DispatchQueue.main.async {
-            self.preloadedNativeAd = nativeAd
+        Task { @MainActor [weak self] in
+            self?.preloadedNativeAd = nativeAd
         }
     }
 }
@@ -390,22 +394,22 @@ class NativeAdManager: NSObject, ObservableObject {
     }
 }
 
-extension NativeAdManager: AdLoaderDelegate {
+extension NativeAdManager: @preconcurrency AdLoaderDelegate {
     func adLoader(_ adLoader: AdLoader, didFailToReceiveAdWithError error: Error) {
         print("❌ AdMob: Error al cargar anuncio nativo: \(error.localizedDescription)")
-        DispatchQueue.main.async {
-            self.isLoading = false
-            self.hasError = true
+        Task { @MainActor [weak self] in
+            self?.isLoading = false
+            self?.hasError = true
         }
     }
 }
 
-extension NativeAdManager: NativeAdLoaderDelegate {
+extension NativeAdManager: @preconcurrency NativeAdLoaderDelegate {
     func adLoader(_ adLoader: AdLoader, didReceive nativeAd: NativeAd) {
-        DispatchQueue.main.async {
-            self.nativeAd = nativeAd
-            self.isLoading = false
-            self.hasError = false
+        Task { @MainActor [weak self] in
+            self?.nativeAd = nativeAd
+            self?.isLoading = false
+            self?.hasError = false
         }
     }
 }

@@ -69,7 +69,7 @@ struct StoryRingAvatarView: View {
         .onAppear {
             resolveSnapshot()
         }
-        .onChange(of: userId) { _ in
+        .onChange(of: userId) { _, _ in
             resolveSnapshot()
         }
     }

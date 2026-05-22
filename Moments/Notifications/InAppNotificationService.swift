@@ -36,7 +36,7 @@ class InAppNotificationService: ObservableObject {
         listener = db.collection("users").document(userId).collection("notifications")
             .whereField("timestamp", isGreaterThan: startTime)
             .addSnapshotListener { [weak self] snapshot, error in
-                guard let self = self, let documents = snapshot?.documents else { return }
+                guard let self = self, snapshot != nil else { return }
                 
                 snapshot?.documentChanges.forEach { change in
                     if change.type == .added {
@@ -54,7 +54,7 @@ class InAppNotificationService: ObservableObject {
             //.order(by: "lastUpdated", descending: true) // Opcional, pero útil
         
         let messagesListener = messagesQuery.addSnapshotListener { [weak self] snapshot, error in
-            guard let self = self, let documents = snapshot?.documents else { return }
+            guard let self = self, snapshot != nil else { return }
             
             snapshot?.documentChanges.forEach { change in
                 // Interesante: .modified (cuando llega un mensaje nuevo la conversación se modifica)

@@ -286,7 +286,7 @@ struct StoryChainView: View {
             do {
                 guard let userId = Auth.auth().currentUser?.uid else { return }
                 
-                try await StoryChainLimitsService.shared.canContinueChain(chainId: chainId, userId: userId)
+                _ = try await StoryChainLimitsService.shared.canContinueChain(chainId: chainId, userId: userId)
                 
                 await MainActor.run {
                     // Cerrar esta vista y abrir el creator para continuar la cadena

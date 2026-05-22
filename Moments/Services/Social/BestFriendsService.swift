@@ -133,7 +133,7 @@ class BestFriendsService {
                         if friend.isActive {
                             bestFriends.append(friend)
                         }
-                    case .failure(let error):
+                    case .failure:
                         // Best friends may contain stale ids if an account was deleted.
                         // Do not break the whole settings screen for a missing profile.
                         break

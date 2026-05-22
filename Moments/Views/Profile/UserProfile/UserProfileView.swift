@@ -536,7 +536,7 @@ struct UserProfileView: View {
 
     // ✅ NUEVA: Función para enviar solicitud de mensaje
     private func sendMessageRequest() {
-        guard let currentUserId = Auth.auth().currentUser?.uid,
+        guard Auth.auth().currentUser?.uid != nil,
               let targetUser = viewModel.userProfile else { return }
 
         let message = messageRequestText.trimmingCharacters(in: .whitespacesAndNewlines)

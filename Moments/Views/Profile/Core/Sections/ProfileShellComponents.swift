@@ -299,10 +299,12 @@ struct ModernProfileContentView: View {
                             }
                         }
 
-                        let timer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { timer in
-                            if !viewModel.isRefreshing && savedRefreshCompleted {
-                                timer.invalidate()
-                                continuation.resume()
+                        _ = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { timer in
+                            Task { @MainActor in
+                                if !viewModel.isRefreshing && savedRefreshCompleted {
+                                    timer.invalidate()
+                                    continuation.resume()
+                                }
                             }
                         }
                     }

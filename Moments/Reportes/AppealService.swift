@@ -47,6 +47,7 @@ struct SupportInfo: Codable {
 }
 
 // MARK: - Appeal Service
+@MainActor
 class AppealService: ObservableObject {
     static let shared = AppealService()
     

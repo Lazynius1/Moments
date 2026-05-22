@@ -56,10 +56,10 @@ struct SearchBarView: View {
                         .font(.custom("Poppins-Medium", size: 14))
                         .foregroundColor(.primary)
                         .focused($internalFocus)
-                        .onChange(of: internalFocus) { newValue in
+                        .onChange(of: internalFocus) { _, newValue in
                             isSearchFocused = newValue
                         }
-                        .onChange(of: searchText) { newValue in
+                        .onChange(of: searchText) { _, newValue in
                              onSearch(newValue)
                         }
 
@@ -817,7 +817,7 @@ struct ExploreVideoThumbnailView: View {
             return
         }
 
-        let asset = AVAsset(url: url)
+        let asset = AVURLAsset(url: url)
         let imageGenerator = AVAssetImageGenerator(asset: asset)
         imageGenerator.appliesPreferredTrackTransform = true
         imageGenerator.maximumSize = CGSize(width: 240, height: 240) // 2x para retina

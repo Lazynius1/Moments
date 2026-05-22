@@ -176,7 +176,7 @@ struct SettingsView: View {
                     self.isLoading = false
                 }
             }
-            .onChange(of: authService.currentFirebaseUser) { user in
+            .onChange(of: authService.currentFirebaseUser) { _, user in
                 guard user == nil else { return }
                 isLoading = false
                 showError = false
@@ -235,9 +235,9 @@ struct SettingsView: View {
             .fullScreenCover(isPresented: $isShowingArchivedStories) {
                 ArchiveView()
             }
-            .fullScreenCover(isPresented: $isShowingSupportMoments) {
-                SupportMomentsView()
-            }
+        // .fullScreenCover(isPresented: $isShowingSupportMoments) { support moments sections, unused for now
+        //     SupportMomentsView()
+        //    }
             .fullScreenCover(isPresented: $isShowingNotificationSettings) {
                 NotificationSettingsView(
                     viewModel: viewModel,

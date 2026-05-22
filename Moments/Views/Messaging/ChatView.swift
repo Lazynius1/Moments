@@ -109,7 +109,7 @@ struct GlassmorphicChatView: View {
                 handleCameraCapture(data: data, mediaType: mediaType, isEphemeral: isEphemeral)
             }
         }
-        .onChange(of: selectedItems) { items in
+        .onChange(of: selectedItems) { _, items in
             let mediaBatchId = items.count > 1 ? UUID().uuidString : nil
             for item in items {
                 viewModel.handlePhotoPickerItem(item, mediaBatchId: mediaBatchId)
@@ -145,14 +145,9 @@ struct GlassmorphicChatView: View {
     
     var body: some View {
         chatViewWithSettingsAndStories
-// ✅ NUEVO: Navegación al perfil del usuario
-        .background(
-            NavigationLink(
-                destination: viewModel.conversation.otherParticipantId != nil ?
-                    UserProfileView(userId: viewModel.conversation.otherParticipantId) : nil,
-                isActive: $showingUserProfile
-            ) { EmptyView() }
-        )
+        .navigationDestination(isPresented: $showingUserProfile) {
+            UserProfileView(userId: viewModel.conversation.otherParticipantId)
+        }
         // ✅ NUEVO: Pantalla de selección de medios para respuestas a clusters
         .sheet(item: Binding(
             get: { clusterForReply.map { ClusterWrapper(messages: $0) } },
@@ -177,16 +172,16 @@ struct GlassmorphicChatView: View {
         .onDisappear {
             onDisappearActions()
         }
-        .onChange(of: viewModel.messages.map(\.id)) { _ in
+        .onChange(of: viewModel.messages.map(\.id)) { _, _ in
             initializeUnreadDividerIfNeeded()
             if isSearchVisible && !searchQuery.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                 updateSearchMatches()
             }
         }
-        .onChange(of: searchQuery) { _ in
+        .onChange(of: searchQuery) { _, _ in
             updateSearchMatches()
         }
-        .onChange(of: showingMessageOptions) { newValue in
+        .onChange(of: showingMessageOptions) { _, newValue in
             if newValue == nil {
                 withAnimation { reactionMessageOverlay = nil }
             }
@@ -582,7 +577,7 @@ struct GlassmorphicChatView: View {
                     }
                 }
             }
-            .onChange(of: viewModel.messages.isEmpty) { isEmpty in
+            .onChange(of: viewModel.messages.isEmpty) { _, isEmpty in
                 // Detecta cuando los mensajes cargan de Firestore por primera vez (vacío → poblado)
                 guard !isEmpty else { return }
                 proxy.scrollTo("chat-bottom-anchor", anchor: .bottom)
@@ -592,7 +587,7 @@ struct GlassmorphicChatView: View {
                     }
                 }
             }
-            .onChange(of: viewModel.messages.last?.id) { lastMessageId in
+            .onChange(of: viewModel.messages.last?.id) { _, lastMessageId in
                 guard let lastMessageId else { return }
                 let isLastMessageMine = viewModel.messages.last?.senderId == viewModel.currentUserId
                 
@@ -616,12 +611,12 @@ struct GlassmorphicChatView: View {
                     }
                 }
             }
-            .onChange(of: pendingSearchTargetId) { targetId in
+            .onChange(of: pendingSearchTargetId) { _, targetId in
                 guard let targetId else { return }
                 jumpToMessage(targetId, proxy: proxy)
                 pendingSearchTargetId = nil
             }
-            .onChange(of: isTextFieldFocused) { focused in
+            .onChange(of: isTextFieldFocused) { _, focused in
                 if focused {
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
                         withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
@@ -645,7 +640,7 @@ struct GlassmorphicChatView: View {
                 }
             }
             
-            if let editingMessage = editingMessage {
+            if editingMessage != nil {
                 HStack {
                     Image(systemName: "pencil")
                         .foregroundColor(adaptiveColors.primary)
@@ -983,7 +978,7 @@ struct GlassmorphicChatView: View {
     // ✅ ACTUALIZADO: Función para verificar historias del usuario (con filtrado de privacidad como en reels)
     private func checkUserStories() {
         guard let currentUserId = Auth.auth().currentUser?.uid else { return }
-        let otherUserId = viewModel.conversation.otherParticipantId ?? ""
+        let otherUserId = viewModel.conversation.otherParticipantId
         guard !otherUserId.isEmpty else { return }
 
         StoryRingResolverService.shared.resolve(
@@ -1017,7 +1012,7 @@ struct GlassmorphicChatView: View {
             return
         }
 
-        guard let conversationId = viewModel.conversation.id else {
+        guard viewModel.conversation.id != nil else {
             return
         }
         
@@ -1296,11 +1291,10 @@ extension GlassmorphicChatView {
     
     private func handleMomentNavigationFromChat(message: EnhancedMessage) {
         if let sharedMomentData = message.sharedMomentData,
-           let momentId = sharedMomentData["momentId"] as? String {
-            
+           let momentId = sharedMomentData["momentId"] {
             
             // ✅ CORREGIDO: Obtener el authorId del momento compartido o usar el senderId como fallback
-            let authorId = sharedMomentData["momentAuthorId"] as? String ?? message.senderId
+            let authorId = sharedMomentData["momentAuthorId"] ?? message.senderId
             
             firestoreService.fetchMoment(momentId: momentId, userId: authorId) { result in
                 DispatchQueue.main.async {
@@ -1512,8 +1506,6 @@ class MomentsChatViewModel: EnhancedChatViewModel {
             self.updateGroupedMessages()
             self.objectWillChange.send()
         }
-        
-        let trackingType = mediaType == .image ? "view_once_image" : "view_once_video"
         
         chatService.sendViewOnceMessage(
             conversationId: conversationId,

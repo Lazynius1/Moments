@@ -43,11 +43,9 @@ struct NotificationsView: View {
                 contentView
             }
             .background(colorScheme == .dark ? Color(hex: "0B1215") : Color(hex: "FAF9F6"))
-            .background(
-                NavigationLink(destination: chatDestination, isActive: $showChat) {
-                    EmptyView()
-                }
-            )
+            .navigationDestination(isPresented: $showChat) {
+                chatDestination
+            }
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
@@ -85,7 +83,7 @@ struct NotificationsView: View {
         .alert(isPresented: $viewModel.showError) {
             Alert(
                 title: Text("notifications.error.title"),
-                message: Text(viewModel.errorMessage ?? NSLocalizedString("notifications.error.unknown", comment: "Unknown error message")),
+                message: Text(viewModel.errorMessage),
                 dismissButton: .default(Text("notifications.ok"))
             )
         }
@@ -450,7 +448,7 @@ struct NotificationsView: View {
         guard let targetAuthorId, !targetAuthorId.isEmpty else { return }
 
         db.collection("users").document(targetAuthorId).collection("stories").document(storyId).getDocument { snapshot, error in
-            if let error = error {
+            if error != nil {
                 return
             }
             
@@ -1089,7 +1087,7 @@ struct EnhancedNotificationRow: View {
             .collection("stories")
             .document(storyId)
             .getDocument { snapshot, error in
-                if let error = error {
+                if error != nil {
                     DispatchQueue.main.async {
                         self.isLoadingStoryImage = false
                         self.storyImageLoadFailed = true
@@ -1473,7 +1471,7 @@ struct EnhancedNotificationRow: View {
                         self.momentImageLoadFailed = true
                     }
                 }
-            case .failure(let error):
+            case .failure(_):
                 DispatchQueue.main.async {
                     self.isLoadingMomentImage = false
                     self.momentImageLoadFailed = true
@@ -1500,7 +1498,7 @@ struct EnhancedNotificationRow: View {
                     self.isLoadingMomentImage = false
                     self.momentImageLoadFailed = false
                 }
-            case .failure(let error):
+            case .failure(_):
                 DispatchQueue.main.async {
                     self.isLoadingMomentImage = false
                     self.momentImageLoadFailed = true
@@ -1541,8 +1539,7 @@ struct EnhancedNotificationRow: View {
         
         if followButtonState == .following {
             viewModel.unfollowUser(currentUserId: currentUserId, targetUserId: targetUserId) { error in
-                if let error = error {
-                } else {
+                if error == nil {
                     DispatchQueue.main.async {
                         self.followButtonState = .canFollow
                         FollowStateStore.shared.setState(.canFollow, for: targetUserId)
@@ -1551,8 +1548,7 @@ struct EnhancedNotificationRow: View {
             }
         } else {
             viewModel.followUser(currentUserId: currentUserId, targetUserId: targetUserId) { error in
-                if let error = error {
-                } else {
+                if error == nil {
                     DispatchQueue.main.async {
                         let newState: FollowButtonState = self.followButtonState == .canRequestFollow ? .requestPending : .following
                         self.followButtonState = newState

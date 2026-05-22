@@ -564,13 +564,13 @@ struct ModernPostCardView: View {
 
             }
         }
-        .onChange(of: firestoreService.savedMomentIds) { _ in
+        .onChange(of: firestoreService.savedMomentIds) { _, _ in
             guard let currentUserId = Auth.auth().currentUser?.uid,
                   let momentId = moment.id,
                   firestoreService.hasLoadedSavedMoments(for: currentUserId) else { return }
             isSaved = firestoreService.savedMomentIds.contains(momentId)
         }
-        .onChange(of: moment.authorId) { _ in
+        .onChange(of: moment.authorId) { _, _ in
             liveAuthorUsername = ""
             refreshAuthorUsername()
         }
@@ -821,7 +821,7 @@ struct ModernPostCardView: View {
 
         if firstItem.type == .image {
 
-            KFImage(URL(string: firstItem.url))
+            _ = KFImage(URL(string: firstItem.url))
                 .onSuccess { result in
                     let imageSize = result.image.size
                     let ratio = imageSize.width / imageSize.height
@@ -855,7 +855,7 @@ struct ModernPostCardView: View {
             }
 
             if let url = URL(string: firstItem.url) {
-                let asset = AVAsset(url: url)
+                let asset = AVURLAsset(url: url)
                 Task {
                     do {
                         let track = try await asset.loadTracks(withMediaType: .video).first
@@ -975,7 +975,7 @@ struct ModernPostCardView: View {
                     .collection("moments").document(momentId)
                     .collection("comments")
                     .getDocuments { snapshot, error in
-                        if let error = error {
+                        if error != nil {
                             return
                         }
 
@@ -1032,7 +1032,7 @@ struct ModernPostCardView: View {
             firestoreService.unfollowUser(currentUserId: currentUserId, targetUserId: moment.authorId) { error in
                 DispatchQueue.main.async {
                     self.isFollowLoading = false
-                    if let error = error {
+                    if error != nil {
                         // Revert on error
                         withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
                             self.followButtonState = previousState
@@ -1045,7 +1045,7 @@ struct ModernPostCardView: View {
             firestoreService.followUser(currentUserId: currentUserId, targetUserId: moment.authorId) { error in
                 DispatchQueue.main.async {
                     self.isFollowLoading = false
-                    if let error = error {
+                    if error != nil {
                         // Revert on error
                         withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
                             self.followButtonState = previousState
@@ -1071,7 +1071,7 @@ struct ModernPostCardView: View {
         firestoreService.toggleSaveMoment(userId: currentUserId, momentId: momentId) { error in
             DispatchQueue.main.async {
                 self.isSaveLoading = false
-                if let error = error {
+                if error != nil {
                     // Revert on error
                     withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
                         self.isSaved.toggle()
@@ -1465,7 +1465,7 @@ struct CroppedVideoPlayer: View {
                             let videoId = currentMoment.id ?? "video_\(UUID().uuidString)"
                             isMuted = globalManager.isMuted(videoId)
                         }
-                        .onChange(of: globalManager.userHasEnabledSoundInSession) { hasSound in
+                        .onChange(of: globalManager.userHasEnabledSoundInSession) { _, hasSound in
                             // ✅ ESTILO INSTAGRAM: Actualizar estado cuando el usuario activa el sonido en la sesión
                             let videoId = currentMoment.id ?? "video_\(UUID().uuidString)"
                             isMuted = !hasSound || globalManager.isMuted(videoId)

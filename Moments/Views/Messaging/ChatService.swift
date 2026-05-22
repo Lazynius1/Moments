@@ -7,6 +7,7 @@ import CryptoKit
 import AVFoundation
 import UIKit
 
+@MainActor
 class ChatService: ObservableObject {
     // MARK: - Properties
     private let db = Firestore.firestore()
@@ -26,11 +27,9 @@ class ChatService: ObservableObject {
     init() {
     }
     
-    deinit {
-        removeAllListeners()
-    }
     
     // MARK: - Listeners Management
+
     func removeAllListeners() {
         activeListeners.values.forEach { $0.remove() }
         activeListeners.removeAll()
@@ -89,49 +88,60 @@ class ChatService: ObservableObject {
     
     // ✅ ONE-SHOT FETCH: útil para pantallas de stats donde no necesitamos listener vivo
     func fetchRecentMessages(conversationId: String, limit: Int = 300, completion: @escaping (Result<[EnhancedMessage], Error>) -> Void) {
-        Task {
+        Task { [weak self] in
+            guard let self else { return }
             await preloadConversationKey(for: conversationId)
-            
-            db.collection("conversations")
-                .document(conversationId)
-                .collection("messages")
-                .order(by: "timestamp", descending: false)
-                .limit(toLast: limit)
-                .getDocuments { [weak self] snapshot, error in
-                    Task {
-                        await self?.handleMessagesSnapshot(
-                            snapshot: snapshot,
-                            error: error,
-                            conversationId: conversationId,
-                            completion: completion
-                        )
-                    }
-                }
+            do {
+                let snapshot = try await db.collection("conversations")
+                    .document(conversationId)
+                    .collection("messages")
+                    .order(by: "timestamp", descending: false)
+                    .limit(toLast: limit)
+                    .getDocuments()
+                await handleMessagesSnapshot(
+                    snapshot: snapshot,
+                    error: nil,
+                    conversationId: conversationId,
+                    completion: completion
+                )
+            } catch {
+                await handleMessagesSnapshot(
+                    snapshot: nil,
+                    error: error,
+                    conversationId: conversationId,
+                    completion: completion
+                )
+            }
         }
     }
     
     // ✅ NUEVO: Cargar mensajes anteriores (Paginación)
     func fetchOlderMessages(conversationId: String, before timestamp: Date, limit: Int = 20, completion: @escaping (Result<[EnhancedMessage], Error>) -> Void) {
-        Task {
-            // Asegurar que tenemos la clave
-             await preloadConversationKey(for: conversationId)
-            
-            db.collection("conversations")
-                .document(conversationId)
-                .collection("messages")
-                .whereField("timestamp", isLessThan: Timestamp(date: timestamp))
-                .order(by: "timestamp", descending: true) // Descendente para obtener los más cercanos a la fecha
-                .limit(to: limit)
-                .getDocuments { [weak self] snapshot, error in
-                    Task {
-                        await self?.handleMessagesSnapshot(
-                            snapshot: snapshot,
-                            error: error,
-                            conversationId: conversationId,
-                            completion: completion
-                        )
-                    }
-                }
+        Task { [weak self] in
+            guard let self else { return }
+            await preloadConversationKey(for: conversationId)
+            do {
+                let snapshot = try await db.collection("conversations")
+                    .document(conversationId)
+                    .collection("messages")
+                    .whereField("timestamp", isLessThan: Timestamp(date: timestamp))
+                    .order(by: "timestamp", descending: true)
+                    .limit(to: limit)
+                    .getDocuments()
+                await handleMessagesSnapshot(
+                    snapshot: snapshot,
+                    error: nil,
+                    conversationId: conversationId,
+                    completion: completion
+                )
+            } catch {
+                await handleMessagesSnapshot(
+                    snapshot: nil,
+                    error: error,
+                    conversationId: conversationId,
+                    completion: completion
+                )
+            }
         }
     }
 
@@ -243,9 +253,9 @@ class ChatService: ObservableObject {
             markMessagesAsDelivered(messages: messages, conversationId: conversationId, currentUserId: currentUserId)
         }
         
-        // ✅ Llamar completion en el Main Actor para actualizaciones de UI
+        let finalMessages = messages
         await MainActor.run {
-            completion(.success(messages))
+            completion(.success(finalMessages))
         }
     }
     
@@ -475,10 +485,14 @@ class ChatService: ObservableObject {
     
     // MARK: - Core Send Message Method
     func sendMessage(_ message: EnhancedMessage, useServerTimestamp: Bool, completion: @escaping (Result<EnhancedMessage, Error>) -> Void) {
+        nonisolated(unsafe) let message = message
         // ✅ OFFLINE SUPPORT: Si no hay conexión, persistir acción y retornar éxito optimista
         if !NetworkMonitor.shared.isConnected {
-            var pendingMessage = message
-            pendingMessage.status = .pending
+            let pendingMessage: EnhancedMessage = {
+                let m = message
+                m.status = .pending
+                return m
+            }()
             
             let payload = MessagePayload(
                 message: pendingMessage,
@@ -493,7 +507,7 @@ class ChatService: ObservableObject {
                 )
                 
                 Task {
-                    await LocalPersistenceService.shared.saveAction(action)
+                    LocalPersistenceService.shared.saveAction(action)
                     print("💾 ChatService: Mensaje guardado en outbox (offline)")
                     completion(.success(pendingMessage)) // Éxito optimista
                 }
@@ -501,140 +515,146 @@ class ChatService: ObservableObject {
             }
         }
         
-        do {
-            let messageRef = db.collection("conversations")
-                .document(message.conversationId)
-                .collection("messages")
-                .document(message.id)
-            
-            // Create message data that matches the EnhancedMessage structure
-            var messageData: [String: Any] = [
-                "id": message.id,
-                "conversationId": message.conversationId,
-                "senderId": message.senderId,
-                "type": message.type.rawValue,
-                "status": MessageStatus.sent.rawValue, // ✅ FORZAR ESTADO ENVIADO INICIALMENTE
-                "isRead": message.isRead,
-                "isDeleted": message.isDeleted,
-                "isViewed": message.isViewed
-            ]
-            
-            // ✅ Add optional fields (content is already encrypted if needed)
-            if let content = message.content {
-                messageData["content"] = content // Already encrypted for text messages
-            }
-            if let mediaUrl = message.mediaUrl {
-                messageData["mediaUrl"] = mediaUrl // Media URLs are not encrypted
-            }
-            if let thumbnailUrl = message.thumbnailUrl {
-                messageData["thumbnailUrl"] = thumbnailUrl
-            }
-            if let duration = message.duration {
-                messageData["duration"] = duration
-            }
-            if let fileName = message.fileName {
-                messageData["fileName"] = fileName
-            }
-            if let fileSize = message.fileSize {
-                messageData["fileSize"] = fileSize
-            }
-            if let latitude = message.latitude {
-                messageData["latitude"] = latitude // Coordinates are not encrypted
-            }
-            if let longitude = message.longitude {
-                messageData["longitude"] = longitude
-            }
-            if let replyTo = message.replyTo {
-                messageData["replyTo"] = replyTo
-            }
-            if let expirationDate = message.expirationDate {
-                messageData["expirationDate"] = Timestamp(date: expirationDate)
-            }
-            if let storyReplyData = message.storyReplyData {
-                messageData["storyReplyData"] = storyReplyData
-            }
-            if let sharedMomentData = message.sharedMomentData {
-                messageData["sharedMomentData"] = sharedMomentData
-            }
-            if let mediaBatchId = message.mediaBatchId {
-                messageData["mediaBatchId"] = mediaBatchId
-            }
-            
-            // Set timestamp
-            if useServerTimestamp {
-                messageData["timestamp"] = FieldValue.serverTimestamp()
-            } else {
-                messageData["timestamp"] = Timestamp(date: message.timestamp)
-            }
-            
-            
-            // Write to Firestore
-            messageRef.setData(messageData) { [weak self] error in
-                if let error = error {
-                    // Update status to failed if there's an error
+        let messageRef = db.collection("conversations")
+            .document(message.conversationId)
+            .collection("messages")
+            .document(message.id)
+        
+        // Create message data that matches the EnhancedMessage structure
+        var messageData: [String: Any] = [
+            "id": message.id,
+            "conversationId": message.conversationId,
+            "senderId": message.senderId,
+            "type": message.type.rawValue,
+            "status": MessageStatus.sent.rawValue, // ✅ FORZAR ESTADO ENVIADO INICIALMENTE
+            "isRead": message.isRead,
+            "isDeleted": message.isDeleted,
+            "isViewed": message.isViewed
+        ]
+        
+        // ✅ Add optional fields (content is already encrypted if needed)
+        if let content = message.content {
+            messageData["content"] = content // Already encrypted for text messages
+        }
+        if let mediaUrl = message.mediaUrl {
+            messageData["mediaUrl"] = mediaUrl // Media URLs are not encrypted
+        }
+        if let thumbnailUrl = message.thumbnailUrl {
+            messageData["thumbnailUrl"] = thumbnailUrl
+        }
+        if let duration = message.duration {
+            messageData["duration"] = duration
+        }
+        if let fileName = message.fileName {
+            messageData["fileName"] = fileName
+        }
+        if let fileSize = message.fileSize {
+            messageData["fileSize"] = fileSize
+        }
+        if let latitude = message.latitude {
+            messageData["latitude"] = latitude // Coordinates are not encrypted
+        }
+        if let longitude = message.longitude {
+            messageData["longitude"] = longitude
+        }
+        if let replyTo = message.replyTo {
+            messageData["replyTo"] = replyTo
+        }
+        if let expirationDate = message.expirationDate {
+            messageData["expirationDate"] = Timestamp(date: expirationDate)
+        }
+        if let storyReplyData = message.storyReplyData {
+            messageData["storyReplyData"] = storyReplyData
+        }
+        if let sharedMomentData = message.sharedMomentData {
+            messageData["sharedMomentData"] = sharedMomentData
+        }
+        if let mediaBatchId = message.mediaBatchId {
+            messageData["mediaBatchId"] = mediaBatchId
+        }
+        
+        // Set timestamp
+        if useServerTimestamp {
+            messageData["timestamp"] = FieldValue.serverTimestamp()
+        } else {
+            messageData["timestamp"] = Timestamp(date: message.timestamp)
+        }
+        
+        // Write to Firestore
+        let conversationId = message.conversationId
+        let messageId = message.id
+        let senderId = message.senderId
+        let messageType = message.type
+        
+        messageRef.setData(messageData) { [weak self] error in
+            if let error = error {
+                // Update status to failed if there's an error
+                Task { @MainActor in
                     self?.updateLocalMessageStatus(
-                        conversationId: message.conversationId,
-                        messageId: message.id,
+                        conversationId: conversationId,
+                        messageId: messageId,
                         status: .failed
                     )
                     self?.updateMessageStatus(
-                        conversationId: message.conversationId,
-                        messageId: message.id,
+                        conversationId: conversationId,
+                        messageId: messageId,
                         status: .failed
                     ) { _ in }
-                    completion(.failure(error))
-                    return
                 }
-                
-                // ✅ Update conversation with last message (decrypt for preview)
-                Task {
-                    self?.updateConversation(
-                        conversationId: message.conversationId,
-                        lastMessage: self?.neutralConversationPreview(for: message.type) ?? MessageType.text.conversationPreview,
-                        senderId: message.senderId
-                    ) { updateError in
-                        if let updateError = updateError {
-                            // Silently handle error
-                        }
+                completion(.failure(error))
+                return
+            }
+            
+            // ✅ Update conversation with last message (decrypt for preview)
+            Task { @MainActor in
+                self?.updateConversation(
+                    conversationId: conversationId,
+                    lastMessage: self?.neutralConversationPreview(for: messageType) ?? MessageType.text.conversationPreview,
+                    senderId: senderId
+                ) { updateError in
+                    if updateError != nil {
+                        // Silently handle error
                     }
                 }
-                
-                // ✅ Marcar como enviado inmediatamente
+            }
+            
+            // ✅ Marcar como enviado inmediatamente
+            Task { @MainActor in
                 self?.updateMessageStatus(
-                    conversationId: message.conversationId,
-                    messageId: message.id,
+                    conversationId: conversationId,
+                    messageId: messageId,
                     status: .sent
                 ) { _ in }
-                
-                // ✅ Llamar completion con éxito INMEDIATAMENTE
-                var updatedMessage = message
-                updatedMessage.status = .sent
-                completion(.success(updatedMessage))
             }
-        } catch {
-            completion(.failure(error))
+            
+            let updatedMessage: EnhancedMessage = {
+                let m = message
+                m.status = .sent
+                return m
+            }()
+            completion(.success(updatedMessage))
         }
     }
-    
+
     // MARK: - Message Actions with Encryption
     func editMessage(conversationId: String, messageId: String, newContent: String, completion: @escaping (Error?) -> Void) {
         
         // 🔐 Encrypt new content before updating (Async)
         Task {
             let encryptedContent = await encryptMessageContent(newContent, for: conversationId)
-            
-            db.collection("conversations")
-                .document(conversationId)
-                .collection("messages")
-                .document(messageId)
-                .updateData([
-                    "content": encryptedContent, // Store encrypted content
-                    "editedAt": FieldValue.serverTimestamp()
-                ]) { error in
-                    if let error = error {
-                    }
-                    completion(error)
-                }
+            do {
+                try await db.collection("conversations")
+                    .document(conversationId)
+                    .collection("messages")
+                    .document(messageId)
+                    .updateData([
+                        "content": encryptedContent,
+                        "editedAt": FieldValue.serverTimestamp()
+                    ])
+                completion(nil)
+            } catch {
+                completion(error)
+            }
         }
     }
     
@@ -646,8 +666,8 @@ class ChatService: ObservableObject {
             .updateData([
                 "isDeleted": true,
                 "deletedAt": FieldValue.serverTimestamp(),
-                "content": nil,
-                "mediaUrl": nil
+                "content": FieldValue.delete(),
+                "mediaUrl": FieldValue.delete()
             ]) { error in
                 completion(error)
             }
@@ -672,6 +692,7 @@ class ChatService: ObservableObject {
             .collection("messages")
             .document(messageId)
             .getDocument { [weak self] snapshot, error in
+                guard let self = self else { return }
                 
                 if let error = error {
                     completion(error)
@@ -687,15 +708,15 @@ class ChatService: ObservableObject {
                 let mediaUrl = data["mediaUrl"] as? String
                 
                 // Mark message as deleted first
-                self?.db.collection("conversations")
+                Firestore.firestore().collection("conversations")
                     .document(conversationId)
                     .collection("messages")
                     .document(messageId)
                     .updateData([
                         "isDeleted": true,
                         "deletedAt": FieldValue.serverTimestamp(),
-                        "content": nil, // Remove encrypted content
-                        "mediaUrl": nil
+                        "content": FieldValue.delete(), // Remove encrypted content
+                        "mediaUrl": FieldValue.delete()
                     ]) { updateError in
                         
                         if let updateError = updateError {
@@ -706,15 +727,16 @@ class ChatService: ObservableObject {
                         
                         // Delete media file if exists
                         if let mediaUrl = mediaUrl, !mediaUrl.isEmpty {
-                            
-                            self?.deleteMediaFile(url: mediaUrl) { result in
-                                switch result {
-                                case .success(_):
-                                    break
-                                case .failure(_):
-                                    break
+                            Task { @MainActor in
+                                self.deleteMediaFile(url: mediaUrl) { result in
+                                    switch result {
+                                    case .success(_):
+                                        break
+                                    case .failure(_):
+                                        break
+                                    }
+                                    completion(nil)
                                 }
-                                completion(nil)
                             }
                         } else {
                             completion(nil)
@@ -785,8 +807,6 @@ class ChatService: ObservableObject {
             transaction.updateData(["reactions": reactions], forDocument: messageRef)
             return nil
         }) { (_, error) in
-            if let error = error {
-            }
             completion(error)
         }
     }
@@ -840,7 +860,7 @@ class ChatService: ObservableObject {
                     return false
                 }
 
-                let batch = self.db.batch()
+                let batch = Firestore.firestore().batch()
                 for doc in conversationsToMarkAsDeleted {
                     // En lugar de eliminar, marcar como eliminada para este usuario
                     batch.updateData([
@@ -864,11 +884,13 @@ class ChatService: ObservableObject {
 
                         for doc in conversationsToMarkAsDeleted {
                             group.enter()
-                            self.markAllMessagesAsDeletedForUser(conversationId: doc.documentID, userId: user1Id) { messageError in
-                                if firstError == nil, let messageError {
-                                    firstError = messageError
+                            Task { @MainActor in
+                                self.markAllMessagesAsDeletedForUser(conversationId: doc.documentID, userId: user1Id) { messageError in
+                                    if firstError == nil, let messageError {
+                                        firstError = messageError
+                                    }
+                                    group.leave()
                                 }
-                                group.leave()
                             }
                         }
 
@@ -918,7 +940,7 @@ class ChatService: ObservableObject {
                     return
                 }
 
-                let batch = self.db.batch()
+                let batch = Firestore.firestore().batch()
                 for doc in documents {
                     batch.updateData([
                         "deletedFor": FieldValue.arrayUnion([userId])
@@ -1186,57 +1208,57 @@ class ChatService: ObservableObject {
     }
     
     private func generateVideoThumbnail(from videoData: Data, conversationId: String, completion: @escaping (String?) -> Void) {
-        DispatchQueue.global(qos: .userInitiated).async {
+        Task {
             let tempVideoURL = FileManager.default.temporaryDirectory
                 .appendingPathComponent("chat_video_thumb_\(UUID().uuidString).mp4")
-            
+
             do {
                 try videoData.write(to: tempVideoURL, options: .atomic)
             } catch {
                 completion(nil)
                 return
             }
-            
+
             defer {
                 try? FileManager.default.removeItem(at: tempVideoURL)
             }
-            
+
             let asset = AVURLAsset(url: tempVideoURL)
             let imageGenerator = AVAssetImageGenerator(asset: asset)
             imageGenerator.appliesPreferredTrackTransform = true
             imageGenerator.maximumSize = CGSize(width: 720, height: 1280)
-            
+
             let frameCandidates = [
                 CMTime(seconds: 0.15, preferredTimescale: 600),
                 CMTime(seconds: 0.0, preferredTimescale: 600),
                 CMTime(seconds: 0.5, preferredTimescale: 600)
             ]
-            
+
             var cgImage: CGImage?
             for time in frameCandidates {
-                if let candidate = try? imageGenerator.copyCGImage(at: time, actualTime: nil) {
+                if let (candidate, _) = try? await imageGenerator.image(at: time) {
                     cgImage = candidate
                     break
                 }
             }
-            
+
             guard let cgImage,
                   let thumbnailData = UIImage(cgImage: cgImage).jpegData(compressionQuality: 0.78) else {
                 completion(nil)
                 return
             }
-            
+
             let thumbnailPath = "conversations/\(conversationId)/thumbnails/\(UUID().uuidString).jpg"
             let thumbnailRef = self.storage.reference().child(thumbnailPath)
             let metadata = StorageMetadata()
             metadata.contentType = "image/jpeg"
-            
+
             thumbnailRef.putData(thumbnailData, metadata: metadata) { _, error in
                 if error != nil {
                     completion(nil)
                     return
                 }
-                
+
                 thumbnailRef.downloadURL { url, _ in
                     completion(url?.absoluteString)
                 }
@@ -1248,13 +1270,12 @@ class ChatService: ObservableObject {
     func markMessagesAsRead(conversationId: String, messageIds: [String], readerId: String, completion: @escaping (Error?) -> Void) {
         
         // ✅ Verificar configuración de privacidad antes de marcar como leído
-        db.collection("users").document(readerId).getDocument { [weak self] userSnapshot, userError in
-            guard let self = self else { return }
+        db.collection("users").document(readerId).getDocument { userSnapshot, userError in
             
             let userSettings = userSnapshot?.data()
             let globalEnabled = userSettings?["showReadReceipts"] as? Bool ?? true
             
-            self.db.collection("conversations").document(conversationId).getDocument { convSnapshot, convError in
+            Firestore.firestore().collection("conversations").document(conversationId).getDocument { convSnapshot, convError in
                 let convData = convSnapshot?.data()
                 let preferences = convData?["readReceiptPreferences"] as? [String: Bool] ?? [:]
                 
@@ -1267,10 +1288,10 @@ class ChatService: ObservableObject {
                     finalEnabled = globalEnabled
                 }
                 
-                let batch = self.db.batch()
+                let batch = Firestore.firestore().batch()
                 
                 for messageId in messageIds {
-                    let messageRef = self.db.collection("conversations")
+                    let messageRef = Firestore.firestore().collection("conversations")
                         .document(conversationId)
                         .collection("messages")
                         .document(messageId)
@@ -1287,7 +1308,7 @@ class ChatService: ObservableObject {
                     batch.updateData(messageUpdate, forDocument: messageRef)
                 }
                 
-                let conversationRef = self.db.collection("conversations").document(conversationId)
+                let conversationRef = Firestore.firestore().collection("conversations").document(conversationId)
                 batch.updateData([
                     "readStatus.\(readerId)": true,
                     "lastReadAt.\(readerId)": FieldValue.serverTimestamp()
@@ -1332,7 +1353,7 @@ class ChatService: ObservableObject {
                 for conversationDoc in documents {
                     let conversationId = conversationDoc.documentID
                     
-                    self.db.collection("conversations")
+                    Firestore.firestore().collection("conversations")
                         .document(conversationId)
                         .collection("messages")
                         .whereField("senderId", isNotEqualTo: currentUserId)
@@ -1342,11 +1363,13 @@ class ChatService: ObservableObject {
                             
                             // 3. Marcar cada mensaje como entregado
                             for messageDoc in messages {
-                                self?.updateMessageStatus(
-                                    conversationId: conversationId,
-                                    messageId: messageDoc.documentID,
-                                    status: .delivered
-                                ) { _ in }
+                                Task { @MainActor in
+                                    self?.updateMessageStatus(
+                                        conversationId: conversationId,
+                                        messageId: messageDoc.documentID,
+                                        status: .delivered
+                                    ) { _ in }
+                                }
                             }
                         }
                 }
@@ -1376,12 +1399,14 @@ class ChatService: ObservableObject {
                     return 
                 }
                 
-                self?.updateMessageStatus(
-                    conversationId: conversationId,
-                    messageId: messageId,
-                    status: .delivered
-                ) { error in 
-                    completion?(error == nil)
+                Task { @MainActor in
+                    self?.updateMessageStatus(
+                        conversationId: conversationId,
+                        messageId: messageId,
+                        status: .delivered
+                    ) { error in 
+                        completion?(error == nil)
+                    }
                 }
             }
     }
@@ -1396,9 +1421,6 @@ class ChatService: ObservableObject {
             .updateData([
                 "status": status.rawValue
             ]) { error in
-                if let error = error {
-                } else {
-                }
                 completion(error)
             }
     }
@@ -1534,27 +1556,23 @@ class ChatService: ObservableObject {
                         conversationData["encryptionVersion"] = "1.0"
                     }
 
-                    conversationRef.setData(conversationData) { error in
-                        if let error = error {
-                            completion(.failure(error))
-                        } else {
-                            Task {
-                                await encryptionService.cacheConversationKeyLocally(
-                                    conversationId: conversationId,
-                                    key: sharedEncryptionKey
-                                )
+                    do {
+                        try await conversationRef.setData(conversationData)
+                        await encryptionService.cacheConversationKeyLocally(
+                            conversationId: conversationId,
+                            key: sharedEncryptionKey
+                        )
+                        if let customMessage = initialMessage, !customMessage.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                            self.sendInitialMessage(to: conversationId, from: user1Id, to: user2Id, message: customMessage) { _ in
+                                completion(.success(conversationId))
                             }
-
-                            if let customMessage = initialMessage, !customMessage.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                                self.sendInitialMessage(to: conversationId, from: user1Id, to: user2Id, message: customMessage) { _ in
-                                    completion(.success(conversationId))
-                                }
-                            } else {
-                                self.sendInitialMessage(to: conversationId, from: user1Id, to: user2Id) { _ in
-                                    completion(.success(conversationId))
-                                }
+                        } else {
+                            self.sendInitialMessage(to: conversationId, from: user1Id, to: user2Id) { _ in
+                                completion(.success(conversationId))
                             }
                         }
+                    } catch {
+                        completion(.failure(error))
                     }
                 } catch {
                     completion(.failure(error))
@@ -1587,29 +1605,22 @@ class ChatService: ObservableObject {
             ]
             
             // Enviar mensaje
-            db.collection("conversations")
-                .document(conversationId)
-                .collection("messages")
-                .document(messageId)
-                .setData(messageData) { error in
-                    if let error = error {
-                        completion(.failure(error))
-                    } else {
-                        
-                        // Actualizar lastMessage en la conversación
-                        self.db.collection("conversations")
-                            .document(conversationId)
-                            .updateData([
-                                "lastMessage": self.neutralConversationPreview(for: .text),
-                                "timestamp": timestamp
-                            ]) { updateError in
-                                if let updateError = updateError {
-                                } else {
-                                }
-                                completion(.success(()))
-                            }
-                    }
-                }
+            do {
+                try await db.collection("conversations")
+                    .document(conversationId)
+                    .collection("messages")
+                    .document(messageId)
+                    .setData(messageData)
+                try await self.db.collection("conversations")
+                    .document(conversationId)
+                    .updateData([
+                        "lastMessage": self.neutralConversationPreview(for: .text),
+                        "timestamp": timestamp
+                    ])
+                completion(.success(()))
+            } catch {
+                completion(.failure(error))
+            }
         }
     }
 
@@ -1618,25 +1629,22 @@ class ChatService: ObservableObject {
         
         db.collection("conversations")
             .whereField("participants", arrayContains: userId)
-            .getDocuments { [weak self] snapshot, error in
+            .getDocuments { snapshot, error in
                 
                 guard let documents = snapshot?.documents else { return }
                 
-                let batch = self?.db.batch()
+                let batch = Firestore.firestore().batch()
                 
                 for doc in documents {
                     let conversationRef = doc.reference
-                    batch?.updateData([
+                    batch.updateData([
                         "participantData.\(userId).username": newUserData.username,
                         "participantData.\(userId).profileImagePath": newUserData.profileImagePath ?? "",
                         "participantData.\(userId).lastUpdated": FieldValue.serverTimestamp()
                     ], forDocument: conversationRef)
                 }
                 
-                batch?.commit { error in
-                    if let error = error {
-                    } else {
-                    }
+                batch.commit { _ in
                 }
             }
     }
@@ -1655,7 +1663,9 @@ class ChatService: ObservableObject {
         
         typingTimer?.invalidate()
         typingTimer = Timer.scheduledTimer(withTimeInterval: typingTimeout, repeats: false) { [weak self] _ in
-            self?.stopTyping(conversationId: conversationId, userId: userId)
+            Task { @MainActor in
+                self?.stopTyping(conversationId: conversationId, userId: userId)
+            }
         }
     }
     
@@ -1668,8 +1678,6 @@ class ChatService: ObservableObject {
             .document(userId)
         
         typingRef.delete { error in
-            if let error = error {
-            }
         }
     }
     
@@ -1681,7 +1689,7 @@ class ChatService: ObservableObject {
             .document(conversationId)
             .collection("typing")
             .addSnapshotListener { [weak self] snapshot, error in
-                if let error = error {
+                if error != nil {
                     return
                 }
                 
@@ -1701,7 +1709,7 @@ class ChatService: ObservableObject {
     
     // MARK: - Conversation Management
     private func updateConversation(conversationId: String, lastMessage: String, senderId: String, completion: @escaping (Error?) -> Void) {
-        db.collection("conversations").document(conversationId).getDocument { [weak self] snapshot, error in
+        db.collection("conversations").document(conversationId).getDocument { snapshot, error in
             if let error = error {
                 completion(error)
                 return
@@ -1740,13 +1748,7 @@ class ChatService: ObservableObject {
                 updateData["deletedFor"] = FieldValue.arrayRemove(participantsToRestore)
             }
             
-            self?.db.collection("conversations").document(conversationId).updateData(updateData) { error in
-                if let error = error {
-                } else {
-                    if !participantsToRestore.isEmpty {
-                    } else {
-                    }
-                }
+            Firestore.firestore().collection("conversations").document(conversationId).updateData(updateData) { error in
                 completion(error)
             }
         }
@@ -1928,16 +1930,16 @@ class ChatService: ObservableObject {
             .collection("messages")
             .document(messageId)
             .updateData(["isViewed": true]) { error in
-                if let error = error {
-                }
                 completion(error)
             }
     }
     
     // MARK: - Ephemeral Cleanup System with Encryption
     func startEphemeralCleanupTimer() {
-        Timer.scheduledTimer(withTimeInterval: 3600, repeats: true) { _ in
-            self.cleanupExpiredEphemeralMessages()
+        Timer.scheduledTimer(withTimeInterval: 3600, repeats: true) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                self?.cleanupExpiredEphemeralMessages()
+            }
         }
         cleanupExpiredEphemeralMessages()
     }
@@ -1952,7 +1954,7 @@ class ChatService: ObservableObject {
             .getDocuments { [weak self] snapshot, error in
                 guard let self = self else { return }
                 
-                if let error = error {
+                if error != nil {
                     return
                 }
                 
@@ -1960,9 +1962,7 @@ class ChatService: ObservableObject {
                     return
                 }
                 
-                
                 let group = DispatchGroup()
-                var cleanedCount = 0
                 
                 for document in documents {
                     group.enter()
@@ -1972,15 +1972,14 @@ class ChatService: ObservableObject {
                     let conversationId = data["conversationId"] as? String ?? ""
                     let messageId = data["id"] as? String ?? document.documentID
                     
-                    self.cleanupSingleEphemeralMessage(
-                        conversationId: conversationId,
-                        messageId: messageId,
-                        mediaUrl: mediaUrl
-                    ) { success in
-                        if success {
-                            cleanedCount += 1
+                    Task { @MainActor in
+                        self.cleanupSingleEphemeralMessage(
+                            conversationId: conversationId,
+                            messageId: messageId,
+                            mediaUrl: mediaUrl
+                        ) { success in
+                            group.leave()
                         }
-                        group.leave()
                     }
                 }
                 
@@ -2001,31 +2000,25 @@ class ChatService: ObservableObject {
         Task {
             let expiredText = "📸 Momento efímero expirado"
             let encryptedExpiredText = await encryptMessageContent(expiredText, for: conversationId)
-        
-                    batch.updateData([
+
+            batch.updateData([
                 "mediaUrl": FieldValue.delete(),
-                "content": encryptedExpiredText, // Store encrypted expired message
+                "content": encryptedExpiredText,
                 "isDeleted": true,
                 "deletedAt": FieldValue.serverTimestamp()
             ], forDocument: messageRef)
-            
-            batch.commit { [weak self] error in
-                if let error = error {
-                    completion(false)
-                    return
-                }
-                
-                
+
+            do {
+                try await batch.commit()
                 if let mediaUrl = mediaUrl, !mediaUrl.isEmpty {
-                    self?.deleteImageFromStorage(mediaUrl: mediaUrl) { deleteSuccess in
-                        if deleteSuccess {
-                        } else {
-                        }
+                    self.deleteImageFromStorage(mediaUrl: mediaUrl) { _ in
                         completion(true)
                     }
                 } else {
                     completion(true)
                 }
+            } catch {
+                completion(false)
             }
         }
     }
@@ -2034,7 +2027,7 @@ class ChatService: ObservableObject {
         let storageRef = Storage.storage().reference(forURL: mediaUrl)
         
         storageRef.delete { error in
-            if let error = error {
+            if error != nil {
                 completion(false)
             } else {
                 completion(true)
@@ -2078,6 +2071,7 @@ class ChatService: ObservableObject {
 
 
 // MARK: - Enhanced Ephemeral Cleanup Manager
+@MainActor
 class EphemeralCleanupManager: ObservableObject {
     private let chatService = ChatService.shared
     
@@ -2127,33 +2121,37 @@ extension ChatService {
                         return
                     }
 
-                    guard let self = self else {
-                        completion(
-                            .failure(
-                                NSError(
-                                    domain: "ChatService",
-                                    code: -2,
-                                    userInfo: [NSLocalizedDescriptionKey: NSLocalizedString("messaging.error.serviceUnavailable", comment: "Messaging service unavailable")]
+                    Task { @MainActor in
+                        guard let self = self else {
+                            completion(
+                                .failure(
+                                    NSError(
+                                        domain: "ChatService",
+                                        code: -2,
+                                        userInfo: [NSLocalizedDescriptionKey: NSLocalizedString("messaging.error.serviceUnavailable", comment: "Messaging service unavailable")]
+                                    )
                                 )
                             )
-                        )
-                        return
-                    }
+                            return
+                        }
 
-                    self.sendTextMessage(
-                        conversationId: conversationId,
-                        senderId: user1Id,
-                        content: trimmedInitial
-                    ) { sendResult in
-                        switch sendResult {
-                        case .success:
-                            completion(.success(conversationId))
-                        case .failure(let sendError):
-                            completion(.failure(sendError))
+                        self.sendTextMessage(
+                            conversationId: conversationId,
+                            senderId: user1Id,
+                            content: trimmedInitial
+                        ) { sendResult in
+                            switch sendResult {
+                            case .success:
+                                completion(.success(conversationId))
+                            case .failure(let sendError):
+                                completion(.failure(sendError))
+                            }
                         }
                     }
                 } else {
-                    self?.checkMutualFollowAndCreateConversation(user1Id: user1Id, user2Id: user2Id, initialMessage: initialMessage, completion: completion)
+                    Task { @MainActor in
+                        self?.checkMutualFollowAndCreateConversation(user1Id: user1Id, user2Id: user2Id, initialMessage: initialMessage, completion: completion)
+                    }
                 }
             }
     }
@@ -2169,7 +2167,9 @@ extension ChatService {
                 let mutualFollow = user1FollowsUser2 && user2FollowsUser1
                 
                 if mutualFollow {
-                    self?.createBidirectionalConversation(user1Id: user1Id, user2Id: user2Id, initialMessage: initialMessage, completion: completion)
+                    Task { @MainActor in
+                        self?.createBidirectionalConversation(user1Id: user1Id, user2Id: user2Id, initialMessage: initialMessage, completion: completion)
+                    }
                 } else {
                     // Retornar error específico para indicar que se necesita solicitud
                     let error = NSError(
@@ -2250,9 +2250,7 @@ extension ChatService {
                         conversationId: conversationId,
                         lastMessage: self.neutralConversationPreview(for: .sharedMoment),
                         senderId: senderId
-                    ) { updateError in
-                        if let updateError = updateError {
-                        }
+                    ) { _ in
                         completion(.success(sentMessage))
                     }
                 case .failure(let error):
@@ -2383,9 +2381,6 @@ extension ChatService {
             
             return nil
         }) { (_, error) in
-            if let error = error {
-            } else {
-            }
             completion(error)
         }
     }
@@ -2435,46 +2430,49 @@ extension ChatService {
         customData: [String: Any],
         completion: @escaping (Result<EnhancedMessage, Error>) -> Void
     ) {
+        nonisolated(unsafe) let message = message
         let messageRef = db.collection("conversations")
             .document(message.conversationId)
             .collection("messages")
             .document(message.id)
         
         messageRef.setData(customData) { [weak self] error in
-            if let error = error {
-                self?.updateLocalMessageStatus(
-                    conversationId: message.conversationId,
-                    messageId: message.id,
-                    status: .failed
-                )
-                completion(.failure(error))
-                return
-            }
-            
-            // ✅ Marcar como enviado inmediatamente en Firestore
-            self?.updateMessageStatus(
-                conversationId: message.conversationId,
-                messageId: message.id,
-                status: .sent
-            ) { _ in }
-            
-            
-            // Actualizar conversación con preview
-            let lastMessagePreview = message.type == .viewOnceImage ?
-                (self?.neutralConversationPreview(for: .viewOnceImage) ?? MessageType.viewOnceImage.conversationPreview) :
-                (self?.neutralConversationPreview(for: .viewOnceVideo) ?? MessageType.viewOnceVideo.conversationPreview)
-            
-            self?.updateConversation(
-                conversationId: message.conversationId,
-                lastMessage: lastMessagePreview,
-                senderId: message.senderId
-            ) { updateError in
-                if let updateError = updateError {
+            Task { @MainActor [weak self] in
+                guard let self = self else { return }
+                if let error = error {
+                    self.updateLocalMessageStatus(
+                        conversationId: message.conversationId,
+                        messageId: message.id,
+                        status: .failed
+                    )
+                    completion(.failure(error))
+                    return
                 }
                 
-                var updatedMessage = message
-                updatedMessage.status = .sent
-                completion(.success(updatedMessage))
+                // ✅ Marcar como enviado inmediatamente en Firestore
+                self.updateMessageStatus(
+                    conversationId: message.conversationId,
+                    messageId: message.id,
+                    status: .sent
+                ) { _ in }
+                
+                // Actualizar conversación con preview
+                let lastMessagePreview = message.type == .viewOnceImage ?
+                    self.neutralConversationPreview(for: .viewOnceImage) :
+                    self.neutralConversationPreview(for: .viewOnceVideo)
+                
+                self.updateConversation(
+                    conversationId: message.conversationId,
+                    lastMessage: lastMessagePreview,
+                    senderId: message.senderId
+                ) { _ in
+                    let updatedMessage: EnhancedMessage = {
+                        let m = message
+                        m.status = .sent
+                        return m
+                    }()
+                    completion(.success(updatedMessage))
+                }
             }
         }
     }

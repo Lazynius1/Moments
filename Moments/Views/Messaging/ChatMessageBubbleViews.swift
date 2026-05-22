@@ -448,10 +448,7 @@ struct GlassmorphicMessageBubble: View {
     }
 
     private func markAsViewed() {
-        ChatService().markEphemeralAsViewed(conversationId: message.conversationId, messageId: message.id) { error in
-            if let error = error {
-            } else {
-            }
+        ChatService().markEphemeralAsViewed(conversationId: message.conversationId, messageId: message.id) { _ in
         }
     }
 
@@ -467,8 +464,7 @@ struct GlassmorphicMessageBubble: View {
             messageId: messageId,
             viewerId: currentUserId
         ) { error in
-            if let error = error {
-            } else {
+            if error == nil {
                 DispatchQueue.main.async {
                     callback?(messageId)
                 }

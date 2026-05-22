@@ -130,7 +130,7 @@ struct UserSearchView: View {
                 switch result {
                 case .success(let users):
                     self.searchResults = users
-                case .failure(let error):
+                case .failure(_):
                     self.searchResults = []
                 }
             }
@@ -165,7 +165,7 @@ struct UserSearchRow: View {
                         .fill(Color.gray.opacity(0.3))
                         .frame(width: 44, height: 44)
 
-                    if let imagePath = user.profileImagePath {
+                    if user.profileImagePath != nil {
                         // AsyncImage for profile
                         Image(systemName: "person.fill")
                             .foregroundColor(.gray)

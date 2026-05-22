@@ -324,9 +324,9 @@ struct CreatorView: View {
 
         return renderer.image { context in
             let colors = [
-                UIColor(Color(hex: "4158D0") ?? .blue).cgColor,
-                UIColor(Color(hex: "C850C0") ?? .purple).cgColor,
-                UIColor(Color(hex: "FFCC70") ?? .pink).cgColor
+                UIColor(Color(hex: "4158D0")).cgColor,
+                UIColor(Color(hex: "C850C0")).cgColor,
+                UIColor(Color(hex: "FFCC70")).cgColor
             ]
 
             let gradient = sectionGradient(colors: colors, size: size)
@@ -340,7 +340,6 @@ struct CreatorView: View {
         layer.colors = colors
         layer.startPoint = CGPoint(x: 0, y: 0)
         layer.endPoint = CGPoint(x: 1, y: 1)
-        return layer
         return layer
     }
 }
@@ -997,8 +996,8 @@ struct RevealStickerEditorView: View {
 
         customType = data?.revealType ?? "solid"
         customPattern = data?.revealPattern ?? "dots"
-        customPrimary = Color(hex: data?.revealPrimaryColor ?? "#000000") ?? .black
-        customSecondary = Color(hex: data?.revealSecondaryColor ?? "#000000") ?? .black
+        customPrimary = Color(hex: data?.revealPrimaryColor ?? "#000000")
+        customSecondary = Color(hex: data?.revealSecondaryColor ?? "#000000")
 
         // Try to match preset
         if let preset = revealPresets.first(where: {
@@ -1023,11 +1022,11 @@ struct RevealStickerEditorView: View {
 
     private func updateCustomPattern(_ p: String) {
         customPattern = p
-        updateSticker(type: customType, pattern: p, primary: customPrimary.toHex() ?? "#000000", secondary: customSecondary.toHex() ?? "#000000")
+        updateSticker(type: customType, pattern: p, primary: customPrimary.toHex(), secondary: customSecondary.toHex())
     }
 
     private func updateCustomColors() {
-        updateSticker(type: customType, pattern: customPattern, primary: customPrimary.toHex() ?? "#000000", secondary: customSecondary.toHex() ?? "#000000")
+        updateSticker(type: customType, pattern: customPattern, primary: customPrimary.toHex(), secondary: customSecondary.toHex())
     }
 
     private func toggleType() {

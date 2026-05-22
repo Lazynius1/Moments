@@ -133,19 +133,23 @@ struct StripThumbCell: View {
         guard !isGenerating, generatedThumbnail == nil,
               let url = URL(string: videoPath) else { return }
         isGenerating = true
-        DispatchQueue.global(qos: .utility).async {
-            let asset = AVAsset(url: url)
+        Task {
+            let asset = AVURLAsset(url: url)
             let gen = AVAssetImageGenerator(asset: asset)
             gen.appliesPreferredTrackTransform = true
             gen.maximumSize = CGSize(width: 200, height: 200)
-            if let img = try? gen.copyCGImage(at: CMTime(seconds: 0.5, preferredTimescale: 600), actualTime: nil) {
-                let ui = UIImage(cgImage: img)
-                DispatchQueue.main.async {
+
+            do {
+                let (cgImage, _) = try await gen.image(at: CMTime(seconds: 0.5, preferredTimescale: 600))
+                let ui = UIImage(cgImage: cgImage)
+                await MainActor.run {
                     generatedThumbnail = ui
                     isGenerating = false
                 }
-            } else {
-                DispatchQueue.main.async { isGenerating = false }
+            } catch {
+                await MainActor.run {
+                    isGenerating = false
+                }
             }
         }
     }

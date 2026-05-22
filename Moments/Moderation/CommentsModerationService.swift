@@ -195,8 +195,6 @@ class CommentModerationService {
         }
         
         if httpResponse.statusCode != 200 {
-            if let errorData = String(data: data, encoding: .utf8) {
-            }
             throw CommentsModerationError.apiError
         }
         
@@ -386,7 +384,7 @@ class CommentModerationService {
         
         // 💾 Guardar en Firestore
         db.collection("moderationLogs").addDocument(data: logData) { error in
-            if let error = error {
+            if error != nil {
                 // Error logging failed
             } else {
                 // Successfully logged
@@ -458,10 +456,10 @@ class CommentModerationService {
         
         // 💾 Guardar en Firestore
         db.collection("moderationLogs").addDocument(data: logData) { error in
-            if let error = error {
+            if error != nil {
                 // Error logging failed
             } else {
-                if let result = moderationResult {
+                if moderationResult != nil {
                     // Successfully logged with moderation result
                 }
             }

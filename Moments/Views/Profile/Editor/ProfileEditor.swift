@@ -620,10 +620,7 @@ struct GridPhotoPickerView: View {
                                 self.storageService.deleteProfileImage(
                                     userId: userId,
                                     oldImagePath: oldImagePath
-                                ) { deleteError in
-                                    if let deleteError = deleteError {
-
-                                    }
+                                ) { _ in
                                     // No mostrar error al usuario, es operación secundaria
                                 }
                                 
@@ -1047,7 +1044,7 @@ struct ModernEditProfileView: View {
                     self.profileImagePath = user.profileImagePath
                     self.newBio = user.bio ?? ""
                     self.characterCount = self.newBio.count
-                    self.selectedInterests = Set(user.interests ?? [])
+                    self.selectedInterests = Set(user.interests)
                     
                     // ✅ AHORA SÍ: Cargamos el website
                     self.website = user.websiteUrl ?? ""
@@ -1291,7 +1288,7 @@ struct ModernEditProfileView: View {
                         .padding(12)
                         .background(colorScheme == .dark ? Color.white.opacity(0.04) : Color.black.opacity(0.035))
                         .clipShape(RoundedRectangle(cornerRadius: 16))
-                        .onChange(of: newBio) { newValue in
+                        .onChange(of: newBio) { _, newValue in
                             characterCount = newValue.count
                         }
                     
@@ -1652,7 +1649,7 @@ struct ModernEditProfileView: View {
     
     // MARK: - Función para guardar perfil
     private func saveProfile() {
-        guard let userId = Auth.auth().currentUser?.uid else {
+        guard Auth.auth().currentUser?.uid != nil else {
             errorMessage = NSLocalizedString("profileEditor.error.unauthenticated", comment: "")
             return
         }

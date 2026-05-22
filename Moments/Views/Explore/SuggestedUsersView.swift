@@ -433,7 +433,7 @@ class SuggestedUsersViewModel: ObservableObject {
                     self?.isLoading = false
                 }
                 
-                if let error = error {
+                if error != nil {
                     return
                 }
                 
@@ -451,7 +451,7 @@ class SuggestedUsersViewModel: ObservableObject {
                 // Filtrar usuarios bloqueados Y usuarios ya seguidos
                 let filteredUsers = newUsers.filter { user in
                     !(self?.blockedUsers.contains(user.id) ?? false) &&
-                    !(user.blockedUsers ?? []).contains(userId) &&
+                    !user.blockedUsers.contains(userId) &&
                     !(self?.followedUserIds.contains(user.id) ?? false) // Excluir usuarios ya seguidos
                 }
                 
@@ -488,7 +488,7 @@ class SuggestedUsersViewModel: ObservableObject {
                     self?.isLoadingMore = false
                 }
                 
-                if let error = error {
+                if error != nil {
                     return
                 }
                 
@@ -508,7 +508,7 @@ class SuggestedUsersViewModel: ObservableObject {
                 let filteredUsers = newUsers.filter { user in
                     !existingIds.contains(user.id) &&
                     !(self?.blockedUsers.contains(user.id) ?? false) &&
-                    !(user.blockedUsers ?? []).contains(self?.currentUserId ?? "") &&
+                    !user.blockedUsers.contains(self?.currentUserId ?? "") &&
                     !(self?.followedUserIds.contains(user.id) ?? false) // Excluir usuarios ya seguidos
                 }
                 
