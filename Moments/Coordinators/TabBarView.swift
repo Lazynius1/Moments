@@ -92,6 +92,7 @@ struct TabBarView: View {
             InAppNotificationService.shared.startListing()
         }
         .onOpenURL { url in
+            IncognitoModeService.shared.handlePendingAppGroupActionIfNeeded()
             // ✅ Manejar deep links desde el widget y QR (Lógica extraída)
             handleDeepLink(url)
         }
@@ -434,6 +435,8 @@ struct ModernTabView: View {
             // Abrir feed y mostrar historias
             selectedTab = 0
             NotificationCenter.default.post(name: NSNotification.Name("ShowStories"), object: nil)
+        } else if host == "incognito", path == "/pause" {
+            IncognitoModeService.shared.pauseFromLiveActivity()
         }
     }
     

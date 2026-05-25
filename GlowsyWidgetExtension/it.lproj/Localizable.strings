@@ -28,3 +28,10 @@
 "liveActivity.processing" = "Elaborazione...";
 "liveActivity.completed" = "Completato";
 "liveActivity.error" = "Errore";
+"incognito.activity.title" = "Incognito";
+"incognito.activity.active" = "Attivo";
+"incognito.activity.paused" = "In pausa";
+"incognito.activity.remaining" = "rimasti";
+"incognito.activity.subtitle" = "La tua attività non lascia traccia";
+"incognito.activity.pause" = "Pausa";
+"incognito.activity.resume" = "Riprendi";

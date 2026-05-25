@@ -746,6 +746,8 @@ class UserProfileViewModel: ObservableObject, UserListViewModel {
             AffinityTracker.shared.trackInteraction(type: .profileVisit, with: userId)
         }
 
+        guard !IncognitoModeService.shared.isActive else { return }
+
         // ✅ UNA SOLA LÍNEA - Todo se maneja en FirestoreService
         firestoreService.registerVisit(visitorId: currentUserId, to: userId) { error in
             // Silently handle error

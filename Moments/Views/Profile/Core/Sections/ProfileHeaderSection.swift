@@ -15,6 +15,8 @@ struct ModernProfileHeader: View {
     @Binding var showingThemeSelector: Bool
     @Binding var showingQRCode: Bool
     @Binding var showProfileImageFullscreen: Bool // ✅ NUEVO
+    @Binding var isShowingIncognito: Bool
+    let isIncognitoActive: Bool
 
     @Environment(\.colorScheme) var colorScheme
 
@@ -237,6 +239,16 @@ struct ModernProfileHeader: View {
                     showingQRCode = true
                 }) {
                     Image(systemName: "qrcode")
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundColor(ProfileColors.textPrimary)
+                        .frame(width: 40, height: 40)
+                        .liquidGlass(in: Circle(), interactive: true)
+                }
+
+                Button(action: {
+                    isShowingIncognito = true
+                }) {
+                    Image(systemName: isIncognitoActive ? "eye.slash.fill" : "eye")
                         .font(.system(size: 16, weight: .semibold))
                         .foregroundColor(ProfileColors.textPrimary)
                         .frame(width: 40, height: 40)

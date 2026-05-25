@@ -433,13 +433,17 @@ class StoryViewModel: ObservableObject {
         guard let currentUserId = Auth.auth().currentUser?.uid,
               currentUserId != userId else { return }
 
+        let shouldSyncRemoteView = !IncognitoModeService.isActiveSnapshot
+
         // Sincroniza estado cross-device inmediatamente al abrir la story.
         StorySeenStateService.shared.markSeen(
             viewerId: currentUserId,
             authorId: userId,
             timestamp: storyTimestamp ?? Date(),
-            syncRemote: true
+            syncRemote: shouldSyncRemoteView
         )
+
+        guard shouldSyncRemoteView else { return }
 
         firestoreService.fetchUserProfile(userId: currentUserId) { result in
             switch result {

@@ -14,5 +14,9 @@ struct GlowsyWidgetExtensionBundle: WidgetBundle {
             GlowsyWidgetExtensionLiveActivity()
             MomentUploadLiveActivity()
         }
+
+        if #available(iOS 18.0, *) {
+            IncognitoLiveActivity()
+        }
     }
 }

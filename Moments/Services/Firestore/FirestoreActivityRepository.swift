@@ -75,6 +75,11 @@ extension FirestoreService {
             return
         }
 
+        guard !IncognitoModeService.isActiveSnapshot else {
+            completion(nil)
+            return
+        }
+
         checkIfBlocked(currentUserId: visitorId, targetUserId: targetUserId) { [weak self] isBlockedByVisitor, isVisitorBlocked, error in
             guard let self = self else {
                 completion(NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: NSLocalizedString("errors.operationCancelled", comment: "Operation cancelled")]))
