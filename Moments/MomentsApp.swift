@@ -5,12 +5,17 @@ import FirebaseAuth // Añadir este import
 import Kingfisher
 import GoogleMobileAds
 
+private extension Foundation.Notification.Name {
+    static let incognitoLiveActivityPauseRequested = Foundation.Notification.Name("incognitoLiveActivityPauseRequested")
+}
+
 @main
 struct MomentsApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) var delegate
     @StateObject private var ephemeralCleanupManager = EphemeralCleanupManager()
     @StateObject private var cacheManager = CacheManager.shared
     @StateObject private var offlineSyncService = OfflineSyncService.shared
+    @StateObject private var incognitoModeService = IncognitoModeService.shared
     @State private var showSplash = true
     @State private var showWhatsNew = false
     @AppStorage("lastVersionPrompted") private var lastVersionPrompted: String = "1.0.0"
@@ -89,9 +94,11 @@ struct MomentsApp: App {
                                 // Usuario logueado - configurar badge service
                                 NotificationBadgeService.shared.setupListeners()
                                 syncLastAppOpenIfNeeded(force: true)
+                                IncognitoModeService.shared.loadState()
                             } else {
                                 // Usuario deslogueado - limpiar todo
                                 NotificationBadgeService.shared.cleanup()
+                                IncognitoModeService.shared.resetForSignedOutUser()
                             }
                         }
                     }
@@ -108,6 +115,11 @@ struct MomentsApp: App {
                         // ✅ WIDGET FIX: Forzar actualización del widget al abrir la app
                         NotificationBadgeService.shared.refreshAllCounts()
                         syncLastAppOpenIfNeeded()
+                        IncognitoModeService.shared.refresh()
+                        IncognitoModeService.shared.handlePendingAppGroupActionIfNeeded()
+                    }
+                    .onReceive(NotificationCenter.default.publisher(for: .incognitoLiveActivityPauseRequested)) { _ in
+                        IncognitoModeService.shared.pauseFromLiveActivity()
                     }
                     .onReceive(NotificationCenter.default.publisher(for: UIApplication.willResignActiveNotification)) { _ in
                     }
@@ -137,6 +149,12 @@ struct MomentsApp: App {
                             )
                         }
                     }
+
+                if incognitoModeService.isActive {
+                    IncognitoGlobalOverlay(service: incognitoModeService)
+                        .transition(.opacity)
+                        .zIndex(1600)
+                }
 
                 if showSplash {
                     SplashScreenView {

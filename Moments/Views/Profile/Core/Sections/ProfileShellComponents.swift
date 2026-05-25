@@ -84,6 +84,8 @@ struct ModernProfileContentView: View {
     @Binding var selectedProfileTab: ProfileTabType  // ✅ NUEVO: Tab selector
     @Binding var showingQRCode: Bool // ✅ NUEVO: Binding para QR
     @Binding var showProfileImageFullscreen: Bool // ✅ NUEVO
+    @Binding var isShowingIncognito: Bool
+    let isIncognitoActive: Bool
     @Binding var editingMoment: Moment?
     @Binding var pendingDeleteMoment: Moment?
     @StateObject private var savedMomentsViewModel = SavedMomentsViewModel()  // ✅ NUEVO: Guardados
@@ -112,7 +114,9 @@ struct ModernProfileContentView: View {
                             selectedStoryIndex: $selectedStoryIndex,
                             showingThemeSelector: $showingThemeSelector,
                             showingQRCode: $showingQRCode,
-                            showProfileImageFullscreen: $showProfileImageFullscreen
+                            showProfileImageFullscreen: $showProfileImageFullscreen,
+                            isShowingIncognito: $isShowingIncognito,
+                            isIncognitoActive: isIncognitoActive
 
                         )
                         .padding(.top, safeAreaTop + 6)

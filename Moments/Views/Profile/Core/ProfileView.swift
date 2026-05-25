@@ -232,6 +232,7 @@ struct ProfileView: View {
     @StateObject private var viewModel = ProfileViewModel()
     @Binding var selectedTab: Int
     @StateObject private var storyViewModel = StoryViewModel()
+    @StateObject private var incognitoModeService = IncognitoModeService.shared
     @State private var isShowingSettings = false
     @State private var isShowingEditProfile = false
     @State private var selectedPhoto: PhotosPickerItem?
@@ -250,6 +251,7 @@ struct ProfileView: View {
     @State private var isShowingQRCode = false
     @State private var selectedProfileTab: ProfileTabType = .moments  // ✅ NUEVO: Tab selector
     @State private var showProfileImageFullscreen = false // ✅ NUEVO: Estado para ver foto grande
+    @State private var isShowingIncognito = false
     @State private var selectedExternalProfileUserId: String? = nil
     @State private var showExternalProfile = false
     @State private var editingMoment: Moment? = nil
@@ -316,6 +318,8 @@ struct ProfileView: View {
                         selectedProfileTab: $selectedProfileTab,  // ✅ NUEVO
                         showingQRCode: $isShowingQRCode, // ✅ NUEVO: Binding
                         showProfileImageFullscreen: $showProfileImageFullscreen, // ✅ NUEVO
+                        isShowingIncognito: $isShowingIncognito,
+                        isIncognitoActive: incognitoModeService.isActive,
                         editingMoment: $editingMoment,
                         pendingDeleteMoment: $pendingDeleteMoment
                     )
@@ -345,6 +349,9 @@ struct ProfileView: View {
                 }
                 .sheet(isPresented: $isShowingQRCode) {
                     QRCodeView()
+                }
+                .sheet(isPresented: $isShowingIncognito) {
+                    IncognitoModeSheet(service: incognitoModeService)
                 }
                 .sheet(isPresented: $showProfileImageFullscreen) {
                     if let profileImagePath = viewModel.userProfile?.profileImagePath {
@@ -484,6 +491,7 @@ struct ProfileView: View {
                     }
                 }
                 .onAppear {
+                    incognitoModeService.loadState()
                     _ = Auth.auth().addStateDidChangeListener { _, user in
                         if let userId = user?.uid {
                             viewModel.fetchProfile(userId: userId)

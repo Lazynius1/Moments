@@ -1268,6 +1268,10 @@ class ChatService: ObservableObject {
     
     // MARK: - Message Status
     func markMessagesAsRead(conversationId: String, messageIds: [String], readerId: String, completion: @escaping (Error?) -> Void) {
+        guard !IncognitoModeService.isActiveSnapshot else {
+            completion(nil)
+            return
+        }
         
         // ✅ Verificar configuración de privacidad antes de marcar como leído
         db.collection("users").document(readerId).getDocument { userSnapshot, userError in
