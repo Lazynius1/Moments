@@ -921,13 +921,12 @@ class BackgroundStoryUploadService: ObservableObject {
             }
         } else if uploadingStory.mediaItem.type == .image {
             // ✅ DETECTAR ASPECT RATIO PARA IMÁGENES
-            if let finalRenderedImage = uploadingStory.finalRenderedImage {
-                // Usar la imagen renderizada final para obtener el aspect ratio real
-                let width = Int(finalRenderedImage.size.width)
-                let height = Int(finalRenderedImage.size.height)
-                aspectRatio = "\(width):\(height)"
-            }
+            let targetImage = uploadingStory.finalRenderedImage ?? uploadingStory.mediaItem.image
+            let width = Int(targetImage.size.width)
+            let height = Int(targetImage.size.height)
+            aspectRatio = "\(width):\(height)"
         }
+
 
         // 🔥 CREAR MediaItem como en tu función original
         let mediaItem = MediaItem(
@@ -940,10 +939,10 @@ class BackgroundStoryUploadService: ObservableObject {
             originalVideoUrl: originalVideoUrl
         )
 
-        // ✅ NORMALIZAR STICKERS EN EL ÁREA REAL DEL CONTENIDO (tipo Instagram)
-        // Guardamos posición relativa (u,v) dentro del contentRect y escala relativa al ancho del contentRect.
-        // Así se mantiene estable entre móviles con tamaños/ratios distintos.
-        let contentRect = storyContentRectInEditor(for: uploadingStory, aspectRatio: aspectRatio)
+        // ✅ NORMALIZAR STICKERS EN EL CANVAS REAL COMPARTIDO
+        // Las posiciones del editor ya viven en coordenadas locales del canvas.
+        // Guardamos posición relativa (u,v) dentro de ese canvas y escala relativa a su ancho.
+        let contentRect = storyContentRectInEditor()
         let referenceContentWidth: CGFloat = 375.0
 
         let normalizedStickerData: [StickerData]? = uploadingStory.stickerData?.compactMap { stickerItem in
@@ -952,8 +951,8 @@ class BackgroundStoryUploadService: ObservableObject {
             let safeWidth = max(contentRect.width, 1)
             let safeHeight = max(contentRect.height, 1)
 
-            let normalizedX = (stickerItem.position.x - contentRect.minX) / safeWidth
-            let normalizedY = (stickerItem.position.y - contentRect.minY) / safeHeight
+            let normalizedX = stickerItem.position.x / safeWidth
+            let normalizedY = stickerItem.position.y / safeHeight
             let normalizedScale = stickerItem.scale * (referenceContentWidth / safeWidth)
 
             normalizedItem.position = CGPoint(
@@ -1041,25 +1040,25 @@ class BackgroundStoryUploadService: ObservableObject {
     }
 
     // MARK: - 🎯 STICKER LAYOUT HELPERS
-    private func storyContentRectInEditor(for uploadingStory: UploadingStory, aspectRatio: String?) -> CGRect {
+    private func storyContentRectInEditor() -> CGRect {
         let containerSize = UIScreen.main.bounds.size
-        let resolvedAspectRatio = parseAspectRatio(aspectRatio) ?? {
-            let imageSize = (uploadingStory.finalRenderedImage ?? uploadingStory.mediaItem.image).size
-            guard imageSize.width > 0, imageSize.height > 0 else {
-                return containerSize.width / max(containerSize.height, 1)
-            }
-            return imageSize.width / imageSize.height
-        }()
+        let keyWindowInsets = currentKeyWindowSafeAreaInsets()
 
-        let contentMode = StoryMediaLayoutRules.presentationMode(
-            for: resolvedAspectRatio,
-            canvasAspectRatio: containerSize.width / max(containerSize.height, 1)
-        ).swiftUIContentMode
-        return contentRect(
-            containerSize: containerSize,
-            mediaAspectRatio: resolvedAspectRatio,
-            contentMode: contentMode
+        // Use the exact same canvas geometry as camera/editor/viewer.
+        // Sticker positions are authored in the editor canvas coordinate space,
+        // not the old full-screen container space.
+        return creatorMomentsCaptureRect(
+            in: containerSize,
+            topInset: keyWindowInsets.top,
+            bottomInset: keyWindowInsets.bottom
         )
+    }
+
+    private func currentKeyWindowSafeAreaInsets() -> UIEdgeInsets {
+        let scenes = UIApplication.shared.connectedScenes
+        let windowScene = scenes.first { $0.activationState == .foregroundActive } as? UIWindowScene
+        let keyWindow = windowScene?.windows.first(where: \.isKeyWindow)
+        return keyWindow?.safeAreaInsets ?? .zero
     }
 
     private func parseAspectRatio(_ aspectRatio: String?) -> CGFloat? {

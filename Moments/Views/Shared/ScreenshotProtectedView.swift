@@ -11,11 +11,16 @@ import UIKit
 struct ScreenshotProtectedView<Content: View>: View {
     let isProtected: Bool
     var fillsContainer: Bool = false
+    var cornerRadius: CGFloat? = nil
     @ViewBuilder let content: () -> Content
 
     var body: some View {
         if isProtected {
-            SecureContentRepresentable(fillsContainer: fillsContainer, content: content)
+            SecureContentRepresentable(
+                fillsContainer: fillsContainer,
+                cornerRadius: cornerRadius,
+                content: content
+            )
         } else {
             content()
         }
@@ -25,6 +30,7 @@ struct ScreenshotProtectedView<Content: View>: View {
 // MARK: - SecureContentRepresentable
 private struct SecureContentRepresentable<Content: View>: UIViewRepresentable {
     var fillsContainer: Bool = false
+    var cornerRadius: CGFloat? = nil
     @ViewBuilder let content: () -> Content
 
     func makeCoordinator() -> Coordinator { Coordinator() }
@@ -60,6 +66,10 @@ private struct SecureContentRepresentable<Content: View>: UIViewRepresentable {
         // El contenido SwiftUI va dentro del subview interno del UITextField
         // para quedar dentro de su jerarquía segura
         let target: UIView = field.subviews.first ?? field
+        applyCanvasClippingIfNeeded(to: field)
+        applyCanvasClippingIfNeeded(to: target)
+        applyCanvasClippingIfNeeded(to: hostingVC.view)
+
         target.addSubview(hostingVC.view)
         hostingVC.view.translatesAutoresizingMaskIntoConstraints = false
         
@@ -88,6 +98,13 @@ private struct SecureContentRepresentable<Content: View>: UIViewRepresentable {
             }
         )
         context.coordinator.hostingVC?.rootView = finalContent
+        applyCanvasClippingIfNeeded(to: uiView)
+        if let target = uiView.subviews.first {
+            applyCanvasClippingIfNeeded(to: target)
+        }
+        if let hostingView = context.coordinator.hostingVC?.view {
+            applyCanvasClippingIfNeeded(to: hostingView)
+        }
     }
 
     // sizeThatFits (iOS 16+) — le dice a SwiftUI exactamente cuánto mide el contenido
@@ -109,6 +126,17 @@ private struct SecureContentRepresentable<Content: View>: UIViewRepresentable {
         return hostingVC.sizeThatFits(in: targetSize)
     }
 
+    private func applyCanvasClippingIfNeeded(to view: UIView) {
+        guard let cornerRadius else { return }
+        view.backgroundColor = .clear
+        view.clipsToBounds = true
+        view.layer.masksToBounds = true
+        view.layer.cornerRadius = cornerRadius
+        if #available(iOS 13.0, *) {
+            view.layer.cornerCurve = .continuous
+        }
+    }
+
     class Coordinator {
         var hostingVC: UIHostingController<AnyView>?
     }
@@ -118,7 +146,15 @@ private struct SecureContentRepresentable<Content: View>: UIViewRepresentable {
 extension View {
     /// Protege esta vista de screenshots y grabaciones de pantalla.
     /// El contenido aparece normal en la app pero sale negro en capturas.
-    func screenshotProtected(when isProtected: Bool = true, fillsContainer: Bool = false) -> some View {
-        ScreenshotProtectedView(isProtected: isProtected, fillsContainer: fillsContainer) { self }
+    func screenshotProtected(
+        when isProtected: Bool = true,
+        fillsContainer: Bool = false,
+        cornerRadius: CGFloat? = nil
+    ) -> some View {
+        ScreenshotProtectedView(
+            isProtected: isProtected,
+            fillsContainer: fillsContainer,
+            cornerRadius: cornerRadius
+        ) { self }
     }
 }

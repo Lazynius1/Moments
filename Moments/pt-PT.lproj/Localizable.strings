@@ -888,6 +888,7 @@
 "common.close" = "Fechar";
 "storyChains.viewChain" = "Ver cadeia";
 "storyChains.part" = "Parte %d de '%@'";
+"storyChains.partShort" = "Parte %d";
 "storyChains.loading" = "A carregar cadeia...";
 "storyChains.notFound" = "Não foram encontradas stories nesta cadeia";
 "storyChains.parts" = "%d/%d partes";
@@ -1195,6 +1196,7 @@
 "stories.yourStory" = "A tua story";
 "stories.options" = "Opções";
 "stories.noInteractions" = "O autor não permite interações";
+"stories.repliesDisabledPlaceholder" = "As respostas nao sao permitidas";
 "stories.contentUnavailable" = "Conteúdo indisponível";
 "stories.activity.title" = "Atividade da story";
 "stories.activity.noViewers" = "Ainda ninguém viu esta story";

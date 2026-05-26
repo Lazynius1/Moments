@@ -59,25 +59,6 @@ extension StoryViewerScreen {
         return false
     }
 
-    func stickerContentRect(containerSize: CGSize) -> CGRect {
-        let resolvedContainerSize = CGSize(
-            width: max(containerSize.width, 1),
-            height: max(containerSize.height, 1)
-        )
-        let mediaAspectRatio = Self.parseAspectRatio(story.aspectRatio)
-            ?? (resolvedContainerSize.width / resolvedContainerSize.height)
-        let contentMode = StoryMediaLayoutRules.presentationMode(
-            for: mediaAspectRatio,
-            canvasAspectRatio: resolvedContainerSize.width / max(resolvedContainerSize.height, 1)
-        ).swiftUIContentMode
-
-        return Self.contentRect(
-            containerSize: resolvedContainerSize,
-            mediaAspectRatio: mediaAspectRatio,
-            contentMode: contentMode
-        )
-    }
-
     static func parseAspectRatio(_ aspectRatio: String?) -> CGFloat? {
         guard let aspectRatio else { return nil }
         let components = aspectRatio.split(separator: ":")
@@ -139,16 +120,14 @@ extension StoryViewerScreen {
     }
 
     func stickerDisplayPosition(_ sticker: StickerItem, containerSize: CGSize) -> CGPoint {
-        let contentRect = stickerContentRect(containerSize: containerSize)
         return CGPoint(
-            x: contentRect.minX + (sticker.position.x * contentRect.width),
-            y: contentRect.minY + (sticker.position.y * contentRect.height)
+            x: sticker.position.x * max(containerSize.width, 1),
+            y: sticker.position.y * max(containerSize.height, 1)
         )
     }
 
     func stickerForDisplay(_ sticker: StickerItem, containerSize: CGSize) -> StickerItem {
-        let contentRect = stickerContentRect(containerSize: containerSize)
-        let scaleFactor = max(contentRect.width, 1) / 375.0
+        let scaleFactor = max(containerSize.width, 1) / 375.0
         var displaySticker = sticker
         displaySticker.scale = sticker.scale * scaleFactor
         return displaySticker

@@ -5,6 +5,7 @@ import CoreLocation
 import UIKit
 
 struct StoryOverlaysView: View {
+    let canvasSize: CGSize
     @Binding var text: String
     @Binding var textPosition: CGPoint
     @Binding var textStyle: StoryEditingView.TextStyle
@@ -45,7 +46,7 @@ struct StoryOverlaysView: View {
                 Image(uiImage: drawing)
                     .resizable()
                     .aspectRatio(contentMode: .fill)
-                    .frame(width: UIScreen.main.bounds.width, height: UIScreen.main.bounds.height)
+                    .frame(width: canvasSize.width, height: canvasSize.height)
                     .scaleEffect(isDraggingItem && selectedStickerId == nil && !text.isEmpty ? 1.0 :
                                  isDraggingItem && selectedStickerId == nil ? 0.8 : 1.0)
                     .opacity(isDraggingItem && selectedStickerId == nil && text.isEmpty ? 0.8 : 1.0)
@@ -371,6 +372,7 @@ struct StoryOverlaysView: View {
             }
         }
         .coordinateSpace(name: "storyCanvas")
+        .frame(width: canvasSize.width, height: canvasSize.height)
         .onTapGesture {
             // Deseleccionar al tocar el fondo
             selectedStickerId = nil

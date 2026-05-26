@@ -36,40 +36,20 @@ struct StoryChainView: View {
     }
     
     var body: some View {
-        NavigationView {
-            ZStack {
-                LinearGradient(
-                    colors: colorScheme == .dark
-                    ? [Color.black, Color(hex: "0B1020"), Color.black]
-                    : [Color(hex: "F6F8FC"), Color.white, Color(hex: "EEF3FB")],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
+        ZStack {
+            sheetBackground
                 .ignoresSafeArea()
-                
+
+            Group {
                 if viewModel.isLoading {
-                    VStack(spacing: 20) {
-                        ProgressView()
-                            .scaleEffect(1.5)
-                            .tint(colorScheme == .dark ? .white : .black)
-                        
-                        Text(NSLocalizedString("storyChains.loading", comment: "Loading chain"))
-                            .foregroundColor(colorScheme == .dark ? .white.opacity(0.82) : .black.opacity(0.72))
-                            .font(.custom("Poppins-Regular", size: 16))
-                    }
+                    loadingState
                 } else if viewModel.stories.isEmpty {
-                    GlassmorphicEmptyState(
-                        icon: "link.broken",
-                        message: NSLocalizedString("storyChains.notFound", comment: "No stories found in this chain"),
-                        showCloseButton: true,
-                        onClose: { dismiss() }
-                    )
+                    emptyState
                 } else {
                     VStack(spacing: 0) {
                         chainHeader
-                        
-                        // Grid 2x2 de historias
-                        ScrollView {
+
+                        ScrollView(showsIndicators: false) {
                             LazyVGrid(columns: gridColumns, spacing: 12) {
                                 ForEach(Array(viewModel.stories.enumerated()), id: \.element.id) { index, story in
                                     StoryChainGridItemView(
@@ -78,69 +58,32 @@ struct StoryChainView: View {
                                         isSelected: selectedStoryIndex == index
                                     )
                                     .onTapGesture {
-                                        // 🔗 AHORA CON UN SOLO TOQUE SE ABRE EL VISOR
                                         selectedStoryIndex = index
                                         showStoriesViewer = true
                                     }
                                 }
                             }
-                            .padding(.horizontal, 16)
-                            .padding(.top, 14)
-                            .padding(.bottom, 20)
-                            
-                            // Espacio extra al final para que el botón flotante no tape contenido
-                            if canContinueChain {
-                                Color.clear.frame(height: 80)
-                            }
-                        }
-                    }
-                    
-                    // 🔗 BOTÓN FLOTANTE PARA CONTINUAR (Si tiene permiso)
-                    if canContinueChain && !viewModel.isLoading && !viewModel.stories.isEmpty {
-                        VStack {
-                            Spacer()
-                            
-                            Button(action: {
-                                continueChain()
-                            }) {
-                                HStack(spacing: 10) {
-                                    Image(systemName: "plus.circle.fill")
-                                        .font(.system(size: 18))
-                                    
-                                    Text(NSLocalizedString("storyChains.continueStory", comment: "Continue Story"))
-                                        .font(.custom("Poppins-Bold", size: 16))
-                                }
-                                .foregroundColor(.white)
-                                .padding(.horizontal, 28)
-                                .padding(.vertical, 13)
-                                .background(
-                                    LinearGradient(
-                                        gradient: Gradient(colors: [Color.blue, Color.purple, Color.pink]),
-                                        startPoint: .leading,
-                                        endPoint: .trailing
-                                    )
-                                )
-                                .overlay(
-                                    Capsule()
-                                        .stroke(
-                                            Color.white.opacity(0.28),
-                                            lineWidth: 0.8
-                                        )
-                                )
-                                .clipShape(Capsule())
-                                .shadow(color: Color.black.opacity(0.22), radius: 10, x: 0, y: 6)
-                            }
-                            .padding(.bottom, 24)
+                            .padding(.horizontal, 20)
+                            .padding(.top, 18)
+                            .padding(.bottom, canContinueChain ? 92 : 28)
                         }
                     }
                 }
             }
-            .alert(NSLocalizedString("storyChains.chainLimit", comment: "Chain Limit"), isPresented: $showLimitAlert) {
-                Button(NSLocalizedString("storyChains.ok", comment: "OK")) { }
-            } message: {
-                Text(limitAlertMessage)
+
+            if canContinueChain && !viewModel.isLoading && !viewModel.stories.isEmpty {
+                VStack {
+                    Spacer()
+                    continueFloatingButton
+                }
+                .padding(.horizontal, 20)
+                .padding(.bottom, 22)
             }
-            .navigationBarHidden(true)
+        }
+        .alert(NSLocalizedString("storyChains.chainLimit", comment: "Chain Limit"), isPresented: $showLimitAlert) {
+            Button(NSLocalizedString("storyChains.ok", comment: "OK")) { }
+        } message: {
+            Text(limitAlertMessage)
         }
         .onAppear {
             viewModel.loadChainStories(chainId: chainId)
@@ -152,34 +95,105 @@ struct StoryChainView: View {
             StoriesView(chainStories: viewModel.stories, startAtIndex: selectedStoryIndex)
         }
     }
+
+    private var sheetBackground: Color {
+        colorScheme == .dark ? Color(hex: "0B1215") : Color(hex: "FAF9F6")
+    }
+
+    private var primaryForeground: Color {
+        colorScheme == .dark ? .white : .black
+    }
+
+    private var secondaryForeground: Color {
+        colorScheme == .dark ? .white.opacity(0.68) : .black.opacity(0.62)
+    }
+
+    private var loadingState: some View {
+        VStack(spacing: 18) {
+            ProgressView()
+                .scaleEffect(1.25)
+                .tint(primaryForeground)
+
+            Text(NSLocalizedString("storyChains.loading", comment: "Loading chain"))
+                .foregroundColor(secondaryForeground)
+                .font(.custom("Poppins-Regular", size: 16))
+        }
+    }
+
+    private var emptyState: some View {
+        VStack(spacing: 18) {
+            Button(action: { dismiss() }) {
+                Image(systemName: "xmark")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(primaryForeground)
+                    .frame(width: 38, height: 38)
+                    .background(Color.clear.liquidGlass(in: Circle(), interactive: true))
+            }
+            .buttonStyle(.plain)
+
+            VStack(spacing: 10) {
+                Image(systemName: "link.slash")
+                    .font(.system(size: 26, weight: .semibold))
+                    .foregroundStyle(primaryForeground)
+
+                Text(NSLocalizedString("storyChains.notFound", comment: "No stories found in this chain"))
+                    .font(.custom("Poppins-Medium", size: 16))
+                    .foregroundStyle(primaryForeground)
+                    .multilineTextAlignment(.center)
+            }
+        }
+        .padding(.horizontal, 28)
+    }
+
+    private var continueFloatingButton: some View {
+        Button(action: {
+            continueChain()
+        }) {
+            HStack(spacing: 10) {
+                Image(systemName: "plus.circle.fill")
+                    .font(.system(size: 17, weight: .semibold))
+
+                Text(NSLocalizedString("storyChains.continueStory", comment: "Continue Story"))
+                    .font(.custom("Poppins-SemiBold", size: 15))
+            }
+            .foregroundStyle(colorScheme == .dark ? Color(hex: "0B1215") : Color(hex: "FAF9F6"))
+            .padding(.horizontal, 24)
+            .padding(.vertical, 15)
+            .background(
+                colorScheme == .dark ? Color(hex: "FAF9F6") : Color(hex: "0B1215"),
+                in: Capsule()
+            )
+            .shadow(color: Color.black.opacity(colorScheme == .dark ? 0.22 : 0.10), radius: 12, x: 0, y: 8)
+        }
+        .buttonStyle(.plain)
+    }
     
     // MARK: - Chain Header
     private var chainHeader: some View {
-        VStack(spacing: 12) {
+        VStack(spacing: 14) {
             HStack(alignment: .center) {
                 Button(action: { dismiss() }) {
                     Image(systemName: "xmark")
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundColor(colorScheme == .dark ? .white.opacity(0.92) : .black.opacity(0.82))
-                        .frame(width: 30, height: 30)
-                        .background(.ultraThinMaterial)
-                        .clipShape(Circle())
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundColor(primaryForeground)
+                        .frame(width: 38, height: 38)
+                        .background(Color.clear.liquidGlass(in: Circle(), interactive: true))
                 }
                 .buttonStyle(.plain)
 
-                VStack(spacing: 2) {
+                VStack(spacing: 4) {
                     Text(NSLocalizedString("storyChains.chain", comment: "Chain"))
                         .font(.custom("Poppins-Regular", size: 12))
-                        .foregroundColor(colorScheme == .dark ? .white.opacity(0.62) : .black.opacity(0.58))
+                        .foregroundColor(secondaryForeground)
                     Text(chainTitle)
-                        .font(.custom("Poppins-SemiBold", size: 18))
-                        .foregroundColor(colorScheme == .dark ? .white : .black)
+                        .font(.custom("Poppins-SemiBold", size: 24))
+                        .foregroundColor(primaryForeground)
                         .lineLimit(1)
                         .truncationMode(.tail)
                 }
                 .frame(maxWidth: .infinity)
 
-                Color.clear.frame(width: 30, height: 30)
+                Color.clear.frame(width: 38, height: 38)
             }
 
             HStack(spacing: 8) {
@@ -229,16 +243,9 @@ struct StoryChainView: View {
                 }
             }
         }
-        .padding(.horizontal, 16)
+        .padding(.horizontal, 20)
         .padding(.top, 14)
-        .padding(.bottom, 12)
-        .background(.ultraThinMaterial)
-        .overlay(
-            Rectangle()
-                .fill(colorScheme == .dark ? Color.white.opacity(0.08) : Color.black.opacity(0.08))
-                .frame(height: 0.6),
-            alignment: .bottom
-        )
+        .padding(.bottom, 16)
         .onAppear {
             loadChainStats()
         }
@@ -256,8 +263,7 @@ struct StoryChainView: View {
         .foregroundColor(tint)
         .padding(.horizontal, 10)
         .padding(.vertical, 6)
-        .background(.ultraThinMaterial)
-        .clipShape(Capsule())
+        .background(Color.clear.liquidGlass(in: Capsule(), interactive: false))
     }
     
     // MARK: - Helper Functions

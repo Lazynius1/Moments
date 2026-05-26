@@ -77,6 +77,7 @@
 "common.close" = "Tancar";
 "storyChains.viewChain" = "Veure Cadena";
 "storyChains.part" = "Part %d de '%@'";
+"storyChains.partShort" = "Part %d";
 "storyChains.loading" = "Carregant cadena...";
 "storyChains.notFound" = "No s'han trobat històries en aquesta cadena";
 "storyChains.parts" = "%d/%d parts";
@@ -382,6 +383,7 @@
 "stories.yourStory" = "La teva història";
 "stories.options" = "Opcions";
 "stories.noInteractions" = "L'autor no permet interaccions";
+"stories.repliesDisabledPlaceholder" = "Les respostes no estan permeses";
 "stories.contentUnavailable" = "Contingut no disponible";
 "stories.activity.title" = "Activitat de la història";
 "stories.activity.noViewers" = "Ningú ha vist aquesta història encara";

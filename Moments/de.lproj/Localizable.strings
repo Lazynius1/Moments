@@ -78,6 +78,7 @@
 "common.close" = "Schließen";
 "storyChains.viewChain" = "Kette ansehen";
 "storyChains.part" = "Teil %d von '%@'";
+"storyChains.partShort" = "Teil %d";
 "storyChains.loading" = "Kette wird geladen...";
 "storyChains.notFound" = "Keine Stories in dieser Kette gefunden";
 "storyChains.parts" = "%d/%d Teile";
@@ -385,6 +386,7 @@
 "stories.yourStory" = "Deine Story";
 "stories.options" = "Optionen";
 "stories.noInteractions" = "Der Autor erlaubt keine Interaktionen";
+"stories.repliesDisabledPlaceholder" = "Antworten sind nicht erlaubt";
 "stories.contentUnavailable" = "Inhalt nicht verfügbar";
 "stories.activity.title" = "Story-Aktivität";
 "stories.activity.noViewers" = "Diese Story wurde noch von niemandem angesehen";
