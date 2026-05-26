@@ -153,6 +153,7 @@ struct CachedStickerInteractionData: Codable {
     let location: String?
     let latitude: Double?
     let longitude: Double?
+    let styleVariant: Int?
     let pollData: [String]?
     let questionText: String?
     let weatherSymbol: String?
@@ -1635,6 +1636,7 @@ class BackgroundStoryUploadService: ObservableObject {
                 location: data.location,
                 latitude: data.locationCoordinate?.latitude,
                 longitude: data.locationCoordinate?.longitude,
+                styleVariant: data.styleVariant,
                 pollData: data.pollData,
                 questionText: data.questionText,
                 weatherSymbol: data.weatherSymbol,
@@ -1805,6 +1807,7 @@ class BackgroundStoryUploadService: ObservableObject {
                             hashtag: data.hashtag,
                             location: data.location,
                             locationCoordinate: (data.latitude != nil && data.longitude != nil) ? CLLocationCoordinate2D(latitude: data.latitude!, longitude: data.longitude!) : nil,
+                            styleVariant: data.styleVariant,
                             pollData: data.pollData,
                             questionText: data.questionText,
                             weatherSymbol: data.weatherSymbol,

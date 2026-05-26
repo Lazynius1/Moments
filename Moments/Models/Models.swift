@@ -1354,6 +1354,7 @@ struct Story: Identifiable, Codable {
                 hashtag: stickerData.hashtag,
                 location: stickerData.location,
                 locationCoordinate: locationCoordinate,
+                styleVariant: stickerData.styleVariant,
                 pollData: stickerData.pollOptions,
                 questionText: stickerData.questionText,
                 weatherSymbol: weatherSymbol,
@@ -1647,6 +1648,7 @@ struct StickerData: Codable {
     let location: String?
     let latitude: Double?
     let longitude: Double?
+    let styleVariant: Int?
     let questionText: String?
     let pollOptions: [String]?
     let weatherSymbol: String? // ✅ NUEVA: Para stickers de clima
@@ -1687,7 +1689,7 @@ struct StickerData: Codable {
 
     init(stickerId: String? = nil, type: String, content: String, position: CGPoint, scale: CGFloat, rotation: Double,
          username: String? = nil, userId: String? = nil, hashtag: String? = nil,
-         location: String? = nil, latitude: Double? = nil, longitude: Double? = nil, questionText: String? = nil, pollOptions: [String]? = nil, weatherSymbol: String? = nil, linkURL: String? = nil, linkTitle: String? = nil, countdownTitle: String? = nil, countdownTargetAtMs: Double? = nil, sliderEmoji: String? = nil, sliderPrompt: String? = nil, caption: String? = nil, profileImagePath: String? = nil, momentId: String? = nil, mediaCount: Int? = nil,
+         location: String? = nil, latitude: Double? = nil, longitude: Double? = nil, styleVariant: Int? = nil, questionText: String? = nil, pollOptions: [String]? = nil, weatherSymbol: String? = nil, linkURL: String? = nil, linkTitle: String? = nil, countdownTitle: String? = nil, countdownTargetAtMs: Double? = nil, sliderEmoji: String? = nil, sliderPrompt: String? = nil, caption: String? = nil, profileImagePath: String? = nil, momentId: String? = nil, mediaCount: Int? = nil,
          quizQuestion: String? = nil, quizOptions: [String]? = nil, quizCorrectIndex: Int? = nil,
          revealType: String? = nil, revealPattern: String? = nil, revealPrimaryColor: String? = nil, revealSecondaryColor: String? = nil,
          frameStyle: String? = nil,
@@ -1707,6 +1709,7 @@ struct StickerData: Codable {
         self.location = location
         self.latitude = latitude
         self.longitude = longitude
+        self.styleVariant = styleVariant
         self.questionText = questionText
         self.pollOptions = pollOptions
         self.weatherSymbol = weatherSymbol
@@ -1772,6 +1775,7 @@ struct StickerData: Codable {
         self.location = try container.decodeIfPresent(String.self, forKey: .location)
         self.latitude = try container.decodeIfPresent(Double.self, forKey: .latitude)
         self.longitude = try container.decodeIfPresent(Double.self, forKey: .longitude)
+        self.styleVariant = try container.decodeIfPresent(Int.self, forKey: .styleVariant)
         self.questionText = try container.decodeIfPresent(String.self, forKey: .questionText)
         self.pollOptions = try container.decodeIfPresent([String].self, forKey: .pollOptions)
         self.weatherSymbol = try container.decodeIfPresent(String.self, forKey: .weatherSymbol)
@@ -1841,6 +1845,7 @@ struct StickerData: Codable {
             location: interactionData?.location,
             latitude: interactionData?.locationCoordinate?.latitude,
             longitude: interactionData?.locationCoordinate?.longitude,
+            styleVariant: interactionData?.styleVariant,
             questionText: interactionData?.questionText,
             pollOptions: interactionData?.pollData,
             weatherSymbol: interactionData?.weatherSymbol,
@@ -1943,6 +1948,7 @@ extension StickerData {
         case location
         case latitude
         case longitude
+        case styleVariant
         case questionText
         case pollOptions
         case weatherSymbol
@@ -1992,6 +1998,7 @@ extension StickerData {
         try container.encodeIfPresent(location, forKey: .location)
         try container.encodeIfPresent(latitude, forKey: .latitude)
         try container.encodeIfPresent(longitude, forKey: .longitude)
+        try container.encodeIfPresent(styleVariant, forKey: .styleVariant)
         try container.encodeIfPresent(questionText, forKey: .questionText)
         try container.encodeIfPresent(pollOptions, forKey: .pollOptions)
         try container.encodeIfPresent(weatherSymbol, forKey: .weatherSymbol)

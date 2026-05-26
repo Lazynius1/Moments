@@ -288,6 +288,7 @@ struct StickerOverlayView: View {
                 InteractiveLocationSticker(
                     locationName: locationName,
                     coordinate: sticker.interactionData?.locationCoordinate,
+                    styleVariant: sticker.interactionData?.styleVariant ?? 0,
                     onPauseStory: {},
                     onResumeStory: {}
                 )
@@ -296,6 +297,7 @@ struct StickerOverlayView: View {
                 // HASHTAG INTERACTIVO
                 InteractiveHashtagSticker(
                     hashtag: hashtag,
+                    styleVariant: sticker.interactionData?.styleVariant ?? 0,
                     onPauseStory: {},
                     onResumeStory: {}
                 )
@@ -304,12 +306,14 @@ struct StickerOverlayView: View {
                 // MENTION INTERACTIVO
                 InteractiveMentionSticker(
                     username: username,
+                    styleVariant: sticker.interactionData?.styleVariant ?? 0,
                     onTap: {}
                 )
                 .allowsHitTesting(false)
             } else if sticker.type == .link, let linkURL = sticker.interactionData?.linkURL {
                 StickerLinkCardView(
-                    title: sticker.interactionData?.linkTitle ?? stickerHostLabel(from: linkURL)
+                    title: sticker.interactionData?.linkTitle ?? stickerHostLabel(from: linkURL),
+                    styleVariant: sticker.interactionData?.styleVariant ?? 0
                 )
                 .allowsHitTesting(false)
             } else if sticker.type == .countdown,
@@ -438,13 +442,15 @@ struct StickerOverlayView: View {
             } else if sticker.type == .time {
                 StickerTimeCardView(
                     timeText: sticker.interactionData?.questionText ?? Date.now.formatted(date: .omitted, time: .shortened),
-                    dateText: sticker.interactionData?.caption ?? Date.now.formatted(date: .numeric, time: .omitted)
+                    dateText: sticker.interactionData?.caption ?? Date.now.formatted(date: .numeric, time: .omitted),
+                    styleVariant: sticker.interactionData?.styleVariant ?? 0
                 )
                 .allowsHitTesting(false)
             } else if sticker.type == .frame {
                 InteractiveFrameSticker(
                     image: sticker.image,
                     caption: sticker.interactionData?.caption,
+                    frameStyle: StoryPolaroidFrameStyle(rawValueOrDefault: sticker.interactionData?.frameStyle),
                     contentScale: sticker.interactionData?.contentScale ?? 1.0,
                     contentOffset: CGSize(
                         width: sticker.interactionData?.contentOffsetX ?? 0,

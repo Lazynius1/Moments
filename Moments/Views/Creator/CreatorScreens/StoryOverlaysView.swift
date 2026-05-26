@@ -211,8 +211,17 @@ struct StoryOverlaysView: View {
                             }
                         },
                         onStickerTapped: { tappedSticker in
-                            handleStickerTap(tappedSticker)
+                            let wasSelected = selectedStickerId == tappedSticker.id
                             selectedStickerId = tappedSticker.id
+
+                            if tapCyclesStickerStyle(tappedSticker.type) {
+                                if wasSelected {
+                                    cycleStickerStyle(for: tappedSticker.id)
+                                }
+                                return
+                            }
+
+                            handleStickerTap(tappedSticker)
                         }
                     )
                     .zIndex(editingPolaroidId == stickers[index].id ? 2000 : (selectedStickerId == stickers[index].id ? 500 : 1))
@@ -279,31 +288,40 @@ struct StoryOverlaysView: View {
 
             // 📸 FONDO OSCURO DE EDICIÓN (Dentro del ZStack para controlar el zIndex)
             if editingPolaroidId != nil {
-                Color.black.opacity(0.8)
-                    .ignoresSafeArea()
+                RoundedRectangle(cornerRadius: 28, style: .continuous)
+                    .fill(Color.black.opacity(0.82))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 28, style: .continuous)
+                            .stroke(Color.white.opacity(0.05), lineWidth: 1)
+                    )
+                    .frame(width: canvasSize.width, height: canvasSize.height)
+                    .ignoresSafeArea(.keyboard)
                     .zIndex(1500) // Entre los stickers normales y el "Hero"
+                    .gesture(polaroidFrameSwipeGesture())
                     .onTapGesture {
                         savePolaroidCaption()
                     }
                     .transition(.opacity)
 
-                // INPUT DE TEXTO (Encima de todo)
-                VStack {
+                VStack(spacing: 12) {
                     Spacer()
+
                     TextField(NSLocalizedString("storyEditor.polaroid.addNote", comment: "Prompt to add a note to a polaroid"), text: $polaroidCaptionBuffer)
-                        .font(.custom("MarkerFelt-Wide", size: 24)) // Un pelín más pequeña
+                        .font(.custom("MarkerFelt-Wide", size: 24))
                         .foregroundColor(.black)
                         .multilineTextAlignment(.center)
-                        .padding(.vertical, 12) // Mucho más fino
+                        .padding(.vertical, 12)
                         .padding(.horizontal, 25)
                         .liquidGlass(in: Capsule(), interactive: true)
-                        .padding(.horizontal, 40)
                         .submitLabel(.done)
                         .onSubmit {
                             savePolaroidCaption()
                         }
-                        .padding(.bottom, keyboardHeight > 0 ? keyboardHeight + 80 : 160)
+                        .frame(maxWidth: 320)
                 }
+                .frame(width: canvasSize.width, height: canvasSize.height, alignment: .bottom)
+                .offset(y: keyboardHeight > 0 ? -(keyboardHeight - 116) : -24)
+                .ignoresSafeArea(.keyboard)
                 .zIndex(2500)
                 .transition(.move(edge: .bottom).combined(with: .opacity))
                 .animation(.spring(response: 0.35, dampingFraction: 0.8), value: keyboardHeight)
@@ -502,5 +520,50 @@ struct StoryOverlaysView: View {
 
     private func showQuestionResponseToast() {
         // Implementar toast: "Respuesta anónima compartida"
+    }
+
+    private func polaroidFrameSwipeGesture() -> some Gesture {
+        DragGesture(minimumDistance: 24)
+            .onEnded { value in
+                let horizontal = value.translation.width
+                let vertical = value.translation.height
+                guard abs(horizontal) > abs(vertical), abs(horizontal) >= 36 else { return }
+                cyclePolaroidFrameStyle(direction: horizontal < 0 ? 1 : -1)
+            }
+    }
+
+    private func cyclePolaroidFrameStyle(direction: Int) {
+        guard let editingPolaroidId,
+              let index = stickers.firstIndex(where: { $0.id == editingPolaroidId })
+        else { return }
+
+        let allStyles = StoryPolaroidFrameStyle.allCases
+        let currentStyle = StoryPolaroidFrameStyle(rawValueOrDefault: stickers[index].interactionData?.frameStyle)
+        guard let currentIndex = allStyles.firstIndex(of: currentStyle) else { return }
+
+        let nextIndex = (currentIndex + direction + allStyles.count) % allStyles.count
+        var interactionData = stickers[index].interactionData ?? StickerItem.StickerInteractionData()
+        interactionData.frameStyle = allStyles[nextIndex].rawValue
+        stickers[index].interactionData = interactionData
+        HapticManager.shared.lightImpact()
+    }
+
+    private func tapCyclesStickerStyle(_ type: StickerItem.StickerType) -> Bool {
+        switch type {
+        case .location, .mention, .link, .hashtag, .time:
+            return true
+        default:
+            return false
+        }
+    }
+
+    private func cycleStickerStyle(for stickerId: String) {
+        guard let index = stickers.firstIndex(where: { $0.id == stickerId }) else { return }
+
+        var interactionData = stickers[index].interactionData ?? StickerItem.StickerInteractionData()
+        interactionData.styleVariant = ((interactionData.styleVariant ?? 0) + 1) % 4
+        stickers[index].interactionData = interactionData
+
+        HapticManager.shared.lightImpact()
     }
 }
