@@ -2,6 +2,26 @@ import SwiftUI
 import UIKit
 import AVFoundation
 
+func momentsStickerSurface(for colorScheme: ColorScheme) -> Color {
+    colorScheme == .dark
+        ? Color(hex: "0B1215")
+        : Color(hex: "FAF9F6")
+}
+
+func momentsStickerInk(for colorScheme: ColorScheme) -> Color {
+    colorScheme == .dark
+        ? Color(hex: "FAF9F6")
+        : Color(hex: "0B1215")
+}
+
+func momentsStickerInverseSurface(for colorScheme: ColorScheme) -> Color {
+    momentsStickerInk(for: colorScheme)
+}
+
+func momentsStickerInverseInk(for colorScheme: ColorScheme) -> Color {
+    momentsStickerSurface(for: colorScheme)
+}
+
 func normalizedStickerURL(from raw: String) -> URL? {
     let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
     guard !trimmed.isEmpty else { return nil }
@@ -44,16 +64,16 @@ func emojiSliderMomentsGradientColors() -> [Color] {
     [Color.blue, Color.purple, Color.pink]
 }
 
-func emojiSliderTrackMetrics(totalWidth: CGFloat) -> (leading: CGFloat, width: CGFloat, thumbBaseSize: CGFloat, trackHeight: CGFloat) {
-    let thumbBaseSize: CGFloat = 48
-    let horizontalInset: CGFloat = 16
+func emojiSliderTrackMetrics(totalWidth: CGFloat, scale: CGFloat = 1.0) -> (leading: CGFloat, width: CGFloat, thumbBaseSize: CGFloat, trackHeight: CGFloat) {
+    let thumbBaseSize: CGFloat = 48 * scale
+    let horizontalInset: CGFloat = 16 * scale
     let trackWidth = max(totalWidth - (horizontalInset * 2) - thumbBaseSize, 1)
-    return (leading: horizontalInset + (thumbBaseSize / 2), width: trackWidth, thumbBaseSize: thumbBaseSize, trackHeight: 12)
+    return (leading: horizontalInset + (thumbBaseSize / 2), width: trackWidth, thumbBaseSize: thumbBaseSize, trackHeight: 12 * scale)
 }
 
-func emojiSliderThumbSize(for value: Double, baseSize: CGFloat) -> CGFloat {
+func emojiSliderThumbSize(for value: Double, baseSize: CGFloat, scale: CGFloat = 1.0) -> CGFloat {
     let clamped = min(max(value, 0), 1)
-    return baseSize + (clamped * 22)
+    return baseSize + (clamped * 22 * scale)
 }
 
 func emojiSliderHasPrompt(_ prompt: String) -> Bool {
@@ -108,8 +128,8 @@ struct NeutralStickerAccentPill: View {
     }
 }
 
-func emojiSliderTrackFrame(totalSize: CGSize, showsPrompt: Bool = true) -> CGRect {
-    let metrics = emojiSliderTrackMetrics(totalWidth: totalSize.width)
+func emojiSliderTrackFrame(totalSize: CGSize, showsPrompt: Bool = true, scale: CGFloat = 1.0) -> CGRect {
+    let metrics = emojiSliderTrackMetrics(totalWidth: totalSize.width, scale: scale)
     let centerY = totalSize.height * (showsPrompt ? 0.62 : 0.52)
     return CGRect(
         x: metrics.leading,
@@ -119,9 +139,9 @@ func emojiSliderTrackFrame(totalSize: CGSize, showsPrompt: Bool = true) -> CGRec
     )
 }
 
-func emojiSliderThumbCenter(totalSize: CGSize, value: Double, showsPrompt: Bool = true) -> CGPoint {
+func emojiSliderThumbCenter(totalSize: CGSize, value: Double, showsPrompt: Bool = true, scale: CGFloat = 1.0) -> CGPoint {
     let clamped = min(max(value, 0), 1)
-    let trackFrame = emojiSliderTrackFrame(totalSize: totalSize, showsPrompt: showsPrompt)
+    let trackFrame = emojiSliderTrackFrame(totalSize: totalSize, showsPrompt: showsPrompt, scale: scale)
     return CGPoint(x: trackFrame.minX + (trackFrame.width * clamped), y: trackFrame.midY)
 }
 
@@ -229,8 +249,12 @@ private struct StickerCountdownDigitBox: View {
 
 struct StickerLinkCardView: View {
     let title: String
+    @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
+        let surface = momentsStickerSurface(for: colorScheme)
+        let ink = momentsStickerInk(for: colorScheme)
+
         HStack(spacing: 8) {
             Image(systemName: "link")
                 .font(.system(size: 16, weight: .bold))
@@ -240,18 +264,13 @@ struct StickerLinkCardView: View {
                 .tracking(0.5)
                 .lineLimit(1)
         }
-        .foregroundColor(.white)
-        .shadow(color: .black.opacity(0.2), radius: 2, x: 0, y: 1)
+        .foregroundStyle(ink)
         .padding(.horizontal, 18)
         .padding(.vertical, 14)
         .background(
-            Color.clear.liquidGlass(in: Capsule(style: .continuous))
-        )
-        .overlay(
             Capsule(style: .continuous)
-                .stroke(Color.white.opacity(0.4), lineWidth: 0.5)
+                .fill(surface)
         )
-        .shadow(color: .black.opacity(0.15), radius: 10, x: 0, y: 5)
             .frame(height: 50)
             .fixedSize(horizontal: true, vertical: false)
     }
@@ -259,31 +278,30 @@ struct StickerLinkCardView: View {
 
 struct StickerHashtagCardView: View {
     let hashtag: String
+    @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
+        let surface = momentsStickerSurface(for: colorScheme)
+        let ink = momentsStickerInk(for: colorScheme)
+
         HStack(spacing: 0) {
             Text("#")
                 .font(.system(size: 20, weight: .heavy, design: .rounded))
-                .foregroundColor(.white)
+                .foregroundStyle(ink.opacity(0.58))
                 .opacity(0.7)
             
             Text(hashtag.uppercased())
                 .font(.system(size: 18, weight: .black, design: .rounded))
                 .tracking(0.5)
-                .foregroundColor(.white)
+                .foregroundStyle(ink)
                 .lineLimit(1)
         }
-        .shadow(color: .black.opacity(0.2), radius: 3, x: 0, y: 2)
         .padding(.horizontal, 20)
         .padding(.vertical, 12)
         .background(
-            Color.clear.liquidGlass(in: Capsule(style: .continuous))
-        )
-        .overlay(
             Capsule(style: .continuous)
-                .stroke(Color.white.opacity(0.4), lineWidth: 0.5)
+                .fill(surface)
         )
-        .shadow(color: .black.opacity(0.15), radius: 12, x: 0, y: 6)
         .fixedSize(horizontal: true, vertical: false)
     }
 }
@@ -291,31 +309,30 @@ struct StickerHashtagCardView: View {
 struct StickerTimeCardView: View {
     let timeText: String
     let dateText: String
+    @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
+        let surface = momentsStickerSurface(for: colorScheme)
+        let ink = momentsStickerInk(for: colorScheme)
+
         VStack(alignment: .center, spacing: 2) {
             Text(timeText)
                 .font(.system(size: 26, weight: .heavy, design: .rounded))
-                .foregroundColor(.white)
-                .shadow(color: .black.opacity(0.2), radius: 3, x: 0, y: 2)
+                .foregroundStyle(ink)
                 .lineLimit(1)
 
             Text(dateText.uppercased())
                 .font(.system(size: 12, weight: .bold, design: .rounded))
                 .tracking(1.0)
-                .foregroundColor(.white.opacity(0.8))
+                .foregroundStyle(ink.opacity(0.58))
                 .lineLimit(1)
         }
         .padding(.horizontal, 24)
         .padding(.vertical, 14)
         .background(
-            Color.clear.liquidGlass(in: Capsule(style: .continuous))
-        )
-        .overlay(
             Capsule(style: .continuous)
-                .stroke(Color.white.opacity(0.3), lineWidth: 0.5)
+                .fill(surface)
         )
-        .shadow(color: .black.opacity(0.15), radius: 10, x: 0, y: 5)
         .fixedSize(horizontal: true, vertical: false)
     }
 }
@@ -323,8 +340,14 @@ struct StickerTimeCardView: View {
 struct StickerCountdownCardView: View {
     let title: String
     let targetAtMs: Double
+    @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
+        let surface = momentsStickerSurface(for: colorScheme)
+        let ink = momentsStickerInk(for: colorScheme)
+        let headerSurface = momentsStickerInverseSurface(for: colorScheme)
+        let headerInk = momentsStickerInverseInk(for: colorScheme)
+
         TimelineView(.periodic(from: .now, by: 1)) { timeline in
             let countdownText = countdownClockString(targetAtMs: targetAtMs, now: timeline.date)
             let characters = countdownText.map(String.init)
@@ -332,36 +355,41 @@ struct StickerCountdownCardView: View {
             let digitSize: CGFloat = isLong ? 28 : 42
             let colonSize: CGFloat = isLong ? 20 : 32
 
-            VStack(alignment: .center, spacing: 10) {
+            VStack(alignment: .center, spacing: 0) {
                 Text(title.uppercased())
                     .font(.system(size: 15, weight: .black, design: .rounded))
                     .tracking(0.5)
-                    .foregroundColor(.white)
+                    .foregroundStyle(headerInk)
                     .lineLimit(1)
                     .multilineTextAlignment(.center)
-                    .shadow(color: .black.opacity(0.15), radius: 2, x: 0, y: 1)
+                    .padding(.horizontal, 18)
+                    .padding(.vertical, 12)
+                    .frame(maxWidth: .infinity)
+                    .background(headerSurface)
 
                 HStack(spacing: 2) {
                     ForEach(Array(characters.enumerated()), id: \.offset) { _, character in
                         if character == ":" {
                             Text(character)
                                 .font(.system(size: colonSize, weight: .black, design: .rounded))
-                                .foregroundColor(.white.opacity(0.7))
+                                .foregroundStyle(ink.opacity(0.38))
                                 .padding(.horizontal, 2)
                                 .offset(y: -2)
                         } else {
                             Text(character)
                                 .font(.system(size: digitSize, weight: .heavy, design: .rounded))
-                                .foregroundColor(.white)
-                                .shadow(color: .black.opacity(0.2), radius: 4, x: 0, y: 2)
+                                .foregroundStyle(ink)
                         }
                     }
                 }
+                .padding(.horizontal, 22)
+                .padding(.vertical, 18)
+                .background(surface)
             }
-            .padding(.horizontal, 24)
-            .padding(.vertical, 20)
+            .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
             .background(
-                Color.clear.liquidGlass(in: RoundedRectangle(cornerRadius: 28, style: .continuous))
+                RoundedRectangle(cornerRadius: 24, style: .continuous)
+                    .fill(surface)
             )
         }
     }
@@ -372,105 +400,93 @@ struct StickerEmojiSliderCardView: View {
     let emoji: String
     let value: Double
     var averageValue: Double? = nil
+    @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
+        let surface = momentsStickerSurface(for: colorScheme)
+        let ink = momentsStickerInk(for: colorScheme)
         let clampedValue = min(max(value, 0), 1)
         let showsPrompt = emojiSliderHasPrompt(prompt)
+        let baseSize = emojiSliderRenderingSize(prompt: prompt)
+        let size = baseSize
+        let metrics = emojiSliderTrackMetrics(totalWidth: size.width)
+        let trackFrame = emojiSliderTrackFrame(totalSize: size, showsPrompt: showsPrompt)
+        let thumbCenter = emojiSliderThumbCenter(totalSize: size, value: clampedValue, showsPrompt: showsPrompt)
+        let thumbSize = emojiSliderThumbSize(for: clampedValue, baseSize: metrics.thumbBaseSize)
 
-        GeometryReader { geometry in
-            let size = geometry.size
-            let metrics = emojiSliderTrackMetrics(totalWidth: size.width)
-            let trackFrame = emojiSliderTrackFrame(totalSize: size, showsPrompt: showsPrompt)
-            let thumbCenter = emojiSliderThumbCenter(totalSize: size, value: clampedValue, showsPrompt: showsPrompt)
-            let thumbSize = emojiSliderThumbSize(for: clampedValue, baseSize: metrics.thumbBaseSize)
-
-            ZStack(alignment: .topLeading) {
-                // Prompt text
-                if showsPrompt {
-                    Text(prompt)
-                        .font(.system(size: 18, weight: .bold, design: .rounded))
-                        .foregroundColor(.white)
-                        .multilineTextAlignment(.center)
-                        .lineLimit(2)
-                        .shadow(color: .black.opacity(0.2), radius: 3, x: 0, y: 1)
-                        .frame(width: size.width - 32)
-                        .position(x: size.width / 2, y: 26)
-                }
-
-                // Track background — thick pill
-                Capsule(style: .continuous)
-                    .fill(Color.white.opacity(0.18))
-                    .frame(width: trackFrame.width, height: trackFrame.height)
-                    .position(x: trackFrame.midX, y: trackFrame.midY)
-
-                // Progress fill
-                Capsule(style: .continuous)
-                    .fill(
-                        LinearGradient(
-                            colors: [Color.white.opacity(0.9), Color.white],
-                            startPoint: .leading,
-                            endPoint: .trailing
-                        )
-                    )
-                    .shadow(color: .white.opacity(0.5), radius: 4, x: 0, y: 0)
-                    .frame(
-                        width: max(trackFrame.width * clampedValue, trackFrame.height),
-                        height: trackFrame.height
-                    )
-                    .position(
-                        x: trackFrame.minX + (max(trackFrame.width * clampedValue, trackFrame.height) / 2),
-                        y: trackFrame.midY
-                    )
-
-                // Average marker — dark glow dot, contrasts against white track
-                if let avg = averageValue {
-                    let avgClamped = min(max(avg, 0), 1)
-                    let avgCenter = emojiSliderThumbCenter(totalSize: size, value: avgClamped, showsPrompt: showsPrompt)
-                    ZStack {
-                        // Outer halo
-                        Circle()
-                            .fill(
-                                RadialGradient(
-                                    colors: [Color.black.opacity(0.35), Color.clear],
-                                    center: .center,
-                                    startRadius: 0,
-                                    endRadius: 14
-                                )
-                            )
-                            .frame(width: 28, height: 28)
-                        // Inner core — dark with subtle purple tint
-                        Circle()
-                            .fill(
-                                RadialGradient(
-                                    colors: [Color(red: 0.3, green: 0.1, blue: 0.5), Color.black.opacity(0.8)],
-                                    center: .center,
-                                    startRadius: 0,
-                                    endRadius: 6
-                                )
-                            )
-                            .frame(width: 11, height: 11)
-                            .overlay(
-                                Circle()
-                                    .stroke(Color.white.opacity(0.4), lineWidth: 1)
-                            )
-                            .shadow(color: Color.purple.opacity(0.5), radius: 4, x: 0, y: 0)
-                    }
-                    .position(x: avgCenter.x, y: avgCenter.y)
-                }
-
-                // Emoji thumb — allowsHitTesting false so gesture overlay captures all touches
-                Text(emoji)
-                    .font(.system(size: 28 + (clampedValue * 14)))
-                    .frame(width: thumbSize, height: thumbSize)
-                    .shadow(color: Color.black.opacity(0.25), radius: 8, y: 4)
-                    .scaleEffect(1.0 + clampedValue * 0.15)
-                    .animation(.interactiveSpring(response: 0.25, dampingFraction: 0.6), value: clampedValue)
-                    .allowsHitTesting(false)
-                    .position(x: thumbCenter.x, y: thumbCenter.y)
+        ZStack(alignment: .topLeading) {
+            if showsPrompt {
+                Text(prompt)
+                    .font(.system(size: 18, weight: .bold, design: .rounded))
+                    .foregroundStyle(ink.opacity(0.92))
+                    .multilineTextAlignment(.center)
+                    .lineLimit(2)
+                    .frame(width: size.width - 32)
+                    .position(x: size.width / 2, y: 26)
             }
+
+            Capsule(style: .continuous)
+                .fill(ink.opacity(0.14))
+                .frame(width: trackFrame.width, height: trackFrame.height)
+                .position(x: trackFrame.midX, y: trackFrame.midY)
+
+            Capsule(style: .continuous)
+                .fill(ink.opacity(0.22))
+                .frame(
+                    width: max(trackFrame.width * clampedValue, trackFrame.height),
+                    height: trackFrame.height
+                )
+                .position(
+                    x: trackFrame.minX + (max(trackFrame.width * clampedValue, trackFrame.height) / 2),
+                    y: trackFrame.midY
+                )
+
+            if let avg = averageValue {
+                let avgClamped = min(max(avg, 0), 1)
+                let avgCenter = emojiSliderThumbCenter(totalSize: size, value: avgClamped, showsPrompt: showsPrompt)
+                ZStack {
+                    Circle()
+                        .fill(
+                            RadialGradient(
+                                colors: [ink.opacity(0.35), Color.clear],
+                                center: .center,
+                                startRadius: 0,
+                                endRadius: 14
+                            )
+                        )
+                        .frame(width: 28, height: 28)
+
+                    Circle()
+                        .fill(
+                            RadialGradient(
+                                colors: [Color(red: 0.3, green: 0.1, blue: 0.5), Color.black.opacity(0.8)],
+                                center: .center,
+                                startRadius: 0,
+                                endRadius: 6
+                            )
+                        )
+                        .frame(width: 11, height: 11)
+                        .overlay(
+                            Circle()
+                                .stroke(surface.opacity(0.4), lineWidth: 1)
+                        )
+                        .shadow(color: Color.purple.opacity(0.5), radius: 4, x: 0, y: 0)
+                }
+                .position(x: avgCenter.x, y: avgCenter.y)
+            }
+
+            Text(emoji)
+                .font(.system(size: 28 + (clampedValue * 14)))
+                .frame(width: thumbSize, height: thumbSize)
+                .scaleEffect(1.0 + clampedValue * 0.15)
+                .animation(.interactiveSpring(response: 0.25, dampingFraction: 0.6), value: clampedValue)
+                .allowsHitTesting(false)
+                .position(x: thumbCenter.x, y: thumbCenter.y)
         }
+        .frame(width: size.width, height: size.height)
         .background(
-            Color.clear.liquidGlass(in: RoundedRectangle(cornerRadius: 28, style: .continuous))
+            RoundedRectangle(cornerRadius: 24, style: .continuous)
+                .fill(surface)
         )
     }
 }
@@ -486,24 +502,22 @@ struct StickerQuizCardView: View {
     @Environment(\.colorScheme) private var colorScheme
     
     var body: some View {
+        let surface = momentsStickerSurface(for: colorScheme)
+        let headerSurface = momentsStickerInverseSurface(for: colorScheme)
+        let headerInk = momentsStickerInverseInk(for: colorScheme)
+
         VStack(alignment: .leading, spacing: 0) {
             // — Pregunta —
             Text(question)
                 .font(.system(size: 16, weight: .bold, design: .rounded))
-                .foregroundStyle(.white)
+                .foregroundStyle(headerInk)
                 .multilineTextAlignment(.center) // ✅ Centrado
                 .lineLimit(3)
                 .fixedSize(horizontal: false, vertical: true)
                 .frame(maxWidth: .infinity) // ✅ Asegurar que ocupe todo el ancho para el centrado
                 .padding(.horizontal, 16)
-                .padding(.top, 20) // ✅ Padding superior para compensar la falta de cabecera
-                .padding(.bottom, 12)
-            
-            // — Separador —
-            Rectangle()
-                .fill(.white.opacity(0.15))
-                .frame(height: 0.5)
-                .padding(.horizontal, 12)
+                .padding(.vertical, 16)
+                .background(headerSurface)
             
             // — Opciones —
             VStack(spacing: 6) {
@@ -513,13 +527,15 @@ struct StickerQuizCardView: View {
             }
             .padding(.horizontal, 12)
             .padding(.vertical, 10)
+            .background(surface)
         }
         .frame(width: 280)
         .fixedSize(horizontal: false, vertical: true)
+        .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
         .background(
-            Color.clear.liquidGlass(in: RoundedRectangle(cornerRadius: 24, style: .continuous))
+            RoundedRectangle(cornerRadius: 24, style: .continuous)
+                .fill(surface)
         )
-        .shadow(color: .black.opacity(0.18), radius: 14, y: 6)
     }
     
     @ViewBuilder
@@ -542,7 +558,7 @@ struct StickerQuizCardView: View {
                 
                 Text(options[index])
                     .font(.system(size: 14, weight: .semibold, design: .rounded))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(optionTextColor(index: index, hasVoted: hasVoted, isCorrect: isCorrect, isSelected: isSelected))
                     .lineLimit(2)
                     .fixedSize(horizontal: false, vertical: true)
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -572,24 +588,37 @@ struct StickerQuizCardView: View {
     
     // MARK: - Color helpers
     private func optionBgColor(index: Int, hasVoted: Bool, isCorrect: Bool, isSelected: Bool) -> Color {
-        if !hasVoted { return .white.opacity(0.12) }
-        if isCorrect { return .green.opacity(0.45) }       // Verde sólido — correcta siempre verde
-        if isSelected { return .red.opacity(0.40) }        // Rojo — elegida incorrecta
-        return .white.opacity(0.06)
+        let ink = momentsStickerInk(for: colorScheme)
+        if !hasVoted { return ink.opacity(0.08) }
+        if isCorrect { return .green.opacity(0.78) }
+        if isSelected { return .red.opacity(0.74) }
+        return ink.opacity(0.06)
     }
     
     private func optionCircleColor(index: Int, hasVoted: Bool, isCorrect: Bool, isSelected: Bool) -> Color {
-        if !hasVoted { return .white.opacity(0.2) }
-        if isCorrect { return .green.opacity(0.7) }
-        if isSelected { return .red.opacity(0.6) }
-        return .white.opacity(0.1)
+        let ink = momentsStickerInk(for: colorScheme)
+        let surface = momentsStickerSurface(for: colorScheme)
+        if !hasVoted { return ink.opacity(0.14) }
+        if isCorrect { return surface.opacity(0.26) }
+        if isSelected { return surface.opacity(0.24) }
+        return ink.opacity(0.1)
     }
     
     private func optionLetterColor(index: Int, hasVoted: Bool, isCorrect: Bool, isSelected: Bool) -> Color {
-        if !hasVoted { return .white }
-        if isCorrect { return .white }
-        if isSelected { return .white }
-        return .white.opacity(0.4)
+        let ink = momentsStickerInk(for: colorScheme)
+        let surface = momentsStickerSurface(for: colorScheme)
+        if !hasVoted { return ink.opacity(0.82) }
+        if isCorrect { return surface }
+        if isSelected { return surface }
+        return ink.opacity(0.48)
+    }
+
+    private func optionTextColor(index: Int, hasVoted: Bool, isCorrect: Bool, isSelected: Bool) -> Color {
+        let ink = momentsStickerInk(for: colorScheme)
+        let surface = momentsStickerSurface(for: colorScheme)
+        if !hasVoted { return ink.opacity(0.9) }
+        if isCorrect || isSelected { return surface }
+        return ink.opacity(0.58)
     }
 }
 

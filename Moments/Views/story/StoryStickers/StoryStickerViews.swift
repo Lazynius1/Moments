@@ -150,16 +150,23 @@ struct InteractivePollSticker: View {
     @Binding var voteCounts: [Int: Int]
     @Binding var totalVotes: Int
     let onVote: (Int) -> Void
+    @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
-        VStack(spacing: 12) {
+        let surface = momentsStickerSurface(for: colorScheme)
+        let headerSurface = momentsStickerInverseSurface(for: colorScheme)
+        let headerInk = momentsStickerInverseInk(for: colorScheme)
+
+        VStack(spacing: 0) {
             Text(pollData[0].count > 42 ? String(pollData[0].prefix(42)) + "..." : pollData[0])
-                .font(.system(size: 20, weight: .bold, design: .rounded))
-                .foregroundColor(.white)
+                .font(.system(size: 18, weight: .bold, design: .rounded))
+                .foregroundStyle(headerInk)
                 .multilineTextAlignment(.center)
-                .shadow(color: .black.opacity(0.15), radius: 4, x: 0, y: 2)
+                .lineLimit(3)
                 .padding(.horizontal, 18)
-                .padding(.top, 20)
+                .padding(.vertical, 16)
+                .frame(maxWidth: .infinity)
+                .background(headerSurface)
 
             VStack(spacing: 8) {
                 ForEach(0..<2, id: \.self) { index in
@@ -178,10 +185,14 @@ struct InteractivePollSticker: View {
                 }
             }
             .padding(.horizontal, 14)
-            .padding(.bottom, 16)
+            .padding(.vertical, 14)
+            .background(surface)
         }
+        .frame(width: 300)
+        .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
         .background(
-            Color.clear.liquidGlass(in: RoundedRectangle(cornerRadius: 26, style: .continuous))
+            RoundedRectangle(cornerRadius: 24, style: .continuous)
+                .fill(surface)
         )
         .onAppear {
             loadVoteCounts()
@@ -247,17 +258,21 @@ struct InteractivePollOptionButton: View {
     let isSelected: Bool
     let hasVoted: Bool
     let onTap: () -> Void
+    @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
+        let ink = momentsStickerInk(for: colorScheme)
+        let surface = momentsStickerSurface(for: colorScheme)
+
         Button(action: onTap) {
             GeometryReader { proxy in
                 ZStack(alignment: .leading) {
                     RoundedRectangle(cornerRadius: 16, style: .continuous)
-                        .fill(isSelected ? Color.white : Color.white.opacity(0.1))
+                        .fill(isSelected ? ink.opacity(0.92) : ink.opacity(0.08))
 
                     if hasVoted {
                         RoundedRectangle(cornerRadius: 16, style: .continuous)
-                            .fill(isSelected ? Color.white : Color.white.opacity(0.35))
+                            .fill(isSelected ? ink.opacity(0.92) : ink.opacity(0.16))
                             .frame(width: proxy.size.width * (percentage / 100))
                             .animation(.easeInOut(duration: 0.5), value: percentage)
                     }
@@ -265,8 +280,7 @@ struct InteractivePollOptionButton: View {
                     HStack(spacing: 10) {
                         Text(text)
                             .font(.system(size: 15, weight: .bold))
-                            .foregroundColor(isSelected ? .black : .white)
-                            .shadow(color: isSelected ? .clear : .black.opacity(0.15), radius: 2)
+                            .foregroundStyle(isSelected ? surface : ink.opacity(0.9))
                             .lineLimit(1)
 
                         Spacer(minLength: 0)
@@ -274,7 +288,7 @@ struct InteractivePollOptionButton: View {
                         if hasVoted {
                             Text("\(Int(percentage))%")
                                 .font(.system(size: 14, weight: .bold))
-                                .foregroundColor(isSelected ? .black : .white)
+                                .foregroundStyle(isSelected ? surface : ink.opacity(0.72))
                         }
                     }
                     .padding(.horizontal, 16)
@@ -1176,8 +1190,14 @@ struct InteractiveQuestionSticker: View {
     @State private var hasResponded = false
     @State private var isLoading = false
     @State private var isAuthor = false
+    @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
+        let surface = momentsStickerSurface(for: colorScheme)
+        let ink = momentsStickerInk(for: colorScheme)
+        let headerSurface = momentsStickerInverseSurface(for: colorScheme)
+        let headerInk = momentsStickerInverseInk(for: colorScheme)
+
         Button(action: {
             if isAuthor {
                 // ✅ AUTOR: Ver respuestas
@@ -1187,41 +1207,37 @@ struct InteractiveQuestionSticker: View {
                 showingResponseInput = true
             }
         }) {
-            VStack(spacing: 14) {
+            VStack(spacing: 0) {
                 Text(questionText)
-                    .font(.system(size: 22, weight: .bold, design: .rounded))
-                    .foregroundColor(.white)
+                    .font(.system(size: 18, weight: .bold, design: .rounded))
+                    .foregroundStyle(headerInk)
                     .multilineTextAlignment(.center)
                     .lineLimit(3)
-                    .shadow(color: .black.opacity(0.15), radius: 4, x: 0, y: 2)
                     .padding(.horizontal, 20)
-                    .padding(.top, 24)
+                    .padding(.vertical, 16)
+                    .frame(maxWidth: .infinity)
+                    .background(headerSurface)
 
                 Text(responseSubtitle)
                     .font(.system(size: 15, weight: .bold))
-                    .foregroundColor(.white.opacity(0.8))
+                    .foregroundStyle(ink.opacity(0.72))
                     .padding(.horizontal, 16)
                     .padding(.vertical, 14)
                     .frame(maxWidth: .infinity)
                     .background(
                         Capsule(style: .continuous)
-                            .fill(Color.black.opacity(0.15))
-                            .overlay(
-                                Capsule(style: .continuous)
-                                    .stroke(Color.white.opacity(0.1), lineWidth: 1)
-                            )
+                            .fill(ink.opacity(0.08))
                     )
                     .padding(.horizontal, 16)
-                    .padding(.bottom, 20)
+                    .padding(.vertical, 16)
+                    .background(surface)
             }
+            .frame(width: 300)
+            .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
             .background(
-                Color.clear.liquidGlass(in: RoundedRectangle(cornerRadius: 28, style: .continuous))
+                RoundedRectangle(cornerRadius: 24, style: .continuous)
+                    .fill(surface)
             )
-            .overlay(
-                RoundedRectangle(cornerRadius: 28, style: .continuous)
-                    .stroke(Color.white.opacity(0.3), lineWidth: 0.5)
-            )
-            .shadow(color: .black.opacity(0.15), radius: 16, x: 0, y: 8)
         }
         .buttonStyle(PlainButtonStyle())
         .sheet(isPresented: $showingResponseInput, onDismiss: {
@@ -1482,8 +1498,12 @@ struct InteractiveLocationSticker: View {
     let onPauseStory: () -> Void
     let onResumeStory: () -> Void
     @State private var showingLocationMap = false
+    @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
+        let surface = momentsStickerSurface(for: colorScheme)
+        let ink = momentsStickerInk(for: colorScheme)
+
         Button(action: {
             onPauseStory() // ✅ PAUSAR HISTORIA
             showingLocationMap = true
@@ -1496,18 +1516,13 @@ struct InteractiveLocationSticker: View {
                     .tracking(0.5)
                     .lineLimit(1)
             }
-            .foregroundColor(.white)
-            .shadow(color: .black.opacity(0.2), radius: 2, x: 0, y: 1)
+            .foregroundStyle(ink)
             .padding(.horizontal, 18)
             .padding(.vertical, 14)
             .background(
-                Color.clear.liquidGlass(in: Capsule(style: .continuous))
-            )
-            .overlay(
                 Capsule(style: .continuous)
-                    .stroke(Color.white.opacity(0.4), lineWidth: 0.5)
+                    .fill(surface)
             )
-            .shadow(color: .black.opacity(0.15), radius: 10, x: 0, y: 5)
         }
         .buttonStyle(PlainButtonStyle())
         .fullScreenCover(isPresented: $showingLocationMap) {
@@ -1530,31 +1545,30 @@ struct InteractiveLocationSticker: View {
 struct InteractiveMentionSticker: View {
     let username: String
     let onTap: () -> Void
+    @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
+        let surface = momentsStickerSurface(for: colorScheme)
+        let ink = momentsStickerInk(for: colorScheme)
+
         Button(action: onTap) {
             HStack(spacing: 2) {
                 Text("@")
                     .font(.system(size: 20, weight: .heavy, design: .rounded))
-                    .foregroundColor(.white)
+                    .foregroundStyle(ink.opacity(0.58))
                     .opacity(0.7)
 
                 Text(username.uppercased())
                     .font(.system(size: 20, weight: .black, design: .rounded))
                     .tracking(0.5)
-                    .foregroundColor(.white)
+                    .foregroundStyle(ink)
             }
-            .shadow(color: .black.opacity(0.2), radius: 3, x: 0, y: 2)
             .padding(.horizontal, 20)
             .padding(.vertical, 12)
             .background(
-                Color.clear.liquidGlass(in: Capsule(style: .continuous))
-            )
-            .overlay(
                 Capsule(style: .continuous)
-                    .stroke(Color.white.opacity(0.4), lineWidth: 0.5)
+                    .fill(surface)
             )
-            .shadow(color: .black.opacity(0.15), radius: 12, x: 0, y: 6)
         }
         .buttonStyle(PlainButtonStyle())
     }

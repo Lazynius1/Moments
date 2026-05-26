@@ -63,8 +63,7 @@ struct StoryOverlaysView: View {
                                     }
                                 }
 
-                                let trashY = UIScreen.main.bounds.height - 150
-                                isOverTrash = value.location.y > trashY
+                                isOverTrash = isPointOverTrash(value.location)
                             }
                             .onEnded { value in
                                 if !text.isEmpty { return }
@@ -134,8 +133,7 @@ struct StoryOverlaysView: View {
                                     }
                                 }
 
-                                let trashY = UIScreen.main.bounds.height - 150
-                                isOverTrash = newPos.y > trashY
+                                isOverTrash = isPointOverTrash(newPos)
                             }
                             .onEnded { value in
                                 dragOffset = .zero
@@ -199,8 +197,7 @@ struct StoryOverlaysView: View {
                                 }
                             }
 
-                            let trashY = UIScreen.main.bounds.height - 150
-                            isOverTrash = position.y > trashY
+                            isOverTrash = isPointOverTrash(position)
                         },
                         onDragEnded: { position in
                             withAnimation(.easeOut(duration: 0.2)) {
@@ -269,42 +266,13 @@ struct StoryOverlaysView: View {
                 VStack {
                     Spacer()
 
-                    ZStack {
-                        LinearGradient(
-                            colors: [
-                                Color.clear,
-                                Color.black.opacity(0.4),
-                                Color.black.opacity(0.6)
-                            ],
-                            startPoint: .top,
-                            endPoint: .bottom
-                        )
-                        .frame(height: 200)
-                        .ignoresSafeArea()
-
-                        VStack(spacing: 12) {
-                            ZStack {
-                                Circle()
-                                    .fill(isOverTrash ? Color.red.opacity(0.2) : Color.black.opacity(0.3))
-                                    .frame(width: 80, height: 80)
-                                    .scaleEffect(isOverTrash ? 1.1 : 1.0)
-
-                                Image(systemName: isOverTrash ? "trash.circle.fill" : "trash.circle")
-                                    .font(.system(size: 40))
-                                    .foregroundColor(isOverTrash ? .red : .white)
-                                    .scaleEffect(isOverTrash ? 1.1 : 1.0)
-                            }
-                            .animation(.spring(response: 0.3, dampingFraction: 0.6), value: isOverTrash)
-
-                            Text(isOverTrash ? "Soltar para eliminar" : "Arrastra aquí para eliminar")
-                                .font(.system(size: 14, weight: .medium))
-                                .foregroundColor(.white)
-                                .multilineTextAlignment(.center)
-                                .opacity(isOverTrash ? 1.0 : 0.8)
-                                .animation(.easeInOut(duration: 0.2), value: isOverTrash)
-                        }
-                        .padding(.bottom, 50)
-                    }
+                    Image(systemName: isOverTrash ? "trash.fill" : "trash")
+                        .font(.system(size: 34, weight: .semibold))
+                        .foregroundColor(isOverTrash ? .red : .white)
+                        .frame(width: 84, height: 84)
+                        .scaleEffect(isOverTrash ? 1.12 : 1.0)
+                        .animation(.spring(response: 0.24, dampingFraction: 0.72), value: isOverTrash)
+                        .padding(.bottom, 20)
                 }
                 .transition(.move(edge: .bottom).combined(with: .opacity))
             }
@@ -488,6 +456,10 @@ struct StoryOverlaysView: View {
 
         // Ocultar teclado
         UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+    }
+
+    private func isPointOverTrash(_ point: CGPoint) -> Bool {
+        point.y > canvasSize.height - 128
     }
 
     private func findUserIdByUsername(_ username: String, completion: @escaping (String?) -> Void) {

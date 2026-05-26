@@ -24,6 +24,7 @@ struct StickerOverlayView: View {
     @State private var dragOffset: CGSize = .zero // ✅ Offset para evitar el salto al centro al tocar
     @State private var contentDragStartOffset: CGSize?
     @State private var contentPinchStartScale: CGFloat?
+    @State private var stickerPinchStartScale: CGFloat?
 
     init(sticker: Binding<StickerItem>, isSelected: Bool, isDragging: Bool,
          isContentEditing: Bool,
@@ -54,8 +55,15 @@ struct StickerOverlayView: View {
         case .quiz: return CGSize(width: 280, height: 220)
         case .weather: return CGSize(width: 140, height: 50)
         case .time: return CGSize(width: 180, height: 80)
+        case .emojiSlider:
+            return emojiSliderBaseSize
         default: return sticker.image.size
         }
+    }
+
+    private var emojiSliderBaseSize: CGSize {
+        let prompt = sticker.interactionData?.sliderPrompt ?? ""
+        return emojiSliderRenderingSize(prompt: prompt)
     }
 
     private var minimumStickerScale: CGFloat {
@@ -72,15 +80,72 @@ struct StickerOverlayView: View {
     }
 
     private var maximumStickerScale: CGFloat {
-        let maxDimension: CGFloat = 2048
-        let maxScaleWidth = maxDimension / max(stickerSize.width, 1)
-        let maxScaleHeight = maxDimension / max(stickerSize.height, 1)
-        let safeMaxScale = min(maxScaleWidth, maxScaleHeight)
-        return min(4.5, safeMaxScale)
+        let screenBounds = UIScreen.main.bounds
+        let hardMaxDimension: CGFloat = 2048
+        let hardMaxScaleWidth = hardMaxDimension / max(stickerSize.width, 1)
+        let hardMaxScaleHeight = hardMaxDimension / max(stickerSize.height, 1)
+        let hardSafeMaxScale = min(hardMaxScaleWidth, hardMaxScaleHeight)
+
+        let widthPadding: CGFloat
+        let heightRatio: CGFloat
+        let typeCap: CGFloat
+
+        switch sticker.type {
+        case .poll, .question, .quiz, .emojiSlider:
+            widthPadding = 34
+            heightRatio = 0.42
+            typeCap = 1.45
+        case .countdown:
+            widthPadding = 40
+            heightRatio = 0.34
+            typeCap = 1.35
+        case .time, .weather, .location, .mention, .hashtag, .link:
+            widthPadding = 44
+            heightRatio = 0.28
+            typeCap = 1.85
+        case .frame:
+            widthPadding = 28
+            heightRatio = 0.68
+            typeCap = 2.4
+        case .selfie:
+            widthPadding = 28
+            heightRatio = 0.42
+            typeCap = 2.0
+        default:
+            widthPadding = 24
+            heightRatio = 0.78
+            typeCap = 4.0
+        }
+
+        let maxVisualWidth = max(screenBounds.width - widthPadding, 120)
+        let maxVisualHeight = max(screenBounds.height * heightRatio, 120)
+        let visualMaxScaleWidth = maxVisualWidth / max(stickerSize.width, 1)
+        let visualMaxScaleHeight = maxVisualHeight / max(stickerSize.height, 1)
+        let visualSafeMaxScale = min(visualMaxScaleWidth, visualMaxScaleHeight)
+
+        return min(typeCap, hardSafeMaxScale, visualSafeMaxScale)
+    }
+
+    private func dampedMagnification(_ value: CGFloat) -> CGFloat {
+        let damping: CGFloat = 0.55
+        if value >= 1 {
+            return 1 + ((value - 1) * damping)
+        }
+        return 1 - ((1 - value) * damping)
+    }
+
+    private var interactiveBoundsSize: CGSize {
+        CGSize(
+            width: stickerSize.width * max(scale, 1),
+            height: stickerSize.height * max(scale, 1)
+        )
     }
 
     var body: some View {
         ZStack {
+            Color.clear
+                .frame(width: interactiveBoundsSize.width, height: interactiveBoundsSize.height)
+
             // ... (resto del contenido del ZStack sin cambios hasta la línea 7405)
             // ✅ SOLUCIÓN DEFINITIVA: Renderizado idéntico al Viewer
             if sticker.isAnimated {
@@ -255,13 +320,7 @@ struct StickerOverlayView: View {
             } else if sticker.type == .emojiSlider,
                       let sliderPrompt = sticker.interactionData?.sliderPrompt,
                       let sliderEmoji = sticker.interactionData?.sliderEmoji {
-                StickerEmojiSliderCardView(
-                    prompt: sliderPrompt,
-                    emoji: sliderEmoji,
-                    value: 0.5
-                )
-                .frame(width: emojiSliderRenderingSize(prompt: sliderPrompt).width, height: emojiSliderRenderingSize(prompt: sliderPrompt).height)
-                .allowsHitTesting(false)
+                emojiSliderEditorView(prompt: sliderPrompt, emoji: sliderEmoji)
             } else if sticker.type == .shareMoment {
                 // ✅ SHARE MOMENT: Renderizado dinámico de overlays (Header + Caption)
                 ZStack(alignment: .top) {
@@ -527,7 +586,12 @@ struct StickerOverlayView: View {
                         return
                     }
 
-                    let newScale = sticker.scale * value
+                    let baseScale = stickerPinchStartScale ?? sticker.scale
+                    if stickerPinchStartScale == nil {
+                        stickerPinchStartScale = sticker.scale
+                    }
+
+                    let newScale = baseScale * dampedMagnification(value)
                     scale = min(max(newScale, minimumStickerScale), maximumStickerScale)
                 }
                 .onEnded { _ in
@@ -537,6 +601,7 @@ struct StickerOverlayView: View {
                     }
 
                     sticker.scale = scale
+                    stickerPinchStartScale = nil
                 }
         )
         .simultaneousGesture(
@@ -583,6 +648,17 @@ struct StickerOverlayView: View {
                 showInteractionFeedback = false
             }
         }
+    }
+
+    @ViewBuilder
+    private func emojiSliderEditorView(prompt: String, emoji: String) -> some View {
+        Image(uiImage: sticker.image)
+            .resizable()
+            .interpolation(.high)
+            .antialiased(true)
+            .aspectRatio(contentMode: .fit)
+            .frame(width: sticker.image.size.width, height: sticker.image.size.height)
+        .allowsHitTesting(false)
     }
 
     private var isLiveSelfieSticker: Bool {
