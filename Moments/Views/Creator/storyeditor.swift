@@ -209,6 +209,7 @@ struct StoryEditingView: View {
             setupStickerListener()
             setupChainContextListener()
             refreshPrimaryVideoAspectRatio()
+            resetBaseMediaTransform()
 
             // ✅ AGREGAR STICKER INICIAL SI EXISTE
             if let initialSticker = initialSticker {
@@ -228,6 +229,7 @@ struct StoryEditingView: View {
             }
         }
             .onChange(of: selectedMediaItems.first?.id) { _, _ in
+                resetBaseMediaTransform()
                 refreshPrimaryVideoAspectRatio()
             }
             .onDisappear {
@@ -460,32 +462,44 @@ struct StoryEditingView: View {
         }
     }
 
+    private func resetBaseMediaTransform() {
+        imageScale = 1.0
+        imageOffset = .zero
+        imageRotation = .zero
+    }
+
     @ViewBuilder
     private func backgroundMediaView(canvasSize: CGSize) -> some View {
         if let firstMedia = selectedMediaItems.first {
             if firstMedia.type == .video, let videoURL = firstMedia.videoURL {
                 let fallbackAspectRatio = firstMedia.image.size.width / max(firstMedia.image.size.height, 1)
                 let mediaAspectRatio = primaryVideoAspectRatio ?? fallbackAspectRatio
-                let presentationMode = StoryMediaLayoutRules.presentationMode(
-                    for: mediaAspectRatio,
-                    canvasAspectRatio: canvasSize.width / max(canvasSize.height, 1)
+                let referenceHeight = max(firstMedia.image.size.height, 1)
+                let resolvedMediaSize = CGSize(
+                    width: mediaAspectRatio * referenceHeight,
+                    height: referenceHeight
                 )
-                ZStack {
-                    StoryVideoPlayerView(videoURL: videoURL, videoGravity: .resizeAspectFill)
-                        .frame(width: canvasSize.width, height: canvasSize.height)
-                        .blur(radius: 20)
-                        .scaleEffect(1.1)
-                        .clipped()
-                        .ignoresSafeArea()
-
+                StoryEditableMediaContainer(
+                    mediaSize: resolvedMediaSize,
+                    scale: $imageScale,
+                    offset: $imageOffset,
+                    rotation: $imageRotation,
+                    canvasSize: canvasSize,
+                    paletteIdentity: "\(firstMedia.id)-video-\(Int(mediaAspectRatio * 1000))",
+                    paletteSourceImage: firstMedia.image,
+                    isInteractionEnabled: activeEditorMode == .idle && !isEditingSticker
+                ) { baseRect in
                     StoryVideoPlayerView(
                         videoURL: videoURL,
-                        videoGravity: presentationMode.videoGravity
+                        videoGravity: StoryMediaLayoutRules.presentationMode(
+                            for: mediaAspectRatio,
+                            canvasAspectRatio: canvasSize.width / max(canvasSize.height, 1)
+                        ).videoGravity
                     )
-                        .frame(width: canvasSize.width, height: canvasSize.height)
-                        .clipped()
-                        .ignoresSafeArea()
+                    .frame(width: baseRect.width, height: baseRect.height)
                 }
+                .clipped()
+                .ignoresSafeArea()
             } else {
                 EditableImageView(
                     image: firstMedia.image,
@@ -493,7 +507,9 @@ struct StoryEditingView: View {
                     offset: $imageOffset,
                     rotation: $imageRotation,
                     filteredImage: filteredImage,
-                    canvasSize: canvasSize
+                    canvasSize: canvasSize,
+                    paletteIdentity: "\(firstMedia.id)-\(selectedFilter.rawValue)-\(Int(filterIntensity * 100))-\(filteredImage != nil)",
+                    isInteractionEnabled: activeEditorMode == .idle && !isEditingSticker
                 )
                 .frame(width: canvasSize.width, height: canvasSize.height)
                 .clipped()
@@ -1080,33 +1096,16 @@ struct StoryEditingView: View {
         return targetSize
     }
 
-    private func storyBackgroundBlurImage(baseImage: UIImage, targetSize: CGSize) -> UIImage {
-        let blurRadius: CGFloat = 20
-        let ciContext = CIContext(options: [.useSoftwareRenderer: false])
-        let smallSize = CGSize(width: 200, height: 200 * (targetSize.height / max(targetSize.width, 1)))
-        let smallRect = CGRect(origin: .zero, size: smallSize)
-
-        let smallRenderer = UIGraphicsImageRenderer(size: smallSize)
-        let smallImage = smallRenderer.image { _ in
-            baseImage.draw(in: smallRect)
+    private func storyBackgroundImage(baseImage: UIImage, targetSize: CGSize) -> UIImage {
+        let palette = storyDominantBackgroundColors(from: baseImage)
+        let renderer = UIGraphicsImageRenderer(size: targetSize)
+        return renderer.image { context in
+            drawStoryMediaBackground(
+                in: CGRect(origin: .zero, size: targetSize),
+                palette: palette,
+                context: context.cgContext
+            )
         }
-
-        guard let ciImage = CIImage(image: smallImage),
-              let clampFilter = CIFilter(name: "CIAffineClamp"),
-              let blurFilter = CIFilter(name: "CIGaussianBlur") else {
-            return baseImage
-        }
-
-        clampFilter.setValue(ciImage, forKey: kCIInputImageKey)
-        blurFilter.setValue(clampFilter.outputImage, forKey: kCIInputImageKey)
-        blurFilter.setValue(blurRadius, forKey: kCIInputRadiusKey)
-
-        guard let outputImage = blurFilter.outputImage?.cropped(to: ciImage.extent),
-              let cgImage = ciContext.createCGImage(outputImage, from: outputImage.extent) else {
-            return baseImage
-        }
-
-        return UIImage(cgImage: cgImage)
     }
 
     private func makePixelBuffer(from image: UIImage, size: CGSize) -> CVPixelBuffer? {
@@ -1221,38 +1220,33 @@ struct StoryEditingView: View {
     }
 
     private func mediaRectForStoryCanvas(mediaSize: CGSize, targetSize: CGSize) -> CGRect {
-        let imageRatio = mediaSize.width / max(mediaSize.height, 1)
-        let targetRatio = targetSize.width / max(targetSize.height, 1)
-        let useFit = StoryMediaLayoutRules.presentationMode(for: imageRatio, canvasAspectRatio: targetRatio) == .fitWithBlur
-        let mediaIsWider = imageRatio > targetRatio
+        storyMediaRectForCanvas(mediaSize: mediaSize, canvasSize: targetSize)
+    }
 
-        let finalWidth: CGFloat
-        let finalHeight: CGFloat
+    private func transformedStoryMediaRect(
+        mediaSize: CGSize,
+        targetSize: CGSize,
+        scale: CGFloat,
+        offset: CGSize,
+        rotation: Angle
+    ) -> CGRect {
+        let baseRect = mediaRectForStoryCanvas(mediaSize: mediaSize, targetSize: targetSize)
+        let center = CGPoint(x: targetSize.width / 2, y: targetSize.height / 2)
 
-        if useFit {
-            if mediaIsWider {
-                finalWidth = targetSize.width
-                finalHeight = targetSize.width / max(imageRatio, 0.0001)
-            } else {
-                finalHeight = targetSize.height
-                finalWidth = targetSize.height * imageRatio
-            }
-        } else {
-            if mediaIsWider {
-                finalHeight = targetSize.height
-                finalWidth = targetSize.height * imageRatio
-            } else {
-                finalWidth = targetSize.width
-                finalHeight = targetSize.width / max(imageRatio, 0.0001)
-            }
+        var transform = CGAffineTransform.identity
+        transform = transform.translatedBy(x: center.x + offset.width, y: center.y + offset.height)
+        transform = transform.rotated(by: rotation.radians)
+        transform = transform.scaledBy(x: scale, y: scale)
+        transform = transform.translatedBy(x: -center.x, y: -center.y)
+
+        return baseRect.applying(transform)
+    }
+
+    private func renderPaletteSourceImage(for media: ProcessedMedia) -> UIImage {
+        if media.type == .image, selectedFilter != .normal {
+            return FilterService.shared.applyFilter(selectedFilter, to: media.image, intensity: filterIntensity)
         }
-
-        return CGRect(
-            x: (targetSize.width - finalWidth) / 2,
-            y: (targetSize.height - finalHeight) / 2,
-            width: finalWidth,
-            height: finalHeight
-        )
+        return media.image
     }
 
     private func renderStoryOverlayImage(targetSize: CGSize, screenSize: CGSize) -> UIImage? {
@@ -1325,15 +1319,11 @@ struct StoryEditingView: View {
 
         return renderer.image { context in
             let rect = CGRect(origin: .zero, size: targetSize)
-            let blurImage = storyBackgroundBlurImage(baseImage: baseImage, targetSize: targetSize)
-            let overscale: CGFloat = 1.05
-            let overscaleRect = CGRect(
-                x: -(targetSize.width * (overscale - 1) / 2),
-                y: -(targetSize.height * (overscale - 1) / 2),
-                width: targetSize.width * overscale,
-                height: targetSize.height * overscale
+            let paletteImage = storyBackgroundImage(
+                baseImage: renderPaletteSourceImage(for: firstMedia),
+                targetSize: targetSize
             )
-            blurImage.draw(in: overscaleRect)
+            paletteImage.draw(in: rect)
 
             let renderImage: UIImage
             if selectedFilter != .normal {
@@ -1343,21 +1333,19 @@ struct StoryEditingView: View {
             }
 
             context.cgContext.saveGState()
-            context.cgContext.translateBy(x: targetSize.width / 2, y: targetSize.height / 2)
+            let scaleFactorX = targetSize.width / max(screenSize.width, 1)
+            let scaleFactorY = targetSize.height / max(screenSize.height, 1)
+            let baseRect = mediaRectForStoryCanvas(mediaSize: renderImage.size, targetSize: targetSize)
 
-            if firstMedia.type != .video {
-                let scaleFactorX = targetSize.width / max(screenSize.width, 1)
-                let scaleFactorY = targetSize.height / max(screenSize.height, 1)
-                context.cgContext.rotate(by: imageRotation.radians)
-                context.cgContext.scaleBy(x: imageScale, y: imageScale)
-                context.cgContext.translateBy(
-                    x: imageOffset.width * scaleFactorX,
-                    y: imageOffset.height * scaleFactorY
-                )
-            }
+            context.cgContext.translateBy(
+                x: (targetSize.width / 2) + (imageOffset.width * scaleFactorX),
+                y: (targetSize.height / 2) + (imageOffset.height * scaleFactorY)
+            )
+            context.cgContext.rotate(by: imageRotation.radians)
+            context.cgContext.scaleBy(x: imageScale, y: imageScale)
+            context.cgContext.translateBy(x: -targetSize.width / 2, y: -targetSize.height / 2)
 
-            let imageRect = mediaRectForStoryCanvas(mediaSize: renderImage.size, targetSize: targetSize)
-                .offsetBy(dx: -targetSize.width / 2, dy: -targetSize.height / 2)
+            let imageRect = baseRect
             renderImage.draw(in: imageRect)
             context.cgContext.restoreGState()
 
@@ -1421,7 +1409,12 @@ struct StoryEditingView: View {
 
     private func shouldBakeCurrentOverlaysIntoVideo(_ media: ProcessedMedia) -> Bool {
         guard media.type == .video, media.storyVideoMode != .autoSplit else { return false }
-        return drawingImage != nil || !storyText.isEmpty
+        return drawingImage != nil
+            || !storyText.isEmpty
+            || abs(imageScale - 1) > 0.001
+            || abs(imageOffset.width) > 0.5
+            || abs(imageOffset.height) > 0.5
+            || abs(imageRotation.radians) > 0.001
     }
 
     private func exportVideoWithCurrentOverlays(_ media: ProcessedMedia) async throws -> URL {
@@ -1437,14 +1430,17 @@ struct StoryEditingView: View {
         let duration = try await asset.load(.duration)
         let targetSize = storyRenderTargetSize()
         let overlayImage = renderStoryOverlayImage(targetSize: targetSize, screenSize: UIScreen.main.bounds.size)
-        let blurImage = storyBackgroundBlurImage(baseImage: media.image, targetSize: targetSize)
+        let backgroundImage = storyBackgroundImage(
+            baseImage: renderPaletteSourceImage(for: media),
+            targetSize: targetSize
+        )
 
         let composition = AVMutableComposition()
         let frameRate = try await videoTrack.load(.nominalFrameRate)
         let timescale = Int32(max(30, min(60, Int(frameRate.rounded()))))
 
         let blurVideoURL = try await createStillImageVideo(
-            from: blurImage,
+            from: backgroundImage,
             targetSize: targetSize,
             duration: duration,
             frameRate: timescale
@@ -1481,18 +1477,27 @@ struct StoryEditingView: View {
         let preferredTransform = try await videoTrack.load(.preferredTransform)
         let transformedRect = CGRect(origin: .zero, size: naturalSize).applying(preferredTransform)
         let actualSize = CGSize(width: abs(transformedRect.width), height: abs(transformedRect.height))
-        let useFit = StoryMediaLayoutRules.presentationMode(for: actualSize, canvasSize: targetSize) == .fitWithBlur
-        let scale = useFit
-            ? min(targetSize.width / max(actualSize.width, 1), targetSize.height / max(actualSize.height, 1))
-            : max(targetSize.width / max(actualSize.width, 1), targetSize.height / max(actualSize.height, 1))
-
+        let baseRect = storyMediaBaseRect(mediaSize: actualSize, canvasSize: targetSize)
+        let scale = baseRect.width / max(actualSize.width, 1)
         let scaledTransform = preferredTransform.concatenating(CGAffineTransform(scaleX: scale, y: scale))
         let scaledRect = CGRect(origin: .zero, size: naturalSize).applying(scaledTransform)
         let translation = CGAffineTransform(
-            translationX: (targetSize.width - scaledRect.width) / 2 - scaledRect.minX,
-            y: (targetSize.height - scaledRect.height) / 2 - scaledRect.minY
+            translationX: baseRect.midX - scaledRect.midX,
+            y: baseRect.midY - scaledRect.midY
         )
-        let finalTransform = scaledTransform.concatenating(translation)
+        let scaleFactorX = targetSize.width / max(UIScreen.main.bounds.width, 1)
+        let scaleFactorY = targetSize.height / max(UIScreen.main.bounds.height, 1)
+        let userTransform = CGAffineTransform.identity
+            .translatedBy(
+                x: (targetSize.width / 2) + (imageOffset.width * scaleFactorX),
+                y: (targetSize.height / 2) + (imageOffset.height * scaleFactorY)
+            )
+            .rotated(by: imageRotation.radians)
+            .scaledBy(x: imageScale, y: imageScale)
+            .translatedBy(x: -targetSize.width / 2, y: -targetSize.height / 2)
+        let finalTransform = scaledTransform
+            .concatenating(translation)
+            .concatenating(userTransform)
 
         let instruction = AVMutableVideoCompositionInstruction()
         instruction.timeRange = timeRange
@@ -1559,7 +1564,10 @@ struct StoryEditingView: View {
         let exportedVideoURL = try await exportVideoWithCurrentOverlays(media)
         let finalMedia = media.with(
             videoURL: exportedVideoURL,
+            aspectRatio: .nineBySixteen,
+            recommendedAspectRatio: .nineBySixteen,
             hasEdits: true,
+            thumbnailURL: nil,
             image: finalRenderedImage
         )
 

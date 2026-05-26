@@ -359,10 +359,6 @@ struct StoryOverlaysView: View {
         }
         .coordinateSpace(name: "storyCanvas")
         .frame(width: canvasSize.width, height: canvasSize.height)
-        .onTapGesture {
-            // Deseleccionar al tocar el fondo
-            selectedStickerId = nil
-        }
         .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillChangeFrameNotification)) { notification in
             guard let endFrame = notification.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? CGRect else { return }
             let screenHeight = UIScreen.main.bounds.height
