@@ -175,6 +175,7 @@ struct InteractiveFrameSticker: View {
     let storyId: String
     let image: UIImage?
     let caption: String? // ✅ Nuevo
+    let frameStyle: StoryPolaroidFrameStyle
     let contentScale: CGFloat
     let contentOffset: CGSize
     let isEditing: Bool
@@ -192,6 +193,7 @@ struct InteractiveFrameSticker: View {
         storyId: String = "",
         image: UIImage?,
         caption: String? = nil,
+        frameStyle: StoryPolaroidFrameStyle = .classic,
         contentScale: CGFloat = 1.0,
         contentOffset: CGSize = .zero,
         isEditing: Bool = false,
@@ -201,6 +203,7 @@ struct InteractiveFrameSticker: View {
         self.storyId = storyId
         self.image = image
         self.caption = caption
+        self.frameStyle = frameStyle
         self.contentScale = contentScale
         self.contentOffset = contentOffset
         self.isEditing = isEditing
@@ -214,6 +217,7 @@ struct InteractiveFrameSticker: View {
             image: image,
             progress: revealProgress,
             caption: caption,
+            frameStyle: frameStyle,
             contentScale: contentScale,
             contentOffset: contentOffset
         )

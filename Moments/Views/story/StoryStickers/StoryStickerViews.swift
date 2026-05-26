@@ -936,6 +936,7 @@ struct StoryStickerView: View {
             InteractiveLocationSticker(
                 locationName: locationName,
                 coordinate: sticker.interactionData?.locationCoordinate,
+                styleVariant: sticker.interactionData?.styleVariant ?? 0,
                 onPauseStory: onPauseStory,
                 onResumeStory: onResumeStory
             )
@@ -945,6 +946,7 @@ struct StoryStickerView: View {
             // ✅ MENTION INTERACTIVO: Diseño completo nativo
             InteractiveMentionSticker(
                 username: username,
+                styleVariant: sticker.interactionData?.styleVariant ?? 0,
                 onTap: {
                     handleStickerTap()
                 }
@@ -955,6 +957,7 @@ struct StoryStickerView: View {
             // ✅ HASHTAG INTERACTIVO: Diseño completo e interactivo
             InteractiveHashtagSticker(
                 hashtag: hashtag,
+                styleVariant: sticker.interactionData?.styleVariant ?? 0,
                 onPauseStory: onPauseStory,
                 onResumeStory: onResumeStory
             )
@@ -977,6 +980,7 @@ struct StoryStickerView: View {
                 storyId: storyId,
                 image: sticker.image,
                 caption: sticker.interactionData?.caption,
+                frameStyle: StoryPolaroidFrameStyle(rawValueOrDefault: sticker.interactionData?.frameStyle),
                 contentScale: sticker.interactionData?.contentScale ?? 1.0,
                 contentOffset: CGSize(
                     width: sticker.interactionData?.contentOffsetX ?? 0,
@@ -995,7 +999,8 @@ struct StoryStickerView: View {
                 handleStickerTap()
             }) {
                 StickerLinkCardView(
-                    title: sticker.interactionData?.linkTitle ?? stickerHostLabel(from: linkURL)
+                    title: sticker.interactionData?.linkTitle ?? stickerHostLabel(from: linkURL),
+                    styleVariant: sticker.interactionData?.styleVariant ?? 0
                 )
             }
             .buttonStyle(PlainButtonStyle())
@@ -1042,7 +1047,8 @@ struct StoryStickerView: View {
         } else if sticker.type == .time {
             StickerTimeCardView(
                 timeText: sticker.interactionData?.questionText ?? Date.now.formatted(date: .omitted, time: .shortened),
-                dateText: sticker.interactionData?.caption ?? Date.now.formatted(date: .numeric, time: .omitted)
+                dateText: sticker.interactionData?.caption ?? Date.now.formatted(date: .numeric, time: .omitted),
+                styleVariant: sticker.interactionData?.styleVariant ?? 0
             )
             .frame(width: 164, height: 56)
             .scaleEffect(sticker.scale)
@@ -1495,15 +1501,13 @@ struct QuestionResponseInputView: View {
 struct InteractiveLocationSticker: View {
     let locationName: String
     let coordinate: CLLocationCoordinate2D?
+    let styleVariant: Int
     let onPauseStory: () -> Void
     let onResumeStory: () -> Void
     @State private var showingLocationMap = false
     @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
-        let surface = momentsStickerSurface(for: colorScheme)
-        let ink = momentsStickerInk(for: colorScheme)
-
         Button(action: {
             onPauseStory() // ✅ PAUSAR HISTORIA
             showingLocationMap = true
@@ -1516,12 +1520,16 @@ struct InteractiveLocationSticker: View {
                     .tracking(0.5)
                     .lineLimit(1)
             }
-            .foregroundStyle(ink)
+            .foregroundStyle(locationStickerForegroundStyle)
             .padding(.horizontal, 18)
             .padding(.vertical, 14)
             .background(
                 Capsule(style: .continuous)
-                    .fill(surface)
+                    .fill(locationStickerBackground)
+            )
+            .overlay(
+                Capsule(style: .continuous)
+                    .stroke(locationStickerStroke, lineWidth: locationStickerStrokeWidth)
             )
         }
         .buttonStyle(PlainButtonStyle())
@@ -1539,35 +1547,62 @@ struct InteractiveLocationSticker: View {
         }
         .onAppear { }
     }
+
+    private var locationStickerForegroundStyle: AnyShapeStyle {
+        momentsTapCycleStickerForegroundStyle(for: colorScheme, styleVariant: styleVariant)
+    }
+
+    private var locationStickerBackground: Color {
+        momentsTapCycleStickerBackground(for: colorScheme, styleVariant: styleVariant)
+    }
+
+    private var locationStickerStroke: Color {
+        momentsTapCycleStickerStroke(for: colorScheme, styleVariant: styleVariant)
+    }
+
+    private var locationStickerStrokeWidth: CGFloat {
+        momentsTapCycleStickerStrokeWidth(styleVariant: styleVariant)
+    }
 }
 
 // MARK: - ✅ INTERACTIVE MENTION STICKER
 struct InteractiveMentionSticker: View {
     let username: String
+    let styleVariant: Int
     let onTap: () -> Void
     @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
-        let surface = momentsStickerSurface(for: colorScheme)
-        let ink = momentsStickerInk(for: colorScheme)
+        let normalizedVariant = normalizedTapCycleStickerVariant(styleVariant)
 
         Button(action: onTap) {
             HStack(spacing: 2) {
                 Text("@")
                     .font(.system(size: 20, weight: .heavy, design: .rounded))
-                    .foregroundStyle(ink.opacity(0.58))
-                    .opacity(0.7)
+                    .foregroundStyle(
+                        normalizedVariant == 3
+                            ? momentsTapCycleStickerForegroundStyle(for: colorScheme, styleVariant: styleVariant)
+                            : AnyShapeStyle(momentsStickerInk(for: colorScheme).opacity(0.58))
+                    )
+                    .opacity(normalizedVariant == 3 ? 1.0 : 0.7)
 
                 Text(username.uppercased())
                     .font(.system(size: 20, weight: .black, design: .rounded))
                     .tracking(0.5)
-                    .foregroundStyle(ink)
+                    .foregroundStyle(momentsTapCycleStickerForegroundStyle(for: colorScheme, styleVariant: styleVariant))
             }
             .padding(.horizontal, 20)
             .padding(.vertical, 12)
             .background(
                 Capsule(style: .continuous)
-                    .fill(surface)
+                    .fill(momentsTapCycleStickerBackground(for: colorScheme, styleVariant: styleVariant))
+            )
+            .overlay(
+                Capsule(style: .continuous)
+                    .stroke(
+                        momentsTapCycleStickerStroke(for: colorScheme, styleVariant: styleVariant),
+                        lineWidth: momentsTapCycleStickerStrokeWidth(styleVariant: styleVariant)
+                    )
             )
         }
         .buttonStyle(PlainButtonStyle())
@@ -1577,6 +1612,7 @@ struct InteractiveMentionSticker: View {
 // MARK: - ✅ INTERACTIVE HASHTAG STICKER
 struct InteractiveHashtagSticker: View {
     let hashtag: String
+    let styleVariant: Int
     let onPauseStory: () -> Void
     let onResumeStory: () -> Void
     @State private var showingHashtagExplore = false
@@ -1586,7 +1622,7 @@ struct InteractiveHashtagSticker: View {
             onPauseStory() // ✅ PAUSAR HISTORIA
             showingHashtagExplore = true
         }) {
-            StickerHashtagCardView(hashtag: hashtag)
+            StickerHashtagCardView(hashtag: hashtag, styleVariant: styleVariant)
         }
         .buttonStyle(PlainButtonStyle())
         .fullScreenCover(isPresented: $showingHashtagExplore) {

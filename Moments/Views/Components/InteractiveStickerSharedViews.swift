@@ -2,6 +2,17 @@ import SwiftUI
 import UIKit
 import AVFoundation
 
+enum StoryPolaroidFrameStyle: String, CaseIterable {
+    case classic
+    case clean
+    case vintage
+    case album
+
+    init(rawValueOrDefault rawValue: String?) {
+        self = StoryPolaroidFrameStyle(rawValue: rawValue ?? "") ?? .classic
+    }
+}
+
 func momentsStickerSurface(for colorScheme: ColorScheme) -> Color {
     colorScheme == .dark
         ? Color(hex: "0B1215")
@@ -20,6 +31,76 @@ func momentsStickerInverseSurface(for colorScheme: ColorScheme) -> Color {
 
 func momentsStickerInverseInk(for colorScheme: ColorScheme) -> Color {
     momentsStickerSurface(for: colorScheme)
+}
+
+func normalizedTapCycleStickerVariant(_ styleVariant: Int, count: Int = 4) -> Int {
+    ((styleVariant % count) + count) % count
+}
+
+func momentsStickerRainbowGradient() -> LinearGradient {
+    LinearGradient(
+        colors: [
+            Color(hex: "FF5F6D"),
+            Color(hex: "FF8C42"),
+            Color(hex: "FFD166"),
+            Color(hex: "6BCB77"),
+            Color(hex: "4D96FF"),
+            Color(hex: "9D4EDD")
+        ],
+        startPoint: .leading,
+        endPoint: .trailing
+    )
+}
+
+func momentsTapCycleStickerBackground(for colorScheme: ColorScheme, styleVariant: Int) -> Color {
+    let normalizedVariant = normalizedTapCycleStickerVariant(styleVariant)
+    let surface = momentsStickerSurface(for: colorScheme)
+    let ink = momentsStickerInk(for: colorScheme)
+
+    switch normalizedVariant {
+    case 1:
+        return ink
+    case 2:
+        return colorScheme == .dark ? surface.opacity(0.78) : surface.opacity(0.96)
+    case 3:
+        return colorScheme == .dark ? surface.opacity(0.98) : .white
+    default:
+        return surface
+    }
+}
+
+func momentsTapCycleStickerForegroundStyle(for colorScheme: ColorScheme, styleVariant: Int) -> AnyShapeStyle {
+    let normalizedVariant = normalizedTapCycleStickerVariant(styleVariant)
+    let surface = momentsStickerSurface(for: colorScheme)
+    let ink = momentsStickerInk(for: colorScheme)
+
+    switch normalizedVariant {
+    case 1:
+        return AnyShapeStyle(surface)
+    case 3:
+        return AnyShapeStyle(momentsStickerRainbowGradient())
+    default:
+        return AnyShapeStyle(ink)
+    }
+}
+
+func momentsTapCycleStickerStroke(for colorScheme: ColorScheme, styleVariant: Int) -> Color {
+    let normalizedVariant = normalizedTapCycleStickerVariant(styleVariant)
+    let ink = momentsStickerInk(for: colorScheme)
+
+    switch normalizedVariant {
+    case 2:
+        return ink.opacity(colorScheme == .dark ? 0.34 : 0.22)
+    case 3:
+        return Color(hex: "FF5F6D").opacity(colorScheme == .dark ? 0.24 : 0.18)
+    default:
+        return .clear
+    }
+}
+
+func momentsTapCycleStickerStrokeWidth(styleVariant: Int) -> CGFloat {
+    let normalizedVariant = normalizedTapCycleStickerVariant(styleVariant)
+    return (normalizedVariant == 2 || normalizedVariant == 3) ? 1.25 : 0
 }
 
 func normalizedStickerURL(from raw: String) -> URL? {
@@ -249,12 +330,10 @@ private struct StickerCountdownDigitBox: View {
 
 struct StickerLinkCardView: View {
     let title: String
+    var styleVariant: Int = 0
     @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
-        let surface = momentsStickerSurface(for: colorScheme)
-        let ink = momentsStickerInk(for: colorScheme)
-
         HStack(spacing: 8) {
             Image(systemName: "link")
                 .font(.system(size: 16, weight: .bold))
@@ -264,43 +343,62 @@ struct StickerLinkCardView: View {
                 .tracking(0.5)
                 .lineLimit(1)
         }
-        .foregroundStyle(ink)
+        .foregroundStyle(momentsTapCycleStickerForegroundStyle(for: colorScheme, styleVariant: styleVariant))
         .padding(.horizontal, 18)
         .padding(.vertical, 14)
         .background(
             Capsule(style: .continuous)
-                .fill(surface)
+                .fill(momentsTapCycleStickerBackground(for: colorScheme, styleVariant: styleVariant))
         )
-            .frame(height: 50)
-            .fixedSize(horizontal: true, vertical: false)
+        .overlay(
+            Capsule(style: .continuous)
+                .stroke(
+                    momentsTapCycleStickerStroke(for: colorScheme, styleVariant: styleVariant),
+                    lineWidth: momentsTapCycleStickerStrokeWidth(styleVariant: styleVariant)
+                )
+        )
+        .frame(height: 50)
+        .fixedSize(horizontal: true, vertical: false)
     }
 }
 
 struct StickerHashtagCardView: View {
     let hashtag: String
+    var styleVariant: Int = 0
     @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
-        let surface = momentsStickerSurface(for: colorScheme)
-        let ink = momentsStickerInk(for: colorScheme)
+        let normalizedVariant = normalizedTapCycleStickerVariant(styleVariant)
+        let foregroundStyle = momentsTapCycleStickerForegroundStyle(for: colorScheme, styleVariant: styleVariant)
 
         HStack(spacing: 0) {
             Text("#")
                 .font(.system(size: 20, weight: .heavy, design: .rounded))
-                .foregroundStyle(ink.opacity(0.58))
-                .opacity(0.7)
+                .foregroundStyle(
+                    normalizedVariant == 3
+                        ? foregroundStyle
+                        : AnyShapeStyle(momentsStickerInk(for: colorScheme).opacity(0.58))
+                )
+                .opacity(normalizedVariant == 3 ? 1.0 : 0.7)
             
             Text(hashtag.uppercased())
                 .font(.system(size: 18, weight: .black, design: .rounded))
                 .tracking(0.5)
-                .foregroundStyle(ink)
+                .foregroundStyle(foregroundStyle)
                 .lineLimit(1)
         }
         .padding(.horizontal, 20)
         .padding(.vertical, 12)
         .background(
             Capsule(style: .continuous)
-                .fill(surface)
+                .fill(momentsTapCycleStickerBackground(for: colorScheme, styleVariant: styleVariant))
+        )
+        .overlay(
+            Capsule(style: .continuous)
+                .stroke(
+                    momentsTapCycleStickerStroke(for: colorScheme, styleVariant: styleVariant),
+                    lineWidth: momentsTapCycleStickerStrokeWidth(styleVariant: styleVariant)
+                )
         )
         .fixedSize(horizontal: true, vertical: false)
     }
@@ -309,29 +407,42 @@ struct StickerHashtagCardView: View {
 struct StickerTimeCardView: View {
     let timeText: String
     let dateText: String
+    var styleVariant: Int = 0
     @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
-        let surface = momentsStickerSurface(for: colorScheme)
+        let foregroundStyle = momentsTapCycleStickerForegroundStyle(for: colorScheme, styleVariant: styleVariant)
         let ink = momentsStickerInk(for: colorScheme)
+        let normalizedVariant = normalizedTapCycleStickerVariant(styleVariant)
 
         VStack(alignment: .center, spacing: 2) {
             Text(timeText)
                 .font(.system(size: 26, weight: .heavy, design: .rounded))
-                .foregroundStyle(ink)
+                .foregroundStyle(foregroundStyle)
                 .lineLimit(1)
 
             Text(dateText.uppercased())
                 .font(.system(size: 12, weight: .bold, design: .rounded))
                 .tracking(1.0)
-                .foregroundStyle(ink.opacity(0.58))
+                .foregroundStyle(
+                    normalizedVariant == 3
+                        ? foregroundStyle
+                        : AnyShapeStyle(ink.opacity(0.58))
+                )
                 .lineLimit(1)
         }
         .padding(.horizontal, 24)
         .padding(.vertical, 14)
         .background(
             Capsule(style: .continuous)
-                .fill(surface)
+                .fill(momentsTapCycleStickerBackground(for: colorScheme, styleVariant: styleVariant))
+        )
+        .overlay(
+            Capsule(style: .continuous)
+                .stroke(
+                    momentsTapCycleStickerStroke(for: colorScheme, styleVariant: styleVariant),
+                    lineWidth: momentsTapCycleStickerStrokeWidth(styleVariant: styleVariant)
+                )
         )
         .fixedSize(horizontal: true, vertical: false)
     }
@@ -638,6 +749,7 @@ struct StickerPolaroidFrameView: View {
     let image: UIImage?
     let progress: Double // 0.0 to 1.0 (revelado)
     let caption: String? // ✅ Nuevo: Texto opcional
+    let frameStyle: StoryPolaroidFrameStyle
     let contentScale: CGFloat
     let contentOffset: CGSize
     
@@ -701,37 +813,41 @@ struct StickerPolaroidFrameView: View {
             }
             .frame(width: imageViewportSize.width, height: imageViewportSize.height)
             .clipped()
-            .padding(10)
-            .background(Color.white)
+            .padding(framePadding)
+            .background(frameColor)
+            .overlay(imageViewportDecoration)
             
             // Área para escribir (estilo Polaroid)
             ZStack {
                 Rectangle()
-                    .fill(Color.white)
+                    .fill(frameColor)
                     .frame(width: 200, height: 40)
                 
                 if let caption = caption, !caption.isEmpty {
                     let visibleCount = Int(Double(caption.count) * progress)
                     (
                         Text(caption.prefix(visibleCount))
-                            .font(.custom("Caveat-Medium", size: 21))
-                            .foregroundColor(.black.opacity(0.85))
+                            .font(captionFont)
+                            .foregroundColor(captionColor)
                         +
                         Text(caption.dropFirst(visibleCount))
-                            .font(.custom("Caveat-Medium", size: 21))
+                            .font(captionFont)
                             .foregroundColor(.clear)
                     )
                     .lineLimit(1)
                     .minimumScaleFactor(0.5)
                     .padding(.horizontal, 12)
-                    .rotationEffect(.degrees(-1)) // Pequeño ángulo para naturalidad
-                    .offset(y: -2)
+                    .rotationEffect(captionRotation)
+                    .offset(y: captionVerticalOffset)
                 }
             }
         }
-        .background(Color.white)
-        .shadow(color: .black.opacity(0.2), radius: 8, y: 4)
-        .rotationEffect(.degrees(-2)) // Un toque "tirado"
+        .background(frameColor)
+        .clipShape(RoundedRectangle(cornerRadius: outerCornerRadius, style: .continuous))
+        .overlay(frameBorderOverlay)
+        .shadow(color: frameShadowColor, radius: frameShadowRadius, y: frameShadowYOffset)
+        .rotationEffect(frameRotation)
+        .overlay(frameStyleDecorationOverlay)
         .overlay {
             // El lienzo mágico cubre TODA la Polaroid y se extiende fuera de ella de forma circular/difuminada
             if progress < 1.0 {
@@ -836,6 +952,319 @@ struct StickerPolaroidFrameView: View {
             width: min(max(contentOffset.width, -maxOffsetX), maxOffsetX),
             height: min(max(contentOffset.height, -maxOffsetY), maxOffsetY)
         )
+    }
+
+    private var frameColor: Color {
+        switch frameStyle {
+        case .classic:
+            return .white
+        case .clean:
+            return Color.white.opacity(0.94)
+        case .vintage:
+            return Color(red: 0.95, green: 0.91, blue: 0.82)
+        case .album:
+            return Color(red: 0.985, green: 0.965, blue: 0.93)
+        }
+    }
+
+    private var framePadding: CGFloat {
+        switch frameStyle {
+        case .classic:
+            return 10
+        case .clean:
+            return 8
+        case .vintage:
+            return 13
+        case .album:
+            return 12
+        }
+    }
+
+    private var outerCornerRadius: CGFloat {
+        switch frameStyle {
+        case .classic:
+            return 0
+        case .clean:
+            return 18
+        case .vintage:
+            return 4
+        case .album:
+            return 20
+        }
+    }
+
+    private var captionFont: Font {
+        switch frameStyle {
+        case .clean:
+            return .system(size: 18, weight: .semibold, design: .rounded)
+        case .vintage:
+            return .system(size: 18, weight: .medium, design: .serif)
+        case .album:
+            return .system(size: 17, weight: .semibold, design: .rounded)
+        case .classic:
+            return .custom("Caveat-Medium", size: 21)
+        }
+    }
+
+    private var captionColor: Color {
+        switch frameStyle {
+        case .vintage:
+            return Color(red: 0.22, green: 0.18, blue: 0.14).opacity(0.82)
+        case .album:
+            return .black.opacity(0.78)
+        default:
+            return .black.opacity(0.85)
+        }
+    }
+
+    private var captionRotation: Angle {
+        switch frameStyle {
+        case .clean, .album:
+            return .degrees(0)
+        default:
+            return .degrees(-1)
+        }
+    }
+
+    private var captionVerticalOffset: CGFloat {
+        switch frameStyle {
+        case .clean:
+            return -1
+        case .album:
+            return 0
+        default:
+            return -2
+        }
+    }
+
+    private var frameRotation: Angle {
+        switch frameStyle {
+        case .classic:
+            return .degrees(-2)
+        case .clean:
+            return .degrees(0)
+        case .vintage:
+            return .degrees(-1.4)
+        case .album:
+            return .degrees(0.35)
+        }
+    }
+
+    private var frameShadowColor: Color {
+        switch frameStyle {
+        case .clean:
+            return .black.opacity(0.14)
+        case .vintage:
+            return Color(red: 0.18, green: 0.13, blue: 0.09).opacity(0.22)
+        default:
+            return .black.opacity(0.2)
+        }
+    }
+
+    private var frameShadowRadius: CGFloat {
+        switch frameStyle {
+        case .clean:
+            return 14
+        case .vintage:
+            return 6
+        default:
+            return 8
+        }
+    }
+
+    private var frameShadowYOffset: CGFloat {
+        switch frameStyle {
+        case .clean:
+            return 7
+        case .vintage:
+            return 5
+        default:
+            return 4
+        }
+    }
+
+    private var frameBorderStrokeColor: Color {
+        switch frameStyle {
+        case .classic:
+            return .clear
+        case .clean:
+            return Color.black.opacity(0.06)
+        case .vintage:
+            return Color(red: 0.48, green: 0.38, blue: 0.27).opacity(0.24)
+        case .album:
+            return Color.black.opacity(0.08)
+        }
+    }
+
+    private var frameBorderLineWidth: CGFloat {
+        switch frameStyle {
+        case .classic:
+            return 0
+        case .vintage:
+            return 1.2
+        default:
+            return 1
+        }
+    }
+
+    @ViewBuilder
+    private var frameBorderOverlay: some View {
+        RoundedRectangle(cornerRadius: outerCornerRadius, style: .continuous)
+            .stroke(frameBorderStrokeColor, lineWidth: frameBorderLineWidth)
+    }
+
+    @ViewBuilder
+    private var imageViewportDecoration: some View {
+        switch frameStyle {
+        case .vintage:
+            ZStack {
+                RoundedRectangle(cornerRadius: 2, style: .continuous)
+                    .stroke(Color(red: 0.38, green: 0.29, blue: 0.19).opacity(0.14), lineWidth: 1)
+                    .padding(4)
+
+                RoundedRectangle(cornerRadius: 2, style: .continuous)
+                    .fill(
+                        LinearGradient(
+                            colors: [
+                                Color.black.opacity(0.05),
+                                Color.clear,
+                                Color(red: 0.42, green: 0.28, blue: 0.08).opacity(0.06)
+                            ],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .padding(4)
+
+                VStack {
+                    HStack {
+                        Color(red: 0.46, green: 0.33, blue: 0.19).opacity(0.10)
+                            .frame(width: 30, height: 1)
+                        Spacer()
+                        Color(red: 0.36, green: 0.27, blue: 0.18).opacity(0.08)
+                            .frame(width: 18, height: 1)
+                    }
+                    Spacer()
+                    HStack {
+                        Spacer()
+                        Color(red: 0.36, green: 0.27, blue: 0.18).opacity(0.09)
+                            .frame(width: 24, height: 1)
+                    }
+                }
+                .padding(10)
+            }
+        case .album:
+            ZStack {
+                StoryPolaroidCornerAccent(rotation: .degrees(0))
+                    .position(x: 16, y: 16)
+                StoryPolaroidCornerAccent(rotation: .degrees(90))
+                    .position(x: imageViewportSize.width + (framePadding * 2) - 16, y: 16)
+                StoryPolaroidCornerAccent(rotation: .degrees(-90))
+                    .position(x: 16, y: imageViewportSize.height + (framePadding * 2) - 16)
+                StoryPolaroidCornerAccent(rotation: .degrees(180))
+                    .position(x: imageViewportSize.width + (framePadding * 2) - 16, y: imageViewportSize.height + (framePadding * 2) - 16)
+            }
+        default:
+            EmptyView()
+        }
+    }
+
+    @ViewBuilder
+    private var frameStyleDecorationOverlay: some View {
+        switch frameStyle {
+        case .vintage:
+            ZStack {
+                RoundedRectangle(cornerRadius: outerCornerRadius, style: .continuous)
+                    .fill(
+                        LinearGradient(
+                            colors: [
+                                Color.white.opacity(0.12),
+                                Color.clear,
+                                Color(red: 0.36, green: 0.26, blue: 0.14).opacity(0.10)
+                            ],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .blendMode(.multiply)
+
+                RoundedRectangle(cornerRadius: outerCornerRadius, style: .continuous)
+                    .strokeBorder(
+                        LinearGradient(
+                            colors: [
+                                Color(red: 0.44, green: 0.33, blue: 0.20).opacity(0.12),
+                                Color.clear,
+                                Color(red: 0.30, green: 0.22, blue: 0.14).opacity(0.18)
+                            ],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        ),
+                        lineWidth: 1.6
+                    )
+                    .padding(0.6)
+
+                VintageWearOverlay(cornerRadius: outerCornerRadius)
+                    .padding(2)
+            }
+        case .album:
+            RoundedRectangle(cornerRadius: outerCornerRadius, style: .continuous)
+                .strokeBorder(Color.white.opacity(0.45), lineWidth: 0.8)
+                .padding(2)
+        default:
+            EmptyView()
+        }
+    }
+}
+
+private struct StoryPolaroidCornerAccent: View {
+    let rotation: Angle
+
+    var body: some View {
+        Path { path in
+            path.move(to: CGPoint(x: 0, y: 14))
+            path.addLine(to: CGPoint(x: 0, y: 0))
+            path.addLine(to: CGPoint(x: 14, y: 0))
+        }
+        .stroke(Color.black.opacity(0.16), style: StrokeStyle(lineWidth: 2.2, lineCap: .round, lineJoin: .round))
+        .frame(width: 14, height: 14)
+        .rotationEffect(rotation)
+    }
+}
+
+private struct VintageWearOverlay: View {
+    let cornerRadius: CGFloat
+
+    var body: some View {
+        GeometryReader { proxy in
+            let width = proxy.size.width
+            let height = proxy.size.height
+
+            ZStack {
+                Circle()
+                    .fill(Color(red: 0.48, green: 0.37, blue: 0.23).opacity(0.05))
+                    .frame(width: 18, height: 18)
+                    .position(x: 12, y: 14)
+
+                Circle()
+                    .fill(Color(red: 0.30, green: 0.22, blue: 0.14).opacity(0.04))
+                    .frame(width: 14, height: 14)
+                    .position(x: width - 14, y: height - 16)
+
+                Capsule(style: .continuous)
+                    .fill(Color(red: 0.40, green: 0.28, blue: 0.16).opacity(0.05))
+                    .frame(width: 22, height: 1.2)
+                    .rotationEffect(.degrees(-18))
+                    .position(x: width - 28, y: 18)
+
+                Capsule(style: .continuous)
+                    .fill(Color(red: 0.30, green: 0.22, blue: 0.14).opacity(0.04))
+                    .frame(width: 16, height: 1.2)
+                    .rotationEffect(.degrees(24))
+                    .position(x: 20, y: height - 20)
+            }
+            .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+        }
+        .allowsHitTesting(false)
     }
 }
 

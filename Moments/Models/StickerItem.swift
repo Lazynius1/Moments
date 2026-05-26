@@ -71,6 +71,7 @@ struct StickerItem: Identifiable {
         var hashtag: String?
         var location: String?
         var locationCoordinate: CLLocationCoordinate2D?
+        var styleVariant: Int?
         var pollData: [String]?
         var questionText: String?
         var weatherSymbol: String?
@@ -108,6 +109,7 @@ struct StickerItem: Identifiable {
             hashtag: String? = nil,
             location: String? = nil,
             locationCoordinate: CLLocationCoordinate2D? = nil,
+            styleVariant: Int? = nil,
             pollData: [String]? = nil,
             questionText: String? = nil,
             weatherSymbol: String? = nil,
@@ -140,6 +142,7 @@ struct StickerItem: Identifiable {
             self.hashtag = hashtag
             self.location = location
             self.locationCoordinate = locationCoordinate
+            self.styleVariant = styleVariant
             self.pollData = pollData
             self.questionText = questionText
             self.weatherSymbol = weatherSymbol

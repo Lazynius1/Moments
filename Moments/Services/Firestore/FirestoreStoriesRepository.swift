@@ -318,6 +318,9 @@ extension FirestoreService {
             stickerData["latitude"] = latitude
             stickerData["longitude"] = longitude
         }
+        if let styleVariant = sticker.styleVariant {
+            stickerData["styleVariant"] = styleVariant
+        }
         if let questionText = sticker.questionText {
             stickerData["questionText"] = questionText
         }
