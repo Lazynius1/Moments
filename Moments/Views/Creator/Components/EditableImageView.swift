@@ -307,6 +307,7 @@ struct StoryEditableMediaContainer<Foreground: View>: View {
     let canvasSize: CGSize
     let paletteIdentity: String
     let paletteSourceImage: UIImage
+    let paletteOverride: [UIColor]?
     var isInteractionEnabled: Bool = true
     @ViewBuilder let foreground: (_ baseRect: CGRect) -> Foreground
 
@@ -321,6 +322,13 @@ struct StoryEditableMediaContainer<Foreground: View>: View {
 
     private var showsGeneratedBackground: Bool {
         storyShouldShowGeneratedBackground(scale: scale, offset: offset, rotation: rotation)
+    }
+
+    private var resolvedPalette: [UIColor] {
+        if let paletteOverride, !paletteOverride.isEmpty {
+            return paletteOverride
+        }
+        return dominantColors
     }
 
     var body: some View {
@@ -346,7 +354,7 @@ struct StoryEditableMediaContainer<Foreground: View>: View {
 
     private var transformableBody: some View {
         ZStack {
-            StoryMediaBackgroundView(palette: dominantColors)
+            StoryMediaBackgroundView(palette: resolvedPalette)
                 .opacity(showsGeneratedBackground ? 1 : 0)
 
             foreground(baseRect)
@@ -431,6 +439,7 @@ struct EditableImageView: View {
     let filteredImage: UIImage?
     let canvasSize: CGSize
     var paletteIdentity: String
+    var paletteOverride: [UIColor]? = nil
     var isInteractionEnabled: Bool = true
 
     init(
@@ -441,6 +450,7 @@ struct EditableImageView: View {
         filteredImage: UIImage? = nil,
         canvasSize: CGSize,
         paletteIdentity: String,
+        paletteOverride: [UIColor]? = nil,
         isInteractionEnabled: Bool = true
     ) {
         self.image = image
@@ -450,6 +460,7 @@ struct EditableImageView: View {
         self.filteredImage = filteredImage
         self.canvasSize = canvasSize
         self.paletteIdentity = paletteIdentity
+        self.paletteOverride = paletteOverride
         self.isInteractionEnabled = isInteractionEnabled
     }
 
@@ -466,6 +477,7 @@ struct EditableImageView: View {
             canvasSize: canvasSize,
             paletteIdentity: paletteIdentity,
             paletteSourceImage: displayImage,
+            paletteOverride: paletteOverride,
             isInteractionEnabled: isInteractionEnabled
         ) { baseRect in
             Image(uiImage: displayImage)

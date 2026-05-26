@@ -49,6 +49,7 @@ struct StoryEditingView: View {
     @State private var imageScale: CGFloat = 1.0
     @State private var imageOffset: CGSize = .zero
     @State private var imageRotation: Angle = .zero
+    @State private var selectedBackgroundPresetIndex: Int = 0
 
     @State private var selectedListId: String?
     @State private var selectedListName: String?
@@ -92,6 +93,12 @@ struct StoryEditingView: View {
     private var isDrawingMode: Bool { activeEditorMode == .drawing }
     private var isFilterMode: Bool { activeEditorMode == .filters }
     private var isCanvasModeActive: Bool { activeEditorMode != .idle }
+    private var showsGeneratedBackground: Bool {
+        storyShouldShowGeneratedBackground(scale: imageScale, offset: imageOffset, rotation: imageRotation)
+    }
+    private var selectedBackgroundPreset: StoryBackgroundPreset {
+        StoryBackgroundPreset.presets[selectedBackgroundPresetIndex]
+    }
 
     var body: some View {
         NavigationStack(path: $navigationPath) {
@@ -466,6 +473,7 @@ struct StoryEditingView: View {
         imageScale = 1.0
         imageOffset = .zero
         imageRotation = .zero
+        selectedBackgroundPresetIndex = 0
     }
 
     @ViewBuilder
@@ -487,6 +495,7 @@ struct StoryEditingView: View {
                     canvasSize: canvasSize,
                     paletteIdentity: "\(firstMedia.id)-video-\(Int(mediaAspectRatio * 1000))",
                     paletteSourceImage: firstMedia.image,
+                    paletteOverride: currentStoryBackgroundPalette(for: firstMedia),
                     isInteractionEnabled: activeEditorMode == .idle && !isEditingSticker
                 ) { baseRect in
                     StoryVideoPlayerView(
@@ -509,6 +518,7 @@ struct StoryEditingView: View {
                     filteredImage: filteredImage,
                     canvasSize: canvasSize,
                     paletteIdentity: "\(firstMedia.id)-\(selectedFilter.rawValue)-\(Int(filterIntensity * 100))-\(filteredImage != nil)",
+                    paletteOverride: currentStoryBackgroundPalette(for: firstMedia),
                     isInteractionEnabled: activeEditorMode == .idle && !isEditingSticker
                 )
                 .frame(width: canvasSize.width, height: canvasSize.height)
@@ -537,43 +547,66 @@ struct StoryEditingView: View {
 
     @ViewBuilder
     private func topBarView(topInset: CGFloat) -> some View {
-        HStack {
-            Button(action: {
-                if isFilterMode {
-                    withAnimation(.spring(response: 0.28, dampingFraction: 0.86)) {
-                        activeEditorMode = .idle
-                    }
-                } else {
-                    currentFlow = .storyCamera
-                }
-            }) {
-                Image(systemName: isFilterMode ? "chevron.left" : "xmark")
-                    .font(.title2)
-                    .foregroundColor(.white)
-                    .padding(12)
-                    .liquidGlass(in: Circle())
-            }
-            Spacer()
-            if isFilterMode {
+        ZStack {
+            HStack {
                 Button(action: {
-                    withAnimation(.spring(response: 0.28, dampingFraction: 0.86)) {
-                        activeEditorMode = .idle
+                    if isFilterMode {
+                        withAnimation(.spring(response: 0.28, dampingFraction: 0.86)) {
+                            activeEditorMode = .idle
+                        }
+                    } else {
+                        currentFlow = .storyCamera
                     }
                 }) {
-                    Text("creator.done")
-                        .font(.system(size: 15, weight: .semibold))
-                        .foregroundColor(.white)
-                        .padding(.horizontal, 14)
-                        .padding(.vertical, 8)
-                        .liquidGlass(in: Capsule())
-                }
-            } else {
-                Button(action: { saveToGallery() }) {
-                    Image(systemName: "arrow.down.circle")
+                    Image(systemName: isFilterMode ? "chevron.left" : "xmark")
                         .font(.title2)
                         .foregroundColor(.white)
                         .padding(12)
                         .liquidGlass(in: Circle())
+                }
+                Spacer()
+                if isFilterMode {
+                    Button(action: {
+                        withAnimation(.spring(response: 0.28, dampingFraction: 0.86)) {
+                            activeEditorMode = .idle
+                        }
+                    }) {
+                        Text("creator.done")
+                            .font(.system(size: 15, weight: .semibold))
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 8)
+                            .liquidGlass(in: Capsule())
+                    }
+                } else {
+                    Button(action: { saveToGallery() }) {
+                        Image(systemName: "arrow.down.circle")
+                            .font(.title2)
+                            .foregroundColor(.white)
+                            .padding(12)
+                            .liquidGlass(in: Circle())
+                    }
+                }
+            }
+
+            if showsBackgroundPaletteButton {
+                Button(action: cycleBackgroundPreset) {
+                    HStack(spacing: 8) {
+                        Image(systemName: "swatchpalette")
+                            .font(.system(size: 14, weight: .semibold))
+
+                        HStack(spacing: 4) {
+                            ForEach(Array(backgroundPalettePreviewColors().prefix(3).enumerated()), id: \.offset) { entry in
+                                Circle()
+                                    .fill(entry.element)
+                                    .frame(width: 10, height: 10)
+                            }
+                        }
+                    }
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 9)
+                    .liquidGlass(in: Capsule(), interactive: true)
                 }
             }
         }
@@ -1097,7 +1130,7 @@ struct StoryEditingView: View {
     }
 
     private func storyBackgroundImage(baseImage: UIImage, targetSize: CGSize) -> UIImage {
-        let palette = storyDominantBackgroundColors(from: baseImage)
+        let palette = resolvedStoryBackgroundPalette(for: baseImage)
         let renderer = UIGraphicsImageRenderer(size: targetSize)
         return renderer.image { context in
             drawStoryMediaBackground(
@@ -1247,6 +1280,38 @@ struct StoryEditingView: View {
             return FilterService.shared.applyFilter(selectedFilter, to: media.image, intensity: filterIntensity)
         }
         return media.image
+    }
+
+    private func resolvedStoryBackgroundPalette(for image: UIImage) -> [UIColor] {
+        if selectedBackgroundPreset.usesAutoPalette {
+            return storyDominantBackgroundColors(from: image)
+        }
+        return selectedBackgroundPreset.uiColors
+    }
+
+    private func currentStoryBackgroundPalette(for media: ProcessedMedia) -> [UIColor]? {
+        if selectedBackgroundPreset.usesAutoPalette {
+            return nil
+        }
+        return selectedBackgroundPreset.uiColors
+    }
+
+    private var showsBackgroundPaletteButton: Bool {
+        !isFilterMode && activeEditorMode == .idle && showsGeneratedBackground && !isEditingSticker && !selectedMediaItems.isEmpty
+    }
+
+    private func cycleBackgroundPreset() {
+        withAnimation(.spring(response: 0.28, dampingFraction: 0.86)) {
+            selectedBackgroundPresetIndex = (selectedBackgroundPresetIndex + 1) % StoryBackgroundPreset.presets.count
+        }
+    }
+
+    private func backgroundPalettePreviewColors() -> [Color] {
+        guard let firstMedia = selectedMediaItems.first else { return [.white] }
+        let palette = selectedBackgroundPreset.usesAutoPalette
+            ? storyDominantBackgroundColors(from: renderPaletteSourceImage(for: firstMedia))
+            : selectedBackgroundPreset.uiColors
+        return palette.prefix(3).map { Color(uiColor: $0) }
     }
 
     private func renderStoryOverlayImage(targetSize: CGSize, screenSize: CGSize) -> UIImage? {
