@@ -48,6 +48,8 @@ struct StoryCameraView: View {
     var body: some View {
         GeometryReader { proxy in
             let captureRect = creatorMomentsCaptureRect(in: proxy.size, topInset: proxy.safeAreaInsets.top, bottomInset: proxy.safeAreaInsets.bottom)
+            let controlY = min(proxy.size.height - proxy.safeAreaInsets.bottom - 20, captureRect.maxY + 50)
+            let captureButtonY = captureRect.maxY - 10
 
             ZStack {
                 safeAreaTintColor
@@ -82,155 +84,20 @@ struct StoryCameraView: View {
                         }
                 )
 
-
-                // Top controls
-                VStack {
-                    HStack {
-                        Button(action: {
-                            showCreatorView = false
-                        }) {
-                            Image(systemName: "xmark")
-                                .font(.system(size: 18, weight: .semibold))
-                                .foregroundColor(topControlForegroundColor)
-                                .frame(width: 42, height: 42)
-                                .background {
-                                    Color.clear
-                                        .liquidGlass(in: Circle(), interactive: true)
-                                }
-                                .overlay(
-                                    Circle()
-                                        .stroke(topControlStrokeColor, lineWidth: 1)
-                                )
-                        }
-                        .rotationEffect(.degrees(rotationAngle))
-                        .animation(.spring(), value: rotationAngle)
-
-                        Spacer()
-
-                        // Flash button
-                        Button(action: {
-                            toggleFlash()
-                        }) {
-                            Image(systemName: flashIcon)
-                                .font(.system(size: 18, weight: .semibold))
-                                .foregroundColor(topControlForegroundColor)
-                                .frame(width: 42, height: 42)
-                                .background {
-                                    Color.clear
-                                        .liquidGlass(in: Circle(), interactive: true)
-                                }
-                                .overlay(
-                                    Circle()
-                                        .stroke(topControlStrokeColor, lineWidth: 1)
-                                )
-                        }
-                        .rotationEffect(.degrees(rotationAngle))
-                        .animation(.spring(), value: rotationAngle)
-                    }
-                    .padding(.horizontal, 20)
-                    .padding(.top, 8)
-
-                    Spacer()
-                }
+                topControlsOverlay
+                    .frame(width: captureRect.width, height: captureRect.height, alignment: .top)
+                    .position(x: captureRect.midX, y: captureRect.midY)
 
                 // Bottom controls
-                ZStack {
-                    VStack(spacing: 12) {
-                        ZStack {
-                            if isRecording {
-                                HStack(spacing: 8) {
-                                    Circle()
-                                        .fill(Color.red)
-                                        .frame(width: 10, height: 10)
-                                        .scaleEffect(1.0)
-                                        .animation(.easeInOut(duration: 0.5).repeatForever(), value: isRecording)
+                recordingStatusView
+                    .position(x: captureRect.midX, y: captureRect.maxY - 58)
 
-                                    Text(formatTime(recordingDuration))
-                                        .font(.system(size: 16, weight: .medium))
-                                        .foregroundColor(.white)
-                                }
-                                .padding(.horizontal, 16)
-                                .padding(.vertical, 8)
-                                .background(Color.black.opacity(0.5))
-                                .cornerRadius(20)
-                            }
-                        }
-                        .frame(height: 36)
+                bottomSideControls
+                    .frame(width: min(captureRect.width + 54, proxy.size.width - 72))
+                    .position(x: captureRect.midX, y: controlY)
 
-                        HStack(alignment: .bottom, spacing: 40) {
-                            // Gallery button with last image preview
-                            Button(action: {
-                                showingGallery = true
-                            }) {
-                                if let lastImage = lastGalleryImage {
-                                    Image(uiImage: lastImage)
-                                        .resizable()
-                                        .aspectRatio(contentMode: .fill)
-                                        .frame(width: 48, height: 48)
-                                        .clipShape(Circle())
-                                        .overlay(
-                                            Circle()
-                                                .stroke(Color.white.opacity(0.18), lineWidth: 1)
-                                        )
-                                } else {
-                                    ZStack {
-                                        Circle()
-                                            .fill(Color.white.opacity(0.14))
-                                        Image(systemName: "photo.stack")
-                                            .font(.system(size: 18, weight: .semibold))
-                                            .foregroundColor(.white)
-                                    }
-                                    .frame(width: 48, height: 48)
-                                    .clipShape(Circle())
-                                    .background {
-                                        Color.clear
-                                            .liquidGlass(in: Circle(), interactive: true)
-                                    }
-                                    .overlay(
-                                        Circle()
-                                            .stroke(Color.white.opacity(0.18), lineWidth: 1)
-                                    )
-                                }
-                            }
-                            .rotationEffect(.degrees(rotationAngle))
-                            .animation(.spring(), value: rotationAngle)
-
-                            // Capture button
-                            CaptureButton(
-                                isRecording: $isRecording,
-                                onTap: {
-                                    takePhoto()
-                                },
-                                onLongPressStart: { startRecording() },
-                                onLongPressEnd: { stopRecording() }
-                            )
-
-                            // Switch camera button
-                            Button(action: {
-                                switchCamera()
-                            }) {
-                                Image(systemName: "arrow.triangle.2.circlepath.camera")
-                                    .font(.system(size: 18, weight: .semibold))
-                                    .foregroundColor(.white)
-                                    .frame(width: 48, height: 48)
-                                    .background {
-                                        Color.clear
-                                            .liquidGlass(in: Circle(), interactive: true)
-                                    }
-                                    .overlay(
-                                        Circle()
-                                            .stroke(Color.white.opacity(0.18), lineWidth: 1)
-                                    )
-                            }
-                            .rotationEffect(.degrees(rotationAngle))
-                            .animation(.spring(), value: rotationAngle)
-                        }
-                    }
-                    .padding(.horizontal, 24)
-                    .padding(.bottom, 26)
-                }
-                .frame(width: captureRect.width, height: captureRect.height, alignment: .bottom)
-                .position(x: captureRect.midX, y: captureRect.midY)
+                captureButtonOverlay
+                    .position(x: captureRect.midX, y: captureButtonY)
             }
         }
         .sheet(isPresented: $showingGallery) {
@@ -257,6 +124,151 @@ struct StoryCameraView: View {
         case .on: return "bolt.fill"
         case .auto: return "bolt.badge.a"
         @unknown default: return "bolt.slash"
+        }
+    }
+
+    private var topControlsOverlay: some View {
+        VStack {
+            HStack {
+                roundControlButton(systemImage: "xmark", action: {
+                    showCreatorView = false
+                })
+                .rotationEffect(.degrees(rotationAngle))
+                .animation(.spring(), value: rotationAngle)
+
+                Spacer()
+
+                roundControlButton(systemImage: flashIcon, action: {
+                    toggleFlash()
+                })
+                .rotationEffect(.degrees(rotationAngle))
+                .animation(.spring(), value: rotationAngle)
+            }
+            .padding(.horizontal, 16)
+            .padding(.top, 14)
+
+            Spacer()
+        }
+    }
+
+    private var recordingStatusView: some View {
+        ZStack {
+            if isRecording {
+                HStack(spacing: 8) {
+                    Circle()
+                        .fill(Color.red)
+                        .frame(width: 10, height: 10)
+                        .scaleEffect(1.0)
+                        .animation(.easeInOut(duration: 0.5).repeatForever(), value: isRecording)
+
+                    Text(formatTime(recordingDuration))
+                        .font(.system(size: 16, weight: .medium))
+                        .foregroundColor(.white)
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 8)
+                .background(Color.black.opacity(0.5))
+                .cornerRadius(20)
+            }
+        }
+        .frame(height: 36)
+    }
+
+    private var bottomSideControls: some View {
+        HStack {
+            galleryButton
+                .rotationEffect(.degrees(rotationAngle))
+                .animation(.spring(), value: rotationAngle)
+
+            Spacer()
+
+            switchCameraButton
+                .rotationEffect(.degrees(rotationAngle))
+                .animation(.spring(), value: rotationAngle)
+        }
+        .padding(.horizontal, 18)
+    }
+
+    private var captureButtonOverlay: some View {
+        CaptureButton(
+            isRecording: $isRecording,
+            onTap: {
+                takePhoto()
+            },
+            onLongPressStart: { startRecording() },
+            onLongPressEnd: { stopRecording() }
+        )
+    }
+
+    private var galleryButton: some View {
+        Button(action: {
+            showingGallery = true
+        }) {
+            if let lastImage = lastGalleryImage {
+                Image(uiImage: lastImage)
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
+                    .frame(width: 48, height: 48)
+                    .clipShape(Circle())
+                    .overlay(
+                        Circle()
+                            .stroke(Color.white.opacity(0.18), lineWidth: 1)
+                    )
+            } else {
+                ZStack {
+                    Circle()
+                        .fill(Color.white.opacity(0.14))
+                    Image(systemName: "photo.stack")
+                        .font(.system(size: 18, weight: .semibold))
+                        .foregroundColor(.white)
+                }
+                .frame(width: 48, height: 48)
+                .clipShape(Circle())
+                .background {
+                    Color.clear
+                        .liquidGlass(in: Circle(), interactive: true)
+                }
+                .overlay(
+                    Circle()
+                        .stroke(Color.white.opacity(0.18), lineWidth: 1)
+                )
+            }
+        }
+    }
+
+    private var switchCameraButton: some View {
+        Button(action: {
+            switchCamera()
+        }) {
+            Image(systemName: "arrow.triangle.2.circlepath.camera")
+                .font(.system(size: 18, weight: .semibold))
+                .foregroundColor(topControlForegroundColor)
+                .frame(width: 48, height: 48)
+                .background {
+                    Color.clear
+                        .liquidGlass(in: Circle(), interactive: true)
+                }
+                .overlay(
+                    Circle()
+                        .stroke(topControlStrokeColor, lineWidth: 1)
+                )
+        }
+    }
+
+    private func roundControlButton(systemImage: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: systemImage)
+                .font(.system(size: 18, weight: .semibold))
+                .foregroundColor(topControlForegroundColor)
+                .frame(width: 42, height: 42)
+                .background {
+                    Color.clear
+                        .liquidGlass(in: Circle(), interactive: true)
+                }
+                .overlay(
+                    Circle()
+                        .stroke(topControlStrokeColor, lineWidth: 1)
+                )
         }
     }
 

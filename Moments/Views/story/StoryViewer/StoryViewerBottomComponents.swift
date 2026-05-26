@@ -49,22 +49,12 @@ struct StoryReactionsStrip: View {
 
 struct StoryNoInteractionsNotice: View {
     var body: some View {
-        VStack(spacing: 8) {
-            Image(systemName: "eye.slash")
-                .font(.system(size: 20))
-                .foregroundColor(.white.opacity(0.6))
-
-            Text("stories.noInteractions")
-                .font(.custom("Poppins-Regular", size: 14))
-                .foregroundColor(.white.opacity(0.7))
-                .multilineTextAlignment(.center)
-        }
-        .padding(.horizontal, 20)
-        .padding(.vertical, 16)
-        .background(
-            Color.white.opacity(0.001)
-                .liquidGlass(in: RoundedRectangle(cornerRadius: 18, style: .continuous))
-        )
+        Text("stories.noInteractions")
+            .font(.custom("Poppins-Regular", size: 14))
+            .foregroundColor(.white.opacity(0.68))
+            .multilineTextAlignment(.center)
+            .padding(.horizontal, 20)
+            .padding(.vertical, 8)
     }
 }
 

@@ -392,6 +392,8 @@ struct InteractiveRevealSticker: View {
                     }
             )
         }
+        .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
+        .contentShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
         .animation(.easeOut(duration: 0.6), value: isRevealed)
         .onAppear {
             // Restaurar estado persistido

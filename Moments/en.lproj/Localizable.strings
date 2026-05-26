@@ -78,6 +78,7 @@
 "common.close" = "Close";
 "storyChains.viewChain" = "View Chain";
 "storyChains.part" = "Part %d of '%@'";
+"storyChains.partShort" = "Part %d";
 "storyChains.loading" = "Loading chain...";
 "storyChains.notFound" = "No stories found in this chain";
 "storyChains.parts" = "%d/%d parts";
@@ -385,6 +386,7 @@
 "stories.yourStory" = "Your story";
 "stories.options" = "Options";
 "stories.noInteractions" = "The author does not allow interactions";
+"stories.repliesDisabledPlaceholder" = "Replies are not allowed";
 "stories.contentUnavailable" = "Content unavailable";
 "stories.activity.title" = "Story activity";
 "stories.activity.noViewers" = "No one has viewed this story yet";

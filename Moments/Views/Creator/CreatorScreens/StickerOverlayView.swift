@@ -49,7 +49,9 @@ struct StickerOverlayView: View {
     private var stickerSize: CGSize {
         switch sticker.type {
         case .frame: return CGSize(width: 200, height: 240)
-        case .quiz, .poll, .question: return CGSize(width: 300, height: 320)
+        case .poll: return CGSize(width: 300, height: 172)
+        case .question: return CGSize(width: 300, height: 132)
+        case .quiz: return CGSize(width: 280, height: 220)
         case .weather: return CGSize(width: 140, height: 50)
         case .time: return CGSize(width: 180, height: 80)
         default: return sticker.image.size
@@ -437,7 +439,6 @@ struct StickerOverlayView: View {
         .scaleEffect(isDragging ? 0.9 : (showInteractionFeedback ? 1.05 : 1.0))
         .scaleEffect(scale)
         .opacity(isDragging ? 0.8 : 1.0)
-        .frame(width: stickerSize.width, height: stickerSize.height)
         .contentShape(Rectangle())
         .onTapGesture {
             handleStickerTap()

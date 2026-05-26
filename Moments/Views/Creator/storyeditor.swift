@@ -96,30 +96,39 @@ struct StoryEditingView: View {
     var body: some View {
         NavigationStack(path: $navigationPath) {
             GeometryReader { proxy in
-                let viewportSize = proxy.size
-                let mediaCanvasSize = CGSize(
-                    width: viewportSize.width,
-                    height: viewportSize.height + proxy.safeAreaInsets.top + proxy.safeAreaInsets.bottom
+                let windowInsets = keyWindowSafeAreaInsets()
+                let viewportSize = stableViewportSize(for: proxy)
+                let mediaCanvasRect = creatorMomentsCaptureRect(
+                    in: viewportSize,
+                    topInset: windowInsets.top,
+                    bottomInset: windowInsets.bottom
                 )
-                let mediaCanvasOffsetY = -proxy.safeAreaInsets.top
+                let mediaCanvasSize = mediaCanvasRect.size
 
                 ZStack(alignment: .topLeading) {
+                    (colorScheme == .dark ? Color(hex: "0B1215") : Color(hex: "FAF9F6"))
+                        .ignoresSafeArea()
+
                     backgroundMediaView(canvasSize: mediaCanvasSize)
-                        .offset(y: mediaCanvasOffsetY)
+                        .frame(width: mediaCanvasRect.width, height: mediaCanvasRect.height)
+                        .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
+                        .position(x: mediaCanvasRect.midX, y: mediaCanvasRect.midY)
 
                     // Drawing overlay preview when text editor is open
                     if let drawing = drawingImage, isTextMode {
                         Image(uiImage: drawing)
                             .resizable()
                             .aspectRatio(contentMode: .fill)
-                            .frame(width: mediaCanvasSize.width, height: mediaCanvasSize.height)
-                            .offset(y: mediaCanvasOffsetY)
+                            .frame(width: mediaCanvasRect.width, height: mediaCanvasRect.height)
+                            .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
+                            .position(x: mediaCanvasRect.midX, y: mediaCanvasRect.midY)
                             .allowsHitTesting(false)
                     }
 
                     // Overlays
                     if !isTextMode && !isDrawingMode {
                         StoryOverlaysView(
+                            canvasSize: mediaCanvasSize,
                             text: $storyText,
                             textPosition: $textPosition,
                             textStyle: $selectedTextStyle,
@@ -145,11 +154,15 @@ struct StoryEditingView: View {
                             }
                         )
                         .id(forceUpdate)
-                        .ignoresSafeArea()
+                        .frame(width: mediaCanvasRect.width, height: mediaCanvasRect.height)
+                        .position(x: mediaCanvasRect.midX, y: mediaCanvasRect.midY)
                     }
 
                     // Controls
-                    mainControlsOverlay(proxy: proxy)
+                    mainControlsOverlay(
+                        proxy: proxy,
+                        mediaCanvasRect: mediaCanvasRect
+                    )
 
                     if isDrawingMode {
                         StoryDrawingEditorOverlay(
@@ -225,7 +238,7 @@ struct StoryEditingView: View {
         .ignoresSafeArea(.keyboard)
         // ✅ Input inferior para título de cadena
         .safeAreaInset(edge: .bottom) {
-            chainTitleInputOverlay()
+            bottomPublishingInset()
         }
         // ✅ SHEET ACTUALIZADO para selector de audiencia mejorado
         .sheet(isPresented: $showingAudienceSelector) {
@@ -601,7 +614,10 @@ struct StoryEditingView: View {
     }
 
     @ViewBuilder
-    private func mainControlsOverlay(proxy: GeometryProxy) -> some View {
+    private func mainControlsOverlay(
+        proxy: GeometryProxy,
+        mediaCanvasRect: CGRect
+    ) -> some View {
         if !isTextMode && !isDrawingMode {
             VStack {
                 topBarView(topInset: proxy.safeAreaInsets.top)
@@ -620,66 +636,112 @@ struct StoryEditingView: View {
                     VideoControlsOverlay()
                 }
 
-                bottomControlsView(bottomInset: proxy.safeAreaInsets.bottom)
+                bottomControlsView(
+                    bottomInset: proxy.safeAreaInsets.bottom,
+                    canvasBottomEdge: mediaCanvasRect.maxY,
+                    viewportHeight: proxy.size.height
+                )
             }
+            .frame(width: proxy.size.width, height: proxy.size.height, alignment: .top)
             .opacity(isEditingSticker ? 0 : 1)
             .disabled(isEditingSticker)
         }
     }
 
     @ViewBuilder
-    private func chainTitleInputOverlay() -> some View {
-        if isCreatingChain && !isCanvasModeActive {
-            VStack(spacing: 6) {
-                if activeEditorMode == .idle {
-                    HStack {
-                        Spacer()
-                        principalActionButton()
+    private func bottomPublishingInset() -> some View {
+        if activeEditorMode == .idle {
+            HStack(spacing: 12) {
+                Group {
+                    if isCreatingChain && !isCanvasModeActive {
+                        HStack(spacing: 10) {
+                            Image(systemName: "link")
+                                .foregroundColor((colorScheme == .dark ? Color.white : Color.black).opacity(0.72))
+                                .font(.system(size: 15, weight: .semibold))
+
+                            TextField(NSLocalizedString("storyChains.chainTitlePlaceholder", comment: "Chain title placeholder"), text: $chainTitle)
+                                .textFieldStyle(PlainTextFieldStyle())
+                                .foregroundColor(colorScheme == .dark ? .white : .black)
+                                .tint(colorScheme == .dark ? .white : .black)
+                                .focused($isChainTitleFocused)
+
+                            if isChainTitleFocused {
+                                Button(action: { isChainTitleFocused = false }) {
+                                    Image(systemName: "keyboard.chevron.compact.down")
+                                        .font(.system(size: 16, weight: .semibold))
+                                        .foregroundColor((colorScheme == .dark ? Color.white : Color.black).opacity(0.72))
+                                }
+                            }
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.horizontal, 18)
+                        .padding(.vertical, 14)
+                        .liquidGlass(in: Capsule(), interactive: true)
+                    } else if isContinuingChain {
+                        HStack(spacing: 10) {
+                            Image(systemName: "link")
+                                .font(.system(size: 15, weight: .semibold))
+
+                            VStack(alignment: .leading, spacing: 1) {
+                                Text(String(format: NSLocalizedString("storyChains.continuing", comment: "Continuing chain"), originalChainTitle))
+                                    .font(.system(size: 15, weight: .semibold))
+                                    .lineLimit(1)
+                                    .minimumScaleFactor(0.8)
+
+                                Text(String(format: NSLocalizedString("storyChains.partShort", comment: "Part number"), (chainPosition ?? 0) + 1))
+                                    .font(.system(size: 11, weight: .medium))
+                                    .lineLimit(1)
+                                    .minimumScaleFactor(0.75)
+                                    .opacity(0.72)
+                            }
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                        }
+                        .frame(maxWidth: .infinity)
+                        .foregroundColor(colorScheme == .dark ? .white : .black)
+                        .padding(.horizontal, 18)
+                        .padding(.vertical, 14)
+                        .liquidGlass(in: Capsule(), interactive: false)
+                    } else if !isContinuingChain {
+                        Button(action: {
+                            if !isLoadingUserSettings {
+                                showingAudienceSelector = true
+                            }
+                        }) {
+                            HStack(spacing: 8) {
+                                if isLoadingUserSettings {
+                                    ProgressView()
+                                        .scaleEffect(0.7)
+                                        .tint(colorScheme == .dark ? .white : .black)
+                                } else {
+                                    Image(systemName: getAudienceIcon())
+                                }
+
+                                Text(isLoadingUserSettings ? NSLocalizedString("storyEditor.loadingSettings", comment: "Loading user settings") : getAudienceText())
+                                    .font(.system(size: 15, weight: .semibold))
+                                    .lineLimit(1)
+                                    .minimumScaleFactor(0.85)
+                            }
+                            .frame(maxWidth: .infinity)
+                            .foregroundColor(colorScheme == .dark ? .white : .black)
+                            .padding(.horizontal, 18)
+                            .padding(.vertical, 14)
+                            .liquidGlass(in: Capsule(), interactive: true)
+                        }
+                        .frame(maxWidth: .infinity)
                     }
-                    .padding(.horizontal, 16)
                 }
 
-                HStack(spacing: 12) {
-                    HStack(spacing: 10) {
-                        Image(systemName: "link")
-                            .foregroundColor((colorScheme == .dark ? Color.white : Color.black).opacity(0.72))
-                            .font(.system(size: 15, weight: .semibold))
-
-                        TextField(NSLocalizedString("storyChains.chainTitlePlaceholder", comment: "Chain title placeholder"), text: $chainTitle)
-                            .textFieldStyle(PlainTextFieldStyle())
-                            .foregroundColor(colorScheme == .dark ? .white : .black)
-                            .tint(colorScheme == .dark ? .white : .black)
-                            .focused($isChainTitleFocused)
-                    }
-                    .padding(.vertical, 12)
-                    .padding(.horizontal, 14)
-                    .liquidGlass(in: Capsule(), interactive: true)
-
-                    Button(action: { isChainTitleFocused = false }) {
-                        Image(systemName: "keyboard.chevron.compact.down")
-                            .foregroundColor(colorScheme == .dark ? .white : .black)
-                            .padding(10)
-                            .background((colorScheme == .dark ? Color.black : Color.white).opacity(colorScheme == .dark ? 0.2 : 0.28))
-                            .clipShape(Circle())
-                    }
-                }
-                .padding(.horizontal, 16)
-                .padding(.top, activeEditorMode == .idle ? 8 : 12)
-                .padding(.bottom, 12)
-                .background(
-                    Color.clear
-                        .liquidGlass(in: Rectangle())
-                        .ignoresSafeArea(edges: .bottom)
-                )
+                principalActionButton()
             }
-            .padding(.top, 8)
-            .padding(.bottom, chainInputBottomPadding())
+            .padding(.horizontal, 16)
+            .padding(.bottom, isCreatingChain ? chainInputBottomPadding() : 8)
             .animation(.easeOut(duration: 0.24), value: keyboardHeight)
         }
     }
 
+
     @ViewBuilder
-    private func bottomControlsView(bottomInset: CGFloat) -> some View {
+    private func bottomControlsView(bottomInset: CGFloat, canvasBottomEdge: CGFloat, viewportHeight: CGFloat) -> some View {
         VStack(spacing: 12) {
             if isFilterMode {
                 // Intensity Slider
@@ -723,65 +785,11 @@ struct StoryEditingView: View {
                 }
             }
 
-            // 🔗 Texto informativo de continuando cadena
-            if isContinuingChain {
-                HStack {
-                    Image(systemName: "link")
-                        .foregroundColor(.blue)
-                        .font(.system(size: 12))
-
-                    Text("Continuando cadena: \(originalChainTitle)")
-                        .font(.system(size: 12, weight: .medium))
-                        .foregroundColor(.white)
-                        .lineLimit(1)
-
-                    Spacer()
-                }
-                .padding(.horizontal, 12)
-                .padding(.vertical, 8)
-                .liquidGlass(in: RoundedRectangle(cornerRadius: 12))
-                .padding(.horizontal, 16)
-            }
-
             autoSplitNoticeView()
 
-            if activeEditorMode == .idle && !isCreatingChain {
-                HStack {
-                    // Story settings
-                    if !isCreatingChain && !isContinuingChain {
-                        Button(action: {
-                            if !isLoadingUserSettings {
-                                showingAudienceSelector = true
-                            }
-                        }) {
-                            HStack(spacing: 8) {
-                                if isLoadingUserSettings {
-                                    ProgressView()
-                                        .scaleEffect(0.7)
-                                        .tint(.white)
-                                } else {
-                                    Image(systemName: getAudienceIcon())
-                                }
-
-                                Text(isLoadingUserSettings ? NSLocalizedString("storyEditor.loadingSettings", comment: "Loading user settings") : getAudienceText())
-                                    .font(.system(size: 14, weight: .medium))
-                            }
-                            .foregroundColor(.white)
-                            .padding(.horizontal, 16)
-                            .padding(.vertical, 8)
-                            .liquidGlass(in: Capsule())
-                            .shadow(color: .black.opacity(0.1), radius: 4, x: 0, y: 2)
-                        }
-                    }
-
-                    Spacer()
-
-                    // Botón de acción principal
-                    principalActionButton()
-                }
-            }
         }
-        .padding(.horizontal)
+        .padding(.horizontal, activeEditorMode == .idle && !isCreatingChain ? 0 : 16)
+        .padding(.top, activeEditorMode == .idle && !isCreatingChain ? 0 : max(10, min(26, viewportHeight - canvasBottomEdge - 94)))
         .padding(.bottom, bottomControlsBottomPadding(bottomInset: bottomInset))
     }
 
@@ -821,6 +829,9 @@ struct StoryEditingView: View {
             // (and with keyboard). Keep only a tiny local gap here.
             return 6
         }
+        if activeEditorMode == .idle && !isCreatingChain {
+            return 8
+        }
         return max(90, resolvedBottomInset + 54)
     }
 
@@ -850,6 +861,23 @@ struct StoryEditingView: View {
         return keyWindow?.safeAreaInsets ?? .zero
     }
 
+    private func keyWindowBounds() -> CGRect? {
+        let scenes = UIApplication.shared.connectedScenes
+            .compactMap { $0 as? UIWindowScene }
+        let activeScene = scenes.first { $0.activationState == .foregroundActive }
+        let scene = activeScene ?? scenes.first
+        let keyWindow = scene?.windows.first(where: { $0.isKeyWindow })
+        return keyWindow?.bounds
+    }
+
+    private func stableViewportSize(for proxy: GeometryProxy) -> CGSize {
+        guard let windowBounds = keyWindowBounds() else { return proxy.size }
+        return CGSize(
+            width: max(proxy.size.width, windowBounds.width),
+            height: max(proxy.size.height, windowBounds.height)
+        )
+    }
+
     private func chainInputBottomPadding() -> CGFloat {
         if keyboardHeight > 0 {
             // Let the bar overlap the rounded top edge of the keyboard slightly
@@ -866,44 +894,15 @@ struct StoryEditingView: View {
             Button(action: {
                 publishStory()
             }) {
-                HStack(spacing: 8) {
-                    Image(systemName: "arrow.right.circle.fill")
-                        .foregroundColor(.white)
-                        .font(.system(size: 16))
-
-                    Text(NSLocalizedString("storyChains.shareChain", comment: "Share Chain"))
-                        .font(.custom("Poppins-Medium", size: 16))
-                        .foregroundColor(.white)
-                }
-                .padding(.horizontal, 24)
-                .padding(.vertical, 12)
+                Image(systemName: "arrow.right")
+                    .foregroundColor(colorScheme == .dark ? Color.black.opacity(0.9) : .white)
+                    .font(.system(size: 20, weight: .semibold))
+                    .frame(width: 54, height: 48)
                 .background(
-                    ZStack {
-                        // Fondo glassmorphism con gradiente premium
-                        LinearGradient(
-                            gradient: Gradient(colors: [Color.blue, Color.purple, Color.pink]),
-                            startPoint: .leading,
-                            endPoint: .trailing
-                        )
-                        .clipShape(Capsule())
-
-                        // Efecto glassmorphism
-                        Capsule()
-                            .fill(.ultraThinMaterial)
-                            .opacity(0.3)
-                    }
+                    (colorScheme == .dark ? Color(hex: "FAF9F6") : Color(hex: "0B1215"))
+                        .opacity(isLoadingUserSettings ? 0.55 : 1.0)
                 )
-                .overlay(
-                    Capsule()
-                        .stroke(
-                            LinearGradient(
-                                colors: [Color.white.opacity(0.3), Color.white.opacity(0.1)],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            ),
-                            lineWidth: 1
-                        )
-                )
+                .clipShape(Capsule())
             }
             .disabled(isPublishing || isLoadingUserSettings)
         } else if isCreatingChain {
@@ -911,14 +910,10 @@ struct StoryEditingView: View {
             Button(action: {
                 showingChainConfiguration = true
             }) {
-                HStack(spacing: 8) {
-                    Image(systemName: "gearshape")
-                    Text("Configuración")
-                        .font(.system(size: 16, weight: .semibold))
-                }
+                Image(systemName: "gearshape")
+                    .font(.system(size: 18, weight: .semibold))
                 .foregroundColor(colorScheme == .dark ? .white : .black)
-                .padding(.horizontal, 24)
-                .padding(.vertical, 12)
+                .frame(width: 54, height: 48)
                 .opacity(isLoadingUserSettings ? 0.5 : 1.0)
                 .liquidGlass(in: Capsule(), interactive: true)
             }
@@ -933,12 +928,17 @@ struct StoryEditingView: View {
                         .font(.system(size: 16, weight: .semibold))
                     Image(systemName: "arrow.right")
                 }
-                .foregroundColor(.black)
-                .padding(.horizontal, 24)
-                .padding(.vertical, 12)
-                .background(Color.white.opacity(isLoadingUserSettings ? 0.5 : 1.0))
+                .foregroundColor(colorScheme == .dark ? Color.black.opacity(0.9) : .white)
+                .frame(maxWidth: .infinity)
+                .padding(.horizontal, 20)
+                .padding(.vertical, 14)
+                .background(
+                    (colorScheme == .dark ? Color(hex: "FAF9F6") : Color(hex: "0B1215"))
+                        .opacity(isLoadingUserSettings ? 0.55 : 1.0)
+                )
                 .clipShape(Capsule())
             }
+            .frame(maxWidth: .infinity)
             .disabled(isPublishing || isLoadingUserSettings || isEditingSticker)
             .opacity(isEditingSticker ? 0 : 1)
         }
@@ -1070,12 +1070,8 @@ struct StoryEditingView: View {
     }
 
     private func storyRenderTargetSize(for screenSize: CGSize = UIScreen.main.bounds.size) -> CGSize {
-        let safeScreenWidth = max(screenSize.width, 1)
-        let safeScreenHeight = max(screenSize.height, 1)
-        let screenAspectRatio = safeScreenWidth / safeScreenHeight
-
         let targetWidth: CGFloat = 1080
-        let targetHeight = targetWidth / max(screenAspectRatio, 0.0001)
+        let targetHeight = targetWidth / max(creatorMomentsCaptureAspectRatio, 0.0001)
         var targetSize = CGSize(width: targetWidth, height: targetHeight)
 
         if targetSize.height > 3000 { targetSize.height = 3000 }
@@ -1876,8 +1872,31 @@ struct StoryEditingView: View {
     }
 
     private func addStickerToStory(_ sticker: StickerItem) {
-        // Agregar el sticker a la lista de stickers seleccionados
-        selectedStickers.append(sticker)
+        var mappedSticker = sticker
+        let canvasRect = currentMediaCanvasRect()
+
+        let screenBounds = UIScreen.main.bounds
+        let looksLikeScreenPosition =
+            sticker.position.x > canvasRect.width ||
+            sticker.position.y > canvasRect.height ||
+            sticker.position.x > screenBounds.width ||
+            sticker.position.y > screenBounds.height
+
+        if looksLikeScreenPosition {
+            let relativeX = (sticker.position.x - canvasRect.minX) / max(canvasRect.width, 1)
+            let relativeY = (sticker.position.y - canvasRect.minY) / max(canvasRect.height, 1)
+
+            mappedSticker.position = CGPoint(
+                x: min(max(relativeX, 0.0), 1.0) * canvasRect.width,
+                y: min(max(relativeY, 0.0), 1.0) * canvasRect.height
+            )
+        }
+
+        if mappedSticker.position == .zero {
+            mappedSticker.position = CGPoint(x: canvasRect.width / 2, y: canvasRect.height / 2)
+        }
+
+        selectedStickers.append(mappedSticker)
 
         // Feedback háptico
         HapticManager.shared.mediumImpact()
@@ -1886,6 +1905,16 @@ struct StoryEditingView: View {
         DispatchQueue.main.async {
             self.forceUpdate.toggle()
         }
+    }
+
+    private func currentMediaCanvasRect() -> CGRect {
+        let windowInsets = keyWindowSafeAreaInsets()
+        let viewport = keyWindowBounds()?.size ?? UIScreen.main.bounds.size
+        return creatorMomentsCaptureRect(
+            in: viewport,
+            topInset: windowInsets.top,
+            bottomInset: windowInsets.bottom
+        )
     }
 }
 

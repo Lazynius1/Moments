@@ -78,6 +78,7 @@
 "common.close" = "Fermer";
 "storyChains.viewChain" = "Voir la chaîne";
 "storyChains.part" = "Partie %d de '%@'";
+"storyChains.partShort" = "Partie %d";
 "storyChains.loading" = "Chargement de la chaîne...";
 "storyChains.notFound" = "Aucune story trouvée dans cette chaîne";
 "storyChains.parts" = "%d/%d parties";
@@ -385,6 +386,7 @@
 "stories.yourStory" = "Votre story";
 "stories.options" = "Options";
 "stories.noInteractions" = "L’auteur n’autorise pas les interactions";
+"stories.repliesDisabledPlaceholder" = "Les reponses ne sont pas autorisees";
 "stories.contentUnavailable" = "Contenu indisponible";
 "stories.activity.title" = "Activité de la story";
 "stories.activity.noViewers" = "Personne n’a encore vu cette story";

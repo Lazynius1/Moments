@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct CaptureButton: View {
+    @Environment(\.colorScheme) private var colorScheme
     @Binding var isRecording: Bool
     let onTap: () -> Void
     let onLongPressStart: () -> Void
@@ -24,7 +25,7 @@ struct CaptureButton: View {
                 )
 
             Circle()
-                .fill(isRecording ? Color.red : Color.white)
+                .fill(isRecording ? Color.red : (colorScheme == .dark ? Color.white : Color.black))
                 .frame(width: isPressed ? 58 : 68, height: isPressed ? 58 : 68)
                 .scaleEffect(isRecording ? 0.8 : 1.0)
                 .animation(.easeInOut(duration: 0.1), value: isPressed)

@@ -77,6 +77,7 @@ struct StoryViewerScreen: View {
     @State private var isDragging: Bool = false
     @State private var showSuccessMessage: Bool = false
     @State private var canContinueChain: Bool = false
+    @State private var showChainActions: Bool = false
     @State private var successMessageText: String = ""
     @FocusState private var isTextFieldFocused: Bool
     @Environment(\.dismiss) private var dismiss
@@ -218,34 +219,54 @@ struct StoryViewerScreen: View {
     @ViewBuilder
     private func geometryStackView(for geometry: GeometryProxy) -> some View {
         let revealSticker = storyStickers.first { $0.type == .reveal }
+        let resolvedTopInset = max(geometry.safeAreaInsets.top, keyWindowSafeAreaInsets().top)
+        let resolvedBottomInset = max(geometry.safeAreaInsets.bottom, keyWindowSafeAreaInsets().bottom)
+        let baseCaptureRect = creatorMomentsCaptureRect(
+            in: geometry.size,
+            topInset: resolvedTopInset,
+            bottomInset: resolvedBottomInset
+        )
+        let captureRect = CGRect(
+            x: baseCaptureRect.origin.x,
+            y: baseCaptureRect.origin.y + resolvedTopInset,
+            width: baseCaptureRect.width,
+            height: baseCaptureRect.height
+        )
+        let progressY = max(resolvedTopInset + 1, captureRect.minY - 26)
 
         ZStack {
             // MARK: - 1. CONTENIDO MULTIMEDIA (Fijo en el centro - NUNCA SE MUEVE)
-            contentView
-                .frame(width: geometry.size.width, height: geometry.size.height)
-                .position(x: geometry.size.width / 2, y: geometry.size.height / 2)
+            contentView(canvasRect: captureRect)
+                .frame(width: captureRect.width, height: captureRect.height)
+                .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
+                .position(x: captureRect.midX, y: captureRect.midY)
 
             // MARK: - 2. STICKERS (Fijos en sus posiciones)
             if !storyStickers.isEmpty {
                 ForEach(storyStickers, id: \.id) { sticker in
                 StoryStickerView(
-                    sticker: stickerForDisplay(sticker, containerSize: screenSize),
-                    screenSize: geometry.size,
+                    sticker: stickerForDisplay(sticker, containerSize: captureRect.size),
+                    screenSize: captureRect.size,
                     storyId: story.id ?? "",
                     userId: story.authorId,
                     onPauseStory: pauseStory,
                     onResumeStory: resumeStory
                 )
                 .id((story.id ?? "") + sticker.id) // ✅ Forzar nueva instancia al cambiar de historia
-                .position(stickerDisplayPosition(sticker, containerSize: screenSize))
+                .position(
+                    CGPoint(
+                        x: captureRect.minX + stickerDisplayPosition(sticker, containerSize: captureRect.size).x,
+                        y: captureRect.minY + stickerDisplayPosition(sticker, containerSize: captureRect.size).y
+                    )
+                )
                 }
             }
 
             // MARK: - 3. FLOATING HEARTS (Under UI, Over Content)
             FloatingHeartsView(hearts: floatingHearts)
                 .allowsHitTesting(false)
-                .frame(width: geometry.size.width, height: geometry.size.height)
-                .position(x: geometry.size.width / 2, y: geometry.size.height / 2)
+                .frame(width: captureRect.width, height: captureRect.height)
+                .position(x: captureRect.midX, y: captureRect.midY)
 
             // MARK: - 3.5 REVEAL OVERLAY (sobre contenido, debajo de la UI)
             if let revealSticker = revealSticker {
@@ -258,56 +279,35 @@ struct StoryViewerScreen: View {
                     revealPrimaryColor: revealSticker.interactionData?.revealPrimaryColor,
                     revealSecondaryColor: revealSticker.interactionData?.revealSecondaryColor
                 )
-                .frame(width: geometry.size.width, height: geometry.size.height)
-                .position(x: geometry.size.width / 2, y: geometry.size.height / 2)
+                .frame(width: captureRect.width, height: captureRect.height)
+                .position(x: captureRect.midX, y: captureRect.midY)
             }
 
+            // MARK: - 4. PROGRESS - EN EL HUECO SUPERIOR, FUERA DEL MARCO
             if !isUIHidden {
-                VStack(spacing: 0) {
-                    LinearGradient(
-                        colors: [
-                            Color.black.opacity(0.70),
-                            Color.black.opacity(0.42),
-                            Color.black.opacity(0.16),
-                            Color.black.opacity(0.00)
-                        ],
-                        startPoint: .top,
-                        endPoint: .bottom
+                glassmorphicProgressBar
+                    .padding(.horizontal, 12)
+                    .position(
+                        x: geometry.size.width / 2,
+                        y: progressY
                     )
-                    .frame(height: max(geometry.safeAreaInsets.top, 47) + 160)
-                    .ignoresSafeArea(edges: .top)
-
-                    Spacer()
-                }
-                .allowsHitTesting(false)
-                .frame(width: geometry.size.width, height: geometry.size.height)
-                .position(x: geometry.size.width / 2, y: geometry.size.height / 2)
+                    .zIndex(1)
             }
 
-            // MARK: - 4. UI SUPERIOR (Header + Progress) - FIJA ARRIBA, NUNCA SE MUEVE
-            VStack(spacing: 0) {
-                if !isUIHidden {
-                    Color.clear.frame(height: max(geometry.safeAreaInsets.top, 47) + 8)
-
-                    glassmorphicProgressBar
-                        .padding(.horizontal, 12)
-                        .padding(.top, 8)
-
-                    glassmorphicHeader
-                        .padding(.horizontal, 16)
-                        .padding(.top, 8)
-                        .zIndex(1)
-                }
-
-                Spacer()
-
-                Color.clear.frame(height: 80)
+            // MARK: - 4. HEADER - DENTRO DEL MEDIA
+            if !isUIHidden {
+                glassmorphicHeader
+                    .padding(.horizontal, 16)
+                    .frame(width: captureRect.width)
+                    .position(
+                        x: captureRect.midX,
+                        y: captureRect.minY + 26
+                    )
+                    .zIndex(1)
             }
-            .frame(width: geometry.size.width, height: geometry.size.height)
-            .position(x: geometry.size.width / 2, y: geometry.size.height / 2)
 
             if showQuickActions {
-                storyQuickActionsOverlay(topInset: max(geometry.safeAreaInsets.top, 47))
+                storyQuickActionsOverlay(topInset: max(resolvedTopInset, 47))
                     .transition(.opacity.combined(with: .scale(scale: 0.98, anchor: .topTrailing)))
                     .zIndex(20)
             }
@@ -327,7 +327,7 @@ struct StoryViewerScreen: View {
                 if !isUIHidden {
                     glassmorphicBottomArea
                         .padding(.horizontal, 16)
-                        .padding(.bottom, isKeyboardVisible ? keyboardHeight + 10 : max(geometry.safeAreaInsets.bottom, 25))
+                        .padding(.bottom, isKeyboardVisible ? keyboardHeight + 6 : max(8, resolvedBottomInset - 18))
                         .animation(.easeInOut(duration: 0.25), value: keyboardHeight)
                 }
             }
@@ -394,7 +394,7 @@ struct StoryViewerScreen: View {
             geometryStackView(for: geometry)
         }
         .ignoresSafeArea(.all)
-        .background(Color.black)
+        .background(colorScheme == .dark ? Color(hex: "0B1215") : Color(hex: "FAF9F6"))
         .scaleEffect(zoomScale)
 
         return AnyView(
@@ -655,12 +655,9 @@ struct StoryViewerScreen: View {
                                 .lineLimit(1)
                                 .shadow(color: Color.black.opacity(0.60), radius: 5, x: 0, y: 2)
 
-                            // ✅ INSIGNIA DE VERIFICADO
                             if story.authorId == Auth.auth().currentUser?.uid {
-                                // Para el usuario actual, verificar si está verificado
                                 CurrentUserVerifiedBadge(size: 12)
                             } else {
-                                // Para otros usuarios, verificar si están verificados
                                 VerifiedBadgeView(userId: story.authorId, size: 12)
                             }
                         }
@@ -676,8 +673,38 @@ struct StoryViewerScreen: View {
 
             Spacer()
 
-
             HStack(alignment: .top, spacing: 8) {
+                if story.chainId != nil, story.chainTitle != nil, story.chainPosition != nil {
+                    Button(action: {
+                        withAnimation(.spring(response: 0.28, dampingFraction: 0.82)) {
+                            showChainActions.toggle()
+                        }
+                    }) {
+                        Image(systemName: "link")
+                            .foregroundColor(.white)
+                            .font(.system(size: 16, weight: .medium))
+                            .frame(width: 40, height: 40)
+                            .background(Color.white.opacity(0.001))
+                            .liquidGlass(in: Circle(), interactive: true)
+                    }
+                    .buttonStyle(PlainButtonStyle())
+                    .overlay(alignment: .topTrailing) {
+                        if showChainActions,
+                           let chainId = story.chainId,
+                           let chainTitle = story.chainTitle,
+                           let chainPosition = story.chainPosition {
+                            chainActionsPanel(
+                                chainId: chainId,
+                                chainTitle: chainTitle,
+                                chainPosition: chainPosition
+                            )
+                            .offset(x: 0, y: 50)
+                            .transition(.liquidGlassStretch)
+                            .zIndex(10)
+                        }
+                    }
+                }
+
                 Button(action: toggleQuickActions) {
                     Image(systemName: "ellipsis")
                         .foregroundColor(.white)
@@ -698,6 +725,78 @@ struct StoryViewerScreen: View {
                 }
             }
         }
+    }
+
+    @ViewBuilder
+    private func chainActionsPanel(chainId: String, chainTitle: String, chainPosition: Int) -> some View {
+        let chainPanelPrimary = colorScheme == .dark ? Color.white : Color.black
+        let chainPanelSecondary = colorScheme == .dark ? Color.white.opacity(0.88) : Color.black.opacity(0.82)
+
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 8) {
+                Image(systemName: "link")
+                    .foregroundColor(chainPanelSecondary)
+                    .font(.system(size: 13, weight: .semibold))
+
+                Text(String(format: NSLocalizedString("storyChains.part", comment: "Part"), chainPosition, chainTitle))
+                    .foregroundColor(chainPanelSecondary)
+                    .font(.custom("Poppins-Medium", size: 12))
+                    .lineLimit(1)
+            }
+
+            HStack(spacing: 10) {
+                Button(action: {
+                    showChainActions = false
+                    showChainView(
+                        chainId: chainId,
+                        chainTitle: chainTitle,
+                        initialStoryId: story.id,
+                        initialChainPosition: chainPosition
+                    )
+                }) {
+                    HStack(spacing: 6) {
+                        Image(systemName: "list.bullet")
+                            .font(.system(size: 13, weight: .semibold))
+                        Text(NSLocalizedString("storyChains.viewChain", comment: "View Chain"))
+                            .font(.custom("Poppins-Medium", size: 13))
+                            .lineLimit(1)
+                    }
+                    .foregroundColor(chainPanelPrimary)
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 10)
+                    .frame(maxWidth: .infinity)
+                    .background(Color.white.opacity(0.001))
+                    .liquidGlass(in: Capsule(), interactive: true)
+                }
+                .buttonStyle(PlainButtonStyle())
+
+                if canContinueChain {
+                    Button(action: {
+                        showChainActions = false
+                        continueStoryChain(chainId: chainId, chainTitle: chainTitle, chainPosition: chainPosition)
+                    }) {
+                        HStack(spacing: 6) {
+                            Image(systemName: "plus.circle.fill")
+                                .font(.system(size: 13, weight: .semibold))
+                            Text(NSLocalizedString("storyChains.continueStory", comment: "Continue Story"))
+                                .font(.custom("Poppins-Medium", size: 13))
+                                .lineLimit(1)
+                        }
+                        .foregroundColor(chainPanelPrimary)
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 10)
+                        .frame(maxWidth: .infinity)
+                        .background(Color.white.opacity(0.001))
+                        .liquidGlass(in: Capsule(), interactive: true)
+                    }
+                    .buttonStyle(PlainButtonStyle())
+                }
+            }
+        }
+        .padding(12)
+        .frame(width: 270, alignment: .leading)
+        .background(Color.white.opacity(0.001))
+        .liquidGlass(in: RoundedRectangle(cornerRadius: 18, style: .continuous), interactive: false)
     }
 
     private func storyQuickActionsOverlay(topInset: CGFloat) -> some View {
@@ -755,7 +854,6 @@ struct StoryViewerScreen: View {
 
     // MARK: - Bottom Area
     private var glassmorphicBottomArea: some View {
-        let hasChainOverlay = story.chainId != nil && story.chainTitle != nil && story.chainPosition != nil
         return VStack(spacing: 12) {
             // ✅ REACCIONES: Solo mostrar si el autor las permite
             if showReactions && authorAllowsReactions {
@@ -768,10 +866,7 @@ struct StoryViewerScreen: View {
 
             // ✅ ÁREA DE INTERACCIÓN: Solo para historias de otros usuarios
             if story.authorId != Auth.auth().currentUser?.uid {
-
-                // Si permite alguna interacción, mostrar controles
                 if authorAllowsMessages || authorAllowsReactions || authorAllowsEphemeralPhotos {
-
                     HStack(spacing: 12) {
                         // ✅ ÁREA DE TEXTO/REACCIONES
                         HStack(spacing: 8) {
@@ -796,35 +891,50 @@ struct StoryViewerScreen: View {
                                             resumeStory()
                                         }
                                     }
-                            }
+                            } else {
+                                HStack(spacing: 8) {
+                                    Image(systemName: "slash.circle")
+                                        .foregroundColor(.white.opacity(0.52))
+                                        .font(.system(size: 14, weight: .medium))
 
-                            // ✅ BOTÓN REACCIONES: Siempre visible si permite reacciones
-                            if authorAllowsReactions && (messageText.isEmpty || !authorAllowsMessages) {
-                                Button(action: {
-                                    withAnimation(.spring()) {
-                                        showReactions.toggle()
-                                    }
-                                }) {
-                                    Image(systemName: showReactions ? "face.smiling.fill" : "face.smiling")
-                                        .foregroundColor(.white)
-                                        .font(.system(size: 18))
+                                    Text(storyRepliesDisabledPlaceholder)
+                                        .foregroundColor(.white.opacity(0.62))
+                                        .font(.custom("Poppins-Regular", size: 14))
+                                        .lineLimit(2)
                                 }
-                                .onChange(of: showReactions) { _, isOpen in
-                                    if isOpen {
-                                        pauseStory() // ✅ Pausar historia cuando se abren reacciones
-                                    } else {
-                                        // ✅ Reanudar historia cuando se cierran reacciones
-                                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
-                                            resumeStory()
-                                        }
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding(.leading, 4)
+                            }
+                        }
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 14)
+                        .background(Color.white.opacity(0.001))
+                        .liquidGlass(in: Capsule(), interactive: true)
+
+                        // ✅ BOTÓN REACCIONES: Fuera del input para dejar respirar el campo
+                        if authorAllowsReactions && (messageText.isEmpty || !authorAllowsMessages) {
+                            Button(action: {
+                                withAnimation(.spring()) {
+                                    showReactions.toggle()
+                                }
+                            }) {
+                                Image(systemName: showReactions ? "face.smiling.fill" : "face.smiling")
+                                    .foregroundColor(.white)
+                                    .font(.system(size: 18))
+                                    .frame(width: 48, height: 48)
+                                    .background(Color.white.opacity(0.001))
+                                    .liquidGlass(in: Circle(), interactive: true)
+                            }
+                            .onChange(of: showReactions) { _, isOpen in
+                                if isOpen {
+                                    pauseStory()
+                                } else {
+                                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                                        resumeStory()
                                     }
                                 }
                             }
                         }
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 12)
-                        .background(Color.white.opacity(0.001))
-                        .liquidGlass(in: Capsule(), interactive: true)
 
                         // ✅ BOTÓN CÁMARA: Solo si permite fotos efímeras
                         if authorAllowsEphemeralPhotos {
@@ -834,16 +944,15 @@ struct StoryViewerScreen: View {
                                 Image(systemName: "camera.fill")
                                     .foregroundColor(.white)
                                     .font(.system(size: 18))
-                                    .frame(width: 44, height: 44)
+                                    .frame(width: 48, height: 48)
                                     .background(Color.white.opacity(0.001))
                                     .liquidGlass(in: Circle(), interactive: true)
                             }
                             .photosPicker(isPresented: $showEphemeralPicker, selection: $selectedPhoto, matching: .images)
                             .onChange(of: showEphemeralPicker) { _, isOpen in
                                 if isOpen {
-                                    pauseStory() // ✅ Pausar historia cuando se abre selector de fotos
+                                    pauseStory()
                                 } else {
-                                    // ✅ Reanudar historia cuando se cierra selector de fotos
                                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
                                         resumeStory()
                                     }
@@ -857,116 +966,31 @@ struct StoryViewerScreen: View {
                                 Image(systemName: "paperplane.fill")
                                     .foregroundColor(.white)
                                     .font(.system(size: 18))
-                                    .frame(width: 44, height: 44)
+                                    .frame(width: 48, height: 48)
                                     .background(Color.white.opacity(0.001))
                                     .liquidGlass(in: Circle(), interactive: true)
                             }
-                            .frame(width: 54, height: 54)
+                            .frame(width: 58, height: 58)
                             .contentShape(Rectangle())
                             .transition(.scale.combined(with: .opacity))
                         }
                     }
                     .animation(.easeInOut(duration: 0.3), value: keyboardHeight)
-
                 } else {
-                    // ✅ MENSAJE: Cuando no permite ninguna interacción
                     StoryNoInteractionsNotice()
                 }
             }
-
-            // 🔗 STORY CHAINS: Botones para cadenas de historias
-            if let chainId = story.chainId, let chainTitle = story.chainTitle, let chainPosition = story.chainPosition {
-                VStack(spacing: 8) {
-                    // Banner de información de la cadena
-                    HStack {
-                        Spacer()
-
-                        HStack {
-                            Image(systemName: "link")
-                                .foregroundColor(.blue)
-                                .font(.caption)
-
-                            Text(String(format: NSLocalizedString("storyChains.part", comment: "Part"), chainPosition, chainTitle))
-                                .font(.caption)
-                                .foregroundColor(.white.opacity(0.8))
-                        }
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 6)
-                        .background(Color.white.opacity(0.001))
-                        .liquidGlass(in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-
-                        Spacer()
-                    }
-
-                    // Botones de acción
-                    HStack(spacing: 12) {
-                        // Botón para ver cadena completa
-                        Button(action: {
-                            showChainView(
-                                chainId: chainId,
-                                chainTitle: chainTitle,
-                                initialStoryId: story.id,
-                                initialChainPosition: chainPosition
-                            )
-                        }) {
-                            HStack(spacing: 6) {
-                                Image(systemName: "list.bullet")
-                                    .foregroundColor(.white)
-                                    .font(.system(size: 14))
-
-                                Text(NSLocalizedString("storyChains.viewChain", comment: "View Chain"))
-                                    .font(.custom("Poppins-Medium", size: 14))
-                                    .foregroundColor(.white)
-                            }
-                            .padding(.horizontal, 16)
-                            .padding(.vertical, 10)
-                            .background(Color.white.opacity(0.001))
-                            .liquidGlass(in: Capsule(), interactive: true)
-                        }
-
-                        // Botón principal para continuar (solo si se puede)
-                        if canContinueChain {
-
-                            Button(action: {
-                                continueStoryChain(chainId: chainId, chainTitle: chainTitle, chainPosition: chainPosition)
-                            }) {
-                            HStack(spacing: 8) {
-                                Image(systemName: "plus.circle.fill")
-                                    .foregroundColor(.white)
-                                    .font(.system(size: 16))
-
-                                Text(NSLocalizedString("storyChains.continueStory", comment: "Continue Story"))
-                                    .font(.custom("Poppins-Medium", size: 16))
-                                    .foregroundColor(.white)
-                            }
-                            .padding(.horizontal, 20)
-                            .padding(.vertical, 12)
-                            .background(Color.white.opacity(0.001))
-                            .liquidGlass(in: Capsule(), interactive: true)
-                            }
-                        }
-                    }
-                    .padding(.horizontal, 16)
-                }
-                .padding(.bottom, 8)
-                .padding(.vertical, 12)
-                .background(
-                    Color.white.opacity(0.001)
-                        .liquidGlass(in: RoundedRectangle(cornerRadius: 30, style: .continuous))
-                )
-                .offset(y: 10)
-            }
         }
         .padding(.horizontal, 16)
-        // ✅ Eliminar padding interno si el teclado está visible
-        .padding(.bottom, isKeyboardVisible ? 0 : (hasChainOverlay ? 12 : 25))
+        .padding(.bottom, isKeyboardVisible ? 0 : 25)
     }
 
-    private var contentView: some View {
+    private func contentView(canvasRect: CGRect) -> some View {
         let resolvedScreenSize = CGSize(
-            width: max(screenSize.width, 1),
-            height: max(screenSize.height, 1)
+            width: max(canvasRect.width, 1),
+            height: max(canvasRect.height, 1)
         )
+        let canvasShape = RoundedRectangle(cornerRadius: 28, style: .continuous)
         let mediaAspectRatio = StoryViewerScreen.parseAspectRatio(story.aspectRatio)
             ?? (resolvedScreenSize.width / resolvedScreenSize.height)
         let presentationMode = StoryMediaLayoutRules.presentationMode(
@@ -974,107 +998,132 @@ struct StoryViewerScreen: View {
             canvasAspectRatio: resolvedScreenSize.width / resolvedScreenSize.height
         )
 
-        return ScreenshotProtectedView(isProtected: (story.audience?.lowercased() ?? "") != "everyone", fillsContainer: true) {
+        return ScreenshotProtectedView(
+            isProtected: (story.audience?.lowercased() ?? "") != "everyone",
+            fillsContainer: true,
+            cornerRadius: 28
+        ) {
             ZStack {
                 // ✅ CONTENIDO PRINCIPAL (imagen/video)
                 Group {
                     if story.mediaItem.type == .video, let url = URL(string: story.mediaItem.url) {
-                    GlassmorphicStoryVideoPlayer(
-                        url: url,
-                        isPlaying: Binding(
-                            get: { !playbackCoordinator.isPaused },
-                            set: { playbackCoordinator.setPausedFromVideoBinding(!$0) }
-                        ),
-                        isHorizontalVideo: StoryViewerScreen.isHorizontalAspectRatio(story.aspectRatio),
-                        videoGravity: presentationMode.videoGravity,
-                        shouldLoop: false,
-                        onProgressUpdate: { newProgress in
-                            playbackCoordinator.updateVideoProgress(newProgress, for: story)
-                        },
-                        onVideoComplete: {
-                            // ✅ VIDEO TERMINÓ, IR A SIGUIENTE (solo si no está pausado)
-                            if playbackCoordinator.canAdvanceAfterVideoComplete() {
-                                onNext()
-                            }
-                        }
-                    )
-                    .frame(width: screenSize.width, height: screenSize.height)
-                    .background(
-                        Group {
-                            if presentationMode == .fitWithBlur,
-                               let blurredFrameURL = story.backgroundBlurredFrameURL,
-                               let url = URL(string: blurredFrameURL) {
-                                KFImage(url)
-                                    .resizable()
-                                    .aspectRatio(contentMode: .fill)
-                                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        ZStack {
+                            Group {
+                                if let blurredFrameURL = story.backgroundBlurredFrameURL,
+                                   let backgroundURL = URL(string: blurredFrameURL) {
+                                    KFImage(backgroundURL)
+                                        .resizable()
+                                        .aspectRatio(contentMode: .fill)
+                                        .frame(width: canvasRect.width, height: canvasRect.height)
+                                        .clipped()
+                                } else if let backgroundFrameURL = story.backgroundFrameURL,
+                                          let backgroundURL = URL(string: backgroundFrameURL) {
+                                    KFImage(backgroundURL)
+                                        .resizable()
+                                        .aspectRatio(contentMode: .fill)
+                                        .frame(width: canvasRect.width, height: canvasRect.height)
+                                        .blur(radius: 20)
+                                        .scaleEffect(1.1)
+                                        .clipped()
+                                } else {
+                                    GlassmorphicStoryVideoPlayer(
+                                        url: url,
+                                        isPlaying: Binding(
+                                            get: { !playbackCoordinator.isPaused },
+                                            set: { playbackCoordinator.setPausedFromVideoBinding(!$0) }
+                                        ),
+                                        isHorizontalVideo: StoryViewerScreen.isHorizontalAspectRatio(story.aspectRatio),
+                                        videoGravity: .resizeAspectFill,
+                                        shouldLoop: false,
+                                        onProgressUpdate: { _ in },
+                                        onVideoComplete: { }
+                                    )
+                                    .frame(width: canvasRect.width, height: canvasRect.height)
+                                    .blur(radius: 20)
+                                    .scaleEffect(1.1)
                                     .clipped()
-                            } else if presentationMode == .fitWithBlur,
-                                      let backgroundFrameURL = story.backgroundFrameURL,
-                                      let url = URL(string: backgroundFrameURL) {
-                                KFImage(url)
-                                    .resizable()
-                                    .aspectRatio(contentMode: .fill)
-                                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                                    .blur(radius: 15) // ✅ BLUR SUTIL
-                                    .scaleEffect(1.2) // ✅ ESCALADO PARA EVITAR BORDES
-                                    .clipped()
-                            } else {
-                                // ✅ FALLBACK: Degradado elegante
-                                LinearGradient(
-                                    gradient: Gradient(colors: [
-                                        Color.black.opacity(0.85),
-                                        Color.black.opacity(0.6),
-                                        Color.black.opacity(0.4)
-                                    ]),
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                )
+                                }
                             }
+
+                            GlassmorphicStoryVideoPlayer(
+                                url: url,
+                                isPlaying: Binding(
+                                    get: { !playbackCoordinator.isPaused },
+                                    set: { playbackCoordinator.setPausedFromVideoBinding(!$0) }
+                                ),
+                                isHorizontalVideo: StoryViewerScreen.isHorizontalAspectRatio(story.aspectRatio),
+                                videoGravity: presentationMode.videoGravity,
+                                shouldLoop: false,
+                                onProgressUpdate: { newProgress in
+                                    playbackCoordinator.updateVideoProgress(newProgress, for: story)
+                                },
+                                onVideoComplete: {
+                                    if playbackCoordinator.canAdvanceAfterVideoComplete() {
+                                        onNext()
+                                    }
+                                }
+                            )
+                            .frame(width: canvasRect.width, height: canvasRect.height)
+                            .id(story.id)
                         }
-                    )
-                    .id(story.id) // ✅ FORZAR RECREACIÓN CUANDO CAMBIA LA HISTORIA
-                } else if story.mediaItem.type == .image, let url = URL(string: story.mediaItem.url) {
-                    KFImage(url)
-                        .placeholder {
-                            ZStack {
-                                Color.black
-                                ProgressView()
-                                    .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                                    .scaleEffect(1.2)
-                            }
-                        }
-                        .resizable()
-                        .aspectRatio(contentMode: presentationMode.swiftUIContentMode)
-                        .frame(width: screenSize.width, height: screenSize.height)
-                        .background(
-                            // ✅ FONDO BLUR para imágenes (usando la misma imagen con blur)
+                    } else if story.mediaItem.type == .image, let url = URL(string: story.mediaItem.url) {
+                        ZStack {
                             KFImage(url)
+                                .placeholder {
+                                    ZStack {
+                                        Color.black
+                                        ProgressView()
+                                            .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                                            .scaleEffect(1.2)
+                                    }
+                                }
                                 .resizable()
                                 .aspectRatio(contentMode: .fill)
-                                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                                .blur(radius: 20) // ✅ BLUR INTENSO para fondo
-                                .scaleEffect(1.3) // ✅ ESCALADO PARA EVITAR BORDES
+                                .frame(width: canvasRect.width, height: canvasRect.height)
+                                .blur(radius: 20)
+                                .scaleEffect(1.1)
                                 .clipped()
-                        )
-                        .clipped()
-                } else {
-                    ZStack {
-                        Color.black
-                        VStack(spacing: 12) {
-                            Image(systemName: "photo.on.rectangle")
-                                .font(.system(size: 40))
-                                .foregroundColor(.white.opacity(0.6))
-                            Text("stories.contentUnavailable")
-                                .foregroundColor(.white.opacity(0.8))
-                                .font(.custom("Poppins-Medium", size: 16))
+
+                            KFImage(url)
+                                .placeholder {
+                                    ZStack {
+                                        Color.black
+                                        ProgressView()
+                                            .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                                            .scaleEffect(1.2)
+                                    }
+                                }
+                                .resizable()
+                                .aspectRatio(contentMode: presentationMode.swiftUIContentMode)
+                                .frame(width: canvasRect.width, height: canvasRect.height)
                         }
+                    } else {
+                        ZStack {
+                            LinearGradient(
+                                gradient: Gradient(colors: [
+                                    Color.black.opacity(0.85),
+                                    Color.black.opacity(0.6),
+                                    Color.black.opacity(0.4)
+                                ]),
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                            VStack(spacing: 12) {
+                                Image(systemName: "photo.on.rectangle")
+                                    .font(.system(size: 40))
+                                    .foregroundColor(.white.opacity(0.6))
+                                Text("stories.contentUnavailable")
+                                    .foregroundColor(.white.opacity(0.8))
+                                    .font(.custom("Poppins-Medium", size: 16))
+                            }
+                        }
+                        .frame(width: canvasRect.width, height: canvasRect.height)
                     }
-                    .frame(width: screenSize.width, height: screenSize.height)
                 }
             }
-        }
-        .clipped() // Ensure content doesn't overflow
+            .clipShape(canvasShape)
+            .contentShape(canvasShape)
+            .compositingGroup()
         }
     }
 
@@ -1085,6 +1134,13 @@ struct StoryViewerScreen: View {
             onPrevious: onPrevious,
             onNext: onNext
         )
+    }
+
+    private func keyWindowSafeAreaInsets() -> UIEdgeInsets {
+        let scenes = UIApplication.shared.connectedScenes
+        let windowScene = scenes.first { $0.activationState == .foregroundActive } as? UIWindowScene
+        let keyWindow = windowScene?.windows.first(where: \.isKeyWindow)
+        return keyWindow?.safeAreaInsets ?? .zero
     }
 
     // MARK: - ✅ PRELOADING
@@ -1145,6 +1201,10 @@ struct StoryViewerScreen: View {
     private var storyMessagePlaceholder: String {
         let format = NSLocalizedString("stories.sendMessagePlaceholder", comment: "Send story message placeholder")
         return String(format: format, story.username)
+    }
+
+    private var storyRepliesDisabledPlaceholder: String {
+        NSLocalizedString("stories.repliesDisabledPlaceholder", comment: "Story replies disabled placeholder")
     }
 
     private func isProtectedGestureStart(_ location: CGPoint) -> Bool {
