@@ -85,6 +85,7 @@ class UploadingMoment: ObservableObject, Identifiable {
 }
 
 enum UploadStatus {
+    case initializing // 🔄 Iniciando...
     case uploading
     case processing
     case completed
@@ -93,6 +94,7 @@ enum UploadStatus {
 
     var displayText: String {
         switch self {
+        case .initializing: return "Iniciando..."
         case .uploading: return "Subiendo..."
         case .processing: return "Procesando..."
         case .completed: return "Publicado"
@@ -103,7 +105,7 @@ enum UploadStatus {
 
     var shouldShowInFeed: Bool {
         switch self {
-        case .uploading, .processing: return true
+        case .initializing, .uploading, .processing: return true
         case .completed, .moderated: return false // Se reemplaza por el momento real
         case .failed: return true // Para permitir reintentos
         }
@@ -912,6 +914,8 @@ class BackgroundMomentUploadService: ObservableObject {
         let statusString: String
         if let status = status {
             switch status {
+            case .initializing:
+                statusString = "uploading"
             case .uploading:
                 statusString = "uploading"
             case .processing:

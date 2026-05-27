@@ -324,6 +324,7 @@
 "feed.uploading.available" = "El teu moment ja està disponible!";
 "feed.uploading.error" = "Error al pujar";
 "feed.uploading.uploading" = "Pujant fitxers...";
+"feed.uploading.initializing" = "Iniciant...";
 "feed.follow.request" = "Sol·licitar";
 "feed.follow.requested" = "Sol·licitat";
 
@@ -3381,3 +3382,38 @@
 "incognito.onboarding.bullet.one" = "Ideal per mirar històries sense aparèixer a la llista de viewers.";
 "incognito.onboarding.bullet.two" = "Pots visitar el perfil d'algú, fins i tot el del teu crush, sense deixar rastre.";
 "incognito.onboarding.bullet.three" = "Si obres un xat, l'altra persona no veurà el llegit mentre estigui actiu.";
+
+/* Story Editor Card Placeholders */
+"storyEditor.hashtag.placeholder" = "HASHTAG";
+"storyEditor.link.fallbackTitle" = "Enllaç";
+"storyEditor.mention.userFallback" = "Usuari";
+"storyEditor.question.prompt" = "Fes-me una pregunta";
+"storyEditor.poll.questionPrompt" = "Fes una pregunta...";
+"storyEditor.poll.optionPrompt" = "Opció";
+"storyEditor.poll.defaultOption1" = "Sí";
+"storyEditor.poll.defaultOption2" = "No";
+"storyEditor.quiz.questionPrompt" = "Escriu una pregunta...";
+"storyEditor.quiz.optionPrompt" = "Opció";
+"storyEditor.slider.questionPrompt" = "Fes una pregunta...";
+"storyEditor.countdown.eventTitle" = "Nom de l'esdeveniment...";
+"storyEditor.countdown.placeholder" = "NOM DEL COMPTE ENRERE";
+"storyEditor.countdown.days" = "Dies";
+"storyEditor.countdown.hours" = "Hores";
+"storyEditor.countdown.minutes" = "Min.";
+"storyEditor.countdown.seconds" = "Seg.";
+"storyEditor.emojiPicker.title" = "Selecciona un emoji";
+"storyEditor.emojiPicker.close" = "Tanca";
+"storyEditor.emojiPicker.selectTone" = "Selecciona el to de pell";
+"stickerview.mention.userNotFound" = "Usuari no trobat";
+"storyEditor.emojiPicker.reactions" = "Reaccions";
+"storyEditor.emojiPicker.faces" = "Cares i gestos";
+"storyEditor.emojiPicker.nature" = "Natura";
+"storyEditor.emojiPicker.food" = "Menjar i beure";
+"storyEditor.emojiPicker.activities" = "Activitats";
+"storyEditor.emojiPicker.travel" = "Viatges i llocs";
+"storyEditor.emojiPicker.objects" = "Objectes";
+"storyEditor.emojiPicker.symbols" = "Símbols";
+"storyEditor.discardDraft.title" = "Vols descartar el contingut multimèdia?";
+"storyEditor.discardDraft.message" = "Si surts ara, perdràs els canvis que hagis fet.";
+"storyEditor.discardDraft.confirm" = "Descartar";
+"storyEditor.discardDraft.cancel" = "Continuar editant";

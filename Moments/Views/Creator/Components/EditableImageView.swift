@@ -343,6 +343,7 @@ struct StoryEditableMediaContainer<Foreground: View>: View {
             }
         }
         .task(id: paletteIdentity) {
+            guard paletteOverride == nil || paletteOverride?.isEmpty == true else { return }
             dominantColors = storyDominantBackgroundColors(from: paletteSourceImage)
         }
         .onAppear {

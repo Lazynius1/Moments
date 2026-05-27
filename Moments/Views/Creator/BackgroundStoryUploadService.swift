@@ -23,7 +23,7 @@ class UploadingStory: ObservableObject, Identifiable {
     let id = UUID()
     let tempId: String
     let userId: String
-    let mediaItem: ProcessedMedia
+    var mediaItem: ProcessedMedia
     let storyText: String?
     let textPosition: CGPoint?
     let selectedTextStyle: Any?
@@ -34,7 +34,7 @@ class UploadingStory: ObservableObject, Identifiable {
     let customListId: String?
     let selectedListName: String?
     let createdAt: Date
-    let finalRenderedImage: UIImage? // ✅ NUEVA: Imagen renderizada final para detectar aspect ratio
+    var finalRenderedImage: UIImage?
     let chainId: String? // 🔗 AÑADIDO: ID de la cadena
     let chainPosition: Int? // 🔗 AÑADIDO: Posición en la cadena
     let chainTitle: String? // 🔗 AÑADIDO: Título de la cadena
@@ -46,7 +46,7 @@ class UploadingStory: ObservableObject, Identifiable {
     let storyVideoMode: CreatorMedia.StoryVideoMode
 
     @Published var uploadProgress: Double = 0.0
-    @Published var status: UploadStatus = .uploading
+    @Published var status: UploadStatus = .initializing
     @Published var errorMessage: String?
     @Published var storyId: String? // Para almacenar el ID real de Firestore
 
@@ -121,7 +121,6 @@ struct StoryUploadPayload: Codable {
     let selectedListName: String?
     let createdAt: Date
     let storyVideoMode: String?
-
     // Story Chain fields
     let chainId: String?
     let chainPosition: Int?
@@ -210,6 +209,124 @@ class BackgroundStoryUploadService: ObservableObject {
         }
     }
 
+    // MARK: - 🚀 NUEVO: PREPARACIÓN INSTANTÁNEA (Paso 2)
+    func startPreparingStory(
+        mediaItem: ProcessedMedia,
+        storyText: String?,
+        textPosition: CGPoint?,
+        selectedTextStyle: Any?,
+        stickerData: [StickerItem]?,
+        drawingData: Data?,
+        audienceSetting: ContentAudience,
+        customViewers: [String]?,
+        customListId: String?,
+        selectedListName: String?,
+        chainId: String? = nil,
+        chainPosition: Int? = nil,
+        chainTitle: String? = nil,
+        allowOthersToContinue: Bool? = nil,
+        continuationAudience: ContentAudience? = nil,
+        continuationCustomViewers: [String]? = nil,
+        continuationCustomListId: String? = nil,
+        continuationCustomListName: String? = nil,
+        storyVideoMode: CreatorMedia.StoryVideoMode = .normal,
+        tempId: String? = nil
+    ) -> UploadingStory? {
+        guard let userId = Auth.auth().currentUser?.uid else { return nil }
+        
+        if let existingStory = uploadingStory {
+            cancelUpload(existingStory)
+        }
+        
+        let uploadingStory = UploadingStory(
+            userId: userId,
+            mediaItem: mediaItem,
+            storyText: storyText,
+            textPosition: textPosition,
+            selectedTextStyle: selectedTextStyle,
+            stickerData: stickerData,
+            drawingData: drawingData,
+            audienceSetting: audienceSetting,
+            customViewers: customViewers,
+            customListId: customListId,
+            selectedListName: selectedListName,
+            finalRenderedImage: nil,
+            chainId: chainId,
+            chainPosition: chainPosition,
+            chainTitle: chainTitle,
+            allowOthersToContinue: allowOthersToContinue,
+            continuationAudience: continuationAudience,
+            continuationCustomViewers: continuationCustomViewers,
+            continuationCustomListId: continuationCustomListId,
+            continuationCustomListName: continuationCustomListName,
+            storyVideoMode: storyVideoMode,
+            tempId: tempId
+        )
+        
+        uploadingStory.status = .initializing
+        uploadingStory.uploadProgress = 0.0
+        
+        DispatchQueue.main.async {
+            self.uploadingStory = uploadingStory
+            self.isProcessing = true
+        }
+        
+        Task { @MainActor in
+            await startLiveActivity(for: uploadingStory)
+        }
+        
+        return uploadingStory
+    }
+
+    func publishPreparedStoryInBackground(
+        uploadingStory: UploadingStory,
+        preparedMediaItem: ProcessedMedia,
+        finalRenderedImage: UIImage?,
+        shouldPersistAction: Bool = true
+    ) async {
+        await MainActor.run {
+            uploadingStory.mediaItem = preparedMediaItem
+            uploadingStory.finalRenderedImage = finalRenderedImage
+            uploadingStory.status = .uploading
+            uploadingStory.uploadProgress = 0.0
+            
+            // Actualizar thumbnail
+            uploadingStory.thumbnailImage = preparedMediaItem.image
+        }
+        
+        var backgroundTaskID: UIBackgroundTaskIdentifier = .invalid
+        backgroundTaskID = UIApplication.shared.beginBackgroundTask(withName: "StoryUpload") {
+            UIApplication.shared.endBackgroundTask(backgroundTaskID)
+            backgroundTaskID = .invalid
+        }
+        
+        Task {
+            if shouldPersistAction {
+                await self.persistAction(uploadingStory)
+            }
+            
+            if backgroundTaskID != .invalid {
+                UIApplication.shared.endBackgroundTask(backgroundTaskID)
+                backgroundTaskID = .invalid
+            }
+            
+            await self.processStoryUpload(uploadingStory)
+            
+            if uploadingStory.status == .completed || uploadingStory.status == .moderated {
+                LocalPersistenceService.shared.deleteAction(id: uploadingStory.tempId)
+                self.deleteActionFiles(id: uploadingStory.tempId)
+            }
+        }
+    }
+
+    func markStoryAsFailed(uploadingStory: UploadingStory, errorMessage: String) {
+        DispatchQueue.main.async {
+            uploadingStory.status = .failed
+            uploadingStory.errorMessage = errorMessage
+            self.isProcessing = false
+        }
+    }
+
     // MARK: - 📤 FUNCIÓN PRINCIPAL: Iniciar upload de historia en background
     func uploadStory(
         mediaItem: ProcessedMedia,
@@ -234,15 +351,12 @@ class BackgroundStoryUploadService: ObservableObject {
         recoveryActionId: String? = nil,
         shouldPersistAction: Bool = true
     ) -> UploadingStory? {
-
         guard let userId = Auth.auth().currentUser?.uid else { return nil }
 
-
-        // Si ya hay una historia subiendo, cancelar la anterior
         if let existingStory = uploadingStory {
             cancelUpload(existingStory)
         }
-
+        
         // 🔥 PREPARAR MEDIA ITEM (con imagen renderizada si existe)
         let finalMediaItem: ProcessedMedia
         if let finalImage = finalRenderedImage {
@@ -277,10 +391,10 @@ class BackgroundStoryUploadService: ObservableObject {
             )
         }
 
-        // Crear historia temporal
+
         let uploadingStory = UploadingStory(
             userId: userId,
-            mediaItem: finalMediaItem, // 🔥 USAR EL MEDIA ITEM CORRECTO
+            mediaItem: finalMediaItem,
             storyText: storyText,
             textPosition: textPosition,
             selectedTextStyle: selectedTextStyle,
@@ -303,49 +417,39 @@ class BackgroundStoryUploadService: ObservableObject {
             tempId: recoveryActionId
         )
 
-        // Mostrar en el header inmediatamente
         DispatchQueue.main.async {
             self.uploadingStory = uploadingStory
             self.isProcessing = true
         }
 
-        // ✅ NUEVO: Iniciar Live Activity para Dynamic Island
         Task { @MainActor in
             await startLiveActivity(for: uploadingStory)
         }
 
-        // ✅ NUEVO: SOLICITUD DE BACKGROUND TASK
         var backgroundTaskID: UIBackgroundTaskIdentifier = .invalid
         backgroundTaskID = UIApplication.shared.beginBackgroundTask(withName: "StoryUpload") {
             UIApplication.shared.endBackgroundTask(backgroundTaskID)
             backgroundTaskID = .invalid
         }
 
-        // Procesar en background
         Task {
-            // 1. Persistir acción en disco por si la app muere
             if shouldPersistAction {
                 await self.persistAction(uploadingStory)
             }
 
-            // ✅ No mantener un background task vivo mientras el servidor procesa vídeo.
             if backgroundTaskID != .invalid {
                 UIApplication.shared.endBackgroundTask(backgroundTaskID)
                 backgroundTaskID = .invalid
             }
 
-            // 2. Ejecutar upload
             await self.processStoryUpload(uploadingStory)
 
-            // 3. Limpiar acción y archivos al terminar (éxito o error fatal)
             if uploadingStory.status == .completed || uploadingStory.status == .moderated {
                 LocalPersistenceService.shared.deleteAction(id: uploadingStory.tempId)
                 self.deleteActionFiles(id: uploadingStory.tempId)
             }
-
-            // El procesamiento largo queda en Firestore/Functions; no envolvemos esa espera en background task.
         }
-
+        
         return uploadingStory
     }
 
@@ -768,10 +872,8 @@ class BackgroundStoryUploadService: ObservableObject {
     private func prepareMediaItem(_ uploadingStory: UploadingStory) async throws -> UploadMediaItem {
         if uploadingStory.mediaItem.type == .video,
            let videoURL = uploadingStory.mediaItem.videoURL {
-
-            // ✅ SOLO COMPRIMIR SI REALMENTE ES NECESARIO
             let needsCompression = await needsCompressionBySize(videoURL)
-
+            
             if needsCompression {
                 let compressedVideoURL = try await compressVideoForStory(videoURL)
                 return UploadMediaItem(type: .video, image: nil, videoURL: compressedVideoURL)
@@ -779,8 +881,9 @@ class BackgroundStoryUploadService: ObservableObject {
                 return UploadMediaItem(type: .video, image: nil, videoURL: videoURL)
             }
         } else {
-            // Para imágenes
-            return UploadMediaItem(type: .image, image: uploadingStory.mediaItem.image, videoURL: nil)
+            let sourceImage = uploadingStory.finalRenderedImage ?? uploadingStory.mediaItem.image
+            let optimizedImage = optimizeImageForStory(sourceImage)
+            return UploadMediaItem(type: .image, image: optimizedImage, videoURL: nil)
         }
     }
 
@@ -891,35 +994,12 @@ class BackgroundStoryUploadService: ObservableObject {
     ) async throws -> String {
         let firestoreService = FirestoreService.shared
 
-        // ✅ DETECTAR ASPECT RATIO Y EXTRAER FRAME DE FONDO
+        // ✅ DETECTAR ASPECT RATIO
         var aspectRatio: String? = nil
-        var backgroundFrameURL: String? = nil
-        var backgroundBlurredFrameURL: String? = nil
 
         if uploadingStory.mediaItem.type == .video,
            let videoURL = uploadingStory.mediaItem.videoURL {
             aspectRatio = await StoryViewerScreen.detectVideoAspectRatio(from: videoURL)
-
-            // Extraer frame cuando el media no debe ir a fill y necesita blur de relleno.
-            if let aspectRatio = aspectRatio {
-                let parsedRatio = parseAspectRatio(aspectRatio) ?? 0.0
-                let screenBounds = UIScreen.main.bounds
-                let canvasRatio = screenBounds.width / max(screenBounds.height, 1)
-
-                if StoryMediaLayoutRules.presentationMode(
-                    for: parsedRatio,
-                    canvasAspectRatio: canvasRatio
-                ) == .fitWithBlur {
-                    var backgroundImage = uploadingStory.finalRenderedImage
-                    if backgroundImage == nil {
-                        backgroundImage = await extractBackgroundFrameImage(from: videoURL)
-                    }
-                    if let backgroundImage {
-                        backgroundFrameURL = try await uploadBackgroundFrameImage(backgroundImage)
-                        backgroundBlurredFrameURL = try await uploadBlurredBackgroundFrameImage(backgroundImage)
-                    }
-                }
-            }
         } else if uploadingStory.mediaItem.type == .image {
             // ✅ DETECTAR ASPECT RATIO PARA IMÁGENES
             let targetImage = uploadingStory.finalRenderedImage ?? uploadingStory.mediaItem.image
@@ -977,8 +1057,8 @@ class BackgroundStoryUploadService: ObservableObject {
                     stickers: normalizedStickerData, // ✅ USAR DATOS NORMALIZADOS
                     drawingData: uploadingStory.drawingData,
                     aspectRatio: aspectRatio, // ✅ AÑADIDO: Pasar aspect ratio
-                    backgroundFrameURL: backgroundFrameURL, // ✅ AÑADIDO: Pasar URL del frame de fondo
-                    backgroundBlurredFrameURL: backgroundBlurredFrameURL,
+                    backgroundFrameURL: nil,
+                    backgroundBlurredFrameURL: nil,
                     chainId: uploadingStory.chainId, // 🔗 AÑADIDO: Pasar ID de la cadena
                     chainPosition: uploadingStory.chainPosition, // 🔗 AÑADIDO: Pasar posición en la cadena
                     chainTitle: uploadingStory.chainTitle, // 🔗 AÑADIDO: Pasar título de la cadena
@@ -1013,8 +1093,8 @@ class BackgroundStoryUploadService: ObservableObject {
                     stickers: normalizedStickerData, // ✅ USAR DATOS NORMALIZADOS
                     drawingData: uploadingStory.drawingData,
                     aspectRatio: aspectRatio, // ✅ AÑADIDO: Pasar aspect ratio
-                    backgroundFrameURL: backgroundFrameURL, // ✅ AÑADIDO: Pasar URL del frame de fondo
-                    backgroundBlurredFrameURL: backgroundBlurredFrameURL,
+                    backgroundFrameURL: nil,
+                    backgroundBlurredFrameURL: nil,
                     chainId: uploadingStory.chainId, // 🔗 AÑADIDO: Pasar ID de la cadena
                     chainPosition: uploadingStory.chainPosition, // 🔗 AÑADIDO: Pasar posición en la cadena
                     chainTitle: uploadingStory.chainTitle, // 🔗 AÑADIDO: Pasar título de la cadena
@@ -2173,6 +2253,8 @@ extension BackgroundStoryUploadService {
         let statusString: String
         if let status = status {
             switch status {
+            case .initializing:
+                statusString = "uploading"
             case .uploading:
                 statusString = "uploading"
             case .processing:

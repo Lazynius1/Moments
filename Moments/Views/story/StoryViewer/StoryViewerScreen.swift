@@ -1007,65 +1007,27 @@ struct StoryViewerScreen: View {
                 // ✅ CONTENIDO PRINCIPAL (imagen/video)
                 Group {
                     if story.mediaItem.type == .video, let url = URL(string: story.mediaItem.url) {
-                        ZStack {
-                            Group {
-                                if let blurredFrameURL = story.backgroundBlurredFrameURL,
-                                   let backgroundURL = URL(string: blurredFrameURL) {
-                                    KFImage(backgroundURL)
-                                        .resizable()
-                                        .aspectRatio(contentMode: .fill)
-                                        .frame(width: canvasRect.width, height: canvasRect.height)
-                                        .clipped()
-                                } else if let backgroundFrameURL = story.backgroundFrameURL,
-                                          let backgroundURL = URL(string: backgroundFrameURL) {
-                                    KFImage(backgroundURL)
-                                        .resizable()
-                                        .aspectRatio(contentMode: .fill)
-                                        .frame(width: canvasRect.width, height: canvasRect.height)
-                                        .blur(radius: 20)
-                                        .scaleEffect(1.1)
-                                        .clipped()
-                                } else {
-                                    GlassmorphicStoryVideoPlayer(
-                                        url: url,
-                                        isPlaying: Binding(
-                                            get: { !playbackCoordinator.isPaused },
-                                            set: { playbackCoordinator.setPausedFromVideoBinding(!$0) }
-                                        ),
-                                        isHorizontalVideo: StoryViewerScreen.isHorizontalAspectRatio(story.aspectRatio),
-                                        videoGravity: .resizeAspectFill,
-                                        shouldLoop: false,
-                                        onProgressUpdate: { _ in },
-                                        onVideoComplete: { }
-                                    )
-                                    .frame(width: canvasRect.width, height: canvasRect.height)
-                                    .blur(radius: 20)
-                                    .scaleEffect(1.1)
-                                    .clipped()
+                        GlassmorphicStoryVideoPlayer(
+                            url: url,
+                            isPlaying: Binding(
+                                get: { !playbackCoordinator.isPaused },
+                                set: { playbackCoordinator.setPausedFromVideoBinding(!$0) }
+                            ),
+                            isHorizontalVideo: StoryViewerScreen.isHorizontalAspectRatio(story.aspectRatio),
+                            videoGravity: presentationMode.videoGravity,
+                            shouldLoop: false,
+                            onProgressUpdate: { newProgress in
+                                playbackCoordinator.updateVideoProgress(newProgress, for: story)
+                            },
+                            onVideoComplete: {
+                                if playbackCoordinator.canAdvanceAfterVideoComplete() {
+                                    onNext()
                                 }
                             }
-
-                            GlassmorphicStoryVideoPlayer(
-                                url: url,
-                                isPlaying: Binding(
-                                    get: { !playbackCoordinator.isPaused },
-                                    set: { playbackCoordinator.setPausedFromVideoBinding(!$0) }
-                                ),
-                                isHorizontalVideo: StoryViewerScreen.isHorizontalAspectRatio(story.aspectRatio),
-                                videoGravity: presentationMode.videoGravity,
-                                shouldLoop: false,
-                                onProgressUpdate: { newProgress in
-                                    playbackCoordinator.updateVideoProgress(newProgress, for: story)
-                                },
-                                onVideoComplete: {
-                                    if playbackCoordinator.canAdvanceAfterVideoComplete() {
-                                        onNext()
-                                    }
-                                }
-                            )
-                            .frame(width: canvasRect.width, height: canvasRect.height)
-                            .id(story.id)
-                        }
+                        )
+                        .frame(width: canvasRect.width, height: canvasRect.height)
+                        .id(story.id)
+                    
                     } else if story.mediaItem.type == .image, let url = URL(string: story.mediaItem.url) {
                         ZStack {
                             KFImage(url)

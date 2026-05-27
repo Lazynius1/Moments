@@ -327,6 +327,7 @@
 "feed.uploading.available" = "Your moment is now available!";
 "feed.uploading.error" = "Upload error";
 "feed.uploading.uploading" = "Uploading files...";
+"feed.uploading.initializing" = "Starting...";
 "feed.follow.request" = "Request";
 "feed.follow.requested" = "Requested";
 
@@ -3366,9 +3367,43 @@
 "incognito.feature.stories.body" = "You can watch stories without appearing in the viewers list.";
 "incognito.feature.visits.title" = "Profile visits stay hidden";
 "incognito.feature.visits.body" = "Checking another profile will not create a visit trace.";
-"incognito.feature.readReceipts.short" = "Chats";
 "incognito.feature.readReceipts.title" = "Read receipts stay quiet";
 "incognito.feature.readReceipts.body" = "Opening a chat will not mark messages as read while Incognito is active.";
 "incognito.onboarding.bullet.one" = "Perfect for taking a quick look at stories without showing up in viewers.";
 "incognito.onboarding.bullet.two" = "You can visit a profile, even your crush's, without leaving a visit trace.";
 "incognito.onboarding.bullet.three" = "If you open a chat, the other person will not get a read receipt while it is active.";
+
+/* Story Editor Card Placeholders */
+"storyEditor.hashtag.placeholder" = "HASHTAG";
+"storyEditor.link.fallbackTitle" = "Link";
+"storyEditor.mention.userFallback" = "User";
+"storyEditor.question.prompt" = "Ask me a question";
+"storyEditor.poll.questionPrompt" = "Ask a question...";
+"storyEditor.poll.optionPrompt" = "Option";
+"storyEditor.poll.defaultOption1" = "Yes";
+"storyEditor.poll.defaultOption2" = "No";
+"storyEditor.quiz.questionPrompt" = "Write a question...";
+"storyEditor.quiz.optionPrompt" = "Option";
+"storyEditor.countdown.eventTitle" = "Event name...";
+"storyEditor.slider.questionPrompt" = "Ask a question...";
+"storyEditor.countdown.placeholder" = "COUNTDOWN NAME";
+"storyEditor.countdown.days" = "Days";
+"storyEditor.countdown.hours" = "Hours";
+"storyEditor.countdown.minutes" = "Min.";
+"storyEditor.countdown.seconds" = "Sec.";
+"storyEditor.emojiPicker.title" = "Select an Emoji";
+"storyEditor.emojiPicker.close" = "Close";
+"storyEditor.emojiPicker.selectTone" = "Select Skin Tone";
+"stickerview.mention.userNotFound" = "User not found";
+"storyEditor.emojiPicker.reactions" = "Reactions";
+"storyEditor.emojiPicker.faces" = "Smileys & People";
+"storyEditor.emojiPicker.nature" = "Animals & Nature";
+"storyEditor.emojiPicker.food" = "Food & Drink";
+"storyEditor.emojiPicker.activities" = "Activities";
+"storyEditor.emojiPicker.travel" = "Travel & Places";
+"storyEditor.emojiPicker.objects" = "Objects";
+"storyEditor.emojiPicker.symbols" = "Symbols";
+"storyEditor.discardDraft.title" = "Discard multimedia content?";
+"storyEditor.discardDraft.message" = "If you leave now, you'll lose any changes you've made.";
+"storyEditor.discardDraft.confirm" = "Discard";
+"storyEditor.discardDraft.cancel" = "Keep editing";

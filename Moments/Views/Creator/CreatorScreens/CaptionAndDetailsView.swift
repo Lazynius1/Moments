@@ -519,24 +519,24 @@ struct CaptionAndDetailsView: View {
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
             self.isPublishing = false
 
-            if uploadingMoment != nil {
-                NotificationCenter.default.post(name: NSNotification.Name("ReturnToFeedAfterMomentPublish"), object: nil)
-                self.showCreatorView = false
+        if uploadingMoment != nil {
+            NotificationCenter.default.post(name: NSNotification.Name("ReturnToFeedAfterMomentPublish"), object: nil)
+            self.showCreatorView = false
 
-                // 🧹 Limpiar formulario para próximo uso
-                self.resetForm()
+            // 🧹 Limpiar formulario para próximo uso
+            self.resetForm()
 
                 // 📊 Analytics
 
-            } else {
-                // ❌ Feedback háptico de error
-                HapticManager.shared.notification(.error)
+        } else {
+            // ❌ Feedback háptico de error
+            HapticManager.shared.notification(.error)
 
                 // Revertir estado si falló el inicio del servicio
                 withAnimation {
-                    self.isLaunching = false
-                }
-            }
+            self.isLaunching = false
+        }
+    }
         }
     }
 

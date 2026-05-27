@@ -127,7 +127,9 @@ func stickerHostLabel(from raw: String) -> String {
 
 func linkStickerRenderingSize(for title: String) -> CGSize {
     let trimmedTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
-    let measuredTitle = trimmedTitle.isEmpty ? "Link" : trimmedTitle
+    let measuredTitle = trimmedTitle.isEmpty
+        ? NSLocalizedString("storyEditor.link.fallbackTitle", comment: "Fallback title for link sticker")
+        : trimmedTitle
     let font = UIFont.systemFont(ofSize: 16, weight: .semibold)
     let textWidth = ceil((measuredTitle as NSString).size(withAttributes: [.font: font]).width)
     let horizontalChrome: CGFloat = 18 + 18 + 12 + 18
@@ -363,9 +365,23 @@ struct StickerLinkCardView: View {
 }
 
 struct StickerHashtagCardView: View {
-    let hashtag: String
+    @Binding var hashtag: String
     var styleVariant: Int = 0
+    var isEditingInline: Bool = false
     @Environment(\.colorScheme) private var colorScheme
+    @FocusState private var isFocused: Bool
+
+    init(hashtag: Binding<String>, styleVariant: Int = 0, isEditingInline: Bool = false) {
+        self._hashtag = hashtag
+        self.styleVariant = styleVariant
+        self.isEditingInline = isEditingInline
+    }
+
+    init(hashtag: String, styleVariant: Int = 0) {
+        self._hashtag = .constant(hashtag)
+        self.styleVariant = styleVariant
+        self.isEditingInline = false
+    }
 
     var body: some View {
         let normalizedVariant = normalizedTapCycleStickerVariant(styleVariant)
@@ -381,11 +397,31 @@ struct StickerHashtagCardView: View {
                 )
                 .opacity(normalizedVariant == 3 ? 1.0 : 0.7)
             
-            Text(hashtag.uppercased())
-                .font(.system(size: 18, weight: .black, design: .rounded))
-                .tracking(0.5)
-                .foregroundStyle(foregroundStyle)
-                .lineLimit(1)
+            if isEditingInline {
+                // The placeholder colour is driven by .secondary in the injected colorScheme.
+                // Hashtag sticker uses momentsStickerInk which is dark on light backgrounds → inject .light.
+                let fieldScheme: ColorScheme = normalizedVariant == 1 ? .dark : colorScheme
+                TextField(NSLocalizedString("storyEditor.hashtag.placeholder", comment: "Hashtag placeholder"), text: $hashtag)
+                    .font(.system(size: 18, weight: .black, design: .rounded))
+                    .foregroundStyle(foregroundStyle)
+                    .autocorrectionDisabled()
+                    .textInputAutocapitalization(.characters)
+                    .lineLimit(1)
+                    .focused($isFocused)
+                    .frame(minWidth: 80, maxWidth: 260)
+                    .environment(\.colorScheme, fieldScheme)
+                    .onAppear {
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                            isFocused = true
+                        }
+                    }
+            } else {
+                Text(hashtag.uppercased())
+                    .font(.system(size: 18, weight: .black, design: .rounded))
+                    .tracking(0.5)
+                    .foregroundStyle(foregroundStyle)
+                    .lineLimit(1)
+            }
         }
         .padding(.horizontal, 20)
         .padding(.vertical, 12)
@@ -401,6 +437,15 @@ struct StickerHashtagCardView: View {
                 )
         )
         .fixedSize(horizontal: true, vertical: false)
+        .onChange(of: isEditingInline) { _, newValue in
+            if newValue {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                    isFocused = true
+                }
+            } else {
+                isFocused = false
+            }
+        }
     }
 }
 
@@ -448,26 +493,116 @@ struct StickerTimeCardView: View {
     }
 }
 
-struct StickerCountdownCardView: View {
-    let title: String
-    let targetAtMs: Double
-    @Environment(\.colorScheme) private var colorScheme
+struct CountdownComponents {
+    let days: String
+    let hours: String
+    let minutes: String
+    let seconds: String
+}
+
+func getCountdownComponents(targetAtMs: Double, now: Date) -> CountdownComponents {
+    let targetDate = Date(timeIntervalSince1970: targetAtMs / 1000)
+    let totalSeconds = max(Int(targetDate.timeIntervalSince(now)), 0)
+    
+    let days = totalSeconds / 86400
+    let hours = (totalSeconds % 86400) / 3600
+    let minutes = (totalSeconds % 3600) / 60
+    let seconds = totalSeconds % 60
+    
+    return CountdownComponents(
+        days: String(format: "%02d", days),
+        hours: String(format: "%02d", hours),
+        minutes: String(format: "%02d", minutes),
+        seconds: String(format: "%02d", seconds)
+    )
+}
+
+private struct CountdownSegment: View {
+    let value: String
+    let label: String
+    let ink: Color
+    let boxBg: Color
 
     var body: some View {
-        let surface = momentsStickerSurface(for: colorScheme)
-        let ink = momentsStickerInk(for: colorScheme)
-        let headerSurface = momentsStickerInverseSurface(for: colorScheme)
-        let headerInk = momentsStickerInverseInk(for: colorScheme)
+        VStack(spacing: 5) {
+            Text(value)
+                .font(.system(size: 26, weight: .black, design: .rounded))
+                .foregroundStyle(ink)
+                .frame(width: 52, height: 52)
+                .background(
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .fill(boxBg)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                .stroke(ink.opacity(0.08), lineWidth: 0.5)
+                        )
+                )
+            
+            Text(label.uppercased())
+                .font(.system(size: 8, weight: .black, design: .rounded))
+                .tracking(0.5)
+                .foregroundStyle(ink.opacity(0.64))
+        }
+    }
+}
 
-        TimelineView(.periodic(from: .now, by: 1)) { timeline in
-            let countdownText = countdownClockString(targetAtMs: targetAtMs, now: timeline.date)
-            let characters = countdownText.map(String.init)
-            let isLong = characters.count > 8
-            let digitSize: CGFloat = isLong ? 28 : 42
-            let colonSize: CGFloat = isLong ? 20 : 32
+struct StickerCountdownCardView: View {
+    @Binding var title: String
+    @Binding var targetAtMs: Double
+    var styleVariant: Int = 0
+    var isEditingInline: Bool = false
+    @Environment(\.colorScheme) private var colorScheme
+    @State private var showingDatePicker = false
 
-            VStack(alignment: .center, spacing: 0) {
-                Text(title.uppercased())
+    init(
+        title: Binding<String>,
+        targetAtMs: Binding<Double>,
+        styleVariant: Int = 0,
+        isEditingInline: Bool = false
+    ) {
+        self._title = title
+        self._targetAtMs = targetAtMs
+        self.styleVariant = styleVariant
+        self.isEditingInline = isEditingInline
+    }
+
+    init(
+        title: String,
+        targetAtMs: Double,
+        styleVariant: Int = 0
+    ) {
+        self._title = .constant(title)
+        self._targetAtMs = .constant(targetAtMs)
+        self.styleVariant = styleVariant
+        self.isEditingInline = false
+    }
+
+    var body: some View {
+        let isLight = styleVariant % 6 == 0
+        let surface = momentsCardStickerBackgroundGradient(styleVariant: styleVariant, colorScheme: colorScheme)
+        let ink = isLight ? momentsStickerInk(for: colorScheme) : Color.white
+        let headerSurface = isLight
+            ? AnyView(momentsStickerInverseSurface(for: colorScheme))
+            : AnyView(Color.white.opacity(0.12))
+        let headerInk = isLight
+            ? momentsStickerInverseInk(for: colorScheme)
+            : .white
+
+        VStack(alignment: .center, spacing: 0) {
+            if isEditingInline {
+                // headerInk is light (white) when isLight==false, dark when isLight==true
+                let fieldScheme: ColorScheme = isLight ? .light : .dark
+                TextField(NSLocalizedString("storyEditor.countdown.eventTitle", comment: "Countdown event title placeholder"), text: $title)
+                    .font(.system(size: 15, weight: .black, design: .rounded))
+                    .foregroundStyle(headerInk)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 18)
+                    .padding(.vertical, 12)
+                    .frame(maxWidth: .infinity)
+                    .environment(\.colorScheme, fieldScheme)
+                    .background(headerSurface)
+            } else {
+                Text(title.isEmpty ? NSLocalizedString("storyEditor.countdown.placeholder", comment: "Placeholder title") : title.uppercased())
                     .font(.system(size: 15, weight: .black, design: .rounded))
                     .tracking(0.5)
                     .foregroundStyle(headerInk)
@@ -477,48 +612,110 @@ struct StickerCountdownCardView: View {
                     .padding(.vertical, 12)
                     .frame(maxWidth: .infinity)
                     .background(headerSurface)
+            }
 
-                HStack(spacing: 2) {
-                    ForEach(Array(characters.enumerated()), id: \.offset) { _, character in
-                        if character == ":" {
-                            Text(character)
-                                .font(.system(size: colonSize, weight: .black, design: .rounded))
-                                .foregroundStyle(ink.opacity(0.38))
-                                .padding(.horizontal, 2)
-                                .offset(y: -2)
-                        } else {
-                            Text(character)
-                                .font(.system(size: digitSize, weight: .heavy, design: .rounded))
-                                .foregroundStyle(ink)
-                        }
+            Button(action: {
+                if isEditingInline {
+                    withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                        showingDatePicker.toggle()
+                    }
+                    HapticManager.shared.mediumImpact()
+                }
+            }) {
+                TimelineView(.periodic(from: .now, by: 1)) { timeline in
+                    let comps = getCountdownComponents(targetAtMs: targetAtMs, now: timeline.date)
+                    let boxBg = isLight
+                        ? Color.black.opacity(0.06)
+                        : Color.white.opacity(0.15)
+
+                    HStack(spacing: 8) {
+                        CountdownSegment(value: comps.days, label: NSLocalizedString("storyEditor.countdown.days", comment: ""), ink: ink, boxBg: boxBg)
+                        CountdownSegment(value: comps.hours, label: NSLocalizedString("storyEditor.countdown.hours", comment: ""), ink: ink, boxBg: boxBg)
+                        CountdownSegment(value: comps.minutes, label: NSLocalizedString("storyEditor.countdown.minutes", comment: ""), ink: ink, boxBg: boxBg)
+                        CountdownSegment(value: comps.seconds, label: NSLocalizedString("storyEditor.countdown.seconds", comment: ""), ink: ink, boxBg: boxBg)
                     }
                 }
                 .padding(.horizontal, 22)
-                .padding(.vertical, 18)
-                .background(surface)
+                .padding(.vertical, 16)
+                .background(Color.clear)
             }
-            .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
-            .background(
-                RoundedRectangle(cornerRadius: 24, style: .continuous)
-                    .fill(surface)
-            )
+            .buttonStyle(.plain)
+            .disabled(!isEditingInline)
+
+            if isEditingInline && showingDatePicker {
+                DatePicker(
+                    "",
+                    selection: Binding(
+                        get: { Date(timeIntervalSince1970: targetAtMs / 1000) },
+                        set: { targetAtMs = $0.timeIntervalSince1970 * 1000 }
+                    ),
+                    in: Date()...,
+                    displayedComponents: [.date, .hourAndMinute]
+                )
+                .datePickerStyle(.compact)
+                .labelsHidden()
+                .tint(ink)
+                .padding(.bottom, 18)
+                .transition(.opacity.combined(with: .move(edge: .top)))
+            }
         }
+        .background(surface)
+        .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
     }
 }
 
 struct StickerEmojiSliderCardView: View {
-    let prompt: String
+    @Binding var prompt: String
     let emoji: String
     let value: Double
     var averageValue: Double? = nil
+    var styleVariant: Int = 0
+    var isEditingInline: Bool = false
     @Environment(\.colorScheme) private var colorScheme
 
+    init(
+        prompt: Binding<String>,
+        emoji: String,
+        value: Double,
+        averageValue: Double? = nil,
+        styleVariant: Int = 0,
+        isEditingInline: Bool = false
+    ) {
+        self._prompt = prompt
+        self.emoji = emoji
+        self.value = value
+        self.averageValue = averageValue
+        self.styleVariant = styleVariant
+        self.isEditingInline = isEditingInline
+    }
+
+    init(
+        prompt: String,
+        emoji: String,
+        value: Double,
+        averageValue: Double? = nil,
+        styleVariant: Int = 0
+    ) {
+        self._prompt = .constant(prompt)
+        self.emoji = emoji
+        self.value = value
+        self.averageValue = averageValue
+        self.styleVariant = styleVariant
+        self.isEditingInline = false
+    }
+
     var body: some View {
-        let surface = momentsStickerSurface(for: colorScheme)
-        let ink = momentsStickerInk(for: colorScheme)
+        let isLight = styleVariant % 6 == 0
+        let surface = momentsCardStickerBackgroundGradient(styleVariant: styleVariant, colorScheme: colorScheme)
+        let textColor = momentsCardStickerTextColor(styleVariant: styleVariant, colorScheme: colorScheme)
+        let ink = isLight ? momentsStickerInk(for: colorScheme) : Color.white
         let clampedValue = min(max(value, 0), 1)
-        let showsPrompt = emojiSliderHasPrompt(prompt)
-        let baseSize = emojiSliderRenderingSize(prompt: prompt)
+        let showsPrompt = emojiSliderHasPrompt(prompt) || isEditingInline
+        let baseSize = emojiSliderRenderingSize(
+            prompt: showsPrompt
+                ? NSLocalizedString("storyEditor.slider.questionPrompt", comment: "Slider question prompt")
+                : ""
+        )
         let size = baseSize
         let metrics = emojiSliderTrackMetrics(totalWidth: size.width)
         let trackFrame = emojiSliderTrackFrame(totalSize: size, showsPrompt: showsPrompt)
@@ -527,13 +724,25 @@ struct StickerEmojiSliderCardView: View {
 
         ZStack(alignment: .topLeading) {
             if showsPrompt {
-                Text(prompt)
-                    .font(.system(size: 18, weight: .bold, design: .rounded))
-                    .foregroundStyle(ink.opacity(0.92))
-                    .multilineTextAlignment(.center)
-                    .lineLimit(2)
-                    .frame(width: size.width - 32)
-                    .position(x: size.width / 2, y: 26)
+                if isEditingInline {
+                    // textColor comes from momentsCardStickerTextColor — inject matching scheme
+                    let fieldScheme: ColorScheme = isLight ? .light : .dark
+                    TextField(NSLocalizedString("storyEditor.slider.questionPrompt", comment: "Slider question prompt"), text: $prompt)
+                        .font(.system(size: 18, weight: .bold, design: .rounded))
+                        .foregroundStyle(textColor.opacity(0.92))
+                        .multilineTextAlignment(.center)
+                        .frame(width: size.width - 32)
+                        .environment(\.colorScheme, fieldScheme)
+                        .position(x: size.width / 2, y: 26)
+                } else {
+                    Text(prompt)
+                        .font(.system(size: 18, weight: .bold, design: .rounded))
+                        .foregroundStyle(textColor.opacity(0.92))
+                        .multilineTextAlignment(.center)
+                        .lineLimit(2)
+                        .frame(width: size.width - 32)
+                        .position(x: size.width / 2, y: 26)
+                }
             }
 
             Capsule(style: .continuous)
@@ -579,7 +788,7 @@ struct StickerEmojiSliderCardView: View {
                         .frame(width: 11, height: 11)
                         .overlay(
                             Circle()
-                                .stroke(surface.opacity(0.4), lineWidth: 1)
+                                .stroke(isLight ? momentsStickerSurface(for: colorScheme).opacity(0.4) : Color.white.opacity(0.4), lineWidth: 1)
                         )
                         .shadow(color: Color.purple.opacity(0.5), radius: 4, x: 0, y: 0)
                 }
@@ -595,40 +804,95 @@ struct StickerEmojiSliderCardView: View {
                 .position(x: thumbCenter.x, y: thumbCenter.y)
         }
         .frame(width: size.width, height: size.height)
-        .background(
-            RoundedRectangle(cornerRadius: 24, style: .continuous)
-                .fill(surface)
-        )
+        .background(surface)
+        .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
     }
 }
 
-// MARK: - ✅ NEW: QUIZ STICKER VIEW
+// MARK: - ✅ NEW: QUIZ STICKER
 struct StickerQuizCardView: View {
-    let question: String
-    let options: [String]
+    @Binding var question: String
+    @Binding var options: [String]
     let selectedIndex: Int?
-    let correctIndex: Int?
+    @Binding var correctIndex: Int?
     let onSelect: (Int) -> Void
+    var styleVariant: Int = 0
+    var isEditingInline: Bool = false
     
     @Environment(\.colorScheme) private var colorScheme
     
+    init(
+        question: Binding<String>,
+        options: Binding<[String]>,
+        selectedIndex: Int?,
+        correctIndex: Binding<Int?>,
+        styleVariant: Int = 0,
+        isEditingInline: Bool = false,
+        onSelect: @escaping (Int) -> Void
+    ) {
+        self._question = question
+        self._options = options
+        self.selectedIndex = selectedIndex
+        self._correctIndex = correctIndex
+        self.styleVariant = styleVariant
+        self.isEditingInline = isEditingInline
+        self.onSelect = onSelect
+    }
+
+    init(
+        question: String,
+        options: [String],
+        selectedIndex: Int?,
+        correctIndex: Int?,
+        styleVariant: Int = 0,
+        onSelect: @escaping (Int) -> Void
+    ) {
+        self._question = .constant(question)
+        self._options = .constant(options)
+        self.selectedIndex = selectedIndex
+        self._correctIndex = .constant(correctIndex)
+        self.styleVariant = styleVariant
+        self.isEditingInline = false
+        self.onSelect = onSelect
+    }
+
     var body: some View {
-        let surface = momentsStickerSurface(for: colorScheme)
-        let headerSurface = momentsStickerInverseSurface(for: colorScheme)
-        let headerInk = momentsStickerInverseInk(for: colorScheme)
+        let isLight = styleVariant % 6 == 0
+        let surface = momentsCardStickerBackgroundGradient(styleVariant: styleVariant, colorScheme: colorScheme)
+        let textColor = momentsCardStickerTextColor(styleVariant: styleVariant, colorScheme: colorScheme)
+        let headerSurface = isLight
+            ? AnyView(momentsStickerInverseSurface(for: colorScheme))
+            : AnyView(Color.white.opacity(0.12))
+        let headerInk = isLight
+            ? momentsStickerInverseInk(for: colorScheme)
+            : .white
 
         VStack(alignment: .leading, spacing: 0) {
             // — Pregunta —
-            Text(question)
-                .font(.system(size: 16, weight: .bold, design: .rounded))
-                .foregroundStyle(headerInk)
-                .multilineTextAlignment(.center) // ✅ Centrado
-                .lineLimit(3)
-                .fixedSize(horizontal: false, vertical: true)
-                .frame(maxWidth: .infinity) // ✅ Asegurar que ocupe todo el ancho para el centrado
-                .padding(.horizontal, 16)
-                .padding(.vertical, 16)
-                .background(headerSurface)
+            if isEditingInline {
+                let fieldScheme: ColorScheme = isLight ? .light : .dark
+                TextField(NSLocalizedString("storyEditor.quiz.questionPrompt", comment: "Quiz question placeholder"), text: $question)
+                    .font(.system(size: 16, weight: .bold, design: .rounded))
+                    .foregroundStyle(headerInk)
+                    .multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: .infinity)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 16)
+                    .environment(\.colorScheme, fieldScheme)
+                    .background(headerSurface)
+            } else {
+                Text(question.isEmpty ? NSLocalizedString("quiz.question.placeholder", comment: "Placeholder question") : question)
+                    .font(.system(size: 16, weight: .bold, design: .rounded))
+                    .foregroundStyle(headerInk)
+                    .multilineTextAlignment(.center)
+                    .lineLimit(3)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: .infinity)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 16)
+                    .background(headerSurface)
+            }
             
             // — Opciones —
             VStack(spacing: 6) {
@@ -638,15 +902,12 @@ struct StickerQuizCardView: View {
             }
             .padding(.horizontal, 12)
             .padding(.vertical, 10)
-            .background(surface)
+            .background(Color.clear)
         }
         .frame(width: 280)
         .fixedSize(horizontal: false, vertical: true)
+        .background(surface)
         .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
-        .background(
-            RoundedRectangle(cornerRadius: 24, style: .continuous)
-                .fill(surface)
-        )
     }
     
     @ViewBuilder
@@ -655,60 +916,101 @@ struct StickerQuizCardView: View {
         let isCorrect = correctIndex == index
         let hasVoted = selectedIndex != nil
         
-        Button(action: { onSelect(index) }) {
+        if isEditingInline {
             HStack(spacing: 10) {
-                // Letra de opción
-                Text(["A", "B", "C", "D"][safe: index] ?? "\(index + 1)")
-                    .font(.system(size: 12, weight: .black, design: .rounded))
-                    .foregroundStyle(optionLetterColor(index: index, hasVoted: hasVoted, isCorrect: isCorrect, isSelected: isSelected))
-                    .frame(width: 26, height: 26)
-                    .background(
-                        Circle()
-                            .fill(optionCircleColor(index: index, hasVoted: hasVoted, isCorrect: isCorrect, isSelected: isSelected))
-                    )
-                
-                Text(options[index])
-                    .font(.system(size: 14, weight: .semibold, design: .rounded))
-                    .foregroundStyle(optionTextColor(index: index, hasVoted: hasVoted, isCorrect: isCorrect, isSelected: isSelected))
-                    .lineLimit(2)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                
-                if hasVoted {
-                    if isCorrect {
-                        Image(systemName: "checkmark.circle.fill")
-                            .foregroundStyle(.green)
-                            .font(.system(size: 16, weight: .bold))
-                    } else if isSelected {
-                        Image(systemName: "xmark.circle.fill")
-                            .foregroundStyle(.red.opacity(0.9))
-                            .font(.system(size: 16, weight: .bold))
-                    }
+                // Letra de opción (Tocar para marcar correcta en modo edición)
+                Button(action: {
+                    correctIndex = index
+                    HapticManager.shared.heavyImpact()
+                }) {
+                    Text(["A", "B", "C", "D"][safe: index] ?? "\(index + 1)")
+                        .font(.system(size: 12, weight: .black, design: .rounded))
+                        .foregroundStyle(optionLetterColor(index: index, hasVoted: true, isCorrect: correctIndex == index, isSelected: false))
+                        .frame(width: 26, height: 26)
+                        .background(
+                            Circle()
+                                .fill(optionCircleColor(index: index, hasVoted: true, isCorrect: correctIndex == index, isSelected: false))
+                        )
                 }
+                .buttonStyle(.plain)
+                
+                TextField(NSLocalizedString("storyEditor.quiz.optionPrompt", comment: "Quiz option placeholder") + " \(index + 1)...", text: Binding(
+                    get: { options[safe: index] ?? "" },
+                    set: { newValue in
+                        if index < options.count {
+                            options[index] = newValue
+                        }
+                    }
+                ))
+                .font(.system(size: 14, weight: .semibold, design: .rounded))
+                .foregroundStyle(optionTextColor(index: index, hasVoted: false, isCorrect: false, isSelected: false))
+                .submitLabel(index == options.count - 1 ? .done : .next)
+                .environment(\.colorScheme, styleVariant % 6 == 0 ? (colorScheme == .dark ? .dark : .light) : .dark)
             }
             .padding(.horizontal, 12)
             .padding(.vertical, 9)
             .background(
                 RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .fill(optionBgColor(index: index, hasVoted: hasVoted, isCorrect: isCorrect, isSelected: isSelected))
+                    .fill(optionBgColor(index: index, hasVoted: true, isCorrect: correctIndex == index, isSelected: false))
             )
+        } else {
+            Button(action: { onSelect(index) }) {
+                HStack(spacing: 10) {
+                    // Letra de opción
+                    Text(["A", "B", "C", "D"][safe: index] ?? "\(index + 1)")
+                        .font(.system(size: 12, weight: .black, design: .rounded))
+                        .foregroundStyle(optionLetterColor(index: index, hasVoted: hasVoted, isCorrect: isCorrect, isSelected: isSelected))
+                        .frame(width: 26, height: 26)
+                        .background(
+                            Circle()
+                                .fill(optionCircleColor(index: index, hasVoted: hasVoted, isCorrect: isCorrect, isSelected: isSelected))
+                        )
+                    
+                    Text(options[index])
+                        .font(.system(size: 14, weight: .semibold, design: .rounded))
+                        .foregroundStyle(optionTextColor(index: index, hasVoted: hasVoted, isCorrect: isCorrect, isSelected: isSelected))
+                        .lineLimit(2)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    
+                    if hasVoted {
+                        if isCorrect {
+                            Image(systemName: "checkmark.circle.fill")
+                                .foregroundStyle(.green)
+                                .font(.system(size: 16, weight: .bold))
+                        } else if isSelected {
+                            Image(systemName: "xmark.circle.fill")
+                                .foregroundStyle(.red.opacity(0.9))
+                                .font(.system(size: 16, weight: .bold))
+                        }
+                    }
+                }
+                .padding(.horizontal, 12)
+                .padding(.vertical, 9)
+                .background(
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .fill(optionBgColor(index: index, hasVoted: hasVoted, isCorrect: isCorrect, isSelected: isSelected))
+                )
+            }
+            .buttonStyle(QuizOptionButtonStyle())
+            .disabled(hasVoted)
         }
-        .buttonStyle(QuizOptionButtonStyle())
-        .disabled(hasVoted)
     }
     
     // MARK: - Color helpers
     private func optionBgColor(index: Int, hasVoted: Bool, isCorrect: Bool, isSelected: Bool) -> Color {
-        let ink = momentsStickerInk(for: colorScheme)
-        if !hasVoted { return ink.opacity(0.08) }
+        let isLight = styleVariant % 6 == 0
+        let ink = isLight ? momentsStickerInk(for: colorScheme) : Color.white
+        if !hasVoted { return ink.opacity(isLight ? 0.08 : 0.18) }
         if isCorrect { return .green.opacity(0.78) }
         if isSelected { return .red.opacity(0.74) }
-        return ink.opacity(0.06)
+        return ink.opacity(isLight ? 0.06 : 0.12)
     }
     
     private func optionCircleColor(index: Int, hasVoted: Bool, isCorrect: Bool, isSelected: Bool) -> Color {
-        let ink = momentsStickerInk(for: colorScheme)
-        let surface = momentsStickerSurface(for: colorScheme)
+        let isLight = styleVariant % 6 == 0
+        let ink = isLight ? momentsStickerInk(for: colorScheme) : Color.white
+        let surface = isLight ? momentsStickerSurface(for: colorScheme) : Color.black
         if !hasVoted { return ink.opacity(0.14) }
         if isCorrect { return surface.opacity(0.26) }
         if isSelected { return surface.opacity(0.24) }
@@ -716,17 +1018,19 @@ struct StickerQuizCardView: View {
     }
     
     private func optionLetterColor(index: Int, hasVoted: Bool, isCorrect: Bool, isSelected: Bool) -> Color {
-        let ink = momentsStickerInk(for: colorScheme)
-        let surface = momentsStickerSurface(for: colorScheme)
+        let isLight = styleVariant % 6 == 0
+        let ink = isLight ? momentsStickerInk(for: colorScheme) : Color.white
+        let surface = isLight ? momentsStickerSurface(for: colorScheme) : Color.black
         if !hasVoted { return ink.opacity(0.82) }
         if isCorrect { return surface }
         if isSelected { return surface }
         return ink.opacity(0.48)
     }
-
+ 
     private func optionTextColor(index: Int, hasVoted: Bool, isCorrect: Bool, isSelected: Bool) -> Color {
-        let ink = momentsStickerInk(for: colorScheme)
-        let surface = momentsStickerSurface(for: colorScheme)
+        let isLight = styleVariant % 6 == 0
+        let ink = isLight ? momentsStickerInk(for: colorScheme) : Color.white
+        let surface = isLight ? momentsStickerSurface(for: colorScheme) : Color.black
         if !hasVoted { return ink.opacity(0.9) }
         if isCorrect || isSelected { return surface }
         return ink.opacity(0.58)
@@ -1515,6 +1819,66 @@ struct InteractiveAudioStickerView: View {
             try? session.setCategory(previousAudioCategory, mode: previousAudioMode, options: previousAudioOptions)
         }
         try? session.setActive(false, options: [.notifyOthersOnDeactivation])
-        didConfigureAudioSession = false
     }
+}
+
+// MARK: - Tarjeta de Sticker Adaptativa (Filtro e Gradiente)
+func momentsCardStickerBackgroundGradient(styleVariant: Int, colorScheme: ColorScheme) -> AnyView {
+    let normalizedVariant = styleVariant % 6
+    switch normalizedVariant {
+    case 1: // Sunset Coral
+        return AnyView(
+            LinearGradient(
+                colors: [Color(hex: "FF5F6D"), Color(hex: "FFC371")],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+        )
+    case 2: // Neon Orchid
+        return AnyView(
+            LinearGradient(
+                colors: [Color(hex: "9D4EDD"), Color(hex: "FF70A6")],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+        )
+    case 3: // Ocean Indigo (No Teal)
+        return AnyView(
+            LinearGradient(
+                colors: [Color(hex: "4A00E0"), Color(hex: "8E2DE2")],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+        )
+    case 4: // Aurora Emerald (No Teal)
+        return AnyView(
+            LinearGradient(
+                colors: [Color(hex: "00B09B"), Color(hex: "96C93D")],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+        )
+    case 5: // Slate Carbon
+        return AnyView(
+            LinearGradient(
+                colors: [Color(hex: "1E293B"), Color(hex: "0F172A")],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+        )
+    default: // Classic Light/Dark card
+        return AnyView(
+            colorScheme == .dark
+                ? Color(hex: "1C2529")
+                : Color.white
+        )
+    }
+}
+
+func momentsCardStickerTextColor(styleVariant: Int, colorScheme: ColorScheme) -> Color {
+    let normalizedVariant = styleVariant % 6
+    if normalizedVariant == 0 {
+        return colorScheme == .dark ? Color(hex: "FAF9F6") : Color(hex: "0B1215")
+    }
+    return .white
 }

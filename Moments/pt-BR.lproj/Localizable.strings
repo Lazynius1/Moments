@@ -327,6 +327,7 @@
 "feed.uploading.available" = "Seu momento já está disponível!";
 "feed.uploading.error" = "Erro no envio";
 "feed.uploading.uploading" = "Enviando arquivos...";
+"feed.uploading.initializing" = "Iniciando...";
 "feed.follow.request" = "Solicitar";
 "feed.follow.requested" = "Solicitado";
 
@@ -3372,3 +3373,38 @@
 "incognito.onboarding.bullet.one" = "Perfeito para ver stories sem aparecer na lista de viewers.";
 "incognito.onboarding.bullet.two" = "Você pode visitar o perfil de alguém, até o da sua crush, sem deixar rastro.";
 "incognito.onboarding.bullet.three" = "Se abrir um chat, a outra pessoa não verá o lido enquanto ele estiver ativo.";
+
+/* Story Editor Card Placeholders */
+"storyEditor.hashtag.placeholder" = "HASHTAG";
+"storyEditor.link.fallbackTitle" = "Link";
+"storyEditor.mention.userFallback" = "Usuário";
+"storyEditor.question.prompt" = "Faça uma pergunta";
+"storyEditor.poll.questionPrompt" = "Faça uma pergunta...";
+"storyEditor.poll.optionPrompt" = "Opção";
+"storyEditor.poll.defaultOption1" = "Sim";
+"storyEditor.poll.defaultOption2" = "Não";
+"storyEditor.quiz.questionPrompt" = "Escreva uma pergunta...";
+"storyEditor.quiz.optionPrompt" = "Opção";
+"storyEditor.slider.questionPrompt" = "Faça uma pergunta...";
+"storyEditor.countdown.eventTitle" = "Nome do evento...";
+"storyEditor.countdown.placeholder" = "NOME DO EVENTO";
+"storyEditor.countdown.days" = "Dias";
+"storyEditor.countdown.hours" = "Horas";
+"storyEditor.countdown.minutes" = "Min.";
+"storyEditor.countdown.seconds" = "Seg.";
+"storyEditor.emojiPicker.title" = "Selecione um Emoji";
+"storyEditor.emojiPicker.close" = "Fechar";
+"stickerview.mention.userNotFound" = "Usuário não encontrado";
+"storyEditor.emojiPicker.selectTone" = "Selecione o tom de pele";
+"storyEditor.emojiPicker.reactions" = "Reações";
+"storyEditor.emojiPicker.faces" = "Carinhas e Pessoas";
+"storyEditor.emojiPicker.nature" = "Animais e Natureza";
+"storyEditor.emojiPicker.food" = "Comida e Bebida";
+"storyEditor.emojiPicker.activities" = "Atividades";
+"storyEditor.emojiPicker.travel" = "Viagens e Lugares";
+"storyEditor.emojiPicker.objects" = "Objetos";
+"storyEditor.emojiPicker.symbols" = "Símbolos";
+"storyEditor.discardDraft.title" = "Descartar conteúdo multimídia?";
+"storyEditor.discardDraft.message" = "Se você sair agora, perderá todas as alterações que fez.";
+"storyEditor.discardDraft.confirm" = "Descartar";
+"storyEditor.discardDraft.cancel" = "Continuar editando";

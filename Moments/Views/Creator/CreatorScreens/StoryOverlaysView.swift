@@ -22,7 +22,8 @@ struct StoryOverlaysView: View {
     let onNavigateToProfile: (String) -> Void
     let onNavigateToLocation: (String, CLLocationCoordinate2D?) -> Void
 
-    @State private var selectedStickerId: String?
+    @Binding var selectedStickerId: String?
+    @Binding var activeEditingStickerId: String? // ✅ NUEVO: Edición inline en Canvas
     @State private var isEditingText = false
     @State private var isDraggingItem = false
     @State private var showTrashZone = false
@@ -41,15 +42,27 @@ struct StoryOverlaysView: View {
 
     var body: some View {
         ZStack {
+            // 📸 FONDO OSCURO DE EDICIÓN INLINE DE STICKERS
+            if activeEditingStickerId != nil {
+                Color.black.opacity(0.65)
+                    .ignoresSafeArea()
+                    .zIndex(2500)
+                    .transition(.opacity)
+                    .onTapGesture {
+                        withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
+                            activeEditingStickerId = nil
+                        }
+                    }
+            }
+
             // Drawing overlay
             if let drawing = drawingImage {
                 Image(uiImage: drawing)
                     .resizable()
                     .aspectRatio(contentMode: .fill)
                     .frame(width: canvasSize.width, height: canvasSize.height)
-                    .scaleEffect(isDraggingItem && selectedStickerId == nil && !text.isEmpty ? 1.0 :
-                                 isDraggingItem && selectedStickerId == nil ? 0.8 : 1.0)
-                    .opacity(isDraggingItem && selectedStickerId == nil && text.isEmpty ? 0.8 : 1.0)
+                    .scaleEffect(1.0)
+                    .opacity(1.0)
                     .allowsHitTesting(true)
                     .gesture(
                         DragGesture()
@@ -105,8 +118,8 @@ struct StoryOverlaysView: View {
                         RoundedRectangle(cornerRadius: effectiveTextBackgroundColor == nil ? 0 : 10, style: .continuous)
                     )
                     .padding(.horizontal, 24)
-                    .scaleEffect(isDraggingItem && selectedStickerId == nil ? 0.8 : 1.0)
-                    .opacity(isDraggingItem && selectedStickerId == nil ? 0.8 : 1.0)
+                    .scaleEffect(1.0)
+                    .opacity(1.0)
                     .modifier(TextEffectModifier(effect: textEffect, textColor: textColor))
                     .contentShape(Rectangle()) // ✅ Área táctil limitada al texto
                     .gesture(
@@ -179,6 +192,7 @@ struct StoryOverlaysView: View {
                         isSelected: selectedStickerId == stickers[index].id,
                         isDragging: isDraggingItem && selectedStickerId == stickers[index].id,
                         isContentEditing: editingPolaroidId == stickers[index].id,
+                        activeEditingStickerId: $activeEditingStickerId,
                         onUpdate: { updatedSticker in
                             stickers[index] = updatedSticker
                         },
@@ -186,6 +200,7 @@ struct StoryOverlaysView: View {
                             withAnimation(.easeOut(duration: 0.2)) {
                                 stickers.remove(at: index)
                                 selectedStickerId = nil
+                                activeEditingStickerId = nil
                             }
                         },
                         onDragChanged: { position in
@@ -206,11 +221,20 @@ struct StoryOverlaysView: View {
 
                                 if isOverTrash {
                                     stickers.remove(at: index)
+                                    selectedStickerId = nil
+                                    activeEditingStickerId = nil
                                 }
                                 isOverTrash = false
                             }
                         },
                         onStickerTapped: { tappedSticker in
+                            if isInlineEditableSticker(tappedSticker) {
+                                activeEditingStickerId = tappedSticker.id
+                                selectedStickerId = tappedSticker.id
+                                HapticManager.shared.mediumImpact()
+                                return
+                            }
+
                             let wasSelected = selectedStickerId == tappedSticker.id
                             selectedStickerId = tappedSticker.id
 
@@ -224,7 +248,7 @@ struct StoryOverlaysView: View {
                             handleStickerTap(tappedSticker)
                         }
                     )
-                    .zIndex(editingPolaroidId == stickers[index].id ? 2000 : (selectedStickerId == stickers[index].id ? 500 : 1))
+                    .zIndex(activeEditingStickerId == stickers[index].id ? 3000 : (editingPolaroidId == stickers[index].id ? 2000 : (selectedStickerId == stickers[index].id ? 500 : 1)))
                 }
             }
 
@@ -276,11 +300,12 @@ struct StoryOverlaysView: View {
                     Spacer()
 
                     Image(systemName: isOverTrash ? "trash.fill" : "trash")
-                        .font(.system(size: 34, weight: .semibold))
+                        .font(.system(size: 30, weight: .regular))
                         .foregroundColor(isOverTrash ? .red : .white)
-                        .frame(width: 84, height: 84)
-                        .scaleEffect(isOverTrash ? 1.12 : 1.0)
-                        .animation(.spring(response: 0.24, dampingFraction: 0.72), value: isOverTrash)
+                        .frame(width: 48, height: 48)
+                        .shadow(color: Color.black.opacity(0.35), radius: 6, x: 0, y: 3)
+                        .scaleEffect(isOverTrash ? 1.28 : 1.0)
+                        .animation(.spring(response: 0.22, dampingFraction: 0.68), value: isOverTrash)
                         .padding(.bottom, 20)
                 }
                 .transition(.move(edge: .bottom).combined(with: .opacity))
@@ -355,6 +380,11 @@ struct StoryOverlaysView: View {
         .onChange(of: editingRevealId) { _, newValue in
             withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
                 isEditingSticker = newValue != nil || editingPolaroidId != nil
+            }
+        }
+        .onChange(of: isOverTrash) { oldValue, newValue in
+            if newValue {
+                HapticManager.shared.mediumImpact()
             }
         }
         .coordinateSpace(name: "storyCanvas")
@@ -473,7 +503,14 @@ struct StoryOverlaysView: View {
     }
 
     private func isPointOverTrash(_ point: CGPoint) -> Bool {
-        point.y > canvasSize.height - 128
+        let trashCenter = CGPoint(
+            x: canvasSize.width / 2,
+            y: canvasSize.height - 44 // 20px padding + 24px (mitad de un tamaño de 48pt)
+        )
+        let dx = point.x - trashCenter.x
+        let dy = point.y - trashCenter.y
+        let distance = sqrt(dx * dx + dy * dy)
+        return distance < 60 // Radio de detección discreto y preciso (60pt)
     }
 
     private func findUserIdByUsername(_ username: String, completion: @escaping (String?) -> Void) {
@@ -542,6 +579,21 @@ struct StoryOverlaysView: View {
         interactionData.frameStyle = allStyles[nextIndex].rawValue
         stickers[index].interactionData = interactionData
         HapticManager.shared.lightImpact()
+    }
+
+    private func isInlineEditableSticker(_ sticker: StickerItem) -> Bool {
+        switch sticker.type {
+        case .poll, .question, .quiz, .countdown, .emojiSlider:
+            return true
+        case .hashtag:
+            // Solo editable inline al crearse (cuando está vacío)
+            if let hashtag = sticker.interactionData?.hashtag {
+                return hashtag.isEmpty
+            }
+            return true
+        default:
+            return false
+        }
     }
 
     private func tapCyclesStickerStyle(_ type: StickerItem.StickerType) -> Bool {
