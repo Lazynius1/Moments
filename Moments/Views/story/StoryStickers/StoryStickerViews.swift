@@ -207,11 +207,7 @@ struct InteractivePollSticker: View {
 
     var body: some View {
         let isLight = styleVariant % 6 == 0
-        let surface = momentsCardStickerBackgroundGradient(styleVariant: styleVariant, colorScheme: colorScheme)
         let ink = isLight ? momentsStickerInk(for: colorScheme) : Color.white
-        let headerSurface = isLight
-            ? AnyView(momentsStickerInverseSurface(for: colorScheme))
-            : AnyView(Color.white.opacity(0.12))
         let headerInk = isLight
             ? momentsStickerInverseInk(for: colorScheme)
             : .white
@@ -230,7 +226,12 @@ struct InteractivePollSticker: View {
                 .padding(.vertical, 16)
                 .frame(maxWidth: .infinity)
                 .environment(\.colorScheme, fieldScheme)
-                .background(headerSurface)
+                .background(
+                    AnimatedMomentsCardStickerHeaderSurface(
+                        styleVariant: styleVariant,
+                        colorScheme: colorScheme
+                    )
+                )
             } else {
                 Text(
                     pollData.indices.contains(0) && !pollData[0].isEmpty
@@ -244,7 +245,12 @@ struct InteractivePollSticker: View {
                     .padding(.horizontal, 18)
                     .padding(.vertical, 16)
                     .frame(maxWidth: .infinity)
-                    .background(headerSurface)
+                    .background(
+                        AnimatedMomentsCardStickerHeaderSurface(
+                            styleVariant: styleVariant,
+                            colorScheme: colorScheme
+                        )
+                    )
             }
 
             VStack(spacing: 8) {
@@ -292,7 +298,12 @@ struct InteractivePollSticker: View {
             .background(Color.clear)
         }
         .frame(width: 300)
-        .background(surface)
+        .background(
+            AnimatedMomentsCardStickerSurface(
+                styleVariant: styleVariant,
+                colorScheme: colorScheme
+            )
+        )
         .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
         .onAppear {
             loadVoteCounts()
@@ -1039,6 +1050,18 @@ struct StoryStickerView: View {
             .frame(width: 300, height: 132)
             .scaleEffect(sticker.scale) // ✅ APLICAR ESCALA
             .rotationEffect(sticker.rotation)
+        } else if sticker.type == .questionResponse,
+                  let responseText = sticker.interactionData?.questionText {
+            QuestionResponseStoryStickerCardView(
+                questionText: responseText,
+                styleVariant: sticker.interactionData?.styleVariant ?? 0
+            )
+            .frame(
+                width: questionResponseStickerRenderSize.width,
+                height: questionResponseStickerRenderSize.height
+            )
+            .scaleEffect(sticker.scale)
+            .rotationEffect(sticker.rotation)
         } else if sticker.type == .location, let locationName = sticker.interactionData?.location {
             // ✅ LOCATION INTERACTIVO: Diseño completo e interactivo
             InteractiveLocationSticker(
@@ -1355,12 +1378,8 @@ struct InteractiveQuestionSticker: View {
 
     var body: some View {
         let isLight = styleVariant % 6 == 0
-        let surface = momentsCardStickerBackgroundGradient(styleVariant: styleVariant, colorScheme: colorScheme)
         let textColor = momentsCardStickerTextColor(styleVariant: styleVariant, colorScheme: colorScheme)
         let ink = isLight ? momentsStickerInk(for: colorScheme) : Color.white
-        let headerSurface = isLight
-            ? AnyView(momentsStickerInverseSurface(for: colorScheme))
-            : AnyView(Color.white.opacity(0.12))
         let headerInk = isLight
             ? momentsStickerInverseInk(for: colorScheme)
             : .white
@@ -1376,7 +1395,12 @@ struct InteractiveQuestionSticker: View {
                     .padding(.vertical, 16)
                     .frame(maxWidth: .infinity)
                     .environment(\.colorScheme, fieldScheme)
-                    .background(headerSurface)
+                    .background(
+                        AnimatedMomentsCardStickerHeaderSurface(
+                            styleVariant: styleVariant,
+                            colorScheme: colorScheme
+                        )
+                    )
 
                 Text(responseSubtitle)
                     .font(.system(size: 15, weight: .bold))
@@ -1393,7 +1417,12 @@ struct InteractiveQuestionSticker: View {
                     .background(Color.clear)
             }
             .frame(width: 300)
-            .background(surface)
+            .background(
+                AnimatedMomentsCardStickerSurface(
+                    styleVariant: styleVariant,
+                    colorScheme: colorScheme
+                )
+            )
             .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
         } else {
             Button(action: {
@@ -1418,7 +1447,12 @@ struct InteractiveQuestionSticker: View {
                         .padding(.horizontal, 20)
                         .padding(.vertical, 16)
                         .frame(maxWidth: .infinity)
-                        .background(headerSurface)
+                        .background(
+                            AnimatedMomentsCardStickerHeaderSurface(
+                                styleVariant: styleVariant,
+                                colorScheme: colorScheme
+                            )
+                        )
 
                     Text(responseSubtitle)
                         .font(.system(size: 15, weight: .bold))
@@ -1435,7 +1469,12 @@ struct InteractiveQuestionSticker: View {
                         .background(Color.clear)
                 }
                 .frame(width: 300)
-                .background(surface)
+                .background(
+                    AnimatedMomentsCardStickerSurface(
+                        styleVariant: styleVariant,
+                        colorScheme: colorScheme
+                    )
+                )
                 .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
             }
             .buttonStyle(PlainButtonStyle())

@@ -1,6 +1,100 @@
 import SwiftUI
 import FirebaseFirestore
 
+let questionResponseStickerRenderSize = CGSize(width: 300, height: 132)
+
+@MainActor
+func makeQuestionResponseStickerImage(
+    questionText: String,
+    styleVariant: Int,
+    colorScheme: ColorScheme
+) -> UIImage {
+    let stickerView = QuestionResponseStoryStickerCardView(
+        questionText: questionText,
+        styleVariant: styleVariant
+    )
+    .environment(\.colorScheme, colorScheme)
+    .frame(
+        width: questionResponseStickerRenderSize.width,
+        height: questionResponseStickerRenderSize.height
+    )
+
+    let renderer = ImageRenderer(content: stickerView)
+    renderer.scale = UIScreen.main.scale
+
+    if let image = renderer.uiImage {
+        return image
+    }
+
+    return UIGraphicsImageRenderer(size: questionResponseStickerRenderSize).image { _ in
+        UIColor.clear.setFill()
+        UIBezierPath(rect: CGRect(origin: .zero, size: questionResponseStickerRenderSize)).fill()
+    }
+}
+
+struct QuestionResponseStoryStickerCardView: View {
+    let questionText: String
+    let styleVariant: Int
+
+    @Environment(\.colorScheme) private var colorScheme
+
+    var body: some View {
+        let isLight = styleVariant % 6 == 0
+        let bodyInk = momentsCardStickerTextColor(styleVariant: styleVariant, colorScheme: colorScheme)
+        let ink = isLight ? momentsStickerInk(for: colorScheme) : Color.white
+        let headerInk = isLight
+            ? momentsStickerInverseInk(for: colorScheme)
+            : .white
+
+        VStack(spacing: 0) {
+            Text(NSLocalizedString("questionResponses.anonymousResponseTitle", comment: "Anonymous question title"))
+                .font(.system(size: 13, weight: .black, design: .rounded))
+                .lineLimit(1)
+                .foregroundStyle(headerInk)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 14)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(
+                    AnimatedMomentsCardStickerHeaderSurface(
+                        styleVariant: styleVariant,
+                        colorScheme: colorScheme
+                    )
+                )
+
+            Rectangle()
+                .fill(isLight ? ink.opacity(0.12) : Color.white.opacity(0.14))
+                .frame(height: 1)
+
+            Text(questionText)
+                .font(.system(size: 18, weight: .bold, design: .rounded))
+                .foregroundStyle(bodyInk)
+                .multilineTextAlignment(.center)
+                .lineLimit(4)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 14)
+                .frame(maxWidth: .infinity)
+                .background(
+                    Capsule(style: .continuous)
+                        .fill(isLight ? ink.opacity(0.08) : Color.white.opacity(0.18))
+                )
+                .padding(.horizontal, 16)
+                .padding(.vertical, 16)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+        .frame(
+            width: questionResponseStickerRenderSize.width,
+            height: questionResponseStickerRenderSize.height
+        )
+        .background(
+            AnimatedMomentsCardStickerSurface(
+                styleVariant: styleVariant,
+                colorScheme: colorScheme
+            )
+        )
+        .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
+    }
+}
+
 // MARK: - Questions Received Flow (Author)
 struct QuestionResponsesView: View {
     let questionText: String
@@ -336,6 +430,7 @@ struct CreatorViewWithResponseData: View {
     let onDismiss: () -> Void
 
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.colorScheme) private var colorScheme
     @State private var isCreatingStory: Bool = true
     @State private var showCreatorView: Bool = true
 
@@ -354,70 +449,13 @@ struct CreatorViewWithResponseData: View {
     }
 
     private func createResponseStickerImage() -> StickerItem {
-        let renderer = UIGraphicsImageRenderer(size: CGSize(width: 200, height: 60))
-        let image = renderer.image { context in
-            let rect = CGRect(x: 0, y: 0, width: 200, height: 60)
-
-            let gradient = CGGradient(
-                colorsSpace: CGColorSpaceCreateDeviceRGB(),
-                colors: [
-                    UIColor.systemBlue.cgColor,
-                    UIColor.systemPurple.cgColor,
-                    UIColor.systemPink.cgColor
-                ] as CFArray,
-                locations: [0.0, 0.5, 1.0]
-            )!
-
-            context.cgContext.drawLinearGradient(
-                gradient,
-                start: CGPoint(x: 0, y: 0),
-                end: CGPoint(x: 200, y: 60),
-                options: []
-            )
-
-            let borderPath = UIBezierPath(roundedRect: rect, cornerRadius: 12)
-            borderPath.lineWidth = 2
-            UIColor.white.withAlphaComponent(0.3).setStroke()
-            borderPath.stroke()
-
-            let iconRect = CGRect(x: 12, y: 10, width: 18, height: 18)
-            let iconPath = UIBezierPath(ovalIn: iconRect)
-            UIColor.white.setFill()
-            iconPath.fill()
-
-            let titleAttributes: [NSAttributedString.Key: Any] = [
-                .font: UIFont(name: "Poppins-SemiBold", size: 10) ?? UIFont.systemFont(ofSize: 10, weight: .semibold),
-                .foregroundColor: UIColor.white
-            ]
-
-            let titleString = NSLocalizedString("questionResponses.anonymousResponseTitle", comment: "Anonymous question title")
-            titleString.draw(
-                at: CGPoint(x: 35, y: 12),
-                withAttributes: titleAttributes
-            )
-
-            let responseAttributes: [NSAttributedString.Key: Any] = [
-                .font: UIFont(name: "Poppins-Regular", size: 12) ?? UIFont.systemFont(ofSize: 12),
-                .foregroundColor: UIColor.white
-            ]
-
-            let responseString = response.response
-            let responseRect = CGRect(x: 12, y: 32, width: 176, height: 24)
-
-            let paragraphStyle = NSMutableParagraphStyle()
-            paragraphStyle.lineBreakMode = .byWordWrapping
-            paragraphStyle.alignment = .center
-
-            var finalAttributes = responseAttributes
-            finalAttributes[.paragraphStyle] = paragraphStyle
-
-            responseString.draw(
-                with: responseRect,
-                options: [.usesLineFragmentOrigin, .usesFontLeading],
-                attributes: finalAttributes,
-                context: nil
-            )
-        }
+        let responseText = response.response
+        let styleVariant = 0
+        let image = makeQuestionResponseStickerImage(
+            questionText: responseText,
+            styleVariant: styleVariant,
+            colorScheme: colorScheme
+        )
 
         return StickerItem(
             image: image,
@@ -429,8 +467,9 @@ struct CreatorViewWithResponseData: View {
                 hashtag: nil,
                 location: nil,
                 locationCoordinate: nil,
+                styleVariant: styleVariant,
                 pollData: nil,
-                questionText: "Pregunta: \(response.response)",
+                questionText: responseText,
                 weatherSymbol: nil,
                 caption: nil,
                 profileImagePath: nil,

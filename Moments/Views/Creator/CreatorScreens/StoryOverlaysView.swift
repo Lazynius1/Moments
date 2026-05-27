@@ -36,6 +36,7 @@ struct StoryOverlaysView: View {
     @State private var polaroidCaptionBuffer: String = ""
     @State private var originalStickerTransform: (pos: CGPoint, scale: CGFloat, rot: Angle)? = nil
     @State private var keyboardHeight: CGFloat = 0
+    @Environment(\.colorScheme) private var colorScheme
 
     // ✨ NUEVO: Estado para editar el diseño del Reveal
     @State private var editingRevealId: String? = nil
@@ -44,8 +45,9 @@ struct StoryOverlaysView: View {
         ZStack {
             // 📸 FONDO OSCURO DE EDICIÓN INLINE DE STICKERS
             if activeEditingStickerId != nil {
-                Color.black.opacity(0.65)
-                    .ignoresSafeArea()
+                RoundedRectangle(cornerRadius: 28, style: .continuous)
+                    .fill(Color.black.opacity(0.65))
+                    .frame(width: canvasSize.width, height: canvasSize.height)
                     .zIndex(2500)
                     .transition(.opacity)
                     .onTapGesture {
@@ -598,7 +600,7 @@ struct StoryOverlaysView: View {
 
     private func tapCyclesStickerStyle(_ type: StickerItem.StickerType) -> Bool {
         switch type {
-        case .location, .mention, .link, .hashtag, .time:
+        case .location, .mention, .link, .hashtag, .time, .questionResponse:
             return true
         default:
             return false
@@ -608,10 +610,44 @@ struct StoryOverlaysView: View {
     private func cycleStickerStyle(for stickerId: String) {
         guard let index = stickers.firstIndex(where: { $0.id == stickerId }) else { return }
 
+        let sticker = stickers[index]
         var interactionData = stickers[index].interactionData ?? StickerItem.StickerInteractionData()
-        interactionData.styleVariant = ((interactionData.styleVariant ?? 0) + 1) % 4
-        stickers[index].interactionData = interactionData
+        let variantCount = styleVariantCount(for: sticker.type)
+        interactionData.styleVariant = ((interactionData.styleVariant ?? 0) + 1) % variantCount
+
+        if sticker.type == .questionResponse,
+           let questionText = interactionData.questionText {
+            let updatedImage = makeQuestionResponseStickerImage(
+                questionText: questionText,
+                styleVariant: interactionData.styleVariant ?? 0,
+                colorScheme: colorScheme
+            )
+
+            stickers[index] = StickerItem(
+                id: sticker.id,
+                image: updatedImage,
+                position: sticker.position,
+                scale: sticker.scale,
+                rotation: sticker.rotation,
+                gifURL: sticker.gifURL,
+                videoURL: sticker.videoURL,
+                isAnimated: sticker.isAnimated,
+                type: sticker.type,
+                interactionData: interactionData
+            )
+        } else {
+            stickers[index].interactionData = interactionData
+        }
 
         HapticManager.shared.lightImpact()
+    }
+
+    private func styleVariantCount(for type: StickerItem.StickerType) -> Int {
+        switch type {
+        case .questionResponse:
+            return 6
+        default:
+            return 4
+        }
     }
 }

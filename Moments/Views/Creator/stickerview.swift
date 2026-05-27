@@ -876,7 +876,7 @@ struct StickerPickerView: View {
         case .countdown:
             createCountdownSticker(title: "", targetAtMs: Date().addingTimeInterval(86400).timeIntervalSince1970 * 1000)
         case .quiz:
-            createQuizSticker(question: "", options: ["", "", "", ""], correctIndex: 0)
+            createQuizSticker(question: "", options: ["", "", ""], correctIndex: 0)
         default:
             break
         }
