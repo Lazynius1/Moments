@@ -3,6 +3,14 @@ import AVFoundation
 import UIKit
 
 extension StoryViewerScreen {
+    static func resolvedVideoPresentationSize(naturalSize: CGSize, preferredTransform: CGAffineTransform) -> CGSize {
+        let transformedRect = CGRect(origin: .zero, size: naturalSize).applying(preferredTransform)
+        return CGSize(
+            width: abs(transformedRect.width),
+            height: abs(transformedRect.height)
+        )
+    }
+
     // ✅ FUNCIÓN HELPER: Detectar aspect ratio de un video (CORREGIDA)
     static func detectVideoAspectRatio(from url: URL) async -> String? {
         let asset = AVURLAsset(url: url)
@@ -13,12 +21,13 @@ extension StoryViewerScreen {
             let preferredTransform = try? await videoTrack.load(.preferredTransform)
 
             if let size = naturalSize, let transform = preferredTransform {
-                // ✅ CALCULAR DIMENSIONES REALES DESPUÉS DE TRANSFORM
-                let transformedSize = size.applying(transform)
-                let width = Int(abs(transformedSize.width))
-                let height = Int(abs(transformedSize.height))
+                let resolvedSize = resolvedVideoPresentationSize(
+                    naturalSize: size,
+                    preferredTransform: transform
+                )
+                let width = Int(resolvedSize.width)
+                let height = Int(resolvedSize.height)
                 let aspectRatio = "\(width):\(height)"
-
 
                 return aspectRatio
             }

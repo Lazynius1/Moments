@@ -307,6 +307,10 @@ struct FloatingMomentUploadOverlay: View {
     @ViewBuilder
     private func orbIcon(for moment: UploadingMoment) -> some View {
         switch moment.status {
+        case .initializing:
+            Image(systemName: "arrow.up")
+                .font(.system(size: 18, weight: .bold))
+                .foregroundStyle(.white.opacity(0.6))
         case .completed, .moderated:
             ZStack {
                 if showsCompletionIcon {
@@ -353,6 +357,8 @@ struct FloatingMomentUploadOverlay: View {
         updateArrowAnimation(for: status)
 
         switch status {
+        case .initializing:
+            resetAnimationStates()
         case .completed, .moderated:
             guard !completionAnimationScheduled else { return }
             completionAnimationScheduled = true
@@ -484,6 +490,8 @@ struct FloatingMomentUploadOverlay: View {
         )
 
         switch moment.status {
+        case .initializing:
+            return NSLocalizedString("feed.uploading.initializing", value: "Iniciando...", comment: "Initializing upload status")
         case .uploading:
             if moment.mediaCount > 1 {
                 return "\(statusText(for: moment)) · \(moment.currentMediaIndex + 1)/\(moment.mediaCount) · \(fileDetail)"
@@ -500,6 +508,8 @@ struct FloatingMomentUploadOverlay: View {
 
     private func statusLabel(for status: UploadStatus) -> String {
         switch status {
+        case .initializing:
+            return NSLocalizedString("feed.uploading.initializing", value: "Iniciando...", comment: "Initializing upload status")
         case .uploading:
             return NSLocalizedString("feed.uploading.uploading", comment: "Uploading files status")
         case .processing:
@@ -513,6 +523,8 @@ struct FloatingMomentUploadOverlay: View {
 
     private func statusText(for moment: UploadingMoment) -> String {
         switch moment.status {
+        case .initializing:
+            return NSLocalizedString("feed.uploading.initializing", value: "Iniciando...", comment: "Initializing upload status")
         case .uploading:
             return NSLocalizedString("feed.uploading.uploading", comment: "Uploading files status")
         case .processing:

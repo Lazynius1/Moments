@@ -48,10 +48,12 @@ struct StoryReactionsStrip: View {
 }
 
 struct StoryNoInteractionsNotice: View {
+    @Environment(\.colorScheme) private var colorScheme
+
     var body: some View {
         Text("stories.noInteractions")
             .font(.custom("Poppins-Regular", size: 14))
-            .foregroundColor(.white.opacity(0.68))
+            .foregroundColor(colorScheme == .dark ? Color.white.opacity(0.68) : Color.black.opacity(0.68))
             .multilineTextAlignment(.center)
             .padding(.horizontal, 20)
             .padding(.vertical, 8)

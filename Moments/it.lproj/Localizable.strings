@@ -327,6 +327,7 @@
 "feed.uploading.available" = "Il tuo momento ora è disponibile!";
 "feed.uploading.error" = "Errore di caricamento";
 "feed.uploading.uploading" = "Caricamento dei file...";
+"feed.uploading.initializing" = "Inizializzazione...";
 "feed.follow.request" = "Richiedi";
 "feed.follow.requested" = "Richiesto";
 
@@ -3372,3 +3373,38 @@
 "incognito.onboarding.bullet.one" = "Perfetta per guardare storie senza comparire nella lista dei viewers.";
 "incognito.onboarding.bullet.two" = "Puoi visitare il profilo di qualcuno, anche quello della tua crush, senza lasciare tracce.";
 "incognito.onboarding.bullet.three" = "Se apri una chat, l'altra persona non vedrà il letto finché la modalità è attiva.";
+
+/* Story Editor Card Placeholders */
+"storyEditor.hashtag.placeholder" = "HASHTAG";
+"storyEditor.link.fallbackTitle" = "Link";
+"storyEditor.mention.userFallback" = "Utente";
+"storyEditor.question.prompt" = "Fammi una domanda";
+"storyEditor.poll.questionPrompt" = "Fai una domanda...";
+"storyEditor.poll.optionPrompt" = "Opzione";
+"storyEditor.poll.defaultOption1" = "Sì";
+"storyEditor.poll.defaultOption2" = "No";
+"storyEditor.quiz.questionPrompt" = "Scrivi una domanda...";
+"storyEditor.quiz.optionPrompt" = "Opzione";
+"storyEditor.slider.questionPrompt" = "Fai una domanda...";
+"storyEditor.countdown.eventTitle" = "Nome dell'evento...";
+"storyEditor.countdown.placeholder" = "NOME DELL'EVENTO";
+"storyEditor.countdown.days" = "Giorni";
+"storyEditor.countdown.hours" = "Ore";
+"storyEditor.countdown.minutes" = "Min.";
+"storyEditor.countdown.seconds" = "Sec.";
+"storyEditor.emojiPicker.title" = "Seleziona un emoji";
+"storyEditor.emojiPicker.close" = "Chiudi";
+"stickerview.mention.userNotFound" = "Utente non trovato";
+"storyEditor.emojiPicker.selectTone" = "Seleziona tonalità della pelle";
+"storyEditor.emojiPicker.reactions" = "Reazioni";
+"storyEditor.emojiPicker.faces" = "Faccine e persone";
+"storyEditor.emojiPicker.nature" = "Animali e natura";
+"storyEditor.emojiPicker.food" = "Cibo e bevande";
+"storyEditor.emojiPicker.activities" = "Attività";
+"storyEditor.emojiPicker.travel" = "Viaggi e luoghi";
+"storyEditor.emojiPicker.objects" = "Oggetti";
+"storyEditor.emojiPicker.symbols" = "Simboli";
+"storyEditor.discardDraft.title" = "Vuoi scartare il contenuto multimediale?";
+"storyEditor.discardDraft.message" = "Se esci ora, perderai tutte le modifiche che hai fatto.";
+"storyEditor.discardDraft.confirm" = "Scarta";
+"storyEditor.discardDraft.cancel" = "Continua a modificare";

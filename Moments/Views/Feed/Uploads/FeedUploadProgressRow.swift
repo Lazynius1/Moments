@@ -71,6 +71,15 @@ struct UploadProgressRow: View {
     private var uploadStatusView: some View {
         HStack(spacing: 6) {
             switch uploadingMoment.status {
+            case .initializing:
+                ProgressView()
+                    .scaleEffect(0.7)
+                    .tint(.blue)
+
+                Text(NSLocalizedString("feed.uploading.initializing", value: "Iniciando...", comment: "Initializing upload status"))
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundColor(.blue)
+
             case .uploading:
                 ProgressView()
                     .scaleEffect(0.7)
@@ -177,7 +186,7 @@ struct UploadProgressRow: View {
 
     private var statusBorderColor: Color {
         switch uploadingMoment.status {
-        case .uploading, .processing:
+        case .initializing, .uploading, .processing:
             return Color.white.opacity(0.15)
         case .completed, .moderated:
             return Color.green.opacity(0.3)
@@ -194,7 +203,7 @@ struct UploadProgressRow: View {
 
     private var progressColor: LinearGradient {
         switch uploadingMoment.status {
-        case .uploading:
+        case .initializing, .uploading:
             return LinearGradient(
                 colors: [Color(hex: "007AFF"), Color(hex: "00D2B4")],
                 startPoint: .leading,
@@ -217,6 +226,8 @@ struct UploadProgressRow: View {
 
     private var statusText: String {
         switch uploadingMoment.status {
+        case .initializing:
+            return NSLocalizedString("feed.uploading.initializing", value: "Iniciando...", comment: "Initializing upload status")
         case .uploading:
             return NSLocalizedString("feed.uploading.uploading", comment: "Uploading files status")
         case .processing:

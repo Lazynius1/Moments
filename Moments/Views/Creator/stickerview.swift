@@ -15,6 +15,7 @@ import AVKit
 
 struct StickerPickerView: View {
     @Binding var selectedStickers: [StickerItem]
+    @Binding var activeEditingStickerId: String? // ✅ NUEVO: Edición inline en Canvas
     let isVideo: Bool
     @Environment(\.dismiss) var dismiss
     @Environment(\.colorScheme) private var colorScheme
@@ -835,7 +836,7 @@ struct StickerPickerView: View {
 
     private func handleCatalogSelection(_ category: StickerCategory) {
         switch category {
-        case .weather, .time, .selfie:
+        case .weather, .time, .selfie, .hashtag, .poll, .question, .countdown, .emojiSlider, .quiz:
             insertInstantCategory(category)
         default:
             HapticManager.shared.mediumImpact()
@@ -864,9 +865,62 @@ struct StickerPickerView: View {
             createTimeSticker()
         case .selfie:
             createSelfieSticker()
+        case .hashtag:
+            createHashtagPlaceholderSticker()
+        case .poll:
+            createPollSticker(["", "", ""])
+        case .question:
+            createQuestionSticker("")
+        case .emojiSlider:
+            createEmojiSliderSticker(prompt: "", emoji: "😍")
+        case .countdown:
+            createCountdownSticker(title: "", targetAtMs: Date().addingTimeInterval(86400).timeIntervalSince1970 * 1000)
+        case .quiz:
+            createQuizSticker(question: "", options: ["", "", "", ""], correctIndex: 0)
         default:
             break
         }
+    }
+
+    private func createMentionPlaceholderSticker() {
+        let sticker = StickerItem(
+            id: UUID().uuidString,
+            image: UIImage(),
+            position: CGPoint(x: UIScreen.main.bounds.width / 2, y: UIScreen.main.bounds.height / 2),
+            scale: 1.0,
+            rotation: .zero,
+            gifURL: nil,
+            videoURL: nil,
+            isAnimated: false,
+            type: .mention,
+            interactionData: StickerItem.StickerInteractionData(
+                username: "",
+                userId: ""
+            )
+        )
+        selectedStickers.append(sticker)
+        activeEditingStickerId = sticker.id
+        dismiss()
+    }
+
+    private func createHashtagPlaceholderSticker() {
+        let sticker = StickerItem(
+            id: UUID().uuidString,
+            image: UIImage(),
+            position: CGPoint(x: UIScreen.main.bounds.width / 2, y: UIScreen.main.bounds.height / 2),
+            scale: 1.0,
+            rotation: .zero,
+            gifURL: nil,
+            videoURL: nil,
+            isAnimated: false,
+            type: .hashtag,
+            interactionData: StickerItem.StickerInteractionData(
+                hashtag: ""
+            )
+        )
+        selectedStickers.append(sticker)
+        activeEditingStickerId = sticker.id
+        dismiss()
     }
 
 
@@ -1333,7 +1387,20 @@ struct StickerPickerView: View {
                 if let user = users.first(where: { $0.username.lowercased() == username.lowercased() }) {
                     completion(.success(user))
                 } else {
-                    completion(.failure(NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "Usuario no encontrado"])))
+                    completion(
+                        .failure(
+                            NSError(
+                                domain: "",
+                                code: -1,
+                                userInfo: [
+                                    NSLocalizedDescriptionKey: NSLocalizedString(
+                                        "stickerview.mention.userNotFound",
+                                        comment: "Mention user not found error"
+                                    )
+                                ]
+                            )
+                        )
+                    )
                 }
             case .failure(let error):
                 completion(.failure(error))
@@ -1367,7 +1434,8 @@ struct StickerPickerView: View {
 
     // MARK: - Generar sticker con placeholder (cuando no se encuentra usuario)
     private func generateMentionStickerWithPlaceholder(_ username: String) {
-        // ✅ No crear sticker si no se encuentra el usuario
+        // ✅ Generar sticker con placeholder
+        self.generateSticker(username: username, userId: "", profileImage: nil)
     }
 
     // MARK: - Función principal para generar el sticker (ESTILO INSTAGRAM)
@@ -1621,6 +1689,7 @@ struct StickerPickerView: View {
             )
         )
         selectedStickers.append(sticker)
+        activeEditingStickerId = sticker.id
         dismiss()
     }
 
@@ -1655,6 +1724,7 @@ struct StickerPickerView: View {
             )
         )
         selectedStickers.append(sticker)
+        activeEditingStickerId = sticker.id
         dismiss()
     }
 
@@ -1823,6 +1893,7 @@ struct StickerPickerView: View {
             )
         )
         selectedStickers.append(sticker)
+        activeEditingStickerId = sticker.id
         dismiss()
     }
 
@@ -1925,6 +1996,7 @@ struct StickerPickerView: View {
         )
 
         selectedStickers.append(sticker)
+        activeEditingStickerId = sticker.id
         dismiss()
     }
 
@@ -1966,6 +2038,7 @@ struct StickerPickerView: View {
         )
 
         selectedStickers.append(sticker)
+        activeEditingStickerId = sticker.id
         dismiss()
     }
 }

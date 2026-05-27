@@ -1024,6 +1024,8 @@ struct FeedView: View {
 
         private var labelText: String {
             switch status {
+            case .initializing:
+                return NSLocalizedString("feed.uploading.initializing", value: "Iniciando...", comment: "Initializing upload status")
             case .uploading, .processing:
                 return NSLocalizedString("feed.uploading.uploading", comment: "Uploading files status")
             case .completed, .moderated:
@@ -1056,22 +1058,43 @@ struct FeedView: View {
         @State private var auraOpacity: Double = 0
         @State private var auraScale: CGFloat = 1
         @State private var auraBlur: CGFloat = 0
+        @State private var isPulsing = false // 🔄 Estado para el anillo pulsante
 
         var body: some View {
             ZStack {
-                Circle()
-                    .stroke(trackColor, lineWidth: 3)
-                    .frame(width: 54, height: 54)
+                if uploadingStory.status == .initializing {
+                    Circle()
+                        .stroke(
+                            LinearGradient(
+                                colors: [Color(hex: "6A11CB"), Color(hex: "007AFF")],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            ),
+                            lineWidth: 3
+                        )
+                        .frame(width: 54, height: 54)
+                        .scaleEffect(isPulsing ? 1.08 : 0.94)
+                        .opacity(isPulsing ? 0.9 : 0.4)
+                        .onAppear {
+                            withAnimation(.easeInOut(duration: 1.0).repeatForever(autoreverses: true)) {
+                                isPulsing = true
+                            }
+                        }
+                } else {
+                    Circle()
+                        .stroke(trackColor, lineWidth: 3)
+                        .frame(width: 54, height: 54)
 
-                Circle()
-                    .trim(from: 0, to: max(0.04, min(renderedProgress, 1.0)))
-                    .stroke(
-                        progressGradient,
-                        style: StrokeStyle(lineWidth: 3, lineCap: .round)
-                    )
-                    .frame(width: 54, height: 54)
-                    .rotationEffect(.degrees(-90))
-                    .animation(.linear(duration: 0.22), value: renderedProgress)
+                    Circle()
+                        .trim(from: 0, to: max(0.04, min(renderedProgress, 1.0)))
+                        .stroke(
+                            progressGradient,
+                            style: StrokeStyle(lineWidth: 3, lineCap: .round)
+                        )
+                        .frame(width: 54, height: 54)
+                        .rotationEffect(.degrees(-90))
+                        .animation(.linear(duration: 0.22), value: renderedProgress)
+                }
 
                 Circle()
                     .fill((colorScheme == .dark ? Color(hex: "0B1215") : Color(hex: "FAF9F6")).opacity(0.42))
@@ -1110,6 +1133,10 @@ struct FeedView: View {
         @ViewBuilder
         private var statusGlyph: some View {
             switch uploadingStory.status {
+            case .initializing:
+                Image(systemName: "arrow.up")
+                    .font(.system(size: 18, weight: .bold))
+                    .foregroundStyle(.white.opacity(0.6))
             case .completed, .moderated:
                 if checkmarkOpacity > 0 {
                     Image(systemName: "checkmark")
@@ -1164,6 +1191,13 @@ struct FeedView: View {
 
         private func updateArrowAnimation(for status: UploadStatus) {
             switch status {
+            case .initializing:
+                arrowOffset = 0
+                arrowOpacity = 0.6
+                auraOffset = 0
+                auraOpacity = 0
+                auraScale = 1
+                auraBlur = 0
             case .uploading, .processing:
                 arrowOpacity = 1
                 withAnimation(.easeInOut(duration: 1.2).repeatForever(autoreverses: true)) {

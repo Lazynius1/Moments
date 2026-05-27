@@ -8,6 +8,7 @@ struct StickerOverlayView: View {
     let isSelected: Bool
     let isDragging: Bool
     let isContentEditing: Bool
+    @Binding var activeEditingStickerId: String?
     let onUpdate: (StickerItem) -> Void
     let onDelete: () -> Void
     let onDragChanged: (CGPoint) -> Void
@@ -26,8 +27,13 @@ struct StickerOverlayView: View {
     @State private var contentPinchStartScale: CGFloat?
     @State private var stickerPinchStartScale: CGFloat?
 
+    private var isEditingInline: Bool {
+        activeEditingStickerId == sticker.id
+    }
+
     init(sticker: Binding<StickerItem>, isSelected: Bool, isDragging: Bool,
          isContentEditing: Bool,
+         activeEditingStickerId: Binding<String?>,
          onUpdate: @escaping (StickerItem) -> Void,
          onDelete: @escaping () -> Void,
          onDragChanged: @escaping (CGPoint) -> Void,
@@ -37,6 +43,7 @@ struct StickerOverlayView: View {
         self.isSelected = isSelected
         self.isDragging = isDragging
         self.isContentEditing = isContentEditing
+        self._activeEditingStickerId = activeEditingStickerId
         self.onUpdate = onUpdate
         self.onDelete = onDelete
         self.onDragChanged = onDragChanged
@@ -146,8 +153,7 @@ struct StickerOverlayView: View {
             Color.clear
                 .frame(width: interactiveBoundsSize.width, height: interactiveBoundsSize.height)
 
-            // ... (resto del contenido del ZStack sin cambios hasta la línea 7405)
-            // ✅ SOLUCIÓN DEFINITIVA: Renderizado idéntico al Viewer
+
             if sticker.isAnimated {
                 if let videoURL = sticker.videoURL {
                     // ✅ VIDEO STICKER (Loop)
@@ -259,7 +265,15 @@ struct StickerOverlayView: View {
             } else if sticker.type == .poll, let pollData = sticker.interactionData?.pollData {
                 // POLL INTERACTIVO
                 InteractivePollSticker(
-                    pollData: pollData,
+                    pollData: Binding(
+                        get: { sticker.interactionData?.pollData ?? [] },
+                        set: { newValue in
+                            var data = sticker.interactionData ?? StickerItem.StickerInteractionData()
+                            data.pollData = newValue
+                            sticker.interactionData = data
+                            onUpdate(sticker)
+                        }
+                    ),
                     storyId: "preview",
                     userId: "preview",
                     stickerId: sticker.id,
@@ -267,22 +281,34 @@ struct StickerOverlayView: View {
                     hasVoted: .constant(false),
                     voteCounts: .constant([:]),
                     totalVotes: .constant(0),
+                    styleVariant: sticker.interactionData?.styleVariant ?? 0,
+                    isEditingInline: isEditingInline,
                     onVote: { _ in }
                 )
                 .frame(width: 300, height: 172)
-                .allowsHitTesting(false)
+                .allowsHitTesting(isEditingInline)
             } else if sticker.type == .question, let questionText = sticker.interactionData?.questionText {
                 // QUESTION INTERACTIVO
                 InteractiveQuestionSticker(
-                    questionText: questionText,
+                    questionText: Binding(
+                        get: { sticker.interactionData?.questionText ?? "" },
+                        set: { newValue in
+                            var data = sticker.interactionData ?? StickerItem.StickerInteractionData()
+                            data.questionText = newValue
+                            sticker.interactionData = data
+                            onUpdate(sticker)
+                        }
+                    ),
                     storyId: "preview",
                     userId: "preview",
                     stickerId: sticker.id,
+                    styleVariant: sticker.interactionData?.styleVariant ?? 0,
+                    isEditingInline: isEditingInline,
                     onPauseStory: {},
                     onResumeStory: {}
                 )
                 .frame(width: 300, height: 132)
-                .allowsHitTesting(false)
+                .allowsHitTesting(isEditingInline)
             } else if sticker.type == .location, let locationName = sticker.interactionData?.location {
                 // LOCATION INTERACTIVO
                 InteractiveLocationSticker(
@@ -294,14 +320,20 @@ struct StickerOverlayView: View {
                 )
                 .allowsHitTesting(false)
             } else if sticker.type == .hashtag, let hashtag = sticker.interactionData?.hashtag {
-                // HASHTAG INTERACTIVO
-                InteractiveHashtagSticker(
-                    hashtag: hashtag,
+                StickerHashtagCardView(
+                    hashtag: Binding(
+                        get: { sticker.interactionData?.hashtag ?? "" },
+                        set: { newValue in
+                            var data = sticker.interactionData ?? StickerItem.StickerInteractionData()
+                            data.hashtag = newValue
+                            sticker.interactionData = data
+                            onUpdate(sticker)
+                        }
+                    ),
                     styleVariant: sticker.interactionData?.styleVariant ?? 0,
-                    onPauseStory: {},
-                    onResumeStory: {}
+                    isEditingInline: isEditingInline
                 )
-                .allowsHitTesting(false)
+                .allowsHitTesting(isEditingInline)
             } else if sticker.type == .mention, let username = sticker.interactionData?.username {
                 // MENTION INTERACTIVO
                 InteractiveMentionSticker(
@@ -319,12 +351,48 @@ struct StickerOverlayView: View {
             } else if sticker.type == .countdown,
                       let countdownTitle = sticker.interactionData?.countdownTitle,
                       let targetAtMs = sticker.interactionData?.countdownTargetAtMs {
-                StickerCountdownCardView(title: countdownTitle, targetAtMs: targetAtMs)
-                    .allowsHitTesting(false)
+                StickerCountdownCardView(
+                    title: Binding(
+                        get: { sticker.interactionData?.countdownTitle ?? "" },
+                        set: { newValue in
+                            var data = sticker.interactionData ?? StickerItem.StickerInteractionData()
+                            data.countdownTitle = newValue
+                            sticker.interactionData = data
+                            onUpdate(sticker)
+                        }
+                    ),
+                    targetAtMs: Binding(
+                        get: { sticker.interactionData?.countdownTargetAtMs ?? (Date().addingTimeInterval(86400).timeIntervalSince1970 * 1000) },
+                        set: { newValue in
+                            var data = sticker.interactionData ?? StickerItem.StickerInteractionData()
+                            data.countdownTargetAtMs = newValue
+                            sticker.interactionData = data
+                            onUpdate(sticker)
+                        }
+                    ),
+                    styleVariant: sticker.interactionData?.styleVariant ?? 0,
+                    isEditingInline: isEditingInline
+                )
+                .allowsHitTesting(isEditingInline)
             } else if sticker.type == .emojiSlider,
                       let sliderPrompt = sticker.interactionData?.sliderPrompt,
                       let sliderEmoji = sticker.interactionData?.sliderEmoji {
-                emojiSliderEditorView(prompt: sliderPrompt, emoji: sliderEmoji)
+                StickerEmojiSliderCardView(
+                    prompt: Binding(
+                        get: { sticker.interactionData?.sliderPrompt ?? "" },
+                        set: { newValue in
+                            var data = sticker.interactionData ?? StickerItem.StickerInteractionData()
+                            data.sliderPrompt = newValue
+                            sticker.interactionData = data
+                            onUpdate(sticker)
+                        }
+                    ),
+                    emoji: sliderEmoji,
+                    value: 0.5,
+                    styleVariant: sticker.interactionData?.styleVariant ?? 0,
+                    isEditingInline: isEditingInline
+                )
+                .allowsHitTesting(isEditingInline)
             } else if sticker.type == .shareMoment {
                 // ✅ SHARE MOMENT: Renderizado dinámico de overlays (Header + Caption)
                 ZStack(alignment: .top) {
@@ -463,17 +531,41 @@ struct StickerOverlayView: View {
             } else if sticker.type == .quiz,
                       let question = sticker.interactionData?.quizQuestion,
                       let options = sticker.interactionData?.quizOptions {
-                InteractiveQuizSticker(
-                    storyId: "preview",
-                    userId: "preview",
-                    stickerId: sticker.id,
-                    question: question,
-                    options: options,
-                    correctIndex: sticker.interactionData?.quizCorrectIndex ?? 0,
-                    isEditing: true
+                StickerQuizCardView(
+                    question: Binding(
+                        get: { sticker.interactionData?.quizQuestion ?? "" },
+                        set: { newValue in
+                            var data = sticker.interactionData ?? StickerItem.StickerInteractionData()
+                            data.quizQuestion = newValue
+                            sticker.interactionData = data
+                            onUpdate(sticker)
+                        }
+                    ),
+                    options: Binding(
+                        get: { sticker.interactionData?.quizOptions ?? [] },
+                        set: { newValue in
+                            var data = sticker.interactionData ?? StickerItem.StickerInteractionData()
+                            data.quizOptions = newValue
+                            sticker.interactionData = data
+                            onUpdate(sticker)
+                        }
+                    ),
+                    selectedIndex: nil,
+                    correctIndex: Binding(
+                        get: { sticker.interactionData?.quizCorrectIndex },
+                        set: { newValue in
+                            var data = sticker.interactionData ?? StickerItem.StickerInteractionData()
+                            data.quizCorrectIndex = newValue
+                            sticker.interactionData = data
+                            onUpdate(sticker)
+                        }
+                    ),
+                    styleVariant: sticker.interactionData?.styleVariant ?? 0,
+                    isEditingInline: isEditingInline,
+                    onSelect: { _ in }
                 )
                 .frame(width: 300)
-                .allowsHitTesting(false)
+                .allowsHitTesting(isEditingInline)
             } else if sticker.type == .audio {
                 InteractiveAudioStickerView(
                     audioURL: sticker.interactionData?.audioURL ?? "",
@@ -501,12 +593,14 @@ struct StickerOverlayView: View {
             }
         }
         .rotationEffect(rotation)
-        .scaleEffect(isDragging ? 0.9 : (showInteractionFeedback ? 1.05 : 1.0))
+        .scaleEffect(showInteractionFeedback ? 1.05 : 1.0)
         .scaleEffect(scale)
-        .opacity(isDragging ? 0.8 : 1.0)
+        .opacity(1.0)
         .contentShape(Rectangle())
         .onTapGesture {
-            handleStickerTap()
+            if !isEditingInline {
+                handleStickerTap()
+            }
         }
         // ✅ SINCRONIZAR CON EL PADRE PARA EL "VUELO HERO"
         .onChange(of: sticker.position) { _, newPos in
@@ -527,6 +621,7 @@ struct StickerOverlayView: View {
         .simultaneousGesture(
             LongPressGesture(minimumDuration: 0.45)
                 .onEnded { _ in
+                    if isEditingInline { return }
                     guard isLiveSelfieSticker else { return }
                     lastSelfieSwitchAt = Date()
                     selfieSwitchCameraTrigger.toggle()
@@ -536,6 +631,7 @@ struct StickerOverlayView: View {
         .gesture(
             DragGesture(coordinateSpace: .named("storyCanvas")) // ✅ Usar el canvas global para estabilidad absoluta
                 .onChanged { value in
+                    if isEditingInline { return }
                     if isContentEditing, sticker.type == .frame {
                         let baseOffset = contentDragStartOffset ?? frameContentOffset
                         if contentDragStartOffset == nil {
@@ -570,6 +666,7 @@ struct StickerOverlayView: View {
                     sticker.position = newPos
                 }
                 .onEnded { _ in
+                    if isEditingInline { return }
                     if isContentEditing, sticker.type == .frame {
                         contentDragStartOffset = nil
                         return
@@ -582,6 +679,7 @@ struct StickerOverlayView: View {
         .simultaneousGesture(
             MagnificationGesture()
                 .onChanged { value in
+                    if isEditingInline { return }
                     if isContentEditing, sticker.type == .frame {
                         let baseScale = contentPinchStartScale ?? max(sticker.interactionData?.contentScale ?? 1.0, 1.0)
                         if contentPinchStartScale == nil {
@@ -601,6 +699,7 @@ struct StickerOverlayView: View {
                     scale = min(max(newScale, minimumStickerScale), maximumStickerScale)
                 }
                 .onEnded { _ in
+                    if isEditingInline { return }
                     if isContentEditing, sticker.type == .frame {
                         contentPinchStartScale = nil
                         return
@@ -613,10 +712,12 @@ struct StickerOverlayView: View {
         .simultaneousGesture(
             RotationGesture()
                 .onChanged { value in
+                    if isEditingInline { return }
                     guard !(isContentEditing && sticker.type == .frame) else { return }
                     rotation = sticker.rotation + value
                 }
                 .onEnded { value in
+                    if isEditingInline { return }
                     guard !(isContentEditing && sticker.type == .frame) else { return }
                     sticker.rotation = rotation
                 }
@@ -629,6 +730,7 @@ struct StickerOverlayView: View {
     }
 
     private func handleStickerTap() {
+        if isEditingInline { return }
         if isLiveSelfieSticker {
             // Evita capturar justo después de long-press para cambiar cámara.
             if Date().timeIntervalSince(lastSelfieSwitchAt) < 0.35 { return }

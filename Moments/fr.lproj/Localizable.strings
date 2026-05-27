@@ -327,6 +327,7 @@
 "feed.uploading.available" = "Votre moment est maintenant disponible !";
 "feed.uploading.error" = "Erreur d’envoi";
 "feed.uploading.uploading" = "Envoi des fichiers...";
+"feed.uploading.initializing" = "Initialisation...";
 "feed.follow.request" = "Demander";
 "feed.follow.requested" = "Demandé";
 
@@ -3372,3 +3373,38 @@
 "incognito.onboarding.bullet.one" = "Parfait pour regarder des stories sans apparaître dans la liste des viewers.";
 "incognito.onboarding.bullet.two" = "Vous pouvez visiter le profil de quelqu'un, même celui de votre crush, sans laisser de trace.";
 "incognito.onboarding.bullet.three" = "Si vous ouvrez un chat, l'autre personne ne verra pas le lu tant que le mode est actif.";
+
+/* Story Editor Card Placeholders */
+"storyEditor.hashtag.placeholder" = "HASHTAG";
+"storyEditor.link.fallbackTitle" = "Lien";
+"storyEditor.mention.userFallback" = "Utilisateur";
+"storyEditor.question.prompt" = "Posez-moi une question";
+"storyEditor.poll.questionPrompt" = "Poser une question...";
+"storyEditor.poll.optionPrompt" = "Option";
+"storyEditor.poll.defaultOption1" = "Oui";
+"storyEditor.poll.defaultOption2" = "Non";
+"storyEditor.quiz.questionPrompt" = "Écrire une question...";
+"storyEditor.quiz.optionPrompt" = "Option";
+"storyEditor.slider.questionPrompt" = "Poser une question...";
+"storyEditor.countdown.eventTitle" = "Nom de l'événement...";
+"storyEditor.countdown.placeholder" = "NOM DE L'ÉVÉNEMENT";
+"storyEditor.countdown.days" = "Jours";
+"storyEditor.countdown.hours" = "Heures";
+"storyEditor.countdown.minutes" = "Min.";
+"storyEditor.countdown.seconds" = "Sec.";
+"storyEditor.emojiPicker.title" = "Sélectionnez un émoji";
+"storyEditor.emojiPicker.close" = "Fermer";
+"stickerview.mention.userNotFound" = "Utilisateur introuvable";
+"storyEditor.emojiPicker.selectTone" = "Sélectionnez le teint";
+"storyEditor.emojiPicker.reactions" = "Réactions";
+"storyEditor.emojiPicker.faces" = "Émoticônes et personnes";
+"storyEditor.emojiPicker.nature" = "Animaux et nature";
+"storyEditor.emojiPicker.food" = "Nourriture et boissons";
+"storyEditor.emojiPicker.activities" = "Activités";
+"storyEditor.emojiPicker.travel" = "Voyages et lieux";
+"storyEditor.emojiPicker.objects" = "Objets";
+"storyEditor.emojiPicker.symbols" = "Symboles";
+"storyEditor.discardDraft.title" = "Supprimer le contenu multimédia ?";
+"storyEditor.discardDraft.message" = "Si tu quittes maintenant, tu perdras toutes les modifications effectuées.";
+"storyEditor.discardDraft.confirm" = "Supprimer";
+"storyEditor.discardDraft.cancel" = "Continuer l’édition";

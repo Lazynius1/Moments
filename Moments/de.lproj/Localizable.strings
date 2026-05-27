@@ -327,6 +327,7 @@
 "feed.uploading.available" = "Dein Moment ist jetzt verfügbar!";
 "feed.uploading.error" = "Upload-Fehler";
 "feed.uploading.uploading" = "Dateien werden hochgeladen...";
+"feed.uploading.initializing" = "Wird gestartet...";
 "feed.follow.request" = "Anfragen";
 "feed.follow.requested" = "Angefragt";
 
@@ -3372,3 +3373,38 @@
 "incognito.onboarding.bullet.one" = "Perfekt, um Stories anzusehen, ohne in der Viewer-Liste aufzutauchen.";
 "incognito.onboarding.bullet.two" = "Du kannst das Profil von jemandem besuchen, sogar von deinem Crush, ohne Spuren zu hinterlassen.";
 "incognito.onboarding.bullet.three" = "Wenn du einen Chat öffnest, sieht die andere Person kein Gelesen, solange der Modus aktiv ist.";
+
+/* Story Editor Card Placeholders */
+"storyEditor.hashtag.placeholder" = "HASHTAG";
+"storyEditor.link.fallbackTitle" = "Link";
+"storyEditor.mention.userFallback" = "Nutzer";
+"storyEditor.question.prompt" = "Stelle mir eine Frage";
+"storyEditor.poll.questionPrompt" = "Stelle eine Frage...";
+"storyEditor.poll.optionPrompt" = "Option";
+"storyEditor.poll.defaultOption1" = "Ja";
+"storyEditor.poll.defaultOption2" = "Nein";
+"storyEditor.quiz.questionPrompt" = "Schreibe eine Frage...";
+"storyEditor.quiz.optionPrompt" = "Option";
+"storyEditor.countdown.eventTitle" = "Name des Events...";
+"storyEditor.slider.questionPrompt" = "Frage stellen...";
+"storyEditor.countdown.placeholder" = "NAME DES EVENTS";
+"storyEditor.countdown.days" = "Tage";
+"storyEditor.countdown.hours" = "Std.";
+"storyEditor.countdown.minutes" = "Min.";
+"storyEditor.countdown.seconds" = "Sek.";
+"storyEditor.emojiPicker.title" = "Wähle ein Emoji aus";
+"storyEditor.emojiPicker.close" = "Schließen";
+"stickerview.mention.userNotFound" = "Nutzer nicht gefunden";
+"storyEditor.emojiPicker.selectTone" = "Hautton auswählen";
+"storyEditor.emojiPicker.reactions" = "Reaktionen";
+"storyEditor.emojiPicker.faces" = "Smileys & Personen";
+"storyEditor.emojiPicker.nature" = "Tiere & Natur";
+"storyEditor.emojiPicker.food" = "Essen & Trinken";
+"storyEditor.emojiPicker.activities" = "Aktivitäten";
+"storyEditor.emojiPicker.travel" = "Reisen & Orte";
+"storyEditor.emojiPicker.objects" = "Objekte";
+"storyEditor.emojiPicker.symbols" = "Symbole";
+"storyEditor.discardDraft.title" = "Multimedia-Inhalt verwerfen?";
+"storyEditor.discardDraft.message" = "Wenn du jetzt gehst, verlierst du alle vorgenommenen Änderungen.";
+"storyEditor.discardDraft.confirm" = "Verwerfen";
+"storyEditor.discardDraft.cancel" = "Weiter bearbeiten";

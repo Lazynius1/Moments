@@ -12,12 +12,13 @@ struct InteractiveQuizSticker: View {
     let options: [String]
     let correctIndex: Int
     let isEditing: Bool
+    var styleVariant: Int = 0
 
     @State private var selectedIndex: Int?
     @State private var showConfetti = false
     @State private var confettiStart: Date = .now
 
-    init(storyId: String, userId: String, stickerId: String, question: String, options: [String], correctIndex: Int, isEditing: Bool = false) {
+    init(storyId: String, userId: String, stickerId: String, question: String, options: [String], correctIndex: Int, isEditing: Bool = false, styleVariant: Int = 0) {
         self.storyId = storyId
         self.userId = userId
         self.stickerId = stickerId
@@ -25,6 +26,7 @@ struct InteractiveQuizSticker: View {
         self.options = options
         self.correctIndex = correctIndex
         self.isEditing = isEditing
+        self.styleVariant = styleVariant
     }
 
     private var currentUserId: String? { Auth.auth().currentUser?.uid }
@@ -37,6 +39,7 @@ struct InteractiveQuizSticker: View {
                 options: options,
                 selectedIndex: selectedIndex,
                 correctIndex: correctIndex,
+                styleVariant: styleVariant,
                 onSelect: submitVote
             )
 
@@ -94,6 +97,7 @@ struct InteractiveQuizSticker: View {
     }
 
     private func loadVoteState() {
+        guard userId != "preview" && storyId != "preview" else { return }
         interactionDocument()?.getDocument { snapshot, _ in
             if let data = snapshot?.data(), let index = data["selectedIndex"] as? Int {
                 DispatchQueue.main.async { self.selectedIndex = index }

@@ -19,6 +19,7 @@ struct StoryEditingView: View {
     let initialChainPosition: Int?
     @State private var alertMessage = ""
     @State private var showAlert = false
+    @State private var showDiscardChangesAlert = false
     @State private var storyText = ""
     @State private var textPosition: CGPoint = CGPoint(x: UIScreen.main.bounds.width / 2, y: 100)
     @State private var storyTextColor: Color = .white
@@ -26,6 +27,9 @@ struct StoryEditingView: View {
     @State private var storyTextBackground: TextBackgroundFill = .none
     @State private var storyTextFontSize: CGFloat = 30
     @State private var selectedStickers: [StickerItem] = []
+    @State private var selectedStickerId: String? = nil // ✅ NUEVO: Selección de sticker para paleta
+    @State private var activeEditingStickerId: String? = nil // ✅ NUEVO: Edición inline
+    @State private var showingEmojiPicker = false // ✅ NUEVO: Selector de emojis expandido
     @State private var activeEditorMode: ActiveEditorMode = .idle
     @State private var showingStickerPicker = false
     @State private var isPublishing = false
@@ -50,6 +54,11 @@ struct StoryEditingView: View {
     @State private var imageOffset: CGSize = .zero
     @State private var imageRotation: Angle = .zero
     @State private var selectedBackgroundPresetIndex: Int = 0
+    @State private var autoBackgroundPalette: [UIColor] = [
+        UIColor(Color(hex: "0B1215")),
+        UIColor(Color(hex: "FAF9F6"))
+    ]
+    @State private var autoBackgroundPaletteMediaId: String?
 
     @State private var selectedListId: String?
     @State private var selectedListName: String?
@@ -86,7 +95,7 @@ struct StoryEditingView: View {
     @State private var allowOthersToContinue = true
     @State private var continuationAudience: ChainContinuationSetting = .everyone
     @State private var showingChainConfiguration = false
-    @State private var primaryVideoAspectRatio: CGFloat? = nil
+    @State private var primaryVideoPresentationSize: CGSize? = nil
 
 
     private var isTextMode: Bool { activeEditorMode == .text }
@@ -158,7 +167,9 @@ struct StoryEditingView: View {
                             },
                             onNavigateToLocation: { locationName, coordinate in
                                 handleLocationNavigation(locationName: locationName, coordinate: coordinate)
-                            }
+                            },
+                             selectedStickerId: $selectedStickerId, // ✅ NUEVO: Enlace bidireccional de selección
+                             activeEditingStickerId: $activeEditingStickerId // ✅ NUEVO: Edición inline en Canvas
                         )
                         .id(forceUpdate)
                         .frame(width: mediaCanvasRect.width, height: mediaCanvasRect.height)
@@ -203,9 +214,25 @@ struct StoryEditingView: View {
                         .transition(.opacity.combined(with: .move(edge: .bottom)))
                         .zIndex(40)
                     }
+
+                    // Floating Emoji Slider Bar — anchored to bottom above keyboard
+                    if let activeId = activeEditingStickerId,
+                       let sticker = selectedStickers.first(where: { $0.id == activeId }),
+                       sticker.type == .emojiSlider {
+                        VStack(spacing: 0) {
+                            Spacer()
+                            emojiSliderPresetBar()
+                        }
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .ignoresSafeArea(.keyboard)
+                        .zIndex(3100)
+                    }
                 }
                 .frame(width: viewportSize.width, height: viewportSize.height, alignment: .topLeading)
                 .ignoresSafeArea(.keyboard)
+                .task(id: selectedMediaItems.first?.id) {
+                    await resolveAutoBackgroundPaletteIfNeeded()
+                }
             }
             .navigationDestination(for: String.self) { userId in
                 UserProfileView(userId: userId)
@@ -290,7 +317,7 @@ struct StoryEditingView: View {
             )
         }
         .sheet(isPresented: $showingStickerPicker) {
-            StickerPickerView(selectedStickers: $selectedStickers, isVideo: selectedMediaItems.first?.type == .video)
+            StickerPickerView(selectedStickers: $selectedStickers, activeEditingStickerId: $activeEditingStickerId, isVideo: selectedMediaItems.first?.type == .video)
                 .ignoresSafeArea()
                 .onDisappear {
                     activeEditorMode = .idle
@@ -298,6 +325,13 @@ struct StoryEditingView: View {
                 .presentationDetents([.medium])
                 .presentationDragIndicator(.hidden)
                 .presentationBackground(.clear)
+        }
+        .sheet(isPresented: $showingEmojiPicker) {
+            EmojiPickerView(isPresented: $showingEmojiPicker, onSelect: { emoji in
+                updateActiveSliderEmoji(emoji)
+            })
+            .presentationDetents([.medium, .large])
+            .presentationDragIndicator(.visible)
         }
         .overlay(
             Group {
@@ -313,6 +347,15 @@ struct StoryEditingView: View {
                         Text("storyEditor.sharing")
                             .foregroundColor(.white)
                     }
+                } else if showDiscardChangesAlert {
+                    Color.black.opacity(0.28)
+                        .ignoresSafeArea()
+                        .contentShape(Rectangle())
+                        .onTapGesture {
+                            showDiscardChangesAlert = false
+                        }
+
+                    discardChangesOverlay
                 }
             }
         )
@@ -445,7 +488,7 @@ struct StoryEditingView: View {
 
     private func refreshPrimaryVideoAspectRatio() {
         guard let media = selectedMediaItems.first, media.type == .video, let videoURL = media.videoURL else {
-            primaryVideoAspectRatio = nil
+            primaryVideoPresentationSize = nil
             return
         }
 
@@ -457,13 +500,14 @@ struct StoryEditingView: View {
                 return
             }
 
-            let transformedRect = CGRect(origin: .zero, size: naturalSize).applying(preferredTransform)
-            let resolvedSize = CGSize(width: abs(transformedRect.width), height: abs(transformedRect.height))
-            let aspectRatio = resolvedSize.width / max(resolvedSize.height, 1)
+            let resolvedSize = StoryViewerScreen.resolvedVideoPresentationSize(
+                naturalSize: naturalSize,
+                preferredTransform: preferredTransform
+            )
 
             await MainActor.run {
                 if selectedMediaItems.first?.id == media.id {
-                    primaryVideoAspectRatio = aspectRatio.isFinite ? aspectRatio : nil
+                    primaryVideoPresentationSize = resolvedSize.width > 0 && resolvedSize.height > 0 ? resolvedSize : nil
                 }
             }
         }
@@ -480,13 +524,12 @@ struct StoryEditingView: View {
     private func backgroundMediaView(canvasSize: CGSize) -> some View {
         if let firstMedia = selectedMediaItems.first {
             if firstMedia.type == .video, let videoURL = firstMedia.videoURL {
-                let fallbackAspectRatio = firstMedia.image.size.width / max(firstMedia.image.size.height, 1)
-                let mediaAspectRatio = primaryVideoAspectRatio ?? fallbackAspectRatio
-                let referenceHeight = max(firstMedia.image.size.height, 1)
-                let resolvedMediaSize = CGSize(
-                    width: mediaAspectRatio * referenceHeight,
-                    height: referenceHeight
+                let fallbackMediaSize = CGSize(
+                    width: max(firstMedia.image.size.width, 1),
+                    height: max(firstMedia.image.size.height, 1)
                 )
+                let resolvedMediaSize = primaryVideoPresentationSize ?? fallbackMediaSize
+                let mediaAspectRatio = resolvedMediaSize.width / max(resolvedMediaSize.height, 1)
                 StoryEditableMediaContainer(
                     mediaSize: resolvedMediaSize,
                     scale: $imageScale,
@@ -517,7 +560,7 @@ struct StoryEditingView: View {
                     rotation: $imageRotation,
                     filteredImage: filteredImage,
                     canvasSize: canvasSize,
-                    paletteIdentity: "\(firstMedia.id)-\(selectedFilter.rawValue)-\(Int(filterIntensity * 100))-\(filteredImage != nil)",
+                    paletteIdentity: firstMedia.id,
                     paletteOverride: currentStoryBackgroundPalette(for: firstMedia),
                     isInteractionEnabled: activeEditorMode == .idle && !isEditingSticker
                 )
@@ -547,119 +590,243 @@ struct StoryEditingView: View {
 
     @ViewBuilder
     private func topBarView(topInset: CGFloat) -> some View {
-        ZStack {
-            HStack {
-                Button(action: {
-                    if isFilterMode {
-                        withAnimation(.spring(response: 0.28, dampingFraction: 0.86)) {
-                            activeEditorMode = .idle
-                        }
-                    } else {
-                        currentFlow = .storyCamera
-                    }
-                }) {
-                    Image(systemName: isFilterMode ? "chevron.left" : "xmark")
-                        .font(.title2)
-                        .foregroundColor(.white)
-                        .padding(12)
-                        .liquidGlass(in: Circle())
-                }
-                Spacer()
-                if isFilterMode {
+        if let activeId = activeEditingStickerId {
+            ZStack {
+                HStack {
+                    Spacer()
                     Button(action: {
-                        withAnimation(.spring(response: 0.28, dampingFraction: 0.86)) {
-                            activeEditorMode = .idle
+                        withAnimation(.spring(response: 0.3, dampingFraction: 0.75)) {
+                            activeEditingStickerId = nil
                         }
+                        HapticManager.shared.lightImpact()
                     }) {
-                        Text("creator.done")
-                            .font(.system(size: 15, weight: .semibold))
+                        Text(NSLocalizedString("storyTextEditor.done", comment: "Done"))
+                            .font(.system(size: 15, weight: .bold))
                             .foregroundColor(.white)
-                            .padding(.horizontal, 14)
+                            .padding(.horizontal, 16)
                             .padding(.vertical, 8)
                             .liquidGlass(in: Capsule())
                     }
-                } else {
-                    Button(action: { saveToGallery() }) {
-                        Image(systemName: "arrow.down.circle")
+                }
+                
+                if showsStickerPaletteButton {
+                    Button(action: cycleSelectedStickerColor) {
+                        HStack(spacing: 8) {
+                            Image(systemName: "swatchpalette")
+                                .font(.system(size: 14, weight: .semibold))
+
+                            HStack(spacing: 4) {
+                                ForEach(Array(stickerPalettePreviewColors().enumerated()), id: \.offset) { entry in
+                                    Circle()
+                                        .fill(entry.element)
+                                        .frame(width: 10, height: 10)
+                                }
+                            }
+                        }
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 9)
+                        .liquidGlass(in: Capsule(), interactive: true)
+                    }
+                }
+            }
+            .padding(.horizontal)
+            .padding(.top, topBarTopPadding(topInset: topInset))
+        } else {
+            ZStack {
+                HStack {
+                    Button(action: {
+                        if isFilterMode {
+                            withAnimation(.spring(response: 0.28, dampingFraction: 0.86)) {
+                                activeEditorMode = .idle
+                            }
+                        } else {
+                            showDiscardChangesAlert = true
+                        }
+                    }) {
+                        Image(systemName: isFilterMode ? "chevron.left" : "xmark")
                             .font(.title2)
                             .foregroundColor(.white)
                             .padding(12)
                             .liquidGlass(in: Circle())
                     }
-                }
-            }
-
-            if showsBackgroundPaletteButton {
-                Button(action: cycleBackgroundPreset) {
-                    HStack(spacing: 8) {
-                        Image(systemName: "swatchpalette")
-                            .font(.system(size: 14, weight: .semibold))
-
-                        HStack(spacing: 4) {
-                            ForEach(Array(backgroundPalettePreviewColors().prefix(3).enumerated()), id: \.offset) { entry in
-                                Circle()
-                                    .fill(entry.element)
-                                    .frame(width: 10, height: 10)
+                    Spacer()
+                    if isFilterMode {
+                        Button(action: {
+                            withAnimation(.spring(response: 0.28, dampingFraction: 0.86)) {
+                                activeEditorMode = .idle
                             }
+                        }) {
+                            Text("creator.done")
+                                .font(.system(size: 15, weight: .semibold))
+                                .foregroundColor(.white)
+                                .padding(.horizontal, 14)
+                                .padding(.vertical, 8)
+                                .liquidGlass(in: Capsule())
+                        }
+                    } else {
+                        Button(action: { saveToGallery() }) {
+                            Image(systemName: "arrow.down.circle")
+                                .font(.title2)
+                                .foregroundColor(.white)
+                                .padding(12)
+                                .liquidGlass(in: Circle())
                         }
                     }
-                    .foregroundColor(.white)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 9)
-                    .liquidGlass(in: Capsule(), interactive: true)
+                }
+
+                if showsStickerPaletteButton {
+                    Button(action: cycleSelectedStickerColor) {
+                        HStack(spacing: 8) {
+                            Image(systemName: "swatchpalette")
+                                .font(.system(size: 14, weight: .semibold))
+
+                            HStack(spacing: 4) {
+                                ForEach(Array(stickerPalettePreviewColors().enumerated()), id: \.offset) { entry in
+                                    Circle()
+                                        .fill(entry.element)
+                                        .frame(width: 10, height: 10)
+                                }
+                            }
+                        }
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 9)
+                        .liquidGlass(in: Capsule(), interactive: true)
+                    }
+                } else if showsBackgroundPaletteButton {
+                    Button(action: cycleBackgroundPreset) {
+                        HStack(spacing: 8) {
+                            Image(systemName: "swatchpalette")
+                                .font(.system(size: 14, weight: .semibold))
+
+                            HStack(spacing: 4) {
+                                ForEach(Array(backgroundPalettePreviewColors().prefix(3).enumerated()), id: \.offset) { entry in
+                                    Circle()
+                                        .fill(entry.element)
+                                        .frame(width: 10, height: 10)
+                                }
+                            }
+                        }
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 9)
+                        .liquidGlass(in: Capsule(), interactive: true)
+                    }
                 }
             }
+            .padding(.horizontal)
+            .padding(.top, topBarTopPadding(topInset: topInset))
         }
-        .padding(.horizontal)
-        .padding(.top, topBarTopPadding(topInset: topInset))
+    }
+
+    private var discardChangesOverlay: some View {
+        let primaryTextColor = colorScheme == .dark ? Color.white : Color.black
+        let secondaryTextColor = primaryTextColor.opacity(0.72)
+        let dividerColor = primaryTextColor.opacity(0.12)
+
+        return VStack(spacing: 0) {
+            VStack(spacing: 10) {
+                Text(NSLocalizedString("storyEditor.discardDraft.title", comment: "Discard story draft title"))
+                    .font(.system(size: 20, weight: .bold))
+                    .foregroundStyle(primaryTextColor)
+                    .multilineTextAlignment(.center)
+
+                Text(NSLocalizedString("storyEditor.discardDraft.message", comment: "Discard story draft message"))
+                    .font(.system(size: 15, weight: .medium))
+                    .foregroundStyle(secondaryTextColor)
+                    .multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .padding(.horizontal, 22)
+            .padding(.top, 22)
+            .padding(.bottom, 18)
+
+            Rectangle()
+                .fill(dividerColor)
+                .frame(height: 0.5)
+
+            MomentRowButton(action: {
+                showDiscardChangesAlert = false
+                currentFlow = .storyCamera
+            }) {
+                Text(NSLocalizedString("storyEditor.discardDraft.confirm", comment: "Discard draft"))
+                    .font(.system(size: 17, weight: .semibold))
+                    .foregroundStyle(Color.red)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 54)
+            }
+
+            Rectangle()
+                .fill(dividerColor)
+                .frame(height: 0.5)
+
+            MomentRowButton(action: {
+                showDiscardChangesAlert = false
+            }) {
+                Text(NSLocalizedString("storyEditor.discardDraft.cancel", comment: "Continue editing"))
+                    .font(.system(size: 17, weight: .medium))
+                    .foregroundStyle(primaryTextColor)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 54)
+            }
+        }
+        .frame(maxWidth: 320)
+        .liquidGlass(in: RoundedRectangle(cornerRadius: 28, style: .continuous))
+        .shadow(color: .black.opacity(colorScheme == .dark ? 0.24 : 0.12), radius: 24, x: 0, y: 12)
+        .padding(.horizontal, 24)
+        .transition(.scale(scale: 0.94).combined(with: .opacity))
+        .zIndex(5000)
     }
 
     @ViewBuilder
     private func sideToolbarView() -> some View {
-        VStack(spacing: 12) {
-            EditingToolIcon(icon: "textformat.alt") {
-                withAnimation(.spring(response: 0.28, dampingFraction: 0.86)) {
-                    activeEditorMode = .text
+        if activeEditingStickerId == nil {
+            VStack(spacing: 12) {
+                EditingToolIcon(icon: "textformat.alt") {
+                    withAnimation(.spring(response: 0.28, dampingFraction: 0.86)) {
+                        activeEditorMode = .text
+                    }
                 }
-            }
-            EditingToolIcon(icon: "face.smiling") {
-                activeEditorMode = .idle
-                showingStickerPicker = true
-            }
-            EditingToolIcon(icon: "scribble") {
-                withAnimation(.spring(response: 0.28, dampingFraction: 0.86)) {
-                    activeEditorMode = .drawing
+                EditingToolIcon(icon: "face.smiling") {
+                    activeEditorMode = .idle
+                    showingStickerPicker = true
                 }
-            }
+                EditingToolIcon(icon: "scribble") {
+                    withAnimation(.spring(response: 0.28, dampingFraction: 0.86)) {
+                        activeEditorMode = .drawing
+                    }
+                }
 
-            Button(action: {
-                withAnimation(.spring(response: 0.28, dampingFraction: 0.86)) {
-                    activeEditorMode = isFilterMode ? .idle : .filters
-                    showingIntensitySlider = selectedFilter != .normal
-                }
-            }) {
-                Image(systemName: "camera.filters")
-                    .font(.system(size: 20))
-                    .foregroundColor(isFilterMode ? .pink : .white)
-                    .frame(width: 44, height: 44)
-                    .liquidGlass(in: Circle())
-                    .overlay(Circle().stroke(isFilterMode ? Color.pink : Color.clear, lineWidth: 1))
-            }
-
-            if !isContinuingChain {
                 Button(action: {
-                    withAnimation(.spring()) { isCreatingChain.toggle() }
+                    withAnimation(.spring(response: 0.28, dampingFraction: 0.86)) {
+                        activeEditorMode = isFilterMode ? .idle : .filters
+                        showingIntensitySlider = selectedFilter != .normal
+                    }
                 }) {
-                    Image(systemName: "link")
+                    Image(systemName: "camera.filters")
                         .font(.system(size: 20))
-                        .foregroundColor(isCreatingChain ? .blue : .white)
+                        .foregroundColor(isFilterMode ? .pink : .white)
                         .frame(width: 44, height: 44)
                         .liquidGlass(in: Circle())
-                        .overlay(Circle().stroke(isCreatingChain ? Color.blue : Color.clear, lineWidth: 1))
+                        .overlay(Circle().stroke(isFilterMode ? Color.pink : Color.clear, lineWidth: 1))
+                }
+
+                if !isContinuingChain {
+                    Button(action: {
+                        withAnimation(.spring()) { isCreatingChain.toggle() }
+                    }) {
+                        Image(systemName: "link")
+                            .font(.system(size: 20))
+                            .foregroundColor(isCreatingChain ? .blue : .white)
+                            .frame(width: 44, height: 44)
+                            .liquidGlass(in: Circle())
+                            .overlay(Circle().stroke(isCreatingChain ? Color.blue : Color.clear, lineWidth: 1))
+                    }
                 }
             }
+            .padding(.trailing, 16)
         }
-        .padding(.trailing, 16)
     }
 
     @ViewBuilder
@@ -699,7 +866,7 @@ struct StoryEditingView: View {
 
     @ViewBuilder
     private func bottomPublishingInset() -> some View {
-        if activeEditorMode == .idle {
+        if activeEditorMode == .idle && activeEditingStickerId == nil {
             HStack(spacing: 12) {
                 Group {
                     if isCreatingChain && !isCanvasModeActive {
@@ -791,55 +958,57 @@ struct StoryEditingView: View {
 
     @ViewBuilder
     private func bottomControlsView(bottomInset: CGFloat, canvasBottomEdge: CGFloat, viewportHeight: CGFloat) -> some View {
-        VStack(spacing: 12) {
-            if isFilterMode {
-                // Intensity Slider
-                if selectedFilter != .normal && showingIntensitySlider {
-                    VStack(spacing: 4) {
-                        Text("\(Int(filterIntensity * 100))%")
-                            .font(.system(size: 12, weight: .bold))
-                            .foregroundColor(.white)
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 2)
-                            .liquidGlass(in: Capsule())
+        if activeEditingStickerId == nil {
+            VStack(spacing: 12) {
+                if isFilterMode {
+                    // Intensity Slider
+                    if selectedFilter != .normal && showingIntensitySlider {
+                        VStack(spacing: 4) {
+                            Text("\(Int(filterIntensity * 100))%")
+                                .font(.system(size: 12, weight: .bold))
+                                .foregroundColor(.white)
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 2)
+                                .liquidGlass(in: Capsule())
 
-                        Slider(value: $filterIntensity, in: 0...1.0)
-                            .accentColor(.white)
-                            .padding(.horizontal, 40)
-                            .onChange(of: filterIntensity) { _, _ in
-                                applySelectedFilter()
-                            }
-                    }
-                    .transition(.move(edge: .bottom).combined(with: .opacity))
-                }
-
-                if selectedMediaItems.first?.type == .image {
-                    FilterSelectorView(
-                        selectedFilter: $selectedFilter,
-                        filters: FilterService.FilterType.allCases,
-                        baseImage: selectedMediaItems.first?.image
-                    )
-                        .onChange(of: selectedFilter) { _, _ in
-                            if selectedFilter != .normal {
-                                withAnimation(.spring()) {
-                                    showingIntensitySlider = true
+                            Slider(value: $filterIntensity, in: 0...1.0)
+                                .accentColor(.white)
+                                .padding(.horizontal, 40)
+                                .onChange(of: filterIntensity) { _, _ in
+                                    applySelectedFilter()
                                 }
-                            } else {
-                                withAnimation(.spring()) {
-                                    showingIntensitySlider = false
-                                }
-                            }
                         }
                         .transition(.move(edge: .bottom).combined(with: .opacity))
+                    }
+
+                    if selectedMediaItems.first?.type == .image {
+                        FilterSelectorView(
+                            selectedFilter: $selectedFilter,
+                            filters: FilterService.FilterType.allCases,
+                            baseImage: selectedMediaItems.first?.image
+                        )
+                            .onChange(of: selectedFilter) { _, _ in
+                                if selectedFilter != .normal {
+                                    withAnimation(.spring()) {
+                                        showingIntensitySlider = true
+                                    }
+                                } else {
+                                    withAnimation(.spring()) {
+                                        showingIntensitySlider = false
+                                    }
+                                }
+                            }
+                            .transition(.move(edge: .bottom).combined(with: .opacity))
+                    }
                 }
+
+                autoSplitNoticeView()
+
             }
-
-            autoSplitNoticeView()
-
+            .padding(.horizontal, activeEditorMode == .idle && !isCreatingChain ? 0 : 16)
+            .padding(.top, activeEditorMode == .idle && !isCreatingChain ? 0 : max(10, min(26, viewportHeight - canvasBottomEdge - 94)))
+            .padding(.bottom, bottomControlsBottomPadding(bottomInset: bottomInset))
         }
-        .padding(.horizontal, activeEditorMode == .idle && !isCreatingChain ? 0 : 16)
-        .padding(.top, activeEditorMode == .idle && !isCreatingChain ? 0 : max(10, min(26, viewportHeight - canvasBottomEdge - 94)))
-        .padding(.bottom, bottomControlsBottomPadding(bottomInset: bottomInset))
     }
 
     @ViewBuilder
@@ -1284,14 +1453,14 @@ struct StoryEditingView: View {
 
     private func resolvedStoryBackgroundPalette(for image: UIImage) -> [UIColor] {
         if selectedBackgroundPreset.usesAutoPalette {
-            return storyDominantBackgroundColors(from: image)
+            return autoBackgroundPalette
         }
         return selectedBackgroundPreset.uiColors
     }
 
     private func currentStoryBackgroundPalette(for media: ProcessedMedia) -> [UIColor]? {
         if selectedBackgroundPreset.usesAutoPalette {
-            return nil
+            return autoBackgroundPalette
         }
         return selectedBackgroundPreset.uiColors
     }
@@ -1307,11 +1476,135 @@ struct StoryEditingView: View {
     }
 
     private func backgroundPalettePreviewColors() -> [Color] {
-        guard let firstMedia = selectedMediaItems.first else { return [.white] }
         let palette = selectedBackgroundPreset.usesAutoPalette
-            ? storyDominantBackgroundColors(from: renderPaletteSourceImage(for: firstMedia))
+            ? autoBackgroundPalette
             : selectedBackgroundPreset.uiColors
         return palette.prefix(3).map { Color(uiColor: $0) }
+    }
+
+    @MainActor
+    private func resolveAutoBackgroundPaletteIfNeeded() async {
+        guard let firstMedia = selectedMediaItems.first else { return }
+        guard autoBackgroundPaletteMediaId != firstMedia.id else { return }
+
+        let mediaId = firstMedia.id
+        let sourceImage = firstMedia.image
+        let palette = await Task.detached(priority: .userInitiated) {
+            storyDominantBackgroundColors(from: sourceImage)
+        }.value
+
+        guard selectedMediaItems.first?.id == mediaId else { return }
+        autoBackgroundPalette = palette
+        autoBackgroundPaletteMediaId = mediaId
+    }
+
+    private var selectedSticker: StickerItem? {
+        selectedStickers.first { $0.id == selectedStickerId }
+    }
+
+    private var showsStickerPaletteButton: Bool {
+        if let activeId = activeEditingStickerId,
+           let activeSticker = selectedStickers.first(where: { $0.id == activeId }) {
+            switch activeSticker.type {
+            case .poll, .question, .quiz, .countdown, .emojiSlider:
+                return true
+            default:
+                return false
+            }
+        }
+        
+        guard !isFilterMode && activeEditorMode == .idle && !isEditingSticker,
+              let selected = selectedSticker else { return false }
+        
+        switch selected.type {
+        case .poll, .question, .quiz, .countdown, .emojiSlider:
+            return true
+        default:
+            return false
+        }
+    }
+
+    private func cycleSelectedStickerColor() {
+        guard let selectedId = activeEditingStickerId ?? selectedStickerId,
+              let index = selectedStickers.firstIndex(where: { $0.id == selectedId }) else { return }
+        
+        let currentVariant = selectedStickers[index].interactionData?.styleVariant ?? 0
+        let nextVariant = (currentVariant + 1) % 6
+        
+        var data = selectedStickers[index].interactionData ?? StickerItem.StickerInteractionData()
+        data.styleVariant = nextVariant
+        
+        withAnimation(.spring(response: 0.35, dampingFraction: 0.72)) {
+            selectedStickers[index].interactionData = data
+            // Forzar actualización visual si fuese necesario
+            forceUpdate.toggle()
+        }
+        
+        HapticManager.shared.lightImpact()
+    }
+
+    private func stickerPalettePreviewColors() -> [Color] {
+        [Color(hex: "FF5F6D"), Color(hex: "9D4EDD"), Color(hex: "4A00E0")]
+    }
+
+    private func updateActiveSliderEmoji(_ emoji: String) {
+        guard let activeId = activeEditingStickerId,
+              let index = selectedStickers.firstIndex(where: { $0.id == activeId }) else { return }
+        var data = selectedStickers[index].interactionData ?? StickerItem.StickerInteractionData()
+        data.sliderEmoji = emoji
+        withAnimation(.spring(response: 0.3, dampingFraction: 0.75)) {
+            selectedStickers[index].interactionData = data
+            forceUpdate.toggle()
+        }
+        HapticManager.shared.lightImpact()
+    }
+
+    @ViewBuilder
+    private func emojiSliderPresetBar() -> some View {
+        let presetEmojis = ["😍", "🔥", "😂", "🥹", "❤️", "👏", "🙌", "💯"]
+        let bottomPad: CGFloat = keyboardHeight > 0
+            ? keyboardHeight + 12
+            : keyWindowSafeAreaInsets().bottom + 56
+
+        HStack(spacing: 0) {
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 2) {
+                    ForEach(presetEmojis, id: \.self) { emoji in
+                        Button(action: { updateActiveSliderEmoji(emoji) }) {
+                            Text(emoji)
+                                .font(.system(size: 34))
+                                .shadow(color: .black.opacity(0.25), radius: 4, x: 0, y: 2)
+                                .frame(width: 52, height: 52)
+                        }
+                        .buttonStyle(MomentEmojiScaleButtonStyle())
+                    }
+                }
+                .padding(.horizontal, 12)
+            }
+
+            // Divisor
+            Rectangle()
+                .fill(Color.white.opacity(0.3))
+                .frame(width: 1, height: 30)
+                .padding(.horizontal, 4)
+
+            // Botón "más"
+            Button(action: {
+                showingEmojiPicker = true
+                HapticManager.shared.lightImpact()
+            }) {
+                Image(systemName: "face.smiling")
+                    .font(.system(size: 24, weight: .medium))
+                    .foregroundColor(.white)
+                    .shadow(color: .black.opacity(0.35), radius: 4, x: 0, y: 2)
+                    .frame(width: 52, height: 52)
+            }
+            .buttonStyle(.plain)
+            .padding(.trailing, 8)
+        }
+        .padding(.bottom, bottomPad)
+        .animation(.spring(response: 0.3, dampingFraction: 0.75), value: keyboardHeight)
+        .ignoresSafeArea(.keyboard)
     }
 
     private func renderStoryOverlayImage(targetSize: CGSize, screenSize: CGSize) -> UIImage? {
@@ -1398,8 +1691,9 @@ struct StoryEditingView: View {
             }
 
             context.cgContext.saveGState()
-            let scaleFactorX = targetSize.width / max(screenSize.width, 1)
-            let scaleFactorY = targetSize.height / max(screenSize.height, 1)
+            let editorCanvasSize = currentMediaCanvasRect().size
+            let scaleFactorX = targetSize.width / max(editorCanvasSize.width, 1)
+            let scaleFactorY = targetSize.height / max(editorCanvasSize.height, 1)
             let baseRect = mediaRectForStoryCanvas(mediaSize: renderImage.size, targetSize: targetSize)
 
             context.cgContext.translateBy(
@@ -1482,7 +1776,16 @@ struct StoryEditingView: View {
             || abs(imageRotation.radians) > 0.001
     }
 
-    private func exportVideoWithCurrentOverlays(_ media: ProcessedMedia) async throws -> URL {
+    private func exportVideoWithCurrentOverlays(
+        _ media: ProcessedMedia,
+        preRenderedOverlay: UIImage?,
+        preRenderedBackground: UIImage?,
+        targetSize: CGSize,
+        editorCanvasSize: CGSize,
+        imageScale: CGFloat,
+        imageOffset: CGSize,
+        imageRotation: Angle
+    ) async throws -> URL {
         guard let sourceURL = media.videoURL else {
             throw NSError(domain: "StoryEditor", code: 1, userInfo: [NSLocalizedDescriptionKey: "Missing source video URL"])
         }
@@ -1493,9 +1796,8 @@ struct StoryEditingView: View {
         }
 
         let duration = try await asset.load(.duration)
-        let targetSize = storyRenderTargetSize()
-        let overlayImage = renderStoryOverlayImage(targetSize: targetSize, screenSize: UIScreen.main.bounds.size)
-        let backgroundImage = storyBackgroundImage(
+        let overlayImage = preRenderedOverlay
+        let backgroundImage = preRenderedBackground ?? storyBackgroundImage(
             baseImage: renderPaletteSourceImage(for: media),
             targetSize: targetSize
         )
@@ -1550,8 +1852,9 @@ struct StoryEditingView: View {
             translationX: baseRect.midX - scaledRect.midX,
             y: baseRect.midY - scaledRect.midY
         )
-        let scaleFactorX = targetSize.width / max(UIScreen.main.bounds.width, 1)
-        let scaleFactorY = targetSize.height / max(UIScreen.main.bounds.height, 1)
+        let editorCanvasSize = currentMediaCanvasRect().size
+        let scaleFactorX = targetSize.width / max(editorCanvasSize.width, 1)
+        let scaleFactorY = targetSize.height / max(editorCanvasSize.height, 1)
         let userTransform = CGAffineTransform.identity
             .translatedBy(
                 x: (targetSize.width / 2) + (imageOffset.width * scaleFactorX),
@@ -1619,30 +1922,49 @@ struct StoryEditingView: View {
         }
     }
 
-    private func prepareMediaForStoryUpload(from media: ProcessedMedia) async throws -> (mediaItem: ProcessedMedia, finalRenderedImage: UIImage) {
-        let finalRenderedImage = renderStoryWithOverlays()
-
-        guard shouldBakeCurrentOverlaysIntoVideo(media) else {
-            return (media, finalRenderedImage)
+    private func prepareMediaForStoryUpload(
+        from media: ProcessedMedia,
+        preRenderedImage: UIImage,
+        preRenderedOverlay: UIImage?,
+        preRenderedBackground: UIImage?,
+        shouldBake: Bool,
+        targetSize: CGSize,
+        editorCanvasSize: CGSize,
+        imageScale: CGFloat,
+        imageOffset: CGSize,
+        imageRotation: Angle
+    ) async throws -> (mediaItem: ProcessedMedia, finalRenderedImage: UIImage) {
+        guard shouldBake else {
+            return (media, preRenderedImage)
         }
 
-        let exportedVideoURL = try await exportVideoWithCurrentOverlays(media)
+        let exportedVideoURL = try await exportVideoWithCurrentOverlays(
+            media,
+            preRenderedOverlay: preRenderedOverlay,
+            preRenderedBackground: preRenderedBackground,
+            targetSize: targetSize,
+            editorCanvasSize: editorCanvasSize,
+            imageScale: imageScale,
+            imageOffset: imageOffset,
+            imageRotation: imageRotation
+        )
         let finalMedia = media.with(
             videoURL: exportedVideoURL,
             aspectRatio: .nineBySixteen,
             recommendedAspectRatio: .nineBySixteen,
             hasEdits: true,
             thumbnailURL: nil,
-            image: finalRenderedImage
+            image: preRenderedImage
         )
 
-        return (finalMedia, finalRenderedImage)
+        return (finalMedia, preRenderedImage)
     }
 
     // ✅ FUNCIÓN ACTUALIZADA: Publicar historia con soporte para listas
     private func publishStory() {
         guard let userId = Auth.auth().currentUser?.uid,
               !selectedMediaItems.isEmpty else { return }
+
 
         // 🔗 VALIDAR LÍMITES DE STORY CHAINS
         Task {
@@ -1670,27 +1992,18 @@ struct StoryEditingView: View {
     private func publishStoryAfterValidation() {
         guard let media = selectedMediaItems.first else { return }
 
-        Task {
-            do {
-                let preparedUpload = try await prepareMediaForStoryUpload(from: media)
-                await MainActor.run {
-                    publishPreparedStory(
-                        media: preparedUpload.mediaItem,
-                        finalRenderedImage: preparedUpload.finalRenderedImage
-                    )
-                }
-            } catch {
-                await MainActor.run {
-                    let notificationFeedback = UINotificationFeedbackGenerator()
-                    notificationFeedback.notificationOccurred(.error)
-                    alertMessage = error.localizedDescription
-                    showAlert = true
-                }
-            }
-        }
-    }
+        // 1. Capturar todos los estados y renderizados en el Main Actor sincrónicamente antes de cerrar/resetear
+        let targetSize = storyRenderTargetSize()
+        let finalRenderedImage = renderStoryWithOverlays()
+        let preRenderedOverlay = renderStoryOverlayImage(targetSize: targetSize, screenSize: UIScreen.main.bounds.size)
+        let preRenderedBackground = storyBackgroundImage(baseImage: renderPaletteSourceImage(for: media), targetSize: targetSize)
+        let shouldBake = shouldBakeCurrentOverlaysIntoVideo(media)
+        let editorCanvasSize = currentMediaCanvasRect().size
 
-    private func publishPreparedStory(media: ProcessedMedia, finalRenderedImage: UIImage) {
+        let capturedImageScale = imageScale
+        let capturedImageOffset = imageOffset
+        let capturedImageRotation = imageRotation
+
         let stickerData = selectedStickers
         let drawingData = drawingImage?.pngData()
 
@@ -1723,57 +2036,74 @@ struct StoryEditingView: View {
             }
         }()
 
-        let success = BackgroundStoryUploadService.shared.publishStoryInBackground(
+        // 2. Iniciar preparación instantánea en el servicio con estado .initializing
+        guard let uploadingStory = BackgroundStoryUploadService.shared.startPreparingStory(
             mediaItem: media,
-            storyText: storyText,
+            storyText: storyText.isEmpty ? nil : storyText,
             textPosition: storyText.isEmpty ? nil : textPosition,
             selectedTextStyle: storyText.isEmpty ? nil : selectedTextStyle,
             stickerData: stickerData,
             drawingData: drawingData,
-            audienceSetting: contentAudience, // 🔥 PASAR ContentAudience
+            audienceSetting: contentAudience,
             customViewers: customSelectedUsers,
             customListId: selectedListId,
             selectedListName: selectedListName,
-            finalRenderedImage: finalRenderedImage,
-            chainId: finalChainId, // 🔗 AÑADIDO: Pasar ID de la cadena
-            chainPosition: finalChainPosition, // 🔗 AÑADIDO: Pasar posición en la cadena
-            chainTitle: finalChainTitle, // 🔗 AÑADIDO: Pasar título de la cadena
-            allowOthersToContinue: (isCreatingChain || isContinuingChain) ? allowOthersToContinue : nil, // 🔗 AÑADIDO: Configuración de continuación
-            continuationAudience: (isCreatingChain || isContinuingChain) ? convertContinuationAudience() : nil, // 🔗 AÑADIDO: Audiencia de continuación
-            continuationCustomViewers: (isCreatingChain || isContinuingChain) ? customSelectedUsers : nil, // 🔗 AÑADIDO: Usuarios específicos de continuación
-            continuationCustomListId: (isCreatingChain || isContinuingChain) ? selectedListId : nil, // 🔗 AÑADIDO: Lista específica de continuación
-            continuationCustomListName: (isCreatingChain || isContinuingChain) ? selectedListName : nil // 🔗 AÑADIDO: Nombre de lista de continuación
-        )
-
-        if success {
-            // 🔥 CERRAR PANTALLA INMEDIATAMENTE
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                self.showCreatorView = false
-
-
-                // 🎉 Feedback háptico de éxito
-                let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
-                impactFeedback.impactOccurred()
-
-                // 🧹 Limpiar formulario para próximo uso
-                self.resetStoryForm()
-
-                // 📊 Analytics
-
-                // ✅ ENVIAR NOTIFICACIONES DE MENCIONES DESPUÉS DE PUBLICAR
-                // Las notificaciones se enviarán cuando se complete la publicación
-                // con el storyId real desde BackgroundStoryUploadService
-            }
-        } else {
-            // ❌ Error: No se pudo agregar historia al servicio
-
+            chainId: finalChainId,
+            chainPosition: finalChainPosition,
+            chainTitle: finalChainTitle,
+            allowOthersToContinue: (isCreatingChain || isContinuingChain) ? allowOthersToContinue : nil,
+            continuationAudience: (isCreatingChain || isContinuingChain) ? convertContinuationAudience() : nil,
+            continuationCustomViewers: (isCreatingChain || isContinuingChain) ? customSelectedUsers : nil,
+            continuationCustomListId: (isCreatingChain || isContinuingChain) ? selectedListId : nil,
+            continuationCustomListName: (isCreatingChain || isContinuingChain) ? selectedListName : nil,
+            storyVideoMode: media.storyVideoMode
+        ) else {
             // Feedback háptico de error
             let notificationFeedback = UINotificationFeedbackGenerator()
             notificationFeedback.notificationOccurred(.error)
-
-            // Mostrar error
             alertMessage = NSLocalizedString("storyEditor.error.publishStart", comment: "Error starting story upload")
             showAlert = true
+            return
+        }
+
+        // 3. 🔥 CERRAR PANTALLA Y RESETEAR FORMULARIO INSTANTÁNEAMENTE
+        self.showCreatorView = false
+
+        // 🎉 Feedback háptico de éxito inicial
+        let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
+        impactFeedback.impactOccurred()
+
+        // 🧹 Limpiar formulario para próximo uso
+        self.resetStoryForm()
+
+        // 4. Procesar la composición pesada en segundo plano
+        Task.detached(priority: .userInitiated) {
+            do {
+                let preparedUpload = try await self.prepareMediaForStoryUpload(
+                    from: media,
+                    preRenderedImage: finalRenderedImage,
+                    preRenderedOverlay: preRenderedOverlay,
+                    preRenderedBackground: preRenderedBackground,
+                    shouldBake: shouldBake,
+                    targetSize: targetSize,
+                    editorCanvasSize: editorCanvasSize,
+                    imageScale: capturedImageScale,
+                    imageOffset: capturedImageOffset,
+                    imageRotation: capturedImageRotation
+                )
+
+                await BackgroundStoryUploadService.shared.publishPreparedStoryInBackground(
+                    uploadingStory: uploadingStory,
+                    preparedMediaItem: preparedUpload.mediaItem,
+                    finalRenderedImage: preparedUpload.finalRenderedImage
+                )
+            } catch {
+                alertMessage = NSLocalizedString("storyEditor.error.publishStart", comment: "Error starting story upload")
+                await BackgroundStoryUploadService.shared.markStoryAsFailed(
+                    uploadingStory: uploadingStory,
+                    errorMessage: error.localizedDescription
+                )
+            }
         }
     }
 
@@ -2034,4 +2364,309 @@ extension StoryEditingView {
 private func requestPhotoLibraryPermission() async -> Bool {
     let status = await PHPhotoLibrary.requestAuthorization(for: .addOnly)
     return status == .authorized || status == .limited
+}
+
+// MARK: - Emoji Frame Preference Key
+private struct EmojiFramePreferenceKey: PreferenceKey {
+    typealias Value = [String: CGRect]
+    static var defaultValue: Value = [:]
+    static func reduce(value: inout Value, nextValue: () -> Value) {
+        value.merge(nextValue()) { $1 }
+    }
+}
+
+// MARK: - Premium Emoji Picker Sheet
+struct EmojiPickerView: View {
+    @Binding var isPresented: Bool
+    let onSelect: (String) -> Void
+    @Environment(\.colorScheme) var colorScheme
+
+    // Skin tone popover state
+    @State private var selectedBaseEmoji: String? = nil
+    @State private var emojiFrames: [String: CGRect] = [:]
+    @State private var pickerGeometryFrame: CGRect = .zero
+
+    // Skin tone modifiers: yellow, light, medium-light, medium, medium-dark, dark
+    private let skinTones: [String] = ["", "🏻", "🏼", "🏽", "🏾", "🏿"]
+
+    static let emojiCategories: [(nameKey: String, emojis: [String])] = {
+        let reactionEmojis = ["😍", "🔥", "😂", "🥹", "❤️", "👏", "🙌", "🎉", "🤔", "💯", "✨", "👀", "🚀", "💀", "😭", "🥳", "😎", "🥺", "🥰", "🧁", "🙄", "😴", "😮‍💨", "🫠", "🤐", "🤯", "💔", "🌟", "🎈"]
+
+        var categoryMap: [String: [String]] = [
+            "reactions": reactionEmojis,
+            "faces": [],
+            "nature": [],
+            "food": [],
+            "activities": [],
+            "travel": [],
+            "objects": [],
+            "symbols": []
+        ]
+
+        func getCategoryKey(_ code: Int) -> String? {
+            switch code {
+            case 0x1F600...0x1F64F: return "faces"
+            case 0x1F440...0x1F487, 0x1F90C...0x1F93F, 0x1F970...0x1F97F: return "faces"
+            case 0x1F400...0x1F43F, 0x1F980...0x1F9AE, 0x1F330...0x1F353: return "nature"
+            case 0x1F354...0x1F37F, 0x1F9C0...0x1F9CF: return "food"
+            case 0x1F3A0...0x1F3C4, 0x1F940...0x1F94F: return "activities"
+            case 0x1F680...0x1F6C5, 0x1F300...0x1F32F, 0x1F3E0...0x1F3F0: return "travel"
+            case 0x1F4A0...0x1F4FF, 0x1F500...0x1F5FF, 0x1F9E0...0x1F9FF, 0x1FA90...0x1FAAF: return "objects"
+            case 0x2700...0x27BF, 0x1F490...0x1F49F, 0x2600...0x26FF: return "symbols"
+            default: return nil
+            }
+        }
+
+        for code in 0x2600...0x1FAFF {
+            if let key = getCategoryKey(code), let scalar = UnicodeScalar(code) {
+                if scalar.properties.isEmojiPresentation {
+                    categoryMap[key, default: []].append(String(scalar))
+                }
+            }
+        }
+
+        return [
+            ("storyEditor.emojiPicker.reactions", categoryMap["reactions"] ?? reactionEmojis),
+            ("storyEditor.emojiPicker.faces", categoryMap["faces"] ?? []),
+            ("storyEditor.emojiPicker.nature", categoryMap["nature"] ?? []),
+            ("storyEditor.emojiPicker.food", categoryMap["food"] ?? []),
+            ("storyEditor.emojiPicker.activities", categoryMap["activities"] ?? []),
+            ("storyEditor.emojiPicker.travel", categoryMap["travel"] ?? []),
+            ("storyEditor.emojiPicker.objects", categoryMap["objects"] ?? []),
+            ("storyEditor.emojiPicker.symbols", categoryMap["symbols"] ?? [])
+        ]
+    }()
+
+    private func isSkinToneSupported(emoji: String) -> Bool {
+        guard let firstScalar = emoji.unicodeScalars.first else { return false }
+        let val = firstScalar.value
+        switch val {
+        case 0x1F442...0x1F44F,
+             0x1F450,
+             0x1F466...0x1F487,
+             0x1F48F...0x1F490,
+             0x1F645...0x1F64F,
+             0x1F6A3,
+             0x1F6B4...0x1F6B6,
+             0x1F90C, 0x1F90F,
+             0x1F918...0x1F91F,
+             0x1F926,
+             0x1F930...0x1F93E,
+             0x1F977,
+             0x1F9B5...0x1F9B6,
+             0x1F9C1...0x1F9C2,
+             0x1F9D1...0x1F9FF,
+             0x270A...0x270D:
+            return true
+        default:
+            return false
+        }
+    }
+
+    // Compute the popover bubble position anchored above the tapped emoji
+    private func popoverOffset(for base: String, in totalSize: CGSize) -> CGPoint {
+        guard let frame = emojiFrames[base] else {
+            return CGPoint(x: totalSize.width / 2, y: totalSize.height / 2)
+        }
+        let bubbleWidth: CGFloat = CGFloat(skinTones.count) * 52 + 24
+        let bubbleHeight: CGFloat = 72
+        let margin: CGFloat = 12
+
+        var x = frame.midX
+        // Clamp horizontally so bubble stays inside screen
+        x = max(bubbleWidth / 2 + margin, min(totalSize.width - bubbleWidth / 2 - margin, x))
+
+        var y = frame.minY - bubbleHeight / 2 - 12
+        // If too close to top, flip below
+        if y < 80 {
+            y = frame.maxY + bubbleHeight / 2 + 12
+        }
+        return CGPoint(x: x, y: y)
+    }
+
+    var body: some View {
+        GeometryReader { outerGeo in
+            ZStack {
+                // ── Main NavigationView ──────────────────────────────────────
+                NavigationView {
+                    ScrollView {
+                        VStack(alignment: .leading, spacing: 20) {
+                            ForEach(Self.emojiCategories, id: \.nameKey) { category in
+                                if !category.emojis.isEmpty {
+                                    VStack(alignment: .leading, spacing: 10) {
+                                        Text(NSLocalizedString(category.nameKey, comment: ""))
+                                            .font(.system(size: 14, weight: .bold))
+                                            .foregroundColor(.secondary)
+                                            .padding(.horizontal)
+
+                                        LazyVGrid(
+                                            columns: Array(repeating: GridItem(.flexible(), spacing: 12), count: 6),
+                                            spacing: 12
+                                        ) {
+                                            ForEach(category.emojis, id: \.self) { emoji in
+                                                Text(emoji)
+                                                    .font(.system(size: 36))
+                                                    .frame(maxWidth: .infinity, minHeight: 48)
+                                                    .contentShape(Rectangle())
+                                                    // Report this emoji's frame in the outerGeo coordinate space
+                                                    .background(
+                                                        GeometryReader { itemGeo in
+                                                            Color.clear.preference(
+                                                                key: EmojiFramePreferenceKey.self,
+                                                                value: [emoji: itemGeo.frame(in: .named("emojiPickerRoot"))]
+                                                            )
+                                                        }
+                                                    )
+                                                    .onTapGesture {
+                                                        if selectedBaseEmoji != nil {
+                                                            withAnimation(.spring(response: 0.2, dampingFraction: 0.8)) {
+                                                                selectedBaseEmoji = nil
+                                                            }
+                                                        } else {
+                                                            onSelect(emoji)
+                                                            isPresented = false
+                                                        }
+                                                    }
+                                                    .onLongPressGesture(minimumDuration: 0.3) {
+                                                        if isSkinToneSupported(emoji: emoji) {
+                                                            withAnimation(.spring(response: 0.28, dampingFraction: 0.75)) {
+                                                                selectedBaseEmoji = emoji
+                                                            }
+                                                            HapticManager.shared.mediumImpact()
+                                                        } else {
+                                                            onSelect(emoji)
+                                                            isPresented = false
+                                                        }
+                                                    }
+                                            }
+                                        }
+                                        .padding(.horizontal)
+                                    }
+                                }
+                            }
+                        }
+                        .padding(.vertical)
+                    }
+                    .background(colorScheme == .dark ? Color(hex: "0B1215") : Color(hex: "FAF9F6"))
+                    .navigationTitle(NSLocalizedString("storyEditor.emojiPicker.title", comment: "Emoji Picker Title"))
+                    .navigationBarTitleDisplayMode(.inline)
+                    .toolbar {
+                        ToolbarItem(placement: .navigationBarTrailing) {
+                            Button(NSLocalizedString("storyEditor.emojiPicker.close", comment: "Close button")) {
+                                isPresented = false
+                            }
+                            .font(.system(size: 15, weight: .bold))
+                            .foregroundColor(colorScheme == .dark ? .white : .black)
+                        }
+                    }
+                }
+
+                // ── Skin-tone bubble popover ─────────────────────────────────
+                if let base = selectedBaseEmoji {
+                    let totalSize = outerGeo.size
+                    let anchor = popoverOffset(for: base, in: totalSize)
+
+                    // Scrim — dismiss on tap
+                    Color.black.opacity(0.35)
+                        .ignoresSafeArea()
+                        .onTapGesture {
+                            withAnimation(.spring(response: 0.22, dampingFraction: 0.8)) {
+                                selectedBaseEmoji = nil
+                            }
+                        }
+
+                    // Bubble — anchored to emoji
+                    SkinToneBubble(
+                        base: base,
+                        skinTones: skinTones,
+                        colorScheme: colorScheme,
+                        onSelect: { variant in
+                            onSelect(variant)
+                            isPresented = false
+                            selectedBaseEmoji = nil
+                        },
+                        onDismiss: {
+                            withAnimation(.spring(response: 0.22, dampingFraction: 0.8)) {
+                                selectedBaseEmoji = nil
+                            }
+                        }
+                    )
+                    .position(x: anchor.x, y: anchor.y)
+                    .transition(
+                        .asymmetric(
+                            insertion: .scale(scale: 0.6, anchor: .bottom).combined(with: .opacity),
+                            removal: .scale(scale: 0.6, anchor: .bottom).combined(with: .opacity)
+                        )
+                    )
+                    .zIndex(10)
+                }
+            }
+            .coordinateSpace(name: "emojiPickerRoot")
+            .onPreferenceChange(EmojiFramePreferenceKey.self) { frames in
+                emojiFrames.merge(frames) { $1 }
+            }
+        }
+    }
+}
+
+// MARK: - Skin Tone Bubble
+private struct SkinToneBubble: View {
+    let base: String
+    let skinTones: [String]
+    let colorScheme: ColorScheme
+    let onSelect: (String) -> Void
+    let onDismiss: () -> Void
+
+    // Slight scale-up on the hovered/selected slot
+    @State private var hoveredIndex: Int? = nil
+
+    private let slotSize: CGFloat = 46
+
+    var body: some View {
+        HStack(spacing: 2) {
+            ForEach(Array(skinTones.enumerated()), id: \.offset) { index, modifier in
+                let variant = base + modifier
+                Button(action: { onSelect(variant) }) {
+                    Text(variant)
+                        .font(.system(size: 30))
+                        .frame(width: slotSize, height: slotSize)
+                        .scaleEffect(hoveredIndex == index ? 1.18 : 1.0)
+                }
+                .buttonStyle(.plain)
+                .simultaneousGesture(
+                    DragGesture(minimumDistance: 0)
+                        .onChanged { _ in hoveredIndex = index }
+                        .onEnded { _ in hoveredIndex = nil }
+                )
+                .animation(.spring(response: 0.18, dampingFraction: 0.7), value: hoveredIndex)
+            }
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 8)
+        .background(
+            ZStack {
+                // Main pill
+                Capsule()
+                    .fill(colorScheme == .dark
+                          ? Color(UIColor.systemGray6).opacity(0.96)
+                          : Color(UIColor.systemBackground).opacity(0.98))
+                // Subtle border
+                Capsule()
+                    .strokeBorder(
+                        colorScheme == .dark ? Color.white.opacity(0.12) : Color.black.opacity(0.06),
+                        lineWidth: 0.5
+                    )
+            }
+        )
+        .shadow(color: Color.black.opacity(colorScheme == .dark ? 0.5 : 0.18), radius: 18, x: 0, y: 6)
+    }
+}
+
+// MARK: - Interactive Button Style for Micro-feedback
+struct MomentEmojiScaleButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? 0.9 : 1.0)
+            .animation(.spring(response: 0.2, dampingFraction: 0.6), value: configuration.isPressed)
+    }
 }

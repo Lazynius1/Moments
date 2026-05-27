@@ -141,7 +141,7 @@ struct InteractivePollOverlay: View {
 
 // MARK: - Interactive Poll Sticker (Estilo Nativo)
 struct InteractivePollSticker: View {
-    let pollData: [String]
+    @Binding var pollData: [String]
     let storyId: String
     let userId: String
     let stickerId: String
@@ -150,50 +150,150 @@ struct InteractivePollSticker: View {
     @Binding var voteCounts: [Int: Int]
     @Binding var totalVotes: Int
     let onVote: (Int) -> Void
+    var styleVariant: Int = 0
+    var isEditingInline: Bool = false
     @Environment(\.colorScheme) private var colorScheme
 
+    init(
+        pollData: Binding<[String]>,
+        storyId: String,
+        userId: String,
+        stickerId: String,
+        selectedOption: Binding<Int?>,
+        hasVoted: Binding<Bool>,
+        voteCounts: Binding<[Int: Int]>,
+        totalVotes: Binding<Int>,
+        styleVariant: Int = 0,
+        isEditingInline: Bool = false,
+        onVote: @escaping (Int) -> Void
+    ) {
+        self._pollData = pollData
+        self.storyId = storyId
+        self.userId = userId
+        self.stickerId = stickerId
+        self._selectedOption = selectedOption
+        self._hasVoted = hasVoted
+        self._voteCounts = voteCounts
+        self._totalVotes = totalVotes
+        self.styleVariant = styleVariant
+        self.isEditingInline = isEditingInline
+        self.onVote = onVote
+    }
+
+    init(
+        pollData: [String],
+        storyId: String,
+        userId: String,
+        stickerId: String,
+        selectedOption: Binding<Int?>,
+        hasVoted: Binding<Bool>,
+        voteCounts: Binding<[Int: Int]>,
+        totalVotes: Binding<Int>,
+        styleVariant: Int = 0,
+        onVote: @escaping (Int) -> Void
+    ) {
+        self._pollData = .constant(pollData)
+        self.storyId = storyId
+        self.userId = userId
+        self.stickerId = stickerId
+        self._selectedOption = selectedOption
+        self._hasVoted = hasVoted
+        self._voteCounts = voteCounts
+        self._totalVotes = totalVotes
+        self.styleVariant = styleVariant
+        self.isEditingInline = false
+        self.onVote = onVote
+    }
+
     var body: some View {
-        let surface = momentsStickerSurface(for: colorScheme)
-        let headerSurface = momentsStickerInverseSurface(for: colorScheme)
-        let headerInk = momentsStickerInverseInk(for: colorScheme)
+        let isLight = styleVariant % 6 == 0
+        let surface = momentsCardStickerBackgroundGradient(styleVariant: styleVariant, colorScheme: colorScheme)
+        let ink = isLight ? momentsStickerInk(for: colorScheme) : Color.white
+        let headerSurface = isLight
+            ? AnyView(momentsStickerInverseSurface(for: colorScheme))
+            : AnyView(Color.white.opacity(0.12))
+        let headerInk = isLight
+            ? momentsStickerInverseInk(for: colorScheme)
+            : .white
 
         VStack(spacing: 0) {
-            Text(pollData[0].count > 42 ? String(pollData[0].prefix(42)) + "..." : pollData[0])
+            if isEditingInline {
+                let fieldScheme: ColorScheme = isLight ? .light : .dark
+                TextField(NSLocalizedString("storyEditor.poll.questionPrompt", comment: "Poll question placeholder"), text: Binding(
+                    get: { pollData.indices.contains(0) ? pollData[0] : "" },
+                    set: { pollData[0] = $0 }
+                ))
                 .font(.system(size: 18, weight: .bold, design: .rounded))
                 .foregroundStyle(headerInk)
                 .multilineTextAlignment(.center)
-                .lineLimit(3)
                 .padding(.horizontal, 18)
                 .padding(.vertical, 16)
                 .frame(maxWidth: .infinity)
+                .environment(\.colorScheme, fieldScheme)
                 .background(headerSurface)
+            } else {
+                Text(
+                    pollData.indices.contains(0) && !pollData[0].isEmpty
+                        ? pollData[0]
+                        : NSLocalizedString("stickerview.poll.placeholder", comment: "Poll placeholder title")
+                )
+                    .font(.system(size: 18, weight: .bold, design: .rounded))
+                    .foregroundStyle(headerInk)
+                    .multilineTextAlignment(.center)
+                    .lineLimit(3)
+                    .padding(.horizontal, 18)
+                    .padding(.vertical, 16)
+                    .frame(maxWidth: .infinity)
+                    .background(headerSurface)
+            }
 
             VStack(spacing: 8) {
                 ForEach(0..<2, id: \.self) { index in
-                    InteractivePollOptionButton(
-                        text: pollData[index + 1].count > 26 ? String(pollData[index + 1].prefix(26)) + "..." : pollData[index + 1],
-                        percentage: calculatePercentage(for: index),
-                        isSelected: selectedOption == index,
-                        hasVoted: hasVoted,
-                        onTap: {
-                            if !hasVoted {
-                                selectedOption = index
-                                onVote(index)
+                    if isEditingInline {
+                        let fieldScheme: ColorScheme = isLight ? .light : .dark
+                        TextField(NSLocalizedString("storyEditor.poll.optionPrompt", comment: "Poll option placeholder") + " \(index + 1)...", text: Binding(
+                            get: { pollData.indices.contains(index + 1) ? pollData[index + 1] : "" },
+                            set: { pollData[index + 1] = $0 }
+                        ))
+                        .font(.system(size: 15, weight: .bold))
+                        .foregroundStyle(isLight ? ink.opacity(0.9) : .white)
+                        .multilineTextAlignment(.center)
+                        .padding(.vertical, 14)
+                        .environment(\.colorScheme, fieldScheme)
+                        .background(
+                            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                                .fill(isLight ? ink.opacity(0.08) : Color.white.opacity(0.18))
+                        )
+                    } else {
+                        let optText = pollData.indices.contains(index + 1) ? pollData[index + 1] : ""
+                        InteractivePollOptionButton(
+                            text: optText.isEmpty
+                                ? NSLocalizedString(
+                                    index == 0 ? "storyEditor.poll.defaultOption1" : "storyEditor.poll.defaultOption2",
+                                    comment: "Default poll option"
+                                )
+                                : optText,
+                            percentage: calculatePercentage(for: index),
+                            isSelected: selectedOption == index,
+                            hasVoted: hasVoted,
+                            styleVariant: styleVariant,
+                            onTap: {
+                                if !hasVoted {
+                                    selectedOption = index
+                                    onVote(index)
+                                }
                             }
-                        }
-                    )
+                        )
+                    }
                 }
             }
             .padding(.horizontal, 14)
             .padding(.vertical, 14)
-            .background(surface)
+            .background(Color.clear)
         }
         .frame(width: 300)
+        .background(surface)
         .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
-        .background(
-            RoundedRectangle(cornerRadius: 24, style: .continuous)
-                .fill(surface)
-        )
         .onAppear {
             loadVoteCounts()
         }
@@ -206,7 +306,7 @@ struct InteractivePollSticker: View {
 
     private func loadVoteCounts() {
         // ✅ Cargar votos reales desde Firestore
-        guard !storyId.isEmpty else { return }
+        guard !storyId.isEmpty && storyId != "preview" && userId != "preview" else { return }
 
         pollVotesCollection()
             .getDocuments { snapshot, error in
@@ -257,22 +357,24 @@ struct InteractivePollOptionButton: View {
     let percentage: Double
     let isSelected: Bool
     let hasVoted: Bool
+    var styleVariant: Int = 0
     let onTap: () -> Void
     @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
-        let ink = momentsStickerInk(for: colorScheme)
-        let surface = momentsStickerSurface(for: colorScheme)
+        let isLight = styleVariant % 6 == 0
+        let ink = isLight ? momentsStickerInk(for: colorScheme) : Color.white
+        let surface = isLight ? momentsStickerSurface(for: colorScheme) : Color.black
 
         Button(action: onTap) {
             GeometryReader { proxy in
                 ZStack(alignment: .leading) {
                     RoundedRectangle(cornerRadius: 16, style: .continuous)
-                        .fill(isSelected ? ink.opacity(0.92) : ink.opacity(0.08))
+                        .fill(isSelected ? ink.opacity(0.92) : (isLight ? ink.opacity(0.08) : Color.white.opacity(0.18)))
 
                     if hasVoted {
                         RoundedRectangle(cornerRadius: 16, style: .continuous)
-                            .fill(isSelected ? ink.opacity(0.92) : ink.opacity(0.16))
+                            .fill(isSelected ? ink.opacity(0.92) : (isLight ? ink.opacity(0.16) : Color.white.opacity(0.28)))
                             .frame(width: proxy.size.width * (percentage / 100))
                             .animation(.easeInOut(duration: 0.5), value: percentage)
                     }
@@ -280,7 +382,7 @@ struct InteractivePollOptionButton: View {
                     HStack(spacing: 10) {
                         Text(text)
                             .font(.system(size: 15, weight: .bold))
-                            .foregroundStyle(isSelected ? surface : ink.opacity(0.9))
+                            .foregroundStyle(isSelected ? surface : (isLight ? ink.opacity(0.9) : .white))
                             .lineLimit(1)
 
                         Spacer(minLength: 0)
@@ -288,7 +390,7 @@ struct InteractivePollOptionButton: View {
                         if hasVoted {
                             Text("\(Int(percentage))%")
                                 .font(.system(size: 14, weight: .bold))
-                                .foregroundStyle(isSelected ? surface : ink.opacity(0.72))
+                                .foregroundStyle(isSelected ? surface : (isLight ? ink.opacity(0.72) : .white.opacity(0.72)))
                         }
                     }
                     .padding(.horizontal, 16)
@@ -499,6 +601,7 @@ private struct InteractiveEmojiSliderSticker: View {
     let storyId: String
     let userId: String
     let stickerId: String
+    var styleVariant: Int = 0
 
     @State private var dragValue: Double?
     @State private var submittedValue: Double?
@@ -546,7 +649,8 @@ private struct InteractiveEmojiSliderSticker: View {
                 prompt: prompt,
                 emoji: emoji,
                 value: displayValue,
-                averageValue: displayAverage
+                averageValue: displayAverage,
+                styleVariant: styleVariant
             )
         }
         .contentShape(Rectangle())
@@ -617,6 +721,7 @@ private struct InteractiveEmojiSliderSticker: View {
     }
 
     private func loadVoteState() {
+        guard userId != "preview" && storyId != "preview" else { return }
         guard let currentUserId else { return }
 
         sliderVotesCollection()
@@ -641,6 +746,7 @@ private struct InteractiveEmojiSliderSticker: View {
     }
 
     private func loadVoteAggregate() {
+        guard userId != "preview" && storyId != "preview" else { return }
         sliderVotesCollection()
             .getDocuments { snapshot, _ in
                 let values = snapshot?.documents.compactMap { $0.data()["value"] as? Double } ?? []
@@ -761,7 +867,7 @@ struct StoryStickerView: View {
                             }
 
                             VStack(alignment: .leading, spacing: 0) {
-                                Text(sticker.interactionData?.username ?? "User")
+                                Text(sticker.interactionData?.username ?? NSLocalizedString("storyEditor.mention.userFallback", comment: "Fallback username for mention sticker"))
                                     .font(.custom("Poppins-Bold", size: 13 * sticker.scale))
                                     .foregroundColor(.white)
                                     .shadow(color: .black.opacity(0.3), radius: 2, x: 0, y: 1)
@@ -911,6 +1017,7 @@ struct StoryStickerView: View {
                 hasVoted: $hasVoted,
                 voteCounts: $voteCounts,
                 totalVotes: $totalVotes,
+                styleVariant: sticker.interactionData?.styleVariant ?? 0,
                 onVote: { option in
                     handlePollVote(option: option, pollData: pollData)
                 }
@@ -925,6 +1032,7 @@ struct StoryStickerView: View {
                 storyId: storyId,
                 userId: userId,
                 stickerId: sticker.id,
+                styleVariant: sticker.interactionData?.styleVariant ?? 0,
                 onPauseStory: onPauseStory,
                 onResumeStory: onResumeStory
             )
@@ -970,7 +1078,8 @@ struct StoryStickerView: View {
                 stickerId: sticker.id,
                 question: question,
                 options: options,
-                correctIndex: sticker.interactionData?.quizCorrectIndex ?? 0
+                correctIndex: sticker.interactionData?.quizCorrectIndex ?? 0,
+                styleVariant: sticker.interactionData?.styleVariant ?? 0
             )
             .frame(width: 300) // ✅ CONSISTENCIA CON EL EDITOR
             .scaleEffect(sticker.scale)
@@ -1009,7 +1118,11 @@ struct StoryStickerView: View {
         } else if sticker.type == .countdown,
                   let countdownTitle = sticker.interactionData?.countdownTitle,
                   let targetAtMs = sticker.interactionData?.countdownTargetAtMs {
-            StickerCountdownCardView(title: countdownTitle, targetAtMs: targetAtMs)
+            StickerCountdownCardView(
+                title: countdownTitle,
+                targetAtMs: targetAtMs,
+                styleVariant: sticker.interactionData?.styleVariant ?? 0
+            )
                 .scaleEffect(sticker.scale)
                 .rotationEffect(sticker.rotation)
         } else if sticker.type == .emojiSlider,
@@ -1020,7 +1133,8 @@ struct StoryStickerView: View {
                 emoji: sliderEmoji,
                 storyId: storyId,
                 userId: userId,
-                stickerId: sticker.id
+                stickerId: sticker.id,
+                styleVariant: sticker.interactionData?.styleVariant ?? 0
             )
             .frame(width: emojiSliderRenderingSize(prompt: sliderPrompt).width, height: emojiSliderRenderingSize(prompt: sliderPrompt).height)
             .scaleEffect(sticker.scale)
@@ -1182,12 +1296,14 @@ struct StoryStickerView: View {
 
 // MARK: - ✅ STICKER INTERACTIVO DE QUESTIONS
 struct InteractiveQuestionSticker: View {
-    let questionText: String
+    @Binding var questionText: String
     let storyId: String
     let userId: String
     let stickerId: String
     let onPauseStory: () -> Void
     let onResumeStory: () -> Void
+    var styleVariant: Int = 0
+    var isEditingInline: Bool = false
 
     @State private var showingResponseInput = false
     @State private var showingResponsesView = false
@@ -1198,90 +1314,168 @@ struct InteractiveQuestionSticker: View {
     @State private var isAuthor = false
     @Environment(\.colorScheme) private var colorScheme
 
-    var body: some View {
-        let surface = momentsStickerSurface(for: colorScheme)
-        let ink = momentsStickerInk(for: colorScheme)
-        let headerSurface = momentsStickerInverseSurface(for: colorScheme)
-        let headerInk = momentsStickerInverseInk(for: colorScheme)
+    init(
+        questionText: Binding<String>,
+        storyId: String,
+        userId: String,
+        stickerId: String,
+        styleVariant: Int = 0,
+        isEditingInline: Bool = false,
+        onPauseStory: @escaping () -> Void,
+        onResumeStory: @escaping () -> Void
+    ) {
+        self._questionText = questionText
+        self.storyId = storyId
+        self.userId = userId
+        self.stickerId = stickerId
+        self.styleVariant = styleVariant
+        self.isEditingInline = isEditingInline
+        self.onPauseStory = onPauseStory
+        self.onResumeStory = onResumeStory
+    }
 
-        Button(action: {
-            if isAuthor {
-                // ✅ AUTOR: Ver respuestas
-                showingResponsesView = true
-            } else if !hasResponded {
-                // ✅ ESPECTADOR: Responder
-                showingResponseInput = true
-            }
-        }) {
+    init(
+        questionText: String,
+        storyId: String,
+        userId: String,
+        stickerId: String,
+        styleVariant: Int = 0,
+        onPauseStory: @escaping () -> Void,
+        onResumeStory: @escaping () -> Void
+    ) {
+        self._questionText = .constant(questionText)
+        self.storyId = storyId
+        self.userId = userId
+        self.stickerId = stickerId
+        self.styleVariant = styleVariant
+        self.isEditingInline = false
+        self.onPauseStory = onPauseStory
+        self.onResumeStory = onResumeStory
+    }
+
+    var body: some View {
+        let isLight = styleVariant % 6 == 0
+        let surface = momentsCardStickerBackgroundGradient(styleVariant: styleVariant, colorScheme: colorScheme)
+        let textColor = momentsCardStickerTextColor(styleVariant: styleVariant, colorScheme: colorScheme)
+        let ink = isLight ? momentsStickerInk(for: colorScheme) : Color.white
+        let headerSurface = isLight
+            ? AnyView(momentsStickerInverseSurface(for: colorScheme))
+            : AnyView(Color.white.opacity(0.12))
+        let headerInk = isLight
+            ? momentsStickerInverseInk(for: colorScheme)
+            : .white
+
+        if isEditingInline {
+            let fieldScheme: ColorScheme = isLight ? .light : .dark
             VStack(spacing: 0) {
-                Text(questionText)
+                TextField(NSLocalizedString("storyEditor.question.prompt", comment: "Question question placeholder"), text: $questionText)
                     .font(.system(size: 18, weight: .bold, design: .rounded))
                     .foregroundStyle(headerInk)
                     .multilineTextAlignment(.center)
-                    .lineLimit(3)
                     .padding(.horizontal, 20)
                     .padding(.vertical, 16)
                     .frame(maxWidth: .infinity)
+                    .environment(\.colorScheme, fieldScheme)
                     .background(headerSurface)
 
                 Text(responseSubtitle)
                     .font(.system(size: 15, weight: .bold))
-                    .foregroundStyle(ink.opacity(0.72))
+                    .foregroundStyle(isLight ? ink.opacity(0.72) : .white)
                     .padding(.horizontal, 16)
                     .padding(.vertical, 14)
                     .frame(maxWidth: .infinity)
                     .background(
                         Capsule(style: .continuous)
-                            .fill(ink.opacity(0.08))
+                            .fill(isLight ? ink.opacity(0.08) : Color.white.opacity(0.18))
                     )
                     .padding(.horizontal, 16)
                     .padding(.vertical, 16)
-                    .background(surface)
+                    .background(Color.clear)
             }
             .frame(width: 300)
+            .background(surface)
             .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
-            .background(
-                RoundedRectangle(cornerRadius: 24, style: .continuous)
-                    .fill(surface)
-            )
-        }
-        .buttonStyle(PlainButtonStyle())
-        .sheet(isPresented: $showingResponseInput, onDismiss: {
-            onResumeStory()
-        }) {
-            QuestionResponseInputView(
-                questionText: questionText,
-                storyId: storyId,
-                userId: userId,
-                stickerId: stickerId,
-                onResponseSubmitted: { count in
-                    responseCount = count
-                    hasResponded = true
-                    showingResponseInput = false
-                    onResumeStory()
+        } else {
+            Button(action: {
+                if isAuthor {
+                    // ✅ AUTOR: Ver respuestas
+                    showingResponsesView = true
+                } else if !hasResponded {
+                    // ✅ ESPECTADOR: Responder
+                    showingResponseInput = true
                 }
-            )
-            .onAppear {
-                onPauseStory()
+            }) {
+                VStack(spacing: 0) {
+                    Text(
+                        questionText.isEmpty
+                            ? NSLocalizedString("stickerview.question.defaultPrompt", comment: "Question placeholder title")
+                            : questionText
+                    )
+                        .font(.system(size: 18, weight: .bold, design: .rounded))
+                        .foregroundStyle(headerInk)
+                        .multilineTextAlignment(.center)
+                        .lineLimit(3)
+                        .padding(.horizontal, 20)
+                        .padding(.vertical, 16)
+                        .frame(maxWidth: .infinity)
+                        .background(headerSurface)
+
+                    Text(responseSubtitle)
+                        .font(.system(size: 15, weight: .bold))
+                        .foregroundStyle(isLight ? ink.opacity(0.72) : .white)
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 14)
+                        .frame(maxWidth: .infinity)
+                        .background(
+                            Capsule(style: .continuous)
+                                .fill(isLight ? ink.opacity(0.08) : Color.white.opacity(0.18))
+                        )
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 16)
+                        .background(Color.clear)
+                }
+                .frame(width: 300)
+                .background(surface)
+                .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
             }
-        }
-        .sheet(isPresented: $showingResponsesView, onDismiss: {
-            onResumeStory()
-        }) {
-            QuestionResponsesView(
-                questionText: questionText,
-                storyId: storyId,
-                userId: userId,
-                stickerId: stickerId
-            )
-            .onAppear {
-                onPauseStory()
+            .buttonStyle(PlainButtonStyle())
+            .sheet(isPresented: $showingResponseInput, onDismiss: {
+                onResumeStory()
+            }) {
+                QuestionResponseInputView(
+                    questionText: questionText,
+                    storyId: storyId,
+                    userId: userId,
+                    stickerId: stickerId,
+                    onResponseSubmitted: { count in
+                        responseCount = count
+                        hasResponded = true
+                        showingResponseInput = false
+                        onResumeStory()
+                    }
+                )
+                .onAppear {
+                    onPauseStory()
+                }
             }
-        }
-        .onAppear {
-            loadResponseCount()
-            checkIfUserHasResponded()
-            checkIfUserIsAuthor()
+            .sheet(isPresented: $showingResponsesView, onDismiss: {
+                onResumeStory()
+            }) {
+                QuestionResponsesView(
+                    questionText: questionText,
+                    storyId: storyId,
+                    userId: userId,
+                    stickerId: stickerId
+                )
+                .onAppear {
+                    onPauseStory()
+                }
+            }
+            .onAppear {
+                loadResponseCount()
+                checkIfUserHasResponded()
+                checkIfUserIsAuthor()
+            }
         }
     }
 
@@ -1300,6 +1494,7 @@ struct InteractiveQuestionSticker: View {
     }
 
     private func loadResponseCount() {
+        guard userId != "preview" && storyId != "preview" else { return }
         questionResponsesCollection()
             .getDocuments { snapshot, error in
                 if let documents = snapshot?.documents {
@@ -1311,6 +1506,7 @@ struct InteractiveQuestionSticker: View {
     }
 
     private func checkIfUserHasResponded() {
+        guard userId != "preview" && storyId != "preview" else { return }
         guard let currentUserId = Auth.auth().currentUser?.uid else { return }
 
         questionResponsesCollection()
@@ -1323,6 +1519,7 @@ struct InteractiveQuestionSticker: View {
     }
 
     private func checkIfUserIsAuthor() {
+        guard userId != "preview" && storyId != "preview" else { return }
         guard let currentUserId = Auth.auth().currentUser?.uid else { return }
         DispatchQueue.main.async {
             self.isAuthor = currentUserId == userId
