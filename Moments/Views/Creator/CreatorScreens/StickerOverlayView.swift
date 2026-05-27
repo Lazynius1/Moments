@@ -59,6 +59,7 @@ struct StickerOverlayView: View {
         case .frame: return CGSize(width: 200, height: 240)
         case .poll: return CGSize(width: 300, height: 172)
         case .question: return CGSize(width: 300, height: 132)
+        case .questionResponse: return questionResponseStickerRenderSize
         case .quiz: return CGSize(width: 280, height: 220)
         case .weather: return CGSize(width: 140, height: 50)
         case .time: return CGSize(width: 180, height: 80)
@@ -309,6 +310,17 @@ struct StickerOverlayView: View {
                 )
                 .frame(width: 300, height: 132)
                 .allowsHitTesting(isEditingInline)
+            } else if sticker.type == .questionResponse,
+                      let responseText = sticker.interactionData?.questionText {
+                QuestionResponseStoryStickerCardView(
+                    questionText: responseText,
+                    styleVariant: sticker.interactionData?.styleVariant ?? 0
+                )
+                .frame(
+                    width: questionResponseStickerRenderSize.width,
+                    height: questionResponseStickerRenderSize.height
+                )
+                .allowsHitTesting(false)
             } else if sticker.type == .location, let locationName = sticker.interactionData?.location {
                 // LOCATION INTERACTIVO
                 InteractiveLocationSticker(

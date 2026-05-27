@@ -579,11 +579,7 @@ struct StickerCountdownCardView: View {
 
     var body: some View {
         let isLight = styleVariant % 6 == 0
-        let surface = momentsCardStickerBackgroundGradient(styleVariant: styleVariant, colorScheme: colorScheme)
         let ink = isLight ? momentsStickerInk(for: colorScheme) : Color.white
-        let headerSurface = isLight
-            ? AnyView(momentsStickerInverseSurface(for: colorScheme))
-            : AnyView(Color.white.opacity(0.12))
         let headerInk = isLight
             ? momentsStickerInverseInk(for: colorScheme)
             : .white
@@ -600,7 +596,12 @@ struct StickerCountdownCardView: View {
                     .padding(.vertical, 12)
                     .frame(maxWidth: .infinity)
                     .environment(\.colorScheme, fieldScheme)
-                    .background(headerSurface)
+                    .background(
+                        AnimatedMomentsCardStickerHeaderSurface(
+                            styleVariant: styleVariant,
+                            colorScheme: colorScheme
+                        )
+                    )
             } else {
                 Text(title.isEmpty ? NSLocalizedString("storyEditor.countdown.placeholder", comment: "Placeholder title") : title.uppercased())
                     .font(.system(size: 15, weight: .black, design: .rounded))
@@ -611,7 +612,12 @@ struct StickerCountdownCardView: View {
                     .padding(.horizontal, 18)
                     .padding(.vertical, 12)
                     .frame(maxWidth: .infinity)
-                    .background(headerSurface)
+                    .background(
+                        AnimatedMomentsCardStickerHeaderSurface(
+                            styleVariant: styleVariant,
+                            colorScheme: colorScheme
+                        )
+                    )
             }
 
             Button(action: {
@@ -659,7 +665,12 @@ struct StickerCountdownCardView: View {
                 .transition(.opacity.combined(with: .move(edge: .top)))
             }
         }
-        .background(surface)
+        .background(
+            AnimatedMomentsCardStickerSurface(
+                styleVariant: styleVariant,
+                colorScheme: colorScheme
+            )
+        )
         .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
     }
 }
@@ -706,7 +717,6 @@ struct StickerEmojiSliderCardView: View {
 
     var body: some View {
         let isLight = styleVariant % 6 == 0
-        let surface = momentsCardStickerBackgroundGradient(styleVariant: styleVariant, colorScheme: colorScheme)
         let textColor = momentsCardStickerTextColor(styleVariant: styleVariant, colorScheme: colorScheme)
         let ink = isLight ? momentsStickerInk(for: colorScheme) : Color.white
         let clampedValue = min(max(value, 0), 1)
@@ -804,7 +814,12 @@ struct StickerEmojiSliderCardView: View {
                 .position(x: thumbCenter.x, y: thumbCenter.y)
         }
         .frame(width: size.width, height: size.height)
-        .background(surface)
+        .background(
+            AnimatedMomentsCardStickerSurface(
+                styleVariant: styleVariant,
+                colorScheme: colorScheme
+            )
+        )
         .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
     }
 }
@@ -858,11 +873,7 @@ struct StickerQuizCardView: View {
 
     var body: some View {
         let isLight = styleVariant % 6 == 0
-        let surface = momentsCardStickerBackgroundGradient(styleVariant: styleVariant, colorScheme: colorScheme)
         let textColor = momentsCardStickerTextColor(styleVariant: styleVariant, colorScheme: colorScheme)
-        let headerSurface = isLight
-            ? AnyView(momentsStickerInverseSurface(for: colorScheme))
-            : AnyView(Color.white.opacity(0.12))
         let headerInk = isLight
             ? momentsStickerInverseInk(for: colorScheme)
             : .white
@@ -880,7 +891,12 @@ struct StickerQuizCardView: View {
                     .padding(.horizontal, 16)
                     .padding(.vertical, 16)
                     .environment(\.colorScheme, fieldScheme)
-                    .background(headerSurface)
+                    .background(
+                        AnimatedMomentsCardStickerHeaderSurface(
+                            styleVariant: styleVariant,
+                            colorScheme: colorScheme
+                        )
+                    )
             } else {
                 Text(question.isEmpty ? NSLocalizedString("quiz.question.placeholder", comment: "Placeholder question") : question)
                     .font(.system(size: 16, weight: .bold, design: .rounded))
@@ -891,13 +907,40 @@ struct StickerQuizCardView: View {
                     .frame(maxWidth: .infinity)
                     .padding(.horizontal, 16)
                     .padding(.vertical, 16)
-                    .background(headerSurface)
+                    .background(
+                        AnimatedMomentsCardStickerHeaderSurface(
+                            styleVariant: styleVariant,
+                            colorScheme: colorScheme
+                        )
+                    )
             }
             
             // — Opciones —
             VStack(spacing: 6) {
                 ForEach(0..<options.count, id: \.self) { index in
                     quizOptionRow(index: index)
+                }
+
+                if isEditingInline && options.count < 4 {
+                    Button(action: {
+                        options.append("")
+                        HapticManager.shared.selection()
+                    }) {
+                        HStack(spacing: 8) {
+                            Image(systemName: "plus.circle.fill")
+                                .font(.system(size: 14, weight: .bold))
+                            Text(NSLocalizedString("quiz.addOption", comment: "Add option"))
+                                .font(.system(size: 13, weight: .semibold))
+                        }
+                        .foregroundStyle(textColor.opacity(0.9))
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 10)
+                        .background(
+                            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                .fill(textColor.opacity(isLight ? 0.08 : 0.14))
+                        )
+                    }
+                    .buttonStyle(.plain)
                 }
             }
             .padding(.horizontal, 12)
@@ -906,7 +949,12 @@ struct StickerQuizCardView: View {
         }
         .frame(width: 280)
         .fixedSize(horizontal: false, vertical: true)
-        .background(surface)
+        .background(
+            AnimatedMomentsCardStickerSurface(
+                styleVariant: styleVariant,
+                colorScheme: colorScheme
+            )
+        )
         .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
     }
     
@@ -1881,4 +1929,82 @@ func momentsCardStickerTextColor(styleVariant: Int, colorScheme: ColorScheme) ->
         return colorScheme == .dark ? Color(hex: "FAF9F6") : Color(hex: "0B1215")
     }
     return .white
+}
+
+struct AnimatedMomentsCardStickerSurface: View {
+    let styleVariant: Int
+    let colorScheme: ColorScheme
+
+    @State private var previousVariant: Int?
+    @State private var overlayOpacity: Double = 1
+
+    var body: some View {
+        ZStack {
+            momentsCardStickerBackgroundGradient(
+                styleVariant: previousVariant ?? styleVariant,
+                colorScheme: colorScheme
+            )
+
+            momentsCardStickerBackgroundGradient(
+                styleVariant: styleVariant,
+                colorScheme: colorScheme
+            )
+            .opacity(overlayOpacity)
+        }
+        .onAppear {
+            previousVariant = styleVariant
+            overlayOpacity = 1
+        }
+        .onChange(of: styleVariant) { oldValue, newValue in
+            previousVariant = oldValue
+            overlayOpacity = 0
+
+            withAnimation(.easeInOut(duration: 0.22)) {
+                overlayOpacity = 1
+            }
+
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.22) {
+                previousVariant = newValue
+            }
+        }
+    }
+}
+
+struct AnimatedMomentsCardStickerHeaderSurface: View {
+    let styleVariant: Int
+    let colorScheme: ColorScheme
+
+    @State private var previousVariant: Int?
+    @State private var overlayOpacity: Double = 1
+
+    private func headerSurface(for variant: Int) -> AnyView {
+        let isLight = variant % 6 == 0
+        return isLight
+            ? AnyView(momentsStickerInverseSurface(for: colorScheme))
+            : AnyView(Color.white.opacity(0.12))
+    }
+
+    var body: some View {
+        ZStack {
+            headerSurface(for: previousVariant ?? styleVariant)
+            headerSurface(for: styleVariant)
+                .opacity(overlayOpacity)
+        }
+        .onAppear {
+            previousVariant = styleVariant
+            overlayOpacity = 1
+        }
+        .onChange(of: styleVariant) { oldValue, newValue in
+            previousVariant = oldValue
+            overlayOpacity = 0
+
+            withAnimation(.easeInOut(duration: 0.22)) {
+                overlayOpacity = 1
+            }
+
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.22) {
+                previousVariant = newValue
+            }
+        }
+    }
 }

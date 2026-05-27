@@ -1536,8 +1536,6 @@ struct StoryEditingView: View {
         
         withAnimation(.spring(response: 0.35, dampingFraction: 0.72)) {
             selectedStickers[index].interactionData = data
-            // Forzar actualización visual si fuese necesario
-            forceUpdate.toggle()
         }
         
         HapticManager.shared.lightImpact()
@@ -1563,8 +1561,8 @@ struct StoryEditingView: View {
     private func emojiSliderPresetBar() -> some View {
         let presetEmojis = ["😍", "🔥", "😂", "🥹", "❤️", "👏", "🙌", "💯"]
         let bottomPad: CGFloat = keyboardHeight > 0
-            ? keyboardHeight + 12
-            : keyWindowSafeAreaInsets().bottom + 56
+            ? keyboardHeight + 96
+            : keyWindowSafeAreaInsets().bottom + 72
 
         HStack(spacing: 0) {
             ScrollView(.horizontal, showsIndicators: false) {
