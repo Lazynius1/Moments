@@ -64,6 +64,7 @@ struct StoryEditingView: View {
     @State private var selectedListName: String?
     @State private var customSelectedUsers: [String] = []
     @State private var forceUpdate: Bool = false
+    @State private var emojiSliderRecentEmojis: [String] = []
 
     // ✅ Filtros
     @State private var selectedFilter: FilterService.FilterType = .normal
@@ -244,6 +245,7 @@ struct StoryEditingView: View {
             setupChainContextListener()
             refreshPrimaryVideoAspectRatio()
             resetBaseMediaTransform()
+            loadEmojiSliderRecentEmojis()
 
             // ✅ AGREGAR STICKER INICIAL SI EXISTE
             if let initialSticker = initialSticker {
@@ -1550,6 +1552,7 @@ struct StoryEditingView: View {
               let index = selectedStickers.firstIndex(where: { $0.id == activeId }) else { return }
         var data = selectedStickers[index].interactionData ?? StickerItem.StickerInteractionData()
         data.sliderEmoji = emoji
+        recordEmojiSliderUsage(emoji)
         withAnimation(.spring(response: 0.3, dampingFraction: 0.75)) {
             selectedStickers[index].interactionData = data
             forceUpdate.toggle()
@@ -1559,7 +1562,7 @@ struct StoryEditingView: View {
 
     @ViewBuilder
     private func emojiSliderPresetBar() -> some View {
-        let presetEmojis = ["😍", "🔥", "😂", "🥹", "❤️", "👏", "🙌", "💯"]
+        let presetEmojis = resolvedEmojiSliderEmojis()
         let bottomPad: CGFloat = keyboardHeight > 0
             ? keyboardHeight + 96
             : keyWindowSafeAreaInsets().bottom + 72
@@ -1603,6 +1606,40 @@ struct StoryEditingView: View {
         .padding(.bottom, bottomPad)
         .animation(.spring(response: 0.3, dampingFraction: 0.75), value: keyboardHeight)
         .ignoresSafeArea(.keyboard)
+    }
+
+    private func resolvedEmojiSliderEmojis() -> [String] {
+        let fallback = ["😍", "🔥", "😂", "🥹", "❤️", "👏", "🙌", "💯"]
+        let merged = emojiSliderRecentEmojis + fallback.filter { !emojiSliderRecentEmojis.contains($0) }
+        return Array(merged.prefix(8))
+    }
+
+    private func emojiSliderUsageStorageKey() -> String {
+        if let userId = Auth.auth().currentUser?.uid, !userId.isEmpty {
+            return "storyEditor.emojiSliderUsage.\(userId)"
+        }
+        return "storyEditor.emojiSliderUsage.guest"
+    }
+
+    private func loadEmojiSliderRecentEmojis() {
+        let usage = UserDefaults.standard.dictionary(forKey: emojiSliderUsageStorageKey()) as? [String: Int] ?? [:]
+        emojiSliderRecentEmojis = usage
+            .sorted { lhs, rhs in
+                if lhs.value == rhs.value {
+                    return lhs.key < rhs.key
+                }
+                return lhs.value > rhs.value
+            }
+            .prefix(8)
+            .map(\.key)
+    }
+
+    private func recordEmojiSliderUsage(_ emoji: String) {
+        let key = emojiSliderUsageStorageKey()
+        var usage = UserDefaults.standard.dictionary(forKey: key) as? [String: Int] ?? [:]
+        usage[emoji, default: 0] += 1
+        UserDefaults.standard.set(usage, forKey: key)
+        loadEmojiSliderRecentEmojis()
     }
 
     private func renderStoryOverlayImage(targetSize: CGSize, screenSize: CGSize) -> UIImage? {
