@@ -263,7 +263,7 @@ struct StickerOverlayView: View {
                 }
                 .frame(width: sticker.image.size.width, height: sticker.image.size.height)
                 .allowsHitTesting(false)
-            } else if sticker.type == .poll, let pollData = sticker.interactionData?.pollData {
+            } else if sticker.type == .poll, sticker.interactionData?.pollData != nil {
                 // POLL INTERACTIVO
                 InteractivePollSticker(
                     pollData: Binding(
@@ -288,7 +288,7 @@ struct StickerOverlayView: View {
                 )
                 .frame(width: 300, height: 172)
                 .allowsHitTesting(isEditingInline)
-            } else if sticker.type == .question, let questionText = sticker.interactionData?.questionText {
+            } else if sticker.type == .question, sticker.interactionData?.questionText != nil {
                 // QUESTION INTERACTIVO
                 InteractiveQuestionSticker(
                     questionText: Binding(
@@ -331,7 +331,7 @@ struct StickerOverlayView: View {
                     onResumeStory: {}
                 )
                 .allowsHitTesting(false)
-            } else if sticker.type == .hashtag, let hashtag = sticker.interactionData?.hashtag {
+            } else if sticker.type == .hashtag, sticker.interactionData?.hashtag != nil {
                 StickerHashtagCardView(
                     hashtag: Binding(
                         get: { sticker.interactionData?.hashtag ?? "" },
@@ -361,8 +361,8 @@ struct StickerOverlayView: View {
                 )
                 .allowsHitTesting(false)
             } else if sticker.type == .countdown,
-                      let countdownTitle = sticker.interactionData?.countdownTitle,
-                      let targetAtMs = sticker.interactionData?.countdownTargetAtMs {
+                      sticker.interactionData?.countdownTitle != nil,
+                      sticker.interactionData?.countdownTargetAtMs != nil {
                 StickerCountdownCardView(
                     title: Binding(
                         get: { sticker.interactionData?.countdownTitle ?? "" },
@@ -387,7 +387,7 @@ struct StickerOverlayView: View {
                 )
                 .allowsHitTesting(isEditingInline)
             } else if sticker.type == .emojiSlider,
-                      let sliderPrompt = sticker.interactionData?.sliderPrompt,
+                      sticker.interactionData?.sliderPrompt != nil,
                       let sliderEmoji = sticker.interactionData?.sliderEmoji {
                 StickerEmojiSliderCardView(
                     prompt: Binding(
@@ -541,8 +541,8 @@ struct StickerOverlayView: View {
                 .frame(width: 200, height: 240)
                 .allowsHitTesting(false)
             } else if sticker.type == .quiz,
-                      let question = sticker.interactionData?.quizQuestion,
-                      let options = sticker.interactionData?.quizOptions {
+                      sticker.interactionData?.quizQuestion != nil,
+                      sticker.interactionData?.quizOptions != nil {
                 StickerQuizCardView(
                     question: Binding(
                         get: { sticker.interactionData?.quizQuestion ?? "" },

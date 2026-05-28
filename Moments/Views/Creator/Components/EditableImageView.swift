@@ -62,7 +62,10 @@ func storyShouldShowGeneratedBackground(scale: CGFloat, offset: CGSize, rotation
 }
 
 func storyClampedMediaScale(_ proposedScale: CGFloat) -> CGFloat {
-    min(max(proposedScale, StoryMediaTransformLimits.minScale), StoryMediaTransformLimits.maxScale)
+    guard proposedScale.isFinite, proposedScale > 0 else {
+        return 1.0
+    }
+    return min(max(proposedScale, StoryMediaTransformLimits.minScale), StoryMediaTransformLimits.maxScale)
 }
 
 func storyClampedMediaOffset(
@@ -71,9 +74,14 @@ func storyClampedMediaOffset(
     mediaSize: CGSize,
     scale: CGFloat
 ) -> CGSize {
+    let safeOffset = CGSize(
+        width: proposedOffset.width.isFinite ? proposedOffset.width : 0,
+        height: proposedOffset.height.isFinite ? proposedOffset.height : 0
+    )
+    let safeScale = storyClampedMediaScale(scale)
     let baseRect = storyMediaBaseRect(mediaSize: mediaSize, canvasSize: canvasSize)
-    let scaledWidth = baseRect.width * scale
-    let scaledHeight = baseRect.height * scale
+    let scaledWidth = baseRect.width * safeScale
+    let scaledHeight = baseRect.height * safeScale
 
     let minVisibleX = min(max(44, scaledWidth * 0.24), scaledWidth)
     let minVisibleY = min(max(44, scaledHeight * 0.24), scaledHeight)
@@ -82,8 +90,8 @@ func storyClampedMediaOffset(
     let verticalLimit = max(0, (canvasSize.height / 2) + (scaledHeight / 2) - minVisibleY)
 
     return CGSize(
-        width: min(max(proposedOffset.width, -horizontalLimit), horizontalLimit),
-        height: min(max(proposedOffset.height, -verticalLimit), verticalLimit)
+        width: min(max(safeOffset.width, -horizontalLimit), horizontalLimit),
+        height: min(max(safeOffset.height, -verticalLimit), verticalLimit)
     )
 }
 
@@ -92,7 +100,10 @@ func storySnappedMediaScale(_ scale: CGFloat) -> CGFloat {
 }
 
 func storySnappedMediaRotation(_ rotation: Angle) -> Angle {
-    abs(rotation.radians) < StoryMediaTransformLimits.snapRotationThreshold ? .zero : rotation
+    guard rotation.radians.isFinite else {
+        return .zero
+    }
+    return abs(rotation.radians) < StoryMediaTransformLimits.snapRotationThreshold ? .zero : rotation
 }
 
 func storyDominantBackgroundColors(
@@ -350,6 +361,28 @@ struct StoryEditableMediaContainer<Foreground: View>: View {
             lastScale = scale
             lastOffset = offset
             lastRotation = rotation
+        }
+        .onChange(of: scale) { _, newValue in
+            let clamped = storyClampedMediaScale(newValue)
+            if clamped != newValue {
+                scale = clamped
+            }
+        }
+        .onChange(of: offset) { _, newValue in
+            let clamped = storyClampedMediaOffset(
+                newValue,
+                canvasSize: canvasSize,
+                mediaSize: mediaSize,
+                scale: scale
+            )
+            if clamped != newValue {
+                offset = clamped
+            }
+        }
+        .onChange(of: rotation) { _, newValue in
+            if !newValue.radians.isFinite {
+                rotation = .zero
+            }
         }
     }
 

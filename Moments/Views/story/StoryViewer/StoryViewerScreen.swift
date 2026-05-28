@@ -88,6 +88,8 @@ struct StoryViewerScreen: View {
     @State private var authorAllowsReactions: Bool = true
     @State private var authorAllowsEphemeralPhotos: Bool = true
     @State private var storyStickers: [StickerItem] = [] // Cache de stickers
+    @State private var storyStickerCache: [String: [StickerItem]] = [:]
+    @State private var lastPreparedStoryId: String? = nil
     @State private var showUserProfile = false
     @State private var selectedUserId: String = ""
     @State private var floatingHearts: [FloatingHeart] = [] // ✅ FLOATING HEARTS ANIMATION
@@ -115,6 +117,32 @@ struct StoryViewerScreen: View {
 
     private let firestoreService = FirestoreService()
     private let bestFriendsService = BestFriendsService()
+
+    private func stickerCacheKey(for story: Story) -> String {
+        if let storyId = story.id, !storyId.isEmpty {
+            return storyId
+        }
+        return "\(story.authorId)_\(story.timestamp.timeIntervalSince1970)"
+    }
+
+    private func resolvedStoryStickers(for story: Story) -> [StickerItem] {
+        let key = stickerCacheKey(for: story)
+        if let cached = storyStickerCache[key] {
+            return cached
+        }
+
+        let stickers = story.convertStickersToStickerItems()
+        storyStickerCache[key] = stickers
+        return stickers
+    }
+
+    private func refreshStoryPlaybackIfNeeded() {
+        let currentId = story.id
+        guard currentId != lastPreparedStoryId else { return }
+        lastPreparedStoryId = currentId
+        handleStoryChange()
+        storyStickers = resolvedStoryStickers(for: story)
+    }
 
     private var canOptOutFromAuthorBestFriends: Bool {
         guard story.authorId != Auth.auth().currentUser?.uid else { return false }
@@ -417,10 +445,11 @@ struct StoryViewerScreen: View {
         AnyView(
             interactiveRootView
                 .onAppear {
+                    lastPreparedStoryId = story.id
                     prepareAndStartStory()
                     setupKeyboardNotifications()
                     if storyStickers.isEmpty {
-                        storyStickers = story.convertStickersToStickerItems()
+                        storyStickers = resolvedStoryStickers(for: story)
                     }
                     preloadNextStory()
                     if let chainId = story.chainId {
@@ -442,13 +471,13 @@ struct StoryViewerScreen: View {
                 }
                 .onChange(of: story.id) { oldStoryId, newStoryId in
                     if oldStoryId != newStoryId {
-                        handleStoryChange()
-                        storyStickers = story.convertStickersToStickerItems()
+                        DispatchQueue.main.async {
+                            refreshStoryPlaybackIfNeeded()
+                        }
                     }
                 }
                 .onChange(of: storyIndex) { oldIndex, newIndex in
-                    let newStickers = story.convertStickersToStickerItems()
-                    storyStickers = newStickers
+                    refreshStoryPlaybackIfNeeded()
                 }
         )
     }
@@ -1795,7 +1824,6 @@ struct StoryViewerScreen: View {
     // MARK: - Helpers
 
     private func handleStoryChange() {
-
         // ✅ SIMPLIFICADO: Cleanup inmediato
         stopAndCleanupStory()
 

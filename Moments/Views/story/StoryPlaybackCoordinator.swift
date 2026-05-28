@@ -179,9 +179,7 @@ final class StoryPlaybackCoordinator: ObservableObject {
         if progress >= 1.0 {
             progress = 1.0
             invalidateImageTimer()
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                onComplete()
-            }
+            onComplete()
         }
     }
 

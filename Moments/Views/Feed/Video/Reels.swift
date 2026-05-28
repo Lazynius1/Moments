@@ -43,6 +43,7 @@ struct ReelsViewer: View {
                 }
                 .tabViewStyle(PageTabViewStyle(indexDisplayMode: .never))
                 .indexViewStyle(PageIndexViewStyle(backgroundDisplayMode: .never))
+                .ignoresSafeArea(.container, edges: .all)
                 .gesture(
                     DragGesture(minimumDistance: 30)
                         .onEnded { value in
@@ -77,33 +78,6 @@ struct ReelsViewer: View {
                     // ✅ INSTANT PLAYBACK: Precargar dinámicamente al scrollear
                     preloadUpcomingVideos(from: newIndex)
                 }
-            }
-            
-            // Solo botón de cerrar en la esquina superior derecha
-            VStack {
-                HStack {
-                    Spacer()
-                    
-                    Button(action: {
-                        let haptic = UIImpactFeedbackGenerator(style: .medium)
-                        haptic.impactOccurred()
-                        dismiss()
-                    }) {
-                        Image(systemName: "xmark")
-                            .font(.system(size: 16, weight: .semibold))
-                            .foregroundColor(.white)
-                            .frame(width: 36, height: 36)
-                            .background(
-                                Circle()
-                                    .fill(.black.opacity(0.4))
-                            )
-                            .shadow(color: .black.opacity(0.3), radius: 8, x: 0, y: 4)
-                    }
-                }
-                .padding(.horizontal, 20)
-                .padding(.top, 30) // Alineado con los otros elementos
-                
-                Spacer()
             }
         }
         .preferredColorScheme(.dark)
@@ -146,6 +120,8 @@ struct ReelVideoView: View {
     @State private var storyAudiences: [String?] = []
     @State private var storyRoute: ReelsStoryRoute?
     @State private var liveAuthorUsername: String = ""
+    @State private var isDraggingProgress = false
+    @State private var wasPlayingBeforeDrag = false
     
     @Environment(\.colorScheme) var colorScheme
     @EnvironmentObject private var firestoreService: FirestoreService
@@ -156,9 +132,71 @@ struct ReelVideoView: View {
         let live = liveAuthorUsername.trimmingCharacters(in: .whitespacesAndNewlines)
         return live.isEmpty ? fallback : live
     }
+
+    private var bottomBarBackgroundColor: Color {
+        colorScheme == .dark ? Color(hex: "0B1215") : Color(hex: "FAF9F6")
+    }
+
+    private var chromePrimaryColor: Color {
+        colorScheme == .dark ? .white : Color(hex: "0B1215")
+    }
+
+    private var chromeSecondaryColor: Color {
+        colorScheme == .dark ? .white.opacity(0.78) : Color(hex: "0B1215").opacity(0.72)
+    }
+
+    private var chromeTertiaryColor: Color {
+        colorScheme == .dark ? .white.opacity(0.72) : Color(hex: "0B1215").opacity(0.58)
+    }
+
+    private var bottomBarHeight: CGFloat {
+        68
+    }
+
+    @ViewBuilder
+    private var reelCommentBar: some View {
+        HStack {
+            if !video.moment.disableComments {
+                Button(action: {
+                    showComments = true
+                }) {
+                    HStack(spacing: 10) {
+                        Image(systemName: "bubble.left")
+                            .font(.system(size: 14, weight: .medium))
+                            .foregroundColor(chromeTertiaryColor)
+
+                        Text(NSLocalizedString("comments.add.placeholder", comment: "Add comment placeholder"))
+                            .font(.custom("Poppins-Regular", size: 15))
+                            .foregroundColor(chromeTertiaryColor)
+
+                        Spacer()
+                    }
+                    .padding(.horizontal, 18)
+                    .frame(height: 46)
+                    .background(
+                        Capsule()
+                            .fill(colorScheme == .dark ? .white.opacity(0.06) : .black.opacity(0.06))
+                    )
+                    .overlay(
+                        Capsule()
+                            .stroke(colorScheme == .dark ? Color.white.opacity(0.10) : Color.black.opacity(0.10), lineWidth: 1)
+                    )
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(.horizontal, 16)
+        .padding(.top, 14)
+        .padding(.bottom, 2)
+        .frame(height: bottomBarHeight)
+        .background(bottomBarBackgroundColor)
+    }
     
     var body: some View {
         GeometryReader { geometry in
+            let safeTop = geometry.safeAreaInsets.top
+            let safeBottom = geometry.safeAreaInsets.bottom
+
             ZStack {
                 // Video Player completamente fullscreen sin controles nativos
                 if let player = playerManager.player {
@@ -169,7 +207,7 @@ struct ReelVideoView: View {
                         isBuffering: $playerManager.isBuffering
                     )
                     .aspectRatio(contentMode: videoContentMode)  // ✅ Dinámico según orientación
-                    .frame(maxWidth: geometry.size.width, maxHeight: geometry.size.height)
+                    .frame(width: geometry.size.width, height: geometry.size.height)
                     .background(Color.black)
                     .clipped()
                     .ignoresSafeArea(.all)
@@ -264,146 +302,115 @@ struct ReelVideoView: View {
                 }
                 
                 // Sin controles visuales - solo play/pause silencioso
-                
-                // Información del usuario en la parte superior (a la altura del botón cerrar)
-                VStack {
-                    // Top gradient para legibilidad
+                VStack(spacing: 0) {
+                    HStack {
+                        Spacer()
+
+                        Button(action: {
+                            let haptic = UIImpactFeedbackGenerator(style: .medium)
+                            haptic.impactOccurred()
+                            onClose()
+                        }) {
+                            Image(systemName: "xmark")
+                                .font(.system(size: 16, weight: .semibold))
+                                .foregroundColor(chromePrimaryColor)
+                                .frame(width: 38, height: 38)
+                                .liquidGlass(in: Circle(), interactive: true)
+                        }
+                    }
+                    .padding(.horizontal, 20)
+                    .padding(.top, max(4, safeTop + 2))
+
+                    Spacer()
+
                     LinearGradient(
-                        colors: [Color.black.opacity(0.4), Color.clear],
+                        colors: [Color.clear, Color.black.opacity(0.16), Color.black.opacity(0.64)],
                         startPoint: .top,
                         endPoint: .bottom
                     )
-                    .frame(height: 120)
-                    .overlay(
-                        VStack {
-                            // User info a la misma altura que el botón cerrar
-                            HStack(spacing: 12) {
-                                Button(action: {
-                                    if !video.moment.authorId.isEmpty {
-                                        if hasStory {
-                                            // ✅ Si tiene historias, abrir StoriesView
-                                            storyRoute = ReelsStoryRoute(id: video.moment.authorId)
-                                        } else {
-                                            // ✅ Si no tiene historias, ir al perfil
-                                            navigateToProfile = true
-                                        }
-                                    }
-                                }) {
-                                    AsyncProfileImageView(userId: video.moment.authorId)
-                                        .frame(width: 40, height: 40)
-                                        .clipShape(Circle())
-                                        .overlay(
-                                            StorySegmentedRing(
-                                                storyCount: storyCount,
-                                                hasStory: hasStory,
-                                                hasUnseenStory: hasUnseenStory,
-                                                storyViewedStatus: storyViewedStatus,
-                                                storyAudiences: storyAudiences,
-                                                isOwnStory: video.moment.authorId == Auth.auth().currentUser?.uid,
-                                                colorScheme: colorScheme,
-                                                ringSize: 40,
-                                                lineWidth: 2.5
-                                            )
-                                        )
-                                        .shadow(color: .black.opacity(0.4), radius: 4, x: 0, y: 2)
-                                }
-                                .buttonStyle(PlainButtonStyle())
-                                
-                                VStack(alignment: .leading, spacing: 2) {
-                                    HStack(spacing: 6) {
-                                        Text(displayAuthorUsername)
-                                            .font(.custom("Poppins-SemiBold", size: 15))
-                                            .foregroundColor(.white)
-                                            .shadow(color: .black.opacity(0.8), radius: 2, x: 0, y: 1)
-                                        
-                                        // ✅ INSIGNIA DE VERIFICADO - Igual que en FeedView
-                                        if video.moment.authorId == Auth.auth().currentUser?.uid {
-                                            // Para el usuario actual, verificar si está verificado
-                                            CurrentUserVerifiedBadge(size: 14)
-                                        } else {
-                                            // Para otros usuarios, verificar si están verificados
-                                            VerifiedBadgeView(userId: video.moment.authorId, size: 14)
-                                        }
-                                    }
-                                    
-                                    HStack(spacing: 8) {
-                                        // Timestamp
-                                        Text(formatTimeAgo(video.moment.timestamp))
-                                            .font(.custom("Poppins-Regular", size: 12))
-                                            .foregroundColor(.white.opacity(0.8))
-                                            .shadow(color: .black.opacity(0.6), radius: 1, x: 0, y: 1)
-                                        
-                                        // Location si existe
-                                        if let location = video.moment.location, !location.isEmpty {
-                                            HStack(spacing: 2) {
-                                                Image(systemName: "location.fill")
-                                                    .font(.system(size: 9))
-                                                    .foregroundColor(.white.opacity(0.7))
-                                                
-                                                Text(location)
-                                                    .font(.custom("Poppins-Regular", size: 12))
-                                                    .foregroundColor(.white.opacity(0.7))
-                                            }
-                                            .shadow(color: .black.opacity(0.6), radius: 1, x: 0, y: 1)
-                                        }
-                                    }
-                                }
-                                
-                                Spacer()
-                            }
-                            .padding(.horizontal, 20)
-                            .padding(.top, 30) // Subido más arriba para evitar montajes
-                            
-                            Spacer()
-                        }
-                    )
-                    
-                    Spacer()
-                }
-                
-                // Content overlay con gradients mejorados (más abajo)
-                VStack {
-                    Spacer()
-                    
-                    // Bottom gradient for better text readability
-                    ZStack(alignment: .bottom) {
-                        LinearGradient(
-                            colors: [Color.clear, Color.black.opacity(0.6)],
-                            startPoint: .top,
-                            endPoint: .bottom
-                        )
-                        .frame(height: 160)
-                        
-                        HStack(alignment: .bottom) {
-                            // Left side - Content únicamente
+                    .frame(height: 240)
+                    .overlay(alignment: .bottom) {
+                        HStack(alignment: .bottom, spacing: 20) {
                             VStack(alignment: .leading, spacing: 12) {
-                                // Content with hashtags
-                                if !video.moment.content.isEmpty {
-                                    ClickableHashtagsView(
-                                        content: video.moment.content,
-                                        colorScheme: .dark,
-                                        onHashtagTap: { hashtag in
+                                HStack(spacing: 12) {
+                                    Button(action: {
+                                        if !video.moment.authorId.isEmpty {
+                                            if hasStory {
+                                                storyRoute = ReelsStoryRoute(id: video.moment.authorId)
+                                            } else {
+                                                navigateToProfile = true
+                                            }
                                         }
-                                    )
-                                    .lineLimit(4)
-                                    .shadow(color: .black.opacity(0.8), radius: 2, x: 0, y: 1)
+                                    }) {
+                                        AsyncProfileImageView(userId: video.moment.authorId)
+                                            .frame(width: 42, height: 42)
+                                            .clipShape(Circle())
+                                            .overlay(
+                                                StorySegmentedRing(
+                                                    storyCount: storyCount,
+                                                    hasStory: hasStory,
+                                                    hasUnseenStory: hasUnseenStory,
+                                                    storyViewedStatus: storyViewedStatus,
+                                                    storyAudiences: storyAudiences,
+                                                    isOwnStory: video.moment.authorId == Auth.auth().currentUser?.uid,
+                                                    colorScheme: colorScheme,
+                                                    ringSize: 42,
+                                                    lineWidth: 2.5
+                                                )
+                                            )
+                                    }
+                                    .buttonStyle(.plain)
+
+                                    VStack(alignment: .leading, spacing: 3) {
+                                            HStack(spacing: 6) {
+                                                Text(displayAuthorUsername)
+                                                    .font(.custom("Poppins-SemiBold", size: 15))
+                                                    .foregroundColor(chromePrimaryColor)
+                                                    .lineLimit(1)
+
+                                            if video.moment.authorId == Auth.auth().currentUser?.uid {
+                                                CurrentUserVerifiedBadge(size: 14)
+                                            } else {
+                                                VerifiedBadgeView(userId: video.moment.authorId, size: 14)
+                                            }
+                                        }
+
+                                        HStack(spacing: 8) {
+                                            Text(formatTimeAgo(video.moment.timestamp))
+                                                .font(.custom("Poppins-Regular", size: 12))
+                                                .foregroundColor(chromeSecondaryColor)
+
+                                            if let location = video.moment.location, !location.isEmpty {
+                                                HStack(spacing: 4) {
+                                                    Image(systemName: "location.fill")
+                                                        .font(.system(size: 9))
+                                                    Text(location)
+                                                        .lineLimit(1)
+                                                }
+                                                .font(.custom("Poppins-Regular", size: 12))
+                                                .foregroundColor(chromeTertiaryColor)
+                                            }
+                                        }
+                                    }
                                 }
+
+                                MomentCaptionView(
+                                    moment: video.moment,
+                                    style: .reels,
+                                    colorScheme: colorScheme,
+                                    onHashtagTap: { _ in }
+                                )
+                                .padding(.leading, -12)
                             }
-                            .padding(.leading, 20)
-                            
-                            Spacer()
-                            
-                            // Right side actions - más elegantes
-                            VStack(spacing: 20) {
-                                // Reacciones
-                                // ✅ NUEVO: El autor siempre ve el contador, los demás solo si no está oculto
+                            .frame(maxWidth: .infinity, alignment: .leading)
+
+                            VStack(spacing: 18) {
                                 EpicReactionButton(
                                     moment: video.moment,
                                     showCount: video.moment.authorId == Auth.auth().currentUser?.uid || !video.moment.hideLikeCounts
                                 )
-                                    .environmentObject(firestoreService)
-                                
-                                // Comentarios
+                                .environmentObject(firestoreService)
+
                                 if !video.moment.disableComments {
                                     EnhancedReelActionButton(
                                         icon: "bubble.left.fill",
@@ -415,8 +422,7 @@ struct ReelVideoView: View {
                                         }
                                     )
                                 }
-                                
-                                // Compartir
+
                                 if video.moment.allowSharing {
                                     EnhancedReelActionButton(
                                         icon: "arrowshape.turn.up.right.fill",
@@ -426,8 +432,7 @@ struct ReelVideoView: View {
                                         action: shareVideo
                                     )
                                 }
-                                
-                                // More options
+
                                 EnhancedReelActionButton(
                                     icon: "ellipsis",
                                     count: nil,
@@ -440,73 +445,15 @@ struct ReelVideoView: View {
                                     }
                                 )
                             }
-                            .padding(.trailing, 20)
+                            .padding(.bottom, 6)
                         }
-                        .padding(.bottom, 80)
+                        .padding(.horizontal, 20)
+                        .padding(.bottom, 22)
                     }
                 }
-                
-                // Enhanced progress bar interactiva
-                VStack {
-                    Spacer()
-                    
-                    if playerManager.duration > 0 {
-                        VStack(spacing: 8) {
-                            // Progress bar interactiva
-                            GeometryReader { geometry in
-                                ZStack(alignment: .leading) {
-                                    // Background track
-                                    Capsule()
-                                        .fill(Color.white.opacity(0.4))
-                                        .frame(height: 3)
-                                    
-                                    // Progress fill
-                                    Capsule()
-                                        .fill(Color.white)
-                                        .frame(width: max(0, geometry.size.width * playerManager.progress), height: 3)
-                                    
-                                    // Invisible handle area para mejor UX
-                                    Rectangle()
-                                        .fill(Color.clear)
-                                        .frame(height: 44) // Área de toque más grande
-                                        .contentShape(Rectangle())
-                                        .gesture(
-                                            DragGesture(minimumDistance: 0)
-                                                .onChanged { value in
-                                                    // Calcular nueva posición suavemente
-                                                    let newProgress = max(0, min(1, value.location.x / geometry.size.width))
-                                                    
-                                                    // Update inmediato del progress visual
-                                                    playerManager.updateProgress(to: newProgress)
-                                                    
-                                                    // Seek más frecuente pero optimizado
-                                                    playerManager.seekToProgress(newProgress)
-                                                }
-                                                .onEnded { value in
-                                                    // Seek final preciso
-                                                    let finalProgress = max(0, min(1, value.location.x / geometry.size.width))
-                                                    playerManager.seekToProgress(finalProgress, precise: true)
-                                                    
-                                                    // Continuar reproduciendo
-                                                    if !playerManager.isPlaying {
-                                                        playerManager.play()
-                                                    }
-                                                }
-                                        )
-                                        .onTapGesture { location in
-                                            // Tap directo en la línea
-                                            let tapProgress = max(0, min(1, location.x / geometry.size.width))
-                                            playerManager.seekToProgress(tapProgress, precise: true)
-                                        }
-                                }
-                            }
-                            .frame(height: 44) // Área de toque amplia pero visualmente delgada
-                            .padding(.horizontal, 20)
-                        }
-                        .padding(.bottom, 10) // Bajada más abajo para evitar montajes
-                    }
-                }
-                
+
+
+
                 // Context Menu Overlay
                 if showContextMenu {
                     ModernContextMenuOverlay(
@@ -541,6 +488,90 @@ struct ReelVideoView: View {
                         .animation(.spring(response: 0.4, dampingFraction: 0.8), value: showShareSheet)
                 }
             }
+            .frame(width: geometry.size.width, height: geometry.size.height)
+            .ignoresSafeArea(.container, edges: .all)
+            .overlay(alignment: .bottom) {
+                VStack(spacing: -6) {
+                    if playerManager.duration > 0 {
+                        let barHeight: CGFloat = isDraggingProgress ? 6 : 2.5
+                        let thumbSize: CGFloat = 12
+
+                            ZStack(alignment: .leading) {
+                                // Background track
+                                Rectangle()
+                                    .fill(Color.white.opacity(0.24))
+                                    .frame(height: barHeight)
+
+                                // Active progress with brand gradient
+                                Rectangle()
+                                    .fill(
+                                        LinearGradient(
+                                            colors: [Color(hex: "4158D0"), Color(hex: "C850C0")],
+                                            startPoint: .leading,
+                                            endPoint: .trailing
+                                        )
+                                    )
+                                    .frame(width: max(0, geometry.size.width * playerManager.progress), height: barHeight)
+
+                                // Thumb (Circle dot) - displayed when dragging/holding
+                                if isDraggingProgress {
+                                    Circle()
+                                        .fill(Color.white)
+                                        .frame(width: thumbSize, height: thumbSize)
+                                        .shadow(color: .black.opacity(0.35), radius: 3, x: 0, y: 1)
+                                        .offset(x: (geometry.size.width * playerManager.progress) - (thumbSize / 2))
+                                        .transition(.scale.combined(with: .opacity))
+                                }
+
+                                // Interactive touch area (larger height for comfortable scrubbing)
+                                Rectangle()
+                                    .fill(Color.clear)
+                                    .frame(height: 30)
+                                    .contentShape(Rectangle())
+                                    .gesture(
+                                        DragGesture(minimumDistance: 0)
+                                            .onChanged { value in
+                                                if !isDraggingProgress {
+                                                    let haptic = UIImpactFeedbackGenerator(style: .light)
+                                                    haptic.impactOccurred()
+
+                                                    // Guardar estado de reproducción y pausar
+                                                    wasPlayingBeforeDrag = playerManager.isPlaying
+                                                    playerManager.pause()
+
+                                                    withAnimation(.spring(response: 0.2, dampingFraction: 0.8)) {
+                                                        isDraggingProgress = true
+                                                    }
+                                                }
+                                                let stableTouchX = value.startLocation.x + value.translation.width
+                                                let newProgress = max(0, min(1, stableTouchX / geometry.size.width))
+                                                playerManager.updateProgress(to: newProgress)
+                                                playerManager.seekToProgress(newProgress)
+                                            }
+                                            .onEnded { value in
+                                                withAnimation(.spring(response: 0.25, dampingFraction: 0.85)) {
+                                                    isDraggingProgress = false
+                                                }
+                                                let stableTouchX = value.startLocation.x + value.translation.width
+                                                let finalProgress = max(0, min(1, stableTouchX / geometry.size.width))
+                                                playerManager.seekToProgress(finalProgress, precise: true)
+
+                                                // Reanudar reproducción si estaba reproduciendo
+                                                if wasPlayingBeforeDrag {
+                                                    playerManager.play()
+                                                }
+                                            }
+                                    )
+                            }
+                            .frame(width: geometry.size.width, height: 12)
+                            .zIndex(1)
+                    }
+
+                    reelCommentBar
+                        .zIndex(0)
+                }
+                .ignoresSafeArea(.container, edges: .bottom)
+            }
         }
         /*.sheet(isPresented: $showReportSheet) {
             ReportBottomSheet(moment: video.moment)
@@ -561,26 +592,18 @@ struct ReelVideoView: View {
         }
         .onAppear {
             if isCurrentVideo {
-                // Delay mínimo para evitar problemas de memoria
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                    setupVideo()
-                    loadVideoData()
-                    checkUserStories() // ✅ NUEVO: Verificar historias del usuario
-                    refreshAuthorUsername()
-                    
-                    // ✅ INSTANT PLAYBACK: Precargar siguientes videos
-                    preloadNextVideos()
-                }
+                setupVideo()
+                loadVideoData()
+                checkUserStories()
+                refreshAuthorUsername()
+                preloadNextVideos()
             }
         }
         .onChange(of: isCurrentVideo) { _, isActive in
             if isActive {
-                // Pequeño delay para transiciones suaves
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
-                    setupVideo()
-                    loadVideoData()
-                    refreshAuthorUsername()
-                }
+                setupVideo()
+                loadVideoData()
+                refreshAuthorUsername()
             } else {
                 // Pausar inmediatamente cuando no está activo
                 playerManager.pause()
@@ -1001,20 +1024,9 @@ struct EnhancedReelActionButton: View {
                 }
             }) {
                 ZStack {
-                    // Glassmorphism background
-                    Circle()
-                        .fill(.ultraThinMaterial)
+                    Color.clear
                         .frame(width: 56, height: 56)
-                        .overlay(
-                            Circle()
-                                .stroke(
-                                    isActive
-                                    ? activeColor.opacity(0.6)
-                                    : Color.white.opacity(0.2),
-                                    lineWidth: isActive ? 2 : 1
-                                )
-                        )
-                        .shadow(color: .black.opacity(0.3), radius: 10, x: 0, y: 5)
+                        .liquidGlass(in: Circle(), interactive: true)
                         .scaleEffect(isPressed ? 0.95 : 1.0)
                     
                     // Icon with better styling
@@ -1023,6 +1035,12 @@ struct EnhancedReelActionButton: View {
                         .foregroundColor(isActive ? activeColor : .white)
                         .scaleEffect(isActive ? 1.1 : 1.0)
                         .animation(.spring(response: 0.3, dampingFraction: 0.6), value: isActive)
+
+                    if isActive {
+                        Circle()
+                            .stroke(activeColor.opacity(0.55), lineWidth: 1.8)
+                            .frame(width: 56, height: 56)
+                    }
                 }
             }
             
@@ -1113,10 +1131,7 @@ class ReelVideoPlayerManager: ObservableObject {
     
     // MARK: - Seek optimizado
     func updateProgress(to newProgress: Double) {
-        // Update visual inmediato sin esperar al seek
-        DispatchQueue.main.async {
-            self.progress = newProgress
-        }
+        self.progress = newProgress
     }
     
     func seekToProgress(_ targetProgress: Double, precise: Bool = false) {
@@ -1126,24 +1141,15 @@ class ReelVideoPlayerManager: ObservableObject {
         let cmTime = CMTime(seconds: targetTime, preferredTimescale: CMTimeScale(NSEC_PER_SEC))
         
         if precise {
-            // Seek preciso para tap y final de drag
+            // Seek preciso al soltar
             player.seek(to: cmTime, toleranceBefore: .zero, toleranceAfter: .zero) { [weak self] completed in
                 if completed {
                     self?.isSeeking = false
                 }
             }
         } else {
-            // Seek rápido durante drag (menos preciso pero más fluido)
-            let now = Date()
-            lastSeekTime = now
-            
-            // Throttle seeks para mejor performance
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { [weak self] in
-                guard let self = self, self.lastSeekTime == now else { return }
-                
-                player.seek(to: cmTime, toleranceBefore: CMTime(seconds: 0.1, preferredTimescale: CMTimeScale(NSEC_PER_SEC)),
-                           toleranceAfter: CMTime(seconds: 0.1, preferredTimescale: CMTimeScale(NSEC_PER_SEC)))
-            }
+            // Seek ultra-rápido y suave a keyframe durante el arrastre (igual que Instagram/TikTok)
+            player.seek(to: cmTime, toleranceBefore: .positiveInfinity, toleranceAfter: .positiveInfinity)
         }
         
         isSeeking = true

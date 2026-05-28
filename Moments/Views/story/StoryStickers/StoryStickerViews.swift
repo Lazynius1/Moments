@@ -1378,7 +1378,6 @@ struct InteractiveQuestionSticker: View {
 
     var body: some View {
         let isLight = styleVariant % 6 == 0
-        let textColor = momentsCardStickerTextColor(styleVariant: styleVariant, colorScheme: colorScheme)
         let ink = isLight ? momentsStickerInk(for: colorScheme) : Color.white
         let headerInk = isLight
             ? momentsStickerInverseInk(for: colorScheme)
