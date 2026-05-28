@@ -2379,34 +2379,34 @@
 
 /* Whats New v2.8 */
 "whatsNew.title" = "New in Moments!";
-"whatsNew.subtitle" = "Version 2.11.0";
-"whatsNew.button" = "Explore Moments 2.11";
+"whatsNew.subtitle" = "Version 2.12.0";
+"whatsNew.button" = "Explore Moments 2.12";
 
 /* Nova */
-"whatsNew.nova.title" = "New story stickers";
-"whatsNew.nova.description" = "Reveal lets you scratch to uncover content, Polaroid adds a captioned frame, and Audio lets you add voice or ambience directly to stories.";
+"whatsNew.nova.title" = "Freer stories";
+"whatsNew.nova.description" = "You can now move, scale, and rotate photos and videos more naturally to create stories with much more freedom.";
 
-"whatsNew.account.title" = "A more polished camera";
-"whatsNew.account.description" = "We refined capture, previews, and photo and video controls so creating and sharing feels much smoother.";
+"whatsNew.account.title" = "Automatic color backgrounds";
+"whatsNew.account.description" = "When you shrink a photo or video, Moments now creates more thoughtful backgrounds based on its colors.";
 
 /* Liquid glass */
-"whatsNew.glass.title" = "Hidden Layers for posts";
-"whatsNew.glass.description" = "You can now hide secrets inside a photo using text, audio, or a hidden image for other people to discover with a tap.";
+"whatsNew.glass.title" = "Redesigned stickers";
+"whatsNew.glass.description" = "We rebuilt several stickers so they feel cleaner, more integrated, and more expressive with new visual variations.";
 
 /* Creator */
-"whatsNew.creator.title" = "Scheduled secrets and metrics";
-"whatsNew.creator.description" = "Schedule hidden layers for later and see how people interact with them thanks to new discovery metrics if you’re the author.";
+"whatsNew.creator.title" = "Questions, polls, and replies";
+"whatsNew.creator.description" = "We also improved questions, polls, quizzes, and replies so everything feels clearer and more coherent.";
 
 /* Feed */
-"whatsNew.feed.title" = "Better moment editing";
-"whatsNew.feed.description" = "We redesigned moment editing so changing text, audience, location, and tags feels cleaner, clearer, and more consistent.";
+"whatsNew.feed.title" = "Incognito mode";
+"whatsNew.feed.description" = "You can now check stories, visit profiles, and open chats with a little more privacy and without leaving the usual trace.";
 
-"whatsNew.social.title" = "More polished stickers";
-"whatsNew.social.description" = "We also redesigned several stickers and refined questions, replies, and story views so everything looks much more intentional.";
+"whatsNew.social.title" = "More immersive reels";
+"whatsNew.social.description" = "We refreshed the reels viewer with better quick commenting, more thoughtful captions, and a cleaner experience.";
 
 /* Fixes */
-"whatsNew.fixes.title" = "More reliable uploads";
-"whatsNew.fixes.description" = "Recovery is now better when the connection drops, including posts with Hidden Layers, along with several stability fixes.";
+"whatsNew.fixes.title" = "More stability while creating and watching";
+"whatsNew.fixes.description" = "We kept refining rendering, playback, uploads, permissions, and small visual details across the app.";
 
 /* Best Friends */
 "bestFriends.title" = "Best Friends";

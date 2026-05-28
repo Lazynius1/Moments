@@ -790,7 +790,7 @@ struct StoryEditingView: View {
                         activeEditorMode = .text
                     }
                 }
-                EditingToolIcon(icon: "face.smiling") {
+                EditingToolIcon(icon: "face.smiling", usesCustomStickerGlyph: true) {
                     activeEditorMode = .idle
                     showingStickerPicker = true
                 }

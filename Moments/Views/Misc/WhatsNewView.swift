@@ -8,37 +8,37 @@ struct WhatsNewView: View {
     private var features: [WhatsNewFeature] {
         [
             WhatsNewFeature(
-                icon: "sparkles",
+                icon: .system("arrow.up.left.and.arrow.down.right"),
                 title: NSLocalizedString("whatsNew.nova.title", comment: ""),
                 description: NSLocalizedString("whatsNew.nova.description", comment: "")
             ),
             WhatsNewFeature(
-                icon: "camera.fill",
+                icon: .system("swatchpalette.fill"),
                 title: NSLocalizedString("whatsNew.account.title", comment: ""),
                 description: NSLocalizedString("whatsNew.account.description", comment: "")
             ),
             WhatsNewFeature(
-                icon: "eye.slash.fill",
+                icon: .asset("MomentsStickerTool"),
                 title: NSLocalizedString("whatsNew.glass.title", comment: ""),
                 description: NSLocalizedString("whatsNew.glass.description", comment: "")
             ),
             WhatsNewFeature(
-                icon: "clock.badge.fill",
+                icon: .system("questionmark.bubble.fill"),
                 title: NSLocalizedString("whatsNew.creator.title", comment: ""),
                 description: NSLocalizedString("whatsNew.creator.description", comment: "")
             ),
             WhatsNewFeature(
-                icon: "pencil.and.outline",
+                icon: .system("eye.slash.fill"),
                 title: NSLocalizedString("whatsNew.feed.title", comment: ""),
                 description: NSLocalizedString("whatsNew.feed.description", comment: "")
             ),
             WhatsNewFeature(
-                icon: "swatchpalette.fill",
+                icon: .system("play.square.stack.fill"),
                 title: NSLocalizedString("whatsNew.social.title", comment: ""),
                 description: NSLocalizedString("whatsNew.social.description", comment: "")
             ),
             WhatsNewFeature(
-                icon: "arrow.triangle.2.circlepath.circle.fill",
+                icon: .system("checkmark.shield.fill"),
                 title: NSLocalizedString("whatsNew.fixes.title", comment: ""),
                 description: NSLocalizedString("whatsNew.fixes.description", comment: "")
             )
@@ -125,9 +125,14 @@ struct WhatsNewView: View {
 }
 
 private struct WhatsNewFeature {
-    let icon: String
+    let icon: WhatsNewFeatureIcon
     let title: String
     let description: String
+}
+
+private enum WhatsNewFeatureIcon {
+    case system(String)
+    case asset(String)
 }
 
 private struct WhatsNewFeatureRow: View {
@@ -137,14 +142,7 @@ private struct WhatsNewFeatureRow: View {
 
     var body: some View {
         HStack(alignment: .top, spacing: 14) {
-            Image(systemName: feature.icon)
-                .font(.system(size: 17, weight: .semibold))
-                .foregroundColor(.primary)
-                .frame(width: 38, height: 38)
-                .background {
-                    Color.clear
-                        .liquidGlass(in: Circle())
-                }
+            iconView
 
             VStack(alignment: .leading, spacing: 5) {
                 Text(feature.title)
@@ -167,6 +165,29 @@ private struct WhatsNewFeatureRow: View {
             withAnimation(.spring(response: 0.55, dampingFraction: 0.82).delay(delay)) {
                 appear = true
             }
+        }
+    }
+
+    @ViewBuilder
+    private var iconView: some View {
+        Group {
+            switch feature.icon {
+            case .system(let systemName):
+                Image(systemName: systemName)
+                    .font(.system(size: 17, weight: .semibold))
+            case .asset(let assetName):
+                Image(assetName)
+                    .renderingMode(.template)
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 30, height: 30)
+            }
+        }
+        .foregroundColor(.primary)
+        .frame(width: 38, height: 38)
+        .background {
+            Color.clear
+                .liquidGlass(in: Circle())
         }
     }
 }

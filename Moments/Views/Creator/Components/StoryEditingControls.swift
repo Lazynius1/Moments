@@ -21,12 +21,23 @@ struct EditingToolButton: View {
 
 struct EditingToolIcon: View {
     let icon: String
+    var usesCustomStickerGlyph: Bool = false
     let action: () -> Void
 
     var body: some View {
         Button(action: action) {
-            Image(systemName: icon)
-                .font(.system(size: 20))
+            Group {
+                if usesCustomStickerGlyph {
+                    Image("MomentsStickerTool")
+                        .renderingMode(.template)
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 30, height: 30)
+                } else {
+                    Image(systemName: icon)
+                        .font(.system(size: 20))
+                }
+            }
                 .foregroundColor(.white)
                 .frame(width: 44, height: 44)
                 .liquidGlass(in: Circle())
