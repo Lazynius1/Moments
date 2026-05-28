@@ -763,7 +763,6 @@ final class LocalPersistenceService: ObservableObject {
         guard let context = modelContext else { return }
         context.insert(action)
         saveContext()
-        
         // ✅ TRIGGER: Si hay conexión, intentar procesar la cola inmediatamente.
         // Las subidas ya tienen su propio proceso en vivo; sincronizarlas al guardarlas
         // puede detectar un falso duplicado y perder la acción de recuperación.
@@ -1246,7 +1245,6 @@ final class LocalPersistenceService: ObservableObject {
     
     func acceptFollowRequest(notificationId: String, senderId: String, recipientId: String) async {
         guard let context = modelContext else { return }
-        
         // 1. Optimistic UI: Marcar notificación como NO pendiente (leída/aceptada)
         let descriptor = FetchDescriptor<CachedNotification>(predicate: #Predicate { $0.id == notificationId })
         if let notification = (try? context.fetch(descriptor))?.first {

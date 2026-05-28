@@ -5,6 +5,15 @@ import FirebaseStorage
 import Kingfisher
 import Combine
 
+fileprivate func isPerActorSocialNotification(_ type: NotificationType) -> Bool {
+    switch type {
+    case .newFollower, .mutualConnection, .followRequest, .requestAccepted:
+        return true
+    default:
+        return false
+    }
+}
+
 struct NotificationsView: View {
     @StateObject private var viewModel = NotificationsViewModel()
     @StateObject private var storyViewModel = StoryViewModel() // ✅ AGREGADO
@@ -1930,15 +1939,6 @@ class NotificationsViewModel: ObservableObject {
         notification.type == .mention && !isStoryMention(notification)
     }
 
-    private func isPerActorSocialNotification(_ type: NotificationType) -> Bool {
-        switch type {
-        case .newFollower, .mutualConnection, .followRequest, .requestAccepted:
-            return true
-        default:
-            return false
-        }
-    }
-
     private func inferredMentionContext(_ notification: Notification) -> String {
         guard notification.type == .mention else { return "default" }
         if notification.storyId != nil { return "story" }
@@ -1968,25 +1968,22 @@ class NotificationsViewModel: ObservableObject {
     // ✅ Acciones de solicitudes de seguimiento simplificadas (OFFLINE AWARE)
     func acceptFollowRequest(group: NotificationGroup) {
         guard let userId = Auth.auth().currentUser?.uid else { return }
-        
-        for notification in group.notifications where notification.type == .followRequest {
-            guard let notificationId = notification.id else { continue }
+        guard let notification = group.notifications.first(where: { $0.type == .followRequest }),
+              let notificationId = notification.id else { return }
+        // 1. Delegar a LocalPersistence (Optimistic UI + Sync)
+        Task {
+            await LocalPersistenceService.shared.acceptFollowRequest(
+                notificationId: notificationId,
+                senderId: notification.senderId,
+                recipientId: userId
+            )
             
-            // 1. Delegar a LocalPersistence (Optimistic UI + Sync)
-            Task {
-                await LocalPersistenceService.shared.acceptFollowRequest(
-                    notificationId: notificationId,
-                    senderId: notification.senderId,
-                    recipientId: userId
-                )
-                
-                // 2. Actualizar estado local del view model para reflejar cambio inmediato
-                DispatchQueue.main.async {
-                    if let index = self.notifications.firstIndex(where: { $0.id == notificationId }) {
-                        self.notifications[index].isPending = false
-                        self.groupNotifications() // Reagrupar para actualizar UI
-                        self.updatePendingCounts()
-                    }
+            // 2. Actualizar estado local del view model para reflejar cambio inmediato
+            DispatchQueue.main.async {
+                if let index = self.notifications.firstIndex(where: { $0.id == notificationId }) {
+                    self.notifications[index].isPending = false
+                    self.groupNotifications() // Reagrupar para actualizar UI
+                    self.updatePendingCounts()
                 }
             }
         }
