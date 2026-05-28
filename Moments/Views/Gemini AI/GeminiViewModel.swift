@@ -81,7 +81,7 @@ class GeminiViewModel: ObservableObject {
         self.vertexAI = VertexAI.vertexAI(location: "global")
 
         // Inicialización básica (se actualizará cuando carguen los datos del usuario)
-        self.model = vertexAI.generativeModel(modelName: "Gemini 3.1 Flash-Lite")
+        self.model = vertexAI.generativeModel(modelName: "gemini-3.1-flash-lite")
 
         Task {
             await MainActor.run {
@@ -125,7 +125,7 @@ class GeminiViewModel: ObservableObject {
         }
 
         self.model = vertexAI.generativeModel(
-            modelName: "Gemini 3.1 Flash-Lite",
+            modelName: "gemini-3.1-flash-lite",
             generationConfig: config,
             safetySettings: safetySettings,
             systemInstruction: ModelContent(role: "system", parts: [systemInstruction])

@@ -1155,6 +1155,9 @@ struct EnhancedNotificationRow: View {
         let hasMultipleActors: Bool
         if firstNotification.type == .reaction {
             hasMultipleActors = reactionAggregateCount > 1
+        } else if isPerActorSocialNotification(firstNotification.type) {
+            // Una fila por persona; duplicados legacy del mismo sender no muestran "y N más"
+            hasMultipleActors = false
         } else {
             hasMultipleActors = group.notifications.count > 1
         }
@@ -1852,8 +1855,10 @@ class NotificationsViewModel: ObservableObject {
                 dateFormatter.timeZone = .current
                 dateFormatter.dateFormat = "yyyy-MM-dd"
                 key = "visit_\(dateFormatter.string(from: notification.timestamp))"
+            } else if isPerActorSocialNotification(notification.type) {
+                // Follow / mutual / request: una fila por sender (paridad Instagram; evita "X y 6 más" por re-follows)
+                key = "\(notification.type.rawValue)_\(notification.senderId)"
             } else {
-                // ✅ Agrupar por CONTENIDO (sin senderId) para que "User A" y "User B" se agrupen en "User A y 1 persona más"
                 let contentId = notification.commentId ?? notification.storyId ?? notification.momentId ?? "general"
                 let context = notification.mentionContext ?? inferredMentionContext(notification)
                 key = "\(notification.type.rawValue)_\(context)_\(contentId)"
@@ -1923,6 +1928,15 @@ class NotificationsViewModel: ObservableObject {
 
     private func isMomentOrCommentMention(_ notification: Notification) -> Bool {
         notification.type == .mention && !isStoryMention(notification)
+    }
+
+    private func isPerActorSocialNotification(_ type: NotificationType) -> Bool {
+        switch type {
+        case .newFollower, .mutualConnection, .followRequest, .requestAccepted:
+            return true
+        default:
+            return false
+        }
     }
 
     private func inferredMentionContext(_ notification: Notification) -> String {

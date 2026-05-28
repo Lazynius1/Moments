@@ -395,10 +395,10 @@ class FirestoreService: ObservableObject {
                     .collection("receivedFollowRequests").document(request.id)
                 batch.deleteDocument(recipientRequestRef)
 
-                // 3. Eliminar notificación de solicitud de seguimiento completamente
-                let notificationRef = self.db.collection("users").document(recipientId)
-                    .collection("notifications").document(notificationId)
-                batch.deleteDocument(notificationRef)
+                // 3. Eliminar notificación de solicitud (doc de la fila + ID estable)
+                let notificationsRef = self.db.collection("users").document(recipientId).collection("notifications")
+                batch.deleteDocument(notificationsRef.document(notificationId))
+                batch.deleteDocument(notificationsRef.document("followRequest_\(senderId)"))
 
                 batch.commit { error in
                     if let error = error {
@@ -432,10 +432,10 @@ class FirestoreService: ObservableObject {
                 .collection("receivedFollowRequests").document(request.id)
             batch.deleteDocument(recipientRequestRef)
 
-            // 3. Eliminar notificación completamente
-            let notificationRef = self.db.collection("users").document(recipientId)
-                .collection("notifications").document(notificationId)
-            batch.deleteDocument(notificationRef)
+            // 3. Eliminar notificación (doc de la fila + ID estable)
+            let notificationsRef = self.db.collection("users").document(recipientId).collection("notifications")
+            batch.deleteDocument(notificationsRef.document(notificationId))
+            batch.deleteDocument(notificationsRef.document("followRequest_\(senderId)"))
 
             batch.commit { error in
                 if let error = error {
@@ -698,12 +698,23 @@ class FirestoreService: ObservableObject {
 
                     // LIMPIAR CACHE DESPUÉS DEL UNFOLLOW EXITOSO
                     self.followingCache.removeValue(forKey: cacheKey)
-                    // ✅ LIMPIEZA DE NOTIFICACIÓN (Unfollow)
+                    // ✅ LIMPIEZA DE NOTIFICACIÓN (Unfollow) — defensa en profundidad; servidor también limpia vía onFollowerRemoved
                     Task { @MainActor in
-                        NotificationService.shared.removeNotification(
+                        let notificationService = NotificationService.shared
+                        notificationService.removeNotification(
                             type: .newFollower,
                             senderId: currentUserId,
                             recipientId: targetUserId
+                        )
+                        notificationService.removeNotification(
+                            type: .mutualConnection,
+                            senderId: currentUserId,
+                            recipientId: targetUserId
+                        )
+                        notificationService.removeNotification(
+                            type: .mutualConnection,
+                            senderId: targetUserId,
+                            recipientId: currentUserId
                         )
                     }
 

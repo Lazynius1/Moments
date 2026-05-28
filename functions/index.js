@@ -2191,15 +2191,147 @@ async function getUnreadMessagesInConversation(conversationId, userId) {
   }
 }
 
-// ✅ Contar seguidores pendientes (para agrupar: "Username y X más te han seguido")
-async function getPendingFollowerCount(userId) {
+// ✅ IDs estables para notificaciones sociales (follow / mutual / request)
+function socialNotificationDocId(type, peerId) {
+  if (!peerId || typeof peerId !== 'string') return null;
+  switch (type) {
+    case 'newFollower':
+      return `newFollower_${peerId}`;
+    case 'mutualConnection':
+      return `mutualConnection_${peerId}`;
+    case 'followRequest':
+      return `followRequest_${peerId}`;
+    default:
+      return null;
+  }
+}
+
+async function upsertSocialNotification(recipientId, docId, payload) {
+  const ref = admin.firestore().doc(`users/${recipientId}/notifications/${docId}`);
+  await ref.set({
+    ...payload,
+    timestamp: admin.firestore.FieldValue.serverTimestamp(),
+    isPending: true
+  }, { merge: true });
+}
+
+async function purgeSocialNotifications(recipientId, { type, senderId }) {
+  if (!recipientId || !type || !senderId) return;
+
+  const stableId = socialNotificationDocId(type, senderId);
+  if (stableId) {
+    const stableRef = admin.firestore().doc(`users/${recipientId}/notifications/${stableId}`);
+    const stableSnap = await stableRef.get();
+    if (stableSnap.exists) {
+      await stableRef.delete();
+    }
+  }
+
+  const legacySnap = await admin.firestore()
+    .collection(`users/${recipientId}/notifications`)
+    .where('type', '==', type)
+    .where('senderId', '==', senderId)
+    .get();
+
+  if (legacySnap.empty) return;
+
+  const batch = admin.firestore().batch();
+  let ops = 0;
+  for (const doc of legacySnap.docs) {
+    if (stableId && doc.id === stableId) continue;
+    batch.delete(doc.ref);
+    ops += 1;
+    if (ops >= 450) break;
+  }
+  if (ops > 0) {
+    await batch.commit();
+  }
+}
+
+async function reconcileMutualConnection(userId, followerId, userData, followerData) {
+  await Promise.all([
+    purgeSocialNotifications(userId, { type: 'newFollower', senderId: followerId }),
+    purgeSocialNotifications(followerId, { type: 'newFollower', senderId: userId })
+  ]);
+
+  const isSilencedForUser = shouldSilenceNotificationForUser(userData, {
+    senderId: followerId,
+    candidateTexts: [followerData.username]
+  });
+  if (!isSilencedForUser) {
+    await sendMutualConnectionNotification(userData, followerData, userId, followerId);
+    await upsertSocialNotification(userId, socialNotificationDocId('mutualConnection', followerId), {
+      type: 'mutualConnection',
+      senderId: followerId,
+      senderUsername: followerData.username,
+      senderProfileImage: followerData.profileImagePath || ''
+    });
+  }
+
+  const isSilencedForFollower = shouldSilenceNotificationForUser(followerData, {
+    senderId: userId,
+    candidateTexts: [userData.username]
+  });
+  if (!isSilencedForFollower) {
+    await sendMutualConnectionNotification(followerData, userData, followerId, userId);
+    await upsertSocialNotification(followerId, socialNotificationDocId('mutualConnection', userId), {
+      type: 'mutualConnection',
+      senderId: userId,
+      senderUsername: userData.username,
+      senderProfileImage: userData.profileImagePath || ''
+    });
+  }
+}
+
+// ✅ Contar seguidores pendientes únicos y vivos (para agrupar push: "Username y X más te han seguido")
+async function getPendingFollowerCount(userId, additionalSenderId = null) {
   try {
     const snap = await admin.firestore()
       .collection(`users/${userId}/notifications`)
       .where('type', '==', 'newFollower')
       .where('isPending', '==', true)
       .get();
-    return snap.size + 1; // +1 por el actual
+    const senderIds = new Set();
+    snap.docs.forEach((doc) => {
+      const sid = doc.data().senderId;
+      if (typeof sid === 'string' && sid.length > 0) {
+        senderIds.add(sid);
+      }
+    });
+    if (typeof additionalSenderId === 'string' && additionalSenderId.length > 0) {
+      senderIds.add(additionalSenderId);
+    }
+
+    if (senderIds.size === 0) {
+      return 1;
+    }
+
+    const senderIdList = Array.from(senderIds);
+    const followerRefs = senderIdList.map((senderId) =>
+      admin.firestore().doc(`users/${userId}/followers/${senderId}`)
+    );
+    const followerSnaps = await admin.firestore().getAll(...followerRefs);
+
+    const activeSenderIds = new Set();
+    const staleSenderIds = [];
+    followerSnaps.forEach((docSnap, index) => {
+      const senderId = senderIdList[index];
+      if (docSnap.exists) {
+        activeSenderIds.add(senderId);
+      } else {
+        staleSenderIds.push(senderId);
+      }
+    });
+
+    if (staleSenderIds.length > 0) {
+      await Promise.all(
+        staleSenderIds.map((senderId) =>
+          purgeSocialNotifications(userId, { type: 'newFollower', senderId })
+        )
+      );
+    }
+
+    return Math.max(1, activeSenderIds.size);
   } catch (error) {
     return 1;
   }
@@ -3434,6 +3566,11 @@ exports.onFollowerAdded = onDocumentCreated('users/{userId}/followers/{followerI
         accepterData: userData,
         requestId: followData.acceptedFollowRequestId || ''
       });
+
+      const isMutualConnection = await checkMutualConnection(userId, followerId);
+      if (isMutualConnection) {
+        await reconcileMutualConnection(userId, followerId, userData, followerData);
+      }
       return null;
     }
 
@@ -3449,33 +3586,7 @@ exports.onFollowerAdded = onDocumentCreated('users/{userId}/followers/{followerI
     const isMutualConnection = await checkMutualConnection(userId, followerId);
 
     if (isMutualConnection) {
-      if (!isSilencedForUser) {
-        await sendMutualConnectionNotification(userData, followerData, userId, followerId);
-        await admin.firestore().collection(`users/${userId}/notifications`).add({
-          type: 'mutualConnection',
-          senderId: followerId,
-          senderUsername: followerData.username,
-          senderProfileImage: followerData.profileImagePath || '',
-          timestamp: admin.firestore.FieldValue.serverTimestamp(),
-          isPending: true
-        });
-      }
-
-      const isSilencedForFollower = shouldSilenceNotificationForUser(followerData, {
-        senderId: userId,
-        candidateTexts: [userData.username]
-      });
-      if (!isSilencedForFollower) {
-        await sendMutualConnectionNotification(followerData, userData, followerId, userId);
-        await admin.firestore().collection(`users/${followerId}/notifications`).add({
-          type: 'mutualConnection',
-          senderId: userId,
-          senderUsername: userData.username,
-          senderProfileImage: userData.profileImagePath || '',
-          timestamp: admin.firestore.FieldValue.serverTimestamp(),
-          isPending: true
-        });
-      }
+      await reconcileMutualConnection(userId, followerId, userData, followerData);
       return null;
     }
 
@@ -3486,7 +3597,7 @@ exports.onFollowerAdded = onDocumentCreated('users/{userId}/followers/{followerI
     // Obtener conteos
     const [counts, followerCount] = await Promise.all([
       getUnreadCounts(userId, { type: 'notification', notificationType: 'newFollower' }),
-      getPendingFollowerCount(userId)
+      getPendingFollowerCount(userId, followerId)
     ]);
 
     // Determinar claves de localización
@@ -3552,18 +3663,34 @@ exports.onFollowerAdded = onDocumentCreated('users/{userId}/followers/{followerI
       }
     }
 
-    await admin.firestore().collection(`users/${userId}/notifications`).add({
+    await upsertSocialNotification(userId, socialNotificationDocId('newFollower', followerId), {
       type: 'newFollower',
       senderId: followerId,
       senderUsername: followerData.username,
-      senderProfileImage: followerData.profileImagePath || '',
-      timestamp: admin.firestore.FieldValue.serverTimestamp(),
-      isPending: true
+      senderProfileImage: followerData.profileImagePath || ''
     });
 
   } catch (error) {
     console.error('❌ Error sending follower notification:', error);
   }
+});
+
+// 👥 UNFOLLOW: limpiar notificaciones de follow/mutual al borrar edge followers/{id}
+exports.onFollowerRemoved = onDocumentDeleted('users/{userId}/followers/{followerId}', async (event) => {
+  const { userId, followerId } = event.params;
+
+  try {
+    await Promise.all([
+      purgeSocialNotifications(userId, { type: 'newFollower', senderId: followerId }),
+      purgeSocialNotifications(userId, { type: 'mutualConnection', senderId: followerId }),
+      purgeSocialNotifications(followerId, { type: 'mutualConnection', senderId: userId })
+    ]);
+    console.log(`🧹 Follow notifications purged after unfollow: ${followerId} -> ${userId}`);
+  } catch (error) {
+    console.error('❌ Error purging follow notifications on unfollow:', error);
+  }
+
+  return null;
 });
 
 async function sendRequestAcceptedNotification({ requesterId, accepterId, requesterData, accepterData, requestId }) {
@@ -4153,19 +4280,38 @@ exports.onFollowRequestReceived = onDocumentCreated('users/{userId}/receivedFoll
       }
     }
 
-    await admin.firestore().collection(`users/${userId}/notifications`).add({
+    await upsertSocialNotification(userId, socialNotificationDocId('followRequest', request.senderId), {
       type: 'followRequest',
       senderId: request.senderId,
       senderUsername: requesterData.username,
       senderProfileImage: requesterData.profileImagePath || '',
-      requestId: requestId,
-      timestamp: admin.firestore.FieldValue.serverTimestamp(),
-      isPending: true
+      requestId: requestId
     });
 
   } catch (error) {
     console.error('❌ Error sending follow request notification:', error);
   }
+});
+
+// 📩 SOLICITUD CANCELADA / RECHAZADA: limpiar notificación followRequest
+exports.onFollowRequestRemoved = onDocumentDeleted('users/{userId}/receivedFollowRequests/{requestId}', async (event) => {
+  const snap = event.data;
+  const { userId } = event.params;
+  const request = snap?.data() || {};
+  const senderId = typeof request.senderId === 'string' ? request.senderId : '';
+
+  if (!senderId) {
+    return null;
+  }
+
+  try {
+    await purgeSocialNotifications(userId, { type: 'followRequest', senderId });
+    console.log(`🧹 Follow request notification purged: ${senderId} -> ${userId}`);
+  } catch (error) {
+    console.error('❌ Error purging follow request notification:', error);
+  }
+
+  return null;
 });
 
 // 🔔 MENCIONES EN CUALQUIER CONTENIDO (HISTORIAS, MOMENTOS, COMENTARIOS)
