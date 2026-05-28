@@ -2389,34 +2389,34 @@
 
 /* Whats New v2.8 */
 "whatsNew.title" = "Novetats a Moments!";
-"whatsNew.subtitle" = "Versió 2.11.0";
-"whatsNew.button" = "Explorar Moments 2.11";
+"whatsNew.subtitle" = "Versió 2.12.0";
+"whatsNew.button" = "Explorar Moments 2.12";
 
 /* Nova */
-"whatsNew.nova.title" = "Nous stickers a històries";
-"whatsNew.nova.description" = "Reveal et deixa rascar i descobrir contingut, Polaroid afegeix un marc amb caption, i Audio et permet afegir veu o ambient directament a les històries.";
+"whatsNew.nova.title" = "Històries més lliures";
+"whatsNew.nova.description" = "Ara pots moure, escalar i girar millor fotos i vídeos per crear històries amb molta més llibertat.";
 
-"whatsNew.account.title" = "Càmera i multimèdia més polides";
-"whatsNew.account.description" = "Hem refinat la captura, les previews i els controls de foto i vídeo perquè crear i compartir se senti molt més fluid.";
+"whatsNew.account.title" = "Fons automàtics per color";
+"whatsNew.account.description" = "Quan fas petita una foto o un vídeo, Moments genera fons més cuidats basats en els seus colors.";
 
 /* Liquid glass */
-"whatsNew.glass.title" = "Capes Ocultes als posts";
-"whatsNew.glass.description" = "Ara pots publicar secrets dins d'una foto fent servir text, àudio o una imatge oculta perquè altres persones la descobreixin tocant-la.";
+"whatsNew.glass.title" = "Stickers redissenyats";
+"whatsNew.glass.description" = "Hem refet diversos stickers perquè es vegin més nets, millor integrats i amb noves variacions visuals.";
 
 /* Creator */
-"whatsNew.creator.title" = "Secrets programats i mètriques";
-"whatsNew.creator.description" = "Programa capes per més tard i descobreix com hi interactua la gent gràcies a noves mètriques si ets l'autor.";
+"whatsNew.creator.title" = "Preguntes, enquestes i respostes";
+"whatsNew.creator.description" = "També hem millorat preguntes, polls, quizzes i respostes perquè tot se senti més clar i coherent.";
 
 /* Feed */
-"whatsNew.feed.title" = "Editar moments, millor que mai";
-"whatsNew.feed.description" = "Hem redissenyat l'edició perquè canviar text, audiència, ubicació i etiquetes se senti més net, clar i consistent.";
+"whatsNew.feed.title" = "Mode incògnit";
+"whatsNew.feed.description" = "Ara pots mirar històries, visitar perfils i obrir xats amb una mica més de privacitat i sense deixar la petjada habitual.";
 
-"whatsNew.social.title" = "Stickers més cuidats";
-"whatsNew.social.description" = "També hem redissenyat diversos stickers i polit preguntes, respostes i vistes d'històries perquè tot es vegi molt millor.";
+"whatsNew.social.title" = "Reels més immersius";
+"whatsNew.social.description" = "Hem renovat la vista de reels amb millor comentari ràpid, captions més cuidades i una experiència més neta.";
 
 /* Fixes */
-"whatsNew.fixes.title" = "Pujades més fiables";
-"whatsNew.fixes.description" = "Millor recuperació quan falla la xarxa, també en publicacions amb Capes Ocultes, a més de diverses correccions d'estabilitat.";
+"whatsNew.fixes.title" = "Més estabilitat en crear i veure";
+"whatsNew.fixes.description" = "Continuem polint render, reproducció, pujades, permisos i petits detalls visuals a tota l'app.";
 
 /* Best Friends */
 "bestFriends.title" = "Millors Amics";

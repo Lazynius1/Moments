@@ -2379,34 +2379,34 @@
 
 /* Whats New v2.8 */
 "whatsNew.title" = "Novità su Moments!";
-"whatsNew.subtitle" = "Versione 2.11.0";
-"whatsNew.button" = "Scopri Moments 2.11";
+"whatsNew.subtitle" = "Versione 2.12.0";
+"whatsNew.button" = "Scopri Moments 2.12";
 
 /* Nova */
-"whatsNew.nova.title" = "Nuovi sticker per le storie";
-"whatsNew.nova.description" = "Reveal ti permette di grattare per scoprire contenuti nascosti, Polaroid aggiunge una cornice con caption e Audio ti consente di aggiungere voce o atmosfera direttamente alle storie.";
+"whatsNew.nova.title" = "Storie più libere";
+"whatsNew.nova.description" = "Ora puoi spostare, ridimensionare e ruotare foto e video in modo più naturale per creare storie con molta più libertà.";
 
-"whatsNew.account.title" = "Una fotocamera più curata";
-"whatsNew.account.description" = "Abbiamo migliorato la cattura, le anteprime e i controlli per foto e video così creare e condividere risulta molto più fluido.";
+"whatsNew.account.title" = "Sfondi automatici basati sui colori";
+"whatsNew.account.description" = "Quando rimpicciolisci una foto o un video, Moments crea ora sfondi più curati basati sui suoi colori.";
 
 /* Liquid glass */
-"whatsNew.glass.title" = "Hidden Layers nei post";
-"whatsNew.glass.description" = "Ora puoi nascondere segreti dentro una foto usando testo, audio o un’immagine nascosta che gli altri possono scoprire con un tocco.";
+"whatsNew.glass.title" = "Sticker ridisegnati";
+"whatsNew.glass.description" = "Abbiamo rifatto diversi sticker perché risultino più puliti, meglio integrati e più espressivi con nuove variazioni visive.";
 
 /* Creator */
-"whatsNew.creator.title" = "Segreti programmati e metriche";
-"whatsNew.creator.description" = "Programma le hidden layers per più tardi e scopri come le persone interagiscono con loro grazie alle nuove metriche di scoperta se sei l’autore.";
+"whatsNew.creator.title" = "Domande, sondaggi e risposte";
+"whatsNew.creator.description" = "Abbiamo anche migliorato domande, poll, quiz e risposte così tutto risulta più chiaro e coerente.";
 
 /* Feed */
-"whatsNew.feed.title" = "Modifica dei momenti migliorata";
-"whatsNew.feed.description" = "Abbiamo riprogettato la modifica dei momenti perché cambiare testo, audience, posizione e tag risulti più pulito, chiaro e coerente.";
+"whatsNew.feed.title" = "Modalità in incognito";
+"whatsNew.feed.description" = "Ora puoi guardare storie, visitare profili e aprire chat con un po' più di privacy e senza lasciare la solita traccia.";
 
-"whatsNew.social.title" = "Sticker più curati";
-"whatsNew.social.description" = "Abbiamo anche ridisegnato diversi sticker e affinato domande, risposte e viste delle storie così tutto appare molto più intenzionale.";
+"whatsNew.social.title" = "Reels più immersivi";
+"whatsNew.social.description" = "Abbiamo rinnovato la vista reels con commento rapido migliore, caption più curate e un’esperienza più pulita.";
 
 /* Fixes */
-"whatsNew.fixes.title" = "Upload più affidabili";
-"whatsNew.fixes.description" = "Il recupero ora funziona meglio quando la connessione cade, inclusi i post con Hidden Layers, insieme a varie correzioni di stabilità.";
+"whatsNew.fixes.title" = "Più stabilità mentre crei e guardi";
+"whatsNew.fixes.description" = "Continuiamo a rifinire rendering, riproduzione, upload, permessi e piccoli dettagli visivi in tutta l’app.";
 
 /* Best Friends */
 "bestFriends.title" = "Migliori amici";
