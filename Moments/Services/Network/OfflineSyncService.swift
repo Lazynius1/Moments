@@ -56,7 +56,7 @@ class OfflineSyncService: ObservableObject {
             print("✨ OfflineSync: Todas las acciones fueron optimizadas/canceladas locally")
             return
         }
-        
+
         for action in pendingActions {
             // Si la conexión se cae durante el proceso, paramos
             guard NetworkMonitor.shared.isConnected else { break }
@@ -68,7 +68,6 @@ class OfflineSyncService: ObservableObject {
     /// Ejecuta una acción específica según su tipo
     private func executeAction(_ action: CachedAction) async {
         LocalPersistenceService.shared.updateActionStatus(id: action.id, status: .executing)
-        
         switch action.type {
             case CachedAction.ActionType.momentUpload.rawValue:
                 // Retomar la subida usando el servicio especializado
@@ -294,6 +293,10 @@ class OfflineSyncService: ObservableObject {
                         FirestoreService.shared.acceptFollowRequest(notificationId: payload.notificationId, recipientId: payload.recipientId, senderId: payload.senderId) { error in
                             if error == nil {
                                 LocalPersistenceService.shared.deleteAction(id: action.id)
+                            } else {
+                                if error?.localizedDescription == "Solicitud no encontrada" {
+                                    LocalPersistenceService.shared.deleteAction(id: action.id)
+                                }
                             }
                             continuation.resume()
                         }

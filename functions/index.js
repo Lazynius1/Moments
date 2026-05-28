@@ -3566,12 +3566,6 @@ exports.onFollowerAdded = onDocumentCreated('users/{userId}/followers/{followerI
         accepterData: userData,
         requestId: followData.acceptedFollowRequestId || ''
       });
-
-      const isMutualConnection = await checkMutualConnection(userId, followerId);
-      if (isMutualConnection) {
-        await reconcileMutualConnection(userId, followerId, userData, followerData);
-      }
-      return null;
     }
 
     const isSilencedForUser = shouldSilenceNotificationForUser(userData, {
@@ -3608,9 +3602,13 @@ exports.onFollowerAdded = onDocumentCreated('users/{userId}/followers/{followerI
       bodyLocKey = 'notification.follower.multiple.body';
       bodyLocArgs = [String(followerCount)];
     } else {
-      titleLocKey = 'notification.follower.single.title';
+      titleLocKey = wasAcceptedRequest
+        ? 'notification.follower.acceptedRequest.single.title'
+        : 'notification.follower.single.title';
       titleLocArgs = [followerData.username];
-      bodyLocKey = 'notification.follower.single.body';
+      bodyLocKey = wasAcceptedRequest
+        ? 'notification.follower.acceptedRequest.single.body'
+        : 'notification.follower.single.body';
       bodyLocArgs = [];
     }
 
@@ -3742,7 +3740,7 @@ async function sendRequestAcceptedNotification({ requesterId, accepterId, reques
       },
       apns: {
         headers: {
-          'apns-collapse-id': `request_accepted_${requesterId}_${accepterId}`
+          'apns-collapse-id': `ra_${requesterId}_${accepterId}`
         },
         payload: {
           aps: {
@@ -3768,7 +3766,7 @@ async function sendRequestAcceptedNotification({ requesterId, accepterId, reques
       if (error.code === 'messaging/registration-token-not-registered') {
         await removeInvalidToken(requesterId, fcmToken);
       }
-      throw error;
+      console.error('❌ Error sending request accepted push:', error);
     }
   }
 

@@ -2598,6 +2598,8 @@
 /* Push Notifications - Followers */
 "notification.follower.single.title" = "%@ começou a seguir você";
 "notification.follower.single.body" = "Toque para ver o perfil";
+"notification.follower.acceptedRequest.single.title" = "%@ agora segue você";
+"notification.follower.acceptedRequest.single.body" = "Toque para ver o perfil";
 "notification.follower.multiple.title" = "%@ e mais %@ pessoas seguiram você";
 "notification.follower.multiple.body" = "%@ novos seguidores";
 

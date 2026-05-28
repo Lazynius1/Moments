@@ -2598,6 +2598,8 @@
 /* Push Notifications - Followers */
 "notification.follower.single.title" = "%@ started following you";
 "notification.follower.single.body" = "Tap to see their profile";
+"notification.follower.acceptedRequest.single.title" = "%@ now follows you";
+"notification.follower.acceptedRequest.single.body" = "Tap to see their profile";
 "notification.follower.multiple.title" = "%@ and %@ others followed you";
 "notification.follower.multiple.body" = "%@ new followers";
 

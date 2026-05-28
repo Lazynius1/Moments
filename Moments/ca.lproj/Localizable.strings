@@ -2609,6 +2609,8 @@
 /* Push Notifications - Followers */
 "notification.follower.single.title" = "%@ ha començat a seguir-te";
 "notification.follower.single.body" = "Toca per veure el seu perfil";
+"notification.follower.acceptedRequest.single.title" = "%@ ara et segueix";
+"notification.follower.acceptedRequest.single.body" = "Toca per veure el seu perfil";
 "notification.follower.multiple.title" = "%@ i %@ més t'han seguit";
 "notification.follower.multiple.body" = "%@ nous seguidors";
 
