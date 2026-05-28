@@ -233,12 +233,8 @@ struct StoriesView: View {
 
     // Manejar navegación de historias
     private func handleStoryNext(currentUserId: String?, viewedUserId: String) {
-
         guard let currentUserId = currentUserId else {
-            // ✅ AGREGAR DELAY PARA ASEGURAR CLEANUP DEL VIDEO ANTERIOR
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                self.moveToNextStoryOrUser()
-            }
+            moveToNextStoryOrUser()
             return
         }
 
@@ -268,10 +264,7 @@ struct StoriesView: View {
             }
         }
 
-        // ✅ AGREGAR DELAY PARA ASEGURAR CLEANUP DEL VIDEO ANTERIOR
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-            self.moveToNextStoryOrUser()
-        }
+        moveToNextStoryOrUser()
     }
 
     // Activar anuncio con loading inmediato
@@ -405,19 +398,15 @@ struct StoriesView: View {
 
     // Mover a siguiente historia o usuario
     private func moveToNextStoryOrUser() {
-
-        // ✅ AGREGAR DELAY PARA TRANSICIÓN SUAVE
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
-            if let userId = self.userIds[safe: self.currentUserIndex],
-               let stories = self.storyViewModel.stories[userId] {
-                if self.currentStoryIndex < stories.count - 1 {
-                    self.currentStoryIndex += 1
-                } else {
-                    self.moveToNextUser()
-                }
+        if let userId = self.userIds[safe: self.currentUserIndex],
+           let stories = self.storyViewModel.stories[userId] {
+            if self.currentStoryIndex < stories.count - 1 {
+                self.currentStoryIndex += 1
             } else {
-                self.dismiss()
+                self.moveToNextUser()
             }
+        } else {
+            self.dismiss()
         }
     }
 

@@ -35,6 +35,7 @@ struct StoryOverlaysView: View {
     @State private var editingPolaroidId: String? = nil
     @State private var polaroidCaptionBuffer: String = ""
     @State private var originalStickerTransform: (pos: CGPoint, scale: CGFloat, rot: Angle)? = nil
+    @State private var focusedInlineStickerTransform: (id: String, pos: CGPoint, scale: CGFloat, rot: Angle)? = nil
     @State private var keyboardHeight: CGFloat = 0
     @Environment(\.colorScheme) private var colorScheme
 
@@ -231,9 +232,7 @@ struct StoryOverlaysView: View {
                         },
                         onStickerTapped: { tappedSticker in
                             if isInlineEditableSticker(tappedSticker) {
-                                activeEditingStickerId = tappedSticker.id
-                                selectedStickerId = tappedSticker.id
-                                HapticManager.shared.mediumImpact()
+                                focusInlineEditableSticker(tappedSticker.id)
                                 return
                             }
 
@@ -377,6 +376,15 @@ struct StoryOverlaysView: View {
             // ✅ AVISAR AL PADRE PARA OCULTAR LA UI
             withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
                 isEditingSticker = newValue != nil || editingRevealId != nil
+            }
+        }
+        .onChange(of: activeEditingStickerId) { oldValue, newValue in
+            if oldValue != newValue, let oldValue, oldValue != editingPolaroidId {
+                restoreInlineEditableStickerIfNeeded(for: oldValue)
+            }
+
+            withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                isEditingSticker = newValue != nil || editingPolaroidId != nil || editingRevealId != nil
             }
         }
         .onChange(of: editingRevealId) { _, newValue in
@@ -555,6 +563,64 @@ struct StoryOverlaysView: View {
 
     private func showQuestionResponseToast() {
         // Implementar toast: "Respuesta anónima compartida"
+    }
+
+    private func focusInlineEditableSticker(_ stickerId: String) {
+        guard let index = stickers.firstIndex(where: { $0.id == stickerId }) else { return }
+
+        if focusedInlineStickerTransform?.id != stickerId {
+            restoreCurrentInlineEditableStickerIfNeeded(except: stickerId)
+
+            let original = stickers[index]
+            focusedInlineStickerTransform = (original.id, original.position, original.scale, original.rotation)
+
+            withAnimation(.spring(response: 0.45, dampingFraction: 0.78)) {
+                stickers[index].position = CGPoint(x: canvasSize.width / 2, y: canvasSize.height / 3)
+                stickers[index].scale = focusedInlineScale(for: original.type, originalScale: original.scale)
+                stickers[index].rotation = .zero
+            }
+        }
+
+        activeEditingStickerId = stickerId
+        selectedStickerId = stickerId
+        HapticManager.shared.mediumImpact()
+    }
+
+    private func restoreCurrentInlineEditableStickerIfNeeded(except stickerId: String? = nil) {
+        guard let focused = focusedInlineStickerTransform else { return }
+        guard focused.id != stickerId else { return }
+        restoreInlineEditableStickerIfNeeded(for: focused.id)
+    }
+
+    private func restoreInlineEditableStickerIfNeeded(for stickerId: String) {
+        guard let focused = focusedInlineStickerTransform, focused.id == stickerId else { return }
+        guard let index = stickers.firstIndex(where: { $0.id == stickerId }) else {
+            focusedInlineStickerTransform = nil
+            return
+        }
+
+        withAnimation(.spring(response: 0.42, dampingFraction: 0.82)) {
+            stickers[index].position = focused.pos
+            stickers[index].scale = focused.scale
+            stickers[index].rotation = focused.rot
+        }
+
+        focusedInlineStickerTransform = nil
+    }
+
+    private func focusedInlineScale(for type: StickerItem.StickerType, originalScale: CGFloat) -> CGFloat {
+        let minimumFocusScale: CGFloat
+
+        switch type {
+        case .poll, .quiz:
+            minimumFocusScale = 1.12
+        case .question, .countdown, .emojiSlider, .hashtag:
+            minimumFocusScale = 1.18
+        default:
+            minimumFocusScale = 1.14
+        }
+
+        return max(originalScale, minimumFocusScale)
     }
 
     private func polaroidFrameSwipeGesture() -> some Gesture {

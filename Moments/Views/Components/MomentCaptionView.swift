@@ -3,6 +3,7 @@ import Kingfisher
 
 enum MomentCaptionPresentationStyle {
     case feed
+    case reels
     case detail
 }
 
@@ -21,6 +22,7 @@ struct MomentCaptionView: View {
     private var maxCharacters: Int {
         switch style {
         case .feed: return 120
+        case .reels: return 90
         case .detail: return 180
         }
     }
@@ -51,8 +53,8 @@ struct MomentCaptionView: View {
             VStack(alignment: .leading, spacing: 8) {
                 MomentHashtagText(
                     content: previewContent,
-                    textFont: .custom("Poppins-Regular", size: style == .feed ? 14 : 15),
-                    hashtagFont: .custom("Poppins-SemiBold", size: style == .feed ? 14 : 15),
+                    textFont: .custom("Poppins-Regular", size: style == .detail ? 15 : 14),
+                    hashtagFont: .custom("Poppins-SemiBold", size: style == .detail ? 15 : 14),
                     baseColor: baseTextColor,
                     hashtagColor: hashtagTextColor,
                     textAlignment: .leading,
@@ -62,7 +64,7 @@ struct MomentCaptionView: View {
                     shadowY: 0,
                     onHashtagTap: onHashtagTap
                 )
-                .lineLimit(style == .feed ? 3 : 4)
+                .lineLimit(style == .detail ? 4 : 3)
 
                 if needsExpansion {
                     Button {
@@ -84,8 +86,8 @@ struct MomentCaptionView: View {
                     .buttonStyle(.plain)
                 }
             }
-            .padding(.horizontal, style == .feed ? 12 : 4)
-            .padding(.top, style == .feed ? 2 : 0)
+            .padding(.horizontal, style == .detail ? 4 : 12)
+            .padding(.top, style == .detail ? 0 : 2)
             .sheet(isPresented: $showFullCaption) {
                 MomentCaptionReaderSheet(
                     moment: moment,

@@ -592,7 +592,7 @@ struct StoryEditingView: View {
 
     @ViewBuilder
     private func topBarView(topInset: CGFloat) -> some View {
-        if let activeId = activeEditingStickerId {
+        if activeEditingStickerId != nil {
             ZStack {
                 HStack {
                     Spacer()
@@ -2133,7 +2133,9 @@ struct StoryEditingView: View {
                     finalRenderedImage: preparedUpload.finalRenderedImage
                 )
             } catch {
-                alertMessage = NSLocalizedString("storyEditor.error.publishStart", comment: "Error starting story upload")
+                await MainActor.run {
+                    alertMessage = NSLocalizedString("storyEditor.error.publishStart", comment: "Error starting story upload")
+                }
                 await BackgroundStoryUploadService.shared.markStoryAsFailed(
                     uploadingStory: uploadingStory,
                     errorMessage: error.localizedDescription
