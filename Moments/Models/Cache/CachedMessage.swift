@@ -27,6 +27,7 @@ final class CachedMessage {
     var isViewed: Bool
     var storyReplyDataEncoded: Data? // [String: String] encoded
     var sharedMomentDataEncoded: Data? // [String: String] encoded
+    var sharedStoryDataEncoded: Data? // [String: String] encoded
     var viewedBy: [String]?
     var lastSyncedAt: Date
 
@@ -54,6 +55,7 @@ final class CachedMessage {
          isViewed: Bool,
          storyReplyDataEncoded: Data?,
          sharedMomentDataEncoded: Data?,
+         sharedStoryDataEncoded: Data? = nil,
          viewedBy: [String]?,
          lastSyncedAt: Date = Date()) {
         self.id = id
@@ -80,6 +82,7 @@ final class CachedMessage {
         self.isViewed = isViewed
         self.storyReplyDataEncoded = storyReplyDataEncoded
         self.sharedMomentDataEncoded = sharedMomentDataEncoded
+        self.sharedStoryDataEncoded = sharedStoryDataEncoded
         self.viewedBy = viewedBy
         self.lastSyncedAt = lastSyncedAt
     }
@@ -91,6 +94,7 @@ extension CachedMessage {
         let reactionsData = try? encoder.encode(message.reactions)
         let storyReplyDataEncoded = try? encoder.encode(message.storyReplyData)
         let sharedMomentDataEncoded = try? encoder.encode(message.sharedMomentData)
+        let sharedStoryDataEncoded = try? encoder.encode(message.sharedStoryData)
         
         return CachedMessage(
             id: message.id,
@@ -117,6 +121,7 @@ extension CachedMessage {
             isViewed: message.isViewed,
             storyReplyDataEncoded: storyReplyDataEncoded,
             sharedMomentDataEncoded: sharedMomentDataEncoded,
+            sharedStoryDataEncoded: sharedStoryDataEncoded,
             viewedBy: message.viewedBy,
             lastSyncedAt: Date()
         )
@@ -140,6 +145,11 @@ extension CachedMessage {
         
         let sharedMomentData: [String: String]? = {
             guard let data = sharedMomentDataEncoded else { return nil }
+            return try? decoder.decode([String: String].self, from: data)
+        }()
+
+        let sharedStoryData: [String: String]? = {
+            guard let data = sharedStoryDataEncoded else { return nil }
             return try? decoder.decode([String: String].self, from: data)
         }()
         
@@ -168,6 +178,7 @@ extension CachedMessage {
             isViewed: isViewed,
             storyReplyData: storyReplyData,
             sharedMomentData: sharedMomentData,
+            sharedStoryData: sharedStoryData,
             viewedBy: viewedBy
         )
     }

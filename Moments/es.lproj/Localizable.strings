@@ -3461,7 +3461,7 @@
 "notifications.empty.default.message" = "Cuando alguien interactúe contigo, aparecerá aquí";
 "notifications.echo.viewAction" = "Ver Echo";
 "notificationType.like" = "Reacción";
-"notificationType.reaction" = "Reacción";
+"notificationType.reaction" = "Reacciones en momentos";
 "notificationType.comment" = "Comentario";
 "notificationType.mention" = "Menciones";
 "notificationType.newFollower" = "Nuevos seguidores";
@@ -3477,3 +3477,17 @@
 "notificationType.mediaModeration" = "Moderación";
 "notification.echo.host.title" = "Tu Echo está listo ✨";
 "notification.echo.host.body" = "Acéptalo para activarlo con tus conexiones";
+
+"stories.ownBottom.share" = "Compartir";
+"share.story.title" = "Compartir historia";
+"share.story.by" = "Historia de %@";
+"share.storyUnavailable" = "Esta historia no está disponible";
+"share.storyDenied.expired" = "Esta historia ha caducado.";
+"share.storyDenied.notFound" = "Esta historia se eliminó o ya no existe.";
+"share.storyDenied.blocked.title" = "Historia no disponible";
+"share.storyDenied.blocked" = "No puedes ver esta historia porque hay un bloqueo entre vosotros.";
+"share.storyDenied.private.title" = "Cuenta privada";
+"share.storyDenied.private" = "Sigue a esta persona para ver sus historias.";
+"share.storyDenied.restricted" = "No tienes permiso para ver esta historia.";
+"chat.preview.sharedStory" = "Historia compartida";
+"share.story" = "Historia";

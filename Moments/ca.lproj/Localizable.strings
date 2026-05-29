@@ -3447,7 +3447,7 @@
 "notifications.empty.default.message" = "Quan algú interactuï amb tu, apareixerà aquí";
 "notifications.echo.viewAction" = "Veure Echo";
 "notificationType.like" = "Reacció";
-"notificationType.reaction" = "Reacció";
+"notificationType.reaction" = "Reaccions a moments";
 "notificationType.comment" = "Comentari";
 "notificationType.mention" = "Mencions";
 "notificationType.newFollower" = "Nous seguidors";
@@ -3463,3 +3463,17 @@
 "notificationType.mediaModeration" = "Moderació";
 "notification.echo.host.title" = "El teu Echo està a punt ✨";
 "notification.echo.host.body" = "Accepta'l per activar-lo amb les teves connexions";
+
+"stories.ownBottom.share" = "Compartir";
+"share.story.title" = "Compartir història";
+"share.story.by" = "Història de %@";
+"share.storyUnavailable" = "Aquesta història no està disponible";
+"share.storyDenied.expired" = "Aquesta història ha caducat.";
+"share.storyDenied.notFound" = "Aquesta història s'ha eliminat o ja no existeix.";
+"share.storyDenied.blocked.title" = "Història no disponible";
+"share.storyDenied.blocked" = "No pots veure aquesta història perquè hi ha un bloqueig entre vosaltres.";
+"share.storyDenied.private.title" = "Compte privat";
+"share.storyDenied.private" = "Segueix aquesta persona per veure les seves històries.";
+"share.storyDenied.restricted" = "No tens permís per veure aquesta història.";
+"chat.preview.sharedStory" = "Història compartida";
+"share.story" = "Història";

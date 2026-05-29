@@ -495,6 +495,7 @@ struct RequestDetailView: View {
         case .sticker: return "face.smiling"
         case .ephemeral: return "timer"
         case .sharedMoment: return "square.and.arrow.up"
+        case .sharedStory: return "paperplane.fill"
         case .viewOnceImage: return "camera.circle"
         case .viewOnceVideo: return "video.circle"
         }

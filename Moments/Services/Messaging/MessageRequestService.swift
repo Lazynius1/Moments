@@ -433,7 +433,8 @@ class MessageRequestService: ObservableObject {
             expirationDate: nil,
             isViewed: false,
             storyReplyData: nil,
-            sharedMomentData: nil
+            sharedMomentData: nil,
+            sharedStoryData: nil
         )
         
         // Usar ChatService.shared para enviar el mensaje con encriptación

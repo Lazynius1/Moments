@@ -240,6 +240,7 @@ struct NotificationSettingsView: View {
         Toggle(title, isOn: isOn)
             .font(.custom("Poppins-Regular", size: 14))
             .foregroundColor(colorScheme == .dark ? .white : .black)
+            .tint(Color(hex: "4F46E5"))
             .padding(.vertical, 10)
     }
 }

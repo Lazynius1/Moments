@@ -50,6 +50,27 @@ final class StoryRepository {
             }
     }
 
+    func fetchStory(userId: String, storyId: String, completion: @escaping (Result<Story, Error>) -> Void) {
+        firestoreService.db.collection("users").document(userId).collection("stories").document(storyId)
+            .getDocument { snapshot, error in
+                if let error {
+                    completion(.failure(error))
+                    return
+                }
+
+                guard let snapshot, snapshot.exists, let story = Self.decodeStory(from: snapshot) else {
+                    completion(.failure(NSError(
+                        domain: "",
+                        code: -404,
+                        userInfo: [NSLocalizedDescriptionKey: NSLocalizedString("errors.storyNotFound", comment: "Story not found")]
+                    )))
+                    return
+                }
+
+                completion(.success(story))
+            }
+    }
+
     func fetchStoryReplyData(userId: String, storyId: String, completion: @escaping (StoryReplyData?) -> Void) {
         firestoreService.db.collection("users").document(userId).collection("stories").document(storyId).getDocument { snapshot, error in
             guard error == nil,
@@ -219,8 +240,17 @@ final class StoryRepository {
         }
     }
 
+    private static func decodeStory(from doc: DocumentSnapshot) -> Story? {
+        guard let data = doc.data() else { return nil }
+        return decodeStoryData(data, documentId: doc.documentID)
+    }
+
     private static func decodeStory(_ doc: QueryDocumentSnapshot) -> Story? {
-        var data = doc.data()
+        decodeStoryData(doc.data(), documentId: doc.documentID)
+    }
+
+    private static func decodeStoryData(_ rawData: [String: Any], documentId: String) -> Story? {
+        var data = rawData
         var mediaItem: MediaItem?
 
         if let mediaItemData = data["mediaItem"] as? [String: Any],
@@ -237,7 +267,7 @@ final class StoryRepository {
         guard let mediaItem else { return nil }
 
         data["mediaItem"] = ["type": mediaItem.type.rawValue, "url": mediaItem.url]
-        data["id"] = doc.documentID
+        data["id"] = documentId
 
         return try? Firestore.Decoder().decode(Story.self, from: data)
     }

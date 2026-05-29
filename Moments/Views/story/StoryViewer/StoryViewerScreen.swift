@@ -68,6 +68,7 @@ struct StoryViewerScreen: View {
     @State private var selectedPhoto: PhotosPickerItem?
     @State private var showQuickActions: Bool = false
     @State private var showViewers: Bool = false
+    @State private var showStoryShareSheet = false
     @State private var activitySheetInitialTab: Int = 0
     @State private var showBestFriendsOptOutConfirmation: Bool = false
     @State private var showUnfollowConfirmation: Bool = false
@@ -81,8 +82,8 @@ struct StoryViewerScreen: View {
     @State private var showChainActions: Bool = false
     @State private var successMessageText: String = ""
     @FocusState private var isTextFieldFocused: Bool
-    @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.dismiss) private var dismiss
     @State private var keyboardHeight: CGFloat = 0 // Track keyboard height
     @State private var isKeyboardVisible: Bool = false // Track keyboard state
     @State private var authorAllowsMessages: Bool = true
@@ -118,6 +119,17 @@ struct StoryViewerScreen: View {
 
     private var isOwnStory: Bool {
         story.authorId == Auth.auth().currentUser?.uid
+    }
+
+    private var isEveryoneStoryAudience: Bool {
+        let normalized = story.audience?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .lowercased() ?? "everyone"
+        return normalized == "everyone"
+    }
+
+    private var storyViewerChromeColors: AdaptiveColors {
+        AdaptiveColors(colorScheme: colorScheme)
     }
 
     private var currentStoryViewers: [StoryViewer] {
@@ -527,6 +539,14 @@ struct StoryViewerScreen: View {
                             pauseStory()
                         }
                     }
+                    .sheet(isPresented: $showStoryShareSheet, onDismiss: {
+                        resumeStory()
+                    }) {
+                        StoryShareBottomSheet(story: story, isPresented: $showStoryShareSheet)
+                            .onAppear {
+                                pauseStory()
+                            }
+                    }
 
             }
             .onChange(of: selectedPhoto) { _, newPhoto in
@@ -931,120 +951,124 @@ struct StoryViewerScreen: View {
                     customListId: story.customListId,
                     authorId: story.authorId,
                     onViewActivity: { fetchViewersAndShow(tab: 0) },
-                    onReactionsActivity: { fetchViewersAndShow(tab: 1) }
+                    onReactionsActivity: { fetchViewersAndShow(tab: 1) },
+                    showsShare: isEveryoneStoryAudience,
+                    onShare: {
+                        pauseStory()
+                        showStoryShareSheet = true
+                    }
                 )
             }
 
             // ✅ ÁREA DE INTERACCIÓN: Solo para historias de otros usuarios
             if !isOwnStory {
-                if authorAllowsMessages || authorAllowsReactions || authorAllowsEphemeralPhotos {
-                    HStack(spacing: 12) {
-                        // ✅ ÁREA DE TEXTO/REACCIONES
-                        HStack(spacing: 8) {
-                            // Campo de texto solo si permite mensajes
-                            if authorAllowsMessages {
-                                TextField(storyMessagePlaceholder, text: $messageText, axis: .vertical)
-                                    .foregroundColor(.white)
-                                    .font(.custom("Poppins-Regular", size: 14))
-                                    .padding(.leading, 4)
-                                    .lineLimit(1...3)
-                                    .focused($isTextFieldFocused)
-                                    .submitLabel(.send)
-                                    .onSubmit {
-                                        if !messageText.isEmpty {
-                                            sendMessage()
+                if authorAllowsMessages || authorAllowsReactions || authorAllowsEphemeralPhotos || isEveryoneStoryAudience {
+                    HStack(spacing: 10) {
+                        let showsReplyComposer = authorAllowsMessages
+                            || (!authorAllowsMessages && (authorAllowsReactions || authorAllowsEphemeralPhotos))
+
+                        if showsReplyComposer {
+                            HStack(spacing: 8) {
+                                if authorAllowsMessages {
+                                    TextField(storyMessagePlaceholder, text: $messageText, axis: .vertical)
+                                        .foregroundColor(storyViewerChromeColors.messageTextColor)
+                                        .font(.custom("Poppins-Regular", size: 14))
+                                        .padding(.leading, 4)
+                                        .lineLimit(1...3)
+                                        .focused($isTextFieldFocused)
+                                        .submitLabel(.send)
+                                        .onSubmit {
+                                            if !messageText.isEmpty {
+                                                sendMessage()
+                                            }
                                         }
+                                        .onChange(of: isTextFieldFocused) { _, focused in
+                                            if focused {
+                                                pauseStory()
+                                            } else {
+                                                resumeStory()
+                                            }
+                                        }
+                                } else {
+                                    HStack(spacing: 8) {
+                                        Image(systemName: "slash.circle")
+                                            .foregroundColor(storyViewerChromeColors.replyBarSecondaryText)
+                                            .font(.system(size: 14, weight: .medium))
+
+                                        Text(storyRepliesDisabledPlaceholder)
+                                            .foregroundColor(storyViewerChromeColors.replyBarSecondaryText)
+                                            .font(.custom("Poppins-Regular", size: 14))
+                                            .lineLimit(2)
                                     }
-                                    .onChange(of: isTextFieldFocused) { _, focused in
-                                        if focused {
-                                            pauseStory()
-                                        } else {
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .padding(.leading, 4)
+                                }
+                            }
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 14)
+                            .background(Color.white.opacity(0.001))
+                            .liquidGlass(in: Capsule(), interactive: true)
+                        } else if isEveryoneStoryAudience {
+                            Spacer(minLength: 0)
+                        }
+
+                        // Iconos agrupados (estilo IG: pegados a la derecha del input)
+                        HStack(spacing: 2) {
+                            if authorAllowsReactions && (messageText.isEmpty || !authorAllowsMessages) {
+                                storyViewerReplyActionButton(
+                                    systemImage: showReactions ? "face.smiling.fill" : "face.smiling",
+                                    accessibilityLabel: NSLocalizedString("stories.reactions", comment: "")
+                                ) {
+                                    withAnimation(.spring()) {
+                                        showReactions.toggle()
+                                    }
+                                }
+                                .onChange(of: showReactions) { _, isOpen in
+                                    if isOpen {
+                                        pauseStory()
+                                    } else {
+                                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
                                             resumeStory()
                                         }
                                     }
-                            } else {
-                                HStack(spacing: 8) {
-                                    Image(systemName: "slash.circle")
-                                        .foregroundColor(.white.opacity(0.52))
-                                        .font(.system(size: 14, weight: .medium))
-
-                                    Text(storyRepliesDisabledPlaceholder)
-                                        .foregroundColor(.white.opacity(0.62))
-                                        .font(.custom("Poppins-Regular", size: 14))
-                                        .lineLimit(2)
                                 }
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                                .padding(.leading, 4)
                             }
-                        }
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 14)
-                        .background(Color.white.opacity(0.001))
-                        .liquidGlass(in: Capsule(), interactive: true)
 
-                        // ✅ BOTÓN REACCIONES: Fuera del input para dejar respirar el campo
-                        if authorAllowsReactions && (messageText.isEmpty || !authorAllowsMessages) {
-                            Button(action: {
-                                withAnimation(.spring()) {
-                                    showReactions.toggle()
+                            if authorAllowsEphemeralPhotos {
+                                storyViewerReplyActionButton(
+                                    systemImage: "camera",
+                                    accessibilityLabel: NSLocalizedString("chat.ephemeral.title", comment: "")
+                                ) {
+                                    showEphemeralPicker = true
                                 }
-                            }) {
-                                Image(systemName: showReactions ? "face.smiling.fill" : "face.smiling")
-                                    .foregroundColor(.white)
-                                    .font(.system(size: 18))
-                                    .frame(width: 48, height: 48)
-                                    .background(Color.white.opacity(0.001))
-                                    .liquidGlass(in: Circle(), interactive: true)
-                            }
-                            .onChange(of: showReactions) { _, isOpen in
-                                if isOpen {
-                                    pauseStory()
-                                } else {
-                                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
-                                        resumeStory()
+                                .photosPicker(isPresented: $showEphemeralPicker, selection: $selectedPhoto, matching: .images)
+                                .onChange(of: showEphemeralPicker) { _, isOpen in
+                                    if isOpen {
+                                        pauseStory()
+                                    } else {
+                                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                                            resumeStory()
+                                        }
                                     }
                                 }
                             }
-                        }
 
-                        // ✅ BOTÓN CÁMARA: Solo si permite fotos efímeras
-                        if authorAllowsEphemeralPhotos {
-                            Button(action: {
-                                showEphemeralPicker = true
-                            }) {
-                                Image(systemName: "camera.fill")
-                                    .foregroundColor(.white)
-                                    .font(.system(size: 18))
-                                    .frame(width: 48, height: 48)
-                                    .background(Color.white.opacity(0.001))
-                                    .liquidGlass(in: Circle(), interactive: true)
-                            }
-                            .photosPicker(isPresented: $showEphemeralPicker, selection: $selectedPhoto, matching: .images)
-                            .onChange(of: showEphemeralPicker) { _, isOpen in
-                                if isOpen {
-                                    pauseStory()
-                                } else {
-                                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
-                                        resumeStory()
-                                    }
+                            if !messageText.isEmpty && authorAllowsMessages {
+                                storyViewerReplyActionButton(
+                                    systemImage: "paperplane.fill",
+                                    accessibilityLabel: NSLocalizedString("messaging.sendMessage", comment: "")
+                                ) {
+                                    sendMessage()
                                 }
+                                .transition(.scale.combined(with: .opacity))
                             }
-                        }
 
-                        // ✅ BOTÓN ENVIAR: Solo si hay mensaje Y permite mensajes
-                        if !messageText.isEmpty && authorAllowsMessages {
-                            Button(action: sendMessage) {
-                                Image(systemName: "paperplane.fill")
-                                    .foregroundColor(.white)
-                                    .font(.system(size: 18))
-                                    .frame(width: 48, height: 48)
-                                    .background(Color.white.opacity(0.001))
-                                    .liquidGlass(in: Circle(), interactive: true)
+                            if isEveryoneStoryAudience && messageText.isEmpty {
+                                storyViewerShareActionButton
+                                    .transition(.scale.combined(with: .opacity))
                             }
-                            .frame(width: 58, height: 58)
-                            .contentShape(Rectangle())
-                            .transition(.scale.combined(with: .opacity))
                         }
+                        .animation(.easeInOut(duration: 0.2), value: messageText.isEmpty)
                     }
                     .animation(.easeInOut(duration: 0.3), value: keyboardHeight)
                 } else {
@@ -1055,6 +1079,33 @@ struct StoryViewerScreen: View {
         .padding(.horizontal, 16)
         .padding(.bottom, isKeyboardVisible ? 0 : (isOwnStory ? 0 : 25))
         .frame(maxWidth: .infinity)
+    }
+
+    private var storyViewerShareActionButton: some View {
+        storyViewerReplyActionButton(
+            systemImage: "paperplane",
+            accessibilityLabel: NSLocalizedString("stories.ownBottom.share", comment: "")
+        ) {
+            pauseStory()
+            showStoryShareSheet = true
+        }
+    }
+
+    private func storyViewerReplyActionButton(
+        systemImage: String,
+        accessibilityLabel: String,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            Image(systemName: systemImage)
+                .font(.system(size: 22, weight: .regular))
+                .symbolRenderingMode(.monochrome)
+                .foregroundStyle(storyViewerChromeColors.messageTextColor)
+                .frame(width: 34, height: 40)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(PlainButtonStyle())
+        .accessibilityLabel(accessibilityLabel)
     }
 
     private func contentView(canvasRect: CGRect) -> some View {

@@ -85,6 +85,6 @@ class SettingsViewModel: ObservableObject {
 
 extension NotificationType {
     static var allCases: [NotificationType] {
-        [.like, .newFollower, .followRequest, .mutualConnection, .comment]
+        [.like, .newFollower, .followRequest, .mutualConnection, .comment, .storyReaction]
     }
 }
