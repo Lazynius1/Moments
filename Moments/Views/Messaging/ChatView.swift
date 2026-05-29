@@ -9,7 +9,23 @@ import CoreLocation
 import MapKit
 
 private struct ChatStoryRoute: Identifiable {
+    enum Presentation {
+        case userStories(userId: String)
+        case sharedStory(story: Story)
+    }
+
     let id: String
+    let presentation: Presentation
+
+    init(userId: String) {
+        self.id = userId
+        self.presentation = .userStories(userId: userId)
+    }
+
+    init(story: Story) {
+        self.id = story.id ?? UUID().uuidString
+        self.presentation = .sharedStory(story: story)
+    }
 }
 
 // MARK: - Glassmorphic Chat View
@@ -58,8 +74,10 @@ struct GlassmorphicChatView: View {
     @State private var showingMomentDetail = false
     @State private var selectedMoment: Moment?
     @State private var showingMomentError = false
+    @State private var showingStoryUnavailable = false
+    @State private var storyUnavailableReason: SharedStoryAccessDenialReason?
     
-    // ✅ NUEVO: Ruta estable para presentar historias sin carreras de estado
+    // ✅ Ruta estable para presentar historias (header del chat o historia compartida en mensaje)
     @State private var storyRoute: ChatStoryRoute?
     
     // ✅ HISTORIAS: Estados para anillo de historias
@@ -127,7 +145,12 @@ struct GlassmorphicChatView: View {
             }
             // ✅ NUEVO: Sheet para mostrar historias del usuario
             .fullScreenCover(item: $storyRoute) { route in
-                StoriesView(startWithUserId: .constant(route.id))
+                switch route.presentation {
+                case .userStories(let userId):
+                    StoriesView(startWithUserId: .constant(userId))
+                case .sharedStory(let story):
+                    StoriesView(chainStories: [story], startAtIndex: 0)
+                }
             }
             // ✅ NUEVO: Sheet para navegación al detalle del momento
             .sheet(isPresented: $showingMomentDetail) {
@@ -140,6 +163,15 @@ struct GlassmorphicChatView: View {
                 Button("common.ok") { }
             } message: {
                 Text("chat.moment.loadError")
+            }
+            .alert("common.error", isPresented: $showingStoryUnavailable) {
+                Button("common.ok") { }
+            } message: {
+                if let reason = storyUnavailableReason {
+                    Text(LocalizedStringKey(reason.messageKey))
+                } else {
+                    Text("share.storyUnavailable")
+                }
             }
     }
     
@@ -282,7 +314,7 @@ struct GlassmorphicChatView: View {
                         showingUserProfile = true
                     } else if hasStory && !isOtherParticipantBlockedByCurrentUser {
                         // ✅ SI TIENE HISTORIAS: Presentar la ruta con userId en un único estado
-                        storyRoute = ChatStoryRoute(id: viewModel.conversation.otherParticipantId)
+                        storyRoute = ChatStoryRoute(userId: viewModel.conversation.otherParticipantId)
                     } else {
                         // ✅ SI NO TIENE HISTORIAS: Ir al perfil
                         showingUserProfile = true
@@ -890,6 +922,9 @@ struct GlassmorphicChatView: View {
                 onMomentNavigation: { message in
                     handleMomentNavigationFromChat(message: message)
                 },
+                onStoryNavigation: { message in
+                    handleStoryNavigationFromChat(message: message)
+                },
                 onOpenMedia: { message in
                     selectedChatMediaItems = sharedMediaItemsForOverlay(selecting: message)
                     selectedChatMedia = sharedMedia(from: message)
@@ -1308,6 +1343,38 @@ extension GlassmorphicChatView {
                     case .failure:
                         self.showingMomentError = true
                     }
+                }
+            }
+        }
+    }
+
+    private func handleStoryNavigationFromChat(message: EnhancedMessage) {
+        guard let sharedStoryData = message.sharedStoryData,
+              let storyId = sharedStoryData["storyId"],
+              let viewerId = Auth.auth().currentUser?.uid else { return }
+
+        let authorId = sharedStoryData["storyAuthorId"] ?? message.senderId
+        guard !authorId.isEmpty else {
+            storyUnavailableReason = .restricted
+            showingStoryUnavailable = true
+            return
+        }
+
+        let payloadExpiration = sharedStoryData["storyExpiration"].flatMap { TimeInterval($0) }
+
+        SharedStoryAccessEvaluator.evaluate(
+            authorId: authorId,
+            storyId: storyId,
+            payloadExpiration: payloadExpiration,
+            viewerId: viewerId
+        ) { result in
+            DispatchQueue.main.async {
+                switch result {
+                case .success(let story):
+                    storyRoute = ChatStoryRoute(story: story)
+                case .failure(let reason):
+                    storyUnavailableReason = reason
+                    showingStoryUnavailable = true
                 }
             }
         }

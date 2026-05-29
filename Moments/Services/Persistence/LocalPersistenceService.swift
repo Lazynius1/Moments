@@ -1056,6 +1056,7 @@ final class LocalPersistenceService: ObservableObject {
         existing.isViewed = new.isViewed
         existing.storyReplyDataEncoded = new.storyReplyDataEncoded
         existing.sharedMomentDataEncoded = new.sharedMomentDataEncoded
+        existing.sharedStoryDataEncoded = new.sharedStoryDataEncoded
         existing.viewedBy = new.viewedBy
         existing.lastSyncedAt = Date()
     }

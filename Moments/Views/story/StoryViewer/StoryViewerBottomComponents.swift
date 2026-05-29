@@ -52,8 +52,14 @@ struct StoryOwnStoryBottomBar: View {
     let authorId: String
     let onViewActivity: () -> Void
     let onReactionsActivity: () -> Void
+    var showsShare: Bool = false
+    let onShare: () -> Void
 
     @State private var audienceListName: String?
+
+    private var isEveryoneAudience: Bool {
+        StoryAudienceBottomInfo.normalizedAudience(audience) == "everyone"
+    }
 
     private let firestoreService = FirestoreService()
 
@@ -109,6 +115,11 @@ struct StoryOwnStoryBottomBar: View {
             audienceColumn
                 .frame(maxWidth: .infinity)
 
+            if showsShare && isEveryoneAudience {
+                shareColumn
+                    .frame(maxWidth: .infinity)
+            }
+
             if reactionCount > 0 {
                 reactionsColumn
                     .frame(maxWidth: .infinity)
@@ -119,6 +130,24 @@ struct StoryOwnStoryBottomBar: View {
         .task(id: customListId) {
             await loadAudienceListNameIfNeeded()
         }
+    }
+
+    private var shareColumn: some View {
+        Button(action: onShare) {
+            VStack(spacing: 6) {
+                Image(systemName: "paperplane.fill")
+                    .font(.system(size: 22, weight: .medium))
+                    .foregroundColor(.white)
+                    .frame(height: 32)
+                Text(NSLocalizedString("stories.ownBottom.share", comment: "Share story"))
+                    .font(.custom("Poppins-Medium", size: 12))
+                    .foregroundColor(.white)
+                    .shadow(color: .black.opacity(0.5), radius: 4, x: 0, y: 1)
+                    .lineLimit(1)
+            }
+        }
+        .buttonStyle(PlainButtonStyle())
+        .accessibilityLabel(NSLocalizedString("stories.ownBottom.share", comment: "Share story"))
     }
 
     private var reactionsColumn: some View {

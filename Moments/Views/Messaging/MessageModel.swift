@@ -281,6 +281,7 @@ enum MessageType: String, CaseIterable, Codable {
     case file = "file"
     case ephemeral = "ephemeral"
     case sharedMoment = "sharedMoment"
+    case sharedStory = "sharedStory"
     // ✅ NUEVOS: Tipos para view-once
     case viewOnceImage = "viewOnceImage"
     case viewOnceVideo = "viewOnceVideo"
@@ -297,6 +298,7 @@ enum MessageType: String, CaseIterable, Codable {
         case .file: return NSLocalizedString("common.file", comment: "")
         case .ephemeral: return NSLocalizedString("chat.viewOnce.viewOnce", comment: "")
         case .sharedMoment: return NSLocalizedString("chat.preview.sharedMoment", comment: "")
+        case .sharedStory: return NSLocalizedString("chat.preview.sharedStory", comment: "")
         case .viewOnceImage: return NSLocalizedString("chat.viewOnce.photo", comment: "") + " (" + NSLocalizedString("chat.viewOnce.viewOnce", comment: "") + ")"
         case .viewOnceVideo: return NSLocalizedString("chat.viewOnce.video", comment: "") + " (" + NSLocalizedString("chat.viewOnce.viewOnce", comment: "") + ")"
         }
@@ -314,6 +316,7 @@ enum MessageType: String, CaseIterable, Codable {
         case .file: return "doc"
         case .ephemeral: return "timer"
         case .sharedMoment: return "square.and.arrow.up"
+        case .sharedStory: return "paperplane.fill"
         case .viewOnceImage: return "camera.circle"
         case .viewOnceVideo: return "video.circle"
         }
@@ -337,6 +340,7 @@ enum MessageType: String, CaseIterable, Codable {
         case .file: return NSLocalizedString("chat.preview.file", comment: "")
         case .ephemeral: return NSLocalizedString("chat.preview.ephemeral", comment: "")
         case .sharedMoment: return NSLocalizedString("chat.preview.sharedMoment", comment: "")
+        case .sharedStory: return NSLocalizedString("chat.preview.sharedStory", comment: "")
         case .viewOnceImage: return NSLocalizedString("chat.preview.viewOncePhoto", comment: "")
         case .viewOnceVideo: return NSLocalizedString("chat.preview.viewOnceVideo", comment: "")
         }
@@ -420,6 +424,7 @@ class EnhancedMessage: Codable, Identifiable, ObservableObject {
     @Published var isViewed: Bool
     let storyReplyData: [String: String]?
     let sharedMomentData: [String: String]?
+    let sharedStoryData: [String: String]?
     let mediaBatchId: String?
     
     // ✅ NUEVOS: Campos para view-once
@@ -429,7 +434,7 @@ class EnhancedMessage: Codable, Identifiable, ObservableObject {
         case id, conversationId, senderId, type, content, mediaUrl, thumbnailUrl
         case duration, fileName, fileSize, latitude, longitude, timestamp
         case status, isRead, isDeleted, deletedAt, editedAt, reactions
-        case replyTo, expirationDate, isViewed, storyReplyData, sharedMomentData
+        case replyTo, expirationDate, isViewed, storyReplyData, sharedMomentData, sharedStoryData
         case mediaBatchId
         case viewedBy // ✅ NUEVO
     }
@@ -499,6 +504,7 @@ class EnhancedMessage: Codable, Identifiable, ObservableObject {
         
         self.storyReplyData = try container.decodeIfPresent([String: String].self, forKey: .storyReplyData)
         self.sharedMomentData = try container.decodeIfPresent([String: String].self, forKey: .sharedMomentData)
+        self.sharedStoryData = try container.decodeIfPresent([String: String].self, forKey: .sharedStoryData)
         self.mediaBatchId = try container.decodeIfPresent(String.self, forKey: .mediaBatchId)
         
         // ✅ NUEVO: Decodificar viewedBy
@@ -543,6 +549,7 @@ class EnhancedMessage: Codable, Identifiable, ObservableObject {
         try container.encode(isViewed, forKey: .isViewed)
         try container.encodeIfPresent(storyReplyData, forKey: .storyReplyData)
         try container.encodeIfPresent(sharedMomentData, forKey: .sharedMomentData)
+        try container.encodeIfPresent(sharedStoryData, forKey: .sharedStoryData)
         try container.encodeIfPresent(mediaBatchId, forKey: .mediaBatchId)
         
         // ✅ NUEVO: Codificar viewedBy
@@ -573,6 +580,7 @@ class EnhancedMessage: Codable, Identifiable, ObservableObject {
          isViewed: Bool = false,
          storyReplyData: [String: String]? = nil,
          sharedMomentData: [String: String]? = nil,
+         sharedStoryData: [String: String]? = nil,
          mediaBatchId: String? = nil,
          viewedBy: [String]? = nil) { // ✅ NUEVO parámetro
         
@@ -600,6 +608,7 @@ class EnhancedMessage: Codable, Identifiable, ObservableObject {
         self.isViewed = isViewed
         self.storyReplyData = storyReplyData
         self.sharedMomentData = sharedMomentData
+        self.sharedStoryData = sharedStoryData
         self.mediaBatchId = mediaBatchId
         self.viewedBy = viewedBy
     }
@@ -632,6 +641,8 @@ class EnhancedMessage: Codable, Identifiable, ObservableObject {
             return NSLocalizedString("chat.preview.ephemeral_long", comment: "")
         case .sharedMoment:
             return NSLocalizedString("chat.preview.sharedMoment", comment: "")
+        case .sharedStory:
+            return NSLocalizedString("chat.preview.sharedStory", comment: "")
         case .viewOnceImage:
             return NSLocalizedString("chat.preview.viewOncePhoto", comment: "")
         case .viewOnceVideo:
@@ -1230,6 +1241,8 @@ struct MessageRequest: Identifiable, Codable, Hashable {
             return "📸 Momento efímero"
         case .sharedMoment:
             return "📷 Momento compartido"
+        case .sharedStory:
+            return NSLocalizedString("chat.preview.sharedStory", comment: "")
         case .viewOnceImage:
             return "📷 Foto (ver una vez)"
         case .viewOnceVideo:

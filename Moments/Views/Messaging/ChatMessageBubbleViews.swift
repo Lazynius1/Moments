@@ -16,6 +16,7 @@ struct GlassmorphicMessageRow: View {
     let onReplyTap: ((String) -> Void)?
     let onMessageViewed: ((String) -> Void)?
     let onMomentNavigation: ((EnhancedMessage) -> Void)?
+    let onStoryNavigation: ((EnhancedMessage) -> Void)?
     let onOpenMedia: (EnhancedMessage) -> Void
     let progress: Double?
 
@@ -79,6 +80,7 @@ struct GlassmorphicMessageRow: View {
                         onReplyTap: onReplyTap,
                         onMessageViewed: onMessageViewed,
                         onMomentNavigation: onMomentNavigation,
+                        onStoryNavigation: onStoryNavigation,
                         onOpenMedia: onOpenMedia
                     )
 
@@ -213,6 +215,7 @@ struct GlassmorphicMessageBubble: View {
     let onReplyTap: ((String) -> Void)?
     let onMessageViewed: ((String) -> Void)?
     let onMomentNavigation: ((EnhancedMessage) -> Void)?
+    let onStoryNavigation: ((EnhancedMessage) -> Void)?
     let onOpenMedia: (EnhancedMessage) -> Void
     @State private var showEphemeralImage: Bool = false
     @Environment(\.colorScheme) var colorScheme
@@ -423,6 +426,37 @@ struct GlassmorphicMessageBubble: View {
                             }
                         }
                         .onAppear {
+                        }
+
+                    case .sharedStory:
+                        HStack(alignment: .bottom, spacing: 12) {
+                            if isCurrentUser {
+                                SharedStoryMessageBubble(
+                                    message: message,
+                                    isCurrentUser: isCurrentUser,
+                                    onTap: {
+                                        onStoryNavigation?(message)
+                                    }
+                                )
+
+                                Capsule()
+                                    .fill(adaptiveColors.userAccentColor)
+                                    .frame(width: 3, height: 20)
+                                    .padding(.bottom, 6)
+                            } else {
+                                Capsule()
+                                    .fill(adaptiveColors.receivedAccentColor)
+                                    .frame(width: 3, height: 20)
+                                    .padding(.bottom, 6)
+
+                                SharedStoryMessageBubble(
+                                    message: message,
+                                    isCurrentUser: isCurrentUser,
+                                    onTap: {
+                                        onStoryNavigation?(message)
+                                    }
+                                )
+                            }
                         }
 
                     default:

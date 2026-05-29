@@ -10,49 +10,106 @@ import MapKit
 import AVFoundation
 import SwiftData
 
+// MARK: - Story reply preview (DM)
+
+private enum StoryReplyPreviewMetrics {
+    /// Miniatura vertical tipo IG (más alta que antes).
+    static let width: CGFloat = 76
+    static let height: CGFloat = 118
+    static let cornerRadius: CGFloat = 14
+}
+
+private var storyReplyRingGradient: LinearGradient {
+    LinearGradient(
+        colors: [Color.blue, Color.purple, Color.pink],
+        startPoint: .topLeading,
+        endPoint: .bottomTrailing
+    )
+}
+
 // MARK: - Story Reply Message Bubble
-// MARK: - Story Reply Message Bubble (Componente Principal)
 struct StoryReplyMessageBubble: View {
     let message: EnhancedMessage
     let isCurrentUser: Bool
     @State private var showEphemeralContent: Bool = false
 
+    @Environment(\.colorScheme) private var colorScheme
+
+    private var adaptiveColors: AdaptiveColors {
+        AdaptiveColors(colorScheme: colorScheme)
+    }
+
     var body: some View {
         VStack(alignment: isCurrentUser ? .trailing : .leading, spacing: 8) {
-            // Story preview section - always shown for story replies
             if let storyReplyData = message.storyReplyData {
-                StoryReplyPreview(
-                    storyReplyData: storyReplyData,
-                    isCurrentUser: isCurrentUser
+                Text(
+                    isCurrentUser
+                        ? NSLocalizedString("stories.replied", comment: "")
+                        : NSLocalizedString("stories.repliedTo", comment: "")
                 )
-            }
+                .font(.custom("Poppins-Medium", size: 12))
+                .foregroundColor(adaptiveColors.replyBarSecondaryText)
+                .multilineTextAlignment(isCurrentUser ? .trailing : .leading)
+                .frame(maxWidth: .infinity, alignment: isCurrentUser ? .trailing : .leading)
 
-            // Content section - different based on message type
-            if message.type == .ephemeral {
-                // Verificar si el mensaje está marcado como eliminado O si ha expirado
-                if message.isDeleted || !isEphemeralValid() {
-                    // Mostrar placeholder de expirado
-                    ExpiredEphemeralPlaceholder()
-                } else {
-                    // Ephemeral photo/video reply
-                    EphemeralStoryReplyContent(
-                        message: message,
-                        isCurrentUser: isCurrentUser,
-                        showContent: $showEphemeralContent
-                    )
-                }
+                storyReplyThreadedColumn(storyReplyData: storyReplyData)
             } else {
-                // Regular text reply
-                StoryTextReplyContent(
-                    message: message,
-                    isCurrentUser: isCurrentUser
-                )
+                storyReplyBody
             }
         }
-        .frame(maxWidth: .infinity, alignment: isCurrentUser ? .trailing : .leading)
+        .frame(maxWidth: 280, alignment: isCurrentUser ? .trailing : .leading)
+        .padding(.vertical, 2)
         .onAppear {
-            // Verificar si necesita limpieza
             checkAndTriggerCleanupIfNeeded()
+        }
+    }
+
+    @ViewBuilder
+    private var storyReplyBody: some View {
+        if message.type == .ephemeral {
+            if message.isDeleted || !isEphemeralValid() {
+                StoryReplyEphemeralExpiredCard()
+            } else {
+                EphemeralStoryReplyContent(
+                    message: message,
+                    isCurrentUser: isCurrentUser,
+                    showContent: $showEphemeralContent
+                )
+            }
+        } else {
+            StoryTextReplyContent(
+                message: message,
+                isCurrentUser: isCurrentUser
+            )
+        }
+    }
+
+    @ViewBuilder
+    private func storyReplyThreadedColumn(storyReplyData: [String: String]) -> some View {
+        let threadSpacing: CGFloat = 10
+        let messageInset = 2.5 + threadSpacing
+        let lineColor = adaptiveColors.replyBarSecondaryText.opacity(colorScheme == .dark ? 0.55 : 0.4)
+
+        VStack(alignment: isCurrentUser ? .trailing : .leading, spacing: 10) {
+            HStack(alignment: .top, spacing: threadSpacing) {
+                if !isCurrentUser {
+                    Capsule()
+                        .fill(lineColor)
+                        .frame(width: 2.5, height: StoryReplyPreviewMetrics.height)
+                }
+
+                StoryReplyThumbnailView(storyReplyData: storyReplyData)
+
+                if isCurrentUser {
+                    Capsule()
+                        .fill(lineColor)
+                        .frame(width: 2.5, height: StoryReplyPreviewMetrics.height)
+                }
+            }
+
+            storyReplyBody
+                .padding(.leading, isCurrentUser ? 0 : messageInset)
+                .padding(.trailing, isCurrentUser ? messageInset : 0)
         }
     }
 
@@ -75,154 +132,256 @@ struct StoryTextReplyContent: View {
     let message: EnhancedMessage
     let isCurrentUser: Bool
 
+    @Environment(\.colorScheme) private var colorScheme
+
+    private var adaptiveColors: AdaptiveColors {
+        AdaptiveColors(colorScheme: colorScheme)
+    }
+
     var body: some View {
         if let content = message.content {
-            // Remove the "💬 " prefix if it exists
             let cleanContent = content.hasPrefix("💬 ") ? String(content.dropFirst(2)) : content
 
             Text(cleanContent)
                 .font(.custom("Poppins-Regular", size: 15))
-                .padding(.horizontal, 16)
-                .padding(.vertical, 10)
-                .foregroundColor(.white)
-                .background(
-                    RoundedRectangle(cornerRadius: 20)
-                        .fill(isCurrentUser ? Color(hex: "007AFF").opacity(0.8) : Color.white.opacity(0.15))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 20)
-                                .stroke(Color.white.opacity(0.2), lineWidth: 0.5)
-                        )
-                )
+                .foregroundColor(adaptiveColors.messageTextColor)
+                .multilineTextAlignment(isCurrentUser ? .trailing : .leading)
+                .frame(maxWidth: .infinity, alignment: isCurrentUser ? .trailing : .leading)
         }
     }
 }
 
-// MARK: - Placeholder para mensajes expirados
-struct ExpiredEphemeralPlaceholder: View {
-    var body: some View {
-        VStack(spacing: 8) {
-            Image(systemName: "camera.circle")
-                .font(.system(size: 30))
-                .foregroundColor(.white.opacity(0.4))
-
-                            Text("stories.ephemeral.expired")
-                .font(.custom("Poppins-Regular", size: 14))
-                .foregroundColor(.white.opacity(0.6))
-                .multilineTextAlignment(.center)
-
-                            Text("stories.ephemeral.unavailable")
-                .font(.custom("Poppins-Regular", size: 11))
-                .foregroundColor(.white.opacity(0.5))
-                .multilineTextAlignment(.center)
-        }
-        .frame(maxWidth: 250, minHeight: 100)
-        .background(
-            RoundedRectangle(cornerRadius: 16)
-                .fill(Color.white.opacity(0.05))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 16)
-                        .stroke(Color.white.opacity(0.15), lineWidth: 0.5)
-                )
-        )
-    }
-}
-
-// MARK: - Story Reply Preview
-struct StoryReplyPreview: View {
+struct StoryReplyThumbnailView: View {
     let storyReplyData: [String: String]
-    let isCurrentUser: Bool
+
+    @Environment(\.colorScheme) private var colorScheme
+
+    private var adaptiveColors: AdaptiveColors {
+        AdaptiveColors(colorScheme: colorScheme)
+    }
+
+    private var isVideo: Bool {
+        storyReplyData["storyMediaType"] == "video"
+    }
 
     var body: some View {
-        HStack(spacing: 10) {
-            // Story thumbnail
-            if let storyMediaUrl = storyReplyData["storyMediaUrl"],
-               let url = URL(string: storyMediaUrl) {
-                ZStack {
+        let innerRadius = StoryReplyPreviewMetrics.cornerRadius - 2
+        let innerWidth = StoryReplyPreviewMetrics.width - 4
+        let innerHeight = StoryReplyPreviewMetrics.height - 4
+
+        ZStack {
+            Group {
+                if let storyMediaUrl = storyReplyData["storyMediaUrl"],
+                   let url = URL(string: storyMediaUrl) {
                     KFImage(url)
                         .resizable()
+                        .placeholder {
+                            Color.white.opacity(colorScheme == .dark ? 0.08 : 0.12)
+                        }
                         .scaledToFill()
-                        .frame(width: 44, height: 44)
-                        .clipShape(RoundedRectangle(cornerRadius: 8))
-
-                    // Video play icon overlay if it's a video
-                    if storyReplyData["storyMediaType"] == "video" {
-                        Image(systemName: "play.circle.fill")
-                            .foregroundColor(.white)
-                            .font(.system(size: 16))
-                            .background(
-                                Circle()
-                                    .fill(Color.black.opacity(0.5))
-                                    .frame(width: 20, height: 20)
-                            )
-                    }
-                }
-                .overlay(
-                    RoundedRectangle(cornerRadius: 8)
-                        .stroke(
-                            LinearGradient(
-                                gradient: Gradient(colors: [.pink, .orange, .yellow]),
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            ),
-                            lineWidth: 2
+                } else {
+                    Rectangle()
+                        .fill(Color.white.opacity(colorScheme == .dark ? 0.1 : 0.15))
+                        .overlay(
+                            Image(systemName: "photo")
+                                .font(.system(size: 14, weight: .medium))
+                                .foregroundColor(adaptiveColors.replyBarSecondaryText)
                         )
-                )
-            } else {
-                RoundedRectangle(cornerRadius: 8)
-                    .fill(Color.white.opacity(0.2))
-                    .frame(width: 44, height: 44)
-                    .overlay(
-                        Image(systemName: "photo")
-                            .foregroundColor(.white.opacity(0.6))
-                            .font(.system(size: 16))
-                    )
-            }
-
-            // Story reply text with better styling
-            VStack(alignment: .leading, spacing: 3) {
-                Text(isCurrentUser ? NSLocalizedString("stories.replied", comment: "You replied to their story") : NSLocalizedString("stories.repliedTo", comment: "Replied to your story"))
-                    .font(.custom("Poppins-SemiBold", size: 13))
-                    .foregroundColor(.white.opacity(0.9))
-
-                // Show story type with icon
-                if let storyMediaType = storyReplyData["storyMediaType"] {
-                    HStack(spacing: 4) {
-                        Image(systemName: storyMediaType == "video" ? "play.rectangle.fill" : "photo.fill")
-                            .font(.system(size: 11))
-                            .foregroundColor(Color(hex: "007AFF"))
-
-                        Text(storyMediaType == "video" ? NSLocalizedString("stories.video", comment: "Video") : NSLocalizedString("stories.photo", comment: "Photo"))
-                            .font(.custom("Poppins-Regular", size: 11))
-                            .foregroundColor(.white.opacity(0.7))
-                    }
                 }
             }
+            .frame(width: innerWidth, height: innerHeight)
+            .clipShape(RoundedRectangle(cornerRadius: innerRadius, style: .continuous))
 
-            Spacer()
-        }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 10)
-        .background(
-            RoundedRectangle(cornerRadius: 14)
-                .fill(
-                    LinearGradient(
-                        gradient: Gradient(colors: [
-                            Color.black.opacity(0.4),
-                            Color.black.opacity(0.2)
-                        ]),
-                        startPoint: .top,
-                        endPoint: .bottom
+            if isVideo {
+                Circle()
+                    .fill(.ultraThinMaterial)
+                    .frame(width: 32, height: 32)
+                    .overlay(
+                        Image(systemName: "play.fill")
+                            .font(.system(size: 12, weight: .bold))
+                            .foregroundColor(.white)
+                            .offset(x: 1)
                     )
+            }
+        }
+        .padding(2)
+        .background(
+            RoundedRectangle(cornerRadius: StoryReplyPreviewMetrics.cornerRadius, style: .continuous)
+                .stroke(storyReplyRingGradient, lineWidth: 2)
+        )
+        .frame(width: StoryReplyPreviewMetrics.width, height: StoryReplyPreviewMetrics.height)
+    }
+}
+
+// MARK: - Ephemeral en respuesta a historia (misma huella vertical que el preview)
+
+private enum StoryReplyEphemeralMetrics {
+    static let width = StoryReplyPreviewMetrics.width
+    static let height = StoryReplyPreviewMetrics.height
+    static let cornerRadius = StoryReplyPreviewMetrics.cornerRadius
+}
+
+private func storyReplyFormatTimeLeft(_ timeInterval: TimeInterval) -> String {
+    let hours = Int(timeInterval) / 3600
+    let minutes = Int(timeInterval) % 3600 / 60
+    if hours > 0 {
+        return "\(hours)h \(minutes)m"
+    }
+    return "\(minutes)m"
+}
+
+struct StoryReplyEphemeralTapCard: View {
+    let previewImageURL: String?
+    let expirationDate: Date?
+    let onTap: () -> Void
+
+    @Environment(\.colorScheme) private var colorScheme
+
+    private var adaptiveColors: AdaptiveColors {
+        AdaptiveColors(colorScheme: colorScheme)
+    }
+
+    var body: some View {
+        ZStack {
+            storyReplyEphemeralBackdrop
+
+            Color.black.opacity(0.35)
+
+            VStack(spacing: 0) {
+                Spacer()
+
+                Image(systemName: "camera.fill")
+                    .font(.system(size: 22, weight: .medium))
+                    .foregroundColor(.white.opacity(0.95))
+                    .shadow(color: .black.opacity(0.4), radius: 4, y: 2)
+
+                Spacer()
+
+                SharedDMPreviewBottomGradient()
+
+                VStack(spacing: 4) {
+                    Text("stories.tapToView")
+                        .font(.custom("Poppins-SemiBold", size: 11))
+                        .foregroundColor(.white)
+
+                    if let expirationDate, expirationDate > Date() {
+                        Text(
+                            String(
+                                format: NSLocalizedString("stories.expiresIn", comment: ""),
+                                storyReplyFormatTimeLeft(expirationDate.timeIntervalSince(Date()))
+                            )
+                        )
+                        .font(.custom("Poppins-Regular", size: 10))
+                        .foregroundColor(.white.opacity(0.75))
+                    }
+                }
+                .padding(.horizontal, 8)
+                .padding(.bottom, 10)
+            }
+        }
+        .frame(width: StoryReplyEphemeralMetrics.width, height: StoryReplyEphemeralMetrics.height)
+        .clipShape(RoundedRectangle(cornerRadius: StoryReplyEphemeralMetrics.cornerRadius, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: StoryReplyEphemeralMetrics.cornerRadius, style: .continuous)
+                .stroke(storyReplyRingGradient, lineWidth: 2)
+        )
+        .contentShape(RoundedRectangle(cornerRadius: StoryReplyEphemeralMetrics.cornerRadius, style: .continuous))
+        .onTapGesture(perform: onTap)
+    }
+
+    @ViewBuilder
+    private var storyReplyEphemeralBackdrop: some View {
+        if let previewImageURL,
+           !previewImageURL.isEmpty,
+           let url = URL(string: previewImageURL) {
+            KFImage(url)
+                .resizable()
+                .scaledToFill()
+                .blur(radius: 22)
+                .saturation(0.7)
+        } else {
+            Rectangle()
+                .fill(adaptiveColors.messageBubbleBackground)
+        }
+    }
+}
+
+struct StoryReplyEphemeralImageCard: View {
+    let imageUrl: URL
+    let expirationDate: Date?
+
+    @State private var showFullScreen = false
+
+    var body: some View {
+        KFImage(imageUrl)
+            .resizable()
+            .scaledToFill()
+            .frame(width: StoryReplyEphemeralMetrics.width, height: StoryReplyEphemeralMetrics.height)
+            .clipShape(RoundedRectangle(cornerRadius: StoryReplyEphemeralMetrics.cornerRadius, style: .continuous))
+            .overlay(alignment: .topTrailing) {
+                if let expirationDate, expirationDate > Date() {
+                    Text(storyReplyFormatTimeLeft(expirationDate.timeIntervalSince(Date())))
+                        .font(.custom("Poppins-Regular", size: 9))
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 3)
+                        .background(Capsule().fill(Color.black.opacity(0.55)))
+                        .padding(6)
+                }
+            }
+            .overlay(
+                RoundedRectangle(cornerRadius: StoryReplyEphemeralMetrics.cornerRadius, style: .continuous)
+                    .stroke(Color.white.opacity(0.2), lineWidth: 0.5)
+            )
+            .contentShape(RoundedRectangle(cornerRadius: StoryReplyEphemeralMetrics.cornerRadius, style: .continuous))
+            .onTapGesture {
+                showFullScreen = true
+            }
+            .fullScreenCover(isPresented: $showFullScreen) {
+                FullScreenEphemeralImageView(
+                    imageUrl: imageUrl,
+                    expirationDate: expirationDate
                 )
-                .overlay(
-                    RoundedRectangle(cornerRadius: 14)
-                        .stroke(Color.white.opacity(0.25), lineWidth: 0.5)
-                )
+            }
+    }
+}
+
+struct StoryReplyEphemeralExpiredCard: View {
+    @Environment(\.colorScheme) private var colorScheme
+
+    private var adaptiveColors: AdaptiveColors {
+        AdaptiveColors(colorScheme: colorScheme)
+    }
+
+    var body: some View {
+        ZStack {
+            Rectangle()
+                .fill(adaptiveColors.messageBubbleBackground)
+
+            Color.black.opacity(0.45)
+
+            VStack(spacing: 6) {
+                Image(systemName: "clock.fill")
+                    .font(.system(size: 20, weight: .medium))
+                    .foregroundColor(.white.opacity(0.85))
+
+                Text("stories.ephemeral.expired")
+                    .font(.custom("Poppins-SemiBold", size: 10))
+                    .foregroundColor(.white)
+                    .multilineTextAlignment(.center)
+                    .lineLimit(2)
+            }
+            .padding(.horizontal, 8)
+        }
+        .frame(width: StoryReplyEphemeralMetrics.width, height: StoryReplyEphemeralMetrics.height)
+        .clipShape(RoundedRectangle(cornerRadius: StoryReplyEphemeralMetrics.cornerRadius, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: StoryReplyEphemeralMetrics.cornerRadius, style: .continuous)
+                .stroke(adaptiveColors.messageBubbleStroke, lineWidth: 0.5)
         )
     }
 }
 
-// MARK: - Fixed Ephemeral Story Reply Content
 struct EphemeralStoryReplyContent: View {
     let message: EnhancedMessage
     let isCurrentUser: Bool
@@ -230,103 +389,26 @@ struct EphemeralStoryReplyContent: View {
     @State private var hasBeenViewed: Bool = false
 
     var body: some View {
-        ZStack {
+        Group {
             if !showContent && !hasBeenViewed && isEphemeralValid() {
-                // Tap to view state
-                VStack(spacing: 10) {
-                    ZStack {
-                        Circle()
-                            .fill(
-                                LinearGradient(
-                                    gradient: Gradient(colors: [.purple, .pink, .orange]),
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                )
-                            )
-                            .frame(width: 60, height: 60)
-
-                        Image(systemName: "camera.fill")
-                            .font(.system(size: 24))
-                            .foregroundColor(.white)
-                    }
-
-                    VStack(spacing: 4) {
-                        Text("stories.tapToView")
-                            .font(.custom("Poppins-SemiBold", size: 14))
-                            .foregroundColor(.white)
-
-                        Text("stories.ephemeral.title")
-                            .font(.custom("Poppins-Regular", size: 12))
-                            .foregroundColor(.white.opacity(0.8))
-
-                        // Expiration indicator with better styling
-                        if let expirationDate = message.expirationDate {
-                            let timeLeft = expirationDate.timeIntervalSince(Date())
-                            if timeLeft > 0 {
-                                HStack(spacing: 4) {
-                                    Image(systemName: "clock")
-                                        .font(.system(size: 10))
-                                        .foregroundColor(.white.opacity(0.6))
-
-                                    Text(String(format: NSLocalizedString("stories.expiresIn", comment: "Expires in"), formatTimeLeft(timeLeft)))
-                                        .font(.custom("Poppins-Regular", size: 10))
-                                        .foregroundColor(.white.opacity(0.6))
-                                }
-                                .padding(.horizontal, 8)
-                                .padding(.vertical, 3)
-                                .background(
-                                    Capsule()
-                                        .fill(Color.black.opacity(0.3))
-                                )
-                            }
-                        }
-                    }
-                }
-                .frame(maxWidth: 280, minHeight: 140)
-                .background(
-                    RoundedRectangle(cornerRadius: 20)
-                        .fill(
-                            LinearGradient(
-                                gradient: Gradient(colors: [
-                                    Color.purple.opacity(0.15),
-                                    Color.pink.opacity(0.15),
-                                    Color.orange.opacity(0.1)
-                                ]),
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            )
-                        )
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 20)
-                                .stroke(
-                                    LinearGradient(
-                                        gradient: Gradient(colors: [.purple.opacity(0.5), .pink.opacity(0.5)]),
-                                        startPoint: .topLeading,
-                                        endPoint: .bottomTrailing
-                                    ),
-                                    lineWidth: 1
-                                )
-                        )
-                )
-                .onTapGesture {
+                StoryReplyEphemeralTapCard(
+                    previewImageURL: message.mediaUrl,
+                    expirationDate: message.expirationDate
+                ) {
                     withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
                         showContent = true
                         hasBeenViewed = true
-                        // Don't mark as "viewed" in Firebase since it can be viewed multiple times
                     }
                 }
-            } else if (showContent || hasBeenViewed) && isEphemeralValid() {
-                // Show content - can be viewed multiple times during 24h period
-                if let mediaUrl = message.mediaUrl, let url = URL(string: mediaUrl) {
-                    ClickableEphemeralImageContent(
-                        imageUrl: url,
-                        expirationDate: message.expirationDate,
-                        canViewMultipleTimes: true
-                    )
-                }
+            } else if (showContent || hasBeenViewed) && isEphemeralValid(),
+                      let mediaUrl = message.mediaUrl,
+                      let url = URL(string: mediaUrl) {
+                StoryReplyEphemeralImageCard(
+                    imageUrl: url,
+                    expirationDate: message.expirationDate
+                )
             } else {
-                // Expired
-                ExpiredEphemeralPlaceholder()
+                StoryReplyEphemeralExpiredCard()
             }
         }
         .onAppear {
@@ -338,20 +420,9 @@ struct EphemeralStoryReplyContent: View {
         guard let expirationDate = message.expirationDate else { return true }
         return Date() < expirationDate
     }
-
-    private func formatTimeLeft(_ timeInterval: TimeInterval) -> String {
-        let hours = Int(timeInterval) / 3600
-        let minutes = Int(timeInterval) % 3600 / 60
-
-        if hours > 0 {
-            return "\(hours)h \(minutes)m"
-        } else {
-            return "\(minutes)m"
-        }
-    }
 }
 
-// MARK: - Clickable Ephemeral Image Content (for story replies)
+// MARK: - Clickable Ephemeral Image Content (efímera genérica en chat, no story reply)
 struct ClickableEphemeralImageContent: View {
     let imageUrl: URL
     let expirationDate: Date?
@@ -364,53 +435,17 @@ struct ClickableEphemeralImageContent: View {
             .scaledToFill()
             .frame(maxWidth: 250, maxHeight: 300)
             .clipShape(RoundedRectangle(cornerRadius: 16))
-            .overlay(
-                // Show expiration info in corner
-                VStack {
-                    HStack {
-                        Spacer()
-                        if let expirationDate = expirationDate {
-                            let timeLeft = expirationDate.timeIntervalSince(Date())
-                            if timeLeft > 0 {
-                                Text(formatTimeLeft(timeLeft))
-                                    .font(.custom("Poppins-Regular", size: 10))
-                                    .foregroundColor(.white)
-                                    .padding(.horizontal, 8)
-                                    .padding(.vertical, 4)
-                                    .background(
-                                        Capsule()
-                                            .fill(Color.black.opacity(0.6))
-                                    )
-                                    .padding(8)
-                            }
-                        }
-                    }
-                    Spacer()
-
-                    // Add click indicator
-                    HStack {
-                        Spacer()
-                        VStack {
-                            Spacer()
-                            HStack(spacing: 4) {
-                                Image(systemName: "eye")
-                                    .font(.system(size: 12))
-                                    .foregroundColor(.white.opacity(0.8))
-                                Text("stories.tapToViewComplete")
-                                    .font(.custom("Poppins-Regular", size: 11))
-                                    .foregroundColor(.white.opacity(0.8))
-                            }
-                            .padding(.horizontal, 10)
-                            .padding(.vertical, 6)
-                            .background(
-                                Capsule()
-                                    .fill(Color.black.opacity(0.6))
-                            )
-                            .padding(8)
-                        }
-                    }
+            .overlay(alignment: .topTrailing) {
+                if let expirationDate, expirationDate > Date() {
+                    Text(storyReplyFormatTimeLeft(expirationDate.timeIntervalSince(Date())))
+                        .font(.custom("Poppins-Regular", size: 10))
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(Capsule().fill(Color.black.opacity(0.6)))
+                        .padding(8)
                 }
-            )
+            }
             .overlay(
                 RoundedRectangle(cornerRadius: 16)
                     .stroke(Color.white.opacity(0.2), lineWidth: 0.5)
@@ -425,17 +460,6 @@ struct ClickableEphemeralImageContent: View {
                     expirationDate: expirationDate
                 )
             }
-    }
-
-    private func formatTimeLeft(_ timeInterval: TimeInterval) -> String {
-        let hours = Int(timeInterval) / 3600
-        let minutes = Int(timeInterval) % 3600 / 60
-
-        if hours > 0 {
-            return "\(hours)h \(minutes)m"
-        } else {
-            return "\(minutes)m"
-        }
     }
 }
 

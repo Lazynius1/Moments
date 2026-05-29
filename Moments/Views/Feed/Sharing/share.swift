@@ -1062,6 +1062,202 @@ struct AddToStoryView: View {
 
 
 
+// MARK: - Shared DM preview card (historia + momento)
+
+enum SharedDMMediaCardMetrics {
+    static let width: CGFloat = 200
+    static let height: CGFloat = 280
+    static let cornerRadius: CGFloat = 18
+}
+
+private struct SharedDMPreviewCardStroke: ViewModifier {
+    func body(content: Content) -> some View {
+        content
+            .clipShape(RoundedRectangle(cornerRadius: SharedDMMediaCardMetrics.cornerRadius, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: SharedDMMediaCardMetrics.cornerRadius, style: .continuous)
+                    .stroke(Color.white.opacity(0.2), lineWidth: 0.5)
+            )
+    }
+}
+
+extension View {
+    func sharedDMPreviewCardChrome() -> some View {
+        modifier(SharedDMPreviewCardStroke())
+    }
+}
+
+struct SharedDMPreviewCardSkeleton: View {
+  var body: some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: SharedDMMediaCardMetrics.cornerRadius, style: .continuous)
+                .fill(Color.white.opacity(0.08))
+
+            VStack {
+                Spacer()
+                HStack(spacing: 8) {
+                    Circle()
+                        .fill(Color.white.opacity(0.12))
+                        .frame(width: 24, height: 24)
+                    RoundedRectangle(cornerRadius: 4)
+                        .fill(Color.white.opacity(0.12))
+                        .frame(width: 88, height: 12)
+                    Spacer()
+                }
+                .padding(12)
+            }
+
+            ProgressView()
+                .progressViewStyle(CircularProgressViewStyle(tint: .white.opacity(0.85)))
+                .scaleEffect(1.05)
+        }
+        .frame(width: SharedDMMediaCardMetrics.width, height: SharedDMMediaCardMetrics.height)
+        .sharedDMPreviewCardChrome()
+    }
+}
+
+struct SharedDMPreviewAuthorRow: View {
+    let authorId: String?
+    let authorName: String?
+    var useStoryRing: Bool = true
+
+    var body: some View {
+        HStack(spacing: 8) {
+            if let authorId {
+                if useStoryRing {
+                    StoryRingAvatarView(
+                        userId: authorId,
+                        size: 24,
+                        lineWidth: 1.8,
+                        showBaseStroke: true,
+                        baseStrokeColor: .white,
+                        baseStrokeWidth: 1.5
+                    )
+                    .shadow(radius: 2)
+                } else {
+                    Circle()
+                        .fill(.ultraThinMaterial)
+                        .frame(width: 24, height: 24)
+                        .overlay(
+                            Image(systemName: "person.fill")
+                                .font(.caption)
+                                .foregroundColor(.white)
+                        )
+                }
+            }
+
+            if let authorName, !authorName.isEmpty {
+                Text(authorName)
+                    .font(.custom("Poppins-SemiBold", size: 12))
+                    .foregroundColor(.white)
+                    .lineLimit(1)
+                    .shadow(color: .black.opacity(0.5), radius: 2)
+            }
+
+            Spacer(minLength: 0)
+        }
+    }
+}
+
+struct SharedDMPreviewBottomGradient: View {
+    var body: some View {
+        LinearGradient(
+            colors: [.black.opacity(0.8), .black.opacity(0.4), .clear],
+            startPoint: .bottom,
+            endPoint: .center
+        )
+    }
+}
+
+struct SharedDMCenteredPlayOverlay: View {
+    var body: some View {
+        Circle()
+            .fill(.ultraThinMaterial)
+            .frame(width: 44, height: 44)
+            .overlay(
+                Image(systemName: "play.fill")
+                    .font(.system(size: 18, weight: .bold))
+                    .foregroundColor(.white)
+                    .offset(x: 2)
+            )
+            .shadow(color: .black.opacity(0.35), radius: 6, y: 2)
+    }
+}
+
+struct SharedDMUnavailablePreviewCard: View {
+    let titleKey: String
+    let messageKey: String
+    let iconName: String
+    let previewImageURL: String?
+    let authorId: String?
+    let authorName: String?
+    var useStoryRing: Bool = true
+
+    var body: some View {
+        ZStack(alignment: .bottomLeading) {
+            Group {
+                if let previewImageURL,
+                   !previewImageURL.isEmpty,
+                   let url = URL(string: previewImageURL) {
+                    KFImage(url)
+                        .resizable()
+                        .scaledToFill()
+                } else {
+                    Rectangle()
+                        .fill(
+                            LinearGradient(
+                                colors: [Color.white.opacity(0.14), Color.white.opacity(0.06)],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+                }
+            }
+            .frame(width: SharedDMMediaCardMetrics.width, height: SharedDMMediaCardMetrics.height)
+            .clipped()
+            .blur(radius: previewImageURL == nil ? 0 : 22)
+            .saturation(previewImageURL == nil ? 1 : 0.35)
+
+            Color.black.opacity(0.58)
+
+            VStack(spacing: 10) {
+                Spacer()
+
+                Image(systemName: iconName)
+                    .font(.system(size: 28, weight: .medium))
+                    .foregroundColor(.white.opacity(0.9))
+
+                Text(LocalizedStringKey(titleKey))
+                    .font(.custom("Poppins-SemiBold", size: 14))
+                    .foregroundColor(.white)
+                    .multilineTextAlignment(.center)
+
+                Text(LocalizedStringKey(messageKey))
+                    .font(.custom("Poppins-Regular", size: 12))
+                    .foregroundColor(.white.opacity(0.75))
+                    .multilineTextAlignment(.center)
+                    .lineLimit(3)
+                    .padding(.horizontal, 16)
+
+                Spacer()
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+
+            SharedDMPreviewBottomGradient()
+
+            SharedDMPreviewAuthorRow(
+                authorId: authorId,
+                authorName: authorName,
+                useStoryRing: useStoryRing
+            )
+            .padding(12)
+            .opacity(0.85)
+        }
+        .frame(width: SharedDMMediaCardMetrics.width, height: SharedDMMediaCardMetrics.height)
+        .sharedDMPreviewCardChrome()
+    }
+}
+
 // MARK: - ✅ Shared Moment Message Bubble (Actualizado)
 struct SharedMomentMessageBubble: View {
     let message: EnhancedMessage
@@ -1075,20 +1271,9 @@ struct SharedMomentMessageBubble: View {
     var body: some View {
         Group {
             if isLoading {
-                // Loader mientras se valida
-                HStack {
-                    ProgressView()
-                        .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                        .scaleEffect(1.2)
-                    Text("share.loading")
-                        .font(.custom("Poppins-Regular", size: 14))
-                        .foregroundColor(.white.opacity(0.7))
-                }
-                .padding(16)
-                .background(
-                    RoundedRectangle(cornerRadius: 20)
-                        .fill(Color.white.opacity(0.08))
-                )
+                SharedDMPreviewCardSkeleton()
+                    .frame(maxWidth: 280, alignment: isCurrentUser ? .trailing : .leading)
+                    .padding(.vertical, 4)
             } else if canViewMoment == true, let sharedMomentData = message.sharedMomentData {
                 // Tarjeta con preview si tiene acceso
                 Button(action: onTap) {
@@ -1100,8 +1285,9 @@ struct SharedMomentMessageBubble: View {
                 }
                 .buttonStyle(PlainButtonStyle())
             } else {
-                // Tarjeta bloqueada si no tiene acceso
-                BlockedMomentBubble()
+                BlockedMomentBubble(sharedMomentData: message.sharedMomentData)
+                    .frame(maxWidth: 280, alignment: isCurrentUser ? .trailing : .leading)
+                    .padding(.vertical, 4)
             }
         }
         .onAppear {
@@ -1145,43 +1331,18 @@ struct SharedMomentMessageBubble: View {
     }
 }
 
-// Tarjeta bloqueada
 struct BlockedMomentBubble: View {
+    let sharedMomentData: [String: String]?
+
     var body: some View {
-        HStack(spacing: 12) {
-            // Icono de candado
-            ZStack {
-                Circle()
-                    .fill(Color.white.opacity(0.1))
-                    .frame(width: 44, height: 44)
-                
-                Image(systemName: "lock.fill")
-                    .font(.system(size: 18, weight: .medium))
-                    .foregroundColor(.white.opacity(0.7))
-            }
-            
-            // Texto de restricción
-            VStack(alignment: .leading, spacing: 2) {
-                Text("share.momentUnavailable")
-                    .font(.custom("Poppins-SemiBold", size: 15))
-                    .foregroundColor(.white)
-                
-                Text("share.noPermission")
-                    .font(.custom("Poppins-Regular", size: 13))
-                    .foregroundColor(.white.opacity(0.7))
-            }
-            
-            Spacer()
-        }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 14)
-        .background(
-            RoundedRectangle(cornerRadius: 20)
-                .fill(Color.white.opacity(0.08))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 20)
-                        .stroke(Color.white.opacity(0.1), lineWidth: 0.5)
-                )
+        SharedDMUnavailablePreviewCard(
+            titleKey: "share.momentUnavailable",
+            messageKey: "share.noPermission",
+            iconName: "lock.fill",
+            previewImageURL: sharedMomentData?["momentImageUrl"],
+            authorId: sharedMomentData?["momentAuthorId"],
+            authorName: sharedMomentData?["momentAuthor"],
+            useStoryRing: false
         )
     }
 }
@@ -1203,7 +1364,6 @@ struct MomentBubbleContent: View {
             }
             
             MomentPreviewCard(sharedMomentData: sharedMomentData)
-                .cornerRadius(16) // Ensure card itself is rounded
         }
         .padding(.vertical, 4)
         .frame(maxWidth: 280, alignment: isCurrentUser ? .trailing : .leading)
@@ -1214,85 +1374,46 @@ struct MomentBubbleContent: View {
 // MARK: - ✅ Moment Preview Card (Actualizado Premium)
 struct MomentPreviewCard: View {
     let sharedMomentData: [String: String]
-    
+
+    private var isVideo: Bool {
+        if let videoUrl = sharedMomentData["momentVideoUrl"], !videoUrl.isEmpty {
+            return true
+        }
+        return false
+    }
+
     var body: some View {
-        ZStack(alignment: .bottomLeading) {
-            // 1. Visual Content (Full Bleed)
+        ZStack {
             MomentVisualContent(sharedMomentData: sharedMomentData)
-            
-            // 2. Gradient Overlay for readability
-            LinearGradient(
-                colors: [
-                    .black.opacity(0.8),
-                    .black.opacity(0.4),
-                    .clear
-                ],
-                startPoint: .bottom,
-                endPoint: .center
-            )
-            
-            // 3. Info Overlay
+
+            if isVideo {
+                SharedDMCenteredPlayOverlay()
+            }
+
+            SharedDMPreviewBottomGradient()
+
             VStack(alignment: .leading, spacing: 6) {
-                // Header in overlay
-                HStack(spacing: 8) {
-                    if let authorId = sharedMomentData["momentAuthorId"] {
-                        StoryRingAvatarView(
-                            userId: authorId,
-                            size: 24,
-                            lineWidth: 1.8,
-                            showBaseStroke: true,
-                            baseStrokeColor: .white,
-                            baseStrokeWidth: 1.5
-                        )
-                        .shadow(radius: 2)
-                    } else {
-                         Circle()
-                            .fill(.ultraThinMaterial)
-                            .frame(width: 24, height: 24)
-                            .overlay(Image(systemName: "person.fill").font(.caption).foregroundColor(.white))
-                    }
-                    
-                    if let author = sharedMomentData["momentAuthor"] {
-                        Text(author)
-                            .font(.custom("Poppins-SemiBold", size: 12))
-                            .foregroundColor(.white)
-                            .shadow(color: .black.opacity(0.5), radius: 2)
-                            .lineLimit(1)
-                    }
-                    
-                    Spacer()
-                }
-                
-                // Content preview (text inside moment or indication)
+                SharedDMPreviewAuthorRow(
+                    authorId: sharedMomentData["momentAuthorId"],
+                    authorName: sharedMomentData["momentAuthor"],
+                    useStoryRing: false
+                )
+
                 if let content = sharedMomentData["momentContent"], !content.isEmpty {
-                     Text(content)
+                    Text(content)
                         .font(.custom("Poppins-Regular", size: 13))
                         .foregroundColor(.white.opacity(0.95))
                         .lineLimit(2)
                         .multilineTextAlignment(.leading)
                         .shadow(color: .black.opacity(0.5), radius: 2)
-                        .padding(.top, 2)
-                } else if sharedMomentData["momentVideoUrl"] != nil {
-                     // Video badge if no text
-                     HStack(spacing: 4) {
-                        Image(systemName: "play.circle.fill")
-                            .font(.system(size: 12))
-                        Text("share.video")
-                            .font(.custom("Poppins-Medium", size: 11))
-                     }
-                     .foregroundColor(.white.opacity(0.9))
-                     .padding(.top, 2)
                 }
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
             .padding(12)
         }
-        .frame(width: 200, height: 280) // Fixed Premium Aspect Ratio
+        .frame(width: SharedDMMediaCardMetrics.width, height: SharedDMMediaCardMetrics.height)
         .background(Color.black.opacity(0.2))
-        .clipShape(RoundedRectangle(cornerRadius: 18))
-        .overlay(
-            RoundedRectangle(cornerRadius: 18)
-                .stroke(Color.white.opacity(0.2), lineWidth: 0.5)
-        )
+        .sharedDMPreviewCardChrome()
     }
 }
 
@@ -1338,19 +1459,6 @@ struct MomentVisualContent: View {
                      )
                 }
                 
-                // Play Icon Overlay for Video (ONLY if videoUrl exists)
-                if let videoUrl = sharedMomentData["momentVideoUrl"], !videoUrl.isEmpty {
-                    Circle()
-                        .fill(.ultraThinMaterial)
-                        .frame(width: 40, height: 40)
-                        .overlay(
-                            Image(systemName: "play.fill")
-                                .font(.system(size: 16, weight: .bold))
-                                .foregroundColor(.white)
-                                .offset(x: 2)
-                        )
-                        .shadow(radius: 4)
-                }
             }
         }
     }

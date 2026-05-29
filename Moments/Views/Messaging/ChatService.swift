@@ -210,6 +210,7 @@ class ChatService: ObservableObject {
             let isViewed = data["isViewed"] as? Bool ?? false
             let storyReplyData = data["storyReplyData"] as? [String: String]
             let sharedMomentData = data["sharedMomentData"] as? [String: String]
+            let sharedStoryData = data["sharedStoryData"] as? [String: String]
             let mediaBatchId = data["mediaBatchId"] as? String
             
             // ✅ DEBUG: Log status updates
@@ -241,6 +242,7 @@ class ChatService: ObservableObject {
                 isViewed: isViewed,
                 storyReplyData: storyReplyData,
                 sharedMomentData: sharedMomentData,
+                sharedStoryData: sharedStoryData,
                 mediaBatchId: mediaBatchId
             )
             
@@ -568,6 +570,9 @@ class ChatService: ObservableObject {
         }
         if let sharedMomentData = message.sharedMomentData {
             messageData["sharedMomentData"] = sharedMomentData
+        }
+        if let sharedStoryData = message.sharedStoryData {
+            messageData["sharedStoryData"] = sharedStoryData
         }
         if let mediaBatchId = message.mediaBatchId {
             messageData["mediaBatchId"] = mediaBatchId
@@ -2253,6 +2258,78 @@ extension ChatService {
                     self.updateConversation(
                         conversationId: conversationId,
                         lastMessage: self.neutralConversationPreview(for: .sharedMoment),
+                        senderId: senderId
+                    ) { _ in
+                        completion(.success(sentMessage))
+                    }
+                case .failure(let error):
+                    completion(.failure(error))
+                }
+            }
+        }
+    }
+
+    func sendSharedStoryMessage(
+        conversationId: String,
+        senderId: String,
+        story: Story,
+        shareText: String,
+        completion: @escaping (Result<EnhancedMessage, Error>) -> Void
+    ) {
+        guard let storyId = story.id else {
+            completion(.failure(NSError(domain: "ChatService", code: -1, userInfo: [NSLocalizedDescriptionKey: "Missing story id"])))
+            return
+        }
+
+        Task {
+            let encryptedContent = await encryptMessageContent(shareText, for: conversationId)
+            let freshAuthor = UserCacheService.shared.getCachedUser(userId: story.authorId)?.username ?? story.username
+
+            let sharedStoryData: [String: String] = [
+                "storyId": storyId,
+                "storyAuthor": freshAuthor,
+                "storyAuthorId": story.authorId,
+                "storyPreviewUrl": storyPreviewURL(for: story),
+                "storyMediaType": storyMediaTypeString(for: story),
+                "storyExpiration": String(story.expirationDate.timeIntervalSince1970),
+                "storyTimestamp": String(story.timestamp.timeIntervalSince1970)
+            ]
+
+            let messageId = UUID().uuidString
+            let message = EnhancedMessage(
+                id: messageId,
+                conversationId: conversationId,
+                senderId: senderId,
+                type: .sharedStory,
+                content: encryptedContent,
+                mediaUrl: nil,
+                thumbnailUrl: nil,
+                duration: nil,
+                fileName: nil,
+                fileSize: nil,
+                latitude: nil,
+                longitude: nil,
+                timestamp: Date(),
+                status: .sending,
+                isRead: false,
+                isDeleted: false,
+                deletedAt: nil,
+                editedAt: nil,
+                reactions: nil,
+                replyTo: nil,
+                expirationDate: nil,
+                isViewed: false,
+                storyReplyData: nil,
+                sharedMomentData: nil,
+                sharedStoryData: sharedStoryData
+            )
+
+            sendMessage(message, useServerTimestamp: true) { result in
+                switch result {
+                case .success(let sentMessage):
+                    self.updateConversation(
+                        conversationId: conversationId,
+                        lastMessage: self.neutralConversationPreview(for: .sharedStory),
                         senderId: senderId
                     ) { _ in
                         completion(.success(sentMessage))
