@@ -32,11 +32,11 @@ class AuthService: ObservableObject {
     // ✅ NUEVO: Queue serial para thread safety
     private let authQueue = DispatchQueue(label: "com.moments.auth", qos: .userInteractive)
 
-    // ✅ NUEVO: Estado de registro thread-safe
-    private var _registrationState: RegistrationState = .idle
-    private var _isAuthProcessingEnabled: Bool = true
+    // ✅ Estado serializado por authQueue (legible desde callbacks de Firebase)
+    private nonisolated(unsafe) var _registrationState: RegistrationState = .idle
+    private nonisolated(unsafe) var _isAuthProcessingEnabled: Bool = true
 
-    enum RegistrationState {
+    enum RegistrationState: Sendable {
         case idle
         case registering
         case completing
@@ -62,7 +62,9 @@ class AuthService: ObservableObject {
     }
 
     var isInRegistrationProcess: Bool {
-        return _registrationState != .idle
+        return authQueue.sync {
+            return _registrationState != .idle
+        }
     }
 
     private func cachedAccountStatusKey(userId: String) -> String {
@@ -96,10 +98,12 @@ class AuthService: ObservableObject {
     }
 
     // ✅ NUEVO: Transition Lock para evitar que el listener interfiera durante handovers críticos
-    private var _transitionLock: Bool = false
+    private nonisolated(unsafe) var _transitionLock: Bool = false
 
     var isTransitionLocked: Bool {
-        return _transitionLock
+        return authQueue.sync {
+            return _transitionLock
+        }
     }
 
     // ✅ NOEL: No declarar handle aquí para evitar aislamiento en deinit
@@ -157,9 +161,9 @@ class AuthService: ObservableObject {
 
 
             // ✅ THREAD-SAFE: Verificar estado de registro y LOCK
-            let registrationState = self._registrationState
-            let isAuthProcessingEnabled = self._isAuthProcessingEnabled
-            let isTransitionLocked = self._transitionLock
+            let registrationState = self.authQueue.sync { self._registrationState }
+            let isAuthProcessingEnabled = self.authQueue.sync { self._isAuthProcessingEnabled }
+            let isTransitionLocked = self.authQueue.sync { self._transitionLock }
 
             // ✅ CRÍTICO: Si hay un LOCK de transición, IGNORAR CUALQUIER CAMBIO
             if isTransitionLocked {
@@ -428,7 +432,7 @@ class AuthService: ObservableObject {
                     self.authState = .unauthenticated
 
                     // ✅ Thread-safe cleanup
-                    Task { @MainActor in
+                    self.authQueue.async {
                         self._registrationState = .idle
                         self._isAuthProcessingEnabled = true
                     }
@@ -467,7 +471,7 @@ class AuthService: ObservableObject {
                     case .success(let appUser):
                         completion(true, appUser, false)
 
-                    case .failure(_):
+                    case .failure:
 
                         if retryCount < maxRetries - 1 {
                             // Continuar reintentando
@@ -528,7 +532,7 @@ class AuthService: ObservableObject {
                         // Si lo ponemos a false ahora, el fullScreenCover se cierra antes de que TabBarView cambie.
                         DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
                             self.isRegistering = false
-                            Task { @MainActor in
+                            self.authQueue.async {
                                 self._registrationState = .idle
                                 self._isAuthProcessingEnabled = true
                             }
@@ -538,7 +542,7 @@ class AuthService: ObservableObject {
 
                         // ✅ NUEVO: Liberar el Transition Lock después de un tiempo seguro
                         DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
-                            Task { @MainActor in
+                            self.authQueue.async {
                                 self._transitionLock = false
                             }
                         }
@@ -557,7 +561,7 @@ class AuthService: ObservableObject {
                                     // Limpiar flags en retry success CON DELAY
                                     DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
                                         self.isRegistering = false
-                                        Task { @MainActor in
+                                        self.authQueue.async {
                                             self._registrationState = .idle
                                             self._isAuthProcessingEnabled = true
                                         }
@@ -565,7 +569,7 @@ class AuthService: ObservableObject {
 
                                     // ✅ NUEVO: Liberar Lock en retry
                                     DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
-                                        Task { @MainActor in
+                                        self.authQueue.async {
                                             self._transitionLock = false
                                         }
                                     }
@@ -577,7 +581,7 @@ class AuthService: ObservableObject {
                                     self.deactivatedUserData = userData
 
                                     self.isRegistering = false
-                                    Task { @MainActor in
+                                    self.authQueue.async {
                                         self._registrationState = .idle
                                         self._isAuthProcessingEnabled = true
                                         // Liberar lock inmediatamente en fallo
@@ -662,14 +666,16 @@ class AuthService: ObservableObject {
                         if let error = error {
                             completion(.failure(self.mapAuthError(error)))
                         } else if let user = result?.user {
-                            self.finishCredentialLogin(for: user, completion: completion)
+                            DispatchQueue.main.async {
+                                self.finishCredentialLogin(for: user, completion: completion)
+                            }
                         } else {
                             completion(.failure(NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: NSLocalizedString("login.error.unknown", comment: "Unknown login error")])))
                         }
                     }
                 } else {
                     // No hay caché, consultar Firestore
-                    db.collection("usernames").document(identifier.lowercased()).getDocument { document, error in
+                    Firestore.firestore().collection("usernames").document(identifier.lowercased()).getDocument { document, error in
                         if let error = error {
                             completion(.failure(error))
                             return
@@ -703,45 +709,43 @@ class AuthService: ObservableObject {
                             return
                         }
 
-                        Task { @MainActor in
-                            let db = Firestore.firestore()
-                            do {
-                                let userDoc = try await db.collection("users").document(userId).getDocument()
-                                guard let userEmail = userDoc.data()?["email"] as? String, !userEmail.isEmpty else {
-                                    completion(.failure(NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: NSLocalizedString("auth.error.usernameNotFound", comment: "Username not found")])))
-                                    return
-                                }
+                        Firestore.firestore().collection("users").document(userId).getDocument { userDoc, userError in
+                            if let userError = userError {
+                                completion(.failure(userError))
+                                return
+                            }
 
-                                // Auto-repair del índice usernames para próximos logins
-                                try? await db.collection("usernames").document(identifier.lowercased()).setData([
-                                    "email": userEmail,
-                                    "updatedAt": FieldValue.serverTimestamp()
-                                ], merge: true)
+                            guard let userEmail = userDoc?.data()?["email"] as? String, !userEmail.isEmpty else {
+                                completion(.failure(NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: NSLocalizedString("auth.error.usernameNotFound", comment: "Username not found")])))
+                                return
+                            }
 
-                                Auth.auth().signIn(withEmail: userEmail, password: password) { result, error in
-                                    Task { @MainActor in
-                                        if let error = error {
-                                            completion(.failure(self.mapAuthError(error)))
-                                        } else if let user = result?.user {
-                                            UserDefaults.standard.set(userEmail, forKey: "cachedEmail_\(identifier.lowercased())")
-                                            self.finishCredentialLogin(for: user, completion: completion)
-                                        } else {
-                                            completion(.failure(NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: NSLocalizedString("login.error.unknown", comment: "Unknown login error")])))
-                                        }
+                            // Auto-repair del índice usernames para próximos logins
+                            Firestore.firestore().collection("usernames").document(identifier.lowercased()).setData([
+                                "email": userEmail,
+                                "updatedAt": FieldValue.serverTimestamp()
+                            ], merge: true)
+
+                            Auth.auth().signIn(withEmail: userEmail, password: password) { result, error in
+                                if let error = error {
+                                    completion(.failure(self.mapAuthError(error)))
+                                } else if let user = result?.user {
+                                    UserDefaults.standard.set(userEmail, forKey: "cachedEmail_\(identifier.lowercased())")
+                                    DispatchQueue.main.async {
+                                        self.finishCredentialLogin(for: user, completion: completion)
                                     }
+                                } else {
+                                    completion(.failure(NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: NSLocalizedString("login.error.unknown", comment: "Unknown login error")])))
                                 }
-                            } catch {
-                                completion(.failure(error))
                             }
                         }
                     }
                 }
             }
         }
-            
 
     private func finishCredentialLogin(for user: User, completion: @escaping (Result<Void, Error>) -> Void) {
-        Task { @MainActor in
+        authQueue.async {
             self._transitionLock = true
             self._registrationState = .idle
             self._isAuthProcessingEnabled = true
@@ -763,7 +767,7 @@ class AuthService: ObservableObject {
                 self.isVerifyingAccount = false
 
                 if isSuspended {
-                    Task { @MainActor in self._transitionLock = false }
+                    self.authQueue.async { self._transitionLock = false }
                     completion(.success(()))
                     return
                 }
@@ -783,7 +787,7 @@ class AuthService: ObservableObject {
                     self.startSuspensionListener()
                     self.syncProfileDataToWidget(userData: userData)
 
-                    Task { @MainActor in self._transitionLock = false }
+                    self.authQueue.async { self._transitionLock = false }
                     completion(.success(()))
                     return
                 }
@@ -797,12 +801,12 @@ class AuthService: ObservableObject {
                     self.deactivatedUserData = userData
                     self.authState = .deactivated
 
-                    Task { @MainActor in self._transitionLock = false }
+                    self.authQueue.async { self._transitionLock = false }
                     completion(.success(()))
                     return
                 }
 
-                Task { @MainActor in self._transitionLock = false }
+                self.authQueue.async { self._transitionLock = false }
                 self.forceLogout()
                 completion(.failure(NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: NSLocalizedString("login.error.unknown", comment: "Unknown login error")])))
             }
@@ -813,7 +817,7 @@ class AuthService: ObservableObject {
     private func checkAccountStatus(userId: String, completion: @escaping (Bool, AppUser?, Bool) -> Void) {
 
         // ✅ THREAD-SAFE: Verificar estado de registro
-        let registrationState = _registrationState
+        let registrationState = authQueue.sync { _registrationState }
 
         // ✅ CRÍTICO: Si estamos registrando, usar sistema de retry
         if registrationState == .registering || self.isRegistering {
@@ -920,7 +924,9 @@ class AuthService: ObservableObject {
 
                     case .failure(let error):
                         // ✅ Verificar nuevamente si estamos en registro (para evitar falsos negativos)
-                        if self?.isRegistering == true {
+                        let currentRegistrationState = self?.authQueue.sync { self?._registrationState } ?? .idle
+
+                        if currentRegistrationState == .registering || self?.isRegistering == true {
                             safeCompletion(false, nil, false)
                         } else {
                             // Si la red falla después de arrancar online, no asumimos cuenta válida.
@@ -973,7 +979,7 @@ class AuthService: ObservableObject {
                         case .success(let appUser):
                             completion(true, appUser, false)
 
-                        case .failure(_):
+                        case .failure:
 
                             if retryCount < maxRetries - 1 {
                                 // Continuar reintentando
@@ -982,7 +988,9 @@ class AuthService: ObservableObject {
                                 // Se acabaron los reintentos
 
                                 // ✅ Thread-safe check del estado de registro
-                                if self?.isRegistering == true {
+                                let registrationState = self?.authQueue.sync { self?._registrationState } ?? .idle
+
+                                if registrationState == .registering || self?.isRegistering == true {
                                     completion(true, nil, false) // Asumir activo temporalmente
                                 } else {
                                     self?.forceLogout()
@@ -1019,7 +1027,7 @@ class AuthService: ObservableObject {
                 self.authState = .unauthenticated
 
                 // ✅ Thread-safe cleanup
-                Task { @MainActor in
+                self.authQueue.async {
                     self._registrationState = .idle
                     self._isAuthProcessingEnabled = true
                     self._transitionLock = false
@@ -1029,7 +1037,8 @@ class AuthService: ObservableObject {
 
         // ✅ NUEVA FUNCIÓN: Limpiar estado de registro thread-safe
         private func clearRegistrationState() {
-            Task { @MainActor in
+
+            authQueue.async {
                 self._registrationState = .idle
                 self._isAuthProcessingEnabled = true
             }
@@ -1049,7 +1058,7 @@ class AuthService: ObservableObject {
             return
         }
 
-        db.collection("users").document(userId).getDocument { snapshot, error in
+        Firestore.firestore().collection("users").document(userId).getDocument { snapshot, _ in
                 guard let data = snapshot?.data() else {
                     completion(false, nil, nil)
                     return
@@ -1063,14 +1072,11 @@ class AuthService: ObservableObject {
                         let expirationDate = suspendedUntil.dateValue()
                         if Date() > expirationDate {
                             // Suspensión expirada - reactivar usuario automáticamente
-                            DispatchQueue.main.async {
-                                self.db.collection("users").document(userId).updateData([
-                                    "isSuspended": false,
-                                    "suspendedUntil": FieldValue.delete(),
-                                    "suspensionReason": FieldValue.delete()
-                                ]) { _ in
-                                }
-                            }
+                            Firestore.firestore().collection("users").document(userId).updateData([
+                                "isSuspended": false,
+                                "suspendedUntil": FieldValue.delete(),
+                                "suspensionReason": FieldValue.delete()
+                            ]) { _ in }
                             completion(false, nil, nil)
                             return
                         } else {
@@ -1095,7 +1101,7 @@ class AuthService: ObservableObject {
         func completeRegistration() {
 
             // ✅ THREAD-SAFE: Cambiar a estado de finalización y ACTIVAR LOCK
-            Task { @MainActor in
+            authQueue.async {
                 self._registrationState = .completing
                 self._isAuthProcessingEnabled = true
                 self._transitionLock = true
@@ -1160,29 +1166,40 @@ class AuthService: ObservableObject {
 
 
         // ✅ CRÍTICO: Establecer flags SÍNCRONAMENTE antes de cualquier operación
-        self._registrationState = .registering
-        self._isAuthProcessingEnabled = false
-        self.isRegistering = true
+        authQueue.sync {
+            self._registrationState = .registering
+            self._isAuthProcessingEnabled = false
+        }
+
+        // ✅ CORREGIDO: usar async en lugar de sync para evitar deadlock
+        DispatchQueue.main.async {
+            self.isRegistering = true
+
+        }
 
         // ✅ Pequeño delay para asegurar que los flags se propaguen
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
             // Verificar disponibilidad de username
             self.db.collection("usernames").document(username.lowercased()).getDocument { document, error in
                 if let error = error {
-                    DispatchQueue.main.async { self.clearRegistrationState() }
-                    completion(.failure(error))
+                    DispatchQueue.main.async {
+                        self.clearRegistrationState()
+                        completion(.failure(error))
+                    }
                     return
                 }
                 if document?.exists ?? false {
-                    DispatchQueue.main.async { self.clearRegistrationState() }
-                    completion(.failure(NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: NSLocalizedString("auth.error.usernameUnavailable", comment: "Username unavailable")])))
+                    DispatchQueue.main.async {
+                        self.clearRegistrationState()
+                        completion(.failure(NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: NSLocalizedString("auth.error.usernameUnavailable", comment: "Username unavailable")])))
+                    }
                     return
                 }
 
 
                 // ✅ Crear usuario en Firebase Auth
                 Auth.auth().createUser(withEmail: email, password: password) { result, error in
-                    Task { @MainActor in
+                    DispatchQueue.main.async {
                         if let error = error {
                             self.clearRegistrationState()
                             completion(.failure(self.mapAuthError(error)))
@@ -1199,24 +1216,23 @@ class AuthService: ObservableObject {
 
                         // ✅ Upload imagen con mejor control de tiempo
                         self.uploadProfileImageIfNeeded(image: profileImage, userId: userId) { profileImagePath in
-                            Task { @MainActor in
-                                // Usar FirestoreService para crear el usuario
-                                self.firestoreService.createUser(
-                                    userId: userId,
-                                    username: username,
-                                    email: email,
-                                    interests: interests,
-                                    profileImagePath: profileImagePath
-                                ) { error in
-                                    Task { @MainActor in
-                                        if let error = error {
-                                            // Si falla Firestore, eliminar usuario de Auth y limpiar estado
-                                            result?.user.delete { _ in }
-                                            self.clearRegistrationState()
-                                            completion(.failure(error))
-                                        } else {
-                                            completion(.success(()))
-                                        }
+                            // Usar FirestoreService para crear el usuario
+                            self.firestoreService.createUser(
+                                userId: userId,
+                                username: username,
+                                email: email,
+                                interests: interests,
+                                profileImagePath: profileImagePath
+                            ) { error in
+                                DispatchQueue.main.async {
+                                    if let error = error {
+                                        // Si falla Firestore, eliminar usuario de Auth y limpiar estado
+                                        result?.user.delete { _ in }
+                                        self.clearRegistrationState()
+                                        completion(.failure(error))
+                                    } else {
+                                        completion(.success(()))
+                                        // ✅ NO limpiar estado aquí - se limpiará en completeRegistration()
                                     }
                                 }
                             }
@@ -1227,7 +1243,7 @@ class AuthService: ObservableObject {
         }
     }
 
-    // ✅ NUEVA FUNCIÓN: Upload imagen con mejor control
+        // ✅ NUEVA FUNCIÓN: Upload imagen con mejor control
         private func uploadProfileImageIfNeeded(image: UIImage?, userId: String, completion: @escaping (String?) -> Void) {
             guard let image = image else {
                 completion(nil)
@@ -1344,7 +1360,9 @@ class AuthService: ObservableObject {
             ]) { [weak self] error in
                 if error == nil {
                     // Refrescar usuario después de actualización exitosa
-                    DispatchQueue.main.async { self?.refreshCurrentUser() }
+                    DispatchQueue.main.async {
+                        self?.refreshCurrentUser()
+                    }
                     completion(true)
                 } else {
                     completion(false)
@@ -1427,7 +1445,7 @@ class AuthService: ObservableObject {
                     self.isRegistering = false
 
                     // ✅ Thread-safe cleanup
-                    Task { @MainActor in
+                    self.authQueue.async {
                         self._registrationState = .idle
                         self._isAuthProcessingEnabled = true
                     }
@@ -1451,7 +1469,7 @@ class AuthService: ObservableObject {
                     self.isRegistering = false
 
                     // ✅ Thread-safe cleanup
-                    Task { @MainActor in
+                    self.authQueue.async {
                         self._registrationState = .idle
                         self._isAuthProcessingEnabled = true
                     }
@@ -1532,7 +1550,7 @@ class AuthService: ObservableObject {
     func signInWithApple(idToken: String, nonce: String, fullName: String?, email: String?, completion: @escaping (Result<Bool, Error>) -> Void) {
 
         // 1. ACTIVAR LOCK: Silenciar listener global inmediatamente
-        Task { @MainActor in
+        authQueue.async {
             self._transitionLock = true
         }
 
@@ -1543,13 +1561,13 @@ class AuthService: ObservableObject {
 
             if let error = error {
                 // Liberar lock en error
-                Task { @MainActor in self._transitionLock = false }
+                self.authQueue.async { self._transitionLock = false }
                 completion(.failure(self.mapAuthError(error)))
                 return
             }
 
             guard let user = authResult?.user else {
-                Task { @MainActor in self._transitionLock = false }
+                self.authQueue.async { self._transitionLock = false }
                 completion(.failure(NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "Auth failed"])))
                 return
             }
@@ -1567,7 +1585,7 @@ class AuthService: ObservableObject {
                         self.deactivatedUserData = nil
                         self.isRegistering = false
                         self.isVerifyingAccount = false
-                        Task { @MainActor in self._transitionLock = false }
+                        self.authQueue.async { self._transitionLock = false }
                         completion(.success(false))
                         return
                     }
@@ -1588,7 +1606,7 @@ class AuthService: ObservableObject {
                         self.startSuspensionListener()
 
                         // Liberar lock ahora que el estado es consistente
-                        Task { @MainActor in self._transitionLock = false }
+                        self.authQueue.async { self._transitionLock = false }
 
                         completion(.success(true))
                     } else if let userData = userData {
@@ -1602,12 +1620,12 @@ class AuthService: ObservableObject {
                         self.isRegistering = false
                         self.isVerifyingAccount = false
                         self.authState = .deactivated
-                        Task { @MainActor in self._transitionLock = false }
+                        self.authQueue.async { self._transitionLock = false }
                         completion(.success(false))
                     } else {
                         // USUARIO NUEVO: Preparar registro
                         // 1. Establecer flags de registro PROTEGIDOS
-                        Task { @MainActor in
+                        self.authQueue.async {
                             self._registrationState = .registering
                             self._isAuthProcessingEnabled = false
 
@@ -1659,7 +1677,7 @@ class AuthService: ObservableObject {
 
     func signInWithPasskeyToken(_ customToken: String, completion: @escaping (Result<Void, Error>) -> Void) {
         // 1. ACTIVAR LOCK para evitar listeners
-        Task { @MainActor in
+        authQueue.async {
             self._transitionLock = true
         }
 
@@ -1667,13 +1685,13 @@ class AuthService: ObservableObject {
             guard let self = self else { return }
 
             if let error = error {
-                Task { @MainActor in self._transitionLock = false }
+                self.authQueue.async { self._transitionLock = false }
                 completion(.failure(self.mapAuthError(error)))
                 return
             }
 
             guard let user = authResult?.user else {
-                Task { @MainActor in self._transitionLock = false }
+                self.authQueue.async { self._transitionLock = false }
                 completion(.failure(NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "Auth failed"])))
                 return
             }
@@ -1686,7 +1704,7 @@ class AuthService: ObservableObject {
                         self.currentUser = nil
                         self.currentFirebaseUser = user
                         self.isAccountDeactivated = false
-                        Task { @MainActor in self._transitionLock = false }
+                        self.authQueue.async { self._transitionLock = false }
                         completion(.failure(NSError(domain: "", code: 403, userInfo: [NSLocalizedDescriptionKey: "Cuenta suspendida"])))
                         return
                     }
@@ -1701,7 +1719,7 @@ class AuthService: ObservableObject {
 
                         self.startSuspensionListener()
 
-                        Task { @MainActor in self._transitionLock = false }
+                        self.authQueue.async { self._transitionLock = false }
                         completion(.success(()))
                     } else if let userData = userData {
                         self.saveCachedAccountStatus(userId: user.uid, decision: .deactivated)
@@ -1709,12 +1727,12 @@ class AuthService: ObservableObject {
                         self.isAccountDeactivated = true
                         self.deactivatedUserData = userData
                         self.authState = .deactivated
-                        Task { @MainActor in self._transitionLock = false }
+                        self.authQueue.async { self._transitionLock = false }
                         completion(.failure(NSError(domain: "", code: 403, userInfo: [NSLocalizedDescriptionKey: "Cuenta desactivada"])))
                     } else {
                         // Un Passkey no debería llegar aquí si el usuario no tiene cuenta,
                         // ya que requerimos que ya esté logueado para registrar el passkey.
-                        Task { @MainActor in self._transitionLock = false }
+                        self.authQueue.async { self._transitionLock = false }
                         completion(.failure(NSError(domain: "", code: 404, userInfo: [NSLocalizedDescriptionKey: "Datos de usuario no encontrados en Firestore"])))
                     }
                 }

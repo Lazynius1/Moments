@@ -48,7 +48,7 @@ struct EnhancedProfilePhotoContent: View {
                 Image(uiImage: image)
                     .resizable()
                     .scaledToFill()
-                    .frame(width: 108, height: 108)
+                    .frame(width: AuthFormMetrics.profilePhotoSize, height: AuthFormMetrics.profilePhotoSize)
                     .clipShape(Circle())
                     .overlay(
                         Circle()
@@ -69,15 +69,15 @@ struct EnhancedProfilePhotoContent: View {
                         RadialGradient(
                             colors: [AuthColors.subtle(colorScheme, opacity: 0.12), AuthColors.subtle(colorScheme, opacity: 0.04)],
                             center: .center,
-                            startRadius: 10,
-                            endRadius: 54
+                            startRadius: 8,
+                            endRadius: AuthFormMetrics.profilePhotoSize / 2
                         )
                     )
-                    .frame(width: 108, height: 108)
+                    .frame(width: AuthFormMetrics.profilePhotoSize, height: AuthFormMetrics.profilePhotoSize)
                     .overlay(
                         VStack(spacing: 8) {
                             Image(systemName: "camera.fill")
-                                .font(.system(size: 26, weight: .medium))
+                                .font(.system(size: 22, weight: .medium))
                                 .foregroundStyle(
                                     LinearGradient(
                                         colors: [AuthColors.secondary(colorScheme, opacity: 0.78), .blue.opacity(0.46)],
@@ -120,7 +120,7 @@ struct EnhancedProfilePhotoContent: View {
                             .font(.system(size: 14, weight: .semibold))
                             .foregroundColor(.black)
                     )
-                    .offset(x: 34, y: 34)
+                    .offset(x: AuthFormMetrics.profilePhotoSize * 0.32, y: AuthFormMetrics.profilePhotoSize * 0.32)
                     .shadow(color: .black.opacity(0.15), radius: 6, x: 0, y: 3)
             }
         }

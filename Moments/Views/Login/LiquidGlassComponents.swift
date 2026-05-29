@@ -1,5 +1,36 @@
 import SwiftUI
 
+enum AuthFormMetrics {
+    static let maxFormContentWidth: CGFloat = 400
+
+    /// Márgenes laterales: mismo aire en Pro y Pro Max; el Pro no debe quedar más estrecho.
+    static func screenHorizontalInset(for containerWidth: CGFloat) -> CGFloat {
+        if containerWidth >= 420 {
+            return 24
+        }
+        if containerWidth >= 375 {
+            return 24
+        }
+        return 20
+    }
+
+    static var defaultScreenHorizontalInset: CGFloat {
+        screenHorizontalInset(for: UIScreen.main.bounds.width)
+    }
+
+    static let registerLogoHeight: CGFloat = 112
+    static let profilePhotoSize: CGFloat = 96
+    static let fieldHeight: CGFloat = 50
+    static let buttonHeight: CGFloat = 50
+    static let fieldCornerRadius: CGFloat = 14
+    static let buttonCornerRadius: CGFloat = 14
+    static let fieldHorizontalPadding: CGFloat = 14
+    static let fieldFontSize: CGFloat = 15
+    static let buttonFontSize: CGFloat = 16
+    static let iconFontSize: CGFloat = 15
+    static let iconSlotWidth: CGFloat = 20
+}
+
 enum AuthColors {
     static func primary(_ colorScheme: ColorScheme) -> Color {
         colorScheme == .dark ? .white : .black
@@ -82,41 +113,44 @@ struct LiquidGlassTextField: View {
         return primaryText.opacity(isFocused ? 0.28 : (colorScheme == .dark ? 0.1 : 0.12))
     }
 
+    private var fieldShape: RoundedRectangle {
+        RoundedRectangle(cornerRadius: AuthFormMetrics.fieldCornerRadius, style: .continuous)
+    }
+
     var body: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: 10) {
             Image(systemName: icon)
-                .font(.system(size: 16))
+                .font(.system(size: AuthFormMetrics.iconFontSize, weight: .medium))
                 .foregroundColor(focusedIcon)
-                .frame(width: 24)
+                .frame(width: AuthFormMetrics.iconSlotWidth)
 
             ZStack(alignment: .leading) {
                 if text.isEmpty {
                     Text(placeholder)
-                        .font(.system(size: 15))
+                        .font(.system(size: AuthFormMetrics.fieldFontSize))
                         .foregroundColor(secondaryText)
                 }
 
                 TextField("", text: $text)
                     .foregroundColor(primaryText)
-                    .font(.system(size: 15))
+                    .font(.system(size: AuthFormMetrics.fieldFontSize))
                     .autocapitalization(autocapitalization)
                     .keyboardType(keyboardType)
                     .onTapGesture { isFocused = true }
             }
         }
-        .padding(.horizontal, 16)
-        .frame(height: 52)
+        .padding(.horizontal, AuthFormMetrics.fieldHorizontalPadding)
+        .frame(height: AuthFormMetrics.fieldHeight)
         .background {
             Color.clear
-                .liquidGlass(in: Capsule(), interactive: true)
+                .liquidGlass(in: fieldShape, interactive: true)
         }
         .overlay {
-            Capsule()
-                .stroke(strokeColor, lineWidth: isError ? 1 : 0.6)
+            fieldShape
+                .stroke(strokeColor, lineWidth: isError ? 1 : 0.5)
                 .allowsHitTesting(false)
         }
         .animation(.easeInOut(duration: 0.2), value: isFocused)
-        .padding(.horizontal, 8)
         .accessibilityLabel(Text(placeholder))
     }
 }
@@ -142,51 +176,54 @@ struct LiquidGlassSecureField: View {
         primaryText.opacity(isFocused ? 0.95 : (colorScheme == .dark ? 0.46 : 0.48))
     }
 
+    private var fieldShape: RoundedRectangle {
+        RoundedRectangle(cornerRadius: AuthFormMetrics.fieldCornerRadius, style: .continuous)
+    }
+
     var body: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: 10) {
             Image(systemName: icon)
-                .font(.system(size: 16))
+                .font(.system(size: AuthFormMetrics.iconFontSize, weight: .medium))
                 .foregroundColor(focusedIcon)
-                .frame(width: 24)
+                .frame(width: AuthFormMetrics.iconSlotWidth)
 
             ZStack(alignment: .leading) {
                 if text.isEmpty {
                     Text(placeholder)
-                        .font(.system(size: 15))
+                        .font(.system(size: AuthFormMetrics.fieldFontSize))
                         .foregroundColor(secondaryText)
                 }
 
                 if isVisible {
                     TextField("", text: $text)
                         .foregroundColor(primaryText)
-                        .font(.system(size: 15))
+                        .font(.system(size: AuthFormMetrics.fieldFontSize))
                 } else {
                     SecureField("", text: $text)
                         .foregroundColor(primaryText)
-                        .font(.system(size: 15))
+                        .font(.system(size: AuthFormMetrics.fieldFontSize))
                 }
             }
 
             Button(action: { isVisible.toggle() }) {
                 Image(systemName: isVisible ? "eye.slash.fill" : "eye.fill")
-                    .font(.system(size: 14))
+                    .font(.system(size: 13, weight: .medium))
                     .foregroundColor(focusedIcon)
             }
             .accessibilityLabel(Text(isVisible ? "login.password.hide" : "login.password.show"))
         }
-        .padding(.horizontal, 16)
-        .frame(height: 52)
+        .padding(.horizontal, AuthFormMetrics.fieldHorizontalPadding)
+        .frame(height: AuthFormMetrics.fieldHeight)
         .background {
             Color.clear
-                .liquidGlass(in: Capsule(), interactive: true)
+                .liquidGlass(in: fieldShape, interactive: true)
         }
         .overlay {
-            Capsule()
-                .stroke(primaryText.opacity(isFocused ? 0.28 : (colorScheme == .dark ? 0.1 : 0.12)), lineWidth: 0.6)
+            fieldShape
+                .stroke(primaryText.opacity(isFocused ? 0.28 : (colorScheme == .dark ? 0.1 : 0.12)), lineWidth: 0.5)
                 .allowsHitTesting(false)
         }
         .animation(.easeInOut(duration: 0.2), value: isFocused)
-        .padding(.horizontal, 8)
         .onTapGesture { isFocused = true }
         .accessibilityLabel(Text(placeholder))
     }
@@ -242,11 +279,11 @@ struct LiquidGlassButton: View {
                 }
 
                 Text(title)
-                    .font(.system(size: 18, weight: .semibold))
+                    .font(.system(size: AuthFormMetrics.buttonFontSize, weight: .semibold))
             }
             .foregroundColor(foregroundColor)
             .frame(maxWidth: .infinity)
-            .frame(height: 56)
+            .frame(height: AuthFormMetrics.buttonHeight)
         }
         .background(backgroundView)
         .disabled(isLoading)
@@ -270,30 +307,96 @@ struct LiquidGlassButton: View {
         switch style {
         case .primary:
             Color.clear
-                .liquidGlass(in: RoundedRectangle(cornerRadius: 18, style: .continuous), interactive: true)
+                .liquidGlass(in: RoundedRectangle(cornerRadius: AuthFormMetrics.buttonCornerRadius, style: .continuous), interactive: true)
                 .overlay {
-                    RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    RoundedRectangle(cornerRadius: AuthFormMetrics.buttonCornerRadius, style: .continuous)
                         .fill(AuthColors.subtle(colorScheme, opacity: isPressed ? 0.14 : 0.08))
                         .allowsHitTesting(false)
                 }
 
         case .secondary:
             Color.clear
-                .liquidGlass(in: RoundedRectangle(cornerRadius: 18, style: .continuous), interactive: true)
+                .liquidGlass(in: RoundedRectangle(cornerRadius: AuthFormMetrics.buttonCornerRadius, style: .continuous), interactive: true)
                 .overlay {
-                    RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    RoundedRectangle(cornerRadius: AuthFormMetrics.buttonCornerRadius, style: .continuous)
                         .stroke(AuthColors.subtle(colorScheme, opacity: 0.18), lineWidth: 0.8)
                         .allowsHitTesting(false)
                 }
 
         case .destructive:
             Color.clear
-                .liquidGlass(in: RoundedRectangle(cornerRadius: 18, style: .continuous), interactive: true)
+                .liquidGlass(in: RoundedRectangle(cornerRadius: AuthFormMetrics.buttonCornerRadius, style: .continuous), interactive: true)
                 .overlay {
-                    RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    RoundedRectangle(cornerRadius: AuthFormMetrics.buttonCornerRadius, style: .continuous)
                         .fill(Color.red.opacity(isPressed ? 0.18 : 0.1))
                         .allowsHitTesting(false)
                 }
         }
+    }
+}
+
+// MARK: - Layout auth (login / registro sobre el fondo, sin caja contenedora)
+private struct AuthScreenContentWidthModifier: ViewModifier {
+    func body(content: Content) -> some View {
+        let screenWidth = UIScreen.main.bounds.width
+        let inset = AuthFormMetrics.screenHorizontalInset(for: screenWidth)
+
+        content
+            .frame(maxWidth: AuthFormMetrics.maxFormContentWidth)
+            .padding(.horizontal, inset)
+            .frame(maxWidth: .infinity)
+    }
+}
+
+extension View {
+    /// Ancho fluido con márgenes 24pt en Pro / Pro Max; tope 400pt en pantallas anchas.
+    func authScreenContentWidth() -> some View {
+        modifier(AuthScreenContentWidthModifier())
+    }
+
+    func authScreenHorizontalPadding() -> some View {
+        padding(.horizontal, AuthFormMetrics.defaultScreenHorizontalInset)
+    }
+}
+
+struct AuthRegistrationPrimaryButton: View {
+    @Environment(\.colorScheme) private var colorScheme
+    let title: LocalizedStringKey
+    let isLoading: Bool
+    let isEnabled: Bool
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 8) {
+                if isLoading {
+                    ProgressView()
+                        .progressViewStyle(CircularProgressViewStyle(tint: AuthColors.primary(colorScheme)))
+                        .scaleEffect(0.75)
+                } else {
+                    Text(title)
+                        .font(.system(size: AuthFormMetrics.buttonFontSize, weight: .semibold))
+                        .foregroundColor(AuthColors.primary(colorScheme))
+                }
+            }
+            .frame(maxWidth: .infinity)
+            .frame(height: AuthFormMetrics.buttonHeight)
+        }
+        .background {
+            Color.clear
+                .liquidGlass(
+                    in: RoundedRectangle(cornerRadius: AuthFormMetrics.buttonCornerRadius, style: .continuous),
+                    interactive: isEnabled
+                )
+        }
+        .overlay {
+            RoundedRectangle(cornerRadius: AuthFormMetrics.buttonCornerRadius, style: .continuous)
+                .fill(AuthColors.subtle(colorScheme, opacity: isEnabled ? 0.1 : 0.02))
+                .allowsHitTesting(false)
+        }
+        .disabled(isLoading || !isEnabled)
+        .opacity(isEnabled ? 1 : 0.6)
+        .scaleEffect(isLoading ? 0.97 : 1)
+        .animation(.easeInOut(duration: 0.2), value: isLoading)
     }
 }

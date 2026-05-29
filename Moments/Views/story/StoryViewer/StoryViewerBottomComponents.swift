@@ -55,7 +55,16 @@ struct StoryOwnStoryBottomBar: View {
     var showsShare: Bool = false
     let onShare: () -> Void
 
+    @Environment(\.colorScheme) private var colorScheme
     @State private var audienceListName: String?
+
+    private var chromeColors: AdaptiveColors {
+        AdaptiveColors(colorScheme: colorScheme)
+    }
+
+    private var labelShadowColor: Color {
+        colorScheme == .dark ? Color.black.opacity(0.5) : Color.clear
+    }
 
     private var isEveryoneAudience: Bool {
         StoryAudienceBottomInfo.normalizedAudience(audience) == "everyone"
@@ -137,12 +146,12 @@ struct StoryOwnStoryBottomBar: View {
             VStack(spacing: 6) {
                 Image(systemName: "paperplane.fill")
                     .font(.system(size: 22, weight: .medium))
-                    .foregroundColor(.white)
+                    .foregroundColor(chromeColors.messageTextColor)
                     .frame(height: 32)
                 Text(NSLocalizedString("stories.ownBottom.share", comment: "Share story"))
                     .font(.custom("Poppins-Medium", size: 12))
-                    .foregroundColor(.white)
-                    .shadow(color: .black.opacity(0.5), radius: 4, x: 0, y: 1)
+                    .foregroundColor(chromeColors.messageTextColor)
+                    .shadow(color: labelShadowColor, radius: 4, x: 0, y: 1)
                     .lineLimit(1)
             }
         }
@@ -158,8 +167,8 @@ struct StoryOwnStoryBottomBar: View {
 
                 Text(String(reactionCount))
                     .font(.custom("Poppins-Medium", size: 12))
-                    .foregroundColor(.white)
-                    .shadow(color: .black.opacity(0.5), radius: 4, x: 0, y: 1)
+                    .foregroundColor(chromeColors.messageTextColor)
+                    .shadow(color: labelShadowColor, radius: 4, x: 0, y: 1)
             }
         }
         .buttonStyle(PlainButtonStyle())
@@ -185,7 +194,7 @@ struct StoryOwnStoryBottomBar: View {
                 ForEach(Array(emojis.enumerated()), id: \.offset) { index, emoji in
                     Text(emoji)
                         .font(.system(size: index == 0 ? 22 : 18))
-                        .shadow(color: .black.opacity(0.45), radius: 3, x: 0, y: 1)
+                        .shadow(color: labelShadowColor, radius: 3, x: 0, y: 1)
                 }
             }
         }
@@ -208,8 +217,8 @@ struct StoryOwnStoryBottomBar: View {
 
                 Text(NSLocalizedString("stories.ownBottom.activity", comment: "Activity label under avatars"))
                     .font(.custom("Poppins-Medium", size: 12))
-                    .foregroundColor(.white)
-                    .shadow(color: .black.opacity(0.5), radius: 4, x: 0, y: 1)
+                    .foregroundColor(chromeColors.messageTextColor)
+                    .shadow(color: labelShadowColor, radius: 4, x: 0, y: 1)
             }
             .frame(minWidth: 56)
             .contentShape(Rectangle())
@@ -222,14 +231,14 @@ struct StoryOwnStoryBottomBar: View {
         VStack(spacing: 6) {
             Image(systemName: audienceIcon)
                 .font(.system(size: 22, weight: .medium))
-                .foregroundColor(.white)
-                .shadow(color: .black.opacity(0.5), radius: 4, x: 0, y: 1)
+                .foregroundColor(chromeColors.messageTextColor)
+                .shadow(color: labelShadowColor, radius: 4, x: 0, y: 1)
                 .frame(height: 32)
 
             Text(audienceTitle)
                 .font(.custom("Poppins-Medium", size: 12))
-                .foregroundColor(.white)
-                .shadow(color: .black.opacity(0.5), radius: 4, x: 0, y: 1)
+                .foregroundColor(chromeColors.messageTextColor)
+                .shadow(color: labelShadowColor, radius: 4, x: 0, y: 1)
                 .lineLimit(1)
                 .minimumScaleFactor(0.75)
                 .frame(maxWidth: 88)
@@ -278,13 +287,18 @@ struct StoryOwnStoryBottomBar: View {
                     .resizable()
                     .scaledToFit()
                     .padding(5)
-                    .foregroundColor(.white.opacity(0.85))
-                    .background(Color.white.opacity(0.18))
+                    .foregroundColor(chromeColors.replyBarSecondaryText)
+                    .background(chromeColors.messageBubbleBackground)
             }
         }
         .frame(width: 28, height: 28)
         .clipShape(Circle())
-        .overlay(Circle().stroke(Color.black.opacity(0.35), lineWidth: 1.5))
+        .overlay(
+            Circle().stroke(
+                colorScheme == .dark ? Color.black.opacity(0.35) : Color.black.opacity(0.12),
+                lineWidth: 1.5
+            )
+        )
     }
 }
 

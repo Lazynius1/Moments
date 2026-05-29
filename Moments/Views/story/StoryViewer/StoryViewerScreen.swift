@@ -522,109 +522,92 @@ struct StoryViewerScreen: View {
         )
     }
 
-    private var overlayBoundView: AnyView {
-        AnyView(
-            ZStack {
-                lifecycleBoundView
-                    .sheet(isPresented: $showViewers, onDismiss: {
-                        resumeStory()
-                    }) {
-                        GlassmorphicViewersSheet(
-                            story: story,
-                            viewers: storyViewModel.storyViewers[story.id ?? ""] ?? [],
-                            reactions: storyViewModel.storyReactions[story.id ?? ""] ?? [],
-                            initialTab: activitySheetInitialTab
-                        )
-                        .onAppear {
-                            pauseStory()
-                        }
+    @ViewBuilder
+    private var storyViewerOverlayZStack: some View {
+        ZStack {
+            lifecycleBoundView
+                .sheet(isPresented: $showViewers, onDismiss: {
+                    resumeStory()
+                }) {
+                    GlassmorphicViewersSheet(
+                        story: story,
+                        viewers: storyViewModel.storyViewers[story.id ?? ""] ?? [],
+                        reactions: storyViewModel.storyReactions[story.id ?? ""] ?? [],
+                        initialTab: activitySheetInitialTab
+                    )
+                    .onAppear {
+                        pauseStory()
                     }
-                    .sheet(isPresented: $showStoryShareSheet, onDismiss: {
-                        resumeStory()
-                    }) {
-                        StoryShareBottomSheet(story: story, isPresented: $showStoryShareSheet)
-                            .onAppear {
-                                pauseStory()
-                            }
-                    }
+                }
 
+            if showStoryShareSheet {
+                StoryShareBottomSheet(story: story, isPresented: $showStoryShareSheet)
+                    .transition(
+                        .asymmetric(
+                            insertion: .move(edge: .bottom).combined(with: .opacity),
+                            removal: .move(edge: .bottom).combined(with: .opacity)
+                        )
+                    )
+                    .zIndex(1001)
             }
+        }
+        .animation(.spring(response: 0.4, dampingFraction: 0.8), value: showStoryShareSheet)
+    }
+
+    private var overlayBoundView: AnyView {
+        AnyView(overlayBoundViewWithConfirmationHandlers)
+    }
+
+    private var overlayBoundViewWithConfirmationHandlers: some View {
+        overlayBoundViewWithSheetHandlers
+            .onChange(of: showingBlockConfirmation) { _, isOpen in
+                pauseOrResumeStory(forOverlay: isOpen)
+            }
+            .onChange(of: showUnfollowConfirmation) { _, isOpen in
+                pauseOrResumeStory(forOverlay: isOpen)
+            }
+            .onChange(of: showMuteConfirmation) { _, isOpen in
+                pauseOrResumeStory(forOverlay: isOpen)
+            }
+            .onChange(of: showBestFriendsOptOutConfirmation) { _, isOpen in
+                pauseOrResumeStory(forOverlay: isOpen)
+            }
+    }
+
+    private var overlayBoundViewWithSheetHandlers: some View {
+        overlayBoundViewWithMediaHandlers
+            .onChange(of: showingReportSheet) { _, isOpen in
+                pauseOrResumeStory(forOverlay: isOpen)
+            }
+            .onChange(of: showViewers) { _, isOpen in
+                pauseOrResumeStory(forOverlay: isOpen)
+            }
+            .onChange(of: showStoryShareSheet) { _, isOpen in
+                pauseOrResumeStory(forOverlay: isOpen)
+            }
+    }
+
+    private var overlayBoundViewWithMediaHandlers: some View {
+        storyViewerOverlayZStack
             .onChange(of: selectedPhoto) { _, newPhoto in
                 handleEphemeralPhoto(newPhoto)
             }
             .onChange(of: showReactions) { _, isOpen in
-                if isOpen {
-                    pauseStory()
-                } else {
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                        resumeStory()
-                    }
-                }
+                pauseOrResumeStory(forOverlay: isOpen)
             }
             .onChange(of: showEphemeralPicker) { _, isOpen in
-                if isOpen {
-                    pauseStory()
-                } else {
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                        resumeStory()
-                    }
-                }
+                pauseOrResumeStory(forOverlay: isOpen)
             }
-            .onChange(of: showingReportSheet) { oldValue, newValue in
-                if newValue {
-                    pauseStory()
-                } else {
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                        resumeStory()
-                    }
-                }
+    }
+
+    private func pauseOrResumeStory(forOverlay isPresented: Bool) {
+        if isPresented {
+            pauseStory()
+        } else {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                resumeStory()
             }
-            .onChange(of: showViewers) { oldValue, newValue in
-                if newValue {
-                    pauseStory()
-                } else {
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                        resumeStory()
-                    }
-                }
-            }
-            .onChange(of: showingBlockConfirmation) { oldValue, newValue in
-                    if newValue {
-                        pauseStory()
-                    } else {
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                            resumeStory()
-                        }
-                    }
-                }
-                .onChange(of: showUnfollowConfirmation) { oldValue, newValue in
-                    if newValue {
-                        pauseStory()
-                    } else {
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                            resumeStory()
-                        }
-                    }
-                }
-                .onChange(of: showMuteConfirmation) { oldValue, newValue in
-                    if newValue {
-                        pauseStory()
-                    } else {
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                            resumeStory()
-                        }
-                    }
-                }
-                .onChange(of: showBestFriendsOptOutConfirmation) { oldValue, newValue in
-                    if newValue {
-                        pauseStory()
-                    } else {
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                            resumeStory()
-                        }
-                    }
-                }
-        )
+        }
     }
 
     private var profileAndChainBoundView: AnyView {
