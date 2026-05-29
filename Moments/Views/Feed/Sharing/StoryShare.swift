@@ -159,6 +159,7 @@ struct StoryShareBottomSheet: View {
     var body: some View {
         ZStack {
             Color.clear
+                .contentShape(Rectangle())
                 .ignoresSafeArea()
                 .onTapGesture {
                     withAnimation(.easeOut(duration: 0.3)) {
@@ -186,6 +187,7 @@ struct StoryShareBottomSheet: View {
                 .padding(.bottom, 20)
             }
         }
+        .ignoresSafeArea()
     }
 }
 

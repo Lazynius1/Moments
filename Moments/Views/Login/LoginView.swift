@@ -39,12 +39,13 @@ struct LoginView: View {
 
                         VStack(spacing: 0) {
                             EnhancedHeaderView()
+                                .authScreenContentWidth()
                                 .scaleEffect(isVisible ? 1.0 : 0.8)
                                 .opacity(isVisible ? 1.0 : 0.0)
                                 .animation(.spring(response: 0.8, dampingFraction: 0.6), value: isVisible)
 
                             Spacer()
-                                .frame(height: 24)
+                                .frame(height: 20)
 
                             EnhancedFormView(
                                 identifier: $identifier,
@@ -197,7 +198,21 @@ struct EnhancedFormView: View {
     }
 
     var body: some View {
-        VStack(spacing: 18) {
+        VStack(spacing: 0) {
+            loginFormColumn
+
+            LoginDisclaimerView()
+                .authScreenContentWidth()
+                .padding(.top, 18)
+        }
+        .navigationDestination(isPresented: $authService.isRegistering) {
+            SocialProfileCompletionView()
+        }
+        .padding(.bottom, 18)
+    }
+
+    private var loginFormColumn: some View {
+        VStack(spacing: 12) {
             LiquidGlassTextField(
                 icon: "person.fill",
                 placeholder: NSLocalizedString("login.usernameOrEmail", comment: ""),
@@ -223,7 +238,7 @@ struct EnhancedFormView: View {
                 }
             }
 
-            VStack(spacing: 12) {
+            VStack(spacing: 10) {
                 EnhancedLoginButton(
                     isLoading: $isLoading,
                     isEnabled: !identifier.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !password.isEmpty,
@@ -292,9 +307,8 @@ struct EnhancedFormView: View {
                     }
                 )
                 .signInWithAppleButtonStyle(colorScheme == .dark ? .white : .black)
-                .frame(height: 50)
-                .cornerRadius(25)
-                .padding(.top, 2)
+                .frame(height: AuthFormMetrics.buttonHeight)
+                .clipShape(RoundedRectangle(cornerRadius: AuthFormMetrics.buttonCornerRadius, style: .continuous))
 
                 // ✅ NUEVO: Botón de Passkeys
                 Button(action: {
@@ -328,17 +342,26 @@ struct EnhancedFormView: View {
                 }) {
                     HStack(spacing: 8) {
                         Image(systemName: "faceid")
-                            .font(.system(size: 20))
+                            .font(.system(size: 17, weight: .medium))
                         Text("login.passkey")
-                            .font(.system(size: 16, weight: .semibold))
+                            .font(.system(size: AuthFormMetrics.buttonFontSize, weight: .semibold))
                     }
+                    .foregroundColor(primaryText)
                     .frame(maxWidth: .infinity)
-                    .frame(height: 50)
-                    .background(Color.primary.opacity(0.1))
-                    .foregroundColor(.primary)
-                    .cornerRadius(25)
+                    .frame(height: AuthFormMetrics.buttonHeight)
                 }
-                .padding(.top, 2)
+                .background {
+                    Color.clear
+                        .liquidGlass(
+                            in: RoundedRectangle(cornerRadius: AuthFormMetrics.buttonCornerRadius, style: .continuous),
+                            interactive: true
+                        )
+                }
+                .overlay {
+                    RoundedRectangle(cornerRadius: AuthFormMetrics.buttonCornerRadius, style: .continuous)
+                        .stroke(primaryText.opacity(colorScheme == .dark ? 0.14 : 0.12), lineWidth: 0.5)
+                        .allowsHitTesting(false)
+                }
             }
 
             VStack(spacing: 10) {
@@ -355,17 +378,8 @@ struct EnhancedFormView: View {
                 }
             }
             .padding(.top, 6)
-
-            LoginDisclaimerView()
-                .padding(.top, 14)
         }
-            // ✅ Modern navigation: uses navigationDestination(isPresented:) instead of deprecated NavigationLink(isActive:)
-            .navigationDestination(isPresented: $authService.isRegistering) {
-                SocialProfileCompletionView()
-            }
-
-        .padding(.horizontal, 24)
-        .padding(.bottom, 18)
+        .authScreenContentWidth()
     }
 
     private func mapAppleError(_ error: Error) -> String {
@@ -409,7 +423,6 @@ struct LoginDisclaimerView: View {
             .lineSpacing(2)
         }
         .frame(maxWidth: .infinity)
-        .padding(.horizontal, 12)
     }
 }
 
@@ -435,27 +448,30 @@ struct EnhancedLoginButton: View {
                 action()
             }
         }) {
-            HStack(spacing: 12) {
+            HStack(spacing: 8) {
                 if isLoading {
                     ProgressView()
-                        .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                        .scaleEffect(0.8)
+                        .progressViewStyle(CircularProgressViewStyle(tint: primaryText))
+                        .scaleEffect(0.75)
                 } else {
                     Text("login.signIn")
-                        .font(.system(size: 18, weight: .semibold))
+                        .font(.system(size: AuthFormMetrics.buttonFontSize, weight: .semibold))
                         .foregroundColor(primaryText)
                 }
             }
             .frame(maxWidth: .infinity)
-            .frame(height: 50)
+            .frame(height: AuthFormMetrics.buttonHeight)
         }
         .background {
             Color.clear
-                .liquidGlass(in: RoundedRectangle(cornerRadius: 18, style: .continuous), interactive: isEnabled)
+                .liquidGlass(
+                    in: RoundedRectangle(cornerRadius: AuthFormMetrics.buttonCornerRadius, style: .continuous),
+                    interactive: isEnabled
+                )
         }
         .overlay {
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .fill(primaryText.opacity(isEnabled ? 0.08 : 0.02))
+            RoundedRectangle(cornerRadius: AuthFormMetrics.buttonCornerRadius, style: .continuous)
+                .fill(primaryText.opacity(isEnabled ? 0.1 : 0.02))
                 .allowsHitTesting(false)
         }
         .disabled(isLoading || !isEnabled)
@@ -483,7 +499,7 @@ struct EnhancedDividerView: View {
     }
 
     var body: some View {
-        HStack(spacing: 16) {
+        HStack(spacing: 10) {
             Rectangle()
                 .fill(
                     LinearGradient(
@@ -493,11 +509,16 @@ struct EnhancedDividerView: View {
                     )
                 )
                 .frame(height: 1)
+                .layoutPriority(0)
 
             Text("login.orContinue")
-                .font(.system(size: 14, weight: .medium))
+                .font(.system(size: 13, weight: .medium))
                 .foregroundColor(textColor)
-                .padding(.horizontal, 8)
+                .lineLimit(1)
+                .minimumScaleFactor(0.85)
+                .layoutPriority(1)
+                .fixedSize(horizontal: true, vertical: false)
+                .padding(.horizontal, 4)
 
             Rectangle()
                 .fill(
@@ -508,6 +529,7 @@ struct EnhancedDividerView: View {
                     )
                 )
                 .frame(height: 1)
+                .layoutPriority(0)
         }
         .padding(.vertical, 8)
     }

@@ -63,42 +63,42 @@ struct SocialProfileCompletionView: View {
 
                     Spacer()
                 }
-                .padding(.horizontal)
+                .authScreenHorizontalPadding()
                 .padding(.top, 10)
                 .opacity(isVisible ? 1 : 0)
                 
                 ScrollView {
-                    VStack(spacing: 20) {
-                        VStack(spacing: 12) {
+                    VStack(spacing: 16) {
+                        VStack(spacing: 10) {
                             Image(colorScheme == .dark ? "RegisterLogo2" : "whatsnew2")
                                 .resizable()
                                 .aspectRatio(contentMode: .fit)
-                                .frame(height: 146)
+                                .frame(height: AuthFormMetrics.registerLogoHeight)
                                 .shadow(color: .white.opacity(0.22), radius: 8, x: 0, y: 0)
                                 .shadow(color: .blue.opacity(0.16), radius: 16, x: 0, y: 0)
-                                .padding(.horizontal, 20)
 
                             Text(getStepDescription())
-                                .font(.system(size: 16, weight: .medium))
+                                .font(.system(size: 15, weight: .medium))
                                 .foregroundColor(AuthColors.secondary(colorScheme, opacity: 0.84))
                                 .multilineTextAlignment(.center)
                                 .animation(.easeInOut, value: currentStep)
                         }
-                        .padding(.top, 12)
+                        .authScreenContentWidth()
+                        .padding(.top, 8)
                         .scaleEffect(isVisible ? 1 : 0.8)
                         .opacity(isVisible ? 1 : 0)
 
-                        VStack(spacing: 18) {
+                        VStack(spacing: 12) {
                         if currentStep == 1 {
                             // Step 1: Username and Photo
-                            VStack(spacing: 25) {
+                            VStack(spacing: 16) {
                                 EnhancedProfilePhotoPicker(
                                     selectedPhotoItem: $selectedPhotoItem,
                                     profileImage: $profileImage,
                                     showingPhotoPicker: $showingPhotoPicker
                                 )
                                 
-                                VStack(alignment: .leading, spacing: 12) {
+                                VStack(alignment: .leading, spacing: 6) {
                                     HStack {
                                         Image(systemName: "at")
                                             .foregroundColor(AuthColors.secondary(colorScheme, opacity: 0.7))
@@ -128,7 +128,7 @@ struct SocialProfileCompletionView: View {
                             
                         } else if currentStep == 2 {
                             // Step 2: Interests
-                            VStack(spacing: 25) {
+                            VStack(spacing: 16) {
                                 EnhancedInterestsSelector(
                                     availableInterests: $availableInterests,
                                     selectedInterests: $selectedInterests
@@ -144,40 +144,20 @@ struct SocialProfileCompletionView: View {
                             )
                         }
                         
-                        // Action Button
-                        Button(action: handleNext) {
-                            HStack {
-                                if isLoading {
-                                    ProgressView()
-                                        .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                                } else {
-                                    Text(currentStep == 3 ? NSLocalizedString("register.completeProfile.finish", comment: "Finish profile") : NSLocalizedString("register.actions.continue", comment: "Continue"))
-                                        .font(.system(size: 18, weight: .bold))
-                                        .foregroundColor(AuthColors.primary(colorScheme))
-                                }
-                            }
-                            .frame(maxWidth: .infinity)
-                            .frame(height: 52)
-                            .background {
-                                Color.clear
-                                    .liquidGlass(in: RoundedRectangle(cornerRadius: 18, style: .continuous), interactive: canProceed())
-                            }
-                            .overlay {
-                                RoundedRectangle(cornerRadius: 18, style: .continuous)
-                                    .fill(AuthColors.subtle(colorScheme, opacity: canProceed() ? 0.08 : 0.02))
-                                    .allowsHitTesting(false)
-                            }
-                        }
-                        .disabled(isLoading || !canProceed())
-                        .opacity(canProceed() ? 1.0 : 0.6)
+                        AuthRegistrationPrimaryButton(
+                            title: currentStep == 3 ? "register.completeProfile.finish" : "register.actions.continue",
+                            isLoading: isLoading,
+                            isEnabled: canProceed(),
+                            action: handleNext
+                        )
                         
                         if currentStep > 1 {
                             Button(action: { currentStep -= 1 }) {
                                 Text("register.back")
-                                    .font(.system(size: 16, weight: .semibold))
+                                    .font(.system(size: 15, weight: .semibold))
                                     .foregroundColor(AuthColors.secondary(colorScheme, opacity: 0.72))
-                                    .padding(.vertical, 10)
-                                    .padding(.horizontal, 20)
+                                    .padding(.vertical, 8)
+                                    .padding(.horizontal, 16)
                                     .background {
                                         Color.clear
                                             .liquidGlass(in: Capsule(), interactive: true)
@@ -185,15 +165,7 @@ struct SocialProfileCompletionView: View {
                             }
                         }
                         }
-                        .padding(.horizontal, 26)
-                        .padding(.vertical, 30)
-                        .background {
-                            Color.clear
-                                .liquidGlass(in: RoundedRectangle(cornerRadius: 28, style: .continuous))
-                        }
-                        .shadow(color: .black.opacity(0.16), radius: 22, x: 0, y: 12)
-                        .shadow(color: .blue.opacity(0.06), radius: 34, x: 0, y: 18)
-                        .padding(.horizontal, 20)
+                        .authScreenContentWidth()
                         .offset(y: isVisible ? 0 : 50)
                         .opacity(isVisible ? 1 : 0)
 
