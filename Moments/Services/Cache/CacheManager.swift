@@ -7,7 +7,7 @@ class CacheManager: ObservableObject {
     static let shared = CacheManager()
     private let userDefaults = UserDefaults.standard
     private let lastCleanupKey = "LastCacheCleanupDate"
-    private let maxCacheSize = 2000 * 1024 * 1024  // ✅ 2GB (Estilo Instagram)
+    private let maxCacheSize = 2000 * 1024 * 1024  // ✅ 2GB
     private let warningThreshold = 1500 * 1024 * 1024  // ✅ 1.5GB
     
     private init() {

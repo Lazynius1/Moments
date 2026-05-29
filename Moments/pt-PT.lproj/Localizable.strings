@@ -1190,6 +1190,12 @@
 "stories.reactions" = "Reações";
 "stories.reactions.count" = "%d";
 "stories.seeActivity" = "Ver atividade";
+"stories.ownBottom.activity" = "Atividade";
+"stories.ownBottom.audienceAccessibility" = "Público: %@";
+"stories.ownBottom.noViews" = "Ainda sem visualizações";
+"stories.ownBottom.viewsOne" = "1 visualização";
+"stories.ownBottom.viewsMany" = "%d visualizações";
+"stories.ownBottom.reactionsCount" = "%d reações";
 "stories.cancel" = "Cancelar";
 "stories.photo" = "Fotografia";
 "stories.video" = "Vídeo";
@@ -3456,6 +3462,17 @@
 "notification.storyChain.multiple.title" = "%@ adicionou a parte %@ da chain \"%@\"";
 "notification.storyChain.multiple.body" = "%@ partes no total";
 
+/* Story Chain — push e mensagens in-app diferenciados por papel (criador/participante) */
+"notifications.unread.indicator" = "Por ler";
+"notification.storyChain.creator.title" = "%@ continuou a tua cadeia ✨";
+"notification.storyChain.creator.body" = "Adicionou um momento a \"%@\" · já vão %@";
+"notification.storyChain.participant.title" = "A cadeia \"%@\" continua a crescer";
+"notification.storyChain.participant.body" = "%@ acabou de adicionar um momento · já vão %@";
+"notifications.message.storyChain.creator.single" = "%@ continuou a tua cadeia \"%@\" · já vão %@ momentos";
+"notifications.message.storyChain.creator.multiple" = "%@ e mais %d continuaram a tua cadeia \"%@\"";
+"notifications.message.storyChain.participant.single" = "%@ juntou-se a \"%@\", uma cadeia onde estás · já vão %@ momentos";
+"notifications.message.storyChain.participant.multiple" = "%@ e mais %d juntaram-se a \"%@\", uma cadeia onde estás";
+
 /* Push Notifications - Echoes */
 "notification.echo.title" = "Tens uma ligação por perto! ✨";
 "notification.echo.body" = "%@ está por perto. Criem um Echo juntos!";
@@ -3463,6 +3480,8 @@
 /* Push Notifications - Mutual Connection */
 "notification.mutualConnection.title" = "Nova ligação mútua! 🎉";
 "notification.mutualConnection.body" = "Tu e %@ seguem-se agora mutuamente";
+"notification.mutualConnection.multiple.title" = "Novas ligações mútuas! 🎉";
+"notification.mutualConnection.multiple.body" = "%@ e mais %@ pessoas agora são ligações mútuas";
 "explore.search.placeholder" = "Pesquisar...";
 
 /* Explore Search */
@@ -4219,3 +4238,28 @@
 "storyEditor.discardDraft.message" = "Se saíres agora, vais perder todas as alterações que fizeste.";
 "storyEditor.discardDraft.confirm" = "Descartar";
 "storyEditor.discardDraft.cancel" = "Continuar a editar";
+
+"notifications.empty.comments.message" = "Quando alguém comentar nos teus momentos, aparecerá aqui";
+"notifications.empty.storyReactions.message" = "Quando alguém reagir às tuas histórias, aparecerá aqui";
+"notifications.empty.requests.message" = "Quando alguém quiser seguir-te, aparecerá aqui";
+"notifications.empty.reactions.message" = "Quando alguém reagir aos teus momentos (vibe, fire, etc.), aparecerá aqui";
+"notifications.empty.follows.message" = "Quando alguém te seguir, aparecerá aqui";
+"notifications.empty.default.message" = "Quando alguém interagir contigo, aparecerá aqui";
+"notifications.echo.viewAction" = "Ver Echo";
+"notificationType.like" = "Reação";
+"notificationType.reaction" = "Reação";
+"notificationType.comment" = "Comentário";
+"notificationType.mention" = "Menções";
+"notificationType.newFollower" = "Novos seguidores";
+"notificationType.followRequest" = "Pedidos de seguimento";
+"notificationType.requestAccepted" = "Pedido aceite";
+"notificationType.mutualConnection" = "Ligações mútuas";
+"notificationType.storyReaction" = "Reação a história";
+"notificationType.message" = "Mensagens";
+"notificationType.photoTag" = "Etiquetas em fotos";
+"notificationType.echoSuggestion" = "Sugestão de Echo";
+"notificationType.dataExportReady" = "Exportação de dados";
+"notificationType.storyChainContinued" = "Cadeia de histórias";
+"notificationType.mediaModeration" = "Moderação";
+"notification.echo.host.title" = "O teu Echo está pronto ✨";
+"notification.echo.host.body" = "Aceita-o para o ativar com as tuas ligações";

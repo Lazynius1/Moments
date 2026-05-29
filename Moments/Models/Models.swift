@@ -2104,6 +2104,7 @@ struct Notification: Identifiable, Codable {
     let visitCount: Int?
     let storyId: String?
     let storyAuthorId: String?
+    let storyPreviewUrl: String? // 🔗 Miniatura real de la historia (poster de vídeo o foto)
     let mentionContext: String?
     let targetAuthorId: String?
     let targetAuthorUsername: String?
@@ -2116,6 +2117,8 @@ struct Notification: Identifiable, Codable {
     let chainId: String? // 🔗 Story Chains
     let chainTitle: String? // 🔗 Story Chains
     let chainPosition: Int? // 🔗 Story Chains
+    let totalParts: Int? // 🔗 Story Chains: nº total de partes acumuladas
+    let chainRole: String? // 🔗 Story Chains: "creator" | "participant"
 
     enum CodingKeys: String, CodingKey {
         case id
@@ -2132,6 +2135,7 @@ struct Notification: Identifiable, Codable {
         case visitCount
         case storyId
         case storyAuthorId
+        case storyPreviewUrl
         case mentionContext
         case targetAuthorId
         case targetAuthorUsername
@@ -2146,6 +2150,8 @@ struct Notification: Identifiable, Codable {
         case chainId
         case chainTitle
         case chainPosition
+        case totalParts
+        case chainRole
     }
 
     init(id: String? = nil,
@@ -2161,6 +2167,7 @@ struct Notification: Identifiable, Codable {
          visitCount: Int? = nil,
          storyId: String? = nil,
          storyAuthorId: String? = nil,
+         storyPreviewUrl: String? = nil,
          mentionContext: String? = nil,
          targetAuthorId: String? = nil,
          targetAuthorUsername: String? = nil,
@@ -2172,7 +2179,9 @@ struct Notification: Identifiable, Codable {
          moderationScope: String? = nil,
          chainId: String? = nil,
          chainTitle: String? = nil,
-         chainPosition: Int? = nil) {
+         chainPosition: Int? = nil,
+         totalParts: Int? = nil,
+         chainRole: String? = nil) {
 
         self.id = id
         self.type = type
@@ -2187,6 +2196,7 @@ struct Notification: Identifiable, Codable {
         self.visitCount = visitCount
         self.storyId = storyId
         self.storyAuthorId = storyAuthorId
+        self.storyPreviewUrl = storyPreviewUrl
         self.mentionContext = mentionContext
         self.targetAuthorId = targetAuthorId
         self.targetAuthorUsername = targetAuthorUsername
@@ -2199,6 +2209,8 @@ struct Notification: Identifiable, Codable {
         self.chainId = chainId
         self.chainTitle = chainTitle
         self.chainPosition = chainPosition
+        self.totalParts = totalParts
+        self.chainRole = chainRole
     }
 
     init(from decoder: Decoder) throws {
@@ -2229,6 +2241,7 @@ struct Notification: Identifiable, Codable {
         self.visitCount = try container.decodeIfPresent(Int.self, forKey: .visitCount)
         self.storyId = try container.decodeIfPresent(String.self, forKey: .storyId)
         self.storyAuthorId = try container.decodeIfPresent(String.self, forKey: .storyAuthorId)
+        self.storyPreviewUrl = try container.decodeIfPresent(String.self, forKey: .storyPreviewUrl)
         self.mentionContext = try container.decodeIfPresent(String.self, forKey: .mentionContext)
         self.targetAuthorId = try container.decodeIfPresent(String.self, forKey: .targetAuthorId)
         self.targetAuthorUsername = try container.decodeIfPresent(String.self, forKey: .targetAuthorUsername)
@@ -2255,6 +2268,8 @@ struct Notification: Identifiable, Codable {
         self.chainId = try container.decodeIfPresent(String.self, forKey: .chainId)
         self.chainTitle = try container.decodeIfPresent(String.self, forKey: .chainTitle)
         self.chainPosition = try container.decodeIfPresent(Int.self, forKey: .chainPosition)
+        self.totalParts = try container.decodeIfPresent(Int.self, forKey: .totalParts)
+        self.chainRole = try container.decodeIfPresent(String.self, forKey: .chainRole)
     }
 
     func encode(to encoder: Encoder) throws {
@@ -2272,6 +2287,7 @@ struct Notification: Identifiable, Codable {
         try container.encodeIfPresent(visitCount, forKey: .visitCount)
         try container.encodeIfPresent(storyId, forKey: .storyId)
         try container.encodeIfPresent(storyAuthorId, forKey: .storyAuthorId)
+        try container.encodeIfPresent(storyPreviewUrl, forKey: .storyPreviewUrl)
         try container.encodeIfPresent(mentionContext, forKey: .mentionContext)
         try container.encodeIfPresent(targetAuthorId, forKey: .targetAuthorId)
         try container.encodeIfPresent(targetAuthorUsername, forKey: .targetAuthorUsername)
@@ -2284,6 +2300,8 @@ struct Notification: Identifiable, Codable {
         try container.encodeIfPresent(chainId, forKey: .chainId)
         try container.encodeIfPresent(chainTitle, forKey: .chainTitle)
         try container.encodeIfPresent(chainPosition, forKey: .chainPosition)
+        try container.encodeIfPresent(totalParts, forKey: .totalParts)
+        try container.encodeIfPresent(chainRole, forKey: .chainRole)
     }
 }
 
@@ -2296,7 +2314,6 @@ enum NotificationType: String, Codable, CaseIterable {
     case followRequest = "followRequest" // NUEVO
     case requestAccepted = "requestAccepted" // ✅ NUEVO: Solicitud aceptada
     case mutualConnection = "mutualConnection"
-    case profileVisit = "profileVisit"
     case storyReaction = "storyReaction"
     case message = "message" // ✅ NUEVO: Para mensajes directos (DM)
     case photoTag = "photoTag" // ✅ NUEVO: Para etiquetas en fotos
@@ -2307,22 +2324,21 @@ enum NotificationType: String, Codable, CaseIterable {
 
     var displayName: String {
         switch self {
-        case .like: return "Reacción" // Para comentarios
-        case .reaction: return "Reacción" // ✅ NUEVO: Para momentos
-        case .comment: return "Comentario"
-        case .mention: return "Menciones" // ✅ NUEVO
-        case .newFollower: return "Nuevos seguidores"
-        case .followRequest: return "Solicitudes de seguimiento" // NUEVO
-        case .requestAccepted: return "Solicitud aceptada" // ✅ NUEVO
-        case .mutualConnection: return "Conexiones mutuas"
-        case .profileVisit: return "Visitas al perfil"
-        case .storyReaction: return "Reacción a historia"
-        case .message: return "Mensajes"
-        case .photoTag: return "Etiquetas en fotos"
-        case .echoSuggestion: return "Sugerencia de Echo"
-        case .dataExportReady: return "Exportación de datos"
-        case .storyChainContinued: return "Cadena de historias" // 🔗
-        case .mediaModeration: return "Moderación" // 🛡️
+        case .like: return NSLocalizedString("notificationType.like", comment: "Comment reaction")
+        case .reaction: return NSLocalizedString("notificationType.reaction", comment: "Moment reaction")
+        case .comment: return NSLocalizedString("notificationType.comment", comment: "Comment")
+        case .mention: return NSLocalizedString("notificationType.mention", comment: "Mentions")
+        case .newFollower: return NSLocalizedString("notificationType.newFollower", comment: "New followers")
+        case .followRequest: return NSLocalizedString("notificationType.followRequest", comment: "Follow requests")
+        case .requestAccepted: return NSLocalizedString("notificationType.requestAccepted", comment: "Request accepted")
+        case .mutualConnection: return NSLocalizedString("notificationType.mutualConnection", comment: "Mutual connections")
+        case .storyReaction: return NSLocalizedString("notificationType.storyReaction", comment: "Story reaction")
+        case .message: return NSLocalizedString("notificationType.message", comment: "Messages")
+        case .photoTag: return NSLocalizedString("notificationType.photoTag", comment: "Photo tags")
+        case .echoSuggestion: return NSLocalizedString("notificationType.echoSuggestion", comment: "Echo suggestion")
+        case .dataExportReady: return NSLocalizedString("notificationType.dataExportReady", comment: "Data export")
+        case .storyChainContinued: return NSLocalizedString("notificationType.storyChainContinued", comment: "Story chain")
+        case .mediaModeration: return NSLocalizedString("notificationType.mediaModeration", comment: "Moderation")
         }
     }
 
@@ -2336,7 +2352,6 @@ enum NotificationType: String, Codable, CaseIterable {
         case .followRequest: return "person.crop.circle.badge.questionmark"
         case .requestAccepted: return "person.crop.circle.badge.checkmark" // ✅ NUEVO
         case .mutualConnection: return "person.2.fill"
-        case .profileVisit: return "eye.fill"
         case .storyReaction: return "face.smiling"
         case .message: return "envelope.fill"
         case .photoTag: return "person.crop.rectangle"

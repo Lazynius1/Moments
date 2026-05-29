@@ -31,7 +31,6 @@ class SettingsViewModel: ObservableObject {
                     NotificationType.newFollower.rawValue: true,
                     NotificationType.followRequest.rawValue: true,
                     NotificationType.mutualConnection.rawValue: true,
-                    NotificationType.profileVisit.rawValue: true,
                     NotificationType.comment.rawValue: true,
                     NotificationType.storyReaction.rawValue: true,
                     "gentleReminders": true,
@@ -86,6 +85,6 @@ class SettingsViewModel: ObservableObject {
 
 extension NotificationType {
     static var allCases: [NotificationType] {
-        [.like, .newFollower, .followRequest, .mutualConnection, .profileVisit, .comment]
+        [.like, .newFollower, .followRequest, .mutualConnection, .comment]
     }
 }

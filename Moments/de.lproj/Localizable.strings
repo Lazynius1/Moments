@@ -380,6 +380,12 @@
 "stories.reactions" = "Reaktionen";
 "stories.reactions.count" = "%d";
 "stories.seeActivity" = "Aktivität ansehen";
+"stories.ownBottom.activity" = "Aktivität";
+"stories.ownBottom.audienceAccessibility" = "Zielgruppe: %@";
+"stories.ownBottom.noViews" = "Noch keine Aufrufe";
+"stories.ownBottom.viewsOne" = "1 Aufruf";
+"stories.ownBottom.viewsMany" = "%d Aufrufe";
+"stories.ownBottom.reactionsCount" = "%d Reaktionen";
 "stories.cancel" = "Abbrechen";
 "stories.photo" = "Foto";
 "stories.video" = "Video";
@@ -2646,6 +2652,17 @@
 "notification.storyChain.multiple.title" = "%@ hat Teil %@ der Kette \"%@\" hinzugefügt";
 "notification.storyChain.multiple.body" = "%@ Teile insgesamt";
 
+/* Story Chain — Push und In-App-Nachrichten je nach Rolle (Ersteller/Teilnehmer) */
+"notifications.unread.indicator" = "Ungelesen";
+"notification.storyChain.creator.title" = "%@ hat deine Kette fortgesetzt ✨";
+"notification.storyChain.creator.body" = "Hat einen Moment zu \"%@\" hinzugefügt · schon %@";
+"notification.storyChain.participant.title" = "Die Kette \"%@\" wächst weiter";
+"notification.storyChain.participant.body" = "%@ hat gerade einen Moment hinzugefügt · schon %@";
+"notifications.message.storyChain.creator.single" = "%@ hat deine Kette \"%@\" fortgesetzt · schon %@ Momente";
+"notifications.message.storyChain.creator.multiple" = "%@ und %d weitere haben deine Kette \"%@\" fortgesetzt";
+"notifications.message.storyChain.participant.single" = "%@ hat zu \"%@\" beigetragen, einer Kette mit dir · schon %@ Momente";
+"notifications.message.storyChain.participant.multiple" = "%@ und %d weitere haben zu \"%@\" beigetragen, einer Kette mit dir";
+
 /* Push Notifications - Echoes */
 "notification.echo.title" = "Du hast eine Verbindung in der Nähe! ✨";
 "notification.echo.body" = "%@ ist in der Nähe. Erstellt gemeinsam ein Echo!";
@@ -2653,6 +2670,8 @@
 /* Push Notifications - Mutual Connection */
 "notification.mutualConnection.title" = "Neue gemeinsame Verbindung! 🎉";
 "notification.mutualConnection.body" = "Du und %@ folgt euch jetzt gegenseitig";
+"notification.mutualConnection.multiple.title" = "Neue gemeinsame Verbindungen! 🎉";
+"notification.mutualConnection.multiple.body" = "%@ und %@ weitere sind jetzt gegenseitige Verbindungen";
 "explore.search.placeholder" = "Suchen...";
 
 /* Explore Search */
@@ -3410,3 +3429,28 @@
 "storyEditor.discardDraft.message" = "Wenn du jetzt gehst, verlierst du alle vorgenommenen Änderungen.";
 "storyEditor.discardDraft.confirm" = "Verwerfen";
 "storyEditor.discardDraft.cancel" = "Weiter bearbeiten";
+
+"notifications.empty.comments.message" = "Wenn jemand deine Momente kommentiert, erscheint es hier";
+"notifications.empty.storyReactions.message" = "Wenn jemand auf deine Storys reagiert, erscheint es hier";
+"notifications.empty.requests.message" = "Wenn dir jemand folgen möchte, erscheint es hier";
+"notifications.empty.reactions.message" = "Wenn jemand auf deine Momente reagiert (vibe, fire, usw.), erscheint es hier";
+"notifications.empty.follows.message" = "Wenn dir jemand folgt, erscheint es hier";
+"notifications.empty.default.message" = "Wenn jemand mit dir interagiert, erscheint es hier";
+"notifications.echo.viewAction" = "Echo ansehen";
+"notificationType.like" = "Reaktion";
+"notificationType.reaction" = "Reaktion";
+"notificationType.comment" = "Kommentar";
+"notificationType.mention" = "Erwähnungen";
+"notificationType.newFollower" = "Neue Follower";
+"notificationType.followRequest" = "Follower-Anfragen";
+"notificationType.requestAccepted" = "Anfrage akzeptiert";
+"notificationType.mutualConnection" = "Gegenseitige Verbindungen";
+"notificationType.storyReaction" = "Story-Reaktion";
+"notificationType.message" = "Nachrichten";
+"notificationType.photoTag" = "Foto-Markierungen";
+"notificationType.echoSuggestion" = "Echo-Vorschlag";
+"notificationType.dataExportReady" = "Datenexport";
+"notificationType.storyChainContinued" = "Story-Kette";
+"notificationType.mediaModeration" = "Moderation";
+"notification.echo.host.title" = "Dein Echo ist bereit ✨";
+"notification.echo.host.body" = "Akzeptiere es, um es mit deinen Verbindungen zu aktivieren";

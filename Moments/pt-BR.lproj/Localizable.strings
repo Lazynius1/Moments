@@ -380,6 +380,12 @@
 "stories.reactions" = "Reações";
 "stories.reactions.count" = "%d";
 "stories.seeActivity" = "Ver atividade";
+"stories.ownBottom.activity" = "Atividade";
+"stories.ownBottom.audienceAccessibility" = "Público: %@";
+"stories.ownBottom.noViews" = "Nenhuma visualização ainda";
+"stories.ownBottom.viewsOne" = "1 visualização";
+"stories.ownBottom.viewsMany" = "%d visualizações";
+"stories.ownBottom.reactionsCount" = "%d reações";
 "stories.cancel" = "Cancelar";
 "stories.photo" = "Foto";
 "stories.video" = "Vídeo";
@@ -2646,13 +2652,26 @@
 "notification.storyChain.multiple.title" = "%@ adicionou a parte %@ da sequência \"%@\"";
 "notification.storyChain.multiple.body" = "%@ partes no total";
 
+/* Story Chain — push e mensagens in-app diferenciados por papel (criador/participante) */
+"notifications.unread.indicator" = "Não lida";
+"notification.storyChain.creator.title" = "%@ continuou sua cadeia ✨";
+"notification.storyChain.creator.body" = "Adicionou um momento a \"%@\" · já são %@";
+"notification.storyChain.participant.title" = "A cadeia \"%@\" continua crescendo";
+"notification.storyChain.participant.body" = "%@ acabou de adicionar um momento · já são %@";
+"notifications.message.storyChain.creator.single" = "%@ continuou sua cadeia \"%@\" · já são %@ momentos";
+"notifications.message.storyChain.creator.multiple" = "%@ e mais %d continuaram sua cadeia \"%@\"";
+"notifications.message.storyChain.participant.single" = "%@ somou a \"%@\", uma cadeia em que você está · já são %@ momentos";
+"notifications.message.storyChain.participant.multiple" = "%@ e mais %d somaram a \"%@\", uma cadeia em que você está";
+
 /* Push Notifications - Echoes */
 "notification.echo.title" = "You have a connection nearby! ✨";
 "notification.echo.body" = "%@ está por perto. Criem um Echo juntos!";
 
 /* Push Notifications - Mutual Connection */
-"notification.mutualConnection.title" = "New mutual connection! 🎉";
+"notification.mutualConnection.title" = "Nova conexão mútua! 🎉";
 "notification.mutualConnection.body" = "Você e %@ agora seguem um ao outro";
+"notification.mutualConnection.multiple.title" = "Novas conexões mútuas! 🎉";
+"notification.mutualConnection.multiple.body" = "%@ e mais %@ pessoas agora são conexões mútuas";
 "explore.search.placeholder" = "Buscar...";
 
 /* Explore Search */
@@ -3410,3 +3429,28 @@
 "storyEditor.discardDraft.message" = "Se você sair agora, perderá todas as alterações que fez.";
 "storyEditor.discardDraft.confirm" = "Descartar";
 "storyEditor.discardDraft.cancel" = "Continuar editando";
+
+"notifications.empty.comments.message" = "Quando alguém comentar nos seus momentos, aparecerá aqui";
+"notifications.empty.storyReactions.message" = "Quando alguém reagir aos seus stories, aparecerá aqui";
+"notifications.empty.requests.message" = "Quando alguém quiser te seguir, aparecerá aqui";
+"notifications.empty.reactions.message" = "Quando alguém reagir aos seus momentos (vibe, fire, etc.), aparecerá aqui";
+"notifications.empty.follows.message" = "Quando alguém te seguir, aparecerá aqui";
+"notifications.empty.default.message" = "Quando alguém interagir com você, aparecerá aqui";
+"notifications.echo.viewAction" = "Ver Echo";
+"notificationType.like" = "Reação";
+"notificationType.reaction" = "Reação";
+"notificationType.comment" = "Comentário";
+"notificationType.mention" = "Menções";
+"notificationType.newFollower" = "Novos seguidores";
+"notificationType.followRequest" = "Solicitações de seguidor";
+"notificationType.requestAccepted" = "Solicitação aceita";
+"notificationType.mutualConnection" = "Conexões mútuas";
+"notificationType.storyReaction" = "Reação a story";
+"notificationType.message" = "Mensagens";
+"notificationType.photoTag" = "Marcações em fotos";
+"notificationType.echoSuggestion" = "Sugestão de Echo";
+"notificationType.dataExportReady" = "Exportação de dados";
+"notificationType.storyChainContinued" = "Cadeia de stories";
+"notificationType.mediaModeration" = "Moderação";
+"notification.echo.host.title" = "Seu Echo está pronto ✨";
+"notification.echo.host.body" = "Aceite para ativá-lo com suas conexões";

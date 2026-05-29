@@ -202,7 +202,7 @@ struct StoryVideoTrimEditorView: View {
                     alignment: .bottomTrailing
                 )
                 .overlay(
-                    // Selected clip duration badge (Instagram look) floating bottom center inside the video player
+                    // Selected clip duration badge floating bottom center inside the video player
                     VStack {
                         Spacer()
                         Text(String(format: "%.1fs selected", trimDuration))

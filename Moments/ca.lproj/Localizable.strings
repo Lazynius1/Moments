@@ -377,6 +377,12 @@
 "stories.reactions" = "Reaccions";
 "stories.reactions.count" = "%d";
 "stories.seeActivity" = "Veure activitat";
+"stories.ownBottom.activity" = "Activitat";
+"stories.ownBottom.audienceAccessibility" = "Audiència: %@";
+"stories.ownBottom.noViews" = "Encara sense visualitzacions";
+"stories.ownBottom.viewsOne" = "1 visualització";
+"stories.ownBottom.viewsMany" = "%d visualitzacions";
+"stories.ownBottom.reactionsCount" = "%d reaccions";
 "stories.cancel" = "Cancel·lar";
 "stories.photo" = "Foto";
 "stories.video" = "Vídeo";
@@ -2657,6 +2663,17 @@
 "notification.storyChain.multiple.title" = "%@ ha afegit la part %@ de la cadena \"%@\"";
 "notification.storyChain.multiple.body" = "%@ parts en total";
 
+/* Story Chain — push i missatges diferenciats per rol (creador/participant) */
+"notifications.unread.indicator" = "Sense llegir";
+"notification.storyChain.creator.title" = "%@ ha seguit la teva cadena ✨";
+"notification.storyChain.creator.body" = "Va afegir un moment a \"%@\" · ja en van %@";
+"notification.storyChain.participant.title" = "La cadena \"%@\" segueix creixent";
+"notification.storyChain.participant.body" = "%@ acaba d'afegir un moment · ja en van %@";
+"notifications.message.storyChain.creator.single" = "%@ ha continuat la teva cadena \"%@\" · ja en van %@ moments";
+"notifications.message.storyChain.creator.multiple" = "%@ i %d més han continuat la teva cadena \"%@\"";
+"notifications.message.storyChain.participant.single" = "%@ va sumar a \"%@\", una cadena on hi ets · ja en van %@ moments";
+"notifications.message.storyChain.participant.multiple" = "%@ i %d més van sumar a \"%@\", una cadena on hi ets";
+
 /* Push Notifications - Echoes */
 "notification.echo.title" = "Tens una connexió a prop! ✨";
 "notification.echo.body" = "%@ és a prop teu. Creeu un Echo junts!";
@@ -2664,6 +2681,8 @@
 /* Push Notifications - Mutual Connection */
 "notification.mutualConnection.title" = "Nova connexió mútua! 🎉";
 "notification.mutualConnection.body" = "Tu i %@ ara us seguiu mútuament";
+"notification.mutualConnection.multiple.title" = "Noves connexions mútues! 🎉";
+"notification.mutualConnection.multiple.body" = "%@ i %@ més ara són connexions mútues";
 "explore.search.placeholder" = "Cercar...";
 
 /* Explore Search */
@@ -3419,3 +3438,28 @@
 "storyEditor.discardDraft.message" = "Si surts ara, perdràs els canvis que hagis fet.";
 "storyEditor.discardDraft.confirm" = "Descartar";
 "storyEditor.discardDraft.cancel" = "Continuar editant";
+
+"notifications.empty.comments.message" = "Quan algú comenti els teus moments, apareixerà aquí";
+"notifications.empty.storyReactions.message" = "Quan algú reaccioni a les teves històries, apareixerà aquí";
+"notifications.empty.requests.message" = "Quan algú et vulgui seguir, apareixerà aquí";
+"notifications.empty.reactions.message" = "Quan algú reaccioni als teus moments (vibe, fire, etc.), apareixerà aquí";
+"notifications.empty.follows.message" = "Quan algú et segueixi, apareixerà aquí";
+"notifications.empty.default.message" = "Quan algú interactuï amb tu, apareixerà aquí";
+"notifications.echo.viewAction" = "Veure Echo";
+"notificationType.like" = "Reacció";
+"notificationType.reaction" = "Reacció";
+"notificationType.comment" = "Comentari";
+"notificationType.mention" = "Mencions";
+"notificationType.newFollower" = "Nous seguidors";
+"notificationType.followRequest" = "Sol·licituds de seguiment";
+"notificationType.requestAccepted" = "Sol·licitud acceptada";
+"notificationType.mutualConnection" = "Connexions mútues";
+"notificationType.storyReaction" = "Reacció a història";
+"notificationType.message" = "Missatges";
+"notificationType.photoTag" = "Etiquetes a fotos";
+"notificationType.echoSuggestion" = "Suggeriment d'Echo";
+"notificationType.dataExportReady" = "Exportació de dades";
+"notificationType.storyChainContinued" = "Cadena d'històries";
+"notificationType.mediaModeration" = "Moderació";
+"notification.echo.host.title" = "El teu Echo està a punt ✨";
+"notification.echo.host.body" = "Accepta'l per activar-lo amb les teves connexions";

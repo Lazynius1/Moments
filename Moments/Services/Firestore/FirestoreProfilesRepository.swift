@@ -24,7 +24,6 @@ extension FirestoreService {
                 NotificationType.newFollower.rawValue: true,
                 NotificationType.followRequest.rawValue: true,
                 NotificationType.mutualConnection.rawValue: true,
-                NotificationType.profileVisit.rawValue: true,
                 NotificationType.comment.rawValue: true,
                 NotificationType.storyReaction.rawValue: true,
                 "gentleReminders": true,

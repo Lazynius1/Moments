@@ -103,10 +103,12 @@ class NotificationService: UNNotificationServiceExtension {
         
         guard let messages = parseCount("unreadMessages"),
               let notifications = parseCount("unreadNotifications") else {
-            // Si falla el guard, añadimos un marcador de error al título
+            // Marcador de error solo en builds de depuración; nunca visible en producción.
+            #if DEBUG
             if let content = bestAttemptContent {
                 content.title = "⚠️ " + content.title
             }
+            #endif
             return false
         }
         

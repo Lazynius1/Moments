@@ -380,6 +380,12 @@
 "stories.reactions" = "Réactions";
 "stories.reactions.count" = "%d";
 "stories.seeActivity" = "Voir l’activité";
+"stories.ownBottom.activity" = "Activité";
+"stories.ownBottom.audienceAccessibility" = "Audience : %@";
+"stories.ownBottom.noViews" = "Pas encore de vues";
+"stories.ownBottom.viewsOne" = "1 vue";
+"stories.ownBottom.viewsMany" = "%d vues";
+"stories.ownBottom.reactionsCount" = "%d réactions";
 "stories.cancel" = "Annuler";
 "stories.photo" = "Photo";
 "stories.video" = "Vidéo";
@@ -455,9 +461,9 @@
 "notifications.message.reaction.multiple" = "%@ and %d others reacted to your moment.";
 "notifications.message.reaction.multiple.withType" = "%@ reacted %@ and %d others reacted to your moment.";
 "notifications.message.mention.multiple" = "%@ and %d others mentioned you.";
-"notifications.message.follow.multiple" = "%@ and %d others started following you.";
+"notifications.message.follow.multiple" = "%@ et %d autres ont commencé à te suivre.";
 "notifications.message.request.multiple" = "%@ and %d others want to follow you.";
-"notifications.message.mutual.multiple" = "You now have a mutual connection with %@ and %d others.";
+"notifications.message.mutual.multiple" = "Tu as maintenant une connexion mutuelle avec %@ et %d autres.";
 "notifications.message.comment.multiple" = "%@ and %d others commented on your moment.";
 "notifications.message.story.multiple" = "%@ and %d others reacted to your story.";
 "notifications.message.storyChain.multiple" = "%@ continued the chain \"%@\" and %d others continued it too.";
@@ -466,9 +472,9 @@
 "notifications.message.reaction.single" = "%@ reacted to your moment.";
 "notifications.message.reaction.single.withType" = "%@ reacted %@ to your moment.";
 "notifications.message.mention.single" = "%@ mentioned you.";
-"notifications.message.follow.single" = "%@ started following you.";
+"notifications.message.follow.single" = "%@ a commencé à te suivre.";
 "notifications.message.request.single" = "%@ wants to follow you.";
-"notifications.message.mutual.single" = "You now have a mutual connection with %@.";
+"notifications.message.mutual.single" = "Tu as maintenant une connexion mutuelle avec %@.";
 "notifications.message.comment.single" = "%@ commented on your moment.";
 "notifications.message.story.single" = "%@ reacted to your story.";
 "notifications.message.storyChain.single" = "%@ continued the chain \"%@\".";
@@ -2646,13 +2652,26 @@
 "notification.storyChain.multiple.title" = "%@ added part %@ of the chain \"%@\"";
 "notification.storyChain.multiple.body" = "%@ parts total";
 
+/* Story Chain — push et messages in-app différenciés par rôle (créateur/participant) */
+"notifications.unread.indicator" = "Non lu";
+"notification.storyChain.creator.title" = "%@ a continué ta chaîne ✨";
+"notification.storyChain.creator.body" = "A ajouté un moment à \"%@\" · déjà %@";
+"notification.storyChain.participant.title" = "La chaîne \"%@\" continue de grandir";
+"notification.storyChain.participant.body" = "%@ vient d'ajouter un moment · déjà %@";
+"notifications.message.storyChain.creator.single" = "%@ a continué ta chaîne \"%@\" · déjà %@ moments";
+"notifications.message.storyChain.creator.multiple" = "%@ et %d autres ont continué ta chaîne \"%@\"";
+"notifications.message.storyChain.participant.single" = "%@ a contribué à \"%@\", une chaîne où tu es · déjà %@ moments";
+"notifications.message.storyChain.participant.multiple" = "%@ et %d autres ont contribué à \"%@\", une chaîne où tu es";
+
 /* Push Notifications - Echoes */
 "notification.echo.title" = "You have a connection nearby! ✨";
 "notification.echo.body" = "%@ is nearby. Create an Echo together!";
 
 /* Push Notifications - Mutual Connection */
-"notification.mutualConnection.title" = "New mutual connection! 🎉";
-"notification.mutualConnection.body" = "You and %@ are now following each other";
+"notification.mutualConnection.title" = "Nouvelle connexion mutuelle ! 🎉";
+"notification.mutualConnection.body" = "Toi et %@ vous suivez désormais mutuellement";
+"notification.mutualConnection.multiple.title" = "Nouvelles connexions mutuelles ! 🎉";
+"notification.mutualConnection.multiple.body" = "%@ et %@ autres sont maintenant des connexions mutuelles";
 "explore.search.placeholder" = "Search...";
 
 /* Explore Search */
@@ -3410,3 +3429,28 @@
 "storyEditor.discardDraft.message" = "Si tu quittes maintenant, tu perdras toutes les modifications effectuées.";
 "storyEditor.discardDraft.confirm" = "Supprimer";
 "storyEditor.discardDraft.cancel" = "Continuer l’édition";
+
+"notifications.empty.comments.message" = "Quand quelqu'un commente tes moments, ça apparaîtra ici";
+"notifications.empty.storyReactions.message" = "Quand quelqu'un réagit à tes stories, ça apparaîtra ici";
+"notifications.empty.requests.message" = "Quand quelqu'un veut te suivre, ça apparaîtra ici";
+"notifications.empty.reactions.message" = "Quand quelqu'un réagit à tes moments (vibe, fire, etc.), ça apparaîtra ici";
+"notifications.empty.follows.message" = "Quand quelqu'un te suit, ça apparaîtra ici";
+"notifications.empty.default.message" = "Quand quelqu'un interagit avec toi, ça apparaîtra ici";
+"notifications.echo.viewAction" = "Voir l'Echo";
+"notificationType.like" = "Réaction";
+"notificationType.reaction" = "Réaction";
+"notificationType.comment" = "Commentaire";
+"notificationType.mention" = "Mentions";
+"notificationType.newFollower" = "Nouveaux abonnés";
+"notificationType.followRequest" = "Demandes d'abonnement";
+"notificationType.requestAccepted" = "Demande acceptée";
+"notificationType.mutualConnection" = "Connexions mutuelles";
+"notificationType.storyReaction" = "Réaction à la story";
+"notificationType.message" = "Messages";
+"notificationType.photoTag" = "Identifications photo";
+"notificationType.echoSuggestion" = "Suggestion d'Echo";
+"notificationType.dataExportReady" = "Export de données";
+"notificationType.storyChainContinued" = "Chaîne de stories";
+"notificationType.mediaModeration" = "Modération";
+"notification.echo.host.title" = "Ton Echo est prêt ✨";
+"notification.echo.host.body" = "Accepte-le pour l'activer avec tes connexions";

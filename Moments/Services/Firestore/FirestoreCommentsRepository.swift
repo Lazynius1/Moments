@@ -392,6 +392,21 @@ extension FirestoreService {
 
             if wasLiked {
                 reactionUsers.removeAll { $0 == currentUserId }
+
+                // Al deshacer la reacción del comentario, borramos la notificación
+                // para que no quede huérfana en el destinatario.
+                if authorId != currentUserId {
+                    Task { @MainActor in
+                        NotificationService.shared.removeNotification(
+                            type: .like,
+                            senderId: currentUserId,
+                            recipientId: authorId,
+                            momentId: momentId,
+                            commentId: commentId,
+                            reaction: reaction
+                        )
+                    }
+                }
             } else {
                 reactionUsers.append(currentUserId)
 

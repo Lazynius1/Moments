@@ -328,7 +328,7 @@ private struct StoryDrawingCanvasView: UIViewRepresentable {
     }
 
     private enum GlowConfig {
-        // Instagram-like neon: nearly-invisible PK stroke + intense colored glow via CGContext shadow.
+        // Neon: nearly-invisible PK stroke + intense colored glow via CGContext shadow.
         static let coreWidthMultiplier: CGFloat = 0.3
 
         // Shadow pass 1: tight, intense inner glow

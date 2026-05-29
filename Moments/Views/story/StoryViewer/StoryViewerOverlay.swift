@@ -24,7 +24,7 @@ struct GlassmorphicProgressBar: View {
     private var progressGradient: LinearGradient {
         switch normalizedAudience {
         case "bestfriends", "best_friends", "best-friends":
-            // Instagram-like Best Friends green
+            // Best Friends green
             return LinearGradient(
                 colors: [Color(hex: "24C26A"), Color(hex: "5BE584")],
                 startPoint: .leading,
@@ -229,6 +229,7 @@ struct GlassmorphicViewersSheet: View {
     let story: Story
     let viewers: [StoryViewer]
     let reactions: [StoryReaction]
+    var initialTab: Int = 0
     @Environment(\.dismiss) var dismiss
     @Environment(\.colorScheme) private var colorScheme
     @State private var selectedTab = 0
@@ -354,6 +355,7 @@ struct GlassmorphicViewersSheet: View {
         .presentationDetents([.medium, .large])
         .presentationDragIndicator(.visible)
         .onAppear {
+            selectedTab = min(max(initialTab, 0), 1)
             guard !didLoadAudience else { return }
             didLoadAudience = true
             loadAudienceMembers()

@@ -497,7 +497,7 @@ class DataExportService: ObservableObject {
             try createMediaUrlsCSV(mediaUrls: mediaUrls, directory: tempDir)
         }
 
-        // ✅ Export detallado tipo "Instagram-like"
+        // ✅ Export detallado
         // 1) Conversaciones completas en JSON por conversación
         // 2) Descarga de multimedia al ZIP (best effort)
         try createDetailedConversationsExport(conversations: userData.conversations ?? [], directory: tempDir)
@@ -986,8 +986,8 @@ class BackgroundExportManager: ObservableObject {
         // Create a notification in Firestore
         let notificationData: [String: Any] = [
             "type": "data_export_ready",
-            "title": "Tu exportación está lista",
-            "message": "Hemos preparado tu archivo de datos. El enlace de descarga expirará en 7 días.",
+            // Sin texto fijo: el cliente muestra la cadena localizada según el idioma.
+            "message": "",
             "downloadURL": downloadURL,
             "senderId": "system",
             "senderUsername": "Moments",

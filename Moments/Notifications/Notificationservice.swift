@@ -262,34 +262,6 @@ class NotificationService: ObservableObject {
         )
     }
     
-    func updateVisitNotification(to userId: String, visitorUsername: String, visitorId: String, count: Int) {
-        let formatter = DateFormatter()
-        formatter.calendar = Calendar(identifier: .gregorian)
-        formatter.locale = Locale(identifier: "en_US_POSIX")
-        formatter.timeZone = .current
-        formatter.dateFormat = "yyyy-MM-dd"
-        let dateString = formatter.string(from: Date())
-        let notificationId = "visit_\(dateString)"
-        
-        let notification = Notification(
-            id: notificationId,
-            type: .profileVisit,
-            senderId: visitorId,
-            senderUsername: visitorUsername,
-            timestamp: Date(),
-            isPending: true,
-            visitCount: count
-        )
-        
-        // Profile visits write to target user's subcollection directly
-        do {
-            let ref = db.collection("users").document(userId).collection("notifications").document(notificationId)
-            try ref.setData(from: notification, merge: true)
-        } catch {
-            print("❌ Error saving visit notification: \(error)")
-        }
-    }
-    
     // MARK: - Actions
     
     func markAsRead(_ notification: Notification) {

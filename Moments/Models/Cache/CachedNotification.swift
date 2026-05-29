@@ -16,14 +16,17 @@ final class CachedNotification {
     var visitCount: Int?
     var storyId: String?
     var storyAuthorId: String?
+    var storyPreviewUrl: String?
     var reaction: String?
     var reactionCount: Int?
     var commentId: String?
     var echoId: String?
     var moderationScope: String?
+    var totalParts: Int?
+    var chainRole: String?
     var lastSyncedAt: Date
     
-    init(id: String, type: String, senderId: String, senderUsername: String, timestamp: Date, isPending: Bool, title: String? = nil, message: String? = nil, downloadURL: String? = nil, momentId: String? = nil, visitCount: Int? = nil, storyId: String? = nil, storyAuthorId: String? = nil, reaction: String? = nil, reactionCount: Int? = nil, commentId: String? = nil, echoId: String? = nil, moderationScope: String? = nil, lastSyncedAt: Date = Date()) {
+    init(id: String, type: String, senderId: String, senderUsername: String, timestamp: Date, isPending: Bool, title: String? = nil, message: String? = nil, downloadURL: String? = nil, momentId: String? = nil, visitCount: Int? = nil, storyId: String? = nil, storyAuthorId: String? = nil, storyPreviewUrl: String? = nil, reaction: String? = nil, reactionCount: Int? = nil, commentId: String? = nil, echoId: String? = nil, moderationScope: String? = nil, totalParts: Int? = nil, chainRole: String? = nil, lastSyncedAt: Date = Date()) {
         self.id = id
         self.type = type
         self.senderId = senderId
@@ -37,11 +40,14 @@ final class CachedNotification {
         self.visitCount = visitCount
         self.storyId = storyId
         self.storyAuthorId = storyAuthorId
+        self.storyPreviewUrl = storyPreviewUrl
         self.reaction = reaction
         self.reactionCount = reactionCount
         self.commentId = commentId
         self.echoId = echoId
         self.moderationScope = moderationScope
+        self.totalParts = totalParts
+        self.chainRole = chainRole
         self.lastSyncedAt = lastSyncedAt
     }
     
@@ -60,11 +66,14 @@ final class CachedNotification {
             visitCount: notification.visitCount,
             storyId: notification.storyId,
             storyAuthorId: notification.storyAuthorId,
+            storyPreviewUrl: notification.storyPreviewUrl,
             reaction: notification.reaction,
             reactionCount: notification.reactionCount,
             commentId: notification.commentId,
             echoId: notification.echoId,
-            moderationScope: notification.moderationScope
+            moderationScope: notification.moderationScope,
+            totalParts: notification.totalParts,
+            chainRole: notification.chainRole
         )
     }
     
@@ -83,11 +92,14 @@ final class CachedNotification {
             visitCount: visitCount,
             storyId: storyId,
             storyAuthorId: storyAuthorId,
+            storyPreviewUrl: storyPreviewUrl,
             reaction: reaction,
             reactionCount: reactionCount,
             commentId: commentId,
             echoId: echoId,
-            moderationScope: moderationScope
+            moderationScope: moderationScope,
+            totalParts: totalParts,
+            chainRole: chainRole
         )
     }
 }
