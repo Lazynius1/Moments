@@ -79,7 +79,7 @@ class UserProfileViewModel: ObservableObject, UserListViewModel {
         isLoading = true
         isProfileUnavailable = false
 
-        // ✅ SwiftData: Carga inicial desde caché local (Instagram-like)
+        // ✅ SwiftData: Carga inicial desde caché local
         if let cachedProfile = LocalPersistenceService.shared.loadUser(userId: userId) {
             DispatchQueue.main.async {
                 if cachedProfile.isActive {

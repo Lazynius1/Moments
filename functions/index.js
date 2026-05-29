@@ -1488,8 +1488,9 @@ exports.onDataExportRequestCreated = onDocumentCreated({
       .collection('notifications')
       .add({
         type: 'data_export_ready',
-        title: 'Tu exportación está lista',
-        message: 'Hemos preparado tu archivo de datos. El enlace de descarga expirará en 7 días.',
+        // Sin texto fijo: el cliente muestra la cadena localizada
+        // (notifications.message.dataExportReady) según el idioma del dispositivo.
+        message: '',
         downloadURL,
         senderId: 'system',
         senderUsername: 'Moments',
@@ -1865,6 +1866,16 @@ function gentleRemindersEnabled(userData) {
   return prefs.gentleReminders !== false;
 }
 
+// Respeta los toggles por tipo de Ajustes (like, newFollower, followRequest,
+// mutualConnection, comment, storyReaction...). Por defecto ON si no hay preferencia.
+function notificationTypeEnabled(userData, notificationType) {
+  if (!notificationType) return true;
+  const prefs = userData && typeof userData.notificationPreferences === 'object' && userData.notificationPreferences !== null
+    ? userData.notificationPreferences
+    : {};
+  return prefs[notificationType] !== false;
+}
+
 function normalizeReminderHistory(history, now) {
   const cutoff = new Date(now.getTime() - (7 * 24 * 60 * 60 * 1000));
   return Array.isArray(history)
@@ -2110,6 +2121,34 @@ function pickMomentPreviewUrl(momentData) {
   return null;
 }
 
+// Mejor imagen de preview de una historia para el push / la lista.
+// Foto: mediaItem.url (ya es imagen). Vídeo: mediaItem.thumbnailUrl (poster subido al publicar).
+// Devuelve null si no hay imagen utilizable (vídeos legacy sin poster) para caer en el avatar,
+// nunca en un placeholder genérico, y jamás en una URL de vídeo .mp4.
+function pickStoryPreviewUrl(storyData) {
+  if (!storyData || typeof storyData !== 'object') return null;
+
+  const mediaItem = storyData.mediaItem || {};
+
+  if (typeof mediaItem.thumbnailUrl === 'string' && mediaItem.thumbnailUrl.trim()) {
+    return mediaItem.thumbnailUrl.trim();
+  }
+  if (mediaItem.type === 'image' && typeof mediaItem.url === 'string' && mediaItem.url.trim()) {
+    return mediaItem.url.trim();
+  }
+  if (typeof storyData.backgroundFrameURL === 'string' && storyData.backgroundFrameURL.trim()) {
+    return storyData.backgroundFrameURL.trim();
+  }
+  if (typeof storyData.backgroundBlurredFrameURL === 'string' && storyData.backgroundBlurredFrameURL.trim()) {
+    return storyData.backgroundBlurredFrameURL.trim();
+  }
+  if (typeof storyData.imagePath === 'string' && storyData.imagePath.trim()) {
+    return storyData.imagePath.trim();
+  }
+
+  return null;
+}
+
 // ✅ Contar mensajes no leídos EN UNA CONVERSACIÓN ESPECÍFICA
 async function getUnreadMessagesInConversation(conversationId, userId) {
   try {
@@ -2259,7 +2298,8 @@ async function reconcileMutualConnection(userId, followerId, userData, followerD
     candidateTexts: [followerData.username]
   });
   if (!isSilencedForUser) {
-    await sendMutualConnectionNotification(userData, followerData, userId, followerId);
+    const mutualCountForUser = await getPendingMutualConnectionCount(userId, followerId);
+    await sendMutualConnectionNotification(userData, followerData, userId, followerId, mutualCountForUser);
     await upsertSocialNotification(userId, socialNotificationDocId('mutualConnection', followerId), {
       type: 'mutualConnection',
       senderId: followerId,
@@ -2273,7 +2313,8 @@ async function reconcileMutualConnection(userId, followerId, userData, followerD
     candidateTexts: [userData.username]
   });
   if (!isSilencedForFollower) {
-    await sendMutualConnectionNotification(followerData, userData, followerId, userId);
+    const mutualCountForFollower = await getPendingMutualConnectionCount(followerId, userId);
+    await sendMutualConnectionNotification(followerData, userData, followerId, userId, mutualCountForFollower);
     await upsertSocialNotification(followerId, socialNotificationDocId('mutualConnection', userId), {
       type: 'mutualConnection',
       senderId: userId,
@@ -2281,6 +2322,16 @@ async function reconcileMutualConnection(userId, followerId, userData, followerD
       senderProfileImage: userData.profileImagePath || ''
     });
   }
+}
+
+// ✅ Ventana de agregación: el conteo del push refleja actividad reciente,
+// no un historial infinito. (isPending ya actúa como "watermark": al abrir el inbox se marca leído.)
+const SOCIAL_AGGREGATION_WINDOW_DAYS = 7;
+
+function isWithinAggregationWindow(timestamp) {
+  if (!timestamp || typeof timestamp.toMillis !== 'function') return true; // sin timestamp fiable: no excluir
+  const cutoff = Date.now() - SOCIAL_AGGREGATION_WINDOW_DAYS * 24 * 60 * 60 * 1000;
+  return timestamp.toMillis() >= cutoff;
 }
 
 // ✅ Contar seguidores pendientes únicos y vivos (para agrupar push: "Username y X más te han seguido")
@@ -2293,8 +2344,9 @@ async function getPendingFollowerCount(userId, additionalSenderId = null) {
       .get();
     const senderIds = new Set();
     snap.docs.forEach((doc) => {
-      const sid = doc.data().senderId;
-      if (typeof sid === 'string' && sid.length > 0) {
+      const data = doc.data();
+      const sid = data.senderId;
+      if (typeof sid === 'string' && sid.length > 0 && isWithinAggregationWindow(data.timestamp)) {
         senderIds.add(sid);
       }
     });
@@ -2327,6 +2379,69 @@ async function getPendingFollowerCount(userId, additionalSenderId = null) {
       await Promise.all(
         staleSenderIds.map((senderId) =>
           purgeSocialNotifications(userId, { type: 'newFollower', senderId })
+        )
+      );
+    }
+
+    return Math.max(1, activeSenderIds.size);
+  } catch (error) {
+    return 1;
+  }
+}
+
+// ✅ Contar conexiones mutuas pendientes, únicas y vivas (mutua válida en AMBOS sentidos).
+// Valida contra el grafo y purga zombies cuya relación ya se rompió. Sin colección extra.
+async function getPendingMutualConnectionCount(userId, additionalSenderId = null) {
+  try {
+    const snap = await admin.firestore()
+      .collection(`users/${userId}/notifications`)
+      .where('type', '==', 'mutualConnection')
+      .where('isPending', '==', true)
+      .get();
+    const senderIds = new Set();
+    snap.docs.forEach((doc) => {
+      const data = doc.data();
+      const sid = data.senderId;
+      if (typeof sid === 'string' && sid.length > 0 && isWithinAggregationWindow(data.timestamp)) {
+        senderIds.add(sid);
+      }
+    });
+    if (typeof additionalSenderId === 'string' && additionalSenderId.length > 0) {
+      senderIds.add(additionalSenderId);
+    }
+
+    if (senderIds.size === 0) {
+      return 1;
+    }
+
+    const senderIdList = Array.from(senderIds);
+    // Mutua viva = me siguen Y les sigo
+    const forwardRefs = senderIdList.map((sid) =>
+      admin.firestore().doc(`users/${userId}/followers/${sid}`)
+    );
+    const reverseRefs = senderIdList.map((sid) =>
+      admin.firestore().doc(`users/${sid}/followers/${userId}`)
+    );
+    const [forwardSnaps, reverseSnaps] = await Promise.all([
+      admin.firestore().getAll(...forwardRefs),
+      admin.firestore().getAll(...reverseRefs)
+    ]);
+
+    const activeSenderIds = new Set();
+    const staleSenderIds = [];
+    senderIdList.forEach((sid, index) => {
+      const mutualAlive = forwardSnaps[index].exists && reverseSnaps[index].exists;
+      if (mutualAlive) {
+        activeSenderIds.add(sid);
+      } else {
+        staleSenderIds.push(sid);
+      }
+    });
+
+    if (staleSenderIds.length > 0) {
+      await Promise.all(
+        staleSenderIds.map((sid) =>
+          purgeSocialNotifications(userId, { type: 'mutualConnection', senderId: sid })
         )
       );
     }
@@ -2659,7 +2774,7 @@ exports.onMomentReactionAdded = onDocumentCreated('users/{userId}/moments/{momen
       }
     }
 
-    // ✅ Instagram-like: una notificación agregada por momento
+    // ✅ Una notificación agregada por momento
     await reactionNotificationRef.set({
       type: 'reaction',
       senderId: reaction.userId,
@@ -3079,6 +3194,9 @@ async function handleReplyPush(userId, notificationId, notification, userData) {
     return;
   }
 
+  // Respeta el toggle de comentarios: sin push, pero mantenemos la notificación in-app.
+  if (!notificationTypeEnabled(userData, 'comment')) return;
+
   const fcmToken = userData.fcmToken;
   const lockAcquired = await claimProcessingLock(replyRef, {
     processedField: 'processed',
@@ -3396,7 +3514,7 @@ exports.onMomentCommentAdded = onDocumentCreated('users/{userId}/moments/{moment
     if (!commenterData.isActive || !momentOwnerData.isActive) return null;
 
     const fcmToken = momentOwnerData.fcmToken || null;
-    const shouldSendPush = Boolean(fcmToken) && !isDoNotDisturbActive(momentOwnerData);
+    const shouldSendPush = Boolean(fcmToken) && !isDoNotDisturbActive(momentOwnerData) && notificationTypeEnabled(momentOwnerData, 'comment');
 
     const commentPreview = comment.text && comment.text.trim()
       ? comment.text.substring(0, 50) + (comment.text.length > 50 ? '...' : '')
@@ -3574,7 +3692,7 @@ exports.onFollowerAdded = onDocumentCreated('users/{userId}/followers/{followerI
     });
 
     const fcmToken = userData.fcmToken || null;
-    const shouldSendPush = Boolean(fcmToken) && !isDoNotDisturbActive(userData);
+    const shouldSendPush = Boolean(fcmToken) && !isDoNotDisturbActive(userData) && notificationTypeEnabled(userData, 'newFollower');
 
     // ✅ NUEVO: Verificar si se crea una conexión mutua
     const isMutualConnection = await checkMutualConnection(userId, followerId);
@@ -3789,7 +3907,7 @@ async function checkMutualConnection(user1Id, user2Id) {
 }
 
 // ✅ FUNCIÓN AUXILIAR: Enviar notificación de conexión mutua
-async function sendMutualConnectionNotification(receiverData, senderData, receiverId, senderId) {
+async function sendMutualConnectionNotification(receiverData, senderData, receiverId, senderId, count = 1) {
   try {
     const isSilencedByMuteSettings = shouldSilenceNotificationForUser(receiverData, {
       senderId: senderId,
@@ -3799,17 +3917,13 @@ async function sendMutualConnectionNotification(receiverData, senderData, receiv
       return;
     }
 
-    if (!receiverData.fcmToken || isDoNotDisturbActive(receiverData)) {
+    if (!receiverData.fcmToken || isDoNotDisturbActive(receiverData) || !notificationTypeEnabled(receiverData, 'mutualConnection')) {
       return;
     }
 
+    // ✅ Usar loc-keys (iOS traduce según el idioma del dispositivo) en lugar de texto fijo en español.
     const message = {
       token: receiverData.fcmToken,
-      notification: {
-        title: `Ahora tienes una conexión mutua con ${senderData.username}`,
-        body: '¡Ambos se siguen mutuamente!',
-        image: senderData.profileImagePath ? senderData.profileImagePath.replace(':443', '') : null
-      },
       data: {
         type: 'mutualConnection',
         senderId: senderId,
@@ -3820,8 +3934,25 @@ async function sendMutualConnectionNotification(receiverData, senderData, receiv
         senderProfileImage: senderData.profileImagePath || ''
       },
       apns: {
+        headers: {
+          // Compartido por receptor: las mutuas seguidas colapsan en una sola notificación
+          // que se actualiza con el agregado "X y N más" (igual que el push de seguidores).
+          'apns-collapse-id': `mutual_${receiverId}`
+        },
         payload: {
           aps: {
+            alert: count > 1
+              ? {
+                  'title-loc-key': 'notification.mutualConnection.multiple.title',
+                  'title-loc-args': [],
+                  'loc-key': 'notification.mutualConnection.multiple.body',
+                  'loc-args': [senderData.username, String(count - 1)]
+                }
+              : {
+                  'title-loc-key': 'notification.mutualConnection.title',
+                  'loc-key': 'notification.mutualConnection.body',
+                  'loc-args': [senderData.username]
+                },
             badge: 1,
             sound: 'default',
             'mutable-content': 1,
@@ -4067,7 +4198,7 @@ exports.onStoryReactionAdded = onDocumentCreated('users/{userId}/stories/{storyI
     if (!reacterData.isActive || !storyOwnerData.isActive) return null;
 
     const fcmToken = storyOwnerData.fcmToken || null;
-    const shouldSendPush = Boolean(fcmToken) && !isDoNotDisturbActive(storyOwnerData);
+    const shouldSendPush = Boolean(fcmToken) && !isDoNotDisturbActive(storyOwnerData) && notificationTypeEnabled(storyOwnerData, 'storyReaction');
 
     const emoji = reaction.reaction || '❤️';
 
@@ -4083,11 +4214,14 @@ exports.onStoryReactionAdded = onDocumentCreated('users/{userId}/stories/{storyI
       return null;
     }
 
-    // ✅ Obtener conteos actualizados para el Widget
-    const [counts, reactionCount] = await Promise.all([
+    // ✅ Obtener conteos actualizados para el Widget + preview de la historia
+    const [counts, reactionCount, storySnap] = await Promise.all([
       getUnreadCounts(userId, { type: 'notification', notificationType: 'storyReaction', notificationId: reactionId }),
-      getPendingStoryReactionCount(userId, storyId)
+      getPendingStoryReactionCount(userId, storyId),
+      admin.firestore().doc(`users/${userId}/stories/${storyId}`).get()
     ]);
+
+    const storyPreviewUrl = storySnap.exists ? pickStoryPreviewUrl(storySnap.data()) : null;
 
     // Determinar claves de localización
     let titleLocKey, titleLocArgs, bodyLocKey, bodyLocArgs;
@@ -4115,6 +4249,7 @@ exports.onStoryReactionAdded = onDocumentCreated('users/{userId}/stories/{storyI
         targetId: storyId,
         senderUsername: reacterData.username,
         senderProfileImage: reacterData.profileImagePath || '',
+        mediaUrl: storyPreviewUrl || '',
         unreadMessages: String(counts.unreadMessages),
         unreadNotifications: String(counts.unreadNotifications),
         unreadEchoes: String(counts.unreadEchoes),
@@ -4153,17 +4288,23 @@ exports.onStoryReactionAdded = onDocumentCreated('users/{userId}/stories/{storyI
       }
     }
 
-    await admin.firestore().collection(`users/${userId}/notifications`).add({
-      type: 'storyReaction',
-      senderId: reaction.userId,
-      senderUsername: reacterData.username,
-      senderProfileImage: reacterData.profileImagePath || '',
-      storyId: storyId,
-      reaction: reaction.reaction,
-      timestamp: admin.firestore.FieldValue.serverTimestamp(),
-      isPending: true,
-      notificationId: `story_reaction_${storyId}_${reaction.userId}_${Date.now()}`
-    });
+    // ID estable: una notificación por reactor y por historia.
+    // Evita que la colección crezca sin límite si alguien reacciona/quita varias veces.
+    const storyReactionNotificationId = `storyReaction_${storyId}_${reaction.userId}`;
+    await admin.firestore()
+      .doc(`users/${userId}/notifications/${storyReactionNotificationId}`)
+      .set({
+        type: 'storyReaction',
+        senderId: reaction.userId,
+        senderUsername: reacterData.username,
+        senderProfileImage: reacterData.profileImagePath || '',
+        storyId: storyId,
+        storyAuthorId: userId,
+        storyPreviewUrl: storyPreviewUrl || null,
+        reaction: reaction.reaction,
+        timestamp: admin.firestore.FieldValue.serverTimestamp(),
+        isPending: true
+      }, { merge: true });
 
   } catch (error) {
     console.error('❌ Error sending story reaction notification:', error);
@@ -4195,7 +4336,7 @@ exports.onFollowRequestReceived = onDocumentCreated('users/{userId}/receivedFoll
     if (!requesterData.isActive || !userData.isActive) return null;
 
     const fcmToken = userData.fcmToken || null;
-    const shouldSendPush = Boolean(fcmToken) && !isDoNotDisturbActive(userData);
+    const shouldSendPush = Boolean(fcmToken) && !isDoNotDisturbActive(userData) && notificationTypeEnabled(userData, 'followRequest');
 
     const cleanImageUrl = requesterData.profileImagePath
       ? requesterData.profileImagePath.replace(':443', '')
@@ -4319,6 +4460,68 @@ exports.onFollowRequestRemoved = onDocumentDeleted('users/{userId}/receivedFollo
 // handleMentionPush() y handlePhotoTagPush() respectivamente.
 // Esto reduce invocaciones de Cloud Functions de 3x a 1x por notificación.
 
+// 🧹 LIMPIEZA DE NOTIFICACIONES HUÉRFANAS
+// Cuando se borra un momento / historia / comentario, las notificaciones asociadas
+// (reacción, comentario, like, mención, etiqueta, reacción a historia) quedan huérfanas
+// en los destinatarios. Usamos collectionGroup (igualdad simple → índice automático)
+// para purgarlas allá donde estén.
+async function purgeNotificationsByField(field, value) {
+  if (!field || !value) return 0;
+  let totalDeleted = 0;
+  // Iterar en lotes hasta vaciar.
+  // eslint-disable-next-line no-constant-condition
+  while (true) {
+    const snapshot = await admin.firestore()
+      .collectionGroup('notifications')
+      .where(field, '==', value)
+      .limit(400)
+      .get();
+
+    if (snapshot.empty) break;
+
+    const batch = admin.firestore().batch();
+    snapshot.docs.forEach(doc => batch.delete(doc.ref));
+    await batch.commit();
+    totalDeleted += snapshot.size;
+
+    if (snapshot.size < 400) break;
+  }
+  if (totalDeleted > 0) {
+    console.log(`🧹 Purga de notificaciones por ${field}=${value}: ${totalDeleted} eliminadas`);
+  }
+  return totalDeleted;
+}
+
+exports.onMomentDeleted = onDocumentDeleted('users/{userId}/moments/{momentId}', async (event) => {
+  const { momentId } = event.params;
+  try {
+    await purgeNotificationsByField('momentId', momentId);
+  } catch (error) {
+    console.error('❌ Error purgando notificaciones del momento eliminado:', error);
+  }
+  return null;
+});
+
+exports.onStoryDeleted = onDocumentDeleted('users/{userId}/stories/{storyId}', async (event) => {
+  const { storyId } = event.params;
+  try {
+    await purgeNotificationsByField('storyId', storyId);
+  } catch (error) {
+    console.error('❌ Error purgando notificaciones de la historia eliminada:', error);
+  }
+  return null;
+});
+
+exports.onCommentDeleted = onDocumentDeleted('users/{userId}/moments/{momentId}/comments/{commentId}', async (event) => {
+  const { commentId } = event.params;
+  try {
+    await purgeNotificationsByField('commentId', commentId);
+  } catch (error) {
+    console.error('❌ Error purgando notificaciones del comentario eliminado:', error);
+  }
+  return null;
+});
+
 // 🔔 ELIMINAR REACCIONES DE MOMENTOS
 exports.onMomentReactionRemoved = onDocumentDeleted('users/{userId}/moments/{momentId}/reactions/{reactionId}', async (event) => {
   const snap = event.data;
@@ -4330,7 +4533,7 @@ exports.onMomentReactionRemoved = onDocumentDeleted('users/{userId}/moments/{mom
     const momentRef = admin.firestore().doc(`users/${userId}/moments/${momentId}`);
     await momentRef.update({ reactionCount: admin.firestore.FieldValue.increment(-1) });
 
-    // ✅ Instagram-like: actualizar solo la notificación agregada del momento.
+    // ✅ Actualizar solo la notificación agregada del momento.
     const removedByUserId = typeof reaction.userId === 'string' ? reaction.userId : '';
     if (!removedByUserId) {
       return null;
@@ -4503,45 +4706,18 @@ exports.onStoryChainContinued = onDocumentCreated('users/{userId}/stories/{story
       return null;
     }
 
-    // No notificar si el creador original se continúa a sí mismo
-    if (continuerId === chainCreatorId) {
+    // Obtener datos del continuador (remitente de la notificación)
+    const continuerDoc = await admin.firestore().doc(`users/${continuerId}`).get();
+    if (!continuerDoc.exists) {
+      console.warn('⚠️ Continuador no encontrado para Story Chain');
       return null;
     }
-
-    // Obtener datos del usuario que continuó la cadena y del creador original
-    const [continuerDoc, chainCreatorDoc] = await Promise.all([
-      admin.firestore().doc(`users/${continuerId}`).get(),
-      admin.firestore().doc(`users/${chainCreatorId}`).get()
-    ]);
-
-    if (!continuerDoc.exists || !chainCreatorDoc.exists) {
-      console.warn('⚠️ Documento no encontrado para Story Chain');
-      return null;
-    }
-
     const continuerData = continuerDoc.data();
-    const chainCreatorData = chainCreatorDoc.data();
-
-    // Validar datos requeridos
-    if (!validateUserData(continuerData) || !validateUserData(chainCreatorData)) {
-      console.warn('⚠️ Datos de usuario incompletos para Story Chain');
+    if (!validateUserData(continuerData) || !continuerData.isActive) {
       return null;
     }
 
-    // Verificar que ambas cuentas estén activas
-    if (!continuerData.isActive || !chainCreatorData.isActive) {
-      return null;
-    }
-
-    // Obtener FCM token del creador de la cadena
-    const fcmToken = chainCreatorData.fcmToken || null;
-    const shouldSendPush = Boolean(fcmToken) && !isDoNotDisturbActive(chainCreatorData);
-
-    // Limpiar URL de imagen
-    const cleanImageUrl = continuerData.profileImagePath
-      ? continuerData.profileImagePath.replace(':443', '')
-      : null;
-
+    // Lock idempotente sobre la parte recién creada
     const storyRef = admin.firestore().doc(`users/${storyOwnerId}/stories/${storyId}`);
     const lockAcquired = await claimProcessingLock(storyRef, {
       processedField: 'chainNotificationProcessed',
@@ -4549,19 +4725,7 @@ exports.onStoryChainContinued = onDocumentCreated('users/{userId}/stories/{story
     });
     if (!lockAcquired) return null;
 
-    const isSilencedByMuteSettings = shouldSilenceNotificationForUser(chainCreatorData, {
-      senderId: continuerId,
-      candidateTexts: [story.chainTitle]
-    });
-    if (isSilencedByMuteSettings) {
-      await markProcessingDone(storyRef, {
-        processedField: 'chainNotificationProcessed',
-        processingField: 'chainNotificationProcessingUntil'
-      });
-      return null;
-    }
-
-    // Obtener todas las historias de la cadena para contar partes
+    // Obtener todas las partes de la cadena: para contar y para conocer a los participantes
     const chainStoriesSnapshot = await admin.firestore()
       .collectionGroup('stories')
       .where('chainId', '==', story.chainId)
@@ -4569,100 +4733,135 @@ exports.onStoryChainContinued = onDocumentCreated('users/{userId}/stories/{story
       .get();
 
     const totalParts = chainStoriesSnapshot.size;
+    const storyPreviewUrl = pickStoryPreviewUrl(story);
 
-    // Determinar claves de localización
-    let titleLocKey, titleLocArgs, bodyLocKey, bodyLocArgs;
+    // Destinatarios: creador original + todos los que han participado en la cadena,
+    // excluyendo a quien acaba de continuarla.
+    const recipientIds = new Set();
+    if (chainCreatorId) recipientIds.add(chainCreatorId);
+    chainStoriesSnapshot.docs.forEach(doc => {
+      const ownerId = doc.ref.parent.parent?.id;
+      const authorId = doc.data()?.authorId;
+      if (ownerId) recipientIds.add(ownerId);
+      if (authorId) recipientIds.add(authorId);
+    });
+    recipientIds.delete(continuerId);
+
+    if (recipientIds.size === 0) {
+      await markProcessingDone(storyRef, {
+        processedField: 'chainNotificationProcessed',
+        processingField: 'chainNotificationProcessingUntil'
+      });
+      return null;
+    }
 
     const username = continuerData.username || 'Alguien';
-    const chainTitle = story.chainTitle || 'historia';
 
-    if (totalParts === 2) {
-      // Segunda parte: mostrar notificación simple de "continuó"
-      // Usamos el formato genérico: Usuario añadió la parte 2 a "Título"
-      titleLocKey = 'notification.storyChain.single.title';
-      titleLocArgs = [username, String(story.chainPosition), chainTitle];
-      bodyLocKey = 'notification.storyChain.single.body';
-      bodyLocArgs = [];
-    } else {
-      // Múltiples partes
-      titleLocKey = 'notification.storyChain.multiple.title';
-      titleLocArgs = [username, String(story.chainPosition), chainTitle];
-      bodyLocKey = 'notification.storyChain.multiple.body';
-      bodyLocArgs = [String(totalParts)];
-    }
+    const notificationPromises = Array.from(recipientIds).map(async (recipientId) => {
+      const recipientDoc = await admin.firestore().doc(`users/${recipientId}`).get();
+      if (!recipientDoc.exists) return null;
+      const recipientData = recipientDoc.data();
+      if (!validateUserData(recipientData) || !recipientData.isActive) return null;
 
-    // ✅ Obtener conteos actualizados para el Widget
-    const counts = await getUnreadCounts(chainCreatorId, { type: 'notification', notificationType: 'storyChainContinued' });
+      const isSilenced = shouldSilenceNotificationForUser(recipientData, {
+        senderId: continuerId,
+        candidateTexts: [story.chainTitle]
+      });
+      if (isSilenced) return null;
 
-    const message = {
-      token: fcmToken,
-      data: {
-        type: 'story_chain_continued',
-        chainId: story.chainId,
-        storyId: storyId,
-        chainTitle: story.chainTitle || '',
-        chainPosition: story.chainPosition.toString(),
-        totalParts: totalParts.toString(),
-        continuerId: continuerId,
-        chainCreatorId: chainCreatorId,
-        targetType: 'story_chain',
-        targetId: story.chainId,
-        senderUsername: continuerData.username,
-        senderProfileImage: continuerData.profileImagePath || '',
-        unreadMessages: String(counts.unreadMessages),
-        unreadNotifications: String(counts.unreadNotifications),
-        unreadEchoes: String(counts.unreadEchoes),
-        unreadTags: String(counts.unreadTags),
-      },
-      apns: {
-        headers: {
-          'apns-collapse-id': `chain_${story.chainId}`
+      const isCreator = recipientId === chainCreatorId;
+      const fcmToken = recipientData.fcmToken || null;
+      const shouldSendPush = Boolean(fcmToken) && !isDoNotDisturbActive(recipientData);
+
+      const titleLocKey = isCreator
+        ? 'notification.storyChain.creator.title'
+        : 'notification.storyChain.participant.title';
+      const bodyLocKey = isCreator
+        ? 'notification.storyChain.creator.body'
+        : 'notification.storyChain.participant.body';
+      const titleLocArgs = isCreator ? [username] : [story.chainTitle || ''];
+      const bodyLocArgs = isCreator
+        ? [story.chainTitle || '', String(totalParts)]
+        : [username, String(totalParts)];
+
+      const counts = await getUnreadCounts(recipientId, { type: 'notification', notificationType: 'storyChainContinued' });
+
+      const message = {
+        token: fcmToken,
+        data: {
+          type: 'story_chain_continued',
+          chainId: story.chainId,
+          storyId: storyId,
+          chainTitle: story.chainTitle || '',
+          chainPosition: story.chainPosition.toString(),
+          totalParts: totalParts.toString(),
+          continuerId: continuerId,
+          chainCreatorId: chainCreatorId,
+          targetType: 'story_chain',
+          targetId: story.chainId,
+          senderUsername: continuerData.username,
+          senderProfileImage: continuerData.profileImagePath || '',
+          mediaUrl: storyPreviewUrl || '',
+          unreadMessages: String(counts.unreadMessages),
+          unreadNotifications: String(counts.unreadNotifications),
+          unreadEchoes: String(counts.unreadEchoes),
+          unreadTags: String(counts.unreadTags),
         },
-        payload: {
-          aps: {
-            alert: {
-              'title-loc-key': titleLocKey,
-              'title-loc-args': titleLocArgs,
-              'loc-key': bodyLocKey,
-              'loc-args': bodyLocArgs
-            },
-            badge: Math.max(1, counts.unreadNotifications + counts.unreadMessages),
-            sound: 'default',
-            'mutable-content': 1,
-            'thread-id': `story_chain_${story.chainId}`,
-            'summary-arg': continuerData.username,
-            'summary-arg-count': totalParts
+        apns: {
+          headers: {
+            'apns-collapse-id': `chain_${story.chainId}`
+          },
+          payload: {
+            aps: {
+              alert: {
+                'title-loc-key': titleLocKey,
+                'title-loc-args': titleLocArgs,
+                'loc-key': bodyLocKey,
+                'loc-args': bodyLocArgs
+              },
+              badge: Math.max(1, counts.unreadNotifications + counts.unreadMessages),
+              sound: 'default',
+              'mutable-content': 1,
+              'thread-id': `story_chain_${story.chainId}`,
+              'summary-arg': continuerData.username,
+              'summary-arg-count': totalParts
+            }
           }
         }
-      }
-    };
+      };
 
-    if (shouldSendPush) {
-      try {
-        await admin.messaging().send(message);
-        console.log(`✅ Notificación de Story Chain enviada: ${username} -> ${chainCreatorData.username} (${story.chainTitle}) - Parte ${story.chainPosition}/${totalParts}`);
-      } catch (error) {
-        if (error.code === 'messaging/registration-token-not-registered') {
-          await removeInvalidToken(chainCreatorId, fcmToken);
+      if (shouldSendPush) {
+        try {
+          await admin.messaging().send(message);
+        } catch (error) {
+          if (error.code === 'messaging/registration-token-not-registered') {
+            await removeInvalidToken(recipientId, fcmToken);
+          }
+          console.error(`❌ Error enviando FCM de Story Chain a ${recipientId}:`, error);
         }
-        throw error;
       }
-    }
 
-    // Crear notificación en Firestore
-    await admin.firestore().collection(`users/${chainCreatorId}/notifications`).add({
-      type: 'storyChainContinued',
-      senderId: continuerId,
-      senderUsername: continuerData.username,
-      senderProfileImage: continuerData.profileImagePath || '',
-      chainId: story.chainId,
-      chainTitle: story.chainTitle || '',
-      storyId: storyId,
-      chainPosition: story.chainPosition,
-      totalParts: totalParts,
-      timestamp: admin.firestore.FieldValue.serverTimestamp(),
-      isPending: true
+      await admin.firestore().collection(`users/${recipientId}/notifications`).add({
+        type: 'storyChainContinued',
+        senderId: continuerId,
+        senderUsername: continuerData.username,
+        senderProfileImage: continuerData.profileImagePath || '',
+        chainId: story.chainId,
+        chainTitle: story.chainTitle || '',
+        storyId: storyId,
+        storyAuthorId: storyOwnerId,
+        storyPreviewUrl: storyPreviewUrl || null,
+        chainPosition: story.chainPosition,
+        totalParts: totalParts,
+        chainRole: isCreator ? 'creator' : 'participant',
+        timestamp: admin.firestore.FieldValue.serverTimestamp(),
+        isPending: true
+      });
+      return null;
     });
+
+    await Promise.all(notificationPromises);
+    console.log(`✅ Notificaciones de Story Chain enviadas: ${username} -> ${recipientIds.size} destinatarios (${story.chainTitle}) - Parte ${story.chainPosition}/${totalParts}`);
 
     // ✅ ACTUALIZAR METADATOS DE LA CADENA
     try {
@@ -4707,7 +4906,9 @@ exports.onEchoCreated = onDocumentCreated('echoes/{echoId}', async (event) => {
   try {
     const participants = echo.participants || [];
     const hostId = echo.hostId;
-    const recipients = participants.filter(p => p.userId !== hostId);
+    // Todos los participantes (incluido el host) empiezan en pending y deben aceptar,
+    // así que todos reciben la notificación para poder aceptar el Echo.
+    const recipients = participants;
 
     if (recipients.length === 0) return null;
 
@@ -4719,6 +4920,7 @@ exports.onEchoCreated = onDocumentCreated('echoes/{echoId}', async (event) => {
 
     const notificationPromises = recipients.map(async (participant) => {
       const recipientId = participant.userId;
+      const isHost = recipientId === hostId;
 
       // 1. Obtener token del destinatario
       const userDoc = await admin.firestore().doc(`users/${recipientId}`).get();
@@ -4762,12 +4964,19 @@ exports.onEchoCreated = onDocumentCreated('echoes/{echoId}', async (event) => {
           },
           payload: {
             aps: {
-              alert: {
-                'title-loc-key': 'notification.echo.title',
-                'title-loc-args': [],
-                'loc-key': 'notification.echo.body',
-                'loc-args': [hostData.username]
-              },
+              alert: isHost
+              ? {
+                  'title-loc-key': 'notification.echo.host.title',
+                  'title-loc-args': [],
+                  'loc-key': 'notification.echo.host.body',
+                  'loc-args': []
+                }
+              : {
+                  'title-loc-key': 'notification.echo.title',
+                  'title-loc-args': [],
+                  'loc-key': 'notification.echo.body',
+                  'loc-args': [hostData.username]
+                },
               badge: Math.max(1, counts.unreadNotifications + counts.unreadMessages),
               sound: 'default',
               'mutable-content': 1,

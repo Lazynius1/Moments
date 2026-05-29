@@ -380,6 +380,12 @@
 "stories.reactions" = "Reazioni";
 "stories.reactions.count" = "%d";
 "stories.seeActivity" = "Vedi attività";
+"stories.ownBottom.activity" = "Attività";
+"stories.ownBottom.audienceAccessibility" = "Pubblico: %@";
+"stories.ownBottom.noViews" = "Nessuna visualizzazione";
+"stories.ownBottom.viewsOne" = "1 visualizzazione";
+"stories.ownBottom.viewsMany" = "%d visualizzazioni";
+"stories.ownBottom.reactionsCount" = "%d reazioni";
 "stories.cancel" = "Annulla";
 "stories.photo" = "Foto";
 "stories.video" = "Video";
@@ -2646,6 +2652,17 @@
 "notification.storyChain.multiple.title" = "%@ ha aggiunto la parte %@ della catena \"%@\"";
 "notification.storyChain.multiple.body" = "%@ parti totali";
 
+/* Story Chain — push e messaggi in-app differenziati per ruolo (creatore/partecipante) */
+"notifications.unread.indicator" = "Non letto";
+"notification.storyChain.creator.title" = "%@ ha continuato la tua catena ✨";
+"notification.storyChain.creator.body" = "Ha aggiunto un momento a \"%@\" · già %@";
+"notification.storyChain.participant.title" = "La catena \"%@\" continua a crescere";
+"notification.storyChain.participant.body" = "%@ ha appena aggiunto un momento · già %@";
+"notifications.message.storyChain.creator.single" = "%@ ha continuato la tua catena \"%@\" · già %@ momenti";
+"notifications.message.storyChain.creator.multiple" = "%@ e altri %d hanno continuato la tua catena \"%@\"";
+"notifications.message.storyChain.participant.single" = "%@ ha aggiunto a \"%@\", una catena in cui ci sei · già %@ momenti";
+"notifications.message.storyChain.participant.multiple" = "%@ e altri %d hanno aggiunto a \"%@\", una catena in cui ci sei";
+
 /* Push Notifications - Echoes */
 "notification.echo.title" = "Hai una connessione nelle vicinanze! ✨";
 "notification.echo.body" = "%@ è nelle vicinanze. Crea insieme un Echo!";
@@ -2653,6 +2670,8 @@
 /* Push Notifications - Mutual Connection */
 "notification.mutualConnection.title" = "Nuova connessione reciproca! 🎉";
 "notification.mutualConnection.body" = "Tu e %@ ora vi seguite a vicenda";
+"notification.mutualConnection.multiple.title" = "Nuove connessioni reciproche! 🎉";
+"notification.mutualConnection.multiple.body" = "%@ e altre %@ persone ora sono connessioni reciproche";
 "explore.search.placeholder" = "Cerca...";
 
 /* Explore Search */
@@ -3410,3 +3429,28 @@
 "storyEditor.discardDraft.message" = "Se esci ora, perderai tutte le modifiche che hai fatto.";
 "storyEditor.discardDraft.confirm" = "Scarta";
 "storyEditor.discardDraft.cancel" = "Continua a modificare";
+
+"notifications.empty.comments.message" = "Quando qualcuno commenta i tuoi momenti, apparirà qui";
+"notifications.empty.storyReactions.message" = "Quando qualcuno reagisce alle tue storie, apparirà qui";
+"notifications.empty.requests.message" = "Quando qualcuno vuole seguirti, apparirà qui";
+"notifications.empty.reactions.message" = "Quando qualcuno reagisce ai tuoi momenti (vibe, fire, ecc.), apparirà qui";
+"notifications.empty.follows.message" = "Quando qualcuno ti segue, apparirà qui";
+"notifications.empty.default.message" = "Quando qualcuno interagisce con te, apparirà qui";
+"notifications.echo.viewAction" = "Vedi Echo";
+"notificationType.like" = "Reazione";
+"notificationType.reaction" = "Reazione";
+"notificationType.comment" = "Commento";
+"notificationType.mention" = "Menzioni";
+"notificationType.newFollower" = "Nuovi follower";
+"notificationType.followRequest" = "Richieste di follow";
+"notificationType.requestAccepted" = "Richiesta accettata";
+"notificationType.mutualConnection" = "Connessioni reciproche";
+"notificationType.storyReaction" = "Reazione alla storia";
+"notificationType.message" = "Messaggi";
+"notificationType.photoTag" = "Tag nelle foto";
+"notificationType.echoSuggestion" = "Suggerimento Echo";
+"notificationType.dataExportReady" = "Esportazione dati";
+"notificationType.storyChainContinued" = "Catena di storie";
+"notificationType.mediaModeration" = "Moderazione";
+"notification.echo.host.title" = "Il tuo Echo è pronto ✨";
+"notification.echo.host.body" = "Accettalo per attivarlo con le tue connessioni";

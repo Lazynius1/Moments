@@ -367,16 +367,9 @@ class EchoService {
         let recipientIds = participants.map { $0.userId }
         
         for recipientId in recipientIds {
-            // 1. Standard Notification
-            Task { @MainActor in
-                NotificationService.shared.sendInteractionNotification(
-                    type: .echoSuggestion,
-                    to: recipientId,
-                    echoId: echoId
-                )
-            }
-            
-            // 2. Nova Spark (Proactive suggestion)
+            // La notificación + push de Echo la crea el backend (onEchoCreated) como
+            // fuente única, para evitar duplicados de badge y push.
+            // Aquí solo disparamos el Nova Spark (sugerencia proactiva), que es independiente.
             NovaActivityService.shared.triggerEchoSpark(echoId: echoId, userId: recipientId)
         }
     }

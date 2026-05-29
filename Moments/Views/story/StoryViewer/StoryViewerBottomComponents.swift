@@ -1,4 +1,263 @@
 import SwiftUI
+import Kingfisher
+
+private enum StoryAudienceBottomInfo {
+    static func normalizedAudience(_ audience: String?) -> String {
+        audience?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .lowercased() ?? "everyone"
+    }
+
+    static func icon(for audience: String?) -> String {
+        switch normalizedAudience(audience) {
+        case "connections", "mutuals", "mutual":
+            return "person.2.fill"
+        case "bestfriends", "best_friends", "best-friends":
+            return "heart.fill"
+        case "customlist":
+            return "list.bullet.rectangle"
+        case "custom":
+            return "person.crop.circle.badge.plus"
+        case "onlyme", "only_me", "only-me":
+            return "lock.fill"
+        default:
+            return "globe.americas.fill"
+        }
+    }
+
+    static func title(for audience: String?, listName: String?) -> String {
+        switch normalizedAudience(audience) {
+        case "connections", "mutuals", "mutual":
+            return NSLocalizedString("audience.type.connections", comment: "Mutuals")
+        case "bestfriends", "best_friends", "best-friends":
+            return NSLocalizedString("audience.type.bestFriends", comment: "Best friends")
+        case "customlist":
+            return listName ?? NSLocalizedString("audience.type.customList", comment: "Custom list")
+        case "custom":
+            return NSLocalizedString("audience.type.custom", comment: "Custom")
+        case "onlyme", "only_me", "only-me":
+            return NSLocalizedString("audience.type.onlyMe", comment: "Only me")
+        default:
+            return NSLocalizedString("audience.type.everyone", comment: "Everyone")
+        }
+    }
+}
+
+// Barra inferior para historias propias (estilo IG: Actividad + audiencia + acciones).
+struct StoryOwnStoryBottomBar: View {
+    let viewers: [StoryViewer]
+    let reactions: [StoryReaction]
+    let audience: String?
+    let customListId: String?
+    let authorId: String
+    let onViewActivity: () -> Void
+    let onReactionsActivity: () -> Void
+
+    @State private var audienceListName: String?
+
+    private let firestoreService = FirestoreService()
+
+    private var recentViewers: [StoryViewer] {
+        Array(viewers.sorted { $0.timestamp > $1.timestamp }.prefix(3))
+    }
+
+    private var audienceTitle: String {
+        StoryAudienceBottomInfo.title(for: audience, listName: audienceListName)
+    }
+
+    private var audienceIcon: String {
+        StoryAudienceBottomInfo.icon(for: audience)
+    }
+
+    private var reactionCount: Int {
+        reactions.count
+    }
+
+    /// Hasta 3 emojis distintos, los más recientes primero (p. ej. 🔥 😂 ❤️).
+    private var distinctReactionEmojis: [String] {
+        var seen = Set<String>()
+        var result: [String] = []
+        let sorted = reactions.sorted { $0.timestamp > $1.timestamp }
+        for item in sorted {
+            let emoji = item.reaction.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !emoji.isEmpty, seen.insert(emoji).inserted else { continue }
+            result.append(emoji)
+            if result.count >= 3 { break }
+        }
+        return result
+    }
+
+    private var activityAccessibilityLabel: String {
+        let count = viewers.count
+        if count == 0 {
+            return NSLocalizedString("stories.ownBottom.noViews", comment: "No story views yet")
+        }
+        if count == 1 {
+            return NSLocalizedString("stories.ownBottom.viewsOne", comment: "One story view")
+        }
+        return String(
+            format: NSLocalizedString("stories.ownBottom.viewsMany", comment: "Story view count"),
+            count
+        )
+    }
+
+    var body: some View {
+        HStack(alignment: .bottom, spacing: 0) {
+            activityColumn
+                .frame(maxWidth: .infinity)
+
+            audienceColumn
+                .frame(maxWidth: .infinity)
+
+            if reactionCount > 0 {
+                reactionsColumn
+                    .frame(maxWidth: .infinity)
+            }
+        }
+        .padding(.horizontal, 2)
+        .padding(.top, 4)
+        .task(id: customListId) {
+            await loadAudienceListNameIfNeeded()
+        }
+    }
+
+    private var reactionsColumn: some View {
+        Button(action: onReactionsActivity) {
+            VStack(spacing: 6) {
+                reactionEmojisStack
+                    .frame(height: 32)
+
+                Text(String(reactionCount))
+                    .font(.custom("Poppins-Medium", size: 12))
+                    .foregroundColor(.white)
+                    .shadow(color: .black.opacity(0.5), radius: 4, x: 0, y: 1)
+            }
+        }
+        .buttonStyle(PlainButtonStyle())
+        .accessibilityLabel(
+            String(
+                format: NSLocalizedString("stories.ownBottom.reactionsCount", comment: "Story reactions count"),
+                reactionCount
+            )
+        )
+    }
+
+    @ViewBuilder
+    private var reactionEmojisStack: some View {
+        let emojis = distinctReactionEmojis
+        if emojis.isEmpty {
+            Text("❤️")
+                .font(.system(size: 22))
+        } else if emojis.count == 1 {
+            Text(emojis[0])
+                .font(.system(size: 22))
+        } else {
+            HStack(spacing: -6) {
+                ForEach(Array(emojis.enumerated()), id: \.offset) { index, emoji in
+                    Text(emoji)
+                        .font(.system(size: index == 0 ? 22 : 18))
+                        .shadow(color: .black.opacity(0.45), radius: 3, x: 0, y: 1)
+                }
+            }
+        }
+    }
+
+    private var activityColumn: some View {
+        Button(action: onViewActivity) {
+            VStack(spacing: 6) {
+                if !recentViewers.isEmpty {
+                    HStack(spacing: -8) {
+                        ForEach(recentViewers) { viewer in
+                            viewerAvatar(viewer)
+                        }
+                    }
+                    .frame(height: 32)
+                } else {
+                    Color.clear
+                        .frame(width: 32, height: 32)
+                }
+
+                Text(NSLocalizedString("stories.ownBottom.activity", comment: "Activity label under avatars"))
+                    .font(.custom("Poppins-Medium", size: 12))
+                    .foregroundColor(.white)
+                    .shadow(color: .black.opacity(0.5), radius: 4, x: 0, y: 1)
+            }
+            .frame(minWidth: 56)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(PlainButtonStyle())
+        .accessibilityLabel(activityAccessibilityLabel)
+    }
+
+    private var audienceColumn: some View {
+        VStack(spacing: 6) {
+            Image(systemName: audienceIcon)
+                .font(.system(size: 22, weight: .medium))
+                .foregroundColor(.white)
+                .shadow(color: .black.opacity(0.5), radius: 4, x: 0, y: 1)
+                .frame(height: 32)
+
+            Text(audienceTitle)
+                .font(.custom("Poppins-Medium", size: 12))
+                .foregroundColor(.white)
+                .shadow(color: .black.opacity(0.5), radius: 4, x: 0, y: 1)
+                .lineLimit(1)
+                .minimumScaleFactor(0.75)
+                .frame(maxWidth: 88)
+        }
+        .frame(minWidth: 56)
+        .accessibilityLabel(
+            String(
+                format: NSLocalizedString("stories.ownBottom.audienceAccessibility", comment: "Story audience"),
+                audienceTitle
+            )
+        )
+    }
+
+    @MainActor
+    private func loadAudienceListNameIfNeeded() async {
+        let normalized = StoryAudienceBottomInfo.normalizedAudience(audience)
+        guard normalized == "customlist",
+              let listId = customListId,
+              !listId.isEmpty else {
+            audienceListName = nil
+            return
+        }
+
+        await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
+            firestoreService.fetchCustomListDetails(listId: listId, ownerId: authorId) { result in
+                Task { @MainActor in
+                    if case .success(let list) = result {
+                        audienceListName = list.name
+                    }
+                    continuation.resume()
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func viewerAvatar(_ viewer: StoryViewer) -> some View {
+        Group {
+            if let path = viewer.profileImagePath,
+               let url = URL(string: path) {
+                KFImage(url)
+                    .resizable()
+                    .scaledToFill()
+            } else {
+                Image(systemName: "person.fill")
+                    .resizable()
+                    .scaledToFit()
+                    .padding(5)
+                    .foregroundColor(.white.opacity(0.85))
+                    .background(Color.white.opacity(0.18))
+            }
+        }
+        .frame(width: 28, height: 28)
+        .clipShape(Circle())
+        .overlay(Circle().stroke(Color.black.opacity(0.35), lineWidth: 1.5))
+    }
+}
 
 struct StoryReactionsStrip: View {
     let reactions: [String]

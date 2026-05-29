@@ -1148,7 +1148,7 @@ class ReelVideoPlayerManager: ObservableObject {
                 }
             }
         } else {
-            // Seek ultra-rápido y suave a keyframe durante el arrastre (igual que Instagram/TikTok)
+            // Seek ultra-rápido y suave a keyframe durante el arrastre
             player.seek(to: cmTime, toleranceBefore: .positiveInfinity, toleranceAfter: .positiveInfinity)
         }
         

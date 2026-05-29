@@ -68,6 +68,7 @@ struct StoryViewerScreen: View {
     @State private var selectedPhoto: PhotosPickerItem?
     @State private var showQuickActions: Bool = false
     @State private var showViewers: Bool = false
+    @State private var activitySheetInitialTab: Int = 0
     @State private var showBestFriendsOptOutConfirmation: Bool = false
     @State private var showUnfollowConfirmation: Bool = false
     @State private var showMuteConfirmation: Bool = false
@@ -114,6 +115,20 @@ struct StoryViewerScreen: View {
     @StateObject private var playbackCoordinator = StoryPlaybackCoordinator()
 
     private let reactions: [String] = ["✌🏻", "🔥", "✅", "😊", "✨", "❤️", "💕", "😮", "😂", "😢", "🙏🏻", "⚡", "🧠", "🎨", "😌", "🎉"]
+
+    private var isOwnStory: Bool {
+        story.authorId == Auth.auth().currentUser?.uid
+    }
+
+    private var currentStoryViewers: [StoryViewer] {
+        guard let storyId = story.id else { return [] }
+        return storyViewModel.storyViewers[storyId] ?? []
+    }
+
+    private var currentStoryReactions: [StoryReaction] {
+        guard let storyId = story.id else { return [] }
+        return storyViewModel.storyReactions[storyId] ?? []
+    }
 
     private let firestoreService = FirestoreService()
     private let bestFriendsService = BestFriendsService()
@@ -261,6 +276,7 @@ struct StoryViewerScreen: View {
             height: baseCaptureRect.height
         )
         let progressY = max(resolvedTopInset + 1, captureRect.minY - 26)
+        let bottomChromeMidY = captureRect.maxY + (geometry.size.height - captureRect.maxY) / 2
 
         ZStack {
             // MARK: - 1. CONTENIDO MULTIMEDIA (Fijo en el centro - NUNCA SE MUEVE)
@@ -348,19 +364,27 @@ struct StoryViewerScreen: View {
                     .allowsHitTesting(!isStoryInteractionBlocked)
             }
 
-            // MARK: - 6. INPUT AREA - Se mueve manualmente con keyboardHeight
-            VStack {
-                Spacer()
-
-                if !isUIHidden {
+            // MARK: - 6. INPUT AREA
+            if !isUIHidden {
+                if isOwnStory && !isKeyboardVisible {
+                    // Historia propia: centrar acciones en el hueco bajo el marco (estilo IG).
                     glassmorphicBottomArea
                         .padding(.horizontal, 16)
-                        .padding(.bottom, isKeyboardVisible ? keyboardHeight + 6 : max(8, resolvedBottomInset - 18))
-                        .animation(.easeInOut(duration: 0.25), value: keyboardHeight)
+                        .frame(width: geometry.size.width)
+                        .position(x: geometry.size.width / 2, y: bottomChromeMidY)
+                } else {
+                    VStack {
+                        Spacer()
+
+                        glassmorphicBottomArea
+                            .padding(.horizontal, 16)
+                            .padding(.bottom, isKeyboardVisible ? keyboardHeight + 6 : max(8, resolvedBottomInset - 18))
+                    }
+                    .frame(width: geometry.size.width, height: geometry.size.height)
+                    .position(x: geometry.size.width / 2, y: geometry.size.height / 2)
+                    .animation(.easeInOut(duration: 0.25), value: keyboardHeight)
                 }
             }
-            .frame(width: geometry.size.width, height: geometry.size.height)
-            .position(x: geometry.size.width / 2, y: geometry.size.height / 2)
 
             // MARK: - 7. Success message overlay
             if showSuccessMessage {
@@ -458,10 +482,8 @@ struct StoryViewerScreen: View {
                     if story.chainId != nil {
                         loadChainStories()
                     }
-                }
-                .onChange(of: story.id) { _, newId in
-                    if let chainId = story.chainId {
-                        checkCanContinueChain(chainId: chainId)
+                    if isOwnStory {
+                        prefetchOwnStoryInsights()
                     }
                 }
                 .onDisappear {
@@ -470,9 +492,15 @@ struct StoryViewerScreen: View {
                     cleanupAudioSession()
                 }
                 .onChange(of: story.id) { oldStoryId, newStoryId in
+                    if let chainId = story.chainId {
+                        checkCanContinueChain(chainId: chainId)
+                    }
                     if oldStoryId != newStoryId {
                         DispatchQueue.main.async {
                             refreshStoryPlaybackIfNeeded()
+                        }
+                        if isOwnStory {
+                            prefetchOwnStoryInsights()
                         }
                     }
                 }
@@ -492,7 +520,8 @@ struct StoryViewerScreen: View {
                         GlassmorphicViewersSheet(
                             story: story,
                             viewers: storyViewModel.storyViewers[story.id ?? ""] ?? [],
-                            reactions: storyViewModel.storyReactions[story.id ?? ""] ?? []
+                            reactions: storyViewModel.storyReactions[story.id ?? ""] ?? [],
+                            initialTab: activitySheetInitialTab
                         )
                         .onAppear {
                             pauseStory()
@@ -893,8 +922,21 @@ struct StoryViewerScreen: View {
                 )
             }
 
+            // Barra de insights para historias propias (actividad, audiencia, reacciones).
+            if isOwnStory {
+                StoryOwnStoryBottomBar(
+                    viewers: currentStoryViewers,
+                    reactions: currentStoryReactions,
+                    audience: story.audience,
+                    customListId: story.customListId,
+                    authorId: story.authorId,
+                    onViewActivity: { fetchViewersAndShow(tab: 0) },
+                    onReactionsActivity: { fetchViewersAndShow(tab: 1) }
+                )
+            }
+
             // ✅ ÁREA DE INTERACCIÓN: Solo para historias de otros usuarios
-            if story.authorId != Auth.auth().currentUser?.uid {
+            if !isOwnStory {
                 if authorAllowsMessages || authorAllowsReactions || authorAllowsEphemeralPhotos {
                     HStack(spacing: 12) {
                         // ✅ ÁREA DE TEXTO/REACCIONES
@@ -1011,7 +1053,8 @@ struct StoryViewerScreen: View {
             }
         }
         .padding(.horizontal, 16)
-        .padding(.bottom, isKeyboardVisible ? 0 : 25)
+        .padding(.bottom, isKeyboardVisible ? 0 : (isOwnStory ? 0 : 25))
+        .frame(maxWidth: .infinity)
     }
 
     private func contentView(canvasRect: CGRect) -> some View {
@@ -1579,10 +1622,19 @@ struct StoryViewerScreen: View {
         showQuickActions = false
     }
 
-    private func fetchViewersAndShow() {
+    private func prefetchOwnStoryInsights() {
+        guard let storyId = story.id else { return }
+        storyViewModel.fetchViewers(for: story.authorId, storyId: storyId) { _ in }
+        storyViewModel.fetchReactions(for: story.authorId, storyId: storyId)
+    }
+
+    private func fetchViewersAndShow(tab: Int = 0) {
         guard let storyId = story.id else { return }
 
+        activitySheetInitialTab = tab
+        pauseStory()
         storyViewModel.fetchViewers(for: story.authorId, storyId: storyId) { _ in
+            storyViewModel.fetchReactions(for: story.authorId, storyId: storyId)
             showViewers = true
             showQuickActions = false
         }

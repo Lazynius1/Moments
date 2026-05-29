@@ -793,7 +793,7 @@ class MediaModerationService {
                 let sexualActivity = nudity["sexual_activity"] as? Double ?? 0.0
                 let erotic = nudity["erotica"] as? Double ?? 0.0
                 let sexting = nudity["sexting"] as? Double ?? 0.0
-                // Lógica "Modo Instagram": 
+                // Lógica de moderación permisiva:
                 // Si es fitness o swimwear, ignoramos si no hay contenido sexual explícito
                 let combinedAdult = max(sexualDisplay, sexualActivity, erotic * 0.8, sexting)
                 

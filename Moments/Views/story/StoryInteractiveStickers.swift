@@ -117,7 +117,7 @@ struct InteractiveQuizSticker: View {
 
 // MARK: - Confetti renderer (sin dependencias externas)
 private enum QuizConfettiRenderer {
-    // Colores de confetti estilo Instagram
+    // Colores de confetti
     static let colors: [UIColor] = [
         .systemGreen, .systemYellow, .white,
         .systemCyan, .systemMint, UIColor(red: 0.9, green: 1.0, blue: 0.6, alpha: 1)

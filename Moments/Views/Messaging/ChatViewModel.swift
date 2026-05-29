@@ -304,7 +304,7 @@ class EnhancedChatViewModel: ObservableObject {
         typingUsersCancellable?.cancel()
         typingUsersCancellable = nil
         
-        // ✅ SwiftData: Carga historial local para apertura instantánea (Instagram-like)
+        // ✅ SwiftData: Carga historial local para apertura instantánea
         let cachedMessages = LocalPersistenceService.shared.loadMessages(conversationId: conversationId)
         if !cachedMessages.isEmpty {
             DispatchQueue.main.async {

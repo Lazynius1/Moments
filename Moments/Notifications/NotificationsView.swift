@@ -282,12 +282,12 @@ struct NotificationsView: View {
 
     private var emptyStateMessage: String {
         switch viewModel.selectedTab {
-        case .comments: return "Cuando alguien comente en tus momentos, aparecerá aquí"
-        case .storyReactions: return "Cuando alguien reaccione a tus historias, aparecerá aquí"
-        case .requests: return "Cuando alguien quiera seguirte, aparecerá aquí"
-        case .reactions: return "Cuando alguien reaccione a tus momentos (vibe, fire, etc.), aparecerá aquí"
-        case .follows: return "Cuando alguien te siga, aparecerá aquí"
-        default: return "Cuando alguien interactúe contigo, aparecerá aquí"
+        case .comments: return NSLocalizedString("notifications.empty.comments.message", comment: "Empty comments message")
+        case .storyReactions: return NSLocalizedString("notifications.empty.storyReactions.message", comment: "Empty story reactions message")
+        case .requests: return NSLocalizedString("notifications.empty.requests.message", comment: "Empty requests message")
+        case .reactions: return NSLocalizedString("notifications.empty.reactions.message", comment: "Empty reactions message")
+        case .follows: return NSLocalizedString("notifications.empty.follows.message", comment: "Empty follows message")
+        default: return NSLocalizedString("notifications.empty.default.message", comment: "Empty default message")
         }
     }
 
@@ -376,12 +376,11 @@ struct NotificationsView: View {
         case .newFollower, .followRequest, .mutualConnection, .requestAccepted:
             // Handle follower-related notifications
             break
-        case .profileVisit:
-            // Handle profile visit notifications
-            break
         case .storyReaction:
-            // Handle story reaction notifications
-            break
+            // La historia reaccionada es del usuario actual (es quien recibe la notificación).
+            if let storyId = firstNotification.storyId {
+                navigateToStory(storyId: storyId, authorId: Auth.auth().currentUser?.uid)
+            }
         case .message:
             if let conversationId = firstNotification.conversationId ?? firstNotification.momentId {
                 fetchAndNavigateToChat(conversationId: conversationId)
@@ -588,10 +587,23 @@ struct EnhancedNotificationRow: View {
             Spacer()
             
             trailingContent
+
+            // Indicador de no leído (estilo IG): punto de acento mientras la notificación esté pendiente.
+            if group.isUnread {
+                Circle()
+                    .fill(colorScheme == .dark ? Color.white : Color.black)
+                    .frame(width: 8, height: 8)
+                    .transition(.opacity)
+                    .accessibilityLabel(Text(NSLocalizedString("notifications.unread.indicator", comment: "Unread notification indicator")))
+            }
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 10)
-        .background(isPressed ? Color.primary.opacity(0.04) : Color.clear)
+        .background(
+            isPressed
+                ? Color.primary.opacity(0.04)
+                : (group.isUnread ? (colorScheme == .dark ? Color.white.opacity(0.05) : Color.black.opacity(0.04)) : Color.clear)
+        )
         .overlay(alignment: .bottom) {
             Rectangle()
                 .fill(colorScheme == .dark ? Color.white.opacity(0.06) : Color.black.opacity(0.06))
@@ -663,8 +675,13 @@ struct EnhancedNotificationRow: View {
                 )
             }
         } else if first.type == .storyReaction || first.type == .storyChainContinued || isStoryMention(first) {
-            if let storyId = first.storyId {
-                fetchStoryPreview(storyId: storyId)
+            // El backend ya adjunta la miniatura real (poster de vídeo o foto): úsala sin pedir nada.
+            if let preview = first.storyPreviewUrl, !preview.isEmpty {
+                storyImagePath = preview
+                isLoadingStoryImage = false
+                storyImageLoadFailed = false
+            } else if let storyId = first.storyId {
+                fetchStoryPreview(storyId: storyId, authorId: resolvedStoryAuthorId(for: first))
             }
         }
         
@@ -939,20 +956,6 @@ struct EnhancedNotificationRow: View {
                 }
                 .buttonStyle(PlainButtonStyle())
 
-            case .profileVisit:
-                Button(action: onTapAction) {
-                    Image(systemName: "eye.fill")
-                        .foregroundColor(Color(hex: "007AFF"))
-                        .font(.system(size: 20))
-                        .frame(width: 44, height: 44)
-                        .background(.ultraThinMaterial)
-                        .clipShape(Circle())
-                        .overlay(
-                            Circle()
-                                .stroke(Color(hex: "007AFF").opacity(0.5), lineWidth: 1)
-                        )
-                }
-
             case .echoSuggestion:
                 // 🌊 Echo notification preview with Nova Spark styling
                 Button(action: onTapAction) {
@@ -961,7 +964,7 @@ struct EnhancedNotificationRow: View {
                             .foregroundColor(.orange)
                             .font(.system(size: 20))
                         
-                        Text("Ver Echo")
+                        Text(NSLocalizedString("notifications.echo.viewAction", comment: "View Echo button"))
                             .font(.system(size: 12, weight: .semibold))
                             .foregroundColor(.orange)
                     }
@@ -1084,9 +1087,20 @@ struct EnhancedNotificationRow: View {
 
     // MARK: - Métodos auxiliares (mantenidos del original)
     
-    private func fetchStoryPreview(storyId: String) {
-        guard let firstNotification = group.notifications.first else { return }
-        let userId = storyAuthorId(for: firstNotification)
+    // Resuelve el dueño real de la historia. En storyReaction la historia es del
+    // usuario actual (es quien recibe la reacción), no del remitente.
+    private func resolvedStoryAuthorId(for notification: Notification) -> String {
+        if let authorId = notification.storyAuthorId, !authorId.isEmpty {
+            return authorId
+        }
+        if notification.type == .storyReaction {
+            return Auth.auth().currentUser?.uid ?? notification.senderId
+        }
+        return notification.targetAuthorId ?? notification.senderId
+    }
+
+    private func fetchStoryPreview(storyId: String, authorId: String) {
+        let userId = authorId
         guard !userId.isEmpty else { return }
         isLoadingStoryImage = true
         
@@ -1164,14 +1178,18 @@ struct EnhancedNotificationRow: View {
         let hasMultipleActors: Bool
         if firstNotification.type == .reaction {
             hasMultipleActors = reactionAggregateCount > 1
+        } else if firstNotification.type == .newFollower || firstNotification.type == .mutualConnection {
+            // Agregación: "X y N más comenzaron a seguirte" / "...conexión mutua con X y N más"
+            // (grupo ya deduplicado por persona)
+            hasMultipleActors = group.notifications.count > 1
         } else if isPerActorSocialNotification(firstNotification.type) {
-            // Una fila por persona; duplicados legacy del mismo sender no muestran "y N más"
+            // requestAccepted / followRequest: una fila por persona (evento o acción individual)
             hasMultipleActors = false
         } else {
             hasMultipleActors = group.notifications.count > 1
         }
 
-        if hasMultipleActors && firstNotification.type != .profileVisit {
+        if hasMultipleActors {
             switch firstNotification.type {
             case .like:
                 return AttributedString(String(format: NSLocalizedString("notifications.message.like.multiple", comment: "Multiple likes"), effectiveSenderUsername, group.notifications.count - 1))
@@ -1210,8 +1228,6 @@ struct EnhancedNotificationRow: View {
                 )
             case .storyReaction:
                 return AttributedString(String(format: NSLocalizedString("notifications.message.story.multiple", comment: "Multiple story reactions"), effectiveSenderUsername, group.notifications.count - 1))
-            case .profileVisit:
-                return AttributedString(String(format: NSLocalizedString("notifications.message.visit.multiple", comment: "Multiple profile visits"), firstNotification.visitCount ?? 0))
             case .message:
                 return AttributedString(String(format: NSLocalizedString("notifications.message.message.multiple", comment: "Multiple messages"), effectiveSenderUsername, group.notifications.count - 1))
             case .photoTag:
@@ -1230,7 +1246,11 @@ struct EnhancedNotificationRow: View {
                 return AttributedString(exportMessage)
             case .storyChainContinued:
                 let chainTitle = firstNotification.chainTitle ?? ""
-                return AttributedString(String(format: NSLocalizedString("notifications.message.storyChain.multiple", comment: "Multiple story chain continuations"), effectiveSenderUsername, chainTitle, group.notifications.count - 1))
+                let isCreator = firstNotification.chainRole != "participant"
+                let key = isCreator
+                    ? "notifications.message.storyChain.creator.multiple"
+                    : "notifications.message.storyChain.participant.multiple"
+                return AttributedString(String(format: NSLocalizedString(key, comment: "Multiple story chain continuations"), effectiveSenderUsername, chainTitle, group.notifications.count - 1))
             case .mediaModeration:
                 return AttributedString(NSLocalizedString("notifications.message.mediaModeration", comment: "Media moderation notification"))
             }
@@ -1273,8 +1293,6 @@ struct EnhancedNotificationRow: View {
                 )
             case .storyReaction:
                 return AttributedString(String(format: NSLocalizedString("notifications.message.story.single", comment: "Single story reaction"), effectiveSenderUsername))
-            case .profileVisit:
-                return AttributedString(String(format: NSLocalizedString("notifications.message.visit.single", comment: "Single profile visit"), firstNotification.visitCount ?? 0))
             case .message:
                 return AttributedString(String(format: NSLocalizedString("notifications.message.message.single", comment: "Single message"), effectiveSenderUsername))
             case .photoTag:
@@ -1293,7 +1311,12 @@ struct EnhancedNotificationRow: View {
                 return AttributedString(exportMessage)
             case .storyChainContinued:
                 let chainTitle = firstNotification.chainTitle ?? ""
-                return AttributedString(String(format: NSLocalizedString("notifications.message.storyChain.single", comment: "Single story chain continuation"), effectiveSenderUsername, chainTitle))
+                let isCreator = firstNotification.chainRole != "participant"
+                let totalParts = firstNotification.totalParts ?? firstNotification.chainPosition ?? 1
+                let key = isCreator
+                    ? "notifications.message.storyChain.creator.single"
+                    : "notifications.message.storyChain.participant.single"
+                return AttributedString(String(format: NSLocalizedString(key, comment: "Single story chain continuation"), effectiveSenderUsername, chainTitle, totalParts))
             case .mediaModeration:
                 return AttributedString(NSLocalizedString("notifications.message.mediaModeration", comment: "Media moderation notification"))
             }
@@ -1857,16 +1880,18 @@ class NotificationsViewModel: ObservableObject {
         
         for notification in filtered {
             let key: String
-            if notification.type == .profileVisit {
-                let dateFormatter = DateFormatter()
-                dateFormatter.calendar = Calendar(identifier: .gregorian)
-                dateFormatter.locale = Locale(identifier: "en_US_POSIX")
-                dateFormatter.timeZone = .current
-                dateFormatter.dateFormat = "yyyy-MM-dd"
-                key = "visit_\(dateFormatter.string(from: notification.timestamp))"
+            if notification.type == .newFollower || notification.type == .mutualConnection {
+                // Agrupar seguidores nuevos y conexiones mutuas recientes
+                // en una fila "X y N más", separados por sección temporal.
+                // Offline-safe: opera sobre la caché local.
+                key = "\(notification.type.rawValue)_agg_\(getSectionKey(for: notification.timestamp))"
             } else if isPerActorSocialNotification(notification.type) {
-                // Follow / mutual / request: una fila por sender (paridad Instagram; evita "X y 6 más" por re-follows)
+                // requestAccepted / followRequest: una fila por sender (evento o acción individual)
                 key = "\(notification.type.rawValue)_\(notification.senderId)"
+            } else if notification.type == .storyChainContinued {
+                // Agrupar por cadena: el evento trae chainId, no commentId/storyId.
+                let chain = notification.chainId ?? notification.storyId ?? "general"
+                key = "storyChainContinued_\(chain)"
             } else {
                 let contentId = notification.commentId ?? notification.storyId ?? notification.momentId ?? "general"
                 let context = notification.mentionContext ?? inferredMentionContext(notification)
@@ -1879,8 +1904,14 @@ class NotificationsViewModel: ObservableObject {
             groupedDict[key]?.append(notification)
         }
         
-        let groups = groupedDict.map { key, notifications in
+        let groups = groupedDict.map { key, notifications -> NotificationGroup in
             let sorted = notifications.sorted { $0.timestamp > $1.timestamp }
+            // Seguidores / mutuas agregados: contar una sola vez por persona (evita inflar "y N más" con duplicados legacy)
+            if key.contains("_agg_") {
+                var seenSenders = Set<String>()
+                let dedupedBySender = sorted.filter { seenSenders.insert($0.senderId).inserted }
+                return NotificationGroup(id: key, notifications: dedupedBySender)
+            }
             return NotificationGroup(id: key, notifications: sorted)
         }
         

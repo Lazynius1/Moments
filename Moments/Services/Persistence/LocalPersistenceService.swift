@@ -1073,10 +1073,14 @@ final class LocalPersistenceService: ObservableObject {
         existing.visitCount = new.visitCount
         existing.storyId = new.storyId
         existing.storyAuthorId = new.storyAuthorId
+        existing.storyPreviewUrl = new.storyPreviewUrl
         existing.reaction = new.reaction
         existing.reactionCount = new.reactionCount
         existing.commentId = new.commentId
         existing.echoId = new.echoId
+        existing.moderationScope = new.moderationScope
+        existing.totalParts = new.totalParts
+        existing.chainRole = new.chainRole
         existing.lastSyncedAt = Date()
     }
     

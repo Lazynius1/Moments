@@ -16,6 +16,7 @@ private struct PreparedStoryMedia {
     let url: String
     let videoFileSize: Int64?
     let videoResolution: String?
+    let thumbnailUrl: String?
 }
 
 // MARK: - 📱 MODELO DE HISTORIA EN PROGRESO
@@ -502,7 +503,8 @@ class BackgroundStoryUploadService: ObservableObject {
                 videoResolution: preparedMedia.videoResolution,
                 duration: uploadingStory.mediaItem.videoDuration,
                 videoProcessingStatus: shouldUseStoryPostProcessing(uploadMediaItem: uploadMediaItem) ? .pending : .ready,
-                originalVideoUrl: shouldUseStoryPostProcessing(uploadMediaItem: uploadMediaItem) ? preparedMedia.url : nil
+                originalVideoUrl: shouldUseStoryPostProcessing(uploadMediaItem: uploadMediaItem) ? preparedMedia.url : nil,
+                thumbnailUrl: preparedMedia.thumbnailUrl
             )
             await MainActor.run {
                 uploadingStory.storyId = storyId
@@ -619,7 +621,8 @@ class BackgroundStoryUploadService: ObservableObject {
                 videoResolution: preparedMedia.videoResolution,
                 duration: clip.duration,
                 videoProcessingStatus: shouldPostProcess ? .pending : .ready,
-                originalVideoUrl: shouldPostProcess ? preparedMedia.url : nil
+                originalVideoUrl: shouldPostProcess ? preparedMedia.url : nil,
+                thumbnailUrl: preparedMedia.thumbnailUrl
             )
 
             if firstStoryId == nil {
@@ -922,12 +925,13 @@ class BackgroundStoryUploadService: ObservableObject {
     ) async throws -> PreparedStoryMedia {
         guard uploadMediaItem.type == .video,
               let videoURL = uploadMediaItem.videoURL else {
+            // Las fotos ya son una imagen directa; mediaItem.url sirve de preview.
             let mediaUrl = try await uploadStoryMedia(
                 uploadingStory,
                 uploadMediaItem: uploadMediaItem,
                 progressRange: uploadProgressRange
             )
-            return PreparedStoryMedia(url: mediaUrl, videoFileSize: nil, videoResolution: nil)
+            return PreparedStoryMedia(url: mediaUrl, videoFileSize: nil, videoResolution: nil, thumbnailUrl: nil)
         }
 
         let candidateFileSize = getFileSizeInBytes(videoURL)
@@ -936,10 +940,20 @@ class BackgroundStoryUploadService: ObservableObject {
             uploadMediaItem: uploadMediaItem,
             progressRange: uploadProgressRange
         )
+
+        // Poster del vídeo: imprescindible para previews (push y lista). Nunca debe bloquear la publicación.
+        let thumbnailUrl: String?
+        if let posterImage = await extractBackgroundFrameImage(from: videoURL) {
+            thumbnailUrl = try? await uploadBackgroundFrameImage(posterImage)
+        } else {
+            thumbnailUrl = nil
+        }
+
         return PreparedStoryMedia(
             url: mediaUrl,
             videoFileSize: candidateFileSize > 0 ? candidateFileSize : nil,
-            videoResolution: uploadingStory.mediaItem.videoResolution
+            videoResolution: uploadingStory.mediaItem.videoResolution,
+            thumbnailUrl: thumbnailUrl
         )
     }
 
@@ -990,7 +1004,8 @@ class BackgroundStoryUploadService: ObservableObject {
         videoResolution: String? = nil,
         duration: Double? = nil,
         videoProcessingStatus: MediaItem.VideoProcessingStatus? = nil,
-        originalVideoUrl: String? = nil
+        originalVideoUrl: String? = nil,
+        thumbnailUrl: String? = nil
     ) async throws -> String {
         let firestoreService = FirestoreService.shared
 
@@ -1013,6 +1028,7 @@ class BackgroundStoryUploadService: ObservableObject {
         let mediaItem = MediaItem(
             type: uploadingStory.mediaItem.type == .video ? .video : .image,
             url: mediaUrl,
+            thumbnailUrl: thumbnailUrl,
             videoDuration: duration,
             videoFileSize: videoFileSize,
             videoResolution: videoResolution,
