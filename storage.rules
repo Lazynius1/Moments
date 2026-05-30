@@ -14,8 +14,8 @@ service firebase.storage {
 
     function isActiveUser() {
       return isAuthenticated() &&
-             exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('isActive', true);
+             firestore.exists(/databases/(default)/documents/users/$(request.auth.uid)) &&
+             firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.get('isActive', true);
     }
 
     function isOwner(userId) {
@@ -51,12 +51,86 @@ service firebase.storage {
              request.resource.contentType.matches('image/.*|video/.*|audio/.*|application/pdf|application/octet-stream');
     }
 
-    // Lectura de media pública del perfil (mismo criterio que el bloque antiguo users/.../moments).
-    function canReadOwnerPublicMedia(ownerId) {
+    // Lectura de media de perfil no enlazada a un documento de contenido.
+    function canReadOwnerProfileMedia(ownerId) {
       return isAuthenticated() && (
         request.auth.uid == ownerId ||
-        get(/databases/$(database)/documents/users/$(ownerId)).data.get('isActive', true)
+        (firestore.exists(/databases/(default)/documents/users/$(ownerId)) &&
+         firestore.get(/databases/(default)/documents/users/$(ownerId)).data.get('isActive', true))
       );
+    }
+
+    function canViewOwnerProfile(viewerId, ownerId) {
+      let ownerDoc = firestore.get(/databases/(default)/documents/users/$(ownerId));
+      return viewerId == ownerId ||
+             (ownerDoc.data.get('isActive', true) &&
+              (!ownerDoc.data.get('isPrivate', false) ||
+               firestore.exists(/databases/(default)/documents/users/$(viewerId)/following/$(ownerId))));
+    }
+
+    function canViewCustomContent(viewerId, ownerId, contentType, contentId) {
+      let audienceDocId = contentType + '_' + contentId;
+      return firestore.exists(/databases/(default)/documents/users/$(ownerId)/customAudiences/$(audienceDocId)) &&
+             viewerId in firestore.get(/databases/(default)/documents/users/$(ownerId)/customAudiences/$(audienceDocId)).data.get('allowedUsers', []);
+    }
+
+    function isUserInCustomList(viewerId, ownerId, customListId) {
+      return customListId != '' &&
+             firestore.exists(/databases/(default)/documents/users/$(ownerId)/customAudienceLists/$(customListId)) &&
+             viewerId in firestore.get(/databases/(default)/documents/users/$(ownerId)/customAudienceLists/$(customListId)).data.get('members', []);
+    }
+
+    // Mantener Storage alineado con firestore.rules canViewContentWithAudience().
+    function canViewContentWithAudience(viewerId, ownerId, audience, contentType, contentId, customListId) {
+      return viewerId == ownerId ||
+             (firestore.exists(/databases/(default)/documents/users/$(ownerId)) &&
+              firestore.get(/databases/(default)/documents/users/$(ownerId)).data.get('isActive', true) &&
+              canViewOwnerProfile(viewerId, ownerId) &&
+              (audience == 'everyone' ||
+               (audience == 'connections' &&
+                firestore.exists(/databases/(default)/documents/users/$(viewerId)/following/$(ownerId)) &&
+                firestore.exists(/databases/(default)/documents/users/$(ownerId)/following/$(viewerId))) ||
+               (audience == 'bestFriends' &&
+                viewerId in firestore.get(/databases/(default)/documents/users/$(ownerId)).data.get('bestFriends', [])) ||
+               (audience == 'custom' &&
+                canViewCustomContent(viewerId, ownerId, contentType, contentId)) ||
+               (audience == 'customList' &&
+                isUserInCustomList(viewerId, ownerId, customListId)) ||
+               (audience == 'onlyMe' && false)
+              )
+             );
+    }
+
+    function canReadMomentMedia(ownerId, momentId) {
+      return isAuthenticated() &&
+             firestore.exists(/databases/(default)/documents/users/$(ownerId)/moments/$(momentId)) &&
+             canViewContentWithAudience(
+               request.auth.uid,
+               ownerId,
+               firestore.get(/databases/(default)/documents/users/$(ownerId)/moments/$(momentId)).data.get('audience', 'everyone'),
+               'moment',
+               momentId,
+               firestore.get(/databases/(default)/documents/users/$(ownerId)/moments/$(momentId)).data.get('customListId', '')
+             );
+    }
+
+    function canReadStoryMedia(ownerId, storyId) {
+      return isAuthenticated() &&
+             firestore.exists(/databases/(default)/documents/users/$(ownerId)/stories/$(storyId)) &&
+             canViewContentWithAudience(
+               request.auth.uid,
+               ownerId,
+               firestore.get(/databases/(default)/documents/users/$(ownerId)/stories/$(storyId)).data.get('audience', 'everyone'),
+               'story',
+               storyId,
+               firestore.get(/databases/(default)/documents/users/$(ownerId)/stories/$(storyId)).data.get('customListId', '')
+             );
+    }
+
+    function legacyObjectBelongsToRequester(objectId) {
+      return isAuthenticated() &&
+             request.auth.uid.matches('[A-Za-z0-9_-]+') &&
+             objectId.matches('.*_' + request.auth.uid + '\\.[^/]+');
     }
 
     function conversationPath(conversationId) {
@@ -119,49 +193,49 @@ service firebase.storage {
     // -------------------------------------------------------------------------
 
     match /users/{userId}/profile/avatar/{fileName} {
-      allow read: if canReadOwnerPublicMedia(userId);
+      allow read: if canReadOwnerProfileMedia(userId);
       allow write: if canWriteAsOwner(userId) && validImageUpload();
       allow delete: if isOwner(userId);
     }
 
     match /users/{userId}/moments/{momentId}/media/{fileName} {
-      allow read: if canReadOwnerPublicMedia(userId);
+      allow read: if canReadMomentMedia(userId, momentId);
       allow write: if canWriteAsOwner(userId) && validMomentMediaUpload();
       allow delete: if isOwner(userId);
     }
 
     match /users/{userId}/moments/{momentId}/thumbnails/{fileName} {
-      allow read: if canReadOwnerPublicMedia(userId);
+      allow read: if canReadMomentMedia(userId, momentId);
       allow write: if canWriteAsOwner(userId) && validImageUpload();
       allow delete: if isOwner(userId);
     }
 
     match /users/{userId}/moments/{momentId}/hidden_layers/{layerId}/{fileName} {
-      allow read: if canReadOwnerPublicMedia(userId);
+      allow read: if canReadMomentMedia(userId, momentId);
       allow write: if canWriteAsOwner(userId) && validHiddenLayerUpload();
       allow delete: if isOwner(userId);
     }
 
     match /users/{userId}/stories/{storyId}/media/{fileName} {
-      allow read: if canReadOwnerPublicMedia(userId);
+      allow read: if canReadStoryMedia(userId, storyId);
       allow write: if canWriteAsOwner(userId) && validStoryMediaUpload();
       allow delete: if isOwner(userId);
     }
 
     match /users/{userId}/stories/{storyId}/thumbnails/{fileName} {
-      allow read: if canReadOwnerPublicMedia(userId);
+      allow read: if canReadStoryMedia(userId, storyId);
       allow write: if canWriteAsOwner(userId) && validImageUpload();
       allow delete: if isOwner(userId);
     }
 
     match /users/{userId}/stories/{storyId}/frames/{fileName} {
-      allow read: if canReadOwnerPublicMedia(userId);
+      allow read: if canReadStoryMedia(userId, storyId);
       allow write: if canWriteAsOwner(userId) && validImageUpload();
       allow delete: if isOwner(userId);
     }
 
     match /users/{userId}/stories/{storyId}/audio/{fileName} {
-      allow read: if canReadOwnerPublicMedia(userId);
+      allow read: if canReadStoryMedia(userId, storyId);
       allow write: if canWriteAsOwner(userId) &&
                         hasHiddenLayerContentType() &&
                         request.resource.size < 25 * 1024 * 1024;
@@ -206,16 +280,20 @@ service firebase.storage {
     // Salidas de transcodificación (solo Functions escriben vía Admin SDK)
     // -------------------------------------------------------------------------
 
-    match /processed_videos/moments/{userId}/{allPaths=**} {
-      allow read: if canReadOwnerPublicMedia(userId);
+    match /processed_videos/moments/{userId}/{momentId}/{fileName} {
+      allow read: if canReadMomentMedia(userId, momentId);
       allow write: if false;
       allow delete: if false;
     }
 
-    match /processed_videos/stories/{userId}/{allPaths=**} {
-      allow read: if canReadOwnerPublicMedia(userId);
+    match /processed_videos/stories/{userId}/{storyId}/{fileName} {
+      allow read: if canReadStoryMedia(userId, storyId);
       allow write: if false;
       allow delete: if false;
+    }
+
+    match /processed_videos/{allPaths=**} {
+      allow read, write, delete: if false;
     }
 
     // -------------------------------------------------------------------------
@@ -229,31 +307,31 @@ service firebase.storage {
     }
 
     match /hidden_layers/{userId}/{momentId}/{fileName} {
-      allow read: if canReadOwnerPublicMedia(userId);
+      allow read: if canReadMomentMedia(userId, momentId);
       allow write: if canWriteAsOwner(userId) && validHiddenLayerUpload();
       allow delete: if isOwner(userId);
     }
 
     match /background_frames/{userId}/{allPaths=**} {
-      allow read: if canReadOwnerPublicMedia(userId);
+      allow read: if isOwner(userId);
       allow write: if canWriteAsOwner(userId) && validImageUpload();
       allow delete: if isOwner(userId);
     }
 
     match /images/{imageId} {
-      allow read: if isAuthenticated();
-      allow write: if isActiveUser() &&
+      allow read: if legacyObjectBelongsToRequester(imageId);
+      allow write: if legacyObjectBelongsToRequester(imageId) &&
                         request.resource.contentType.matches('image/.*') &&
                         request.resource.size < 10 * 1024 * 1024;
-      allow delete: if isActiveUser();
+      allow delete: if legacyObjectBelongsToRequester(imageId);
     }
 
     match /videos/{videoId} {
-      allow read: if isAuthenticated();
-      allow write: if isActiveUser() &&
+      allow read: if legacyObjectBelongsToRequester(videoId);
+      allow write: if legacyObjectBelongsToRequester(videoId) &&
                         request.resource.contentType.matches('video/.*') &&
                         request.resource.size < 300 * 1024 * 1024;
-      allow delete: if isActiveUser();
+      allow delete: if legacyObjectBelongsToRequester(videoId);
     }
 
     match /exports/{userId}/{fileName} {
@@ -264,20 +342,20 @@ service firebase.storage {
 
     match /messageRequests/{requestId}/{fileName} {
       allow read: if isAuthenticated()
-                    && exists(/databases/$(database)/documents/messageRequests/$(requestId))
-                    && request.auth.uid == get(/databases/$(database)/documents/messageRequests/$(requestId)).data.receiverId
+                    && firestore.exists(/databases/(default)/documents/messageRequests/$(requestId))
+                    && request.auth.uid == firestore.get(/databases/(default)/documents/messageRequests/$(requestId)).data.receiverId
                     && isActiveUser();
 
       allow write: if isAuthenticated()
-                     && exists(/databases/$(database)/documents/messageRequests/$(requestId))
-                     && request.auth.uid == get(/databases/$(database)/documents/messageRequests/$(requestId)).data.senderId
+                     && firestore.exists(/databases/(default)/documents/messageRequests/$(requestId))
+                     && request.auth.uid == firestore.get(/databases/(default)/documents/messageRequests/$(requestId)).data.senderId
                      && isActiveUser()
                      && request.resource.contentType.matches('image/.*|video/.*|audio/.*')
                      && request.resource.size < 25 * 1024 * 1024;
 
       allow delete: if isAuthenticated()
-                     && exists(/databases/$(database)/documents/messageRequests/$(requestId))
-                     && request.auth.uid == get(/databases/$(database)/documents/messageRequests/$(requestId)).data.senderId
+                     && firestore.exists(/databases/(default)/documents/messageRequests/$(requestId))
+                     && request.auth.uid == firestore.get(/databases/(default)/documents/messageRequests/$(requestId)).data.senderId
                      && isActiveUser();
     }
   }
