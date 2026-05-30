@@ -926,8 +926,10 @@ struct GlassmorphicChatView: View {
                     handleStoryNavigationFromChat(message: message)
                 },
                 onOpenMedia: { message in
-                    selectedChatMediaItems = sharedMediaItemsForOverlay(selecting: message)
-                    selectedChatMedia = sharedMedia(from: message)
+                    viewModel.prepareMediaForViewing(message) { resolved in
+                        selectedChatMediaItems = sharedMediaItemsForOverlay(selecting: resolved)
+                        selectedChatMedia = sharedMedia(from: resolved)
+                    }
                 },
                 progress: viewModel.uploadProgress[message.id]
             )
@@ -962,8 +964,10 @@ struct GlassmorphicChatView: View {
                     handleMomentNavigationFromChat(message: message)
                 },
                 onOpenMedia: { message in
-                    selectedChatMediaItems = sharedMediaItemsForOverlay(selecting: message)
-                    selectedChatMedia = sharedMedia(from: message)
+                    viewModel.prepareMediaForViewing(message) { resolved in
+                        selectedChatMediaItems = sharedMediaItemsForOverlay(selecting: resolved)
+                        selectedChatMedia = sharedMedia(from: resolved)
+                    }
                 },
                 onLongPress: { message in
                     UIImpactFeedbackGenerator(style: .heavy).impactOccurred()
@@ -1463,17 +1467,17 @@ class MomentsChatViewModel: EnhancedChatViewModel {
         
         trackMediaMessageSent(type: "image")
         
-        // ✅ Crear mensaje local inmediatamente para feedback visual
         let messageId = UUID().uuidString
+        let localPreview = localOutgoingPreviewURL(data: imageData, fileExtension: "jpg")
         let tempMessage = EnhancedMessage(
             id: messageId,
             conversationId: conversationId,
             senderId: currentUserId,
             type: .image,
+            mediaUrl: localPreview,
             status: .sending
         )
         
-        // Agregar mensaje temporal a la lista local
         DispatchQueue.main.async {
             self.messages.append(tempMessage)
             self.updateGroupedMessages()
@@ -1485,12 +1489,17 @@ class MomentsChatViewModel: EnhancedChatViewModel {
             senderId: currentUserId,
             type: .image,
             mediaData: imageData,
-            messageId: messageId // ✅ Pasar el mismo ID
+            messageId: messageId
         ) { [weak self] result in
             DispatchQueue.main.async {
                 switch result {
                 case .success(let sentMessage):
-                    self?.updateMessageInArray(messageId: messageId, newStatus: sentMessage.status)
+                    self?.applyOutgoingMessageUpdate(
+                        messageId: messageId,
+                        status: sentMessage.status,
+                        mediaUrl: sentMessage.mediaUrl ?? localPreview,
+                        thumbnailUrl: sentMessage.thumbnailUrl
+                    )
                 case .failure(let error):
                     self?.error = String(format: NSLocalizedString("chat.error.sendImage", comment: "Image send error"), error.localizedDescription)
                     self?.updateMessageInArray(messageId: messageId, newStatus: .failed)

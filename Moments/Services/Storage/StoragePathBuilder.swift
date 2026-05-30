@@ -11,8 +11,8 @@ enum StorageUploadDomain: Equatable {
     case storyThumbnail(storyId: String, mediaId: String = UUID().uuidString)
     case storyFrame(storyId: String, uploadId: String = UUID().uuidString, blurred: Bool = false)
     case storyStickerAudio(storyId: String, uploadId: String = UUID().uuidString)
-    case chatMedia(conversationId: String, messageId: String, fileExtension: String)
-    case chatThumbnail(conversationId: String, messageId: String)
+    case chatMedia(conversationId: String, messageId: String, fileExtension: String, fileId: String = UUID().uuidString)
+    case chatThumbnail(conversationId: String, messageId: String, thumbId: String = UUID().uuidString)
     case dataExport(exportId: String = UUID().uuidString)
 }
 
@@ -86,16 +86,18 @@ enum StoragePathBuilder {
             metadata["type"] = "story_sticker_audio"
             metadata["storyId"] = sanitized(storyId)
 
-        case .chatMedia(let conversationId, let messageId, let ext):
+        case .chatMedia(let conversationId, let messageId, let ext, let fileId):
             let safeExt = sanitizedExtension(ext)
-            path = "users/\(safeUserId)/chat/\(sanitized(conversationId))/\(sanitized(messageId))/media.\(safeExt)"
+            let safeFileId = sanitized(fileId)
+            path = "users/\(safeUserId)/chat/\(sanitized(conversationId))/\(sanitized(messageId))/\(safeFileId).\(safeExt)"
             contentType = contentTypeForChatExtension(safeExt)
             metadata["type"] = "chat_media"
             metadata["conversationId"] = sanitized(conversationId)
             metadata["messageId"] = sanitized(messageId)
 
-        case .chatThumbnail(let conversationId, let messageId):
-            path = "users/\(safeUserId)/chat/\(sanitized(conversationId))/\(sanitized(messageId))/thumb.jpg"
+        case .chatThumbnail(let conversationId, let messageId, let thumbId):
+            // Subcarpeta thumbnails/ (mismo patrón que moments) — evita colisión con media.enc en el mismo messageId
+            path = "users/\(safeUserId)/chat/\(sanitized(conversationId))/\(sanitized(messageId))/thumbnails/\(sanitized(thumbId)).jpg"
             contentType = "image/jpeg"
             metadata["type"] = "chat_thumbnail"
             metadata["conversationId"] = sanitized(conversationId)
@@ -181,7 +183,7 @@ enum StoragePathBuilder {
     private static func sanitizedExtension(_ ext: String) -> String {
         let lowered = ext.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
         switch lowered {
-        case "jpg", "jpeg", "png", "gif", "mp4", "m4a", "pdf", "txt": return lowered == "jpeg" ? "jpg" : lowered
+        case "jpg", "jpeg", "png", "gif", "mp4", "m4a", "pdf", "txt", "enc": return lowered == "jpeg" ? "jpg" : lowered
         default: return "bin"
         }
     }
@@ -194,6 +196,7 @@ enum StoragePathBuilder {
         case "mp4": return "video/mp4"
         case "m4a": return "audio/mp4"
         case "pdf": return "application/pdf"
+        case "enc": return "application/octet-stream"
         default: return "application/octet-stream"
         }
     }

@@ -194,22 +194,72 @@ class EnhancedChatViewModel: ObservableObject {
     
     // ✅ NUEVA: Función para actualizar el array de manera que SwiftUI lo detecte
     func updateMessageInArray(messageId: String, newStatus: MessageStatus) {
-        // ✅ Guardar estado local con prioridad
-        localMessageStates[messageId] = newStatus
-        
-        if let index = messages.firstIndex(where: { $0.id == messageId }) {
-            // ✅ Actualizar en el hilo principal
-            DispatchQueue.main.async {
-                // Modificar el mensaje existente (es una clase, así que se refleja)
-                self.messages[index].status = newStatus
-                
-                // ✅ FORZAR actualización de SwiftUI
-                self.objectWillChange.send()
-                
-                // ✅ FORZAR actualización de groupedMessages si es MomentsChatViewModel
+        applyOutgoingMessageUpdate(messageId: messageId, status: newStatus, mediaUrl: nil, thumbnailUrl: nil)
+    }
+
+    func applyOutgoingMessageUpdate(
+        messageId: String,
+        status: MessageStatus,
+        mediaUrl: String?,
+        thumbnailUrl: String?
+    ) {
+        localMessageStates[messageId] = status
+
+        guard let index = messages.firstIndex(where: { $0.id == messageId }) else { return }
+
+        DispatchQueue.main.async {
+            self.messages[index].status = status
+            if let mediaUrl {
+                self.messages[index].mediaUrl = mediaUrl
+            }
+            if let thumbnailUrl {
+                self.messages[index].thumbnailUrl = thumbnailUrl
+            }
+            self.objectWillChange.send()
+            if let momentsViewModel = self as? MomentsChatViewModel {
+                momentsViewModel.updateGroupedMessages()
+            }
+        }
+    }
+
+    func localOutgoingPreviewURL(data: Data, fileExtension: String) -> String? {
+        let url = FileManager.default.temporaryDirectory
+            .appendingPathComponent("chat_outgoing_\(UUID().uuidString).\(fileExtension)")
+        do {
+            try data.write(to: url, options: .atomic)
+            return url.absoluteString
+        } catch {
+            return nil
+        }
+    }
+
+    /// Tras reinstalar o sin caché local: descarga el `.enc`, descifra y actualiza el mensaje en la lista.
+    func prepareMediaForViewing(_ message: EnhancedMessage, completion: @escaping (EnhancedMessage) -> Void) {
+        if message.mediaUrl != nil {
+            completion(message)
+            return
+        }
+        guard message.mediaObjectPath != nil, message.mediaEncryption != nil else {
+            completion(message)
+            return
+        }
+
+        Task {
+            guard let (mediaUrl, thumbnailUrl) = await chatService.resolveEncryptedMediaForMessage(message) else {
+                await MainActor.run { completion(message) }
+                return
+            }
+            await MainActor.run {
+                if let index = messages.firstIndex(where: { $0.id == message.id }) {
+                    messages[index].mediaUrl = mediaUrl
+                    messages[index].thumbnailUrl = thumbnailUrl
+                }
+                objectWillChange.send()
                 if let momentsViewModel = self as? MomentsChatViewModel {
                     momentsViewModel.updateGroupedMessages()
                 }
+                let updated = messages.first(where: { $0.id == message.id }) ?? message
+                completion(updated)
             }
         }
     }
@@ -446,13 +496,14 @@ class EnhancedChatViewModel: ObservableObject {
             return
         }
         
-        // ✅ Crear mensaje local inmediatamente para feedback visual
         let messageId = UUID().uuidString
+        let localPreview = localOutgoingPreviewURL(data: imageData, fileExtension: "jpg")
         let tempMessage = EnhancedMessage(
             id: messageId,
             conversationId: conversationId,
             senderId: currentUserId,
             type: .image,
+            mediaUrl: localPreview,
             status: .sending,
             mediaBatchId: mediaBatchId
         )
@@ -481,12 +532,15 @@ class EnhancedChatViewModel: ObservableObject {
             DispatchQueue.main.async {
                 switch result {
                 case .success(let sentMessage):
-                    // ✅ Usar el estado devuelto (puede ser .pending si es offline)
-                    self?.updateMessageInArray(messageId: messageId, newStatus: sentMessage.status)
+                    self?.applyOutgoingMessageUpdate(
+                        messageId: messageId,
+                        status: sentMessage.status,
+                        mediaUrl: sentMessage.mediaUrl ?? localPreview,
+                        thumbnailUrl: sentMessage.thumbnailUrl
+                    )
                     self?.trackSuccessfulDirectMessage()
                 case .failure(let error):
                     self?.error = error.localizedDescription
-                    // Actualizar estado del mensaje temporal a fallido
                     self?.updateMessageInArray(messageId: messageId, newStatus: .failed)
                 }
             }
@@ -524,13 +578,14 @@ class EnhancedChatViewModel: ObservableObject {
         }
         
         
-        // ✅ Crear mensaje local inmediatamente para feedback visual
         let messageId = UUID().uuidString
+        let localPreview = localOutgoingPreviewURL(data: data, fileExtension: "mp4")
         let tempMessage = EnhancedMessage(
             id: messageId,
             conversationId: conversationId,
             senderId: currentUserId,
             type: .video,
+            mediaUrl: localPreview,
             status: .sending,
             mediaBatchId: mediaBatchId
         )
@@ -557,12 +612,15 @@ class EnhancedChatViewModel: ObservableObject {
             DispatchQueue.main.async {
                 switch result {
                 case .success(let sentMessage):
-                    // ✅ Usar el estado devuelto (puede ser .pending si es offline)
-                    self?.updateMessageInArray(messageId: messageId, newStatus: sentMessage.status)
+                    self?.applyOutgoingMessageUpdate(
+                        messageId: messageId,
+                        status: sentMessage.status,
+                        mediaUrl: sentMessage.mediaUrl ?? localPreview,
+                        thumbnailUrl: sentMessage.thumbnailUrl
+                    )
                     self?.trackSuccessfulDirectMessage()
                 case .failure(let error):
                     self?.error = error.localizedDescription
-                    // Actualizar estado del mensaje temporal a fallido
                     self?.updateMessageInArray(messageId: messageId, newStatus: .failed)
                 }
             }

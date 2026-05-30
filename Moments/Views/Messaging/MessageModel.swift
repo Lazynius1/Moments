@@ -398,6 +398,86 @@ enum MessageStatus: String, Codable {
     }
 }
 
+enum ChatMediaPurpose: String, Codable {
+    case primary
+    case thumbnail
+}
+
+struct EncryptedChatMediaMetadata: Codable, Hashable {
+    let version: String
+    let algorithm: String
+    let purpose: ChatMediaPurpose
+    let mediaId: String
+    let contentType: String
+    let fileExtension: String
+    let plaintextSize: Int64
+
+    init(
+        version: String = "1.0",
+        algorithm: String = "AES.GCM+HKDF-SHA256",
+        purpose: ChatMediaPurpose,
+        mediaId: String,
+        contentType: String,
+        fileExtension: String,
+        plaintextSize: Int64
+    ) {
+        self.version = version
+        self.algorithm = algorithm
+        self.purpose = purpose
+        self.mediaId = mediaId
+        self.contentType = contentType
+        self.fileExtension = fileExtension
+        self.plaintextSize = plaintextSize
+    }
+
+    init?(map: [String: Any]) {
+        guard
+            let version = map["version"] as? String,
+            let algorithm = map["algorithm"] as? String,
+            let purposeRaw = map["purpose"] as? String,
+            let purpose = ChatMediaPurpose(rawValue: purposeRaw),
+            let mediaId = map["mediaId"] as? String,
+            let contentType = map["contentType"] as? String,
+            let fileExtension = map["fileExtension"] as? String
+        else {
+            return nil
+        }
+
+        let plaintextSize: Int64
+        if let size = map["plaintextSize"] as? Int64 {
+            plaintextSize = size
+        } else if let size = map["plaintextSize"] as? Int {
+            plaintextSize = Int64(size)
+        } else if let size = map["plaintextSize"] as? Double {
+            plaintextSize = Int64(size)
+        } else {
+            return nil
+        }
+
+        self.init(
+            version: version,
+            algorithm: algorithm,
+            purpose: purpose,
+            mediaId: mediaId,
+            contentType: contentType,
+            fileExtension: fileExtension,
+            plaintextSize: plaintextSize
+        )
+    }
+
+    var firestoreData: [String: Any] {
+        [
+            "version": version,
+            "algorithm": algorithm,
+            "purpose": purpose.rawValue,
+            "mediaId": mediaId,
+            "contentType": contentType,
+            "fileExtension": fileExtension,
+            "plaintextSize": plaintextSize
+        ]
+    }
+}
+
 // MARK: - Enhanced Message Model with View-Once Support
 class EnhancedMessage: Codable, Identifiable, ObservableObject {
     let id: String
@@ -405,8 +485,16 @@ class EnhancedMessage: Codable, Identifiable, ObservableObject {
     let senderId: String
     let type: MessageType
     let content: String?
-    let mediaUrl: String?
-    let thumbnailUrl: String?
+    var mediaUrl: String? {
+        didSet { objectWillChange.send() }
+    }
+    var thumbnailUrl: String? {
+        didSet { objectWillChange.send() }
+    }
+    let mediaObjectPath: String?
+    let thumbnailObjectPath: String?
+    let mediaEncryption: EncryptedChatMediaMetadata?
+    let thumbnailEncryption: EncryptedChatMediaMetadata?
     let duration: Double?
     let fileName: String?
     let fileSize: Int64?
@@ -432,6 +520,7 @@ class EnhancedMessage: Codable, Identifiable, ObservableObject {
     
     enum CodingKeys: String, CodingKey {
         case id, conversationId, senderId, type, content, mediaUrl, thumbnailUrl
+        case mediaObjectPath, thumbnailObjectPath, mediaEncryption, thumbnailEncryption
         case duration, fileName, fileSize, latitude, longitude, timestamp
         case status, isRead, isDeleted, deletedAt, editedAt, reactions
         case replyTo, expirationDate, isViewed, storyReplyData, sharedMomentData, sharedStoryData
@@ -456,6 +545,10 @@ class EnhancedMessage: Codable, Identifiable, ObservableObject {
         self.content = try container.decodeIfPresent(String.self, forKey: .content)
         self.mediaUrl = try container.decodeIfPresent(String.self, forKey: .mediaUrl)
         self.thumbnailUrl = try container.decodeIfPresent(String.self, forKey: .thumbnailUrl)
+        self.mediaObjectPath = try container.decodeIfPresent(String.self, forKey: .mediaObjectPath)
+        self.thumbnailObjectPath = try container.decodeIfPresent(String.self, forKey: .thumbnailObjectPath)
+        self.mediaEncryption = try container.decodeIfPresent(EncryptedChatMediaMetadata.self, forKey: .mediaEncryption)
+        self.thumbnailEncryption = try container.decodeIfPresent(EncryptedChatMediaMetadata.self, forKey: .thumbnailEncryption)
         self.duration = try container.decodeIfPresent(Double.self, forKey: .duration)
         self.fileName = try container.decodeIfPresent(String.self, forKey: .fileName)
         self.fileSize = try container.decodeIfPresent(Int64.self, forKey: .fileSize)
@@ -521,6 +614,10 @@ class EnhancedMessage: Codable, Identifiable, ObservableObject {
         try container.encodeIfPresent(content, forKey: .content)
         try container.encodeIfPresent(mediaUrl, forKey: .mediaUrl)
         try container.encodeIfPresent(thumbnailUrl, forKey: .thumbnailUrl)
+        try container.encodeIfPresent(mediaObjectPath, forKey: .mediaObjectPath)
+        try container.encodeIfPresent(thumbnailObjectPath, forKey: .thumbnailObjectPath)
+        try container.encodeIfPresent(mediaEncryption, forKey: .mediaEncryption)
+        try container.encodeIfPresent(thumbnailEncryption, forKey: .thumbnailEncryption)
         try container.encodeIfPresent(duration, forKey: .duration)
         try container.encodeIfPresent(fileName, forKey: .fileName)
         try container.encodeIfPresent(fileSize, forKey: .fileSize)
@@ -563,6 +660,10 @@ class EnhancedMessage: Codable, Identifiable, ObservableObject {
          content: String? = nil,
          mediaUrl: String? = nil,
          thumbnailUrl: String? = nil,
+         mediaObjectPath: String? = nil,
+         thumbnailObjectPath: String? = nil,
+         mediaEncryption: EncryptedChatMediaMetadata? = nil,
+         thumbnailEncryption: EncryptedChatMediaMetadata? = nil,
          duration: Double? = nil,
          fileName: String? = nil,
          fileSize: Int64? = nil,
@@ -591,6 +692,10 @@ class EnhancedMessage: Codable, Identifiable, ObservableObject {
         self.content = content
         self.mediaUrl = mediaUrl
         self.thumbnailUrl = thumbnailUrl
+        self.mediaObjectPath = mediaObjectPath
+        self.thumbnailObjectPath = thumbnailObjectPath
+        self.mediaEncryption = mediaEncryption
+        self.thumbnailEncryption = thumbnailEncryption
         self.duration = duration
         self.fileName = fileName
         self.fileSize = fileSize

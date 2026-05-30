@@ -1,5 +1,23 @@
 import SwiftUI
+import UIKit
 import Kingfisher
+
+/// Preview local (`file://`) sin pasar por red — evita `cancelFetcher` HTTP 400 de Kingfisher.
+private struct ChatLocalFileImage: View {
+    let url: URL
+
+    var body: some View {
+        Group {
+            if let uiImage = UIImage(contentsOfFile: url.path) {
+                Image(uiImage: uiImage)
+                    .resizable()
+                    .scaledToFill()
+            } else {
+                Color.white.opacity(0.1)
+            }
+        }
+    }
+}
 
 struct GlassmorphicImageMessage: View {
     let imageUrl: String?
@@ -10,12 +28,15 @@ struct GlassmorphicImageMessage: View {
     var body: some View {
         ZStack {
             if let url = imageUrl, let imageURL = URL(string: url) {
-                KFImage(imageURL)
-                    .resizable()
-                    .scaledToFill()
-                    .onTapGesture {
-                        onTap()
-                    }
+                if imageURL.isFileURL {
+                    ChatLocalFileImage(url: imageURL)
+                        .onTapGesture(perform: onTap)
+                } else {
+                    KFImage(imageURL)
+                        .resizable()
+                        .scaledToFill()
+                        .onTapGesture(perform: onTap)
+                }
             } else {
                 RoundedRectangle(cornerRadius: 16)
                     .fill(Color.white.opacity(0.1))
@@ -56,10 +77,15 @@ struct GlassmorphicVideoMessage: View {
     var body: some View {
         ZStack {
             if let thumbnailUrl = thumbnailUrl, let url = URL(string: thumbnailUrl) {
-                KFImage(url)
-                    .resizable()
-                    .scaledToFill()
-                    .frame(minWidth: 0, maxWidth: .infinity, minHeight: 0, maxHeight: .infinity)
+                if url.isFileURL {
+                    ChatLocalFileImage(url: url)
+                        .frame(minWidth: 0, maxWidth: .infinity, minHeight: 0, maxHeight: .infinity)
+                } else {
+                    KFImage(url)
+                        .resizable()
+                        .scaledToFill()
+                        .frame(minWidth: 0, maxWidth: .infinity, minHeight: 0, maxHeight: .infinity)
+                }
             } else {
                 RoundedRectangle(cornerRadius: 16)
                     .fill(Color.white.opacity(0.1))

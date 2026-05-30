@@ -20,6 +20,54 @@ class ChatService: ObservableObject {
     
     private var typingTimer: Timer?
     private let typingTimeout: TimeInterval = 3.0
+
+    struct ChatMediaUploadResult {
+        let mediaUrl: String?
+        let thumbnailUrl: String?
+        let mediaObjectPath: String?
+        let thumbnailObjectPath: String?
+        let mediaEncryption: EncryptedChatMediaMetadata?
+        let thumbnailEncryption: EncryptedChatMediaMetadata?
+    }
+
+    private struct CachedResolvedMedia {
+        let mediaUrl: String?
+        let thumbnailUrl: String?
+    }
+
+    /// Preview local del remitente mientras Firestore/Storage propagan (evita getData que cancela con 400 en consola).
+    private var outgoingEncryptedMediaPreviews: [String: CachedResolvedMedia] = [:]
+    /// Mensajes con subida cifrada en curso — mientras no esté vacío, no lanzar getData desde el listener.
+    private var activeEncryptedUploadMessageIds: Set<String> = []
+    /// Caché en memoria tras la primera resolución (evita N×getData en cada snapshot de Firestore).
+    private var decryptedMediaResolveCache: [String: CachedResolvedMedia] = [:]
+
+    private actor EncryptedMediaDownloadQueue {
+        func download(objectPath: String, maxSize: Int64) async throws -> Data {
+            try await withCheckedThrowingContinuation { continuation in
+                Storage.storage()
+                    .reference()
+                    .child(objectPath)
+                    .getData(maxSize: maxSize) { data, error in
+                        if let error {
+                            continuation.resume(throwing: error)
+                        } else if let data {
+                            continuation.resume(returning: data)
+                        } else {
+                            continuation.resume(
+                                throwing: NSError(
+                                    domain: "ChatService",
+                                    code: -1,
+                                    userInfo: [NSLocalizedDescriptionKey: "No se pudieron descargar los datos cifrados"]
+                                )
+                            )
+                        }
+                    }
+            }
+        }
+    }
+
+    private let encryptedMediaDownloadQueue = EncryptedMediaDownloadQueue()
     
     // MARK: - Initialization
     static let shared = ChatService() // ✅ Singleton para acceso global
@@ -161,91 +209,26 @@ class ChatService: ObservableObject {
             completion(.success([]))
             return
         }
+
+        // Clave de conversación antes de descifrar media (evita huecos en blanco al abrir el chat).
+        await preloadConversationKey(for: conversationId)
         
         var messages: [EnhancedMessage] = []
         
         for doc in documents {
             let data = doc.data()
             
-            // ✅ Filtrar mensajes eliminados para el usuario actual (estilo nativo)
             if let deletedFor = data["deletedFor"] as? [String],
                let currentUserId = Auth.auth().currentUser?.uid,
                deletedFor.contains(currentUserId) {
                 continue
             }
-            
-            // Manual decoding with decryption
-            let id = data["id"] as? String ?? doc.documentID
-            let senderId = data["senderId"] as? String ?? ""
-            let typeString = data["type"] as? String ?? MessageType.text.rawValue
-            let type = MessageType(rawValue: typeString) ?? .text
-            
-            // 🔐 Decrypt content if it's text - AHORA FUNCIONA CON AWAIT
-            let rawContent = data["content"] as? String
-            let content: String?
-            if let rawContent = rawContent, type == .text {
-                // ✅ Ahora podemos usar await directamente
-                content = await self.decryptMessageContent(rawContent, for: conversationId)
-            } else {
-                content = rawContent
-            }
-            
-            let mediaUrl = data["mediaUrl"] as? String
-            let thumbnailUrl = data["thumbnailUrl"] as? String
-            let duration = data["duration"] as? Double
-            let fileName = data["fileName"] as? String
-            let fileSize = data["fileSize"] as? Int64
-            let latitude = data["latitude"] as? Double
-            let longitude = data["longitude"] as? Double
-            let timestamp = (data["timestamp"] as? Timestamp)?.dateValue() ?? Date()
-            let statusString = data["status"] as? String ?? MessageStatus.sent.rawValue
-            let status = MessageStatus(rawValue: statusString) ?? .sent
-            let isRead = data["isRead"] as? Bool ?? false
-            let isDeleted = data["isDeleted"] as? Bool ?? false
-            let deletedAt = (data["deletedAt"] as? Timestamp)?.dateValue()
-            let editedAt = (data["editedAt"] as? Timestamp)?.dateValue()
-            let reactions = data["reactions"] as? [String: [String]]
-            let replyTo = data["replyTo"] as? String
-            let expirationDate = (data["expirationDate"] as? Timestamp)?.dateValue()
-            let isViewed = data["isViewed"] as? Bool ?? false
-            let storyReplyData = data["storyReplyData"] as? [String: String]
-            let sharedMomentData = data["sharedMomentData"] as? [String: String]
-            let sharedStoryData = data["sharedStoryData"] as? [String: String]
-            let mediaBatchId = data["mediaBatchId"] as? String
-            
-            // ✅ DEBUG: Log status updates
-            if status == .sending || status == .sent {
-            }
-            
-            let message = EnhancedMessage(
-                id: id,
-                conversationId: conversationId,
-                senderId: senderId,
-                type: type,
-                content: content, // ✅ Ahora está correctamente desencriptado
-                mediaUrl: mediaUrl,
-                thumbnailUrl: thumbnailUrl,
-                duration: duration,
-                fileName: fileName,
-                fileSize: fileSize,
-                latitude: latitude,
-                longitude: longitude,
-                timestamp: timestamp,
-                status: status,
-                isRead: isRead,
-                isDeleted: isDeleted,
-                deletedAt: deletedAt,
-                editedAt: editedAt,
-                reactions: reactions,
-                replyTo: replyTo,
-                expirationDate: expirationDate,
-                isViewed: isViewed,
-                storyReplyData: storyReplyData,
-                sharedMomentData: sharedMomentData,
-                sharedStoryData: sharedStoryData,
-                mediaBatchId: mediaBatchId
+
+            let message = await buildEnhancedMessage(
+                from: data,
+                docId: doc.documentID,
+                conversationId: conversationId
             )
-            
             messages.append(message)
         }
         
@@ -335,7 +318,20 @@ class ChatService: ObservableObject {
         }
     }
     
-    func sendEphemeralMessage(conversationId: String, senderId: String, content: String? = nil, mediaUrl: String? = nil, expirationHours: Int = 24, storyReplyData: [String: String]? = nil, completion: @escaping (Result<EnhancedMessage, Error>) -> Void) {
+    func sendEphemeralMessage(
+        conversationId: String,
+        senderId: String,
+        content: String? = nil,
+        mediaUrl: String? = nil,
+        mediaObjectPath: String? = nil,
+        thumbnailUrl: String? = nil,
+        thumbnailObjectPath: String? = nil,
+        mediaEncryption: EncryptedChatMediaMetadata? = nil,
+        thumbnailEncryption: EncryptedChatMediaMetadata? = nil,
+        expirationHours: Int = 24,
+        storyReplyData: [String: String]? = nil,
+        completion: @escaping (Result<EnhancedMessage, Error>) -> Void
+    ) {
         let messageId = UUID().uuidString
         let expirationDate = Calendar.current.date(byAdding: .hour, value: expirationHours, to: Date())
         
@@ -353,7 +349,11 @@ class ChatService: ObservableObject {
                 type: .ephemeral,
                 content: encryptedContent, // Store encrypted content
                 mediaUrl: mediaUrl,
-                thumbnailUrl: nil,
+                thumbnailUrl: thumbnailUrl,
+                mediaObjectPath: mediaObjectPath,
+                thumbnailObjectPath: thumbnailObjectPath,
+                mediaEncryption: mediaEncryption,
+                thumbnailEncryption: thumbnailEncryption,
                 duration: nil,
                 fileName: nil,
                 fileSize: nil,
@@ -380,7 +380,7 @@ class ChatService: ObservableObject {
         let finalMessageId = messageId ?? UUID().uuidString
         uploadMedia(data: mediaData, type: type, conversationId: conversationId, messageId: finalMessageId) { [weak self] result in
             switch result {
-            case .success(let (mediaUrl, thumbnailUrl)):
+            case .success(let uploadResult):
                 let finalMessageId = messageId ?? UUID().uuidString
                 let message = EnhancedMessage(
                     id: finalMessageId,
@@ -388,8 +388,12 @@ class ChatService: ObservableObject {
                     senderId: senderId,
                     type: type,
                     content: nil, // No text content to encrypt
-                    mediaUrl: mediaUrl, // Media URLs are not encrypted
-                    thumbnailUrl: thumbnailUrl,
+                    mediaUrl: uploadResult.mediaUrl,
+                    thumbnailUrl: uploadResult.thumbnailUrl,
+                    mediaObjectPath: uploadResult.mediaObjectPath,
+                    thumbnailObjectPath: uploadResult.thumbnailObjectPath,
+                    mediaEncryption: uploadResult.mediaEncryption,
+                    thumbnailEncryption: uploadResult.thumbnailEncryption,
                     duration: nil,
                     fileName: fileName,
                     fileSize: Int64(mediaData.count),
@@ -450,7 +454,7 @@ class ChatService: ObservableObject {
         let finalMessageId = messageId ?? UUID().uuidString
         uploadMedia(data: audioData, type: .audio, conversationId: conversationId, messageId: finalMessageId) { [weak self] result in
             switch result {
-            case .success(let (mediaUrl, _)):
+            case .success(let uploadResult):
                 let finalMessageId = messageId ?? UUID().uuidString
                 let message = EnhancedMessage(
                     id: finalMessageId,
@@ -458,8 +462,12 @@ class ChatService: ObservableObject {
                     senderId: senderId,
                     type: .audio,
                     content: nil, // No text content to encrypt
-                    mediaUrl: mediaUrl, // Audio URLs are not encrypted
-                    thumbnailUrl: nil,
+                    mediaUrl: uploadResult.mediaUrl,
+                    thumbnailUrl: uploadResult.thumbnailUrl,
+                    mediaObjectPath: uploadResult.mediaObjectPath,
+                    thumbnailObjectPath: uploadResult.thumbnailObjectPath,
+                    mediaEncryption: uploadResult.mediaEncryption,
+                    thumbnailEncryption: uploadResult.thumbnailEncryption,
                     duration: duration,
                     fileName: "audio_\(finalMessageId).m4a",
                     fileSize: Int64(audioData.count),
@@ -538,11 +546,21 @@ class ChatService: ObservableObject {
         if let content = message.content {
             messageData["content"] = content // Already encrypted for text messages
         }
-        if let mediaUrl = message.mediaUrl {
-            messageData["mediaUrl"] = mediaUrl // Media URLs are not encrypted
+        if let mediaObjectPath = message.mediaObjectPath {
+            messageData["mediaObjectPath"] = mediaObjectPath
+        } else if let mediaUrl = message.mediaUrl {
+            messageData["mediaUrl"] = mediaUrl
         }
-        if let thumbnailUrl = message.thumbnailUrl {
+        if let thumbnailObjectPath = message.thumbnailObjectPath {
+            messageData["thumbnailObjectPath"] = thumbnailObjectPath
+        } else if let thumbnailUrl = message.thumbnailUrl {
             messageData["thumbnailUrl"] = thumbnailUrl
+        }
+        if let mediaEncryption = message.mediaEncryption {
+            messageData["mediaEncryption"] = mediaEncryption.firestoreData
+        }
+        if let thumbnailEncryption = message.thumbnailEncryption {
+            messageData["thumbnailEncryption"] = thumbnailEncryption.firestoreData
         }
         if let duration = message.duration {
             messageData["duration"] = duration
@@ -710,7 +728,15 @@ class ChatService: ObservableObject {
                 }
                 
                 let data = document.data() ?? [:]
-                let mediaUrl = data["mediaUrl"] as? String
+                let mediaResources: [String] = [
+                    data["mediaObjectPath"] as? String,
+                    data["thumbnailObjectPath"] as? String,
+                    data["mediaUrl"] as? String,
+                    data["thumbnailUrl"] as? String
+                ].compactMap { value -> String? in
+                    guard let value, !value.isEmpty else { return nil }
+                    return value
+                }
                 
                 // Mark message as deleted first
                 Firestore.firestore().collection("conversations")
@@ -721,7 +747,12 @@ class ChatService: ObservableObject {
                         "isDeleted": true,
                         "deletedAt": FieldValue.serverTimestamp(),
                         "content": FieldValue.delete(), // Remove encrypted content
-                        "mediaUrl": FieldValue.delete()
+                        "mediaUrl": FieldValue.delete(),
+                        "thumbnailUrl": FieldValue.delete(),
+                        "mediaObjectPath": FieldValue.delete(),
+                        "thumbnailObjectPath": FieldValue.delete(),
+                        "mediaEncryption": FieldValue.delete(),
+                        "thumbnailEncryption": FieldValue.delete()
                     ]) { updateError in
                         
                         if let updateError = updateError {
@@ -731,17 +762,9 @@ class ChatService: ObservableObject {
                         
                         
                         // Delete media file if exists
-                        if let mediaUrl = mediaUrl, !mediaUrl.isEmpty {
-                            Task { @MainActor in
-                                self.deleteMediaFile(url: mediaUrl) { result in
-                                    switch result {
-                                    case .success(_):
-                                        break
-                                    case .failure(_):
-                                        break
-                                    }
-                                    completion(nil)
-                                }
+                        if !mediaResources.isEmpty {
+                            self.deleteMediaFiles(urls: mediaResources) { _ in
+                                completion(nil)
                             }
                         } else {
                             completion(nil)
@@ -751,17 +774,57 @@ class ChatService: ObservableObject {
     }
 
     func deleteMediaFile(url: String, completion: @escaping (Result<Void, Error>) -> Void) {
-        
         guard !url.isEmpty else {
             completion(.failure(NSError(domain: "ChatService", code: -1, userInfo: [NSLocalizedDescriptionKey: "URL inválida"])))
             return
         }
-        
-        let storageRef = Storage.storage().reference(forURL: url)
-        
+
+        if let localURL = URL(string: url), localURL.isFileURL {
+            do {
+                if FileManager.default.fileExists(atPath: localURL.path) {
+                    try FileManager.default.removeItem(at: localURL)
+                }
+                completion(.success(()))
+            } catch {
+                completion(.failure(error))
+            }
+            return
+        }
+
+        let objectPath = StoragePathBuilder.extractObjectPath(from: url)
+        let storageRef: StorageReference
+        if objectPath.hasPrefix("http://") || objectPath.hasPrefix("https://") {
+            storageRef = Storage.storage().reference(forURL: objectPath)
+        } else {
+            storageRef = Storage.storage().reference().child(objectPath)
+        }
+
         storageRef.delete { error in
             if let error = error {
                 completion(.failure(error))
+            } else {
+                completion(.success(()))
+            }
+        }
+    }
+
+    private func deleteMediaFiles(urls: [String], completion: @escaping (Result<Void, Error>) -> Void) {
+        let group = DispatchGroup()
+        var firstError: Error?
+
+        for url in urls {
+            group.enter()
+            deleteMediaFile(url: url) { result in
+                if case .failure(let error) = result, firstError == nil {
+                    firstError = error
+                }
+                group.leave()
+            }
+        }
+
+        group.notify(queue: .main) {
+            if let firstError {
+                completion(.failure(firstError))
             } else {
                 completion(.success(()))
             }
@@ -1156,7 +1219,7 @@ class ChatService: ObservableObject {
         type: MessageType,
         conversationId: String,
         messageId: String? = nil,
-        completion: @escaping (Result<(mediaUrl: String, thumbnailUrl: String?), Error>) -> Void
+        completion: @escaping (Result<ChatMediaUploadResult, Error>) -> Void
     ) {
         guard let senderId = Auth.auth().currentUser?.uid else {
             completion(.failure(NSError(domain: "ChatService", code: -1, userInfo: [NSLocalizedDescriptionKey: "Usuario no autenticado"])))
@@ -1170,14 +1233,7 @@ class ChatService: ObservableObject {
 
         Task {
             do {
-                let mediaTarget = StoragePathBuilder.build(
-                    userId: senderId,
-                    domain: .chatMedia(
-                        conversationId: conversationId,
-                        messageId: resolvedMessageId,
-                        fileExtension: ext
-                    )
-                )
+                let mediaFileId = UUID().uuidString
 
                 let payload: MediaUploadPayload
                 var tempFilesToCleanup: [URL] = []
@@ -1193,6 +1249,155 @@ class ChatService: ObservableObject {
                 } else {
                     payload = .data(data)
                 }
+
+                let shouldEncryptMedia =
+                    type == .image ||
+                    type == .video ||
+                    type == .audio ||
+                    type == .file ||
+                    type == .viewOnceImage ||
+                    type == .viewOnceVideo
+
+                if shouldEncryptMedia {
+                    let plaintextData: Data
+                    let originalContentType: String
+                    let localPreviewURL: String?
+
+                    switch payload {
+                    case .data(let rawData):
+                        plaintextData = rawData
+                        originalContentType = getContentType(for: type)
+                        localPreviewURL = createLocalPreviewURL(
+                            data: rawData,
+                            fileExtension: ext,
+                            prefix: "chat_media_preview"
+                        )?.absoluteString
+                    case .file(let url):
+                        plaintextData = try Data(contentsOf: url)
+                        originalContentType = getContentType(for: type)
+                        localPreviewURL = createLocalPreviewURL(
+                            data: plaintextData,
+                            fileExtension: ext,
+                            prefix: "chat_media_preview"
+                        )?.absoluteString
+                    }
+
+                    let encryptedMain = try await encryptionService.encryptChatMedia(
+                        plaintextData,
+                        for: conversationId,
+                        messageId: resolvedMessageId,
+                        purpose: .primary,
+                        contentType: originalContentType,
+                        fileExtension: ext
+                    )
+
+                    let encryptedMainTarget = chatEncryptedStorageTarget(
+                        userId: senderId,
+                        conversationId: conversationId,
+                        messageId: resolvedMessageId,
+                        fileId: mediaFileId,
+                        originalContentType: originalContentType
+                    )
+
+                    // Antes de subir: evita que el listener dispare getData al ver mediaObjectPath en Firestore
+                    outgoingEncryptedMediaPreviews[resolvedMessageId] = CachedResolvedMedia(
+                        mediaUrl: localPreviewURL,
+                        thumbnailUrl: nil
+                    )
+
+                    activeEncryptedUploadMessageIds.insert(resolvedMessageId)
+                    defer { activeEncryptedUploadMessageIds.remove(resolvedMessageId) }
+
+                    _ = try await uploader.uploadEncryptedBlob(
+                        target: encryptedMainTarget,
+                        data: encryptedMain.ciphertext,
+                        progress: { progressValue in
+                            NotificationCenter.default.post(
+                                name: NSNotification.Name("MediaUploadProgress"),
+                                object: nil,
+                                userInfo: ["messageId": resolvedMessageId, "progress": progressValue]
+                            )
+                        }
+                    )
+
+                    var thumbnailObjectPath: String?
+                    var thumbnailEncryption: EncryptedChatMediaMetadata?
+                    var localThumbnailURL: String?
+                    if type == .video || type == .viewOnceVideo,
+                       let thumbnailData = try await self.generateVideoThumbnailData(from: plaintextData) {
+                        do {
+                            let thumbId = UUID().uuidString
+                            let thumbBase = StoragePathBuilder.build(
+                                userId: senderId,
+                                domain: .chatThumbnail(
+                                    conversationId: conversationId,
+                                    messageId: resolvedMessageId,
+                                    thumbId: thumbId
+                                )
+                            )
+                            let encryptedThumb = try await encryptionService.encryptChatMedia(
+                                thumbnailData,
+                                for: conversationId,
+                                messageId: resolvedMessageId,
+                                purpose: .thumbnail,
+                                contentType: "image/jpeg",
+                                fileExtension: "jpg"
+                            )
+                            let encryptedThumbTarget = chatEncryptedStorageTarget(
+                                userId: senderId,
+                                conversationId: conversationId,
+                                messageId: resolvedMessageId,
+                                fileId: thumbId,
+                                originalContentType: "image/jpeg",
+                                objectPath: thumbBase.objectPath.replacingOccurrences(of: ".jpg", with: ".enc")
+                            )
+                            _ = try await uploader.uploadEncryptedBlob(
+                                target: encryptedThumbTarget,
+                                data: encryptedThumb.ciphertext
+                            )
+                            thumbnailObjectPath = encryptedThumbTarget.objectPath
+                            thumbnailEncryption = encryptedThumb.metadata
+                            localThumbnailURL = createLocalPreviewURL(
+                                data: thumbnailData,
+                                fileExtension: "jpg",
+                                prefix: "chat_thumb_preview"
+                            )?.absoluteString
+                        } catch {
+                            // Thumbnail opcional; el vídeo principal ya está subido.
+                        }
+                    }
+
+                    for url in tempFilesToCleanup {
+                        try? FileManager.default.removeItem(at: url)
+                    }
+
+                    let resolvedPreview = CachedResolvedMedia(
+                        mediaUrl: localPreviewURL,
+                        thumbnailUrl: localThumbnailURL
+                    )
+                    outgoingEncryptedMediaPreviews[resolvedMessageId] = resolvedPreview
+                    decryptedMediaResolveCache[resolvedMessageId] = resolvedPreview
+
+                    completion(.success(ChatMediaUploadResult(
+                        mediaUrl: localPreviewURL,
+                        thumbnailUrl: localThumbnailURL,
+                        mediaObjectPath: encryptedMainTarget.objectPath,
+                        thumbnailObjectPath: thumbnailObjectPath,
+                        mediaEncryption: encryptedMain.metadata,
+                        thumbnailEncryption: thumbnailEncryption
+                    )))
+                    return
+                }
+
+                let mediaTarget = StoragePathBuilder.build(
+                    userId: senderId,
+                    domain: .chatMedia(
+                        conversationId: conversationId,
+                        messageId: resolvedMessageId,
+                        fileExtension: ext,
+                        fileId: mediaFileId
+                    )
+                )
 
                 let mediaUrl = try await uploader.upload(
                     target: mediaTarget,
@@ -1220,7 +1425,14 @@ class ChatService: ObservableObject {
                     )
                 }
 
-                completion(.success((mediaUrl: mediaUrl, thumbnailUrl: thumbnailUrl)))
+                completion(.success(ChatMediaUploadResult(
+                    mediaUrl: mediaUrl,
+                    thumbnailUrl: thumbnailUrl,
+                    mediaObjectPath: nil,
+                    thumbnailObjectPath: nil,
+                    mediaEncryption: nil,
+                    thumbnailEncryption: nil
+                )))
             } catch {
                 completion(.failure(error))
             }
@@ -1275,6 +1487,40 @@ class ChatService: ObservableObject {
             domain: .chatThumbnail(conversationId: conversationId, messageId: messageId)
         )
         return try await MediaUploadService.shared.upload(target: thumbTarget, payload: .data(thumbnailData))
+    }
+
+    private func generateVideoThumbnailData(from videoData: Data) async throws -> Data? {
+        let tempVideoURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("chat_video_thumb_\(UUID().uuidString).mp4")
+
+        do {
+            try videoData.write(to: tempVideoURL, options: .atomic)
+        } catch {
+            return nil
+        }
+
+        defer {
+            try? FileManager.default.removeItem(at: tempVideoURL)
+        }
+
+        let asset = AVURLAsset(url: tempVideoURL)
+        let imageGenerator = AVAssetImageGenerator(asset: asset)
+        imageGenerator.appliesPreferredTrackTransform = true
+        imageGenerator.maximumSize = CGSize(width: 720, height: 1280)
+
+        let frameCandidates = [
+            CMTime(seconds: 0.15, preferredTimescale: 600),
+            CMTime(seconds: 0.0, preferredTimescale: 600),
+            CMTime(seconds: 0.5, preferredTimescale: 600)
+        ]
+
+        for time in frameCandidates {
+            if let (candidate, _) = try? await imageGenerator.image(at: time) {
+                return UIImage(cgImage: candidate).jpegData(compressionQuality: 0.78)
+            }
+        }
+
+        return nil
     }
     
     // MARK: - Message Status
@@ -1864,12 +2110,12 @@ class ChatService: ObservableObject {
     
     // MARK: - Search with Decryption
     func searchMessages(conversationId: String, query: String, completion: @escaping (Result<[EnhancedMessage], Error>) -> Void) {
-        
-        // Note: Searching encrypted content requires decrypting all messages
         db.collection("conversations")
             .document(conversationId)
             .collection("messages")
             .getDocuments { [weak self] snapshot, error in
+                guard let self = self else { return }
+
                 if let error = error {
                     completion(.failure(error))
                     return
@@ -1879,62 +2125,31 @@ class ChatService: ObservableObject {
                     completion(.success([]))
                     return
                 }
-                
-                var matchingMessages: [EnhancedMessage] = []
-                
-                for doc in documents {
-                    let data = doc.data()
-                    
-                    // Decrypt content for searching
-                    if let encryptedContent = data["content"] as? String {
-                        // Use Task to handle async decryption in search
-                        Task {
-                            let decryptedContent = await self?.decryptMessageContent(encryptedContent, for: conversationId) ?? encryptedContent
-                            
-                            if decryptedContent.lowercased().contains(query.lowercased()) {
-                                // Create message with decrypted content
-                                let id = data["id"] as? String ?? doc.documentID
-                                let senderId = data["senderId"] as? String ?? ""
-                                let typeString = data["type"] as? String ?? MessageType.text.rawValue
-                                let type = MessageType(rawValue: typeString) ?? .text
-                                let timestamp = (data["timestamp"] as? Timestamp)?.dateValue() ?? Date()
-                                let statusString = data["status"] as? String ?? MessageStatus.sent.rawValue
-                                let status = MessageStatus(rawValue: statusString) ?? .sent
-                                
-                                let message = EnhancedMessage(
-                                    id: id,
-                                    conversationId: conversationId,
-                                    senderId: senderId,
-                                    type: type,
-                                    content: decryptedContent, // Use decrypted content
-                                    mediaUrl: data["mediaUrl"] as? String,
-                                    thumbnailUrl: data["thumbnailUrl"] as? String,
-                                    duration: data["duration"] as? Double,
-                                    fileName: data["fileName"] as? String,
-                                    fileSize: data["fileSize"] as? Int64,
-                                    latitude: data["latitude"] as? Double,
-                                    longitude: data["longitude"] as? Double,
-                                    timestamp: timestamp,
-                                    status: status,
-                                    isRead: data["isRead"] as? Bool ?? false,
-                                    isDeleted: data["isDeleted"] as? Bool ?? false,
-                                    deletedAt: (data["deletedAt"] as? Timestamp)?.dateValue(),
-                                    editedAt: (data["editedAt"] as? Timestamp)?.dateValue(),
-                                    reactions: data["reactions"] as? [String: [String]],
-                                    replyTo: data["replyTo"] as? String,
-                                    expirationDate: (data["expirationDate"] as? Timestamp)?.dateValue(),
-                                    isViewed: data["isViewed"] as? Bool ?? false,
-                                    storyReplyData: data["storyReplyData"] as? [String: String]
-                                )
-                                
-                                matchingMessages.append(message)
-                            }
-                        }
-                        continue
+
+                Task {
+                    var matchingMessages: [EnhancedMessage] = []
+                    let normalizedQuery = query.lowercased()
+
+                    for doc in documents {
+                        let data = doc.data()
+                        guard let encryptedContent = data["content"] as? String else { continue }
+
+                        let decryptedContent = await self.decryptMessageContent(encryptedContent, for: conversationId)
+                        guard decryptedContent.lowercased().contains(normalizedQuery) else { continue }
+
+                        let message = await self.buildEnhancedMessage(
+                            from: data,
+                            docId: doc.documentID,
+                            conversationId: conversationId,
+                            decryptedContentOverride: decryptedContent
+                        )
+                        matchingMessages.append(message)
+                    }
+
+                    await MainActor.run {
+                        completion(.success(matchingMessages))
                     }
                 }
-                
-                completion(.success(matchingMessages))
             }
     }
     
@@ -1983,7 +2198,15 @@ class ChatService: ObservableObject {
                     group.enter()
                     
                     let data = document.data()
-                    let mediaUrl = data["mediaUrl"] as? String
+                    let mediaResources: [String] = [
+                        data["mediaObjectPath"] as? String,
+                        data["thumbnailObjectPath"] as? String,
+                        data["mediaUrl"] as? String,
+                        data["thumbnailUrl"] as? String
+                    ].compactMap { value -> String? in
+                        guard let value, !value.isEmpty else { return nil }
+                        return value
+                    }
                     let conversationId = data["conversationId"] as? String ?? ""
                     let messageId = data["id"] as? String ?? document.documentID
                     
@@ -1991,7 +2214,7 @@ class ChatService: ObservableObject {
                         self.cleanupSingleEphemeralMessage(
                             conversationId: conversationId,
                             messageId: messageId,
-                            mediaUrl: mediaUrl
+                            mediaResources: mediaResources
                         ) { success in
                             group.leave()
                         }
@@ -2003,7 +2226,7 @@ class ChatService: ObservableObject {
             }
     }
 
-    private func cleanupSingleEphemeralMessage(conversationId: String, messageId: String, mediaUrl: String?, completion: @escaping (Bool) -> Void) {
+    private func cleanupSingleEphemeralMessage(conversationId: String, messageId: String, mediaResources: [String], completion: @escaping (Bool) -> Void) {
         let batch = db.batch()
         
         let messageRef = db.collection("conversations")
@@ -2018,6 +2241,11 @@ class ChatService: ObservableObject {
 
             batch.updateData([
                 "mediaUrl": FieldValue.delete(),
+                "thumbnailUrl": FieldValue.delete(),
+                "mediaObjectPath": FieldValue.delete(),
+                "thumbnailObjectPath": FieldValue.delete(),
+                "mediaEncryption": FieldValue.delete(),
+                "thumbnailEncryption": FieldValue.delete(),
                 "content": encryptedExpiredText,
                 "isDeleted": true,
                 "deletedAt": FieldValue.serverTimestamp()
@@ -2025,8 +2253,8 @@ class ChatService: ObservableObject {
 
             do {
                 try await batch.commit()
-                if let mediaUrl = mediaUrl, !mediaUrl.isEmpty {
-                    self.deleteImageFromStorage(mediaUrl: mediaUrl) { _ in
+                if !mediaResources.isEmpty {
+                    self.deleteMediaFiles(urls: mediaResources) { _ in
                         completion(true)
                     }
                 } else {
@@ -2039,13 +2267,12 @@ class ChatService: ObservableObject {
     }
 
     private func deleteImageFromStorage(mediaUrl: String, completion: @escaping (Bool) -> Void) {
-        let storageRef = Storage.storage().reference(forURL: mediaUrl)
-        
-        storageRef.delete { error in
-            if error != nil {
-                completion(false)
-            } else {
+        deleteMediaFile(url: mediaUrl) { result in
+            switch result {
+            case .success:
                 completion(true)
+            case .failure:
+                completion(false)
             }
         }
     }
@@ -2060,15 +2287,12 @@ class ChatService: ObservableObject {
     
     // MARK: - Helper Methods
     private func getFileExtension(for type: MessageType) -> String {
-        print("📤 ChatService: getFileExtension requested for type: \(type)")
         switch type {
         case .image, .gif, .viewOnceImage: return "jpg"
         case .video, .viewOnceVideo: return "mp4"
         case .audio: return "m4a"
         case .file: return "pdf"
-        default: 
-            print("📤 ChatService: getFileExtension falling back to default (txt) for type: \(type)")
-            return "txt"
+        default: return "txt"
         }
     }
     
@@ -2076,7 +2300,7 @@ class ChatService: ObservableObject {
         switch type {
         case .image, .viewOnceImage: return "image/jpeg"
         case .video, .viewOnceVideo: return "video/mp4"
-        case .audio: return "audio/m4a"
+        case .audio: return "audio/mp4"
         case .gif: return "image/gif"
         case .file: return "application/pdf"
         default: return "text/plain"
@@ -2382,15 +2606,19 @@ extension ChatService {
         // Subir media primero
         uploadMedia(data: mediaData, type: messageType, conversationId: conversationId, messageId: finalMessageId) { [weak self] result in
             switch result {
-            case .success(let (mediaUrl, thumbnailUrl)):
+            case .success(let uploadResult):
                 let message = EnhancedMessage(
                     id: finalMessageId,
                     conversationId: conversationId,
                     senderId: senderId,
                     type: messageType,
                     content: nil,
-                    mediaUrl: mediaUrl,
-                    thumbnailUrl: thumbnailUrl,
+                    mediaUrl: uploadResult.mediaUrl,
+                    thumbnailUrl: uploadResult.thumbnailUrl,
+                    mediaObjectPath: uploadResult.mediaObjectPath,
+                    thumbnailObjectPath: uploadResult.thumbnailObjectPath,
+                    mediaEncryption: uploadResult.mediaEncryption,
+                    thumbnailEncryption: uploadResult.thumbnailEncryption,
                     duration: nil, // No necesitamos duración para la lógica simplificada
                     fileName: nil,
                     fileSize: Int64(mediaData.count),
@@ -2484,17 +2712,328 @@ extension ChatService {
             "isViewed": message.isViewed
         ]
         
-        if let mediaUrl = message.mediaUrl {
+        if let mediaObjectPath = message.mediaObjectPath {
+            data["mediaObjectPath"] = mediaObjectPath
+        } else if let mediaUrl = message.mediaUrl {
             data["mediaUrl"] = mediaUrl
         }
-        if let thumbnailUrl = message.thumbnailUrl {
+        if let thumbnailObjectPath = message.thumbnailObjectPath {
+            data["thumbnailObjectPath"] = thumbnailObjectPath
+        } else if let thumbnailUrl = message.thumbnailUrl {
             data["thumbnailUrl"] = thumbnailUrl
+        }
+        if let mediaEncryption = message.mediaEncryption {
+            data["mediaEncryption"] = mediaEncryption.firestoreData
+        }
+        if let thumbnailEncryption = message.thumbnailEncryption {
+            data["thumbnailEncryption"] = thumbnailEncryption.firestoreData
         }
         if let fileSize = message.fileSize {
             data["fileSize"] = fileSize
         }
         
         return data
+    }
+
+    private func buildEnhancedMessage(
+        from data: [String: Any],
+        docId: String,
+        conversationId: String,
+        decryptedContentOverride: String? = nil
+    ) async -> EnhancedMessage {
+        let id = data["id"] as? String ?? docId
+        let senderId = data["senderId"] as? String ?? ""
+        let typeString = data["type"] as? String ?? MessageType.text.rawValue
+        let type = MessageType(rawValue: typeString) ?? .text
+
+        let rawContent = data["content"] as? String
+        let content: String?
+        if let decryptedContentOverride {
+            content = decryptedContentOverride
+        } else if let rawContent {
+            content = await decryptMessageContent(rawContent, for: conversationId)
+        } else {
+            content = rawContent
+        }
+
+        let mediaObjectPath = data["mediaObjectPath"] as? String
+        let thumbnailObjectPath = data["thumbnailObjectPath"] as? String
+        let mediaEncryption = (data["mediaEncryption"] as? [String: Any]).flatMap { EncryptedChatMediaMetadata(map: $0) }
+        let thumbnailEncryption = (data["thumbnailEncryption"] as? [String: Any]).flatMap { EncryptedChatMediaMetadata(map: $0) }
+
+        let resolvedMedia: CachedResolvedMedia
+        if let mediaObjectPath, !mediaObjectPath.isEmpty, mediaEncryption != nil {
+            resolvedMedia = await resolveEncryptedMediaForDisplay(
+                messageId: id,
+                senderId: senderId,
+                conversationId: conversationId,
+                mediaObjectPath: mediaObjectPath,
+                mediaEncryption: mediaEncryption!,
+                thumbnailObjectPath: thumbnailObjectPath,
+                thumbnailEncryption: thumbnailEncryption
+            )
+        } else {
+            resolvedMedia = CachedResolvedMedia(
+                mediaUrl: data["mediaUrl"] as? String,
+                thumbnailUrl: data["thumbnailUrl"] as? String
+            )
+        }
+
+        return EnhancedMessage(
+            id: id,
+            conversationId: conversationId,
+            senderId: senderId,
+            type: type,
+            content: content,
+            mediaUrl: resolvedMedia.mediaUrl,
+            thumbnailUrl: resolvedMedia.thumbnailUrl,
+            mediaObjectPath: mediaObjectPath,
+            thumbnailObjectPath: thumbnailObjectPath,
+            mediaEncryption: mediaEncryption,
+            thumbnailEncryption: thumbnailEncryption,
+            duration: data["duration"] as? Double,
+            fileName: data["fileName"] as? String,
+            fileSize: data["fileSize"] as? Int64,
+            latitude: data["latitude"] as? Double,
+            longitude: data["longitude"] as? Double,
+            timestamp: (data["timestamp"] as? Timestamp)?.dateValue() ?? Date(),
+            status: MessageStatus(rawValue: data["status"] as? String ?? MessageStatus.sent.rawValue) ?? .sent,
+            isRead: data["isRead"] as? Bool ?? false,
+            isDeleted: data["isDeleted"] as? Bool ?? false,
+            deletedAt: (data["deletedAt"] as? Timestamp)?.dateValue(),
+            editedAt: (data["editedAt"] as? Timestamp)?.dateValue(),
+            reactions: data["reactions"] as? [String: [String]],
+            replyTo: data["replyTo"] as? String,
+            expirationDate: (data["expirationDate"] as? Timestamp)?.dateValue(),
+            isViewed: data["isViewed"] as? Bool ?? false,
+            storyReplyData: data["storyReplyData"] as? [String: String],
+            sharedMomentData: data["sharedMomentData"] as? [String: String],
+            sharedStoryData: data["sharedStoryData"] as? [String: String],
+            mediaBatchId: data["mediaBatchId"] as? String,
+            viewedBy: data["viewedBy"] as? [String]
+        )
+    }
+
+    /// Descarga + descifra media cifrada (p. ej. al abrir el visor o tras reinstalar la app).
+    func resolveEncryptedMediaForMessage(_ message: EnhancedMessage) async -> (mediaUrl: String?, thumbnailUrl: String?)? {
+        guard let mediaObjectPath = message.mediaObjectPath,
+              !mediaObjectPath.isEmpty,
+              let mediaEncryption = message.mediaEncryption else {
+            return nil
+        }
+        let resolved = await resolveEncryptedMediaForDisplay(
+            messageId: message.id,
+            senderId: message.senderId,
+            conversationId: message.conversationId,
+            mediaObjectPath: mediaObjectPath,
+            mediaEncryption: mediaEncryption,
+            thumbnailObjectPath: message.thumbnailObjectPath,
+            thumbnailEncryption: message.thumbnailEncryption
+        )
+        return (resolved.mediaUrl, resolved.thumbnailUrl)
+    }
+
+    private func resolveEncryptedMediaForDisplay(
+        messageId: String,
+        senderId: String,
+        conversationId: String,
+        mediaObjectPath: String,
+        mediaEncryption: EncryptedChatMediaMetadata,
+        thumbnailObjectPath: String?,
+        thumbnailEncryption: EncryptedChatMediaMetadata?
+    ) async -> CachedResolvedMedia {
+        if let cached = outgoingEncryptedMediaPreviews[messageId] {
+            return cached
+        }
+        if let cached = decryptedMediaResolveCache[messageId] {
+            return cached
+        }
+
+        let diskMain = decryptedMediaCacheURL(
+            conversationId: conversationId,
+            messageId: messageId,
+            purpose: mediaEncryption.purpose,
+            fileExtension: mediaEncryption.fileExtension
+        )
+        if FileManager.default.fileExists(atPath: diskMain.path) {
+            let resolved = CachedResolvedMedia(mediaUrl: diskMain.absoluteString, thumbnailUrl: nil)
+            decryptedMediaResolveCache[messageId] = resolved
+            return resolved
+        }
+
+        // Solo omitir descarga para el mensaje que se está subiendo ahora mismo.
+        if activeEncryptedUploadMessageIds.contains(messageId) {
+            return CachedResolvedMedia(mediaUrl: nil, thumbnailUrl: nil)
+        }
+
+        let resolved = await resolveEncryptedMedia(
+            conversationId: conversationId,
+            messageId: messageId,
+            mediaObjectPath: mediaObjectPath,
+            mediaEncryption: mediaEncryption,
+            thumbnailObjectPath: thumbnailObjectPath,
+            thumbnailEncryption: thumbnailEncryption
+        )
+        if resolved.mediaUrl != nil || resolved.thumbnailUrl != nil {
+            decryptedMediaResolveCache[messageId] = resolved
+        }
+        return resolved
+    }
+
+    private func resolveEncryptedMedia(
+        conversationId: String,
+        messageId: String,
+        mediaObjectPath: String,
+        mediaEncryption: EncryptedChatMediaMetadata,
+        thumbnailObjectPath: String?,
+        thumbnailEncryption: EncryptedChatMediaMetadata?
+    ) async -> CachedResolvedMedia {
+        async let mainURL = resolveEncryptedMediaURL(
+            objectPath: mediaObjectPath,
+            metadata: mediaEncryption,
+            conversationId: conversationId,
+            messageId: messageId
+        )
+
+        async let thumbURL = resolveEncryptedThumbnailURL(
+            objectPath: thumbnailObjectPath,
+            metadata: thumbnailEncryption,
+            conversationId: conversationId,
+            messageId: messageId
+        )
+
+        return await CachedResolvedMedia(
+            mediaUrl: mainURL,
+            thumbnailUrl: thumbURL
+        )
+    }
+
+    private func resolveEncryptedThumbnailURL(
+        objectPath: String?,
+        metadata: EncryptedChatMediaMetadata?,
+        conversationId: String,
+        messageId: String
+    ) async -> String? {
+        guard let objectPath, let metadata else { return nil }
+        return await resolveEncryptedMediaURL(
+            objectPath: objectPath,
+            metadata: metadata,
+            conversationId: conversationId,
+            messageId: messageId
+        )
+    }
+
+    private func resolveEncryptedMediaURL(
+        objectPath: String,
+        metadata: EncryptedChatMediaMetadata,
+        conversationId: String,
+        messageId: String
+    ) async -> String? {
+        let cacheURL = decryptedMediaCacheURL(
+            conversationId: conversationId,
+            messageId: messageId,
+            purpose: metadata.purpose,
+            fileExtension: metadata.fileExtension
+        )
+
+        if FileManager.default.fileExists(atPath: cacheURL.path) {
+            return cacheURL.absoluteString
+        }
+
+        do {
+            let maxSize = max(metadata.plaintextSize + Int64(256 * 1024), Int64(8 * 1024 * 1024))
+            let encryptedData = try await downloadStorageData(
+                objectPath: objectPath,
+                maxSize: maxSize
+            )
+            let decryptedData = try await encryptionService.decryptChatMedia(
+                encryptedData,
+                metadata: metadata,
+                for: conversationId,
+                messageId: messageId
+            )
+            try ensureChatMediaCacheDirectory()
+            try decryptedData.write(to: cacheURL, options: Data.WritingOptions.atomic)
+            return cacheURL.absoluteString
+        } catch {
+            return nil
+        }
+    }
+
+    private func downloadStorageData(objectPath: String, maxSize: Int64) async throws -> Data {
+        try await encryptedMediaDownloadQueue.download(objectPath: objectPath, maxSize: maxSize)
+    }
+
+    private func decryptedMediaCacheURL(
+        conversationId: String,
+        messageId: String,
+        purpose: ChatMediaPurpose,
+        fileExtension: String
+    ) -> URL {
+        let safeConversation = conversationId.replacingOccurrences(of: "/", with: "_")
+        let safeMessage = messageId.replacingOccurrences(of: "/", with: "_")
+        let filename = "\(safeConversation)_\(safeMessage)_\(purpose.rawValue).\(fileExtension)"
+        return chatMediaCacheDirectory().appendingPathComponent(filename)
+    }
+
+    private func chatMediaCacheDirectory() -> URL {
+        FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("chat_media_decrypted", isDirectory: true)
+    }
+
+    private func ensureChatMediaCacheDirectory() throws {
+        try FileManager.default.createDirectory(
+            at: chatMediaCacheDirectory(),
+            withIntermediateDirectories: true,
+            attributes: nil
+        )
+    }
+
+    private func createLocalPreviewURL(
+        data: Data,
+        fileExtension: String,
+        prefix: String
+    ) -> URL? {
+        let url = FileManager.default.temporaryDirectory
+            .appendingPathComponent("\(prefix)_\(UUID().uuidString).\(fileExtension)")
+        do {
+            try data.write(to: url, options: .atomic)
+            return url
+        } catch {
+            return nil
+        }
+    }
+
+    private func chatEncryptedStorageTarget(
+        userId: String,
+        conversationId: String,
+        messageId: String,
+        fileId: String,
+        originalContentType: String,
+        objectPath: String? = nil
+    ) -> StorageUploadTarget {
+        let path = objectPath ?? StoragePathBuilder.build(
+            userId: userId,
+            domain: .chatMedia(
+                conversationId: conversationId,
+                messageId: messageId,
+                fileExtension: "enc",
+                fileId: fileId
+            )
+        ).objectPath
+
+        return StorageUploadTarget(
+            objectPath: path,
+            contentType: "application/octet-stream",
+            customMetadata: [
+                "ownerId": userId,
+                "type": "chat_media_encrypted",
+                "conversationId": conversationId,
+                "messageId": messageId,
+                "encrypted": "true",
+                "originalContentType": originalContentType
+            ]
+        )
     }
     
     func preloadConversationKey(for conversationId: String) async {

@@ -59,18 +59,78 @@ final class MediaUploadService {
         }
     }
 
+    /// Subida cifrada. Reusa `startUpload` (que RETIENE el `StorageUploadTask` en `sessions`):
+    /// si no se retiene, ARC lo libera, su deinit cancela el fetcher y el backend responde
+    /// 400 "Upload has already finalized" sin guardar el archivo.
+    func uploadEncryptedBlob(
+        target: StorageUploadTarget,
+        data: Data,
+        progress: ((Double) -> Void)? = nil
+    ) async throws -> String {
+        var customMetadata = target.customMetadata
+        customMetadata["returnObjectPath"] = "true" // startUpload devuelve el objectPath, no downloadURL
+        let patchedTarget = StorageUploadTarget(
+            objectPath: target.objectPath,
+            contentType: target.contentType,
+            customMetadata: customMetadata
+        )
+
+        return try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<String, Error>) in
+            self.startUpload(
+                path: patchedTarget.objectPath,
+                target: patchedTarget,
+                payload: .data(data),
+                progress: progress
+            ) { result in
+                continuation.resume(with: result)
+            }
+        }
+    }
+
     func upload(
         target: StorageUploadTarget,
         payload: MediaUploadPayload,
         progress: ((Double) -> Void)? = nil,
         completion: @escaping (Result<String, Error>) -> Void
     ) {
-        let path = target.objectPath
+        Task { @MainActor in
+            do {
+                let path = target.objectPath
+                switch payload {
+                case .data(let data):
+                    if target.customMetadata["encrypted"] == "true" {
+                        let result = try await self.uploadEncryptedBlob(target: target, data: data, progress: progress)
+                        completion(.success(result))
+                        return
+                    }
+                default:
+                    break
+                }
+                self.startUpload(
+                    path: path,
+                    target: target,
+                    payload: payload,
+                    progress: progress,
+                    completion: completion
+                )
+            } catch {
+                completion(.failure(error))
+            }
+        }
+    }
 
+    private func startUpload(
+        path: String,
+        target: StorageUploadTarget,
+        payload: MediaUploadPayload,
+        progress: ((Double) -> Void)?,
+        completion: @escaping (Result<String, Error>) -> Void
+    ) {
         let ref = storage.child(path)
         let metadata = StorageMetadata()
         metadata.contentType = target.contentType
         metadata.customMetadata = target.customMetadata
+        let shouldResolveDownloadURL = target.customMetadata["returnObjectPath"] != "true"
 
         let uploadTask: StorageUploadTask
         switch payload {
@@ -111,6 +171,11 @@ final class MediaUploadService {
         }
 
         session.successHandle = uploadTask.observe(.success) { _ in
+            guard shouldResolveDownloadURL else {
+                finish(.success(path))
+                return
+            }
+
             ref.downloadURL { url, error in
                 if let error {
                     finish(.failure(error))
