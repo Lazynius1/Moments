@@ -740,13 +740,13 @@ class BackgroundStoryUploadService: ObservableObject {
     }
 
     // ✅ EXTRACCION DE FRAME DE FONDO
-    private func extractBackgroundFrame(from videoURL: URL) async -> String? {
+    private func extractBackgroundFrame(from videoURL: URL, userId: String) async -> String? {
         guard let frameImage = await extractBackgroundFrameImage(from: videoURL) else {
             return nil
         }
 
         do {
-            return try await uploadBackgroundFrameImage(frameImage)
+            return try await uploadBackgroundFrameImage(frameImage, userId: userId)
         } catch {
             return nil
         }
@@ -766,10 +766,10 @@ class BackgroundStoryUploadService: ObservableObject {
         }
     }
 
-    private func uploadBackgroundFrameImage(_ image: UIImage) async throws -> String? {
+    private func uploadBackgroundFrameImage(_ image: UIImage, userId: String) async throws -> String? {
         guard let imageData = image.jpegData(compressionQuality: 0.7) else { return nil }
 
-        let frameFileName = "background_frames/\(UUID().uuidString).jpg"
+        let frameFileName = "background_frames/\(userId)/\(UUID().uuidString).jpg"
         let storageRef = Storage.storage().reference().child(frameFileName)
 
         let metadata = StorageMetadata()
@@ -780,11 +780,11 @@ class BackgroundStoryUploadService: ObservableObject {
         return downloadURL.absoluteString
     }
 
-    private func uploadBlurredBackgroundFrameImage(_ image: UIImage) async throws -> String? {
+    private func uploadBlurredBackgroundFrameImage(_ image: UIImage, userId: String) async throws -> String? {
         let blurredImage = makePreblurredStoryBackground(from: image)
         guard let imageData = blurredImage.jpegData(compressionQuality: 0.72) else { return nil }
 
-        let frameFileName = "background_frames/blurred_\(UUID().uuidString).jpg"
+        let frameFileName = "background_frames/\(userId)/blurred_\(UUID().uuidString).jpg"
         let storageRef = Storage.storage().reference().child(frameFileName)
 
         let metadata = StorageMetadata()
@@ -944,7 +944,7 @@ class BackgroundStoryUploadService: ObservableObject {
         // Poster del vídeo: imprescindible para previews (push y lista). Nunca debe bloquear la publicación.
         let thumbnailUrl: String?
         if let posterImage = await extractBackgroundFrameImage(from: videoURL) {
-            thumbnailUrl = try? await uploadBackgroundFrameImage(posterImage)
+            thumbnailUrl = try? await uploadBackgroundFrameImage(posterImage, userId: uploadingStory.userId)
         } else {
             thumbnailUrl = nil
         }
