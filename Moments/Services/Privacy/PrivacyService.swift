@@ -413,7 +413,7 @@ class PrivacyService {
                 // Verificar si hay solicitud pendiente
                 self?.checkPendingFollowRequest(senderId: viewerId, recipientId: targetUserId) { hasPendingRequest in
                     if hasPendingRequest {
-                        completion(.requestPending)
+                        completion(.requestPendingCancellable)
                         return
                     }
                     
@@ -573,21 +573,24 @@ enum FollowButtonState {
     case canFollow
     case canRequestFollow
     case requestPending
+    case requestPendingCancellable
     
     var buttonText: String {
         switch self {
         case .ownProfile:
-            return "Tu perfil"
+            return NSLocalizedString("userProfile.followButton.ownProfile", comment: "Own profile")
         case .blocked:
-            return "Bloqueado"
+            return NSLocalizedString("userProfile.followButton.blocked", comment: "Blocked")
         case .following:
-            return "Siguiendo"
+            return NSLocalizedString("userProfile.followButton.following", comment: "Following")
         case .canFollow:
-            return "Seguir"
+            return NSLocalizedString("userProfile.followButton.canFollow", comment: "Follow")
         case .canRequestFollow:
-            return "Solicitar"
+            return NSLocalizedString("userProfile.followButton.canRequestFollow", comment: "Request follow")
         case .requestPending:
-            return "Solicitado"
+            return NSLocalizedString("userProfile.followButton.requestPending", comment: "Request sent")
+        case .requestPendingCancellable:
+            return NSLocalizedString("userProfile.followButton.cancelRequest", comment: "Cancel request")
         }
     }
     
@@ -595,7 +598,7 @@ enum FollowButtonState {
         switch self {
         case .ownProfile, .blocked, .requestPending:
             return false
-        case .following, .canFollow, .canRequestFollow:
+        case .following, .canFollow, .canRequestFollow, .requestPendingCancellable:
             return true
         }
     }
@@ -612,6 +615,8 @@ enum FollowButtonState {
         case .canFollow, .canRequestFollow:
             return "blue"
         case .requestPending:
+            return "orange"
+        case .requestPendingCancellable:
             return "orange"
         }
     }
@@ -651,8 +656,9 @@ final class FollowStateStore {
 
         // Follow requests can take a beat to appear in every read path. If the user
         // just requested access, do not immediately downgrade the UI back to Request.
-        if cachedState == .requestPending && authoritativeState == .canRequestFollow {
-            return .requestPending
+        if (cachedState == .requestPending || cachedState == .requestPendingCancellable) &&
+            authoritativeState == .canRequestFollow {
+            return cachedState ?? .canRequestFollow
         }
 
         return authoritativeState

@@ -239,6 +239,8 @@ struct SuggestedUserFollowButton: View {
             return NSLocalizedString("userProfile.followButton.following", comment: "Following button")
         case .requestPending:
             return NSLocalizedString("feed.follow.requested", comment: "Requested button")
+        case .requestPendingCancellable:
+            return NSLocalizedString("followButton.cancelRequest", comment: "Cancel request button")
         case .canRequestFollow:
             return NSLocalizedString("feed.follow.request", comment: "Request button")
         case .ownProfile:
@@ -256,6 +258,8 @@ struct SuggestedUserFollowButton: View {
             return "person.fill.checkmark"
         case .requestPending:
             return "clock"
+        case .requestPendingCancellable:
+            return "xmark.circle"
         case .ownProfile:
             return "person.circle"
         case .blocked:
@@ -278,6 +282,8 @@ struct SuggestedUserFollowButton: View {
             return Color.red.opacity(0.2)
         case .requestPending:
             return Color.orange.opacity(0.8)
+        case .requestPendingCancellable:
+            return Color.orange.opacity(0.8)
         case .ownProfile, .blocked:
             return Color.gray.opacity(0.5)
         }
@@ -290,6 +296,8 @@ struct SuggestedUserFollowButton: View {
         case .following:
             return Color.red.opacity(0.3)
         case .requestPending:
+            return Color.white.opacity(0.2)
+        case .requestPendingCancellable:
             return Color.white.opacity(0.2)
         case .ownProfile, .blocked:
             return Color.white.opacity(0.2)
@@ -304,6 +312,8 @@ struct SuggestedUserFollowButton: View {
             return Color.red.opacity(0.2)
         case .requestPending:
             return Color.orange.opacity(0.3)
+        case .requestPendingCancellable:
+            return Color.orange.opacity(0.3)
         case .ownProfile, .blocked:
             return Color.gray.opacity(0.3)
         }
@@ -313,6 +323,8 @@ struct SuggestedUserFollowButton: View {
         switch state {
         case .following:
             return 2
+        case .requestPendingCancellable:
+            return 4
         default:
             return 4
         }

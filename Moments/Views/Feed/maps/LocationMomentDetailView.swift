@@ -1479,12 +1479,24 @@ struct FollowButtonForLocation: View {
                     }
                 }
             }
+        } else if followButtonState == .requestPendingCancellable {
+            firestoreService.cancelFollowRequest(currentUserId: currentUserId, targetUserId: targetUserId) { error in
+                DispatchQueue.main.async {
+                    self.isLoading = false
+                    if error == nil {
+                        withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
+                            self.followButtonState = .canRequestFollow
+                        }
+                        FollowStateStore.shared.setState(.canRequestFollow, for: self.targetUserId)
+                    }
+                }
+            }
         } else {
             firestoreService.followUser(currentUserId: currentUserId, targetUserId: targetUserId) { error in
                 DispatchQueue.main.async {
                     self.isLoading = false
                     if error == nil {
-                        let newState: FollowButtonState = self.followButtonState == .canRequestFollow ? .requestPending : .following
+                        let newState: FollowButtonState = self.followButtonState == .canRequestFollow ? .requestPendingCancellable : .following
                         withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
                             self.followButtonState = newState
                         }
@@ -1503,6 +1515,8 @@ struct FollowButtonForLocation: View {
             return NSLocalizedString("feed.follow.request", comment: "")
         case .requestPending:
             return NSLocalizedString("feed.follow.requested", comment: "")
+        case .requestPendingCancellable:
+            return NSLocalizedString("feed.follow.cancelRequest", comment: "")
         case .blocked:
             return NSLocalizedString("userProfile.followButton.blocked", comment: "")
         default:
@@ -1518,6 +1532,8 @@ struct FollowButtonForLocation: View {
             return "person.crop.circle.badge.plus"
         case .requestPending:
             return "clock"
+        case .requestPendingCancellable:
+            return "xmark.circle"
         case .blocked:
             return "slash.circle"
         default:

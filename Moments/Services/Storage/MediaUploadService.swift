@@ -130,6 +130,7 @@ final class MediaUploadService {
         let metadata = StorageMetadata()
         metadata.contentType = target.contentType
         metadata.customMetadata = target.customMetadata
+        // Solo chat cifrado devuelve objectPath; moments/stories necesitan downloadURL (token) para KFImage.
         let shouldResolveDownloadURL = target.customMetadata["returnObjectPath"] != "true"
 
         let uploadTask: StorageUploadTask
@@ -215,6 +216,33 @@ final class MediaUploadService {
             sessionLock.lock()
             sessions.removeValue(forKey: path)
             sessionLock.unlock()
+        }
+    }
+
+    /// Convierte object path guardado en Firestore a URL HTTPS con token (para mostrar en feed/perfil).
+    func resolveDownloadURL(forStoredValue pathOrURL: String, completion: @escaping (Result<String, Error>) -> Void) {
+        let trimmed = pathOrURL.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmed.hasPrefix("https://") || trimmed.hasPrefix("http://") {
+            completion(.success(trimmed))
+            return
+        }
+
+        let objectPath = StoragePathBuilder.extractObjectPath(from: trimmed)
+        guard !objectPath.isEmpty else {
+            completion(.failure(StorageError.invalidPath))
+            return
+        }
+
+        storage.child(objectPath).downloadURL { url, error in
+            if let error {
+                completion(.failure(error))
+                return
+            }
+            guard let absolute = url?.absoluteString else {
+                completion(.failure(StorageError.urlRetrievalFailed))
+                return
+            }
+            completion(.success(absolute))
         }
     }
 

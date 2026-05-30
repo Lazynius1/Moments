@@ -227,6 +227,8 @@ struct ModernFollowButton: View {
             return NSLocalizedString("feed.follow.request", comment: "")
         case .requestPending:
             return NSLocalizedString("feed.follow.requested", comment: "")
+        case .requestPendingCancellable:
+            return NSLocalizedString("feed.follow.cancelRequest", comment: "")
         case .blocked:
             return NSLocalizedString("userProfile.followButton.blocked", comment: "")
         default:
@@ -242,6 +244,8 @@ struct ModernFollowButton: View {
             return "person.crop.circle.badge.plus"
         case .requestPending:
             return "clock"
+        case .requestPendingCancellable:
+            return "xmark.circle"
         case .blocked:
             return "slash.circle"
         default:

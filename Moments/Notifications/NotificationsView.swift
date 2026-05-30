@@ -1581,11 +1581,20 @@ struct EnhancedNotificationRow: View {
                     }
                 }
             }
+        } else if followButtonState == .requestPendingCancellable {
+            viewModel.cancelFollowRequest(currentUserId: currentUserId, targetUserId: targetUserId) { error in
+                if error == nil {
+                    DispatchQueue.main.async {
+                        self.followButtonState = .canRequestFollow
+                        FollowStateStore.shared.setState(.canRequestFollow, for: targetUserId)
+                    }
+                }
+            }
         } else {
             viewModel.followUser(currentUserId: currentUserId, targetUserId: targetUserId) { error in
                 if error == nil {
                     DispatchQueue.main.async {
-                        let newState: FollowButtonState = self.followButtonState == .canRequestFollow ? .requestPending : .following
+                        let newState: FollowButtonState = self.followButtonState == .canRequestFollow ? .requestPendingCancellable : .following
                         self.followButtonState = newState
                         FollowStateStore.shared.setState(newState, for: targetUserId)
                     }
@@ -1602,6 +1611,8 @@ struct EnhancedNotificationRow: View {
             return NSLocalizedString("feed.follow.request", comment: "")
         case .requestPending:
             return NSLocalizedString("feed.follow.requested", comment: "")
+        case .requestPendingCancellable:
+            return NSLocalizedString("feed.follow.cancelRequest", comment: "")
         case .blocked:
             return NSLocalizedString("userProfile.followButton.blocked", comment: "")
         default:
@@ -1617,6 +1628,8 @@ struct EnhancedNotificationRow: View {
             return "person.crop.circle.badge.plus"
         case .requestPending:
             return "clock"
+        case .requestPendingCancellable:
+            return "xmark.circle"
         case .blocked:
             return "slash.circle"
         default:
@@ -2066,6 +2079,12 @@ class NotificationsViewModel: ObservableObject {
 
     func unfollowUser(currentUserId: String, targetUserId: String, completion: @escaping (Error?) -> Void) {
         firestoreService.unfollowUser(currentUserId: currentUserId, targetUserId: targetUserId) { error in
+            DispatchQueue.main.async { completion(error) }
+        }
+    }
+
+    func cancelFollowRequest(currentUserId: String, targetUserId: String, completion: @escaping (Error?) -> Void) {
+        firestoreService.cancelFollowRequest(currentUserId: currentUserId, targetUserId: targetUserId) { error in
             DispatchQueue.main.async { completion(error) }
         }
     }

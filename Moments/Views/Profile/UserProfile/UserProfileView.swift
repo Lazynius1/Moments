@@ -653,6 +653,8 @@ struct UserProfileView: View {
             showingRelationshipSheet = true
         case .canFollow, .canRequestFollow:
             viewModel.followUser(userId: userId)
+        case .requestPendingCancellable:
+            viewModel.cancelFollowRequest(userId: userId)
         default:
             break
         }

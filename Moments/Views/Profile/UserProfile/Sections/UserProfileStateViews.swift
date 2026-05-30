@@ -256,6 +256,8 @@ struct UserModernPrivateProfileView: View {
             return NSLocalizedString("userProfile.followButton.canRequestFollow", comment: "Request follow")
         case .requestPending:
             return NSLocalizedString("userProfile.followButton.requestPending", comment: "Request sent")
+        case .requestPendingCancellable:
+            return NSLocalizedString("userProfile.followButton.cancelRequest", comment: "Cancel request")
         }
     }
 
@@ -263,6 +265,8 @@ struct UserModernPrivateProfileView: View {
         switch followButtonState {
         case .following, .requestPending:
             return Color.gray.opacity(0.6)
+        case .requestPendingCancellable:
+            return Color.orange.opacity(0.8)
         case .canFollow, .canRequestFollow:
             return Color(hex: "00A896")
         case .ownProfile, .blocked:
@@ -285,6 +289,8 @@ struct UserModernPrivateProfileView: View {
             return "envelope.circle"
         case .requestPending:
             return "clock.circle"
+        case .requestPendingCancellable:
+            return "xmark.circle"
         }
     }
 }

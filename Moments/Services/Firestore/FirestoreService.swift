@@ -447,6 +447,38 @@ class FirestoreService: ObservableObject {
         }
     }
 
+    func cancelFollowRequest(currentUserId: String, targetUserId: String, completion: @escaping (Error?) -> Void) {
+        checkExistingFollowRequest(senderId: currentUserId, recipientId: targetUserId) { [weak self] request in
+            guard let self = self, let request = request else {
+                completion(NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "Solicitud no encontrada"]))
+                return
+            }
+
+            guard request.status == .pending else {
+                completion(NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "La solicitud ya no está pendiente"]))
+                return
+            }
+
+            let batch = self.db.batch()
+
+            let senderRequestRef = self.db.collection("users").document(currentUserId)
+                .collection("sentFollowRequests").document(request.id)
+            batch.deleteDocument(senderRequestRef)
+
+            let recipientRequestRef = self.db.collection("users").document(targetUserId)
+                .collection("receivedFollowRequests").document(request.id)
+            batch.deleteDocument(recipientRequestRef)
+
+            let notificationRef = self.db.collection("users").document(targetUserId)
+                .collection("notifications").document("followRequest_\(currentUserId)")
+            batch.deleteDocument(notificationRef)
+
+            batch.commit { error in
+                completion(error)
+            }
+        }
+    }
+
     private func getFollowRequestByUsers(senderId: String, recipientId: String, completion: @escaping (FollowRequest?) -> Void) {
         db.collection("users").document(recipientId).collection("receivedFollowRequests")
             .whereField("senderId", isEqualTo: senderId)

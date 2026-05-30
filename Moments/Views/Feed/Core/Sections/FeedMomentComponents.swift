@@ -1013,7 +1013,9 @@ struct ModernPostCardView: View {
             case .following:
                 return .canFollow
             case .canRequestFollow:
-                return .requestPending
+                return .requestPendingCancellable
+            case .requestPendingCancellable:
+                return .canRequestFollow
             case .canFollow:
                 return .following
             default:
@@ -1034,6 +1036,18 @@ struct ModernPostCardView: View {
                     self.isFollowLoading = false
                     if error != nil {
                         // Revert on error
+                        withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
+                            self.followButtonState = previousState
+                        }
+                        FollowStateStore.shared.setState(previousState, for: self.moment.authorId)
+                    }
+                }
+            }
+        } else if previousState == .requestPendingCancellable {
+            firestoreService.cancelFollowRequest(currentUserId: currentUserId, targetUserId: moment.authorId) { error in
+                DispatchQueue.main.async {
+                    self.isFollowLoading = false
+                    if error != nil {
                         withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
                             self.followButtonState = previousState
                         }

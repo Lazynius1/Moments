@@ -338,6 +338,7 @@
 "feed.uploading.initializing" = "Iniciando...";
 "feed.follow.request" = "Solicitar";
 "feed.follow.requested" = "Solicitado";
+"feed.follow.cancelRequest" = "Cancelar solicitud";
 
 /* Feed Loading */
 "feed.loading.moreContent" = "Error cargando más contenido";
@@ -1646,6 +1647,7 @@
 "userProfile.followButton.canFollow" = "Seguir";
 "userProfile.followButton.canRequestFollow" = "Solicitar seguimiento";
 "userProfile.followButton.requestPending" = "Solicitud enviada";
+"userProfile.followButton.cancelRequest" = "Cancelar solicitud";
 "userProfile.unfollow.confirm.title" = "¿Dejar de seguir?";
 "userProfile.unfollow.confirm.message" = "Puedes volver a seguir este perfil cuando quieras.";
 "userProfile.unfollow.confirm.action" = "Dejar de seguir";
@@ -2385,6 +2387,7 @@
 "followButton.unfollow" = "Dejar de seguir";
 "followButton.pending" = "Pendiente";
 "followButton.request" = "Solicitar";
+"followButton.cancelRequest" = "Cancelar solicitud";
 "followButton.ownProfile" = "Tu perfil";
 "followButton.blocked" = "Bloqueado";
 

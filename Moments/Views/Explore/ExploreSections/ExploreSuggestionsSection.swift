@@ -384,6 +384,8 @@ struct SuggestedUserCard: View {
             return NSLocalizedString("feed.follow.request", comment: "")
         case .requestPending:
             return NSLocalizedString("feed.follow.requested", comment: "")
+        case .requestPendingCancellable:
+            return NSLocalizedString("feed.follow.cancelRequest", comment: "")
         case .blocked:
             return NSLocalizedString("userProfile.followButton.blocked", comment: "")
         default:
@@ -467,7 +469,8 @@ struct SearchResultCard: View {
                 } else {
                     HStack(spacing: 6) {
                         Image(systemName: buttonState == .following ? "checkmark" :
-                              buttonState == .requestPending ? "clock" : "xmark")
+                              buttonState == .requestPending ? "clock" :
+                              buttonState == .requestPendingCancellable ? "xmark.circle" : "xmark")
                         Text(buttonState.buttonText)
                     }
                     .font(.custom("Poppins-Medium", size: 14))
@@ -525,6 +528,8 @@ struct FollowButton: View {
             return NSLocalizedString("feed.follow.request", comment: "Request")
         case .requestPending:
             return NSLocalizedString("feed.follow.requested", comment: "Requested")
+        case .requestPendingCancellable:
+            return NSLocalizedString("followButton.cancelRequest", comment: "Cancel request")
         }
     }
 
@@ -536,6 +541,8 @@ struct FollowButton: View {
             return "plus"
         case .requestPending:
             return "clock"
+        case .requestPendingCancellable:
+            return "xmark.circle"
         case .blocked:
             return "xmark"
         case .ownProfile:

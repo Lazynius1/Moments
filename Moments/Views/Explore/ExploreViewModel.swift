@@ -459,6 +459,21 @@ class ExploreViewModel: ObservableObject {
             return
         }
 
+        if userButtonStates[userId] == .requestPendingCancellable {
+            firestoreService.cancelFollowRequest(currentUserId: currentUserId, targetUserId: userId) { [weak self] error in
+                DispatchQueue.main.async {
+                    if let error = error {
+                        self?.errorMessage = "Error al cancelar solicitud: \(error.localizedDescription)"
+                    } else {
+                        self?.userButtonStates[userId] = .canRequestFollow
+                        self?.pendingRequests.remove(userId)
+                        FollowStateStore.shared.setState(.canRequestFollow, for: userId)
+                    }
+                }
+            }
+            return
+        }
+
         firestoreService.fetchUserProfile(userId: userId) { [weak self] result in
             guard let self = self else { return }
 
@@ -471,8 +486,8 @@ class ExploreViewModel: ObservableObject {
                             self.suggestedUsers.remove(at: index)
                         }
                         self.pendingRequests.insert(userId)
-                        self.userButtonStates[userId] = .requestPending
-                        FollowStateStore.shared.setState(.requestPending, for: userId)
+                        self.userButtonStates[userId] = .requestPendingCancellable
+                        FollowStateStore.shared.setState(.requestPendingCancellable, for: userId)
                     }
 
                     self.firestoreService.sendFollowRequest(

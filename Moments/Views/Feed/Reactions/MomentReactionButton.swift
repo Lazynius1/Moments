@@ -941,13 +941,23 @@ struct ReactionsListSheet: View {
                     }
                 }
             }
+        } else if currentState == .requestPendingCancellable {
+            firestoreService.cancelFollowRequest(currentUserId: currentUserId, targetUserId: userId) { error in
+                DispatchQueue.main.async {
+                    followLoadingStates[userId] = false
+                    if error == nil {
+                        followStates[userId] = .canRequestFollow
+                        FollowStateStore.shared.setState(.canRequestFollow, for: userId)
+                    }
+                }
+            }
         } else {
             // Seguir
             firestoreService.followUser(currentUserId: currentUserId, targetUserId: userId) { error in
                 DispatchQueue.main.async {
                     followLoadingStates[userId] = false
                     if error == nil {
-                        let newState: FollowButtonState = currentState == .canRequestFollow ? .requestPending : .following
+                        let newState: FollowButtonState = currentState == .canRequestFollow ? .requestPendingCancellable : .following
                         followStates[userId] = newState
                         FollowStateStore.shared.setState(newState, for: userId)
                     } else {
@@ -987,6 +997,8 @@ struct ReactionsListSheet: View {
             return NSLocalizedString("feed.follow.request", comment: "")
         case .requestPending:
             return NSLocalizedString("feed.follow.requested", comment: "")
+        case .requestPendingCancellable:
+            return NSLocalizedString("feed.follow.cancelRequest", comment: "")
         case .blocked:
             return NSLocalizedString("userProfile.followButton.blocked", comment: "")
         default:
@@ -1002,6 +1014,8 @@ struct ReactionsListSheet: View {
             return "person.crop.circle.badge.plus"
         case .requestPending:
             return "clock"
+        case .requestPendingCancellable:
+            return "xmark.circle"
         case .blocked:
             return "slash.circle"
         default:

@@ -769,8 +769,8 @@ class UserProfileViewModel: ObservableObject, UserListViewModel {
                     if error != nil {
                         return
                     }
-                    self.followButtonState = .requestPending
-                    FollowStateStore.shared.setState(.requestPending, for: userId)
+                    self.followButtonState = .requestPendingCancellable
+                    FollowStateStore.shared.setState(.requestPendingCancellable, for: userId)
                 }
             }
         } else {
@@ -805,6 +805,22 @@ class UserProfileViewModel: ObservableObject, UserListViewModel {
                         }
                     }
                 }
+            }
+        }
+    }
+
+    func cancelFollowRequest(userId: String) {
+        guard let currentUserId = Auth.auth().currentUser?.uid else { return }
+
+        firestoreService.cancelFollowRequest(currentUserId: currentUserId, targetUserId: userId) { [weak self] error in
+            guard let self = self else { return }
+            if error != nil {
+                return
+            }
+
+            DispatchQueue.main.async {
+                self.followButtonState = .canRequestFollow
+                FollowStateStore.shared.setState(.canRequestFollow, for: userId)
             }
         }
     }

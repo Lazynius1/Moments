@@ -199,43 +199,43 @@ service firebase.storage {
     }
 
     match /users/{userId}/moments/{momentId}/media/{fileName} {
-      allow read: if canReadMomentMedia(userId, momentId);
+      allow read: if isOwner(userId) || canReadMomentMedia(userId, momentId);
       allow write: if canWriteAsOwner(userId) && validMomentMediaUpload();
       allow delete: if isOwner(userId);
     }
 
     match /users/{userId}/moments/{momentId}/thumbnails/{fileName} {
-      allow read: if canReadMomentMedia(userId, momentId);
+      allow read: if isOwner(userId) || canReadMomentMedia(userId, momentId);
       allow write: if canWriteAsOwner(userId) && validImageUpload();
       allow delete: if isOwner(userId);
     }
 
     match /users/{userId}/moments/{momentId}/hidden_layers/{layerId}/{fileName} {
-      allow read: if canReadMomentMedia(userId, momentId);
+      allow read: if isOwner(userId) || canReadMomentMedia(userId, momentId);
       allow write: if canWriteAsOwner(userId) && validHiddenLayerUpload();
       allow delete: if isOwner(userId);
     }
 
     match /users/{userId}/stories/{storyId}/media/{fileName} {
-      allow read: if canReadStoryMedia(userId, storyId);
+      allow read: if isOwner(userId) || canReadStoryMedia(userId, storyId);
       allow write: if canWriteAsOwner(userId) && validStoryMediaUpload();
       allow delete: if isOwner(userId);
     }
 
     match /users/{userId}/stories/{storyId}/thumbnails/{fileName} {
-      allow read: if canReadStoryMedia(userId, storyId);
+      allow read: if isOwner(userId) || canReadStoryMedia(userId, storyId);
       allow write: if canWriteAsOwner(userId) && validImageUpload();
       allow delete: if isOwner(userId);
     }
 
     match /users/{userId}/stories/{storyId}/frames/{fileName} {
-      allow read: if canReadStoryMedia(userId, storyId);
+      allow read: if isOwner(userId) || canReadStoryMedia(userId, storyId);
       allow write: if canWriteAsOwner(userId) && validImageUpload();
       allow delete: if isOwner(userId);
     }
 
     match /users/{userId}/stories/{storyId}/audio/{fileName} {
-      allow read: if canReadStoryMedia(userId, storyId);
+      allow read: if isOwner(userId) || canReadStoryMedia(userId, storyId);
       allow write: if canWriteAsOwner(userId) &&
                         hasHiddenLayerContentType() &&
                         request.resource.size < 25 * 1024 * 1024;

@@ -51,7 +51,7 @@ class StorageService {
 
         let target = StoragePathBuilder.build(userId: userId, domain: .profileAvatar())
         uploader.upload(target: target, payload: .data(imageData)) { result in
-            completion(result)
+            self.completeWithPublicDownloadURL(result, completion: completion)
         }
     }
 
@@ -100,7 +100,9 @@ class StorageService {
             userId: userId,
             domain: .momentThumbnail(momentId: momentId, mediaId: mediaId)
         )
-        uploader.upload(target: target, payload: .data(imageData), progress: progress, completion: completion)
+        uploader.upload(target: target, payload: .data(imageData), progress: progress) { result in
+            self.completeWithPublicDownloadURL(result, completion: completion)
+        }
     }
 
     func uploadHiddenLayerImage(
@@ -118,7 +120,9 @@ class StorageService {
             userId: userId,
             domain: .momentHiddenLayerImage(momentId: momentId, layerId: layerId)
         )
-        uploader.upload(target: target, payload: .data(imageData), completion: completion)
+        uploader.upload(target: target, payload: .data(imageData)) { result in
+            self.completeWithPublicDownloadURL(result, completion: completion)
+        }
     }
 
     func uploadHiddenLayerAudio(
@@ -132,7 +136,9 @@ class StorageService {
             userId: userId,
             domain: .momentHiddenLayerAudio(momentId: momentId, layerId: layerId)
         )
-        uploader.upload(target: target, payload: .file(audioURL), completion: completion)
+        uploader.upload(target: target, payload: .file(audioURL)) { result in
+            self.completeWithPublicDownloadURL(result, completion: completion)
+        }
     }
 
     // MARK: - Delete
@@ -169,6 +175,23 @@ class StorageService {
 
     // MARK: - Private upload helpers
 
+    /// Asegura URL HTTPS con token; corrige subidas antiguas que guardaron solo object path.
+    private func completeWithPublicDownloadURL(
+        _ result: Result<String, Error>,
+        completion: @escaping (Result<String, Error>) -> Void
+    ) {
+        switch result {
+        case .failure(let error):
+            completion(.failure(error))
+        case .success(let value):
+            if value.hasPrefix("https://") || value.hasPrefix("http://") {
+                completion(.success(value))
+                return
+            }
+            uploader.resolveDownloadURL(forStoredValue: value, completion: completion)
+        }
+    }
+
     private func uploadFeedImage(
         image: UIImage?,
         userId: String,
@@ -190,7 +213,9 @@ class StorageService {
             target = StoragePathBuilder.storyImageTarget(userId: userId, storyId: storyId, mediaId: mediaId)
         }
 
-        uploader.upload(target: target, payload: .data(imageData), progress: progress, completion: completion)
+        uploader.upload(target: target, payload: .data(imageData), progress: progress) { result in
+            self.completeWithPublicDownloadURL(result, completion: completion)
+        }
     }
 
     private func uploadFeedVideo(
@@ -236,7 +261,7 @@ class StorageService {
                     if preparedURL != sourceURL {
                         try? FileManager.default.removeItem(at: preparedURL)
                     }
-                    completion(result)
+                    self.completeWithPublicDownloadURL(result, completion: completion)
                 }
             } catch {
                 completion(.failure(error))
