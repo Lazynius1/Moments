@@ -98,7 +98,7 @@ struct LocationMapView: View {
 
     private var mapPinMoments: [Moment] {
         mapDisplayMoments.filter { moment in
-            momentAvailability[moment.mapAvailabilityKey] ?? true
+            momentAvailability[moment.mapAvailabilityKey] ?? !isEchoHistoryMode
         }
     }
 
@@ -1243,8 +1243,11 @@ extension LocationMapView {
 
     private func loadEchoHistoryMoments() {
         let resolvedUserId = echoHistoryUserId ?? Auth.auth().currentUser?.uid
+        let currentUserId = Auth.auth().currentUser?.uid?.trimmingCharacters(in: .whitespacesAndNewlines)
         guard let userId = resolvedUserId?.trimmingCharacters(in: .whitespacesAndNewlines),
-              !userId.isEmpty else {
+              let currentUserId,
+              !userId.isEmpty,
+              userId == currentUserId else {
             DispatchQueue.main.async {
                 self.locationMoments = []
                 self.echoHistoryMoments = []
@@ -1276,36 +1279,87 @@ extension LocationMapView {
                         return echo
                     } ?? []
 
-                    let locationFiltered = echoes.filter { self.echoMatchesCurrentLocation($0) }
-                    var allEchoMoments: [Moment] = []
-                    var mapping: [String: String] = [:]
-
-                    for echo in locationFiltered {
-                        let builtMoments = self.buildMomentsFromEcho(echo)
-                        allEchoMoments.append(contentsOf: builtMoments)
-
-                        if let echoId = echo.id, !echoId.isEmpty {
-                            for moment in builtMoments {
-                                mapping[self.momentIdentityKey(moment)] = echoId
-                            }
-                        }
+                    let locationFiltered = echoes.filter {
+                        self.echoMatchesCurrentLocation($0) && self.echoCanExposeHistory($0, to: userId)
                     }
-                    let deduped = self.dedupMomentsByIdentity(allEchoMoments).sorted { $0.timestamp > $1.timestamp }
 
-                    self.echoIdByMomentIdentity = mapping
-                    self.echoHistoryMoments = deduped
-                    self.locationMoments = deduped
-                    self.refreshMomentAvailability(for: deduped)
-                    self.isLoadingMoments = false
-                    self.showSearchInAreaButton = true
-
-                    if !deduped.isEmpty {
-                        if let firstLocation = deduped.compactMap({ self.normalizedLocationName(from: $0) }).first {
-                            self.mapHeaderLocationName = firstLocation
-                        }
-                        self.showingBottomSheet = true
-                    }
+                    self.loadViewableEchoHistoryMoments(from: locationFiltered, viewerId: userId)
                 }
+            }
+    }
+
+    private func echoCanExposeHistory(_ echo: Echo, to viewerId: String) -> Bool {
+        let acceptedParticipants = echo.participants.filter { $0.status == .accepted }
+        guard acceptedParticipants.count >= 2 else { return false }
+        return acceptedParticipants.contains { $0.userId == viewerId }
+    }
+
+    private func loadViewableEchoHistoryMoments(from echoes: [Echo], viewerId: String) {
+        let group = DispatchGroup()
+        let lock = NSLock()
+        var allEchoMoments: [Moment] = []
+        var mapping: [String: String] = [:]
+
+        for echo in echoes {
+            for ref in echo.visibleMoments {
+                group.enter()
+                validateEchoHistoryMomentRef(ref, viewerId: viewerId) { canView in
+                    defer { group.leave() }
+                    guard canView else { return }
+
+                    let builtMoments = self.buildMomentsFromEcho(echo, refs: [ref])
+                    lock.lock()
+                    allEchoMoments.append(contentsOf: builtMoments)
+                    if let echoId = echo.id, !echoId.isEmpty {
+                        for moment in builtMoments {
+                            mapping[self.momentIdentityKey(moment)] = echoId
+                        }
+                    }
+                    lock.unlock()
+                }
+            }
+        }
+
+        group.notify(queue: .main) {
+            let deduped = self.dedupMomentsByIdentity(allEchoMoments).sorted { $0.timestamp > $1.timestamp }
+
+            self.echoIdByMomentIdentity = mapping
+            self.echoHistoryMoments = deduped
+            self.locationMoments = deduped
+            self.momentAvailability = deduped.reduce(into: [String: Bool]()) { result, moment in
+                result[moment.mapAvailabilityKey] = true
+            }
+            self.isLoadingMoments = false
+            self.showSearchInAreaButton = true
+
+            if !deduped.isEmpty {
+                if let firstLocation = deduped.compactMap({ self.normalizedLocationName(from: $0) }).first {
+                    self.mapHeaderLocationName = firstLocation
+                }
+                self.showingBottomSheet = true
+            }
+        }
+    }
+
+    private func validateEchoHistoryMomentRef(_ ref: EchoMomentRef, viewerId: String, completion: @escaping (Bool) -> Void) {
+        let momentId = ref.momentId.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !momentId.isEmpty else {
+            completion(false)
+            return
+        }
+
+        Firestore.firestore()
+            .collection("users").document(ref.authorId)
+            .collection("moments").document(momentId)
+            .getDocument { snapshot, _ in
+                guard snapshot?.exists == true,
+                      let liveMoment = try? snapshot?.data(as: Moment.self),
+                      liveMoment.isArchived != true else {
+                    completion(false)
+                    return
+                }
+
+                self.privacyService.canUserViewMomentEnhanced(liveMoment, viewerId: viewerId, completion: completion)
             }
     }
 
@@ -1328,7 +1382,7 @@ extension LocationMapView {
 
     private func refreshMomentAvailability(for moments: [Moment]) {
         let baseAvailability = moments.reduce(into: [String: Bool]()) { result, moment in
-            result[moment.mapAvailabilityKey] = true
+            result[moment.mapAvailabilityKey] = !isEchoHistoryMode
         }
         momentAvailability = baseAvailability
 
@@ -1353,7 +1407,7 @@ extension LocationMapView {
         }
 
         guard let momentId = moment.id, !momentId.isEmpty else {
-            setMomentAvailability(true, key: key, token: token)
+            setMomentAvailability(false, key: key, token: token)
             return
         }
 
@@ -1376,26 +1430,8 @@ extension LocationMapView {
                     return
                 }
 
-                let audience = (liveMoment.audience ?? moment.audience ?? "everyone").lowercased()
-                switch audience {
-                case "everyone", "connections":
-                    self.setMomentAvailability(true, key: key, token: token)
-
-                case "bestfriends":
-                    self.privacyService.checkIfBestFriend(userId: moment.authorId, friendId: viewerId) { isBestFriend in
-                        self.setMomentAvailability(isBestFriend, key: key, token: token)
-                    }
-
-                case "custom", "customlist":
-                    self.privacyService.canUserViewMomentEnhanced(liveMoment, viewerId: viewerId) { canView in
-                        self.setMomentAvailability(canView, key: key, token: token)
-                    }
-
-                case "onlyme":
-                    self.setMomentAvailability(false, key: key, token: token)
-
-                default:
-                    self.setMomentAvailability(true, key: key, token: token)
+                self.privacyService.canUserViewMomentEnhanced(liveMoment, viewerId: viewerId) { canView in
+                    self.setMomentAvailability(canView, key: key, token: token)
                 }
             }
     }
@@ -1407,12 +1443,12 @@ extension LocationMapView {
         }
     }
 
-    private func buildMomentsFromEcho(_ echo: Echo) -> [Moment] {
+    private func buildMomentsFromEcho(_ echo: Echo, refs: [EchoMomentRef]? = nil) -> [Moment] {
         let coordinate = Moment.LocationCoordinate(latitude: echo.location.latitude, longitude: echo.location.longitude)
         let resolvedLocation = echo.locationName?.trimmingCharacters(in: .whitespacesAndNewlines)
         let locationValue = (resolvedLocation?.isEmpty == false) ? resolvedLocation : locationName
 
-        return echo.moments.compactMap { ref in
+        return (refs ?? echo.moments).compactMap { ref in
             let mediaType = ref.mediaType.lowercased()
             let imagePath = mediaType == "video" ? nil : ref.mediaUrl
             let videoUrl = mediaType == "video" ? ref.mediaUrl : nil
