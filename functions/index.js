@@ -466,7 +466,7 @@ function addStorageUrl(targetSet, value) {
   const trimmed = value.trim();
   if (!trimmed) return;
   if (
-    trimmed.includes('firebasestorage.googleapis.com') ||
+    trimmed.startsWith('https://firebasestorage.googleapis.com/') ||
     trimmed.startsWith('images/') ||
     trimmed.startsWith('videos/') ||
     trimmed.startsWith('processed_videos/') ||
@@ -479,6 +479,44 @@ function addStorageUrl(targetSet, value) {
   ) {
     targetSet.add(trimmed);
   }
+}
+
+function storageObjectNameFromTrustedValue(value, bucketName) {
+  const fromUrl = storageObjectNameFromFirebaseUrl(value, bucketName);
+  if (fromUrl) return fromUrl;
+
+  if (typeof value !== 'string' || value.startsWith('http')) return null;
+  const trimmed = value.trim();
+  if (!trimmed || trimmed.startsWith('/') || trimmed.includes('..')) return null;
+  return trimmed;
+}
+
+function storageObjectBelongsToUser(objectName, uid) {
+  if (typeof objectName !== 'string' || typeof uid !== 'string' || !uid.trim()) return false;
+
+  const safeUid = uid.trim();
+  const userScopedPrefixes = [
+    `processed_videos/moments/${safeUid}/`,
+    `processed_videos/stories/${safeUid}/`,
+    `story_processing_uploads/${safeUid}/`,
+    `stories/${safeUid}/`,
+    `story_frames/${safeUid}/`,
+    `story_audio/${safeUid}/`,
+    `hidden_layers/${safeUid}/`
+  ];
+
+  if (userScopedPrefixes.some((prefix) => objectName.startsWith(prefix))) {
+    return true;
+  }
+
+  // Legacy moment/profile uploads were stored as images/<uuid>_<uid>.* and videos/<uuid>_<uid>.*.
+  if (objectName.startsWith('images/') || objectName.startsWith('videos/')) {
+    const fileName = path.basename(objectName);
+    const suffixStart = fileName.lastIndexOf(`_${safeUid}.`);
+    return suffixStart > 0 && suffixStart + safeUid.length + 2 < fileName.length;
+  }
+
+  return false;
 }
 
 function collectDeletedContentStorageUrls(data = {}) {
@@ -560,7 +598,7 @@ async function permanentlyDeleteRecentlyDeletedDoc(doc) {
     }
   }
 
-  const storageResult = await deleteStorageUrls(storageUrls);
+  const storageResult = await deleteStorageUrls(storageUrls, uid);
   return {
     id: doc.id,
     type,
@@ -572,18 +610,21 @@ async function permanentlyDeleteRecentlyDeletedDoc(doc) {
   };
 }
 
-async function deleteStorageUrls(urls) {
+async function deleteStorageUrls(urls, uid) {
   const bucket = admin.storage().bucket();
   const deleted = [];
   const skipped = [];
 
   for (const url of urls) {
-    const objectName = storageObjectNameFromFirebaseUrl(url, bucket.name) || (
-      typeof url === 'string' && !url.startsWith('http') ? url : null
-    );
+    const objectName = storageObjectNameFromTrustedValue(url, bucket.name);
 
     if (!objectName) {
       skipped.push({ url, reason: 'invalid_storage_url' });
+      continue;
+    }
+
+    if (!storageObjectBelongsToUser(objectName, uid)) {
+      skipped.push({ url, objectName, reason: 'not_owned_by_user' });
       continue;
     }
 
