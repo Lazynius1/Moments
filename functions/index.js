@@ -268,6 +268,10 @@ function firebaseStorageDownloadUrl(bucketName, objectName, token) {
 function storageObjectNameFromFirebaseUrl(url, expectedBucketName) {
   try {
     const parsed = new URL(url);
+    if (parsed.protocol !== 'https:' || parsed.hostname !== 'firebasestorage.googleapis.com') {
+      return null;
+    }
+
     const match = parsed.pathname.match(/^\/v0\/b\/([^/]+)\/o\/(.+)$/);
     if (!match) return null;
 
@@ -278,6 +282,32 @@ function storageObjectNameFromFirebaseUrl(url, expectedBucketName) {
   } catch (error) {
     return null;
   }
+}
+
+function isTrustedFirebaseStorageDownloadUrl(url, expectedBucketName) {
+  return Boolean(storageObjectNameFromFirebaseUrl(url, expectedBucketName));
+}
+
+function storageObjectNameFromTrustedValue(value, expectedBucketName) {
+  if (typeof value !== 'string') return null;
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+
+  return storageObjectNameFromFirebaseUrl(trimmed, expectedBucketName) || (
+    !trimmed.startsWith('http') ? trimmed : null
+  );
+}
+
+function isUidScopedStorageObject(objectName, uid, prefixes) {
+  if (typeof objectName !== 'string' || typeof uid !== 'string' || !uid.trim()) {
+    return false;
+  }
+
+  return prefixes.some((prefix) => objectName.startsWith(`${prefix}/${uid}/`));
+}
+
+function isUidScopedBackgroundFrameObject(objectName, uid) {
+  return isUidScopedStorageObject(objectName, uid, ['background_frames']);
 }
 
 async function deleteOriginalMomentVideoIfSafe({ originalUrl, processedUrl }) {
@@ -429,7 +459,6 @@ function addStorageUrl(targetSet, value) {
     trimmed.startsWith('processed_videos/') ||
     trimmed.startsWith('story_processing_uploads/') ||
     trimmed.startsWith('stories/') ||
-    trimmed.startsWith('background_frames/') ||
     trimmed.startsWith('story_frames/') ||
     trimmed.startsWith('story_audio/') ||
     trimmed.startsWith('hidden_layers/')
@@ -438,7 +467,17 @@ function addStorageUrl(targetSet, value) {
   }
 }
 
-function collectDeletedContentStorageUrls(data = {}) {
+function addOwnedBackgroundFrameStorageUrl(targetSet, value, uid) {
+  const bucket = admin.storage().bucket();
+  const trimmed = typeof value === 'string' ? value.trim() : '';
+  const objectName = storageObjectNameFromTrustedValue(trimmed, bucket.name);
+
+  if (isUidScopedBackgroundFrameObject(objectName, uid)) {
+    targetSet.add(trimmed);
+  }
+}
+
+function collectDeletedContentStorageUrls(data = {}, uid) {
   const urls = new Set();
 
   // Legacy/top-level media fields. Do not include profileImagePath; it belongs to the user profile.
@@ -447,8 +486,8 @@ function collectDeletedContentStorageUrls(data = {}) {
   addStorageUrl(urls, data.thumbnailUrl);
   addStorageUrl(urls, data.mediaUrl);
   addStorageUrl(urls, data.mediaURL);
-  addStorageUrl(urls, data.backgroundFrameURL);
-  addStorageUrl(urls, data.backgroundBlurredFrameURL);
+  addOwnedBackgroundFrameStorageUrl(urls, data.backgroundFrameURL, uid);
+  addOwnedBackgroundFrameStorageUrl(urls, data.backgroundBlurredFrameURL, uid);
 
   const mediaItems = Array.isArray(data.mediaItems) ? data.mediaItems : [];
   for (const item of mediaItems) {
@@ -505,7 +544,7 @@ async function permanentlyDeleteRecentlyDeletedDoc(doc) {
   const type = typeof data.type === 'string' ? data.type : 'moment';
   const userRef = doc.ref.parent.parent;
   const uid = userRef?.id;
-  const storageUrls = collectDeletedContentStorageUrls(data);
+  const storageUrls = collectDeletedContentStorageUrls(data, uid);
 
   await admin.firestore().recursiveDelete(doc.ref);
 
@@ -517,7 +556,7 @@ async function permanentlyDeleteRecentlyDeletedDoc(doc) {
     }
   }
 
-  const storageResult = await deleteStorageUrls(storageUrls);
+  const storageResult = await deleteStorageUrls(storageUrls, uid);
   return {
     id: doc.id,
     type,
@@ -529,18 +568,20 @@ async function permanentlyDeleteRecentlyDeletedDoc(doc) {
   };
 }
 
-async function deleteStorageUrls(urls) {
+async function deleteStorageUrls(urls, uid) {
   const bucket = admin.storage().bucket();
   const deleted = [];
   const skipped = [];
 
   for (const url of urls) {
-    const objectName = storageObjectNameFromFirebaseUrl(url, bucket.name) || (
-      typeof url === 'string' && !url.startsWith('http') ? url : null
-    );
+    const objectName = storageObjectNameFromTrustedValue(url, bucket.name);
 
     if (!objectName) {
       skipped.push({ url, reason: 'invalid_storage_url' });
+      continue;
+    }
+    if (objectName.startsWith('background_frames/') && !isUidScopedBackgroundFrameObject(objectName, uid)) {
+      skipped.push({ url, objectName, reason: 'unauthorized_storage_path' });
       continue;
     }
 
@@ -847,6 +888,7 @@ async function addMediaFilesToZip(zip, mediaUrls) {
     maxSingleFileBytes: 30 * 1024 * 1024
   };
   let totalBytes = 0;
+  const bucket = admin.storage().bucket();
   const manifest = {
     requested: uniqueUrls.length,
     downloaded: [],
@@ -861,6 +903,11 @@ async function addMediaFilesToZip(zip, mediaUrls) {
     }
     if (totalBytes >= limits.maxTotalBytes) {
       manifest.skipped.push({ url: mediaUrl, reason: 'max_total_size_reached' });
+      continue;
+    }
+
+    if (!isTrustedFirebaseStorageDownloadUrl(mediaUrl, bucket.name)) {
+      manifest.skipped.push({ url: mediaUrl, reason: 'untrusted_media_url' });
       continue;
     }
 
@@ -912,10 +959,19 @@ async function addMediaFilesToZip(zip, mediaUrls) {
   return manifest;
 }
 
-function collectMediaUrlsFromPayload(payload) {
+function collectMediaUrlsFromPayload(payload, userId) {
   const urls = new Set();
   const push = (url) => {
     if (typeof url === 'string' && url.trim()) urls.add(url.trim());
+  };
+  const pushOwnedBackgroundFrameUrl = (url) => {
+    if (typeof url !== 'string' || !url.trim()) return;
+
+    const bucket = admin.storage().bucket();
+    const objectName = storageObjectNameFromFirebaseUrl(url.trim(), bucket.name);
+    if (isUidScopedBackgroundFrameObject(objectName, userId)) {
+      urls.add(url.trim());
+    }
   };
 
   for (const moment of payload.moments || []) {
@@ -931,8 +987,8 @@ function collectMediaUrlsFromPayload(payload) {
     const mediaItem = story.mediaItem || {};
     push(mediaItem.url);
     push(mediaItem.thumbnailUrl);
-    push(story.backgroundFrameURL);
-    push(story.backgroundBlurredFrameURL);
+    pushOwnedBackgroundFrameUrl(story.backgroundFrameURL);
+    pushOwnedBackgroundFrameUrl(story.backgroundBlurredFrameURL);
   }
 
   for (const convo of payload.conversations || []) {
@@ -982,7 +1038,7 @@ async function buildDataExportPayload(userId, exportType, requestedFormat) {
   }
 
   if (exportType !== 'textOnly') {
-    payload.mediaUrls = collectMediaUrlsFromPayload(payload);
+    payload.mediaUrls = collectMediaUrlsFromPayload(payload, userId);
   }
 
   if (exportType === 'mediaOnly') {
