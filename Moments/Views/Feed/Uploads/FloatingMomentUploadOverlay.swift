@@ -227,7 +227,7 @@ struct FloatingMomentUploadOverlay: View {
                         .overlay(
                             Image(systemName: "photo")
                                 .font(.system(size: 14, weight: .medium))
-                                .foregroundStyle(.white.opacity(0.8))
+                                .foregroundStyle(iconMutedColor)
                         )
                 }
             }
@@ -310,20 +310,20 @@ struct FloatingMomentUploadOverlay: View {
         case .initializing:
             Image(systemName: "arrow.up")
                 .font(.system(size: 18, weight: .bold))
-                .foregroundStyle(.white.opacity(0.6))
+                .foregroundStyle(iconMutedColor)
         case .completed, .moderated:
             ZStack {
                 if showsCompletionIcon {
                     Image(systemName: "checkmark")
                         .font(.system(size: 18, weight: .bold))
-                        .foregroundStyle(.white)
+                        .foregroundStyle(iconColor)
                         .scaleEffect(checkmarkScale)
                         .rotationEffect(.degrees(checkmarkRotation))
                         .opacity(checkmarkOpacity)
                 } else {
                     Image(systemName: "arrow.up")
                         .font(.system(size: 18, weight: .bold))
-                        .foregroundStyle(.white)
+                        .foregroundStyle(iconColor)
                         .offset(y: arrowOffset)
                         .opacity(arrowOpacity)
                 }
@@ -331,14 +331,14 @@ struct FloatingMomentUploadOverlay: View {
         case .failed:
             Image(systemName: "exclamationmark")
                 .font(.system(size: 18, weight: .bold))
-                .foregroundStyle(.white)
+                .foregroundStyle(iconColor)
                 .transition(.scale.combined(with: .opacity))
         case .processing, .uploading:
             ZStack {
                 // Ascending aura arrow
                 Image(systemName: "arrow.up")
                     .font(.system(size: 18, weight: .bold))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(iconColor)
                     .offset(y: auraOffset)
                     .scaleEffect(auraScale)
                     .opacity(auraOpacity)
@@ -347,7 +347,7 @@ struct FloatingMomentUploadOverlay: View {
                 // Main breathing arrow
                 Image(systemName: "arrow.up")
                     .font(.system(size: 18, weight: .bold))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(iconColor)
                     .offset(y: arrowBobOffset)
             }
         }
@@ -573,6 +573,14 @@ struct FloatingMomentUploadOverlay: View {
 
     private var secondaryTextColor: Color {
         colorScheme == .dark ? .white.opacity(0.72) : Color.black.opacity(0.62)
+    }
+
+    private var iconColor: Color {
+        colorScheme == .dark ? .white : .black
+    }
+
+    private var iconMutedColor: Color {
+        colorScheme == .dark ? .white.opacity(0.6) : .black.opacity(0.45)
     }
 
     private var trackColor: Color {

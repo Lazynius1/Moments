@@ -9,6 +9,7 @@ firebase-debug.*.log*
 
 # macOS / Xcode local state
 .DS_Store
+# Reglas: firestore.rules + storage.rules (rules.txt obsoleto)
 rules.txt
 *.xcuserstate
 **/xcuserdata/

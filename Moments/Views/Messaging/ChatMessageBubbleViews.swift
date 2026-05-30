@@ -74,6 +74,7 @@ struct GlassmorphicMessageRow: View {
                     GlassmorphicMessageBubble(
                         message: message,
                         repliedMessage: repliedMessage,
+                        otherParticipantId: otherUserId,
                         otherParticipantName: otherParticipantName,
                         isCurrentUser: isCurrentUser,
                         progress: progress,
@@ -209,6 +210,7 @@ struct DeletedMessageBubble: View {
 struct GlassmorphicMessageBubble: View {
     let message: EnhancedMessage
     let repliedMessage: EnhancedMessage?
+    let otherParticipantId: String?
     let otherParticipantName: String
     let isCurrentUser: Bool
     let progress: Double?
@@ -247,7 +249,8 @@ struct GlassmorphicMessageBubble: View {
                         if message.storyReplyData != nil {
                             StoryReplyMessageBubble(
                                 message: message,
-                                isCurrentUser: isCurrentUser
+                                isCurrentUser: isCurrentUser,
+                                otherParticipantId: otherParticipantId
                             )
                         } else if let content = message.content {
                             HStack(alignment: .bottom, spacing: 12) {
@@ -328,7 +331,8 @@ struct GlassmorphicMessageBubble: View {
                         if message.storyReplyData != nil {
                             StoryReplyMessageBubble(
                                 message: message,
-                                isCurrentUser: isCurrentUser
+                                isCurrentUser: isCurrentUser,
+                                otherParticipantId: otherParticipantId
                             )
                         } else {
                             if let mediaUrl = message.mediaUrl, !message.isViewed, isEphemeralValid() {

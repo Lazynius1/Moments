@@ -4,14 +4,45 @@ import FirebaseFirestore
 import FirebaseStorage
 
 struct StoryReplyData {
+    let storyId: String
     let mediaUrl: String
     let mediaType: String
+    let authorId: String
+    let expirationTimestamp: TimeInterval
+    let previewUrl: String
 
     var payload: [String: String] {
         [
+            "storyId": storyId,
             "storyMediaUrl": mediaUrl,
-            "storyMediaType": mediaType
+            "storyMediaType": mediaType,
+            "storyAuthorId": authorId,
+            "storyExpiration": String(expirationTimestamp),
+            "storyPreviewUrl": previewUrl
         ]
+    }
+
+    static func from(story: Story) -> StoryReplyData? {
+        guard let storyId = story.id else { return nil }
+
+        let previewUrl: String = {
+            if let url = story.backgroundFrameURL?.trimmingCharacters(in: .whitespacesAndNewlines), !url.isEmpty {
+                return url
+            }
+            if let url = story.backgroundBlurredFrameURL?.trimmingCharacters(in: .whitespacesAndNewlines), !url.isEmpty {
+                return url
+            }
+            return story.mediaItem.url
+        }()
+
+        return StoryReplyData(
+            storyId: storyId,
+            mediaUrl: story.mediaItem.url,
+            mediaType: story.mediaItem.type == .video ? "video" : "image",
+            authorId: story.authorId,
+            expirationTimestamp: story.expirationDate.timeIntervalSince1970,
+            previewUrl: previewUrl
+        )
     }
 }
 
@@ -72,19 +103,13 @@ final class StoryRepository {
     }
 
     func fetchStoryReplyData(userId: String, storyId: String, completion: @escaping (StoryReplyData?) -> Void) {
-        firestoreService.db.collection("users").document(userId).collection("stories").document(storyId).getDocument { snapshot, error in
-            guard error == nil,
-                  let snapshot,
-                  snapshot.exists,
-                  let storyData = snapshot.data(),
-                  let mediaItem = storyData["mediaItem"] as? [String: Any],
-                  let storyMediaUrl = mediaItem["url"] as? String,
-                  let storyMediaType = mediaItem["type"] as? String else {
+        fetchStory(userId: userId, storyId: storyId) { result in
+            switch result {
+            case .success(let story):
+                completion(StoryReplyData.from(story: story))
+            case .failure:
                 completion(nil)
-                return
             }
-
-            completion(StoryReplyData(mediaUrl: storyMediaUrl, mediaType: storyMediaType))
         }
     }
 

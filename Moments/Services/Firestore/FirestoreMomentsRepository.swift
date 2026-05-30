@@ -596,6 +596,7 @@ extension FirestoreService {
         hideLikeCounts: Bool = false,
         allowSharing: Bool = true,
         scheduledDate: Date? = nil,
+        momentId: String? = nil,
         completion: @escaping (String?, Error?) -> Void
     ) {
         let contentAudience: ContentAudience
@@ -668,16 +669,17 @@ extension FirestoreService {
                         ) { _ in }
                     }
 
-                    var ref: DocumentReference?
-                    ref = self.db.collection("users")
+                    let resolvedMomentId = momentId ?? UUID().uuidString
+                    self.db.collection("users")
                         .document(userId)
                         .collection("moments")
-                        .addDocument(data: momentData) { error in
+                        .document(resolvedMomentId)
+                        .setData(momentData) { error in
                             if let error {
                                 completion(nil, error)
                             } else {
                                 self.updateLastMomentCreatedAt(userId: userId) { _ in
-                                    completion(ref?.documentID, nil)
+                                    completion(resolvedMomentId, nil)
                                 }
                             }
                         }
@@ -723,6 +725,7 @@ extension FirestoreService {
         hideLikeCounts: Bool = false,
         allowSharing: Bool = true,
         scheduledDate: Date? = nil,
+        momentId: String? = nil,
         completion: @escaping (String?, Error?) -> Void
     ) {
         self.fetchUser(userId: userId) { [weak self] result in
@@ -777,16 +780,17 @@ extension FirestoreService {
                     momentData["hasHiddenLayers"] = false
                     momentData["hiddenLayerCount"] = 0
 
-                    var ref: DocumentReference?
-                    ref = self.db.collection("users")
+                    let resolvedMomentId = momentId ?? UUID().uuidString
+                    self.db.collection("users")
                         .document(userId)
                         .collection("moments")
-                        .addDocument(data: momentData) { error in
+                        .document(resolvedMomentId)
+                        .setData(momentData) { error in
                             if let error {
                                 completion(nil, error)
                             } else {
                                 self.updateLastMomentCreatedAt(userId: userId) { _ in
-                                    completion(ref?.documentID, nil)
+                                    completion(resolvedMomentId, nil)
                                 }
                             }
                         }

@@ -1250,31 +1250,12 @@ class AuthService: ObservableObject {
                 return
             }
 
-
-            let fileName = "\(UUID().uuidString)_\(userId)"
-            let imageRef = storage.child("images/\(fileName).jpg")
-            guard let imageData = image.jpegData(compressionQuality: 0.7) else {
-                completion(nil)
-                return
-            }
-
-            let metadata = StorageMetadata()
-            metadata.contentType = "image/jpeg"
-
-            imageRef.putData(imageData, metadata: metadata) { _, error in
-                if error != nil {
+            StorageService().uploadProfileImage(userId: userId, image: image) { result in
+                switch result {
+                case .success(let url):
+                    completion(url)
+                case .failure:
                     completion(nil)
-                    return
-                }
-
-                imageRef.downloadURL { url, error in
-                    if error != nil {
-                        completion(nil)
-                    } else if let url = url {
-                        completion(url.absoluteString)
-                    } else {
-                        completion(nil)
-                    }
                 }
             }
         }

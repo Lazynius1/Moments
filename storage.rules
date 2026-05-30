@@ -1,0 +1,249 @@
+rules_version = '2';
+
+// Alineado con StoragePathBuilder.swift + rutas legado + salidas de Cloud Functions (processed_videos).
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    // -------------------------------------------------------------------------
+    // Helpers
+    // -------------------------------------------------------------------------
+
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isActiveUser() {
+      return isAuthenticated() &&
+             exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('isActive', true);
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // Escritura en rutas users/{uid}/…: el dueño autenticado (sin get Firestore en write — evita 403 en thumbnails, etc.).
+    function canWriteAsOwner(userId) {
+      return isOwner(userId);
+    }
+
+    function hasImageContentType() {
+      return !('contentType' in request.resource) || request.resource.contentType.matches('image/.*');
+    }
+
+    function hasMomentMediaContentType() {
+      return !('contentType' in request.resource) ||
+             request.resource.contentType.matches('image/.*|video/.*');
+    }
+
+    function hasStoryMediaContentType() {
+      return !('contentType' in request.resource) ||
+             request.resource.contentType.matches('image/.*|video/.*|audio/.*');
+    }
+
+    function hasHiddenLayerContentType() {
+      return !('contentType' in request.resource) ||
+             request.resource.contentType.matches('image/.*|audio/.*');
+    }
+
+    function hasChatMediaContentType() {
+      return !('contentType' in request.resource) ||
+             request.resource.contentType.matches('image/.*|video/.*|audio/.*|application/pdf');
+    }
+
+    // Lectura de media pública del perfil (mismo criterio que el bloque antiguo users/.../moments).
+    function canReadOwnerPublicMedia(ownerId) {
+      return isAuthenticated() && (
+        request.auth.uid == ownerId ||
+        get(/databases/$(database)/documents/users/$(ownerId)).data.get('isActive', true)
+      );
+    }
+
+    function isConversationParticipant(conversationId) {
+      return isAuthenticated() &&
+             exists(/databases/$(database)/documents/conversations/$(conversationId)) &&
+             request.auth.uid in get(/databases/$(database)/documents/conversations/$(conversationId)).data.participants;
+    }
+
+    function validImageUpload() {
+      return hasImageContentType() && request.resource.size < 10 * 1024 * 1024;
+    }
+
+    // CreatorMedia.maxMomentVideoUploadSizeBytes = 300 MB
+    function validMomentMediaUpload() {
+      return hasMomentMediaContentType() && request.resource.size < 300 * 1024 * 1024;
+    }
+
+    function validStoryMediaUpload() {
+      return hasStoryMediaContentType() && request.resource.size < 300 * 1024 * 1024;
+    }
+
+    function validHiddenLayerUpload() {
+      return hasHiddenLayerContentType() && request.resource.size < 25 * 1024 * 1024;
+    }
+
+    // VideoCompressionPreset.chat → máx. ~80 MB de salida
+    function validChatMediaUpload() {
+      return hasChatMediaContentType() && request.resource.size < 85 * 1024 * 1024;
+    }
+
+    function validExportUpload() {
+      return request.resource.contentType.matches('application/zip|application/octet-stream') &&
+             request.resource.size < 500 * 1024 * 1024;
+    }
+
+    // -------------------------------------------------------------------------
+    // Nuevo layout: users/{uid}/…
+    // -------------------------------------------------------------------------
+
+    match /users/{userId}/profile/avatar/{fileName} {
+      allow read: if canReadOwnerPublicMedia(userId);
+      allow write: if canWriteAsOwner(userId) && validImageUpload();
+      allow delete: if isOwner(userId);
+    }
+
+    match /users/{userId}/moments/{momentId}/media/{fileName} {
+      allow read: if canReadOwnerPublicMedia(userId);
+      allow write: if canWriteAsOwner(userId) && validMomentMediaUpload();
+      allow delete: if isOwner(userId);
+    }
+
+    match /users/{userId}/moments/{momentId}/thumbnails/{fileName} {
+      allow read: if canReadOwnerPublicMedia(userId);
+      allow write: if canWriteAsOwner(userId) && validImageUpload();
+      allow delete: if isOwner(userId);
+    }
+
+    match /users/{userId}/moments/{momentId}/hidden_layers/{layerId}/{fileName} {
+      allow read: if canReadOwnerPublicMedia(userId);
+      allow write: if canWriteAsOwner(userId) && validHiddenLayerUpload();
+      allow delete: if isOwner(userId);
+    }
+
+    match /users/{userId}/stories/{storyId}/media/{fileName} {
+      allow read: if canReadOwnerPublicMedia(userId);
+      allow write: if canWriteAsOwner(userId) && validStoryMediaUpload();
+      allow delete: if isOwner(userId);
+    }
+
+    match /users/{userId}/stories/{storyId}/thumbnails/{fileName} {
+      allow read: if canReadOwnerPublicMedia(userId);
+      allow write: if canWriteAsOwner(userId) && validImageUpload();
+      allow delete: if isOwner(userId);
+    }
+
+    match /users/{userId}/stories/{storyId}/frames/{fileName} {
+      allow read: if canReadOwnerPublicMedia(userId);
+      allow write: if canWriteAsOwner(userId) && validImageUpload();
+      allow delete: if isOwner(userId);
+    }
+
+    match /users/{userId}/stories/{storyId}/audio/{fileName} {
+      allow read: if canReadOwnerPublicMedia(userId);
+      allow write: if canWriteAsOwner(userId) &&
+                        hasHiddenLayerContentType() &&
+                        request.resource.size < 25 * 1024 * 1024;
+      allow delete: if isOwner(userId);
+    }
+
+    // Chat: objetos bajo el uid del remitente; lectura para participantes de la conversación
+    match /users/{userId}/chat/{conversationId}/{messageId}/{fileName} {
+      allow read: if isConversationParticipant(conversationId);
+      allow write: if canWriteAsOwner(userId) &&
+                        isConversationParticipant(conversationId) &&
+                        validChatMediaUpload();
+      allow delete: if isOwner(userId) && isConversationParticipant(conversationId);
+    }
+
+    match /users/{userId}/exports/{fileName} {
+      allow read: if isOwner(userId);
+      allow write: if canWriteAsOwner(userId) && validExportUpload();
+      allow delete: if isOwner(userId);
+    }
+
+    // No abrir rutas nuevas por defecto bajo users/{uid}/...
+    // Cualquier carpeta nueva debe declararse arriba con reglas explícitas.
+    match /users/{userId}/{allPaths=**} {
+      allow read, write, delete: if false;
+    }
+
+    // -------------------------------------------------------------------------
+    // Salidas de transcodificación (solo Functions escriben vía Admin SDK)
+    // -------------------------------------------------------------------------
+
+    match /processed_videos/moments/{userId}/{allPaths=**} {
+      allow read: if canReadOwnerPublicMedia(userId);
+      allow write: if false;
+      allow delete: if false;
+    }
+
+    match /processed_videos/stories/{userId}/{allPaths=**} {
+      allow read: if canReadOwnerPublicMedia(userId);
+      allow write: if false;
+      allow delete: if false;
+    }
+
+    // -------------------------------------------------------------------------
+    // Legado (contenido ya subido)
+    // -------------------------------------------------------------------------
+
+    match /conversations/{conversationId}/{fileName} {
+      allow read: if isConversationParticipant(conversationId);
+      allow write: if isConversationParticipant(conversationId) && validChatMediaUpload();
+      allow delete: if isConversationParticipant(conversationId);
+    }
+
+    match /hidden_layers/{userId}/{momentId}/{fileName} {
+      allow read: if canReadOwnerPublicMedia(userId);
+      allow write: if canWriteAsOwner(userId) && validHiddenLayerUpload();
+      allow delete: if isOwner(userId);
+    }
+
+    match /background_frames/{userId}/{allPaths=**} {
+      allow read: if canReadOwnerPublicMedia(userId);
+      allow write: if canWriteAsOwner(userId) && validImageUpload();
+      allow delete: if isOwner(userId);
+    }
+
+    match /images/{imageId} {
+      allow read: if isAuthenticated();
+      allow write: if isActiveUser() &&
+                        request.resource.contentType.matches('image/.*') &&
+                        request.resource.size < 10 * 1024 * 1024;
+      allow delete: if isActiveUser();
+    }
+
+    match /videos/{videoId} {
+      allow read: if isAuthenticated();
+      allow write: if isActiveUser() &&
+                        request.resource.contentType.matches('video/.*') &&
+                        request.resource.size < 300 * 1024 * 1024;
+      allow delete: if isActiveUser();
+    }
+
+    match /exports/{userId}/{fileName} {
+      allow read: if isOwner(userId);
+      allow write: if canWriteAsOwner(userId) && validExportUpload();
+      allow delete: if isOwner(userId);
+    }
+
+    match /messageRequests/{requestId}/{fileName} {
+      allow read: if isAuthenticated()
+                    && exists(/databases/$(database)/documents/messageRequests/$(requestId))
+                    && request.auth.uid == get(/databases/$(database)/documents/messageRequests/$(requestId)).data.receiverId
+                    && isActiveUser();
+
+      allow write: if isAuthenticated()
+                     && exists(/databases/$(database)/documents/messageRequests/$(requestId))
+                     && request.auth.uid == get(/databases/$(database)/documents/messageRequests/$(requestId)).data.senderId
+                     && isActiveUser()
+                     && request.resource.contentType.matches('image/.*|video/.*|audio/.*')
+                     && request.resource.size < 25 * 1024 * 1024;
+
+      allow delete: if isAuthenticated()
+                     && exists(/databases/$(database)/documents/messageRequests/$(requestId))
+                     && request.auth.uid == get(/databases/$(database)/documents/messageRequests/$(requestId)).data.senderId
+                     && isActiveUser();
+    }
+  }
+}
