@@ -883,8 +883,47 @@ exports.processStoryVideos = onDocumentCreated(
   }
 );
 
+function storageObjectNameFromExportMediaUrl(value, expectedBucketName) {
+  if (typeof value !== 'string') return null;
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+
+  if (!trimmed.includes('://')) {
+    return trimmed.replace(/^\/+/, '');
+  }
+
+  try {
+    const parsed = new URL(trimmed);
+    if (parsed.protocol === 'gs:') {
+      if (parsed.hostname !== expectedBucketName) return null;
+      return decodeURIComponent(parsed.pathname.replace(/^\/+/, ''));
+    }
+
+    if (parsed.protocol !== 'https:') return null;
+
+    if (parsed.hostname === 'firebasestorage.googleapis.com') {
+      return storageObjectNameFromFirebaseUrl(trimmed, expectedBucketName);
+    }
+
+    if (parsed.hostname === 'storage.googleapis.com') {
+      const parts = parsed.pathname.split('/').filter(Boolean);
+      if (parts.length < 2 || decodeURIComponent(parts[0]) !== expectedBucketName) return null;
+      return decodeURIComponent(parts.slice(1).join('/'));
+    }
+
+    if (parsed.hostname === `${expectedBucketName}.storage.googleapis.com`) {
+      return decodeURIComponent(parsed.pathname.replace(/^\/+/, ''));
+    }
+  } catch (error) {
+    return null;
+  }
+
+  return null;
+}
+
 async function addMediaFilesToZip(zip, mediaUrls) {
   const uniqueUrls = Array.from(new Set((mediaUrls || []).filter((url) => typeof url === 'string' && url.trim().length > 0)));
+  const bucket = admin.storage().bucket();
   const limits = {
     maxFiles: 120,
     maxTotalBytes: 200 * 1024 * 1024,
@@ -899,6 +938,12 @@ async function addMediaFilesToZip(zip, mediaUrls) {
 
   for (let i = 0; i < uniqueUrls.length; i += 1) {
     const mediaUrl = uniqueUrls[i];
+    const objectName = storageObjectNameFromExportMediaUrl(mediaUrl, bucket.name);
+    if (!objectName) {
+      manifest.skipped.push({ url: mediaUrl, reason: 'unsupported_media_origin' });
+      continue;
+    }
+
     if (manifest.downloaded.length >= limits.maxFiles) {
       manifest.skipped.push({ url: mediaUrl, reason: 'max_files_reached' });
       continue;
@@ -909,19 +954,14 @@ async function addMediaFilesToZip(zip, mediaUrls) {
     }
 
     try {
-      const response = await fetch(mediaUrl, { signal: AbortSignal.timeout(12000) });
-      if (!response.ok) {
-        manifest.skipped.push({ url: mediaUrl, reason: `http_${response.status}` });
-        continue;
-      }
-      const contentLengthHeader = response.headers.get('content-length');
-      const declaredBytes = contentLengthHeader ? Number(contentLengthHeader) : 0;
+      const file = bucket.file(objectName);
+      const [metadata] = await file.getMetadata();
+      const declaredBytes = Number(metadata.size || 0);
       if (Number.isFinite(declaredBytes) && declaredBytes > limits.maxSingleFileBytes) {
         manifest.skipped.push({ url: mediaUrl, reason: 'single_file_too_large' });
         continue;
       }
-      const arrayBuffer = await response.arrayBuffer();
-      const buffer = Buffer.from(arrayBuffer);
+      const [buffer] = await file.download();
       if (buffer.length === 0) {
         manifest.skipped.push({ url: mediaUrl, reason: 'empty_file' });
         continue;
@@ -935,7 +975,7 @@ async function addMediaFilesToZip(zip, mediaUrls) {
         continue;
       }
 
-      const ext = inferFileExtension(mediaUrl, response.headers.get('content-type') || '');
+      const ext = inferFileExtension(objectName, metadata.contentType || '');
       const fileName = `media/media_${String(manifest.downloaded.length + 1).padStart(4, '0')}.${ext}`;
       zip.file(fileName, buffer);
       totalBytes += buffer.length;
