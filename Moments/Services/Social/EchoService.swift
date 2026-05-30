@@ -370,7 +370,7 @@ class EchoService {
             // La notificación + push de Echo la crea el backend (onEchoCreated) como
             // fuente única, para evitar duplicados de badge y push.
             // Aquí solo disparamos el Nova Spark (sugerencia proactiva), que es independiente.
-            NovaActivityService.shared.triggerEchoSpark(echoId: echoId, userId: recipientId)
+            NovaEvents.triggerEchoSpark(echoId: echoId, userId: recipientId)
         }
     }
     

@@ -2,7 +2,7 @@ import SwiftUI
 
 // MARK: - Componentes UI Originales
 struct ConversationHistoryOverlay: View {
-    @ObservedObject var viewModel: GeminiViewModel
+    @ObservedObject var viewModel: NovaAgent
     @Binding var showConversationHistory: Bool
     @Binding var showSuggestedOptions: Bool
     @Environment(\.colorScheme) var colorScheme
@@ -24,7 +24,7 @@ struct ConversationHistoryOverlay: View {
                     HStack {
                         Text("nova.recentConversations")
                             .font(.custom("Poppins-Bold", size: 20))
-                            .foregroundColor(ModernGeminiColors.textPrimary)
+                            .foregroundColor(NovaColors.textPrimary)
 
                         Spacer()
 
@@ -33,7 +33,7 @@ struct ConversationHistoryOverlay: View {
                         }) {
                             Image(systemName: "xmark")
                                 .font(.system(size: 15, weight: .semibold))
-                                .foregroundColor(ModernGeminiColors.textPrimary)
+                                .foregroundColor(NovaColors.textPrimary)
                                 .frame(width: 36, height: 36)
                                 .background {
                                     Color.clear
@@ -51,15 +51,15 @@ struct ConversationHistoryOverlay: View {
                                 VStack(spacing: 16) {
                                     Image(systemName: "bubble.left.and.bubble.right")
                                         .font(.system(size: 48))
-                                        .foregroundColor(ModernGeminiColors.textSecondary)
+                                        .foregroundColor(NovaColors.textSecondary)
 
                                     Text("nova.noConversations")
                                         .font(.custom("Poppins-Medium", size: 16))
-                                        .foregroundColor(ModernGeminiColors.textSecondary)
+                                        .foregroundColor(NovaColors.textSecondary)
 
                                     Text("nova.startNewConversation")
                                         .font(.custom("Poppins-Regular", size: 14))
-                                        .foregroundColor(ModernGeminiColors.textTertiary)
+                                        .foregroundColor(NovaColors.textTertiary)
                                         .multilineTextAlignment(.center)
                                 }
                                 .padding(.vertical, 40)
@@ -73,7 +73,7 @@ struct ConversationHistoryOverlay: View {
                                     HStack {
                                         Image(systemName: "plus")
                                             .font(.system(size: 14, weight: .semibold))
-                                            .foregroundColor(ModernGeminiColors.textPrimary)
+                                            .foregroundColor(NovaColors.textPrimary)
                                             .frame(width: 28, height: 28)
                                             .background {
                                                 Color.clear
@@ -82,13 +82,13 @@ struct ConversationHistoryOverlay: View {
 
                                         Text("nova.newConversation")
                                             .font(.custom("Poppins-SemiBold", size: 16))
-                                            .foregroundColor(ModernGeminiColors.textPrimary)
+                                            .foregroundColor(NovaColors.textPrimary)
 
                                         Spacer()
 
                                         Image(systemName: "chevron.right")
                                             .font(.system(size: 12))
-                                            .foregroundColor(ModernGeminiColors.textSecondary)
+                                            .foregroundColor(NovaColors.textSecondary)
                                     }
                                     .padding(.horizontal, 20)
                                     .padding(.vertical, 16)
@@ -142,7 +142,7 @@ struct ConversationHistoryOverlay: View {
 
 struct ConversationHistoryItem: View {
     let conversation: ConversationTitle
-    @ObservedObject var viewModel: GeminiViewModel
+    @ObservedObject var viewModel: NovaAgent
     let onSelect: () -> Void
     let onDelete: () -> Void
     @State private var showDeleteAlert = false
@@ -160,18 +160,18 @@ struct ConversationHistoryItem: View {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(conversation.title)
                         .font(.custom("Poppins-SemiBold", size: 16))
-                        .foregroundColor(ModernGeminiColors.textPrimary)
+                        .foregroundColor(NovaColors.textPrimary)
                         .lineLimit(2)
                         .multilineTextAlignment(.leading)
 
                     Text(conversation.lastUpdated.timeAgoDisplay())
                         .font(.custom("Poppins-Regular", size: 12))
-                        .foregroundColor(ModernGeminiColors.textSecondary)
+                        .foregroundColor(NovaColors.textSecondary)
 
                     if conversation.messageCount > 0 {
                         Text("\(conversation.messageCount) \(NSLocalizedString("nova.messages", comment: "Messages count"))")
                             .font(.custom("Poppins-Regular", size: 11))
-                            .foregroundColor(ModernGeminiColors.textTertiary)
+                            .foregroundColor(NovaColors.textTertiary)
                     }
                 }
 
@@ -186,7 +186,7 @@ struct ConversationHistoryItem: View {
                 } label: {
                     Image(systemName: "ellipsis")
                         .font(.system(size: 16))
-                        .foregroundColor(ModernGeminiColors.textPrimary)
+                        .foregroundColor(NovaColors.textPrimary)
                         .frame(width: 34, height: 34)
                         .background {
                             Color.clear

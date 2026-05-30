@@ -2,13 +2,20 @@ import SwiftUI
 import UIKit
 
 // MARK: - Vista Principal
-struct GeminiView: View {
-    @StateObject private var viewModel = GeminiViewModel()
+struct NovaView: View {
+    var body: some View {
+        ChatRecoveryGateView(onCancel: nil) {
+            NovaSecureContent()
+        }
+    }
+}
+
+private struct NovaSecureContent: View {
+    @StateObject private var viewModel = NovaAgent()
     @State private var scrollOffset: CGFloat = 0
     @State private var keyboardHeight: CGFloat = 0
     @State private var showConversationHistory = false
     @State private var isKeyboardVisible = false
-    @State private var showLanguageSheet = false
     @State private var isShowingMemory = false
     @State private var memorySheetDetent: PresentationDetent = .medium
     @Environment(\.colorScheme) private var colorScheme
@@ -17,19 +24,14 @@ struct GeminiView: View {
         GeometryReader { geometry in
             let safeAreaTop = geometry.safeAreaInsets.top
             let safeAreaBottom = geometry.safeAreaInsets.bottom
-            let showsFollowUpSuggestions =
-                viewModel.showSuggestedOptions &&
-                !viewModel.conversationHistory.isEmpty &&
-                !viewModel.followUpSuggestions.isEmpty
             let topOverlayHeight: CGFloat = 132
-            let bottomOverlayHeight: CGFloat = showsFollowUpSuggestions ? 128 : 88
+            let bottomOverlayHeight: CGFloat = 88
             let topFadeBase = colorScheme == .dark ? Color(hex: "0B1215") : Color(hex: "FAF9F6")
             let bottomFadeBase = colorScheme == .dark ? Color(hex: "0B1215") : Color(hex: "FAF9F6")
             let tabBarFadeOffset: CGFloat = 92
 
             ZStack {
-                // Fondo moderno con gradiente
-                ModernGeminiBackground()
+                NovaBackground()
                     .ignoresSafeArea()
 
                 ZStack {
@@ -43,7 +45,6 @@ struct GeminiView: View {
                     } else {
                         ScrollView {
                             ScrollViewReader { proxy in
-                                // ✅ FUNCIÓN HELPER PARA SCROLL SUAVE
                                 let scrollToBottom = {
                                     if let lastMessage = viewModel.conversationHistory.last {
                                         withAnimation(.easeInOut(duration: 0.4)) {
@@ -60,8 +61,8 @@ struct GeminiView: View {
                                         .id("\(message.id)_\(message.isHistorical ? "historical" : "new")")
                                     }
 
-                                    if viewModel.isLoading {
-                                        ModernLoadingAnimation()
+                                    if viewModel.isLoading && viewModel.pendingAction == nil {
+                                        ModernLoadingAnimation(statusLabel: viewModel.activeToolDisplayName)
                                             .padding(.vertical, 20)
                                     }
                                 }
@@ -71,25 +72,21 @@ struct GeminiView: View {
                                 .background(
                                     GeometryReader { geo in
                                         Color.clear
-                                            .preference(key: GeminiScrollOffsetPreferenceKey.self, value: geo.frame(in: .named("scroll")).minY)
+                                            .preference(key: NovaScrollOffsetPreferenceKey.self, value: geo.frame(in: .named("scroll")).minY)
                                     }
                                 )
-                                // ✅ CAMBIO 1: Scroll cuando CAMBIAN los mensajes - MEJORADO
                                 .onChange(of: viewModel.conversationHistory) { _, _ in
                                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                                         scrollToBottom()
                                     }
                                 }
-                                // ✅ CAMBIO 2: Scroll cuando aparece el teclado - MEJORADO
                                 .onChange(of: keyboardHeight) { _, height in
                                     if height > 0 {
-                                        // ✅ DELAY MÁS LARGO PARA SINCRONIZAR CON EL TECLADO
                                         DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
                                             scrollToBottom()
                                         }
                                     }
                                 }
-                                // ✅ NUEVO: Scroll cuando el teclado está visible y hay foco
                                 .onChange(of: isKeyboardVisible) { _, visible in
                                     if visible && !viewModel.conversationHistory.isEmpty {
                                         DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
@@ -97,7 +94,6 @@ struct GeminiView: View {
                                         }
                                     }
                                 }
-                                // ✅ CAMBIO 3: Scroll inicial cuando se cargan mensajes históricos - MEJORADO
                                 .onAppear {
                                     if !viewModel.conversationHistory.isEmpty {
                                         DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
@@ -108,7 +104,7 @@ struct GeminiView: View {
                             }
                         }
                         .coordinateSpace(name: "scroll")
-                        .onPreferenceChange(GeminiScrollOffsetPreferenceKey.self) { value in
+                        .onPreferenceChange(NovaScrollOffsetPreferenceKey.self) { value in
                             scrollOffset = value
                         }
                     }
@@ -132,7 +128,7 @@ struct GeminiView: View {
                 }
                 .overlay(alignment: .top) {
                     VStack(spacing: 8) {
-                        EnhancedGeminiHeader(
+                        NovaHeader(
                             viewModel: viewModel,
                             showConversationHistory: $showConversationHistory,
                             showSuggestedOptions: $viewModel.showSuggestedOptions,
@@ -167,15 +163,8 @@ struct GeminiView: View {
                         viewModel: viewModel,
                         showSuggestedOptions: $viewModel.showSuggestedOptions,
                         onFocusChange: { focused in
-                            // ✅ SCROLL CUANDO EL TEXTOFIELD OBTIENE FOCUS
                             if focused && !viewModel.conversationHistory.isEmpty {
-                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
-                                    if viewModel.conversationHistory.last != nil {
-                                        withAnimation(.easeInOut(duration: 0.4)) {
-                                            // El scroll se maneja en el onChange del keyboardHeight
-                                        }
-                                    }
-                                }
+                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {}
                             }
                         }
                     )
@@ -183,7 +172,6 @@ struct GeminiView: View {
                     .animation(.spring(response: 0.35, dampingFraction: 0.85), value: keyboardHeight)
                 }
 
-                // Overlay de historial de conversaciones
                 if showConversationHistory {
                     ConversationHistoryOverlay(
                         viewModel: viewModel,
@@ -194,13 +182,11 @@ struct GeminiView: View {
                     .zIndex(2)
                 }
 
-                // 🎉 CONFETI OVERLAY
                 if viewModel.showCelebration {
                     ConfettiView()
                         .zIndex(3)
                         .transition(.opacity)
                         .onAppear {
-                            // Auto-ocultar después de 4 segundos
                             DispatchQueue.main.asyncAfter(deadline: .now() + 4) {
                                 withAnimation {
                                     viewModel.showCelebration = false
@@ -208,32 +194,30 @@ struct GeminiView: View {
                             }
                         }
                 }
+
+                if let action = viewModel.pendingAction {
+                    NovaActionConfirmationOverlay(
+                        action: action,
+                        onConfirm: { viewModel.confirmPendingAction() },
+                        onCancel: { viewModel.cancelPendingAction() }
+                    )
+                    .transition(.opacity.combined(with: .scale(scale: 0.96)))
+                    .zIndex(50)
+                }
             }
+            .animation(.spring(response: 0.34, dampingFraction: 0.86), value: viewModel.pendingAction?.id)
             .onTapGesture {
-                hideKeyboard()
-                // ✅ No cambiar showSuggestedOptions aquí. La barra de input la gestiona ahora.
-                // showSuggestedOptions = false
+                if viewModel.pendingAction == nil {
+                    hideKeyboard()
+                }
             }
-            // ⭐ LISTENERS DE TECLADO MEJORADOS
             .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)) { notification in
                 if let keyboardFrame = notification.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? CGRect {
-                    // ✅ Ajustar keyboardHeight directamente, la animación se maneja en el .offset
                     keyboardHeight = keyboardFrame.height
                     isKeyboardVisible = true
-
-                    // ✅ SCROLL AUTOMÁTICO CUANDO APARECE EL TECLADO
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                        if viewModel.conversationHistory.last != nil {
-                            withAnimation(.easeInOut(duration: 0.4)) {
-                                // Usar ScrollViewReader para hacer scroll
-                                // Esto se maneja en el onChange del keyboardHeight
-                            }
-                        }
-                    }
                 }
             }
             .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillHideNotification)) { _ in
-                // ✅ Ajustar keyboardHeight directamente
                 keyboardHeight = 0
                 isKeyboardVisible = false
             }
@@ -249,27 +233,18 @@ struct GeminiView: View {
         .navigationBarHidden(true)
         .onAppear {
             viewModel.fetchUserData()
-            if NovaLanguageService.getPreferredLanguage() == nil {
-                showLanguageSheet = true
-            }
         }
-        // ✅ Mantener solo las animaciones de overlay aquí
+        .onDisappear {
+            Task { await viewModel.finalizeOnExit() }
+        }
         .animation(.easeInOut(duration: 0.3), value: showConversationHistory)
-        .sheet(isPresented: $showLanguageSheet) {
-            LanguageSelectionSheet { selected in
-                NovaLanguageService.setPreferredLanguage(selected)
-                showLanguageSheet = false
-            }
-            .presentationDetents([.fraction(0.35)])
-        }
     }
 }
 
-// MARK: - Preview (sin cambios)
-struct GeminiView_Previews: PreviewProvider {
+struct NovaView_Previews: PreviewProvider {
     static var previews: some View {
         NavigationView {
-            GeminiView()
+            NovaView()
         }
         .preferredColorScheme(.dark)
     }

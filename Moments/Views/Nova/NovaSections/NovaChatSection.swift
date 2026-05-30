@@ -19,11 +19,11 @@ struct EnhancedChatBubble: View {
                     HStack(spacing: 6) {
                         Image(systemName: "lock.fill")
                             .font(.system(size: 10, weight: .medium))
-                            .foregroundColor(ModernGeminiColors.primary.opacity(0.7))
+                            .foregroundColor(NovaColors.primary.opacity(0.7))
 
                         Text(message.text)
                             .font(.custom("Poppins-Regular", size: 12))
-                            .foregroundColor(ModernGeminiColors.textSecondary)
+                            .foregroundColor(NovaColors.textSecondary)
                             .multilineTextAlignment(.center)
                     }
                     .padding(.horizontal, 16)
@@ -33,7 +33,7 @@ struct EnhancedChatBubble: View {
                             .fill(.ultraThinMaterial)
                             .overlay(
                                 Capsule()
-                                    .stroke(ModernGeminiColors.primary.opacity(0.15), lineWidth: 0.5)
+                                    .stroke(NovaColors.primary.opacity(0.15), lineWidth: 0.5)
                             )
                     )
                     Spacer()
@@ -56,20 +56,20 @@ struct EnhancedChatBubble: View {
                         if !message.text.isEmpty {
                             Text(message.text)
                                 .font(.custom("Poppins-Regular", size: 16))
-                                .foregroundColor(ModernGeminiColors.textPrimary)
+                                .foregroundColor(NovaColors.textPrimary)
                                 .padding(.horizontal, 20)
                                 .padding(.vertical, 14)
-                                .background(ModernGeminiColors.secondaryBackground)
+                                .background(NovaColors.secondaryBackground)
                                 .clipShape(RoundedRectangle(cornerRadius: 20))
                                 .overlay(
                                     RoundedRectangle(cornerRadius: 20)
-                                        .stroke(ModernGeminiColors.borderColor, lineWidth: 1)
+                                        .stroke(NovaColors.borderColor, lineWidth: 1)
                                 )
                         }
 
                         Text("nova.you")
                             .font(.custom("Poppins-Medium", size: 12))
-                            .foregroundColor(ModernGeminiColors.textSecondary)
+                            .foregroundColor(NovaColors.textSecondary)
                             .padding(.trailing, 8)
                     }
                 }
@@ -78,21 +78,19 @@ struct EnhancedChatBubble: View {
                     VStack(alignment: .leading, spacing: 8) {
                         HStack(spacing: 8) {
                             Circle()
-                                .fill(ModernGeminiColors.materialBackground)
+                                .fill(NovaColors.materialBackground)
                                 .frame(width: 24, height: 24)
                                 .overlay(
                                     Circle()
-                                        .stroke(ModernGeminiColors.borderColor, lineWidth: 1)
+                                        .stroke(NovaColors.borderColor, lineWidth: 1)
                                 )
                                 .overlay(
-                                    Image(systemName: "sparkles")
-                                        .foregroundColor(ModernGeminiColors.textPrimary)
-                                        .font(.system(size: 11, weight: .semibold))
+                                    NovaBrandIcon(size: 14, color: NovaColors.textPrimary)
                                 )
 
                             Text("nova.name")
                                 .font(.custom("Poppins-SemiBold", size: 13))
-                                .foregroundColor(ModernGeminiColors.textPrimary)
+                                .foregroundColor(NovaColors.textPrimary)
 
                             Spacer()
 
@@ -101,7 +99,7 @@ struct EnhancedChatBubble: View {
                                 HStack(spacing: 4) {
                                     ForEach(0..<3, id: \.self) { index in
                                         Circle()
-                                            .fill(ModernGeminiColors.accent.opacity(0.6))
+                                            .fill(NovaColors.accent.opacity(0.6))
                                             .frame(width: 4, height: 4)
                                             .scaleEffect(isTyping ? 1.0 : 0.5)
                                             .animation(
@@ -121,13 +119,13 @@ struct EnhancedChatBubble: View {
                                     }) {
                                         Image(systemName: "doc.on.doc")
                                             .font(.system(size: 12))
-                                            .foregroundColor(ModernGeminiColors.textSecondary)
+                                            .foregroundColor(NovaColors.textSecondary)
                                     }
 
                                     ShareLink(item: message.text) {
                                         Image(systemName: "square.and.arrow.up")
                                             .font(.system(size: 12))
-                                            .foregroundColor(ModernGeminiColors.textSecondary)
+                                            .foregroundColor(NovaColors.textSecondary)
                                     }
                                 }
                                 .transition(.opacity.combined(with: .scale))
@@ -139,11 +137,11 @@ struct EnhancedChatBubble: View {
                         EnhancedFormattedText(text: displayedText)
                             .padding(.horizontal, 20)
                             .padding(.vertical, 16)
-                            .background(ModernGeminiColors.cardBackground)
+                            .background(NovaColors.cardBackground)
                             .clipShape(RoundedRectangle(cornerRadius: 20))
                             .overlay(
                                 RoundedRectangle(cornerRadius: 20)
-                                    .stroke(ModernGeminiColors.borderColor, lineWidth: 1)
+                                    .stroke(NovaColors.borderColor, lineWidth: 1)
                             )
                     }
 
@@ -446,14 +444,14 @@ struct HeaderView: View {
                 .font(.custom("Poppins-Bold", size: 20))
                 .foregroundStyle(
                     LinearGradient(
-                        colors: [ModernGeminiColors.primary, ModernGeminiColors.accent],
+                        colors: [NovaColors.primary, NovaColors.accent],
                         startPoint: .leading,
                         endPoint: .trailing
                     )
                 )
 
             RoundedRectangle(cornerRadius: 2)
-                .fill(ModernGeminiColors.primary.opacity(0.3))
+                .fill(NovaColors.primary.opacity(0.3))
                 .frame(width: 40, height: 3)
         }
         .padding(.top, 12)
@@ -467,13 +465,13 @@ struct BulletPointView: View {
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
             Circle()
-                .fill(ModernGeminiColors.primary)
+                .fill(NovaColors.primary)
                 .frame(width: 6, height: 6)
                 .padding(.top, 8)
 
             Text(text)
                 .font(.custom("Poppins-Regular", size: 16))
-                .foregroundColor(ModernGeminiColors.textPrimary)
+                .foregroundColor(NovaColors.textPrimary)
                 .fixedSize(horizontal: false, vertical: true)
 
             Spacer()
@@ -491,12 +489,12 @@ struct NumberedListView: View {
                 .font(.custom("Poppins-SemiBold", size: 14))
                 .foregroundColor(.white)
                 .frame(width: 20, height: 20)
-                .background(ModernGeminiColors.primary)
+                .background(NovaColors.primary)
                 .clipShape(Circle())
 
             Text(text)
                 .font(.custom("Poppins-Regular", size: 16))
-                .foregroundColor(ModernGeminiColors.textPrimary)
+                .foregroundColor(NovaColors.textPrimary)
                 .fixedSize(horizontal: false, vertical: true)
 
             Spacer()
@@ -521,14 +519,14 @@ struct LinkView: View {
                 Image(systemName: "arrow.up.right.square")
                     .font(.system(size: 12))
             }
-            .foregroundColor(ModernGeminiColors.primary)
+            .foregroundColor(NovaColors.primary)
             .padding(.horizontal, 12)
             .padding(.vertical, 8)
-            .background(ModernGeminiColors.primary.opacity(0.1))
+            .background(NovaColors.primary.opacity(0.1))
             .clipShape(RoundedRectangle(cornerRadius: 8))
             .overlay(
                 RoundedRectangle(cornerRadius: 8)
-                    .stroke(ModernGeminiColors.primary.opacity(0.3), lineWidth: 1)
+                    .stroke(NovaColors.primary.opacity(0.3), lineWidth: 1)
             )
         }
     }
@@ -549,7 +547,7 @@ struct CodeBlockView: View {
             HStack {
                 Text(language.uppercased())
                     .font(.custom("SF Mono-Bold", size: 10))
-                    .foregroundColor(ModernGeminiColors.textSecondary)
+                    .foregroundColor(NovaColors.textSecondary)
 
                 Spacer()
 
@@ -567,28 +565,28 @@ struct CodeBlockView: View {
                         Text(isCopied ? "Copiado" : "Copiar")
                     }
                     .font(.custom("Poppins-Medium", size: 12))
-                    .foregroundColor(isCopied ? .green : ModernGeminiColors.primary)
+                    .foregroundColor(isCopied ? .green : NovaColors.primary)
                 }
             }
             .padding(.horizontal, 12)
             .padding(.vertical, 8)
-            .background(ModernGeminiColors.secondaryBackground.opacity(0.5))
+            .background(NovaColors.secondaryBackground.opacity(0.5))
 
             Divider()
-                .background(ModernGeminiColors.borderColor)
+                .background(NovaColors.borderColor)
 
             ScrollView(.horizontal, showsIndicators: false) {
                 Text(cleanCode)
                     .font(.custom("SF Mono", size: 13))
-                    .foregroundColor(ModernGeminiColors.textPrimary)
+                    .foregroundColor(NovaColors.textPrimary)
                     .padding(12)
             }
         }
-        .background(ModernGeminiColors.secondaryBackground)
+        .background(NovaColors.secondaryBackground)
         .clipShape(RoundedRectangle(cornerRadius: 12))
         .overlay(
             RoundedRectangle(cornerRadius: 12)
-                .stroke(ModernGeminiColors.borderColor, lineWidth: 1)
+                .stroke(NovaColors.borderColor, lineWidth: 1)
         )
         .padding(.vertical, 8)
     }
@@ -600,12 +598,12 @@ struct QuoteView: View {
     var body: some View {
         HStack(spacing: 12) {
             Rectangle()
-                .fill(ModernGeminiColors.accent)
+                .fill(NovaColors.accent)
                 .frame(width: 4)
 
             Text(text)
                 .font(.custom("Poppins-Medium", size: 16))
-                .foregroundColor(ModernGeminiColors.textSecondary)
+                .foregroundColor(NovaColors.textSecondary)
                 .italic()
 
             Spacer()
@@ -620,7 +618,7 @@ struct RegularTextView: View {
     var body: some View {
         Text(parseInlineFormatting(text))
             .font(.custom("Poppins-Regular", size: 16))
-            .foregroundColor(ModernGeminiColors.textPrimary)
+            .foregroundColor(NovaColors.textPrimary)
             .lineSpacing(4)
     }
 

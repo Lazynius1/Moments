@@ -96,10 +96,27 @@ class NovaEmbeddingService {
         return Array(topFacts)
     }
 
-    // MARK: - 🧮 Matemáticas Vectoriales
+    /// True when candidate is semantically redundant with any existing fact.
+    func isNearDuplicate(_ candidate: NovaFact, existing: [NovaFact], threshold: Double = 0.82) -> Bool {
+        let candidateKey = candidate.normalizedContent
+        for fact in existing {
+            if fact.normalizedContent == candidateKey { return true }
+        }
 
-    /// Calcula la similitud coseno entre dos vectores
-    private func cosineSimilarity(_ v1: [Double], _ v2: [Double]) -> Double {
+        guard let candidateVector = candidate.embedding ?? generateEmbedding(for: candidate.content) else {
+            return false
+        }
+
+        for fact in existing {
+            guard let factVector = fact.embedding ?? generateEmbedding(for: fact.content) else { continue }
+            if cosineSimilarity(candidateVector, factVector) >= threshold {
+                return true
+            }
+        }
+        return false
+    }
+
+    func cosineSimilarity(_ v1: [Double], _ v2: [Double]) -> Double {
         guard v1.count == v2.count else { return 0.0 }
 
         var dotProduct = 0.0

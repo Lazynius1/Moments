@@ -7,6 +7,15 @@ private struct EchoInvitationRoute: Identifiable {
     var id: String { echoId }
 }
 
+private struct NovaTabGlyph: View {
+    let size: CGFloat
+    var color: Color = .primary
+
+    var body: some View {
+        NovaBrandIcon(size: size, color: color)
+    }
+}
+
 // MARK: - Tab Selection Type (iOS 26+)
 // Using an enum allows mixing Tab(value:) with Tab(role: .search, value:)
 @available(iOS 26.0, *)
@@ -137,8 +146,17 @@ struct ModernTabView: View {
     @ObservedObject var exploreViewModel: ExploreViewModel
     @ObservedObject var authService: AuthService
     @ObservedObject var navigationService: NotificationNavigationService
+    @Environment(\.colorScheme) private var colorScheme
     // This struct owns modernTab so @available is not needed on a stored property
     @State private var modernTab: AppTab = .home
+
+    private var tabIconActiveColor: Color {
+        colorScheme == .dark ? .white : Color(hex: "0B1215")
+    }
+
+    private var tabIconInactiveColor: Color {
+        colorScheme == .dark ? .white.opacity(0.62) : Color(hex: "0B1215").opacity(0.62)
+    }
 
     var body: some View {
         TabView(selection: Binding(
@@ -163,8 +181,8 @@ struct ModernTabView: View {
                 FeedView(showCreatorView: $showCreatorView)
                     .environmentObject(authService)
             }
-            Tab(NSLocalizedString("tabBar.nova", comment: ""), systemImage: "star", value: AppTab.nova) {
-                GeminiView()
+            Tab(NSLocalizedString("tabBar.nova", comment: ""), image: "NovaTabIcon", value: AppTab.nova) {
+                NovaView()
             }
             Tab("", systemImage: "camera.fill", value: AppTab.create) {
                 Color.clear
@@ -241,7 +259,7 @@ struct ModernTabView: View {
                 case 0:
                     FeedView(showCreatorView: $showCreatorView)
                 case 1:
-                    GeminiView()
+                    NovaView()
                 case 2:
                     Color.clear
                 case 3:
@@ -480,7 +498,8 @@ struct CustomTabBar: View {
                 title: NSLocalizedString("tabBar.home", comment: "Home tab title"),
                 isSelected: selectedTab == 0,
                 activeColor: activeColor,
-                inactiveColor: inactiveColor
+                inactiveColor: inactiveColor,
+                usesSystemIcon: true
             ) {
                 if selectedTab == 0 {
                     // ✅ NUEVO: Si ya está en Home, scroll al inicio y refrescar
@@ -494,11 +513,12 @@ struct CustomTabBar: View {
             
             // Tab 1: Nova
             TabBarItem(
-                icon: "star",
+                icon: "NovaTabIcon",
                 title: NSLocalizedString("tabBar.nova", comment: "Nova tab title"),
                 isSelected: selectedTab == 1,
                 activeColor: activeColor,
-                inactiveColor: inactiveColor
+                inactiveColor: inactiveColor,
+                usesSystemIcon: false
             ) {
                 HapticManager.shared.selection()
                 selectedTab = 1
@@ -519,7 +539,8 @@ struct CustomTabBar: View {
                 title: NSLocalizedString("tabBar.explore", comment: "Explore tab title"),
                 isSelected: selectedTab == 3,
                 activeColor: activeColor,
-                inactiveColor: inactiveColor
+                inactiveColor: inactiveColor,
+                usesSystemIcon: true
             ) {
                 HapticManager.shared.selection()
                 selectedTab = 3
@@ -531,7 +552,8 @@ struct CustomTabBar: View {
                 title: NSLocalizedString("tabBar.profile", comment: "Profile tab title"),
                 isSelected: selectedTab == 4,
                 activeColor: activeColor,
-                inactiveColor: inactiveColor
+                inactiveColor: inactiveColor,
+                usesSystemIcon: true
             ) {
                 HapticManager.shared.selection()
                 selectedTab = 4
@@ -549,16 +571,26 @@ struct TabBarItem: View {
     let isSelected: Bool
     let activeColor: Color
     let inactiveColor: Color
+    let usesSystemIcon: Bool
     let action: () -> Void
     
     var body: some View {
         Button(action: action) {
             VStack(spacing: 4) {
                 // Icono: tamaño estándar según HIG
-                Image(systemName: icon)
-                    .font(.system(size: 22, weight: isSelected ? .semibold : .regular))
-                    .foregroundColor(isSelected ? activeColor : inactiveColor)
-                    .symbolVariant(isSelected ? .fill : .none)
+                Group {
+                    if usesSystemIcon {
+                        Image(systemName: icon)
+                            .symbolVariant(isSelected ? .fill : .none)
+                            .foregroundColor(isSelected ? activeColor : inactiveColor)
+                            .font(.system(size: 22, weight: isSelected ? .semibold : .regular))
+                    } else {
+                        NovaTabGlyph(
+                            size: 22,
+                            color: isSelected ? activeColor : inactiveColor
+                        )
+                    }
+                }
                 
                 // Etiqueta: siempre visible según HIG
                 Text(title)

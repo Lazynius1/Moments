@@ -297,6 +297,20 @@
       "queryScope": "COLLECTION",
       "fields": [
         {
+          "fieldPath": "senderId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "type",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "notifications",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
           "fieldPath": "timestamp",
           "order": "DESCENDING"
         },
@@ -345,6 +359,34 @@
         {
           "fieldPath": "timestamp",
           "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "receivedFollowRequests",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "senderId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "sentFollowRequests",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "recipientId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
         }
       ]
     },
@@ -539,6 +581,17 @@
       ]
     },
     {
+      "collectionGroup": "passkeys",
+      "fieldPath": "id",
+      "ttl": false,
+      "indexes": [
+        {
+          "order": "ASCENDING",
+          "queryScope": "COLLECTION_GROUP"
+        }
+      ]
+    },
+    {
       "collectionGroup": "reactions",
       "fieldPath": "userId",
       "ttl": false,
@@ -619,17 +672,6 @@
     {
       "collectionGroup": "typing",
       "fieldPath": "userId",
-      "ttl": false,
-      "indexes": [
-        {
-          "order": "ASCENDING",
-          "queryScope": "COLLECTION_GROUP"
-        }
-      ]
-    },
-    {
-      "collectionGroup": "passkeys",
-      "fieldPath": "id",
       "ttl": false,
       "indexes": [
         {

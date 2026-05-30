@@ -2,7 +2,7 @@ import SwiftUI
 import UIKit
 
 // MARK: - Colores modernos
-struct ModernGeminiColors {
+struct NovaColors {
     static let primary = Color(hex: "00A896")
     static let secondary = Color(hex: "6B73FF")
     static let accent = Color(hex: "9B59B6")
@@ -50,6 +50,22 @@ struct ModernGeminiColors {
 
     static var shadowColor: Color {
         Color(UIColor.label).opacity(0.1)
+    }
+}
+
+// MARK: - Nova brand icon (mascot from NovaTabIcon asset)
+struct NovaBrandIcon: View {
+    var size: CGFloat = 22
+    var color: Color = NovaColors.textPrimary
+
+    var body: some View {
+        Image("NovaTabIcon")
+            .renderingMode(.template)
+            .interpolation(.high)
+            .antialiased(true)
+            .frame(width: size, height: size)
+            .foregroundStyle(color)
+            .accessibilityHidden(true)
     }
 }
 
