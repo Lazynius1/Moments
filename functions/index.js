@@ -5376,6 +5376,10 @@ async function canViewerSeeMoment(moment, viewerId, viewerCtx, authorData) {
   // 1. Author always sees own content
   if (moment.authorId === viewerId) return true;
 
+  // Match Firestore read rules: inactive/deactivated authors are hidden from
+  // non-owners, even if the content is public or the viewer follows the author.
+  if (authorData.isActive === false) return false;
+
   // 2. Tagged users can always see
   const tagged = Array.isArray(moment.taggedUsers) ? moment.taggedUsers : [];
   if (tagged.includes(viewerId)) return true;
@@ -5466,6 +5470,24 @@ function isSameFeedCursor(a, b) {
   return Number(a.timestamp || 0) === Number(b.timestamp || 0)
     && String(a.momentId || '') === String(b.momentId || '')
     && String(a.authorId || '') === String(b.authorId || '');
+}
+
+/**
+ * Validate the users/{authorId}/moments/{momentId} ownership invariant before
+ * trusting Admin-read collectionGroup results. This mirrors the create-time
+ * security rule that requires moment.authorId to match the owning user path.
+ */
+function isMomentPathAuthorConsistent(doc, data) {
+  const authorId = data && data.authorId;
+  if (typeof authorId !== 'string' || authorId.length === 0) return false;
+
+  const refPath = doc && doc.ref && typeof doc.ref.path === 'string' ? doc.ref.path : '';
+  const parts = refPath.split('/');
+  return parts.length === 4
+    && parts[0] === 'users'
+    && parts[1] === authorId
+    && parts[2] === 'moments'
+    && parts[3] === doc.id;
 }
 
 /**
@@ -5786,6 +5808,7 @@ exports.getFeedPage = onRequest(
             .limit(30)
             .get(),
           db.collection('users')
+            .where('isActive', '==', true)
             .limit(20)
             .get()
         ]);
@@ -5886,6 +5909,7 @@ exports.getFeedPage = onRequest(
       const now = Date.now();
       const nonScheduledCandidates = candidatesAfterCursor.filter(doc => {
         const data = doc.data();
+        if (!isMomentPathAuthorConsistent(doc, data)) return false;
         if (data.isArchived === true) return false;
         if (data.authorId === uid) return true; // author always sees own
         const schedMs = tsToMillis(data.scheduledDate);
@@ -5902,6 +5926,7 @@ exports.getFeedPage = onRequest(
       const privacyResults = await Promise.all(
         nonScheduledCandidates.map(async (doc) => {
           const data = doc.data();
+          if (!isMomentPathAuthorConsistent(doc, data)) return { doc, data, canView: false };
           const authorData = authorMap.get(data.authorId);
           // Fail-closed: if author doc is missing, deny access
           if (!authorData) return { doc, data, canView: false };
