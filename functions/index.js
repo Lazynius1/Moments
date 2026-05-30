@@ -496,6 +496,9 @@ function storageObjectBelongsToUser(objectName, uid) {
 
   const safeUid = uid.trim();
   const userScopedPrefixes = [
+    `users/${safeUid}/profile/`,
+    `users/${safeUid}/moments/`,
+    `users/${safeUid}/stories/`,
     `processed_videos/moments/${safeUid}/`,
     `processed_videos/stories/${safeUid}/`,
     `story_processing_uploads/${safeUid}/`,
@@ -975,7 +978,17 @@ function storageObjectNameFromExportMediaUrl(value, expectedBucketName) {
   return null;
 }
 
-async function addMediaFilesToZip(zip, mediaUrls, userId) {
+function storageObjectBelongsToConversation(objectName, conversationId) {
+  if (typeof objectName !== 'string' || typeof conversationId !== 'string' || !conversationId.trim()) return false;
+  return objectName.startsWith(`conversations/${conversationId.trim()}/`);
+}
+
+function storageObjectIsAllowedForExport(objectName, userId, authorizedConversationIds = []) {
+  if (storageObjectBelongsToUser(objectName, userId)) return true;
+  return authorizedConversationIds.some((conversationId) => storageObjectBelongsToConversation(objectName, conversationId));
+}
+
+async function addMediaFilesToZip(zip, mediaUrls, userId, authorizedConversationIds = []) {
   const uniqueUrls = Array.from(new Set((mediaUrls || []).filter((url) => typeof url === 'string' && url.trim().length > 0)));
   const bucket = admin.storage().bucket();
   const limits = {
@@ -997,8 +1010,8 @@ async function addMediaFilesToZip(zip, mediaUrls, userId) {
       manifest.skipped.push({ url: mediaUrl, reason: 'unsupported_media_origin' });
       continue;
     }
-    if (objectName.startsWith('background_frames/') && !storageObjectBelongsToUser(objectName, userId)) {
-      manifest.skipped.push({ url: mediaUrl, reason: 'not_owned_by_user' });
+    if (!storageObjectIsAllowedForExport(objectName, userId, authorizedConversationIds)) {
+      manifest.skipped.push({ url: mediaUrl, reason: 'not_authorized_for_export' });
       continue;
     }
 
@@ -1056,45 +1069,49 @@ async function addMediaFilesToZip(zip, mediaUrls, userId) {
 
 function collectMediaUrlsFromPayload(payload, userId) {
   const urls = new Set();
-  const push = (url) => {
-    if (typeof url === 'string' && url.trim()) urls.add(url.trim());
-  };
-  const pushOwnedBackgroundFrameUrl = (url) => {
+  const bucket = admin.storage().bucket();
+  const pushIfAllowed = (url, isAllowedObjectName) => {
     if (typeof url !== 'string' || !url.trim()) return;
 
     const trimmed = url.trim();
-    const bucket = admin.storage().bucket();
     const objectName = storageObjectNameFromExportMediaUrl(trimmed, bucket.name);
-    if (objectName && objectName.startsWith('background_frames/') && storageObjectBelongsToUser(objectName, userId)) {
+    if (objectName && isAllowedObjectName(objectName)) {
       urls.add(trimmed);
     }
   };
+  const pushUserOwned = (url) => {
+    pushIfAllowed(url, (objectName) => storageObjectBelongsToUser(objectName, userId));
+  };
+  const pushConversationOwned = (url, conversationId) => {
+    pushIfAllowed(url, (objectName) => storageObjectBelongsToConversation(objectName, conversationId));
+  };
 
   for (const moment of payload.moments || []) {
-    push(moment.imagePath);
-    push(moment.imageUrl);
-    push(moment.videoUrl);
+    pushUserOwned(moment.imagePath);
+    pushUserOwned(moment.imageUrl);
+    pushUserOwned(moment.videoUrl);
     if (Array.isArray(moment.mediaItems)) {
-      for (const item of moment.mediaItems) push(item?.url);
+      for (const item of moment.mediaItems) pushUserOwned(item?.url);
     }
   }
 
   for (const story of payload.stories || []) {
     const mediaItem = story.mediaItem || {};
-    push(mediaItem.url);
-    push(mediaItem.thumbnailUrl);
-    pushOwnedBackgroundFrameUrl(story.backgroundFrameURL);
-    pushOwnedBackgroundFrameUrl(story.backgroundBlurredFrameURL);
+    pushUserOwned(mediaItem.url);
+    pushUserOwned(mediaItem.thumbnailUrl);
+    pushUserOwned(story.backgroundFrameURL);
+    pushUserOwned(story.backgroundBlurredFrameURL);
   }
 
   for (const convo of payload.conversations || []) {
+    const conversationId = convo.conversationId;
     for (const msg of convo.messages || []) {
-      push(msg.mediaUrl);
-      push(msg.thumbnailUrl);
+      pushConversationOwned(msg.mediaUrl, conversationId);
+      pushConversationOwned(msg.thumbnailUrl, conversationId);
     }
   }
 
-  push(payload.profile?.profileImagePath);
+  pushUserOwned(payload.profile?.profileImagePath);
   return Array.from(urls);
 }
 
@@ -1135,6 +1152,12 @@ async function buildDataExportPayload(userId, exportType, requestedFormat) {
 
   if (exportType !== 'textOnly') {
     payload.mediaUrls = collectMediaUrlsFromPayload(payload, userId);
+    Object.defineProperty(payload, '_mediaAuthorizedConversationIds', {
+      value: (payload.conversations || [])
+        .map((conversation) => conversation.conversationId)
+        .filter((conversationId) => typeof conversationId === 'string' && conversationId.trim().length > 0),
+      enumerable: false
+    });
   }
 
   if (exportType === 'mediaOnly') {
@@ -1245,7 +1268,12 @@ async function buildExportZipBuffer(payload, requestedFormat, exportType, userId
   }
 
   if (exportType !== 'textOnly') {
-    const mediaManifest = await addMediaFilesToZip(zip, payload.mediaUrls || [], userId);
+    const authorizedConversationIds = Array.isArray(payload._mediaAuthorizedConversationIds)
+      ? payload._mediaAuthorizedConversationIds
+      : (payload.conversations || [])
+        .map((conversation) => conversation.conversationId)
+        .filter((conversationId) => typeof conversationId === 'string' && conversationId.trim().length > 0);
+    const mediaManifest = await addMediaFilesToZip(zip, payload.mediaUrls || [], userId, authorizedConversationIds);
     zip.file('media/manifest.json', JSON.stringify(mediaManifest, null, 2));
   }
 
