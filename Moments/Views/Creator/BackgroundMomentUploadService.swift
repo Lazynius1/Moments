@@ -576,7 +576,7 @@ class BackgroundMomentUploadService: ObservableObject {
                 }
             }
             thumbnailURL = mediaURL
-            moderationState = .visible
+            moderationState = .pending
         case .audio:
             guard let audioURL = draft.localAudioURL else { throw StorageError.invalidData }
             mediaURL = try await uploadHiddenLayerAudio(
