@@ -699,13 +699,13 @@ struct ModernLoadingAnimation: View {
     }
 }
 
-// MARK: - Badge de Encriptación
+// MARK: - Nova processing badge
 struct NovaEncryptionBadge: View {
     @Environment(\.colorScheme) var colorScheme
 
     var body: some View {
         HStack(spacing: 6) {
-            Image(systemName: "lock.fill")
+            Image(systemName: "sparkles")
                 .font(.system(size: 10, weight: .semibold))
                 .foregroundColor(NovaColors.textPrimary)
 

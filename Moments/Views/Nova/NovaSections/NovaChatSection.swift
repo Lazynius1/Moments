@@ -17,7 +17,7 @@ struct EnhancedChatBubble: View {
                 HStack {
                     Spacer()
                     HStack(spacing: 6) {
-                        Image(systemName: "lock.fill")
+                        Image(systemName: "info.circle.fill")
                             .font(.system(size: 10, weight: .medium))
                             .foregroundColor(NovaColors.primary.opacity(0.7))
 

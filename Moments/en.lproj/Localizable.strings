@@ -525,7 +525,7 @@
 "nova.you" = "You";
 "nova.name" = "Nova";
 "nova.personalAssistant" = "Your personal assistant";
-"nova.encryptedData" = "Encrypted data";
+"nova.encryptedData" = "AI-assisted chat";
 "nova.recentConversations" = "Recent Conversations";
 "nova.noConversations" = "No previous conversations";
 "nova.startNewConversation" = "Start a new conversation and it will be saved automatically";
@@ -537,7 +537,7 @@
 "nova.introduction" = "I'm your intelligent personal assistant. I can help you explore your interests, suggest connections, or answer any questions you have.";
 "nova.quickSuggestions" = "Quick Suggestions";
 "nova.typing" = "Nova is typing...";
-"nova.chat.encryptionNotice" = "Messages are protected with end-to-end encryption. No one outside of this conversation can read them, not even Moments.";
+"nova.chat.encryptionNotice" = "Nova uses AI to process your messages, images, and conversation context so it can respond and improve memory. Chats may be encrypted when stored, but they are not end-to-end encrypted.";
 "nova.image.fallbackPrompt" = "What's in this image?";
 "nova.error.generic" = "Something went wrong. Please try again.";
 "nova.agent.tool.activity" = "Checking your activity…";
