@@ -1227,12 +1227,20 @@ class EncryptionService: ObservableObject {
             throw EncryptionError.encryptionFailed
         }
 
+        let userKey = try await getUserKey(for: currentUserId)
+        let userKeyData = userKey.withUnsafeBytes { Data($0) }
+        let sealedUserKeyBox = try AES.GCM.seal(userKeyData, using: pinKey)
+        guard let sealedUserKeyCombined = sealedUserKeyBox.combined else {
+            throw EncryptionError.encryptionFailed
+        }
+
         let bundle = ChatRecoveryBundle(
             keyId: localIdentity.record.keyId,
             encryptedPrivateKey: combined.base64EncodedString(),
             nonce: sealedBox.nonce.dataRepresentation.base64EncodedString(),
             salt: salt.base64EncodedString(),
-            kdfParams: kdfParams
+            kdfParams: kdfParams,
+            encryptedUserKey: sealedUserKeyCombined.base64EncodedString()
         )
 
         try await db.collection("users")
@@ -1304,6 +1312,11 @@ class EncryptionService: ObservableObject {
             )
 
             try await syncChatIdentityRecord(restoredRecord, for: currentUserId)
+            do {
+                try restoreUserKeyIfPresent(from: bundle, pinKey: pinKey, userId: currentUserId)
+            } catch {
+                // Chat identity restored; Nova key stays unavailable until recovery bundle is refreshed.
+            }
             UserDefaults.standard.set(true, forKey: chatRecoveryMarkerPrefix + currentUserId)
             clearRecoveryAttemptState(for: currentUserId)
         } catch {
@@ -1526,6 +1539,33 @@ class EncryptionService: ObservableObject {
         let status = SecItemDelete(query as CFDictionary)
         if status != errSecSuccess && status != errSecItemNotFound {
             throw EncryptionError.keychainError("Failed to delete key (\(keyTag)): \(status)")
+        }
+    }
+
+    private func restoreUserKeyIfPresent(
+        from bundle: ChatRecoveryBundle,
+        pinKey: SymmetricKey,
+        userId: String
+    ) throws {
+        guard
+            let encryptedUserKeyB64 = bundle.encryptedUserKey,
+            let encryptedUserKeyData = Data(base64Encoded: encryptedUserKeyB64)
+        else {
+            return
+        }
+
+        let sealedBox = try AES.GCM.SealedBox(combined: encryptedUserKeyData)
+        let userKeyData = try AES.GCM.open(sealedBox, using: pinKey)
+        guard userKeyData.count == 32 else {
+            throw EncryptionError.decryptionFailed
+        }
+
+        let restoredKey = SymmetricKey(data: userKeyData)
+        let keyTag = userKeysPrefix + userId
+        try storeKeyInKeychain(key: restoredKey, tag: keyTag)
+
+        Task { @MainActor in
+            self.userKeys[userId] = CachedKey(key: restoredKey)
         }
     }
 
@@ -2248,7 +2288,7 @@ class EncryptionService: ObservableObject {
     }
     
     // MARK: - PUBLIC ENCRYPTION METHODS (Optimizadas con métricas)
-    func encryptGeminiData(_ text: String, for userId: String) async -> String? {
+    func encryptNovaData(_ text: String, for userId: String) async -> String? {
         guard isEncryptionEnabled else { return text }
         
         do {
@@ -2265,7 +2305,7 @@ class EncryptionService: ObservableObject {
         }
     }
     
-    func decryptGeminiData(_ encryptedText: String, for userId: String) async -> String? {
+    func decryptNovaData(_ encryptedText: String, for userId: String) async -> String? {
         guard isEncryptionEnabled else { return encryptedText }
         
         do {

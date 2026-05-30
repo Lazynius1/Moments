@@ -82,7 +82,7 @@ extension FirestoreService {
             }
     }
 
-    func fetchUserDataForGemini(userId: String, completion: @escaping (Result<AppUser, Error>) -> Void) {
+    func fetchUserDataForNova(userId: String, completion: @escaping (Result<AppUser, Error>) -> Void) {
         db.collection("users").document(userId).getDocument { snapshot, error in
             if let error = error {
                 completion(.failure(error))

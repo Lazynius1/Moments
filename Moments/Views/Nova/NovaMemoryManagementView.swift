@@ -70,11 +70,11 @@ struct NovaMemoryManagementView: View {
             VStack(spacing: 4) {
                 Text(NSLocalizedString("nova.memory.title", comment: "Nova's Memory"))
                     .font(.custom("Poppins-Bold", size: 22))
-                    .foregroundColor(ModernGeminiColors.textPrimary)
+                    .foregroundColor(NovaColors.textPrimary)
 
                 Text(NSLocalizedString("nova.memory.description", comment: "Manage what Nova knows about you"))
                     .font(.custom("Poppins-Regular", size: 13))
-                    .foregroundColor(ModernGeminiColors.textSecondary)
+                    .foregroundColor(NovaColors.textSecondary)
                     .multilineTextAlignment(.center)
             }
             .padding(.horizontal, 64)
@@ -83,7 +83,7 @@ struct NovaMemoryManagementView: View {
                 Button(action: { dismiss() }) {
                     Image(systemName: "chevron.down")
                         .font(.system(size: 16, weight: .semibold))
-                        .foregroundColor(ModernGeminiColors.textPrimary)
+                        .foregroundColor(NovaColors.textPrimary)
                         .frame(width: 38, height: 38)
                         .background {
                             Color.clear
@@ -102,11 +102,11 @@ struct NovaMemoryManagementView: View {
     private var loadingView: some View {
         VStack(spacing: 12) {
             ProgressView()
-                .tint(ModernGeminiColors.textPrimary)
+                .tint(NovaColors.textPrimary)
 
             Text(NSLocalizedString("settings.loading", comment: "Loading..."))
                 .font(.custom("Poppins-Medium", size: 14))
-                .foregroundColor(ModernGeminiColors.textSecondary)
+                .foregroundColor(NovaColors.textSecondary)
         }
     }
 
@@ -114,7 +114,7 @@ struct NovaMemoryManagementView: View {
         VStack(spacing: 18) {
             Image(systemName: "brain.head.profile")
                 .font(.system(size: 34, weight: .medium))
-                .foregroundColor(ModernGeminiColors.textPrimary)
+                .foregroundColor(NovaColors.textPrimary)
                 .frame(width: 72, height: 72)
                 .background {
                     Color.clear
@@ -124,12 +124,12 @@ struct NovaMemoryManagementView: View {
             VStack(spacing: 8) {
                 Text(NSLocalizedString("nova.memory.empty", comment: "Nova doesn't remember anything yet"))
                     .font(.custom("Poppins-SemiBold", size: 18))
-                    .foregroundColor(ModernGeminiColors.textPrimary)
+                    .foregroundColor(NovaColors.textPrimary)
                     .multilineTextAlignment(.center)
 
                 Text(NSLocalizedString("nova.memory.empty.subtitle", comment: "Talk to Nova to start building memory"))
                     .font(.custom("Poppins-Regular", size: 14))
-                    .foregroundColor(ModernGeminiColors.textSecondary)
+                    .foregroundColor(NovaColors.textSecondary)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 34)
             }
@@ -141,7 +141,7 @@ struct NovaMemoryManagementView: View {
         ScrollView(showsIndicators: false) {
             LazyVStack(alignment: .leading, spacing: 26) {
                 ForEach(NovaFactType.allCases, id: \.self) { type in
-                    let facts = viewModel.memory?.facts(ofType: type) ?? []
+                    let facts = viewModel.memory?.facts.filter { $0.type == type } ?? []
                     if !facts.isEmpty {
                         MemoryCategorySection(
                             type: type,
@@ -216,7 +216,7 @@ private struct MemoryCategorySection: View {
             HStack(spacing: 9) {
                 Image(systemName: iconName)
                     .font(.system(size: 14, weight: .semibold))
-                    .foregroundColor(ModernGeminiColors.textPrimary)
+                    .foregroundColor(NovaColors.textPrimary)
                     .frame(width: 28, height: 28)
                     .background {
                         Color.clear
@@ -226,11 +226,11 @@ private struct MemoryCategorySection: View {
                 VStack(alignment: .leading, spacing: 1) {
                     Text(title)
                         .font(.custom("Poppins-SemiBold", size: 15))
-                        .foregroundColor(ModernGeminiColors.textPrimary)
+                        .foregroundColor(NovaColors.textPrimary)
 
                     Text("\(facts.count) \(facts.count == 1 ? localizedSingularItem : localizedPluralItem)")
                         .font(.custom("Poppins-Regular", size: 12))
-                        .foregroundColor(ModernGeminiColors.textSecondary)
+                        .foregroundColor(NovaColors.textSecondary)
                 }
 
                 Spacer()
@@ -267,21 +267,11 @@ private struct MemoryCategorySection: View {
     }
 
     private var localizedSingularItem: String {
-        let lang = NovaLanguageService.getPreferredLanguage() ?? .es
-        switch lang {
-        case .es: return "detalle"
-        case .en: return "detail"
-        case .ca: return "detall"
-        }
+        NSLocalizedString("nova.memory.item.singular", comment: "Memory item singular")
     }
 
     private var localizedPluralItem: String {
-        let lang = NovaLanguageService.getPreferredLanguage() ?? .es
-        switch lang {
-        case .es: return "detalles"
-        case .en: return "details"
-        case .ca: return "detalls"
-        }
+        NSLocalizedString("nova.memory.item.plural", comment: "Memory item plural")
     }
 }
 
@@ -296,7 +286,7 @@ private struct MemoryFactRow: View {
             VStack(alignment: .leading, spacing: 5) {
                 Text(fact.content)
                     .font(.custom("Poppins-Regular", size: 15))
-                    .foregroundColor(ModernGeminiColors.textPrimary)
+                    .foregroundColor(NovaColors.textPrimary)
                     .lineLimit(3)
                     .fixedSize(horizontal: false, vertical: true)
 
@@ -309,7 +299,7 @@ private struct MemoryFactRow: View {
 
                     Text(fact.timestamp.timeAgoDisplay())
                         .font(.custom("Poppins-Regular", size: 11))
-                        .foregroundColor(ModernGeminiColors.textTertiary)
+                        .foregroundColor(NovaColors.textTertiary)
                 }
             }
 
@@ -336,7 +326,7 @@ private struct MemoryFactRow: View {
             } label: {
                 Image(systemName: "ellipsis")
                     .font(.system(size: 14, weight: .medium))
-                    .foregroundColor(ModernGeminiColors.textPrimary)
+                    .foregroundColor(NovaColors.textPrimary)
                     .frame(width: 34, height: 34)
                     .background {
                         Color.clear
@@ -349,23 +339,24 @@ private struct MemoryFactRow: View {
     }
 }
 
-class NovaMemoryViewModel: ObservableObject {
+@MainActor
+final class NovaMemoryViewModel: ObservableObject {
     @Published var memory: NovaMemory?
     @Published var isLoading = false
     @Published var showClearAllAlert = false
 
-    private let memoryService = NovaMemoryService()
+    private let store = NovaMemoryStore.shared
+    private let contextStore = NovaContextStore.shared
     private let userId: String? = Auth.auth().currentUser?.uid
 
     func load() {
         guard let userId = userId else { return }
         isLoading = true
-        memoryService.loadMemory(for: userId) { [weak self] result in
-            DispatchQueue.main.async {
-                self?.isLoading = false
-                if case .success(let memory) = result {
-                    self?.memory = memory
-                }
+        Task {
+            let loaded = await store.loadMemory(userId: userId)
+            await MainActor.run {
+                self.isLoading = false
+                self.memory = loaded
             }
         }
     }
@@ -376,11 +367,7 @@ class NovaMemoryViewModel: ObservableObject {
 
         self.memory = updatedMemory
 
-        memoryService.saveMemory(updatedMemory) { result in
-            if case .failure = result {
-                self.load()
-            }
-        }
+        persist(updatedMemory)
     }
 
     func updateFact(_ fact: NovaFact, content: String) {
@@ -399,22 +386,32 @@ class NovaMemoryViewModel: ObservableObject {
         guard userId != nil else { return }
         self.memory = updatedMemory
 
-        memoryService.saveMemory(updatedMemory) { result in
-            if case .failure = result {
-                self.load()
-            }
-        }
+        persist(updatedMemory)
     }
 
     func clearAllMemory() {
         guard let userId = userId else { return }
         isLoading = true
-        memoryService.clearMemory(for: userId) { [weak self] (result: Result<Void, Error>) in
-            DispatchQueue.main.async {
-                self?.isLoading = false
-                if case .success = result {
-                    self?.memory = NovaMemory(userId: userId)
-                }
+        let cleared = NovaMemory(userId: userId).clearingFacts()
+        Task {
+            do {
+                try await store.saveMemory(cleared)
+                try await contextStore.clearContext(userId: userId)
+                self.memory = cleared
+                self.isLoading = false
+            } catch {
+                self.isLoading = false
+                self.load()
+            }
+        }
+    }
+
+    private func persist(_ memory: NovaMemory) {
+        Task {
+            do {
+                try await store.saveMemory(memory)
+            } catch {
+                self.load()
             }
         }
     }

@@ -13,7 +13,7 @@
 		0DFC6C872DB6E1BE0067BA36 /* FirebaseStorage in Frameworks */ = {isa = PBXBuildFile; productRef = 0DFC6C862DB6E1BE0067BA36 /* FirebaseStorage */; };
 		36267A602E06374300A99130 /* CropViewController in Frameworks */ = {isa = PBXBuildFile; productRef = 36267A5F2E06374300A99130 /* CropViewController */; };
 		36267A622E06374300A99130 /* TOCropViewController in Frameworks */ = {isa = PBXBuildFile; productRef = 36267A612E06374300A99130 /* TOCropViewController */; };
-		36748B7F2DE112DD0094D43D /* FirebaseVertexAI in Frameworks */ = {isa = PBXBuildFile; productRef = 36748B7E2DE112DD0094D43D /* FirebaseVertexAI */; };
+		36748B7F2DE112DD0094D43D /* FirebaseAI in Frameworks */ = {isa = PBXBuildFile; productRef = 36748B7E2DE112DD0094D43D /* FirebaseAI */; };
 		368B7D842DE79DC6001D7971 /* FirebaseMessaging in Frameworks */ = {isa = PBXBuildFile; productRef = 368B7D832DE79DC6001D7971 /* FirebaseMessaging */; };
 		369D7AC82DE9EACD005F30AB /* Kingfisher in Frameworks */ = {isa = PBXBuildFile; productRef = 369D7AC72DE9EACD005F30AB /* Kingfisher */; };
 		36A036D32F36BCDB002B2937 /* GoogleUserMessagingPlatform in Frameworks */ = {isa = PBXBuildFile; productRef = 36A036D22F36BCDB002B2937 /* GoogleUserMessagingPlatform */; };
@@ -151,7 +151,7 @@
 				36CE4D4E2E0DEE4400901FD0 /* GoogleMobileAds in Frameworks */,
 				0D4FD1FD2DB2818900CA6DB1 /* FirebaseAuth in Frameworks */,
 				0DFC6C872DB6E1BE0067BA36 /* FirebaseStorage in Frameworks */,
-				36748B7F2DE112DD0094D43D /* FirebaseVertexAI in Frameworks */,
+				36748B7F2DE112DD0094D43D /* FirebaseAI in Frameworks */,
 				0DFC6C852DB6E1BE0067BA36 /* FirebaseCore in Frameworks */,
 				36267A622E06374300A99130 /* TOCropViewController in Frameworks */,
 				0D4FD1FF2DB2818900CA6DB1 /* FirebaseFirestore in Frameworks */,
@@ -246,7 +246,7 @@
 				0D4FD1FE2DB2818900CA6DB1 /* FirebaseFirestore */,
 				0DFC6C842DB6E1BE0067BA36 /* FirebaseCore */,
 				0DFC6C862DB6E1BE0067BA36 /* FirebaseStorage */,
-				36748B7E2DE112DD0094D43D /* FirebaseVertexAI */,
+				36748B7E2DE112DD0094D43D /* FirebaseAI */,
 				368B7D832DE79DC6001D7971 /* FirebaseMessaging */,
 				369D7AC72DE9EACD005F30AB /* Kingfisher */,
 				36267A5F2E06374300A99130 /* CropViewController */,
@@ -818,7 +818,7 @@
 			repositoryURL = "https://github.com/firebase/firebase-ios-sdk";
 			requirement = {
 				kind = upToNextMajorVersion;
-				minimumVersion = 11.11.0;
+				minimumVersion = 12.14.0;
 			};
 		};
 		36267A5E2E06374300A99130 /* XCRemoteSwiftPackageReference "TOCropViewController" */ = {
@@ -894,10 +894,10 @@
 			package = 36267A5E2E06374300A99130 /* XCRemoteSwiftPackageReference "TOCropViewController" */;
 			productName = TOCropViewController;
 		};
-		36748B7E2DE112DD0094D43D /* FirebaseVertexAI */ = {
+		36748B7E2DE112DD0094D43D /* FirebaseAI */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = 0D4FD1FB2DB2818900CA6DB1 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
-			productName = FirebaseVertexAI;
+			productName = FirebaseAI;
 		};
 		368B7D832DE79DC6001D7971 /* FirebaseMessaging */ = {
 			isa = XCSwiftPackageProductDependency;

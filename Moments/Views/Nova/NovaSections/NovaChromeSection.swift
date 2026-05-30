@@ -2,8 +2,8 @@ import SwiftUI
 import UIKit
 
 // MARK: - Header Mejorado con Memoria
-struct EnhancedGeminiHeader: View {
-    @ObservedObject var viewModel: GeminiViewModel
+struct NovaHeader: View {
+    @ObservedObject var viewModel: NovaAgent
     @Binding var showConversationHistory: Bool
     @Binding var showSuggestedOptions: Bool
     @Binding var isShowingMemory: Bool
@@ -14,33 +14,17 @@ struct EnhancedGeminiHeader: View {
     @State private var showDeveloperEasterEgg = false
     @State private var lastTapTime = Date()
     @State private var logoScale: CGFloat = 1.0
-    @State private var sparkleAnimation = false
-
-    private let sparkleOffsets: [CGPoint] = [
-        CGPoint(x: -10, y: -8),
-        CGPoint(x: 12, y: -5),
-        CGPoint(x: -8, y: 10),
-        CGPoint(x: 15, y: 8),
-        CGPoint(x: -12, y: 0),
-        CGPoint(x: 8, y: -12)
-    ]
+    @State private var logoPulse = false
 
     private var subtitleText: String {
-        let lang = NovaLanguageService.getPreferredLanguage() ?? .es
-        switch lang {
-        case .es: return "Asistente privado de Moments"
-        case .en: return "Private assistant for Moments"
-        case .ca: return "Assistent privat de Moments"
-        }
+        NSLocalizedString("nova.chrome.subtitle", comment: "Nova header subtitle")
     }
 
     var body: some View {
         HStack {
             ZStack {
-                Image(systemName: logoTapCount >= 6 ? "sparkles.rectangle.stack.fill" : "sparkles")
-                    .font(.system(size: 19, weight: .semibold))
-                    .foregroundColor(ModernGeminiColors.textPrimary)
-                    .scaleEffect(logoScale)
+                NovaBrandIcon(size: 22, color: NovaColors.textPrimary)
+                    .scaleEffect(logoScale * (logoPulse ? 1.06 : 1.0))
             }
             .frame(width: 40, height: 40)
             .background {
@@ -65,11 +49,11 @@ struct EnhancedGeminiHeader: View {
             VStack(alignment: .leading, spacing: 3) {
                 Text("nova.name")
                     .font(.custom("Poppins-Bold", size: 20))
-                    .foregroundColor(ModernGeminiColors.textPrimary)
+                    .foregroundColor(NovaColors.textPrimary)
 
                 Text(subtitleText)
                     .font(.custom("Poppins-Regular", size: 12))
-                    .foregroundColor(ModernGeminiColors.textSecondary)
+                    .foregroundColor(NovaColors.textSecondary)
             }
 
             Spacer()
@@ -80,7 +64,7 @@ struct EnhancedGeminiHeader: View {
                 Button(action: { isShowingMemory = true }) {
                     Image(systemName: "brain.head.profile")
                         .font(.system(size: 18, weight: .medium))
-                        .foregroundColor(ModernGeminiColors.textPrimary)
+                        .foregroundColor(NovaColors.textPrimary)
                         .frame(width: 36, height: 36)
                         .background {
                             Color.clear
@@ -95,7 +79,7 @@ struct EnhancedGeminiHeader: View {
                     }) {
                         Image(systemName: "plus")
                             .font(.system(size: 18, weight: .semibold))
-                            .foregroundColor(ModernGeminiColors.textPrimary)
+                            .foregroundColor(NovaColors.textPrimary)
                             .frame(width: 36, height: 36)
                             .background {
                                 Color.clear
@@ -109,7 +93,7 @@ struct EnhancedGeminiHeader: View {
                 }) {
                         Image(systemName: "clock.arrow.circlepath")
                             .font(.system(size: 18, weight: .medium))
-                            .foregroundColor(ModernGeminiColors.textPrimary)
+                            .foregroundColor(NovaColors.textPrimary)
                             .frame(width: 36, height: 36)
                             .background {
                                 Color.clear
@@ -128,7 +112,7 @@ struct EnhancedGeminiHeader: View {
         .padding(.top, 8)
         .onAppear {
             if logoTapCount >= 4 {
-                sparkleAnimation = true
+                logoPulse = true
             }
         }
     }
@@ -167,7 +151,7 @@ struct EnhancedGeminiHeader: View {
 
         case 4:
             withAnimation(.easeInOut(duration: 0.5)) {
-                sparkleAnimation = true
+                logoPulse = true
             }
             let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
             impactFeedback.impactOccurred()
@@ -192,7 +176,7 @@ struct EnhancedGeminiHeader: View {
     private func resetEasterEgg() {
         withAnimation(.easeOut(duration: 0.5)) {
             logoTapCount = 0
-            sparkleAnimation = false
+            logoPulse = false
             logoScale = 1.0
         }
     }
@@ -208,7 +192,7 @@ struct EnhancedGeminiHeader: View {
     }
 }
 
-struct ModernGeminiBackground: View {
+struct NovaBackground: View {
     @Environment(\.colorScheme) var colorScheme
 
     var body: some View {
@@ -224,25 +208,15 @@ struct ModernGeminiBackground: View {
 }
 
 struct ModernWelcomeSection: View {
-    @ObservedObject var viewModel: GeminiViewModel
+    @ObservedObject var viewModel: NovaAgent
     @Binding var showSuggestedOptions: Bool
 
     private var eyebrowText: String {
-        let lang = NovaLanguageService.getPreferredLanguage() ?? .es
-        switch lang {
-        case .es: return "Conversación privada"
-        case .en: return "Private conversation"
-        case .ca: return "Conversa privada"
-        }
+        NSLocalizedString("nova.welcome.eyebrow", comment: "Welcome eyebrow")
     }
 
     private var supportText: String {
-        let lang = NovaLanguageService.getPreferredLanguage() ?? .es
-        switch lang {
-        case .es: return "Recuerdo tu estilo, tus audiencias y cómo sueles compartir."
-        case .en: return "I remember your style, your audiences, and how you usually share."
-        case .ca: return "Recordo el teu estil, les teves audiències i com acostumes a compartir."
-        }
+        NSLocalizedString("nova.welcome.support", comment: "Welcome support text")
     }
 
     var body: some View {
@@ -252,25 +226,25 @@ struct ModernWelcomeSection: View {
             VStack(spacing: 24) {
                 Text(eyebrowText)
                     .font(.custom("Poppins-Medium", size: 12))
-                    .foregroundColor(ModernGeminiColors.textSecondary)
+                    .foregroundColor(NovaColors.textSecondary)
                     .padding(.horizontal, 12)
                     .padding(.vertical, 8)
-                    .background(ModernGeminiColors.materialBackground)
+                    .background(NovaColors.materialBackground)
                     .clipShape(Capsule())
                     .overlay(
                         Capsule()
-                            .stroke(ModernGeminiColors.borderColor, lineWidth: 1)
+                            .stroke(NovaColors.borderColor, lineWidth: 1)
                     )
 
                 VStack(spacing: 12) {
                     Text("\(NSLocalizedString("nova.hello", comment: "Hello message")) \(viewModel.currentUserDisplayName)")
                         .font(.custom("Poppins-Bold", size: 34))
-                        .foregroundColor(ModernGeminiColors.textPrimary)
+                        .foregroundColor(NovaColors.textPrimary)
                         .multilineTextAlignment(.center)
 
                     Text("nova.introduction")
                         .font(.custom("Poppins-Regular", size: 16))
-                        .foregroundColor(ModernGeminiColors.textSecondary)
+                        .foregroundColor(NovaColors.textSecondary)
                         .multilineTextAlignment(.center)
                         .lineSpacing(3)
                         .padding(.horizontal, 8)
@@ -280,27 +254,27 @@ struct ModernWelcomeSection: View {
                     HStack(spacing: 8) {
                         Image(systemName: "brain.head.profile")
                             .font(.system(size: 14, weight: .medium))
-                            .foregroundColor(ModernGeminiColors.textSecondary)
+                            .foregroundColor(NovaColors.textSecondary)
 
                         Text(supportText)
                             .font(.custom("Poppins-Regular", size: 13))
-                            .foregroundColor(ModernGeminiColors.textSecondary)
+                            .foregroundColor(NovaColors.textSecondary)
                             .multilineTextAlignment(.leading)
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.horizontal, 16)
                     .padding(.vertical, 14)
-                    .background(ModernGeminiColors.materialBackground)
+                    .background(NovaColors.materialBackground)
                     .clipShape(RoundedRectangle(cornerRadius: 18))
                     .overlay(
                         RoundedRectangle(cornerRadius: 18)
-                            .stroke(ModernGeminiColors.borderColor, lineWidth: 1)
+                            .stroke(NovaColors.borderColor, lineWidth: 1)
                     )
 
                     if let userData = viewModel.userData, !userData.interests.isEmpty {
                         Text(userData.interests.prefix(3).joined(separator: " • "))
                             .font(.custom("Poppins-Medium", size: 13))
-                            .foregroundColor(ModernGeminiColors.textTertiary)
+                            .foregroundColor(NovaColors.textTertiary)
                             .multilineTextAlignment(.center)
                     }
                 }
@@ -332,31 +306,31 @@ struct ModernInfoCard: View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
                 Image(systemName: icon)
-                    .foregroundColor(ModernGeminiColors.primary)
+                    .foregroundColor(NovaColors.primary)
                     .font(.system(size: 20))
 
                 Text(title)
                     .font(.custom("Poppins-SemiBold", size: 16))
-                    .foregroundColor(ModernGeminiColors.textPrimary)
+                    .foregroundColor(NovaColors.textPrimary)
 
                 Spacer()
             }
 
             Text(value)
                 .font(.custom("Poppins-Regular", size: 14))
-                .foregroundColor(ModernGeminiColors.textSecondary)
+                .foregroundColor(NovaColors.textSecondary)
                 .lineLimit(3)
         }
         .padding(20)
-        .background(ModernGeminiColors.cardBackground)
+        .background(NovaColors.cardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 16))
         .overlay(
             RoundedRectangle(cornerRadius: 16)
                 .stroke(
                     LinearGradient(
                         colors: [
-                            ModernGeminiColors.borderColor,
-                            ModernGeminiColors.primary.opacity(0.3)
+                            NovaColors.borderColor,
+                            NovaColors.primary.opacity(0.3)
                         ],
                         startPoint: .topLeading,
                         endPoint: .bottomTrailing
@@ -364,7 +338,7 @@ struct ModernInfoCard: View {
                     lineWidth: 1
                 )
         )
-        .shadow(color: ModernGeminiColors.shadowColor, radius: 10, x: 0, y: 5)
+        .shadow(color: NovaColors.shadowColor, radius: 10, x: 0, y: 5)
     }
 }
 
@@ -377,28 +351,28 @@ struct ModernStatCard: View {
     var body: some View {
         VStack(spacing: 8) {
             Image(systemName: icon)
-                .foregroundColor(ModernGeminiColors.secondary)
+                .foregroundColor(NovaColors.secondary)
                 .font(.system(size: 24))
 
             Text(value)
                 .font(.custom("Poppins-Bold", size: 20))
-                .foregroundColor(ModernGeminiColors.textPrimary)
+                .foregroundColor(NovaColors.textPrimary)
 
             Text(title)
                 .font(.custom("Poppins-Medium", size: 12))
-                .foregroundColor(ModernGeminiColors.textSecondary)
+                .foregroundColor(NovaColors.textSecondary)
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 20)
-        .background(ModernGeminiColors.cardBackground)
+        .background(NovaColors.cardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 16))
         .overlay(
             RoundedRectangle(cornerRadius: 16)
                 .stroke(
                     LinearGradient(
                         colors: [
-                            ModernGeminiColors.borderColor,
-                            ModernGeminiColors.secondary.opacity(0.3)
+                            NovaColors.borderColor,
+                            NovaColors.secondary.opacity(0.3)
                         ],
                         startPoint: .topLeading,
                         endPoint: .bottomTrailing
@@ -406,7 +380,7 @@ struct ModernStatCard: View {
                     lineWidth: 1
                 )
         )
-        .shadow(color: ModernGeminiColors.shadowColor, radius: 8, x: 0, y: 4)
+        .shadow(color: NovaColors.shadowColor, radius: 8, x: 0, y: 4)
     }
 }
 
@@ -433,13 +407,13 @@ struct ModernSuggestionCard: View {
 
                 Text(title)
                     .font(.custom("Poppins-SemiBold", size: 14))
-                    .foregroundColor(ModernGeminiColors.textPrimary)
+                    .foregroundColor(NovaColors.textPrimary)
                     .multilineTextAlignment(.center)
                     .lineLimit(2)
             }
             .frame(maxWidth: .infinity)
             .padding(.vertical, 24)
-            .background(ModernGeminiColors.cardBackground)
+            .background(NovaColors.cardBackground)
             .clipShape(RoundedRectangle(cornerRadius: 16))
             .overlay(
                 RoundedRectangle(cornerRadius: 16)
@@ -453,7 +427,7 @@ struct ModernSuggestionCard: View {
                     )
             )
             .scaleEffect(isPressed ? 0.95 : 1.0)
-            .shadow(color: ModernGeminiColors.shadowColor, radius: 8, x: 0, y: 4)
+            .shadow(color: NovaColors.shadowColor, radius: 8, x: 0, y: 4)
         }
         .onLongPressGesture(
             minimumDuration: 0,
@@ -669,6 +643,7 @@ struct ConfettiView: View {
 }
 
 struct ModernLoadingAnimation: View {
+    var statusLabel: String?
     @State private var isAnimating = false
     @Environment(\.colorScheme) var colorScheme
 
@@ -678,9 +653,7 @@ struct ModernLoadingAnimation: View {
 
             HStack(spacing: 8) {
                 ZStack {
-                    Image(systemName: "sparkles")
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundColor(ModernGeminiColors.textPrimary)
+                    NovaBrandIcon(size: 16, color: NovaColors.textPrimary)
                 }
                 .frame(width: 30, height: 30)
                 .background {
@@ -688,18 +661,26 @@ struct ModernLoadingAnimation: View {
                         .liquidGlass(in: Circle())
                 }
 
-                HStack(spacing: 5) {
-                    ForEach(0..<3) { index in
-                        Circle()
-                            .fill(ModernGeminiColors.textSecondary.opacity(0.65))
-                            .frame(width: 6, height: 6)
-                            .scaleEffect(isAnimating ? 1.0 : 0.65)
-                            .animation(
-                                .easeInOut(duration: 0.72)
-                                .repeatForever()
-                                .delay(Double(index) * 0.15),
-                                value: isAnimating
-                            )
+                VStack(alignment: .leading, spacing: 4) {
+                    if let statusLabel, !statusLabel.isEmpty {
+                        Text(statusLabel)
+                            .font(.custom("Poppins-Medium", size: 13))
+                            .foregroundColor(NovaColors.textSecondary)
+                    }
+
+                    HStack(spacing: 5) {
+                        ForEach(0..<3) { index in
+                            Circle()
+                                .fill(NovaColors.textSecondary.opacity(0.65))
+                                .frame(width: 6, height: 6)
+                                .scaleEffect(isAnimating ? 1.0 : 0.65)
+                                .animation(
+                                    .easeInOut(duration: 0.72)
+                                    .repeatForever()
+                                    .delay(Double(index) * 0.15),
+                                    value: isAnimating
+                                )
+                        }
                     }
                 }
                 .padding(.trailing, 4)
@@ -726,11 +707,11 @@ struct NovaEncryptionBadge: View {
         HStack(spacing: 6) {
             Image(systemName: "lock.fill")
                 .font(.system(size: 10, weight: .semibold))
-                .foregroundColor(ModernGeminiColors.textPrimary)
+                .foregroundColor(NovaColors.textPrimary)
 
             Text("nova.encryptedData")
                 .font(.custom("Poppins-Medium", size: 11))
-                .foregroundColor(ModernGeminiColors.textSecondary)
+                .foregroundColor(NovaColors.textSecondary)
         }
         .padding(.horizontal, 10)
         .padding(.vertical, 6)

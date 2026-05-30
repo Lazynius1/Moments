@@ -90,6 +90,7 @@ struct ChatRecoveryBundle: Codable, Hashable {
     let kdf: String
     let kdfParams: ChatRecoveryKDFParams
     let keyVersion: Int
+    let encryptedUserKey: String?
     let createdAt: Date?
     let updatedAt: Date?
 
@@ -101,6 +102,7 @@ struct ChatRecoveryBundle: Codable, Hashable {
         kdf: String = "PBKDF2",
         kdfParams: ChatRecoveryKDFParams = ChatRecoveryKDFParams(),
         keyVersion: Int = 1,
+        encryptedUserKey: String? = nil,
         createdAt: Date? = nil,
         updatedAt: Date? = nil
     ) {
@@ -111,6 +113,7 @@ struct ChatRecoveryBundle: Codable, Hashable {
         self.kdf = kdf
         self.kdfParams = kdfParams
         self.keyVersion = keyVersion
+        self.encryptedUserKey = encryptedUserKey
         self.createdAt = createdAt
         self.updatedAt = updatedAt
     }
@@ -135,6 +138,7 @@ struct ChatRecoveryBundle: Codable, Hashable {
         self.kdf = kdf
         self.kdfParams = kdfParams
         self.keyVersion = keyVersion
+        self.encryptedUserKey = map["encryptedUserKey"] as? String
 
         if let created = map["createdAt"] as? Timestamp {
             self.createdAt = created.dateValue()
@@ -162,6 +166,10 @@ struct ChatRecoveryBundle: Codable, Hashable {
 
         if let keyId {
             data["keyId"] = keyId
+        }
+
+        if let encryptedUserKey {
+            data["encryptedUserKey"] = encryptedUserKey
         }
 
         if let createdAt {
