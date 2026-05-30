@@ -1537,11 +1537,11 @@ service cloud.firestore {
       allow get: if request.auth != null &&
                     canViewCollectionGroupContent(request.auth.uid, 'moment', momentId);
       
-      // Keep collectionGroup list queries working for existing client surfaces.
-      // Per-document privacy is still enforced on direct gets and higher-level clients
-      // should migrate to backend-filtered feeds for stronger guarantees.
+      // Keep collectionGroup list queries bounded and enforce the same
+      // per-document audience checks required for direct reads.
       allow list: if request.auth != null &&
-                     request.query.limit <= 500;
+                     request.query.limit <= 500 &&
+                     canViewCollectionGroupContent(request.auth.uid, 'moment', momentId);
     }
     
     // ✅ NUEVA: Regla para collectionGroup queries de historias (Story Chains)
@@ -1549,11 +1549,11 @@ service cloud.firestore {
       allow get: if request.auth != null &&
                     canViewCollectionGroupContent(request.auth.uid, 'story', storyId);
       
-      // Keep collectionGroup list queries working for existing client surfaces.
-      // Per-document privacy is still enforced on direct gets and higher-level clients
-      // should migrate to backend-filtered feeds for stronger guarantees.
+      // Keep collectionGroup list queries bounded and enforce the same
+      // per-document audience checks required for direct reads.
       allow list: if request.auth != null &&
-                     request.query.limit <= 500;
+                     request.query.limit <= 500 &&
+                     canViewCollectionGroupContent(request.auth.uid, 'story', storyId);
     }
     
     // =====================================================================
