@@ -48,7 +48,7 @@ service firebase.storage {
 
     function hasChatMediaContentType() {
       return !('contentType' in request.resource) ||
-             request.resource.contentType.matches('image/.*|video/.*|audio/.*|application/pdf');
+             request.resource.contentType.matches('image/.*|video/.*|audio/.*|application/pdf|application/octet-stream');
     }
 
     // Lectura de media pública del perfil (mismo criterio que el bloque antiguo users/.../moments).
@@ -59,10 +59,32 @@ service firebase.storage {
       );
     }
 
+    function conversationPath(conversationId) {
+      return /databases/(default)/documents/conversations/$(conversationId);
+    }
+
+    function conversationDoc(conversationId) {
+      return firestore.get(conversationPath(conversationId));
+    }
+
+    // participants[] o claves de participantData (conversaciones antiguas / migraciones).
     function isConversationParticipant(conversationId) {
       return isAuthenticated() &&
-             exists(/databases/$(database)/documents/conversations/$(conversationId)) &&
-             request.auth.uid in get(/databases/$(database)/documents/conversations/$(conversationId)).data.participants;
+             firestore.exists(conversationPath(conversationId)) &&
+             (
+               request.auth.uid in conversationDoc(conversationId).data.participants
+               || (
+                 'participantData' in conversationDoc(conversationId).data
+                 && request.auth.uid in conversationDoc(conversationId).data.participantData
+               )
+             );
+    }
+
+    function canReadChatMedia(userId, conversationId) {
+      return isAuthenticated() && (
+        request.auth.uid == userId ||
+        isConversationParticipant(conversationId)
+      );
     }
 
     function validImageUpload() {
@@ -146,13 +168,26 @@ service firebase.storage {
       allow delete: if isOwner(userId);
     }
 
-    // Chat: objetos bajo el uid del remitente; lectura para participantes de la conversación
+    // Chat: media principal (media.enc, etc.)
+    // Write: solo el dueño del path (request.auth.uid == userId). No hace falta get() a Firestore en write.
+    // Read: participantes de la conversación (pueden leer media del otro en users/{otroUid}/chat/...).
     match /users/{userId}/chat/{conversationId}/{messageId}/{fileName} {
-      allow read: if isConversationParticipant(conversationId);
-      allow write: if canWriteAsOwner(userId) &&
-                        isConversationParticipant(conversationId) &&
-                        validChatMediaUpload();
-      allow delete: if isOwner(userId) && isConversationParticipant(conversationId);
+      allow read: if canReadChatMedia(userId, conversationId);
+      allow write: if canWriteAsOwner(userId) && validChatMediaUpload();
+      allow delete: if isOwner(userId);
+    }
+
+    // Chat: miniaturas de vídeo (cifrado → octet-stream)
+    match /users/{userId}/chat/{conversationId}/{messageId}/thumbnails/{fileName} {
+      allow read: if canReadChatMedia(userId, conversationId);
+      allow write: if canWriteAsOwner(userId) && validChatThumbnailUpload();
+      allow delete: if isOwner(userId);
+    }
+
+    function validChatThumbnailUpload() {
+      return (!('contentType' in request.resource) ||
+              request.resource.contentType.matches('image/.*|application/octet-stream')) &&
+             request.resource.size < 10 * 1024 * 1024;
     }
 
     match /users/{userId}/exports/{fileName} {

@@ -366,12 +366,17 @@ class StoryViewModel: ObservableObject {
                         // Upload media and send ephemeral message
                         self.chatService.uploadMedia(data: imageData, type: .image, conversationId: conversationId) { result in
                             switch result {
-                            case .success(let (mediaUrl, _)):
+                            case .success(let uploadResult):
                                 self.chatService.sendEphemeralMessage(
                                     conversationId: conversationId,
                                     senderId: currentUserId,
                                     content: NSLocalizedString("stories.ephemeral.replyContent", comment: "Ephemeral moment in reply to story"),
-                                    mediaUrl: mediaUrl,
+                                    mediaUrl: uploadResult.mediaUrl,
+                                    mediaObjectPath: uploadResult.mediaObjectPath,
+                                    thumbnailUrl: uploadResult.thumbnailUrl,
+                                    thumbnailObjectPath: uploadResult.thumbnailObjectPath,
+                                    mediaEncryption: uploadResult.mediaEncryption,
+                                    thumbnailEncryption: uploadResult.thumbnailEncryption,
                                     expirationHours: 24,
                                     storyReplyData: storyReply.payload
                                 ) { ephemeralResult in

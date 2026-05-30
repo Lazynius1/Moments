@@ -1778,6 +1778,19 @@ class EncryptionService: ObservableObject {
                 return sharedKey
             }
 
+            if let participants = data["participants"] as? [String],
+               participants.contains(currentUserId) {
+                let sharedKey = try await createNewSharedConversationKey(conversationId: conversationId)
+                await persistWrappedKeyIfNeeded(
+                    conversationId: conversationId,
+                    conversationData: data,
+                    conversationKey: sharedKey,
+                    for: currentUserId
+                )
+                await updateMetrics { $0.newKeysCreated += 1 }
+                return sharedKey
+            }
+
             throw EncryptionError.keyNotFound
             
         } catch {
@@ -1799,7 +1812,7 @@ class EncryptionService: ObservableObject {
         let metadata = KeyMetadata(keyId: UUID().uuidString, deviceId: deviceId)
         
         let uploadData: [String: Any] = [
-            "sharedEncryptionKey": keyDataString,
+            "encryptionKey": keyDataString,
             "encryptionKeyCreatedAt": FieldValue.serverTimestamp(),
             "encryptionVersion": "2.0",
             "keyMetadata": try JSONEncoder().encode(metadata).base64EncodedString(),
@@ -2286,6 +2299,67 @@ class EncryptionService: ObservableObject {
         }
         
     }
+
+    func encryptChatMedia(
+        _ data: Data,
+        for conversationId: String,
+        messageId: String,
+        purpose: ChatMediaPurpose,
+        contentType: String,
+        fileExtension: String
+    ) async throws -> (ciphertext: Data, metadata: EncryptedChatMediaMetadata) {
+        let key = try await getConversationKey(for: conversationId)
+        let mediaKey = deriveChatMediaKey(
+            from: key,
+            conversationId: conversationId,
+            messageId: messageId,
+            purpose: purpose
+        )
+        let authenticatedData = mediaAuthenticatedData(
+            conversationId: conversationId,
+            messageId: messageId,
+            purpose: purpose,
+            contentType: contentType
+        )
+        let sealedBox = try AES.GCM.seal(data, using: mediaKey, authenticating: authenticatedData)
+        guard let combined = sealedBox.combined else {
+            throw EncryptionError.encryptionFailed
+        }
+
+        return (
+            combined,
+            EncryptedChatMediaMetadata(
+                purpose: purpose,
+                mediaId: messageId,
+                contentType: contentType,
+                fileExtension: fileExtension,
+                plaintextSize: Int64(data.count)
+            )
+        )
+    }
+
+    func decryptChatMedia(
+        _ encryptedData: Data,
+        metadata: EncryptedChatMediaMetadata,
+        for conversationId: String,
+        messageId: String
+    ) async throws -> Data {
+        let key = try await getConversationKey(for: conversationId)
+        let mediaKey = deriveChatMediaKey(
+            from: key,
+            conversationId: conversationId,
+            messageId: messageId,
+            purpose: metadata.purpose
+        )
+        let authenticatedData = mediaAuthenticatedData(
+            conversationId: conversationId,
+            messageId: messageId,
+            purpose: metadata.purpose,
+            contentType: metadata.contentType
+        )
+        let sealedBox = try AES.GCM.SealedBox(combined: encryptedData)
+        return try AES.GCM.open(sealedBox, using: mediaKey, authenticating: authenticatedData)
+    }
     
     // MARK: - PUBLIC ENCRYPTION METHODS (Optimizadas con métricas)
     func encryptNovaData(_ text: String, for userId: String) async -> String? {
@@ -2413,6 +2487,31 @@ class EncryptionService: ObservableObject {
         }
         
         return decryptedString
+    }
+
+    private func deriveChatMediaKey(
+        from conversationKey: SymmetricKey,
+        conversationId: String,
+        messageId: String,
+        purpose: ChatMediaPurpose
+    ) -> SymmetricKey {
+        let salt = Data("moments.chat.media.salt.v1".utf8)
+        let info = Data("moments.chat.media.v1|\(conversationId)|\(messageId)|\(purpose.rawValue)".utf8)
+        return HKDF<SHA256>.deriveKey(
+            inputKeyMaterial: conversationKey,
+            salt: salt,
+            info: info,
+            outputByteCount: 32
+        )
+    }
+
+    private func mediaAuthenticatedData(
+        conversationId: String,
+        messageId: String,
+        purpose: ChatMediaPurpose,
+        contentType: String
+    ) -> Data {
+        Data("moments.chat.media.aad.v1|\(conversationId)|\(messageId)|\(purpose.rawValue)|\(contentType)".utf8)
     }
     
     // MARK: - KEYCHAIN OPERATIONS (Mejoradas con mejor error handling)
