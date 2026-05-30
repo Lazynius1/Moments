@@ -2541,6 +2541,10 @@
 "echo.viewer.waiting.title" = "Waiting for friends...";
 "echo.viewer.waiting.subtitle" = "An Echo only lives when others join. Content will be shared when 2 or more people accept.";
 "echo.viewer.ok" = "Got it";
+"echo.viewer.incomplete.title" = "Incomplete Echo";
+"echo.viewer.incomplete.body" = "One of the original moments is no longer available. You can keep this Echo as a memory, but the map and some features are no longer available.";
+"echo.viewer.incomplete.delete" = "Delete Echo";
+"echo.viewer.incomplete.keep" = "Keep Echo";
 
 /* Echoes History & List */
 "echo.history.title" = "My Echoes";
@@ -2548,6 +2552,7 @@
 "echo.history.empty.subtitle" = "Echoes appear when you and a friend capture the same moment";
 "echo.status.pending" = "Pending";
 "echo.status.active" = "Active";
+"echo.status.incomplete" = "Incomplete";
 "echo.status.expired" = "Expired";
 "echo.status.completed" = "Completed";
 "echo.participants.singular" = "%d person";

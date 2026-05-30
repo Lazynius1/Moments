@@ -27,11 +27,36 @@ class EchoViewModel: ObservableObject {
     
     // ✅ Social Threshold: 2+ accepted participants
     var acceptedCount: Int {
-        echo?.participants.filter { $0.status == .accepted }.count ?? 0
+        acceptedParticipantMomentCount
+    }
+    
+    var acceptedParticipantMomentCount: Int {
+        guard let echo = echo else { return 0 }
+        let acceptedIds = Set(echo.participants.filter { $0.status == .accepted }.map(\.userId))
+        let momentAuthorIds = Set(echo.moments.map(\.authorId))
+        return acceptedIds.intersection(momentAuthorIds).count
     }
     
     var isEchoActive: Bool {
-        acceptedCount >= 2
+        acceptedCount >= 2 && (echo?.hasMinimumMomentParticipants ?? false)
+    }
+    
+    var hasExpired: Bool {
+        guard let echo = echo else { return false }
+        return echo.expiresAt <= Date()
+    }
+    
+    var isHistoricalIncomplete: Bool {
+        guard let echo = echo else { return false }
+        return hasExpired && !echo.hasMinimumMomentParticipants
+    }
+    
+    var canOpenLocationMap: Bool {
+        !isHistoricalIncomplete
+    }
+    
+    var canBrowseMedia: Bool {
+        isEchoActive || isHistoricalIncomplete
     }
     
     // Legacy helper to keep some UI code working or for flat preloading
@@ -41,7 +66,7 @@ class EchoViewModel: ObservableObject {
     
     // Current active moment helper
     var currentMoment: EchoMomentRef? {
-        guard isEchoActive else { return nil }
+        guard canBrowseMedia else { return nil }
         guard currentPerspectiveIndex < groupedPerspectives.count,
               currentVerticalIndex < groupedPerspectives[currentPerspectiveIndex].moments.count else {
             return nil
@@ -108,9 +133,7 @@ class EchoViewModel: ObservableObject {
     private func updateDisplayedMoments() {
         guard let echo = echo else { return }
         
-        // Si no hay al menos 2 personas que hayan aceptado, no mostramos NADA (o solo mis momentos para pre-view personal)
-        // Pero siguiendo la regla estricta: No hay Echo activo hasta que hay 2 aceptados.
-        guard isEchoActive else {
+        guard isEchoActive || isHistoricalIncomplete else {
             self.groupedPerspectives = []
             return
         }
@@ -121,14 +144,13 @@ class EchoViewModel: ObservableObject {
         // - Veo mis propios momentos (aunque esté pending, pero ahora todos empiezan pending)
         // - Veo los momentos de los demás SOLO si ellos han aceptado (.accepted)
         let rawMoments = echo.moments.filter { moment in
-            if moment.authorId == currentUserId {
-                // Si el usuario actual ha aceptado, ve sus momentos.
-                // Si aún no ha aceptado, también los ve (es su propia cámara)
-                return true
-            } else {
-                // Solo ve lo de los demás si ellos han aceptado
-                return echo.participants.contains { $0.userId == moment.authorId && $0.status == .accepted }
+            if isHistoricalIncomplete {
+                return echo.participantIds.contains(moment.authorId)
             }
+            if moment.authorId == currentUserId {
+                return true
+            }
+            return echo.participants.contains { $0.userId == moment.authorId && $0.status == .accepted }
         }
         
         // 2. Group by authorId
@@ -158,6 +180,17 @@ class EchoViewModel: ObservableObject {
         }
         
         self.groupedPerspectives = perspectives
+        if currentPerspectiveIndex >= groupedPerspectives.count {
+            currentPerspectiveIndex = max(0, groupedPerspectives.count - 1)
+        }
+        if currentPerspectiveIndex < groupedPerspectives.count {
+            let visibleMoments = groupedPerspectives[currentPerspectiveIndex].moments
+            if currentVerticalIndex >= visibleMoments.count {
+                currentVerticalIndex = max(0, visibleMoments.count - 1)
+            }
+        } else {
+            currentVerticalIndex = 0
+        }
     }
     
     private func preloadMedia() {
