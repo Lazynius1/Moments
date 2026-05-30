@@ -584,10 +584,15 @@ class FirestoreService: ObservableObject {
 
                 // Añadir a following del usuario actual
                 let followingRef = db.collection("users").document(currentUserId).collection("following").document(targetUserId)
-                let followingData: [String: Any] = [
+                var followingData: [String: Any] = [
                     "userId": targetUserId,
                     "timestamp": Timestamp(date: Date())
                 ]
+                if let acceptedFollowRequestId {
+                    followingData["acceptedFollowRequestId"] = acceptedFollowRequestId
+                    followingData["source"] = "followRequestAccepted"
+                    followingData["acceptedAt"] = Timestamp(date: Date())
+                }
                 batch.setData(followingData, forDocument: followingRef)
 
                 // Añadir a followers del usuario objetivo
