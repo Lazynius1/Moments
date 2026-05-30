@@ -2549,6 +2549,10 @@
 "echo.viewer.waiting.title" = "Esperant amics...";
 "echo.viewer.waiting.subtitle" = "Un Echo només viu quan altres s'uneixen. El contingut es compartirà quan 2 o més persones acceptin.";
 "echo.viewer.ok" = "Entès";
+"echo.viewer.incomplete.title" = "Echo incomplet";
+"echo.viewer.incomplete.body" = "Un dels moments originals ja no està disponible. Pots conservar aquest Echo com a record, però el mapa i algunes funcions ja no estaran disponibles.";
+"echo.viewer.incomplete.delete" = "Eliminar Echo";
+"echo.viewer.incomplete.keep" = "Conservar Echo";
 
 /* Echoes History & List */
 "echo.history.title" = "Els meus Echoes";
@@ -2556,6 +2560,7 @@
 "echo.history.empty.subtitle" = "Els Echoes apareixen quan tu i un amic captureu el mateix moment";
 "echo.status.pending" = "Pendent";
 "echo.status.active" = "Actiu";
+"echo.status.incomplete" = "Incomplet";
 "echo.status.expired" = "Expirat";
 "echo.status.completed" = "Completat";
 "echo.participants.singular" = "%d persona";

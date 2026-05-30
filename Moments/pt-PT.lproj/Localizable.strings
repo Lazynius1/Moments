@@ -3348,6 +3348,10 @@
 "echo.viewer.waiting.title" = "À espera de amigos...";
 "echo.viewer.waiting.subtitle" = "Um Echo só ganha vida quando outras pessoas se juntam. O conteúdo será partilhado quando 2 ou mais pessoas aceitarem.";
 "echo.viewer.ok" = "Percebi";
+"echo.viewer.incomplete.title" = "Echo incompleto";
+"echo.viewer.incomplete.body" = "Um dos moments originais já não está disponível. Podes manter este Echo como recordação, mas o mapa e algumas funcionalidades já não estarão disponíveis.";
+"echo.viewer.incomplete.delete" = "Eliminar Echo";
+"echo.viewer.incomplete.keep" = "Manter Echo";
 
 /* Echoes History & List */
 "echo.history.title" = "Os meus Echoes";
@@ -3355,6 +3359,7 @@
 "echo.history.empty.subtitle" = "Os Echoes aparecem quando tu e um amigo captam o mesmo momento";
 "echo.status.pending" = "Pendente";
 "echo.status.active" = "Ativo";
+"echo.status.incomplete" = "Incompleto";
 "echo.status.expired" = "Expirado";
 "echo.status.completed" = "Concluído";
 "echo.participants.singular" = "%d pessoa";

@@ -14,6 +14,10 @@ class EchoService {
     private let maxConcurrentEchoMomentBatchQueries = 6
 
     private init() {}
+
+    private func hasMinimumMomentPerspectives(_ echo: Echo) -> Bool {
+        echo.hasMinimumMomentParticipants
+    }
     
     // MARK: - Echo Detection Logic
     /// Checks for overlapping moments from friends to suggest an Echo
@@ -411,6 +415,10 @@ class EchoService {
                           participants.contains(where: { $0.userId == userId && $0.status == .pending }) else {
                         return nil
                     }
+
+                    if let echo = echo, Date() < echo.expiresAt, !(self?.hasMinimumMomentPerspectives(echo) ?? true) {
+                        return nil
+                    }
                     
                     return echo
                 }
@@ -451,6 +459,9 @@ class EchoService {
                 let echoes = documents.compactMap { doc -> Echo? in
                     var echo = try? doc.data(as: Echo.self)
                     echo?.id = doc.documentID
+                    if let echo = echo, Date() < echo.expiresAt, !(self?.hasMinimumMomentPerspectives(echo) ?? true) {
+                        return nil
+                    }
                     return echo
                 }
                 

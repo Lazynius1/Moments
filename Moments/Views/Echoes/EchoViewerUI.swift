@@ -9,11 +9,13 @@ import UIKit
 struct EchoViewerUI: View {
     let echoId: String
     @Environment(\.dismiss) var dismiss
+    @Environment(\.colorScheme) private var colorScheme
     @StateObject private var viewModel: EchoViewModel
     
     // ✅ Gesture State
     @State private var dragOffset: CGFloat = 0
     @State private var showLockoutAlert = false // ✅ NUEVO
+    @State private var showIncompleteDecision = false
     @State private var selectedLocationPresentation: EchoLocationPresentation?
     @State private var overlayTextTone = OverlayTextTone(topUsesDarkForeground: false, bottomUsesDarkForeground: false)
     @State private var overlayTextToneCache: [String: OverlayTextTone] = [:]
@@ -44,24 +46,23 @@ struct EchoViewerUI: View {
                 } else if let echo = viewModel.echo {
                     // Main Content: Media Player with 2D Navigation
                     ZStack {
-                        if viewModel.isEchoActive {
-                            if let currentMoment = viewModel.currentMoment {
-                                let isAvailable = viewModel.momentAvailability[currentMoment.momentId] ?? true
-                                
-                                perspectiveView(for: currentMoment)
-                                    .blur(radius: isAvailable ? 0 : 20)
-                                    .overlay {
-                                        if !isAvailable { unavailableOverlay }
-                                    }
-                                    .clipped()
-                                    .id(currentMoment.momentId)
-                                    .transition(.asymmetric(
-                                        insertion: .move(edge: dragOffset > 0 ? .top : .bottom).combined(with: .opacity),
-                                        removal: .move(edge: dragOffset > 0 ? .bottom : .top).combined(with: .opacity)
-                                    ))
-                            }
+                        if let currentMoment = viewModel.currentMoment {
+                            let isAvailable = viewModel.momentAvailability[currentMoment.momentId] ?? true
+                            
+                            perspectiveView(for: currentMoment)
+                                .blur(radius: isAvailable ? 0 : 20)
+                                .overlay {
+                                    if !isAvailable { unavailableOverlay }
+                                }
+                                .clipped()
+                                .id(currentMoment.momentId)
+                                .transition(.asymmetric(
+                                    insertion: .move(edge: dragOffset > 0 ? .top : .bottom).combined(with: .opacity),
+                                    removal: .move(edge: dragOffset > 0 ? .bottom : .top).combined(with: .opacity)
+                                ))
+                        } else if viewModel.isHistoricalIncomplete {
+                            Color(hex: "0B1215").ignoresSafeArea()
                         } else {
-                            // Si no hay al menos 2 personas, mostramos el estado de espera
                             waitingStateView
                         }
                     }
@@ -70,12 +71,12 @@ struct EchoViewerUI: View {
                     .gesture(
                         DragGesture()
                             .onChanged { value in
-                                if viewModel.isEchoActive {
+                                if viewModel.canBrowseMedia {
                                     dragOffset = value.translation.height
                                 }
                             }
                             .onEnded { value in
-                                guard viewModel.isEchoActive else { return }
+                                guard viewModel.canBrowseMedia else { return }
                                 let threshold: CGFloat = 50
                                 if value.translation.height < -threshold {
                                     HapticManager.shared.selection()
@@ -104,7 +105,7 @@ struct EchoViewerUI: View {
                     .ignoresSafeArea(.container, edges: .top)
                     
                     // ✅ Lateral Vertical Indicator
-                    if viewModel.isEchoActive {
+                    if viewModel.canBrowseMedia {
                         lateralVerticalIndicator()
                     }
                 }
@@ -113,9 +114,23 @@ struct EchoViewerUI: View {
                 if showLockoutAlert {
                     glassAlertView
                 }
+
+                if showIncompleteDecision {
+                    incompleteDecisionOverlay
+                }
             }
         }
-        .onAppear { viewModel.loadEcho() }
+        .onAppear {
+            showIncompleteDecision = viewModel.isHistoricalIncomplete
+            viewModel.loadEcho()
+        }
+        .onChange(of: viewModel.isHistoricalIncomplete) { _, isIncomplete in
+            if isIncomplete {
+                showIncompleteDecision = true
+            } else {
+                showIncompleteDecision = false
+            }
+        }
         .onChange(of: currentToneAssetKey) { _, _ in
             refreshOverlayTextTone()
         }
@@ -198,7 +213,74 @@ struct EchoViewerUI: View {
             }
         }
     }
-    
+
+    private var incompleteDecisionOverlay: some View {
+        let primaryTextColor = colorScheme == .dark ? Color.white : Color.black
+        let secondaryTextColor = primaryTextColor.opacity(0.72)
+        let dividerColor = primaryTextColor.opacity(0.12)
+
+        return ZStack {
+            Color.black.opacity(0.42)
+                .ignoresSafeArea()
+
+            VStack(spacing: 0) {
+                VStack(spacing: 10) {
+                    Text(NSLocalizedString("echo.viewer.incomplete.title", comment: ""))
+                        .font(.system(size: 20, weight: .bold))
+                        .foregroundStyle(primaryTextColor)
+                        .multilineTextAlignment(.center)
+
+                    Text(NSLocalizedString("echo.viewer.incomplete.body", comment: ""))
+                        .font(.system(size: 15, weight: .medium))
+                        .foregroundStyle(secondaryTextColor)
+                        .multilineTextAlignment(.center)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .padding(.horizontal, 22)
+                .padding(.top, 22)
+                .padding(.bottom, 18)
+
+                Rectangle()
+                    .fill(dividerColor)
+                    .frame(height: 0.5)
+
+                Button {
+                    if let uid = Auth.auth().currentUser?.uid {
+                        leaveEchoAction(userId: uid)
+                    }
+                } label: {
+                    Text(NSLocalizedString("echo.viewer.incomplete.delete", comment: ""))
+                        .font(.system(size: 17, weight: .semibold))
+                        .foregroundStyle(Color.red)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 54)
+                }
+
+                Rectangle()
+                    .fill(dividerColor)
+                    .frame(height: 0.5)
+
+                Button {
+                    withAnimation(.easeOut(duration: 0.2)) {
+                        showIncompleteDecision = false
+                    }
+                } label: {
+                    Text(NSLocalizedString("echo.viewer.incomplete.keep", comment: ""))
+                        .font(.system(size: 17, weight: .medium))
+                        .foregroundStyle(primaryTextColor)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 54)
+                }
+            }
+            .frame(maxWidth: 320)
+            .liquidGlass(in: RoundedRectangle(cornerRadius: 28, style: .continuous))
+            .shadow(color: .black.opacity(0.24), radius: 24, x: 0, y: 12)
+            .padding(.horizontal, 24)
+            .transition(.scale(scale: 0.94).combined(with: .opacity))
+            .zIndex(5000)
+        }
+    }
+
     // MARK: - Components
     
     private func perspectiveView(for moment: EchoMomentRef) -> some View {
@@ -374,6 +456,8 @@ struct EchoViewerUI: View {
             .padding(.vertical, 10)
             .liquidGlass(in: Capsule(), interactive: true)
         }
+        .disabled(!viewModel.canOpenLocationMap)
+        .opacity(viewModel.canOpenLocationMap ? 1.0 : 0.55)
         .buttonStyle(ScaleButtonStyle())
         .padding(.horizontal, 16).padding(.top, 10)
     }
@@ -520,6 +604,7 @@ struct EchoViewerUI: View {
     }
     
     private func openInAppMap(for echo: Echo) {
+        guard viewModel.canOpenLocationMap else { return }
         HapticManager.shared.lightImpact()
         let resolvedLocationName = (echo.locationName ?? "")
             .trimmingCharacters(in: .whitespacesAndNewlines)

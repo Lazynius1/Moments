@@ -1243,7 +1243,7 @@ extension LocationMapView {
 
     private func loadEchoHistoryMoments() {
         let resolvedUserId = echoHistoryUserId ?? Auth.auth().currentUser?.uid
-        let currentUserId = Auth.auth().currentUser?.uid?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let currentUserId = Auth.auth().currentUser?.uid.trimmingCharacters(in: .whitespacesAndNewlines)
         guard let userId = resolvedUserId?.trimmingCharacters(in: .whitespacesAndNewlines),
               let currentUserId = currentUserId,
               !userId.isEmpty,

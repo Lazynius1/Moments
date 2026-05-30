@@ -4658,10 +4658,83 @@ async function purgeNotificationsByField(field, value) {
   return totalDeleted;
 }
 
+function echoHasMinimumMomentParticipants(echo) {
+  const participantCount = new Set((echo?.moments || []).map((moment) => moment.authorId).filter(Boolean)).size;
+  return participantCount >= 2;
+}
+
+async function reconcileEchoAfterMomentDeletion({ momentId, authorId }) {
+  if (!momentId || !authorId) return 0;
+
+  const matchingEchoes = await admin.firestore()
+    .collection('echoes')
+    .where('participantIds', 'array-contains', authorId)
+    .get();
+
+  let updatedCount = 0;
+
+  for (const echoDoc of matchingEchoes.docs) {
+    const echo = echoDoc.data() || {};
+    const previousMoments = Array.isArray(echo.moments) ? echo.moments : [];
+    const remainingMoments = previousMoments.filter((momentRef) => {
+      if (!momentRef || typeof momentRef !== 'object') return false;
+      return !(momentRef.momentId === momentId && momentRef.authorId === authorId);
+    });
+
+    if (remainingMoments.length === previousMoments.length) {
+      continue;
+    }
+
+    const remainingAuthorIds = new Set(
+      remainingMoments
+        .map((momentRef) => momentRef?.authorId)
+        .filter(Boolean)
+    );
+
+    const previousParticipants = Array.isArray(echo.participants) ? echo.participants : [];
+    const remainingParticipants = previousParticipants.filter((participant) => remainingAuthorIds.has(participant?.userId));
+    const acceptedParticipantCount = remainingParticipants.filter((participant) => participant?.status === 'accepted').length;
+    const expiresAtMs = echo.expiresAt?.toDate ? echo.expiresAt.toDate().getTime() : 0;
+    const isWithinWindow = expiresAtMs > Date.now();
+
+    if (remainingParticipants.length === 0) {
+      await echoDoc.ref.delete();
+      updatedCount += 1;
+      continue;
+    }
+
+    if (isWithinWindow && !echoHasMinimumMomentParticipants({ moments: remainingMoments })) {
+      await echoDoc.ref.delete();
+      updatedCount += 1;
+      continue;
+    }
+
+    const nextPayload = {
+      moments: remainingMoments,
+      participants: remainingParticipants,
+      participantIds: remainingParticipants.map((participant) => participant.userId)
+    };
+
+    if (echo.status === 'active' && acceptedParticipantCount < 2) {
+      nextPayload.status = 'expired';
+    }
+
+    await echoDoc.ref.update(nextPayload);
+    updatedCount += 1;
+  }
+
+  if (updatedCount > 0) {
+    console.log(`🪞 Echoes reconciliados tras borrar moment ${momentId}: ${updatedCount}`);
+  }
+
+  return updatedCount;
+}
+
 exports.onMomentDeleted = onDocumentDeleted('users/{userId}/moments/{momentId}', async (event) => {
-  const { momentId } = event.params;
+  const { userId, momentId } = event.params;
   try {
     await purgeNotificationsByField('momentId', momentId);
+    await reconcileEchoAfterMomentDeletion({ momentId, authorId: userId });
   } catch (error) {
     console.error('❌ Error purgando notificaciones del momento eliminado:', error);
   }

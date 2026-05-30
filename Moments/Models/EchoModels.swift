@@ -98,6 +98,14 @@ struct Echo: Identifiable, Codable {
         let acceptedUserIds = Set(participants.filter { $0.status == .accepted }.map { $0.userId })
         return moments.filter { acceptedUserIds.contains($0.authorId) }
     }
+
+    var momentParticipantIds: [String] {
+        Array(Set(moments.map(\.authorId))).sorted()
+    }
+
+    var hasMinimumMomentParticipants: Bool {
+        momentParticipantIds.count >= 2
+    }
     
     init(id: String? = nil, hostId: String, participants: [EchoParticipant], location: Moment.LocationCoordinate, locationName: String?, moments: [EchoMomentRef] = []) {
         self.id = id
