@@ -69,6 +69,7 @@ extension FirestoreService {
         continuationCustomListId: String? = nil,
         continuationCustomListName: String? = nil,
         duration: Double? = nil,
+        storyId: String? = nil,
         completion: @escaping (String?, Error?) -> Void
     ) {
         createStoryDocument(
@@ -94,6 +95,7 @@ extension FirestoreService {
             continuationCustomListId: continuationCustomListId,
             continuationCustomListName: continuationCustomListName,
             duration: duration,
+            storyId: storyId,
             completion: completion
         )
     }
@@ -119,6 +121,7 @@ extension FirestoreService {
         continuationCustomListId: String? = nil,
         continuationCustomListName: String? = nil,
         duration: Double? = nil,
+        storyId: String? = nil,
         completion: @escaping (String?, Error?) -> Void
     ) {
         createStoryDocument(
@@ -144,6 +147,7 @@ extension FirestoreService {
             continuationCustomListId: continuationCustomListId,
             continuationCustomListName: continuationCustomListName,
             duration: duration,
+            storyId: storyId,
             completion: completion
         )
     }
@@ -171,6 +175,7 @@ extension FirestoreService {
         continuationCustomListId: String?,
         continuationCustomListName: String?,
         duration: Double?,
+        storyId: String? = nil,
         completion: @escaping (String?, Error?) -> Void
     ) {
         fetchUser(userId: userId) { [weak self] result in
@@ -184,7 +189,7 @@ extension FirestoreService {
                 let isChain = chainId != nil
                 let expirationDate = self.calculateStoryExpirationDate(isChain: isChain, chainId: chainId)
                 let duration = duration ?? (mediaItem.type == .video ? 60.0 : 15.0)
-                let storyId = UUID().uuidString
+                let storyId = storyId ?? UUID().uuidString
 
                 let story = Story(
                     id: storyId,
@@ -629,6 +634,7 @@ extension FirestoreService {
         db.collectionGroup("stories")
             .whereField("authorId", in: userIds)
             .whereField("expirationDate", isGreaterThan: Timestamp(date: Date()))
+            .limit(to: 500)
             .getDocuments { [weak self] snapshot, error in
                 guard let self = self else {
                     completion(.failure(NSError(domain: "FirestoreService", code: -1, userInfo: [NSLocalizedDescriptionKey: "Service deallocated"])))

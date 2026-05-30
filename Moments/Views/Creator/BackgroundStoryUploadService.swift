@@ -45,6 +45,7 @@ class UploadingStory: ObservableObject, Identifiable {
     let continuationCustomListId: String? // 🔗 AÑADIDO: Lista específica que puede continuar
     let continuationCustomListName: String? // 🔗 AÑADIDO: Nombre de la lista que puede continuar
     let storyVideoMode: CreatorMedia.StoryVideoMode
+    let plannedStoryId: String
 
     @Published var uploadProgress: Double = 0.0
     @Published var status: UploadStatus = .initializing
@@ -76,9 +77,11 @@ class UploadingStory: ObservableObject, Identifiable {
         continuationCustomListId: String? = nil, // 🔗 AÑADIDO: Lista específica que puede continuar
         continuationCustomListName: String? = nil, // 🔗 AÑADIDO: Nombre de la lista que puede continuar
         storyVideoMode: CreatorMedia.StoryVideoMode = .normal,
-        tempId: String? = nil
+        tempId: String? = nil,
+        plannedStoryId: String? = nil
     ) {
         self.tempId = tempId ?? "temp_story_\(UUID().uuidString)"
+        self.plannedStoryId = plannedStoryId ?? UUID().uuidString
         self.userId = userId
         self.mediaItem = mediaItem
         self.storyText = storyText
@@ -109,6 +112,7 @@ class UploadingStory: ObservableObject, Identifiable {
 
 // MARK: - 📦 PERSISTENCE PAYLOADS
 struct StoryUploadPayload: Codable {
+    let plannedStoryId: String?
     let userId: String
     let mediaItem: CachedMediaItem
     let storyText: String?
@@ -350,7 +354,8 @@ class BackgroundStoryUploadService: ObservableObject {
         continuationCustomListId: String? = nil, // 🔗 AÑADIDO: Lista específica que puede continuar
         continuationCustomListName: String? = nil, // 🔗 AÑADIDO: Nombre de la lista que puede continuar
         recoveryActionId: String? = nil,
-        shouldPersistAction: Bool = true
+        shouldPersistAction: Bool = true,
+        plannedStoryId: String? = nil
     ) -> UploadingStory? {
         guard let userId = Auth.auth().currentUser?.uid else { return nil }
 
@@ -415,7 +420,8 @@ class BackgroundStoryUploadService: ObservableObject {
             continuationCustomListId: continuationCustomListId, // 🔗 AÑADIDO: Pasar lista específica
             continuationCustomListName: continuationCustomListName, // 🔗 AÑADIDO: Pasar nombre de lista
             storyVideoMode: finalMediaItem.storyVideoMode,
-            tempId: recoveryActionId
+            tempId: recoveryActionId,
+            plannedStoryId: plannedStoryId
         )
 
         DispatchQueue.main.async {
@@ -479,6 +485,12 @@ class BackgroundStoryUploadService: ObservableObject {
                     self.isProcessing = false
                 }
                 return
+            }
+
+            await MainActor.run {
+                if uploadingStory.storyId == nil {
+                    uploadingStory.storyId = uploadingStory.plannedStoryId
+                }
             }
 
             // PASO 1: Preparar media item para upload (0% - 20%)
@@ -740,13 +752,13 @@ class BackgroundStoryUploadService: ObservableObject {
     }
 
     // ✅ EXTRACCION DE FRAME DE FONDO
-    private func extractBackgroundFrame(from videoURL: URL, userId: String) async -> String? {
+    private func extractBackgroundFrame(from videoURL: URL, userId: String, storyId: String) async -> String? {
         guard let frameImage = await extractBackgroundFrameImage(from: videoURL) else {
             return nil
         }
 
         do {
-            return try await uploadBackgroundFrameImage(frameImage, userId: userId)
+            return try await uploadBackgroundFrameImage(frameImage, userId: userId, storyId: storyId)
         } catch {
             return nil
         }
@@ -766,33 +778,23 @@ class BackgroundStoryUploadService: ObservableObject {
         }
     }
 
-    private func uploadBackgroundFrameImage(_ image: UIImage, userId: String) async throws -> String? {
+    private func uploadBackgroundFrameImage(_ image: UIImage, userId: String, storyId: String) async throws -> String? {
         guard let imageData = image.jpegData(compressionQuality: 0.7) else { return nil }
-
-        let frameFileName = "background_frames/\(userId)/\(UUID().uuidString).jpg"
-        let storageRef = Storage.storage().reference().child(frameFileName)
-
-        let metadata = StorageMetadata()
-        metadata.contentType = "image/jpeg"
-
-        _ = try await storageRef.putDataAsync(imageData, metadata: metadata)
-        let downloadURL = try await storageRef.downloadURL()
-        return downloadURL.absoluteString
+        let target = StoragePathBuilder.build(
+            userId: userId,
+            domain: .storyFrame(storyId: storyId, blurred: false)
+        )
+        return try await MediaUploadService.shared.upload(target: target, payload: .data(imageData))
     }
 
-    private func uploadBlurredBackgroundFrameImage(_ image: UIImage, userId: String) async throws -> String? {
+    private func uploadBlurredBackgroundFrameImage(_ image: UIImage, userId: String, storyId: String) async throws -> String? {
         let blurredImage = makePreblurredStoryBackground(from: image)
         guard let imageData = blurredImage.jpegData(compressionQuality: 0.72) else { return nil }
-
-        let frameFileName = "background_frames/\(userId)/blurred_\(UUID().uuidString).jpg"
-        let storageRef = Storage.storage().reference().child(frameFileName)
-
-        let metadata = StorageMetadata()
-        metadata.contentType = "image/jpeg"
-
-        _ = try await storageRef.putDataAsync(imageData, metadata: metadata)
-        let downloadURL = try await storageRef.downloadURL()
-        return downloadURL.absoluteString
+        let target = StoragePathBuilder.build(
+            userId: userId,
+            domain: .storyFrame(storyId: storyId, blurred: true)
+        )
+        return try await MediaUploadService.shared.upload(target: target, payload: .data(imageData))
     }
 
     private func makePreblurredStoryBackground(from image: UIImage) -> UIImage {
@@ -944,7 +946,11 @@ class BackgroundStoryUploadService: ObservableObject {
         // Poster del vídeo: imprescindible para previews (push y lista). Nunca debe bloquear la publicación.
         let thumbnailUrl: String?
         if let posterImage = await extractBackgroundFrameImage(from: videoURL) {
-            thumbnailUrl = try? await uploadBackgroundFrameImage(posterImage, userId: uploadingStory.userId)
+            thumbnailUrl = try? await uploadBackgroundFrameImage(
+                posterImage,
+                userId: uploadingStory.userId,
+                storyId: uploadingStory.plannedStoryId
+            )
         } else {
             thumbnailUrl = nil
         }
@@ -981,6 +987,7 @@ class BackgroundStoryUploadService: ObservableObject {
             storageService.uploadMedia(
                 userId: uploadingStory.userId,
                 mediaItem: uploadMediaItem,
+                context: .story(storyId: uploadingStory.plannedStoryId, mediaId: uploadingStory.mediaItem.id),
                 progress: { [weak uploadingStory] progress in
                     guard let uploadingStory else { return }
                     let clampedProgress = min(max(progress, 0), 1)
@@ -1070,21 +1077,22 @@ class BackgroundStoryUploadService: ObservableObject {
                     text: uploadingStory.storyText,
                     textPosition: uploadingStory.textPosition,
                     textStyle: uploadingStory.selectedTextStyle != nil ? String(describing: uploadingStory.selectedTextStyle!) : nil,
-                    stickers: normalizedStickerData, // ✅ USAR DATOS NORMALIZADOS
+                    stickers: normalizedStickerData,
                     drawingData: uploadingStory.drawingData,
-                    aspectRatio: aspectRatio, // ✅ AÑADIDO: Pasar aspect ratio
+                    aspectRatio: aspectRatio,
                     backgroundFrameURL: nil,
                     backgroundBlurredFrameURL: nil,
-                    chainId: uploadingStory.chainId, // 🔗 AÑADIDO: Pasar ID de la cadena
-                    chainPosition: uploadingStory.chainPosition, // 🔗 AÑADIDO: Pasar posición en la cadena
-                    chainTitle: uploadingStory.chainTitle, // 🔗 AÑADIDO: Pasar título de la cadena
-                    allowOthersToContinue: uploadingStory.allowOthersToContinue, // 🔗 AÑADIDO: Configuración de continuación
-                    continuationAudience: uploadingStory.continuationAudience, // 🔗 AÑADIDO: Audiencia de continuación
-                    continuationCustomViewers: uploadingStory.continuationCustomViewers, // 🔗 AÑADIDO: Usuarios específicos de continuación
-                    continuationCustomListId: uploadingStory.continuationCustomListId, // 🔗 AÑADIDO: Lista específica de continuación
-                    continuationCustomListName: uploadingStory.continuationCustomListName, // 🔗 AÑADIDO: Nombre de lista de continuación
-                    duration: duration
-                ) { storyId, error in // 🔥 AHORA CAPTURA EL storyId REAL
+                    chainId: uploadingStory.chainId,
+                    chainPosition: uploadingStory.chainPosition,
+                    chainTitle: uploadingStory.chainTitle,
+                    allowOthersToContinue: uploadingStory.allowOthersToContinue,
+                    continuationAudience: uploadingStory.continuationAudience,
+                    continuationCustomViewers: uploadingStory.continuationCustomViewers,
+                    continuationCustomListId: uploadingStory.continuationCustomListId,
+                    continuationCustomListName: uploadingStory.continuationCustomListName,
+                    duration: duration,
+                    storyId: uploadingStory.plannedStoryId
+                ) { storyId, error in
                     if let error = error {
                         continuation.resume(throwing: error)
                     } else if let storyId = storyId {
@@ -1106,21 +1114,22 @@ class BackgroundStoryUploadService: ObservableObject {
                     text: uploadingStory.storyText,
                     textPosition: uploadingStory.textPosition,
                     textStyle: uploadingStory.selectedTextStyle != nil ? String(describing: uploadingStory.selectedTextStyle!) : nil,
-                    stickers: normalizedStickerData, // ✅ USAR DATOS NORMALIZADOS
+                    stickers: normalizedStickerData,
                     drawingData: uploadingStory.drawingData,
-                    aspectRatio: aspectRatio, // ✅ AÑADIDO: Pasar aspect ratio
+                    aspectRatio: aspectRatio,
                     backgroundFrameURL: nil,
                     backgroundBlurredFrameURL: nil,
-                    chainId: uploadingStory.chainId, // 🔗 AÑADIDO: Pasar ID de la cadena
-                    chainPosition: uploadingStory.chainPosition, // 🔗 AÑADIDO: Pasar posición en la cadena
-                    chainTitle: uploadingStory.chainTitle, // 🔗 AÑADIDO: Pasar título de la cadena
-                    allowOthersToContinue: uploadingStory.allowOthersToContinue, // 🔗 AÑADIDO: Configuración de continuación
-                    continuationAudience: uploadingStory.continuationAudience, // 🔗 AÑADIDO: Audiencia de continuación
-                    continuationCustomViewers: uploadingStory.continuationCustomViewers, // 🔗 AÑADIDO: Usuarios específicos de continuación
-                    continuationCustomListId: uploadingStory.continuationCustomListId, // 🔗 AÑADIDO: Lista específica de continuación
-                    continuationCustomListName: uploadingStory.continuationCustomListName, // 🔗 AÑADIDO: Nombre de lista de continuación
-                    duration: duration
-                ) { storyId, error in // 🔥 AHORA CAPTURA EL storyId REAL
+                    chainId: uploadingStory.chainId,
+                    chainPosition: uploadingStory.chainPosition,
+                    chainTitle: uploadingStory.chainTitle,
+                    allowOthersToContinue: uploadingStory.allowOthersToContinue,
+                    continuationAudience: uploadingStory.continuationAudience,
+                    continuationCustomViewers: uploadingStory.continuationCustomViewers,
+                    continuationCustomListId: uploadingStory.continuationCustomListId,
+                    continuationCustomListName: uploadingStory.continuationCustomListName,
+                    duration: duration,
+                    storyId: uploadingStory.plannedStoryId
+                ) { storyId, error in
                     if let error = error {
                         continuation.resume(throwing: error)
                     } else if let storyId = storyId {
@@ -1487,14 +1496,15 @@ class BackgroundStoryUploadService: ObservableObject {
 
             do {
                 // 1. Upload audio file
-                let audioData = try Data(contentsOf: localURL)
-                let audioPath = "stories/\(userId)/audio/\(sticker.id).m4a"
-                let storageRef = Storage.storage().reference().child(audioPath)
-                let metadata = StorageMetadata()
-                metadata.contentType = "audio/m4a"
-
-                _ = try await storageRef.putDataAsync(audioData, metadata: metadata)
-                let remoteURL = try await storageRef.downloadURL()
+                let target = StoragePathBuilder.build(
+                    userId: userId,
+                    domain: .storyStickerAudio(storyId: storyId, uploadId: sticker.id)
+                )
+                let remoteURLString = try await MediaUploadService.shared.upload(
+                    target: target,
+                    payload: .data(try Data(contentsOf: localURL))
+                )
+                let remoteURL = URL(string: remoteURLString)!
 
                 // 2. Update sticker in Firestore
                 let storyRef = Firestore.firestore()
@@ -1633,6 +1643,7 @@ class BackgroundStoryUploadService: ObservableObject {
 
             // 5. Crear payload
             let payload = StoryUploadPayload(
+                plannedStoryId: uploadingStory.plannedStoryId,
                 userId: uploadingStory.userId,
                 mediaItem: cachedMedia,
                 storyText: uploadingStory.storyText,
@@ -2028,7 +2039,8 @@ class BackgroundStoryUploadService: ObservableObject {
                 continuationCustomListId: payload.continuationCustomListId,
                 continuationCustomListName: payload.continuationCustomListName,
                 recoveryActionId: action.id,
-                shouldPersistAction: false
+                shouldPersistAction: false,
+                plannedStoryId: payload.plannedStoryId
             )
 
         } catch {

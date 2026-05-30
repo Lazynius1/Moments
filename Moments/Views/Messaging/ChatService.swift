@@ -1151,124 +1151,130 @@ class ChatService: ObservableObject {
         activeListeners[listenerKey] = listener
     }
     // MARK: - Media Upload
-    func uploadMedia(data: Data, type: MessageType, conversationId: String, messageId: String? = nil, completion: @escaping (Result<(mediaUrl: String, thumbnailUrl: String?), Error>) -> Void) {
+    func uploadMedia(
+        data: Data,
+        type: MessageType,
+        conversationId: String,
+        messageId: String? = nil,
+        completion: @escaping (Result<(mediaUrl: String, thumbnailUrl: String?), Error>) -> Void
+    ) {
+        guard let senderId = Auth.auth().currentUser?.uid else {
+            completion(.failure(NSError(domain: "ChatService", code: -1, userInfo: [NSLocalizedDescriptionKey: "Usuario no autenticado"])))
+            return
+        }
+
+        let resolvedMessageId = messageId ?? UUID().uuidString
         let ext = getFileExtension(for: type)
-        let fileName = "\(UUID().uuidString).\(ext)"
-        print("📤 ChatService: uploadMedia for type \(type) - Generated extension: \(ext)")
-        let storageRef = storage.reference().child("conversations/\(conversationId)/\(fileName)")
-        
-        let metadata = StorageMetadata()
-        metadata.contentType = getContentType(for: type)
+        let uploader = MediaUploadService.shared
+        let videoCompression = VideoCompressionService.shared
 
-        let uploadTask = storageRef.putData(data, metadata: metadata)
-        
-        // ✅ Track progress if messageId is provided
-        if let msgId = messageId {
-            uploadTask.observe(.progress) { snapshot in
-                let percentComplete = Double(snapshot.progress?.completedUnitCount ?? 0) / Double(snapshot.progress?.totalUnitCount ?? 1)
-                
-                NotificationCenter.default.post(
-                    name: NSNotification.Name("MediaUploadProgress"),
-                    object: nil,
-                    userInfo: ["messageId": msgId, "progress": percentComplete]
-                )
-            }
-        }
-
-        uploadTask.observe(.success) { _ in
-            storageRef.downloadURL { url, error in
-                if let error = error {
-                    completion(.failure(error))
-                    return
-                }
-                
-                guard let mediaUrl = url?.absoluteString else {
-                    completion(
-                        .failure(
-                            NSError(
-                                domain: "",
-                                code: -1,
-                                userInfo: [NSLocalizedDescriptionKey: NSLocalizedString("messaging.error.fileUrlUnavailable", comment: "Unable to get media file URL")]
-                            )
-                        )
+        Task {
+            do {
+                let mediaTarget = StoragePathBuilder.build(
+                    userId: senderId,
+                    domain: .chatMedia(
+                        conversationId: conversationId,
+                        messageId: resolvedMessageId,
+                        fileExtension: ext
                     )
-                    return
-                }
-                
-                if type == .video {
-                    self.generateVideoThumbnail(from: data, conversationId: conversationId) { thumbnailUrl in
-                        completion(.success((mediaUrl: mediaUrl, thumbnailUrl: thumbnailUrl)))
-                    }
+                )
+
+                let payload: MediaUploadPayload
+                var tempFilesToCleanup: [URL] = []
+
+                if type == .video || type == .viewOnceVideo {
+                    let preparedURL = try await videoCompression.prepareVideoDataForUpload(
+                        data: data,
+                        preset: .chat,
+                        preferredExtension: "mp4"
+                    )
+                    tempFilesToCleanup.append(preparedURL)
+                    payload = .file(preparedURL)
                 } else {
-                    completion(.success((mediaUrl: mediaUrl, thumbnailUrl: nil)))
+                    payload = .data(data)
                 }
-            }
-        }
-        
-        uploadTask.observe(.failure) { snapshot in
-            if let error = snapshot.error {
+
+                let mediaUrl = try await uploader.upload(
+                    target: mediaTarget,
+                    payload: payload,
+                    progress: { progressValue in
+                        NotificationCenter.default.post(
+                            name: NSNotification.Name("MediaUploadProgress"),
+                            object: nil,
+                            userInfo: ["messageId": resolvedMessageId, "progress": progressValue]
+                        )
+                    }
+                )
+
+                for url in tempFilesToCleanup {
+                    try? FileManager.default.removeItem(at: url)
+                }
+
+                var thumbnailUrl: String?
+                if type == .video || type == .viewOnceVideo {
+                    thumbnailUrl = try await self.generateVideoThumbnailURL(
+                        from: data,
+                        senderId: senderId,
+                        conversationId: conversationId,
+                        messageId: resolvedMessageId
+                    )
+                }
+
+                completion(.success((mediaUrl: mediaUrl, thumbnailUrl: thumbnailUrl)))
+            } catch {
                 completion(.failure(error))
             }
         }
     }
-    
-    private func generateVideoThumbnail(from videoData: Data, conversationId: String, completion: @escaping (String?) -> Void) {
-        Task {
-            let tempVideoURL = FileManager.default.temporaryDirectory
-                .appendingPathComponent("chat_video_thumb_\(UUID().uuidString).mp4")
 
-            do {
-                try videoData.write(to: tempVideoURL, options: .atomic)
-            } catch {
-                completion(nil)
-                return
-            }
+    private func generateVideoThumbnailURL(
+        from videoData: Data,
+        senderId: String,
+        conversationId: String,
+        messageId: String
+    ) async throws -> String? {
+        let tempVideoURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("chat_video_thumb_\(UUID().uuidString).mp4")
 
-            defer {
-                try? FileManager.default.removeItem(at: tempVideoURL)
-            }
+        do {
+            try videoData.write(to: tempVideoURL, options: .atomic)
+        } catch {
+            return nil
+        }
 
-            let asset = AVURLAsset(url: tempVideoURL)
-            let imageGenerator = AVAssetImageGenerator(asset: asset)
-            imageGenerator.appliesPreferredTrackTransform = true
-            imageGenerator.maximumSize = CGSize(width: 720, height: 1280)
+        defer {
+            try? FileManager.default.removeItem(at: tempVideoURL)
+        }
 
-            let frameCandidates = [
-                CMTime(seconds: 0.15, preferredTimescale: 600),
-                CMTime(seconds: 0.0, preferredTimescale: 600),
-                CMTime(seconds: 0.5, preferredTimescale: 600)
-            ]
+        let asset = AVURLAsset(url: tempVideoURL)
+        let imageGenerator = AVAssetImageGenerator(asset: asset)
+        imageGenerator.appliesPreferredTrackTransform = true
+        imageGenerator.maximumSize = CGSize(width: 720, height: 1280)
 
-            var cgImage: CGImage?
-            for time in frameCandidates {
-                if let (candidate, _) = try? await imageGenerator.image(at: time) {
-                    cgImage = candidate
-                    break
-                }
-            }
+        let frameCandidates = [
+            CMTime(seconds: 0.15, preferredTimescale: 600),
+            CMTime(seconds: 0.0, preferredTimescale: 600),
+            CMTime(seconds: 0.5, preferredTimescale: 600)
+        ]
 
-            guard let cgImage,
-                  let thumbnailData = UIImage(cgImage: cgImage).jpegData(compressionQuality: 0.78) else {
-                completion(nil)
-                return
-            }
-
-            let thumbnailPath = "conversations/\(conversationId)/thumbnails/\(UUID().uuidString).jpg"
-            let thumbnailRef = self.storage.reference().child(thumbnailPath)
-            let metadata = StorageMetadata()
-            metadata.contentType = "image/jpeg"
-
-            thumbnailRef.putData(thumbnailData, metadata: metadata) { _, error in
-                if error != nil {
-                    completion(nil)
-                    return
-                }
-
-                thumbnailRef.downloadURL { url, _ in
-                    completion(url?.absoluteString)
-                }
+        var cgImage: CGImage?
+        for time in frameCandidates {
+            if let (candidate, _) = try? await imageGenerator.image(at: time) {
+                cgImage = candidate
+                break
             }
         }
+
+        guard let cgImage,
+              let thumbnailData = UIImage(cgImage: cgImage).jpegData(compressionQuality: 0.78) else {
+            return nil
+        }
+
+        let thumbTarget = StoragePathBuilder.build(
+            userId: senderId,
+            domain: .chatThumbnail(conversationId: conversationId, messageId: messageId)
+        )
+        return try await MediaUploadService.shared.upload(target: thumbTarget, payload: .data(thumbnailData))
     }
     
     // MARK: - Message Status
@@ -2377,10 +2383,8 @@ extension ChatService {
         uploadMedia(data: mediaData, type: messageType, conversationId: conversationId, messageId: finalMessageId) { [weak self] result in
             switch result {
             case .success(let (mediaUrl, thumbnailUrl)):
-                let messageId = UUID().uuidString
-                
                 let message = EnhancedMessage(
-                    id: messageId,
+                    id: finalMessageId,
                     conversationId: conversationId,
                     senderId: senderId,
                     type: messageType,

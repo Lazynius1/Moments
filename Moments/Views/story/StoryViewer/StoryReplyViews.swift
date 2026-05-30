@@ -31,6 +31,8 @@ private var storyReplyRingGradient: LinearGradient {
 struct StoryReplyMessageBubble: View {
     let message: EnhancedMessage
     let isCurrentUser: Bool
+    /// Otro participante del chat 1:1 (para inferir autor en mensajes antiguos sin `storyAuthorId`).
+    let otherParticipantId: String?
     @State private var showEphemeralContent: Bool = false
 
     @Environment(\.colorScheme) private var colorScheme
@@ -98,7 +100,11 @@ struct StoryReplyMessageBubble: View {
                         .frame(width: 2.5, height: StoryReplyPreviewMetrics.height)
                 }
 
-                StoryReplyThumbnailView(storyReplyData: storyReplyData)
+                StoryReplyGatedThumbnailView(
+                    storyReplyData: storyReplyData,
+                    messageSenderId: message.senderId,
+                    otherParticipantId: otherParticipantId
+                )
 
                 if isCurrentUser {
                     Capsule()
@@ -148,6 +154,174 @@ struct StoryTextReplyContent: View {
                 .multilineTextAlignment(isCurrentUser ? .trailing : .leading)
                 .frame(maxWidth: .infinity, alignment: isCurrentUser ? .trailing : .leading)
         }
+    }
+}
+
+// MARK: - Acceso a preview (tipo Instagram: autor sí, resto si sigue activa)
+
+struct StoryReplyGatedThumbnailView: View {
+    let storyReplyData: [String: String]
+    let messageSenderId: String
+    let otherParticipantId: String?
+
+    @State private var canViewStory = false
+    @State private var denialReason: SharedStoryAccessDenialReason = .expired
+    @State private var isLoading = true
+
+    @Environment(\.colorScheme) private var colorScheme
+
+    var body: some View {
+        Group {
+            if isLoading {
+                StoryReplyThumbnailSkeleton()
+            } else if canViewStory {
+                StoryReplyThumbnailView(storyReplyData: storyReplyData)
+            } else {
+                StoryReplyUnavailableThumbnail(
+                    reason: denialReason,
+                    storyReplyData: storyReplyData
+                )
+            }
+        }
+        .onAppear {
+            validateAccess()
+        }
+    }
+
+    private func validateAccess() {
+        guard let storyId = storyReplyData["storyId"],
+              let viewerId = Auth.auth().currentUser?.uid else {
+            canViewStory = false
+            denialReason = .restricted
+            isLoading = false
+            return
+        }
+
+        let authorId = resolvedStoryAuthorId(viewerId: viewerId)
+        guard !authorId.isEmpty else {
+            canViewStory = false
+            denialReason = .restricted
+            isLoading = false
+            return
+        }
+
+        let payloadExpiration = storyReplyData["storyExpiration"].flatMap { TimeInterval($0) }
+
+        SharedStoryAccessEvaluator.evaluate(
+            authorId: authorId,
+            storyId: storyId,
+            payloadExpiration: payloadExpiration,
+            viewerId: viewerId
+        ) { result in
+            DispatchQueue.main.async {
+                switch result {
+                case .success:
+                    canViewStory = true
+                    denialReason = .expired
+                case .failure(let reason):
+                    canViewStory = false
+                    denialReason = reason
+                }
+                isLoading = false
+            }
+        }
+    }
+
+    private func resolvedStoryAuthorId(viewerId: String) -> String {
+        if let authorId = storyReplyData["storyAuthorId"], !authorId.isEmpty {
+            return authorId
+        }
+        // Mensajes legacy: quien respondió no es el autor de la historia.
+        if messageSenderId == viewerId {
+            return otherParticipantId ?? ""
+        }
+        return viewerId
+    }
+}
+
+private struct StoryReplyThumbnailSkeleton: View {
+    @Environment(\.colorScheme) private var colorScheme
+
+    var body: some View {
+        RoundedRectangle(cornerRadius: StoryReplyPreviewMetrics.cornerRadius, style: .continuous)
+            .fill(Color.white.opacity(colorScheme == .dark ? 0.08 : 0.12))
+            .frame(width: StoryReplyPreviewMetrics.width, height: StoryReplyPreviewMetrics.height)
+            .overlay {
+                ProgressView()
+                    .tint(colorScheme == .dark ? .white.opacity(0.6) : .gray)
+            }
+    }
+}
+
+private struct StoryReplyUnavailableThumbnail: View {
+    let reason: SharedStoryAccessDenialReason
+    let storyReplyData: [String: String]
+
+    @Environment(\.colorScheme) private var colorScheme
+
+    private var previewURL: String? {
+        let preview = storyReplyData["storyPreviewUrl"]?.trimmingCharacters(in: .whitespacesAndNewlines)
+        if let preview, !preview.isEmpty { return preview }
+        return storyReplyData["storyMediaUrl"]
+    }
+
+    private var iconName: String {
+        switch reason {
+        case .expired:
+            return "clock.fill"
+        case .blocked:
+            return "hand.raised.fill"
+        case .privateAccount:
+            return "lock.fill"
+        default:
+            return "lock.fill"
+        }
+    }
+
+    var body: some View {
+        let innerRadius = StoryReplyPreviewMetrics.cornerRadius - 2
+        let innerWidth = StoryReplyPreviewMetrics.width - 4
+        let innerHeight = StoryReplyPreviewMetrics.height - 4
+
+        ZStack {
+            Group {
+                if let previewURL,
+                   let url = URL(string: previewURL) {
+                    KFImage(url)
+                        .resizable()
+                        .scaledToFill()
+                        .blur(radius: 18)
+                        .saturation(0.35)
+                } else {
+                    Rectangle()
+                        .fill(Color.white.opacity(colorScheme == .dark ? 0.1 : 0.15))
+                }
+            }
+            .frame(width: innerWidth, height: innerHeight)
+            .clipShape(RoundedRectangle(cornerRadius: innerRadius, style: .continuous))
+
+            Color.black.opacity(0.55)
+
+            VStack(spacing: 5) {
+                Image(systemName: iconName)
+                    .font(.system(size: 16, weight: .medium))
+                    .foregroundColor(.white.opacity(0.9))
+
+                Text(LocalizedStringKey(reason.titleKey))
+                    .font(.custom("Poppins-SemiBold", size: 9))
+                    .foregroundColor(.white)
+                    .multilineTextAlignment(.center)
+                    .lineLimit(2)
+                    .minimumScaleFactor(0.8)
+            }
+            .padding(.horizontal, 6)
+        }
+        .padding(2)
+        .background(
+            RoundedRectangle(cornerRadius: StoryReplyPreviewMetrics.cornerRadius, style: .continuous)
+                .stroke(storyReplyRingGradient.opacity(0.45), lineWidth: 2)
+        )
+        .frame(width: StoryReplyPreviewMetrics.width, height: StoryReplyPreviewMetrics.height)
     }
 }
 

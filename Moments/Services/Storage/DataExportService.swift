@@ -888,12 +888,13 @@ class DataExportService: ObservableObject {
             return
         }
 
-        let fileName = fileURL.lastPathComponent
-        let storagePath = "exports/\(userId)/\(fileName)"
-        let storageRef = Storage.storage().reference().child(storagePath)
+        let exportId = fileURL.deletingPathExtension().lastPathComponent
+        let target = StoragePathBuilder.build(userId: userId, domain: .dataExport(exportId: exportId))
+        let storageRef = Storage.storage().reference().child(target.objectPath)
 
         let metadata = StorageMetadata()
-        metadata.contentType = "application/zip"
+        metadata.contentType = target.contentType
+        metadata.customMetadata = target.customMetadata
 
         storageRef.putFile(from: fileURL, metadata: metadata) { _, error in
             if let error = error {

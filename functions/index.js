@@ -255,9 +255,23 @@ function storageObjectNameFromFirebaseUrl(url, expectedBucketName) {
 function userOwnedVideoObjectNameFromFirebaseUrl(url, userId) {
   const bucket = admin.storage().bucket();
   const objectName = storageObjectNameFromFirebaseUrl(url, bucket.name);
-  if (!objectName || !objectName.startsWith('videos/')) return null;
+  if (!objectName || !userId) return null;
 
-  const expectedSuffix = `_${userId}.mp4`;
+  const safeUid = String(userId).trim();
+  if (!safeUid) return null;
+
+  // New layout: users/{uid}/moments|stories/{contentId}/media/{mediaId}.mp4
+  const newMediaMatch = objectName.match(
+    new RegExp(`^users/${safeUid}/(moments|stories)/[^/]+/media/[^/]+\\.mp4$`)
+  );
+  if (newMediaMatch) {
+    return objectName;
+  }
+
+  // Legacy layout: videos/{uuid}_{uid}.mp4
+  if (!objectName.startsWith('videos/')) return null;
+
+  const expectedSuffix = `_${safeUid}.mp4`;
   if (path.posix.dirname(objectName) !== 'videos' || !path.posix.basename(objectName).endsWith(expectedSuffix)) {
     return null;
   }
@@ -469,13 +483,16 @@ function addStorageUrl(targetSet, value) {
     trimmed.startsWith('https://firebasestorage.googleapis.com/') ||
     trimmed.startsWith('images/') ||
     trimmed.startsWith('videos/') ||
+    trimmed.startsWith('users/') ||
     trimmed.startsWith('processed_videos/') ||
     trimmed.startsWith('story_processing_uploads/') ||
     trimmed.startsWith('stories/') ||
+    trimmed.startsWith('conversations/') ||
     trimmed.startsWith('background_frames/') ||
     trimmed.startsWith('story_frames/') ||
     trimmed.startsWith('story_audio/') ||
-    trimmed.startsWith('hidden_layers/')
+    trimmed.startsWith('hidden_layers/') ||
+    trimmed.startsWith('exports/')
   ) {
     targetSet.add(trimmed);
   }
@@ -499,6 +516,8 @@ function storageObjectBelongsToUser(objectName, uid) {
     `users/${safeUid}/profile/`,
     `users/${safeUid}/moments/`,
     `users/${safeUid}/stories/`,
+    `users/${safeUid}/chat/`,
+    `users/${safeUid}/exports/`,
     `processed_videos/moments/${safeUid}/`,
     `processed_videos/stories/${safeUid}/`,
     `story_processing_uploads/${safeUid}/`,

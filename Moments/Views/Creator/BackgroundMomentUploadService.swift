@@ -29,6 +29,8 @@ class UploadingMoment: ObservableObject, Identifiable {
     let allowSharing: Bool
     let scheduledDate: Date?
     let hiddenLayers: [HiddenLayerDraft]
+    /// ID de Firestore reservado antes de subir media (rutas Storage bajo users/{uid}/moments/{id}/).
+    let plannedMomentId: String
 
     @Published var uploadProgress: Double = 0.0
     @Published var status: UploadStatus = .uploading
@@ -57,9 +59,11 @@ class UploadingMoment: ObservableObject, Identifiable {
         allowSharing: Bool = true,
         scheduledDate: Date? = nil,
         hiddenLayers: [HiddenLayerDraft] = [],
-        tempId: String? = nil
+        tempId: String? = nil,
+        plannedMomentId: String? = nil
     ) {
         self.tempId = tempId ?? "temp_\(UUID().uuidString)"
+        self.plannedMomentId = plannedMomentId ?? UUID().uuidString
         self.userId = userId
         self.content = content
         self.mediaItems = mediaItems
@@ -129,6 +133,7 @@ enum MomentVideoUploadPreparationError: LocalizedError {
 
 // MARK: - 📦 PERSISTENCE PAYLOADS
 struct MomentUploadPayload: Codable {
+    let plannedMomentId: String?
     let content: String
     let mediaPaths: [CachedMediaItem]
     let hiddenLayers: [CachedHiddenLayerDraft]?
@@ -193,6 +198,9 @@ class BackgroundMomentUploadService: ObservableObject {
     // ✅ NUEVO: Live Activity para Dynamic Island
     private var liveActivity: Activity<MomentUploadActivityAttributes>?
 
+    /// Tareas Swift de `processUpload` por `tempId` (cancelación cooperativa).
+    private var runningUploadTasks: [String: Task<Void, Never>] = [:]
+
     private init() {}
 
     // MARK: - 📤 FUNCIÓN PRINCIPAL: Iniciar upload en background
@@ -212,7 +220,8 @@ class BackgroundMomentUploadService: ObservableObject {
         scheduledDate: Date? = nil,
         hiddenLayers: [HiddenLayerDraft] = [],
         recoveryActionId: String? = nil,
-        shouldPersistAction: Bool = true
+        shouldPersistAction: Bool = true,
+        plannedMomentId: String? = nil
     ) -> UploadingMoment? {
 
         guard let userId = Auth.auth().currentUser?.uid else { return nil }
@@ -236,7 +245,8 @@ class BackgroundMomentUploadService: ObservableObject {
             allowSharing: allowSharing,
             scheduledDate: scheduledDate,
             hiddenLayers: hiddenLayers,
-            tempId: recoveryActionId
+            tempId: recoveryActionId,
+            plannedMomentId: plannedMomentId
         )
 
         // Agregar al feed inmediatamente
@@ -257,7 +267,7 @@ class BackgroundMomentUploadService: ObservableObject {
         }
 
         // Procesar en background
-        Task {
+        let uploadTask = Task {
             // 1. Persistir acción en disco por si la app muere
             if shouldPersistAction {
                 await MainActor.run {
@@ -276,20 +286,32 @@ class BackgroundMomentUploadService: ObservableObject {
                 }
             }
 
+            await MainActor.run {
+                self.runningUploadTasks.removeValue(forKey: uploadingMoment.tempId)
+            }
+
             // ✅ Terminar la tarea de background cuando finalice
             if backgroundTaskID != .invalid {
                 UIApplication.shared.endBackgroundTask(backgroundTaskID)
                 backgroundTaskID = .invalid
             }
         }
+        runningUploadTasks[uploadingMoment.tempId] = uploadTask
 
         return uploadingMoment
     }
 
     // MARK: - 🔄 PROCESAMIENTO COMPLETO
     private func processUpload(_ uploadingMoment: UploadingMoment) async {
+        if Task.isCancelled { return }
 
         do {
+            await MainActor.run {
+                if uploadingMoment.momentId == nil {
+                    uploadingMoment.momentId = uploadingMoment.plannedMomentId
+                }
+            }
+
             // PASO 1: Upload archivos (0% - 70%)
             let mediaUrls = try await uploadMediaFiles(uploadingMoment)
 
@@ -364,6 +386,8 @@ class BackgroundMomentUploadService: ObservableObject {
             )
 
         } catch {
+            if error is CancellationError || Task.isCancelled { return }
+
             await updateProgress(uploadingMoment, progress: 0.0, status: .failed, error: error.localizedDescription)
 
             // ✅ NUEVO: Reanudar listeners incluso si falló
@@ -387,6 +411,8 @@ class BackgroundMomentUploadService: ObservableObject {
         let totalFiles = uploadingMoment.mediaItems.count
 
         for (index, media) in uploadingMoment.mediaItems.enumerated() {
+            if Task.isCancelled { throw CancellationError() }
+
             await MainActor.run {
                 uploadingMoment.currentMediaIndex = index
                 uploadingMoment.currentMediaThumbnailImage = media.image
@@ -401,34 +427,29 @@ class BackgroundMomentUploadService: ObservableObject {
             let mediaProgressShare = 1.0 - thumbnailProgressShare
             await updateProgress(uploadingMoment, progress: baseProgress)
 
-            var finalMediaItem: UploadMediaItem
-            var finalVideoFileSize = media.videoFileSize
+            let momentId = uploadingMoment.plannedMomentId
+            let mediaId = media.id
+            let uploadContext = FeedMediaUploadContext.moment(momentId: momentId, mediaId: mediaId)
 
-            if media.type == .video, media.videoURL != nil {
-                let preparedVideoURL = try await prepareVideoURLForMomentUpload(
-                    media,
-                    uploadingMoment: uploadingMoment,
-                    baseProgress: baseProgress
-                )
-                finalVideoFileSize = try? fileSize(at: preparedVideoURL)
-                finalMediaItem = UploadMediaItem(type: .video, image: nil, videoURL: preparedVideoURL)
-            } else {
-                finalMediaItem = UploadMediaItem(
-                    type: media.type == .image ? .image : .video,
-                    image: media.type == .image ? media.image : nil,
-                    videoURL: media.type == .video ? media.videoURL : nil
-                )
+            let finalMediaItem = UploadMediaItem(
+                type: media.type == .image ? .image : .video,
+                image: media.type == .image ? media.image : nil,
+                videoURL: media.type == .video ? media.videoURL : nil
+            )
+
+            var finalVideoFileSize = media.videoFileSize
+            if media.type == .video, let videoURL = media.videoURL {
+                finalVideoFileSize = try? fileSize(at: videoURL)
             }
 
-            // ✅ SUBIR THUMBNAIL SI ES VIDEO
             var thumbnailUrlString: String? = nil
             if hasValidVideoThumbnail {
-                let thumbnailImg = media.image
-                let thumbnailMedia = UploadMediaItem(type: .image, image: thumbnailImg, videoURL: nil)
                 thumbnailUrlString = try await withCheckedThrowingContinuation { continuation in
-                    storageService.uploadMedia(
+                    storageService.uploadMomentThumbnail(
                         userId: uploadingMoment.userId,
-                        mediaItem: thumbnailMedia,
+                        momentId: momentId,
+                        image: media.image,
+                        mediaId: "\(mediaId)_thumb",
                         progress: { [weak uploadingMoment] progress in
                             guard let uploadingMoment else { return }
                             let totalProgress = baseProgress + (fileProgressSpan * thumbnailProgressShare * progress)
@@ -443,11 +464,11 @@ class BackgroundMomentUploadService: ObservableObject {
                 }
             }
 
-            // 🔥 USAR uploadMedia NORMAL para el archivo principal
             let urlString = try await withCheckedThrowingContinuation { continuation in
                 storageService.uploadMedia(
                     userId: uploadingMoment.userId,
                     mediaItem: finalMediaItem,
+                    context: uploadContext,
                     progress: { [weak uploadingMoment] progress in
                         guard let uploadingMoment else { return }
                         let mediaStart = baseProgress + (fileProgressSpan * thumbnailProgressShare)
@@ -460,6 +481,10 @@ class BackgroundMomentUploadService: ObservableObject {
                         continuation.resume(with: result)
                     }
                 )
+            }
+
+            if media.type == .video, let videoURL = media.videoURL {
+                finalVideoFileSize = try? fileSize(at: videoURL)
             }
 
             let mediaItemType: MediaItem.MediaType = media.type == .image ? .image : .video
@@ -568,9 +593,11 @@ class BackgroundMomentUploadService: ObservableObject {
             guard let image = draft.localImage else { throw StorageError.invalidData }
             let resizedImage = resizeHiddenLayerImage(image)
             mediaURL = try await withCheckedThrowingContinuation { continuation in
-                storageService.uploadMedia(
+                storageService.uploadHiddenLayerImage(
                     userId: userId,
-                    mediaItem: UploadMediaItem(type: .image, image: resizedImage, videoURL: nil)
+                    momentId: momentId,
+                    layerId: draft.id,
+                    image: resizedImage
                 ) { result in
                     continuation.resume(with: result)
                 }
@@ -579,12 +606,16 @@ class BackgroundMomentUploadService: ObservableObject {
             moderationState = .pending
         case .audio:
             guard let audioURL = draft.localAudioURL else { throw StorageError.invalidData }
-            mediaURL = try await uploadHiddenLayerAudio(
-                userId: userId,
-                momentId: momentId,
-                layerId: draft.id,
-                audioURL: audioURL
-            )
+            mediaURL = try await withCheckedThrowingContinuation { continuation in
+                storageService.uploadHiddenLayerAudio(
+                    userId: userId,
+                    momentId: momentId,
+                    layerId: draft.id,
+                    audioURL: audioURL
+                ) { result in
+                    continuation.resume(with: result)
+                }
+            }
             moderationState = .visible
         }
 
@@ -613,37 +644,6 @@ class BackgroundMomentUploadService: ObservableObject {
             authorTimezoneIdentifier: draft.authorTimezoneIdentifier,
             moderationState: moderationState
         )
-    }
-
-    private func uploadHiddenLayerAudio(
-        userId: String,
-        momentId: String,
-        layerId: String,
-        audioURL: URL
-    ) async throws -> String {
-        let ref = Storage.storage().reference()
-            .child("hidden_layers/\(userId)/\(momentId)/\(layerId).m4a")
-        let metadata = StorageMetadata()
-        metadata.contentType = "audio/mp4"
-
-        return try await withCheckedThrowingContinuation { continuation in
-            ref.putFile(from: audioURL, metadata: metadata) { _, error in
-                if let error {
-                    continuation.resume(throwing: error)
-                    return
-                }
-
-                ref.downloadURL { url, error in
-                    if let error {
-                        continuation.resume(throwing: error)
-                    } else if let url {
-                        continuation.resume(returning: url.absoluteString)
-                    } else {
-                        continuation.resume(throwing: StorageError.urlRetrievalFailed)
-                    }
-                }
-            }
-        }
     }
 
     private func resizeHiddenLayerImage(_ image: UIImage, maxLongSide: CGFloat = 900) -> UIImage {
@@ -726,12 +726,13 @@ class BackgroundMomentUploadService: ObservableObject {
                     customListId: uploadingMoment.customListId!,
                     taggedUsers: uploadingMoment.taggedUsers,
                     location: uploadingMoment.location,
-                    locationCoordinate: uploadingMoment.locationCoordinate,  // ✅ NUEVO: Pasar coordenadas
+                    locationCoordinate: uploadingMoment.locationCoordinate,
                     aspectRatio: uploadingMoment.aspectRatio,
-                    disableComments: uploadingMoment.disableComments,      // ✅ NUEVO: Configuración avanzada
-                    hideLikeCounts: uploadingMoment.hideLikeCounts,        // ✅ NUEVO: Configuración avanzada
-                    allowSharing: uploadingMoment.allowSharing,            // ✅ NUEVO: Configuración avanzada
-                    scheduledDate: uploadingMoment.scheduledDate
+                    disableComments: uploadingMoment.disableComments,
+                    hideLikeCounts: uploadingMoment.hideLikeCounts,
+                    allowSharing: uploadingMoment.allowSharing,
+                    scheduledDate: uploadingMoment.scheduledDate,
+                    momentId: uploadingMoment.plannedMomentId
                 ) { momentId, error in // 🔥 Captura el momentId
                     if let error = error {
                         continuation.resume(throwing: error)
@@ -751,14 +752,15 @@ class BackgroundMomentUploadService: ObservableObject {
                     mediaItems: mediaUrls,
                     taggedUsers: uploadingMoment.taggedUsers,
                     location: uploadingMoment.location,
-                    audienceSetting: uploadingMoment.audienceSetting,      // ✅ MOVIDO: Antes de locationCoordinate
+                    audienceSetting: uploadingMoment.audienceSetting,
                     locationCoordinate: uploadingMoment.locationCoordinate,
                     customViewers: uploadingMoment.customViewers,
                     aspectRatio: uploadingMoment.aspectRatio,
-                    disableComments: uploadingMoment.disableComments,      // ✅ NUEVO: Configuración avanzada
-                    hideLikeCounts: uploadingMoment.hideLikeCounts,        // ✅ NUEVO: Configuración avanzada
-                    allowSharing: uploadingMoment.allowSharing,            // ✅ NUEVO: Configuración avanzada
-                    scheduledDate: uploadingMoment.scheduledDate
+                    disableComments: uploadingMoment.disableComments,
+                    hideLikeCounts: uploadingMoment.hideLikeCounts,
+                    allowSharing: uploadingMoment.allowSharing,
+                    scheduledDate: uploadingMoment.scheduledDate,
+                    momentId: uploadingMoment.plannedMomentId
                 ) { momentId, error in // 🔥 Captura el momentId
                     if let error = error {
                         continuation.resume(throwing: error)
@@ -950,13 +952,21 @@ class BackgroundMomentUploadService: ObservableObject {
         moment.currentMediaThumbnailImage = moment.mediaItems.first?.image
         self.isProcessing = true
 
-        Task.detached(priority: .userInitiated) {
+        let retryTask = Task.detached(priority: .userInitiated) {
             await self.processUpload(moment)
+            await MainActor.run {
+                self.runningUploadTasks.removeValue(forKey: moment.tempId)
+            }
         }
+        runningUploadTasks[moment.tempId] = retryTask
     }
 
     // MARK: - 🗑️ CANCELAR UPLOAD
     func cancelUpload(_ moment: UploadingMoment) {
+        let storagePrefix = "users/\(moment.userId)/moments/\(moment.plannedMomentId)/"
+        runningUploadTasks[moment.tempId]?.cancel()
+        runningUploadTasks.removeValue(forKey: moment.tempId)
+        MediaUploadService.shared.cancelUploads(withPathPrefix: storagePrefix)
         self.removeUploadingMoment(moment)
     }
 
@@ -1107,6 +1117,7 @@ class BackgroundMomentUploadService: ObservableObject {
 
                 // 3. Crear payload
                 let payload = MomentUploadPayload(
+                    plannedMomentId: uploadingMoment.plannedMomentId,
                     content: uploadingMoment.content,
                     mediaPaths: cachedMediaItems,
                     hiddenLayers: cachedHiddenLayers,
@@ -1400,7 +1411,8 @@ class BackgroundMomentUploadService: ObservableObject {
                 scheduledDate: payload.scheduledDate,
                 hiddenLayers: hiddenLayers,
                 recoveryActionId: action.id,
-                shouldPersistAction: false
+                shouldPersistAction: false,
+                plannedMomentId: payload.plannedMomentId
             )
 
         } catch {

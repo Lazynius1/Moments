@@ -308,19 +308,12 @@ class StoryViewModel: ObservableObject {
                     return
                 }
 
-                // Create story reply data
-                let storyReplyData: [String: String] = [
-                    "storyId": storyId,
-                    "storyMediaUrl": storyReply.mediaUrl,
-                    "storyMediaType": storyReply.mediaType
-                ]
-
                 // Send the message as regular text message with story reply data
                 self.chatService.sendStoryReplyMessage(
                     conversationId: conversationId,
                     senderId: currentUserId,
                     content: "💬 \(message)",  // Keep the message content
-                    storyReplyData: storyReplyData
+                    storyReplyData: storyReply.payload
                 ) { result in
                     switch result {
                     case .success(_):
@@ -380,11 +373,7 @@ class StoryViewModel: ObservableObject {
                                     content: NSLocalizedString("stories.ephemeral.replyContent", comment: "Ephemeral moment in reply to story"),
                                     mediaUrl: mediaUrl,
                                     expirationHours: 24,
-                                    storyReplyData: [
-                                        "storyId": storyId,
-                                        "storyMediaUrl": storyReply.mediaUrl,
-                                        "storyMediaType": storyReply.mediaType
-                                    ]
+                                    storyReplyData: storyReply.payload
                                 ) { ephemeralResult in
                                     switch ephemeralResult {
                                     case .success(_):
