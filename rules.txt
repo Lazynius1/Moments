@@ -64,6 +64,53 @@ service cloud.firestore {
       return followerUserDoc.data.get('isActive', true) && targetUserDoc.data.get('isActive', true); // Ambos usuarios deben estar activos
     }
 
+    // 🔐 Verifica que una relación privada fue aprobada por el dueño de la cuenta privada.
+    function hasAcceptedFollowRequest(followerId, targetUserId, requestId) {
+      return requestId is string &&
+             requestId != '' &&
+             exists(/databases/$(database)/documents/users/$(targetUserId)/receivedFollowRequests/$(requestId)) &&
+             get(/databases/$(database)/documents/users/$(targetUserId)/receivedFollowRequests/$(requestId)).data.senderId == followerId &&
+             get(/databases/$(database)/documents/users/$(targetUserId)/receivedFollowRequests/$(requestId)).data.recipientId == targetUserId &&
+             get(/databases/$(database)/documents/users/$(targetUserId)/receivedFollowRequests/$(requestId)).data.status == 'pending';
+    }
+
+    // 🔐 Solo el seguidor puede crear follows públicos; las cuentas privadas requieren aprobación del destinatario.
+    function canCreateFollowingDocument(followerId, targetUserId) {
+      let targetUserDoc = get(/databases/$(database)/documents/users/$(targetUserId));
+      return request.resource.data.userId == targetUserId &&
+             request.resource.data.timestamp is timestamp &&
+             canFollowUser(followerId, targetUserId) &&
+             ((request.auth.uid == followerId && !targetUserDoc.data.get('isPrivate', false)) ||
+              (request.auth.uid == targetUserId &&
+               hasAcceptedFollowRequest(followerId, targetUserId, request.resource.data.get('acceptedFollowRequestId', ''))));
+    }
+
+    // 🔐 Mantiene followers sincronizado sin permitir que terceros falsifiquen el grafo social.
+    function canCreateFollowerDocument(targetUserId, followerId) {
+      let targetUserDoc = get(/databases/$(database)/documents/users/$(targetUserId));
+      return request.resource.data.userId == followerId &&
+             request.resource.data.timestamp is timestamp &&
+             canFollowUser(followerId, targetUserId) &&
+             ((request.auth.uid == followerId && !targetUserDoc.data.get('isPrivate', false)) ||
+              (request.auth.uid == targetUserId &&
+               hasAcceptedFollowRequest(followerId, targetUserId, request.resource.data.get('acceptedFollowRequestId', ''))));
+    }
+
+    // 🔐 Reutiliza las comprobaciones de audiencia para consultas collectionGroup de contenido.
+    function canViewCollectionGroupContent(viewerId, contentType, contentId) {
+      let ownerId = resource.data.get('authorId', '');
+      return ownerId is string &&
+             ownerId != '' &&
+             canViewContentWithAudience(
+               viewerId,
+               ownerId,
+               resource.data.get('audience', 'everyone'),
+               contentType,
+               contentId,
+               resource.data.get('customListId', '')
+             );
+    }
+
     // ✅ NUEVA: Función para verificar si un usuario puede participar en conversaciones
     function canParticipateInConversations(userId) {
       return get(/databases/$(database)/documents/users/$(userId)).data.get('isActive', true);
@@ -291,10 +338,9 @@ service cloud.firestore {
            get(/databases/$(database)/documents/users/$(userId)).data.showFollowing)
         );
         
-        // ✅ SOLUCIÓN TEMPORAL: Regla simple para debugging
-        // Permitir que cualquier usuario autenticado cree documentos de following
-        // Esto nos ayudará a identificar si el problema es de permisos o de otra cosa
-        allow create: if request.auth != null;
+        // 🔐 El seguidor solo puede crear follows públicos; las cuentas privadas requieren aprobación.
+        allow create: if request.auth != null &&
+                      canCreateFollowingDocument(userId, followedUserId);
         
         allow delete: if request.auth != null && request.auth.uid == userId;
         allow update: if request.auth != null && request.auth.uid == userId;
@@ -308,10 +354,9 @@ service cloud.firestore {
            get(/databases/$(database)/documents/users/$(userId)).data.showAdmirers)
         );
         
-        // ✅ SOLUCIÓN TEMPORAL: Regla muy permisiva para debugging
-        // Permitir que cualquier usuario autenticado cree documentos de followers
-        // Esto nos ayudará a identificar si el problema es de permisos o de otra cosa
-        allow create: if request.auth != null;
+        // 🔐 Solo las partes de la relación pueden crear el documento follower correspondiente.
+        allow create: if request.auth != null &&
+                      canCreateFollowerDocument(userId, followerId);
         
         allow delete: if request.auth != null && (request.auth.uid == followerId || request.auth.uid == userId);
         allow update: if request.auth != null && (request.auth.uid == followerId || request.auth.uid == userId);
@@ -1489,20 +1534,22 @@ service cloud.firestore {
     }
     
     match /{path=**}/moments/{momentId} {
-      allow read: if request.auth != null &&
-                     resource.data.get('audience', 'everyone') == 'everyone';
+      allow get: if request.auth != null &&
+                    canViewCollectionGroupContent(request.auth.uid, 'moment', momentId);
       
       allow list: if request.auth != null &&
-                     request.query.limit <= 500;
+                     request.query.limit <= 500 &&
+                     canViewCollectionGroupContent(request.auth.uid, 'moment', momentId);
     }
     
     // ✅ NUEVA: Regla para collectionGroup queries de historias (Story Chains)
     match /{path=**}/stories/{storyId} {
-      allow read: if request.auth != null &&
-                     resource.data.get('audience', 'everyone') == 'everyone';
+      allow get: if request.auth != null &&
+                    canViewCollectionGroupContent(request.auth.uid, 'story', storyId);
       
       allow list: if request.auth != null &&
-                     request.query.limit <= 500;
+                     request.query.limit <= 500 &&
+                     canViewCollectionGroupContent(request.auth.uid, 'story', storyId);
     }
     
     // =====================================================================
