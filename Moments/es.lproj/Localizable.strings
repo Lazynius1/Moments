@@ -466,14 +466,22 @@
 "notifications.tab.requests" = "Solicitudes";
 
 /* Notification Messages */
+"notifications.message.like.two" = "%@ y %@ reaccionaron a tu momento.";
 "notifications.message.like.multiple" = "%@ y %d más reaccionaron a tu momento.";
+"notifications.message.reaction.two" = "%@ y %@ reaccionaron a tu momento.";
+"notifications.message.reaction.two.withType" = "%@ reaccionó %@ y %@ reaccionaron a tu momento.";
 "notifications.message.reaction.multiple" = "%@ y %d más reaccionaron a tu momento.";
 "notifications.message.reaction.multiple.withType" = "%@ reaccionó %@ y %d más reaccionaron a tu momento.";
 "notifications.message.mention.multiple" = "%@ y %d más te mencionaron.";
+"notifications.message.follow.two" = "%@ y %@ comenzaron a seguirte.";
 "notifications.message.follow.multiple" = "%@ y %d más comenzaron a seguirte.";
+"notifications.message.request.two" = "%@ y %@ quieren seguirte.";
 "notifications.message.request.multiple" = "%@ y %d más quieren seguirte.";
+"notifications.message.mutual.two" = "Ahora tienes conexión mutua con %@ y %@.";
 "notifications.message.mutual.multiple" = "Ahora tienes una conexión mutua con %@ y %d más.";
+"notifications.message.comment.two" = "%@ y %@ comentaron en tu momento.";
 "notifications.message.comment.multiple" = "%@ y %d más comentaron en tu momento.";
+"notifications.message.story.two" = "%@ y %@ les gusta tu historia.";
 "notifications.message.story.multiple" = "%@ y %d más reaccionaron a tu historia.";
 "notifications.message.storyChain.multiple" = "%@ continuó la cadena \"%@\" y %d más también la continuaron.";
 "notifications.message.visit.multiple" = "%d personas visitaron tu perfil hoy.";
@@ -488,12 +496,26 @@
 "notifications.message.story.single" = "%@ reaccionó a tu historia.";
 "notifications.message.storyChain.single" = "%@ continuó la cadena \"%@\".";
 "notifications.message.visit.single" = "%d personas visitaron tu perfil hoy.";
+"notifications.message.requestAccepted.two" = "%@ y %@ aceptaron tu solicitud de seguimiento.";
 "notifications.message.requestAccepted.multiple" = "%@ y %d más aceptaron tu solicitud de seguimiento.";
 "notifications.message.requestAccepted.single" = "%@ aceptó tu solicitud de seguimiento.";
 "notifications.message.tagged.single" = "%@ te etiquetó en un momento.";
+"notifications.message.tagged.two" = "%@ y %@ te etiquetaron en momentos.";
 "notifications.message.tagged.multiple" = "%@ y %d más te etiquetaron en momentos.";
 "notifications.message.tagged.withTitle.single" = "%@ te etiquetó en el momento \"%@\".";
+"notifications.message.tagged.withTitle.two" = "%@ y %@ te etiquetaron en el momento \"%@\".";
 "notifications.message.tagged.withTitle.multiple" = "%@ y %d más te etiquetaron en el momento \"%@\".";
+"notifications.message.like.threePlus" = "%@, %@ y %d más reaccionaron a tu momento.";
+"notifications.message.reaction.threePlus" = "%@, %@ y %d más reaccionaron a tu momento.";
+"notifications.message.reaction.threePlus.withType" = "%@ reaccionó %@, %@ y %d más reaccionaron a tu momento.";
+"notifications.message.follow.threePlus" = "%@, %@ y %d más comenzaron a seguirte.";
+"notifications.message.request.threePlus" = "%@, %@ y %d más quieren seguirte.";
+"notifications.message.mutual.threePlus" = "Ahora tienes conexión mutua con %@, %@ y %d más.";
+"notifications.message.comment.threePlus" = "%@, %@ y %d más comentaron en tu momento.";
+"notifications.message.story.threePlus" = "%@, %@ y %d más les gusta tu historia.";
+"notifications.message.requestAccepted.threePlus" = "%@, %@ y %d más aceptaron tu solicitud de seguimiento.";
+"notifications.message.tagged.threePlus" = "%@, %@ y %d más te etiquetaron en momentos.";
+"notifications.message.tagged.withTitle.threePlus" = "%@, %@ y %d más te etiquetaron en el momento \"%@\".";
 
 /* Messages */
 "messages.count" = "%d";
@@ -3416,13 +3438,23 @@
 "storyVideo.error.thumbnailFailed" = "No hemos podido generar la vista previa del vídeo.";
 
 "notifications.message.mention.story.single" = "%@ te mencionó en una historia";
+"notifications.message.mention.story.two" = "%@ y %@ te mencionaron en una historia";
+"notifications.message.mention.story.threePlus" = "%@, %@ y %d más te mencionaron en historias";
 "notifications.message.mention.story.multiple" = "%@ y %d personas más te mencionaron en historias";
 "notifications.message.mention.comment.single" = "%@ te mencionó en un comentario";
+"notifications.message.mention.comment.two" = "%@ y %@ te mencionaron en un comentario";
+"notifications.message.mention.comment.threePlus" = "%@, %@ y %d más te mencionaron en comentarios";
 "notifications.message.mention.comment.multiple" = "%@ y %d personas más te mencionaron en comentarios";
 "notifications.message.mention.comment.withAuthor.single" = "%@ te mencionó en el momento de %@";
+"notifications.message.mention.comment.withAuthor.two" = "%@ y %@ te mencionaron en el momento de %@";
+"notifications.message.mention.comment.withAuthor.threePlus" = "%@, %@ y %d más te mencionaron en el momento de %@";
 "notifications.message.mention.comment.withAuthor.multiple" = "%@ y %d personas más te mencionaron en el momento de %@";
 "notifications.message.mention.moment.single" = "%@ te mencionó en un momento";
+"notifications.message.mention.moment.two" = "%@ y %@ te mencionaron en un momento";
+"notifications.message.mention.moment.threePlus" = "%@, %@ y %d más te mencionaron en momentos";
 "notifications.message.mention.moment.multiple" = "%@ y %d personas más te mencionaron en momentos";
+"notifications.message.reply.two" = "%@ y %@ respondieron a tus comentarios";
+"notifications.message.reply.threePlus" = "%@, %@ y %d más respondieron a tus comentarios";
 "notifications.message.reply.single" = "%@ respondió a tu comentario";
 "notifications.message.reply.multiple" = "%@ y %d personas más respondieron a tus comentarios";
 "banner.verb.mention.story" = "te mencionó en una historia";

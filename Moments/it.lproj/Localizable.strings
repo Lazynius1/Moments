@@ -458,14 +458,22 @@
 "notifications.tab.requests" = "Richieste";
 
 /* Notification Messages */
+"notifications.message.like.two" = "%@ e %@ hanno reagito al tuo momento.";
 "notifications.message.like.multiple" = "%@ e altre %d persone hanno reagito al tuo momento.";
+"notifications.message.reaction.two" = "%@ e %@ hanno reagito al tuo momento.";
+"notifications.message.reaction.two.withType" = "%@ ha reagito %@ e %@ hanno reagito al tuo momento.";
 "notifications.message.reaction.multiple" = "%@ e altre %d persone hanno reagito al tuo momento.";
 "notifications.message.reaction.multiple.withType" = "%@ ha reagito %@ e altre %d persone hanno reagito al tuo momento.";
 "notifications.message.mention.multiple" = "%@ e altre %d persone ti hanno menzionato.";
+"notifications.message.follow.two" = "%@ e %@ hanno iniziato a seguirti.";
 "notifications.message.follow.multiple" = "%@ e altre %d persone hanno iniziato a seguirti.";
+"notifications.message.request.two" = "%@ e %@ vogliono seguirti.";
 "notifications.message.request.multiple" = "%@ e altre %d persone vogliono seguirti.";
+"notifications.message.mutual.two" = "Ora hai una connessione reciproca con %@ e %@.";
 "notifications.message.mutual.multiple" = "Ora hai una connessione reciproca con %@ e altre %d persone.";
+"notifications.message.comment.two" = "%@ e %@ hanno commentato il tuo momento.";
 "notifications.message.comment.multiple" = "%@ e altre %d persone hanno commentato il tuo momento.";
+"notifications.message.story.two" = "%@ e %@ amano la tua storia.";
 "notifications.message.story.multiple" = "%@ e altre %d persone hanno reagito alla tua storia.";
 "notifications.message.storyChain.multiple" = "%@ ha continuato la catena \"%@\" e anche altre %d persone l'hanno continuata.";
 "notifications.message.visit.multiple" = "%d persone hanno visitato il tuo profilo oggi.";
@@ -480,12 +488,26 @@
 "notifications.message.story.single" = "%@ ha reagito alla tua storia.";
 "notifications.message.storyChain.single" = "%@ ha continuato la catena \"%@\".";
 "notifications.message.visit.single" = "%d persone hanno visitato il tuo profilo oggi.";
+"notifications.message.requestAccepted.two" = "%@ e %@ hanno accettato la tua richiesta di follow.";
 "notifications.message.requestAccepted.multiple" = "%@ e altre %d persone hanno accettato la tua richiesta di follow.";
 "notifications.message.requestAccepted.single" = "%@ ha accettato la tua richiesta di follow.";
 "notifications.message.tagged.single" = "%@ ti ha taggato in un momento.";
+"notifications.message.tagged.two" = "%@ e %@ ti hanno taggato in momenti.";
 "notifications.message.tagged.multiple" = "%@ e altre %d persone ti hanno taggato in momenti.";
 "notifications.message.tagged.withTitle.single" = "%@ ti ha taggato in \"%@\".";
+"notifications.message.tagged.withTitle.two" = "%@ e %@ ti hanno taggato in \"%@\".";
 "notifications.message.tagged.withTitle.multiple" = "%@ e altre %d persone ti hanno taggato in \"%@\".";
+"notifications.message.like.threePlus" = "%@, %@ e altre %d persone hanno reagito al tuo momento.";
+"notifications.message.reaction.threePlus" = "%@, %@ e altre %d persone hanno reagito al tuo momento.";
+"notifications.message.reaction.threePlus.withType" = "%@ ha reagito %@, %@ e altre %d persone hanno reagito al tuo momento.";
+"notifications.message.follow.threePlus" = "%@, %@ e altre %d persone hanno iniziato a seguirti.";
+"notifications.message.request.threePlus" = "%@, %@ e altre %d persone vogliono seguirti.";
+"notifications.message.mutual.threePlus" = "Hai una connessione reciproca con %@, %@ e altre %d persone.";
+"notifications.message.comment.threePlus" = "%@, %@ e altre %d persone hanno commentato il tuo momento.";
+"notifications.message.story.threePlus" = "A %@, %@ e altre %d persone piace la tua storia.";
+"notifications.message.requestAccepted.threePlus" = "%@, %@ e altre %d persone hanno accettato la tua richiesta di follow.";
+"notifications.message.tagged.threePlus" = "%@, %@ e altre %d persone ti hanno taggato in momenti.";
+"notifications.message.tagged.withTitle.threePlus" = "%@, %@ e altre %d persone ti hanno taggato in \"%@\".";
 
 /* Messages */
 "messages.count" = "%d";
@@ -3390,14 +3412,24 @@
 "storyVideo.error.thumbnailFailed" = "Non siamo riusciti a generare l'anteprima del video.";
 
 "notifications.message.mention.story.single" = "%@ ti ha menzionato in una storia";
+"notifications.message.mention.story.two" = "%@ e %@ ti hanno menzionato in una storia";
+"notifications.message.mention.story.threePlus" = "%@, %@ e altre %d persone ti hanno menzionato nelle storie";
 "notifications.message.mention.story.multiple" = "%@ e altre %d persone ti hanno menzionato nelle storie";
 "notifications.message.mention.comment.single" = "%@ ti ha menzionato in un commento";
+"notifications.message.mention.comment.two" = "%@ e %@ ti hanno menzionato in un commento";
+"notifications.message.mention.comment.threePlus" = "%@, %@ e altre %d persone ti hanno menzionato nei commenti";
 "notifications.message.mention.comment.multiple" = "%@ e altre %d persone ti hanno menzionato nei commenti";
 "notifications.message.mention.comment.withAuthor.single" = "%@ ti ha menzionato nel momento di %@";
+"notifications.message.mention.comment.withAuthor.two" = "%@ e %@ ti hanno menzionato nel momento di %@";
+"notifications.message.mention.comment.withAuthor.threePlus" = "%@, %@ e altre %d persone ti hanno menzionato nel momento di %@";
 "notifications.message.mention.comment.withAuthor.multiple" = "%@ e altre %d persone ti hanno menzionato nel momento di %@";
 "notifications.message.mention.moment.single" = "%@ ti ha menzionato in un momento";
+"notifications.message.mention.moment.two" = "%@ e %@ ti hanno menzionato in un momento";
+"notifications.message.mention.moment.threePlus" = "%@, %@ e altre %d persone ti hanno menzionato nei momenti";
 "notifications.message.mention.moment.multiple" = "%@ e altre %d persone ti hanno menzionato nei momenti";
 "notifications.message.reply.single" = "%@ ha risposto al tuo commento";
+"notifications.message.reply.two" = "%@ e %@ hanno risposto ai tuoi commenti";
+"notifications.message.reply.threePlus" = "%@, %@ e altre %d persone hanno risposto ai tuoi commenti";
 "notifications.message.reply.multiple" = "%@ e altre %d persone hanno risposto ai tuoi commenti";
 "banner.verb.mention.story" = "ti ha menzionato in una storia";
 "banner.verb.mention.comment" = "ti ha menzionato in un commento";

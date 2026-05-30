@@ -458,14 +458,22 @@
 "notifications.tab.requests" = "Solicitações";
 
 /* Notification Messages */
+"notifications.message.like.two" = "%@ e %@ reagiram ao seu momento.";
 "notifications.message.like.multiple" = "%@ e mais %d pessoas reagiram ao seu momento.";
+"notifications.message.reaction.two" = "%@ e %@ reagiram ao seu momento.";
+"notifications.message.reaction.two.withType" = "%@ reagiu com %@ e %@ reagiram ao seu momento.";
 "notifications.message.reaction.multiple" = "%@ e mais %d pessoas reagiram ao seu momento.";
 "notifications.message.reaction.multiple.withType" = "%@ reagiu com %@ e mais %d pessoas reagiram ao seu momento.";
 "notifications.message.mention.multiple" = "%@ e mais %d pessoas mencionaram você.";
+"notifications.message.follow.two" = "%@ e %@ começaram a seguir você.";
 "notifications.message.follow.multiple" = "%@ e mais %d pessoas começaram a seguir você.";
+"notifications.message.request.two" = "%@ e %@ querem seguir você.";
 "notifications.message.request.multiple" = "%@ e mais %d pessoas querem seguir você.";
+"notifications.message.mutual.two" = "Agora você tem uma conexão mútua com %@ e %@.";
 "notifications.message.mutual.multiple" = "Agora você tem uma conexão mútua com %@ e mais %d pessoas.";
+"notifications.message.comment.two" = "%@ e %@ comentaram no seu momento.";
 "notifications.message.comment.multiple" = "%@ e mais %d pessoas comentaram no seu momento.";
+"notifications.message.story.two" = "%@ e %@ curtiram seu story.";
 "notifications.message.story.multiple" = "%@ e mais %d pessoas reagiram ao seu story.";
 "notifications.message.storyChain.multiple" = "%@ continuou a sequência \"%@\" e mais %d pessoas também continuaram.";
 "notifications.message.visit.multiple" = "%d pessoas visitaram seu perfil hoje.";
@@ -480,12 +488,26 @@
 "notifications.message.story.single" = "%@ reagiu ao seu story.";
 "notifications.message.storyChain.single" = "%@ continuou a sequência \"%@\".";
 "notifications.message.visit.single" = "%d pessoas visitaram seu perfil hoje.";
+"notifications.message.requestAccepted.two" = "%@ e %@ aceitaram sua solicitação para seguir.";
 "notifications.message.requestAccepted.multiple" = "%@ e mais %d pessoas aceitaram sua solicitação para seguir.";
 "notifications.message.requestAccepted.single" = "%@ aceitou sua solicitação para seguir.";
 "notifications.message.tagged.single" = "%@ marcou você em um momento.";
+"notifications.message.tagged.two" = "%@ e %@ marcaram você em momentos.";
 "notifications.message.tagged.multiple" = "%@ e mais %d pessoas marcaram você em momentos.";
 "notifications.message.tagged.withTitle.single" = "%@ marcou você em \"%@\".";
+"notifications.message.tagged.withTitle.two" = "%@ e %@ marcaram você em \"%@\".";
 "notifications.message.tagged.withTitle.multiple" = "%@ e mais %d pessoas marcaram você em \"%@\".";
+"notifications.message.like.threePlus" = "%@, %@ e mais %d pessoas reagiram ao seu momento.";
+"notifications.message.reaction.threePlus" = "%@, %@ e mais %d pessoas reagiram ao seu momento.";
+"notifications.message.reaction.threePlus.withType" = "%@ reagiu com %@, %@ e mais %d pessoas reagiram ao seu momento.";
+"notifications.message.follow.threePlus" = "%@, %@ e mais %d pessoas começaram a seguir você.";
+"notifications.message.request.threePlus" = "%@, %@ e mais %d pessoas querem seguir você.";
+"notifications.message.mutual.threePlus" = "Você tem uma conexão mútua com %@, %@ e mais %d pessoas.";
+"notifications.message.comment.threePlus" = "%@, %@ e mais %d pessoas comentaram no seu momento.";
+"notifications.message.story.threePlus" = "%@, %@ e mais %d pessoas curtiram seu story.";
+"notifications.message.requestAccepted.threePlus" = "%@, %@ e mais %d pessoas aceitaram sua solicitação para seguir.";
+"notifications.message.tagged.threePlus" = "%@, %@ e mais %d pessoas marcaram você em momentos.";
+"notifications.message.tagged.withTitle.threePlus" = "%@, %@ e mais %d pessoas marcaram você em \"%@\".";
 
 /* Messages */
 "messages.count" = "%d";
@@ -3390,14 +3412,24 @@
 "storyVideo.error.thumbnailFailed" = "Não conseguimos gerar a prévia do vídeo.";
 
 "notifications.message.mention.story.single" = "%@ mencionou você em um story";
+"notifications.message.mention.story.two" = "%@ e %@ mencionaram você em um story";
+"notifications.message.mention.story.threePlus" = "%@, %@ e mais %d pessoas mencionaram você em stories";
 "notifications.message.mention.story.multiple" = "%@ e mais %d pessoas mencionaram você em stories";
 "notifications.message.mention.comment.single" = "%@ mencionou você em um comentário";
+"notifications.message.mention.comment.two" = "%@ e %@ mencionaram você em um comentário";
+"notifications.message.mention.comment.threePlus" = "%@, %@ e mais %d pessoas mencionaram você em comentários";
 "notifications.message.mention.comment.multiple" = "%@ e mais %d pessoas mencionaram você em comentários";
 "notifications.message.mention.comment.withAuthor.single" = "%@ mencionou você no momento de %@";
+"notifications.message.mention.comment.withAuthor.two" = "%@ e %@ mencionaram você no momento de %@";
+"notifications.message.mention.comment.withAuthor.threePlus" = "%@, %@ e mais %d pessoas mencionaram você no momento de %@";
 "notifications.message.mention.comment.withAuthor.multiple" = "%@ e mais %d pessoas mencionaram você no momento de %@";
 "notifications.message.mention.moment.single" = "%@ mencionou você em um momento";
+"notifications.message.mention.moment.two" = "%@ e %@ mencionaram você em um momento";
+"notifications.message.mention.moment.threePlus" = "%@, %@ e mais %d pessoas mencionaram você em momentos";
 "notifications.message.mention.moment.multiple" = "%@ e mais %d pessoas mencionaram você em momentos";
 "notifications.message.reply.single" = "%@ respondeu ao seu comentário";
+"notifications.message.reply.two" = "%@ e %@ responderam aos seus comentários";
+"notifications.message.reply.threePlus" = "%@, %@ e mais %d pessoas responderam aos seus comentários";
 "notifications.message.reply.multiple" = "%@ e mais %d pessoas responderam aos seus comentários";
 "banner.verb.mention.story" = "mencionou você em um story";
 "banner.verb.mention.comment" = "mencionou você em um comentário";

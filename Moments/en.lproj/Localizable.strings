@@ -458,14 +458,22 @@
 "notifications.tab.requests" = "Requests";
 
 /* Notification Messages */
+"notifications.message.like.two" = "%@ and %@ reacted to your moment.";
 "notifications.message.like.multiple" = "%@ and %d others reacted to your moment.";
+"notifications.message.reaction.two" = "%@ and %@ reacted to your moment.";
+"notifications.message.reaction.two.withType" = "%@ reacted %@ and %@ reacted to your moment.";
 "notifications.message.reaction.multiple" = "%@ and %d others reacted to your moment.";
 "notifications.message.reaction.multiple.withType" = "%@ reacted %@ and %d others reacted to your moment.";
 "notifications.message.mention.multiple" = "%@ and %d others mentioned you.";
+"notifications.message.follow.two" = "%@ and %@ started following you.";
 "notifications.message.follow.multiple" = "%@ and %d others started following you.";
+"notifications.message.request.two" = "%@ and %@ want to follow you.";
 "notifications.message.request.multiple" = "%@ and %d others want to follow you.";
+"notifications.message.mutual.two" = "You now have a mutual connection with %@ and %@.";
 "notifications.message.mutual.multiple" = "You now have a mutual connection with %@ and %d others.";
+"notifications.message.comment.two" = "%@ and %@ commented on your moment.";
 "notifications.message.comment.multiple" = "%@ and %d others commented on your moment.";
+"notifications.message.story.two" = "%@ and %@ liked your story.";
 "notifications.message.story.multiple" = "%@ and %d others reacted to your story.";
 "notifications.message.storyChain.multiple" = "%@ continued the chain \"%@\" and %d others continued it too.";
 "notifications.message.visit.multiple" = "%d people visited your profile today.";
@@ -480,12 +488,26 @@
 "notifications.message.story.single" = "%@ reacted to your story.";
 "notifications.message.storyChain.single" = "%@ continued the chain \"%@\".";
 "notifications.message.visit.single" = "%d people visited your profile today.";
+"notifications.message.requestAccepted.two" = "%@ and %@ accepted your follow request.";
 "notifications.message.requestAccepted.multiple" = "%@ and %d others accepted your follow request.";
 "notifications.message.requestAccepted.single" = "%@ accepted your follow request.";
 "notifications.message.tagged.single" = "%@ tagged you in a moment.";
+"notifications.message.tagged.two" = "%@ and %@ tagged you in moments.";
 "notifications.message.tagged.multiple" = "%@ and %d others tagged you in moments.";
 "notifications.message.tagged.withTitle.single" = "%@ tagged you in \"%@\".";
+"notifications.message.tagged.withTitle.two" = "%@ and %@ tagged you in \"%@\".";
 "notifications.message.tagged.withTitle.multiple" = "%@ and %d others tagged you in \"%@\".";
+"notifications.message.like.threePlus" = "%@, %@ and %d others reacted to your moment.";
+"notifications.message.reaction.threePlus" = "%@, %@ and %d others reacted to your moment.";
+"notifications.message.reaction.threePlus.withType" = "%@ reacted %@, %@ and %d others reacted to your moment.";
+"notifications.message.follow.threePlus" = "%@, %@ and %d others started following you.";
+"notifications.message.request.threePlus" = "%@, %@ and %d others want to follow you.";
+"notifications.message.mutual.threePlus" = "You now have a mutual connection with %@, %@ and %d others.";
+"notifications.message.comment.threePlus" = "%@, %@ and %d others commented on your moment.";
+"notifications.message.story.threePlus" = "%@, %@ and %d others liked your story.";
+"notifications.message.requestAccepted.threePlus" = "%@, %@ and %d others accepted your follow request.";
+"notifications.message.tagged.threePlus" = "%@, %@ and %d others tagged you in moments.";
+"notifications.message.tagged.withTitle.threePlus" = "%@, %@ and %d others tagged you in \"%@\".";
 
 /* Messages */
 "messages.count" = "%d";
@@ -3393,14 +3415,24 @@
 "storyVideo.error.thumbnailFailed" = "We could not generate the video preview.";
 
 "notifications.message.mention.story.single" = "%@ mentioned you in a story";
+"notifications.message.mention.story.two" = "%@ and %@ mentioned you in a story";
+"notifications.message.mention.story.threePlus" = "%@, %@ and %d others mentioned you in stories";
 "notifications.message.mention.story.multiple" = "%@ and %d others mentioned you in stories";
 "notifications.message.mention.comment.single" = "%@ mentioned you in a comment";
+"notifications.message.mention.comment.two" = "%@ and %@ mentioned you in a comment";
+"notifications.message.mention.comment.threePlus" = "%@, %@ and %d others mentioned you in comments";
 "notifications.message.mention.comment.multiple" = "%@ and %d others mentioned you in comments";
 "notifications.message.mention.comment.withAuthor.single" = "%@ mentioned you in %@'s moment";
+"notifications.message.mention.comment.withAuthor.two" = "%@ and %@ mentioned you in %@'s moment";
+"notifications.message.mention.comment.withAuthor.threePlus" = "%@, %@ and %d others mentioned you in %@'s moment";
 "notifications.message.mention.comment.withAuthor.multiple" = "%@ and %d others mentioned you in %@'s moment";
 "notifications.message.mention.moment.single" = "%@ mentioned you in a moment";
+"notifications.message.mention.moment.two" = "%@ and %@ mentioned you in a moment";
+"notifications.message.mention.moment.threePlus" = "%@, %@ and %d others mentioned you in moments";
 "notifications.message.mention.moment.multiple" = "%@ and %d others mentioned you in moments";
 "notifications.message.reply.single" = "%@ replied to your comment";
+"notifications.message.reply.two" = "%@ and %@ replied to your comments";
+"notifications.message.reply.threePlus" = "%@, %@ and %d others replied to your comments";
 "notifications.message.reply.multiple" = "%@ and %d others replied to your comments";
 "banner.verb.mention.story" = "mentioned you in a story";
 "banner.verb.mention.comment" = "mentioned you in a comment";

@@ -1268,14 +1268,22 @@
 "notifications.tab.requests" = "Pedidos";
 
 /* Notification Messages */
+"notifications.message.like.two" = "%@ e %@ reagiram ao teu moment.";
 "notifications.message.like.multiple" = "%@ e mais %d pessoas reagiram ao teu moment.";
+"notifications.message.reaction.two" = "%@ e %@ reagiram ao teu moment.";
+"notifications.message.reaction.two.withType" = "%@ reagiu com %@ e %@ reagiram ao teu moment.";
 "notifications.message.reaction.multiple" = "%@ e mais %d pessoas reagiram ao teu moment.";
 "notifications.message.reaction.multiple.withType" = "%@ reagiu com %@ e mais %d pessoas reagiram ao teu moment.";
 "notifications.message.mention.multiple" = "%@ e mais %d pessoas mencionaram-te.";
+"notifications.message.follow.two" = "%@ e %@ começaram a seguir-te.";
 "notifications.message.follow.multiple" = "%@ e mais %d pessoas começaram a seguir-te.";
+"notifications.message.request.two" = "%@ e %@ querem seguir-te.";
 "notifications.message.request.multiple" = "%@ e mais %d pessoas querem seguir-te.";
+"notifications.message.mutual.two" = "Agora tens uma ligação mútua com %@ e %@.";
 "notifications.message.mutual.multiple" = "Agora tens uma ligação mútua com %@ e mais %d pessoas.";
+"notifications.message.comment.two" = "%@ e %@ comentaram o teu moment.";
 "notifications.message.comment.multiple" = "%@ e mais %d pessoas comentaram o teu moment.";
+"notifications.message.story.two" = "%@ e %@ gostam da tua story.";
 "notifications.message.story.multiple" = "%@ e mais %d pessoas reagiram à tua story.";
 "notifications.message.storyChain.multiple" = "%@ continuou a cadeia \"%@\" e mais %d pessoas também a continuaram.";
 "notifications.message.visit.multiple" = "%d pessoas visitaram o teu perfil hoje.";
@@ -1290,12 +1298,26 @@
 "notifications.message.story.single" = "%@ reagiu à tua story.";
 "notifications.message.storyChain.single" = "%@ continuou a cadeia \"%@\".";
 "notifications.message.visit.single" = "%d pessoas visitaram o teu perfil hoje.";
+"notifications.message.requestAccepted.two" = "%@ e %@ aceitaram o teu pedido para seguir.";
 "notifications.message.requestAccepted.multiple" = "%@ e mais %d pessoas aceitaram o teu pedido para seguir.";
 "notifications.message.requestAccepted.single" = "%@ aceitou o teu pedido para seguir.";
 "notifications.message.tagged.single" = "%@ identificou-te num moment.";
+"notifications.message.tagged.two" = "%@ e %@ identificaram-te em momentos.";
 "notifications.message.tagged.multiple" = "%@ e mais %d pessoas identificaram-te em Moments.";
 "notifications.message.tagged.withTitle.single" = "%@ identificou-te em \"%@\".";
+"notifications.message.tagged.withTitle.two" = "%@ e %@ identificaram-te em \"%@\".";
 "notifications.message.tagged.withTitle.multiple" = "%@ e mais %d pessoas identificaram-te em \"%@\".";
+"notifications.message.like.threePlus" = "%@, %@ e mais %d pessoas reagiram ao teu moment.";
+"notifications.message.reaction.threePlus" = "%@, %@ e mais %d pessoas reagiram ao teu moment.";
+"notifications.message.reaction.threePlus.withType" = "%@ reagiu com %@, %@ e mais %d pessoas reagiram ao teu moment.";
+"notifications.message.follow.threePlus" = "%@, %@ e mais %d pessoas começaram a seguir-te.";
+"notifications.message.request.threePlus" = "%@, %@ e mais %d pessoas querem seguir-te.";
+"notifications.message.mutual.threePlus" = "Tens uma ligação mútua com %@, %@ e mais %d pessoas.";
+"notifications.message.comment.threePlus" = "%@, %@ e mais %d pessoas comentaram o teu moment.";
+"notifications.message.story.threePlus" = "%@, %@ e mais %d pessoas gostam da tua story.";
+"notifications.message.requestAccepted.threePlus" = "%@, %@ e mais %d pessoas aceitaram o teu pedido para seguir.";
+"notifications.message.tagged.threePlus" = "%@, %@ e mais %d pessoas identificaram-te em momentos.";
+"notifications.message.tagged.withTitle.threePlus" = "%@, %@ e mais %d pessoas identificaram-te em \"%@\".";
 
 /* Messages */
 "messages.count" = "%d";
@@ -4200,14 +4222,24 @@
 "storyVideo.error.thumbnailFailed" = "Não conseguimos gerar a pré-visualização do vídeo.";
 
 "notifications.message.mention.story.single" = "%@ mencionou-te numa história";
+"notifications.message.mention.story.two" = "%@ e %@ mencionaram-te numa história";
+"notifications.message.mention.story.threePlus" = "%@, %@ e mais %d pessoas mencionaram-te em histórias";
 "notifications.message.mention.story.multiple" = "%@ e mais %d pessoas mencionaram-te em histórias";
 "notifications.message.mention.comment.single" = "%@ mencionou-te num comentário";
+"notifications.message.mention.comment.two" = "%@ e %@ mencionaram-te num comentário";
+"notifications.message.mention.comment.threePlus" = "%@, %@ e mais %d pessoas mencionaram-te em comentários";
 "notifications.message.mention.comment.multiple" = "%@ e mais %d pessoas mencionaram-te em comentários";
 "notifications.message.mention.comment.withAuthor.single" = "%@ mencionou-te no momento de %@";
+"notifications.message.mention.comment.withAuthor.two" = "%@ e %@ mencionaram-te no momento de %@";
+"notifications.message.mention.comment.withAuthor.threePlus" = "%@, %@ e mais %d pessoas mencionaram-te no momento de %@";
 "notifications.message.mention.comment.withAuthor.multiple" = "%@ e mais %d pessoas mencionaram-te no momento de %@";
 "notifications.message.mention.moment.single" = "%@ mencionou-te num momento";
+"notifications.message.mention.moment.two" = "%@ e %@ mencionaram-te num momento";
+"notifications.message.mention.moment.threePlus" = "%@, %@ e mais %d pessoas mencionaram-te em momentos";
 "notifications.message.mention.moment.multiple" = "%@ e mais %d pessoas mencionaram-te em momentos";
 "notifications.message.reply.single" = "%@ respondeu ao teu comentário";
+"notifications.message.reply.two" = "%@ e %@ responderam aos teus comentários";
+"notifications.message.reply.threePlus" = "%@, %@ e mais %d pessoas responderam aos teus comentários";
 "notifications.message.reply.multiple" = "%@ e mais %d pessoas responderam aos teus comentários";
 "banner.verb.mention.story" = "mencionou-te numa história";
 "banner.verb.mention.comment" = "mencionou-te num comentário";
