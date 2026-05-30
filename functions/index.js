@@ -238,7 +238,7 @@ function firebaseStorageDownloadUrl(bucketName, objectName, token) {
 function storageObjectNameFromFirebaseUrl(url, expectedBucketName) {
   try {
     const parsed = new URL(url);
-    if (parsed.hostname !== 'firebasestorage.googleapis.com') return null;
+    if (parsed.protocol !== 'https:' || parsed.hostname !== 'firebasestorage.googleapis.com') return null;
 
     const match = parsed.pathname.match(/^\/v0\/b\/([^/]+)\/o\/(.+)$/);
     if (!match) return null;
@@ -482,12 +482,12 @@ function addStorageUrl(targetSet, value) {
 }
 
 function storageObjectNameFromTrustedValue(value, bucketName) {
-  const fromUrl = storageObjectNameFromFirebaseUrl(value, bucketName);
+  if (typeof value !== 'string') return null;
+  const trimmed = value.trim();
+  const fromUrl = storageObjectNameFromFirebaseUrl(trimmed, bucketName);
   if (fromUrl) return fromUrl;
 
-  if (typeof value !== 'string' || value.startsWith('http')) return null;
-  const trimmed = value.trim();
-  if (!trimmed || trimmed.startsWith('/') || trimmed.includes('..')) return null;
+  if (!trimmed || trimmed.includes('://') || trimmed.startsWith('/') || trimmed.includes('..')) return null;
   return trimmed;
 }
 
@@ -500,6 +500,7 @@ function storageObjectBelongsToUser(objectName, uid) {
     `processed_videos/stories/${safeUid}/`,
     `story_processing_uploads/${safeUid}/`,
     `stories/${safeUid}/`,
+    `background_frames/${safeUid}/`,
     `story_frames/${safeUid}/`,
     `story_audio/${safeUid}/`,
     `hidden_layers/${safeUid}/`
@@ -519,7 +520,19 @@ function storageObjectBelongsToUser(objectName, uid) {
   return false;
 }
 
-function collectDeletedContentStorageUrls(data = {}) {
+function addOwnedBackgroundFrameStorageUrl(targetSet, value, uid) {
+  if (typeof value !== 'string') return;
+  const trimmed = value.trim();
+  if (!trimmed) return;
+
+  const bucket = admin.storage().bucket();
+  const objectName = storageObjectNameFromTrustedValue(trimmed, bucket.name);
+  if (objectName && objectName.startsWith('background_frames/') && storageObjectBelongsToUser(objectName, uid)) {
+    targetSet.add(trimmed);
+  }
+}
+
+function collectDeletedContentStorageUrls(data = {}, uid) {
   const urls = new Set();
 
   // Legacy/top-level media fields. Do not include profileImagePath; it belongs to the user profile.
@@ -528,8 +541,8 @@ function collectDeletedContentStorageUrls(data = {}) {
   addStorageUrl(urls, data.thumbnailUrl);
   addStorageUrl(urls, data.mediaUrl);
   addStorageUrl(urls, data.mediaURL);
-  addStorageUrl(urls, data.backgroundFrameURL);
-  addStorageUrl(urls, data.backgroundBlurredFrameURL);
+  addOwnedBackgroundFrameStorageUrl(urls, data.backgroundFrameURL, uid);
+  addOwnedBackgroundFrameStorageUrl(urls, data.backgroundBlurredFrameURL, uid);
 
   const mediaItems = Array.isArray(data.mediaItems) ? data.mediaItems : [];
   for (const item of mediaItems) {
@@ -586,7 +599,7 @@ async function permanentlyDeleteRecentlyDeletedDoc(doc) {
   const type = typeof data.type === 'string' ? data.type : 'moment';
   const userRef = doc.ref.parent.parent;
   const uid = userRef?.id;
-  const storageUrls = collectDeletedContentStorageUrls(data);
+  const storageUrls = collectDeletedContentStorageUrls(data, uid);
 
   await admin.firestore().recursiveDelete(doc.ref);
 
@@ -962,7 +975,7 @@ function storageObjectNameFromExportMediaUrl(value, expectedBucketName) {
   return null;
 }
 
-async function addMediaFilesToZip(zip, mediaUrls) {
+async function addMediaFilesToZip(zip, mediaUrls, userId) {
   const uniqueUrls = Array.from(new Set((mediaUrls || []).filter((url) => typeof url === 'string' && url.trim().length > 0)));
   const bucket = admin.storage().bucket();
   const limits = {
@@ -982,6 +995,10 @@ async function addMediaFilesToZip(zip, mediaUrls) {
     const objectName = storageObjectNameFromExportMediaUrl(mediaUrl, bucket.name);
     if (!objectName) {
       manifest.skipped.push({ url: mediaUrl, reason: 'unsupported_media_origin' });
+      continue;
+    }
+    if (objectName.startsWith('background_frames/') && !storageObjectBelongsToUser(objectName, userId)) {
+      manifest.skipped.push({ url: mediaUrl, reason: 'not_owned_by_user' });
       continue;
     }
 
@@ -1037,10 +1054,20 @@ async function addMediaFilesToZip(zip, mediaUrls) {
   return manifest;
 }
 
-function collectMediaUrlsFromPayload(payload) {
+function collectMediaUrlsFromPayload(payload, userId) {
   const urls = new Set();
   const push = (url) => {
     if (typeof url === 'string' && url.trim()) urls.add(url.trim());
+  };
+  const pushOwnedBackgroundFrameUrl = (url) => {
+    if (typeof url !== 'string' || !url.trim()) return;
+
+    const trimmed = url.trim();
+    const bucket = admin.storage().bucket();
+    const objectName = storageObjectNameFromExportMediaUrl(trimmed, bucket.name);
+    if (objectName && objectName.startsWith('background_frames/') && storageObjectBelongsToUser(objectName, userId)) {
+      urls.add(trimmed);
+    }
   };
 
   for (const moment of payload.moments || []) {
@@ -1056,8 +1083,8 @@ function collectMediaUrlsFromPayload(payload) {
     const mediaItem = story.mediaItem || {};
     push(mediaItem.url);
     push(mediaItem.thumbnailUrl);
-    push(story.backgroundFrameURL);
-    push(story.backgroundBlurredFrameURL);
+    pushOwnedBackgroundFrameUrl(story.backgroundFrameURL);
+    pushOwnedBackgroundFrameUrl(story.backgroundBlurredFrameURL);
   }
 
   for (const convo of payload.conversations || []) {
@@ -1107,7 +1134,7 @@ async function buildDataExportPayload(userId, exportType, requestedFormat) {
   }
 
   if (exportType !== 'textOnly') {
-    payload.mediaUrls = collectMediaUrlsFromPayload(payload);
+    payload.mediaUrls = collectMediaUrlsFromPayload(payload, userId);
   }
 
   if (exportType === 'mediaOnly') {
@@ -1194,7 +1221,7 @@ function buildReadmeContent(payload, requestedFormat, exportType) {
   ].join('\n');
 }
 
-async function buildExportZipBuffer(payload, requestedFormat, exportType) {
+async function buildExportZipBuffer(payload, requestedFormat, exportType, userId) {
   const zip = new JSZip();
   zip.file('export.json', JSON.stringify(payload, null, 2));
   zip.file('meta.json', JSON.stringify(payload.exportInfo || {}, null, 2));
@@ -1218,7 +1245,7 @@ async function buildExportZipBuffer(payload, requestedFormat, exportType) {
   }
 
   if (exportType !== 'textOnly') {
-    const mediaManifest = await addMediaFilesToZip(zip, payload.mediaUrls || []);
+    const mediaManifest = await addMediaFilesToZip(zip, payload.mediaUrls || [], userId);
     zip.file('media/manifest.json', JSON.stringify(mediaManifest, null, 2));
   }
 
@@ -1596,7 +1623,7 @@ exports.onDataExportRequestCreated = onDocumentCreated({
     const stamp = now.toISOString().replace(/[:.]/g, '-');
     const objectName = `exports/${userId}/moments_export_${stamp}.zip`;
     const file = admin.storage().bucket().file(objectName);
-    const body = await buildExportZipBuffer(payload, requestedFormat, exportType);
+    const body = await buildExportZipBuffer(payload, requestedFormat, exportType, userId);
 
     await file.save(body, {
       resumable: false,
