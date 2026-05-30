@@ -51,12 +51,86 @@ service firebase.storage {
              request.resource.contentType.matches('image/.*|video/.*|audio/.*|application/pdf');
     }
 
-    // Lectura de media pública del perfil (mismo criterio que el bloque antiguo users/.../moments).
-    function canReadOwnerPublicMedia(ownerId) {
+    // Lectura de media de perfil no enlazada a un documento de contenido.
+    function canReadOwnerProfileMedia(ownerId) {
       return isAuthenticated() && (
         request.auth.uid == ownerId ||
-        get(/databases/$(database)/documents/users/$(ownerId)).data.get('isActive', true)
+        (exists(/databases/$(database)/documents/users/$(ownerId)) &&
+         get(/databases/$(database)/documents/users/$(ownerId)).data.get('isActive', true))
       );
+    }
+
+    function canViewOwnerProfile(viewerId, ownerId) {
+      let ownerDoc = get(/databases/$(database)/documents/users/$(ownerId));
+      return viewerId == ownerId ||
+             (ownerDoc.data.get('isActive', true) &&
+              (!ownerDoc.data.get('isPrivate', false) ||
+               exists(/databases/$(database)/documents/users/$(viewerId)/following/$(ownerId))));
+    }
+
+    function canViewCustomContent(viewerId, ownerId, contentType, contentId) {
+      let audienceDocId = contentType + '_' + contentId;
+      return exists(/databases/$(database)/documents/users/$(ownerId)/customAudiences/$(audienceDocId)) &&
+             viewerId in get(/databases/$(database)/documents/users/$(ownerId)/customAudiences/$(audienceDocId)).data.get('allowedUsers', []);
+    }
+
+    function isUserInCustomList(viewerId, ownerId, customListId) {
+      return customListId != '' &&
+             exists(/databases/$(database)/documents/users/$(ownerId)/customAudienceLists/$(customListId)) &&
+             viewerId in get(/databases/$(database)/documents/users/$(ownerId)/customAudienceLists/$(customListId)).data.get('members', []);
+    }
+
+    // Mantener Storage alineado con firestore.rules canViewContentWithAudience().
+    function canViewContentWithAudience(viewerId, ownerId, audience, contentType, contentId, customListId) {
+      return viewerId == ownerId ||
+             (exists(/databases/$(database)/documents/users/$(ownerId)) &&
+              get(/databases/$(database)/documents/users/$(ownerId)).data.get('isActive', true) &&
+              canViewOwnerProfile(viewerId, ownerId) &&
+              (audience == 'everyone' ||
+               (audience == 'connections' &&
+                exists(/databases/$(database)/documents/users/$(viewerId)/following/$(ownerId)) &&
+                exists(/databases/$(database)/documents/users/$(ownerId)/following/$(viewerId))) ||
+               (audience == 'bestFriends' &&
+                viewerId in get(/databases/$(database)/documents/users/$(ownerId)).data.get('bestFriends', [])) ||
+               (audience == 'custom' &&
+                canViewCustomContent(viewerId, ownerId, contentType, contentId)) ||
+               (audience == 'customList' &&
+                isUserInCustomList(viewerId, ownerId, customListId)) ||
+               (audience == 'onlyMe' && false)
+              )
+             );
+    }
+
+    function canReadMomentMedia(ownerId, momentId) {
+      return isAuthenticated() &&
+             exists(/databases/$(database)/documents/users/$(ownerId)/moments/$(momentId)) &&
+             canViewContentWithAudience(
+               request.auth.uid,
+               ownerId,
+               get(/databases/$(database)/documents/users/$(ownerId)/moments/$(momentId)).data.get('audience', 'everyone'),
+               'moment',
+               momentId,
+               get(/databases/$(database)/documents/users/$(ownerId)/moments/$(momentId)).data.get('customListId', '')
+             );
+    }
+
+    function canReadStoryMedia(ownerId, storyId) {
+      return isAuthenticated() &&
+             exists(/databases/$(database)/documents/users/$(ownerId)/stories/$(storyId)) &&
+             canViewContentWithAudience(
+               request.auth.uid,
+               ownerId,
+               get(/databases/$(database)/documents/users/$(ownerId)/stories/$(storyId)).data.get('audience', 'everyone'),
+               'story',
+               storyId,
+               get(/databases/$(database)/documents/users/$(ownerId)/stories/$(storyId)).data.get('customListId', '')
+             );
+    }
+
+    function legacyObjectBelongsToRequester(objectId) {
+      return isAuthenticated() &&
+             request.auth.uid.matches('[A-Za-z0-9_-]+') &&
+             objectId.matches('.*_' + request.auth.uid + '\\.[^/]+');
     }
 
     function isConversationParticipant(conversationId) {
@@ -97,49 +171,49 @@ service firebase.storage {
     // -------------------------------------------------------------------------
 
     match /users/{userId}/profile/avatar/{fileName} {
-      allow read: if canReadOwnerPublicMedia(userId);
+      allow read: if canReadOwnerProfileMedia(userId);
       allow write: if canWriteAsOwner(userId) && validImageUpload();
       allow delete: if isOwner(userId);
     }
 
     match /users/{userId}/moments/{momentId}/media/{fileName} {
-      allow read: if canReadOwnerPublicMedia(userId);
+      allow read: if canReadMomentMedia(userId, momentId);
       allow write: if canWriteAsOwner(userId) && validMomentMediaUpload();
       allow delete: if isOwner(userId);
     }
 
     match /users/{userId}/moments/{momentId}/thumbnails/{fileName} {
-      allow read: if canReadOwnerPublicMedia(userId);
+      allow read: if canReadMomentMedia(userId, momentId);
       allow write: if canWriteAsOwner(userId) && validImageUpload();
       allow delete: if isOwner(userId);
     }
 
     match /users/{userId}/moments/{momentId}/hidden_layers/{layerId}/{fileName} {
-      allow read: if canReadOwnerPublicMedia(userId);
+      allow read: if canReadMomentMedia(userId, momentId);
       allow write: if canWriteAsOwner(userId) && validHiddenLayerUpload();
       allow delete: if isOwner(userId);
     }
 
     match /users/{userId}/stories/{storyId}/media/{fileName} {
-      allow read: if canReadOwnerPublicMedia(userId);
+      allow read: if canReadStoryMedia(userId, storyId);
       allow write: if canWriteAsOwner(userId) && validStoryMediaUpload();
       allow delete: if isOwner(userId);
     }
 
     match /users/{userId}/stories/{storyId}/thumbnails/{fileName} {
-      allow read: if canReadOwnerPublicMedia(userId);
+      allow read: if canReadStoryMedia(userId, storyId);
       allow write: if canWriteAsOwner(userId) && validImageUpload();
       allow delete: if isOwner(userId);
     }
 
     match /users/{userId}/stories/{storyId}/frames/{fileName} {
-      allow read: if canReadOwnerPublicMedia(userId);
+      allow read: if canReadStoryMedia(userId, storyId);
       allow write: if canWriteAsOwner(userId) && validImageUpload();
       allow delete: if isOwner(userId);
     }
 
     match /users/{userId}/stories/{storyId}/audio/{fileName} {
-      allow read: if canReadOwnerPublicMedia(userId);
+      allow read: if canReadStoryMedia(userId, storyId);
       allow write: if canWriteAsOwner(userId) &&
                         hasHiddenLayerContentType() &&
                         request.resource.size < 25 * 1024 * 1024;
@@ -171,16 +245,20 @@ service firebase.storage {
     // Salidas de transcodificación (solo Functions escriben vía Admin SDK)
     // -------------------------------------------------------------------------
 
-    match /processed_videos/moments/{userId}/{allPaths=**} {
-      allow read: if canReadOwnerPublicMedia(userId);
+    match /processed_videos/moments/{userId}/{momentId}/{fileName} {
+      allow read: if canReadMomentMedia(userId, momentId);
       allow write: if false;
       allow delete: if false;
     }
 
-    match /processed_videos/stories/{userId}/{allPaths=**} {
-      allow read: if canReadOwnerPublicMedia(userId);
+    match /processed_videos/stories/{userId}/{storyId}/{fileName} {
+      allow read: if canReadStoryMedia(userId, storyId);
       allow write: if false;
       allow delete: if false;
+    }
+
+    match /processed_videos/{allPaths=**} {
+      allow read, write, delete: if false;
     }
 
     // -------------------------------------------------------------------------
@@ -194,31 +272,31 @@ service firebase.storage {
     }
 
     match /hidden_layers/{userId}/{momentId}/{fileName} {
-      allow read: if canReadOwnerPublicMedia(userId);
+      allow read: if canReadMomentMedia(userId, momentId);
       allow write: if canWriteAsOwner(userId) && validHiddenLayerUpload();
       allow delete: if isOwner(userId);
     }
 
     match /background_frames/{userId}/{allPaths=**} {
-      allow read: if canReadOwnerPublicMedia(userId);
+      allow read: if isOwner(userId);
       allow write: if canWriteAsOwner(userId) && validImageUpload();
       allow delete: if isOwner(userId);
     }
 
     match /images/{imageId} {
-      allow read: if isAuthenticated();
-      allow write: if isActiveUser() &&
+      allow read: if legacyObjectBelongsToRequester(imageId);
+      allow write: if legacyObjectBelongsToRequester(imageId) &&
                         request.resource.contentType.matches('image/.*') &&
                         request.resource.size < 10 * 1024 * 1024;
-      allow delete: if isActiveUser();
+      allow delete: if legacyObjectBelongsToRequester(imageId);
     }
 
     match /videos/{videoId} {
-      allow read: if isAuthenticated();
-      allow write: if isActiveUser() &&
+      allow read: if legacyObjectBelongsToRequester(videoId);
+      allow write: if legacyObjectBelongsToRequester(videoId) &&
                         request.resource.contentType.matches('video/.*') &&
                         request.resource.size < 300 * 1024 * 1024;
-      allow delete: if isActiveUser();
+      allow delete: if legacyObjectBelongsToRequester(videoId);
     }
 
     match /exports/{userId}/{fileName} {
