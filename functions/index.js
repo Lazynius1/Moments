@@ -1188,7 +1188,9 @@ async function buildExportZipBuffer(payload, requestedFormat, exportType) {
   });
 }
 
-async function verifyFirebaseAuth(req, res) {
+const RECENT_AUTH_MAX_AGE_SECONDS = 5 * 60;
+
+async function verifyFirebaseAuth(req, res, options = {}) {
   const authHeader = req.get('authorization') || '';
   if (!authHeader.startsWith('Bearer ')) {
     res.status(401).json({ error: 'Unauthorized' });
@@ -1202,7 +1204,19 @@ async function verifyFirebaseAuth(req, res) {
   }
 
   try {
-    const decoded = await admin.auth().verifyIdToken(idToken);
+    const decoded = await admin.auth().verifyIdToken(idToken, options.checkRevoked === true);
+
+    if (options.requireRecentAuth === true) {
+      const maxAgeSeconds = options.maxAuthAgeSeconds || RECENT_AUTH_MAX_AGE_SECONDS;
+      const authTimeSeconds = Number(decoded.auth_time);
+      const nowSeconds = Math.floor(Date.now() / 1000);
+
+      if (!Number.isFinite(authTimeSeconds) || nowSeconds - authTimeSeconds > maxAgeSeconds) {
+        res.status(401).json({ error: 'Recent authentication required' });
+        return null;
+      }
+    }
+
     return decoded.uid;
   } catch (error) {
     res.status(401).json({ error: 'Unauthorized' });
@@ -5180,7 +5194,10 @@ exports.deleteMyAccount = onRequest(
       return;
     }
 
-    const uid = await verifyFirebaseAuth(req, res);
+    const uid = await verifyFirebaseAuth(req, res, {
+      checkRevoked: true,
+      requireRecentAuth: true
+    });
     if (!uid) return;
 
     const db = admin.firestore();
