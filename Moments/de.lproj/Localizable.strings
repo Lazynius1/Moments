@@ -2538,6 +2538,10 @@
 "echo.viewer.waiting.title" = "Warte auf Freunde...";
 "echo.viewer.waiting.subtitle" = "Ein Echo lebt nur, wenn andere mitmachen. Inhalte werden geteilt, sobald 2 oder mehr Personen zusagen.";
 "echo.viewer.ok" = "Verstanden";
+"echo.viewer.incomplete.title" = "Unvollständiges Echo";
+"echo.viewer.incomplete.body" = "Einer der ursprünglichen Moments ist nicht mehr verfügbar. Du kannst dieses Echo als Erinnerung behalten, aber die Karte und einige Funktionen sind nicht mehr verfügbar.";
+"echo.viewer.incomplete.delete" = "Echo löschen";
+"echo.viewer.incomplete.keep" = "Echo behalten";
 
 /* Echoes History & List */
 "echo.history.title" = "Meine Echos";
@@ -2545,6 +2549,7 @@
 "echo.history.empty.subtitle" = "Echos erscheinen, wenn du und ein Freund denselben Moment festhaltet";
 "echo.status.pending" = "Ausstehend";
 "echo.status.active" = "Aktiv";
+"echo.status.incomplete" = "Unvollständig";
 "echo.status.expired" = "Abgelaufen";
 "echo.status.completed" = "Abgeschlossen";
 "echo.participants.singular" = "%d Person";

@@ -241,8 +241,13 @@ private struct EchoHistoryInfoSheetView: View {
 struct EchoHistoryCard: View {
     let echo: Echo
     let onTap: () -> Void
+
+    private var isIncomplete: Bool {
+        echo.expiresAt <= Date() && !echo.hasMinimumMomentParticipants
+    }
     
     private var statusColor: Color {
+        if isIncomplete { return .orange }
         switch echo.status {
         case .pending: return .orange
         case .active: return .green
@@ -252,6 +257,7 @@ struct EchoHistoryCard: View {
     }
     
     private var statusText: String {
+        if isIncomplete { return NSLocalizedString("echo.status.incomplete", comment: "") }
         switch echo.status {
         case .pending: return NSLocalizedString("echo.status.pending", comment: "")
         case .active: return NSLocalizedString("echo.status.active", comment: "")
