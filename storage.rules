@@ -165,6 +165,11 @@ service firebase.storage {
       return hasImageContentType() && request.resource.size < 10 * 1024 * 1024;
     }
 
+    function validNovaMediaUpload() {
+      return request.resource.contentType.matches('application/octet-stream') &&
+             request.resource.size < 15 * 1024 * 1024;
+    }
+
     // CreatorMedia.maxMomentVideoUploadSizeBytes = 300 MB
     function validMomentMediaUpload() {
       return hasMomentMediaContentType() && request.resource.size < 300 * 1024 * 1024;
@@ -195,6 +200,12 @@ service firebase.storage {
     match /users/{userId}/profile/avatar/{fileName} {
       allow read: if canReadOwnerProfileMedia(userId);
       allow write: if canWriteAsOwner(userId) && validImageUpload();
+      allow delete: if isOwner(userId);
+    }
+
+    match /users/{userId}/nova/{conversationId}/{messageId}/{fileName} {
+      allow read: if isOwner(userId);
+      allow write: if canWriteAsOwner(userId) && validNovaMediaUpload();
       allow delete: if isOwner(userId);
     }
 

@@ -36,9 +36,10 @@ struct CaptionAndDetailsView: View {
     @Binding var currentFlow: CreatorView.CreatorFlow
     @Binding var showCreatorView: Bool
 
-    // Total tags across all media
+    // Total tags: foto + menciones en leyenda (@usuario)
     private var totalTagsCount: Int {
-        selectedMediaItems.reduce(0) { $0 + ($1.tags?.count ?? 0) }
+        let spatial = selectedMediaItems.reduce(0) { $0 + ($1.tags?.count ?? 0) }
+        return spatial + taggedUsers.count
     }
 
     @Environment(\.colorScheme) var colorScheme
@@ -75,6 +76,7 @@ struct CaptionAndDetailsView: View {
     @State private var currentMediaTagIndex = 0
     @State private var tagSelectorDetent: PresentationDetent = .large
     @State private var hiddenLayersDetent: PresentationDetent = .large
+    @State private var activeCaptionMention: MentionDraftToken?
 
     enum AudienceSetting {
         case everyone
@@ -413,6 +415,23 @@ struct CaptionAndDetailsView: View {
                         .transition(.scale(scale: 0.8).combined(with: .opacity))
                         .zIndex(100)
                     }
+
+                if let mention = activeCaptionMention {
+                    CommentMentionSearchOverlay(
+                        query: mention.query,
+                        showsSearchField: false,
+                        onSelect: { user in
+                            insertCaptionMention(user)
+                        },
+                        onCancel: {
+                            activeCaptionMention = nil
+                        }
+                    )
+                    .padding(.horizontal, 16)
+                    .padding(.bottom, 6)
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+                    .zIndex(200)
+                }
             }
             .navigationBarHidden(true)
         }
@@ -468,75 +487,93 @@ struct CaptionAndDetailsView: View {
                 hiddenLayerDrafts.removeAll()
             }
         }
+        .onChange(of: captionText) { _, newValue in
+            activeCaptionMention = MentionParsing.detectActiveToken(in: newValue)
+        }
     }
 
-    // ✅ FUNCIÓN ACTUALIZADA: Publicar momento con soporte para listas
+    private func insertCaptionMention(_ user: AppUser) {
+        guard let token = activeCaptionMention else { return }
+
+        let replacement = "@\(user.username) "
+        captionText.replaceSubrange(token.fullRange, with: replacement)
+
+        if !taggedUsers.contains(user.id) {
+            taggedUsers.append(user.id)
+        }
+
+        activeCaptionMention = nil
+        HapticManager.shared.selection()
+    }
+
     private func publishMoment() {
         guard Auth.auth().currentUser?.uid != nil else { return }
 
         isPublishing = true
 
-        // Use local properties (managed by @AppStorage)
         let finalDisableComments = disableComments
         let finalHideLikeCounts = hideLikeCounts
         let finalAllowSharing = allowSharing
         let finalScheduledDate = isSchedulingEnabled ? scheduledDate : nil
-
-
         let detectedAspectRatio = preferredMomentAspectRatio(for: selectedMediaItems)
-
-        // 🔥 USAR EL SERVICIO DE BACKGROUND UPLOAD
-        // Combinar etiquetas espaciales con la lista legacy para notificaciones y búsquedas
-        let spatialTaggedUsers = selectedMediaItems.flatMap { $0.tags ?? [] }.map { $0.userId }
-        let allTaggedUsers = Array(Set(taggedUsers + spatialTaggedUsers))
-
-        let uploadingMoment = uploadService.uploadMoment(
-            content: captionText,
-            mediaItems: selectedMediaItems,
-            taggedUsers: allTaggedUsers.isEmpty ? nil : allTaggedUsers,
-            location: locationName.isEmpty ? nil : locationName,
-            locationCoordinate: selectedLocation != nil ? Moment.LocationCoordinate(
-                latitude: selectedLocation!.latitude,
-                longitude: selectedLocation!.longitude
-            ) : nil,  // ✅ NUEVO: Convertir coordenadas a LocationCoordinate
-            audienceSetting: audienceSetting,
-            customViewers: customSelectedUsers.isEmpty ? nil : customSelectedUsers,
-            customListId: selectedListId,
-            aspectRatio: detectedAspectRatio,
-            disableComments: finalDisableComments,
-            hideLikeCounts: finalHideLikeCounts,
-            allowSharing: finalAllowSharing,
-            scheduledDate: finalScheduledDate,
-            hiddenLayers: canUseHiddenLayers ? hiddenLayerDrafts.filter(\.isReadyToPublish) : []
-        )
-
-        // 🔥 CERRAR PANTALLA CON ANIMACIÓN CINEMÁTICA
-        withAnimation(.spring(response: 0.6, dampingFraction: 0.8)) {
-            self.isLaunching = true
+        let spatialTaggedUsers = selectedMediaItems.flatMap { $0.tags ?? [] }.map(\.userId)
+        let captionSnapshot = captionText
+        let mediaSnapshot = selectedMediaItems
+        let audienceSnapshot = audienceSetting
+        let customViewersSnapshot = customSelectedUsers.isEmpty ? nil : customSelectedUsers
+        let listIdSnapshot = selectedListId
+        let locationSnapshot = locationName.isEmpty ? nil : locationName
+        let coordinateSnapshot = selectedLocation.map {
+            Moment.LocationCoordinate(latitude: $0.latitude, longitude: $0.longitude)
         }
-        HapticManager.shared.notification(.success)
+        let hiddenLayersSnapshot = canUseHiddenLayers ? hiddenLayerDrafts.filter(\.isReadyToPublish) : []
+        let manualTaggedSnapshot = taggedUsers
 
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
-            self.isPublishing = false
+        Task {
+            let captionMentionIds = await MomentMentionResolver.resolveUserIds(from: captionSnapshot)
+            let allTaggedUsers = Array(Set(manualTaggedSnapshot + spatialTaggedUsers + captionMentionIds))
 
-        if uploadingMoment != nil {
-            NotificationCenter.default.post(name: NSNotification.Name("ReturnToFeedAfterMomentPublish"), object: nil)
-            self.showCreatorView = false
+            await MainActor.run {
+                let uploadingMoment = uploadService.uploadMoment(
+                    content: captionSnapshot,
+                    mediaItems: mediaSnapshot,
+                    taggedUsers: allTaggedUsers.isEmpty ? nil : allTaggedUsers,
+                    location: locationSnapshot,
+                    locationCoordinate: coordinateSnapshot,
+                    audienceSetting: audienceSnapshot,
+                    customViewers: customViewersSnapshot,
+                    customListId: listIdSnapshot,
+                    aspectRatio: detectedAspectRatio,
+                    disableComments: finalDisableComments,
+                    hideLikeCounts: finalHideLikeCounts,
+                    allowSharing: finalAllowSharing,
+                    scheduledDate: finalScheduledDate,
+                    hiddenLayers: hiddenLayersSnapshot
+                )
 
-            // 🧹 Limpiar formulario para próximo uso
-            self.resetForm()
+                withAnimation(.spring(response: 0.6, dampingFraction: 0.8)) {
+                    isLaunching = true
+                }
+                HapticManager.shared.notification(.success)
 
-                // 📊 Analytics
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
+                    isPublishing = false
 
-        } else {
-            // ❌ Feedback háptico de error
-            HapticManager.shared.notification(.error)
-
-                // Revertir estado si falló el inicio del servicio
-                withAnimation {
-            self.isLaunching = false
-        }
-    }
+                    if uploadingMoment != nil {
+                        NotificationCenter.default.post(
+                            name: NSNotification.Name("ReturnToFeedAfterMomentPublish"),
+                            object: nil
+                        )
+                        showCreatorView = false
+                        resetForm()
+                    } else {
+                        HapticManager.shared.notification(.error)
+                        withAnimation {
+                            isLaunching = false
+                        }
+                    }
+                }
+            }
         }
     }
 
@@ -594,6 +631,7 @@ struct CaptionAndDetailsView: View {
     // 🧹 NUEVA FUNCIÓN: Limpiar formulario después de publicar
     private func resetForm() {
         captionText = ""
+        activeCaptionMention = nil
         taggedUsers = []
         locationName = ""
         selectedLocation = nil

@@ -2378,6 +2378,25 @@ class EncryptionService: ObservableObject {
             return text
         }
     }
+
+    func encryptNovaBlob(_ data: Data, for userId: String, purpose: String) async throws -> Data {
+        let key = try await getUserKey(for: userId)
+        let blobKey = deriveNovaBlobKey(from: key, userId: userId, purpose: purpose)
+        let authenticatedData = novaBlobAuthenticatedData(userId: userId, purpose: purpose)
+        let sealedBox = try AES.GCM.seal(data, using: blobKey, authenticating: authenticatedData)
+        guard let combined = sealedBox.combined else {
+            throw EncryptionError.encryptionFailed
+        }
+        return combined
+    }
+
+    func decryptNovaBlob(_ encryptedData: Data, for userId: String, purpose: String) async throws -> Data {
+        let key = try await getUserKey(for: userId)
+        let blobKey = deriveNovaBlobKey(from: key, userId: userId, purpose: purpose)
+        let authenticatedData = novaBlobAuthenticatedData(userId: userId, purpose: purpose)
+        let sealedBox = try AES.GCM.SealedBox(combined: encryptedData)
+        return try AES.GCM.open(sealedBox, using: blobKey, authenticating: authenticatedData)
+    }
     
     func decryptNovaData(_ encryptedText: String, for userId: String) async -> String? {
         guard isEncryptionEnabled else { return encryptedText }
@@ -2512,6 +2531,25 @@ class EncryptionService: ObservableObject {
         contentType: String
     ) -> Data {
         Data("moments.chat.media.aad.v1|\(conversationId)|\(messageId)|\(purpose.rawValue)|\(contentType)".utf8)
+    }
+
+    private func deriveNovaBlobKey(
+        from userKey: SymmetricKey,
+        userId: String,
+        purpose: String
+    ) -> SymmetricKey {
+        let salt = Data("moments.nova.blob.salt.v1".utf8)
+        let info = Data("moments.nova.blob.v1|\(userId)|\(purpose)".utf8)
+        return HKDF<SHA256>.deriveKey(
+            inputKeyMaterial: userKey,
+            salt: salt,
+            info: info,
+            outputByteCount: 32
+        )
+    }
+
+    private func novaBlobAuthenticatedData(userId: String, purpose: String) -> Data {
+        Data("moments.nova.blob.aad.v1|\(userId)|\(purpose)".utf8)
     }
     
     // MARK: - KEYCHAIN OPERATIONS (Mejoradas con mejor error handling)

@@ -519,13 +519,15 @@ struct ForYouMomentCard: View {
                         textFont: .custom("Poppins-Regular", size: 11),
                         hashtagFont: .custom("Poppins-SemiBold", size: 11),
                         baseColor: .white.opacity(0.9),
+                        mentionColor: Color(hex: "007AFF"),
                         textAlignment: .leading,
                         shadowColor: .black.opacity(0.8),
                         shadowRadius: 2,
                         shadowX: 0,
                         shadowY: 1,
                         lineLimit: 2,
-                        onHashtagTap: onHashtagTap
+                        onHashtagTap: onHashtagTap,
+                        onMentionTap: MomentMentionNavigation.openProfile(forUsername:)
                     )
                 }
             }

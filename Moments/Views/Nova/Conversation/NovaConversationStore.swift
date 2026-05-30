@@ -1,6 +1,7 @@
 import Foundation
 import FirebaseFirestore
 import FirebaseAuth
+import UIKit
 
 @MainActor
 final class NovaConversationStore: ObservableObject {
@@ -9,9 +10,11 @@ final class NovaConversationStore: ObservableObject {
     private let db = Firestore.firestore()
     private let encryptionService = EncryptionService.shared
     private let ai = NovaAIService.shared
+    private let storageService = StorageService()
 
     @Published var isLoading = false
     @Published var lastError: String?
+    private var imageReferenceCache: [String: String] = [:]
 
     private var legacyTitlesCollection: CollectionReference { db.collection("geminiConversationTitles") }
     private var legacyConversationsCollection: CollectionReference { db.collection("geminiConversations") }
@@ -79,7 +82,7 @@ final class NovaConversationStore: ObservableObject {
         do {
             let title = await generateTitle(from: messages)
             let encryptedTitle = await encryptionService.encryptNovaData(title, for: userId) ?? title
-            let encryptedMessages = await encryptMessages(messages, for: userId)
+            let encryptedMessages = try await encryptMessages(messages, for: userId, conversationId: conversationId)
 
             let savedConversation = SavedConversation(
                 id: conversationId,
@@ -117,7 +120,7 @@ final class NovaConversationStore: ObservableObject {
             }
 
             let encryptedTitle = await encryptionService.encryptNovaData(resolvedTitle, for: userId) ?? resolvedTitle
-            let encryptedMessages = await encryptMessages(messages, for: userId)
+            let encryptedMessages = try await encryptMessages(messages, for: userId, conversationId: conversationId)
 
             let updatedConversation = SavedConversation(
                 id: conversationId,
@@ -158,14 +161,29 @@ final class NovaConversationStore: ObservableObject {
             var messages: [ChatMessage] = []
             for savedMessage in savedConversation.messages {
                 let decryptedText = await encryptionService.decryptNovaData(savedMessage.text, for: userId) ?? savedMessage.text
-                let decryptedImage = await decryptImageData(savedMessage.imageData, for: userId)
+                let decryptedImagePayload = await decryptImageData(savedMessage.imageData, for: userId)
+                let resolvedImage = await resolveHistoricalImage(
+                    from: decryptedImagePayload,
+                    messageId: savedMessage.id,
+                    conversationId: savedConversation.id,
+                    userId: userId
+                )
+
                 let restored = SavedChatMessage(
                     id: savedMessage.id,
                     text: decryptedText,
                     isUser: savedMessage.isUser,
-                    imageData: decryptedImage
+                    imageData: decryptedImagePayload
                 )
-                messages.append(restored.toChatMessage())
+                if let storagePath = resolvedImage.storagePath {
+                    imageReferenceCache[cacheKey(conversationId: savedConversation.id, messageId: savedMessage.id)] = storagePath
+                }
+                messages.append(
+                    restored.toChatMessage(
+                        image: resolvedImage.image,
+                        imageStoragePath: resolvedImage.storagePath
+                    )
+                )
             }
             return messages
         } catch {
@@ -181,7 +199,12 @@ final class NovaConversationStore: ObservableObject {
         do {
             let userDocument = try await userConversationDocument(conversationId, for: userId).getDocument()
             if userDocument.exists {
+                if let data = userDocument.data(),
+                   let conversation = SavedConversation(dictionary: data) {
+                    await deleteStoredImages(for: conversation, userId: userId)
+                }
                 try await userConversationDocument(conversationId, for: userId).delete()
+                imageReferenceCache = imageReferenceCache.filter { !$0.key.hasPrefix("\(conversationId)|") }
                 return true
             }
 
@@ -193,10 +216,17 @@ final class NovaConversationStore: ObservableObject {
                 return false
             }
 
+            let legacyConversationDocument = try await legacyConversationsCollection.document(conversationId).getDocument()
+            if let legacyData = legacyConversationDocument.data(),
+               let conversation = SavedConversation(dictionary: legacyData) {
+                await deleteStoredImages(for: conversation, userId: userId)
+            }
+
             let batch = db.batch()
             batch.deleteDocument(legacyTitlesCollection.document(conversationId))
             batch.deleteDocument(legacyConversationsCollection.document(conversationId))
             try await batch.commit()
+            imageReferenceCache = imageReferenceCache.filter { !$0.key.hasPrefix("\(conversationId)|") }
             return true
         } catch {
             lastError = error.localizedDescription
@@ -230,12 +260,20 @@ final class NovaConversationStore: ObservableObject {
         )
     }
 
-    private func encryptMessages(_ messages: [ChatMessage], for userId: String) async -> [SavedChatMessage] {
+    private func encryptMessages(_ messages: [ChatMessage], for userId: String, conversationId: String) async throws -> [SavedChatMessage] {
         var saved: [SavedChatMessage] = []
-        for message in messages.toSavedMessages() {
+        for message in messages where !message.isSystem {
             let encryptedText = await encryptionService.encryptNovaData(message.text, for: userId) ?? message.text
-            let encryptedImage = await encryptImageData(message.imageData, for: userId)
-            saved.append(SavedChatMessage(id: message.id, text: encryptedText, isUser: message.isUser, imageData: encryptedImage))
+            let imageReference = try await resolveImageReference(for: message, userId: userId, conversationId: conversationId)
+            let encryptedImage = await encryptImageData(imageReference, for: userId)
+            saved.append(
+                SavedChatMessage(
+                    id: message.id.uuidString,
+                    text: encryptedText,
+                    isUser: message.isUser,
+                    imageData: encryptedImage
+                )
+            )
         }
         return saved
     }
@@ -248,6 +286,73 @@ final class NovaConversationStore: ObservableObject {
     private func decryptImageData(_ imageData: String?, for userId: String) async -> String? {
         guard let imageData else { return nil }
         return await encryptionService.decryptNovaData(imageData, for: userId) ?? imageData
+    }
+
+    private func resolveImageReference(
+        for message: ChatMessage,
+        userId: String,
+        conversationId: String
+    ) async throws -> String? {
+        let key = cacheKey(conversationId: conversationId, messageId: message.id.uuidString)
+        if let cached = imageReferenceCache[key], !cached.isEmpty {
+            return cached
+        }
+
+        if let existingPath = message.imageStoragePath, !existingPath.isEmpty {
+            imageReferenceCache[key] = existingPath
+            return existingPath
+        }
+
+        guard let image = message.image else { return nil }
+        let uploadedPath = try await storageService.uploadNovaConversationImage(
+            userId: userId,
+            conversationId: conversationId,
+            messageId: message.id.uuidString,
+            image: image
+        )
+        imageReferenceCache[key] = uploadedPath
+        return uploadedPath
+    }
+
+    private func resolveHistoricalImage(
+        from decryptedPayload: String?,
+        messageId: String,
+        conversationId: String,
+        userId: String
+    ) async -> (image: UIImage?, storagePath: String?) {
+        guard let decryptedPayload, !decryptedPayload.isEmpty else {
+            return (nil, nil)
+        }
+
+        if SavedChatMessage.looksLikeStorageReference(decryptedPayload) {
+            do {
+                let image = try await storageService.downloadNovaConversationImage(
+                    userId: userId,
+                    conversationId: conversationId,
+                    messageId: messageId,
+                    storedPath: decryptedPayload
+                )
+                return (image, decryptedPayload)
+            } catch {
+                return (nil, decryptedPayload)
+            }
+        }
+
+        return (SavedChatMessage.decodeLegacyInlineImage(decryptedPayload), nil)
+    }
+
+    private func deleteStoredImages(for conversation: SavedConversation, userId: String) async {
+        for savedMessage in conversation.messages {
+            guard let decryptedPayload = await decryptImageData(savedMessage.imageData, for: userId),
+                  SavedChatMessage.looksLikeStorageReference(decryptedPayload) else {
+                continue
+            }
+            try? await storageService.deleteMedia(path: decryptedPayload)
+        }
+    }
+
+    private func cacheKey(conversationId: String, messageId: String) -> String {
+        "\(conversationId)|\(messageId)"
     }
 
     private func saveUserConversation(_ conversation: SavedConversation, for userId: String) async throws {

@@ -16,27 +16,31 @@ enum NovaPromptCatalog {
     Never infer hobbies/interests from proper nouns in post titles or pet names.
     The user does not need to explicitly say "remember this" for you to treat stable preferences and identity details as meaningful context.
 
-    Write actions (create_moment, remember_fact, update_user_preference) always require explicit user confirmation in the app UI.
-    When the user asks to publish/upload a moment, you MUST call create_moment in the same turn before saying anything about confirmation.
-    The confirmation dialog only appears AFTER you call create_moment — never tell the user to confirm in a dialog unless you already called the tool.
-    NEVER say a moment was published/created unless create_moment returned success:true. If the tool fails or is cancelled, say so clearly.
+    Sensitive write actions (create_moment, remember_fact, update_user_preference) run in the app after a brief in-app approval step the user already handles — never mention confirmation, approval buttons, dialogs, or "tap to confirm" in your replies.
+    When the user asks to publish/upload a moment, call create_moment in the same turn (with attached photo) before your natural-language reply.
+    If create_moment returns success:true, the upload has already started and the in-app approval step has already happened — respond as if the post is going up (e.g. uploading / shared), without asking them to confirm again.
+    After a successful create_moment tool result, never say that the user still needs to confirm, approve, tap, accept, or wait for an on-screen prompt. That step is already done.
+    NEVER claim a moment was published unless create_moment returned success:true. If the tool fails, returns an error, or the user declined the in-app step, say that clearly and do not imply it posted.
     If the tool returns missing_media, ask the user to attach a photo with the + button first — do not claim success.
 
     create_moment audience parameter must be exactly one of: everyone, connections, bestFriends, onlyMe, custom, customList.
     Map the user's natural language to these English tool values before calling the tool. UI labels are localized separately.
     For custom use target_username; for customList use custom_list_name or list_audience_lists first.
     Moments always require media: never call create_moment without a photo attached in the chat (+ button). Caption is optional.
+    In the caption you may include @username (no space after @) to tag people; those mentions are resolved automatically — do not use audience=custom just to tag someone in the caption.
     From Nova chat only photos are supported today (not video). If the user wants to post without media, explain they must attach a photo first.
     """
 
     static let createMomentToolNudge = """
     Call create_moment now for the user's last message. Use the attached photo. Do not reply with text only.
+    Do not mention confirmation or approval UI. If the tool succeeds, tell them the moment is uploading.
+    Never add lines like "now confirm the prompt", "you'll see an approval dialog", or "only one step left".
     """
 
     static let momentDraftPrompt = """
     Decide if the user wants to publish/upload a moment (photo post) to their profile.
     Return JSON only. Map audience to English tool values: everyone, connections, bestFriends, onlyMe, custom, customList.
-    Extract caption into content. If they mention a specific @user use custom + target_username. If a named list, use customList + custom_list_name.
+    Extract caption into content. Use @username inside content to tag people in the caption. Use audience=custom + target_username only when the post visibility should be limited to that user (not for a simple @mention in text). If a named list, use customList + custom_list_name.
     Set should_publish false for general chat, questions, or analysis about a photo without posting intent.
     """
 

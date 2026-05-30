@@ -38,8 +38,7 @@ struct MomentDetailView: View {
     @State private var selectedLocationMoment: Moment? // ✅ Usar Item Binding para evitar race conditions en SwiftUI
     @State private var selectedHashtag: String = ""
     @State private var showExploreWithHashtag = false
-    private let firestoreService = FirestoreService()
-    
+    @ObservedObject private var firestoreService = FirestoreService.shared
 
     init(moment: Moment) {
         self.moment = moment
@@ -110,7 +109,7 @@ struct MomentDetailView: View {
         }
         .sheet(isPresented: $showingCommentsSheet) {
             ModernCommentsView(moment: moment)
-                .environmentObject(FirestoreService())
+                .environmentObject(firestoreService)
                 .presentationDetents([.medium, .large])
                 .presentationDragIndicator(.visible)
         }
@@ -194,6 +193,7 @@ struct MomentDetailView: View {
                 )
             )
         }
+        .environmentObject(firestoreService)
     }
     
     private func resolvedLocationName(_ rawValue: String) -> String {
@@ -328,7 +328,7 @@ struct MomentDetailView: View {
                     onContextMenu: { showContextMenu = true },
                     isImmersive: $isImmersive
                 )
-                .environmentObject(FirestoreService())
+                .environmentObject(firestoreService)
             }
             
             MomentCaptionView(

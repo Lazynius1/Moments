@@ -63,8 +63,10 @@ struct MomentHashtagText: View {
     let content: String
     let textFont: Font
     let hashtagFont: Font
+    let mentionFont: Font
     let baseColor: Color
     let hashtagColor: Color
+    let mentionColor: Color
     let textAlignment: TextAlignment
     let shadowColor: Color
     let shadowRadius: CGFloat
@@ -72,26 +74,32 @@ struct MomentHashtagText: View {
     let shadowY: CGFloat
     let lineLimit: Int?
     let onHashtagTap: (String) -> Void
+    let onMentionTap: ((String) -> Void)?
 
     init(
         content: String,
         textFont: Font,
         hashtagFont: Font,
+        mentionFont: Font? = nil,
         baseColor: Color,
         hashtagColor: Color = MomentHashtagParser.hashtagColor,
+        mentionColor: Color = MomentMentionParser.mentionColor,
         textAlignment: TextAlignment = .leading,
         shadowColor: Color = .clear,
         shadowRadius: CGFloat = 0,
         shadowX: CGFloat = 0,
         shadowY: CGFloat = 0,
         lineLimit: Int? = nil,
-        onHashtagTap: @escaping (String) -> Void
+        onHashtagTap: @escaping (String) -> Void,
+        onMentionTap: ((String) -> Void)? = nil
     ) {
         self.content = content
         self.textFont = textFont
         self.hashtagFont = hashtagFont
+        self.mentionFont = mentionFont ?? hashtagFont
         self.baseColor = baseColor
         self.hashtagColor = hashtagColor
+        self.mentionColor = mentionColor
         self.textAlignment = textAlignment
         self.shadowColor = shadowColor
         self.shadowRadius = shadowRadius
@@ -99,6 +107,7 @@ struct MomentHashtagText: View {
         self.shadowY = shadowY
         self.lineLimit = lineLimit
         self.onHashtagTap = onHashtagTap
+        self.onMentionTap = onMentionTap
     }
 
     var body: some View {
@@ -108,12 +117,17 @@ struct MomentHashtagText: View {
             .lineLimit(lineLimit)
             .shadow(color: shadowColor, radius: shadowRadius, x: shadowX, y: shadowY)
             .environment(\.openURL, OpenURLAction { url in
-                guard let hashtag = MomentHashtagLink.hashtag(from: url) else {
-                    return .systemAction
+                if let hashtag = MomentHashtagLink.hashtag(from: url) {
+                    onHashtagTap(hashtag)
+                    return .handled
                 }
 
-                onHashtagTap(hashtag)
-                return .handled
+                if let username = MomentMentionLink.username(from: url) {
+                    onMentionTap?(username)
+                    return .handled
+                }
+
+                return .systemAction
             })
     }
 
@@ -129,6 +143,18 @@ struct MomentHashtagText: View {
             attributed[attributedRange].foregroundColor = hashtagColor
             attributed[attributedRange].font = hashtagFont
             attributed[attributedRange].link = MomentHashtagLink.url(for: match.term)
+        }
+
+        for match in MomentMentionParser.matches(in: content).reversed() {
+            guard let attributedRange = match.range.toAttributedStringRange(in: attributed) else {
+                continue
+            }
+
+            attributed[attributedRange].foregroundColor = mentionColor
+            attributed[attributedRange].font = mentionFont
+            if onMentionTap != nil {
+                attributed[attributedRange].link = MomentMentionLink.url(for: match.username)
+            }
         }
 
         return attributed

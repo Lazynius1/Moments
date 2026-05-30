@@ -71,24 +71,21 @@ actor NovaSocialTools {
                 "error": .string(error.code)
             ]
         case .success(let audience):
-            return await MainActor.run {
-                Self.uploadMomentWithImage(
-                    userId: userId,
-                    content: trimmed,
-                    audience: audience,
-                    image: image
-                )
-            }
+            return await uploadMomentWithImage(
+                userId: userId,
+                content: trimmed,
+                audience: audience,
+                image: image
+            )
         }
     }
 
-    @MainActor
-    private static func uploadMomentWithImage(
+    private func uploadMomentWithImage(
         userId: String,
         content: String,
         audience: NovaMomentAudience,
         image: UIImage
-    ) -> JSONObject {
+    ) async -> JSONObject {
         let ratio = image.size.width / max(image.size.height, 1)
         let media = CreatorMedia(
             type: .image,
@@ -97,16 +94,24 @@ actor NovaSocialTools {
             aspectRatio: CreatorMedia.AspectRatio.fromRatio(ratio)
         )
 
-        guard BackgroundMomentUploadService.shared.uploadMoment(
-            content: content,
-            mediaItems: [media],
-            taggedUsers: nil,
-            location: nil,
-            audienceSetting: audience.audienceSetting,
-            customViewers: audience.customViewers,
-            customListId: audience.customListId,
-            aspectRatio: media.aspectRatio.displayName
-        ) != nil else {
+        let captionMentionIds = await MomentMentionResolver.resolveUserIds(from: content)
+        let audienceTaggedIds = audience.customViewers ?? []
+        let allTaggedUsers = Array(Set(captionMentionIds + audienceTaggedIds))
+
+        let started = await MainActor.run {
+            BackgroundMomentUploadService.shared.uploadMoment(
+                content: content,
+                mediaItems: [media],
+                taggedUsers: allTaggedUsers.isEmpty ? nil : allTaggedUsers,
+                location: nil,
+                audienceSetting: audience.audienceSetting,
+                customViewers: audience.customViewers,
+                customListId: audience.customListId,
+                aspectRatio: media.aspectRatio.displayName
+            ) != nil
+        }
+
+        guard started else {
             return [
                 "success": .bool(false),
                 "error": .string("upload_start_failed")
@@ -119,7 +124,8 @@ actor NovaSocialTools {
             "audience": .string(audience.contentAudience.rawValue),
             "audience_label": .string(audience.displayLabel),
             "has_media": .bool(true),
-            "content_preview": .string(String(content.prefix(120)))
+            "content_preview": .string(String(content.prefix(120))),
+            "tagged_users_count": NovaJSON.int(allTaggedUsers.count)
         ]
     }
 

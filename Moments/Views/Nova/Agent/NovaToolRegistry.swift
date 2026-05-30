@@ -45,13 +45,14 @@ enum NovaToolRegistry {
             FunctionDeclaration(
                 name: "create_moment",
                 description: """
-                Publish a moment with the photo attached in this chat message. Requires user confirmation.
+                Publish a moment with the photo attached in this chat message. After success, the upload starts automatically.
+                Do not tell the user to confirm in chat — in-app approval is handled separately.
                 Moments cannot be text-only — media must be attached via the chat (+ button) before calling.
                 audience: everyone | connections | bestFriends | onlyMe | custom | customList.
                 Call list_audience_lists first if the user refers to a list by vague name.
                 """,
                 parameters: [
-                    "content": .string(description: "Optional caption."),
+                    "content": .string(description: "Optional caption. Include @username (no space) to tag people; tags are resolved automatically."),
                     "audience": .string(description: "Exactly: everyone | connections | bestFriends | onlyMe | custom | customList"),
                     "target_username": .string(description: "For audience=custom: username without @."),
                     "custom_list_name": .string(description: "For audience=customList: list name."),

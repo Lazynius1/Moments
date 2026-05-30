@@ -1028,12 +1028,14 @@ struct DetailExpandableContentView: View {
                 hashtagFont: .custom("Poppins-SemiBold", size: 15),
                 baseColor: baseTextColor,
                 hashtagColor: hashtagTextColor,
+                mentionColor: Color(hex: "007AFF"),
                 textAlignment: .leading,
                 shadowColor: textShadowColor,
                 shadowRadius: colorScheme == .dark ? 3 : 0,
                 shadowX: 0,
                 shadowY: 2,
-                onHashtagTap: onHashtagTap
+                onHashtagTap: onHashtagTap,
+                onMentionTap: MomentMentionNavigation.openProfile(forUsername:)
             )
             
             if needsExpansion {

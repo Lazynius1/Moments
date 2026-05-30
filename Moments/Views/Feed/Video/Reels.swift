@@ -1356,14 +1356,16 @@ struct VideoMoment: Identifiable {
     
     init(moment: Moment) {
         self.moment = moment
-        self.videoUrl = moment.videoUrl ?? ""
+        let resolved = moment.previewVideoURLString ?? moment.videoUrl ?? ""
+        self.videoUrl = resolved
     }
 }
 
 extension Array where Element == Moment {
     var videoMoments: [VideoMoment] {
         return self.compactMap { moment in
-            guard let videoUrl = moment.videoUrl, !videoUrl.isEmpty else { return nil }
+            guard let videoUrl = moment.previewVideoURLString ?? moment.videoUrl,
+                  !videoUrl.isEmpty else { return nil }
             return VideoMoment(moment: moment)
         }
     }

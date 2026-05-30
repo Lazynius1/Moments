@@ -40,6 +40,7 @@ enum FeedMediaUploadContext {
 class StorageService {
     private let uploader = MediaUploadService.shared
     private let videoCompression = VideoCompressionService.shared
+    private let encryptionService = EncryptionService.shared
 
     // MARK: - Profile
 
@@ -56,6 +57,66 @@ class StorageService {
     }
 
     // MARK: - Feed media (moments / stories)
+
+    func uploadNovaConversationImage(
+        userId: String,
+        conversationId: String,
+        messageId: String,
+        image: UIImage
+    ) async throws -> String {
+        guard let imageData = image.jpegData(compressionQuality: 0.82) else {
+            throw StorageError.invalidData
+        }
+
+        let target = StoragePathBuilder.build(
+            userId: userId,
+            domain: .novaConversationImage(conversationId: conversationId, messageId: messageId)
+        )
+        let purpose = "conversationImage|\(conversationId)|\(messageId)"
+        let encryptedData = try await encryptionService.encryptNovaBlob(
+            imageData,
+            for: userId,
+            purpose: purpose
+        )
+        return try await uploader.uploadEncryptedBlob(target: target, data: encryptedData)
+    }
+
+    func downloadNovaConversationImage(
+        userId: String,
+        conversationId: String,
+        messageId: String,
+        storedPath: String
+    ) async throws -> UIImage {
+        let objectPath = StoragePathBuilder.extractObjectPath(from: storedPath)
+        guard !objectPath.isEmpty else {
+            throw StorageError.invalidPath
+        }
+
+        let data = try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Data, Error>) in
+            Storage.storage().reference().child(objectPath).getData(maxSize: 15 * 1024 * 1024) { data, error in
+                if let error {
+                    continuation.resume(throwing: error)
+                    return
+                }
+                guard let data else {
+                    continuation.resume(throwing: StorageError.invalidData)
+                    return
+                }
+                continuation.resume(returning: data)
+            }
+        }
+
+        let purpose = "conversationImage|\(conversationId)|\(messageId)"
+        let decryptedData = try await encryptionService.decryptNovaBlob(
+            data,
+            for: userId,
+            purpose: purpose
+        )
+        guard let image = UIImage(data: decryptedData) else {
+            throw StorageError.invalidData
+        }
+        return image
+    }
 
     func uploadMedia(
         userId: String,
@@ -153,6 +214,18 @@ class StorageService {
                 completion(StorageError.deleteFailed)
             } else {
                 completion(nil)
+            }
+        }
+    }
+
+    func deleteMedia(path: String) async throws {
+        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+            deleteMedia(path: path) { error in
+                if let error {
+                    continuation.resume(throwing: error)
+                } else {
+                    continuation.resume(returning: ())
+                }
             }
         }
     }

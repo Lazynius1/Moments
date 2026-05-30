@@ -1278,6 +1278,7 @@ struct MediaItemView: View {
                 videos: allMoments.videoMoments,
                 startIndex: findVideoIndex()
             )
+            .environmentObject(FirestoreService.shared)
         }
     }
 
@@ -1742,12 +1743,14 @@ struct ExpandableContentView: View {
                 textFont: .custom("Poppins-Regular", size: 14),
                 hashtagFont: .custom("Poppins-SemiBold", size: 14),
                 baseColor: .white,
+                mentionColor: Color(hex: "007AFF"),
                 textAlignment: .leading,
                 shadowColor: .black.opacity(0.4),
                 shadowRadius: 3,
                 shadowX: 0,
                 shadowY: 1,
-                onHashtagTap: onHashtagTap
+                onHashtagTap: onHashtagTap,
+                onMentionTap: MomentMentionNavigation.openProfile(forUsername:)
             )
 
             if needsExpansion {

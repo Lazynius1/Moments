@@ -104,6 +104,8 @@ struct SavedChatMessage: Identifiable, Codable {
     let id: String
     let text: String
     let isUser: Bool
+    // Legacy: inline base64 image.
+    // Current: encrypted Storage object path for private Nova media.
     let imageData: String?
 
     init(id: String = UUID().uuidString, text: String, isUser: Bool, imageData: String? = nil, timestamp: Date = Date()) {
@@ -118,7 +120,7 @@ struct SavedChatMessage: Identifiable, Codable {
         self.id = chatMessage.id.uuidString
         self.text = chatMessage.text
         self.isUser = chatMessage.isUser
-        self.imageData = Self.encodeImage(chatMessage.image)
+        self.imageData = chatMessage.imageStoragePath
     }
 
     // Para Firestore
@@ -152,44 +154,27 @@ struct SavedChatMessage: Identifiable, Codable {
     }
 
     // Convertir a ChatMessage
-    func toChatMessage() -> ChatMessage {
-        let image = Self.decodeImage(imageData)
-        return ChatMessage(text: text, isUser: isUser, image: image, isHistorical: true)
+    func toChatMessage(image: UIImage? = nil, imageStoragePath: String? = nil) -> ChatMessage {
+        let resolvedImage = image ?? Self.decodeLegacyInlineImage(imageData)
+        return ChatMessage(
+            id: UUID(uuidString: id) ?? UUID(),
+            text: text,
+            isUser: isUser,
+            image: resolvedImage,
+            imageStoragePath: imageStoragePath,
+            isHistorical: true
+        )
     }
 
-    private static func encodeImage(_ image: UIImage?) -> String? {
-        guard let image else { return nil }
-
-        let resized = resizeImageIfNeeded(image, maxDimension: 1400)
-        if let jpegData = resized.jpegData(compressionQuality: 0.72) {
-            return jpegData.base64EncodedString()
-        }
-        if let pngData = resized.pngData() {
-            return pngData.base64EncodedString()
-        }
-        return nil
-    }
-
-    private static func decodeImage(_ base64: String?) -> UIImage? {
+    static func decodeLegacyInlineImage(_ base64: String?) -> UIImage? {
         guard let base64,
               let data = Data(base64Encoded: base64) else { return nil }
         return UIImage(data: data)
     }
 
-    private static func resizeImageIfNeeded(_ image: UIImage, maxDimension: CGFloat) -> UIImage {
-        let size = image.size
-        let currentMax = max(size.width, size.height)
-        guard currentMax > maxDimension, currentMax > 0 else { return image }
-
-        let scale = maxDimension / currentMax
-        let newSize = CGSize(width: size.width * scale, height: size.height * scale)
-        let format = UIGraphicsImageRendererFormat.default()
-        format.scale = 1
-        let renderer = UIGraphicsImageRenderer(size: newSize, format: format)
-
-        return renderer.image { _ in
-            image.draw(in: CGRect(origin: .zero, size: newSize))
-        }
+    static func looksLikeStorageReference(_ value: String?) -> Bool {
+        guard let value else { return false }
+        return value.hasPrefix("users/") || value.hasPrefix("https://") || value.hasPrefix("gs://")
     }
 }
 

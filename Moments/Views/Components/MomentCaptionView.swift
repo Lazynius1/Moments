@@ -48,6 +48,10 @@ struct MomentCaptionView: View {
         colorScheme == .dark ? .white : Color(hex: "007AFF")
     }
 
+    private var mentionTextColor: Color {
+        Color(hex: "007AFF")
+    }
+
     var body: some View {
         if !trimmedContent.isEmpty {
             VStack(alignment: .leading, spacing: 8) {
@@ -57,12 +61,14 @@ struct MomentCaptionView: View {
                     hashtagFont: .custom("Poppins-SemiBold", size: style == .detail ? 15 : 14),
                     baseColor: baseTextColor,
                     hashtagColor: hashtagTextColor,
+                    mentionColor: mentionTextColor,
                     textAlignment: .leading,
                     shadowColor: .clear,
                     shadowRadius: 0,
                     shadowX: 0,
                     shadowY: 0,
-                    onHashtagTap: onHashtagTap
+                    onHashtagTap: onHashtagTap,
+                    onMentionTap: MomentMentionNavigation.openProfile(forUsername:)
                 )
                 .lineLimit(style == .detail ? 4 : 3)
 
@@ -144,12 +150,14 @@ private struct MomentCaptionReaderSheet: View {
                         hashtagFont: .custom("Poppins-SemiBold", size: 16),
                         baseColor: baseTextColor,
                         hashtagColor: hashtagTextColor,
+                        mentionColor: Color(hex: "007AFF"),
                         textAlignment: .leading,
                         shadowColor: .clear,
                         shadowRadius: 0,
                         shadowX: 0,
                         shadowY: 0,
-                        onHashtagTap: onHashtagTap
+                        onHashtagTap: onHashtagTap,
+                        onMentionTap: MomentMentionNavigation.openProfile(forUsername:)
                     )
                 }
                 .padding(.horizontal, 4)
