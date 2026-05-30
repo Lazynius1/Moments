@@ -8,9 +8,11 @@ const crypto = require('crypto');
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
-const https = require('https');
 const { spawn } = require('child_process');
 const ffmpegPath = require('ffmpeg-static');
+
+const VIDEO_DOWNLOAD_MAX_BYTES = 250 * 1024 * 1024;
+const VIDEO_DOWNLOAD_TIMEOUT_MS = 60 * 1000;
 setGlobalOptions({ region: 'europe-southwest1', memory: '256MiB', concurrency: 80, retry: true });
 const admin = require('firebase-admin');
 admin.initializeApp();
@@ -204,38 +206,6 @@ function inferFileExtension(url, contentType = '') {
   return 'bin';
 }
 
-function downloadUrlToFile(url, destinationPath, redirectCount = 0) {
-  return new Promise((resolve, reject) => {
-    if (!url || redirectCount > 4) {
-      reject(new Error('Invalid video download URL'));
-      return;
-    }
-
-    const request = https.get(url, (response) => {
-      if ([301, 302, 303, 307, 308].includes(response.statusCode)) {
-        response.resume();
-        downloadUrlToFile(response.headers.location, destinationPath, redirectCount + 1)
-          .then(resolve)
-          .catch(reject);
-        return;
-      }
-
-      if (response.statusCode !== 200) {
-        response.resume();
-        reject(new Error(`Video download failed with status ${response.statusCode}`));
-        return;
-      }
-
-      const stream = fs.createWriteStream(destinationPath);
-      response.pipe(stream);
-      stream.on('finish', () => stream.close(resolve));
-      stream.on('error', reject);
-    });
-
-    request.on('error', reject);
-  });
-}
-
 function runFfmpeg(args) {
   return new Promise((resolve, reject) => {
     if (!ffmpegPath) {
@@ -268,6 +238,8 @@ function firebaseStorageDownloadUrl(bucketName, objectName, token) {
 function storageObjectNameFromFirebaseUrl(url, expectedBucketName) {
   try {
     const parsed = new URL(url);
+    if (parsed.hostname !== 'firebasestorage.googleapis.com') return null;
+
     const match = parsed.pathname.match(/^\/v0\/b\/([^/]+)\/o\/(.+)$/);
     if (!match) return null;
 
@@ -280,13 +252,79 @@ function storageObjectNameFromFirebaseUrl(url, expectedBucketName) {
   }
 }
 
-async function deleteOriginalMomentVideoIfSafe({ originalUrl, processedUrl }) {
+function userOwnedVideoObjectNameFromFirebaseUrl(url, userId) {
   const bucket = admin.storage().bucket();
-  const objectName = storageObjectNameFromFirebaseUrl(originalUrl, bucket.name);
+  const objectName = storageObjectNameFromFirebaseUrl(url, bucket.name);
+  if (!objectName || !objectName.startsWith('videos/')) return null;
+
+  const expectedSuffix = `_${userId}.mp4`;
+  if (path.posix.dirname(objectName) !== 'videos' || !path.posix.basename(objectName).endsWith(expectedSuffix)) {
+    return null;
+  }
+
+  return objectName;
+}
+
+async function downloadStorageObjectToFile({ bucket, objectName, destinationPath, maxBytes = VIDEO_DOWNLOAD_MAX_BYTES }) {
+  const file = bucket.file(objectName);
+  const [metadata] = await file.getMetadata();
+  const size = Number(metadata.size || 0);
+  if (size > maxBytes) {
+    throw new Error('Video download exceeds maximum allowed size');
+  }
+
+  const contentType = String(metadata.contentType || '').toLowerCase();
+  if (contentType && !contentType.startsWith('video/')) {
+    throw new Error('Storage object is not a video');
+  }
+
+  await new Promise((resolve, reject) => {
+    let settled = false;
+    let receivedBytes = 0;
+    const readStream = file.createReadStream();
+    const writeStream = fs.createWriteStream(destinationPath);
+    const timeout = setTimeout(() => {
+      readStream.destroy(new Error('Video download timed out'));
+      writeStream.destroy();
+    }, VIDEO_DOWNLOAD_TIMEOUT_MS);
+
+    const done = (error) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timeout);
+      if (error) {
+        try {
+          if (fs.existsSync(destinationPath)) fs.unlinkSync(destinationPath);
+        } catch (cleanupError) {
+          console.warn('Video download cleanup failed', destinationPath, cleanupError.message);
+        }
+        reject(error);
+      } else {
+        resolve();
+      }
+    };
+
+    readStream.on('data', (chunk) => {
+      receivedBytes += chunk.length;
+      if (receivedBytes > maxBytes) {
+        readStream.destroy(new Error('Video download exceeds maximum allowed size'));
+        writeStream.destroy();
+      }
+    });
+    readStream.on('error', done);
+    writeStream.on('error', done);
+    writeStream.on('finish', () => writeStream.close(() => done()));
+    readStream.pipe(writeStream);
+  });
+}
+
+
+async function deleteOriginalMomentVideoIfSafe({ originalUrl, processedUrl, userId }) {
+  const bucket = admin.storage().bucket();
+  const objectName = userOwnedVideoObjectNameFromFirebaseUrl(originalUrl, userId);
   const processedObjectName = storageObjectNameFromFirebaseUrl(processedUrl, bucket.name);
 
   if (!objectName || objectName === processedObjectName) return false;
-  if (!objectName.startsWith('videos/')) return false;
 
   try {
     await bucket.file(objectName).delete({ ignoreNotFound: true });
@@ -297,14 +335,11 @@ async function deleteOriginalMomentVideoIfSafe({ originalUrl, processedUrl }) {
   }
 }
 
-async function deleteStorageUrlIfSafe({ url, allowedPrefixes }) {
+async function deleteStorageUrlIfSafe({ url, userId }) {
   const bucket = admin.storage().bucket();
-  const objectName = storageObjectNameFromFirebaseUrl(url, bucket.name);
+  const objectName = userOwnedVideoObjectNameFromFirebaseUrl(url, userId);
 
   if (!objectName) return false;
-  if (!Array.isArray(allowedPrefixes) || !allowedPrefixes.some((prefix) => objectName.startsWith(prefix))) {
-    return false;
-  }
 
   await bucket.file(objectName).delete({ ignoreNotFound: true });
   return true;
@@ -318,7 +353,11 @@ async function transcodeMomentVideo({ userId, momentId, mediaItem }) {
   const sourceUrl = mediaItem.originalVideoUrl || mediaItem.url;
 
   try {
-    await downloadUrlToFile(sourceUrl, inputPath);
+    const sourceObjectName = userOwnedVideoObjectNameFromFirebaseUrl(sourceUrl, userId);
+    if (!sourceObjectName) {
+      throw new Error('Video source must be a Firebase Storage upload owned by this user');
+    }
+    await downloadStorageObjectToFile({ bucket, objectName: sourceObjectName, destinationPath: inputPath });
 
     await runFfmpeg([
       '-y',
@@ -372,7 +411,11 @@ async function transcodeStoryVideo({ userId, uploadId, segmentId, temporaryUrl }
   const outputPath = `${tempBase}_processed.mp4`;
 
   try {
-    await downloadUrlToFile(temporaryUrl, inputPath);
+    const sourceObjectName = userOwnedVideoObjectNameFromFirebaseUrl(temporaryUrl, userId);
+    if (!sourceObjectName) {
+      throw new Error('Story video source must be a Firebase Storage upload owned by this user');
+    }
+    await downloadStorageObjectToFile({ bucket, objectName: sourceObjectName, destinationPath: inputPath });
 
     await runFfmpeg([
       '-y',
@@ -733,7 +776,8 @@ exports.processMomentVideos = onDocumentCreated(
         const originalVideoUrl = item.originalVideoUrl || item.url;
         const originalDeleted = await deleteOriginalMomentVideoIfSafe({
           originalUrl: originalVideoUrl,
-          processedUrl: processed.url
+          processedUrl: processed.url,
+          userId
         });
 
         updatedItems[index] = {
@@ -809,7 +853,7 @@ exports.processStoryVideos = onDocumentCreated(
 
       const originalDeleted = await deleteStorageUrlIfSafe({
         url: originalVideoUrl,
-        allowedPrefixes: ['videos/']
+        userId
       });
 
       await storyRef.update({
