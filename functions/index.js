@@ -6573,10 +6573,6 @@ exports.getReactedMomentsPage = onRequest(
     const rawLimit = Number(body.limit);
     const limit = Number.isFinite(rawLimit) ? Math.max(1, Math.min(rawLimit, 60)) : 30;
     const cursorTimestamp = Number(body?.cursor?.timestamp || 0);
-    const requestedTargetUserId = typeof body?.targetUserId === 'string' ? body.targetUserId.trim() : '';
-    const targetUserId = requestedTargetUserId || uid;
-    const requestedTargetUserId = typeof body?.targetUserId === 'string' ? body.targetUserId.trim() : '';
-    const targetUserId = requestedTargetUserId || uid;
 
     const db = admin.firestore();
 
