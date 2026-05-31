@@ -6575,6 +6575,8 @@ exports.getReactedMomentsPage = onRequest(
     const cursorTimestamp = Number(body?.cursor?.timestamp || 0);
     const requestedTargetUserId = typeof body?.targetUserId === 'string' ? body.targetUserId.trim() : '';
     const targetUserId = requestedTargetUserId || uid;
+    const requestedTargetUserId = typeof body?.targetUserId === 'string' ? body.targetUserId.trim() : '';
+    const targetUserId = requestedTargetUserId || uid;
 
     const db = admin.firestore();
 
@@ -7100,7 +7102,7 @@ exports.getTaggedMomentsPage = onRequest(
           .filter((parts) => parts.length >= 4 && parts[0] === 'users' && parts[2] === 'moments')
           .map((parts) => parts[1])
       ));
-      const authorMap = await fetchUserDataMap(authorIds);
+      const authorMap = await batchLoadAuthorDocs(authorIds);
 
       const items = [];
       for (const doc of snap.docs) {
