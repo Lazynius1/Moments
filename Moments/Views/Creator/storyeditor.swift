@@ -127,8 +127,6 @@ struct StoryEditingView: View {
                         .ignoresSafeArea()
 
                     backgroundMediaView(canvasSize: mediaCanvasSize)
-                        .frame(width: mediaCanvasRect.width, height: mediaCanvasRect.height)
-                        .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
                         .position(x: mediaCanvasRect.midX, y: mediaCanvasRect.midY)
 
                     // Drawing overlay preview when text editor is open
@@ -524,6 +522,16 @@ struct StoryEditingView: View {
 
     @ViewBuilder
     private func backgroundMediaView(canvasSize: CGSize) -> some View {
+        ZStack(alignment: .bottom) {
+            storyEditorMediaContent(canvasSize: canvasSize)
+            canvasAutoSplitNotice()
+        }
+        .frame(width: canvasSize.width, height: canvasSize.height)
+        .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
+    }
+
+    @ViewBuilder
+    private func storyEditorMediaContent(canvasSize: CGSize) -> some View {
         if let firstMedia = selectedMediaItems.first {
             if firstMedia.type == .video, let videoURL = firstMedia.videoURL {
                 let fallbackMediaSize = CGSize(
@@ -588,6 +596,14 @@ struct StoryEditingView: View {
             .clipped()
             .ignoresSafeArea()
         }
+    }
+
+    @ViewBuilder
+    private func canvasAutoSplitNotice() -> some View {
+        autoSplitNoticeView()
+            .padding(.horizontal, 12)
+            .padding(.bottom, 14)
+            .allowsHitTesting(false)
     }
 
     @ViewBuilder
@@ -1004,8 +1020,6 @@ struct StoryEditingView: View {
                     }
                 }
 
-                autoSplitNoticeView()
-
             }
             .padding(.horizontal, activeEditorMode == .idle && !isCreatingChain ? 0 : 16)
             .padding(.top, activeEditorMode == .idle && !isCreatingChain ? 0 : max(10, min(26, viewportHeight - canvasBottomEdge - 94)))
@@ -1035,7 +1049,6 @@ struct StoryEditingView: View {
             .padding(.horizontal, 12)
             .padding(.vertical, 9)
             .liquidGlass(in: RoundedRectangle(cornerRadius: 14, style: .continuous), interactive: false)
-            .padding(.horizontal, 16)
         }
     }
 

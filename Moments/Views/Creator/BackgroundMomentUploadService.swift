@@ -421,8 +421,7 @@ class BackgroundMomentUploadService: ObservableObject {
             let baseProgress = Double(index) / Double(totalFiles) * 0.7
             let fileProgressSpan = 0.7 / Double(totalFiles)
             let hasValidVideoThumbnail = media.type == .video &&
-                media.image.size.width > 0 &&
-                media.image.size.height > 0
+                media.image.storageUploadJPEGData(compressionQuality: 0.75, maxPixelDimension: 720) != nil
             let thumbnailProgressShare = hasValidVideoThumbnail ? 0.1 : 0.0
             let mediaProgressShare = 1.0 - thumbnailProgressShare
             await updateProgress(uploadingMoment, progress: baseProgress)
@@ -1170,9 +1169,7 @@ class BackgroundMomentUploadService: ObservableObject {
             let thumbDest = pendingUploadsDir.appendingPathComponent(thumbName!)
             try? FileManager.default.copyItem(at: thumbURL, to: thumbDest)
         } else if media.type == .video,
-                  media.image.size.width > 0,
-                  media.image.size.height > 0,
-                  let thumbnailData = media.image.jpegData(compressionQuality: 0.75) {
+                  let thumbnailData = media.image.storageUploadJPEGData(compressionQuality: 0.75, maxPixelDimension: 720) {
             thumbName = "\(actionId)_\(id)_thumb.jpg"
             let thumbDest = pendingUploadsDir.appendingPathComponent(thumbName!)
             try? thumbnailData.write(to: thumbDest)

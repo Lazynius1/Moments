@@ -114,6 +114,7 @@ struct StoryViewerScreen: View {
     @State private var currentChainIndex: Int = 0 // Índice actual en la cadena
     @State private var isLoadingChainStories: Bool = false
     @StateObject private var playbackCoordinator = StoryPlaybackCoordinator()
+    @State private var isStoryVideoReady = false
 
     private let reactions: [String] = ["✌🏻", "🔥", "✅", "😊", "✨", "❤️", "💕", "😮", "😂", "😢", "🙏🏻", "⚡", "🧠", "🎨", "😌", "🎉"]
 
@@ -169,6 +170,7 @@ struct StoryViewerScreen: View {
         lastPreparedStoryId = currentId
         handleStoryChange()
         storyStickers = resolvedStoryStickers(for: story)
+        preloadNextStory()
     }
 
     private var canOptOutFromAuthorBestFriends: Bool {
@@ -368,15 +370,7 @@ struct StoryViewerScreen: View {
                     .zIndex(20)
             }
 
-            // MARK: - 5. ÁREAS DE NAVEGACIÓN (Fijas)
-            if !isKeyboardVisible {
-                navigationTouchAreas
-                    .frame(width: geometry.size.width, height: geometry.size.height)
-                    .position(x: geometry.size.width / 2, y: geometry.size.height / 2)
-                    .allowsHitTesting(!isStoryInteractionBlocked)
-            }
-
-            // MARK: - 6. INPUT AREA
+            // MARK: - 5. INPUT AREA
             if !isUIHidden {
                 if isOwnStory && !isKeyboardVisible {
                     // Historia propia: centrar acciones en el hueco bajo el marco (estilo IG).
@@ -508,6 +502,7 @@ struct StoryViewerScreen: View {
                         checkCanContinueChain(chainId: chainId)
                     }
                     if oldStoryId != newStoryId {
+                        isStoryVideoReady = false
                         DispatchQueue.main.async {
                             refreshStoryPlaybackIfNeeded()
                         }
@@ -1113,24 +1108,34 @@ struct StoryViewerScreen: View {
                 // ✅ CONTENIDO PRINCIPAL (imagen/video)
                 Group {
                     if story.mediaItem.type == .video, let url = URL(string: story.mediaItem.url) {
-                        GlassmorphicStoryVideoPlayer(
-                            url: url,
-                            isPlaying: Binding(
-                                get: { !playbackCoordinator.isPaused },
-                                set: { playbackCoordinator.setPausedFromVideoBinding(!$0) }
-                            ),
-                            isHorizontalVideo: StoryViewerScreen.isHorizontalAspectRatio(story.aspectRatio),
-                            videoGravity: presentationMode.videoGravity,
-                            shouldLoop: false,
-                            onProgressUpdate: { newProgress in
-                                playbackCoordinator.updateVideoProgress(newProgress, for: story)
-                            },
-                            onVideoComplete: {
-                                if playbackCoordinator.canAdvanceAfterVideoComplete() {
-                                    onNext()
+                        ZStack {
+                            GlassmorphicStoryVideoPlayer(
+                                url: url,
+                                isPlaying: Binding(
+                                    get: { !playbackCoordinator.isPaused },
+                                    set: { playbackCoordinator.setPausedFromVideoBinding(!$0) }
+                                ),
+                                isReadyToPlay: $isStoryVideoReady,
+                                isHorizontalVideo: StoryViewerScreen.isHorizontalAspectRatio(story.aspectRatio),
+                                videoGravity: presentationMode.videoGravity,
+                                shouldLoop: false,
+                                onProgressUpdate: { newProgress in
+                                    playbackCoordinator.updateVideoProgress(newProgress, for: story)
+                                },
+                                onVideoComplete: {
+                                    if playbackCoordinator.canAdvanceAfterVideoComplete() {
+                                        onNext()
+                                    }
                                 }
-                            }
-                        )
+                            )
+
+                            VideoPosterOverlay(
+                                posterURLString: story.mediaItem.thumbnailUrl,
+                                isReadyToPlay: isStoryVideoReady,
+                                contentMode: presentationMode.swiftUIContentMode,
+                                cornerRadius: 28
+                            )
+                        }
                         .frame(width: canvasRect.width, height: canvasRect.height)
                         .id(story.id)
                     
@@ -1188,20 +1193,21 @@ struct StoryViewerScreen: View {
                         .frame(width: canvasRect.width, height: canvasRect.height)
                     }
                 }
+
+                if !isKeyboardVisible {
+                    StoryNavigationTouchAreas(
+                        canvasSize: resolvedScreenSize,
+                        shouldSuppressNavigationTap: shouldSuppressNavigationTap,
+                        onPrevious: onPrevious,
+                        onNext: onNext
+                    )
+                    .allowsHitTesting(!isStoryInteractionBlocked)
+                }
             }
             .clipShape(canvasShape)
             .contentShape(canvasShape)
             .compositingGroup()
         }
-    }
-
-    private var navigationTouchAreas: some View {
-        StoryNavigationTouchAreas(
-            screenSize: screenSize,
-            shouldSuppressNavigationTap: shouldSuppressNavigationTap,
-            onPrevious: onPrevious,
-            onNext: onNext
-        )
     }
 
     private func keyWindowSafeAreaInsets() -> UIEdgeInsets {

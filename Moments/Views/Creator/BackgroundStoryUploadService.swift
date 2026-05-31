@@ -592,6 +592,7 @@ class BackgroundStoryUploadService: ObservableObject {
                 status: .uploading
             )
 
+            // Cada parte necesita su propio storyId/mediaId en Storage y Firestore.
             let segmentStory = UploadingStory(
                 userId: uploadingStory.userId,
                 mediaItem: clip.media,
@@ -612,7 +613,9 @@ class BackgroundStoryUploadService: ObservableObject {
                 continuationAudience: uploadingStory.continuationAudience,
                 continuationCustomViewers: uploadingStory.continuationCustomViewers,
                 continuationCustomListId: uploadingStory.continuationCustomListId,
-                continuationCustomListName: uploadingStory.continuationCustomListName
+                continuationCustomListName: uploadingStory.continuationCustomListName,
+                storyVideoMode: .normal,
+                plannedStoryId: UUID().uuidString
             )
 
             let uploadMediaItem = try await prepareMediaItem(segmentStory)
@@ -620,7 +623,7 @@ class BackgroundStoryUploadService: ObservableObject {
             let segmentEndProgress = 0.1 + (clipProgressEnd * 0.8)
             let segmentUploadEndProgress = segmentStartProgress + ((segmentEndProgress - segmentStartProgress) * 0.55)
             let preparedMedia = try await prepareStoryMediaForPublication(
-                uploadingStory,
+                segmentStory,
                 uploadMediaItem: uploadMediaItem,
                 uploadProgressRange: segmentStartProgress...segmentUploadEndProgress
             )

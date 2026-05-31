@@ -14,6 +14,7 @@ import SwiftData
 struct GlassmorphicStoryVideoPlayer: UIViewControllerRepresentable {
     let url: URL
     @Binding var isPlaying: Bool
+    @Binding var isReadyToPlay: Bool
     let isHorizontalVideo: Bool
     let videoGravity: AVLayerVideoGravity
     let shouldLoop: Bool
@@ -51,6 +52,7 @@ struct GlassmorphicStoryVideoPlayer: UIViewControllerRepresentable {
 
         // ✅ CONFIGURAR OBSERVERS PARA PROGRESO
         context.coordinator.setupObservers()
+        context.coordinator.observeReadyToPlay(for: playerItem)
 
         // 🎯 CONFIGURAR GRAVITY SEGÚN ORIENTACIÓN
         context.coordinator.configureVideoGravity(for: controller)
@@ -63,6 +65,8 @@ struct GlassmorphicStoryVideoPlayer: UIViewControllerRepresentable {
         // caused by mismatch between remote URL (view) and local cache URL (AVPlayer asset).
         if context.coordinator.currentURL != url {
              // URL changed, recreate player
+
+            context.coordinator.setReadyToPlay(false)
 
             // 1. CLEANUP OLD PLAYER
             context.coordinator.cleanupObservers()
@@ -87,6 +91,9 @@ struct GlassmorphicStoryVideoPlayer: UIViewControllerRepresentable {
             // 3. UPDATE COORDINATOR
             context.coordinator.currentURL = url
             context.coordinator.setupObservers()
+            if let item = newPlayer.currentItem {
+                context.coordinator.observeReadyToPlay(for: item)
+            }
 
             // 4. CONFIGURE GRAVITY
             context.coordinator.configureVideoGravity(for: uiViewController)
@@ -126,10 +133,27 @@ struct GlassmorphicStoryVideoPlayer: UIViewControllerRepresentable {
         var currentURL: URL? // ✅ Track the intended URL
 
         var completionObserver: NSObjectProtocol? // ✅ Track observer for cleanup
+        private var statusObserver: NSKeyValueObservation?
 
         init(_ parent: GlassmorphicStoryVideoPlayer) {
             self.parent = parent
             self.currentURL = parent.url // Initialize with current URL
+        }
+
+        func setReadyToPlay(_ ready: Bool) {
+            DispatchQueue.main.async {
+                self.parent.isReadyToPlay = ready
+            }
+        }
+
+        func observeReadyToPlay(for playerItem: AVPlayerItem) {
+            statusObserver?.invalidate()
+            setReadyToPlay(playerItem.status == .readyToPlay)
+            statusObserver = playerItem.observe(\.status, options: [.initial, .new]) { [weak self] item, _ in
+                DispatchQueue.main.async {
+                    self?.setReadyToPlay(item.status == .readyToPlay)
+                }
+            }
         }
 
         // 🎯 CONFIGURAR GRAVITY SEGÚN ORIENTACIÓN DEL VIDEO
@@ -138,6 +162,9 @@ struct GlassmorphicStoryVideoPlayer: UIViewControllerRepresentable {
         }
 
         func cleanupObservers() {
+            statusObserver?.invalidate()
+            statusObserver = nil
+
             if let observer = timeObserver {
                 player?.removeTimeObserver(observer)
                 timeObserver = nil

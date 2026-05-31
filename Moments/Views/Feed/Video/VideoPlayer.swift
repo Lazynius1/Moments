@@ -69,6 +69,11 @@ class GlobalVideoManager: ObservableObject {
         }
     }
     
+    /// El usuario activó sonido en Reels u otro reproductor fuera del registro de feed.
+    func enableSoundForSession() {
+        userHasEnabledSoundInSession = true
+    }
+
     // ✅ ESTILO INSTAGRAM: Toggle mute que activa el sonido para toda la sesión
     func toggleMute(_ playerId: String) {
         guard let manager = allPlayers[playerId] else { return }
@@ -109,7 +114,14 @@ struct ModernVideoPlayer: View {
     let url: String
     let aspectRatio: CGFloat
     let videoId: String // ✅ NUEVO: ID único para este video
-    let hideMuteButton: Bool // ✅ NUEVO: Para ocultar el botón de mute (usado en reels)
+    let hideMuteButton: Bool // Legacy; socialReels ignora mute persistente
+    let chromeStyle: VideoPlaybackChromeStyle
+    let allowsPauseInteraction: Bool
+    let posterURLString: String?
+    let mediaItem: MediaItem?
+    let moment: Moment?
+
+    private var usesSocialChrome: Bool { chromeStyle == .socialReels }
     
     @StateObject private var playerManager = VideoPlayerManager()
     @StateObject private var globalManager = GlobalVideoManager.shared
@@ -126,11 +138,26 @@ struct ModernVideoPlayer: View {
     private let maxSetupRetries = 2
     private let setupTimeoutSeconds: Double = 4.0
     
-    init(url: String, aspectRatio: CGFloat, videoId: String, hideMuteButton: Bool = false) {
+    init(
+        url: String,
+        aspectRatio: CGFloat,
+        videoId: String,
+        hideMuteButton: Bool = false,
+        chromeStyle: VideoPlaybackChromeStyle = .classic,
+        allowsPauseInteraction: Bool = true,
+        posterURLString: String? = nil,
+        mediaItem: MediaItem? = nil,
+        moment: Moment? = nil
+    ) {
         self.url = url
         self.aspectRatio = aspectRatio
         self.videoId = videoId
         self.hideMuteButton = hideMuteButton
+        self.chromeStyle = chromeStyle
+        self.allowsPauseInteraction = allowsPauseInteraction
+        self.posterURLString = posterURLString
+        self.mediaItem = mediaItem
+        self.moment = moment
     }
     
     var body: some View {
@@ -146,30 +173,48 @@ struct ModernVideoPlayer: View {
                     )
                     .aspectRatio(aspectRatio, contentMode: .fit)
                     .clipped()
+
+                    VideoPosterOverlay(
+                        posterURLString: posterURLString,
+                        isReadyToPlay: playerManager.isReadyToPlay
+                    )
                 } else {
-                    modernLoadingView
+                    ZStack {
+                        VideoPosterOverlay(
+                            posterURLString: posterURLString,
+                            isReadyToPlay: false
+                        )
+                        modernLoadingView
+                    }
                 }
                 
-                // Controls overlay
-                controlsOverlay
-                
-                // Mute/unmute button (solo si no está oculto)
-                if !hideMuteButton {
+                if usesSocialChrome {
+                    if !playerManager.isPlaying, allowsPauseInteraction {
+                        SocialVideoPausedControls(
+                            isMuted: playerManager.isMuted,
+                            onToggleMute: { globalManager.toggleMute(videoId) },
+                            onTogglePlay: { togglePlayback() }
+                        )
+                    }
+                } else {
+                    controlsOverlay
+
+                    if !hideMuteButton {
+                        VStack {
+                            Spacer()
+                            HStack {
+                                muteButton
+                                Spacer()
+                            }
+                        }
+                        .padding(12)
+                    }
+
                     VStack {
                         Spacer()
-                        HStack {
-                            muteButton
-                            Spacer()
+                        if playerManager.duration > 0 {
+                            progressBar
                         }
-                    }
-                    .padding(12)
-                }
-                
-                // Progress bar
-                VStack {
-                    Spacer()
-                    if playerManager.duration > 0 {
-                        progressBar
                     }
                 }
             }
@@ -195,7 +240,9 @@ struct ModernVideoPlayer: View {
             setupGeneration += 1
         }
         .onTapGesture {
-            handleTap()
+            if allowsPauseInteraction {
+                handleTap()
+            }
         }
         // ✅ NUEVO: Listener para cuando la app va a background
         .onReceive(NotificationCenter.default.publisher(for: UIApplication.willResignActiveNotification)) { _ in
@@ -321,19 +368,24 @@ struct ModernVideoPlayer: View {
     
     // MARK: - Functions
     private func setupPlayer() {
-        if hasSetupPlayer && playerManager.player != nil {
-            return
-        }
-        guard let videoURL = normalizedVideoURL(from: url) else {
+        guard let videoURL = resolvedPlaybackURL() else {
             hasLoadError = true
             return
         }
         
         hasLoadError = false
         setupGeneration += 1
-        playerManager.setupPlayer(with: videoURL)
+        playerManager.setupPlayer(with: videoURL, consumerId: videoId)
         hasSetupPlayer = true
         scheduleSetupTimeout(for: setupGeneration)
+    }
+
+    private func resolvedPlaybackURL() -> URL? {
+        if let mediaItem,
+           let source = VideoPlaybackSelector.shared.source(for: mediaItem, moment: moment) {
+            return source.playbackURL
+        }
+        return normalizedVideoURL(from: url)
     }
     
     private func normalizedVideoURL(from raw: String) -> URL? {
@@ -404,11 +456,17 @@ struct ModernVideoPlayer: View {
     }
     
     private func handleTap() {
-        // ✅ MODIFICADO: Siempre mostrar controles al tocar
+        if usesSocialChrome {
+            withAnimation(.easeInOut(duration: 0.2)) {
+                togglePlayback()
+            }
+            return
+        }
+
         withAnimation(.easeInOut(duration: 0.3)) {
             showControls.toggle()
         }
-        
+
         if showControls {
             DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
                 withAnimation(.easeInOut(duration: 0.3)) {
@@ -416,7 +474,7 @@ struct ModernVideoPlayer: View {
                 }
             }
         }
-        
+
         showMuteButton = true
         DispatchQueue.main.asyncAfter(deadline: .now() + 4) {
             withAnimation(.easeInOut(duration: 0.3)) {
@@ -431,39 +489,49 @@ class VideoPlayerManager: ObservableObject {
     @Published var player: AVPlayer?
     @Published var isPlaying = false
     @Published var isMuted = true
+    @Published var isReadyToPlay = false
     @Published var duration: Double = 0
     @Published var currentTime: Double = 0
     
     private var timeObserver: Any?
     private var endObserver: NSObjectProtocol?
-    private var hasSetupPlayer = false
+    private var statusObserver: NSKeyValueObservation?
+    private var consumerId: String?
+    private var activeItem: AVPlayerItem?
     
-    func setupPlayer(with url: URL) {
-        guard !hasSetupPlayer else { return }
+    func setupPlayer(with url: URL, consumerId: String) {
+        self.consumerId = consumerId
         
-        // ✅ INSTANT PLAYBACK: Usar item precargado si existe
         let playerItem = VideoPreloader.shared.getPlayerItem(for: url.absoluteString)
+        playerItem.preferredForwardBufferDuration = 2.5
+        playerItem.canUseNetworkResourcesForLiveStreamingWhilePaused = true
         
-        // ✅ OPTIMIZED BUFFER: Buffer inicial 2-3s (equilibrado)
-        // Empiezan a reproducir con solo 2-3s cargados, luego siguen cargando en background
-        playerItem.preferredForwardBufferDuration = 2.5 // Buffer inicial (2.5s) - balance perfecto
-        playerItem.canUseNetworkResourcesForLiveStreamingWhilePaused = true // Seguir cargando mientras está pausado
-        
-        player = AVPlayer(playerItem: playerItem)
-        player?.isMuted = true
-        player?.automaticallyWaitsToMinimizeStalling = false // ✅ Inicio instantáneo (aunque arriesgue stall)
-        // ✅ Priorizar velocidad sobre calidad para inicio más rápido
         if #available(iOS 14.0, *) {
-            playerItem.preferredPeakBitRate = 0 // Sin límite de bitrate, usar toda la velocidad disponible
+            playerItem.preferredPeakBitRate = 2_500_000
         }
         
-        // ✅ NO AUTO-PLAY - El GlobalVideoManager decidirá cuándo reproducir
+        let pooledPlayer = SharedVideoPlayerPool.shared.player(for: consumerId)
+        pooledPlayer.replaceCurrentItem(with: playerItem)
+        pooledPlayer.isMuted = true
+        pooledPlayer.automaticallyWaitsToMinimizeStalling = false
+        
+        player = pooledPlayer
+        activeItem = playerItem
+        isReadyToPlay = playerItem.status == .readyToPlay
         isPlaying = false
         
+        observeItemStatus(playerItem)
         observePlayback()
         setupLooping(for: playerItem)
-        hasSetupPlayer = true
-        
+    }
+
+    private func observeItemStatus(_ playerItem: AVPlayerItem) {
+        statusObserver?.invalidate()
+        statusObserver = playerItem.observe(\.status, options: [.initial, .new]) { [weak self] item, _ in
+            DispatchQueue.main.async {
+                self?.isReadyToPlay = item.status == .readyToPlay
+            }
+        }
     }
     
     // ✅ NUEVO: Función para reproducir controlada externamente
@@ -566,7 +634,6 @@ class VideoPlayerManager: ObservableObject {
     }
     
     func cleanup() {
-        
         if let timeObserver = timeObserver {
             player?.removeTimeObserver(timeObserver)
             self.timeObserver = nil
@@ -576,15 +643,22 @@ class VideoPlayerManager: ObservableObject {
             NotificationCenter.default.removeObserver(endObserver)
             self.endObserver = nil
         }
+
+        statusObserver?.invalidate()
+        statusObserver = nil
         
         player?.pause()
-        player?.replaceCurrentItem(with: nil)
+        if let consumerId {
+            SharedVideoPlayerPool.shared.release(consumerId: consumerId)
+        }
         player = nil
+        activeItem = nil
+        self.consumerId = nil
         
         NotificationCenter.default.removeObserver(self)
         
         isPlaying = false
-        hasSetupPlayer = false
+        isReadyToPlay = false
     }
     
     deinit {

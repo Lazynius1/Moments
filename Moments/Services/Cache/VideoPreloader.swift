@@ -5,7 +5,7 @@ class VideoPreloader {
     static let shared = VideoPreloader()
     private var assetCache: [String: AVAsset] = [:]
     private let queue = DispatchQueue(label: "com.moments.videoPreload", qos: .utility)
-    private let maxCacheSize = 6
+    private let maxCacheSize = 8
     
     private init() {}
     

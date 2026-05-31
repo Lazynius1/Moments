@@ -86,13 +86,13 @@ struct ReelsViewer: View {
     
     // ✅ INSTANT PLAYBACK: Lógica de preloading para Reels
     private func preloadUpcomingVideos(from index: Int) {
-        // Precargar los siguientes 3 videos
-        let preloadCount = 3
+        // Precargar los siguientes 6 videos (variantes ABR incluidas)
+        let preloadCount = 6
         let endIndex = min(index + preloadCount, videos.count)
         
         if index + 1 < endIndex {
             let upcomingVideos = videos[(index + 1)..<endIndex]
-            let urls = upcomingVideos.map { $0.videoUrl }
+            let urls = upcomingVideos.flatMap(\.preloadURLStrings)
             VideoPreloader.shared.preloadAssets(urls: urls)
         }
     }
@@ -306,16 +306,37 @@ struct ReelVideoView: View {
                     HStack {
                         Spacer()
 
-                        Button(action: {
-                            let haptic = UIImpactFeedbackGenerator(style: .medium)
-                            haptic.impactOccurred()
-                            onClose()
-                        }) {
-                            Image(systemName: "xmark")
-                                .font(.system(size: 16, weight: .semibold))
-                                .foregroundColor(chromePrimaryColor)
-                                .frame(width: 38, height: 38)
-                                .liquidGlass(in: Circle(), interactive: true)
+                        VStack(spacing: 10) {
+                            Button(action: {
+                                let haptic = UIImpactFeedbackGenerator(style: .medium)
+                                haptic.impactOccurred()
+                                onClose()
+                            }) {
+                                Image(systemName: "xmark")
+                                    .font(.system(size: 16, weight: .semibold))
+                                    .foregroundColor(chromePrimaryColor)
+                                    .frame(width: 38, height: 38)
+                                    .liquidGlass(in: Circle(), interactive: true)
+                            }
+                            .buttonStyle(.plain)
+
+                            Button(action: {
+                                let haptic = UIImpactFeedbackGenerator(style: .light)
+                                haptic.impactOccurred()
+                                playerManager.toggleMute()
+                            }) {
+                                Image(systemName: playerManager.isMuted ? "speaker.slash.fill" : "speaker.wave.2.fill")
+                                    .font(.system(size: 16, weight: .semibold))
+                                    .foregroundColor(chromePrimaryColor)
+                                    .frame(width: 38, height: 38)
+                                    .liquidGlass(in: Circle(), interactive: true)
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityLabel(
+                                playerManager.isMuted
+                                ? NSLocalizedString("feed.video.unmute", comment: "Unmute video")
+                                : NSLocalizedString("feed.video.mute", comment: "Mute video")
+                            )
                         }
                     }
                     .padding(.horizontal, 20)
@@ -752,7 +773,8 @@ struct ReelVideoView: View {
     
     // ... (resto de funciones existentes)
     private func setupVideo() {
-        guard let url = URL(string: video.videoUrl) else { return }
+        let url = video.playbackURL ?? URL(string: video.videoUrl)
+        guard let url else { return }
         playerManager.setupPlayer(with: url)
     }
     
@@ -1080,6 +1102,7 @@ struct EnhancedReelActionButton: View {
 class ReelVideoPlayerManager: ObservableObject {
     @Published var player: AVPlayer?
     @Published var isPlaying = false
+    @Published var isMuted = true
     @Published var progress: Double = 0
     @Published var duration: Double = 0
     @Published var isBuffering = false
@@ -1114,7 +1137,7 @@ class ReelVideoPlayerManager: ObservableObject {
         // Configuración optimizada del reproductor
         player?.automaticallyWaitsToMinimizeStalling = false // Más responsivo
         player?.allowsExternalPlayback = false
-        player?.volume = 0.8
+        applySessionMuteState()
         
         // Configurar sesión de audio una sola vez
         configureAudioSession()
@@ -1245,6 +1268,28 @@ class ReelVideoPlayerManager: ObservableObject {
         player.pause()
         isPlaying = false
     }
+
+    func toggleMute() {
+        guard let player = player else { return }
+
+        let volume = AVAudioSession.sharedInstance().outputVolume
+        if isMuted && volume == 0.0 {
+            return
+        }
+
+        let wasMuted = isMuted
+        isMuted.toggle()
+        player.isMuted = isMuted
+
+        if wasMuted && !isMuted {
+            GlobalVideoManager.shared.enableSoundForSession()
+        }
+    }
+
+    private func applySessionMuteState() {
+        isMuted = !GlobalVideoManager.shared.userHasEnabledSoundInSession
+        player?.isMuted = isMuted
+    }
     
     private func observePlayback() {
         guard let player = player else { return }
@@ -1298,6 +1343,7 @@ class ReelVideoPlayerManager: ObservableObject {
         isBuffering = false
         isLoaded = false
         isSeeking = false
+        isMuted = !GlobalVideoManager.shared.userHasEnabledSoundInSession
     }
     
     deinit {
@@ -1353,7 +1399,18 @@ struct VideoMoment: Identifiable {
     let id = UUID()
     let moment: Moment
     let videoUrl: String
-    
+
+    var playbackURL: URL? {
+        moment.videoPlaybackSource()?.playbackURL ?? URL(string: videoUrl)
+    }
+
+    var preloadURLStrings: [String] {
+        if let strings = moment.videoPlaybackSource()?.preheatURLStrings, !strings.isEmpty {
+            return strings
+        }
+        return videoUrl.isEmpty ? [] : [videoUrl]
+    }
+
     init(moment: Moment) {
         self.moment = moment
         let resolved = moment.previewVideoURLString ?? moment.videoUrl ?? ""

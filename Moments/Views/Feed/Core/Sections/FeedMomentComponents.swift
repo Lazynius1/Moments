@@ -1401,9 +1401,7 @@ struct CroppedVideoPlayer: View {
     let onTap: () -> Void
     @Binding var isImmersive: Bool // ✅ NUEVO
 
-    @StateObject private var globalManager = GlobalVideoManager.shared
     @State private var isVisible = false
-    @State private var isMuted = true // ✅ Estado para el botón de mute
 
     private var resolvedItemAspectRatio: CGFloat {
         guard let ratio = item.resolvedAspectRatioValue, ratio.isFinite, ratio > 0 else {
@@ -1429,7 +1427,10 @@ struct CroppedVideoPlayer: View {
                     url: item.url,
                     aspectRatio: resolvedItemAspectRatio,
                     videoId: currentMoment.id ?? "video_\(UUID().uuidString)",
-                    hideMuteButton: false
+                    chromeStyle: .socialReels,
+                    posterURLString: currentMoment.videoPosterURLString(for: item),
+                    mediaItem: item,
+                    moment: currentMoment
                 )
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .padding(.vertical, 10)
@@ -1458,34 +1459,18 @@ struct CroppedVideoPlayer: View {
                 .opacity(isImmersive ? 0 : 1)
                 .animation(.easeInOut(duration: 0.3), value: isImmersive)
             } else if isReelsFormat {
-                // ✅ REELS: Mostrar con mejor diseño nativo
+                // ✅ REELS en feed: player + poster hasta readyToPlay
                 ZStack {
-                    // Thumbnail del video si está disponible
-                    if let thumbnailUrl = item.thumbnailUrl, !thumbnailUrl.isEmpty {
-                        KFImage(URL(string: thumbnailUrl))
-                            .resizable()
-                            .aspectRatio(contentMode: .fill)
-                            .frame(maxWidth: .infinity, maxHeight: .infinity)
-                            .clipped()
-                    } else {
-                        // Video player como fallback
-                        ModernVideoPlayer(
-                            url: item.url,
-                            aspectRatio: aspectRatio, // ✅ Mostrar ratio completo para reels
-                            videoId: currentMoment.id ?? "video_\(UUID().uuidString)",
-                            hideMuteButton: true // ✅ Ocultar botón de mute del player (usamos el nuestro arriba)
-                        )
-                        .onAppear {
-                            // ✅ Actualizar estado de mute cuando aparece el player
-                            let videoId = currentMoment.id ?? "video_\(UUID().uuidString)"
-                            isMuted = globalManager.isMuted(videoId)
-                        }
-                        .onChange(of: globalManager.userHasEnabledSoundInSession) { _, hasSound in
-                            // ✅ ESTILO INSTAGRAM: Actualizar estado cuando el usuario activa el sonido en la sesión
-                            let videoId = currentMoment.id ?? "video_\(UUID().uuidString)"
-                            isMuted = !hasSound || globalManager.isMuted(videoId)
-                        }
-                    }
+                    ModernVideoPlayer(
+                        url: item.url,
+                        aspectRatio: aspectRatio,
+                        videoId: currentMoment.id ?? "video_\(UUID().uuidString)",
+                        chromeStyle: .socialReels,
+                        allowsPauseInteraction: false,
+                        posterURLString: currentMoment.videoPosterURLString(for: item),
+                        mediaItem: item,
+                        moment: currentMoment
+                    )
 
                     // ✅ OVERLAY con gradiente sutil nativo
                     LinearGradient(
@@ -1535,29 +1520,6 @@ struct CroppedVideoPlayer: View {
                                     )
                             )
                             .padding(.leading, 12)
-                            .padding(.top, 12)
-
-                            // ✅ Botón de mute (junto al badge) - por encima del overlay
-                            Button(action: {
-                                let videoId = currentMoment.id ?? "video_\(UUID().uuidString)"
-                                globalManager.toggleMute(videoId)
-                                isMuted = globalManager.isMuted(videoId)
-                            }) {
-                                Image(systemName: isMuted ? "speaker.slash.fill" : "speaker.2.fill")
-                                    .font(.system(size: 16, weight: .medium))
-                                    .foregroundColor(.white)
-                                    .frame(width: 32, height: 32)
-                                    .background(
-                                        Circle()
-                                            .fill(.ultraThinMaterial)
-                                            .overlay(
-                                                Circle()
-                                                    .stroke(Color.white.opacity(0.2), lineWidth: 1)
-                                            )
-                                    )
-                                    .shadow(color: .black.opacity(0.3), radius: 4, x: 0, y: 2)
-                            }
-                            .padding(.leading, 8)
                             .padding(.top, 12)
 
                             Spacer()
@@ -1613,7 +1575,10 @@ struct CroppedVideoPlayer: View {
                         url: item.url,
                         aspectRatio: feedDisplayRatio,
                         videoId: currentMoment.id ?? "video_\(UUID().uuidString)",
-                        hideMuteButton: false // ✅ Mostrar botón de mute para videos horizontales
+                        chromeStyle: .socialReels,
+                        posterURLString: currentMoment.videoPosterURLString(for: item),
+                        mediaItem: item,
+                        moment: currentMoment
                     )
 
                     // ✅ INDICADORES sutiles para videos horizontales

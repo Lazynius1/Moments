@@ -1,16 +1,15 @@
 import SwiftUI
-import AVKit
 import Kingfisher
 
 @MainActor
 final class StoryPlaybackCoordinator: ObservableObject {
     @Published private(set) var preloadedStories: [String: Story] = [:]
     @Published private(set) var preloadedImages: [String: UIImage] = [:]
-    @Published private(set) var preloadedVideos: [String: AVPlayer] = [:]
     @Published private(set) var progress: Double = 0.0
     @Published private(set) var isPaused: Bool = false
 
-    private let maxPreloadedStories = 3
+    private let maxPreloadedStories = 6
+    private let storiesToPreloadAhead = 5
     private let defaultStoryDuration: Double = 15.0
     private var imageTimer: Timer?
     private var currentStoryId: String?
@@ -79,12 +78,16 @@ final class StoryPlaybackCoordinator: ObservableObject {
     }
 
     func preloadNextStory(currentStoryId: String, allStories: [Story]) {
-        guard let currentIndex = allStories.firstIndex(where: { $0.id == currentStoryId }),
-              currentIndex + 1 < allStories.count else {
+        guard let currentIndex = allStories.firstIndex(where: { $0.id == currentStoryId }) else {
             return
         }
 
-        preloadStory(allStories[currentIndex + 1])
+        let endIndex = min(currentIndex + storiesToPreloadAhead, allStories.count - 1)
+        guard currentIndex < endIndex else { return }
+
+        for index in (currentIndex + 1)...endIndex {
+            preloadStory(allStories[index])
+        }
     }
 
     func preloadStory(_ story: Story) {
@@ -105,13 +108,13 @@ final class StoryPlaybackCoordinator: ObservableObject {
             preloadImage(for: story)
         case .video:
             preloadVideo(for: story)
+            preloadVideoPoster(for: story)
         }
     }
 
     func clearPreloadCache() {
         preloadedStories.removeAll()
         preloadedImages.removeAll()
-        preloadedVideos.removeAll()
     }
 
     func getPreloadedStory(_ storyId: String) -> Story? {
@@ -120,10 +123,6 @@ final class StoryPlaybackCoordinator: ObservableObject {
 
     func getPreloadedImage(_ storyId: String) -> UIImage? {
         preloadedImages[storyId]
-    }
-
-    func getPreloadedVideo(_ storyId: String) -> AVPlayer? {
-        preloadedVideos[storyId]
     }
 
     private func preloadImage(for story: Story) {
@@ -142,14 +141,29 @@ final class StoryPlaybackCoordinator: ObservableObject {
     }
 
     private func preloadVideo(for story: Story) {
+        guard story.id != nil else { return }
+
+        let trimmed = story.mediaItem.url.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+
+        VideoPreloader.shared.preloadAssets(urls: [trimmed])
+    }
+
+    private func preloadVideoPoster(for story: Story) {
         guard let storyId = story.id,
-              let url = URL(string: story.mediaItem.url) else { return }
+              let thumb = story.mediaItem.thumbnailUrl?
+                .trimmingCharacters(in: .whitespacesAndNewlines),
+              !thumb.isEmpty,
+              let url = URL(string: thumb) else { return }
 
-        let player = AVPlayer(url: url)
-        player.isMuted = true
-        player.currentItem?.preferredForwardBufferDuration = 5.0
-
-        preloadedVideos[storyId] = player
+        KingfisherManager.shared.retrieveImage(with: url) { [weak self] result in
+            guard let self else { return }
+            if case .success(let imageResult) = result {
+                Task { @MainActor in
+                    self.preloadedImages[storyId] = imageResult.image
+                }
+            }
+        }
     }
 
     private func clearOldestPreloadedStory() {
@@ -157,7 +171,6 @@ final class StoryPlaybackCoordinator: ObservableObject {
 
         preloadedStories.removeValue(forKey: oldestStoryId)
         preloadedImages.removeValue(forKey: oldestStoryId)
-        preloadedVideos.removeValue(forKey: oldestStoryId)
     }
 
     private func startImageTimer(for story: Story, onComplete: @escaping () -> Void) {

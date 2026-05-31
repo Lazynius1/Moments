@@ -45,7 +45,7 @@ class StorageService {
     // MARK: - Profile
 
     func uploadProfileImage(userId: String, image: UIImage, completion: @escaping (Result<String, Error>) -> Void) {
-        guard let imageData = image.jpegData(compressionQuality: 0.75) else {
+        guard let imageData = image.storageUploadJPEGData(compressionQuality: 0.75, maxPixelDimension: 1080) else {
             completion(.failure(StorageError.invalidData))
             return
         }
@@ -64,7 +64,7 @@ class StorageService {
         messageId: String,
         image: UIImage
     ) async throws -> String {
-        guard let imageData = image.jpegData(compressionQuality: 0.82) else {
+        guard let imageData = image.storageUploadJPEGData(compressionQuality: 0.82, maxPixelDimension: 1080) else {
             throw StorageError.invalidData
         }
 
@@ -153,7 +153,7 @@ class StorageService {
         progress: ((Double) -> Void)? = nil,
         completion: @escaping (Result<String, Error>) -> Void
     ) {
-        guard let imageData = image.jpegData(compressionQuality: 0.8) else {
+        guard let imageData = image.storageUploadJPEGData(compressionQuality: 0.8, maxPixelDimension: 720) else {
             completion(.failure(StorageError.invalidData))
             return
         }
@@ -173,7 +173,7 @@ class StorageService {
         image: UIImage,
         completion: @escaping (Result<String, Error>) -> Void
     ) {
-        guard let imageData = image.jpegData(compressionQuality: 0.82) else {
+        guard let imageData = image.storageUploadJPEGData(compressionQuality: 0.82, maxPixelDimension: 1080) else {
             completion(.failure(StorageError.invalidData))
             return
         }
@@ -272,8 +272,8 @@ class StorageService {
         progress: ((Double) -> Void)?,
         completion: @escaping (Result<String, Error>) -> Void
     ) {
-        guard let image, image.size.width > 0, image.size.height > 0,
-              let imageData = image.jpegData(compressionQuality: 0.8) else {
+        guard let image,
+              let imageData = image.storageUploadJPEGData(compressionQuality: 0.8, maxPixelDimension: 1280) else {
             completion(.failure(StorageError.invalidData))
             return
         }

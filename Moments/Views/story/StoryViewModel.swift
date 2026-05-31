@@ -715,8 +715,4 @@ extension StoryViewModel {
         playbackCoordinator.getPreloadedImage(storyId)
     }
 
-    /// ✅ PRELOAD: Obtener video precargado
-    func getPreloadedVideo(_ storyId: String) -> AVPlayer? {
-        playbackCoordinator.getPreloadedVideo(storyId)
-    }
 }

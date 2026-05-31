@@ -306,6 +306,7 @@ struct EchoViewerUI: View {
                     GlassmorphicStoryVideoPlayer(
                         url: url,
                         isPlaying: $viewModel.isVideoPlaying,
+                        isReadyToPlay: .constant(true),
                         isHorizontalVideo: isHorizontal,
                         videoGravity: isHorizontal ? .resizeAspect : .resizeAspectFill,
                         shouldLoop: true,

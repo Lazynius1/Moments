@@ -359,12 +359,32 @@ async function deleteStorageUrlIfSafe({ url, userId }) {
   return true;
 }
 
+async function uploadStorageFile({ bucket, localPath, objectName, contentType, extraMetadata = {} }) {
+  const token = crypto.randomUUID();
+  await bucket.upload(localPath, {
+    destination: objectName,
+    metadata: {
+      contentType,
+      metadata: {
+        firebaseStorageDownloadTokens: token,
+        ...extraMetadata
+      }
+    }
+  });
+  return firebaseStorageDownloadUrl(bucket.name, objectName, token);
+}
+
 async function transcodeMomentVideo({ userId, momentId, mediaItem }) {
   const bucket = admin.storage().bucket();
   const tempBase = path.join(os.tmpdir(), `moment_video_${momentId}_${mediaItem.id}_${Date.now()}`);
   const inputPath = `${tempBase}_input`;
-  const outputPath = `${tempBase}_processed.mp4`;
   const sourceUrl = mediaItem.originalVideoUrl || mediaItem.url;
+  const variantSpecs = [
+    { key: 'low', max: 640, crf: '28' },
+    { key: 'medium', max: 960, crf: '25' },
+    { key: 'high', max: 1280, crf: '23' }
+  ];
+  const cleanupPaths = [inputPath];
 
   try {
     const sourceObjectName = userOwnedVideoObjectNameFromFirebaseUrl(sourceUrl, userId);
@@ -373,44 +393,54 @@ async function transcodeMomentVideo({ userId, momentId, mediaItem }) {
     }
     await downloadStorageObjectToFile({ bucket, objectName: sourceObjectName, destinationPath: inputPath });
 
-    await runFfmpeg([
-      '-y',
-      '-i', inputPath,
-      '-vf', 'scale=1280:1280:force_original_aspect_ratio=decrease,format=yuv420p',
-      '-c:v', 'libx264',
-      '-preset', 'veryfast',
-      '-crf', '23',
-      '-c:a', 'aac',
-      '-b:a', '128k',
-      '-movflags', '+faststart',
-      outputPath
-    ]);
+    const videoVariants = {};
+    for (const spec of variantSpecs) {
+      const outputPath = `${tempBase}_${spec.key}.mp4`;
+      cleanupPaths.push(outputPath);
+      await runFfmpeg([
+        '-y',
+        '-i', inputPath,
+        '-vf', `scale=${spec.max}:${spec.max}:force_original_aspect_ratio=decrease,format=yuv420p`,
+        '-c:v', 'libx264',
+        '-preset', 'veryfast',
+        '-crf', spec.crf,
+        '-c:a', 'aac',
+        '-b:a', spec.key === 'low' ? '96k' : '128k',
+        '-movflags', '+faststart',
+        outputPath
+      ]);
 
-    const objectName = `processed_videos/moments/${userId}/${momentId}/${mediaItem.id}.mp4`;
-    const token = crypto.randomUUID();
-
-    await bucket.upload(outputPath, {
-      destination: objectName,
-      metadata: {
+      const objectName = `processed_videos/moments/${userId}/${momentId}/${mediaItem.id}_${spec.key}.mp4`;
+      videoVariants[spec.key] = await uploadStorageFile({
+        bucket,
+        localPath: outputPath,
+        objectName,
         contentType: 'video/mp4',
-        metadata: {
-          firebaseStorageDownloadTokens: token,
+        extraMetadata: {
           sourceMomentId: momentId,
           sourceMediaItemId: mediaItem.id,
-          processedBy: 'processMomentVideos'
+          processedBy: 'processMomentVideos',
+          variant: spec.key
         }
-      }
-    });
+      });
+    }
 
-    const fileSize = fs.statSync(outputPath).size;
+    const highPath = `${tempBase}_high.mp4`;
+    const fileSize = fs.existsSync(highPath) ? fs.statSync(highPath).size : 0;
     return {
-      url: firebaseStorageDownloadUrl(bucket.name, objectName, token),
-      fileSize
+      url: videoVariants.high,
+      fileSize,
+      videoVariants
     };
   } finally {
-    for (const filePath of [inputPath, outputPath]) {
+    for (const filePath of cleanupPaths) {
       try {
-        if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+        if (!fs.existsSync(filePath)) continue;
+        if (fs.statSync(filePath).isDirectory()) {
+          fs.rmSync(filePath, { recursive: true, force: true });
+        } else {
+          fs.unlinkSync(filePath);
+        }
       } catch (error) {
         console.warn('Video temp cleanup failed', filePath, error.message);
       }
@@ -554,8 +584,35 @@ function addOwnedBackgroundFrameStorageUrl(targetSet, value, uid) {
   }
 }
 
-function collectDeletedContentStorageUrls(data = {}, uid) {
+function addMediaItemStorageUrls(targetSet, item, uid, momentId) {
+  if (!item || typeof item !== 'object') return;
+
+  addStorageUrl(targetSet, item.url);
+  addStorageUrl(targetSet, item.thumbnailUrl);
+  addStorageUrl(targetSet, item.originalVideoUrl);
+
+  const variants = item.videoVariants;
+  if (variants && typeof variants === 'object') {
+    addStorageUrl(targetSet, variants.low);
+    addStorageUrl(targetSet, variants.medium);
+    addStorageUrl(targetSet, variants.high);
+  }
+
+  if (item.type === 'video' && typeof item.id === 'string' && item.id.trim() && uid && momentId) {
+    const safeUid = uid.trim();
+    const safeMomentId = momentId.trim();
+    const mediaId = item.id.trim();
+    const base = `processed_videos/moments/${safeUid}/${safeMomentId}/${mediaId}`;
+    addStorageUrl(targetSet, `${base}.mp4`);
+    addStorageUrl(targetSet, `${base}_low.mp4`);
+    addStorageUrl(targetSet, `${base}_medium.mp4`);
+    addStorageUrl(targetSet, `${base}_high.mp4`);
+  }
+}
+
+function collectDeletedContentStorageUrls(data = {}, uid, momentId = null) {
   const urls = new Set();
+  const resolvedMomentId = momentId || (typeof data.id === 'string' ? data.id : null);
 
   // Legacy/top-level media fields. Do not include profileImagePath; it belongs to the user profile.
   addStorageUrl(urls, data.imagePath);
@@ -568,17 +625,12 @@ function collectDeletedContentStorageUrls(data = {}, uid) {
 
   const mediaItems = Array.isArray(data.mediaItems) ? data.mediaItems : [];
   for (const item of mediaItems) {
-    if (!item || typeof item !== 'object') continue;
-    addStorageUrl(urls, item.url);
-    addStorageUrl(urls, item.thumbnailUrl);
-    addStorageUrl(urls, item.originalVideoUrl);
+    addMediaItemStorageUrls(urls, item, uid, resolvedMomentId);
   }
 
   const mediaItem = data.mediaItem && typeof data.mediaItem === 'object' ? data.mediaItem : null;
   if (mediaItem) {
-    addStorageUrl(urls, mediaItem.url);
-    addStorageUrl(urls, mediaItem.thumbnailUrl);
-    addStorageUrl(urls, mediaItem.originalVideoUrl);
+    addMediaItemStorageUrls(urls, mediaItem, uid, resolvedMomentId);
   }
 
   const hiddenLayers = Array.isArray(data.hiddenLayers) ? data.hiddenLayers : [];
@@ -621,7 +673,7 @@ async function permanentlyDeleteRecentlyDeletedDoc(doc) {
   const type = typeof data.type === 'string' ? data.type : 'moment';
   const userRef = doc.ref.parent.parent;
   const uid = userRef?.id;
-  const storageUrls = collectDeletedContentStorageUrls(data, uid);
+  const storageUrls = collectDeletedContentStorageUrls(data, uid, doc.id);
 
   await admin.firestore().recursiveDelete(doc.ref);
 
@@ -859,6 +911,7 @@ exports.processMomentVideos = onDocumentCreated(
         updatedItems[index] = {
           ...updatedItems[index],
           url: processed.url,
+          videoVariants: processed.videoVariants || null,
           originalVideoUrl: originalDeleted ? null : originalVideoUrl,
           videoFileSize: processed.fileSize,
           videoProcessingStatus: 'ready',
@@ -5796,6 +5849,7 @@ function serializeMediaItem(item) {
     videoResolution: item.videoResolution || null,
     videoProcessingStatus: item.videoProcessingStatus || null,
     originalVideoUrl: item.originalVideoUrl || null,
+    videoVariants: item.videoVariants || null,
     tags: Array.isArray(item.tags) ? item.tags : null,
     moderationState: item.moderationState || null,
     moderationReason: item.moderationReason || null,

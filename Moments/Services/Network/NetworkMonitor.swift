@@ -8,6 +8,7 @@ class NetworkMonitor: ObservableObject {
     @Published var isConnected = true
     @Published var connectionType: ConnectionType = .unknown
     @Published var isExpensive = false
+    @Published var isConstrained = false
     
     private let monitor = NWPathMonitor()
     private let queue = DispatchQueue(label: "NetworkMonitor")
@@ -53,6 +54,7 @@ class NetworkMonitor: ObservableObject {
             DispatchQueue.main.async {
                 self?.isConnected = path.status == .satisfied
                 self?.isExpensive = path.isExpensive
+                self?.isConstrained = path.isConstrained
                 
                 if path.usesInterfaceType(.wifi) {
                     self?.connectionType = .wifi

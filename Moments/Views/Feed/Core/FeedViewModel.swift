@@ -154,8 +154,9 @@ class FeedViewModel: ObservableObject {
 
                 self.isLoading = false
 
-                let videoUrls = cached.compactMap { $0.mediaItems?.first(where: { $0.type == .video })?.url }
-                VideoPreloader.shared.preloadAssets(urls: videoUrls)
+                VideoPreloader.shared.preloadAssets(
+                    urls: VideoPlaybackSelector.shared.preloadURLStrings(from: cached)
+                )
             }
         }
 
@@ -180,8 +181,9 @@ class FeedViewModel: ObservableObject {
                         self.forYouMoments = visibleCached
                     }
 
-                    let videoUrls = visibleCached.compactMap { $0.mediaItems?.first(where: { $0.type == .video })?.url }
-                    VideoPreloader.shared.preloadAssets(urls: videoUrls)
+                    VideoPreloader.shared.preloadAssets(
+                        urls: VideoPlaybackSelector.shared.preloadURLStrings(from: visibleCached)
+                    )
                 }
             }
         }
@@ -255,8 +257,9 @@ class FeedViewModel: ObservableObject {
                         self.isLoadingMore = false
                         self.saveFeedToCache(moments: self.moments, type: feed, sync: false)
 
-                        let videoUrls = uniqueNew.compactMap { $0.mediaItems?.first(where: { $0.type == .video })?.url }
-                        VideoPreloader.shared.preloadAssets(urls: videoUrls)
+                        VideoPreloader.shared.preloadAssets(
+                            urls: VideoPlaybackSelector.shared.preloadURLStrings(from: uniqueNew)
+                        )
                     }
                     LogConfig.log("🚀 LoadMore from BACKEND (+\(uniqueNew.count) moments)", category: "Feed")
                     return
@@ -359,8 +362,9 @@ class FeedViewModel: ObservableObject {
                     }
                     self.saveFeedToCache(moments: finalMoments, type: .following, sync: true)
 
-                    let videoUrls = finalMoments.compactMap { $0.mediaItems?.first(where: { $0.type == .video })?.url }
-                    VideoPreloader.shared.preloadAssets(urls: videoUrls)
+                    VideoPreloader.shared.preloadAssets(
+                        urls: VideoPlaybackSelector.shared.preloadURLStrings(from: finalMoments)
+                    )
                 }
                 LogConfig.log("🚀 Feed loaded from BACKEND (\(finalMoments.count) moments)", category: "Feed")
                 return
@@ -431,8 +435,9 @@ class FeedViewModel: ObservableObject {
                     }
                     self.saveFeedToCache(moments: finalMoments, type: .forYou, sync: true)
 
-                    let videoUrls = finalMoments.compactMap { $0.mediaItems?.first(where: { $0.type == .video })?.url }
-                    VideoPreloader.shared.preloadAssets(urls: videoUrls)
+                    VideoPreloader.shared.preloadAssets(
+                        urls: VideoPlaybackSelector.shared.preloadURLStrings(from: finalMoments)
+                    )
                 }
                 LogConfig.log("🚀 ForYou feed loaded from BACKEND (\(finalMoments.count) moments)", category: "Feed")
                 return
@@ -647,9 +652,9 @@ class FeedViewModel: ObservableObject {
                         self.saveFeedToCache(moments: filteredMoments, type: feedType, sync: true)
 
                     // ✅ INSTANT PLAYBACK: Preload videos
-                    let videoUrls = filteredMoments
-                        .compactMap { $0.mediaItems?.first(where: { $0.type == .video })?.url }
-                    VideoPreloader.shared.preloadAssets(urls: videoUrls)
+                    VideoPreloader.shared.preloadAssets(
+                        urls: VideoPlaybackSelector.shared.preloadURLStrings(from: filteredMoments)
+                    )
                 }
             }
             case .failure(let error):
@@ -729,9 +734,9 @@ class FeedViewModel: ObservableObject {
                     }
 
                     // ✅ INSTANT PLAYBACK: Preload videos
-                    let videoUrls = filteredMoments
-                        .compactMap { $0.mediaItems?.first(where: { $0.type == .video })?.url }
-                    VideoPreloader.shared.preloadAssets(urls: videoUrls)
+                    VideoPreloader.shared.preloadAssets(
+                        urls: VideoPlaybackSelector.shared.preloadURLStrings(from: filteredMoments)
+                    )
                 }
             }
             case .failure:

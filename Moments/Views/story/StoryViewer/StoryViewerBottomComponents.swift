@@ -362,38 +362,36 @@ struct StoryNoInteractionsNotice: View {
     }
 }
 
+/// Zonas laterales de navegación alineadas al rect del canvas (estilo IG).
 struct StoryNavigationTouchAreas: View {
-    let screenSize: CGSize
+    let canvasSize: CGSize
+    var sideWidthFraction: CGFloat = 0.33
     let shouldSuppressNavigationTap: Bool
     let onPrevious: () -> Void
     let onNext: () -> Void
 
     var body: some View {
-        GeometryReader { geometry in
-            HStack(spacing: 0) {
-                Rectangle()
-                    .fill(Color.clear)
-                    .frame(width: geometry.size.width * 0.15)
-                    .contentShape(Rectangle())
-                    .onTapGesture {
-                        guard !shouldSuppressNavigationTap else { return }
-                        onPrevious()
-                    }
+        HStack(spacing: 0) {
+            Rectangle()
+                .fill(Color.clear)
+                .frame(width: max(canvasSize.width * sideWidthFraction, 1))
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    guard !shouldSuppressNavigationTap else { return }
+                    onPrevious()
+                }
 
-                Spacer()
+            Spacer(minLength: 0)
 
-                Rectangle()
-                    .fill(Color.clear)
-                    .frame(width: geometry.size.width * 0.15)
-                    .contentShape(Rectangle())
-                    .onTapGesture {
-                        guard !shouldSuppressNavigationTap else { return }
-                        onNext()
-                    }
-            }
-            .frame(height: geometry.size.height * 0.5)
-            .offset(y: 150)
+            Rectangle()
+                .fill(Color.clear)
+                .frame(width: max(canvasSize.width * sideWidthFraction, 1))
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    guard !shouldSuppressNavigationTap else { return }
+                    onNext()
+                }
         }
-        .frame(width: screenSize.width, height: screenSize.height)
+        .frame(width: canvasSize.width, height: canvasSize.height)
     }
 }
