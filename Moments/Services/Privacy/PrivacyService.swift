@@ -1116,12 +1116,6 @@ extension PrivacyService {
                 return
             }
 
-            // 1.5 Si está etiquetado, puede verlo
-            if let taggedUsers = moment.taggedUsers, taggedUsers.contains(viewerId) {
-                completion(true)
-                return
-            }
-
             // 2. Verificar bloqueos
             self.checkMutualBlocks(viewerId: viewerId, targetUserId: moment.authorId) { [weak self] isBlocked in
                 guard let self = self else {

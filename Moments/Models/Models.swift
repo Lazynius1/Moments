@@ -717,6 +717,7 @@ struct Moment: Identifiable, Codable, Equatable {
     let commentCount: Int
     let profileImagePath: String?
     let taggedUsers: [String]?
+    let mentionedUsers: [String]?
     let location: String?
     let locationCoordinate: LocationCoordinate?  // ✅ NUEVO: Coordenadas de la ubicación
     let audience: String?
@@ -835,7 +836,7 @@ struct Moment: Identifiable, Codable, Equatable {
 
     enum CodingKeys: String, CodingKey {
         case id, authorId, username, content, timestamp, reactions, commentCount
-        case profileImagePath, taggedUsers, location, locationCoordinate, audience, mediaItems
+        case profileImagePath, taggedUsers, mentionedUsers, location, locationCoordinate, audience, mediaItems
         case aspectRatio, customListId
         case imagePath = "imageUrl"
         case videoUrl
@@ -880,6 +881,7 @@ struct Moment: Identifiable, Codable, Equatable {
         self.commentCount = (try? container.decode(Int.self, forKey: .commentCount)) ?? 0
         self.profileImagePath = try container.decodeIfPresent(String.self, forKey: .profileImagePath)
         self.taggedUsers = try container.decodeIfPresent([String].self, forKey: .taggedUsers)
+        self.mentionedUsers = try container.decodeIfPresent([String].self, forKey: .mentionedUsers)
         self.location = try container.decodeIfPresent(String.self, forKey: .location)
         self.locationCoordinate = try container.decodeIfPresent(LocationCoordinate.self, forKey: .locationCoordinate)
         self.audience = try container.decodeIfPresent(String.self, forKey: .audience)
@@ -936,6 +938,7 @@ struct Moment: Identifiable, Codable, Equatable {
         try container.encode(commentCount, forKey: .commentCount)
         try container.encodeIfPresent(profileImagePath, forKey: .profileImagePath)
         try container.encodeIfPresent(taggedUsers, forKey: .taggedUsers)
+        try container.encodeIfPresent(mentionedUsers, forKey: .mentionedUsers)
         try container.encodeIfPresent(location, forKey: .location)
         try container.encodeIfPresent(locationCoordinate, forKey: .locationCoordinate)
         try container.encodeIfPresent(audience, forKey: .audience)
@@ -985,6 +988,7 @@ struct Moment: Identifiable, Codable, Equatable {
         commentCount: Int,
         profileImagePath: String?,
         taggedUsers: [String]?,
+        mentionedUsers: [String]? = nil,
         location: String?,
         locationCoordinate: LocationCoordinate? = nil,  // ✅ NUEVO: Coordenadas de ubicación
         audience: String?,
@@ -1021,6 +1025,7 @@ struct Moment: Identifiable, Codable, Equatable {
         self.commentCount = commentCount
         self.profileImagePath = profileImagePath
         self.taggedUsers = taggedUsers
+        self.mentionedUsers = mentionedUsers
         self.location = location
         self.locationCoordinate = locationCoordinate  // ✅ NUEVO: Asignar coordenadas
         self.audience = audience

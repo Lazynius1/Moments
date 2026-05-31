@@ -38,6 +38,7 @@ final class ActivityInteractionDetailViewModel: ObservableObject, @unchecked Sen
     private let category: ActivityInteractionCategory
     private let recentlyDeletedKind: RecentlyDeletedContentKind
     private let db = Firestore.firestore()
+    private let privacyService = PrivacyService()
     private var didLoadOnce = false
     private var reactionsNextCursor: BackendReactionsCursor?
     private var commentsNextCursor: BackendCommentsCursor?
@@ -420,7 +421,7 @@ final class ActivityInteractionDetailViewModel: ObservableObject, @unchecked Sen
                         reactionType: "tagged",
                         reactedAt: timestamp,
                         moment: moment,
-                        canView: true
+                        canView: item.canView ?? false
                     )
                 }
                 DispatchQueue.main.async {
@@ -454,31 +455,36 @@ final class ActivityInteractionDetailViewModel: ObservableObject, @unchecked Sen
                     return
                 }
 
-                let mapped: [ActivityReactionItem] = snapshot?.documents.compactMap { doc in
+                let allMoments: [Moment] = snapshot?.documents.compactMap { doc in
                     guard let moment = try? doc.data(as: Moment.self) else { return nil }
-                    guard moment.isArchived != true else { return nil }
-                    let authorId = moment.authorId
-                    guard let momentId = moment.id, !authorId.isEmpty, !momentId.isEmpty else { return nil }
-                    return ActivityReactionItem(
-                        id: "\(authorId)_\(momentId)",
-                        authorId: authorId,
-                        momentId: momentId,
-                        reactionType: "tagged",
-                        reactedAt: moment.timestamp,
-                        moment: moment,
-                        canView: true
-                    )
+                    return moment.isArchived == true ? nil : moment
                 } ?? []
 
-                DispatchQueue.main.async {
-                    let sorted = mapped.sorted { $0.reactedAt > $1.reactedAt }
-                    if let uid = FirebaseAuth.Auth.auth().currentUser?.uid {
-                        ActivityCache.saveTagged(sorted, userId: uid)
+                self.privacyService.filterVisibleContent(moments: allMoments, for: userId) { visibleMoments in
+                    let mapped: [ActivityReactionItem] = visibleMoments.compactMap { moment in
+                        let authorId = moment.authorId
+                        guard let momentId = moment.id, !authorId.isEmpty, !momentId.isEmpty else { return nil }
+                        return ActivityReactionItem(
+                            id: "\(authorId)_\(momentId)",
+                            authorId: authorId,
+                            momentId: momentId,
+                            reactionType: "tagged",
+                            reactedAt: moment.timestamp,
+                            moment: moment,
+                            canView: true
+                        )
                     }
-                    self.reactionItems = sorted
-                    self.commentItems = []
-                    self.events = []
-                    self.isLoading = false
+
+                    DispatchQueue.main.async {
+                        let sorted = mapped.sorted { $0.reactedAt > $1.reactedAt }
+                        if let uid = FirebaseAuth.Auth.auth().currentUser?.uid {
+                            ActivityCache.saveTagged(sorted, userId: uid)
+                        }
+                        self.reactionItems = sorted
+                        self.commentItems = []
+                        self.events = []
+                        self.isLoading = false
+                    }
                 }
         }
     }

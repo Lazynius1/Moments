@@ -5703,7 +5703,7 @@ async function batchLoadAuthorDocs(authorIds) {
 /**
  * Server-side privacy check — mirrors canUserViewMomentEnhanced from PrivacyService.swift
  *
- * @param {object} moment - { id, authorId, audience, taggedUsers, customListId }
+ * @param {object} moment - { id, authorId, audience, taggedUsers, mentionedUsers, customListId }
  * @param {string} viewerId
  * @param {object} viewerCtx - from buildViewerContext
  * @param {object} authorData - author user document data
@@ -5722,22 +5722,18 @@ async function canViewerSeeMoment(moment, viewerId, viewerCtx, authorData) {
   // non-owners, even if the content is public or the viewer follows the author.
   if (authorData.isActive === false) return false;
 
-  // 2. Tagged users can always see
-  const tagged = Array.isArray(moment.taggedUsers) ? moment.taggedUsers : [];
-  if (tagged.includes(viewerId)) return true;
-
-  // 3. Mutual block check
+  // 2. Mutual block check
   const authorBlocked = Array.isArray(authorData.blockedUsers) ? authorData.blockedUsers : [];
   if (viewerCtx.blockedUsers.has(moment.authorId) || authorBlocked.includes(viewerId)) {
     return false;
   }
 
-  // 4. Hidden from author content
+  // 3. Hidden from author content
   const visSettings = authorData.contentVisibilitySettings || {};
   const hiddenFrom = Array.isArray(visSettings.hiddenFromUsers) ? visSettings.hiddenFromUsers : [];
   if (hiddenFrom.includes(viewerId)) return false;
 
-  // 5. Audience check
+  // 4. Audience check
   const audience = moment.audience || 'everyone';
 
   switch (audience) {
@@ -5941,6 +5937,7 @@ function serializeMoment(docId, data) {
     commentCount: data.commentCount || 0,
     profileImagePath: data.profileImagePath || null,
     taggedUsers: data.taggedUsers || null,
+    mentionedUsers: data.mentionedUsers || null,
     location: data.location || null,
     locationCoordinate: data.locationCoordinate || null,
     audience: data.audience || 'everyone',
@@ -5982,6 +5979,7 @@ function serializeRestrictedMoment(docId, data) {
     commentCount: 0,
     profileImagePath: data.profileImagePath || null,
     taggedUsers: null,
+    mentionedUsers: null,
     location: null,
     locationCoordinate: null,
     audience: data.audience || 'everyone',
@@ -7037,8 +7035,6 @@ exports.getStickerRepliesPage = onRequest(
 /**
  * 🏷️ getTaggedMomentsPage — Returns moments where viewer is tagged.
  *
- * Rule: if viewer is tagged in a moment, canView is true regardless of audience.
- *
  * POST body: { cursor?: { timestamp: number }, limit?: number }
  * Response:  {
  *   items: [{ moment, taggedAt, authorId, momentId, canView }],
@@ -7095,6 +7091,15 @@ exports.getTaggedMomentsPage = onRequest(
         return;
       }
 
+      const viewerCtx = await buildViewerContext(uid);
+      const authorIds = Array.from(new Set(
+        snap.docs
+          .map((doc) => doc.ref.path.split('/'))
+          .filter((parts) => parts.length >= 4 && parts[0] === 'users' && parts[2] === 'moments')
+          .map((parts) => parts[1])
+      ));
+      const authorMap = await fetchUserDataMap(authorIds);
+
       const items = [];
       for (const doc of snap.docs) {
         const pathParts = doc.ref.path.split('/');
@@ -7106,8 +7111,14 @@ exports.getTaggedMomentsPage = onRequest(
         const momentId = pathParts[3];
         const momentData = doc.data() || {};
         if (momentData.isArchived === true) continue;
-        const taggedUsers = Array.isArray(momentData.taggedUsers) ? momentData.taggedUsers : [];
-        const canView = taggedUsers.includes(uid);
+        const authorData = authorMap.get(authorId);
+        if (!authorData) continue;
+        const canView = await canViewerSeeMoment(
+          { id: momentId, authorId, ...momentData },
+          uid,
+          viewerCtx,
+          authorData
+        );
         if (!canView) continue;
 
         items.push({

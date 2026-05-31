@@ -27,7 +27,7 @@ enum NovaPromptCatalog {
     Map the user's natural language to these English tool values before calling the tool. UI labels are localized separately.
     For custom use target_username; for customList use custom_list_name or list_audience_lists first.
     Moments always require media: never call create_moment without a photo attached in the chat (+ button). Caption is optional.
-    In the caption you may include @username (no space after @) to tag people; those mentions are resolved automatically — do not use audience=custom just to tag someone in the caption.
+    In the caption you may include @username (no space after @) to mention people; those mentions are resolved automatically for link/notification behavior, but they do not change who can see the moment. Do not use audience=custom just to @mention someone in the caption.
     From Nova chat only photos are supported today (not video). If the user wants to post without media, explain they must attach a photo first.
     """
 
@@ -40,7 +40,7 @@ enum NovaPromptCatalog {
     static let momentDraftPrompt = """
     Decide if the user wants to publish/upload a moment (photo post) to their profile.
     Return JSON only. Map audience to English tool values: everyone, connections, bestFriends, onlyMe, custom, customList.
-    Extract caption into content. Use @username inside content to tag people in the caption. Use audience=custom + target_username only when the post visibility should be limited to that user (not for a simple @mention in text). If a named list, use customList + custom_list_name.
+    Extract caption into content. Use @username inside content to mention people in the caption. Use audience=custom + target_username only when the post visibility should be limited to that user (not for a simple @mention in text). If a named list, use customList + custom_list_name.
     Set should_publish false for general chat, questions, or analysis about a photo without posting intent.
     """
 

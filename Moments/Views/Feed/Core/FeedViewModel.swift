@@ -847,11 +847,6 @@ class FeedViewModel: ObservableObject {
                  return
              }
 
-             if moment.taggedUsers?.contains(viewerId) == true {
-                 completion(true)
-                 return
-             }
-
              let cacheKey = privacyDecisionCacheKey(for: moment, viewerId: viewerId)
  
               cacheLock.lock()

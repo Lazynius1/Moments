@@ -385,6 +385,7 @@ struct FeedView: View {
             customListId: payload.customListId,
             customViewers: payload.customViewers,
             taggedUsers: payload.taggedUsers,
+            mentionedUsers: payload.mentionedUsers,
             location: payload.locationName.isEmpty ? nil : payload.locationName,
             locationCoordinate: payload.locationCoordinate.map {
                 Moment.LocationCoordinate(latitude: $0.latitude, longitude: $0.longitude)

@@ -157,6 +157,7 @@ class NotificationService: ObservableObject {
     func sendInteractionNotification(
         type: NotificationType,
         to targetUserId: String,
+        notificationId: String? = nil,
         momentId: String? = nil,
         storyId: String? = nil,
         storyAuthorId: String? = nil,
@@ -173,6 +174,7 @@ class NotificationService: ObservableObject {
         let username = senderUsername ?? UserDefaults.standard.string(forKey: "current_username") ?? "Alguien"
         
         let notification = Notification(
+            id: notificationId,
             type: type,
             senderId: currentUserId,
             senderUsername: username,
@@ -218,9 +220,14 @@ class NotificationService: ObservableObject {
     }
 
     func sendMomentMentionNotification(to userId: String, momentId: String, momentAuthorId: String? = nil, momentAuthorUsername: String? = nil, commentText: String? = nil, senderUsername: String? = nil) {
+        let notificationId: String? = {
+            guard let currentUserId = Auth.auth().currentUser?.uid else { return nil }
+            return "mention_moment_\(momentId)_\(currentUserId)_\(userId)"
+        }()
         sendInteractionNotification(
             type: .mention,
             to: userId,
+            notificationId: notificationId,
             momentId: momentId,
             reaction: commentText,
             senderUsername: senderUsername,

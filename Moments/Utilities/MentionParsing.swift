@@ -14,7 +14,9 @@ enum MomentMentionParser {
         let username: String
     }
 
-    private static let mentionPattern = #"@(\w+)"#
+    // Require a non-word / non-dot boundary before @ so emails like foo@bar.com
+    // do not become social mentions.
+    private static let mentionPattern = #"(?<![\w.])@(\w+)"#
 
     static func matches(in content: String) -> [Match] {
         guard let regex = try? NSRegularExpression(pattern: mentionPattern) else { return [] }
@@ -98,6 +100,8 @@ enum MomentMentionNavigation {
     }
 }
 
+/// Resolves @username tokens in caption text for **mention notifications only**.
+/// Must not be written to `Moment.taggedUsers` — that field bypasses audience privacy checks.
 enum MomentMentionResolver {
     static func resolveUserIds(from text: String) async -> [String] {
         let usernames = MentionParsing.extractUsernames(from: text)

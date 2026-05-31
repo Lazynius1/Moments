@@ -17,6 +17,7 @@ class UploadingMoment: ObservableObject, Identifiable {
     let content: String
     let mediaItems: [ProcessedMedia]
     let taggedUsers: [String]?
+    let mentionedUsers: [String]?
     let location: String?
     let locationCoordinate: Moment.LocationCoordinate?  // ✅ NUEVO: Coordenadas de ubicación
     let audienceSetting: CaptionAndDetailsView.AudienceSetting
@@ -48,6 +49,7 @@ class UploadingMoment: ObservableObject, Identifiable {
         content: String,
         mediaItems: [ProcessedMedia],
         taggedUsers: [String]?,
+        mentionedUsers: [String]? = nil,
         location: String?,
         locationCoordinate: Moment.LocationCoordinate? = nil,  // ✅ NUEVO: Coordenadas de ubicación
         audienceSetting: CaptionAndDetailsView.AudienceSetting,
@@ -68,6 +70,7 @@ class UploadingMoment: ObservableObject, Identifiable {
         self.content = content
         self.mediaItems = mediaItems
         self.taggedUsers = taggedUsers
+        self.mentionedUsers = mentionedUsers
         self.location = location
         self.locationCoordinate = locationCoordinate  // ✅ NUEVO: Asignar coordenadas
         self.audienceSetting = audienceSetting
@@ -138,6 +141,7 @@ struct MomentUploadPayload: Codable {
     let mediaPaths: [CachedMediaItem]
     let hiddenLayers: [CachedHiddenLayerDraft]?
     let taggedUsers: [String]?
+    let mentionedUsers: [String]?
     let location: String?
     let locationCoordinate: Moment.LocationCoordinate?
     let audienceSetting: String
@@ -208,6 +212,7 @@ class BackgroundMomentUploadService: ObservableObject {
         content: String,
         mediaItems: [ProcessedMedia],
         taggedUsers: [String]?,
+        mentionedUsers: [String]? = nil,
         location: String?,
         locationCoordinate: Moment.LocationCoordinate? = nil,  // ✅ NUEVO: Coordenadas de ubicación
         audienceSetting: CaptionAndDetailsView.AudienceSetting,
@@ -234,6 +239,7 @@ class BackgroundMomentUploadService: ObservableObject {
             content: content,
             mediaItems: mediaItems,
             taggedUsers: taggedUsers,
+            mentionedUsers: mentionedUsers,
             location: location,
             locationCoordinate: locationCoordinate,  // ✅ NUEVO: Pasar coordenadas
             audienceSetting: audienceSetting,
@@ -341,6 +347,22 @@ class BackgroundMomentUploadService: ObservableObject {
                                 momentTitle: uploadingMoment.content.trimmingCharacters(in: .whitespacesAndNewlines)
                             )
                         }
+                    }
+                }
+            }
+
+            if let mentionedUsers = uploadingMoment.mentionedUsers, !mentionedUsers.isEmpty {
+                let explicitTags = Set(uploadingMoment.taggedUsers ?? [])
+                for mentionedUserId in Set(mentionedUsers) where mentionedUserId != uploadingMoment.userId && !explicitTags.contains(mentionedUserId) {
+                    Task { @MainActor in
+                        NotificationService.shared.sendMomentMentionNotification(
+                            to: mentionedUserId,
+                            momentId: momentId,
+                            momentAuthorId: uploadingMoment.userId,
+                            momentAuthorUsername: UserDefaults.standard.string(forKey: "current_username"),
+                            commentText: uploadingMoment.content,
+                            senderUsername: UserDefaults.standard.string(forKey: "current_username")
+                        )
                     }
                 }
             }
@@ -724,6 +746,7 @@ class BackgroundMomentUploadService: ObservableObject {
                     mediaItems: mediaUrls,
                     customListId: uploadingMoment.customListId!,
                     taggedUsers: uploadingMoment.taggedUsers,
+                    mentionedUsers: uploadingMoment.mentionedUsers,
                     location: uploadingMoment.location,
                     locationCoordinate: uploadingMoment.locationCoordinate,
                     aspectRatio: uploadingMoment.aspectRatio,
@@ -750,6 +773,7 @@ class BackgroundMomentUploadService: ObservableObject {
                     content: uploadingMoment.content,
                     mediaItems: mediaUrls,
                     taggedUsers: uploadingMoment.taggedUsers,
+                    mentionedUsers: uploadingMoment.mentionedUsers,
                     location: uploadingMoment.location,
                     audienceSetting: uploadingMoment.audienceSetting,
                     locationCoordinate: uploadingMoment.locationCoordinate,
@@ -1121,6 +1145,7 @@ class BackgroundMomentUploadService: ObservableObject {
                     mediaPaths: cachedMediaItems,
                     hiddenLayers: cachedHiddenLayers,
                     taggedUsers: uploadingMoment.taggedUsers,
+                    mentionedUsers: uploadingMoment.mentionedUsers,
                     location: uploadingMoment.location,
                     locationCoordinate: uploadingMoment.locationCoordinate,
                     audienceSetting: self.convertAudienceSettingToString(uploadingMoment.audienceSetting),
@@ -1396,6 +1421,7 @@ class BackgroundMomentUploadService: ObservableObject {
                 content: payload.content,
                 mediaItems: mediaItems,
                 taggedUsers: payload.taggedUsers,
+                mentionedUsers: payload.mentionedUsers,
                 location: payload.location,
                 locationCoordinate: payload.locationCoordinate,
                 audienceSetting: audience,

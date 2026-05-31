@@ -47,6 +47,7 @@ final class CachedMoment {
     var reactionsData: Data?      // [String: [String]] encoded
     var mediaItemsData: Data?     // [MediaItem] encoded
     var taggedUsersData: Data?    // [String] encoded
+    var mentionedUsersData: Data? // [String] encoded
     
     // MARK: - Metadatos de caché
     var lastSyncedAt: Date
@@ -84,6 +85,7 @@ final class CachedMoment {
         reactionsData: Data? = nil,
         mediaItemsData: Data? = nil,
         taggedUsersData: Data? = nil,
+        mentionedUsersData: Data? = nil,
         lastSyncedAt: Date = Date(),
         feedSection: String = "feed"
     ) {
@@ -117,6 +119,7 @@ final class CachedMoment {
         self.reactionsData = reactionsData
         self.mediaItemsData = mediaItemsData
         self.taggedUsersData = taggedUsersData
+        self.mentionedUsersData = mentionedUsersData
         self.lastSyncedAt = lastSyncedAt
         self.feedSection = feedSection
     }
@@ -138,6 +141,7 @@ extension CachedMoment {
         
         // Serializar taggedUsers
         let taggedUsersData = try? encoder.encode(moment.taggedUsers)
+        let mentionedUsersData = try? encoder.encode(moment.mentionedUsers)
         
         return CachedMoment(
             momentId: moment.id ?? UUID().uuidString,
@@ -170,6 +174,7 @@ extension CachedMoment {
             reactionsData: reactionsData,
             mediaItemsData: mediaItemsData,
             taggedUsersData: taggedUsersData,
+            mentionedUsersData: mentionedUsersData,
             lastSyncedAt: Date(),
             feedSection: section
         )
@@ -196,6 +201,10 @@ extension CachedMoment {
             guard let data = taggedUsersData else { return nil }
             return try? decoder.decode([String].self, from: data)
         }()
+        let mentionedUsers: [String]? = {
+            guard let data = mentionedUsersData else { return nil }
+            return try? decoder.decode([String].self, from: data)
+        }()
         
         // LocationCoordinate
         let locationCoordinate: Moment.LocationCoordinate? = {
@@ -215,6 +224,7 @@ extension CachedMoment {
             commentCount: commentCount ?? 0,
             profileImagePath: profileImagePath,
             taggedUsers: taggedUsers,
+            mentionedUsers: mentionedUsers,
             location: location,
             locationCoordinate: locationCoordinate,
             audience: audience,

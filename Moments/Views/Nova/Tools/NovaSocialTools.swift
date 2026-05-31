@@ -95,14 +95,13 @@ actor NovaSocialTools {
         )
 
         let captionMentionIds = await MomentMentionResolver.resolveUserIds(from: content)
-        let audienceTaggedIds = audience.customViewers ?? []
-        let allTaggedUsers = Array(Set(captionMentionIds + audienceTaggedIds))
 
         let started = await MainActor.run {
             BackgroundMomentUploadService.shared.uploadMoment(
                 content: content,
                 mediaItems: [media],
-                taggedUsers: allTaggedUsers.isEmpty ? nil : allTaggedUsers,
+                taggedUsers: nil,
+                mentionedUsers: captionMentionIds.isEmpty ? nil : captionMentionIds,
                 location: nil,
                 audienceSetting: audience.audienceSetting,
                 customViewers: audience.customViewers,
@@ -125,7 +124,7 @@ actor NovaSocialTools {
             "audience_label": .string(audience.displayLabel),
             "has_media": .bool(true),
             "content_preview": .string(String(content.prefix(120))),
-            "tagged_users_count": NovaJSON.int(allTaggedUsers.count)
+            "mentioned_users_count": NovaJSON.int(captionMentionIds.count)
         ]
     }
 

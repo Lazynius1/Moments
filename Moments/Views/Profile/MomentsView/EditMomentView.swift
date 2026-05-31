@@ -8,6 +8,7 @@ struct EditMomentPayload {
     let customListId: String?
     let customViewers: [String]
     let taggedUsers: [String]
+    let mentionedUsers: [String]
     let locationName: String
     let locationCoordinate: CLLocationCoordinate2D?
     let mediaItems: [MediaItem]?
@@ -401,24 +402,38 @@ struct EditMomentView: View {
             isSaving = true
         }
 
-        let payload = EditMomentPayload(
-            content: editedContent,
-            audience: selectedAudience,
-            customListId: selectedAudience == .customList ? selectedListId : nil,
-            customViewers: selectedAudience == .custom ? customSelectedUsers : [],
-            taggedUsers: taggedUsers,
-            locationName: normalizedLocationName,
-            locationCoordinate: selectedLocation,
-            mediaItems: editedMediaItems
-        )
+        let contentSnapshot = editedContent
+        let audienceSnapshot = selectedAudience
+        let selectedListSnapshot = selectedListId
+        let customViewersSnapshot = selectedAudience == .custom ? customSelectedUsers : []
+        let taggedUsersSnapshot = taggedUsers
+        let locationNameSnapshot = normalizedLocationName
+        let locationSnapshot = selectedLocation
+        let mediaItemsSnapshot = editedMediaItems
 
-        onSave(payload)
+        Task {
+            let mentionIds = await MomentMentionResolver.resolveUserIds(from: contentSnapshot)
+            let payload = EditMomentPayload(
+                content: contentSnapshot,
+                audience: audienceSnapshot,
+                customListId: audienceSnapshot == .customList ? selectedListSnapshot : nil,
+                customViewers: customViewersSnapshot,
+                taggedUsers: taggedUsersSnapshot,
+                mentionedUsers: mentionIds,
+                locationName: locationNameSnapshot,
+                locationCoordinate: locationSnapshot,
+                mediaItems: mediaItemsSnapshot
+            )
 
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
-            withAnimation(.easeInOut(duration: 0.18)) {
-                isSaving = false
+            await MainActor.run {
+                onSave(payload)
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+                    withAnimation(.easeInOut(duration: 0.18)) {
+                        isSaving = false
+                    }
+                    dismiss()
+                }
             }
-            dismiss()
         }
     }
 }

@@ -24,6 +24,7 @@ class ProfileViewModel: ObservableObject, UserListViewModel {
 
     private let firestoreService = FirestoreService()
     private let storageService = StorageService()
+    private let privacyService = PrivacyService()
     // ✅ UserDefaults compartido con el widget (App Group "group.com.glowsyapp")
     private let widgetUserDefaults = UserDefaults(suiteName: "group.com.glowsyapp")
 
@@ -335,9 +336,18 @@ class ProfileViewModel: ObservableObject, UserListViewModel {
                     }
 
                     if let documents = snapshot?.documents {
-                        self.taggedMoments = documents.compactMap { doc -> Moment? in
+                        let moments = documents.compactMap { doc -> Moment? in
                             guard let moment = try? doc.data(as: Moment.self) else { return nil }
                             return moment.isArchived == true ? nil : moment
+                        }
+
+                        Task { @MainActor in
+                            let ps = self.privacyService
+                            ps.filterVisibleContent(moments: moments, for: userId) { visibleMoments in
+                                DispatchQueue.main.async {
+                                    self.taggedMoments = visibleMoments
+                                }
+                            }
                         }
                     }
                 }

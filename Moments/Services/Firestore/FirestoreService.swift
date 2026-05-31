@@ -28,6 +28,7 @@ class FirestoreService: ObservableObject {
         customListId: String?,
         customViewers: [String]?,
         taggedUsers: [String],
+        mentionedUsers: [String],
         location: String?,
         locationCoordinate: Moment.LocationCoordinate?,
         mediaItems: [MediaItem]? = nil,
@@ -52,6 +53,12 @@ class FirestoreService: ObservableObject {
             updateData["taggedUsers"] = FieldValue.delete()
         } else {
             updateData["taggedUsers"] = taggedUsers
+        }
+
+        if mentionedUsers.isEmpty {
+            updateData["mentionedUsers"] = FieldValue.delete()
+        } else {
+            updateData["mentionedUsers"] = mentionedUsers
         }
 
         if let location, !location.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {

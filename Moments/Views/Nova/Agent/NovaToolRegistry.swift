@@ -52,7 +52,7 @@ enum NovaToolRegistry {
                 Call list_audience_lists first if the user refers to a list by vague name.
                 """,
                 parameters: [
-                    "content": .string(description: "Optional caption. Include @username (no space) to tag people; tags are resolved automatically."),
+                    "content": .string(description: "Optional caption. Include @username (no space) to mention people; mentions are resolved automatically for linking/notifications and do not change audience."),
                     "audience": .string(description: "Exactly: everyone | connections | bestFriends | onlyMe | custom | customList"),
                     "target_username": .string(description: "For audience=custom: username without @."),
                     "custom_list_name": .string(description: "For audience=customList: list name."),

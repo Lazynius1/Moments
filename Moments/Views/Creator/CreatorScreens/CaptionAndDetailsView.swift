@@ -531,13 +531,14 @@ struct CaptionAndDetailsView: View {
 
         Task {
             let captionMentionIds = await MomentMentionResolver.resolveUserIds(from: captionSnapshot)
-            let allTaggedUsers = Array(Set(manualTaggedSnapshot + spatialTaggedUsers + captionMentionIds))
+            let allTaggedUsers = Array(Set(manualTaggedSnapshot + spatialTaggedUsers))
 
             await MainActor.run {
                 let uploadingMoment = uploadService.uploadMoment(
                     content: captionSnapshot,
                     mediaItems: mediaSnapshot,
                     taggedUsers: allTaggedUsers.isEmpty ? nil : allTaggedUsers,
+                    mentionedUsers: captionMentionIds.isEmpty ? nil : captionMentionIds,
                     location: locationSnapshot,
                     locationCoordinate: coordinateSnapshot,
                     audienceSetting: audienceSnapshot,
