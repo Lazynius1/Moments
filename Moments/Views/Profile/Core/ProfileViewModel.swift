@@ -317,41 +317,12 @@ class ProfileViewModel: ObservableObject, UserListViewModel {
     // ✅ NUEVO: Cargar momentos donde el usuario ha sido etiquetado
     func fetchTaggedMoments(userId: String) {
         isLoadingTagged = true
-
-        // Buscar todos los momentos donde el usuario aparece en taggedUsers
-        let db = Firestore.firestore()
-        db.collectionGroup("moments")
-            .whereField("taggedUsers", arrayContains: userId)
-            .order(by: "timestamp", descending: true)
-            .limit(to: 50)
-            .getDocuments { [weak self] (snapshot: QuerySnapshot?, error: Error?) in
-                guard let self = self else { return }
-
-                DispatchQueue.main.async {
-                    self.isLoadingTagged = false
-
-                    if let error = error {
-                        print("❌ Error loading tagged moments: \(error)")
-                        return
-                    }
-
-                    if let documents = snapshot?.documents {
-                        let moments = documents.compactMap { doc -> Moment? in
-                            guard let moment = try? doc.data(as: Moment.self) else { return nil }
-                            return moment.isArchived == true ? nil : moment
-                        }
-
-                        Task { @MainActor in
-                            let ps = self.privacyService
-                            ps.filterVisibleContent(moments: moments, for: userId) { visibleMoments in
-                                DispatchQueue.main.async {
-                                    self.taggedMoments = visibleMoments
-                                }
-                            }
-                        }
-                    }
-                }
-            }
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            let result = await BackendFeedService.shared.fetchTaggedMoments(targetUserId: userId, limit: 50)
+            self.isLoadingTagged = false
+            self.taggedMoments = result?.moments ?? []
+        }
     }
 
     // ✅ FUNCIÓN CORREGIDA: Refresh con delay para Firestore

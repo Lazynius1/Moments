@@ -357,60 +357,22 @@ class UserProfileViewModel: ObservableObject, UserListViewModel {
 
     // ✅ NUEVA FUNCIÓN: Obtener momentos etiquetados con filtrado de audiencia
     func fetchTaggedMoments(completion: (() -> Void)? = nil) {
-        guard let currentUserId = Auth.auth().currentUser?.uid else {
+        guard Auth.auth().currentUser?.uid != nil else {
             completion?()
             return
         }
 
         isLoadingTagged = true
-
-        // Buscar momentos donde el usuario del perfil está etiquetado
-        firestoreService.db.collectionGroup("moments")
-            .whereField("taggedUsers", arrayContains: userId)
-            .order(by: "timestamp", descending: true)
-            .limit(to: 50)
-            .getDocuments { [weak self] (snapshot: QuerySnapshot?, error: Error?) in
-                guard let self = self else {
-                    completion?()
-                    return
-                }
-
-                if let error = error {
-                    print("❌ Error loading tagged moments: \(error)")
-                    DispatchQueue.main.async {
-                        self.isLoadingTagged = false
-                        completion?()
-                    }
-                    return
-                }
-
-                guard let documents = snapshot?.documents else {
-                    DispatchQueue.main.async {
-                        self.isLoadingTagged = false
-                        self.taggedMoments = []
-                        completion?()
-                    }
-                    return
-                }
-
-                let allMoments = documents.compactMap { doc -> Moment? in
-                    guard let moment = try? doc.data(as: Moment.self) else { return nil }
-                    return moment.isArchived == true ? nil : moment
-                }
-
-                // ✅ IMPORTANTE: Filtrar por audiencia usando PrivacyService
-                // Capture privacyService before this Sendable closure to avoid main-actor isolation warning
-                Task { @MainActor in
-                    let ps = self.privacyService
-                    ps.filterVisibleContent(moments: allMoments, for: currentUserId) { filteredMoments in
-                        DispatchQueue.main.async {
-                            self.taggedMoments = filteredMoments
-                            self.isLoadingTagged = false
-                            completion?()
-                        }
-                    }
-                }
+        Task { @MainActor [weak self] in
+            guard let self else {
+                completion?()
+                return
             }
+            let result = await BackendFeedService.shared.fetchTaggedMoments(targetUserId: self.userId, limit: 50)
+            self.taggedMoments = result?.moments ?? []
+            self.isLoadingTagged = false
+            completion?()
+        }
     }
 
     // ✅ NUEVA FUNCIÓN: Categorizar conexiones respetando configuraciones de privacidad

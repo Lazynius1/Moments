@@ -435,7 +435,18 @@ final class ActivityInteractionDetailViewModel: ObservableObject, @unchecked Sen
                     self.isLoading = false
                 }
             } catch {
-                self.loadTagsLegacy(for: userId)
+                let cached = ActivityCache.loadTagged(userId: userId)
+                DispatchQueue.main.async {
+                    if !cached.isEmpty {
+                        self.reactionItems = cached
+                    } else {
+                        self.reactionItems = []
+                        self.errorMessage = error.localizedDescription
+                    }
+                    self.commentItems = []
+                    self.events = []
+                    self.isLoading = false
+                }
             }
         }
     }

@@ -29,6 +29,7 @@ struct BackendMoment: Codable {
     let commentCount: Int?
     let profileImagePath: String?
     let taggedUsers: [String]?
+    let mentionedUsers: [String]?
     let location: String?
     let locationCoordinate: Moment.LocationCoordinate?
     let audience: String?
@@ -62,6 +63,7 @@ struct BackendMoment: Codable {
             commentCount: commentCount ?? 0,
             profileImagePath: profileImagePath,
             taggedUsers: taggedUsers,
+            mentionedUsers: mentionedUsers,
             location: location,
             locationCoordinate: locationCoordinate,
             audience: audience,
@@ -197,6 +199,80 @@ class BackendFeedService {
             
         } catch {
             LogConfig.log("❌ BackendFeed error: \(error.localizedDescription)", category: "BackendFeed")
+            recordFailure()
+            return nil
+        }
+    }
+
+    /// Fetch tagged moments from backend with full audience/privacy filtering.
+    func fetchTaggedMoments(
+        targetUserId: String? = nil,
+        cursor: BackendTagsCursor? = nil,
+        limit: Int = 50
+    ) async -> (moments: [Moment], nextCursor: BackendTagsCursor?, source: String)? {
+        guard !isCircuitOpen else {
+            LogConfig.log("⚡ BackendFeed tagged: Circuit breaker OPEN", category: "BackendFeed")
+            return nil
+        }
+
+        guard let user = Auth.auth().currentUser else {
+            LogConfig.log("⚡ BackendFeed tagged: No authenticated user", category: "BackendFeed")
+            return nil
+        }
+
+        do {
+            let idToken = try await user.getIDToken()
+
+            var body: [String: Any] = [
+                "limit": limit
+            ]
+            if let cursor {
+                body["cursor"] = ["timestamp": cursor.timestamp]
+            }
+            if let targetUserId, !targetUserId.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                body["targetUserId"] = targetUserId
+            }
+
+            let projectId = FirebaseApp.app()?.options.projectID ?? ""
+            let region = "europe-southwest1"
+            let urlString = "https://\(region)-\(projectId).cloudfunctions.net/getTaggedMomentsPage"
+
+            guard let url = URL(string: urlString) else {
+                LogConfig.log("❌ BackendFeed tagged: Invalid URL", category: "BackendFeed")
+                recordFailure()
+                return nil
+            }
+
+            var request = URLRequest(url: url)
+            request.httpMethod = "POST"
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            request.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
+            request.httpBody = try JSONSerialization.data(withJSONObject: body)
+            request.timeoutInterval = 15
+
+            let (data, response) = try await URLSession.shared.data(for: request)
+            guard let httpResponse = response as? HTTPURLResponse else {
+                recordFailure()
+                return nil
+            }
+
+            guard httpResponse.statusCode == 200 else {
+                LogConfig.log("❌ BackendFeed tagged: HTTP \(httpResponse.statusCode)", category: "BackendFeed")
+                recordFailure()
+                return nil
+            }
+
+            let decoded = try JSONDecoder().decode(BackendTagsResponse.self, from: data)
+            let moments = decoded.items.compactMap { item -> Moment? in
+                guard item.canView ?? false else { return nil }
+                return item.moment.toMoment()
+            }
+
+            recordSuccess()
+            LogConfig.log("✅ BackendFeed tagged: \(moments.count) moments (source: \(decoded.source), candidates: \(decoded.totalCandidates))", category: "BackendFeed")
+            return (moments: moments, nextCursor: decoded.nextCursor, source: decoded.source)
+        } catch {
+            LogConfig.log("❌ BackendFeed tagged error: \(error.localizedDescription)", category: "BackendFeed")
             recordFailure()
             return nil
         }
