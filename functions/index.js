@@ -4331,6 +4331,10 @@ exports.acceptMessageRequest = onRequest(
           throw new Error('REQUEST_FORBIDDEN');
         }
 
+        if (!data.senderId || data.createdBy !== data.senderId) {
+          throw new Error('REQUEST_UNTRUSTED');
+        }
+
         if (data.status !== 'pending' && data.status !== 'accepted') {
           throw new Error('REQUEST_NOT_PENDING');
         }
@@ -4347,6 +4351,7 @@ exports.acceptMessageRequest = onRequest(
           id: requestSnap.id,
           senderId: data.senderId || '',
           receiverId: data.receiverId || '',
+          createdBy: data.createdBy || '',
           message: data.message || '',
           messageType: data.messageType || 'text',
           mediaUrl: data.mediaUrl || null,
@@ -4354,8 +4359,8 @@ exports.acceptMessageRequest = onRequest(
         };
       });
 
-      if (!requestData.senderId || !requestData.receiverId) {
-        res.status(400).json({ error: 'Invalid message request' });
+      if (!requestData.senderId || !requestData.receiverId || requestData.createdBy !== requestData.senderId) {
+        res.status(400).json({ error: 'Invalid message request', errorCode: 'REQUEST_UNTRUSTED' });
         return;
       }
 
@@ -4464,6 +4469,10 @@ exports.acceptMessageRequest = onRequest(
       }
       if (error.message === 'REQUEST_NOT_PENDING') {
         res.status(409).json({ error: 'Message request is no longer pending', errorCode: 'REQUEST_NOT_PENDING' });
+        return;
+      }
+      if (error.message === 'REQUEST_UNTRUSTED') {
+        res.status(403).json({ error: 'Untrusted message request', errorCode: 'REQUEST_UNTRUSTED' });
         return;
       }
 
