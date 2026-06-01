@@ -1428,10 +1428,50 @@ service cloud.firestore {
                       && canParticipateInConversations(request.auth.uid);
     }
 
-    // ✅ SISTEMA DE SOLICITUDES DE MENSAJES - REGLAS TEMPORALES PARA DEBUGGING
+    // ✅ SISTEMA DE SOLICITUDES DE MENSAJES
     match /messageRequests/{requestId} {
-      // ✅ Reglas temporales permisivas para debugging
-      allow read, write, list, delete: if request.auth != null;
+      allow read, list: if request.auth != null
+                          && (request.auth.uid == resource.data.senderId ||
+                              request.auth.uid == resource.data.receiverId)
+                          && canParticipateInConversations(request.auth.uid);
+
+      allow create: if request.auth != null
+                      && request.auth.uid == request.resource.data.senderId
+                      && request.resource.data.createdBy == request.auth.uid
+                      && request.resource.data.receiverId is string
+                      && request.resource.data.receiverId != ''
+                      && request.resource.data.receiverId != request.auth.uid
+                      && request.resource.data.message is string
+                      && request.resource.data.status == 'pending'
+                      && request.resource.data.messageType is string
+                      && request.resource.data.timestamp is timestamp
+                      && canParticipateInConversations(request.auth.uid)
+                      && canParticipateInConversations(request.resource.data.receiverId);
+
+      allow update: if request.auth != null
+                      && request.auth.uid == resource.data.senderId
+                      && resource.data.createdBy == resource.data.senderId
+                      && request.resource.data.senderId == resource.data.senderId
+                      && request.resource.data.createdBy == resource.data.createdBy
+                      && request.resource.data.receiverId == resource.data.receiverId
+                      && request.resource.data.status == resource.data.status
+                      && resource.data.status == 'pending'
+                      && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+                        'message',
+                        'messageType',
+                        'mediaUrl',
+                        'thumbnailUrl',
+                        'timestamp'
+                      ])
+                      && request.resource.data.message is string
+                      && request.resource.data.messageType is string
+                      && request.resource.data.timestamp is timestamp
+                      && canParticipateInConversations(request.auth.uid);
+
+      allow delete: if request.auth != null
+                      && (request.auth.uid == resource.data.senderId ||
+                          request.auth.uid == resource.data.receiverId)
+                      && canParticipateInConversations(request.auth.uid);
     }
 
     match /globalExportRequests/{requestId} {

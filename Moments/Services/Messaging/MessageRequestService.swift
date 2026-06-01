@@ -21,6 +21,7 @@ class MessageRequestService: ObservableObject {
     private enum AcceptRequestServerErrorCode: String {
         case requestNotFound = "REQUEST_NOT_FOUND"
         case requestForbidden = "REQUEST_FORBIDDEN"
+        case requestUntrusted = "REQUEST_UNTRUSTED"
         case requestNotPending = "REQUEST_NOT_PENDING"
         case userNotFound = "USER_NOT_FOUND"
         case inactiveUser = "INACTIVE_USER"
@@ -52,7 +53,7 @@ class MessageRequestService: ObservableObject {
 
     private func localizedAcceptRequestError(code: AcceptRequestServerErrorCode?, fallbackStatusCode: Int? = nil) -> String {
         switch code {
-        case .requestForbidden:
+        case .requestForbidden, .requestUntrusted:
             return NSLocalizedString("messageRequests.acceptError.forbidden", comment: "Message request cannot be accepted by this user")
         case .requestNotFound, .requestNotPending, .userNotFound, .inactiveUser, .blockedRelationship:
             return NSLocalizedString("messageRequests.acceptError.notAvailable", comment: "Message request is no longer available")
@@ -494,6 +495,7 @@ extension MessageRequest {
     func encode() throws -> [String: Any] {
         let firestoreData: [String: Any] = [
             "senderId": senderId,
+            "createdBy": senderId,
             "senderUsername": senderUsername as Any,
             "senderProfileImagePath": senderProfileImagePath as Any,
             "receiverId": receiverId,
