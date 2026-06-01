@@ -18,7 +18,7 @@ struct PasswordChangeView: View {
                         VStack(spacing: 8) {
                             Image(systemName: "lock.shield")
                                 .font(.system(size: 50))
-                                .foregroundColor(Color(hex: "4F46E5"))
+                                .foregroundColor(SettingsProfileColors.accent(colorScheme))
                             
                             Text(NSLocalizedString("passwordChange.title", comment: "Change password title"))
                                 .font(.custom("Poppins-Bold", size: 24))
@@ -61,7 +61,7 @@ struct PasswordChangeView: View {
                                         .fill(Color.gray.opacity(0.1))
                                         .overlay(
                                             RoundedRectangle(cornerRadius: 12)
-                                                .stroke(viewModel.currentPasswordError ? .red : Color(hex: "4F46E5").opacity(0.3), lineWidth: 1)
+                                                .stroke(viewModel.currentPasswordError ? .red : SettingsProfileColors.accent(colorScheme).opacity(0.3), lineWidth: 1)
                                         )
                                 )
                                 
@@ -100,7 +100,7 @@ struct PasswordChangeView: View {
                                         .fill(Color.gray.opacity(0.1))
                                         .overlay(
                                             RoundedRectangle(cornerRadius: 12)
-                                                .stroke(viewModel.newPasswordError ? .red : Color(hex: "4F46E5").opacity(0.3), lineWidth: 1)
+                                                .stroke(viewModel.newPasswordError ? .red : SettingsProfileColors.accent(colorScheme).opacity(0.3), lineWidth: 1)
                                         )
                                 )
                                 
@@ -168,7 +168,7 @@ struct PasswordChangeView: View {
                                         .fill(Color.gray.opacity(0.1))
                                         .overlay(
                                             RoundedRectangle(cornerRadius: 12)
-                                                .stroke(viewModel.confirmPasswordError ? .red : Color(hex: "4F46E5").opacity(0.3), lineWidth: 1)
+                                                .stroke(viewModel.confirmPasswordError ? .red : SettingsProfileColors.accent(colorScheme).opacity(0.3), lineWidth: 1)
                                         )
                                 )
                                 
@@ -185,7 +185,7 @@ struct PasswordChangeView: View {
                         VStack(alignment: .leading, spacing: 12) {
                             HStack {
                                 Image(systemName: "lightbulb")
-                                    .foregroundColor(Color(hex: "4F46E5"))
+                                    .foregroundColor(SettingsProfileColors.accent(colorScheme))
                                 
                                 Text(NSLocalizedString("passwordChange.securityTips", comment: "Security tips"))
                                     .font(.custom("Poppins-SemiBold", size: 16))
@@ -202,7 +202,7 @@ struct PasswordChangeView: View {
                         .padding()
                         .background(
                             RoundedRectangle(cornerRadius: 12)
-                                .fill(Color(hex: "4F46E5").opacity(0.1))
+                                .fill(SettingsProfileColors.accent(colorScheme).opacity(0.1))
                         )
                         .padding(.horizontal)
                         
@@ -223,12 +223,16 @@ struct PasswordChangeView: View {
                                 Text(viewModel.isLoading ? "Cambiando..." : "Cambiar Contraseña")
                                     .font(.custom("Poppins-SemiBold", size: 16))
                             }
-                            .foregroundColor(.white)
+                            .foregroundColor(
+                                viewModel.isFormValid
+                                    ? SettingsProfileColors.accentContrastingText(colorScheme)
+                                    : .white
+                            )
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 16)
                             .background(
                                 RoundedRectangle(cornerRadius: 12)
-                                    .fill(viewModel.isFormValid ? Color(hex: "4F46E5") : Color.gray)
+                                    .fill(viewModel.isFormValid ? SettingsProfileColors.accent(colorScheme) : Color.gray)
                             )
                         }
                         .disabled(!viewModel.isFormValid || viewModel.isLoading)
@@ -274,7 +278,7 @@ struct PasswordSecurityTipRow: View {
     var body: some View {
         HStack(spacing: 8) {
             Image(systemName: icon)
-                .foregroundColor(Color(hex: "4F46E5"))
+                .foregroundColor(SettingsProfileColors.accent(colorScheme))
                 .font(.system(size: 12))
             
             Text(text)

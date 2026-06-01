@@ -1,5 +1,11 @@
 import SwiftUI
 
+enum StoryEditorChromeColor {
+    static func icon(_ colorScheme: ColorScheme) -> Color {
+        colorScheme == .dark ? .white : Color(hex: "0B1215")
+    }
+}
+
 struct EditingToolButton: View {
     let icon: String
     let title: String
@@ -23,6 +29,7 @@ struct EditingToolIcon: View {
     let icon: String
     var usesCustomStickerGlyph: Bool = false
     let action: () -> Void
+    @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
         Button(action: action) {
@@ -38,10 +45,10 @@ struct EditingToolIcon: View {
                         .font(.system(size: 20))
                 }
             }
-                .foregroundColor(.white)
+                .foregroundColor(StoryEditorChromeColor.icon(colorScheme))
                 .frame(width: 44, height: 44)
                 .liquidGlass(in: Circle())
-                .shadow(color: .black.opacity(0.1), radius: 4, x: 0, y: 2)
+                .shadow(color: .black.opacity(colorScheme == .dark ? 0.1 : 0.08), radius: 4, x: 0, y: 2)
         }
     }
 }

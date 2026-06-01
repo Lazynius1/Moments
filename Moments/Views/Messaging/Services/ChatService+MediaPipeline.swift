@@ -23,7 +23,7 @@ extension ChatService {
         let uploader = MediaUploadService.shared
         let videoCompression = VideoCompressionService.shared
 
-        Task {
+        Task { @MainActor in
             do {
                 let mediaFileId = UUID().uuidString
 

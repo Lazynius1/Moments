@@ -1166,40 +1166,42 @@ struct GlassmorphicChatView: View {
     
     // MARK: - Voice Recording Functions
     private func startVoiceRecording() {
-        isRecordingVoice = true
         recordingTime = 0
-        
-        // ✅ Track voice recording start
-        
-        // Iniciar timer para mostrar duración
-        recordingTimer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { _ in
-            recordingTime += 0.1
-            
-            // Límite máximo de 60 segundos
-            if recordingTime >= 60.0 {
-                stopVoiceRecording(shouldSend: true)
+
+        AudioRecordingManager.shared.startRecording { started in
+            guard started else {
+                viewModel.error = NSLocalizedString(
+                    "chat.error.microphonePermission",
+                    comment: "Microphone permission required for voice messages"
+                )
+                return
+            }
+
+            isRecordingVoice = true
+            recordingTimer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { _ in
+                recordingTime += 0.1
+                if recordingTime >= 60.0 {
+                    stopVoiceRecording(shouldSend: true)
+                }
             }
         }
-        
-        // Aquí integrarías la lógica real de grabación de audio
-        AudioRecordingManager.shared.startRecording()
     }
-    
+
     private func stopVoiceRecording(shouldSend: Bool) {
         isRecordingVoice = false
         recordingTimer?.invalidate()
         recordingTimer = nil
-        
-        // ✅ Track voice recording completion
-        
-        // Aquí obtendrías los datos del audio grabado
-        AudioRecordingManager.shared.stopRecording { audioData in
-            if shouldSend, let audioData = audioData {
-                viewModel.sendAudioMessage(audioData, duration: recordingTime)
-            }
-        }
-        
+
+        let capturedDuration = max(recordingTime, 0.1)
         recordingTime = 0
+
+        AudioRecordingManager.shared.stopRecording { [weak viewModel] audioData in
+            guard shouldSend,
+                  let audioData,
+                  !audioData.isEmpty,
+                  let viewModel else { return }
+            viewModel.sendAudioMessage(audioData, duration: capturedDuration)
+        }
     }
 }
 
@@ -1516,15 +1518,16 @@ class MomentsChatViewModel: EnhancedChatViewModel {
         
         trackMediaMessageSent(type: "audio")
         
-        // ✅ Crear mensaje local inmediatamente para feedback visual
+        // ✅ Crear mensaje local inmediatamente para feedback visual (preview local como imágenes)
         let messageId = UUID().uuidString
+        let localPreview = localOutgoingPreviewURL(data: audioData, fileExtension: "m4a")
         let tempMessage = EnhancedMessage(
             id: messageId,
             conversationId: conversationId,
             senderId: currentUserId,
             type: .audio,
             content: nil,
-            mediaUrl: nil,
+            mediaUrl: localPreview,
             thumbnailUrl: nil,
             duration: duration,
             status: .sending
@@ -1547,7 +1550,12 @@ class MomentsChatViewModel: EnhancedChatViewModel {
             DispatchQueue.main.async {
                 switch result {
                 case .success(let sentMessage):
-                    self?.updateMessageInArray(messageId: messageId, newStatus: sentMessage.status)
+                    self?.applyOutgoingMessageUpdate(
+                        messageId: messageId,
+                        status: sentMessage.status,
+                        mediaUrl: sentMessage.mediaUrl ?? localPreview,
+                        thumbnailUrl: sentMessage.thumbnailUrl
+                    )
                 case .failure(let error):
                     self?.error = String(format: NSLocalizedString("chat.error.sendAudio", comment: "Audio send error"), error.localizedDescription)
                     self?.updateMessageInArray(messageId: messageId, newStatus: .failed)

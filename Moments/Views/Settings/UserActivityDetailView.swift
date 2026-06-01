@@ -31,6 +31,7 @@ struct ActivityInteractionDetailView: View {
     @State private var gridSelectionDragTouchedIds: Set<String> = []
     @State private var pendingActivitySelectionConfirmation: ActivitySelectionConfirmationAction?
     @State private var pendingRecentlyDeletedConfirmation: RecentlyDeletedConfirmationAction?
+    @State private var recentlyDeletedInFlightAction: RecentlyDeletedConfirmationAction?
     @State private var activitySelectionSuccessBannerKey: String?
     @State private var recentlyDeletedSuccessBannerKey: String?
     @State private var recentlyDeletedAutoScrollDirection: RecentlyDeletedAutoScrollDirection?
@@ -154,6 +155,14 @@ struct ActivityInteractionDetailView: View {
                     .padding(.top, 12)
                     .transition(.move(edge: .top).combined(with: .opacity))
             }
+            if let action = recentlyDeletedInFlightAction {
+                processingBanner(
+                    titleKey: recentlyDeletedProcessingTitleKey(for: action),
+                    subtitleKey: "userActivity.simple.recentlyDeleted.processing.subtitle"
+                )
+                .padding(.top, 12)
+                .transition(.move(edge: .top).combined(with: .opacity))
+            }
         }
         .sheet(isPresented: $showingAuthorFilterSheet) {
             AuthorFilterSheet(
@@ -206,7 +215,7 @@ struct ActivityInteractionDetailView: View {
     private var mainContent: some View {
         if viewModel.isLoading {
             ProgressView(NSLocalizedString("userActivity.loading", comment: "Loading activity"))
-                .tint(Color(hex: "4F46E5"))
+                .tint(SettingsProfileColors.accent(colorScheme))
         } else if let errorMessage = viewModel.errorMessage {
             errorStateView(errorMessage: errorMessage)
         } else if category == .recentlyDeleted, recentlyDeletedKind == .stories {
@@ -1189,7 +1198,7 @@ struct ActivityInteractionDetailView: View {
                     } label: {
                         Text(NSLocalizedString("userActivity.event.archived.action.restore", comment: "Restore action"))
                             .font(.custom("Poppins-SemiBold", size: 13))
-                            .foregroundColor(Color(hex: "4F46E5"))
+                            .foregroundColor(SettingsProfileColors.accent(colorScheme))
                     }
                     .disabled(selectedCount == 0 || viewModel.isLoading)
                 }
@@ -1204,6 +1213,7 @@ struct ActivityInteractionDetailView: View {
     private var recentlyDeletedSelectionBar: some View {
         let selectedCount = selectedReactionIds.count
         let countText = String(format: NSLocalizedString("userActivity.simple.reactions.selectedCount", comment: "Selected items count"), selectedCount)
+        let isProcessing = recentlyDeletedInFlightAction != nil
 
         return VStack(spacing: 10) {
             Divider()
@@ -1231,25 +1241,47 @@ struct ActivityInteractionDetailView: View {
                             .font(.custom("Poppins-SemiBold", size: 13))
                             .foregroundColor(colorScheme == .dark ? .white.opacity(0.88) : .black.opacity(0.78))
                     }
-                    .disabled(visibleRecentlyDeletedIds.isEmpty || viewModel.isLoading)
+                    .disabled(visibleRecentlyDeletedIds.isEmpty || viewModel.isLoading || isProcessing)
 
                     Button {
                         pendingRecentlyDeletedConfirmation = .restore
                     } label: {
-                        Text(NSLocalizedString("userActivity.simple.recentlyDeleted.restore.single", comment: "Restore action"))
-                            .font(.custom("Poppins-SemiBold", size: 13))
-                            .foregroundColor(Color(hex: "4F46E5"))
+                        Group {
+                            if recentlyDeletedInFlightAction == .restore {
+                                HStack(spacing: 8) {
+                                    ProgressView()
+                                        .controlSize(.small)
+                                        .tint(colorScheme == .dark ? .white : .black)
+                                    Text(NSLocalizedString("userActivity.simple.recentlyDeleted.processingButton.restore", comment: "Restoring action"))
+                                }
+                            } else {
+                                Text(NSLocalizedString("userActivity.simple.recentlyDeleted.restore.single", comment: "Restore action"))
+                            }
+                        }
+                        .font(.custom("Poppins-SemiBold", size: 13))
+                        .foregroundColor(colorScheme == .dark ? .white : .black)
                     }
-                    .disabled(selectedCount == 0 || viewModel.isLoading)
+                    .disabled(selectedCount == 0 || viewModel.isLoading || isProcessing)
 
                     Button {
                         pendingRecentlyDeletedConfirmation = .permanentlyDelete
                     } label: {
-                        Text(NSLocalizedString("userActivity.simple.recentlyDeleted.delete.single", comment: "Delete action"))
-                            .font(.custom("Poppins-SemiBold", size: 13))
-                            .foregroundColor(.red)
+                        Group {
+                            if recentlyDeletedInFlightAction == .permanentlyDelete {
+                                HStack(spacing: 8) {
+                                    ProgressView()
+                                        .controlSize(.small)
+                                        .tint(colorScheme == .dark ? .white : .black)
+                                    Text(NSLocalizedString("userActivity.simple.recentlyDeleted.processingButton.delete", comment: "Deleting action"))
+                                }
+                            } else {
+                                Text(NSLocalizedString("userActivity.simple.recentlyDeleted.delete.single", comment: "Delete action"))
+                            }
+                        }
+                        .font(.custom("Poppins-SemiBold", size: 13))
+                        .foregroundColor(.red)
                     }
-                    .disabled(selectedCount == 0 || viewModel.isLoading)
+                    .disabled(selectedCount == 0 || viewModel.isLoading || isProcessing)
                 }
             }
             .padding(.horizontal, sectionHorizontalPadding)
@@ -1685,6 +1717,43 @@ struct ActivityInteractionDetailView: View {
         .shadow(color: Color.black.opacity(colorScheme == .dark ? 0.18 : 0.08), radius: 16, y: 6)
     }
 
+    private func processingBanner(titleKey: String, subtitleKey: String) -> some View {
+        HStack(spacing: 12) {
+            ProgressView()
+                .tint(colorScheme == .dark ? .white : .black)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(NSLocalizedString(titleKey, comment: "Processing title"))
+                    .font(.custom("Poppins-SemiBold", size: 13))
+                    .foregroundColor(colorScheme == .dark ? .white : .black)
+
+                Text(NSLocalizedString(subtitleKey, comment: "Processing subtitle"))
+                    .font(.custom("Poppins-Regular", size: 11))
+                    .foregroundColor(.gray)
+            }
+
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 12)
+        .background(.ultraThinMaterial)
+        .clipShape(Capsule())
+        .overlay(
+            Capsule()
+                .stroke(Color.white.opacity(colorScheme == .dark ? 0.10 : 0.35), lineWidth: 0.8)
+        )
+        .shadow(color: Color.black.opacity(colorScheme == .dark ? 0.18 : 0.08), radius: 16, y: 6)
+    }
+
+    private func recentlyDeletedProcessingTitleKey(for action: RecentlyDeletedConfirmationAction) -> String {
+        switch action {
+        case .restore:
+            return "userActivity.simple.recentlyDeleted.processing.restore"
+        case .permanentlyDelete:
+            return "userActivity.simple.recentlyDeleted.processing.delete"
+        }
+    }
+
     private func activitySelectionConfirmationAlert(for action: ActivitySelectionConfirmationAction) -> Alert {
         switch action {
         case .archivedRestore:
@@ -1765,8 +1834,12 @@ struct ActivityInteractionDetailView: View {
     }
 
     private func performRecentlyDeletedRestore() async {
+        await MainActor.run {
+            recentlyDeletedInFlightAction = .restore
+        }
         let result = await viewModel.restoreSelection(withIds: selectedReactionIds)
         await MainActor.run {
+            recentlyDeletedInFlightAction = nil
             switch result {
             case .success:
                 selectedReactionIds.removeAll()
@@ -1779,8 +1852,12 @@ struct ActivityInteractionDetailView: View {
     }
 
     private func performRecentlyDeletedPermanentDelete() async {
+        await MainActor.run {
+            recentlyDeletedInFlightAction = .permanentlyDelete
+        }
         let result = await viewModel.permanentlyDeleteSelection(withIds: selectedReactionIds)
         await MainActor.run {
+            recentlyDeletedInFlightAction = nil
             switch result {
             case .success:
                 selectedReactionIds.removeAll()

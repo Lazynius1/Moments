@@ -200,7 +200,7 @@ struct AuthorFilterSheet: View {
                             Spacer()
                             if selectedAuthorId == authorId {
                                 Image(systemName: "checkmark")
-                                    .foregroundColor(Color(hex: "4F46E5"))
+                                    .foregroundColor(SettingsProfileColors.accent(colorScheme))
                             }
                         }
                     }

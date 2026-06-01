@@ -95,7 +95,7 @@ struct NotificationSettingsView: View {
                                     .foregroundColor(colorScheme == .dark ? .white : .black)
                                     .overlay(
                                         RoundedRectangle(cornerRadius: 8)
-                                            .stroke(Color(hex: "4F46E5").opacity(0.5), lineWidth: 1.5)
+                                            .stroke(SettingsProfileColors.accentStroke(colorScheme, opacity: 0.5), lineWidth: 1.5)
                                     )
                                     .clipShape(RoundedRectangle(cornerRadius: 8))
                                     .scaleEffect(isSavingSchedule ? 0.98 : 1.0)
@@ -233,14 +233,15 @@ struct NotificationSettingsView: View {
             } message: {
                 Text(scheduleErrorMessage)
             }
+            .settingsSwitchTint()
         }
     }
 
     private func notificationToggleRow(title: String, isOn: Binding<Bool>) -> some View {
         Toggle(title, isOn: isOn)
+            .tint(SettingsProfileColors.toggleTint)
             .font(.custom("Poppins-Regular", size: 14))
             .foregroundColor(colorScheme == .dark ? .white : .black)
-            .tint(Color(hex: "4F46E5"))
             .padding(.vertical, 10)
     }
 }

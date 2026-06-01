@@ -629,6 +629,7 @@ struct SavedMomentsView: View {
 }
 
 private struct SavedMomentGridCard: View {
+    @Environment(\.colorScheme) private var colorScheme
     let moment: Moment
     let isRestricted: Bool
     let isMutedRestriction: Bool
@@ -740,7 +741,10 @@ private struct SavedMomentGridCard: View {
         } else {
             ZStack {
                 LinearGradient(
-                    colors: [Color(hex: "007AFF"), Color(hex: "4F46E5")],
+                    colors: [
+                        Color(hex: "007AFF"),
+                        SettingsProfileColors.accent(colorScheme)
+                    ],
                     startPoint: .topLeading,
                     endPoint: .bottomTrailing
                 )

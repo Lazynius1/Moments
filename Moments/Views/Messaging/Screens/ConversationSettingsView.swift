@@ -306,7 +306,7 @@ struct ConversationSettingsView: View {
                             .foregroundColor(adaptiveColors.tertiary)
                     }
                 }
-                .toggleStyle(SwitchToggleStyle(tint: .green))
+                .tint(SettingsProfileColors.toggleTint)
                 .onChange(of: viewModel.notificationsEnabled) { _, _ in
                     HapticManager.shared.lightImpact()
                     viewModel.toggleNotifications()
@@ -324,7 +324,7 @@ struct ConversationSettingsView: View {
                             .foregroundColor(adaptiveColors.tertiary)
                     }
                 }
-                .toggleStyle(SwitchToggleStyle(tint: .green))
+                .tint(SettingsProfileColors.toggleTint)
                 .onChange(of: viewModel.readReceiptsEnabled) { _, _ in
                     HapticManager.shared.lightImpact()
                     viewModel.toggleReadReceipts()
@@ -342,7 +342,7 @@ struct ConversationSettingsView: View {
                             .foregroundColor(adaptiveColors.tertiary)
                     }
                 }
-                .toggleStyle(SwitchToggleStyle(tint: .green))
+                .tint(SettingsProfileColors.toggleTint)
                 .onChange(of: viewModel.typingIndicatorEnabled) { _, _ in
                     HapticManager.shared.lightImpact()
                     viewModel.toggleTypingIndicator()

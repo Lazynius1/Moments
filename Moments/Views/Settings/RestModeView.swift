@@ -45,7 +45,7 @@ struct RestModeView: View {
                                     .font(.custom("Poppins-Medium", size: 16))
                                     .foregroundColor(colorScheme == .dark ? .white : .black)
                             }
-                            .tint(Color(hex: "8B5CF6")) // Violet
+                            .tint(SettingsProfileColors.toggleTint)
                             .padding(.vertical, 14)
                             .padding(.horizontal, 16)
                         }
@@ -103,20 +103,14 @@ struct RestModeView: View {
                                 Text(NSLocalizedString("settings.schedule.save", comment: "Save"))
                                     .font(.custom("Poppins-SemiBold", size: 16))
                             }
-                            .foregroundColor(.white)
+                            .foregroundColor(SettingsProfileColors.accentContrastingText(colorScheme))
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 16)
                             .background(
                                 RoundedRectangle(cornerRadius: 16)
-                                    .fill(
-                                        LinearGradient(
-                                            colors: [Color(hex: "8B5CF6"), Color(hex: "6D28D9")],
-                                            startPoint: .topLeading,
-                                            endPoint: .bottomTrailing
-                                        )
-                                    )
+                                    .fill(SettingsProfileColors.accent(colorScheme))
                             )
-                            .shadow(color: Color(hex: "8B5CF6").opacity(0.3), radius: 8, y: 4)
+                            .shadow(color: SettingsProfileColors.accent(colorScheme).opacity(0.2), radius: 8, y: 4)
                         }
                         .buttonStyle(.plain)
                         .disabled(isSaving)
@@ -126,6 +120,7 @@ struct RestModeView: View {
                 }
             }
         }
+        .settingsSwitchTint()
         .navigationTitle(NSLocalizedString("userActivity.timeSpent.restMode.title", value: "Modo descanso", comment: "Rest mode title"))
         .navigationBarTitleDisplayMode(.inline)
         .navigationBarBackButtonHidden(true)

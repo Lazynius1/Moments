@@ -5,6 +5,7 @@ struct FilterSelectorView: View {
     @Binding var selectedFilter: FilterService.FilterType
     let filters: [FilterService.FilterType]
     let baseImage: UIImage?
+    @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
         VStack(spacing: 8) {
@@ -27,7 +28,7 @@ struct FilterSelectorView: View {
 
             Text(selectedFilter.rawValue)
                 .font(.system(size: 11, weight: .bold))
-                .foregroundColor(.white)
+                .foregroundColor(StoryEditorChromeColor.icon(colorScheme))
                 .padding(.horizontal, 8)
                 .padding(.vertical, 4)
                 .liquidGlass(in: Capsule())

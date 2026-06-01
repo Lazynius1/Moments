@@ -24,6 +24,11 @@ struct StoryDrawingEditorOverlay: View {
     @State private var undoToken = 0
     @State private var redoToken = 0
     @State private var exportToken = 0
+    @Environment(\.colorScheme) private var colorScheme
+
+    private var chromeIconColor: Color {
+        StoryEditorChromeColor.icon(colorScheme)
+    }
 
     init(isPresented: Binding<Bool>, drawingImage: Binding<UIImage?>) {
         self._isPresented = isPresented
@@ -80,7 +85,7 @@ struct StoryDrawingEditorOverlay: View {
                     Button(action: { isPresented = false }) {
                         Image(systemName: "xmark")
                             .font(.title2)
-                            .foregroundColor(.white)
+                            .foregroundColor(chromeIconColor)
                             .padding(12)
                             .liquidGlass(in: Circle())
                     }
@@ -102,7 +107,7 @@ struct StoryDrawingEditorOverlay: View {
                     }) {
                         Text("creator.done")
                             .font(.system(size: 15, weight: .semibold))
-                            .foregroundColor(.white)
+                            .foregroundColor(chromeIconColor)
                             .padding(.horizontal, 14)
                             .padding(.vertical, 8)
                             .liquidGlass(in: Capsule())
@@ -231,7 +236,7 @@ struct StoryDrawingEditorOverlay: View {
         Button(action: { brush = brushType }) {
             Image(systemName: icon)
                 .font(.system(size: isSelected ? 20 : 18, weight: .semibold))
-                .foregroundColor(.white.opacity(isSelected ? 1 : 0.58))
+                .foregroundColor(chromeIconColor.opacity(isSelected ? 1 : 0.58))
                 .frame(width: 30, height: 30)
                 .scaleEffect(isSelected ? 1.08 : 1)
                 .shadow(color: .black.opacity(isSelected ? 0.18 : 0), radius: 8, y: 2)
@@ -245,7 +250,7 @@ struct StoryDrawingEditorOverlay: View {
         Button(action: action) {
             Image(systemName: icon)
                 .font(.system(size: 15, weight: .semibold))
-                .foregroundColor(.white)
+                .foregroundColor(chromeIconColor)
                 .frame(width: 38, height: 38)
                 .liquidGlass(in: Circle())
         }

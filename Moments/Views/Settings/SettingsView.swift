@@ -40,10 +40,36 @@ struct SettingsProfileColors {
         Color(UIColor.label).opacity(0.1)
     }
 
-    // Colores específicos que se mantienen
-    static let accent = Color(hex: "4F46E5")
+    /// Acento de UI adaptativo (texto, iconos, bordes) — sin índigo de marca.
+    static func accent(_ colorScheme: ColorScheme) -> Color {
+        colorScheme == .dark ? .white : .black
+    }
+
+    static func accentStroke(_ colorScheme: ColorScheme, opacity: Double = 0.3) -> Color {
+        accent(colorScheme).opacity(opacity)
+    }
+
+    static func accentBackground(_ colorScheme: ColorScheme, opacity: Double = 0.1) -> Color {
+        accent(colorScheme).opacity(opacity)
+    }
+
+    /// Texto sobre fondo de acento (botones primarios).
+    static func accentContrastingText(_ colorScheme: ColorScheme) -> Color {
+        colorScheme == .dark ? .black : .white
+    }
+
+    /// Verde del UISwitch en iOS (visible con el track activo en claro y oscuro).
+    static let toggleTint = Color(uiColor: .systemGreen)
+
     static let purple = Color(hex: "9B59B6")
     static let blue = Color(hex: "6B73FF")
+}
+
+extension View {
+    /// Aplica el tinte verde estándar de iOS a `Toggle` dentro de Ajustes.
+    func settingsSwitchTint() -> some View {
+        tint(SettingsProfileColors.toggleTint)
+    }
 }
 
 struct SettingsView: View {
@@ -284,7 +310,7 @@ struct SettingsView: View {
     private var modernLoadingView: some View {
         VStack(spacing: 20) {
             ProgressView()
-                .progressViewStyle(CircularProgressViewStyle(tint: Color(hex: "4F46E5")))
+                .progressViewStyle(CircularProgressViewStyle(tint: SettingsProfileColors.accent(colorScheme)))
                 .scaleEffect(1.5)
 
                             Text("settings.loading")

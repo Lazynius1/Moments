@@ -102,6 +102,7 @@ struct StoryEditingView: View {
     private var isTextMode: Bool { activeEditorMode == .text }
     private var isDrawingMode: Bool { activeEditorMode == .drawing }
     private var isFilterMode: Bool { activeEditorMode == .filters }
+    private var chromeIconColor: Color { StoryEditorChromeColor.icon(colorScheme) }
     private var isCanvasModeActive: Bool { activeEditorMode != .idle }
     private var showsGeneratedBackground: Bool {
         storyShouldShowGeneratedBackground(scale: imageScale, offset: imageOffset, rotation: imageRotation)
@@ -620,7 +621,7 @@ struct StoryEditingView: View {
                     }) {
                         Text(NSLocalizedString("storyTextEditor.done", comment: "Done"))
                             .font(.system(size: 15, weight: .bold))
-                            .foregroundColor(.white)
+                            .foregroundColor(chromeIconColor)
                             .padding(.horizontal, 16)
                             .padding(.vertical, 8)
                             .liquidGlass(in: Capsule())
@@ -641,7 +642,7 @@ struct StoryEditingView: View {
                                 }
                             }
                         }
-                        .foregroundColor(.white)
+                        .foregroundColor(chromeIconColor)
                         .padding(.horizontal, 12)
                         .padding(.vertical, 9)
                         .liquidGlass(in: Capsule(), interactive: true)
@@ -664,7 +665,7 @@ struct StoryEditingView: View {
                     }) {
                         Image(systemName: isFilterMode ? "chevron.left" : "xmark")
                             .font(.title2)
-                            .foregroundColor(.white)
+                            .foregroundColor(chromeIconColor)
                             .padding(12)
                             .liquidGlass(in: Circle())
                     }
@@ -677,7 +678,7 @@ struct StoryEditingView: View {
                         }) {
                             Text("creator.done")
                                 .font(.system(size: 15, weight: .semibold))
-                                .foregroundColor(.white)
+                                .foregroundColor(chromeIconColor)
                                 .padding(.horizontal, 14)
                                 .padding(.vertical, 8)
                                 .liquidGlass(in: Capsule())
@@ -686,7 +687,7 @@ struct StoryEditingView: View {
                         Button(action: { saveToGallery() }) {
                             Image(systemName: "arrow.down.circle")
                                 .font(.title2)
-                                .foregroundColor(.white)
+                                .foregroundColor(chromeIconColor)
                                 .padding(12)
                                 .liquidGlass(in: Circle())
                         }
@@ -707,7 +708,7 @@ struct StoryEditingView: View {
                                 }
                             }
                         }
-                        .foregroundColor(.white)
+                        .foregroundColor(chromeIconColor)
                         .padding(.horizontal, 12)
                         .padding(.vertical, 9)
                         .liquidGlass(in: Capsule(), interactive: true)
@@ -726,7 +727,7 @@ struct StoryEditingView: View {
                                 }
                             }
                         }
-                        .foregroundColor(.white)
+                        .foregroundColor(chromeIconColor)
                         .padding(.horizontal, 12)
                         .padding(.vertical, 9)
                         .liquidGlass(in: Capsule(), interactive: true)
@@ -824,7 +825,7 @@ struct StoryEditingView: View {
                 }) {
                     Image(systemName: "camera.filters")
                         .font(.system(size: 20))
-                        .foregroundColor(isFilterMode ? .pink : .white)
+                        .foregroundColor(isFilterMode ? .pink : chromeIconColor)
                         .frame(width: 44, height: 44)
                         .liquidGlass(in: Circle())
                         .overlay(Circle().stroke(isFilterMode ? Color.pink : Color.clear, lineWidth: 1))
@@ -836,7 +837,7 @@ struct StoryEditingView: View {
                     }) {
                         Image(systemName: "link")
                             .font(.system(size: 20))
-                            .foregroundColor(isCreatingChain ? .blue : .white)
+                            .foregroundColor(isCreatingChain ? .blue : chromeIconColor)
                             .frame(width: 44, height: 44)
                             .liquidGlass(in: Circle())
                             .overlay(Circle().stroke(isCreatingChain ? Color.blue : Color.clear, lineWidth: 1))
@@ -989,13 +990,13 @@ struct StoryEditingView: View {
                         VStack(spacing: 4) {
                             Text("\(Int(filterIntensity * 100))%")
                                 .font(.system(size: 12, weight: .bold))
-                                .foregroundColor(.white)
+                                .foregroundColor(chromeIconColor)
                                 .padding(.horizontal, 8)
                                 .padding(.vertical, 2)
                                 .liquidGlass(in: Capsule())
 
                             Slider(value: $filterIntensity, in: 0...1.0)
-                                .accentColor(.white)
+                                .tint(chromeIconColor)
                                 .padding(.horizontal, 40)
                                 .onChange(of: filterIntensity) { _, _ in
                                     applySelectedFilter()
@@ -1050,7 +1051,7 @@ struct StoryEditingView: View {
 
                 Spacer(minLength: 0)
             }
-            .foregroundColor(.white.opacity(0.86))
+            .foregroundColor(chromeIconColor.opacity(0.86))
             .padding(.horizontal, 12)
             .padding(.vertical, 9)
             .liquidGlass(in: RoundedRectangle(cornerRadius: 14, style: .continuous), interactive: false)
@@ -1614,8 +1615,8 @@ struct StoryEditingView: View {
             }) {
                 Image(systemName: "face.smiling")
                     .font(.system(size: 24, weight: .medium))
-                    .foregroundColor(.white)
-                    .shadow(color: .black.opacity(0.35), radius: 4, x: 0, y: 2)
+                    .foregroundColor(chromeIconColor)
+                    .shadow(color: .black.opacity(colorScheme == .dark ? 0.35 : 0.12), radius: 4, x: 0, y: 2)
                     .frame(width: 52, height: 52)
             }
             .buttonStyle(.plain)

@@ -475,6 +475,33 @@ class EchoService {
                 completion(sorted)
             }
     }
+
+    /// One-shot variant for counters and summaries that should not keep a live listener.
+    func fetchEchoHistoryOnce(userId: String) async -> [Echo] {
+        do {
+            let snapshot = try await db.collection("echoes")
+                .whereField("participantIds", arrayContains: userId)
+                .getDocuments()
+
+            let echoes = snapshot.documents.compactMap { doc -> Echo? in
+                var echo = try? doc.data(as: Echo.self)
+                echo?.id = doc.documentID
+                if let echo = echo, Date() < echo.expiresAt, !hasMinimumMomentPerspectives(echo) {
+                    return nil
+                }
+                return echo
+            }
+
+            for echo in echoes where echo.participantIds.isEmpty {
+                repairEcho(echo)
+            }
+
+            return echoes.sorted { $0.createdAt > $1.createdAt }
+        } catch {
+            print("Error fetching echo history once: \(error)")
+            return []
+        }
+    }
     
 
     

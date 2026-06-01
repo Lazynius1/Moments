@@ -1693,12 +1693,10 @@ class EncryptionService: ObservableObject {
             }
         }
         
-        // 3. Create loading task
-        let loadingTask = Task<SymmetricKey, Error> {
+        // 3. Create loading task (mismo actor que el servicio; evita deadlock con upload de media)
+        let loadingTask = Task { @MainActor in
             defer {
-                Task { @MainActor in
-                    self.preloadTasks.removeValue(forKey: conversationId)
-                }
+                preloadTasks.removeValue(forKey: conversationId)
             }
             return try await loadConversationKeyFromStorage(conversationId: conversationId)
         }

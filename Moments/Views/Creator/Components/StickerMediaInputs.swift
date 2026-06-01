@@ -310,13 +310,15 @@ struct AudioStickerRecordingView: View {
         duration = 0
         playbackProgress = 0
         waveformLevels = (0..<30).map { _ in Float.random(in: 0.2...0.8) }
-        isRecording = true
-        recorder.startRecording()
 
-        timer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { _ in
-            duration += 0.1
-            if duration >= 15 {
-                stopRecording()
+        recorder.startRecording { started in
+            guard started else { return }
+            isRecording = true
+            timer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { _ in
+                duration += 0.1
+                if duration >= 15 {
+                    stopRecording()
+                }
             }
         }
     }

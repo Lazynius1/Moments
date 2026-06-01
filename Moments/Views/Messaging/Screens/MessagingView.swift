@@ -1192,7 +1192,7 @@ struct GlassmorphicNewConversationView: View {
                         )
                         .font(.system(size: 17, weight: .regular))
                         .foregroundColor(colorScheme == .dark ? .white : .black)
-                        .accentColor(Color(hex: "4F46E5"))
+                        .accentColor(colorScheme == .dark ? .white : .black)
                         .onChange(of: searchText) { _, newValue in
                             viewModel.searchUsers(query: newValue)
                         }
@@ -1250,18 +1250,14 @@ struct GlassmorphicNewConversationView: View {
                                 Text("messaging.startConversation")
                             }
                             .font(.system(size: 17, weight: .semibold))
-                            .foregroundColor(.white)
+                            .foregroundColor(colorScheme == .dark ? .black : .white)
                             .frame(maxWidth: .infinity)
                             .frame(height: 58)
                             .background(
-                                LinearGradient(
-                                    colors: [Color(hex: "4F46E5"), Color(hex: "7C3AED")],
-                                    startPoint: .leading,
-                                    endPoint: .trailing
-                                )
+                                Capsule()
+                                    .fill(colorScheme == .dark ? Color.white : Color.black)
                             )
-                            .clipShape(Capsule())
-                            .shadow(color: Color(hex: "4F46E5").opacity(0.4), radius: 20, x: 0, y: 10)
+                            .shadow(color: (colorScheme == .dark ? Color.white : Color.black).opacity(0.25), radius: 20, x: 0, y: 10)
                         }
                         .padding(.horizontal, 20)
                         .padding(.bottom, 24)
@@ -1381,7 +1377,7 @@ struct GlassmorphicUserRow: View {
 
                 if isSelected {
                     Image(systemName: "checkmark.circle.fill")
-                        .foregroundColor(Color(hex: "4F46E5"))
+                        .foregroundColor(SettingsProfileColors.accent(colorScheme))
                         .font(.system(size: 20))
                 }
             }
@@ -1391,7 +1387,7 @@ struct GlassmorphicUserRow: View {
                 ZStack {
                     if isSelected {
                         RoundedRectangle(cornerRadius: 16)
-                            .fill(Color(hex: "4F46E5").opacity(0.15))
+                            .fill(SettingsProfileColors.accentBackground(colorScheme, opacity: 0.15))
                     }
                     RoundedRectangle(cornerRadius: 16)
                         .fill(colorScheme == .dark ? Color.white.opacity(0.1) : Color.black.opacity(0.05))

@@ -52,11 +52,7 @@ final class ActivitySummaryViewModel: ObservableObject, @unchecked Sendable {
             let stickerRepliesCount = ActivityCache.loadStickerReplyCount(userId: userId)
             let db = Firestore.firestore()
 
-            async let echoesCount = await withCheckedContinuation { continuation in
-                _ = EchoService.shared.fetchEchoHistory(userId: userId) { echoes in
-                    continuation.resume(returning: echoes.count)
-                }
-            }
+            async let echoes = EchoService.shared.fetchEchoHistoryOnce(userId: userId)
             async let archivedCount = await withCheckedContinuation { continuation in
                 FirestoreService.shared.fetchArchivedMoments(userId: userId) { result in
                     switch result {
@@ -108,7 +104,7 @@ final class ActivitySummaryViewModel: ObservableObject, @unchecked Sendable {
                 .recentlyDeleted: ActivityCategorySummary(count: ActivityCache.loadRecentlyDeletedCount(userId: userId), thumbnails: []),
                 .archived: ActivityCategorySummary(count: await archivedCount, thumbnails: []),
                 .storiesArchive: ActivityCategorySummary(count: (await storiesArchiveCount) ?? 0, thumbnails: []),
-                .echoes: ActivityCategorySummary(count: await echoesCount, thumbnails: []),
+                .echoes: ActivityCategorySummary(count: await echoes.count, thumbnails: []),
                 .followers: ActivityCategorySummary(count: (await followersCount) ?? 0, thumbnails: []),
                 .visits: ActivityCategorySummary(count: (await visitsCount) ?? 0, thumbnails: []),
                 .moments: ActivityCategorySummary(count: momentsCount, thumbnails: []),

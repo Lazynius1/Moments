@@ -850,6 +850,9 @@
 "chat.message.expired" = "Message expired";
 "chat.message.unsupported" = "Unsupported message";
 "chat.video.unavailable" = "Video unavailable";
+"chat.audio.unavailable" = "Audio unavailable";
+"chat.loading" = "Loading...";
+"chat.audio.duration.accessibility" = "Duration %@";
 "chat.close" = "Close";
 "chat.replying" = "Replying";
 "chat.replyingToMessage" = "Replying to a message";
@@ -1535,6 +1538,13 @@
 "loginActivity.logoutAll.title" = "Logout all sessions";
 "loginActivity.logoutAll.message" = "This will log you out of all devices. You'll need to log in again.";
 "loginActivity.logoutAll.confirm" = "Logout all";
+"loginActivity.logoutSession" = "Log out";
+"loginActivity.logoutSession.title" = "Log out";
+"loginActivity.logoutSession.message" = "This will log out %@. That device will need to sign in again.";
+"loginActivity.logoutSession.currentMessage" = "This will log you out on this device. You'll need to sign in again.";
+"loginActivity.logoutSession.confirm" = "Log out";
+"loginActivity.logoutSession.error" = "Couldn't log out that session: %@";
+"loginActivity.logoutSuccess.single.message" = "That session was closed successfully.";
 "loginActivity.cancel" = "Cancel";
 "loginActivity.error.title" = "Error";
 "loginActivity.ok" = "OK";
@@ -2880,6 +2890,11 @@
 "userActivity.simple.recentlyDeleted.confirm.delete.message" = "This will permanently delete the selected content.";
 "userActivity.simple.recentlyDeleted.success.restore" = "Content restored";
 "userActivity.simple.recentlyDeleted.success.delete" = "Content deleted permanently";
+"userActivity.simple.recentlyDeleted.processing.restore" = "Restoring content…";
+"userActivity.simple.recentlyDeleted.processing.delete" = "Deleting permanently…";
+"userActivity.simple.recentlyDeleted.processing.subtitle" = "This may take a few seconds";
+"userActivity.simple.recentlyDeleted.processingButton.restore" = "Restoring…";
+"userActivity.simple.recentlyDeleted.processingButton.delete" = "Deleting…";
 "userActivity.simple.retry" = "Retry";
 "userActivity.event.archived.action.restore" = "Restore";
 "userActivity.simple.reaction.unknown" = "Reaction";
@@ -3237,6 +3252,7 @@
 "chat.error.invalidConversation.viewOnce" = "Cannot send message: invalid conversation ID";
 "chat.error.sendImage" = "Error sending image: %@";
 "chat.error.sendAudio" = "Error sending audio: %@";
+"chat.error.microphonePermission" = "Allow microphone access in Settings to send voice messages.";
 "chat.error.sendMessage" = "Error sending message: %@";
 "common.pro" = "PRO";
 "settings.error.load" = "Error loading settings: %@";

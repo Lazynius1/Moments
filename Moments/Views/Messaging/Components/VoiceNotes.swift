@@ -3,100 +3,147 @@ import AVFoundation
 import UIKit
 import SwiftUI
 
-// MARK: - Audio Recording Manager (TU CÓDIGO EXACTO)
-class AudioRecordingManager: ObservableObject {
+// MARK: - Audio Recording Manager
+final class AudioRecordingManager: NSObject, ObservableObject {
     static let shared = AudioRecordingManager()
-    
+
     @Published var audioPower: Float = 0.0
+
     private var powerTimer: Timer?
     private var audioRecorder: AVAudioRecorder?
-    private var recordingSession: AVAudioSession?
-    
-    private init() {
-        setupAudioSession()
+    private var recordingURL: URL?
+    private var stopCompletion: ((Data?) -> Void)?
+
+    private override init() {
+        super.init()
     }
-    
-    private func setupAudioSession() {
+
+    /// Si el micrófono ya está autorizado, `completion(true)` se llama sin mostrar diálogo.
+    func startRecording(completion: @escaping (Bool) -> Void) {
+        requestMicrophonePermission { [weak self] granted in
+            guard let self else {
+                DispatchQueue.main.async { completion(false) }
+                return
+            }
+            DispatchQueue.main.async {
+                completion(granted ? self.beginRecording() : false)
+            }
+        }
+    }
+
+    func stopRecording(completion: @escaping (Data?) -> Void) {
+        powerTimer?.invalidate()
+        powerTimer = nil
+        audioPower = 0.0
+
+        guard let recorder = audioRecorder, recorder.isRecording else {
+            completion(nil)
+            return
+        }
+
+        stopCompletion = completion
+        recorder.stop()
+    }
+
+    // MARK: - Private
+
+    private func requestMicrophonePermission(_ completion: @escaping (Bool) -> Void) {
+        switch AVAudioApplication.shared.recordPermission {
+        case .granted:
+            completion(true)
+        case .denied:
+            completion(false)
+        case .undetermined:
+            AVAudioApplication.requestRecordPermission(completionHandler: completion)
+        @unknown default:
+            completion(false)
+        }
+    }
+
+    private func beginRecording() -> Bool {
         let session = AVAudioSession.sharedInstance()
-        self.recordingSession = session
-        
         do {
             try session.setCategory(.playAndRecord, mode: .default, options: [.defaultToSpeaker, .allowBluetoothHFP])
             try session.setActive(true)
         } catch {
-            print("Failed to set up audio session: \(error.localizedDescription)")
+            return false
         }
-    }
-    
-    func startRecording() {
-        setupAudioSession()
 
-        let audioFilename = getDocumentsDirectory().appendingPathComponent("recording.m4a")
-        
-        // ✅ Configuración de ALTA CALIDAD como WhatsApp/Telegram
+        let fileURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("chat_voice_\(UUID().uuidString).m4a")
+        try? FileManager.default.removeItem(at: fileURL)
+
         let settings: [String: Any] = [
             AVFormatIDKey: Int(kAudioFormatMPEG4AAC),
-            AVSampleRateKey: 44100.0,        // ✅ CD Quality (standard for voice)
-            AVNumberOfChannelsKey: 1,       // Mono
+            AVSampleRateKey: 44_100.0,
+            AVNumberOfChannelsKey: 1,
             AVEncoderAudioQualityKey: AVAudioQuality.high.rawValue,
-            AVEncoderBitRateKey: 64000,     // 64kbps is perfect for AAC mono voice
+            AVEncoderBitRateKey: 64_000
         ]
-        
+
         do {
-            audioRecorder = try AVAudioRecorder(url: audioFilename, settings: settings)
-            audioRecorder?.isMeteringEnabled = true // ✅ ENABLE METERING for waveforms
-            audioRecorder?.record()
-            
-            // Start power monitoring
+            let recorder = try AVAudioRecorder(url: fileURL, settings: settings)
+            recorder.delegate = self
+            recorder.isMeteringEnabled = true
+            guard recorder.prepareToRecord(), recorder.record() else {
+                return false
+            }
+            audioRecorder = recorder
+            recordingURL = fileURL
             startPowerMonitoring()
+            return true
         } catch {
-            print("Could not start recording: \(error.localizedDescription)")
+            return false
         }
     }
-    
+
     private func startPowerMonitoring() {
         powerTimer = Timer.scheduledTimer(withTimeInterval: 0.05, repeats: true) { [weak self] _ in
-            guard let self = self, let recorder = self.audioRecorder, recorder.isRecording else { return }
+            guard let self, let recorder = self.audioRecorder, recorder.isRecording else { return }
             recorder.updateMeters()
-            
-            // Convert decibels to power 0.0 - 1.0 range
             let decibels = recorder.averagePower(forChannel: 0)
             let level = self.normalizedPowerLevel(fromDecibels: decibels)
-            
             DispatchQueue.main.async {
                 self.audioPower = Float(level)
             }
         }
     }
-    
+
     private func normalizedPowerLevel(fromDecibels decibels: Float) -> Float {
         if decibels < -60.0 { return 0.0 }
         if decibels >= 0.0 { return 1.0 }
         return (decibels + 60.0) / 60.0
     }
-    
-    func stopRecording(completion: @escaping (Data?) -> Void) {
-        powerTimer?.invalidate()
-        powerTimer = nil
-        audioPower = 0.0
-        
-        audioRecorder?.stop()
-        
-        let audioFilename = getDocumentsDirectory().appendingPathComponent("recording.m4a")
-        
-        do {
-            let audioData = try Data(contentsOf: audioFilename)
-            completion(audioData)
-        } catch {
-            completion(nil)
-        }
-        
+
+    private func deliverRecordingResult(success: Bool) {
+        let completion = stopCompletion
+        stopCompletion = nil
         audioRecorder = nil
+
+        guard success, let url = recordingURL else {
+            recordingURL = nil
+            completion?(nil)
+            return
+        }
+
+        defer { recordingURL = nil }
+        let data = try? Data(contentsOf: url)
+        if let data, data.count > 512 {
+            completion?(data)
+        } else {
+            completion?(nil)
+        }
+        try? FileManager.default.removeItem(at: url)
     }
-    
-    private func getDocumentsDirectory() -> URL {
-        let paths = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)
-        return paths[0]
+}
+
+extension AudioRecordingManager: AVAudioRecorderDelegate {
+    func audioRecorderDidFinishRecording(_ recorder: AVAudioRecorder, successfully flag: Bool) {
+        deliverRecordingResult(success: flag)
+    }
+
+    func audioRecorderEncodeErrorDidOccur(_ recorder: AVAudioRecorder, error: Error?) {
+        deliverRecordingResult(success: false)
     }
 }
 
@@ -189,6 +236,7 @@ struct GlassmorphicAudioMessage: View {
     @State private var isPlaying = false
     @State private var currentTime: Double = 0
     @State private var audioPlayer: AVAudioPlayer?
+    @State private var playbackFileURL: URL?
     @State private var timer: Timer?
     @State private var isAudioAvailable = true
     @State private var isCheckingAvailability = true
@@ -200,6 +248,50 @@ struct GlassmorphicAudioMessage: View {
     @StateObject private var proximityManager = SimpleProximityManager()
     @Environment(\.colorScheme) var colorScheme
 
+    /// Tuyos: burbuja invertida (#FAF9F6 / #0B1215). Del otro: glass como el resto del chat.
+    private var contentColor: Color {
+        if isCurrentUser {
+            return colorScheme == .dark ? Color(hex: "0B1215") : Color(hex: "FAF9F6")
+        }
+        return adaptiveColors.messageTextColor
+    }
+
+    private var waveformInactiveColor: Color {
+        if isCurrentUser {
+            return contentColor.opacity(colorScheme == .dark ? 0.22 : 0.28)
+        }
+        return adaptiveColors.primary.opacity(colorScheme == .dark ? 0.28 : 0.22)
+    }
+
+    private var durationLabelColor: Color {
+        if isCurrentUser {
+            return contentColor.opacity(0.9)
+        }
+        return adaptiveColors.timestampColor
+    }
+
+    private var bubbleStrokeColor: Color {
+        if isCurrentUser {
+            return contentColor.opacity(0.12)
+        }
+        return adaptiveColors.messageBubbleStroke
+    }
+
+    @ViewBuilder
+    private var bubbleBackground: some View {
+        if isCurrentUser {
+            RoundedRectangle(cornerRadius: 18)
+                .fill(colorScheme == .dark ? Color(hex: "FAF9F6") : Color(hex: "0B1215"))
+        } else {
+            RoundedRectangle(cornerRadius: 18)
+                .fill(adaptiveColors.messageBubbleBackground)
+                .background(
+                    RoundedRectangle(cornerRadius: 18)
+                        .fill(.ultraThinMaterial)
+                )
+        }
+    }
+
     var body: some View {
         HStack(spacing: 12) {
             // Play/Pause button
@@ -208,18 +300,18 @@ struct GlassmorphicAudioMessage: View {
                     if isCheckingAvailability {
                         ProgressView()
                             .scaleEffect(0.8)
-                            .tint(isCurrentUser ? .white : adaptiveColors.primary)
+                            .tint(contentColor)
                     } else {
                         Image(systemName: getPlayButtonIcon())
-                            .font(.system(size: 28))
-                            .symbolRenderingMode(.hierarchical)
+                            .font(.system(size: 26, weight: .semibold))
+                            .symbolRenderingMode(.monochrome)
                     }
                     
                     if isSending, let uploadProgress = progress {
-                        MediaProgressRing(progress: uploadProgress, size: 36, lineWidth: 2)
+                        MediaProgressRing(progress: uploadProgress, size: 34, lineWidth: 2)
                     }
                 }
-                .foregroundColor(isCurrentUser ? .white : adaptiveColors.primary)
+                .foregroundColor(contentColor)
                 .frame(width: 36, height: 36)
             }
             .disabled(!isAudioAvailable || isCheckingAvailability)
@@ -229,35 +321,44 @@ struct GlassmorphicAudioMessage: View {
                     HStack(spacing: 3) {
                         ForEach(0..<20, id: \.self) { _ in
                             Rectangle()
-                                .fill(isCurrentUser ? Color.white.opacity(0.3) : adaptiveColors.primary.opacity(0.2))
+                                .fill(waveformInactiveColor)
                                 .frame(width: 3, height: 12)
                         }
                     }
                     .frame(height: 24)
                     
-                    Text("chat.loading")
+                    Text(NSLocalizedString("chat.loading", comment: "Loading audio message"))
                         .font(.custom("Poppins-Regular", size: 11))
-                        .foregroundColor(isCurrentUser ? .white.opacity(0.7) : adaptiveColors.messageTextColor.opacity(0.5))
+                        .foregroundColor(durationLabelColor)
                         
                 } else if isAudioAvailable {
-                    VisualWaveformView(
-                        levels: waveformLevels,
-                        color: isCurrentUser ? Color.white.opacity(0.3) : adaptiveColors.primary.opacity(0.2),
-                        activeColor: isCurrentUser ? .white : adaptiveColors.primary,
-                        progress: currentTime / (duration > 0 ? duration : 1)
-                    )
-                    .frame(height: 30)
-                    
-                    HStack {
-                        Text(formatDuration(isPlaying ? currentTime : duration))
-                        Spacer()
-                        if !isPlaying && duration > 0 {
-                            Image(systemName: "waveform")
-                                .font(.system(size: 10))
-                        }
+                    HStack(alignment: .center, spacing: 8) {
+                        VisualWaveformView(
+                            levels: waveformLevels,
+                            color: waveformInactiveColor,
+                            activeColor: contentColor,
+                            progress: playbackProgress
+                        )
+                        .frame(height: 30)
+                        .frame(maxWidth: .infinity)
+
+                        Text(formatDuration(displayedDurationSeconds))
+                            .font(.custom("Poppins-Medium", size: 11))
+                            .monospacedDigit()
+                            .foregroundColor(durationLabelColor)
+                            .frame(minWidth: 34, alignment: .trailing)
+                            .accessibilityLabel(
+                                Text(
+                                    String(
+                                        format: NSLocalizedString(
+                                            "chat.audio.duration.accessibility",
+                                            comment: "Voice message duration for accessibility"
+                                        ),
+                                        formatDuration(displayedDurationSeconds)
+                                    )
+                                )
+                            )
                     }
-                    .font(.custom("Poppins-Medium", size: 11))
-                    .foregroundColor(isCurrentUser ? .white.opacity(0.8) : adaptiveColors.messageTextColor.opacity(0.6))
                     
                 } else {
                     HStack(spacing: 6) {
@@ -265,42 +366,29 @@ struct GlassmorphicAudioMessage: View {
                             .font(.system(size: 14))
                             .foregroundColor(.orange)
                         
-                        Text("chat.audio.unavailable")
+                        Text(NSLocalizedString("chat.audio.unavailable", comment: "Audio message unavailable"))
                             .font(.custom("Poppins-Regular", size: 12))
-                            .foregroundColor(isCurrentUser ? .white.opacity(0.7) : adaptiveColors.messageTextColor.opacity(0.5))
+                            .foregroundColor(durationLabelColor)
                     }
                 }
             }
-            .frame(width: 140) // Fixed width for waveform consistency
+            .frame(minWidth: 168, maxWidth: 220)
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 10)
-        .background(
-            ZStack {
-                if isCurrentUser {
-                    RoundedRectangle(cornerRadius: 18)
-                        .fill(LinearGradient(
-                            colors: [Color(hex: "4F46E5"), Color(hex: "3B82F6")],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        ))
-                } else {
-                    RoundedRectangle(cornerRadius: 18)
-                        .fill(adaptiveColors.messageBubbleBackground)
-                        .background(
-                            RoundedRectangle(cornerRadius: 18)
-                                .fill(.ultraThinMaterial)
-                        )
-                }
-            }
-        )
+        .background(bubbleBackground)
         .overlay(
             RoundedRectangle(cornerRadius: 18)
-                .stroke(isCurrentUser ? Color.white.opacity(0.2) : adaptiveColors.messageBubbleStroke, lineWidth: 0.5)
+                .stroke(bubbleStrokeColor, lineWidth: 0.5)
         )
         .onAppear {
             checkAudioAvailability()
-            // Consistencia visual: si tenemos una duración guardada, generar un waveform basado en el ID del mensaje si fuera posible, si no random
+        }
+        .onChange(of: audioUrl) { _, _ in
+            checkAudioAvailability()
+        }
+        .onChange(of: isSending) { _, _ in
+            checkAudioAvailability()
         }
         .onDisappear {
             stopPlayback()
@@ -311,71 +399,66 @@ struct GlassmorphicAudioMessage: View {
         }
     }
     
-    // Función para cambiar audio (recreando el player)
-    private func switchAudioRoute(toEarpiece: Bool) {
-        guard let player = audioPlayer, player.isPlaying else { return }
-        
-        // Guardar estado actual
-        let currentTime = player.currentTime
-        let audioData = player.data
-        
-        // Parar y destruir el player completamente
-        player.stop()
-        audioPlayer = nil
-        
-        // Cambiar la configuración de audio
+    private func configurePlaybackSession(speaker: Bool) {
+        let session = AVAudioSession.sharedInstance()
         do {
-            let session = AVAudioSession.sharedInstance()
-            
-            if toEarpiece {
-                // Auricular: configurar para earpiece
-                try session.setCategory(.playAndRecord, mode: .voiceChat)
-                try session.overrideOutputAudioPort(.none)
-            } else {
-                // Altavoz: configurar para speaker
-                try session.setCategory(.playback, mode: .default)
+            if speaker {
+                try session.setCategory(.playback, mode: .default, options: [])
+                try session.setActive(true)
                 try session.overrideOutputAudioPort(.speaker)
+            } else {
+                try session.setCategory(.playAndRecord, mode: .voiceChat, options: [])
+                try session.setActive(true)
+                try session.overrideOutputAudioPort(.none)
             }
-            
-            // Recrear el player con la nueva configuración
-            if let audioData = audioData {
-                audioPlayer = try AVAudioPlayer(data: audioData)
-                audioPlayer?.currentTime = currentTime
-                audioPlayer?.play()
-            }
-            
         } catch {
-            // Si falla, recrear con configuración básica
-            if let audioData = audioData {
-                do {
-                    audioPlayer = try AVAudioPlayer(data: audioData)
-                    audioPlayer?.currentTime = currentTime
-                    audioPlayer?.play()
-                } catch {
-                    // Error silencioso
-                }
-            }
         }
     }
-    
-    // Todas tus funciones exactas
-    private func getBackgroundOpacity() -> Double {
-        if isCheckingAvailability {
-            return isCurrentUser ? 0.6 : 0.10
+
+    /// Cambia altavoz / auricular durante la reproducción (usa el archivo, no `player.data`).
+    private func switchAudioRoute(toEarpiece: Bool) {
+        guard let player = audioPlayer, player.isPlaying, let url = playbackFileURL else { return }
+
+        let currentTime = player.currentTime
+        player.stop()
+        audioPlayer = nil
+
+        configurePlaybackSession(speaker: !toEarpiece)
+
+        do {
+            let newPlayer = try AVAudioPlayer(contentsOf: url)
+            newPlayer.currentTime = currentTime
+            newPlayer.prepareToPlay()
+            guard newPlayer.play() else { return }
+            audioPlayer = newPlayer
+            isPlaying = true
+        } catch {
+            isAudioAvailable = false
         }
-        return isAudioAvailable ? (isCurrentUser ? 0.8 : 0.15) : (isCurrentUser ? 0.5 : 0.08)
     }
     
     private func getPlayButtonIcon() -> String {
         if !isAudioAvailable {
-            return "exclamationmark.circle.fill"
+            return "exclamationmark.triangle.fill"
         }
-        return isPlaying ? "pause.circle.fill" : "play.circle.fill"
+        return isPlaying ? "pause.fill" : "play.fill"
     }
     
     private func checkAudioAvailability() {
+        if isSending {
+            isAudioAvailable = true
+            isCheckingAvailability = false
+            return
+        }
+
         guard let audioUrl = audioUrl, let url = URL(string: audioUrl) else {
             isAudioAvailable = false
+            isCheckingAvailability = false
+            return
+        }
+
+        if url.isFileURL, FileManager.default.fileExists(atPath: url.path) {
+            isAudioAvailable = true
             isCheckingAvailability = false
             return
         }
@@ -440,12 +523,18 @@ struct GlassmorphicAudioMessage: View {
 
                 await MainActor.run {
                     do {
-                        self.audioPlayer = try AVAudioPlayer(contentsOf: playbackURL)
-                        self.audioPlayer?.play()
-                        self.isPlaying = true
+                        self.playbackFileURL = playbackURL
+                        self.configurePlaybackSession(speaker: true)
 
+                        let player = try AVAudioPlayer(contentsOf: playbackURL)
+                        player.prepareToPlay()
+                        guard player.play() else {
+                            self.isAudioAvailable = false
+                            return
+                        }
+                        self.audioPlayer = player
+                        self.isPlaying = true
                         self.proximityManager.startMonitoring()
-                        self.switchAudioRoute(toEarpiece: false)
 
                         self.timer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { _ in
                             if let player = self.audioPlayer {
@@ -479,6 +568,7 @@ struct GlassmorphicAudioMessage: View {
     private func stopPlayback() {
         audioPlayer?.stop()
         audioPlayer = nil
+        playbackFileURL = nil
         isPlaying = false
         currentTime = 0
         timer?.invalidate()
@@ -486,9 +576,25 @@ struct GlassmorphicAudioMessage: View {
         proximityManager.stopMonitoring()
     }
     
+    private var playbackProgress: Double {
+        guard duration > 0 else { return 0 }
+        if isPlaying { return min(1, currentTime / duration) }
+        return 0
+    }
+
+    /// En reproducción muestra el tiempo restante (estilo WhatsApp); en pausa, la duración total.
+    private var displayedDurationSeconds: Double {
+        guard duration > 0 else { return 0 }
+        if isPlaying {
+            return max(0, duration - currentTime)
+        }
+        return duration
+    }
+
     private func formatDuration(_ time: Double) -> String {
-        let minutes = Int(time) / 60
-        let seconds = Int(time) % 60
+        let totalSeconds = max(0, Int(time.rounded(.down)))
+        let minutes = totalSeconds / 60
+        let seconds = totalSeconds % 60
         return String(format: "%d:%02d", minutes, seconds)
     }
 }

@@ -146,8 +146,8 @@ enum ActivityInteractionCategory: String, CaseIterable, Identifiable {
     var accentColor: Color {
         switch self {
         case .reactions: return Color(hex: "F97316")
-        case .comments: return Color(hex: "4F46E5")
-        case .tags: return Color(hex: "8B5CF6")
+        case .comments: return Color(hex: "3B82F6")
+        case .tags: return Color(hex: "EC4899")
         case .stickerReplies: return Color(hex: "EC4899")
         case .archived: return Color(hex: "64748B")
         case .storiesArchive: return Color(hex: "0EA5E9")
@@ -156,8 +156,8 @@ enum ActivityInteractionCategory: String, CaseIterable, Identifiable {
         case .followers: return Color(hex: "10B981")
         case .visits: return Color(hex: "F59E0B")
         case .moments: return Color(hex: "0EA5E9")
-        case .reels: return Color(hex: "8B5CF6")
-        case .timeSpent: return Color(hex: "8B5CF6")
+        case .reels: return Color(hex: "0EA5E9")
+        case .timeSpent: return Color(hex: "64748B")
         case .searches: return Color(hex: "3B82F6")
         case .accountHistory: return Color(hex: "3B82F6")
         }

@@ -848,6 +848,8 @@
 "chat.message.expired" = "Missatge caducat";
 "chat.message.unsupported" = "Missatge no suportat";
 "chat.video.unavailable" = "Vídeo no disponible";
+"chat.audio.unavailable" = "Àudio no disponible";
+"chat.loading" = "Carregant...";
 "chat.close" = "Tancar";
 "chat.replying" = "Responent";
 "chat.replyingToMessage" = "Responent a un missatge";
@@ -1530,6 +1532,13 @@
 "loginActivity.logoutAll.title" = "Tancar totes les sessions";
 "loginActivity.logoutAll.message" = "Això et tancarà sessió a tots els dispositius. Hauràs de tornar a iniciar sessió.";
 "loginActivity.logoutAll.confirm" = "Tancar totes";
+"loginActivity.logoutSession" = "Tancar sessió";
+"loginActivity.logoutSession.title" = "Tancar sessió";
+"loginActivity.logoutSession.message" = "Es tancarà la sessió a %@. Aquest dispositiu haurà de tornar a iniciar sessió.";
+"loginActivity.logoutSession.currentMessage" = "Es tancarà la sessió en aquest dispositiu. Hauràs de tornar a iniciar sessió.";
+"loginActivity.logoutSession.confirm" = "Tancar sessió";
+"loginActivity.logoutSession.error" = "No s'ha pogut tancar la sessió: %@";
+"loginActivity.logoutSuccess.single.message" = "La sessió s'ha tancat correctament.";
 "loginActivity.cancel" = "Cancel·lar";
 "loginActivity.error.title" = "Error";
 "loginActivity.ok" = "D'acord";
@@ -2922,6 +2931,11 @@
 "userActivity.simple.recentlyDeleted.confirm.delete.message" = "Això esborrarà el contingut seleccionat de manera permanent.";
 "userActivity.simple.recentlyDeleted.success.restore" = "Contingut restaurat";
 "userActivity.simple.recentlyDeleted.success.delete" = "Contingut eliminat permanentment";
+"userActivity.simple.recentlyDeleted.processing.restore" = "Restaurant contingut…";
+"userActivity.simple.recentlyDeleted.processing.delete" = "Eliminant permanentment…";
+"userActivity.simple.recentlyDeleted.processing.subtitle" = "Això pot trigar uns segons";
+"userActivity.simple.recentlyDeleted.processingButton.restore" = "Restaurant…";
+"userActivity.simple.recentlyDeleted.processingButton.delete" = "Eliminant…";
 "userActivity.event.archived.action.restore" = "Restaurar";
 "userActivity.event.archived.confirm.restore.title" = "Restaurar arxivats";
 "userActivity.event.archived.confirm.restore.message" = "Vols restaurar el contingut arxivat seleccionat?";
@@ -3245,6 +3259,7 @@
 "chat.error.invalidConversation.viewOnce" = "No es pot enviar el missatge: ID de conversa no vàlid";
 "chat.error.sendImage" = "Error en enviar la imatge: %@";
 "chat.error.sendAudio" = "Error en enviar l'àudio: %@";
+"chat.error.microphonePermission" = "Permet l'accés al micròfon a Ajustos per enviar missatges de veu.";
 "chat.error.sendMessage" = "Error en enviar el missatge: %@";
 "common.pro" = "PRO";
 "settings.error.load" = "Error en carregar la configuració: %@";

@@ -161,7 +161,6 @@ struct ChainConfigurationView: View {
                                 Spacer()
                                 
                                 Toggle("", isOn: $allowOthersToContinue)
-                                    .toggleStyle(SwitchToggleStyle(tint: .blue))
                             }
                             
                             Text(NSLocalizedString("storyChains.allowOthersDescription", comment: "Allow others description"))

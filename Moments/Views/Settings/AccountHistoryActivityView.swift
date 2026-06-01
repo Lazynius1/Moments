@@ -395,7 +395,7 @@ struct AccountHistoryRowView: View {
                         HStack(alignment: .top) {
                             Text("A:")
                                 .font(.custom("Poppins-SemiBold", size: 14))
-                                .foregroundColor(Color(hex: "8B5CF6"))
+                                .foregroundColor(SettingsProfileColors.accent(colorScheme))
                             Text(newValue)
                                 .font(.custom("Poppins-Regular", size: 14))
                                 .foregroundColor(colorScheme == .dark ? .white : .black)

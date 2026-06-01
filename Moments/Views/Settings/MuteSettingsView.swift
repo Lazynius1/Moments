@@ -38,7 +38,7 @@ struct MuteSettingsView: View {
                             
                             Button(action: { showAddMutedUser = true }) {
                                 Image(systemName: "plus.circle.fill")
-                                    .foregroundColor(Color(hex: "4F46E5"))
+                                    .foregroundColor(SettingsProfileColors.accent(colorScheme))
                                     .font(.system(size: 24))
                             }
                         }
@@ -89,7 +89,7 @@ struct MuteSettingsView: View {
                             
                             Button(action: { showAddMutedWord = true }) {
                                 Image(systemName: "plus.circle.fill")
-                                    .foregroundColor(Color(hex: "4F46E5"))
+                                    .foregroundColor(SettingsProfileColors.accent(colorScheme))
                                     .font(.system(size: 24))
                             }
                         }
@@ -147,7 +147,6 @@ struct MuteSettingsView: View {
                                         .foregroundColor(.gray)
                                 }
                             }
-                            .tint(Color(hex: "4F46E5"))
                             .onChange(of: viewModel.muteNotifications) { _, _ in
                                 viewModel.saveSettings()
                             }
@@ -163,7 +162,6 @@ struct MuteSettingsView: View {
                                         .foregroundColor(.gray)
                                 }
                             }
-                            .tint(Color(hex: "4F46E5"))
                             .onChange(of: viewModel.hideFromSearch) { _, _ in
                                 viewModel.saveSettings()
                             }
@@ -178,6 +176,7 @@ struct MuteSettingsView: View {
                 .scrollContentBackground(.hidden)
             }
         }
+        .settingsSwitchTint()
         .navigationTitle(NSLocalizedString("muteSettings.navigation.title", comment: "Mute navigation title"))
         .navigationBarTitleDisplayMode(.inline)
         .navigationBarBackButtonHidden(true)
@@ -250,12 +249,12 @@ struct MutedUserRow: View {
                 showUnmuteAlert = true
             }
             .font(.custom("Poppins-Medium", size: 14))
-            .foregroundColor(Color(hex: "4F46E5"))
+            .foregroundColor(SettingsProfileColors.accent(colorScheme))
             .padding(.horizontal, 12)
             .padding(.vertical, 6)
             .background(
                 RoundedRectangle(cornerRadius: 16)
-                    .stroke(Color(hex: "4F46E5"), lineWidth: 1)
+                    .stroke(SettingsProfileColors.accent(colorScheme), lineWidth: 1)
             )
         }
                 .alert(NSLocalizedString("muteSettings.alert.activateUser.title", comment: "Activate user alert title"), isPresented: $showUnmuteAlert) {
@@ -393,12 +392,12 @@ struct AddMutedUserView: View {
                                 }
                             }
                             .font(.custom("Poppins-Medium", size: 14))
-                            .foregroundColor(isMuted ? Color(hex: "4F46E5") : .red)
+                            .foregroundColor(isMuted ? SettingsProfileColors.accent(colorScheme) : .red)
                             .padding(.horizontal, 12)
                             .padding(.vertical, 6)
                             .background(
                                 RoundedRectangle(cornerRadius: 16)
-                                    .stroke(isMuted ? Color(hex: "4F46E5") : .red, lineWidth: 1)
+                                    .stroke(isMuted ? SettingsProfileColors.accent(colorScheme) : .red, lineWidth: 1)
                             )
                         }
                         .listRowBackground(LiistRowBackground())
@@ -465,7 +464,7 @@ struct AddMutedWordView: View {
                                 .fill(Color.gray.opacity(0.1))
                                 .overlay(
                                     RoundedRectangle(cornerRadius: 12)
-                                        .stroke(Color(hex: "4F46E5").opacity(0.3), lineWidth: 1)
+                                        .stroke(SettingsProfileColors.accent(colorScheme).opacity(0.3), lineWidth: 1)
                                 )
                         )
                     
@@ -482,7 +481,7 @@ struct AddMutedWordView: View {
                             .padding(.vertical, 16)
                             .background(
                                 RoundedRectangle(cornerRadius: 12)
-                                    .fill(newWord.isEmpty ? Color.gray : Color(hex: "4F46E5"))
+                                    .fill(newWord.isEmpty ? Color.gray : SettingsProfileColors.accent(colorScheme))
                             )
                     }
                     .disabled(newWord.isEmpty)
@@ -621,7 +620,7 @@ struct LiistRowBackground: View {
         ZStack {
             Rectangle().fill(Color(colorScheme == .dark ? .black : .white).opacity(0.2))
             LinearGradient(
-                colors: [Color(colorScheme == .dark ? .white : .black).opacity(0.1), Color(hex: "4F46E5").opacity(0.05)],
+                colors: [Color(colorScheme == .dark ? .white : .black).opacity(0.1), SettingsProfileColors.accent(colorScheme).opacity(0.05)],
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             )

@@ -30,7 +30,12 @@ struct LoginActivityView: View {
                                     .font(.custom("Poppins-SemiBold", size: 16))
                                     .foregroundColor(colorScheme == .dark ? .white : .black)
                                 
-                                CurrentSessionCard(session: viewModel.currentSession)
+                                CurrentSessionCard(
+                                    session: viewModel.currentSession,
+                                    onLogout: viewModel.currentSession.map { session in
+                                        { viewModel.requestLogout(session: session) }
+                                    }
+                                )
                             }
                             .padding(.horizontal)
                             
@@ -64,7 +69,9 @@ struct LoginActivityView: View {
                                 } else {
                                     LazyVStack(spacing: 12) {
                                         ForEach(viewModel.otherSessions) { session in
-                                            SessionCard(session: session)
+                                            SessionCard(session: session) {
+                                                viewModel.requestLogout(session: session)
+                                            }
                                         }
                                     }
                                 }
@@ -121,7 +128,32 @@ struct LoginActivityView: View {
             .alert(NSLocalizedString("loginActivity.logoutSuccess.title", comment: "Sessions closed"), isPresented: $viewModel.showLogoutSuccess) {
                 Button(NSLocalizedString("loginActivity.ok", comment: "OK")) { }
             } message: {
-                Text("loginActivity.logoutSuccess.message")
+                Text(viewModel.logoutSuccessMessage)
+            }
+            .alert(
+                NSLocalizedString("loginActivity.logoutSession.title", comment: "Logout session title"),
+                isPresented: Binding(
+                    get: { viewModel.sessionPendingLogout != nil },
+                    set: { if !$0 { viewModel.sessionPendingLogout = nil } }
+                )
+            ) {
+                Button(NSLocalizedString("loginActivity.cancel", comment: "Cancel"), role: .cancel) {
+                    viewModel.sessionPendingLogout = nil
+                }
+                Button(NSLocalizedString("loginActivity.logoutSession.confirm", comment: "Logout session confirm"), role: .destructive) {
+                    viewModel.confirmLogoutPendingSession()
+                }
+            } message: {
+                if let session = viewModel.sessionPendingLogout {
+                    if viewModel.isCurrentDeviceSession(session) {
+                        Text("loginActivity.logoutSession.currentMessage")
+                    } else {
+                        Text(String(
+                            format: NSLocalizedString("loginActivity.logoutSession.message", comment: "Logout session message"),
+                            session.device
+                        ))
+                    }
+                }
             }
         }
     }
@@ -143,7 +175,8 @@ struct LoginActivityView: View {
 struct CurrentSessionCard: View {
     @Environment(\.colorScheme) var colorScheme
     let session: LoginSession?
-    
+    var onLogout: (() -> Void)?
+
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack {
@@ -162,6 +195,11 @@ struct CurrentSessionCard: View {
             
             if let session = session {
                 SessionDetails(session: session)
+
+                if let onLogout {
+                    SessionLogoutButton(action: onLogout)
+                        .padding(.top, 4)
+                }
             } else {
                 Text("loginActivity.noCurrentSession")
                     .font(.custom("Poppins-Regular", size: 14))
@@ -178,7 +216,8 @@ struct CurrentSessionCard: View {
 struct SessionCard: View {
     @Environment(\.colorScheme) var colorScheme
     let session: LoginSession
-    
+    var onLogout: (() -> Void)?
+
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
@@ -196,6 +235,10 @@ struct SessionCard: View {
             
             SessionDetails(session: session)
 
+            if let onLogout {
+                SessionLogoutButton(action: onLogout)
+            }
+
             if session.isSuspicious {
                 SessionSecurityHint(
                     text: NSLocalizedString("loginActivity.sessionAlert.locationChange", comment: "Location changed warning"),
@@ -204,7 +247,7 @@ struct SessionCard: View {
             } else if session.isNewDevice {
                 SessionSecurityHint(
                     text: NSLocalizedString("loginActivity.sessionAlert.newDevice", comment: "New device warning"),
-                    color: Color(hex: "4F46E5")
+                    color: SettingsProfileColors.accent(colorScheme)
                 )
             }
         }
@@ -213,6 +256,21 @@ struct SessionCard: View {
             Divider()
                 .opacity(0.16)
         }
+    }
+}
+
+private struct SessionLogoutButton: View {
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Text("loginActivity.logoutSession")
+                .font(.custom("Poppins-Medium", size: 13))
+                .foregroundColor(.red)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .buttonStyle(.plain)
+        .padding(.top, 2)
     }
 }
 
@@ -292,8 +350,10 @@ class LoginActivityViewModel: ObservableObject {
     @Published var currentSession: LoginSession?
     @Published var otherSessions: [LoginSession] = []
     @Published var showLogoutAllAlert = false
+    @Published var sessionPendingLogout: LoginSession?
     @Published var showError = false
     @Published var showLogoutSuccess = false
+    @Published var logoutSuccessMessage = ""
     @Published var errorMessage = ""
     @Published var isLoadingSession = false
     
@@ -363,6 +423,62 @@ class LoginActivityViewModel: ObservableObject {
         }
     }
     
+    func requestLogout(session: LoginSession) {
+        sessionPendingLogout = session
+    }
+
+    func isCurrentDeviceSession(_ session: LoginSession) -> Bool {
+        guard let currentSession else { return false }
+        return isSameSession(session, currentSession)
+    }
+
+    func confirmLogoutPendingSession() {
+        guard let session = sessionPendingLogout else { return }
+        sessionPendingLogout = nil
+        logoutSession(session)
+    }
+
+    func logoutSession(_ session: LoginSession) {
+        guard let userId = Auth.auth().currentUser?.uid else {
+            showErrorAlert(NSLocalizedString("loginActivity.error.notAuthenticated", comment: "User not authenticated error"))
+            return
+        }
+
+        let signsOutLocally = isCurrentDeviceSession(session)
+        loginService.invalidateSession(
+            userId: userId,
+            session: session,
+            signOutIfCurrentDevice: signsOutLocally
+        ) { [weak self] error in
+            DispatchQueue.main.async {
+                guard let self else { return }
+
+                if let error {
+                    self.showErrorAlert(
+                        String(
+                            format: NSLocalizedString("loginActivity.logoutSession.error", comment: "Logout session error"),
+                            error.localizedDescription
+                        )
+                    )
+                    return
+                }
+
+                self.logoutSuccessMessage = NSLocalizedString(
+                    "loginActivity.logoutSuccess.single.message",
+                    comment: "Single session closed success"
+                )
+                self.showLogoutSuccess = true
+
+                if signsOutLocally {
+                    self.currentSession = nil
+                    self.otherSessions = []
+                } else {
+                    self.otherSessions.removeAll { self.isSameSession($0, session) }
+                }
+            }
+        }
+    }
+
     func logoutAllSessions() {
         guard let userId = Auth.auth().currentUser?.uid else {
             showErrorAlert(NSLocalizedString("loginActivity.error.notAuthenticated", comment: "User not authenticated error"))
@@ -374,6 +490,10 @@ class LoginActivityViewModel: ObservableObject {
                 if let error = error {
                     self?.showErrorAlert("Error al cerrar sesiones: \(error.localizedDescription)")
                 } else {
+                    self?.logoutSuccessMessage = NSLocalizedString(
+                        "loginActivity.logoutSuccess.message",
+                        comment: "All sessions closed success"
+                    )
                     self?.showLogoutSuccess = true
                     self?.currentSession = nil
                     self?.otherSessions = []

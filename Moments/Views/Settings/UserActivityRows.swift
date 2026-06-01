@@ -592,18 +592,18 @@ struct ActivityEventRow: View {
     private var fallbackAvatar: some View {
         ZStack {
             Circle()
-                .fill(Color(hex: "4F46E5").opacity(0.13))
+                .fill(SettingsProfileColors.accentBackground(colorScheme, opacity: 0.13))
                 .frame(width: 34, height: 34)
 
             if item.icon == "EchoesIcon" || item.icon == "camera.aperture" {
                 EchoesIconView(
                     size: EchoesIconMetrics.rowAvatar,
-                    tintColor: Color(hex: "4F46E5")
+                    tintColor: SettingsProfileColors.accent(colorScheme)
                 )
             } else {
                 Image(systemName: item.icon)
                     .font(.system(size: 13, weight: .semibold))
-                    .foregroundColor(Color(hex: "4F46E5"))
+                    .foregroundColor(SettingsProfileColors.accent(colorScheme))
             }
         }
     }
@@ -961,10 +961,10 @@ struct ActivityReactionMomentCard: View {
 
         let fallback = rawValue.trimmingCharacters(in: .whitespacesAndNewlines)
         if fallback.isEmpty {
-            return ("✨", NSLocalizedString("userActivity.simple.reaction.unknown", comment: "Unknown reaction"), Color(hex: "4F46E5"))
+            return ("✨", NSLocalizedString("userActivity.simple.reaction.unknown", comment: "Unknown reaction"), Color(hex: "64748B"))
         }
 
-        return ("✨", fallback.capitalized, Color(hex: "4F46E5"))
+        return ("✨", fallback.capitalized, Color(hex: "64748B"))
     }
 }
 

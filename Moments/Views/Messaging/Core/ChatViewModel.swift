@@ -684,11 +684,13 @@ class EnhancedChatViewModel: ObservableObject {
         
         // ✅ Crear mensaje local inmediatamente para feedback visual
         let messageId = UUID().uuidString
+        let localPreview = localOutgoingPreviewURL(data: audioData, fileExtension: "m4a")
         let tempMessage = EnhancedMessage(
             id: messageId,
             conversationId: conversationId,
             senderId: currentUserId,
             type: .audio,
+            mediaUrl: localPreview,
             duration: duration,
             status: .sending
         )
@@ -708,12 +710,15 @@ class EnhancedChatViewModel: ObservableObject {
             DispatchQueue.main.async {
                 switch result {
                 case .success(let sentMessage):
-                    // ✅ Usar el estado devuelto (puede ser .pending si es offline)
-                    self?.updateMessageInArray(messageId: messageId, newStatus: sentMessage.status)
+                    self?.applyOutgoingMessageUpdate(
+                        messageId: messageId,
+                        status: sentMessage.status,
+                        mediaUrl: sentMessage.mediaUrl ?? localPreview,
+                        thumbnailUrl: sentMessage.thumbnailUrl
+                    )
                     self?.trackSuccessfulDirectMessage()
                 case .failure(let error):
                     self?.error = error.localizedDescription
-                    // Actualizar estado del mensaje temporal a fallido
                     self?.updateMessageInArray(messageId: messageId, newStatus: .failed)
                 }
             }

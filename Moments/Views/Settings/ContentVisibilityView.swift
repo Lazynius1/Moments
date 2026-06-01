@@ -194,6 +194,7 @@ struct ContentVisibilityView: View {
                     }
                 }
             }
+            .settingsSwitchTint()
             .onAppear {
                 viewModel.loadSettings {
                     isLoading = false
@@ -399,6 +400,7 @@ struct StoryInteractionSettingsView: View {
                 .padding(.bottom, 24)
             }
         }
+        .settingsSwitchTint()
     }
 }
 
@@ -431,7 +433,8 @@ struct InteractionToggleRow: View {
             Spacer()
 
             Toggle("", isOn: $isOn)
-                .toggleStyle(SwitchToggleStyle(tint: colorScheme == .dark ? .white.opacity(0.9) : .black.opacity(0.85)))
+                .labelsHidden()
+                .tint(SettingsProfileColors.toggleTint)
         }
         .padding(.vertical, 11)
         .animation(.easeInOut(duration: 0.2), value: isOn)
@@ -442,6 +445,7 @@ struct InteractionToggleRow: View {
 struct StoryAudienceSelector: View {
     @ObservedObject var viewModel: ContentVisibilityViewModel
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.colorScheme) private var colorScheme
     
     var body: some View {
         NavigationView {
@@ -460,7 +464,7 @@ struct StoryAudienceSelector: View {
                         viewModel.saveStorySettings()
                         dismiss()
                     }
-                    .foregroundColor(Color(hex: "4F46E5"))
+                    .foregroundColor(SettingsProfileColors.accent(colorScheme))
                     .fontWeight(.semibold)
                 }
             }
@@ -472,6 +476,7 @@ struct StoryAudienceSelector: View {
 struct PostAudienceSelector: View {
     @ObservedObject var viewModel: ContentVisibilityViewModel
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.colorScheme) private var colorScheme
     
     var body: some View {
         NavigationView {
@@ -490,7 +495,7 @@ struct PostAudienceSelector: View {
                         viewModel.savePostSettings()
                         dismiss()
                     }
-                    .foregroundColor(Color(hex: "4F46E5"))
+                    .foregroundColor(SettingsProfileColors.accent(colorScheme))
                     .fontWeight(.semibold)
                 }
             }

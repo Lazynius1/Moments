@@ -49,7 +49,10 @@ struct TimeSpentCardView: View {
                                 RoundedRectangle(cornerRadius: 6)
                                     .fill(
                                         LinearGradient(
-                                            colors: [Color(hex: "8B5CF6"), Color(hex: "4F46E5")], // Violet to Indigo
+                                            colors: [
+                                                SettingsProfileColors.accent(colorScheme).opacity(0.85),
+                                                SettingsProfileColors.accent(colorScheme).opacity(0.45)
+                                            ],
                                             startPoint: .top,
                                             endPoint: .bottom
                                         )

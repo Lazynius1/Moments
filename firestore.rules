@@ -1090,9 +1090,10 @@ service cloud.firestore {
       }
 
       match /loginActivity/{activityId} {
+        // Owner-only: reads, session/login merges (setData merge), and revoke-all (isActive=false).
         allow read: if request.auth != null && request.auth.uid == userId;
-        allow create: if request.auth != null;
-        allow update: if false;
+        allow create: if request.auth != null && request.auth.uid == userId;
+        allow update: if request.auth != null && request.auth.uid == userId;
         allow delete: if request.auth != null && request.auth.uid == userId;
       }
 

@@ -129,6 +129,7 @@ struct SettingsFormView: View {
             .padding(.horizontal, 20)
             .padding(.vertical, 16)
         }
+        .settingsSwitchTint()
         .onAppear {
             withAnimation(.easeOut(duration: 0.6)) {
                 animateSections = true
@@ -767,6 +768,7 @@ struct PrivacySection: View {
 
                     Toggle("", isOn: $isPrivate)
                         .labelsHidden()
+                        .tint(SettingsProfileColors.toggleTint)
                         .onChange(of: isPrivate) { _, newValue in
                             viewModel.updatePrivacySettings(isPrivate: newValue)
                         }
@@ -825,6 +827,7 @@ struct PrivacySection: View {
 
                 Toggle("", isOn: $showReadReceipts)
                     .labelsHidden()
+                    .tint(SettingsProfileColors.toggleTint)
                     .onChange(of: showReadReceipts) { _, newValue in
                         viewModel.updateReadReceiptsPrivacy(enabled: newValue)
                     }
@@ -933,6 +936,7 @@ struct ConnectionVisibilityView: View {
                     .padding(.vertical, 22)
                 }
             }
+        .settingsSwitchTint()
         .navigationTitle(NSLocalizedString("settings.connectionPrivacy", comment: "Connection Privacy"))
         .navigationBarTitleDisplayMode(.inline)
         .navigationBarBackButtonHidden(true) // Ocultar botón de atrás
@@ -968,7 +972,8 @@ struct ConnectionVisibilityView: View {
             Spacer()
 
             Toggle("", isOn: isOn)
-                .tint(Color(hex: "4F46E5"))
+                .labelsHidden()
+                .tint(SettingsProfileColors.toggleTint)
         }
         .padding(.vertical, 11)
     }

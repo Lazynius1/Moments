@@ -172,6 +172,37 @@ final class RealLoginActivityService: NSObject, ObservableObject {
         }
     }
 
+    func invalidateSession(
+        userId: String,
+        session: LoginSession,
+        signOutIfCurrentDevice: Bool,
+        completion: @escaping (Error?) -> Void
+    ) {
+        let documentId: String
+        if session.id == "local_current_session" {
+            documentId = hash(currentDeviceFingerprint())
+        } else {
+            documentId = session.id
+        }
+
+        let now = Timestamp(date: Date())
+        db.collection("users")
+            .document(userId)
+            .collection("loginActivity")
+            .document(documentId)
+            .setData([
+                "isActive": false,
+                "sessionRevokedAt": now,
+                "sessionRevokedReason": "user_requested_logout_single",
+                "updatedAt": now
+            ], merge: true) { error in
+                if error == nil, signOutIfCurrentDevice {
+                    DispatchQueue.main.async { try? Auth.auth().signOut() }
+                }
+                completion(error)
+            }
+    }
+
     func invalidateAllSessions(userId: String, completion: @escaping (Error?) -> Void) {
         db.collection("users")
             .document(userId)
