@@ -2002,6 +2002,56 @@ async function removeInvalidToken(userId, fcmToken) {
   }
 }
 
+function buildMessageRequestConversationPreview(messageType, messageText) {
+  const trimmed = typeof messageText === 'string' ? messageText.trim() : '';
+  if (messageType === 'text' && trimmed) {
+    return trimmed;
+  }
+
+  switch (messageType) {
+    case 'image':
+    case 'viewOnceImage':
+      return '📷';
+    case 'video':
+    case 'viewOnceVideo':
+      return '🎥';
+    case 'audio':
+      return '🎵';
+    case 'gif':
+      return '🎞';
+    case 'location':
+      return '📍';
+    case 'file':
+      return '📎';
+    case 'sharedMoment':
+      return '📸';
+    default:
+      return trimmed || '💬';
+  }
+}
+
+async function findExistingDirectConversation(userAId, userBId) {
+  const snap = await admin.firestore()
+    .collection('conversations')
+    .where('participants', 'array-contains', userAId)
+    .get();
+
+  return snap.docs.find((doc) => {
+    const participants = Array.isArray(doc.get('participants')) ? doc.get('participants') : [];
+    return participants.length === 2 && participants.includes(userBId);
+  }) || null;
+}
+
+function isActiveUserData(userData) {
+  return !userData || userData.isActive !== false;
+}
+
+function usersAreBlocked(userAData, userAId, userBData, userBId) {
+  const userABlocked = Array.isArray(userAData?.blockedUsers) ? userAData.blockedUsers : [];
+  const userBBlocked = Array.isArray(userBData?.blockedUsers) ? userBData.blockedUsers : [];
+  return userABlocked.includes(userBId) || userBBlocked.includes(userAId);
+}
+
 function parseTimeToMinutes(value) {
   if (typeof value !== 'string') return null;
   const parts = value.split(':');
@@ -4240,6 +4290,189 @@ async function sendMutualConnectionNotification(receiverData, senderData, receiv
   }
 }
 
+exports.acceptMessageRequest = onRequest(
+  {
+    timeoutSeconds: 30
+  },
+  async (req, res) => {
+    setProxyCors(res);
+    if (req.method === 'OPTIONS') {
+      res.status(204).send('');
+      return;
+    }
+
+    if (req.method !== 'POST') {
+      res.status(405).json({ error: 'Method not allowed' });
+      return;
+    }
+
+    const receiverId = await verifyFirebaseAuth(req, res);
+    if (!receiverId) return;
+
+    const body = parseJsonBody(req);
+    const requestId = typeof body.requestId === 'string' ? body.requestId.trim() : '';
+    if (!requestId) {
+      res.status(400).json({ error: 'Missing requestId' });
+      return;
+    }
+
+    const db = admin.firestore();
+    const requestRef = db.collection('messageRequests').doc(requestId);
+
+    try {
+      const requestData = await db.runTransaction(async (tx) => {
+        const requestSnap = await tx.get(requestRef);
+        if (!requestSnap.exists) {
+          throw new Error('REQUEST_NOT_FOUND');
+        }
+
+        const data = requestSnap.data() || {};
+        if (data.receiverId !== receiverId) {
+          throw new Error('REQUEST_FORBIDDEN');
+        }
+
+        if (data.status !== 'pending' && data.status !== 'accepted') {
+          throw new Error('REQUEST_NOT_PENDING');
+        }
+
+        if (data.status === 'pending') {
+          tx.update(requestRef, {
+            status: 'accepted',
+            acceptedAt: admin.firestore.FieldValue.serverTimestamp(),
+            acceptedBy: receiverId
+          });
+        }
+
+        return {
+          id: requestSnap.id,
+          senderId: data.senderId || '',
+          receiverId: data.receiverId || '',
+          message: data.message || '',
+          messageType: data.messageType || 'text',
+          mediaUrl: data.mediaUrl || null,
+          thumbnailUrl: data.thumbnailUrl || null
+        };
+      });
+
+      if (!requestData.senderId || !requestData.receiverId) {
+        res.status(400).json({ error: 'Invalid message request' });
+        return;
+      }
+
+      const participants = [requestData.senderId, requestData.receiverId].sort();
+      const [senderDoc, receiverDoc, existingConversation] = await Promise.all([
+        db.doc(`users/${requestData.senderId}`).get(),
+        db.doc(`users/${requestData.receiverId}`).get(),
+        findExistingDirectConversation(requestData.senderId, requestData.receiverId)
+      ]);
+
+      if (!senderDoc.exists || !receiverDoc.exists) {
+        res.status(404).json({ error: 'User not found', errorCode: 'USER_NOT_FOUND' });
+        return;
+      }
+
+      const senderData = senderDoc.data() || {};
+      const receiverData = receiverDoc.data() || {};
+
+      if (!isActiveUserData(senderData) || !isActiveUserData(receiverData)) {
+        res.status(409).json({ error: 'One of the users is inactive', errorCode: 'INACTIVE_USER' });
+        return;
+      }
+
+      if (usersAreBlocked(senderData, requestData.senderId, receiverData, requestData.receiverId)) {
+        res.status(403).json({ error: 'Blocked relationship', errorCode: 'BLOCKED_RELATIONSHIP' });
+        return;
+      }
+
+      const participantData = {
+        [requestData.senderId]: {
+          userId: requestData.senderId,
+          username: senderData.username || '',
+          profileImagePath: senderData.profileImagePath || '',
+          lastUpdated: admin.firestore.FieldValue.serverTimestamp()
+        },
+        [requestData.receiverId]: {
+          userId: requestData.receiverId,
+          username: receiverData.username || '',
+          profileImagePath: receiverData.profileImagePath || '',
+          lastUpdated: admin.firestore.FieldValue.serverTimestamp()
+        }
+      };
+
+      const conversationRef = existingConversation
+        ? existingConversation.ref
+        : db.collection('conversations').doc();
+      const conversationId = conversationRef.id;
+      const messageId = `request_${requestId}`;
+      const messageRef = conversationRef.collection('messages').doc(messageId);
+      const preview = buildMessageRequestConversationPreview(requestData.messageType, requestData.message);
+
+      const batch = db.batch();
+      const baseConversationData = {
+        participants,
+        participantData,
+        lastMessage: preview,
+        timestamp: admin.firestore.FieldValue.serverTimestamp(),
+        readStatus: {
+          [requestData.senderId]: true,
+          [requestData.receiverId]: true
+        }
+      };
+
+      if (existingConversation) {
+        batch.set(conversationRef, {
+          ...baseConversationData,
+          deletedFor: admin.firestore.FieldValue.arrayRemove(requestData.senderId, requestData.receiverId)
+        }, { merge: true });
+      } else {
+        batch.set(conversationRef, baseConversationData, { merge: true });
+      }
+
+      batch.set(messageRef, {
+        id: messageId,
+        conversationId,
+        senderId: requestData.senderId,
+        content: requestData.message || '',
+        type: requestData.messageType,
+        status: 'sent',
+        isRead: true,
+        isDeleted: false,
+        isViewed: false,
+        processed: true,
+        sourceRequestId: requestId,
+        timestamp: admin.firestore.FieldValue.serverTimestamp(),
+        ...(requestData.mediaUrl ? { mediaUrl: requestData.mediaUrl } : {}),
+        ...(requestData.thumbnailUrl ? { thumbnailUrl: requestData.thumbnailUrl } : {})
+      }, { merge: true });
+
+      batch.delete(requestRef);
+      await batch.commit();
+
+      res.status(200).json({
+        success: true,
+        conversationId,
+        messageId
+      });
+    } catch (error) {
+      if (error.message === 'REQUEST_NOT_FOUND') {
+        res.status(404).json({ error: 'Message request not found', errorCode: 'REQUEST_NOT_FOUND' });
+        return;
+      }
+      if (error.message === 'REQUEST_FORBIDDEN') {
+        res.status(403).json({ error: 'Forbidden', errorCode: 'REQUEST_FORBIDDEN' });
+        return;
+      }
+      if (error.message === 'REQUEST_NOT_PENDING') {
+        res.status(409).json({ error: 'Message request is no longer pending', errorCode: 'REQUEST_NOT_PENDING' });
+        return;
+      }
+
+      console.error('acceptMessageRequest error:', error);
+      res.status(500).json({ error: 'Failed to accept message request', errorCode: 'REQUEST_ACCEPT_FAILED' });
+    }
+  }
+);
+
 // 💬 MENSAJES DIRECTOS
 exports.onMessageAdded = onDocumentCreated('conversations/{conversationId}/messages/{messageId}', async (event) => {
   const snap = event.data;
@@ -4251,7 +4484,11 @@ exports.onMessageAdded = onDocumentCreated('conversations/{conversationId}/messa
     if (!conversationDoc.exists) return null;
 
     const conversationData = conversationDoc.data();
-    const participants = conversationData.participants;
+    const participants = Array.isArray(conversationData.participants) ? conversationData.participants : [];
+    if (!participants.includes(message.senderId)) {
+      console.warn(`⚠️ Ignorando mensaje ${messageId}: senderId no pertenece a ${conversationId}`);
+      return null;
+    }
     const receivers = participants.filter(p => p !== message.senderId);
 
     const senderDoc = await admin.firestore().doc(`users/${message.senderId}`).get();

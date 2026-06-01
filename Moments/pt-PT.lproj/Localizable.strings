@@ -3644,6 +3644,9 @@
 "messaging.error.userDataIncomplete" = "Dados do utilizador incompletos.";
 "messaging.error.messageRequestRequired" = "Os utilizadores não se seguem mutuamente. É necessário um pedido de mensagem.";
 "messaging.error.fileUrlUnavailable" = "Não foi possível obter o URL do ficheiro.";
+"messageRequests.acceptError.notAvailable" = "Este pedido de mensagem já não está disponível.";
+"messageRequests.acceptError.forbidden" = "Não podes aceitar este pedido de mensagem.";
+"messageRequests.acceptError.server" = "Não foi possível aceitar o pedido de mensagem.";
 
 /* User Activity Simple */
 "userActivity.simple.headline" = "Um lugar para gerires toda a tua atividade";

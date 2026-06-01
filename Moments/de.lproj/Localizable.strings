@@ -2834,6 +2834,9 @@
 "messaging.error.userDataIncomplete" = "Unvollständige Nutzerdaten.";
 "messaging.error.messageRequestRequired" = "Die Nutzer folgen einander nicht. Eine Nachrichtenanfrage ist erforderlich.";
 "messaging.error.fileUrlUnavailable" = "Datei-URL konnte nicht abgerufen werden.";
+"messageRequests.acceptError.notAvailable" = "Diese Nachrichtenanfrage ist nicht mehr verfügbar.";
+"messageRequests.acceptError.forbidden" = "Du kannst diese Nachrichtenanfrage nicht annehmen.";
+"messageRequests.acceptError.server" = "Die Nachrichtenanfrage konnte nicht angenommen werden.";
 
 /* User Activity Simple */
 "userActivity.simple.headline" = "Hier verwaltest du deine gesamte Aktivität";

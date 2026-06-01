@@ -2,6 +2,7 @@ import Foundation
 import FirebaseFirestore
 import FirebaseAuth
 import FirebaseStorage
+import FirebaseCore
 import Combine
 
 class MessageRequestService: ObservableObject {
@@ -16,6 +17,16 @@ class MessageRequestService: ObservableObject {
     
     private var listeners: [String: ListenerRegistration] = [:]
     private var authHandle: AuthStateDidChangeListenerHandle?
+
+    private enum AcceptRequestServerErrorCode: String {
+        case requestNotFound = "REQUEST_NOT_FOUND"
+        case requestForbidden = "REQUEST_FORBIDDEN"
+        case requestNotPending = "REQUEST_NOT_PENDING"
+        case userNotFound = "USER_NOT_FOUND"
+        case inactiveUser = "INACTIVE_USER"
+        case blockedRelationship = "BLOCKED_RELATIONSHIP"
+        case requestAcceptFailed = "REQUEST_ACCEPT_FAILED"
+    }
     
     // MARK: - Initialization
     init() {
@@ -37,6 +48,22 @@ class MessageRequestService: ObservableObject {
             Auth.auth().removeStateDidChangeListener(authHandle)
         }
         removeAllListeners()
+    }
+
+    private func localizedAcceptRequestError(code: AcceptRequestServerErrorCode?, fallbackStatusCode: Int? = nil) -> String {
+        switch code {
+        case .requestForbidden:
+            return NSLocalizedString("messageRequests.acceptError.forbidden", comment: "Message request cannot be accepted by this user")
+        case .requestNotFound, .requestNotPending, .userNotFound, .inactiveUser, .blockedRelationship:
+            return NSLocalizedString("messageRequests.acceptError.notAvailable", comment: "Message request is no longer available")
+        case .requestAcceptFailed:
+            return NSLocalizedString("messageRequests.acceptError.server", comment: "Message request acceptance failed")
+        case .none:
+            if fallbackStatusCode == 401 {
+                return NSLocalizedString("messaging.error.notAuthenticated", comment: "User not authenticated.")
+            }
+            return NSLocalizedString("messageRequests.acceptError.server", comment: "Message request acceptance failed")
+        }
     }
     
     // MARK: - Listeners Management
@@ -331,20 +358,71 @@ class MessageRequestService: ObservableObject {
     // MARK: - Accept Request
     func acceptRequest(_ request: MessageRequest, completion: @escaping (Result<Void, Error>) -> Void) {
         guard let requestId = request.id else {
-            completion(.failure(NSError(domain: "Request", code: 400, userInfo: [NSLocalizedDescriptionKey: "ID de solicitud no válido"])))
+            completion(.failure(NSError(domain: "Request", code: 400, userInfo: [NSLocalizedDescriptionKey: NSLocalizedString("messageRequests.acceptError.notAvailable", comment: "Message request is no longer available")])))
             return
         }
-        
-        // Crear conversación desde la solicitud primero
-        createConversationFromRequest(request) { [weak self] result in
-            switch result {
-            case .success:
-                // Eliminar la solicitud después de crear la conversación
-                self?.db.collection("messageRequests").document(requestId).delete { _ in
+
+        guard let currentUser = Auth.auth().currentUser else {
+            completion(.failure(NSError(domain: "Auth", code: 401, userInfo: [NSLocalizedDescriptionKey: NSLocalizedString("messaging.error.notAuthenticated", comment: "User not authenticated.")])))
+            return
+        }
+
+        guard currentUser.uid == request.receiverId else {
+            completion(.failure(NSError(domain: "MessageRequest", code: 403, userInfo: [NSLocalizedDescriptionKey: NSLocalizedString("messageRequests.acceptError.forbidden", comment: "Message request cannot be accepted by this user")])))
+            return
+        }
+
+        isLoading = true
+
+        Task {
+            do {
+                let idToken = try await currentUser.getIDToken()
+                let projectId = FirebaseApp.app()?.options.projectID ?? ""
+                let region = "europe-southwest1"
+
+                guard let url = URL(string: "https://\(region)-\(projectId).cloudfunctions.net/acceptMessageRequest") else {
+                    throw NSError(domain: "MessageRequest", code: 400, userInfo: [NSLocalizedDescriptionKey: NSLocalizedString("messaging.error.serviceUnavailable", comment: "Messaging service unavailable.")])
+                }
+
+                var urlRequest = URLRequest(url: url)
+                urlRequest.httpMethod = "POST"
+                urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
+                urlRequest.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
+                urlRequest.httpBody = try JSONSerialization.data(withJSONObject: ["requestId": requestId])
+                urlRequest.timeoutInterval = 15
+
+                let (data, response) = try await URLSession.shared.data(for: urlRequest)
+                guard let httpResponse = response as? HTTPURLResponse else {
+                    throw NSError(domain: "MessageRequest", code: -1, userInfo: [NSLocalizedDescriptionKey: NSLocalizedString("messaging.error.serviceUnavailable", comment: "Messaging service unavailable.")])
+                }
+
+                guard httpResponse.statusCode == 200 else {
+                    let serverErrorCode: AcceptRequestServerErrorCode? = {
+                        guard
+                            let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                            let errorCode = json["errorCode"] as? String
+                        else {
+                            return nil
+                        }
+                        return AcceptRequestServerErrorCode(rawValue: errorCode)
+                    }()
+
+                    throw NSError(
+                        domain: "MessageRequest",
+                        code: httpResponse.statusCode,
+                        userInfo: [NSLocalizedDescriptionKey: localizedAcceptRequestError(code: serverErrorCode, fallbackStatusCode: httpResponse.statusCode)]
+                    )
+                }
+
+                await MainActor.run {
+                    self.isLoading = false
                     completion(.success(()))
                 }
-            case .failure(let error):
-                completion(.failure(error))
+            } catch {
+                await MainActor.run {
+                    self.isLoading = false
+                    completion(.failure(error))
+                }
             }
         }
     }
@@ -377,76 +455,6 @@ class MessageRequestService: ObservableObject {
                 completion(.failure(error))
             } else {
                 completion(.success(()))
-            }
-        }
-    }
-    
-    // MARK: - Create Conversation From Request
-    private func createConversationFromRequest(_ request: MessageRequest, completion: @escaping (Result<Void, Error>) -> Void) {
-        Task { @MainActor [weak self] in
-            let chatService = ChatService.shared
-            chatService.createBidirectionalConversation(user1Id: request.senderId, user2Id: request.receiverId) { [weak self] result in
-                switch result {
-                case .success(let conversationId):
-                    // Enviar el mensaje original de la solicitud
-                    self?.sendOriginalMessage(from: request, in: conversationId) { messageResult in
-                        switch messageResult {
-                        case .success:
-                            completion(.success(()))
-                        case .failure:
-                            // Aún completamos con éxito porque la conversación se creó
-                            completion(.success(()))
-                        }
-                    }
-                case .failure(let error):
-                    completion(.failure(error))
-                }
-            }
-        }
-    }
-    
-    // MARK: - Send Original Message
-    private func sendOriginalMessage(from request: MessageRequest, in conversationId: String, completion: @escaping (Result<Void, Error>) -> Void) {
-        
-        // Crear el mensaje usando el sistema de encriptación
-        let message = EnhancedMessage(
-            id: UUID().uuidString,
-            conversationId: conversationId,
-            senderId: request.senderId,
-            type: request.messageType,
-            content: request.message,
-            mediaUrl: request.mediaUrl,
-            thumbnailUrl: request.thumbnailUrl,
-            duration: nil,
-            fileName: nil,
-            fileSize: nil,
-            latitude: nil,
-            longitude: nil,
-            timestamp: request.timestamp,
-            status: .sent,
-            isRead: false,
-            isDeleted: false,
-            deletedAt: nil,
-            editedAt: nil,
-            reactions: nil,
-            replyTo: nil,
-            expirationDate: nil,
-            isViewed: false,
-            storyReplyData: nil,
-            sharedMomentData: nil,
-            sharedStoryData: nil
-        )
-        
-        // Usar ChatService.shared para enviar el mensaje con encriptación
-        Task { @MainActor in
-            let chatService = ChatService.shared
-            chatService.sendMessage(message, useServerTimestamp: true) { result in
-                switch result {
-                case .success:
-                    completion(.success(()))
-                case .failure(let error):
-                    completion(.failure(error))
-                }
             }
         }
     }

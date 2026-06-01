@@ -2847,6 +2847,9 @@
 "messaging.error.userDataIncomplete" = "Dades d'usuari incompletes.";
 "messaging.error.messageRequestRequired" = "Els usuaris no se segueixen mútuament. Cal una sol·licitud de missatge.";
 "messaging.error.fileUrlUnavailable" = "No s'ha pogut obtenir l'URL del fitxer.";
+"messageRequests.acceptError.notAvailable" = "Aquesta sol·licitud de missatge ja no està disponible.";
+"messageRequests.acceptError.forbidden" = "No pots acceptar aquesta sol·licitud de missatge.";
+"messageRequests.acceptError.server" = "No s'ha pogut acceptar la sol·licitud de missatge.";
 "profile.moreInfo" = "Més informació";
 
 /* User Activity Simple */
