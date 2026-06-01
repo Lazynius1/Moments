@@ -252,7 +252,7 @@ struct StoriesView: View {
 
     // Verificar si debe mostrar anuncio
     private func shouldShowStoryAd() -> Bool {
-        let shouldShow = (otherUsersStoryCount % 1 == 0) &&
+        let shouldShow = (otherUsersStoryCount % 4 == 0) &&
                         otherUsersStoryCount > 0 &&
                         PlusStatusHelper.shouldShowAds(for: authService.currentUser)
 
