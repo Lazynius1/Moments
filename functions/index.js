@@ -5524,7 +5524,8 @@ exports.deleteMyAccount = onRequest(
       const userRef = db.collection('users').doc(uid);
       const userSnap = await userRef.get();
       const userData = userSnap.exists ? (userSnap.data() || {}) : {};
-      const username = typeof userData.username === 'string' ? userData.username.trim().toLowerCase() : '';
+      const rawUsername = userData.username;
+      const normalizedUsername = typeof rawUsername === 'string' ? rawUsername.trim().toLowerCase() : '';
 
       if (userSnap.exists) {
         await userRef.set({
@@ -5618,8 +5619,16 @@ exports.deleteMyAccount = onRequest(
         deleteStoragePrefix(`messages/${uid}/`)
       ]);
 
-      if (username) {
-        await db.collection('usernames').doc(username).delete();
+      if (normalizedUsername) {
+        const usernameRef = db.collection('usernames').doc(normalizedUsername);
+        const usernameSnap = await usernameRef.get();
+        const usernameOwnerId = usernameSnap.exists ? usernameSnap.get('userId') : null;
+
+        if (usernameOwnerId === uid) {
+          await usernameRef.delete();
+        } else if (usernameSnap.exists) {
+          console.warn(`deleteMyAccount: skipped username cleanup for ${normalizedUsername}; owner ${usernameOwnerId || 'unknown'} does not match uid=${uid}`);
+        }
       }
 
       if (typeof db.recursiveDelete === 'function') {
