@@ -63,6 +63,7 @@ struct FeedView: View {
     @State private var hasUnreadMessages: Bool = false
     @State private var showSpecificUserStories = false
     @State private var selectedStoryUserId: String = ""
+    @State private var storyRingNavigationUserIds: [String] = []
     @State private var selectedHashtag: String = ""
     @State private var showExploreWithHashtag = false
     @State private var showGlobalContextMenu = false
@@ -273,6 +274,7 @@ struct FeedView: View {
             firestoreService: firestoreService,
             onOpenUserProfile: openUserProfile,
             onOpenStory: { _, authorId in
+                syncStoryRingNavigationOrder()
                 if let authorId, !authorId.isEmpty {
                     selectedStoryUserId = authorId
                     showSpecificUserStories = true
@@ -309,6 +311,7 @@ struct FeedView: View {
             showMessages: $showMessages,
             showSpecificUserStories: $showSpecificUserStories,
             selectedStoryUserId: $selectedStoryUserId,
+            storyRingNavigationUserIds: $storyRingNavigationUserIds,
             showStories: $showStories,
             selectedMoment: $selectedMoment,
             showExploreWithHashtag: $showExploreWithHashtag,
@@ -339,6 +342,17 @@ struct FeedView: View {
         // Conectar UploadService con FeedViewModel
         uploadService.setFeedViewModel(viewModel)
 
+    }
+
+    private func syncStoryRingNavigationOrder() {
+        storyRingNavigationUserIds = storyRingCoordinator.ringNavigationUserIds
+    }
+
+    private func openStoryViewer(for userId: String) {
+        guard !userId.isEmpty else { return }
+        syncStoryRingNavigationOrder()
+        selectedStoryUserId = userId
+        showSpecificUserStories = true
     }
     
     // ✅ Nuevo: Solicitud de permisos de notificaciones desde el Feed en primera carga
@@ -574,8 +588,7 @@ struct FeedView: View {
                                    storyRingCoordinator.storyUsers.first?.hasStory == true && storyRingCoordinator.storyUsers.first?.userId == currentUserId {
                                     
                                     // 📖 Si tienes historia, mostrar tus historias
-                                    selectedStoryUserId = currentUserId
-                                    showSpecificUserStories = true
+                                    openStoryViewer(for: currentUserId)
 
                                     
                                 } else {
@@ -606,8 +619,7 @@ struct FeedView: View {
                                         return
                                     }
                                     
-                                    selectedStoryUserId = storyUser.userId
-                                    showSpecificUserStories = true
+                                    openStoryViewer(for: storyUser.userId)
                                 }
                             }
                         }

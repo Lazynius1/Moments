@@ -6,6 +6,7 @@ struct FeedPresentationModifier: ViewModifier {
     @Binding var showMessages: Bool
     @Binding var showSpecificUserStories: Bool
     @Binding var selectedStoryUserId: String
+    @Binding var storyRingNavigationUserIds: [String]
     @Binding var showStories: Bool
     @Binding var selectedMoment: Moment?
     @Binding var showExploreWithHashtag: Bool
@@ -48,12 +49,15 @@ struct FeedPresentationModifier: ViewModifier {
                 .environmentObject(firestoreService)
             }
             .fullScreenCover(isPresented: $showSpecificUserStories) {
-                StoriesView(startWithUserId: $selectedStoryUserId)
+                StoriesView(
+                    startAtUserId: selectedStoryUserId,
+                    ringNavigationUserIds: storyRingNavigationUserIds
+                )
                     .environmentObject(firestoreService)
                     .ignoresSafeArea(.keyboard)
             }
             .fullScreenCover(isPresented: $showStories) {
-                StoriesView()
+                StoriesView(ringNavigationUserIds: storyRingNavigationUserIds)
                     .environmentObject(firestoreService)
                     .ignoresSafeArea(.keyboard)
             }
@@ -142,6 +146,7 @@ extension View {
         showMessages: Binding<Bool>,
         showSpecificUserStories: Binding<Bool>,
         selectedStoryUserId: Binding<String>,
+        storyRingNavigationUserIds: Binding<[String]>,
         showStories: Binding<Bool>,
         selectedMoment: Binding<Moment?>,
         showExploreWithHashtag: Binding<Bool>,
@@ -171,6 +176,7 @@ extension View {
                 showMessages: showMessages,
                 showSpecificUserStories: showSpecificUserStories,
                 selectedStoryUserId: selectedStoryUserId,
+                storyRingNavigationUserIds: storyRingNavigationUserIds,
                 showStories: showStories,
                 selectedMoment: selectedMoment,
                 showExploreWithHashtag: showExploreWithHashtag,

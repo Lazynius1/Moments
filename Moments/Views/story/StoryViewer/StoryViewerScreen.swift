@@ -26,6 +26,7 @@ struct StoryViewerScreen: View {
     let onPrevious: () -> Void
     let onClose: () -> Void
     let onProfileTap: () -> Void
+    var isDeckPageActive: Bool
 
     init(
         story: Story,
@@ -41,7 +42,8 @@ struct StoryViewerScreen: View {
         onStoryDeleted: (() -> Void)? = nil,
         onPrevious: @escaping () -> Void,
         onClose: @escaping () -> Void,
-        onProfileTap: @escaping () -> Void
+        onProfileTap: @escaping () -> Void,
+        isDeckPageActive: Bool = true
     ) {
         self.story = story
         self.storyCount = storyCount
@@ -57,6 +59,7 @@ struct StoryViewerScreen: View {
         self.onPrevious = onPrevious
         self.onClose = onClose
         self.onProfileTap = onProfileTap
+        self.isDeckPageActive = isDeckPageActive
     }
 
     @State private var showMomentDetail: Bool = false
@@ -513,6 +516,13 @@ struct StoryViewerScreen: View {
                 }
                 .onChange(of: storyIndex) { oldIndex, newIndex in
                     refreshStoryPlaybackIfNeeded()
+                }
+                .onChange(of: isDeckPageActive) { _, isActive in
+                    if isActive {
+                        resumeStory()
+                    } else {
+                        pauseStory()
+                    }
                 }
         )
     }
@@ -1388,7 +1398,7 @@ struct StoryViewerScreen: View {
         holdStartLocation = nil
     }
 
-    // ✅ UNIFIED GESTURE: Drag, Swipe Up/Down/Horizontal
+    // ✅ UNIFIED GESTURE: Drag, Swipe Up, Chain horizontal
     private var unifiedDragGesture: some Gesture {
         DragGesture(minimumDistance: 8)
             .onChanged { value in
@@ -1398,14 +1408,13 @@ struct StoryViewerScreen: View {
                     return
                 }
 
-                if !playbackCoordinator.isPaused && !isHoldingStory {
+                if !playbackCoordinator.isPaused && !isHoldingStory && isDeckPageActive {
                     pauseStory()
                     withAnimation(.easeInOut(duration: 0.2)) {
                         isUIHidden = true
                     }
                 }
 
-                // Si ya se disparó una acción (nav/reply), ignorar resto del drag
                 if gestureActionTriggered { return }
 
                 // SWIPE UP (Quick Reply)
@@ -1421,7 +1430,7 @@ struct StoryViewerScreen: View {
                     }
                 }
 
-                // HORIZONTAL SWIPE (Navigation) - Solo si es cadena
+                // HORIZONTAL SWIPE — Chain navigation
                 else if story.chainId != nil, !chainStories.isEmpty {
                     if value.translation.width > 60 {
                          goToPreviousChainPart()
@@ -1443,14 +1452,13 @@ struct StoryViewerScreen: View {
                 cancelPendingHoldPause()
                 gestureActionTriggered = false
 
-                // Restaurar UI
                 if isUIHidden {
                     withAnimation(.easeInOut(duration: 0.2)) {
                         isUIHidden = false
                     }
                 }
 
-                if !isTextFieldFocused {
+                if !isTextFieldFocused && isDeckPageActive {
                     resumeStory()
                 }
             }
@@ -1866,10 +1874,13 @@ struct StoryViewerScreen: View {
 
     private func prepareAndStartStory() {
         playbackCoordinator.prepareStory(story, onImageComplete: onNext)
-
         loadAuthorInteractionSettings()
 
-        // Mark story as viewed
+        guard isDeckPageActive else {
+            playbackCoordinator.pauseStory()
+            return
+        }
+
         if let storyId = story.id {
             storyViewModel.markStoryAsViewed(
                 userId: story.authorId,
@@ -1878,7 +1889,6 @@ struct StoryViewerScreen: View {
                 audience: story.audience
             )
         }
-
     }
 
     private func stopAndCleanupStory() {
@@ -1909,7 +1919,7 @@ struct StoryViewerScreen: View {
         // ✅ REFUERZO SEGURO: No reanudar si cualquier overlay está visible o si hay teclado/drag
         let isAnyOverlayVisible = showQuickActions || showViewers || showingReportSheet || showingBlockConfirmation || showUserProfile || showChainView || showReactions || showEphemeralPicker || showBestFriendsOptOutConfirmation || showUnfollowConfirmation || showMuteConfirmation
 
-        let canResume = !isKeyboardVisible && !isDragging && !isMenuInteractionActive && !isAnyOverlayVisible
+        let canResume = !isKeyboardVisible && !isDragging && !isMenuInteractionActive && !isAnyOverlayVisible && isDeckPageActive
         playbackCoordinator.resumeStory(story, canResume: canResume, onImageComplete: onNext)
     }
 

@@ -11,6 +11,11 @@ final class FeedStoryRingCoordinator: ObservableObject {
     @Published var storyUsers: [FeedStoryUserState] = []
     @Published var isLoadingStories = true
 
+    /// Orden exacto del anillo del feed (tú + quienes tienen historia activa). Usar para swipe en el visor.
+    var ringNavigationUserIds: [String] {
+        storyUsers.filter(\.hasStory).map(\.userId)
+    }
+
     private let privacyService = PrivacyService()
     private var cachedStories: [String: Bool] = [:]
     private var cachedUnseenStories: [String: Bool] = [:]

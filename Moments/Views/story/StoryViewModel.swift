@@ -11,6 +11,20 @@ import SwiftData
 class StoryViewModel: ObservableObject {
     @Published var stories: [String: [Story]] = [:]
     @Published var sortedStoryUserIds: [String] = [] // Mantiene el orden de afinidad
+    /// Orden del ring del feed: tú primero, luego following (como en la barra horizontal).
+    @Published var ringOrderedStoryUserIds: [String] = []
+    private var lastFetchRingUserIds: [String] = []
+    /// Orden fijado desde el anillo del feed; tiene prioridad sobre fetchFollowing.
+    private var lockedRingNavigationOrder: [String] = []
+
+    func setRingNavigationOrder(_ userIds: [String]) {
+        let order = userIds.filter { !$0.isEmpty }
+        lockedRingNavigationOrder = order
+        if !order.isEmpty {
+            lastFetchRingUserIds = order
+            ringOrderedStoryUserIds = order
+        }
+    }
     @Published var hasActiveStory: Bool = false
     @Published var storyReactions: [String: [StoryReaction]] = [:] // storyId: reactions
     @Published var storyViewers: [String: [StoryViewer]] = [:] // storyId: viewers
@@ -105,20 +119,81 @@ class StoryViewModel: ObservableObject {
         }
     }
 
+    /// Carga historias de un usuario sin vaciar el resto del diccionario (vecinos del deck).
+    func mergeStoriesForUserIfNeeded(userId: String, viewerId: String) {
+        guard !userId.isEmpty, !viewerId.isEmpty else { return }
+        if let existing = stories[userId], !existing.isEmpty { return }
+
+        let cachedStories = LocalPersistenceService.shared.loadStories(userId: userId)
+        if !cachedStories.isEmpty {
+            stories[userId] = cachedStories
+        }
+
+        storyRepository.fetchActiveStories(for: userId) { [weak self] result in
+            Task { @MainActor in
+                guard let self, case .success(let allStories) = result, !allStories.isEmpty else { return }
+
+                let group = DispatchGroup()
+                var visibility: [String: Bool] = [:]
+
+                for story in allStories {
+                    guard let storyId = story.id else { continue }
+                    group.enter()
+                    self.privacyService.canUserViewStoryEnhanced(story, viewerId: viewerId) { canView in
+                        visibility[storyId] = canView
+                        group.leave()
+                    }
+                }
+
+                group.notify(queue: .main) {
+                    let visible = allStories.filter { story in
+                        guard let storyId = story.id else { return false }
+                        return visibility[storyId] == true
+                    }
+                    guard !visible.isEmpty else { return }
+
+                    self.stories[userId] = visible
+                    LocalPersistenceService.shared.saveStories(visible)
+
+                    for story in visible {
+                        if let storyId = story.id {
+                            self.fetchReactions(for: userId, storyId: storyId)
+                            self.fetchViewers(for: userId, storyId: storyId) { _ in }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     // MARK: - Obtener historias para usuarios (con conexiones opcionales)
     func fetchStories(for userId: String, includeConnections: Bool = false) {
+        if includeConnections, !lockedRingNavigationOrder.isEmpty {
+            let ringOrder = lockedRingNavigationOrder
+            lastFetchRingUserIds = ringOrder
+            ringOrderedStoryUserIds = ringOrder
+            fetchStoriesForUsers(userIds: ringOrder, viewerId: userId)
+            checkActiveStories(userId: userId)
+            return
+        }
+
         if includeConnections {
             // Usar fetchFollowing para obtener los usuarios seguidos
             firestoreService.fetchFollowing(userId: userId) { [weak self] result in
                 guard let self = self else { return }
                 switch result {
                 case .success(let followingUsers):
-                    let connectionIds = followingUsers.map { $0.id }
+                    var followingIds = followingUsers.map { $0.id }
+                    var ringOrder = [userId]
+                    ringOrder.append(contentsOf: followingIds.filter { $0 != userId })
+                    self.lastFetchRingUserIds = ringOrder
+                    self.ringOrderedStoryUserIds = ringOrder
 
-                    self.fetchStoriesForUsers(userIds: connectionIds, viewerId: userId)
+                    self.fetchStoriesForUsers(userIds: ringOrder, viewerId: userId)
                     self.checkActiveStories(userId: userId)
                 case .failure:
-                    // Fallback: solo cargar tus historias
+                    self.lastFetchRingUserIds = [userId]
+                    self.ringOrderedStoryUserIds = [userId]
                     self.fetchStoriesForUsers(userIds: [userId], viewerId: userId)
                     self.checkActiveStories(userId: userId)
                 }
@@ -209,14 +284,28 @@ class StoryViewModel: ObservableObject {
                 var finalSortedStories: [String: [Story]] = [:]
                 var finalSortedIds: [String] = []
 
-                if let container = affinityManager.modelContainer {
+                finalSortedStories = filteredStories
+
+                if !self.lastFetchRingUserIds.isEmpty {
+                    if !self.lockedRingNavigationOrder.isEmpty {
+                        finalSortedIds = self.lockedRingNavigationOrder.filter { userId in
+                            !(filteredStories[userId]?.isEmpty ?? true)
+                        }
+                    } else {
+                        finalSortedIds = self.lastFetchRingUserIds.filter { userId in
+                            !(filteredStories[userId]?.isEmpty ?? true)
+                        }
+                    }
+                    self.ringOrderedStoryUserIds = finalSortedIds.isEmpty
+                        ? self.lastFetchRingUserIds
+                        : finalSortedIds
+                } else if let container = affinityManager.modelContainer {
                     let context = SwiftData.ModelContext(container)
                     let bestFriends = Set(UserDefaults.standard.stringArray(forKey: "bestFriends") ?? [])
                     let mutuals = Set(UserDefaults.standard.stringArray(forKey: "mutuals") ?? [])
                     let storyUserIds = Array(filteredStories.keys)
                     let affinityScores = affinityManager.getScores(for: storyUserIds, in: context)
 
-                    // Convert dictionary to array of tuples to sort users by affinity
                     let userScores = filteredStories.keys.map { userId -> (userId: String, score: Double) in
                         var additionalScore = 0.0
                         let affinityScore = affinityScores[userId] ?? 0.0
@@ -233,11 +322,8 @@ class StoryViewModel: ObservableObject {
                         return (userId: userId, score: additionalScore)
                     }
 
-                    // Sort the users based on score
                     finalSortedIds = userScores.sorted { $0.score > $1.score }.map { $0.userId }
-                    finalSortedStories = filteredStories
                 } else {
-                    finalSortedStories = filteredStories
                     finalSortedIds = Array(filteredStories.keys).shuffled()
                 }
 
