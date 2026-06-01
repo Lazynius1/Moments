@@ -4240,6 +4240,237 @@ async function sendMutualConnectionNotification(receiverData, senderData, receiv
   }
 }
 
+
+function isActiveUserData(userData) {
+  return !userData || userData.isActive !== false;
+}
+
+function isValidMessageType(messageType) {
+  return [
+    'text',
+    'image',
+    'video',
+    'audio',
+    'location',
+    'file',
+    'gif',
+    'ephemeral',
+    'sharedMoment',
+    'viewOnceImage',
+    'viewOnceVideo'
+  ].includes(messageType);
+}
+
+function buildConversationParticipantData(userId, userData) {
+  return {
+    userId,
+    username: typeof userData?.username === 'string' ? userData.username : '',
+    profileImagePath: typeof userData?.profileImagePath === 'string' ? userData.profileImagePath : '',
+    lastUpdated: admin.firestore.FieldValue.serverTimestamp()
+  };
+}
+
+function conversationPreviewForMessageType(messageType) {
+  switch (messageType) {
+    case 'image':
+    case 'viewOnceImage':
+      return '📷 Foto';
+    case 'video':
+    case 'viewOnceVideo':
+      return '🎥 Video';
+    case 'audio':
+      return '🎵 Audio';
+    case 'location':
+      return '📍 Ubicación';
+    case 'file':
+      return '📎 Archivo';
+    case 'gif':
+      return 'GIF';
+    default:
+      return 'Mensaje';
+  }
+}
+
+function buildAcceptedRequestMessage(requestId, requestData, conversationId) {
+  const messageId = crypto.randomUUID();
+  const requestedMessageType = typeof requestData.messageType === 'string' ? requestData.messageType.trim() : '';
+  const messageType = isValidMessageType(requestedMessageType) ? requestedMessageType : 'text';
+  const message = {
+    id: messageId,
+    conversationId,
+    senderId: requestData.senderId,
+    receiverId: requestData.receiverId,
+    content: typeof requestData.message === 'string' ? requestData.message : '',
+    type: messageType,
+    status: 'sent',
+    timestamp: admin.firestore.FieldValue.serverTimestamp(),
+    isRead: false,
+    isDeleted: false,
+    isViewed: false,
+    sourceMessageRequestId: requestId
+  };
+
+  if (typeof requestData.mediaUrl === 'string' && requestData.mediaUrl.trim().length > 0) {
+    message.mediaUrl = requestData.mediaUrl.trim();
+  }
+  if (typeof requestData.thumbnailUrl === 'string' && requestData.thumbnailUrl.trim().length > 0) {
+    message.thumbnailUrl = requestData.thumbnailUrl.trim();
+  }
+
+  return { messageId, message };
+}
+
+// ✅ MESSAGE REQUESTS: aceptación server-side para no abrir creación de conversaciones no-mutual en reglas.
+exports.acceptMessageRequest = onRequest(
+  {
+    timeoutSeconds: 30
+  },
+  async (req, res) => {
+    setProxyCors(res);
+    if (req.method === 'OPTIONS') {
+      res.status(204).send('');
+      return;
+    }
+
+    if (req.method !== 'POST') {
+      res.status(405).json({ error: 'Method not allowed' });
+      return;
+    }
+
+    const requesterId = await verifyFirebaseAuth(req, res);
+    if (!requesterId) return;
+
+    const body = parseJsonBody(req);
+    const requestId = typeof body.requestId === 'string' ? body.requestId.trim() : '';
+    if (!requestId) {
+      res.status(400).json({ error: 'Missing requestId' });
+      return;
+    }
+
+    const db = admin.firestore();
+    const requestRef = db.collection('messageRequests').doc(requestId);
+
+    try {
+      const result = await db.runTransaction(async (tx) => {
+        const requestSnap = await tx.get(requestRef);
+        if (!requestSnap.exists) {
+          const error = new Error('Message request not found');
+          error.httpStatus = 404;
+          throw error;
+        }
+
+        const requestData = requestSnap.data() || {};
+        const senderId = typeof requestData.senderId === 'string' ? requestData.senderId.trim() : '';
+        const receiverId = typeof requestData.receiverId === 'string' ? requestData.receiverId.trim() : '';
+
+        if (!senderId || !receiverId || senderId === receiverId) {
+          const error = new Error('Invalid message request');
+          error.httpStatus = 400;
+          throw error;
+        }
+
+        if (requestData.status !== 'pending') {
+          const error = new Error('Message request is not pending');
+          error.httpStatus = 409;
+          throw error;
+        }
+
+        if (requesterId !== receiverId) {
+          const error = new Error('Only the receiver can accept this message request');
+          error.httpStatus = 403;
+          throw error;
+        }
+
+        const [senderSnap, receiverSnap, receiverBlockedSenderSnap, senderBlockedReceiverSnap, existingConversationsSnap] = await Promise.all([
+          tx.get(db.collection('users').doc(senderId)),
+          tx.get(db.collection('users').doc(receiverId)),
+          tx.get(db.collection('users').doc(receiverId).collection('blockedUsers').doc(senderId)),
+          tx.get(db.collection('users').doc(senderId).collection('blockedUsers').doc(receiverId)),
+          tx.get(db.collection('conversations').where('participants', 'array-contains', receiverId))
+        ]);
+
+        if (!senderSnap.exists || !receiverSnap.exists) {
+          const error = new Error('User not found');
+          error.httpStatus = 404;
+          throw error;
+        }
+
+        const senderData = senderSnap.data() || {};
+        const receiverData = receiverSnap.data() || {};
+        if (!isActiveUserData(senderData) || !isActiveUserData(receiverData)) {
+          const error = new Error('Inactive user');
+          error.httpStatus = 403;
+          throw error;
+        }
+
+        if (receiverBlockedSenderSnap.exists || senderBlockedReceiverSnap.exists) {
+          const error = new Error('Blocked relationship');
+          error.httpStatus = 403;
+          throw error;
+        }
+
+        const sortedParticipants = [senderId, receiverId].sort();
+        const existingConversation = existingConversationsSnap.docs.find((doc) => {
+          const participants = doc.get('participants');
+          return Array.isArray(participants) &&
+            participants.length === 2 &&
+            participants.includes(senderId) &&
+            participants.includes(receiverId);
+        });
+
+        const conversationRef = existingConversation?.ref || db.collection('conversations').doc();
+        const conversationId = conversationRef.id;
+        const { messageId, message } = buildAcceptedRequestMessage(requestId, requestData, conversationId);
+        const messageRef = conversationRef.collection('messages').doc(messageId);
+        const conversationPreview = conversationPreviewForMessageType(message.type);
+
+        if (!existingConversation) {
+          tx.set(conversationRef, {
+            participants: sortedParticipants,
+            lastMessage: conversationPreview,
+            timestamp: admin.firestore.FieldValue.serverTimestamp(),
+            readStatus: {
+              [senderId]: true,
+              [receiverId]: false
+            },
+            participantData: {
+              [senderId]: buildConversationParticipantData(senderId, senderData),
+              [receiverId]: buildConversationParticipantData(receiverId, receiverData)
+            },
+            createdFromMessageRequestId: requestId,
+            createdAt: admin.firestore.FieldValue.serverTimestamp()
+          });
+        } else {
+          tx.update(conversationRef, {
+            [`participantData.${senderId}`]: buildConversationParticipantData(senderId, senderData),
+            [`participantData.${receiverId}`]: buildConversationParticipantData(receiverId, receiverData),
+            [`readStatus.${receiverId}`]: false,
+            lastMessage: conversationPreview,
+            timestamp: admin.firestore.FieldValue.serverTimestamp()
+          });
+        }
+
+        tx.set(messageRef, message);
+        tx.update(requestRef, {
+          status: 'accepted',
+          acceptedAt: admin.firestore.FieldValue.serverTimestamp(),
+          acceptedBy: requesterId,
+          conversationId,
+          initialMessageId: messageId
+        });
+
+        return { conversationId, messageId };
+      });
+
+      res.status(200).json({ success: true, ...result });
+    } catch (error) {
+      console.error('acceptMessageRequest error:', error);
+      const status = Number.isInteger(error.httpStatus) ? error.httpStatus : 500;
+      res.status(status).json({ error: status === 500 ? 'Failed to accept message request' : error.message });
+    }
+  }
+);
+
 // 💬 MENSAJES DIRECTOS
 exports.onMessageAdded = onDocumentCreated('conversations/{conversationId}/messages/{messageId}', async (event) => {
   const snap = event.data;
@@ -4251,7 +4482,11 @@ exports.onMessageAdded = onDocumentCreated('conversations/{conversationId}/messa
     if (!conversationDoc.exists) return null;
 
     const conversationData = conversationDoc.data();
-    const participants = conversationData.participants;
+    const participants = Array.isArray(conversationData.participants) ? conversationData.participants : [];
+    if (!participants.includes(message.senderId)) {
+      console.warn(`⚠️ Ignorando mensaje ${messageId}: senderId no pertenece a ${conversationId}`);
+      return null;
+    }
     const receivers = participants.filter(p => p !== message.senderId);
 
     const senderDoc = await admin.firestore().doc(`users/${message.senderId}`).get();

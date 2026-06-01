@@ -1456,9 +1456,11 @@ class ChatService: ObservableObject {
                 "receiverId": receiverId,
                 "content": encryptedContent,
                 "type": "text",
+                "status": MessageStatus.sent.rawValue,
                 "timestamp": timestamp,
                 "isRead": false,
-                "isDeleted": false
+                "isDeleted": false,
+                "isViewed": false
             ]
             
             // Enviar mensaje
