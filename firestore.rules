@@ -1276,9 +1276,9 @@ service cloud.firestore {
           )
         );
 
-      allow delete: if request.auth != null &&
-        request.auth.uid in resource.data.participants &&
-        canParticipateInConversations(request.auth.uid);
+      // Conversations are shared records; clients may hide them per user via
+      // `deletedFor`, but only trusted backend code may hard-delete the document.
+      allow delete: if false;
 
       // messages
       match /messages/{messageId} {
