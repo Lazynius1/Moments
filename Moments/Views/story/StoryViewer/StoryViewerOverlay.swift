@@ -267,21 +267,8 @@ struct GlassmorphicViewersSheet: View {
         }
     }
 
-    private var audienceIcon: String {
-        switch normalizedAudience {
-        case "connections", "mutuals", "mutual":
-            return "person.2.fill"
-        case "bestfriends", "best_friends", "best-friends":
-            return "heart.fill"
-        case "customlist":
-            return "list.bullet.rectangle"
-        case "custom":
-            return "person.crop.circle.badge.plus"
-        case "onlyme", "only_me", "only-me":
-            return "lock.fill"
-        default:
-            return "globe.americas.fill"
-        }
+    private var displayAudience: ContentAudience {
+        ContentAudience.fromAudienceValue(story.audience)
     }
 
     var body: some View {
@@ -440,9 +427,11 @@ struct GlassmorphicViewersSheet: View {
                 Circle()
                     .fill(activityPrimaryText.opacity(colorScheme == .dark ? 0.08 : 0.06))
 
-                Image(systemName: audienceIcon)
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundColor(activityPrimaryText.opacity(0.82))
+                AudienceIconView(
+                    audience: displayAudience,
+                    size: AudienceIconMetrics.storyActivity,
+                    tintColor: activityPrimaryText.opacity(0.82)
+                )
             }
             .frame(width: 28, height: 28)
 

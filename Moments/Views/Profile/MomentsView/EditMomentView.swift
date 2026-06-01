@@ -213,7 +213,7 @@ struct EditMomentView: View {
 
             VStack(spacing: 4) {
                 detailRow(
-                    icon: selectedAudience.icon,
+                    audience: selectedAudience,
                     title: NSLocalizedString("audience.title", comment: "Audience"),
                     value: audienceSummaryText,
                     subtitle: isAudienceLocked ? NSLocalizedString("editMoment.audience.locked", value: "Bloqueado por moderación", comment: "Audience locked by moderation") : selectedAudience.description,
@@ -275,7 +275,8 @@ struct EditMomentView: View {
     }
 
     private func detailRow(
-        icon: String,
+        icon: String? = nil,
+        audience: ContentAudience? = nil,
         title: String,
         value: String,
         subtitle: String,
@@ -284,10 +285,20 @@ struct EditMomentView: View {
     ) -> some View {
         Button(action: action) {
             HStack(spacing: 10) {
-                Image(systemName: icon)
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundColor(colorScheme == .dark ? .white : .black)
-                    .frame(width: 18)
+                Group {
+                    if let audience {
+                        AudienceIconView(
+                            audience: audience,
+                            size: AudienceIconMetrics.row,
+                            colorScheme: colorScheme
+                        )
+                    } else if let icon {
+                        Image(systemName: icon)
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundColor(colorScheme == .dark ? .white : .black)
+                    }
+                }
+                .frame(width: 22, height: 22)
 
                 VStack(alignment: .leading, spacing: 3) {
                     Text(title)

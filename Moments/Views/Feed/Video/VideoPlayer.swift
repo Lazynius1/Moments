@@ -8,6 +8,7 @@ class GlobalVideoManager: ObservableObject {
     
     @Published private(set) var activeVideoId: String?
     private var allPlayers: [String: VideoPlayerManager] = [:]
+    private var playbackPositionsByMomentId: [String: Double] = [:]
     
     // ✅ ESTILO INSTAGRAM: Si el usuario activa el sonido en algún video, todos los posteriores tienen sonido
     @Published private(set) var userHasEnabledSoundInSession: Bool = false
@@ -98,6 +99,15 @@ class GlobalVideoManager: ObservableObject {
     func isMuted(_ playerId: String) -> Bool {
         return allPlayers[playerId]?.isMuted ?? true
     }
+
+    func setPlaybackPosition(seconds: Double, forMomentId momentId: String) {
+        guard seconds.isFinite, seconds >= 0 else { return }
+        playbackPositionsByMomentId[momentId] = seconds
+    }
+
+    func playbackPosition(forMomentId momentId: String) -> Double {
+        playbackPositionsByMomentId[momentId] ?? 0
+    }
     
     // ✅ Verificar si el iPhone está en modo silencioso
     private func isDeviceInSilentMode() -> Bool {
@@ -165,13 +175,16 @@ struct ModernVideoPlayer: View {
             ZStack {
                 // Video Player
                 if let player = playerManager.player, !hasLoadError {
+                    let contentMode: ContentMode = usesSocialChrome ? .fill : .fit
+
                     VideoPlayerRepresentable(
                         player: player,
+                        videoGravity: usesSocialChrome ? .resizeAspectFill : .resizeAspect,
                         showControls: $showControls,
                         progress: $progress,
                         isBuffering: $isBuffering
                     )
-                    .aspectRatio(aspectRatio, contentMode: .fit)
+                    .aspectRatio(aspectRatio, contentMode: contentMode)
                     .clipped()
 
                     VideoPosterOverlay(
@@ -247,6 +260,10 @@ struct ModernVideoPlayer: View {
         // ✅ NUEVO: Listener para cuando la app va a background
         .onReceive(NotificationCenter.default.publisher(for: UIApplication.willResignActiveNotification)) { _ in
             globalManager.pauseAllVideos()
+        }
+        .onChange(of: playerManager.currentTime) { _, newTime in
+            guard usesSocialChrome, let momentId = moment?.id else { return }
+            globalManager.setPlaybackPosition(seconds: newTime, forMomentId: momentId)
         }
     }
     
@@ -669,6 +686,7 @@ class VideoPlayerManager: ObservableObject {
 // ✅ MANTENER: VideoPlayerRepresentable (sin cambios)
 struct VideoPlayerRepresentable: UIViewRepresentable {
     let player: AVPlayer
+    let videoGravity: AVLayerVideoGravity
     @Binding var showControls: Bool
     @Binding var progress: Double
     @Binding var isBuffering: Bool
@@ -676,7 +694,7 @@ struct VideoPlayerRepresentable: UIViewRepresentable {
     func makeUIView(context: Context) -> UIView {
         let view = UIView()
         let playerLayer = AVPlayerLayer(player: player)
-        playerLayer.videoGravity = .resizeAspect
+        playerLayer.videoGravity = videoGravity
         view.layer.addSublayer(playerLayer)
         
         context.coordinator.playerLayer = playerLayer
@@ -688,6 +706,7 @@ struct VideoPlayerRepresentable: UIViewRepresentable {
     func updateUIView(_ uiView: UIView, context: Context) {
         if let playerLayer = context.coordinator.playerLayer {
             playerLayer.frame = uiView.bounds
+            playerLayer.videoGravity = videoGravity
         }
     }
     

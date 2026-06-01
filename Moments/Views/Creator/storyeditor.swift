@@ -398,11 +398,11 @@ struct StoryEditingView: View {
     }
 
     // ✅ NUEVAS FUNCIONES AUXILIARES
-    private func getAudienceIcon() -> String {
-        if storyAudience == .custom && selectedListId != nil {
-            return "list.bullet.rectangle"
-        }
-        return storyAudience.icon
+    private var storyContentAudience: ContentAudience {
+        ContentAudience.fromCaptionAudienceSetting(
+            storyAudience,
+            hasCustomList: storyAudience == .custom && selectedListId != nil
+        )
     }
 
     private func getAudienceText() -> String {
@@ -947,7 +947,12 @@ struct StoryEditingView: View {
                                         .scaleEffect(0.7)
                                         .tint(colorScheme == .dark ? .white : .black)
                                 } else {
-                                    Image(systemName: getAudienceIcon())
+                                    AudienceIconView(
+                                        audience: storyContentAudience,
+                                        size: AudienceIconMetrics.storyCapsule,
+                                        colorScheme: colorScheme
+                                    )
+                                    .frame(width: 22, height: 22)
                                 }
 
                                 Text(isLoadingUserSettings ? NSLocalizedString("storyEditor.loadingSettings", comment: "Loading user settings") : getAudienceText())

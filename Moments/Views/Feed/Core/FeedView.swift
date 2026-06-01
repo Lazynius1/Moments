@@ -682,16 +682,11 @@ struct FeedView: View {
 
     private var echoApertureIcon: some View {
         ZStack(alignment: .topTrailing) {
-            Image(systemName: "camera.aperture")
-                .font(.system(size: 22, weight: .semibold))
-                .foregroundStyle(
-                    LinearGradient(
-                        colors: [.orange, .purple],
-                        startPoint: .leading,
-                        endPoint: .trailing
-                    )
-                )
-                .frame(width: 36, height: 36)
+            EchoesIconView(
+                size: EchoesIconMetrics.feedToolbar,
+                gradient: EchoesIconView.echoesBrandGradientHorizontal
+            )
+            .frame(width: 36, height: 36, alignment: .center)
 
             if !pendingEchoes.isEmpty {
                 Text("\(pendingEchoes.count)")

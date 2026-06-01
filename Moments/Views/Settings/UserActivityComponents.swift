@@ -15,6 +15,12 @@ struct ActivityInteractionCategoryRow: View {
                         AnimatedReactionIcon()
                     } else if category == .comments {
                         AnimatedCommentIcon()
+                    } else if category == .echoes {
+                        EchoesIconView(
+                            size: EchoesIconMetrics.categoryRow,
+                            tintColor: colorScheme == .dark ? .white : .black
+                        )
+                        .frame(width: 36, height: 36)
                     } else {
                         Image(systemName: category.icon)
                             .font(.system(size: 20, weight: .regular))

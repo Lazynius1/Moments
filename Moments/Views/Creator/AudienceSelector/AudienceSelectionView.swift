@@ -191,12 +191,7 @@ struct AudienceSelectionView: View {
             }
             .padding(.horizontal, 4)
             
-            // ✅ Opciones con estilo ContextMenu
-            // ✅ Grid de opciones 2x2
-            LazyVGrid(columns: [
-                GridItem(.flexible(), spacing: 12),
-                GridItem(.flexible(), spacing: 12)
-            ], spacing: 12) {
+            VStack(spacing: 2) {
                 AudienceGridCard(
                     audience: .everyone,
                     isSelected: selectedAudience == .everyone,
@@ -206,7 +201,7 @@ struct AudienceSelectionView: View {
                         showSaveFeedback()
                     }
                 )
-                
+
                 AudienceGridCard(
                     audience: .connections,
                     isSelected: selectedAudience == .connections,
@@ -216,7 +211,7 @@ struct AudienceSelectionView: View {
                         showSaveFeedback()
                     }
                 )
-                
+
                 AudienceGridCard(
                     audience: .bestFriends,
                     isSelected: selectedAudience == .bestFriends,
@@ -226,7 +221,7 @@ struct AudienceSelectionView: View {
                         showSaveFeedback()
                     }
                 )
-                
+
                 AudienceGridCard(
                     audience: .onlyMe,
                     isSelected: selectedAudience == .onlyMe,
@@ -318,9 +313,11 @@ struct AudienceSelectionView: View {
     
     private var emptyCustomListsViewModern: some View {
         VStack(spacing: 16) {
-            Image(systemName: "list.bullet.rectangle")
-                .font(.system(size: 28, weight: .medium))
-                .foregroundColor(.primary)
+            AudienceIconView(
+                audience: .customList,
+                size: AudienceIconMetrics.gridCardEmphasis,
+                colorScheme: colorScheme
+            )
             
             VStack(spacing: 4) {
                 Text("audience.noCustomLists.title")
@@ -377,58 +374,59 @@ struct AudienceSelectionView: View {
             }
             .padding(.horizontal, 4)
             
+            let isCustomPeopleSelected = selectedAudience == .custom && selectedListId == nil
+
             Button(action: {
                 selectedAudience = .custom
                 navigate(to: .customPeople)
             }) {
-                HStack(spacing: 16) {
-                    Image(systemName: "person.crop.circle.badge.plus")
-                        .font(.system(size: 24, weight: .medium))
-                        .foregroundColor(colorScheme == .dark ? .white : .black)
-                        .frame(width: 36, height: 36)
-                    
-                    VStack(alignment: .leading, spacing: 2) {
+                HStack(alignment: .center, spacing: 14) {
+                    AudienceIconView(
+                        audience: .custom,
+                        size: AudienceIconMetrics.gridCardEmphasis,
+                        colorScheme: colorScheme
+                    )
+                    .frame(width: 40, height: 40)
+                    .opacity(isCustomPeopleSelected ? 1 : 0.42)
+
+                    VStack(alignment: .leading, spacing: 3) {
                         Text("audience.custom")
-                            .font(.custom("Poppins-SemiBold", size: 16))
+                            .font(.custom(isCustomPeopleSelected ? "Poppins-SemiBold" : "Poppins-Medium", size: 16))
                             .foregroundColor(colorScheme == .dark ? .white : .black)
-                        
+                            .opacity(isCustomPeopleSelected ? 1 : 0.82)
+
                         Text(customSelectedUsers.isEmpty ?
                              NSLocalizedString("audience.description.custom", comment: "Custom audience description") :
                              String(format: NSLocalizedString("audience.people.count", comment: "People count"), customSelectedUsers.count))
                             .font(.custom("Poppins-Regular", size: 13))
-                            .foregroundColor(colorScheme == .dark ? .white.opacity(0.5) : .black.opacity(0.5))
+                            .foregroundColor((colorScheme == .dark ? Color.white : Color.black).opacity(0.55))
+                            .opacity(isCustomPeopleSelected ? 1 : 0.72)
                     }
-                    
-                    Spacer()
-                    
-                    if selectedAudience == .custom && selectedListId == nil {
-                        Image(systemName: "checkmark.circle.fill")
-                            .font(.system(size: 24))
-                            .foregroundColor(Color(hex: "007AFF"))
+
+                    Spacer(minLength: 8)
+
+                    if isCustomPeopleSelected {
+                        Image(systemName: "checkmark")
+                            .font(.system(size: 13, weight: .bold))
+                            .foregroundColor(colorScheme == .dark ? .white : .black)
+                            .frame(width: 26, height: 26)
+                            .background(
+                                Circle()
+                                    .fill(colorScheme == .dark ? Color.white.opacity(0.14) : Color.black.opacity(0.08))
+                            )
                     } else {
                         Image(systemName: "chevron.right")
                             .font(.system(size: 13, weight: .semibold))
                             .foregroundColor(.primary)
-                            .frame(width: 28, height: 28)
-                            .liquidGlass(in: Circle(), interactive: true)
+                            .frame(width: 26, height: 26)
+                            .opacity(0.55)
                     }
                 }
-                .padding(16)
-                .background(
-                    RoundedRectangle(cornerRadius: 20)
-                        .fill(colorScheme == .dark ? Color.white.opacity(0.05) : Color.black.opacity(0.02))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 20)
-                                .stroke(
-                                    selectedAudience == .custom && selectedListId == nil ?
-                                    Color(hex: "007AFF").opacity(0.4) :
-                                    Color.clear,
-                                    lineWidth: 1
-                                )
-                        )
-                )
+                .padding(.vertical, 11)
+                .padding(.horizontal, 2)
+                .contentShape(Rectangle())
             }
-            .buttonStyle(PlainButtonStyle())
+            .buttonStyle(.plain)
         }
     }
     private func loadCustomLists() {

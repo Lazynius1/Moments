@@ -368,9 +368,11 @@ struct CustomAudienceListsView: View {
     
     private var emptyStateView: some View {
         VStack(spacing: 18) {
-            Image(systemName: "person.3.sequence.fill")
-                .font(.system(size: 56))
-                .foregroundColor(.gray)
+            AudienceIconView(
+                audience: .customList,
+                size: 44,
+                tintColor: .gray
+            )
             
             VStack(spacing: 6) {
                 Text(NSLocalizedString("audience.noCustomLists.title", comment: ""))

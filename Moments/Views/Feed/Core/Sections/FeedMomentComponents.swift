@@ -1276,7 +1276,8 @@ struct MediaItemView: View {
         .fullScreenCover(isPresented: $showReelsViewer) {
             ReelsViewer(
                 videos: allMoments.videoMoments,
-                startIndex: findVideoIndex()
+                startIndex: findVideoIndex(),
+                initialStartSeconds: currentPlaybackStartSeconds
             )
             .environmentObject(FirestoreService.shared)
         }
@@ -1289,6 +1290,11 @@ struct MediaItemView: View {
     private func findVideoIndex() -> Int {
         let videoMoments = allMoments.videoMoments
         return videoMoments.firstIndex { $0.moment.id == currentMoment.id } ?? 0
+    }
+
+    private var currentPlaybackStartSeconds: Double {
+        guard let momentId = currentMoment.id else { return 0 }
+        return GlobalVideoManager.shared.playbackPosition(forMomentId: momentId)
     }
 }
 

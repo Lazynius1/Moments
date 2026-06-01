@@ -3550,3 +3550,6 @@
 "share.storyDenied.restricted" = "Du hast keine Berechtigung, diese Story anzusehen.";
 "chat.preview.sharedStory" = "Geteilte Story";
 "share.story" = "Story";
+
+"userActivity.event.visit.clean" = "Hat dein Profil besucht";
+"userActivity.event.follow.clean" = "Folgt dir jetzt";

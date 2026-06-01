@@ -3561,3 +3561,6 @@
 "share.storyDenied.restricted" = "No tens permís per veure aquesta història.";
 "chat.preview.sharedStory" = "Història compartida";
 "share.story" = "Història";
+
+"userActivity.event.visit.clean" = "Va visitar el teu perfil";
+"userActivity.event.follow.clean" = "Et va començar a seguir";

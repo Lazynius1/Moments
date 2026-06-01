@@ -75,6 +75,13 @@ struct MomentHashtagText: View {
     let lineLimit: Int?
     let onHashtagTap: (String) -> Void
     let onMentionTap: ((String) -> Void)?
+    
+    // Integrated action link parameters (e.g., "ver más" or "ver menos" inline)
+    let actionText: String?
+    let actionURL: URL?
+    let actionFont: Font?
+    let actionColor: Color?
+    let onActionTap: ((String) -> Void)?
 
     init(
         content: String,
@@ -90,8 +97,13 @@ struct MomentHashtagText: View {
         shadowX: CGFloat = 0,
         shadowY: CGFloat = 0,
         lineLimit: Int? = nil,
+        actionText: String? = nil,
+        actionURL: URL? = nil,
+        actionFont: Font? = nil,
+        actionColor: Color? = nil,
         onHashtagTap: @escaping (String) -> Void,
-        onMentionTap: ((String) -> Void)? = nil
+        onMentionTap: ((String) -> Void)? = nil,
+        onActionTap: ((String) -> Void)? = nil
     ) {
         self.content = content
         self.textFont = textFont
@@ -106,8 +118,13 @@ struct MomentHashtagText: View {
         self.shadowX = shadowX
         self.shadowY = shadowY
         self.lineLimit = lineLimit
+        self.actionText = actionText
+        self.actionURL = actionURL
+        self.actionFont = actionFont
+        self.actionColor = actionColor
         self.onHashtagTap = onHashtagTap
         self.onMentionTap = onMentionTap
+        self.onActionTap = onActionTap
     }
 
     var body: some View {
@@ -115,8 +132,14 @@ struct MomentHashtagText: View {
             .font(textFont)
             .multilineTextAlignment(textAlignment)
             .lineLimit(lineLimit)
+            .truncationMode(.tail)
             .shadow(color: shadowColor, radius: shadowRadius, x: shadowX, y: shadowY)
             .environment(\.openURL, OpenURLAction { url in
+                if url.scheme == "action" {
+                    onActionTap?(url.host ?? "")
+                    return .handled
+                }
+
                 if let hashtag = MomentHashtagLink.hashtag(from: url) {
                     onHashtagTap(hashtag)
                     return .handled
@@ -155,6 +178,15 @@ struct MomentHashtagText: View {
             if onMentionTap != nil {
                 attributed[attributedRange].link = MomentMentionLink.url(for: match.username)
             }
+        }
+
+        // Append inline action link (e.g. "... ver más" / " ver menos") at the end of the attributed text flow
+        if let actionText = actionText, let actionURL = actionURL {
+            var actionAttr = AttributedString(actionText)
+            actionAttr.font = actionFont ?? hashtagFont
+            actionAttr.foregroundColor = actionColor ?? hashtagColor
+            actionAttr.link = actionURL
+            attributed.append(actionAttr)
         }
 
         return attributed

@@ -127,26 +127,15 @@ struct LoginActivityView: View {
     }
     
     private var headerSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                Image(systemName: "shield.checkered")
-                    .foregroundColor(Color(hex: "4F46E5"))
-                    .font(.system(size: 20))
-                
-                Text("loginActivity.title")
-                    .font(.custom("Poppins-SemiBold", size: 18))
-                    .foregroundColor(colorScheme == .dark ? .white : .black)
-            }
-            
+        VStack(alignment: .leading, spacing: 6) {
+            Text("loginActivity.title")
+                .font(.custom("Poppins-SemiBold", size: 18))
+                .foregroundColor(colorScheme == .dark ? .white : .black)
+
             Text("loginActivity.description")
-                .font(.custom("Poppins-Regular", size: 14))
-                .foregroundColor(.gray)
+                .font(.custom("Poppins-Regular", size: 13))
+                .foregroundColor(colorScheme == .dark ? .white.opacity(0.58) : .black.opacity(0.52))
         }
-        .padding()
-        .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(Color(hex: "4F46E5").opacity(0.1))
-        )
         .padding(.horizontal)
     }
 }
@@ -156,28 +145,18 @@ struct CurrentSessionCard: View {
     let session: LoginSession?
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: 10) {
             HStack {
-                Image(systemName: session == nil ? "shield.slash.fill" : "checkmark.shield.fill")
-                    .foregroundColor(session == nil ? .gray : .green)
-                    .font(.system(size: 20))
-                
                 Text("loginActivity.activeSession")
-                    .font(.custom("Poppins-SemiBold", size: 16))
+                    .font(.custom("Poppins-SemiBold", size: 15))
                     .foregroundColor(colorScheme == .dark ? .white : .black)
                 
                 Spacer()
                 
                 if session != nil {
                     Text("loginActivity.current")
-                        .font(.custom("Poppins-Bold", size: 10))
+                        .font(.custom("Poppins-Bold", size: 11))
                         .foregroundColor(.green)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 4)
-                        .background(
-                            RoundedRectangle(cornerRadius: 8)
-                                .fill(.green.opacity(0.2))
-                        )
                 }
             }
             
@@ -189,15 +168,10 @@ struct CurrentSessionCard: View {
                     .foregroundColor(.gray)
             }
         }
-        .padding()
-        .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(Color(colorScheme == .dark ? .white : .black).opacity(0.05))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 12)
-                        .stroke(.green.opacity(0.3), lineWidth: 1)
-                )
-        )
+        .padding(.vertical, 8)
+        .overlay(alignment: .bottom) {
+            Divider().opacity(0.2)
+        }
     }
 }
 
@@ -206,27 +180,18 @@ struct SessionCard: View {
     let session: LoginSession
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: 8) {
             HStack {
-                Image(systemName: "iphone")
-                    .foregroundColor(Color(hex: "4F46E5"))
-                    .font(.system(size: 16, weight: .semibold))
-                
+                Text(session.device)
+                    .font(.custom("Poppins-Medium", size: 15))
+                    .foregroundColor(colorScheme == .dark ? .white : .black)
+                    .lineLimit(1)
+
+                Spacer(minLength: 0)
+
                 Text(session.timestamp.timeAgoDisplay())
-                    .font(.custom("Poppins-Medium", size: 13))
-                    .foregroundColor(colorScheme == .dark ? .white.opacity(0.85) : .black.opacity(0.75))
-                
-                Spacer()
-                
-                Text("loginActivity.activeSession")
-                    .font(.custom("Poppins-Bold", size: 10))
-                    .foregroundColor(.green)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
-                    .background(
-                        Capsule()
-                            .fill(Color.green.opacity(0.15))
-                    )
+                    .font(.custom("Poppins-Regular", size: 12))
+                    .foregroundColor(colorScheme == .dark ? .white.opacity(0.6) : .black.opacity(0.5))
             }
             
             SessionDetails(session: session)
@@ -243,15 +208,11 @@ struct SessionCard: View {
                 )
             }
         }
-        .padding()
-        .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(Color(colorScheme == .dark ? .white : .black).opacity(0.05))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 12)
-                        .stroke(Color.gray.opacity(0.25), lineWidth: 1)
-                )
-        )
+        .padding(.vertical, 8)
+        .overlay(alignment: .bottom) {
+            Divider()
+                .opacity(0.16)
+        }
     }
 }
 
@@ -260,65 +221,54 @@ struct SessionSecurityHint: View {
     let color: Color
 
     var body: some View {
-        HStack(spacing: 8) {
-            Image(systemName: "exclamationmark.shield")
-                .font(.system(size: 11, weight: .semibold))
-                .foregroundColor(color)
-
+        HStack(spacing: 0) {
             Text(text)
                 .font(.custom("Poppins-Medium", size: 11))
                 .foregroundColor(color)
                 .lineLimit(2)
-
-            Spacer(minLength: 0)
         }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 6)
-        .background(
-            Capsule()
-                .fill(color.opacity(0.12))
-        )
+        .padding(.top, 2)
     }
 }
 
 struct SessionDetails: View {
     let session: LoginSession
-    
-    var body: some View {
-        VStack(spacing: 8) {
-            SessionDetailRow(icon: "location", title: NSLocalizedString("loginActivity.session.location", comment: "Location label"), value: session.location)
-            SessionDetailRow(icon: "iphone", title: NSLocalizedString("loginActivity.session.device", comment: "Device label"), value: session.device)
-            SessionDetailRow(icon: "network", title: NSLocalizedString("loginActivity.session.ip", comment: "IP label"), value: session.ipAddress)
-            SessionDetailRow(icon: "clock", title: NSLocalizedString("loginActivity.session.startTime", comment: "Start time label"), value: session.timestamp.formatted(date: .abbreviated, time: .shortened))
-        }
-    }
-}
 
-struct SessionDetailRow: View {
-    @Environment(\.colorScheme) var colorScheme
-    let icon: String
-    let title: String
-    let value: String
+    private var visibleLocation: String {
+        let trimmed = session.location.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? NSLocalizedString("loginActivity.location.unavailable", value: "Ubicación no disponible", comment: "") : trimmed
+    }
+
+    private var visibleIP: String {
+        let trimmed = session.ipAddress.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? NSLocalizedString("loginActivity.ip.unavailable", value: "IP no disponible", comment: "") : trimmed
+    }
     
     var body: some View {
-        HStack(spacing: 8) {
-            Image(systemName: icon)
-                .foregroundColor(.gray)
-                .font(.system(size: 12))
-                .frame(width: 16)
-            
-            Text(title)
-                .font(.custom("Poppins-Regular", size: 13))
-                .foregroundColor(.gray)
-                .frame(width: 70, alignment: .leading)
-            
-            Text(value)
-                .font(.custom("Poppins-Medium", size: 13))
-                .foregroundColor(colorScheme == .dark ? .white : .black)
-                .lineLimit(1)
-                .truncationMode(.tail)
-            
-            Spacer()
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 4) {
+                Text(NSLocalizedString("loginActivity.session.location", value: "Ubicación", comment: "Location label"))
+                    .font(.custom("Poppins-Medium", size: 12))
+                    .foregroundColor(.secondary.opacity(0.95))
+                Text(visibleLocation)
+                    .font(.custom("Poppins-Regular", size: 13))
+                    .foregroundColor(.secondary)
+                    .lineLimit(1)
+            }
+
+            HStack(spacing: 6) {
+                Text(visibleIP)
+                    .font(.custom("Poppins-Regular", size: 12))
+                    .foregroundColor(.secondary)
+                    .lineLimit(1)
+                Text("•")
+                    .font(.custom("Poppins-Regular", size: 11))
+                    .foregroundColor(.secondary.opacity(0.7))
+                Text(session.timestamp.formatted(date: .abbreviated, time: .shortened))
+                    .font(.custom("Poppins-Regular", size: 12))
+                    .foregroundColor(.secondary)
+                    .lineLimit(1)
+            }
         }
     }
 }
@@ -433,21 +383,24 @@ class LoginActivityViewModel: ObservableObject {
     }
     
     private func applySessions(current: LoginSession?, activeSessions: [LoginSession]) {
+        let dedupedSessions = dedupeSessions(activeSessions)
         var resolvedCurrent = current
-        var remaining = activeSessions
+        var remaining = dedupedSessions
 
         if resolvedCurrent == nil,
            let currentDeviceId = UIDevice.current.identifierForVendor?.uuidString,
-           let matchedSession = remaining.first(where: { $0.deviceIdentifier == currentDeviceId }) {
+           let matchedSession = remaining.first(where: {
+               ($0.deviceIdentifier ?? "").lowercased() == currentDeviceId.lowercased()
+           }) {
             resolvedCurrent = matchedSession
         }
 
-        if let currentId = resolvedCurrent?.id,
-           let index = remaining.firstIndex(where: { $0.id == currentId }) {
-            remaining.remove(at: index)
-        } else if resolvedCurrent == nil, let first = remaining.first {
+        if resolvedCurrent == nil, let first = remaining.first {
             resolvedCurrent = first
-            remaining.removeFirst()
+        }
+
+        if let resolvedCurrent {
+            remaining.removeAll { isSameSession($0, resolvedCurrent) }
         }
 
         if resolvedCurrent == nil {
@@ -458,8 +411,63 @@ class LoginActivityViewModel: ObservableObject {
         otherSessions = Array(remaining.prefix(12))
     }
 
+    private func dedupeSessions(_ sessions: [LoginSession]) -> [LoginSession] {
+        var byKey: [String: LoginSession] = [:]
+        for session in sessions {
+            let key = canonicalSessionKey(for: session)
+            if let existing = byKey[key], existing.timestamp >= session.timestamp {
+                continue
+            }
+            byKey[key] = session
+        }
+        return byKey.values.sorted { $0.timestamp > $1.timestamp }
+    }
+
+    private func isSameSession(_ lhs: LoginSession, _ rhs: LoginSession) -> Bool {
+        canonicalSessionKey(for: lhs) == canonicalSessionKey(for: rhs)
+    }
+
+    private func canonicalSessionKey(for session: LoginSession) -> String {
+        let fingerprint = (session.deviceIdentifier ?? "")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .lowercased()
+        if !fingerprint.isEmpty {
+            return "fingerprint:\(fingerprint)"
+        }
+
+        let device = session.device
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .lowercased()
+        let ip = normalizeIP(session.ipAddress)
+        if !ip.isEmpty {
+            return "device_ip:\(device)|\(ip)"
+        }
+
+        let location = normalizeLocation(session.location)
+        return "device_location:\(device)|\(location)"
+    }
+
+    private func normalizeIP(_ ip: String) -> String {
+        let value = ip.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        if value.isEmpty || value == "no disponible" || value == "n/a" || value == "unknown" {
+            return ""
+        }
+        return value
+    }
+
+    private func normalizeLocation(_ location: String) -> String {
+        let folded = location
+            .folding(options: [.diacriticInsensitive, .caseInsensitive], locale: .current)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .lowercased()
+        if folded.isEmpty || folded.contains("ubicacion no disponible") || folded.contains("unknown") {
+            return "unknown"
+        }
+        return folded
+    }
+
     private func makeLocalCurrentSession() -> LoginSession {
-        let deviceName = "\(UIDevice.current.model) - iOS \(UIDevice.current.systemVersion)"
+        let deviceName = loginService.currentDeviceDisplayName()
         let location = loginService.getCurrentLocationString()
         let timestamp = Auth.auth().currentUser?.metadata.lastSignInDate ?? Date()
         let deviceIdentifier = UIDevice.current.identifierForVendor?.uuidString

@@ -113,7 +113,7 @@ enum ActivityInteractionCategory: String, CaseIterable, Identifiable {
         case .archived: return "archivebox.fill"
         case .storiesArchive: return "clock.arrow.trianglehead.counterclockwise.rotate.90"
         case .recentlyDeleted: return "trash.fill"
-        case .echoes: return "camera.aperture"
+        case .echoes: return "EchoesIcon"
         case .followers: return "person.badge.plus"
         case .visits: return "eye.fill"
         case .moments: return "square.grid.2x2.fill"

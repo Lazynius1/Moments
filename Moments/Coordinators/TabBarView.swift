@@ -184,7 +184,7 @@ struct ModernTabView: View {
             Tab(NSLocalizedString("tabBar.nova", comment: ""), image: "NovaTabIcon", value: AppTab.nova) {
                 NovaView()
             }
-            Tab("", systemImage: "camera.fill", value: AppTab.create) {
+            Tab("", systemImage: "camera.aperture", value: AppTab.create) {
                 Color.clear
             }
             // ✨ Native search tab: expands on tap, minimizes on scroll down with tab bar

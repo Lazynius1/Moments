@@ -166,6 +166,8 @@ struct SettingsGroup<Content: View>: View {
 struct SettingsRow: View {
     @Environment(\.colorScheme) var colorScheme
     let icon: String
+    /// Icono de audiencia en asset catalog (p. ej. Mejores amigos).
+    var audienceIcon: ContentAudience? = nil
     let title: String
     let subtitle: String?
     var destination: AnyView? = nil
@@ -192,10 +194,21 @@ struct SettingsRow: View {
     private var rowContent: some View {
         VStack(spacing: 0) {
             HStack(spacing: 14) {
-                Image(systemName: icon)
-                    .font(.system(size: 19, weight: .regular))
-                    .foregroundColor(iconForegroundColor)
-                    .frame(width: 28, alignment: .center)
+                Group {
+                    if let audienceIcon {
+                        AudienceIconView(
+                            audience: audienceIcon,
+                            size: AudienceIconMetrics.row,
+                            tintColor: audienceIcon == .bestFriends ? Color(hex: "34C759") : nil,
+                            colorScheme: colorScheme
+                        )
+                    } else {
+                        Image(systemName: icon)
+                            .font(.system(size: 19, weight: .regular))
+                            .foregroundColor(iconForegroundColor)
+                    }
+                }
+                .frame(width: 28, alignment: .center)
 
                 VStack(alignment: .leading, spacing: 1) {
                     Text(title)
@@ -774,10 +787,13 @@ struct PrivacySection: View {
                 subtitle: getConnectionPrivacyStatus(),
                 action: { isShowingConnections = true })
 
-            SettingsRow(icon: "star.fill",
+            SettingsRow(
+                icon: "star.fill",
+                audienceIcon: .bestFriends,
                 title: NSLocalizedString("settings.sections.bestFriends", comment: "Best Friends"),
                 subtitle: NSLocalizedString("settings.sections.bestFriends.subtitle", comment: "Manage best friends list"),
-                action: { isShowingBestFriends = true })
+                action: { isShowingBestFriends = true }
+            )
 
             SettingsRow(icon: "hand.raised",
                 title: NSLocalizedString("settings.sections.blockedAccounts", comment: "Blocked Accounts"),

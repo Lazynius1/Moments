@@ -259,6 +259,9 @@ class AdMobConfiguration: NSObject {
         let adUnitID = AdMobConfiguration.getNativeAdUnitId().trimmingCharacters(in: .whitespacesAndNewlines)
         let mediaOptions = NativeAdMediaAdLoaderOptions()
         mediaOptions.mediaAspectRatio = .any
+        let videoOptions = VideoOptions()
+        videoOptions.shouldStartMuted = false
+        videoOptions.areCustomControlsRequested = true
         
         guard let rootViewController = UIApplication.shared.topViewController() else {
             print("⚠️ AdMob: No se pudo obtener rootViewController para precarga")
@@ -269,7 +272,7 @@ class AdMobConfiguration: NSObject {
             adUnitID: adUnitID,
             rootViewController: rootViewController,
             adTypes: [.native],
-            options: [mediaOptions]
+            options: [mediaOptions, videoOptions]
         )
         
         let request = createAdRequest()

@@ -169,23 +169,12 @@ struct EchoViewerUI: View {
             Color(hex: "0B1215").ignoresSafeArea()
             
             VStack(spacing: 24) {
-                ZStack {
-                    Circle()
-                        .stroke(Color.orange.opacity(0.2), lineWidth: 2)
-                        .frame(width: 100, height: 100)
-                    
-                    Image(systemName: "camera.aperture")
-                        .font(.system(size: 40))
-                        .foregroundStyle(
-                            LinearGradient(
-                                colors: [.orange, .purple],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            )
-                        )
-                        .rotationEffect(.degrees(viewModel.isLoading ? 360 : 0))
-                        .animation(.linear(duration: 4).repeatForever(autoreverses: false), value: viewModel.isLoading)
-                }
+                EchoesIconView(
+                    size: EchoesIconMetrics.viewerLoading,
+                    gradient: EchoesIconView.echoesBrandGradient
+                )
+                .rotationEffect(.degrees(viewModel.isLoading ? 360 : 0))
+                .animation(.linear(duration: 4).repeatForever(autoreverses: false), value: viewModel.isLoading)
                 
                 VStack(spacing: 8) {
                     Text(NSLocalizedString("echo.viewer.waiting.title", comment: ""))

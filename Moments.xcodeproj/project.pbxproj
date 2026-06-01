@@ -581,6 +581,10 @@
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
 				IPHONEOS_DEPLOYMENT_TARGET = 18.6;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited)";
+				LIBRARY_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(PROJECT_DIR)/Moments/Resources/AudienceIcons/alternatives/.venv/lib/python3.14/site-packages/PIL/.dylibs",
+				);
 				MARKETING_VERSION = 2.11.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.glowsyapp;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -631,6 +635,10 @@
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
 				IPHONEOS_DEPLOYMENT_TARGET = 18.6;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited)";
+				LIBRARY_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(PROJECT_DIR)/Moments/Resources/AudienceIcons/alternatives/.venv/lib/python3.14/site-packages/PIL/.dylibs",
+				);
 				MARKETING_VERSION = 2.11.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.glowsyapp;
 				PRODUCT_NAME = "$(TARGET_NAME)";

@@ -50,11 +50,11 @@ struct EchoInvitationView: View {
     private func invitationCard(echo: Echo) -> some View {
         VStack(spacing: 24) {
             HStack {
-                Image(systemName: "camera.aperture")
-                    .font(.system(size: 20, weight: .semibold))
-                    .foregroundStyle(primaryTextColor)
-                    .frame(width: 40, height: 40)
-                    .liquidGlass(in: Circle())
+                EchoesIconView(
+                    size: EchoesIconMetrics.invitation,
+                    gradient: EchoesIconView.echoesBrandGradientHorizontal
+                )
+                .frame(width: 40, height: 40, alignment: .leading)
                 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(NSLocalizedString("echo.invitation.sparkDetected", comment: ""))

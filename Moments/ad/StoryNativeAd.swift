@@ -2,6 +2,278 @@ import SwiftUI
 import GoogleMobileAds
 import UIKit
 
+private func activeWindowSafeAreaInsets() -> UIEdgeInsets {
+    let scenes = UIApplication.shared.connectedScenes
+    let windowScene = scenes.first { $0.activationState == .foregroundActive } as? UIWindowScene
+    let keyWindow = windowScene?.windows.first(where: \.isKeyWindow)
+    return keyWindow?.safeAreaInsets ?? .zero
+}
+
+private func storyNativeVideoLoaderOptions() -> VideoOptions {
+    let videoOptions = VideoOptions()
+    videoOptions.shouldStartMuted = false
+    videoOptions.areCustomControlsRequested = true
+    return videoOptions
+}
+
+@MainActor
+final class StoryAdVideoPlayback: ObservableObject {
+    @Published private(set) var isPaused = false
+    @Published private(set) var isMuted = false
+    @Published private(set) var hasVideo = false
+    @Published private(set) var canUseCustomControls = false
+
+    private weak var videoController: VideoController?
+
+    func attach(nativeAd: NativeAd, delegate: VideoControllerDelegate) {
+        let hasVideoContent = nativeAd.mediaContent.hasVideoContent
+        guard hasVideoContent else {
+            publishState(hasVideo: false, canUseCustomControls: false, isMuted: false, isPaused: false)
+            return
+        }
+
+        let controller = nativeAd.mediaContent.videoController
+        videoController = controller
+        controller.delegate = delegate
+
+        let customControls = controller.areCustomControlsEnabled
+        let muted = controller.isMuted
+
+        if customControls {
+            controller.isMuted = false
+            controller.play()
+        }
+
+        publishState(
+            hasVideo: true,
+            canUseCustomControls: customControls,
+            isMuted: customControls ? false : muted,
+            isPaused: false
+        )
+    }
+
+    func detach() {
+        videoController?.delegate = nil
+        videoController = nil
+        publishState(hasVideo: false, canUseCustomControls: false, isMuted: false, isPaused: false)
+    }
+
+    func togglePause() {
+        guard let controller = videoController else { return }
+
+        if canUseCustomControls {
+            if isPaused {
+                controller.play()
+            } else {
+                controller.pause()
+            }
+            return
+        }
+
+        // Sin controles custom el SDK renderiza los suyos; sincronizamos estado local.
+        isPaused.toggle()
+    }
+
+    func toggleMute() {
+        guard let controller = videoController else { return }
+        isMuted.toggle()
+        controller.isMuted = isMuted
+    }
+
+    func syncPaused(_ paused: Bool) {
+        publishState(isPaused: paused)
+    }
+
+    func syncMuted(_ muted: Bool) {
+        publishState(isMuted: muted)
+    }
+
+    private func publishState(
+        hasVideo: Bool? = nil,
+        canUseCustomControls: Bool? = nil,
+        isMuted: Bool? = nil,
+        isPaused: Bool? = nil
+    ) {
+        DispatchQueue.main.async { [weak self] in
+            guard let self else { return }
+            if let hasVideo { self.hasVideo = hasVideo }
+            if let canUseCustomControls { self.canUseCustomControls = canUseCustomControls }
+            if let isMuted { self.isMuted = isMuted }
+            if let isPaused { self.isPaused = isPaused }
+        }
+    }
+}
+
+private struct StoryAdVideoControlsOverlay: View {
+    @ObservedObject var playback: StoryAdVideoPlayback
+    let bottomPanelReservedHeight: CGFloat
+
+    var body: some View {
+        VStack {
+            Spacer(minLength: 0)
+
+            HStack(spacing: 10) {
+                Button(action: playback.togglePause) {
+                    Image(systemName: playback.isPaused ? "play.fill" : "pause.fill")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundColor(.white)
+                        .frame(width: 36, height: 36)
+                        .background(Color.black.opacity(0.45))
+                        .clipShape(Circle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(
+                    playback.isPaused
+                    ? NSLocalizedString("feed.video.play", comment: "Play video")
+                    : NSLocalizedString("feed.video.pause", comment: "Pause video")
+                )
+
+                Button(action: playback.toggleMute) {
+                    Image(systemName: playback.isMuted ? "speaker.slash.fill" : "speaker.wave.2.fill")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundColor(.white)
+                        .frame(width: 36, height: 36)
+                        .background(Color.black.opacity(0.45))
+                        .clipShape(Circle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(
+                    playback.isMuted
+                    ? NSLocalizedString("feed.video.unmute", comment: "Unmute video")
+                    : NSLocalizedString("feed.video.mute", comment: "Mute video")
+                )
+
+                Spacer(minLength: 0)
+            }
+            .padding(.leading, 16)
+            .padding(.bottom, bottomPanelReservedHeight + 12)
+        }
+        .allowsHitTesting(true)
+    }
+}
+
+private struct StoryAdTopChrome: View {
+    let storyCount: Int
+    let storyIndex: Int
+    let progress: Double
+    let title: String
+    let subtitle: String
+    let iconImage: UIImage?
+    let onClose: () -> Void
+    let trailingAccessory: AnyView?
+
+    init(
+        storyCount: Int,
+        storyIndex: Int,
+        progress: Double,
+        title: String,
+        subtitle: String,
+        iconImage: UIImage?,
+        onClose: @escaping () -> Void,
+        trailingAccessory: AnyView? = nil
+    ) {
+        self.storyCount = storyCount
+        self.storyIndex = storyIndex
+        self.progress = progress
+        self.title = title
+        self.subtitle = subtitle
+        self.iconImage = iconImage
+        self.onClose = onClose
+        self.trailingAccessory = trailingAccessory
+    }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            HStack(spacing: 4) {
+                ForEach(0..<storyCount, id: \.self) { index in
+                    GlassmorphicProgressBar(
+                        progress: progressForSegment(index),
+                        isActive: index == storyIndex,
+                        audience: nil
+                    )
+                }
+            }
+            .padding(.horizontal, 12)
+            .padding(.top, 12)
+
+            HStack(spacing: 12) {
+                HStack(spacing: 10) {
+                    ZStack {
+                        if let iconImage {
+                            Image(uiImage: iconImage)
+                                .resizable()
+                                .scaledToFill()
+                                .frame(width: 38, height: 38)
+                                .clipShape(Circle())
+                                .overlay(
+                                    Circle()
+                                        .stroke(Color.white.opacity(0.44), lineWidth: 1)
+                                )
+                                .shadow(color: Color.black.opacity(0.38), radius: 10, x: 0, y: 5)
+                        } else {
+                            Circle()
+                                .fill(Color.black.opacity(0.16))
+                                .frame(width: 38, height: 38)
+                                .liquidGlass(in: Circle())
+
+                            Image(systemName: "megaphone.fill")
+                                .foregroundColor(.white.opacity(0.82))
+                                .font(.system(size: 16, weight: .medium))
+                        }
+                    }
+
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(title)
+                            .foregroundColor(.white)
+                            .font(.custom("Poppins-SemiBold", size: 14))
+                            .lineLimit(1)
+                            .shadow(color: Color.black.opacity(0.60), radius: 5, x: 0, y: 2)
+
+                        HStack(spacing: 6) {
+                            Text("Ad")
+                                .foregroundColor(.white)
+                                .font(.custom("Poppins-SemiBold", size: 9))
+                                .padding(.horizontal, 5)
+                                .padding(.vertical, 2)
+                                .background(Color.white.opacity(0.18))
+                                .clipShape(Capsule())
+
+                            Text(subtitle)
+                                .foregroundColor(.white.opacity(0.7))
+                                .font(.custom("Poppins-Regular", size: 11))
+                                .shadow(color: Color.black.opacity(0.55), radius: 4, x: 0, y: 2)
+                        }
+                    }
+                }
+
+                Spacer()
+
+                if let trailingAccessory {
+                    trailingAccessory
+                }
+
+                Button(action: onClose) {
+                    Image(systemName: "xmark")
+                        .foregroundColor(.white)
+                        .font(.system(size: 16, weight: .medium))
+                        .frame(width: 40, height: 40)
+                        .storyGlassmorphic()
+                        .clipShape(Circle())
+                }
+                .buttonStyle(.plain)
+            }
+            .padding(.horizontal, 16)
+            .padding(.top, 10)
+        }
+    }
+
+    private func progressForSegment(_ index: Int) -> Double {
+        if index < storyIndex { return 1.0 }
+        if index == storyIndex { return progress }
+        return 0.0
+    }
+}
+
 // MARK: - Story Native Ad View
 struct StoryNativeAdView: View {
     @EnvironmentObject var authService: AuthService
@@ -17,7 +289,8 @@ struct StoryNativeAdView: View {
     @State private var adTimer: Timer?
     @State private var debugTimer: Timer?
     @State private var hasAppeared = false
-    private let adDuration: Double = 7.0
+    @State private var currentAdDuration: Double = 8.0
+    @State private var isAdTimerPaused = false
 
     var body: some View {
         Group {
@@ -39,11 +312,13 @@ struct StoryNativeAdView: View {
                         storyIndex: storyIndex,
                         progress: progress,
                         screenSize: screenSize,
+                        isTimerPaused: $isAdTimerPaused,
                         onNext: cleanupAndNext,
                         onPrevious: onPrevious,
                         onClose: onClose
                     )
                     .onAppear {
+                        currentAdDuration = nativeAd.mediaContent.hasVideoContent ? 20.0 : 8.0
                         startAdTimer()
                     }
                     
@@ -140,7 +415,8 @@ struct StoryNativeAdView: View {
         
         progress = 0.0
         adTimer = Timer.scheduledTimer(withTimeInterval: 0.05, repeats: true) { _ in
-            progress += 0.05 / adDuration
+            guard !isAdTimerPaused else { return }
+            progress += 0.05 / currentAdDuration
             if progress >= 1.0 {
                 cleanupAndNext()
             }
@@ -155,127 +431,106 @@ struct StoryAdContentViewWithMediaView: View {
     let storyIndex: Int
     let progress: Double
     let screenSize: CGSize
+    @Binding var isTimerPaused: Bool
     let onNext: () -> Void
     let onPrevious: () -> Void
     let onClose: () -> Void
     
     @State private var mediaViewKey = UUID()
-    
+    @StateObject private var videoPlayback = StoryAdVideoPlayback()
+
+    private let bottomPanelReservedHeight: CGFloat = 174
+
     var body: some View {
-        ZStack {
-            StoryAdMediaViewRepresentable(nativeAd: nativeAd)
-                .id(mediaViewKey)
-                .frame(width: screenSize.width, height: screenSize.height)
-                .clipped()
-            
-            LinearGradient(
-                colors: [
-                    Color.black.opacity(0.0),
-                    Color.black.opacity(0.3),
-                    Color.black.opacity(0.6)
-                ],
-                startPoint: .top,
-                endPoint: .bottom
-            )
-            
-            VStack(spacing: 0) {
+        GeometryReader { geometry in
+            let topInset = max(geometry.safeAreaInsets.top, activeWindowSafeAreaInsets().top)
+
+            ZStack {
+                StoryAdMediaViewRepresentable(
+                    nativeAd: nativeAd,
+                    playback: videoPlayback
+                )
+                    .id(mediaViewKey)
+                    .frame(width: screenSize.width, height: screenSize.height)
+                    .clipped()
+                
                 VStack(spacing: 0) {
-                    Color.clear.frame(height: 30)
-                    
-                    HStack(spacing: 4) {
-                        ForEach(0..<storyCount, id: \.self) { index in
-                            GlassmorphicProgressBar(
-                                progress: getProgressForSegment(index: index),
-                                isActive: index == storyIndex,
-                                audience: nil
-                            )
-                        }
-                    }
-                    .padding(.horizontal, 12)
-                    .padding(.top, 8)
-                    
-                    HStack(spacing: 12) {
-                        HStack(spacing: 10) {
-                            ZStack {
-                                Circle()
-                                    .fill(Color.white.opacity(0.15))
-                                    .frame(width: 38, height: 38)
-                                    .storyGlassmorphic()
-                                
-                                Image(systemName: "megaphone.fill")
-                                    .foregroundColor(.white)
-                                    .font(.system(size: 16))
-                            }
-                            
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text("ad.common.sponsored")
-                                    .foregroundColor(.white)
-                                    .font(.custom("Poppins-SemiBold", size: 14))
-                                    .shadow(color: .black.opacity(0.8), radius: 2, x: 0, y: 1)
-                                
-                                Text("ad.common.ad")
-                                    .foregroundColor(.white.opacity(0.8))
-                                    .font(.custom("Poppins-Regular", size: 11))
-                                    .shadow(color: .black.opacity(0.6), radius: 1, x: 0, y: 1)
-                            }
-                        }
-                        
-                        Spacer()
-                        
-                        Button(action: onClose) {
-                            Image(systemName: "xmark")
-                                .foregroundColor(.white)
-                                .font(.system(size: 16, weight: .medium))
-                                .frame(width: 40, height: 40)
-                                .storyGlassmorphic()
-                                .clipShape(Circle())
-                        }
-                    }
-                    .padding(.horizontal, 16)
-                    .padding(.top, 8)
+                    Color.clear
+                        .frame(height: topInset)
+                        .allowsHitTesting(false)
+
+                    StoryAdTopChrome(
+                        storyCount: storyCount,
+                        storyIndex: storyIndex,
+                        progress: progress,
+                        title: nativeAd.advertiser ?? NSLocalizedString("ad.common.sponsored", comment: "Sponsored"),
+                        subtitle: NSLocalizedString("ad.common.sponsored", comment: "Sponsored"),
+                        iconImage: nativeAd.icon?.image,
+                        onClose: onClose
+                    )
+
+                    Spacer(minLength: 0)
+                        .allowsHitTesting(false)
+                }
+
+                if nativeAd.mediaContent.hasVideoContent, videoPlayback.canUseCustomControls {
+                    StoryAdVideoControlsOverlay(
+                        playback: videoPlayback,
+                        bottomPanelReservedHeight: bottomPanelReservedHeight
+                    )
                 }
                 
-                Spacer()
-                
-                // Los elementos del anuncio ahora se muestran solo desde UIKit (StoryAdMediaViewRepresentable)
-                // para cumplir con las reglas de Google AdMob sin duplicación
+                if !nativeAd.mediaContent.hasVideoContent {
+                    storyTouchAreas
+                }
             }
-            
-            storyTouchAreas
+        }
+        .onChange(of: videoPlayback.isPaused) { _, paused in
+            isTimerPaused = paused
+        }
+        .onDisappear {
+            videoPlayback.detach()
         }
     }
-    
+
     private var storyTouchAreas: some View {
         GeometryReader { geometry in
-            HStack(spacing: 0) {
-                Rectangle()
-                    .fill(Color.clear)
-                    .frame(width: geometry.size.width * 0.15)
-                    .contentShape(Rectangle())
-                    .onTapGesture { onPrevious() }
-                
-                Spacer()
-                
-                Rectangle()
-                    .fill(Color.clear)
-                    .frame(width: geometry.size.width * 0.15)
-                    .contentShape(Rectangle())
-                    .onTapGesture { onNext() }
+            let topReserved = max(geometry.safeAreaInsets.top, activeWindowSafeAreaInsets().top) + 92
+            let bottomReserved: CGFloat = 188
+            let interactiveHeight = max(geometry.size.height - topReserved - bottomReserved, 0)
+
+            VStack(spacing: 0) {
+                Color.clear
+                    .frame(height: topReserved)
+
+                HStack(spacing: 0) {
+                    Rectangle()
+                        .fill(Color.clear)
+                        .frame(width: geometry.size.width * 0.15)
+                        .contentShape(Rectangle())
+                        .onTapGesture { onPrevious() }
+                    
+                    Spacer()
+                    
+                    Rectangle()
+                        .fill(Color.clear)
+                        .frame(width: geometry.size.width * 0.15)
+                        .contentShape(Rectangle())
+                        .onTapGesture { onNext() }
+                }
+                .frame(height: interactiveHeight)
+
+                Spacer(minLength: 0)
             }
-            .frame(height: geometry.size.height * 0.85)
+            .frame(width: geometry.size.width, height: geometry.size.height, alignment: .top)
         }
-    }
-    
-    private func getProgressForSegment(index: Int) -> Double {
-        if index < storyIndex { return 1.0 }
-        else if index == storyIndex { return progress }
-        else { return 0.0 }
     }
 }
 
 // MARK: - MediaView UIViewRepresentable
 struct StoryAdMediaViewRepresentable: UIViewRepresentable {
     let nativeAd: NativeAd
+    @ObservedObject var playback: StoryAdVideoPlayback
     
     func makeUIView(context: Context) -> NativeAdView {
         let nativeAdView = NativeAdView()
@@ -308,127 +563,129 @@ struct StoryAdMediaViewRepresentable: UIViewRepresentable {
         let adChoicesView = AdChoicesView()
         adChoicesView.translatesAutoresizingMaskIntoConstraints = false
         nativeAdView.adChoicesView = adChoicesView
-        
+
         // Headline
         let headlineLabel = UILabel()
         headlineLabel.text = nativeAd.headline
-        headlineLabel.numberOfLines = 0
+        headlineLabel.font = UIFont(name: "Poppins-SemiBold", size: 22) ?? UIFont.boldSystemFont(ofSize: 22)
+        headlineLabel.textColor = .white
+        headlineLabel.numberOfLines = 1
+        headlineLabel.lineBreakMode = .byTruncatingTail
         headlineLabel.translatesAutoresizingMaskIntoConstraints = false
         nativeAdView.headlineView = headlineLabel
-        
+
         // Body
         let bodyLabel = UILabel()
         bodyLabel.text = nativeAd.body
-        bodyLabel.numberOfLines = 0
+        bodyLabel.font = UIFont(name: "Poppins-Regular", size: 15) ?? UIFont.systemFont(ofSize: 15)
+        bodyLabel.textColor = UIColor.white.withAlphaComponent(0.9)
+        bodyLabel.numberOfLines = 1
+        bodyLabel.lineBreakMode = .byTruncatingTail
         bodyLabel.translatesAutoresizingMaskIntoConstraints = false
         nativeAdView.bodyView = bodyLabel
-        
-        // ✅ QUITADO: CTA Button - No necesario, el tapping general funciona
-        // let callToActionButton = UIButton(type: .system)
-        // callToActionButton.setTitle(nativeAd.callToAction ?? "Más información", for: .normal)
-        // callToActionButton.titleLabel?.font = UIFont(name: "Poppins-SemiBold", size: 16) ?? UIFont.boldSystemFont(ofSize: 16)
-        // callToActionButton.setTitleColor(.white, for: .normal)
-        // callToActionButton.backgroundColor = UIColor(red: 0, green: 0.66, blue: 0.59, alpha: 1)
-        // callToActionButton.layer.cornerRadius = 16
-        // callToActionButton.translatesAutoresizingMaskIntoConstraints = false
-        // nativeAdView.callToActionView = callToActionButton
-        
-        // Icon
+
+        let callToActionButton = UIButton(type: .system)
+        callToActionButton.setTitle(nativeAd.callToAction ?? "Más información", for: .normal)
+        callToActionButton.titleLabel?.font = UIFont(name: "Poppins-SemiBold", size: 15) ?? UIFont.boldSystemFont(ofSize: 15)
+        callToActionButton.setTitleColor(.white, for: .normal)
+        callToActionButton.backgroundColor = UIColor(red: 0.09, green: 0.56, blue: 0.96, alpha: 0.95)
+        callToActionButton.layer.cornerRadius = 18
+        callToActionButton.translatesAutoresizingMaskIntoConstraints = false
+        nativeAdView.callToActionView = callToActionButton
+
         let iconView = UIImageView()
         if let iconImage = nativeAd.icon?.image {
             iconView.image = iconImage
         }
         iconView.contentMode = .scaleAspectFit
+        iconView.clipsToBounds = true
+        iconView.layer.cornerRadius = 6
         iconView.translatesAutoresizingMaskIntoConstraints = false
         nativeAdView.iconView = iconView
-        
-        // Advertiser
+
         let advertiserLabel = UILabel()
         advertiserLabel.text = nativeAd.advertiser ?? "Anunciante"
         advertiserLabel.font = UIFont(name: "Poppins-SemiBold", size: 14) ?? UIFont.boldSystemFont(ofSize: 14)
         advertiserLabel.textColor = .white.withAlphaComponent(0.8)
+        advertiserLabel.numberOfLines = 1
+        advertiserLabel.lineBreakMode = .byTruncatingTail
         advertiserLabel.translatesAutoresizingMaskIntoConstraints = false
         nativeAdView.advertiserView = advertiserLabel
-        
+
+        let advertiserRow = UIStackView(arrangedSubviews: [iconView, advertiserLabel])
+        advertiserRow.axis = .horizontal
+        advertiserRow.alignment = .center
+        advertiserRow.spacing = 8
+        advertiserRow.translatesAutoresizingMaskIntoConstraints = false
+
+        let contentStack = UIStackView(arrangedSubviews: [headlineLabel, bodyLabel, advertiserRow, callToActionButton])
+        contentStack.axis = .vertical
+        contentStack.alignment = .leading
+        contentStack.spacing = 8
+        contentStack.translatesAutoresizingMaskIntoConstraints = false
+
+        let bottomPanel = UIVisualEffectView(effect: UIBlurEffect(style: .systemUltraThinMaterialDark))
+        bottomPanel.translatesAutoresizingMaskIntoConstraints = false
+        bottomPanel.clipsToBounds = true
+        bottomPanel.layer.cornerRadius = 26
+
         if nativeAd.mediaContent.hasVideoContent {
-            let videoController = nativeAd.mediaContent.videoController
-            videoController.delegate = context.coordinator
-            
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                videoController.isMuted = false
-            }
+            context.coordinator.playback = playback
+            playback.attach(nativeAd: nativeAd, delegate: context.coordinator)
         }
         
         // Agregar TODOS los elementos como subvistas de nativeAdView
         nativeAdView.addSubview(mediaView)
-        nativeAdView.addSubview(headlineLabel)
-        nativeAdView.addSubview(bodyLabel)
-        // nativeAdView.addSubview(callToActionButton) // ✅ QUITADO: CTA Button
-        nativeAdView.addSubview(iconView)
-        nativeAdView.addSubview(advertiserLabel)
-        nativeAdView.addSubview(adChoicesView)
-        nativeAdView.addSubview(adAttributionView)
-        
+        nativeAdView.addSubview(bottomPanel)
+        bottomPanel.contentView.addSubview(contentStack)
+        bottomPanel.contentView.addSubview(adChoicesView)
+        bottomPanel.contentView.addSubview(adAttributionView)
+
         // Constraints - Layout vertical DENTRO del NativeAdView (como FeedNativeAd)
         NSLayoutConstraint.activate([
-            // MediaView - parte superior (más grande para parecer historia)
-            mediaView.topAnchor.constraint(equalTo: nativeAdView.topAnchor, constant: 8),
-            mediaView.leadingAnchor.constraint(equalTo: nativeAdView.leadingAnchor, constant: 8),
-            mediaView.trailingAnchor.constraint(equalTo: nativeAdView.trailingAnchor, constant: -8),
-            mediaView.heightAnchor.constraint(equalToConstant: 500), // Más alto para parecer historia
+            // MediaView ocupa la parte superior y deja un panel propio para metadata del anuncio.
+            mediaView.topAnchor.constraint(equalTo: nativeAdView.topAnchor),
+            mediaView.leadingAnchor.constraint(equalTo: nativeAdView.leadingAnchor),
+            mediaView.trailingAnchor.constraint(equalTo: nativeAdView.trailingAnchor),
+            mediaView.bottomAnchor.constraint(equalTo: bottomPanel.topAnchor, constant: -12),
+            mediaView.heightAnchor.constraint(greaterThanOrEqualTo: nativeAdView.heightAnchor, multiplier: 0.62),
+
+            bottomPanel.leadingAnchor.constraint(equalTo: nativeAdView.leadingAnchor, constant: 12),
+            bottomPanel.trailingAnchor.constraint(equalTo: nativeAdView.trailingAnchor, constant: -12),
+            bottomPanel.bottomAnchor.constraint(equalTo: nativeAdView.bottomAnchor, constant: -18),
+            bottomPanel.heightAnchor.constraint(equalToConstant: 144),
             
-            // Ad Attribution - debajo del media (sin superposición)
-            adAttributionView.topAnchor.constraint(equalTo: mediaView.bottomAnchor, constant: 8),
-            adAttributionView.leadingAnchor.constraint(equalTo: nativeAdView.leadingAnchor, constant: 8),
-            adAttributionView.widthAnchor.constraint(equalToConstant: 25),
+            // Ad Attribution visible dentro del panel nativo.
+            adAttributionView.topAnchor.constraint(equalTo: bottomPanel.contentView.topAnchor, constant: 14),
+            adAttributionView.leadingAnchor.constraint(equalTo: bottomPanel.contentView.leadingAnchor, constant: 16),
+            adAttributionView.widthAnchor.constraint(equalToConstant: 30),
             adAttributionView.heightAnchor.constraint(equalToConstant: 18),
             
-            // Ad Attribution Label constraints
             adAttributionLabel.centerXAnchor.constraint(equalTo: adAttributionView.centerXAnchor),
             adAttributionLabel.centerYAnchor.constraint(equalTo: adAttributionView.centerYAnchor),
             
-            // AdChoices - debajo del media (sin superposición)
-            adChoicesView.topAnchor.constraint(equalTo: mediaView.bottomAnchor, constant: 8),
-            adChoicesView.trailingAnchor.constraint(equalTo: nativeAdView.trailingAnchor, constant: -8),
+            // AdChoices queda en la misma fila pero sin solapar otros assets.
+            adChoicesView.topAnchor.constraint(equalTo: bottomPanel.contentView.topAnchor, constant: 12),
+            adChoicesView.trailingAnchor.constraint(equalTo: bottomPanel.contentView.trailingAnchor, constant: -16),
             
-            // ✅ HÍBRIDO: Texto en horizontal, video en vertical - SIN SUPERPOSICIONES
-            // Headline - debajo de los elementos de atribución
-            headlineLabel.topAnchor.constraint(equalTo: adAttributionView.bottomAnchor, constant: 12),
-            headlineLabel.leadingAnchor.constraint(equalTo: nativeAdView.leadingAnchor, constant: 8),
-            headlineLabel.trailingAnchor.constraint(equalTo: nativeAdView.trailingAnchor, constant: -8),
-            headlineLabel.heightAnchor.constraint(equalToConstant: 30),
-            
-            // Body - debajo del headline, horizontal
-            bodyLabel.topAnchor.constraint(equalTo: headlineLabel.bottomAnchor, constant: 4),
-            bodyLabel.leadingAnchor.constraint(equalTo: nativeAdView.leadingAnchor, constant: 8),
-            bodyLabel.trailingAnchor.constraint(equalTo: nativeAdView.trailingAnchor, constant: -8),
-            bodyLabel.heightAnchor.constraint(equalToConstant: 25),
-            
-            // Icon - debajo del body, horizontal (no superpuesto)
-            iconView.topAnchor.constraint(equalTo: bodyLabel.bottomAnchor, constant: 8),
-            iconView.leadingAnchor.constraint(equalTo: nativeAdView.leadingAnchor, constant: 8),
-            iconView.heightAnchor.constraint(equalToConstant: 40),
-            iconView.widthAnchor.constraint(equalToConstant: 40),
-            
-            // Advertiser - debajo del icono
-            advertiserLabel.topAnchor.constraint(equalTo: iconView.bottomAnchor, constant: 8),
-            advertiserLabel.leadingAnchor.constraint(equalTo: nativeAdView.leadingAnchor, constant: 8),
-            advertiserLabel.trailingAnchor.constraint(equalTo: nativeAdView.trailingAnchor, constant: -8),
-            advertiserLabel.bottomAnchor.constraint(equalTo: nativeAdView.bottomAnchor, constant: -8)
-            
-            // ✅ QUITADO: CTA Button constraints - No necesario, el tapping general funciona
-            // callToActionButton.topAnchor.constraint(equalTo: advertiserLabel.bottomAnchor, constant: 16),
-            // callToActionButton.leadingAnchor.constraint(equalTo: nativeAdView.leadingAnchor, constant: 8),
-            // callToActionButton.heightAnchor.constraint(equalToConstant: 44),
-            // callToActionButton.widthAnchor.constraint(equalToConstant: 150),
-            // callToActionButton.bottomAnchor.constraint(equalTo: nativeAdView.bottomAnchor, constant: -8)
+            iconView.widthAnchor.constraint(equalToConstant: 30),
+            iconView.heightAnchor.constraint(equalToConstant: 30),
+            callToActionButton.heightAnchor.constraint(equalToConstant: 34),
+
+            contentStack.topAnchor.constraint(equalTo: adAttributionView.bottomAnchor, constant: 12),
+            contentStack.leadingAnchor.constraint(equalTo: bottomPanel.contentView.leadingAnchor, constant: 16),
+            contentStack.trailingAnchor.constraint(lessThanOrEqualTo: bottomPanel.contentView.trailingAnchor, constant: -16),
+            contentStack.bottomAnchor.constraint(equalTo: bottomPanel.contentView.bottomAnchor, constant: -16),
+
+            callToActionButton.leadingAnchor.constraint(equalTo: contentStack.leadingAnchor),
+            callToActionButton.widthAnchor.constraint(greaterThanOrEqualToConstant: 124)
         ])
         
         return nativeAdView
     }
     
     func updateUIView(_ uiView: NativeAdView, context: Context) {
-        // Actualizar si es necesario
+        context.coordinator.playback = playback
     }
     
     func makeCoordinator() -> Coordinator {
@@ -436,11 +693,38 @@ struct StoryAdMediaViewRepresentable: UIViewRepresentable {
     }
     
     class Coordinator: NSObject, VideoControllerDelegate {
-        func videoControllerDidPlayVideo(_ videoController: VideoController) {}
-        func videoControllerDidPauseVideo(_ videoController: VideoController) {}
-        func videoControllerDidEndVideoPlayback(_ videoController: VideoController) {}
-        func videoControllerDidMuteVideo(_ videoController: VideoController) {}
-        func videoControllerDidUnmuteVideo(_ videoController: VideoController) {}
+        weak var playback: StoryAdVideoPlayback?
+
+        func videoControllerDidPlayVideo(_ videoController: VideoController) {
+            Task { @MainActor in
+                playback?.syncPaused(false)
+            }
+        }
+
+        func videoControllerDidPauseVideo(_ videoController: VideoController) {
+            Task { @MainActor in
+                playback?.syncPaused(true)
+            }
+        }
+
+        func videoControllerDidEndVideoPlayback(_ videoController: VideoController) {
+            Task { @MainActor in
+                playback?.syncPaused(true)
+            }
+        }
+
+        func videoControllerDidMuteVideo(_ videoController: VideoController) {
+            Task { @MainActor in
+                playback?.syncMuted(true)
+            }
+        }
+
+        func videoControllerDidUnmuteVideo(_ videoController: VideoController) {
+            Task { @MainActor in
+                playback?.syncMuted(false)
+            }
+        }
+
         func videoController(_ videoController: VideoController, didFailWithError error: Error) {}
     }
 }
@@ -457,6 +741,8 @@ struct StoryAdLoadingView: View {
     @State private var isAnimating = false
     
     var body: some View {
+        let resolvedTopInset = max(CGFloat(48), activeWindowSafeAreaInsets().top)
+
         ZStack {
             LinearGradient(
                 colors: [Color(hex: "667eea"), Color(hex: "764ba2")],
@@ -466,47 +752,17 @@ struct StoryAdLoadingView: View {
             .ignoresSafeArea()
             
             VStack(spacing: 0) {
-                VStack(spacing: 0) {
-                    Color.clear.frame(height: 30)
-                    
-                    HStack(spacing: 4) {
-                        ForEach(0..<storyCount, id: \.self) { index in
-                            GlassmorphicProgressBar(
-                                progress: getProgressForSegment(index: index),
-                                isActive: index == storyIndex,
-                                audience: nil
-                            )
-                        }
-                    }
-                    .padding(.horizontal, 12)
-                    .padding(.top, 8)
-                    
-                    HStack(spacing: 12) {
-                        HStack(spacing: 10) {
-                            ZStack {
-                                Circle()
-                                    .fill(Color.white.opacity(0.1))
-                                    .frame(width: 38, height: 38)
-                                    .storyGlassmorphic()
-                                
-                                Image(systemName: "megaphone.fill")
-                                    .foregroundColor(.white)
-                                    .font(.system(size: 16))
-                            }
-                            
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text("ad.common.sponsored")
-                                    .foregroundColor(.white)
-                                    .font(.custom("Poppins-SemiBold", size: 14))
-                                
-                                Text("common.loading")
-                                    .foregroundColor(.white.opacity(0.7))
-                                    .font(.custom("Poppins-Regular", size: 11))
-                            }
-                        }
-                        
-                        Spacer()
-                        
+                Color.clear.frame(height: resolvedTopInset)
+
+                StoryAdTopChrome(
+                    storyCount: storyCount,
+                    storyIndex: storyIndex,
+                    progress: progress,
+                    title: NSLocalizedString("ad.common.sponsored", comment: "Sponsored"),
+                    subtitle: NSLocalizedString("common.loading", comment: "Loading"),
+                    iconImage: nil,
+                    onClose: onClose,
+                    trailingAccessory: AnyView(
                         Button("ad.common.skip") {
                             onNext()
                         }
@@ -516,19 +772,8 @@ struct StoryAdLoadingView: View {
                         .padding(.vertical, 6)
                         .background(Color.white.opacity(0.2))
                         .clipShape(Capsule())
-                        
-                        Button(action: onClose) {
-                            Image(systemName: "xmark")
-                                .foregroundColor(.white)
-                                .font(.system(size: 16, weight: .medium))
-                                .frame(width: 40, height: 40)
-                                .storyGlassmorphic()
-                                .clipShape(Circle())
-                        }
-                    }
-                    .padding(.horizontal, 16)
-                    .padding(.top, 8)
-                }
+                    )
+                )
                 
                 Spacer()
                 
@@ -619,11 +864,6 @@ struct StoryAdLoadingView: View {
         }
     }
     
-    private func getProgressForSegment(index: Int) -> Double {
-        if index < storyIndex { return 1.0 }
-        else if index == storyIndex { return progress }
-        else { return 0.0 }
-    }
 }
 
 // MARK: - Shimmer Effect Extension
@@ -710,14 +950,14 @@ class StoryNativeAdManager: NSObject, ObservableObject {
         let adUnitID = AdMobConfiguration.getNativeAdUnitId()
         let mediaOptions = NativeAdMediaAdLoaderOptions()
         mediaOptions.mediaAspectRatio = .any
-
+        let videoOptions = storyNativeVideoLoaderOptions()
         let rootVC = UIApplication.shared.topViewController()
         
         adLoader = AdLoader(
             adUnitID: adUnitID,
             rootViewController: rootVC,
             adTypes: [.native],
-            options: [mediaOptions]
+            options: [mediaOptions, videoOptions]
         )
 
         adLoader?.delegate = self

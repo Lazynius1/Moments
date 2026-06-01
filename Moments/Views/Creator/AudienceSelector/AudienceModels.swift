@@ -41,6 +41,54 @@ enum ContentAudience: String, Codable, CaseIterable {
         case .onlyMe: return "lock.fill"
         }
     }
+
+    var assetName: String {
+        switch self {
+        case .everyone: return "AudienceEveryoneIcon"
+        case .connections: return "AudienceMutualsIcon"
+        case .bestFriends: return "AudienceBestFriendsIcon"
+        case .custom: return "AudienceCustomIcon"
+        case .customList: return "AudienceCustomListIcon"
+        case .onlyMe: return "AudienceOnlyMeIcon"
+        }
+    }
+
+    static func fromCaptionAudienceSetting(
+        _ setting: CaptionAndDetailsView.AudienceSetting,
+        hasCustomList: Bool
+    ) -> ContentAudience {
+        if setting == .custom && hasCustomList {
+            return .customList
+        }
+        switch setting {
+        case .everyone: return .everyone
+        case .mutuals, .admirers: return .connections
+        case .bestFriends: return .bestFriends
+        case .custom: return .custom
+        case .onlyMe: return .onlyMe
+        }
+    }
+
+    static func fromAudienceValue(_ value: String?) -> ContentAudience {
+        let normalized = value?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .lowercased() ?? "everyone"
+
+        switch normalized {
+        case "connections", "mutuals", "mutual", "admirers":
+            return .connections
+        case "bestfriends", "best_friends", "best-friends":
+            return .bestFriends
+        case "customlist":
+            return .customList
+        case "custom":
+            return .custom
+        case "onlyme", "only_me", "only-me":
+            return .onlyMe
+        default:
+            return .everyone
+        }
+    }
 }
 
 struct CustomAudienceList: Identifiable, Codable, Equatable {

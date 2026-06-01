@@ -12,13 +12,15 @@ private struct ReelsStoryRoute: Identifiable {
 struct ReelsViewer: View {
     let videos: [VideoMoment]
     let startIndex: Int
+    let initialStartSeconds: Double
     @State private var currentIndex: Int = 0
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) var colorScheme
     
-    init(videos: [VideoMoment], startIndex: Int = 0) {
+    init(videos: [VideoMoment], startIndex: Int = 0, initialStartSeconds: Double = 0) {
         self.videos = videos
         self.startIndex = startIndex
+        self.initialStartSeconds = initialStartSeconds
         self._currentIndex = State(initialValue: startIndex)
     }
     
@@ -34,6 +36,7 @@ struct ReelsViewer: View {
                         ReelVideoView(
                             video: video,
                             isCurrentVideo: currentIndex == index,
+                            startAtSeconds: index == startIndex ? initialStartSeconds : 0,
                             onClose: {
                                 dismiss()
                             }
@@ -101,6 +104,7 @@ struct ReelsViewer: View {
 struct ReelVideoView: View {
     let video: VideoMoment
     let isCurrentVideo: Bool
+    let startAtSeconds: Double
     let onClose: () -> Void
     
     @StateObject private var playerManager = ReelVideoPlayerManager()
@@ -122,6 +126,7 @@ struct ReelVideoView: View {
     @State private var liveAuthorUsername: String = ""
     @State private var isDraggingProgress = false
     @State private var wasPlayingBeforeDrag = false
+    @State private var isReelCaptionExpanded = false
     
     @Environment(\.colorScheme) var colorScheme
     @EnvironmentObject private var firestoreService: FirestoreService
@@ -202,6 +207,7 @@ struct ReelVideoView: View {
                 if let player = playerManager.player {
                     VideoPlayerRepresentable(
                         player: player,
+                        videoGravity: .resizeAspect,
                         showControls: .constant(false), // Siempre oculto
                         progress: $playerManager.progress,
                         isBuffering: $playerManager.isBuffering
@@ -211,17 +217,6 @@ struct ReelVideoView: View {
                     .background(Color.black)
                     .clipped()
                     .ignoresSafeArea(.all)
-                    .onTapGesture {
-                        let haptic = UIImpactFeedbackGenerator(style: .light)
-                        haptic.impactOccurred()
-                        
-                        // Solo toggle play/pause silencioso
-                        playerManager.togglePlayback()
-                    }
-                    .onTapGesture(count: 2) {
-                        // Double tap para like
-                        handleDoubleTap()
-                    }
                 } else {
                     // Loading state mejorado y más rápido
                     ZStack {
@@ -291,6 +286,22 @@ struct ReelVideoView: View {
                     }
                 }
                 
+                // Capa invisible para capturar gestos de reproducción y likes en el fondo,
+                // evitando que interfieran con los botones interactivos del overlay superior.
+                Color.black.opacity(0.001)
+                    .ignoresSafeArea(.all)
+                    .onTapGesture {
+                        let haptic = UIImpactFeedbackGenerator(style: .light)
+                        haptic.impactOccurred()
+                        
+                        // Solo toggle play/pause silencioso
+                        playerManager.togglePlayback()
+                    }
+                    .onTapGesture(count: 2) {
+                        // Double tap para like
+                        handleDoubleTap()
+                    }
+                
                 // Double tap heart animation - usando feel reaction color
                 if isDoubleTapAnimating {
                     Image(systemName: "heart.fill")
@@ -316,6 +327,8 @@ struct ReelVideoView: View {
                                     .font(.system(size: 16, weight: .semibold))
                                     .foregroundColor(chromePrimaryColor)
                                     .frame(width: 38, height: 38)
+                                    .background(Color.white.opacity(0.001))
+                                    .contentShape(Circle())
                                     .liquidGlass(in: Circle(), interactive: true)
                             }
                             .buttonStyle(.plain)
@@ -329,6 +342,8 @@ struct ReelVideoView: View {
                                     .font(.system(size: 16, weight: .semibold))
                                     .foregroundColor(chromePrimaryColor)
                                     .frame(width: 38, height: 38)
+                                    .background(Color.white.opacity(0.001))
+                                    .contentShape(Circle())
                                     .liquidGlass(in: Circle(), interactive: true)
                             }
                             .buttonStyle(.plain)
@@ -344,12 +359,15 @@ struct ReelVideoView: View {
 
                     Spacer()
 
+                    // Gradiente con altura estática — sin animación propia de frame.
+                    // Esto elimina la "doble animación" que causaba que el header
+                    // y el caption se movieran de forma desincronizada al expandir.
                     LinearGradient(
-                        colors: [Color.clear, Color.black.opacity(0.16), Color.black.opacity(0.64)],
+                        colors: [Color.clear, Color.black.opacity(0.2), Color.black.opacity(0.78)],
                         startPoint: .top,
                         endPoint: .bottom
                     )
-                    .frame(height: 240)
+                    .frame(height: 300)
                     .overlay(alignment: .bottom) {
                         HStack(alignment: .bottom, spacing: 20) {
                             VStack(alignment: .leading, spacing: 12) {
@@ -419,7 +437,8 @@ struct ReelVideoView: View {
                                     moment: video.moment,
                                     style: .reels,
                                     colorScheme: colorScheme,
-                                    onHashtagTap: { _ in }
+                                    onHashtagTap: { _ in },
+                                    isReelsCaptionExpanded: $isReelCaptionExpanded
                                 )
                                 .padding(.leading, -12)
                             }
@@ -428,7 +447,10 @@ struct ReelVideoView: View {
                             VStack(spacing: 18) {
                                 EpicReactionButton(
                                     moment: video.moment,
-                                    showCount: video.moment.authorId == Auth.auth().currentUser?.uid || !video.moment.hideLikeCounts
+                                    showCount: video.moment.authorId == Auth.auth().currentUser?.uid || !video.moment.hideLikeCounts,
+                                    size: 56,
+                                    emojiSize: 28,
+                                    pickerXOffset: -110
                                 )
                                 .environmentObject(firestoreService)
 
@@ -444,13 +466,19 @@ struct ReelVideoView: View {
                                     )
                                 }
 
-                                if video.moment.allowSharing {
+                                let aud = video.moment.audience?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() ?? ""
+                                let isEveryone = aud.isEmpty || aud == "everyone"
+                                if video.moment.allowSharing && isEveryone {
                                     EnhancedReelActionButton(
                                         icon: "arrowshape.turn.up.right.fill",
                                         count: nil,
                                         isActive: false,
                                         activeColor: .green,
-                                        action: shareVideo
+                                        action: {
+                                            withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                                                showShareSheet = true
+                                            }
+                                        }
                                     )
                                 }
 
@@ -470,6 +498,7 @@ struct ReelVideoView: View {
                         }
                         .padding(.horizontal, 20)
                         .padding(.bottom, 22)
+                        .animation(.spring(response: 0.38, dampingFraction: 0.85), value: isReelCaptionExpanded)
                     }
                 }
 
@@ -630,6 +659,9 @@ struct ReelVideoView: View {
                 playerManager.pause()
             }
         }
+        .onChange(of: video.moment.id) { _, _ in
+            isReelCaptionExpanded = false
+        }
         .onDisappear {
             // Cleanup inmediato al desaparecer
             playerManager.cleanup()
@@ -775,7 +807,7 @@ struct ReelVideoView: View {
     private func setupVideo() {
         let url = video.playbackURL ?? URL(string: video.videoUrl)
         guard let url else { return }
-        playerManager.setupPlayer(with: url)
+        playerManager.setupPlayer(with: url, startAtSeconds: startAtSeconds)
     }
     
     private func loadVideoData() {
@@ -800,6 +832,9 @@ struct ReelVideoView: View {
     
     private func shareVideo() {
         guard let momentId = video.moment.id else { return }
+        let aud = video.moment.audience?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() ?? ""
+        let isEveryone = aud.isEmpty || aud == "everyone"
+        guard video.moment.allowSharing && isEveryone else { return }
         let shareText = "¡Mira este video en Moments!"
         var components = URLComponents(string: "https://momentsapp.app/moment/\(momentId)")
         if !video.moment.authorId.isEmpty {
@@ -1113,10 +1148,12 @@ class ReelVideoPlayerManager: ObservableObject {
     private var playerItem: AVPlayerItem?
     private var isSeeking = false
     private var lastSeekTime: Date = Date()
+    private var pendingStartAtSeconds: Double?
     
-    func setupPlayer(with url: URL) {
+    func setupPlayer(with url: URL, startAtSeconds: Double = 0) {
         // Limpiar player anterior si existe
         cleanup()
+        pendingStartAtSeconds = startAtSeconds > 0 ? startAtSeconds : nil
         
         
         // ✅ INSTANT PLAYBACK: Usar preloader
@@ -1198,7 +1235,7 @@ class ReelVideoPlayerManager: ObservableObject {
                 case .readyToPlay:
                     self?.isLoaded = true
                     self?.isBuffering = false
-                    self?.play()
+                    self?.applyPendingStartAndPlayIfNeeded()
                 case .failed:
                     self?.isBuffering = false
                 case .unknown:
@@ -1239,9 +1276,29 @@ class ReelVideoPlayerManager: ObservableObject {
         ) { [weak self] _ in
             self?.player?.seek(to: .zero, toleranceBefore: .zero, toleranceAfter: .zero) { completed in
                 if completed {
+                    self?.pendingStartAtSeconds = nil
                     self?.player?.play()
                 }
             }
+        }
+    }
+
+    private func applyPendingStartAndPlayIfNeeded() {
+        guard let player else {
+            play()
+            return
+        }
+
+        guard let startAt = pendingStartAtSeconds else {
+            play()
+            return
+        }
+
+        let boundedStart = max(0, startAt)
+        pendingStartAtSeconds = nil
+        let target = CMTime(seconds: boundedStart, preferredTimescale: CMTimeScale(NSEC_PER_SEC))
+        player.seek(to: target, toleranceBefore: .zero, toleranceAfter: .zero) { [weak self] _ in
+            self?.play()
         }
     }
     
@@ -1344,6 +1401,7 @@ class ReelVideoPlayerManager: ObservableObject {
         isLoaded = false
         isSeeking = false
         isMuted = !GlobalVideoManager.shared.userHasEnabledSoundInSession
+        pendingStartAtSeconds = nil
     }
     
     deinit {

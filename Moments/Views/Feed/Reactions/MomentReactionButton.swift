@@ -8,10 +8,16 @@ import FirebaseAuth
 struct EpicReactionButton: View {
     let moment: Moment
     let showCount: Bool
+    let size: CGFloat
+    let emojiSize: CGFloat
+    let pickerXOffset: CGFloat
     
-    init(moment: Moment, showCount: Bool = true) {
+    init(moment: Moment, showCount: Bool = true, size: CGFloat = 44, emojiSize: CGFloat = 24, pickerXOffset: CGFloat = 0) {
         self.moment = moment
         self.showCount = showCount
+        self.size = size
+        self.emojiSize = emojiSize
+        self.pickerXOffset = pickerXOffset
     }
     @State private var showReactionPicker = false
     @State private var currentReaction: ReactionType?
@@ -30,20 +36,24 @@ struct EpicReactionButton: View {
     @EnvironmentObject private var firestoreService: FirestoreService
     
     var body: some View {
-        ZStack(alignment: .topTrailing) {
-            Button(action: {
-                if hasReacted {
-                    removeReactionWithAnimation()
-                } else {
-                    showPickerWithAnimation()
-                }
-            }) {
+        ZStack {
+            if showReactionPicker {
+                Color.black.opacity(0.001)
+                    .frame(width: 1000, height: 2000)
+                    .ignoresSafeArea(.all)
+                    .contentShape(Rectangle())
+                    .onTapGesture {
+                        hidePickerWithAnimation()
+                    }
+            }
+            
+            ZStack(alignment: .topTrailing) {
                 ZStack {
                     // ✨ Ripple effect de fondo
                     if showRipple {
                         Circle()
                             .fill(currentReaction?.color.opacity(0.3) ?? Color.white.opacity(0.3))
-                            .frame(width: 70, height: 70)
+                            .frame(width: size * 1.6, height: size * 1.6)
                             .scaleEffect(showRipple ? 1.5 : 0.5)
                             .opacity(showRipple ? 0 : 1)
                             .animation(.easeOut(duration: 0.6), value: showRipple)
@@ -51,8 +61,9 @@ struct EpicReactionButton: View {
                     
                     // ✨ Círculo principal con efectos (SIN BORDE)
                     Circle()
-                        .fill(Color.clear)
-                        .frame(width: 44, height: 44)
+                        .fill(Color.white.opacity(0.001))
+                        .frame(width: size, height: size)
+                        .contentShape(Circle())
                         .liquidGlass(in: Circle())
                         .shadow(
                             color: hasReacted ?
@@ -64,7 +75,7 @@ struct EpicReactionButton: View {
                     
                     // ✨ Emoji
                     Text(hasReacted ? (currentReaction?.filledIcon ?? "❤️") : "♡")
-                        .font(.system(size: 24, weight: .heavy))
+                        .font(.system(size: emojiSize, weight: .heavy))
                         .foregroundStyle(
                             hasReacted ? 
                             LinearGradient(
@@ -92,51 +103,60 @@ struct EpicReactionButton: View {
                         }
                     }
                 }
-            }
-            .scaleEffect(isPressed ? 0.85 : (hasReacted ? 1.15 : 1.0))
-            .animation(.interpolatingSpring(stiffness: 600, damping: 15), value: isPressed)
-            .animation(.interpolatingSpring(stiffness: 400, damping: 12), value: hasReacted)
-            .onLongPressGesture(minimumDuration: 0, maximumDistance: .infinity, pressing: { pressing in
-                isPressed = pressing
-            }, perform: {})
-            .onLongPressGesture(minimumDuration: 0.5) {
-                showReactionsList()
-            }
-            
-            // ✨ Contador como Badge Interactivo (SIN BORDE)
-            if showCount && reactionCount > 0 {
-                Button(action: showReactionsList) {
-                    Text("\(reactionCount)")
-                        .font(.system(size: 10, weight: .bold))
-                        .foregroundColor(.white)
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 2)
-                        .background(
-                            Capsule()
-                                .fill(currentReaction?.color ?? Color.gray.opacity(0.6))
-                        )
-                }
-                .offset(x: 4, y: -4)
-                .transition(.scale.combined(with: .opacity))
-            }
-        }
-        .overlay(alignment: .bottom) {
-            // ✨ Epic Reaction Picker (COMO OVERLAY para no deformar)
-            if showReactionPicker {
-                EpicReactionPickerView(
-                    onReactionSelected: { reaction in
-                        addReactionWithAnimation(reaction)
-                    },
-                    onClose: {
-                        hidePickerWithAnimation()
+                .contentShape(Circle())
+                .scaleEffect(isPressed ? 0.85 : (hasReacted ? 1.15 : 1.0))
+                .animation(.interpolatingSpring(stiffness: 600, damping: 15), value: isPressed)
+                .animation(.interpolatingSpring(stiffness: 400, damping: 12), value: hasReacted)
+                .onTapGesture {
+                    if hasReacted {
+                        removeReactionWithAnimation()
+                    } else {
+                        showPickerWithAnimation()
                     }
-                )
-                .transition(.asymmetric(
-                    insertion: .scale(scale: 0.3).combined(with: .opacity).combined(with: .offset(y: 30)),
-                    removal: .scale(scale: 0.8).combined(with: .opacity).combined(with: .offset(y: -20))
-                ))
+                }
+                .onLongPressGesture(minimumDuration: 0.4, pressing: { pressing in
+                    isPressed = pressing
+                }, perform: {
+                    showPickerWithAnimation()
+                })
+                
+                // ✨ Contador como Badge Interactivo (SIN BORDE)
+                if showCount && reactionCount > 0 {
+                    Button(action: showReactionsList) {
+                        Text("\(reactionCount)")
+                            .font(.system(size: 10, weight: .bold))
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(
+                                Capsule()
+                                    .fill(currentReaction?.color ?? Color.gray.opacity(0.6))
+                            )
+                    }
+                    .offset(x: 4, y: -4)
+                    .transition(.scale.combined(with: .opacity))
+                }
+            }
+            .overlay(alignment: .bottom) {
+                // ✨ Epic Reaction Picker (COMO OVERLAY para no deformar)
+                if showReactionPicker {
+                    EpicReactionPickerView(
+                        onReactionSelected: { reaction in
+                            addReactionWithAnimation(reaction)
+                        },
+                        onClose: {
+                            hidePickerWithAnimation()
+                        }
+                    )
+                    .offset(x: pickerXOffset)
+                    .transition(.asymmetric(
+                        insertion: .scale(scale: 0.3).combined(with: .opacity).combined(with: .offset(x: pickerXOffset, y: 30)),
+                        removal: .scale(scale: 0.8).combined(with: .opacity).combined(with: .offset(x: pickerXOffset, y: -20))
+                    ))
+                }
             }
         }
+        .frame(width: size, height: size)
         .onAppear {
             setupReactionListener()
         }
@@ -377,14 +397,50 @@ struct ParticleView: View {
     }
 }
 
-// ✨ EPIC REACTION PICKER con Scroll Horizontal y Tracking de Uso
+// ✨ FLOATING REACTION ITEM VIEW con animación Bubble Float y escala táctil
+struct FloatingReactionItemView: View {
+    let reaction: ReactionType
+    let index: Int
+    let action: () -> Void
+    
+    @State private var isFloating = false
+    @State private var isPressed = false
+    
+    var body: some View {
+        Button(action: {
+            HapticManager.shared.lightImpact()
+            action()
+        }) {
+            Text(reaction.filledIcon)
+                .font(.system(size: 32))
+                .shadow(color: .black.opacity(0.18), radius: 3, x: 0, y: 3)
+                .scaleEffect(isPressed ? 0.82 : 1.0)
+                .offset(y: isFloating ? -4 : 4)
+                .animation(
+                    .easeInOut(duration: 1.4 + Double(index) * 0.08)
+                    .repeatForever(autoreverses: true),
+                    value: isFloating
+                )
+        }
+        .buttonStyle(PlainButtonStyle())
+        .onAppear {
+            isFloating = true
+        }
+        .onLongPressGesture(minimumDuration: 0, maximumDistance: .infinity, pressing: { pressing in
+            withAnimation(.spring(response: 0.15, dampingFraction: 0.6)) {
+                isPressed = pressing
+            }
+        }, perform: {})
+    }
+}
+
+// ✨ EPIC REACTION PICKER con Scroll Horizontal y Tracking de Uso (Cápsula de Cristal Fina y Animada)
 struct EpicReactionPickerView: View {
     let onReactionSelected: (ReactionType) -> Void
     let onClose: () -> Void
-    @State private var appearScale: [CGFloat] = Array(repeating: 0.3, count: 16) // Actualizado para 16 reacciones
+    @State private var appearScale: [CGFloat] = Array(repeating: 0.3, count: 16)
     
     @StateObject private var usageTracker: UserReactionUsageTracker
-    
     @Environment(\.colorScheme) var colorScheme
 
     init(onReactionSelected: @escaping (ReactionType) -> Void, onClose: @escaping () -> Void) {
@@ -396,103 +452,42 @@ struct EpicReactionPickerView: View {
     }
     
     var body: some View {
-        VStack(spacing: 0) {
-            // ✨ Scroll Horizontal con todas las reacciones ordenadas por uso
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 12) {
-                    ForEach(Array(usageTracker.getReactionsOrderedByUsage().enumerated()), id: \.offset) { index, reaction in
-                        Button(action: {
-                            HapticManager.shared.lightImpact()
-                            
-                            // Incrementar uso de esta reacción
-                            usageTracker.incrementUsage(for: reaction)
-                            onReactionSelected(reaction)
-                        }) {
-                            VStack(spacing: 6) {
-                                ZStack {
-                                    Circle()
-                                        .fill(reaction.color.opacity(0.2))
-                                        .frame(width: 50, height: 50)
-                                        .blur(radius: 8)
-                                    
-                                    Circle()
-                                        .fill(.ultraThinMaterial)
-                                        .frame(width: 44, height: 44)
-                                        .overlay(
-                                            Circle()
-                                                .stroke(
-                                                    LinearGradient(
-                                                        colors: [reaction.color.opacity(0.8), reaction.color],
-                                                        startPoint: .topLeading,
-                                                        endPoint: .bottomTrailing
-                                                    ),
-                                                    lineWidth: 2
-                                                )
-                                        )
-                                        .shadow(color: reaction.color.opacity(0.4), radius: 6, x: 0, y: 3)
-                                    
-                                    Text(reaction.filledIcon)
-                                        .font(.system(size: 22, weight: .bold))
-                                        .foregroundStyle(
-                                            LinearGradient(
-                                                colors: [reaction.color, reaction.color.opacity(0.7)],
-                                                startPoint: .topLeading,
-                                                endPoint: .bottomTrailing
-                                            )
-                                        )
-                                        .shadow(color: reaction.color.opacity(0.6), radius: 2)
-                                }
-                                
-                                Text(reaction.displayName)
-                                    .font(.custom("Poppins-Bold", size: 10))
-                                    .foregroundColor(.white)
-                                    .shadow(color: .black.opacity(0.5), radius: 1)
-                            }
-                        }
-                        .scaleEffect(appearScale[index])
-                        .animation(.bouncy(duration: 0.6, extraBounce: 0.3).delay(Double(index) * 0.05), value: appearScale[index])
-                        .onTapGesture {
-                            withAnimation(.easeInOut(duration: 0.1)) {
-                                appearScale[index] = 0.9
-                            }
-                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                                withAnimation(.bouncy(duration: 0.4)) {
-                                    appearScale[index] = 1.0
-                                }
-                            }
-                        }
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 16) {
+                ForEach(Array(usageTracker.getReactionsOrderedByUsage().enumerated()), id: \.offset) { index, reaction in
+                    FloatingReactionItemView(reaction: reaction, index: index) {
+                        usageTracker.incrementUsage(for: reaction)
+                        onReactionSelected(reaction)
                     }
+                    .scaleEffect(appearScale[index])
+                    .animation(.bouncy(duration: 0.5, extraBounce: 0.25).delay(Double(index) * 0.03), value: appearScale[index])
                 }
-                .padding(.horizontal, 24)
-                .padding(.vertical, 20)
             }
-            
-            // ✨ Botón de cerrar
-            Button(action: onClose) {
-                Text(NSLocalizedString("common.close", comment: ""))
-                    .font(.custom("Poppins-SemiBold", size: 14))
-                    .foregroundColor(colorScheme == .dark ? .white.opacity(0.8) : .black.opacity(0.8))
-                    .padding(.horizontal, 24)
-                    .padding(.vertical, 8)
-                    .liquidGlass(in: Capsule())
-            }
-            .padding(.bottom, 16)
+            .padding(.horizontal, 18)
+            .padding(.vertical, 14)
         }
         .background(
-            RoundedRectangle(cornerRadius: 30)
+            Capsule()
                 .fill(.ultraThinMaterial)
                 .overlay(
-                    RoundedRectangle(cornerRadius: 30)
-                        .fill(Color.white.opacity(0.1))
+                    Capsule()
+                        .stroke(
+                            LinearGradient(
+                                colors: [.white.opacity(0.24), .white.opacity(0.12)],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            ),
+                            lineWidth: 1
+                        )
                 )
         )
-        .frame(width: 280) // ✅ Ancho explícito para que no se vea estrecho en el overlay
-        .shadow(color: .black.opacity(0.3), radius: 20, x: 0, y: 10)
+        .frame(width: 280) // ✅ Ancho explícito para que no se deforme
+        .shadow(color: .black.opacity(0.25), radius: 15, x: 0, y: 8)
         .offset(y: -90)
         .onAppear {
             for index in 0..<appearScale.count {
-                DispatchQueue.main.asyncAfter(deadline: .now() + Double(index) * 0.03) {
-                    withAnimation(.bouncy(duration: 0.4, extraBounce: 0.2)) {
+                DispatchQueue.main.asyncAfter(deadline: .now() + Double(index) * 0.02) {
+                    withAnimation(.bouncy(duration: 0.35, extraBounce: 0.2)) {
                         appearScale[index] = 1.0
                     }
                 }

@@ -99,12 +99,12 @@ struct CaptionAndDetailsView: View {
 
         var icon: String {
             switch self {
-            case .everyone: return "globe"
-            case .mutuals: return "person.2.fill"
-            case .admirers: return "person.3"
-            case .bestFriends: return "star"
-            case .custom: return "gearshape"
-            case .onlyMe: return "lock.fill"
+            case .everyone: return "AudienceEveryoneIcon"
+            case .mutuals: return "AudienceMutualsIcon"
+            case .admirers: return "AudienceMutualsIcon"
+            case .bestFriends: return "AudienceBestFriendsIcon"
+            case .custom: return "AudienceCustomIcon"
+            case .onlyMe: return "AudienceOnlyMeIcon"
             }
         }
     }
@@ -269,7 +269,7 @@ struct CaptionAndDetailsView: View {
 
                                 // Audience
                                 MinimalOptionRow(
-                                    icon: getAudienceIcon(),
+                                    audience: captionContentAudience,
                                     title: NSLocalizedString("audience.title", comment: "Audience title"),
                                     value: getAudienceText()
                                 ) {
@@ -646,11 +646,11 @@ struct CaptionAndDetailsView: View {
     // MediaStackPreview eliminado (reemplazado por imagen grande inline)
 
     // ✅ FUNCIONES AUXILIARES RESTAURADAS
-    private func getAudienceIcon() -> String {
-        if audienceSetting == .custom && selectedListId != nil {
-            return "list.bullet.rectangle"
-        }
-        return audienceSetting.icon
+    private var captionContentAudience: ContentAudience {
+        ContentAudience.fromCaptionAudienceSetting(
+            audienceSetting,
+            hasCustomList: audienceSetting == .custom && selectedListId != nil
+        )
     }
 
     private func getAudienceText() -> String {
@@ -747,14 +747,20 @@ struct CaptionAndDetailsView: View {
     // MARK: - 📍 MINIMAL OPTION ROW (Clean Design)
 
     struct MinimalOptionRow: View {
-        let icon: String
+        var icon: String? = nil
+        var audience: ContentAudience? = nil
         let title: String
         let value: String?
         let action: () -> Void
 
         var body: some View {
             Button(action: action) {
-                MinimalOptionRowContent(icon: icon, title: title, value: value)
+                MinimalOptionRowContent(
+                    icon: icon,
+                    audience: audience,
+                    title: title,
+                    value: value
+                )
             }
             .pressAnimation()
         }
@@ -790,17 +796,27 @@ struct CaptionAndDetailsView: View {
     }
 
     struct MinimalOptionRowContent: View {
-        let icon: String
+        var icon: String? = nil
+        var audience: ContentAudience? = nil
         let title: String
         let value: String?
 
         var body: some View {
             HStack(spacing: 16) {
-                // Icon
-                Image(systemName: icon)
-                    .font(.system(size: 20))
-                    .foregroundColor(.white)
-                    .frame(width: 32)
+                Group {
+                    if let audience {
+                        AudienceIconView(
+                            audience: audience,
+                            size: AudienceIconMetrics.creatorRow,
+                            tintColor: .white
+                        )
+                    } else if let icon {
+                        Image(systemName: icon)
+                            .font(.system(size: 20))
+                            .foregroundColor(.white)
+                    }
+                }
+                .frame(width: 32)
 
                 Text(title)
                     .font(.system(size: 16, weight: .medium))

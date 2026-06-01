@@ -93,9 +93,10 @@ struct EchoHistoryView: View {
 
     private var emptyStateView: some View {
         VStack(spacing: 16) {
-            Image(systemName: "camera.aperture")
-                .font(.system(size: 48, weight: .regular))
-                .foregroundColor(.secondary)
+            EchoesIconView(
+                size: EchoesIconMetrics.historyEmpty,
+                gradient: EchoesIconView.echoesBrandGradient
+            )
             
             Text(NSLocalizedString("echo.history.empty.title", comment: ""))
                 .font(.system(size: 18, weight: .semibold))
@@ -291,15 +292,10 @@ struct EchoHistoryCard: View {
                             .resizable()
                             .scaledToFill()
                     } else {
-                        Image(systemName: "camera.aperture")
-                            .font(.system(size: 24))
-                            .foregroundStyle(
-                                LinearGradient(
-                                    colors: [.orange, .purple],
-                                    startPoint: .leading,
-                                    endPoint: .trailing
-                                )
-                            )
+                        EchoesIconView(
+                            size: EchoesIconMetrics.historyRow,
+                            gradient: EchoesIconView.echoesBrandGradientHorizontal
+                        )
                     }
                 }
                 .frame(width: 56, height: 56)

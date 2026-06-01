@@ -19,12 +19,16 @@ enum ChainContinuationSetting: String, CaseIterable {
     }
     
     var icon: String {
+        contentAudience.assetName
+    }
+
+    var contentAudience: ContentAudience {
         switch self {
-        case .everyone: return "globe"
-        case .connections: return "person.2.fill"
-        case .bestFriends: return "heart.circle.fill"
-        case .custom: return "person.crop.circle.badge.plus"
-        case .customList: return "list.bullet.rectangle"
+        case .everyone: return .everyone
+        case .connections: return .connections
+        case .bestFriends: return .bestFriends
+        case .custom: return .custom
+        case .customList: return .customList
         }
     }
     
@@ -46,6 +50,7 @@ struct ChainConfigurationView: View {
     }
 
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.colorScheme) private var colorScheme
     @Binding var allowOthersToContinue: Bool
     @Binding var continuationAudience: ChainContinuationSetting
     @Binding var selectedListId: String?
@@ -179,8 +184,13 @@ struct ChainConfigurationView: View {
                                 }
                             }) {
                                 HStack {
-                                    Image(systemName: getAudienceIcon())
-                                        .foregroundColor(isContinuing ? .secondary : .primary)
+                                    AudienceIconView(
+                                        audience: continuationAudienceForDisplay,
+                                        size: AudienceIconMetrics.creatorRow,
+                                        tintColor: isContinuing ? .secondary : nil,
+                                        colorScheme: colorScheme
+                                    )
+                                    .frame(width: 28, alignment: .center)
                                     
                                     Text(getAudienceText())
                                         .font(.custom("Poppins-Regular", size: 16))
@@ -270,13 +280,13 @@ struct ChainConfigurationView: View {
     }
     
     // MARK: - Helper Functions
-    private func getAudienceIcon() -> String {
+    private var continuationAudienceForDisplay: ContentAudience {
         if continuationAudience == .custom && selectedListId != nil {
-            return "list.bullet.rectangle"
+            return .customList
         }
-        return continuationAudience.icon
+        return continuationAudience.contentAudience
     }
-    
+
     private func getAudienceText() -> String {
         if continuationAudience == .custom {
             if let listName = selectedListName {

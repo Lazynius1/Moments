@@ -152,10 +152,12 @@ struct ContentVisibilityView: View {
                                 VStack(spacing: 0) {
                                     Button(action: { showingCustomAudienceLists = true }) {
                                         HStack(spacing: 14) {
-                                            Image(systemName: "list.bullet.rectangle")
-                                                .foregroundColor(colorScheme == .dark ? .white : .black)
-                                                .font(.system(size: 18))
-                                                .frame(width: 28, alignment: .center)
+                                            AudienceIconView(
+                                                audience: .customList,
+                                                size: AudienceIconMetrics.row,
+                                                colorScheme: colorScheme
+                                            )
+                                            .frame(width: 28, alignment: .center)
                                             
                                             VStack(alignment: .leading, spacing: 2) {
                                                 Text(NSLocalizedString("contentVisibility.manageCustomLists", comment: "Manage custom lists label"))
@@ -262,10 +264,12 @@ struct ContentVisibilityView: View {
     
     private func currentAudienceRow(audience: ContentAudience, customListName: String?, customCount: Int) -> some View {
         HStack(spacing: 14) {
-            Image(systemName: audience.icon)
-                .font(.system(size: 19, weight: .regular))
-                .foregroundColor(colorScheme == .dark ? .white : .black)
-                .frame(width: 28, alignment: .center)
+            AudienceIconView(
+                audience: audience,
+                size: AudienceIconMetrics.row,
+                colorScheme: colorScheme
+            )
+            .frame(width: 28, alignment: .center)
 
             VStack(alignment: .leading, spacing: 4) {
                 Text(getAudienceDisplayTitle(audience: audience, customListName: customListName))

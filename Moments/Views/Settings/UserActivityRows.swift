@@ -282,25 +282,64 @@ struct ActivityEventRow: View {
     let onOpenTargetProfile: () -> Void
     let onRowTap: (() -> Void)?
 
+    private var kindLowercased: String {
+        item.kind?.lowercased() ?? ""
+    }
+
+    private var shouldShowTrailingThumbnail: Bool {
+        guard let thumbUrl = item.thumbnailUrl, !thumbUrl.isEmpty else { return false }
+        // En visitas/followers no mostramos bloque derecho para evitar hueco visual.
+        if kindLowercased == "visit" || kindLowercased == "follower" {
+            return false
+        }
+        return true
+    }
+
+    private var hasTrailingAccessory: Bool {
+        shouldShowTrailingThumbnail || isSelectionMode
+    }
+
+    private var shouldUseSplitHeaderLayout: Bool {
+        kindLowercased == "visit" || kindLowercased == "follower"
+    }
+
     var body: some View {
         Group {
             if item.kind?.lowercased() == "echo" {
                 echoCardContent
+            } else if kindLowercased == "visit" || kindLowercased == "follower" {
+                visitFollowerCardContent
             } else {
                 HStack(alignment: .top, spacing: 12) {
                     avatar
 
                     VStack(alignment: .leading, spacing: 4) {
                         if let actionText = item.actionText, !actionText.isEmpty {
-                            HStack(alignment: .firstTextBaseline, spacing: 4) {
-                                Text(item.title)
-                                    .font(.custom("Poppins-SemiBold", size: 15))
-                                    .foregroundColor(colorScheme == .dark ? .white : .black)
-                                    .lineLimit(1)
-                                Text(actionText)
-                                    .font(.custom("Poppins-Regular", size: 12))
-                                    .foregroundColor(colorScheme == .dark ? .white : .black)
-                                    .lineLimit(1)
+                            if shouldUseSplitHeaderLayout {
+                                HStack(alignment: .firstTextBaseline, spacing: 10) {
+                                    Text(item.title)
+                                        .font(.custom("Poppins-SemiBold", size: 15))
+                                        .foregroundColor(colorScheme == .dark ? .white : .black)
+                                        .lineLimit(1)
+
+                                    Spacer(minLength: 0)
+
+                                    Text(actionText)
+                                        .font(.custom("Poppins-Regular", size: 12))
+                                        .foregroundColor(colorScheme == .dark ? .white : .black)
+                                        .lineLimit(1)
+                                }
+                            } else {
+                                HStack(alignment: .firstTextBaseline, spacing: 4) {
+                                    Text(item.title)
+                                        .font(.custom("Poppins-SemiBold", size: 15))
+                                        .foregroundColor(colorScheme == .dark ? .white : .black)
+                                        .lineLimit(1)
+                                    Text(actionText)
+                                        .font(.custom("Poppins-Regular", size: 12))
+                                        .foregroundColor(colorScheme == .dark ? .white : .black)
+                                        .lineLimit(1)
+                                }
                             }
                         } else {
                             Text(item.title)
@@ -350,10 +389,13 @@ struct ActivityEventRow: View {
                             }
                         }
                     }
+                    .frame(maxWidth: .infinity, alignment: .leading)
 
-                    Spacer(minLength: 0)
+                    if hasTrailingAccessory {
+                        Spacer(minLength: 0)
+                    }
 
-                    if let thumbUrl = item.thumbnailUrl, !thumbUrl.isEmpty {
+                    if shouldShowTrailingThumbnail, let thumbUrl = item.thumbnailUrl, !thumbUrl.isEmpty {
                         KFImage(URL(string: thumbUrl))
                             .resizable()
                             .scaledToFill()
@@ -391,15 +433,10 @@ struct ActivityEventRow: View {
                         .resizable()
                         .scaledToFill()
                 } else {
-                    Image(systemName: "camera.aperture")
-                        .font(.system(size: 24))
-                        .foregroundStyle(
-                            LinearGradient(
-                                colors: [.orange, .purple],
-                                startPoint: .leading,
-                                endPoint: .trailing
-                            )
-                        )
+                    EchoesIconView(
+                        size: EchoesIconMetrics.rowThumbnail,
+                        gradient: EchoesIconView.echoesBrandGradientHorizontal
+                    )
                 }
             }
             .frame(width: 56, height: 56)
@@ -558,10 +595,95 @@ struct ActivityEventRow: View {
                 .fill(Color(hex: "4F46E5").opacity(0.13))
                 .frame(width: 34, height: 34)
 
-            Image(systemName: item.icon)
-                .font(.system(size: 13, weight: .semibold))
-                .foregroundColor(Color(hex: "4F46E5"))
+            if item.icon == "EchoesIcon" || item.icon == "camera.aperture" {
+                EchoesIconView(
+                    size: EchoesIconMetrics.rowAvatar,
+                    tintColor: Color(hex: "4F46E5")
+                )
+            } else {
+                Image(systemName: item.icon)
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundColor(Color(hex: "4F46E5"))
+            }
         }
+    }
+
+    private var cleanDescriptionText: String {
+        if kindLowercased == "visit" {
+            return NSLocalizedString("userActivity.event.visit.clean", value: "Visited your profile", comment: "")
+        } else if kindLowercased == "follower" {
+            return NSLocalizedString("userActivity.event.follow.clean", value: "Started following you", comment: "")
+        }
+        return item.subtitle
+    }
+
+    private var visitFollowerCardContent: some View {
+        HStack(alignment: .center, spacing: 12) {
+            avatar
+
+            VStack(alignment: .leading, spacing: 3) {
+                HStack(spacing: 6) {
+                    Text(item.title)
+                        .font(.custom("Poppins-SemiBold", size: 15))
+                        .foregroundColor(colorScheme == .dark ? .white : .black)
+                        .lineLimit(1)
+                    
+                    Text("•")
+                        .font(.system(size: 10))
+                        .foregroundColor(.secondary.opacity(0.7))
+                    
+                    Text(item.timestamp.timeAgoDisplay())
+                        .font(.custom("Poppins-Regular", size: 11))
+                        .foregroundColor(.secondary)
+                }
+                
+                Text(cleanDescriptionText)
+                    .font(.custom("Poppins-Regular", size: 13))
+                    .foregroundColor(.secondary)
+                    .lineLimit(1)
+            }
+            
+            Spacer()
+            
+            if let actionText = item.actionText, !actionText.isEmpty {
+                Button {
+                    onOpenTargetProfile()
+                } label: {
+                    Text(actionText)
+                        .font(.custom("Poppins-SemiBold", size: 12))
+                        .foregroundColor(colorScheme == .dark ? .white : .black)
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 6)
+                        .background(
+                            Capsule()
+                                .fill(
+                                    LinearGradient(
+                                        colors: colorScheme == .dark
+                                            ? [Color.white.opacity(0.12), Color.white.opacity(0.06)]
+                                            : [Color.black.opacity(0.08), Color.black.opacity(0.04)],
+                                        startPoint: .top,
+                                        endPoint: .bottom
+                                    )
+                                )
+                        )
+                        .overlay(
+                            Capsule()
+                                .stroke(
+                                    LinearGradient(
+                                        colors: colorScheme == .dark
+                                            ? [Color.white.opacity(0.14), Color.white.opacity(0.06)]
+                                            : [Color.black.opacity(0.10), Color.black.opacity(0.04)],
+                                        startPoint: .top,
+                                        endPoint: .bottom
+                                    ),
+                                    lineWidth: 1
+                                )
+                        )
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(.vertical, 4)
     }
 }
 

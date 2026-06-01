@@ -9,20 +9,7 @@ private enum StoryAudienceBottomInfo {
     }
 
     static func icon(for audience: String?) -> String {
-        switch normalizedAudience(audience) {
-        case "connections", "mutuals", "mutual":
-            return "person.2.fill"
-        case "bestfriends", "best_friends", "best-friends":
-            return "heart.fill"
-        case "customlist":
-            return "list.bullet.rectangle"
-        case "custom":
-            return "person.crop.circle.badge.plus"
-        case "onlyme", "only_me", "only-me":
-            return "lock.fill"
-        default:
-            return "globe.americas.fill"
-        }
+        ContentAudience.fromAudienceValue(audience).assetName
     }
 
     static func title(for audience: String?, listName: String?) -> String {
@@ -80,8 +67,8 @@ struct StoryOwnStoryBottomBar: View {
         StoryAudienceBottomInfo.title(for: audience, listName: audienceListName)
     }
 
-    private var audienceIcon: String {
-        StoryAudienceBottomInfo.icon(for: audience)
+    private var displayAudience: ContentAudience {
+        ContentAudience.fromAudienceValue(audience)
     }
 
     private var reactionCount: Int {
@@ -211,8 +198,13 @@ struct StoryOwnStoryBottomBar: View {
                     }
                     .frame(height: 32)
                 } else {
-                    Color.clear
-                        .frame(width: 32, height: 32)
+                    Image("StoryActivityEmptyIcon")
+                        .renderingMode(.template)
+                        .resizable()
+                        .scaledToFit()
+                        .foregroundColor(chromeColors.messageTextColor)
+                        .shadow(color: labelShadowColor, radius: 4, x: 0, y: 1)
+                        .frame(width:36, height: 36)
                 }
 
                 Text(NSLocalizedString("stories.ownBottom.activity", comment: "Activity label under avatars"))
@@ -229,11 +221,13 @@ struct StoryOwnStoryBottomBar: View {
 
     private var audienceColumn: some View {
         VStack(spacing: 6) {
-            Image(systemName: audienceIcon)
-                .font(.system(size: 22, weight: .medium))
-                .foregroundColor(chromeColors.messageTextColor)
-                .shadow(color: labelShadowColor, radius: 4, x: 0, y: 1)
-                .frame(height: 32)
+            AudienceIconView(
+                audience: displayAudience,
+                size: AudienceIconMetrics.storyBottomBar,
+                tintColor: chromeColors.messageTextColor
+            )
+            .frame(width: 36, height: 36)
+            .shadow(color: labelShadowColor, radius: 4, x: 0, y: 1)
 
             Text(audienceTitle)
                 .font(.custom("Poppins-Medium", size: 12))

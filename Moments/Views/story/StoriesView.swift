@@ -78,54 +78,27 @@ struct StoriesView: View {
                     onClose: { dismiss() }
                 )
             } else if showAd {
-                // ✅ NUEVO: Usar anuncio integrado
-                if let nativeAd = AdMobConfiguration.shared.getPreloadedNativeAd() {
-                    IntegratedStoryAdView(
-                        nativeAd: nativeAd,
-                        storyCount: adStoryCount,
-                        storyIndex: adStoryIndex,
-                        progress: 0.0,
-                        screenSize: UIScreen.main.bounds.size,
-                        onNext: {
-                            showAd = false
-                            moveToNextStoryOrUser()
-                        },
-                        onPrevious: {
-                            showAd = false
-                            if currentStoryIndex > 0 {
-                                currentStoryIndex -= 1
-                            } else {
-                                moveToPreviousUser()
-                            }
-                        },
-                        onClose: {
-                            dismiss()
+                StoryNativeAdView(
+                    onNext: {
+                        showAd = false
+                        moveToNextStoryOrUser()
+                    },
+                    onPrevious: {
+                        showAd = false
+                        if currentStoryIndex > 0 {
+                            currentStoryIndex -= 1
+                        } else {
+                            moveToPreviousUser()
                         }
-                    )
-                } else {
-                    // Fallback al anuncio original si no hay preloaded
-                    StoryNativeAdView(
-                        onNext: {
-                            showAd = false
-                            moveToNextStoryOrUser()
-                        },
-                        onPrevious: {
-                            showAd = false
-                            if currentStoryIndex > 0 {
-                                currentStoryIndex -= 1
-                            } else {
-                                moveToPreviousUser()
-                            }
-                        },
-                        onClose: {
-                            dismiss()
-                        },
-                        storyCount: adStoryCount,
-                        storyIndex: adStoryIndex,
-                        screenSize: UIScreen.main.bounds.size
-                    )
-                    .environmentObject(authService)
-                }
+                    },
+                    onClose: {
+                        dismiss()
+                    },
+                    storyCount: adStoryCount,
+                    storyIndex: adStoryIndex,
+                    screenSize: UIScreen.main.bounds.size
+                )
+                .environmentObject(authService)
 
             } else if currentUserIndex < userIds.count,
                       let userId = userIds[safe: currentUserIndex],
@@ -279,7 +252,7 @@ struct StoriesView: View {
 
     // Verificar si debe mostrar anuncio
     private func shouldShowStoryAd() -> Bool {
-        let shouldShow = (otherUsersStoryCount % 4 == 0) && // ANUNCIO CADA 4 HISTORIAS
+        let shouldShow = (otherUsersStoryCount % 4 == 0) &&
                         otherUsersStoryCount > 0 &&
                         PlusStatusHelper.shouldShowAds(for: authService.currentUser)
 

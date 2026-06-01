@@ -3576,3 +3576,6 @@
 "share.storyDenied.restricted" = "No tienes permiso para ver esta historia.";
 "chat.preview.sharedStory" = "Historia compartida";
 "share.story" = "Historia";
+
+"userActivity.event.visit.clean" = "Visitó tu perfil";
+"userActivity.event.follow.clean" = "Comenzó a seguirte";

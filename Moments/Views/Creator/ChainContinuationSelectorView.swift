@@ -252,12 +252,9 @@ struct ChainContinuationSelectorView: View {
             }
             .padding(.horizontal, 4)
             
-            LazyVGrid(columns: [
-                GridItem(.flexible(), spacing: 12),
-                GridItem(.flexible(), spacing: 12)
-            ], spacing: 12) {
-                ChainAudienceGridCard(
-                    setting: .everyone,
+            VStack(spacing: 2) {
+                AudienceGridCard(
+                    audience: .everyone,
                     isSelected: selectedAudience == .everyone,
                     onTap: {
                         selectedAudience = .everyone
@@ -265,9 +262,9 @@ struct ChainContinuationSelectorView: View {
                         finishSelection()
                     }
                 )
-                
-                ChainAudienceGridCard(
-                    setting: .connections,
+
+                AudienceGridCard(
+                    audience: .connections,
                     isSelected: selectedAudience == .connections,
                     onTap: {
                         selectedAudience = .connections
@@ -275,9 +272,9 @@ struct ChainContinuationSelectorView: View {
                         finishSelection()
                     }
                 )
-                
-                ChainAudienceGridCard(
-                    setting: .bestFriends,
+
+                AudienceGridCard(
+                    audience: .bestFriends,
                     isSelected: selectedAudience == .bestFriends,
                     onTap: {
                         selectedAudience = .bestFriends
@@ -336,7 +333,7 @@ struct ChainContinuationSelectorView: View {
                         }
 
                         ForEach(customLists) { list in
-                            ChainCustomListCard(
+                            CustomListCard(
                                 list: list,
                                 isSelected: selectedAudience == .customList && selectedListId == list.id,
                                 onTap: {
@@ -366,67 +363,71 @@ struct ChainContinuationSelectorView: View {
             }
             .padding(.horizontal, 4)
             
+            let isCustomPeopleSelected = selectedAudience == .custom && selectedListId == nil
+
             Button(action: { navigate(to: .customPeople) }) {
-                HStack(spacing: 16) {
-                    Image(systemName: "person.crop.circle.badge.plus")
-                        .font(.system(size: 24, weight: .medium))
-                        .foregroundColor(colorScheme == .dark ? .white : .black)
-                        .frame(width: 36, height: 36)
-                    
-                    VStack(alignment: .leading, spacing: 2) {
+                HStack(alignment: .center, spacing: 14) {
+                    AudienceIconView(
+                        audience: .custom,
+                        size: AudienceIconMetrics.gridCardEmphasis,
+                        colorScheme: colorScheme
+                    )
+                    .frame(width: 40, height: 40)
+                    .opacity(isCustomPeopleSelected ? 1 : 0.42)
+
+                    VStack(alignment: .leading, spacing: 3) {
                         Text(NSLocalizedString("audience.type.custom", comment: ""))
-                            .font(.custom("Poppins-SemiBold", size: 16))
+                            .font(.custom(isCustomPeopleSelected ? "Poppins-SemiBold" : "Poppins-Medium", size: 16))
                             .foregroundColor(colorScheme == .dark ? .white : .black)
-                        
+                            .opacity(isCustomPeopleSelected ? 1 : 0.82)
+
                         if selectedAudience == .custom && !customSelectedUsers.isEmpty {
                             Text(String(format: NSLocalizedString("audience.people.count", comment: ""), customSelectedUsers.count))
                                 .font(.custom("Poppins-Regular", size: 13))
-                                .foregroundColor(colorScheme == .dark ? .white.opacity(0.5) : .black.opacity(0.5))
+                                .foregroundColor((colorScheme == .dark ? Color.white : Color.black).opacity(0.55))
+                                .opacity(isCustomPeopleSelected ? 1 : 0.72)
                         } else {
                             Text(NSLocalizedString("audience.description.custom", comment: ""))
                                 .font(.custom("Poppins-Regular", size: 13))
-                                .foregroundColor(colorScheme == .dark ? .white.opacity(0.5) : .black.opacity(0.5))
+                                .foregroundColor((colorScheme == .dark ? Color.white : Color.black).opacity(0.55))
+                                .opacity(isCustomPeopleSelected ? 1 : 0.72)
                         }
                     }
-                    
-                    Spacer()
-                    
-                    if selectedAudience == .custom && selectedListId == nil {
-                        Image(systemName: "checkmark.circle.fill")
-                            .font(.system(size: 24))
-                            .foregroundColor(Color(hex: "007AFF"))
+
+                    Spacer(minLength: 8)
+
+                    if isCustomPeopleSelected {
+                        Image(systemName: "checkmark")
+                            .font(.system(size: 13, weight: .bold))
+                            .foregroundColor(colorScheme == .dark ? .white : .black)
+                            .frame(width: 26, height: 26)
+                            .background(
+                                Circle()
+                                    .fill(colorScheme == .dark ? Color.white.opacity(0.14) : Color.black.opacity(0.08))
+                            )
                     } else {
                         Image(systemName: "chevron.right")
                             .font(.system(size: 13, weight: .semibold))
                             .foregroundColor(.primary)
-                            .frame(width: 28, height: 28)
-                            .liquidGlass(in: Circle(), interactive: true)
+                            .frame(width: 26, height: 26)
+                            .opacity(0.55)
                     }
                 }
-                .padding(16)
-                .background(
-                    RoundedRectangle(cornerRadius: 20)
-                        .fill(colorScheme == .dark ? Color.white.opacity(0.05) : Color.black.opacity(0.02))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 20)
-                                .stroke(
-                                    selectedAudience == .custom && selectedListId == nil ?
-                                    Color(hex: "007AFF").opacity(0.4) :
-                                    Color.clear,
-                                    lineWidth: 1
-                                )
-                        )
-                )
+                .padding(.vertical, 11)
+                .padding(.horizontal, 2)
+                .contentShape(Rectangle())
             }
-            .buttonStyle(PlainButtonStyle())
+            .buttonStyle(.plain)
         }
     }
 
     private var emptyCustomListsViewModern: some View {
         VStack(spacing: 16) {
-            Image(systemName: "list.bullet.rectangle")
-                .font(.system(size: 28, weight: .medium))
-                .foregroundColor(.primary)
+            AudienceIconView(
+                audience: .customList,
+                size: AudienceIconMetrics.gridCardEmphasis,
+                colorScheme: colorScheme
+            )
             
             VStack(spacing: 4) {
                 Text(NSLocalizedString("audience.noCustomLists.title", comment: ""))
@@ -554,129 +555,6 @@ struct ChainContinuationSelectorView: View {
                 }
             }
         )
-    }
-}
-
-// MARK: - Tarjeta de Audiencia en Grid para Cadenas
-struct ChainAudienceGridCard: View {
-    @Environment(\.colorScheme) var colorScheme
-    let setting: ChainContinuationSetting
-    let isSelected: Bool
-    let onTap: () -> Void
-    
-    @State private var isPressed = false
-
-    private var iconColor: Color {
-        if setting == .bestFriends {
-            return Color(hex: "34C759")
-        }
-        return colorScheme == .dark ? .white : .black
-    }
-    
-    var body: some View {
-        Button(action: onTap) {
-            VStack(spacing: 12) {
-                Image(systemName: setting.icon)
-                    .font(.system(size: 27, weight: .medium))
-                    .foregroundColor(iconColor)
-                    .frame(width: 60, height: 60)
-
-                VStack(spacing: 4) {
-                    Text(setting.title)
-                        .font(.custom("Poppins-SemiBold", size: 15))
-                        .foregroundColor(colorScheme == .dark ? .white : .black)
-                        .lineLimit(1)
-                    
-                    Text(setting.description)
-                        .font(.custom("Poppins-Regular", size: 11))
-                        .foregroundColor(colorScheme == .dark ? .white.opacity(0.5) : .black.opacity(0.5))
-                        .multilineTextAlignment(.center)
-                        .lineLimit(2)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-            }
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 20)
-            .padding(.horizontal, 12)
-            .background(
-                RoundedRectangle(cornerRadius: 24)
-                    .fill(colorScheme == .dark ? Color.white.opacity(0.05) : Color.black.opacity(0.02))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 24)
-                            .stroke(
-                                isSelected ?
-                                Color(hex: "007AFF").opacity(0.4) :
-                                Color.clear,
-                                lineWidth: 1.5
-                            )
-                    )
-            )
-            .shadow(color: isSelected ? Color(hex: "007AFF").opacity(0.1) : Color.clear, radius: 10, x: 0, y: 5)
-        }
-        .buttonStyle(PlainButtonStyle())
-        .scaleEffect(isPressed ? 0.95 : 1.0)
-        .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isPressed)
-        .onLongPressGesture(minimumDuration: 0, maximumDistance: .infinity, pressing: { pressing in
-            isPressed = pressing
-        }, perform: {})
-    }
-}
-
-// MARK: - Tarjeta de Lista Personalizada para Cadenas
-struct ChainCustomListCard: View {
-    @Environment(\.colorScheme) var colorScheme
-    let list: CustomAudienceList
-    let isSelected: Bool
-    let onTap: () -> Void
-    
-    @State private var isPressed = false
-    
-    var body: some View {
-        Button(action: onTap) {
-            VStack(spacing: 12) {
-                ZStack {
-                    Circle()
-                        .fill(Color(hex: list.color ?? "00A896").opacity(isSelected ? 0.2 : 0.1))
-                        .frame(width: 48, height: 48)
-                    
-                    Image(systemName: list.icon ?? "person.3.fill")
-                        .font(.system(size: 20, weight: .medium))
-                        .foregroundColor(Color(hex: list.color ?? "00A896"))
-                }
-                
-                VStack(spacing: 4) {
-                    Text(list.name)
-                        .font(.custom("Poppins-SemiBold", size: 14))
-                        .foregroundColor(colorScheme == .dark ? .white : .black)
-                        .lineLimit(1)
-                    
-                    Text("\(list.members.count) personas")
-                        .font(.custom("Poppins-Regular", size: 11))
-                        .foregroundColor(colorScheme == .dark ? .white.opacity(0.5) : .black.opacity(0.5))
-                }
-            }
-            .frame(width: 110, height: 140)
-            .background(
-                RoundedRectangle(cornerRadius: 20)
-                    .fill(colorScheme == .dark ? Color.white.opacity(0.05) : Color.black.opacity(0.02))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 20)
-                            .stroke(
-                                isSelected ?
-                                Color(hex: list.color ?? "00A896").opacity(0.6) :
-                                Color.clear,
-                                lineWidth: 2
-                            )
-                    )
-            )
-            .shadow(color: isSelected ? Color(hex: list.color ?? "00A896").opacity(0.15) : Color.clear, radius: 8, x: 0, y: 4)
-        }
-        .buttonStyle(PlainButtonStyle())
-        .scaleEffect(isPressed ? 0.95 : 1.0)
-        .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isPressed)
-        .onLongPressGesture(minimumDuration: 0, maximumDistance: .infinity, pressing: { pressing in
-            isPressed = pressing
-        }, perform: {})
     }
 }
 

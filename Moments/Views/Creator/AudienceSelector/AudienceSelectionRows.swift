@@ -74,69 +74,77 @@ struct CustomListRow: View {
     }
 }
 
-// MARK: - Tarjeta de Audiencia en Grid
+// MARK: - Opción de audiencia (lista plana, sin cajas)
 struct AudienceGridCard: View {
     @Environment(\.colorScheme) var colorScheme
     let audience: ContentAudience
     let isSelected: Bool
     let onTap: () -> Void
-    
-    @State private var isPressed = false
-    
+
+    private var primaryText: Color {
+        colorScheme == .dark ? .white : .black
+    }
+
     private var iconColor: Color {
         if audience == .bestFriends {
             return Color(hex: "34C759")
         }
-        return colorScheme == .dark ? .white : .black
+        return primaryText
     }
-    
+
+    private var gridIconSize: CGFloat {
+        switch audience {
+        case .everyone, .connections, .bestFriends, .custom, .customList:
+            return AudienceIconMetrics.gridCardEmphasis
+        case .onlyMe:
+            return AudienceIconMetrics.gridCard
+        }
+    }
+
     var body: some View {
         Button(action: onTap) {
-            VStack(spacing: 12) {
-                Image(systemName: audience.icon)
-                    .font(.system(size: 27, weight: .medium))
-                    .foregroundColor(iconColor)
-                    .frame(width: 60, height: 60)
-                
-                // ✅ Texto
-                VStack(spacing: 4) {
+            HStack(alignment: .center, spacing: 14) {
+                AudienceIconView(
+                    audience: audience,
+                    size: gridIconSize,
+                    tintColor: iconColor
+                )
+                .frame(width: 40, height: 40)
+                .opacity(isSelected ? 1 : 0.42)
+
+                VStack(alignment: .leading, spacing: 3) {
                     Text(audience.title)
-                        .font(.custom("Poppins-SemiBold", size: 15))
-                        .foregroundColor(colorScheme == .dark ? .white : .black)
-                        .lineLimit(1)
-                    
+                        .font(.custom(isSelected ? "Poppins-SemiBold" : "Poppins-Medium", size: 16))
+                        .foregroundColor(primaryText)
+                        .opacity(isSelected ? 1 : 0.82)
+
                     Text(audience.description)
-                        .font(.custom("Poppins-Regular", size: 11))
-                        .foregroundColor(colorScheme == .dark ? .white.opacity(0.5) : .black.opacity(0.5))
-                        .multilineTextAlignment(.center)
+                        .font(.custom("Poppins-Regular", size: 13))
+                        .foregroundColor(primaryText.opacity(0.55))
+                        .opacity(isSelected ? 1 : 0.72)
                         .lineLimit(2)
                         .fixedSize(horizontal: false, vertical: true)
                 }
+
+                Spacer(minLength: 8)
+
+                if isSelected {
+                    Image(systemName: "checkmark")
+                        .font(.system(size: 13, weight: .bold))
+                        .foregroundColor(primaryText)
+                        .frame(width: 26, height: 26)
+                        .background(
+                            Circle()
+                                .fill(colorScheme == .dark ? Color.white.opacity(0.14) : Color.black.opacity(0.08))
+                        )
+                }
             }
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 20)
-            .padding(.horizontal, 12)
-            .background(
-                RoundedRectangle(cornerRadius: 24)
-                    .fill(colorScheme == .dark ? Color.white.opacity(0.05) : Color.black.opacity(0.02))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 24)
-                            .stroke(
-                                isSelected ?
-                                Color(hex: "007AFF").opacity(0.4) :
-                                Color.clear,
-                                lineWidth: 1.5
-                            )
-                    )
-            )
-            .shadow(color: isSelected ? Color(hex: "007AFF").opacity(0.1) : Color.clear, radius: 10, x: 0, y: 5)
+            .padding(.vertical, 11)
+            .padding(.horizontal, 2)
+            .contentShape(Rectangle())
         }
-        .buttonStyle(PlainButtonStyle())
-        .scaleEffect(isPressed ? 0.95 : 1.0)
-        .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isPressed)
-        .onLongPressGesture(minimumDuration: 0, maximumDistance: .infinity, pressing: { pressing in
-            isPressed = pressing
-        }, perform: {})
+        .buttonStyle(.plain)
+        .animation(.easeInOut(duration: 0.2), value: isSelected)
     }
 }
 
@@ -177,21 +185,21 @@ struct CustomListCard: View {
                         .foregroundColor(colorScheme == .dark ? .white.opacity(0.5) : .black.opacity(0.5))
                 }
             }
-            .frame(width: 110, height: 140)
-            .background(
-                RoundedRectangle(cornerRadius: 20)
-                    .fill(colorScheme == .dark ? Color.white.opacity(0.05) : Color.black.opacity(0.02))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 20)
-                            .stroke(
-                                isSelected ?
-                                Color(hex: list.color ?? "00A896").opacity(0.6) :
-                                Color.clear,
-                                lineWidth: 2
-                            )
-                    )
-            )
-            .shadow(color: isSelected ? Color(hex: list.color ?? "00A896").opacity(0.15) : Color.clear, radius: 8, x: 0, y: 4)
+            .frame(width: 96)
+            .opacity(isSelected ? 1 : 0.55)
+            .overlay(alignment: .topTrailing) {
+                if isSelected {
+                    Image(systemName: "checkmark")
+                        .font(.system(size: 11, weight: .bold))
+                        .foregroundColor(colorScheme == .dark ? .white : .black)
+                        .frame(width: 22, height: 22)
+                        .background(
+                            Circle()
+                                .fill(colorScheme == .dark ? Color.white.opacity(0.14) : Color.black.opacity(0.08))
+                        )
+                        .offset(x: 4, y: -4)
+                }
+            }
         }
         .buttonStyle(PlainButtonStyle())
         .scaleEffect(isPressed ? 0.95 : 1.0)
@@ -306,11 +314,14 @@ struct AudienceOptionRow: View {
                               Color(hex: "007AFF").opacity(0.2) :
                               (colorScheme == .dark ? Color.white.opacity(0.1) : Color.black.opacity(0.1)))
                         .frame(width: 48, height: 48)
-                    
-                    Image(systemName: audience.icon)
-                        .font(.system(size: 20, weight: .medium))
-                        .foregroundColor(isSelected ?
-                                       Color(hex: "007AFF") : (colorScheme == .dark ? .white : .black))
+
+                    AudienceIconView(
+                        audience: audience,
+                        size: AudienceIconMetrics.row,
+                        tintColor: isSelected ?
+                            Color(hex: "007AFF") :
+                            (colorScheme == .dark ? .white : .black)
+                    )
                 }
                 
                 // Texto
@@ -359,4 +370,3 @@ struct AudienceOptionRow: View {
         .buttonStyle(PlainButtonStyle())
     }
 }
-

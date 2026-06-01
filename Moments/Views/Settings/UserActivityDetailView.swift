@@ -922,12 +922,16 @@ struct ActivityInteractionDetailView: View {
 
             eventsList
         }
+        .frame(maxHeight: .infinity, alignment: .top)
     }
 
     private var eventsList: some View {
         Group {
             if filteredEventItems.isEmpty {
-                emptyState(textKey: category.emptyKey)
+                GeometryReader { _ in
+                    emptyState(textKey: category.emptyKey)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+                }
             } else {
                 ScrollView {
                     VStack(spacing: 10) {
@@ -961,6 +965,7 @@ struct ActivityInteractionDetailView: View {
                     .padding(.top, 10)
                     .padding(.bottom, isSelectionMode ? 88 : 20)
                 }
+                .frame(maxHeight: .infinity, alignment: .top)
             }
         }
     }
@@ -1051,16 +1056,109 @@ struct ActivityInteractionDetailView: View {
         }
     }
 
-    private func emptyState(textKey: String) -> some View {
-        VStack(spacing: 10) {
-            Image(systemName: "tray")
-                .font(.system(size: 28, weight: .regular))
-                .foregroundColor(.gray.opacity(0.7))
-
-            Text(NSLocalizedString(textKey, comment: "Empty state text"))
-                .font(.custom("Poppins-Regular", size: 13))
-                .foregroundColor(.gray)
+    private var emptyStateSubtitle: String {
+        switch category {
+        case .reactions:
+            return NSLocalizedString("userActivity.simple.empty.reactions.subtitle", value: "Interactions and reactions you leave on other moments will appear here.", comment: "")
+        case .comments:
+            return NSLocalizedString("userActivity.simple.empty.comments.subtitle", value: "Your conversations, comment replies, and reviews will show up in this space.", comment: "")
+        case .tags:
+            return NSLocalizedString("userActivity.simple.empty.tags.subtitle", value: "When friends mention or tag you in their moments, they will be listed here.", comment: "")
+        case .stickerReplies:
+            return NSLocalizedString("userActivity.simple.empty.stickers.subtitle", value: "View interactive questions and poll answers you've responded to.", comment: "")
+        case .archived:
+            return NSLocalizedString("userActivity.simple.empty.archived.subtitle", value: "Your private, archived moments are safely stored here out of public view.", comment: "")
+        case .storiesArchive:
+            return NSLocalizedString("archivedStories.empty.subtitle", value: "Your expired stories live here as beautiful memories.", comment: "")
+        case .recentlyDeleted:
+            return NSLocalizedString("userActivity.simple.empty.recentlyDeleted.subtitle", value: "Items you delete are kept here for 30 days before permanent deletion.", comment: "")
+        case .echoes:
+            return NSLocalizedString("userActivity.simple.empty.echoes.subtitle", value: "Echoes connect you with mutual friends nearby. Capture a moment to start echoing!", comment: "")
+        case .followers:
+            return NSLocalizedString("userActivity.simple.empty.followers.subtitle", value: "Track recent follow requests, mutual friends, and profile connections.", comment: "")
+        case .visits:
+            return NSLocalizedString("userActivity.simple.empty.visits.subtitle", value: "See the friends and admirers who checked out your profile recently.", comment: "")
+        case .moments:
+            return NSLocalizedString("userActivity.simple.empty.moments.subtitle", value: "Your shared grid posts and daily captures will appear here.", comment: "")
+        case .reels:
+            return NSLocalizedString("userActivity.simple.empty.reels.subtitle", value: "Your immersive video reels and short clips will be saved in this tab.", comment: "")
+        case .searches:
+            return NSLocalizedString("userActivity.recentSearches.empty.subtitle", value: "Your search history is empty. Start finding friends and trends!", comment: "")
+        default:
+            return ""
         }
+    }
+
+    private func emptyState(textKey: String) -> some View {
+        VStack(spacing: 20) {
+            Spacer()
+                .frame(height: 20)
+            
+            if category == .echoes {
+                EchoesIconView(
+                    size: EchoesIconMetrics.emptyState,
+                    gradient: EchoesIconView.echoesBrandGradient
+                )
+            } else {
+                ZStack {
+                    Circle()
+                        .fill(
+                            LinearGradient(
+                                colors: [category.accentColor.opacity(0.12), category.accentColor.opacity(0.04)],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+                        .frame(width: 86, height: 86)
+                        .overlay(
+                            Circle()
+                                .stroke(
+                                    LinearGradient(
+                                        colors: [category.accentColor.opacity(0.25), Color.clear],
+                                        startPoint: .topLeading,
+                                        endPoint: .bottomTrailing
+                                    ),
+                                    lineWidth: 1.5
+                                )
+                        )
+                        .shadow(color: category.accentColor.opacity(0.08), radius: 8, x: 0, y: 4)
+
+                    if category == .reactions {
+                        AnimatedReactionIcon()
+                            .scaleEffect(1.25)
+                    } else if category == .comments {
+                        AnimatedCommentIcon()
+                            .scaleEffect(1.25)
+                    } else {
+                        Image(systemName: category.icon)
+                            .font(.system(size: 30, weight: .light))
+                            .foregroundColor(category.accentColor)
+                    }
+                }
+            }
+
+            VStack(spacing: 8) {
+                Text(NSLocalizedString(textKey, comment: "Empty state text"))
+                    .font(.custom("Poppins-SemiBold", size: 16))
+                    .foregroundColor(colorScheme == .dark ? .white : .black)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 24)
+
+                if !emptyStateSubtitle.isEmpty {
+                    Text(emptyStateSubtitle)
+                        .font(.custom("Poppins-Regular", size: 13))
+                        .foregroundColor(.secondary)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 36)
+                        .opacity(0.7)
+                }
+            }
+            
+            Spacer()
+                .frame(height: 20)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 30)
     }
 
     private var archivedSelectionBar: some View {

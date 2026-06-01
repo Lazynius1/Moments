@@ -12,6 +12,7 @@ struct MomentCaptionView: View {
     let style: MomentCaptionPresentationStyle
     let colorScheme: ColorScheme
     let onHashtagTap: (String) -> Void
+    var isReelsCaptionExpanded: Binding<Bool> = .constant(false)
 
     @State private var showFullCaption = false
 
@@ -52,13 +53,187 @@ struct MomentCaptionView: View {
         Color(hex: "007AFF")
     }
 
+    @ViewBuilder
     var body: some View {
         if !trimmedContent.isEmpty {
-            VStack(alignment: .leading, spacing: 8) {
+            if style == .reels {
+                ReelsCaptionBody(
+                    content: trimmedContent,
+                    needsMore: reelsNeedsMore(trimmedContent),
+                    isExpanded: isReelsCaptionExpanded,
+                    baseTextColor: baseTextColor,
+                    hashtagTextColor: hashtagTextColor,
+                    mentionTextColor: mentionTextColor,
+                    onHashtagTap: onHashtagTap
+                )
+            } else {
+                feedOrDetailCaption
+            }
+        }
+    }
+
+    private func reelsNeedsMore(_ text: String) -> Bool {
+        let lines = text.components(separatedBy: .newlines).filter { !$0.isEmpty }
+        if lines.count > 2 { return true }
+        if lines.count == 2 { return true }
+        return text.count > 72
+    }
+
+    private var feedOrDetailCaption: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            MomentHashtagText(
+                content: previewContent,
+                textFont: .custom("Poppins-Regular", size: style == .detail ? 15 : 14),
+                hashtagFont: .custom("Poppins-SemiBold", size: style == .detail ? 15 : 14),
+                baseColor: baseTextColor,
+                hashtagColor: hashtagTextColor,
+                mentionColor: mentionTextColor,
+                textAlignment: .leading,
+                shadowColor: .clear,
+                shadowRadius: 0,
+                shadowX: 0,
+                shadowY: 0,
+                onHashtagTap: onHashtagTap,
+                onMentionTap: MomentMentionNavigation.openProfile(forUsername:)
+            )
+            .lineLimit(style == .detail ? 4 : 3)
+
+            if needsExpansion {
+                Button {
+                    HapticManager.shared.lightImpact()
+                    showFullCaption = true
+                } label: {
+                    HStack(spacing: 5) {
+                        Text(NSLocalizedString("feed.seeMore", comment: "See more"))
+                            .font(.custom("Poppins-SemiBold", size: 12))
+
+                        Image(systemName: "text.alignleft")
+                            .font(.system(size: 10, weight: .semibold))
+                    }
+                    .foregroundColor(secondaryTextColor)
+                    .padding(.horizontal, 11)
+                    .padding(.vertical, 6)
+                    .liquidGlass(in: Capsule(), interactive: true)
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(.horizontal, style == .detail ? 4 : 12)
+        .padding(.top, style == .detail ? 0 : 2)
+        .sheet(isPresented: $showFullCaption) {
+            MomentCaptionReaderSheet(
+                moment: moment,
+                content: trimmedContent,
+                colorScheme: colorScheme,
+                onHashtagTap: onHashtagTap
+            )
+            .presentationDetents([.medium, .large])
+            .presentationDragIndicator(.hidden)
+            .presentationBackground(.clear)
+        }
+    }
+}
+
+// MARK: - Reels (estilo IG: 2 líneas colapsado, expandido con scroll cap ~10 líneas)
+
+private struct ReelsCaptionBody: View {
+    let content: String
+    let needsMore: Bool
+    @Binding var isExpanded: Bool
+    let baseTextColor: Color
+    let hashtagTextColor: Color
+    let mentionTextColor: Color
+    let onHashtagTap: (String) -> Void
+
+    // ~10 líneas de texto 14pt Poppins con interlineado ≈ 22pt → 220pt
+    private let expandedMaxHeight: CGFloat = 220
+    private let bodyFont = Font.custom("Poppins-Regular", size: 14)
+    private let tagFont = Font.custom("Poppins-SemiBold", size: 14)
+    private let boldFont = Font.custom("Poppins-Bold", size: 14)
+    private let springAnimation = Animation.spring(response: 0.38, dampingFraction: 0.85)
+
+    @State private var contentHeight: CGFloat = 0
+
+    private var truncatedCollapsedText: String {
+        guard needsMore else { return content }
+        
+        let lines = content.components(separatedBy: .newlines).filter { !$0.isEmpty }
+        
+        if lines.count >= 2 {
+            let line1 = lines[0]
+            let line2 = lines[1]
+            
+            if line1.count > 60 {
+                return truncateString(line1, limit: 60)
+            }
+            
+            let combined = line1 + "\n" + line2
+            if combined.count > 75 {
+                return line1 + "\n" + truncateString(line2, limit: max(15, 75 - line1.count))
+            }
+            return combined
+        } else {
+            return truncateString(content, limit: 75)
+        }
+    }
+    
+    private func truncateString(_ str: String, limit: Int) -> String {
+        if str.count <= limit { return str }
+        let prefix = str.prefix(limit)
+        if let lastSpace = prefix.lastIndex(of: " ") {
+            return String(prefix[..<lastSpace]).trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+        return String(prefix).trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            if isExpanded {
+                // Estado expandido: ScrollView con cap de ~10 líneas, "ver menos" integrado inline al final
+                ScrollView(.vertical, showsIndicators: false) {
+                    MomentHashtagText(
+                        content: content,
+                        textFont: bodyFont,
+                        hashtagFont: tagFont,
+                        baseColor: baseTextColor,
+                        hashtagColor: hashtagTextColor,
+                        mentionColor: mentionTextColor,
+                        textAlignment: .leading,
+                        shadowColor: .clear,
+                        shadowRadius: 0,
+                        shadowX: 0,
+                        shadowY: 0,
+                        lineLimit: nil,
+                        actionText: " " + NSLocalizedString("feed.seeLess", comment: "See less"),
+                        actionURL: URL(string: "action://collapse"),
+                        actionFont: boldFont,
+                        actionColor: baseTextColor,
+                        onHashtagTap: onHashtagTap,
+                        onMentionTap: MomentMentionNavigation.openProfile(forUsername:),
+                        onActionTap: { _ in collapse() }
+                    )
+                    .background(
+                        GeometryReader { geo in
+                            Color.clear
+                                .preference(key: HeightPreferenceKey.self, value: geo.size.height)
+                        }
+                    )
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.bottom, 2)
+                }
+                .onPreferenceChange(HeightPreferenceKey.self) { height in
+                    contentHeight = height
+                }
+                .frame(height: min(contentHeight, expandedMaxHeight))
+                // Desactivar el bounce para no competir con el scroll del pager de vídeos
+                .scrollBounceBehavior(.basedOnSize)
+
+            } else {
+                // Estado colapsado: "ver más" integrado inline en el texto
                 MomentHashtagText(
-                    content: previewContent,
-                    textFont: .custom("Poppins-Regular", size: style == .detail ? 15 : 14),
-                    hashtagFont: .custom("Poppins-SemiBold", size: style == .detail ? 15 : 14),
+                    content: truncatedCollapsedText,
+                    textFont: bodyFont,
+                    hashtagFont: tagFont,
                     baseColor: baseTextColor,
                     hashtagColor: hashtagTextColor,
                     mentionColor: mentionTextColor,
@@ -67,45 +242,45 @@ struct MomentCaptionView: View {
                     shadowRadius: 0,
                     shadowX: 0,
                     shadowY: 0,
+                    lineLimit: 2,
+                    actionText: needsMore ? " … " + NSLocalizedString("feed.seeMore", comment: "See more") : nil,
+                    actionURL: needsMore ? URL(string: "action://expand") : nil,
+                    actionFont: boldFont,
+                    actionColor: baseTextColor,
                     onHashtagTap: onHashtagTap,
-                    onMentionTap: MomentMentionNavigation.openProfile(forUsername:)
+                    onMentionTap: MomentMentionNavigation.openProfile(forUsername:),
+                    onActionTap: { _ in expand() }
                 )
-                .lineLimit(style == .detail ? 4 : 3)
-
-                if needsExpansion {
-                    Button {
-                        HapticManager.shared.lightImpact()
-                        showFullCaption = true
-                    } label: {
-                        HStack(spacing: 5) {
-                            Text(NSLocalizedString("feed.seeMore", comment: "See more"))
-                                .font(.custom("Poppins-SemiBold", size: 12))
-
-                            Image(systemName: "text.alignleft")
-                                .font(.system(size: 10, weight: .semibold))
-                        }
-                        .foregroundColor(secondaryTextColor)
-                        .padding(.horizontal, 11)
-                        .padding(.vertical, 6)
-                        .liquidGlass(in: Capsule(), interactive: true)
+                .onTapGesture {
+                    if needsMore {
+                        expand()
                     }
-                    .buttonStyle(.plain)
                 }
             }
-            .padding(.horizontal, style == .detail ? 4 : 12)
-            .padding(.top, style == .detail ? 0 : 2)
-            .sheet(isPresented: $showFullCaption) {
-                MomentCaptionReaderSheet(
-                    moment: moment,
-                    content: trimmedContent,
-                    colorScheme: colorScheme,
-                    onHashtagTap: onHashtagTap
-                )
-                .presentationDetents([.medium, .large])
-                .presentationDragIndicator(.hidden)
-                .presentationBackground(.clear)
-            }
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .animation(springAnimation, value: isExpanded)
+    }
+
+    private func expand() {
+        HapticManager.shared.lightImpact()
+        withAnimation(springAnimation) {
+            isExpanded = true
+        }
+    }
+
+    private func collapse() {
+        HapticManager.shared.lightImpact()
+        withAnimation(springAnimation) {
+            isExpanded = false
+        }
+    }
+}
+
+private struct HeightPreferenceKey: PreferenceKey {
+    static var defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = nextValue()
     }
 }
 
