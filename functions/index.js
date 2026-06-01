@@ -5619,7 +5619,15 @@ exports.deleteMyAccount = onRequest(
       ]);
 
       if (username) {
-        await db.collection('usernames').doc(username).delete();
+        const usernameRef = db.collection('usernames').doc(username);
+        const usernameSnap = await usernameRef.get();
+        const usernameOwnerId = usernameSnap.exists ? usernameSnap.get('userId') : null;
+
+        if (usernameOwnerId === uid) {
+          await usernameRef.delete();
+        } else if (usernameSnap.exists) {
+          console.warn(`deleteMyAccount: skipped username cleanup for ${username}; owner ${usernameOwnerId || 'unknown'} does not match uid=${uid}`);
+        }
       }
 
       if (typeof db.recursiveDelete === 'function') {
