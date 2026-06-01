@@ -302,7 +302,7 @@ struct StoryNativeAdView: View {
                         progress: progress,
                         onNext: cleanupAndNext,
                         onPrevious: onPrevious,
-                        onClose: onClose
+                        onClose: handleClose
                     )
                     
                 } else if let nativeAd = storyAdManager.nativeAd, hasAppeared {
@@ -315,7 +315,7 @@ struct StoryNativeAdView: View {
                         isTimerPaused: $isAdTimerPaused,
                         onNext: cleanupAndNext,
                         onPrevious: onPrevious,
-                        onClose: onClose
+                        onClose: handleClose
                     )
                     .onAppear {
                         currentAdDuration = nativeAd.mediaContent.hasVideoContent ? 20.0 : 8.0
@@ -354,7 +354,7 @@ struct StoryNativeAdView: View {
                             progress: progress,
                             onNext: cleanupAndNext,
                             onPrevious: onPrevious,
-                            onClose: onClose
+                            onClose: handleClose
                         )
                         .onAppear {
                             if !storyAdManager.isLoading && storyAdManager.nativeAd == nil && !storyAdManager.hasError {
@@ -401,6 +401,11 @@ struct StoryNativeAdView: View {
         cleanup()
         onNext()
     }
+
+    private func handleClose() {
+        cleanup()
+        onClose()
+    }
     
     private func cleanup() {
         adTimer?.invalidate()
@@ -444,16 +449,34 @@ struct StoryAdContentViewWithMediaView: View {
     var body: some View {
         GeometryReader { geometry in
             let topInset = max(geometry.safeAreaInsets.top, activeWindowSafeAreaInsets().top)
+            let topChromeHeight = topInset + 92
 
-            ZStack {
+            ZStack(alignment: .top) {
                 StoryAdMediaViewRepresentable(
                     nativeAd: nativeAd,
-                    playback: videoPlayback
+                    playback: videoPlayback,
+                    topChromeHeight: topChromeHeight,
+                    bottomReservedHeight: bottomPanelReservedHeight
                 )
                     .id(mediaViewKey)
                     .frame(width: screenSize.width, height: screenSize.height)
                     .clipped()
-                
+
+                storyTouchAreas(
+                    topReserved: topChromeHeight,
+                    bottomReserved: bottomPanelReservedHeight,
+                    size: geometry.size
+                )
+                .zIndex(1)
+
+                if nativeAd.mediaContent.hasVideoContent, videoPlayback.canUseCustomControls {
+                    StoryAdVideoControlsOverlay(
+                        playback: videoPlayback,
+                        bottomPanelReservedHeight: bottomPanelReservedHeight
+                    )
+                    .zIndex(2)
+                }
+
                 VStack(spacing: 0) {
                     Color.clear
                         .frame(height: topInset)
@@ -472,17 +495,8 @@ struct StoryAdContentViewWithMediaView: View {
                     Spacer(minLength: 0)
                         .allowsHitTesting(false)
                 }
-
-                if nativeAd.mediaContent.hasVideoContent, videoPlayback.canUseCustomControls {
-                    StoryAdVideoControlsOverlay(
-                        playback: videoPlayback,
-                        bottomPanelReservedHeight: bottomPanelReservedHeight
-                    )
-                }
-                
-                if !nativeAd.mediaContent.hasVideoContent {
-                    storyTouchAreas
-                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                .zIndex(3)
             }
         }
         .onChange(of: videoPlayback.isPaused) { _, paused in
@@ -493,37 +507,41 @@ struct StoryAdContentViewWithMediaView: View {
         }
     }
 
-    private var storyTouchAreas: some View {
-        GeometryReader { geometry in
-            let topReserved = max(geometry.safeAreaInsets.top, activeWindowSafeAreaInsets().top) + 92
-            let bottomReserved: CGFloat = 188
-            let interactiveHeight = max(geometry.size.height - topReserved - bottomReserved, 0)
+    private func storyTouchAreas(
+        topReserved: CGFloat,
+        bottomReserved: CGFloat,
+        size: CGSize
+    ) -> some View {
+        let interactiveHeight = max(size.height - topReserved - bottomReserved, 0)
+        let sideWidth = max(size.width * 0.33, 1)
 
-            VStack(spacing: 0) {
-                Color.clear
-                    .frame(height: topReserved)
+        return VStack(spacing: 0) {
+            Color.clear
+                .frame(height: topReserved)
+                .allowsHitTesting(false)
 
-                HStack(spacing: 0) {
-                    Rectangle()
-                        .fill(Color.clear)
-                        .frame(width: geometry.size.width * 0.15)
-                        .contentShape(Rectangle())
-                        .onTapGesture { onPrevious() }
-                    
-                    Spacer()
-                    
-                    Rectangle()
-                        .fill(Color.clear)
-                        .frame(width: geometry.size.width * 0.15)
-                        .contentShape(Rectangle())
-                        .onTapGesture { onNext() }
-                }
-                .frame(height: interactiveHeight)
+            HStack(spacing: 0) {
+                Rectangle()
+                    .fill(Color.clear)
+                    .frame(width: sideWidth)
+                    .contentShape(Rectangle())
+                    .onTapGesture { onPrevious() }
 
                 Spacer(minLength: 0)
+
+                Rectangle()
+                    .fill(Color.clear)
+                    .frame(width: sideWidth)
+                    .contentShape(Rectangle())
+                    .onTapGesture { onNext() }
             }
-            .frame(width: geometry.size.width, height: geometry.size.height, alignment: .top)
+            .frame(height: interactiveHeight)
+
+            Color.clear
+                .frame(height: bottomReserved)
+                .allowsHitTesting(false)
         }
+        .frame(width: size.width, height: size.height, alignment: .top)
     }
 }
 
@@ -531,8 +549,61 @@ struct StoryAdContentViewWithMediaView: View {
 struct StoryAdMediaViewRepresentable: UIViewRepresentable {
     let nativeAd: NativeAd
     @ObservedObject var playback: StoryAdVideoPlayback
+    let topChromeHeight: CGFloat
+    let bottomReservedHeight: CGFloat
+
+    /// Deja pasar toques a SwiftUI en header y laterales; el resto lo gestiona el native ad.
+    private final class PassthroughContainerView: UIView {
+        var topChromeHeight: CGFloat = 120
+        var bottomReservedHeight: CGFloat = 174
+        var sideNavigationFraction: CGFloat = 0.33
+        var mediaControlsReservedHeight: CGFloat = 72
+
+        override func hitTest(_ point: CGPoint, with event: UIEvent?) -> UIView? {
+            guard bounds.contains(point) else { return nil }
+
+            if point.y < topChromeHeight {
+                return nil
+            }
+
+            let navTop = topChromeHeight
+            let navBottom = max(
+                navTop,
+                bounds.height - bottomReservedHeight - mediaControlsReservedHeight
+            )
+
+            if point.y >= navTop && point.y <= navBottom {
+                let sideWidth = bounds.width * sideNavigationFraction
+                if point.x <= sideWidth || point.x >= bounds.width - sideWidth {
+                    return nil
+                }
+            }
+
+            return super.hitTest(point, with: event)
+        }
+    }
     
-    func makeUIView(context: Context) -> NativeAdView {
+    func makeUIView(context: Context) -> UIView {
+        let container = PassthroughContainerView()
+        container.topChromeHeight = topChromeHeight
+        container.bottomReservedHeight = bottomReservedHeight
+
+        let nativeAdView = buildNativeAdView(context: context)
+        nativeAdView.translatesAutoresizingMaskIntoConstraints = false
+        container.addSubview(nativeAdView)
+
+        NSLayoutConstraint.activate([
+            nativeAdView.topAnchor.constraint(equalTo: container.topAnchor),
+            nativeAdView.leadingAnchor.constraint(equalTo: container.leadingAnchor),
+            nativeAdView.trailingAnchor.constraint(equalTo: container.trailingAnchor),
+            nativeAdView.bottomAnchor.constraint(equalTo: container.bottomAnchor)
+        ])
+
+        context.coordinator.playback = playback
+        return container
+    }
+
+    private func buildNativeAdView(context: Context) -> NativeAdView {
         let nativeAdView = NativeAdView()
         nativeAdView.nativeAd = nativeAd
         
@@ -684,7 +755,10 @@ struct StoryAdMediaViewRepresentable: UIViewRepresentable {
         return nativeAdView
     }
     
-    func updateUIView(_ uiView: NativeAdView, context: Context) {
+    func updateUIView(_ uiView: UIView, context: Context) {
+        guard let container = uiView as? PassthroughContainerView else { return }
+        container.topChromeHeight = topChromeHeight
+        container.bottomReservedHeight = bottomReservedHeight
         context.coordinator.playback = playback
     }
     
