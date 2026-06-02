@@ -1811,6 +1811,11 @@
 "storyContextMenu.save.subtitle" = "Conserver sur votre appareil";
 "storyContextMenu.delete" = "Supprimer";
 "storyContextMenu.delete.subtitle" = "Supprimer la story";
+"storyContextMenu.delete.confirm.title" = "Supprimer cette story ?";
+"storyContextMenu.delete.confirm.message" = "Cette story ne sera plus disponible et personne ne pourra la voir.";
+"storyContextMenu.delete.confirm.action" = "Supprimer";
+"storyContextMenu.delete.confirm.cancel" = "Annuler";
+"storyContextMenu.delete.success" = "Story supprimée";
 "storyContextMenu.share" = "Partager";
 "storyContextMenu.share.subtitle" = "Envoyer à d’autres";
 "storyContextMenu.report" = "Signaler";
@@ -2461,30 +2466,30 @@
 
 /* Whats New v2.8 */
 "whatsNew.title" = "Nouveautés sur Moments !";
-"whatsNew.subtitle" = "Version 2.12.0";
-"whatsNew.button" = "Découvrir Moments 2.12";
+"whatsNew.subtitle" = "Version 2.13.0";
+"whatsNew.button" = "Découvrir Moments 2.13";
 
 /* Nova */
-"whatsNew.nova.title" = "Des stories plus libres";
-"whatsNew.nova.description" = "Vous pouvez maintenant déplacer, redimensionner et faire pivoter plus naturellement photos et vidéos pour créer avec bien plus de liberté.";
+"whatsNew.nova.title" = "Une Nova bien meilleure";
+"whatsNew.nova.description" = "Nova comprend désormais mieux le contexte et accompagne vos actions de manière beaucoup plus naturelle dans Moments.";
 
-"whatsNew.account.title" = "Des fonds automatiques par couleur";
-"whatsNew.account.description" = "Quand vous réduisez une photo ou une vidéo, Moments génère désormais des fonds plus soignés à partir de ses couleurs.";
+"whatsNew.account.title" = "Un chat plus sûr";
+"whatsNew.account.description" = "Les photos, vidéos et audios des chats privés bénéficient désormais d'un chiffrement de bout en bout et d'une expérience bien plus soignée.";
 
 /* Liquid glass */
-"whatsNew.glass.title" = "Des stickers repensés";
-"whatsNew.glass.description" = "Nous avons refait plusieurs stickers pour qu’ils paraissent plus propres, mieux intégrés et plus expressifs avec de nouvelles variations visuelles.";
+"whatsNew.glass.title" = "Des stories plus fluides";
+"whatsNew.glass.description" = "Naviguer, répondre et partager des stories paraît désormais beaucoup plus continu, immersif et naturel.";
 
 /* Creator */
-"whatsNew.creator.title" = "Questions, sondages et réponses";
-"whatsNew.creator.description" = "Nous avons aussi amélioré les questions, sondages, quiz et réponses pour que tout paraisse plus clair et plus cohérent.";
+"whatsNew.creator.title" = "Des notifications plus claires";
+"whatsNew.creator.description" = "Nous avons mieux organisé les notifications et Votre activité pour qu'il soit beaucoup plus simple de suivre ce qui se passe dans Moments.";
 
 /* Feed */
-"whatsNew.feed.title" = "Mode incognito";
-"whatsNew.feed.description" = "Vous pouvez maintenant regarder des stories, visiter des profils et ouvrir des chats avec un peu plus de confidentialité et sans laisser la trace habituelle.";
+"whatsNew.feed.title" = "Plus de contrôle et de confidentialité";
+"whatsNew.feed.description" = "Demandes, mentions, tags et visibilité sont désormais beaucoup plus cohérents avec la confidentialité de chaque moment.";
 
-"whatsNew.social.title" = "Des reels plus immersifs";
-"whatsNew.social.description" = "Nous avons rafraîchi la vue reels avec un meilleur commentaire rapide, des légendes plus soignées et une expérience plus propre.";
+"whatsNew.social.title" = "Une vidéo plus intelligente";
+"whatsNew.social.description" = "Les vidéos s'adaptent désormais mieux à votre connexion pour offrir une lecture plus fluide et plus stable.";
 
 /* Fixes */
 "whatsNew.fixes.title" = "Plus de stabilité en créant et en regardant";

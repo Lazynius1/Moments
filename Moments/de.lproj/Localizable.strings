@@ -1811,6 +1811,11 @@
 "storyContextMenu.save.subtitle" = "Auf deinem Gerät behalten";
 "storyContextMenu.delete" = "Löschen";
 "storyContextMenu.delete.subtitle" = "Story löschen";
+"storyContextMenu.delete.confirm.title" = "Diese Story löschen?";
+"storyContextMenu.delete.confirm.message" = "Diese Story ist danach nicht mehr verfügbar und niemand kann sie sehen.";
+"storyContextMenu.delete.confirm.action" = "Löschen";
+"storyContextMenu.delete.confirm.cancel" = "Abbrechen";
+"storyContextMenu.delete.success" = "Story gelöscht";
 "storyContextMenu.share" = "Teilen";
 "storyContextMenu.share.subtitle" = "An andere senden";
 "storyContextMenu.report" = "Melden";
@@ -2461,30 +2466,30 @@
 
 /* Whats New v2.8 */
 "whatsNew.title" = "Neu in Moments!";
-"whatsNew.subtitle" = "Version 2.12.0";
-"whatsNew.button" = "Moments 2.12 entdecken";
+"whatsNew.subtitle" = "Version 2.13.0";
+"whatsNew.button" = "Moments 2.13 entdecken";
 
 /* Nova */
-"whatsNew.nova.title" = "Freieres Story-Erstellen";
-"whatsNew.nova.description" = "Fotos und Videos lassen sich jetzt natürlicher bewegen, skalieren und drehen, damit du mit viel mehr Freiheit gestalten kannst.";
+"whatsNew.nova.title" = "Eine deutlich bessere Nova";
+"whatsNew.nova.description" = "Nova versteht den Kontext jetzt besser und begleitet deine Aktionen in Moments deutlich natürlicher.";
 
-"whatsNew.account.title" = "Automatische Farbhintergründe";
-"whatsNew.account.description" = "Wenn du ein Foto oder Video verkleinerst, erstellt Moments jetzt liebevollere Hintergründe auf Basis seiner Farben.";
+"whatsNew.account.title" = "Sichererer Chat";
+"whatsNew.account.description" = "Fotos, Videos und Audios in privaten Chats sind jetzt Ende-zu-Ende-verschlüsselt und das gesamte Chat-Erlebnis wirkt deutlich ausgereifter.";
 
 /* Liquid glass */
-"whatsNew.glass.title" = "Neu gestaltete Sticker";
-"whatsNew.glass.description" = "Wir haben mehrere Sticker neu aufgebaut, damit sie sauberer, besser integriert und mit neuen visuellen Varianten lebendiger wirken.";
+"whatsNew.glass.title" = "Flüssigere Stories";
+"whatsNew.glass.description" = "Stories anzusehen, darauf zu antworten und sie zu teilen fühlt sich jetzt viel fließender, immersiver und natürlicher an.";
 
 /* Creator */
-"whatsNew.creator.title" = "Fragen, Umfragen und Antworten";
-"whatsNew.creator.description" = "Auch Fragen, Polls, Quizze und Antworten wurden verbessert, damit sich alles klarer und konsistenter anfühlt.";
+"whatsNew.creator.title" = "Klarere Benachrichtigungen";
+"whatsNew.creator.description" = "Wir haben Benachrichtigungen und Deine Aktivität besser geordnet, damit du leichter verfolgen kannst, was in Moments passiert.";
 
 /* Feed */
-"whatsNew.feed.title" = "Inkognito-Modus";
-"whatsNew.feed.description" = "Du kannst jetzt Stories ansehen, Profile besuchen und Chats mit etwas mehr Privatsphäre öffnen, ohne die übliche Spur zu hinterlassen.";
+"whatsNew.feed.title" = "Mehr Kontrolle und Privatsphäre";
+"whatsNew.feed.description" = "Anfragen, Erwähnungen, Markierungen und Sichtbarkeit passen jetzt viel stimmiger zur Privatsphäre jedes Moments.";
 
-"whatsNew.social.title" = "Immersivere Reels";
-"whatsNew.social.description" = "Wir haben die Reels-Ansicht mit besserem Schnellkommentar, stärkeren Captions und einem saubereren Erlebnis überarbeitet.";
+"whatsNew.social.title" = "Intelligenteres Video";
+"whatsNew.social.description" = "Videos passen sich jetzt besser an deine Verbindung an und sorgen so für flüssigere und stabilere Wiedergabe.";
 
 /* Fixes */
 "whatsNew.fixes.title" = "Mehr Stabilität beim Erstellen und Ansehen";

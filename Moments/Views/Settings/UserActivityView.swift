@@ -120,11 +120,11 @@ struct UserActivityView: View {
     private func activityDestination(for category: ActivityInteractionCategory) -> some View {
         switch category {
         case .archived:
-            ArchivedMomentsView()
+            ArchivedActivityView()
         case .recentlyDeleted:
             RecentlyDeletedActivityView()
         case .storiesArchive:
-            ArchiveView(embedInNavigation: false, showsCustomDismiss: false)
+            ArchivedActivityView(initialKind: .stories)
         case .timeSpent:
             TimeSpentDetailsView()
         case .searches:
@@ -184,41 +184,61 @@ struct RecentlyDeletedActivityView: View {
     }
 }
 
-struct ArchivedMomentsView: View {
+struct ArchivedActivityView: View {
     @Environment(\.colorScheme) private var colorScheme
-    @State private var navigateToStoriesArchive = false
+    @State private var selectedKind: ArchivedContentKind
 
-    private var archivedMomentsHeaderTitle: String {
+    init(initialKind: ArchivedContentKind = .moments) {
+        _selectedKind = State(initialValue: initialKind)
+    }
+
+    private var momentsTitle: String {
         NSLocalizedString("userActivity.simple.item.archived.headerTitle", comment: "Archived moments header title")
     }
 
-    private var archivedStoriesHeaderTitle: String {
+    private var storiesTitle: String {
         NSLocalizedString("archivedStories.headerTitle", comment: "Archive Stories header title")
     }
 
+    private var currentTitle: String {
+        selectedKind == .moments ? momentsTitle : storiesTitle
+    }
+
     var body: some View {
-        ActivityInteractionDetailView(category: .archived)
-            .toolbar {
-                ToolbarItem(placement: .principal) {
-                    Menu {
-                        Label(archivedMomentsHeaderTitle, systemImage: "checkmark")
-                        Button(archivedStoriesHeaderTitle) {
-                            navigateToStoriesArchive = true
-                        }
-                    } label: {
-                        HStack(spacing: 5) {
-                            Text(archivedMomentsHeaderTitle)
-                                .font(.custom("Poppins-SemiBold", size: 17))
-                            Image(systemName: "chevron.down")
-                                .font(.system(size: 11, weight: .semibold))
-                        }
-                        .foregroundColor(colorScheme == .dark ? .white : .black)
-                    }
-                }
-            }
-            .navigationDestination(isPresented: $navigateToStoriesArchive) {
+        Group {
+            switch selectedKind {
+            case .moments:
+                ActivityInteractionDetailView(category: .archived, suppressInlineNavigationTitle: true)
+            case .stories:
                 ArchiveView(embedInNavigation: false, showsCustomDismiss: false)
             }
+        }
+        .id(selectedKind)
+        .toolbar {
+            ToolbarItem(placement: .principal) {
+                Menu {
+                    Button {
+                        selectedKind = .moments
+                    } label: {
+                        Label(momentsTitle, systemImage: selectedKind == .moments ? "checkmark" : "photo.on.rectangle")
+                    }
+
+                    Button {
+                        selectedKind = .stories
+                    } label: {
+                        Label(storiesTitle, systemImage: selectedKind == .stories ? "checkmark" : "circle.dashed")
+                    }
+                } label: {
+                    HStack(spacing: 5) {
+                        Text(currentTitle)
+                            .font(.custom("Poppins-SemiBold", size: 17))
+                        Image(systemName: "chevron.down")
+                            .font(.system(size: 11, weight: .semibold))
+                    }
+                    .foregroundColor(colorScheme == .dark ? .white : .black)
+                }
+            }
+        }
     }
 }
 

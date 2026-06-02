@@ -5,6 +5,11 @@ enum RecentlyDeletedContentKind: Hashable {
     case stories
 }
 
+enum ArchivedContentKind: Hashable {
+    case moments
+    case stories
+}
+
 enum RecentlyDeletedConfirmationAction: Identifiable {
     case restore
     case permanentlyDelete

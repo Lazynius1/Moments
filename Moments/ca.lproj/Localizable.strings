@@ -1809,6 +1809,11 @@
 "storyContextMenu.save.subtitle" = "Desar al carret";
 "storyContextMenu.delete" = "Eliminar";
 "storyContextMenu.delete.subtitle" = "Esborrar història";
+"storyContextMenu.delete.confirm.title" = "Vols eliminar aquesta història?";
+"storyContextMenu.delete.confirm.message" = "Aquesta història deixarà d'estar disponible i ningú la podrà veure.";
+"storyContextMenu.delete.confirm.action" = "Eliminar";
+"storyContextMenu.delete.confirm.cancel" = "Cancel·lar";
+"storyContextMenu.delete.success" = "Història eliminada";
 "storyContextMenu.share" = "Compartir";
 "storyContextMenu.share.subtitle" = "Enviar a altres";
 "storyContextMenu.report" = "Reportar";
@@ -2473,30 +2478,30 @@
 
 /* Whats New v2.8 */
 "whatsNew.title" = "Novetats a Moments!";
-"whatsNew.subtitle" = "Versió 2.12.0";
-"whatsNew.button" = "Explorar Moments 2.12";
+"whatsNew.subtitle" = "Versió 2.13.0";
+"whatsNew.button" = "Explorar Moments 2.13";
 
 /* Nova */
-"whatsNew.nova.title" = "Històries més lliures";
-"whatsNew.nova.description" = "Ara pots moure, escalar i girar millor fotos i vídeos per crear històries amb molta més llibertat.";
+"whatsNew.nova.title" = "Una Nova molt millor";
+"whatsNew.nova.description" = "Ara Nova entén millor el context i acompanya les teves accions d'una manera molt més natural dins de Moments.";
 
-"whatsNew.account.title" = "Fons automàtics per color";
-"whatsNew.account.description" = "Quan fas petita una foto o un vídeo, Moments genera fons més cuidats basats en els seus colors.";
+"whatsNew.account.title" = "Xat més segur";
+"whatsNew.account.description" = "Les fotos, vídeos i àudios del xat privat ara compten amb xifratge d'extrem a extrem i una experiència molt més cuidada.";
 
 /* Liquid glass */
-"whatsNew.glass.title" = "Stickers redissenyats";
-"whatsNew.glass.description" = "Hem refet diversos stickers perquè es vegin més nets, millor integrats i amb noves variacions visuals.";
+"whatsNew.glass.title" = "Històries més fluides";
+"whatsNew.glass.description" = "Navegar, respondre i compartir històries ara se sent molt més continu, immersiu i natural.";
 
 /* Creator */
-"whatsNew.creator.title" = "Preguntes, enquestes i respostes";
-"whatsNew.creator.description" = "També hem millorat preguntes, polls, quizzes i respostes perquè tot se senti més clar i coherent.";
+"whatsNew.creator.title" = "Notificacions més clares";
+"whatsNew.creator.description" = "Hem ordenat millor les notificacions i La teva activitat perquè seguir el que passa a Moments sigui molt més còmode.";
 
 /* Feed */
-"whatsNew.feed.title" = "Mode incògnit";
-"whatsNew.feed.description" = "Ara pots mirar històries, visitar perfils i obrir xats amb una mica més de privacitat i sense deixar la petjada habitual.";
+"whatsNew.feed.title" = "Més control i privacitat";
+"whatsNew.feed.description" = "Sol·licituds, mencions, etiquetes i visibilitat ara se senten molt més coherents amb la privacitat de cada moment.";
 
-"whatsNew.social.title" = "Reels més immersius";
-"whatsNew.social.description" = "Hem renovat la vista de reels amb millor comentari ràpid, captions més cuidades i una experiència més neta.";
+"whatsNew.social.title" = "Vídeo més intel·ligent";
+"whatsNew.social.description" = "Els vídeos ara s'adapten millor a la teva connexió per oferir una reproducció més fluida i més estable.";
 
 /* Fixes */
 "whatsNew.fixes.title" = "Més estabilitat en crear i veure";

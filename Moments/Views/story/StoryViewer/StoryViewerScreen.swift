@@ -76,6 +76,7 @@ struct StoryViewerScreen: View {
     @State private var showBestFriendsOptOutConfirmation: Bool = false
     @State private var showUnfollowConfirmation: Bool = false
     @State private var showMuteConfirmation: Bool = false
+    @State private var showDeleteConfirmation: Bool = false
     @State private var isMenuInteractionActive: Bool = false
     @State private var menuAutoResumeWorkItem: DispatchWorkItem? = nil
     @State private var dragOffset: CGFloat = 0
@@ -187,12 +188,14 @@ struct StoryViewerScreen: View {
     }
 
     private enum StoryConfirmationKind {
+        case delete
         case unfollow
         case mute
         case leaveBestFriends
     }
 
     private var activeStoryConfirmation: StoryConfirmationKind? {
+        if showDeleteConfirmation { return .delete }
         if showUnfollowConfirmation { return .unfollow }
         if showMuteConfirmation { return .mute }
         if showBestFriendsOptOutConfirmation { return .leaveBestFriends }
@@ -201,6 +204,8 @@ struct StoryViewerScreen: View {
 
     private func confirmationTitle(for kind: StoryConfirmationKind) -> String {
         switch kind {
+        case .delete:
+            return NSLocalizedString("storyContextMenu.delete.confirm.title", comment: "Delete story confirmation title")
         case .unfollow:
             let format = NSLocalizedString("storyContextMenu.unfollow.confirm.title", comment: "Unfollow confirmation title")
             return String(format: format, story.username)
@@ -215,6 +220,8 @@ struct StoryViewerScreen: View {
 
     private func confirmationMessage(for kind: StoryConfirmationKind) -> String {
         switch kind {
+        case .delete:
+            return NSLocalizedString("storyContextMenu.delete.confirm.message", comment: "Delete story confirmation message")
         case .unfollow:
             return NSLocalizedString("storyContextMenu.unfollow.confirm.message", comment: "Unfollow confirmation message")
         case .mute:
@@ -226,6 +233,8 @@ struct StoryViewerScreen: View {
 
     private func confirmationConfirmTitle(for kind: StoryConfirmationKind) -> String {
         switch kind {
+        case .delete:
+            return NSLocalizedString("storyContextMenu.delete.confirm.action", comment: "Delete story confirm action")
         case .unfollow:
             return NSLocalizedString("storyContextMenu.unfollow.confirm.action", comment: "Unfollow action")
         case .mute:
@@ -237,6 +246,8 @@ struct StoryViewerScreen: View {
 
     private func confirmationCancelTitle(for kind: StoryConfirmationKind) -> String {
         switch kind {
+        case .delete:
+            return NSLocalizedString("storyContextMenu.delete.confirm.cancel", comment: "Delete story cancel")
         case .unfollow:
             return NSLocalizedString("storyContextMenu.unfollow.confirm.cancel", comment: "Unfollow cancel")
         case .mute:
@@ -255,6 +266,7 @@ struct StoryViewerScreen: View {
     }
 
     private func clearAllStoryConfirmations() {
+        showDeleteConfirmation = false
         showUnfollowConfirmation = false
         showMuteConfirmation = false
         showBestFriendsOptOutConfirmation = false
@@ -263,6 +275,8 @@ struct StoryViewerScreen: View {
     private func handleStoryConfirmation(_ kind: StoryConfirmationKind) {
         clearAllStoryConfirmations()
         switch kind {
+        case .delete:
+            deleteStory()
         case .unfollow:
             unfollowStoryAuthor()
         case .mute:
@@ -566,6 +580,9 @@ struct StoryViewerScreen: View {
     private var overlayBoundViewWithConfirmationHandlers: some View {
         overlayBoundViewWithSheetHandlers
             .onChange(of: showingBlockConfirmation) { _, isOpen in
+                pauseOrResumeStory(forOverlay: isOpen)
+            }
+            .onChange(of: showDeleteConfirmation) { _, isOpen in
                 pauseOrResumeStory(forOverlay: isOpen)
             }
             .onChange(of: showUnfollowConfirmation) { _, isOpen in
@@ -896,7 +913,7 @@ struct StoryViewerScreen: View {
             },
             onDelete: {
                 dismissQuickActions(resume: false)
-                deleteStory()
+                showDeleteConfirmation = true
             },
             onUnfollow: {
                 dismissQuickActions(resume: false)
@@ -1322,6 +1339,7 @@ struct StoryViewerScreen: View {
             || showReactions
             || showEphemeralPicker
             || showBestFriendsOptOutConfirmation
+            || showDeleteConfirmation
             || showUnfollowConfirmation
             || showMuteConfirmation
     }
@@ -1379,6 +1397,7 @@ struct StoryViewerScreen: View {
               !showReactions,
               !showEphemeralPicker,
               !showBestFriendsOptOutConfirmation,
+              !showDeleteConfirmation,
               !showUnfollowConfirmation,
               !showMuteConfirmation else {
             return false
@@ -1656,18 +1675,34 @@ struct StoryViewerScreen: View {
     private func deleteStory() {
         guard let storyId = story.id else { return }
 
+        pauseStory()
+        showQuickActions = false
+
         storyViewModel.deleteStory(userId: story.authorId, storyId: storyId) { error in
-            if error == nil {
-                // Deleting a story changes the source list, so let the presenter
-                // reconcile the current index instead of treating it as playback.
-                if let onStoryDeleted {
-                    onStoryDeleted()
-                } else {
-                    onNext()
+            DispatchQueue.main.async {
+                if let error {
+                    let fallback = NSLocalizedString("storyContextMenu.actionFailed", comment: "Generic story action failed")
+                    let message = error.localizedDescription.isEmpty ? fallback : error.localizedDescription
+                    self.showSuccessAnimation(message)
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                        self.resumeStory()
+                    }
+                    return
+                }
+
+                self.showSuccessAnimation(
+                    NSLocalizedString("storyContextMenu.delete.success", comment: "Story deleted success message")
+                )
+
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1.8) {
+                    if let onStoryDeleted {
+                        onStoryDeleted()
+                    } else {
+                        self.onNext()
+                    }
                 }
             }
         }
-        showQuickActions = false
     }
 
     private func prefetchOwnStoryInsights() {
@@ -1742,6 +1777,7 @@ struct StoryViewerScreen: View {
                 || self.showReactions
                 || self.showEphemeralPicker
                 || self.showBestFriendsOptOutConfirmation
+                || self.showDeleteConfirmation
                 || self.showUnfollowConfirmation
                 || self.showMuteConfirmation
 
@@ -1917,7 +1953,7 @@ struct StoryViewerScreen: View {
 
     private func resumeStory() {
         // ✅ REFUERZO SEGURO: No reanudar si cualquier overlay está visible o si hay teclado/drag
-        let isAnyOverlayVisible = showQuickActions || showViewers || showingReportSheet || showingBlockConfirmation || showUserProfile || showChainView || showReactions || showEphemeralPicker || showBestFriendsOptOutConfirmation || showUnfollowConfirmation || showMuteConfirmation
+        let isAnyOverlayVisible = showQuickActions || showViewers || showingReportSheet || showingBlockConfirmation || showUserProfile || showChainView || showReactions || showEphemeralPicker || showBestFriendsOptOutConfirmation || showDeleteConfirmation || showUnfollowConfirmation || showMuteConfirmation
 
         let canResume = !isKeyboardVisible && !isDragging && !isMenuInteractionActive && !isAnyOverlayVisible && isDeckPageActive
         playbackCoordinator.resumeStory(story, canResume: canResume, onImageComplete: onNext)

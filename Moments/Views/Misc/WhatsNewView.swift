@@ -8,27 +8,27 @@ struct WhatsNewView: View {
     private var features: [WhatsNewFeature] {
         [
             WhatsNewFeature(
-                icon: .system("arrow.up.left.and.arrow.down.right"),
+                icon: .asset("NovaTabIcon"),
                 title: NSLocalizedString("whatsNew.nova.title", comment: ""),
                 description: NSLocalizedString("whatsNew.nova.description", comment: "")
             ),
             WhatsNewFeature(
-                icon: .system("swatchpalette.fill"),
+                icon: .system("lock.shield.fill"),
                 title: NSLocalizedString("whatsNew.account.title", comment: ""),
                 description: NSLocalizedString("whatsNew.account.description", comment: "")
             ),
             WhatsNewFeature(
-                icon: .asset("MomentsStickerTool"),
+                icon: .storyRing,
                 title: NSLocalizedString("whatsNew.glass.title", comment: ""),
                 description: NSLocalizedString("whatsNew.glass.description", comment: "")
             ),
             WhatsNewFeature(
-                icon: .system("questionmark.bubble.fill"),
+                icon: .system("bell.badge.fill"),
                 title: NSLocalizedString("whatsNew.creator.title", comment: ""),
                 description: NSLocalizedString("whatsNew.creator.description", comment: "")
             ),
             WhatsNewFeature(
-                icon: .system("eye.slash.fill"),
+                icon: .asset("AudienceOnlyMeIcon"),
                 title: NSLocalizedString("whatsNew.feed.title", comment: ""),
                 description: NSLocalizedString("whatsNew.feed.description", comment: "")
             ),
@@ -36,11 +36,6 @@ struct WhatsNewView: View {
                 icon: .system("play.square.stack.fill"),
                 title: NSLocalizedString("whatsNew.social.title", comment: ""),
                 description: NSLocalizedString("whatsNew.social.description", comment: "")
-            ),
-            WhatsNewFeature(
-                icon: .system("checkmark.shield.fill"),
-                title: NSLocalizedString("whatsNew.fixes.title", comment: ""),
-                description: NSLocalizedString("whatsNew.fixes.description", comment: "")
             )
         ]
     }
@@ -133,6 +128,7 @@ private struct WhatsNewFeature {
 private enum WhatsNewFeatureIcon {
     case system(String)
     case asset(String)
+    case storyRing
 }
 
 private struct WhatsNewFeatureRow: View {
@@ -181,6 +177,20 @@ private struct WhatsNewFeatureRow: View {
                     .resizable()
                     .scaledToFit()
                     .frame(width: 30, height: 30)
+            case .storyRing:
+                StorySegmentedRing(
+                    storyCount: 3,
+                    hasStory: true,
+                    hasUnseenStory: true,
+                    storyViewedStatus: [false, false, false],
+                    storyAudiences: [nil, nil, nil],
+                    isOwnStory: false,
+                    colorScheme: .dark,
+                    ringSize: 26,
+                    lineWidth: 2.4,
+                    hapticsEnabled: false
+                )
+                .frame(width: 30, height: 30)
             }
         }
         .foregroundColor(.primary)

@@ -178,10 +178,12 @@ struct GlassmorphicStoryConfirmationDialog: View {
                         .font(.custom("Poppins-SemiBold", size: 18))
                         .multilineTextAlignment(.center)
 
-                    Text(message)
-                        .foregroundColor(secondaryTextColor)
-                        .font(.custom("Poppins-Regular", size: 14))
-                        .multilineTextAlignment(.center)
+                    if !message.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                        Text(message)
+                            .foregroundColor(secondaryTextColor)
+                            .font(.custom("Poppins-Regular", size: 14))
+                            .multilineTextAlignment(.center)
+                    }
                 }
 
                 HStack(spacing: 10) {

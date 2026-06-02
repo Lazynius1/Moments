@@ -1815,6 +1815,11 @@
 "storyContextMenu.save.subtitle" = "Keep to your device";
 "storyContextMenu.delete" = "Delete";
 "storyContextMenu.delete.subtitle" = "Delete story";
+"storyContextMenu.delete.confirm.title" = "Delete this story?";
+"storyContextMenu.delete.confirm.message" = "This story will no longer be available and no one will be able to see it.";
+"storyContextMenu.delete.confirm.action" = "Delete";
+"storyContextMenu.delete.confirm.cancel" = "Cancel";
+"storyContextMenu.delete.success" = "Story deleted";
 "storyContextMenu.share" = "Share";
 "storyContextMenu.share.subtitle" = "Send to others";
 "storyContextMenu.report" = "Report";
@@ -2465,30 +2470,30 @@
 
 /* Whats New v2.8 */
 "whatsNew.title" = "New in Moments!";
-"whatsNew.subtitle" = "Version 2.12.0";
-"whatsNew.button" = "Explore Moments 2.12";
+"whatsNew.subtitle" = "Version 2.13.0";
+"whatsNew.button" = "Explore Moments 2.13";
 
 /* Nova */
-"whatsNew.nova.title" = "Freer stories";
-"whatsNew.nova.description" = "You can now move, scale, and rotate photos and videos more naturally to create stories with much more freedom.";
+"whatsNew.nova.title" = "A much better Nova";
+"whatsNew.nova.description" = "Nova now understands context better and supports your actions in a much more natural way across Moments.";
 
-"whatsNew.account.title" = "Automatic color backgrounds";
-"whatsNew.account.description" = "When you shrink a photo or video, Moments now creates more thoughtful backgrounds based on its colors.";
+"whatsNew.account.title" = "More secure chat";
+"whatsNew.account.description" = "Photos, videos, and audio in private chat now use end-to-end encryption with a much more polished messaging experience.";
 
 /* Liquid glass */
-"whatsNew.glass.title" = "Redesigned stickers";
-"whatsNew.glass.description" = "We rebuilt several stickers so they feel cleaner, more integrated, and more expressive with new visual variations.";
+"whatsNew.glass.title" = "Smoother stories";
+"whatsNew.glass.description" = "Browsing, replying to, and sharing stories now feels much more continuous, immersive, and natural.";
 
 /* Creator */
-"whatsNew.creator.title" = "Questions, polls, and replies";
-"whatsNew.creator.description" = "We also improved questions, polls, quizzes, and replies so everything feels clearer and more coherent.";
+"whatsNew.creator.title" = "Clearer notifications";
+"whatsNew.creator.description" = "We've better organized notifications and Your Activity so keeping up with what happens in Moments feels much easier.";
 
 /* Feed */
-"whatsNew.feed.title" = "Incognito mode";
-"whatsNew.feed.description" = "You can now check stories, visit profiles, and open chats with a little more privacy and without leaving the usual trace.";
+"whatsNew.feed.title" = "More control and privacy";
+"whatsNew.feed.description" = "Requests, mentions, tags, and visibility now feel much more consistent with the privacy of each moment.";
 
-"whatsNew.social.title" = "More immersive reels";
-"whatsNew.social.description" = "We refreshed the reels viewer with better quick commenting, more thoughtful captions, and a cleaner experience.";
+"whatsNew.social.title" = "Smarter video";
+"whatsNew.social.description" = "Videos now adapt better to your connection for smoother and more stable playback.";
 
 /* Fixes */
 "whatsNew.fixes.title" = "More stability while creating and watching";

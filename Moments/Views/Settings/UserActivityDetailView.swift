@@ -6,6 +6,7 @@ struct ActivityInteractionDetailView: View {
     @Environment(\.colorScheme) private var colorScheme
     let category: ActivityInteractionCategory
     let recentlyDeletedKind: RecentlyDeletedContentKind
+    let suppressInlineNavigationTitle: Bool
 
     @StateObject private var viewModel: ActivityInteractionDetailViewModel
     @State private var reactionsSort: ReactionsSortOption = .newest
@@ -38,9 +39,14 @@ struct ActivityInteractionDetailView: View {
     @State private var recentlyDeletedAutoScrollTask: Task<Void, Never>?
     @State private var recentlyDeletedDragCurrentId: String?
 
-    init(category: ActivityInteractionCategory, recentlyDeletedKind: RecentlyDeletedContentKind = .moments) {
+    init(
+        category: ActivityInteractionCategory,
+        recentlyDeletedKind: RecentlyDeletedContentKind = .moments,
+        suppressInlineNavigationTitle: Bool = false
+    ) {
         self.category = category
         self.recentlyDeletedKind = recentlyDeletedKind
+        self.suppressInlineNavigationTitle = suppressInlineNavigationTitle
         _viewModel = StateObject(wrappedValue: ActivityInteractionDetailViewModel(category: category, recentlyDeletedKind: recentlyDeletedKind))
     }
 
@@ -105,8 +111,10 @@ struct ActivityInteractionDetailView: View {
 
             mainContent
         }
-        .navigationTitle(NSLocalizedString(detailNavigationTitleKey, comment: "Interaction detail title"))
-        .navigationBarTitleDisplayMode(.inline)
+        .modifier(InlineNavigationTitleModifier(
+            titleKey: detailNavigationTitleKey,
+            isSuppressed: suppressInlineNavigationTitle
+        ))
         .toolbar {
             navigationToolbar
         }
@@ -1987,6 +1995,22 @@ struct ActivityInteractionDetailView: View {
             case .failure(let error):
                 viewModel.errorMessage = error.localizedDescription
             }
+        }
+    }
+}
+
+private struct InlineNavigationTitleModifier: ViewModifier {
+    let titleKey: String
+    let isSuppressed: Bool
+
+    func body(content: Content) -> some View {
+        if isSuppressed {
+            content
+                .navigationBarTitleDisplayMode(.inline)
+        } else {
+            content
+                .navigationTitle(NSLocalizedString(titleKey, comment: "Interaction detail title"))
+                .navigationBarTitleDisplayMode(.inline)
         }
     }
 }

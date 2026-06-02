@@ -144,23 +144,25 @@ struct ArchiveView: View {
         .navigationBarTitleDisplayMode(.inline)
         .navigationBarBackButtonHidden(showsCustomDismiss)
         .toolbar {
-            ToolbarItem(placement: .principal) {
-                Menu {
-                    Label(NSLocalizedString("archivedStories.headerTitle", comment: "Archive Stories header title"), systemImage: "checkmark")
+            if embedInNavigation {
+                ToolbarItem(placement: .principal) {
+                    Menu {
+                        Label(NSLocalizedString("archivedStories.headerTitle", comment: "Archive Stories header title"), systemImage: "checkmark")
 
-                    Button {
-                        navigateToArchivedMoments = true
+                        Button {
+                            navigateToArchivedMoments = true
+                        } label: {
+                            Text(NSLocalizedString("userActivity.simple.item.archived.headerTitle", comment: "Archived moments header title"))
+                        }
                     } label: {
-                        Text(NSLocalizedString("userActivity.simple.item.archived.headerTitle", comment: "Archived moments header title"))
+                        HStack(spacing: 5) {
+                            Text(NSLocalizedString("archivedStories.headerTitle", comment: "Archive Stories header title"))
+                                .font(.custom("Poppins-SemiBold", size: 17))
+                            Image(systemName: "chevron.down")
+                                .font(.system(size: 11, weight: .semibold))
+                        }
+                        .foregroundColor(colorScheme == .dark ? .white : .black)
                     }
-                } label: {
-                    HStack(spacing: 5) {
-                        Text(NSLocalizedString("archivedStories.headerTitle", comment: "Archive Stories header title"))
-                            .font(.custom("Poppins-SemiBold", size: 17))
-                        Image(systemName: "chevron.down")
-                            .font(.system(size: 11, weight: .semibold))
-                    }
-                    .foregroundColor(colorScheme == .dark ? .white : .black)
                 }
             }
 
@@ -231,7 +233,7 @@ struct ArchiveView: View {
             StoryStatsView(story: presentation.story)
         }
         .navigationDestination(isPresented: $navigateToArchivedMoments) {
-            ArchivedMomentsView()
+            ActivityInteractionDetailView(category: .archived)
         }
     }
 

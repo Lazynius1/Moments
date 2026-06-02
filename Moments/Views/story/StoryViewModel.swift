@@ -554,21 +554,23 @@ class StoryViewModel: ObservableObject {
         }
 
         storyRepository.softDeleteStory(userId: userId, storyId: storyId) { [weak self] error in
-            guard let self else { return }
-            if let error {
-                completion(error)
-                return
-            }
+            Task { @MainActor in
+                guard let self else { return }
+                if let error {
+                    completion(error)
+                    return
+                }
 
-            if var userStories = self.stories[userId] {
-                userStories.removeAll { $0.id == storyId }
-                self.stories[userId] = userStories
-            }
+                if var userStories = self.stories[userId] {
+                    userStories.removeAll { $0.id == storyId }
+                    self.stories[userId] = userStories
+                }
 
-            LocalPersistenceService.shared.deleteStory(storyId: storyId)
-            self.firestoreService.rebuildStorySummary(for: userId) { _ in }
-            self.checkActiveStories(userId: userId)
-            completion(nil)
+                LocalPersistenceService.shared.deleteStory(storyId: storyId)
+                self.firestoreService.rebuildStorySummary(for: userId) { _ in }
+                self.checkActiveStories(userId: userId)
+                completion(nil)
+            }
         }
     }
 
