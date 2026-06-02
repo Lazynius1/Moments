@@ -664,16 +664,17 @@ extension FirestoreService {
                     momentData["mediaItems"] = self.serializedMediaItems(mediaItems, encoder: encoder)
                     momentData["hasHiddenLayers"] = false
                     momentData["hiddenLayerCount"] = 0
+                    let resolvedMomentId = momentId ?? UUID().uuidString
 
                     if audienceSetting == .custom, let customViewers, !customViewers.isEmpty {
                         self.saveCustomAudienceForContent(
                             contentType: "moment",
+                            contentId: resolvedMomentId,
                             authorId: userId,
                             allowedUsers: customViewers
                         ) { _ in }
                     }
 
-                    let resolvedMomentId = momentId ?? UUID().uuidString
                     self.db.collection("users")
                         .document(userId)
                         .collection("moments")

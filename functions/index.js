@@ -5923,8 +5923,10 @@ async function buildViewerContext(uid) {
   const viewerData = viewerDoc.exists ? viewerDoc.data() : {};
   const bestFriends = new Set(Array.isArray(viewerData.bestFriends) ? viewerData.bestFriends : []);
   const blockedUsers = new Set(Array.isArray(viewerData.blockedUsers) ? viewerData.blockedUsers : []);
+  const muteSettings = viewerData.muteSettings && typeof viewerData.muteSettings === 'object' ? viewerData.muteSettings : {};
+  const mutedUsers = new Set(Array.isArray(muteSettings.mutedUsers) ? muteSettings.mutedUsers : []);
 
-  return { following, followers, mutuals, bestFriends, blockedUsers };
+  return { following, followers, mutuals, bestFriends, blockedUsers, mutedUsers };
 }
 
 /**
@@ -6046,6 +6048,85 @@ async function canViewerSeeMoment(moment, viewerId, viewerCtx, authorData) {
 }
 
 /**
+ * Server-side story privacy check — mirrors canUserViewStoryEnhanced from PrivacyService.swift.
+ *
+ * @param {object} story - { id, authorId, audience, customListId }
+ * @param {string} viewerId
+ * @param {object} viewerCtx - from buildViewerContext
+ * @param {object} authorData - author user document data
+ * @returns {Promise<boolean>}
+ */
+async function canViewerSeeStory(story, viewerId, viewerCtx, authorData) {
+  const db = admin.firestore();
+
+  if (!story || typeof story.authorId !== 'string' || !story.authorId) return false;
+
+  // Author always sees own stories, including onlyMe.
+  if (story.authorId === viewerId) return true;
+
+  if (viewerCtx.mutedUsers && viewerCtx.mutedUsers.has(story.authorId)) return false;
+  if (authorData.isActive === false) return false;
+
+  const authorBlocked = Array.isArray(authorData.blockedUsers) ? authorData.blockedUsers : [];
+  if (viewerCtx.blockedUsers.has(story.authorId) || authorBlocked.includes(viewerId)) {
+    return false;
+  }
+
+  const visSettings = authorData.contentVisibilitySettings || {};
+  const hiddenFrom = Array.isArray(visSettings.hiddenFromUsers) ? visSettings.hiddenFromUsers : [];
+  if (hiddenFrom.includes(viewerId)) return false;
+
+  const audience = story.audience || 'everyone';
+  switch (audience) {
+    case 'everyone': {
+      const isPrivate = authorData.isPrivate === true;
+      if (!isPrivate) return true;
+      return viewerCtx.following.has(story.authorId);
+    }
+
+    case 'connections':
+    case 'mutuals':
+      return viewerCtx.following.has(story.authorId) && viewerCtx.followers.has(story.authorId);
+
+    case 'bestFriends': {
+      const authorBestFriends = Array.isArray(authorData.bestFriends) ? authorData.bestFriends : [];
+      return authorBestFriends.includes(viewerId);
+    }
+
+    case 'custom': {
+      if (!story.id) return false;
+      try {
+        const audienceDoc = await db.doc(`users/${story.authorId}/customAudiences/story_${story.id}`).get();
+        if (!audienceDoc.exists) return false;
+        const allowedUsers = audienceDoc.data().allowedUsers || [];
+        return allowedUsers.includes(viewerId);
+      } catch {
+        return false;
+      }
+    }
+
+    case 'customList': {
+      const listId = story.customListId;
+      if (!listId) return false;
+      try {
+        const listDoc = await db.doc(`users/${story.authorId}/customAudienceLists/${listId}`).get();
+        if (!listDoc.exists) return false;
+        const members = listDoc.data().members || [];
+        return members.includes(viewerId);
+      } catch {
+        return false;
+      }
+    }
+
+    case 'onlyMe':
+      return false;
+
+    default:
+      return false;
+  }
+}
+
+/**
  * Serialize a Firestore Timestamp to epoch millis (or null).
  */
 function tsToMillis(ts) {
@@ -6080,6 +6161,19 @@ function isMomentPathAuthorConsistent(doc, data) {
     && parts[0] === 'users'
     && parts[1] === authorId
     && parts[2] === 'moments'
+    && parts[3] === doc.id;
+}
+
+function isStoryPathAuthorConsistent(doc, data) {
+  const authorId = data && data.authorId;
+  if (typeof authorId !== 'string' || authorId.length === 0) return false;
+
+  const refPath = doc && doc.ref && typeof doc.ref.path === 'string' ? doc.ref.path : '';
+  const parts = refPath.split('/');
+  return parts.length === 4
+    && parts[0] === 'users'
+    && parts[1] === authorId
+    && parts[2] === 'stories'
     && parts[3] === doc.id;
 }
 
@@ -6599,6 +6693,225 @@ exports.getFeedPage = onRequest(
     } catch (error) {
       console.error('❌ getFeedPage error:', error);
       res.status(500).json({ error: 'Feed fetch failed', details: error.message });
+    }
+  }
+);
+
+function storyAudienceSupportsSeenShortcut(audience) {
+  const normalized = typeof audience === 'string' && audience.trim()
+    ? audience.trim()
+    : 'everyone';
+  return normalized === 'everyone' || normalized === 'connections' || normalized === 'mutuals';
+}
+
+async function fetchStoryLastSeenMap(viewerId, authorIds) {
+  const db = admin.firestore();
+  const uniqueIds = [...new Set(authorIds.filter((id) => typeof id === 'string' && id))];
+  const result = new Map();
+
+  for (let i = 0; i < uniqueIds.length; i += 100) {
+    const chunk = uniqueIds.slice(i, i + 100);
+    const refs = chunk.map((authorId) => db.doc(`users/${viewerId}/storySeen/${authorId}`));
+    const docs = await db.getAll(...refs);
+    docs.forEach((doc) => {
+      if (!doc.exists) return;
+      const millis = tsToMillis(doc.data().lastSeenAt);
+      if (millis) result.set(doc.id, millis);
+    });
+  }
+
+  return result;
+}
+
+async function fetchStoryViewerDocs(viewerId, stories) {
+  const db = admin.firestore();
+  const result = new Set();
+  const refs = stories
+    .filter((story) => story && story.id && story.authorId)
+    .map((story) => db.doc(`users/${story.authorId}/stories/${story.id}/viewers/${viewerId}`));
+
+  for (let i = 0; i < refs.length; i += 100) {
+    const docs = await db.getAll(...refs.slice(i, i + 100));
+    docs.forEach((doc) => {
+      if (!doc.exists) return;
+      const parts = doc.ref.path.split('/');
+      if (parts.length >= 6) {
+        result.add(`${parts[1]}|${parts[3]}`);
+      }
+    });
+  }
+
+  return result;
+}
+
+function serializeStoryTraySegment(story, viewed) {
+  return {
+    storyId: story.id || '',
+    viewed: viewed === true,
+    audience: story.audience || null,
+    timestamp: tsToMillis(story.timestamp)
+  };
+}
+
+/**
+ * 📚 getStoryTray — Backend-first story ring/tray endpoint.
+ *
+ * Response: { items: [{ userId, storyCount, hasUnseenStory, segments, latestStoryAt }], source, totalCandidates }
+ */
+exports.getStoryTray = onRequest(
+  {
+    timeoutSeconds: 30,
+    memory: '512MiB',
+    concurrency: 40
+  },
+  async (req, res) => {
+    setProxyCors(res);
+    if (req.method === 'OPTIONS') {
+      res.status(204).send('');
+      return;
+    }
+    if (req.method !== 'POST') {
+      res.status(405).json({ error: 'Method not allowed' });
+      return;
+    }
+
+    const uid = await verifyFirebaseAuth(req, res);
+    if (!uid) return;
+
+    const db = admin.firestore();
+    const body = parseJsonBody(req);
+    const rawLimit = Number(body.limit);
+    const limit = Number.isFinite(rawLimit) ? Math.max(1, Math.min(rawLimit, 120)) : 80;
+
+    try {
+      const viewerCtx = await buildViewerContext(uid);
+      const candidateUserIds = [uid, ...[...viewerCtx.following].filter((id) => id !== uid && !viewerCtx.mutedUsers.has(id))];
+      const limitedCandidateUserIds = candidateUserIds.slice(0, limit);
+
+      if (limitedCandidateUserIds.length === 0) {
+        res.status(200).json({ items: [], source: 'backend', totalCandidates: 0 });
+        return;
+      }
+
+      const userBatches = [];
+      for (let i = 0; i < limitedCandidateUserIds.length; i += 10) {
+        userBatches.push(limitedCandidateUserIds.slice(i, i + 10));
+      }
+
+      const now = admin.firestore.Timestamp.now();
+      const allCandidateDocs = [];
+      await Promise.all(userBatches.map(async (batch) => {
+        const snap = await db.collectionGroup('stories')
+          .where('authorId', 'in', batch)
+          .where('expirationDate', '>', now)
+          .limit(500)
+          .get();
+
+        snap.docs.forEach((doc) => allCandidateDocs.push(doc));
+      }));
+
+      const uniqueDocsByPath = new Map();
+      for (const doc of allCandidateDocs) {
+        uniqueDocsByPath.set(doc.ref.path, doc);
+      }
+
+      const normalizedDocs = [...uniqueDocsByPath.values()]
+        .map((doc) => ({ doc, data: doc.data() || {} }))
+        .filter(({ doc, data }) => isStoryPathAuthorConsistent(doc, data))
+        .sort((a, b) => {
+          const tsA = tsToMillis(a.data.timestamp) || 0;
+          const tsB = tsToMillis(b.data.timestamp) || 0;
+          if (tsA !== tsB) return tsA - tsB;
+          return a.doc.id.localeCompare(b.doc.id);
+        });
+
+      const authorIds = [...new Set(normalizedDocs.map(({ data }) => data.authorId))];
+      const [authorMap, lastSeenMap] = await Promise.all([
+        batchLoadAuthorDocs(authorIds),
+        fetchStoryLastSeenMap(uid, authorIds)
+      ]);
+
+      const visibilityResults = await Promise.all(
+        normalizedDocs.map(async ({ doc, data }) => {
+          const authorData = authorMap.get(data.authorId);
+          if (!authorData) return null;
+
+          const storyForCheck = {
+            id: doc.id,
+            authorId: data.authorId,
+            audience: data.audience,
+            customListId: data.customListId
+          };
+          const canView = await canViewerSeeStory(storyForCheck, uid, viewerCtx, authorData);
+          if (!canView) return null;
+
+          return {
+            id: doc.id,
+            authorId: data.authorId,
+            audience: data.audience || null,
+            customListId: data.customListId || null,
+            timestamp: data.timestamp
+          };
+        })
+      );
+
+      const visibleStories = visibilityResults.filter(Boolean);
+      const needsViewerDoc = visibleStories.filter((story) => {
+        if (story.authorId === uid) return false;
+        if (!storyAudienceSupportsSeenShortcut(story.audience)) return true;
+        const lastSeen = lastSeenMap.get(story.authorId) || 0;
+        const storyTs = tsToMillis(story.timestamp) || 0;
+        return !lastSeen || storyTs > lastSeen;
+      });
+      const viewedStoryKeys = await fetchStoryViewerDocs(uid, needsViewerDoc);
+
+      const itemsByUser = new Map();
+      for (const story of visibleStories) {
+        const storyTs = tsToMillis(story.timestamp) || 0;
+        let viewed = story.authorId === uid;
+        if (!viewed) {
+          const supportsShortcut = storyAudienceSupportsSeenShortcut(story.audience);
+          const lastSeen = lastSeenMap.get(story.authorId) || 0;
+          viewed = supportsShortcut && lastSeen >= storyTs;
+          if (!viewed) {
+            viewed = viewedStoryKeys.has(`${story.authorId}|${story.id}`);
+          }
+        }
+
+        const item = itemsByUser.get(story.authorId) || {
+          userId: story.authorId,
+          storyCount: 0,
+          hasUnseenStory: false,
+          segments: [],
+          latestStoryAt: null
+        };
+        item.storyCount += 1;
+        item.hasUnseenStory = item.hasUnseenStory || !viewed;
+        item.latestStoryAt = Math.max(item.latestStoryAt || 0, storyTs || 0) || null;
+        item.segments.push(serializeStoryTraySegment(story, viewed));
+        itemsByUser.set(story.authorId, item);
+      }
+
+      const candidateOrder = new Map(limitedCandidateUserIds.map((id, index) => [id, index]));
+      const items = [...itemsByUser.values()].sort((a, b) => {
+        if (a.userId === uid) return -1;
+        if (b.userId === uid) return 1;
+        if (a.hasUnseenStory !== b.hasUnseenStory) return a.hasUnseenStory ? -1 : 1;
+        const tsA = Number(a.latestStoryAt || 0);
+        const tsB = Number(b.latestStoryAt || 0);
+        if (tsA !== tsB) return tsB - tsA;
+        return (candidateOrder.get(a.userId) ?? 999999) - (candidateOrder.get(b.userId) ?? 999999);
+      });
+
+      console.log(`✅ getStoryTray: uid=${uid}, candidates=${limitedCandidateUserIds.length}, visibleAuthors=${items.length}, visibleStories=${visibleStories.length}`);
+      res.status(200).json({
+        items,
+        source: 'backend',
+        totalCandidates: limitedCandidateUserIds.length
+      });
+    } catch (error) {
+      console.error('❌ getStoryTray error:', error);
+      res.status(500).json({ error: 'Story tray fetch failed', details: error.message });
     }
   }
 );

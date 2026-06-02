@@ -91,6 +91,7 @@ class FirestoreService: ObservableObject {
                !customViewers.isEmpty {
                 self.saveCustomAudienceForContent(
                     contentType: "moment",
+                    contentId: momentId,
                     authorId: userId,
                     allowedUsers: customViewers
                 ) { audienceError in

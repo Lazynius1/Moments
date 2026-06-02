@@ -533,6 +533,7 @@ struct StoryViewerScreen: View {
                 }
                 .onChange(of: isDeckPageActive) { _, isActive in
                     if isActive {
+                        markStoryAsViewedIfNeeded()
                         resumeStory()
                     } else {
                         pauseStory()
@@ -1917,14 +1918,18 @@ struct StoryViewerScreen: View {
             return
         }
 
-        if let storyId = story.id {
-            storyViewModel.markStoryAsViewed(
-                userId: story.authorId,
-                storyId: storyId,
-                storyTimestamp: story.timestamp,
-                audience: story.audience
-            )
-        }
+        markStoryAsViewedIfNeeded()
+    }
+
+    private func markStoryAsViewedIfNeeded() {
+        guard isDeckPageActive, let storyId = story.id else { return }
+
+        storyViewModel.markStoryAsViewed(
+            userId: story.authorId,
+            storyId: storyId,
+            storyTimestamp: story.timestamp,
+            audience: story.audience
+        )
     }
 
     private func stopAndCleanupStory() {

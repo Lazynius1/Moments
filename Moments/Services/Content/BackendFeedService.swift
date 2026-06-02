@@ -10,6 +10,27 @@ struct BackendFeedResponse: Codable {
     let totalCandidates: Int
 }
 
+struct BackendStoryTrayResponse: Codable {
+    let items: [BackendStoryTrayItem]
+    let source: String
+    let totalCandidates: Int
+}
+
+struct BackendStoryTrayItem: Codable {
+    let userId: String
+    let storyCount: Int
+    let hasUnseenStory: Bool
+    let segments: [BackendStoryTraySegment]
+    let latestStoryAt: Double?
+}
+
+struct BackendStoryTraySegment: Codable {
+    let storyId: String
+    let viewed: Bool
+    let audience: String?
+    let timestamp: Double?
+}
+
 struct FeedCursor: Codable {
     let timestamp: Double
     let momentId: String
@@ -276,5 +297,116 @@ class BackendFeedService {
             recordFailure()
             return nil
         }
+    }
+}
+
+// MARK: - Backend Story Tray Service
+
+@MainActor
+final class StoryTrayService {
+    static let shared = StoryTrayService()
+
+    private struct CacheEntry {
+        let response: BackendStoryTrayResponse
+        let expiresAt: Date
+    }
+
+    private var failCount = 0
+    private var lastFailTime: Date = .distantPast
+    private let maxFails = 3
+    private let cooldownInterval: TimeInterval = 180
+    private let cacheTTL: TimeInterval = 20
+    private var cacheByViewerId: [String: CacheEntry] = [:]
+
+    var isCircuitOpen: Bool {
+        guard failCount >= maxFails else { return false }
+        if Date().timeIntervalSince(lastFailTime) > cooldownInterval {
+            failCount = 0
+            return false
+        }
+        return true
+    }
+
+    func cachedTray(for viewerId: String) -> BackendStoryTrayResponse? {
+        guard let entry = cacheByViewerId[viewerId] else { return nil }
+        if entry.expiresAt < Date() {
+            cacheByViewerId.removeValue(forKey: viewerId)
+            return nil
+        }
+        return entry.response
+    }
+
+    func invalidate(viewerId: String? = nil) {
+        if let viewerId {
+            cacheByViewerId.removeValue(forKey: viewerId)
+        } else {
+            cacheByViewerId.removeAll()
+        }
+    }
+
+    func fetchStoryTray(limit: Int = 80) async -> BackendStoryTrayResponse? {
+        guard !isCircuitOpen else {
+            LogConfig.log("⚡ StoryTray: Circuit breaker OPEN — usando legacy", category: "BackendFeed")
+            return nil
+        }
+
+        guard let user = Auth.auth().currentUser else {
+            LogConfig.log("⚡ StoryTray: No authenticated user", category: "BackendFeed")
+            return nil
+        }
+
+        do {
+            let idToken = try await user.getIDToken()
+            let projectId = FirebaseApp.app()?.options.projectID ?? ""
+            let region = "europe-southwest1"
+            let urlString = "https://\(region)-\(projectId).cloudfunctions.net/getStoryTray"
+
+            guard let url = URL(string: urlString) else {
+                recordFailure()
+                LogConfig.log("❌ StoryTray: Invalid URL", category: "BackendFeed")
+                return nil
+            }
+
+            var request = URLRequest(url: url)
+            request.httpMethod = "POST"
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            request.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
+            request.httpBody = try JSONSerialization.data(withJSONObject: ["limit": limit])
+            request.timeoutInterval = 12
+
+            let (data, response) = try await URLSession.shared.data(for: request)
+            guard let httpResponse = response as? HTTPURLResponse else {
+                recordFailure()
+                return nil
+            }
+
+            guard httpResponse.statusCode == 200 else {
+                LogConfig.log("❌ StoryTray: HTTP \(httpResponse.statusCode)", category: "BackendFeed")
+                recordFailure()
+                return nil
+            }
+
+            let decoded = try JSONDecoder().decode(BackendStoryTrayResponse.self, from: data)
+            cacheByViewerId[user.uid] = CacheEntry(
+                response: decoded,
+                expiresAt: Date().addingTimeInterval(cacheTTL)
+            )
+            recordSuccess()
+            LogConfig.log("✅ StoryTray: \(decoded.items.count) authors (source: \(decoded.source), candidates: \(decoded.totalCandidates))", category: "BackendFeed")
+            return decoded
+        } catch {
+            LogConfig.log("❌ StoryTray error: \(error.localizedDescription)", category: "BackendFeed")
+            recordFailure()
+            return nil
+        }
+    }
+
+    private func recordSuccess() {
+        failCount = 0
+    }
+
+    private func recordFailure() {
+        failCount += 1
+        lastFailTime = Date()
     }
 }

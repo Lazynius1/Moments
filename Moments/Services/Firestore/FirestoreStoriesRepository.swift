@@ -240,6 +240,7 @@ extension FirestoreService {
                        !customViewers.isEmpty {
                         self.saveCustomAudienceForContent(
                             contentType: "story",
+                            contentId: storyId,
                             authorId: userId,
                             allowedUsers: customViewers
                         ) { _ in }

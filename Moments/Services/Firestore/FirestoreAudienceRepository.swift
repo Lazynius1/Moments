@@ -4,6 +4,7 @@ import Foundation
 extension FirestoreService {
     func saveCustomAudienceForContent(
         contentType: String,
+        contentId: String? = nil,
         authorId: String,
         allowedUsers: [String],
         completion: @escaping (Error?) -> Void
@@ -15,9 +16,16 @@ extension FirestoreService {
             "lastUpdated": FieldValue.serverTimestamp()
         ]
 
+        let documentId: String
+        if let contentId, !contentId.isEmpty {
+            documentId = "\(contentType)_\(contentId)"
+        } else {
+            documentId = "default_\(contentType)"
+        }
+
         db.collection("users").document(authorId)
             .collection("customAudiences")
-            .document("default_\(contentType)")
+            .document(documentId)
             .setData(data, merge: true, completion: completion)
     }
 

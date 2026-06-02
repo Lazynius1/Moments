@@ -51,23 +51,27 @@ final class FeedStoryRingCoordinator: ObservableObject {
         allowInstantCache: Bool = true,
         firestoreService: FirestoreService
     ) async {
+        isLoadingStories = true
+
+        if allowInstantCache,
+           let cachedTray = StoryTrayService.shared.cachedTray(for: userId) {
+            applyStoryTrayResponse(cachedTray, currentUserId: userId)
+            isLoadingStories = false
+        }
+
+        guard NetworkMonitor.shared.isConnected else {
+            isLoadingStories = false
+            return
+        }
+
+        if let trayResponse = await StoryTrayService.shared.fetchStoryTray() {
+            applyStoryTrayResponse(trayResponse, currentUserId: userId)
+            isLoadingStories = false
+            return
+        }
+
+        LogConfig.log("⚡ StoryTray: fallback legacy ring loader", category: "BackendFeed")
         await withCheckedContinuation { continuation in
-            isLoadingStories = true
-
-            if allowInstantCache {
-                let cachedStoryUsers = loadCachedStoryUsers(userId: userId)
-                if !cachedStoryUsers.isEmpty {
-                    storyUsers = cachedStoryUsers
-                    isLoadingStories = false
-                }
-            }
-
-            guard NetworkMonitor.shared.isConnected else {
-                isLoadingStories = false
-                continuation.resume()
-                return
-            }
-
             firestoreService.fetchMutedUserIds(userId: userId) { [weak self] mutedUserIds in
                 guard let self else {
                     continuation.resume()
@@ -202,6 +206,68 @@ final class FeedStoryRingCoordinator: ObservableObject {
                 }
             }
         }
+    }
+
+    private func applyStoryTrayResponse(_ response: BackendStoryTrayResponse, currentUserId: String) {
+        let entries: [FeedStoryUserState] = response.items.map { item -> FeedStoryUserState in
+            let viewedStatus = item.segments.map(\.viewed)
+            let audiences = item.segments.map(\.audience)
+            let storyCount = max(item.storyCount, item.segments.count)
+            return (
+                userId: item.userId,
+                hasStory: storyCount > 0,
+                hasUnseenStory: item.userId == currentUserId ? false : item.hasUnseenStory,
+                storyCount: storyCount,
+                storyViewedStatus: viewedStatus,
+                storyAudiences: audiences
+            )
+        }
+
+        var finalUsers = entries
+        if finalUsers.first?.userId != currentUserId {
+            finalUsers.removeAll { $0.userId == currentUserId }
+            finalUsers.insert(emptyCurrentUserEntry(currentUserId), at: 0)
+        }
+
+        storyUsers = finalUsers
+        cachedStoriesTimestamp = Date()
+        for entry in finalUsers {
+            cachedStories[entry.userId] = entry.hasStory
+            cachedUnseenStories[entry.userId] = entry.hasUnseenStory
+            Task {
+                await StoryRingCacheService.shared.set(
+                    viewerId: currentUserId,
+                    authorId: entry.userId,
+                    snapshot: StoryRingSnapshot(
+                        hasStory: entry.hasStory,
+                        hasUnseenStory: entry.hasUnseenStory,
+                        storyCount: entry.storyCount,
+                        storyViewedStatus: entry.storyViewedStatus,
+                        storyAudiences: entry.storyAudiences
+                    )
+                )
+            }
+        }
+
+        updateStoryWidgetCount(from: finalUsers)
+    }
+
+    private func emptyCurrentUserEntry(_ userId: String) -> FeedStoryUserState {
+        (
+            userId: userId,
+            hasStory: false,
+            hasUnseenStory: false,
+            storyCount: 0,
+            storyViewedStatus: [],
+            storyAudiences: []
+        )
+    }
+
+    private func updateStoryWidgetCount(from users: [FeedStoryUserState]) {
+        let newStoriesCount = users.filter { $0.hasUnseenStory }.count
+        let widgetDefaults = UserDefaults(suiteName: "group.com.glowsyapp")
+        widgetDefaults?.set(newStoriesCount, forKey: "widget_new_stories_count")
+        scheduleWidgetReload()
     }
 
     private func loadCachedStoryUsers(userId: String) -> [FeedStoryUserState] {

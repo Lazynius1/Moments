@@ -50,11 +50,13 @@ class StoryViewModel: ObservableObject {
 
 
 
-        // ✅ SwiftData: Cargar historias del caché local inmediatamente
-        let cachedStories = LocalPersistenceService.shared.loadStories(userId: userId)
-        if !cachedStories.isEmpty {
-            self.stories[userId] = cachedStories
-            self.hasActiveStory = true
+        // Only own stories can be trusted from local cache before a fresh privacy check.
+        if userId == viewerId {
+            let cachedStories = LocalPersistenceService.shared.loadStories(userId: userId)
+            if !cachedStories.isEmpty {
+                self.stories[userId] = cachedStories
+                self.hasActiveStory = true
+            }
         }
 
         storyRepository.fetchActiveStories(for: userId) { [weak self] result in
@@ -124,9 +126,11 @@ class StoryViewModel: ObservableObject {
         guard !userId.isEmpty, !viewerId.isEmpty else { return }
         if let existing = stories[userId], !existing.isEmpty { return }
 
-        let cachedStories = LocalPersistenceService.shared.loadStories(userId: userId)
-        if !cachedStories.isEmpty {
-            stories[userId] = cachedStories
+        if userId == viewerId {
+            let cachedStories = LocalPersistenceService.shared.loadStories(userId: userId)
+            if !cachedStories.isEmpty {
+                stories[userId] = cachedStories
+            }
         }
 
         storyRepository.fetchActiveStories(for: userId) { [weak self] result in
