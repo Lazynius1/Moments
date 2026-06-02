@@ -616,7 +616,11 @@ struct StoryEditingView: View {
         if activeEditingStickerId != nil {
             ZStack {
                 HStack {
+                    Color.clear
+                        .frame(width: 44, height: 44)
+
                     Spacer()
+
                     Button(action: {
                         withAnimation(.spring(response: 0.3, dampingFraction: 0.75)) {
                             activeEditingStickerId = nil
@@ -631,6 +635,7 @@ struct StoryEditingView: View {
                             .liquidGlass(in: Capsule())
                     }
                 }
+                .frame(maxWidth: .infinity)
                 
                 if showsStickerPaletteButton {
                     Button(action: cycleSelectedStickerColor) {
@@ -653,6 +658,7 @@ struct StoryEditingView: View {
                     }
                 }
             }
+            .frame(maxWidth: .infinity)
             .padding(.horizontal)
             .padding(.top, topBarTopPadding(topInset: topInset))
         } else {
@@ -873,29 +879,31 @@ struct StoryEditingView: View {
             VStack {
                 topBarView(topInset: proxy.safeAreaInsets.top)
 
-                if activeEditorMode == .idle {
-                    HStack {
-                        Spacer()
-                        sideToolbarView()
+                Group {
+                    if activeEditorMode == .idle {
+                        HStack {
+                            Spacer()
+                            sideToolbarView()
+                        }
                     }
+
+                    Spacer()
+
+                    // Video playback controls
+                    if let firstMedia = selectedMediaItems.first, firstMedia.type == .video {
+                        VideoControlsOverlay()
+                    }
+
+                    bottomControlsView(
+                        bottomInset: proxy.safeAreaInsets.bottom,
+                        canvasBottomEdge: mediaCanvasRect.maxY,
+                        viewportHeight: proxy.size.height
+                    )
                 }
-
-                Spacer()
-
-                // Video playback controls
-                if let firstMedia = selectedMediaItems.first, firstMedia.type == .video {
-                    VideoControlsOverlay()
-                }
-
-                bottomControlsView(
-                    bottomInset: proxy.safeAreaInsets.bottom,
-                    canvasBottomEdge: mediaCanvasRect.maxY,
-                    viewportHeight: proxy.size.height
-                )
+                .opacity(isEditingSticker ? 0 : 1)
+                .disabled(isEditingSticker)
             }
             .frame(width: proxy.size.width, height: proxy.size.height, alignment: .top)
-            .opacity(isEditingSticker ? 0 : 1)
-            .disabled(isEditingSticker)
         }
     }
 
@@ -1535,25 +1543,11 @@ struct StoryEditingView: View {
         autoBackgroundPaletteMediaId = mediaId
     }
 
-    private var selectedSticker: StickerItem? {
-        selectedStickers.first { $0.id == selectedStickerId }
-    }
-
     private var showsStickerPaletteButton: Bool {
-        if let activeId = activeEditingStickerId,
-           let activeSticker = selectedStickers.first(where: { $0.id == activeId }) {
-            switch activeSticker.type {
-            case .poll, .question, .quiz, .countdown, .emojiSlider:
-                return true
-            default:
-                return false
-            }
-        }
-        
-        guard !isFilterMode && activeEditorMode == .idle && !isEditingSticker,
-              let selected = selectedSticker else { return false }
-        
-        switch selected.type {
+        guard let activeId = activeEditingStickerId,
+              let activeSticker = selectedStickers.first(where: { $0.id == activeId }) else { return false }
+
+        switch activeSticker.type {
         case .poll, .question, .quiz, .countdown, .emojiSlider:
             return true
         default:
