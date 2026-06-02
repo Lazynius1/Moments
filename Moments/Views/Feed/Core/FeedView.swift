@@ -556,22 +556,8 @@ struct FeedView: View {
     private var modernHeaderView: some View {
         HStack(spacing: 8) {
             // Sección de historias CON progreso de upload
-                if storyRingCoordinator.isLoadingStories {
-                    HStack(spacing: 10) {
-                        ForEach(0..<5, id: \.self) { _ in
-                            Circle()
-                                .fill(.ultraThinMaterial)
-                                .frame(width: 50, height: 50)
-                                .overlay(
-                                    ProgressView()
-                                        .progressViewStyle(CircularProgressViewStyle())
-                                        .tint(adaptiveColors.accent)
-                                        .scaleEffect(0.7)
-                                )
-                        }
-                        Spacer()
-                    }
-                    .padding(.leading, 12)
+                if storyRingCoordinator.isLoadingStories && storyRingCoordinator.storyUsers.isEmpty {
+                    StoryRingTraySkeletonRow(colorScheme: colorScheme)
                 } else {
                     ScrollView(.horizontal, showsIndicators: false) {
                         HStack(spacing: 10) {
@@ -601,7 +587,7 @@ struct FeedView: View {
                             }
                             
                             // Resto de historias (usuarios que sigues)
-                            ForEach(storyRingCoordinator.storyUsers.dropFirst(), id: \.userId) { storyUser in
+                            ForEach(Array(storyRingCoordinator.storyUsers.dropFirst().enumerated()), id: \.element.userId) { index, storyUser in
                                 RealStoryCircle(
                                     userId: storyUser.userId,
                                     fallbackUsername: "",
@@ -613,14 +599,23 @@ struct FeedView: View {
                                     isOwnStory: false,
                                     colorScheme: colorScheme
                                 ) {
-                                    
-                    
                                     guard !storyUser.userId.isEmpty else {
                                         return
                                     }
-                                    
                                     openStoryViewer(for: storyUser.userId)
                                 }
+                                .onAppear {
+                                    if let currentUserId = Auth.auth().currentUser?.uid {
+                                        storyRingCoordinator.loadMoreRingUsersIfNeeded(
+                                            visibleIndex: index + 1,
+                                            currentUserId: currentUserId
+                                        )
+                                    }
+                                }
+                            }
+
+                            if storyRingCoordinator.isLoadingMoreRing {
+                                StoryRingTrayLoadingTail(colorScheme: colorScheme)
                             }
                         }
                         .padding(.leading, 12)

@@ -614,10 +614,12 @@ private struct InteractiveEmojiSliderSticker: View {
     let stickerId: String
     var styleVariant: Int = 0
 
+    @Environment(\.storyDeckGestureGate) private var deckGestureGate
     @State private var dragValue: Double?
     @State private var submittedValue: Double?
     @State private var averageValue: Double = 0.5
     @State private var totalVotes: Int = 0
+    @State private var isInteractingWithSlider = false
 
     private var currentUserId: String? {
         Auth.auth().currentUser?.uid
@@ -655,69 +657,67 @@ private struct InteractiveEmojiSliderSticker: View {
     }
 
     var body: some View {
-        ZStack(alignment: .bottom) {
-            StickerEmojiSliderCardView(
-                prompt: prompt,
-                emoji: emoji,
-                value: displayValue,
-                averageValue: displayAverage,
-                styleVariant: styleVariant
+        GeometryReader { geometry in
+            let metrics = emojiSliderTrackMetrics(totalWidth: geometry.size.width)
+            let trackFrame = emojiSliderTrackFrame(
+                totalSize: geometry.size,
+                showsPrompt: emojiSliderHasPrompt(prompt)
             )
-        }
-        .contentShape(Rectangle())
-        .overlay {
-            GeometryReader { geometry in
-                let metrics = emojiSliderTrackMetrics(totalWidth: geometry.size.width)
-                let trackFrame = emojiSliderTrackFrame(totalSize: geometry.size, showsPrompt: emojiSliderHasPrompt(prompt))
 
-                // Hitbox expandida para que sea MUCHO más fácil de tocar
-                let hitBox = CGRect(
-                    x: trackFrame.minX - 40,
-                    y: trackFrame.minY - 30,
-                    width: trackFrame.width + 80,
-                    height: trackFrame.height + 60
+            ZStack(alignment: .bottom) {
+                StickerEmojiSliderCardView(
+                    prompt: prompt,
+                    emoji: emoji,
+                    value: displayValue,
+                    averageValue: displayAverage,
+                    styleVariant: styleVariant
                 )
-
-                Color.clear
-                    .contentShape(Rectangle())
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .highPriorityGesture(
-                        DragGesture(minimumDistance: 0)
-                            .onChanged { gesture in
-                                // Solo requiere estar dentro al iniciar, luego fluye
-                                guard canVote, hitBox.contains(gesture.startLocation) else { return }
-                                dragValue = normalizedValue(
-                                    for: gesture.location.x,
-                                    metrics: metrics
-                                )
-                            }
-                            .onEnded { gesture in
-                                guard canVote, hitBox.contains(gesture.startLocation) else {
-                                    dragValue = nil
-                                    return
-                                }
-
-                                let value = normalizedValue(
-                                    for: gesture.location.x,
-                                    metrics: metrics
-                                )
-                                dragValue = nil
-                                submitVote(value)
-                            }
-                    )
+            }
+            .overlay {
+                EmojiSliderVotePanOverlay(
+                    trackFrame: trackFrame,
+                    trackLeading: metrics.leading,
+                    trackWidth: metrics.width,
+                    isEnabled: canVote,
+                    currentValue: displayValue,
+                    onBegan: {
+                        if !isInteractingWithSlider {
+                            isInteractingWithSlider = true
+                            deckGestureGate?.setStickerInteractionActive(true)
+                        }
+                    },
+                    onChanged: { value in
+                        dragValue = value
+                    },
+                    onEnded: { value in
+                        endSliderInteraction()
+                        dragValue = nil
+                        submitVote(value)
+                    },
+                    onCancelled: {
+                        endSliderInteraction()
+                        dragValue = nil
+                    }
+                )
             }
         }
+        .frame(
+            width: emojiSliderRenderingSize(prompt: prompt).width,
+            height: emojiSliderRenderingSize(prompt: prompt).height
+        )
         .onAppear {
             loadVoteState()
             loadVoteAggregate()
         }
+        .onDisappear {
+            endSliderInteraction()
+        }
     }
 
-    private func normalizedValue(for locationX: CGFloat, metrics: (leading: CGFloat, width: CGFloat, thumbBaseSize: CGFloat, trackHeight: CGFloat)) -> Double {
-        let minX = metrics.leading
-        let maxX = metrics.leading + metrics.width
-        let clampedX = min(max(locationX, minX), maxX)
-        return Double((clampedX - minX) / max(metrics.width, 1))
+    private func endSliderInteraction() {
+        guard isInteractingWithSlider else { return }
+        isInteractingWithSlider = false
+        deckGestureGate?.setStickerInteractionActive(false)
     }
 
     private func sliderVotesCollection() -> CollectionReference {
@@ -817,6 +817,7 @@ struct StoryStickerView: View {
     let screenSize: CGSize
     let storyId: String
     let userId: String
+    var reportsDeckInteractionExclusion: Bool = true
     let onPauseStory: () -> Void
     let onResumeStory: () -> Void
 
@@ -825,7 +826,34 @@ struct StoryStickerView: View {
     @State private var voteCounts: [Int: Int] = [0: 0, 1: 0]
     @State private var totalVotes = 0
 
+    private var exclusionZoneId: String {
+        "sticker.\(storyId).\(sticker.id)"
+    }
+
+    /// Solo stickers con arrastre horizontal que compite con el deck.
+    private var needsDeckExclusion: Bool {
+        switch sticker.type {
+        case .poll, .question, .questionResponse, .quiz, .emojiSlider:
+            return true
+        default:
+            return false
+        }
+    }
+
     var body: some View {
+        if needsDeckExclusion, reportsDeckInteractionExclusion {
+            interactiveStickerBody
+                .storyDeckInteractionExclusion(
+                    id: exclusionZoneId,
+                    in: .named("storyDeckCoordinateSpace")
+                )
+        } else {
+            interactiveStickerBody
+        }
+    }
+
+    @ViewBuilder
+    private var interactiveStickerBody: some View {
         // ✅ SOLUCIÓN DEFINITIVA: Solo una renderización
         if sticker.type == .shareMoment {
             // ✅ SHARE MOMENT UNIFICADO (FOTO Y VIDEO)

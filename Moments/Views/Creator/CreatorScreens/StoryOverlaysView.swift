@@ -140,7 +140,7 @@ struct StoryOverlaysView: View {
                                     y: value.location.y - dragOffset.height
                                 )
 
-                                textPosition = newPos
+                                textPosition = clampedTextPosition(newPos)
 
                                 if !isDraggingItem {
                                     withAnimation(.easeOut(duration: 0.2)) {
@@ -192,6 +192,7 @@ struct StoryOverlaysView: View {
                 if stickers[index].type != .reveal {
                     StickerOverlayView(
                         sticker: $stickers[index],
+                        canvasSize: canvasSize,
                         isSelected: selectedStickerId == stickers[index].id,
                         isDragging: isDraggingItem && selectedStickerId == stickers[index].id,
                         isContentEditing: editingPolaroidId == stickers[index].id,
@@ -399,6 +400,11 @@ struct StoryOverlaysView: View {
         }
         .coordinateSpace(name: "storyCanvas")
         .frame(width: canvasSize.width, height: canvasSize.height)
+        .onChange(of: textFontSize) { _, _ in
+            if !text.isEmpty {
+                textPosition = clampedTextPosition(textPosition)
+            }
+        }
         .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillChangeFrameNotification)) { notification in
             guard let endFrame = notification.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? CGRect else { return }
             let screenHeight = UIScreen.main.bounds.height
@@ -420,6 +426,50 @@ struct StoryOverlaysView: View {
         case .white:
             return Color.white.opacity(0.90)
         }
+    }
+
+    private func clampedTextPosition(_ proposedPosition: CGPoint) -> CGPoint {
+        let textBounds = estimatedTextBounds()
+        let halfWidth = min(textBounds.width / 2, canvasSize.width / 2)
+        let halfHeight = min(textBounds.height / 2, canvasSize.height / 2)
+
+        return CGPoint(
+            x: min(max(proposedPosition.x, halfWidth), canvasSize.width - halfWidth),
+            y: min(max(proposedPosition.y, halfHeight), canvasSize.height - halfHeight)
+        )
+    }
+
+    private func estimatedTextBounds() -> CGSize {
+        guard !text.isEmpty else { return CGSize(width: 44, height: 44) }
+
+        let font = textStyle.uiFont(size: textFontSize)
+        let maxTextWidth = max(canvasSize.width - 76, 120)
+        let paragraphStyle = NSMutableParagraphStyle()
+        switch textAlignment {
+        case .leading:
+            paragraphStyle.alignment = .left
+        case .trailing:
+            paragraphStyle.alignment = .right
+        default:
+            paragraphStyle.alignment = .center
+        }
+
+        let attributes: [NSAttributedString.Key: Any] = [
+            .font: font,
+            .paragraphStyle: paragraphStyle
+        ]
+
+        let measured = (text as NSString).boundingRect(
+            with: CGSize(width: maxTextWidth, height: .greatestFiniteMagnitude),
+            options: [.usesLineFragmentOrigin, .usesFontLeading],
+            attributes: attributes,
+            context: nil
+        ).integral.size
+
+        return CGSize(
+            width: min(canvasSize.width, measured.width + 28 + 48),
+            height: min(canvasSize.height, measured.height + 20)
+        )
     }
 
     private func handleStickerTap(_ sticker: StickerItem) {

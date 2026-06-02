@@ -97,6 +97,7 @@ struct StoryEditingView: View {
     @State private var continuationAudience: ChainContinuationSetting = .everyone
     @State private var showingChainConfiguration = false
     @State private var primaryVideoPresentationSize: CGSize? = nil
+    @State private var isVideoPreviewMuted = false
 
 
     private var isTextMode: Bool { activeEditorMode == .text }
@@ -128,6 +129,8 @@ struct StoryEditingView: View {
                         .ignoresSafeArea()
 
                     backgroundMediaView(canvasSize: mediaCanvasSize)
+                        .frame(width: mediaCanvasRect.width, height: mediaCanvasRect.height)
+                        .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
                         .position(x: mediaCanvasRect.midX, y: mediaCanvasRect.midY)
 
                     // Drawing overlay preview when text editor is open
@@ -557,7 +560,8 @@ struct StoryEditingView: View {
                         videoGravity: StoryMediaLayoutRules.presentationMode(
                             for: mediaAspectRatio,
                             canvasAspectRatio: canvasSize.width / max(canvasSize.height, 1)
-                        ).videoGravity
+                        ).videoGravity,
+                        isMuted: isVideoPreviewMuted
                     )
                     .frame(width: baseRect.width, height: baseRect.height)
                 }
@@ -829,6 +833,18 @@ struct StoryEditingView: View {
                         .frame(width: 44, height: 44)
                         .liquidGlass(in: Circle())
                         .overlay(Circle().stroke(isFilterMode ? Color.pink : Color.clear, lineWidth: 1))
+                }
+
+                if let firstMedia = selectedMediaItems.first, firstMedia.type == .video {
+                    Button(action: {
+                        isVideoPreviewMuted.toggle()
+                    }) {
+                        Image(systemName: isVideoPreviewMuted ? "speaker.slash.fill" : "speaker.wave.2.fill")
+                            .font(.system(size: 18, weight: .semibold))
+                            .foregroundColor(chromeIconColor)
+                            .frame(width: 44, height: 44)
+                            .liquidGlass(in: Circle())
+                    }
                 }
 
                 if !isContinuingChain {

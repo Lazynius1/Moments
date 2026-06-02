@@ -359,7 +359,7 @@ struct StoryNoInteractionsNotice: View {
 /// Zonas laterales de navegación alineadas al rect del canvas (estilo IG).
 struct StoryNavigationTouchAreas: View {
     let canvasSize: CGSize
-    var sideWidthFraction: CGFloat = 0.33
+    var sideWidthFraction: CGFloat = 0.26
     let shouldSuppressNavigationTap: Bool
     let onPrevious: () -> Void
     let onNext: () -> Void

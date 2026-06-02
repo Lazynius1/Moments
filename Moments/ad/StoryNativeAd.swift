@@ -22,6 +22,7 @@ final class StoryAdVideoPlayback: ObservableObject {
     @Published private(set) var isMuted = false
     @Published private(set) var hasVideo = false
     @Published private(set) var canUseCustomControls = false
+    @Published private(set) var completedPlaybackCount = 0
 
     private weak var videoController: VideoController?
 
@@ -48,7 +49,7 @@ final class StoryAdVideoPlayback: ObservableObject {
             hasVideo: true,
             canUseCustomControls: customControls,
             isMuted: customControls ? false : muted,
-            isPaused: false
+            isPaused: true
         )
     }
 
@@ -86,6 +87,13 @@ final class StoryAdVideoPlayback: ObservableObject {
 
     func syncMuted(_ muted: Bool) {
         publishState(isMuted: muted)
+    }
+
+    func syncCompletedPlayback() {
+        DispatchQueue.main.async { [weak self] in
+            guard let self else { return }
+            self.completedPlaybackCount += 1
+        }
     }
 
     private func publishState(
@@ -291,6 +299,11 @@ struct StoryNativeAdView: View {
     @State private var hasAppeared = false
     @State private var currentAdDuration: Double = 8.0
     @State private var isAdTimerPaused = false
+    @State private var didFinishAd = false
+
+    private let imageAdDuration: Double = 8.0
+    private let maxVideoAdDuration: Double = 60.0
+    private let adProgressSampleInterval: Double = 0.1
 
     var body: some View {
         Group {
@@ -318,7 +331,7 @@ struct StoryNativeAdView: View {
                         onClose: handleClose
                     )
                     .onAppear {
-                        currentAdDuration = nativeAd.mediaContent.hasVideoContent ? 20.0 : 8.0
+                        currentAdDuration = resolvedAdDuration(for: nativeAd)
                         startAdTimer()
                     }
                     
@@ -398,6 +411,8 @@ struct StoryNativeAdView: View {
     }
     
     private func cleanupAndNext() {
+        guard !didFinishAd else { return }
+        didFinishAd = true
         cleanup()
         onNext()
     }
@@ -418,14 +433,53 @@ struct StoryNativeAdView: View {
     private func startAdTimer() {
         guard adTimer == nil else { return }
         
+        didFinishAd = false
         progress = 0.0
-        adTimer = Timer.scheduledTimer(withTimeInterval: 0.05, repeats: true) { _ in
+        adTimer = Timer.scheduledTimer(withTimeInterval: adProgressSampleInterval, repeats: true) { _ in
             guard !isAdTimerPaused else { return }
-            progress += 0.05 / currentAdDuration
+
+            if let nativeAd = storyAdManager.nativeAd,
+               nativeAd.mediaContent.hasVideoContent {
+                let reportedDuration = nativeAd.mediaContent.duration
+                let effectiveDuration: Double
+                if reportedDuration.isFinite, reportedDuration > 0 {
+                    effectiveDuration = min(maxVideoAdDuration, reportedDuration)
+                    currentAdDuration = effectiveDuration
+                } else {
+                    effectiveDuration = 0
+                }
+
+                let currentTime = nativeAd.mediaContent.currentTime
+                if effectiveDuration > 0, currentTime.isFinite, currentTime >= 0 {
+                    let targetProgress = min(max(currentTime / effectiveDuration, progress), 1.0)
+                    withAnimation(.linear(duration: adProgressSampleInterval)) {
+                        progress = targetProgress
+                    }
+                }
+            } else {
+                let nextProgress = min(progress + (adProgressSampleInterval / currentAdDuration), 1.0)
+                withAnimation(.linear(duration: adProgressSampleInterval)) {
+                    progress = nextProgress
+                }
+            }
+
             if progress >= 1.0 {
                 cleanupAndNext()
             }
         }
+    }
+
+    private func resolvedAdDuration(for nativeAd: NativeAd) -> Double {
+        guard nativeAd.mediaContent.hasVideoContent else {
+            return imageAdDuration
+        }
+
+        let reportedDuration = nativeAd.mediaContent.duration
+        if reportedDuration.isFinite, reportedDuration > 0 {
+            return min(maxVideoAdDuration, reportedDuration)
+        }
+
+        return 0
     }
 }
 
@@ -501,6 +555,10 @@ struct StoryAdContentViewWithMediaView: View {
         }
         .onChange(of: videoPlayback.isPaused) { _, paused in
             isTimerPaused = paused
+        }
+        .onChange(of: videoPlayback.completedPlaybackCount) { _, count in
+            guard count > 0, nativeAd.mediaContent.hasVideoContent else { return }
+            onNext()
         }
         .onDisappear {
             videoPlayback.detach()
@@ -784,6 +842,7 @@ struct StoryAdMediaViewRepresentable: UIViewRepresentable {
         func videoControllerDidEndVideoPlayback(_ videoController: VideoController) {
             Task { @MainActor in
                 playback?.syncPaused(true)
+                playback?.syncCompletedPlayback()
             }
         }
 
@@ -1111,15 +1170,23 @@ struct IntegratedStoryAdView: View {
     let onClose: () -> Void
     
     @State private var adTimer: Timer?
-    @State private var timeRemaining: Double = 10.0
+    @State private var timeRemaining: Double = 8.0
+
+    private let imageAdDuration: Double = 8.0
+    private let maxVideoAdDuration: Double = 60.0
+    private let adTimerStep: Double = 0.05
     
     // Duración dinámica basada en el tipo de contenido (consistente con historias normales)
     private var adDuration: Double {
         if nativeAd.mediaContent.hasVideoContent {
-            return 30.0 // 30 segundos para videos (más razonable para anuncios)
-        } else {
-            return 10.0 // 10 segundos para fotos (como las historias normales)
+            let reportedDuration = nativeAd.mediaContent.duration
+            if reportedDuration.isFinite, reportedDuration > 0 {
+                return min(maxVideoAdDuration, reportedDuration)
+            }
+            return maxVideoAdDuration
         }
+
+        return imageAdDuration
     }
     
     var body: some View {
@@ -1267,10 +1334,11 @@ struct IntegratedStoryAdView: View {
     private func startAdTimer() {
         timeRemaining = adDuration
         
-        adTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { _ in
-            if timeRemaining > 0 {
-                timeRemaining -= 1
+        adTimer = Timer.scheduledTimer(withTimeInterval: adTimerStep, repeats: true) { _ in
+            if timeRemaining > adTimerStep {
+                timeRemaining -= adTimerStep
             } else {
+                timeRemaining = 0
                 stopAdTimer()
                 onNext()
             }

@@ -5,6 +5,7 @@ import UIKit
 
 struct StickerOverlayView: View {
     @Binding var sticker: StickerItem // ✅ USAR BINDING PARA ACTUALIZACIÓN DIRECTA
+    let canvasSize: CGSize
     let isSelected: Bool
     let isDragging: Bool
     let isContentEditing: Bool
@@ -31,7 +32,7 @@ struct StickerOverlayView: View {
         activeEditingStickerId == sticker.id
     }
 
-    init(sticker: Binding<StickerItem>, isSelected: Bool, isDragging: Bool,
+    init(sticker: Binding<StickerItem>, canvasSize: CGSize, isSelected: Bool, isDragging: Bool,
          isContentEditing: Bool,
          activeEditingStickerId: Binding<String?>,
          onUpdate: @escaping (StickerItem) -> Void,
@@ -40,6 +41,7 @@ struct StickerOverlayView: View {
          onDragEnded: @escaping (CGPoint) -> Void,
          onStickerTapped: @escaping (StickerItem) -> Void) {
         self._sticker = sticker
+        self.canvasSize = canvasSize
         self.isSelected = isSelected
         self.isDragging = isDragging
         self.isContentEditing = isContentEditing
@@ -147,6 +149,10 @@ struct StickerOverlayView: View {
             width: stickerSize.width * max(scale, 1),
             height: stickerSize.height * max(scale, 1)
         )
+    }
+
+    private var clampedCurrentPosition: CGPoint {
+        clampedStickerPosition(currentPosition, scale: scale)
     }
 
     var body: some View {
@@ -617,18 +623,26 @@ struct StickerOverlayView: View {
         // ✅ SINCRONIZAR CON EL PADRE PARA EL "VUELO HERO"
         .onChange(of: sticker.position) { _, newPos in
             withAnimation(.spring(response: 0.45, dampingFraction: 0.75)) {
-                currentPosition = newPos
+                currentPosition = clampedStickerPosition(newPos, scale: scale)
             }
         }
         .onChange(of: sticker.scale) { _, newScale in
             withAnimation(.spring(response: 0.45, dampingFraction: 0.75)) {
                 scale = min(max(newScale, minimumStickerScale), maximumStickerScale)
+                let clampedPosition = clampedStickerPosition(currentPosition, scale: scale)
+                currentPosition = clampedPosition
+                sticker.position = clampedPosition
             }
         }
         .onChange(of: sticker.rotation) { _, newRot in
             withAnimation(.spring(response: 0.45, dampingFraction: 0.75)) {
                 rotation = newRot
             }
+        }
+        .onChange(of: canvasSize) { _, _ in
+            let clampedPosition = clampedStickerPosition(currentPosition, scale: scale)
+            currentPosition = clampedPosition
+            sticker.position = clampedPosition
         }
         .simultaneousGesture(
             LongPressGesture(minimumDuration: 0.45)
@@ -673,9 +687,10 @@ struct StickerOverlayView: View {
                         y: value.location.y - dragOffset.height
                     )
 
-                    currentPosition = newPos
-                    onDragChanged(newPos)
-                    sticker.position = newPos
+                    let clampedPosition = clampedStickerPosition(newPos, scale: scale)
+                    currentPosition = clampedPosition
+                    onDragChanged(clampedPosition)
+                    sticker.position = clampedPosition
                 }
                 .onEnded { _ in
                     if isEditingInline { return }
@@ -685,7 +700,10 @@ struct StickerOverlayView: View {
                     }
 
                     dragOffset = .zero // Resetear para el próximo arrastre
-                    onDragEnded(currentPosition)
+                    let clampedPosition = clampedStickerPosition(currentPosition, scale: scale)
+                    currentPosition = clampedPosition
+                    sticker.position = clampedPosition
+                    onDragEnded(clampedPosition)
                 }
         )
         .simultaneousGesture(
@@ -718,6 +736,9 @@ struct StickerOverlayView: View {
                     }
 
                     sticker.scale = scale
+                    let clampedPosition = clampedStickerPosition(currentPosition, scale: scale)
+                    currentPosition = clampedPosition
+                    sticker.position = clampedPosition
                     stickerPinchStartScale = nil
                 }
         )
@@ -734,7 +755,7 @@ struct StickerOverlayView: View {
                     sticker.rotation = rotation
                 }
         )
-        .position(currentPosition) // ✅ Posicionar en el lienzo global al final
+        .position(clampedCurrentPosition) // ✅ Posicionar en el lienzo global al final
         .animation(.spring(response: 0.3, dampingFraction: 0.7), value: showInteractionFeedback)
         .animation(.easeInOut(duration: 0.1), value: isDragging)
         .animation(.spring(response: 0.3, dampingFraction: 0.8), value: scale)
@@ -846,6 +867,18 @@ struct StickerOverlayView: View {
         return CGSize(
             width: min(max(offset.width, -maxOffsetX), maxOffsetX),
             height: min(max(offset.height, -maxOffsetY), maxOffsetY)
+        )
+    }
+
+    private func clampedStickerPosition(_ proposedPosition: CGPoint, scale proposedScale: CGFloat) -> CGPoint {
+        let visualWidth = min(stickerSize.width * max(proposedScale, minimumStickerScale), canvasSize.width)
+        let visualHeight = min(stickerSize.height * max(proposedScale, minimumStickerScale), canvasSize.height)
+        let halfWidth = visualWidth / 2
+        let halfHeight = visualHeight / 2
+
+        return CGPoint(
+            x: min(max(proposedPosition.x, halfWidth), canvasSize.width - halfWidth),
+            y: min(max(proposedPosition.y, halfHeight), canvasSize.height - halfHeight)
         )
     }
 

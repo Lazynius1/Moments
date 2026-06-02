@@ -274,6 +274,62 @@ final class StoryRepository {
         decodeStoryData(doc.data(), documentId: doc.documentID)
     }
 
+    static func decodeBackendStory(_ document: BackendStoryDocument) -> Story? {
+        let mediaItem: MediaItem
+        if let backendMediaItem = document.mediaItem,
+           let mediaType = MediaItem.MediaType(rawValue: backendMediaItem.type),
+           !backendMediaItem.url.isEmpty {
+            mediaItem = MediaItem(type: mediaType, url: backendMediaItem.url)
+        } else if let imagePath = document.imagePath, !imagePath.isEmpty {
+            mediaItem = MediaItem(type: .image, url: imagePath)
+        } else if let videoUrl = document.videoUrl, !videoUrl.isEmpty {
+            mediaItem = MediaItem(type: .video, url: videoUrl)
+        } else {
+            LogConfig.log("❌ StoryRepository: backend story \(document.id) missing media", category: "Story")
+            return nil
+        }
+
+        let timestamp = Date(timeIntervalSince1970: (document.timestamp ?? Date().timeIntervalSince1970 * 1000.0) / 1000.0)
+        let expirationDate = Date(timeIntervalSince1970: (document.expirationDate ?? timestamp.addingTimeInterval(24 * 60 * 60).timeIntervalSince1970 * 1000.0) / 1000.0)
+        let textPosition: CGPoint?
+        if let textPositionX = document.textPositionX,
+           let textPositionY = document.textPositionY {
+            textPosition = CGPoint(x: textPositionX, y: textPositionY)
+        } else {
+            textPosition = nil
+        }
+        let drawingData: Data?
+        if let encodedDrawingData = document.drawingData {
+            drawingData = Data(base64Encoded: encodedDrawingData)
+        } else {
+            drawingData = nil
+        }
+
+        return Story(
+            id: document.id,
+            authorId: document.authorId,
+            username: document.username ?? "",
+            mediaItem: mediaItem,
+            duration: document.duration ?? 5.0,
+            timestamp: timestamp,
+            expirationDate: expirationDate,
+            profileImagePath: document.profileImagePath,
+            audience: document.audience,
+            customListId: document.customListId,
+            text: document.text,
+            textPosition: textPosition,
+            textStyle: document.textStyle,
+            stickers: document.stickers,
+            drawingData: drawingData,
+            aspectRatio: document.aspectRatio,
+            backgroundFrameURL: document.backgroundFrameURL,
+            backgroundBlurredFrameURL: document.backgroundBlurredFrameURL,
+            chainId: document.chainId,
+            chainPosition: document.chainPosition,
+            chainTitle: document.chainTitle
+        )
+    }
+
     private static func decodeStoryData(_ rawData: [String: Any], documentId: String) -> Story? {
         var data = rawData
         var mediaItem: MediaItem?

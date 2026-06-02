@@ -10,12 +10,15 @@ typealias FeedStoryUserState = (userId: String, hasStory: Bool, hasUnseenStory: 
 final class FeedStoryRingCoordinator: ObservableObject {
     @Published var storyUsers: [FeedStoryUserState] = []
     @Published var isLoadingStories = true
+    @Published private(set) var isLoadingMoreRing = false
 
     /// Orden exacto del anillo del feed (tú + quienes tienen historia activa). Usar para swipe en el visor.
     var ringNavigationUserIds: [String] {
         storyUsers.filter(\.hasStory).map(\.userId)
     }
 
+    private let ringPageSize = 16
+    private var ringNextCursor: StoryRingCursor?
     private let privacyService = PrivacyService()
     private var cachedStories: [String: Bool] = [:]
     private var cachedUnseenStories: [String: Bool] = [:]
@@ -55,8 +58,14 @@ final class FeedStoryRingCoordinator: ObservableObject {
 
         if allowInstantCache,
            let cachedTray = StoryTrayService.shared.cachedTray(for: userId) {
-            applyStoryTrayResponse(cachedTray, currentUserId: userId)
+            applyStoryTrayResponse(cachedTray, currentUserId: userId, append: false)
+            ringNextCursor = cachedTray.nextCursor
             isLoadingStories = false
+        } else if allowInstantCache {
+            let cachedSkeleton = loadCachedStoryUsers(userId: userId)
+            if !cachedSkeleton.isEmpty {
+                storyUsers = cachedSkeleton
+            }
         }
 
         guard NetworkMonitor.shared.isConnected else {
@@ -64,8 +73,9 @@ final class FeedStoryRingCoordinator: ObservableObject {
             return
         }
 
-        if let trayResponse = await StoryTrayService.shared.fetchStoryTray() {
-            applyStoryTrayResponse(trayResponse, currentUserId: userId)
+        if let trayResponse = await StoryTrayService.shared.fetchStoryRingPage(limit: ringPageSize, cursor: nil) {
+            applyStoryTrayResponse(trayResponse, currentUserId: userId, append: false)
+            ringNextCursor = trayResponse.nextCursor
             isLoadingStories = false
             return
         }
@@ -208,7 +218,26 @@ final class FeedStoryRingCoordinator: ObservableObject {
         }
     }
 
-    private func applyStoryTrayResponse(_ response: BackendStoryTrayResponse, currentUserId: String) {
+    func loadMoreRingUsersIfNeeded(visibleIndex: Int, currentUserId: String) {
+        guard visibleIndex >= max(storyUsers.count - 4, 0),
+              let cursor = ringNextCursor,
+              !isLoadingMoreRing else { return }
+
+        isLoadingMoreRing = true
+        Task {
+            if let page = await StoryTrayService.shared.fetchStoryRingPage(limit: ringPageSize, cursor: cursor) {
+                applyStoryTrayResponse(page, currentUserId: currentUserId, append: true)
+                ringNextCursor = page.nextCursor
+            }
+            isLoadingMoreRing = false
+        }
+    }
+
+    private func applyStoryTrayResponse(
+        _ response: BackendStoryTrayResponse,
+        currentUserId: String,
+        append: Bool
+    ) {
         let entries: [FeedStoryUserState] = response.items.map { item -> FeedStoryUserState in
             let viewedStatus = item.segments.map(\.viewed)
             let audiences = item.segments.map(\.audience)
@@ -229,7 +258,13 @@ final class FeedStoryRingCoordinator: ObservableObject {
             finalUsers.insert(emptyCurrentUserEntry(currentUserId), at: 0)
         }
 
-        storyUsers = finalUsers
+        if append {
+            let existingIds = Set(storyUsers.map(\.userId))
+            let mergedTail = finalUsers.filter { !existingIds.contains($0.userId) }
+            storyUsers.append(contentsOf: mergedTail)
+        } else {
+            storyUsers = finalUsers
+        }
         cachedStoriesTimestamp = Date()
         for entry in finalUsers {
             cachedStories[entry.userId] = entry.hasStory
@@ -249,7 +284,7 @@ final class FeedStoryRingCoordinator: ObservableObject {
             }
         }
 
-        updateStoryWidgetCount(from: finalUsers)
+        updateStoryWidgetCount(from: storyUsers)
     }
 
     private func emptyCurrentUserEntry(_ userId: String) -> FeedStoryUserState {

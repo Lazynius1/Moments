@@ -88,6 +88,7 @@ struct StoryViewerScreen: View {
     @FocusState private var isTextFieldFocused: Bool
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.storyDeckGestureGate) private var deckGestureGate
     @State private var keyboardHeight: CGFloat = 0 // Track keyboard height
     @State private var isKeyboardVisible: Bool = false // Track keyboard state
     @State private var authorAllowsMessages: Bool = true
@@ -95,6 +96,7 @@ struct StoryViewerScreen: View {
     @State private var authorAllowsEphemeralPhotos: Bool = true
     @State private var storyStickers: [StickerItem] = [] // Cache de stickers
     @State private var storyStickerCache: [String: [StickerItem]] = [:]
+    @State private var interactionCaptureRect: CGRect = .zero
     @State private var lastPreparedStoryId: String? = nil
     @State private var showUserProfile = false
     @State private var selectedUserId: String = ""
@@ -324,6 +326,7 @@ struct StoryViewerScreen: View {
                     screenSize: captureRect.size,
                     storyId: story.id ?? "",
                     userId: story.authorId,
+                    reportsDeckInteractionExclusion: isDeckPageActive,
                     onPauseStory: pauseStory,
                     onResumeStory: resumeStory
                 )
@@ -433,6 +436,12 @@ struct StoryViewerScreen: View {
                 .transition(.opacity.combined(with: .scale(scale: 0.96)))
                 .zIndex(30)
             }
+        }
+        .onAppear {
+            interactionCaptureRect = captureRect
+        }
+        .onChange(of: captureRect) { _, newValue in
+            interactionCaptureRect = newValue
         }
         .sheet(isPresented: $showMomentDetail) {
             if let momentId = targetMomentId, let userId = targetMomentUserId {
@@ -1225,11 +1234,15 @@ struct StoryViewerScreen: View {
                 if !isKeyboardVisible {
                     StoryNavigationTouchAreas(
                         canvasSize: resolvedScreenSize,
-                        shouldSuppressNavigationTap: shouldSuppressNavigationTap,
+                        shouldSuppressNavigationTap: shouldSuppressNavigationTap
+                            || (deckGestureGate?.suppressStoryNavigationGestures ?? false),
                         onPrevious: onPrevious,
                         onNext: onNext
                     )
-                    .allowsHitTesting(!isStoryInteractionBlocked)
+                    .allowsHitTesting(
+                        !isStoryInteractionBlocked
+                            && !(deckGestureGate?.suppressStoryNavigationGestures ?? false)
+                    )
                 }
             }
             .clipShape(canvasShape)
@@ -1326,7 +1339,73 @@ struct StoryViewerScreen: View {
             return true
         }
 
+        if isStickerInteractionStart(location) {
+            return true
+        }
+
         return false
+    }
+
+    private func isStickerInteractionStart(_ location: CGPoint) -> Bool {
+        guard !interactionCaptureRect.isEmpty, !storyStickers.isEmpty else { return false }
+
+        for sticker in storyStickers {
+            let displaySticker = stickerForDisplay(sticker, containerSize: interactionCaptureRect.size)
+            let center = CGPoint(
+                x: interactionCaptureRect.minX + stickerDisplayPosition(sticker, containerSize: interactionCaptureRect.size).x,
+                y: interactionCaptureRect.minY + stickerDisplayPosition(sticker, containerSize: interactionCaptureRect.size).y
+            )
+            let baseSize = stickerInteractiveBaseSize(for: displaySticker)
+            let size = CGSize(
+                width: max(baseSize.width, 44),
+                height: max(baseSize.height, 44)
+            )
+            let frame = CGRect(
+                x: center.x - (size.width / 2),
+                y: center.y - (size.height / 2),
+                width: size.width,
+                height: size.height
+            ).insetBy(dx: -18, dy: -18)
+
+            if frame.contains(location) {
+                return true
+            }
+        }
+
+        return false
+    }
+
+    private func stickerInteractiveBaseSize(for sticker: StickerItem) -> CGSize {
+        switch sticker.type {
+        case .poll:
+            return CGSize(width: 300 * sticker.scale, height: 172 * sticker.scale)
+        case .question:
+            return CGSize(width: 300 * sticker.scale, height: 132 * sticker.scale)
+        case .questionResponse:
+            return CGSize(
+                width: questionResponseStickerRenderSize.width * sticker.scale,
+                height: questionResponseStickerRenderSize.height * sticker.scale
+            )
+        case .quiz:
+            return CGSize(width: 300 * sticker.scale, height: 220 * sticker.scale)
+        case .frame:
+            return CGSize(width: 200 * sticker.scale, height: 240 * sticker.scale)
+        case .emojiSlider:
+            let prompt = sticker.interactionData?.sliderPrompt ?? ""
+            let size = emojiSliderRenderingSize(prompt: prompt)
+            return CGSize(width: size.width * sticker.scale, height: size.height * sticker.scale)
+        case .audio:
+            return CGSize(width: 220 * sticker.scale, height: 72 * sticker.scale)
+        case .weather:
+            return CGSize(width: 140 * sticker.scale, height: 50 * sticker.scale)
+        case .time:
+            return CGSize(width: 164 * sticker.scale, height: 56 * sticker.scale)
+        default:
+            return CGSize(
+                width: sticker.image.size.width * max(sticker.scale, 0.35),
+                height: sticker.image.size.height * max(sticker.scale, 0.35)
+            )
+        }
     }
 
     private var isStoryInteractionBlocked: Bool {
@@ -1425,6 +1504,10 @@ struct StoryViewerScreen: View {
                 guard !isStoryInteractionBlocked else { return }
 
                 if isProtectedGestureStart(value.startLocation) {
+                    return
+                }
+
+                if deckGestureGate?.suppressStoryNavigationGestures == true {
                     return
                 }
 

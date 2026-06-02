@@ -8,6 +8,8 @@ enum StoryDeckPageRole {
     case trailing
 }
 
+private let storyDeckCoordinateSpaceName = "storyDeckCoordinateSpace"
+
 /// Pager horizontal entre usuarios del story ring con preview, escala y blur (Deck Pass).
 struct StoryUserDeckPager<Content: View>: View {
     let userIds: [String]
@@ -17,13 +19,20 @@ struct StoryUserDeckPager<Content: View>: View {
 
     @State private var dragOffset: CGFloat = 0
     @State private var isDraggingDeck = false
+    @State private var exclusionZones: [StoryInteractionExclusionZone] = []
     @Environment(\.colorScheme) private var colorScheme
 
     private let commitThreshold: CGFloat = 0.28
     private let flickVelocity: CGFloat = 420
+    private let deckArmDistance: CGFloat = 22
+    private let horizontalDominanceRatio: CGFloat = 1.2
 
     private var deckBackground: Color {
         colorScheme == .dark ? Color(hex: "0B1215") : Color(hex: "FAF9F6")
+    }
+
+    private var exclusionRects: [CGRect] {
+        mergedStoryInteractionExclusionZones(from: exclusionZones)
     }
 
     var body: some View {
@@ -54,7 +63,14 @@ struct StoryUserDeckPager<Content: View>: View {
                 }
                 .offset(x: stackOffset + dragOffset)
             }
-            .contentShape(Rectangle())
+            .coordinateSpace(name: storyDeckCoordinateSpaceName)
+            .onPreferenceChange(StoryInteractionExclusionKey.self) { zones in
+                var latestByID: [String: StoryInteractionExclusionZone] = [:]
+                for zone in zones {
+                    latestByID[zone.id] = zone
+                }
+                exclusionZones = Array(latestByID.values)
+            }
             .simultaneousGesture(deckDragGesture(width: width))
         }
         .ignoresSafeArea()
@@ -87,15 +103,35 @@ struct StoryUserDeckPager<Content: View>: View {
         CGFloat(index - currentUserIndex) + dragOffset / width
     }
 
-    // MARK: - Gesture
+    // MARK: - Gesture (simultáneo + exclusión por startLocation, estilo IG)
 
     private func deckDragGesture(width: CGFloat) -> some Gesture {
-        DragGesture(minimumDistance: 12)
+        DragGesture(minimumDistance: 12, coordinateSpace: .named(storyDeckCoordinateSpaceName))
             .onChanged { value in
                 guard userIds.count > 1 else { return }
 
-                let isHorizontal = abs(value.translation.width) > abs(value.translation.height) * 1.35
-                guard isHorizontal else { return }
+                if touchIsInsideStoryInteractionExclusion(
+                    value.startLocation,
+                    zones: exclusionRects,
+                    padding: 12
+                ) {
+                    if isDraggingDeck || dragOffset != 0 {
+                        dragOffset = 0
+                        isDraggingDeck = false
+                    }
+                    return
+                }
+
+                let horizontalTravel = abs(value.translation.width)
+                let verticalTravel = abs(value.translation.height)
+                let isHorizontal = horizontalTravel > verticalTravel * horizontalDominanceRatio
+                guard isHorizontal, horizontalTravel > deckArmDistance else {
+                    if isDraggingDeck || dragOffset != 0 {
+                        dragOffset = 0
+                        isDraggingDeck = false
+                    }
+                    return
+                }
 
                 if !isDraggingDeck {
                     isDraggingDeck = true
@@ -103,7 +139,6 @@ struct StoryUserDeckPager<Content: View>: View {
                 }
 
                 let raw = value.translation.width
-                // Instagram: izquierda → siguiente usuario | derecha → anterior
                 if raw > 0 {
                     dragOffset = currentUserIndex > 0 ? raw : raw * 0.22
                 } else {
@@ -116,9 +151,19 @@ struct StoryUserDeckPager<Content: View>: View {
                     return
                 }
 
+                if touchIsInsideStoryInteractionExclusion(
+                    value.startLocation,
+                    zones: exclusionRects,
+                    padding: 12
+                ) {
+                    resetDrag(animated: true)
+                    return
+                }
+
                 let translationX = value.translation.width
                 let velocityX = value.velocity.width
-                let isHorizontal = abs(translationX) > abs(value.translation.height) * 1.2
+                let isHorizontal = abs(translationX) > abs(value.translation.height) * horizontalDominanceRatio
+                    && abs(translationX) > deckArmDistance
 
                 guard isHorizontal, isDraggingDeck || dragOffset != 0 else {
                     resetDrag(animated: true)

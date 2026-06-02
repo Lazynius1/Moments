@@ -12,8 +12,53 @@ struct BackendFeedResponse: Codable {
 
 struct BackendStoryTrayResponse: Codable {
     let items: [BackendStoryTrayItem]
+    let nextCursor: StoryRingCursor?
     let source: String
     let totalCandidates: Int
+}
+
+struct StoryRingCursor: Codable {
+    let offset: Int
+}
+
+struct BackendAuthorStoryBundleResponse: Codable {
+    let authorId: String
+    let stories: [BackendStoryDocument]
+    let segments: [BackendStoryTraySegment]
+    let source: String
+}
+
+/// Firestore story document serialized by Cloud Functions (timestamps as epoch millis).
+struct BackendStoryDocument: Codable {
+    let id: String
+    let authorId: String
+    let duration: Double?
+    let expirationDate: Double?
+    let timestamp: Double?
+    let username: String?
+    let profileImagePath: String?
+    let audience: String?
+    let customListId: String?
+    let text: String?
+    let textStyle: String?
+    let textPositionX: Double?
+    let textPositionY: Double?
+    let drawingData: String?
+    let stickers: [StickerData]?
+    let aspectRatio: String?
+    let backgroundFrameURL: String?
+    let backgroundBlurredFrameURL: String?
+    let chainId: String?
+    let chainPosition: Int?
+    let chainTitle: String?
+    let mediaItem: BackendStoryMediaItem?
+    let imagePath: String?
+    let videoUrl: String?
+}
+
+struct BackendStoryMediaItem: Codable {
+    let type: String
+    let url: String
 }
 
 struct BackendStoryTrayItem: Codable {
@@ -345,6 +390,35 @@ final class StoryTrayService {
     }
 
     func fetchStoryTray(limit: Int = 80) async -> BackendStoryTrayResponse? {
+        await fetchStoryRingPage(limit: limit, cursor: nil)
+    }
+
+    func fetchStoryRingPage(limit: Int = 16, cursor: StoryRingCursor?) async -> BackendStoryTrayResponse? {
+        var body: [String: Any] = ["limit": limit]
+        if let cursor {
+            body["cursor"] = ["offset": cursor.offset]
+        }
+        return await postStoryEndpoint(
+            functionName: "getStoryRingPage",
+            body: body,
+            cacheOnSuccess: cursor == nil
+        )
+    }
+
+    func fetchAuthorStoryBundle(authorId: String) async -> BackendAuthorStoryBundleResponse? {
+        guard !authorId.isEmpty else { return nil }
+        return await postStoryEndpoint(
+            functionName: "getAuthorStoryBundle",
+            body: ["authorId": authorId],
+            cacheOnSuccess: false
+        )
+    }
+
+    private func postStoryEndpoint<T: Decodable>(
+        functionName: String,
+        body: [String: Any],
+        cacheOnSuccess: Bool
+    ) async -> T? {
         guard !isCircuitOpen else {
             LogConfig.log("⚡ StoryTray: Circuit breaker OPEN — usando legacy", category: "BackendFeed")
             return nil
@@ -359,11 +433,10 @@ final class StoryTrayService {
             let idToken = try await user.getIDToken()
             let projectId = FirebaseApp.app()?.options.projectID ?? ""
             let region = "europe-southwest1"
-            let urlString = "https://\(region)-\(projectId).cloudfunctions.net/getStoryTray"
+            let urlString = "https://\(region)-\(projectId).cloudfunctions.net/\(functionName)"
 
             guard let url = URL(string: urlString) else {
                 recordFailure()
-                LogConfig.log("❌ StoryTray: Invalid URL", category: "BackendFeed")
                 return nil
             }
 
@@ -371,7 +444,7 @@ final class StoryTrayService {
             request.httpMethod = "POST"
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
             request.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
-            request.httpBody = try JSONSerialization.data(withJSONObject: ["limit": limit])
+            request.httpBody = try JSONSerialization.data(withJSONObject: body)
             request.timeoutInterval = 12
 
             let (data, response) = try await URLSession.shared.data(for: request)
@@ -381,21 +454,40 @@ final class StoryTrayService {
             }
 
             guard httpResponse.statusCode == 200 else {
-                LogConfig.log("❌ StoryTray: HTTP \(httpResponse.statusCode)", category: "BackendFeed")
+                LogConfig.log("❌ StoryTray \(functionName): HTTP \(httpResponse.statusCode)", category: "BackendFeed")
                 recordFailure()
                 return nil
             }
 
-            let decoded = try JSONDecoder().decode(BackendStoryTrayResponse.self, from: data)
-            cacheByViewerId[user.uid] = CacheEntry(
-                response: decoded,
-                expiresAt: Date().addingTimeInterval(cacheTTL)
-            )
+            let decoded = try JSONDecoder().decode(T.self, from: data)
+            if let tray = decoded as? BackendStoryTrayResponse {
+                LogConfig.log(
+                    "✅ StoryTray \(functionName): \(tray.items.count) authors (source: \(tray.source), candidates: \(tray.totalCandidates))",
+                    category: "BackendFeed"
+                )
+            } else if let bundle = decoded as? BackendAuthorStoryBundleResponse {
+                LogConfig.log(
+                    "✅ StoryBundle \(functionName): author=\(bundle.authorId), docs=\(bundle.stories.count), source=\(bundle.source)",
+                    category: "BackendFeed"
+                )
+            }
+            if cacheOnSuccess, let tray = decoded as? BackendStoryTrayResponse {
+                cacheByViewerId[user.uid] = CacheEntry(
+                    response: tray,
+                    expiresAt: Date().addingTimeInterval(cacheTTL)
+                )
+            }
             recordSuccess()
-            LogConfig.log("✅ StoryTray: \(decoded.items.count) authors (source: \(decoded.source), candidates: \(decoded.totalCandidates))", category: "BackendFeed")
             return decoded
+        } catch is CancellationError {
+            LogConfig.log("ℹ️ StoryTray \(functionName): cancelled", category: "BackendFeed")
+            return nil
         } catch {
-            LogConfig.log("❌ StoryTray error: \(error.localizedDescription)", category: "BackendFeed")
+            if let urlError = error as? URLError, urlError.code == .cancelled {
+                LogConfig.log("ℹ️ StoryTray \(functionName): cancelled", category: "BackendFeed")
+                return nil
+            }
+            LogConfig.log("❌ StoryTray \(functionName): \(error.localizedDescription)", category: "BackendFeed")
             recordFailure()
             return nil
         }

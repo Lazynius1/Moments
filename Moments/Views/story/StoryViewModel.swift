@@ -121,17 +121,67 @@ class StoryViewModel: ObservableObject {
         }
     }
 
-    /// Carga historias de un usuario sin vaciar el resto del diccionario (vecinos del deck).
-    func mergeStoriesForUserIfNeeded(userId: String, viewerId: String) {
-        guard !userId.isEmpty, !viewerId.isEmpty else { return }
-        if let existing = stories[userId], !existing.isEmpty { return }
+    private var authorReelTasks: [String: Task<Void, Never>] = [:]
 
-        if userId == viewerId {
-            let cachedStories = LocalPersistenceService.shared.loadStories(userId: userId)
+    /// Carga el reel de un autor (backend con privacidad) sin vaciar el resto del diccionario.
+    func loadAuthorReelIfNeeded(authorId: String, viewerId: String) {
+        guard !authorId.isEmpty, !viewerId.isEmpty else { return }
+        if let existing = stories[authorId], !existing.isEmpty { return }
+        if authorReelTasks[authorId] != nil { return }
+
+        if authorId == viewerId {
+            let cachedStories = LocalPersistenceService.shared.loadStories(userId: authorId)
             if !cachedStories.isEmpty {
-                stories[userId] = cachedStories
+                stories[authorId] = cachedStories
             }
         }
+
+        authorReelTasks[authorId] = Task { @MainActor [weak self] in
+            guard let self else { return }
+            defer { self.authorReelTasks.removeValue(forKey: authorId) }
+
+            if let bundle = await StoryTrayService.shared.fetchAuthorStoryBundle(authorId: authorId) {
+                let visible = bundle.stories.compactMap { StoryRepository.decodeBackendStory($0) }
+                LogConfig.log(
+                    "📖 StoryBundle render: author=\(authorId), decoded=\(visible.count)/\(bundle.stories.count), source=backend",
+                    category: "BackendFeed"
+                )
+                if !visible.isEmpty {
+                    self.applyLoadedStories(visible, userId: authorId, viewerId: viewerId)
+                    return
+                }
+            }
+
+            LogConfig.log(
+                "⚡ StoryBundle render: author=\(authorId), source=legacy",
+                category: "BackendFeed"
+            )
+            self.mergeStoriesForUserLegacy(userId: authorId, viewerId: viewerId)
+        }
+    }
+
+    /// Compat: nombre anterior usado por el deck al hacer prefetch.
+    func mergeStoriesForUserIfNeeded(userId: String, viewerId: String) {
+        loadAuthorReelIfNeeded(authorId: userId, viewerId: viewerId)
+    }
+
+    private func applyLoadedStories(_ userStories: [Story], userId: String, viewerId: String) {
+        stories[userId] = userStories
+        if userId == viewerId {
+            LocalPersistenceService.shared.deleteStories(for: userId)
+            LocalPersistenceService.shared.saveStories(userStories)
+        }
+        for story in userStories {
+            if let storyId = story.id {
+                fetchReactions(for: userId, storyId: storyId)
+                fetchViewers(for: userId, storyId: storyId) { _ in }
+            }
+        }
+        prefetchImages()
+    }
+
+    private func mergeStoriesForUserLegacy(userId: String, viewerId: String) {
+        if let existing = stories[userId], !existing.isEmpty { return }
 
         storyRepository.fetchActiveStories(for: userId) { [weak self] result in
             Task { @MainActor in
@@ -155,16 +205,7 @@ class StoryViewModel: ObservableObject {
                         return visibility[storyId] == true
                     }
                     guard !visible.isEmpty else { return }
-
-                    self.stories[userId] = visible
-                    LocalPersistenceService.shared.saveStories(visible)
-
-                    for story in visible {
-                        if let storyId = story.id {
-                            self.fetchReactions(for: userId, storyId: storyId)
-                            self.fetchViewers(for: userId, storyId: storyId) { _ in }
-                        }
-                    }
+                    self.applyLoadedStories(visible, userId: userId, viewerId: viewerId)
                 }
             }
         }
@@ -176,8 +217,8 @@ class StoryViewModel: ObservableObject {
             let ringOrder = lockedRingNavigationOrder
             lastFetchRingUserIds = ringOrder
             ringOrderedStoryUserIds = ringOrder
-            fetchStoriesForUsers(userIds: ringOrder, viewerId: userId)
             checkActiveStories(userId: userId)
+            loadAuthorReelIfNeeded(authorId: userId, viewerId: userId)
             return
         }
 

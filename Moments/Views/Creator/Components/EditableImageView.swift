@@ -333,6 +333,13 @@ struct StoryEditableMediaContainer<Foreground: View>: View {
 
     private var showsGeneratedBackground: Bool {
         storyShouldShowGeneratedBackground(scale: scale, offset: offset, rotation: rotation)
+            || hasIntrinsicCanvasGap
+    }
+
+    private var hasIntrinsicCanvasGap: Bool {
+        let widthGap = canvasSize.width - baseRect.width
+        let heightGap = canvasSize.height - baseRect.height
+        return widthGap > 1 || heightGap > 1
     }
 
     private var resolvedPalette: [UIColor] {

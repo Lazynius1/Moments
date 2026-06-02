@@ -16,6 +16,7 @@ struct StoriesView: View {
     @State private var showingBlockConfirmation = false
     @State private var currentStory: Story?
     @State private var showAd: Bool = false
+    @StateObject private var deckGestureGate = StoryDeckGestureGate()
 
     // Variables para controlar anuncios
     @State private var otherUsersStoryCount: Int = 0
@@ -83,7 +84,7 @@ struct StoriesView: View {
                     showCloseButton: true,
                     onClose: { dismiss() }
                 )
-            } else if userIds.isEmpty || storyViewModel.stories.isEmpty {
+            } else if userIds.isEmpty || (!shouldUseDeckPass && storyViewModel.stories.isEmpty) {
                 GlassmorphicEmptyState(
                     icon: "photo.on.rectangle",
                     message: NSLocalizedString("stories.noStoriesAvailable", comment: "No stories available"),
@@ -170,6 +171,7 @@ struct StoriesView: View {
                 navigateToChainStory(storyId: storyId, chainIndex: chainIndex)
             }
         }
+        .environment(\.storyDeckGestureGate, deckGestureGate)
         .sheet(isPresented: $showingReportSheet) {
             if let story = currentStory {
                 ReportBottomSheet(story: story)
@@ -322,20 +324,17 @@ struct StoriesView: View {
         }
     }
 
-    private func prefetchAllRingStories() {
-        guard let viewerId = Auth.auth().currentUser?.uid else { return }
-        for userId in userIds {
-            storyViewModel.mergeStoriesForUserIfNeeded(userId: userId, viewerId: viewerId)
-        }
-    }
-
     private func prefetchNeighborStories(around index: Int) {
         guard isMultiUserRingMode,
               let viewerId = Auth.auth().currentUser?.uid else { return }
 
-        for offset in [1, 2, -1] {
+        if let userId = userIds[safe: index] {
+            storyViewModel.loadAuthorReelIfNeeded(authorId: userId, viewerId: viewerId)
+        }
+
+        for offset in [1, -1] {
             guard let userId = userIds[safe: index + offset] else { continue }
-            storyViewModel.mergeStoriesForUserIfNeeded(userId: userId, viewerId: viewerId)
+            storyViewModel.loadAuthorReelIfNeeded(authorId: userId, viewerId: viewerId)
         }
     }
 
@@ -442,10 +441,29 @@ struct StoriesView: View {
         }
 
         if let specificUserId = startWithUserId, !specificUserId.isEmpty {
-            storyViewModel.fetchStoriesForSpecificUser(userId: specificUserId, viewerId: currentUserId)
-        } else {
-            storyViewModel.fetchStories(for: currentUserId, includeConnections: shouldIncludeConnections)
+            userIds = [specificUserId]
+            currentUserIndex = 0
+            storyViewModel.loadAuthorReelIfNeeded(authorId: specificUserId, viewerId: currentUserId)
+            isLoading = false
+            return
         }
+
+        if shouldIncludeConnections, !lockedRingNavigationUserIds.isEmpty {
+            userIds = lockedRingNavigationUserIds
+            let targetId: String = {
+                if !initialTargetUserId.isEmpty { return initialTargetUserId }
+                return lockedRingNavigationUserIds.first ?? currentUserId
+            }()
+            if let targetIndex = userIds.firstIndex(of: targetId) {
+                currentUserIndex = targetIndex
+            }
+            storyViewModel.fetchStories(for: currentUserId, includeConnections: true)
+            applyStoryIndexForUser(at: currentUserIndex)
+            isLoading = false
+            return
+        }
+
+        storyViewModel.fetchStories(for: currentUserId, includeConnections: shouldIncludeConnections)
     }
 
     private func updateUserIds(from stories: [String: [Story]]) {
@@ -490,7 +508,6 @@ struct StoriesView: View {
                 self.userIds = newUserIds
                 self.currentUserIndex = targetIndex
                 self.hasResolvedInitialViewerPosition = true
-                self.prefetchAllRingStories()
                 self.prefetchNeighborStories(around: targetIndex)
 
                 self.getFirstUnseenStoryIndexAsync(for: targetStories, userId: targetUserId) { index in
@@ -530,7 +547,7 @@ struct StoriesView: View {
             }
             self.currentStoryIndex = 0
             self.hasResolvedInitialViewerPosition = true
-            self.prefetchAllRingStories()
+            self.prefetchNeighborStories(around: self.currentUserIndex)
             self.isLoading = false
             self.otherUsersStoryCount = 0
             self.totalStoriesViewed = 0
