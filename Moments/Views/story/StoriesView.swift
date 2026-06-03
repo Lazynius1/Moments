@@ -3,6 +3,16 @@ import FirebaseAuth
 
 // MARK: - StoriesView
 struct StoriesView: View {
+    private enum StoryLoadingMode: Equatable {
+        case initial
+        case author(String)
+    }
+
+    enum StoryLoadingOverlayState: Equatable {
+        case loading
+        case error(String)
+    }
+
     @EnvironmentObject private var firestoreService: FirestoreService
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var authService: AuthService
@@ -37,6 +47,9 @@ struct StoriesView: View {
     /// Orden fijado del anillo del feed (yo → …). No usar afinidad ni lista de following del VM.
     @State private var lockedRingNavigationUserIds: [String] = []
     @State private var pendingUnseenResolveUserId: String?
+    @State private var loadingTimeoutWorkItem: DispatchWorkItem?
+    @State private var loadingOverlayState: StoryLoadingOverlayState = .loading
+    private let loadingTimeout: TimeInterval = 3.0
 
     init(ringNavigationUserIds: [String] = []) {
         self._startWithUserId = .constant(nil)
@@ -74,9 +87,15 @@ struct StoriesView: View {
             Color.black.ignoresSafeArea()
 
             if isLoading {
-                ProgressView()
-                    .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                    .scaleEffect(1.5)
+                StoryViewerLoadingState(
+                    state: loadingOverlayState,
+                    onClose: { dismiss() }
+                )
+            } else if currentLoadingMode != nil {
+                StoryViewerLoadingState(
+                    state: loadingOverlayState,
+                    onClose: { dismiss() }
+                )
             } else if let error = errorMessage {
                 GlassmorphicEmptyState(
                     icon: "exclamationmark.triangle",
@@ -131,10 +150,6 @@ struct StoriesView: View {
                 )
             } else if canRenderStoryViewer, let userId = userIds[safe: currentUserIndex] {
                 storyViewerContent(userId: userId, isDeckPageActive: true)
-            } else if isLoadingCurrentUserStories {
-                ProgressView()
-                    .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                    .scaleEffect(1.5)
             } else {
                 GlassmorphicEmptyState(
                     icon: "exclamationmark.triangle",
@@ -150,6 +165,11 @@ struct StoriesView: View {
         .onAppear {
             loadStories()
             preloadAdOnAppear()
+            updateLoadingTimeout(for: currentLoadingMode)
+        }
+        .onDisappear {
+            loadingTimeoutWorkItem?.cancel()
+            loadingTimeoutWorkItem = nil
         }
         .onReceive(storyViewModel.$stories) { stories in
             if !isInChainMode {
@@ -159,6 +179,9 @@ struct StoriesView: View {
         }
         .onChange(of: currentUserIndex) { _, newIndex in
             prefetchNeighborStories(around: newIndex)
+        }
+        .onChange(of: currentLoadingMode) { _, newMode in
+            updateLoadingTimeout(for: newMode)
         }
         .onChange(of: startWithUserId) { _, newUserId in
             if !isInChainMode, let userId = newUserId, !userId.isEmpty {
@@ -188,6 +211,21 @@ struct StoriesView: View {
         }
     }
 
+    private var currentLoadingMode: StoryLoadingMode? {
+        guard !isInChainMode, errorMessage == nil, !showAd else { return nil }
+
+        if isLoading {
+            return .initial
+        }
+
+        guard let currentUserId = userIds[safe: currentUserIndex],
+              shouldShowLoadingState(for: currentUserId) else {
+            return nil
+        }
+
+        return .author(currentUserId)
+    }
+
     private var canRenderStoryViewer: Bool {
         guard let userId = userIds[safe: currentUserIndex],
               let stories = storyViewModel.stories[userId],
@@ -199,10 +237,12 @@ struct StoriesView: View {
         return true
     }
 
-    private var isLoadingCurrentUserStories: Bool {
-        guard isMultiUserRingMode,
-              let userId = userIds[safe: currentUserIndex] else { return false }
-        return storyViewModel.stories[userId]?.isEmpty ?? true
+    private func shouldShowLoadingState(for userId: String) -> Bool {
+        guard errorMessage == nil else { return false }
+        if let stories = storyViewModel.stories[userId] {
+            return stories.isEmpty
+        }
+        return true
     }
 
     /// Deck Pass cuando hay varios usuarios y no estamos en modo usuario único (chat, perfil, etc.).
@@ -265,13 +305,80 @@ struct StoriesView: View {
                 Color.clear
             }
         } else {
-            ZStack {
-                Color.black.ignoresSafeArea()
-                ProgressView()
-                    .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                    .scaleEffect(1.2)
+            StoryViewerLoadingState(
+                state: loadingOverlayState,
+                onClose: { dismiss() }
+            )
+        }
+    }
+
+    private func updateLoadingTimeout(for mode: StoryLoadingMode?) {
+        loadingTimeoutWorkItem?.cancel()
+        loadingTimeoutWorkItem = nil
+        loadingOverlayState = .loading
+
+        guard let mode else { return }
+
+        let workItem = DispatchWorkItem { [mode] in
+            handleLoadingTimeout(for: mode)
+        }
+        loadingTimeoutWorkItem = workItem
+        DispatchQueue.main.asyncAfter(deadline: .now() + loadingTimeout, execute: workItem)
+    }
+
+    private func handleLoadingTimeout(for mode: StoryLoadingMode) {
+        guard currentLoadingMode == mode else { return }
+
+        switch mode {
+        case .initial:
+            if attemptAdvanceToNextUserFromTimeout() {
+                return
+            }
+            isLoading = false
+            loadingOverlayState = .error(
+                NSLocalizedString("stories.errorLoadingStory", comment: "Error loading story")
+            )
+        case .author(let userId):
+            guard userIds[safe: currentUserIndex] == userId else { return }
+            if attemptAdvanceToNextUserFromTimeout() {
+                return
+            }
+            loadingOverlayState = .error(
+                NSLocalizedString("stories.errorLoadingStory", comment: "Error loading story")
+            )
+        }
+    }
+
+    private func attemptAdvanceToNextUserFromTimeout() -> Bool {
+        guard shouldUseDeckPass || isMultiUserRingMode else { return false }
+        guard let nextIndex = nextTimeoutFallbackIndex(after: currentUserIndex) else { return false }
+
+        errorMessage = nil
+        loadingOverlayState = .loading
+        isLoading = false
+        currentUserIndex = nextIndex
+        currentStoryIndex = 0
+        applyStoryIndexForUser(at: nextIndex)
+        return true
+    }
+
+    private func nextTimeoutFallbackIndex(after index: Int) -> Int? {
+        guard userIds.count > 1 else { return nil }
+
+        for candidateIndex in (index + 1)..<userIds.count {
+            guard let userId = userIds[safe: candidateIndex] else { continue }
+            if let stories = storyViewModel.stories[userId], !stories.isEmpty {
+                return candidateIndex
             }
         }
+
+        for candidateIndex in (index + 1)..<userIds.count {
+            if userIds[safe: candidateIndex] != nil {
+                return candidateIndex
+            }
+        }
+
+        return nil
     }
 
     private func resolvedNavigationUserIds(from stories: [String: [Story]]) -> [String] {
@@ -411,6 +518,9 @@ struct StoriesView: View {
     }
 
     private func loadStories() {
+        errorMessage = nil
+        loadingOverlayState = .loading
+
         if isInChainMode && !chainStories.isEmpty {
             let orderedChainStories = chainStories.sorted { lhs, rhs in
                 let lp = lhs.chainPosition ?? Int.max
@@ -471,9 +581,10 @@ struct StoriesView: View {
         guard let currentUserId = Auth.auth().currentUser?.uid else { return }
 
         DispatchQueue.main.async {
+            self.loadingOverlayState = .loading
             // Modo usuario único (chat, notificaciones, perfil…)
             if let specificUserId = self.startWithUserId, !specificUserId.isEmpty {
-                self.userIds = stories.keys.contains(specificUserId) ? [specificUserId] : []
+                self.userIds = [specificUserId]
                 self.currentUserIndex = 0
 
                 if let userStories = stories[specificUserId] {
@@ -481,6 +592,7 @@ struct StoriesView: View {
                         DispatchQueue.main.async {
                             self.currentStoryIndex = index
                             self.isLoading = false
+                            self.loadingOverlayState = .loading
                         }
                     }
                     return
@@ -502,6 +614,7 @@ struct StoriesView: View {
                       !targetStories.isEmpty else {
                     self.userIds = newUserIds
                     self.isLoading = true
+                    self.loadingOverlayState = .loading
                     return
                 }
 
@@ -515,6 +628,7 @@ struct StoriesView: View {
                     DispatchQueue.main.async {
                         self.currentStoryIndex = index
                         self.isLoading = false
+                        self.loadingOverlayState = .loading
                         self.otherUsersStoryCount = 0
                         self.totalStoriesViewed = 0
                     }
@@ -550,6 +664,7 @@ struct StoriesView: View {
             self.hasResolvedInitialViewerPosition = true
             self.prefetchNeighborStories(around: self.currentUserIndex)
             self.isLoading = false
+            self.loadingOverlayState = .loading
             self.otherUsersStoryCount = 0
             self.totalStoriesViewed = 0
         }
@@ -729,6 +844,164 @@ struct StoriesView: View {
             } catch {
                 // Error loading chain stories
             }
+        }
+    }
+}
+
+private struct StoryViewerLoadingState: View {
+    let state: StoriesView.StoryLoadingOverlayState
+    @Environment(\.colorScheme) private var colorScheme
+
+    let onClose: () -> Void
+
+    private var backgroundColor: Color {
+        colorScheme == .dark ? Color(hex: "0B1215") : Color(hex: "FAF9F6")
+    }
+
+    private var primaryChrome: Color {
+        colorScheme == .dark ? .white.opacity(0.96) : Color.black.opacity(0.82)
+    }
+
+    private var secondaryChrome: Color {
+        colorScheme == .dark ? .white.opacity(0.16) : Color.black.opacity(0.10)
+    }
+
+    private var tertiaryChrome: Color {
+        colorScheme == .dark ? .white.opacity(0.28) : Color.black.opacity(0.18)
+    }
+
+    private var spinnerTint: Color {
+        colorScheme == .dark ? .white : Color.black.opacity(0.82)
+    }
+
+    var body: some View {
+        GeometryReader { proxy in
+            let resolvedTopInset = max(proxy.safeAreaInsets.top, keyWindowSafeAreaInsets().top)
+            let resolvedBottomInset = max(proxy.safeAreaInsets.bottom, keyWindowSafeAreaInsets().bottom)
+            ZStack {
+                backgroundColor
+                    .ignoresSafeArea()
+
+                VStack(spacing: 0) {
+                    topChrome
+                        .padding(.top, resolvedTopInset + 18)
+                        .padding(.horizontal, 12)
+
+                    Spacer()
+
+                    centerContent
+                        .offset(y: -18)
+
+                    Spacer()
+
+                    bottomPlaceholder
+                        .padding(.horizontal, 16)
+                        .padding(.bottom, resolvedBottomInset + 8)
+                }
+            }
+        }
+    }
+
+    private func keyWindowSafeAreaInsets() -> UIEdgeInsets {
+        let scenes = UIApplication.shared.connectedScenes
+            .compactMap { $0 as? UIWindowScene }
+        let keyWindow = scenes
+            .flatMap(\.windows)
+            .first(where: \.isKeyWindow)
+        return keyWindow?.safeAreaInsets ?? .zero
+    }
+
+    @ViewBuilder
+    private var centerContent: some View {
+        switch state {
+        case .loading:
+            ProgressView()
+                .progressViewStyle(CircularProgressViewStyle(tint: spinnerTint))
+                .scaleEffect(1.35)
+        case .error(let message):
+            VStack(spacing: 14) {
+                Image(systemName: "exclamationmark.triangle")
+                    .font(.system(size: 26, weight: .medium))
+                    .foregroundColor(primaryChrome.opacity(0.88))
+
+                Text(message)
+                    .font(.custom("Poppins-Medium", size: 18))
+                    .foregroundColor(primaryChrome.opacity(0.88))
+                    .multilineTextAlignment(.center)
+
+                Button(action: onClose) {
+                    Text(NSLocalizedString("common.close", comment: "Close"))
+                        .font(.custom("Poppins-Medium", size: 16))
+                        .foregroundColor(primaryChrome)
+                        .padding(.horizontal, 26)
+                        .padding(.vertical, 12)
+                        .background(
+                            Capsule()
+                                .fill(colorScheme == .dark ? Color.white.opacity(0.08) : Color.black.opacity(0.08))
+                        )
+                }
+                .buttonStyle(PlainButtonStyle())
+            }
+        }
+    }
+
+    private var topChrome: some View {
+        VStack(spacing: 12) {
+            HStack(spacing: 4) {
+                ForEach(0..<4, id: \.self) { index in
+                    Capsule()
+                        .fill(index == 0 ? tertiaryChrome : secondaryChrome)
+                        .frame(height: 3)
+                }
+            }
+
+            HStack(spacing: 10) {
+                Circle()
+                    .fill(secondaryChrome)
+                    .frame(width: 36, height: 36)
+
+                VStack(alignment: .leading, spacing: 6) {
+                    Capsule()
+                        .fill(tertiaryChrome)
+                        .frame(width: 108, height: 11)
+
+                    Capsule()
+                        .fill(secondaryChrome)
+                        .frame(width: 58, height: 9)
+                }
+
+                Spacer()
+
+                Button(action: onClose) {
+                    ZStack {
+                        Circle()
+                            .fill(colorScheme == .dark ? Color.white.opacity(0.08) : Color.black.opacity(0.06))
+                            .frame(width: 38, height: 38)
+
+                        Image(systemName: "xmark")
+                            .font(.system(size: 15, weight: .semibold))
+                            .foregroundColor(primaryChrome)
+                    }
+                }
+                .buttonStyle(PlainButtonStyle())
+            }
+        }
+    }
+
+    private var bottomPlaceholder: some View {
+        HStack(spacing: 10) {
+            RoundedRectangle(cornerRadius: 22, style: .continuous)
+                .fill(colorScheme == .dark ? Color.white.opacity(0.08) : Color.black.opacity(0.06))
+                .frame(height: 46)
+                .overlay(
+                    HStack {
+                        Capsule()
+                            .fill(secondaryChrome)
+                            .frame(width: 128, height: 11)
+                        Spacer()
+                    }
+                    .padding(.horizontal, 16)
+                )
         }
     }
 }
