@@ -1120,6 +1120,7 @@ struct Story: Identifiable, Codable {
     let textVisualEffect: String?
     let textMotion: String?
     let forcesAllCaps: Bool?
+    let textLayerOrder: Int?
     /// When true, text is rendered live in the viewer instead of baked into media.
     let textOverlayLive: Bool?
     let stickers: [StickerData]?
@@ -1157,6 +1158,7 @@ struct Story: Identifiable, Codable {
         case textVisualEffect
         case textMotion
         case forcesAllCaps
+        case textLayerOrder
         case textOverlayLive
         case stickers
         case drawingData
@@ -1195,6 +1197,7 @@ struct Story: Identifiable, Codable {
          textVisualEffect: String? = nil,
          textMotion: String? = nil,
          forcesAllCaps: Bool? = nil,
+         textLayerOrder: Int? = nil,
          textOverlayLive: Bool? = nil,
          stickers: [StickerData]? = nil,
          drawingData: Data? = nil,
@@ -1227,6 +1230,7 @@ struct Story: Identifiable, Codable {
         self.textVisualEffect = textVisualEffect
         self.textMotion = textMotion
         self.forcesAllCaps = forcesAllCaps
+        self.textLayerOrder = textLayerOrder
         self.textOverlayLive = textOverlayLive
         self.stickers = stickers
         self.drawingData = drawingData
@@ -1273,6 +1277,7 @@ struct Story: Identifiable, Codable {
         self.textVisualEffect = try container.decodeIfPresent(String.self, forKey: .textVisualEffect)
         self.textMotion = try container.decodeIfPresent(String.self, forKey: .textMotion)
         self.forcesAllCaps = try container.decodeIfPresent(Bool.self, forKey: .forcesAllCaps)
+        self.textLayerOrder = try container.decodeIfPresent(Int.self, forKey: .textLayerOrder)
         self.textOverlayLive = try container.decodeIfPresent(Bool.self, forKey: .textOverlayLive)
         self.stickers = try container.decodeIfPresent([StickerData].self, forKey: .stickers)
         self.drawingData = try container.decodeIfPresent(Data.self, forKey: .drawingData)
@@ -1324,6 +1329,7 @@ struct Story: Identifiable, Codable {
         try container.encodeIfPresent(textVisualEffect, forKey: .textVisualEffect)
         try container.encodeIfPresent(textMotion, forKey: .textMotion)
         try container.encodeIfPresent(forcesAllCaps, forKey: .forcesAllCaps)
+        try container.encodeIfPresent(textLayerOrder, forKey: .textLayerOrder)
         try container.encodeIfPresent(textOverlayLive, forKey: .textOverlayLive)
         try container.encodeIfPresent(stickers, forKey: .stickers)
         try container.encodeIfPresent(drawingData, forKey: .drawingData)
@@ -1497,6 +1503,7 @@ struct Story: Identifiable, Codable {
                     position: stickerData.position,
                     scale: stickerData.scale,
                     rotation: Angle(radians: stickerData.rotation),
+                    zIndex: stickerData.zIndex ?? 0,
                     gifURL: gifURL,
                     videoURL: videoURL,
                     isAnimated: true,
@@ -1512,6 +1519,7 @@ struct Story: Identifiable, Codable {
                     position: stickerData.position,
                     scale: stickerData.scale,
                     rotation: Angle(radians: stickerData.rotation),
+                    zIndex: stickerData.zIndex ?? 0,
                     gifURL: nil,
                     videoURL: nil,
                     isAnimated: false,
@@ -1724,6 +1732,7 @@ struct StickerData: Codable {
     let position: CGPoint
     let scale: CGFloat
     let rotation: Double
+    let zIndex: Int?
 
     // ✅ PROPIEDADES EXISTENTES para interactividad
     let username: String?
@@ -1771,7 +1780,7 @@ struct StickerData: Codable {
     let videoURL: String? // ✅ NUEVA: URL del vídeo del sticker
 
 
-    init(stickerId: String? = nil, type: String, content: String, position: CGPoint, scale: CGFloat, rotation: Double,
+    init(stickerId: String? = nil, type: String, content: String, position: CGPoint, scale: CGFloat, rotation: Double, zIndex: Int? = nil,
          username: String? = nil, userId: String? = nil, hashtag: String? = nil,
          location: String? = nil, latitude: Double? = nil, longitude: Double? = nil, styleVariant: Int? = nil, questionText: String? = nil, pollOptions: [String]? = nil, weatherSymbol: String? = nil, linkURL: String? = nil, linkTitle: String? = nil, countdownTitle: String? = nil, countdownTargetAtMs: Double? = nil, sliderEmoji: String? = nil, sliderPrompt: String? = nil, caption: String? = nil, profileImagePath: String? = nil, momentId: String? = nil, mediaCount: Int? = nil,
          quizQuestion: String? = nil, quizOptions: [String]? = nil, quizCorrectIndex: Int? = nil,
@@ -1787,6 +1796,7 @@ struct StickerData: Codable {
         self.position = position
         self.scale = scale
         self.rotation = rotation
+        self.zIndex = zIndex
         self.username = username
         self.userId = userId
         self.hashtag = hashtag
@@ -1851,8 +1861,7 @@ struct StickerData: Codable {
 
         self.scale = try container.decode(CGFloat.self, forKey: .scale)
         self.rotation = try container.decode(Double.self, forKey: .rotation)
-
-
+        self.zIndex = try container.decodeIfPresent(Int.self, forKey: .zIndex)
         self.username = try container.decodeIfPresent(String.self, forKey: .username)
         self.userId = try container.decodeIfPresent(String.self, forKey: .userId)
         self.hashtag = try container.decodeIfPresent(String.self, forKey: .hashtag)
@@ -1923,6 +1932,7 @@ struct StickerData: Codable {
             position: stickerItem.position,
             scale: stickerItem.scale,
             rotation: stickerItem.rotation.radians,
+            zIndex: stickerItem.zIndex,
             username: interactionData?.username,
             userId: interactionData?.userId,
             hashtag: interactionData?.hashtag,
@@ -2026,6 +2036,7 @@ extension StickerData {
         case positionY
         case scale
         case rotation
+        case zIndex
         case username
         case userId
         case hashtag

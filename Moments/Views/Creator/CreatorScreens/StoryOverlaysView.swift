@@ -192,22 +192,23 @@ struct StoryOverlaysView: View {
             }
 
             // ✅ STICKERS COMPLETAMENTE LIBRES - Sin interfaz de selección
-            ForEach(stickers.indices, id: \.self) { index in
+            ForEach($stickers) { $sticker in
                 // Ocultar stickers de tipo REVEAL del canvas (se muestran como badge arriba)
-                if stickers[index].type != .reveal {
+                if sticker.type != .reveal {
                     StickerOverlayView(
-                        sticker: $stickers[index],
+                        sticker: $sticker,
                         canvasSize: canvasSize,
-                        isSelected: selectedStickerId == stickers[index].id,
-                        isDragging: isDraggingItem && selectedStickerId == stickers[index].id,
-                        isContentEditing: editingPolaroidId == stickers[index].id,
+                        isSelected: selectedStickerId == sticker.id,
+                        isDragging: isDraggingItem && selectedStickerId == sticker.id,
+                        isContentEditing: editingPolaroidId == sticker.id,
                         activeEditingStickerId: $activeEditingStickerId,
                         onUpdate: { updatedSticker in
-                            stickers[index] = updatedSticker
+                            guard let currentIndex = stickers.firstIndex(where: { $0.id == updatedSticker.id }) else { return }
+                            stickers[currentIndex] = updatedSticker
                         },
                         onDelete: {
                             withAnimation(.easeOut(duration: 0.2)) {
-                                stickers.remove(at: index)
+                                stickers.removeAll(where: { $0.id == sticker.id })
                                 selectedStickerId = nil
                                 activeEditingStickerId = nil
                             }
@@ -217,7 +218,7 @@ struct StoryOverlaysView: View {
                                 withAnimation(.easeOut(duration: 0.2)) {
                                     isDraggingItem = true
                                     showTrashZone = true
-                                    selectedStickerId = stickers[index].id
+                                    selectedStickerId = sticker.id
                                 }
                             }
 
@@ -229,7 +230,7 @@ struct StoryOverlaysView: View {
                                 showTrashZone = false
 
                                 if isOverTrash {
-                                    stickers.remove(at: index)
+                                    stickers.removeAll(where: { $0.id == sticker.id })
                                     selectedStickerId = nil
                                     activeEditingStickerId = nil
                                 }
@@ -255,7 +256,7 @@ struct StoryOverlaysView: View {
                             handleStickerTap(tappedSticker)
                         }
                     )
-                    .zIndex(activeEditingStickerId == stickers[index].id ? 3000 : (editingPolaroidId == stickers[index].id ? 2000 : (selectedStickerId == stickers[index].id ? 500 : 1)))
+                    .zIndex(activeEditingStickerId == sticker.id ? 3000 : (editingPolaroidId == sticker.id ? 2000 : (selectedStickerId == sticker.id ? 500 : 1)))
                 }
             }
 

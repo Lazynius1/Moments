@@ -220,6 +220,7 @@ extension FirestoreService {
                     textVisualEffect: textOverlay?.visualEffectRaw,
                     textMotion: textOverlay?.motionRaw,
                     forcesAllCaps: textOverlay?.forcesAllCaps,
+                    textLayerOrder: textOverlay?.layerOrder,
                     textOverlayLive: textOverlay?.isLiveOverlay,
                     stickers: stickers,
                     drawingData: drawingData,
@@ -310,6 +311,9 @@ extension FirestoreService {
         if let textPositionNormY = story.textPositionNormY {
             storyData["textPositionNormY"] = textPositionNormY
         }
+        if let textLayerOrder = story.textLayerOrder {
+            storyData["textLayerOrder"] = textLayerOrder
+        }
 
         if let stickers {
             storyData["stickers"] = stickers.map(serializedStorySticker)
@@ -327,6 +331,10 @@ extension FirestoreService {
             "scale": Double(sticker.scale),
             "rotation": sticker.rotation
         ]
+
+        if let zIndex = sticker.zIndex {
+            stickerData["zIndex"] = zIndex
+        }
 
         if let stickerId = sticker.stickerId {
             stickerData["stickerId"] = stickerId

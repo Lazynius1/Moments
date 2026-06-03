@@ -54,6 +54,7 @@ struct CreatorView: View {
     @State private var selectedLocation: CLLocationCoordinate2D?
     @State private var locationName: String = ""
     @State private var responseSticker: StickerItem? = nil
+    @State private var storyStartsInTextMode = false
 
     // 🔗 NUEVO: Variables para contexto de cadena
     @State private var pendingChainId: String? = nil
@@ -123,13 +124,15 @@ struct CreatorView: View {
                 StoryCameraView(
                     selectedMediaItems: $selectedMediaItems,
                     currentFlow: $currentFlow,
-                    showCreatorView: $showCreatorView
+                    showCreatorView: $showCreatorView,
+                    startsInTextMode: $storyStartsInTextMode
                 )
             case .storyEditing:
                 StoryEditingView(
                     selectedMediaItems: $selectedMediaItems,
                     currentFlow: $currentFlow,
                     showCreatorView: $showCreatorView,
+                    startInTextMode: $storyStartsInTextMode,
                     initialSticker: responseSticker,
                     initialChainId: pendingChainId,
                     initialChainTitle: pendingChainTitle,

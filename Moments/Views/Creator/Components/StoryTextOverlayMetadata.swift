@@ -22,6 +22,7 @@ enum StoryTextCanvasPlacement {
 /// Metadata for live story text overlays (rendered in the viewer, not baked into media).
 struct StoryTextOverlayMetadata: Codable, Equatable {
     var normalizedPosition: CGPoint
+    var layerOrder: Int
     var styleRaw: String
     var colorHex: String
     var fontSize: Double
@@ -37,6 +38,7 @@ struct StoryTextOverlayMetadata: Codable, Equatable {
         text: String,
         editorPosition: CGPoint,
         contentRect: CGRect,
+        layerOrder: Int,
         style: StoryEditingView.TextStyle,
         textColor: Color,
         fontSize: CGFloat,
@@ -59,6 +61,7 @@ struct StoryTextOverlayMetadata: Codable, Equatable {
 
         return StoryTextOverlayMetadata(
             normalizedPosition: norm,
+            layerOrder: layerOrder,
             styleRaw: style.rawValue,
             colorHex: textColor.toHex(),
             fontSize: Double(fontSize),
@@ -157,6 +160,7 @@ extension Story {
 
         return StoryTextOverlayMetadata(
             normalizedPosition: CGPoint(x: normX, y: normY),
+            layerOrder: textLayerOrder ?? 0,
             styleRaw: textStyle ?? StoryEditingView.TextStyle.modern.rawValue,
             colorHex: textColorHex ?? "FFFFFF",
             fontSize: textFontSize ?? 30,

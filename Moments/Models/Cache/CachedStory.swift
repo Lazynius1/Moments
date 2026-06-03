@@ -138,6 +138,7 @@ final class CachedStory {
             textVisualEffect: overlayMetadata?.visualEffectRaw,
             textMotion: overlayMetadata?.motionRaw,
             forcesAllCaps: overlayMetadata?.forcesAllCaps,
+            textLayerOrder: overlayMetadata?.layerOrder,
             textOverlayLive: overlayMetadata?.isLiveOverlay,
             stickers: stickers,
             drawingData: drawingData,

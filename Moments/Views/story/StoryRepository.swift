@@ -329,6 +329,7 @@ final class StoryRepository {
             textVisualEffect: document.textVisualEffect,
             textMotion: document.textMotion,
             forcesAllCaps: document.forcesAllCaps,
+            textLayerOrder: document.textLayerOrder,
             textOverlayLive: document.textOverlayLive,
             stickers: document.stickers,
             drawingData: drawingData,

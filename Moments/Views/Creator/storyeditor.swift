@@ -11,6 +11,7 @@ struct StoryEditingView: View {
     @Binding var selectedMediaItems: [ProcessedMedia]
     @Binding var currentFlow: CreatorView.CreatorFlow
     @Binding var showCreatorView: Bool
+    @Binding var startInTextMode: Bool
     let initialSticker: StickerItem?
 
     // 🔗 NUEVO: Parámetros de cadena
@@ -293,6 +294,14 @@ struct StoryEditingView: View {
             if filteredImage == nil && selectedFilter != .normal {
                 applySelectedFilter()
             }
+
+            if startInTextMode && selectedMediaItems.isEmpty {
+                applyRandomBackgroundPresetIfNeeded()
+                activeEditorMode = .text
+                startInTextMode = false
+            } else if selectedMediaItems.isEmpty {
+                applyRandomBackgroundPresetIfNeeded()
+            }
         }
             .onChange(of: selectedMediaItems.first?.id) { _, _ in
                 resetBaseMediaTransform()
@@ -553,6 +562,11 @@ struct StoryEditingView: View {
         selectedBackgroundPresetIndex = 0
     }
 
+    private func applyRandomBackgroundPresetIfNeeded() {
+        guard selectedMediaItems.isEmpty else { return }
+        selectedBackgroundPresetIndex = Int.random(in: 0..<StoryBackgroundPreset.presets.count)
+    }
+
     @ViewBuilder
     private func backgroundMediaView(canvasSize: CGSize) -> some View {
         ZStack(alignment: .bottom) {
@@ -616,20 +630,25 @@ struct StoryEditingView: View {
                 }
             }
         } else {
-            // ✅ Fondo por defecto cuando se comparte un sticker (ej. share to story)
-            LinearGradient(
-                colors: [
-                    Color(hex: "4158D0"),
-                    Color(hex: "C850C0"),
-                    Color(hex: "FFCC70")
-                ],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-            .frame(width: canvasSize.width, height: canvasSize.height)
-            .clipped()
-            .ignoresSafeArea()
+            textOnlyBackgroundView(canvasSize: canvasSize)
         }
+    }
+
+    @ViewBuilder
+    private func textOnlyBackgroundView(canvasSize: CGSize) -> some View {
+        let palette = selectedBackgroundPreset.usesAutoPalette ? autoBackgroundPalette : selectedBackgroundPreset.uiColors
+        let resolvedPalette = palette.isEmpty
+            ? [UIColor(Color(hex: "0B1215")), UIColor(Color(hex: "FAF9F6"))]
+            : palette
+
+        LinearGradient(
+            colors: resolvedPalette.map { Color(uiColor: $0) },
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
+        )
+        .frame(width: canvasSize.width, height: canvasSize.height)
+        .clipped()
+        .ignoresSafeArea()
     }
 
     @ViewBuilder
@@ -1396,6 +1415,24 @@ struct StoryEditingView: View {
         }
     }
 
+    private func currentTextOnlyBackgroundImage(targetSize: CGSize) -> UIImage {
+        let palette = (selectedBackgroundPreset.usesAutoPalette ? autoBackgroundPalette : selectedBackgroundPreset.uiColors)
+        let fallbackPalette = [
+            UIColor(Color(hex: "0B1215")),
+            UIColor(Color(hex: "203A43")),
+            UIColor(Color(hex: "FAF9F6"))
+        ]
+        let resolvedPalette = palette.isEmpty ? fallbackPalette : palette
+        let renderer = UIGraphicsImageRenderer(size: targetSize)
+        return renderer.image { context in
+            drawStoryMediaBackground(
+                in: CGRect(origin: .zero, size: targetSize),
+                palette: resolvedPalette,
+                context: context.cgContext
+            )
+        }
+    }
+
     private func makePixelBuffer(from image: UIImage, size: CGSize) -> CVPixelBuffer? {
         let width = Int(size.width)
         let height = Int(size.height)
@@ -1552,7 +1589,7 @@ struct StoryEditingView: View {
     }
 
     private var showsBackgroundPaletteButton: Bool {
-        !isFilterMode && activeEditorMode == .idle && showsGeneratedBackground && !isEditingSticker && !selectedMediaItems.isEmpty
+        !isFilterMode && activeEditorMode == .idle && !isEditingSticker && (selectedMediaItems.isEmpty || showsGeneratedBackground)
     }
 
     private func cycleBackgroundPreset() {
@@ -1734,47 +1771,47 @@ struct StoryEditingView: View {
     }
 
     private func renderStoryWithOverlays() -> UIImage {
-        guard let firstMedia = selectedMediaItems.first else {
-            return UIImage()
-        }
-
-        let baseImage = firstMedia.image
         let screenSize = UIScreen.main.bounds.size
         let targetSize = storyRenderTargetSize(for: screenSize)
         let renderer = UIGraphicsImageRenderer(size: targetSize)
+        let editorCanvasSize = currentMediaCanvasRect().size
 
         return renderer.image { context in
             let rect = CGRect(origin: .zero, size: targetSize)
-            let paletteImage = storyBackgroundImage(
-                baseImage: renderPaletteSourceImage(for: firstMedia),
-                targetSize: targetSize
-            )
-            paletteImage.draw(in: rect)
+            if let firstMedia = selectedMediaItems.first {
+                let baseImage = firstMedia.image
+                let paletteImage = storyBackgroundImage(
+                    baseImage: renderPaletteSourceImage(for: firstMedia),
+                    targetSize: targetSize
+                )
+                paletteImage.draw(in: rect)
 
-            let renderImage: UIImage
-            if selectedFilter != .normal {
-                renderImage = FilterService.shared.applyFilter(selectedFilter, to: baseImage, intensity: filterIntensity)
+                let renderImage: UIImage
+                if selectedFilter != .normal {
+                    renderImage = FilterService.shared.applyFilter(selectedFilter, to: baseImage, intensity: filterIntensity)
+                } else {
+                    renderImage = baseImage
+                }
+
+                context.cgContext.saveGState()
+                let scaleFactorX = targetSize.width / max(editorCanvasSize.width, 1)
+                let scaleFactorY = targetSize.height / max(editorCanvasSize.height, 1)
+                let baseRect = mediaRectForStoryCanvas(mediaSize: renderImage.size, targetSize: targetSize)
+
+                context.cgContext.translateBy(
+                    x: (targetSize.width / 2) + (imageOffset.width * scaleFactorX),
+                    y: (targetSize.height / 2) + (imageOffset.height * scaleFactorY)
+                )
+                context.cgContext.rotate(by: imageRotation.radians)
+                context.cgContext.scaleBy(x: imageScale, y: imageScale)
+                context.cgContext.translateBy(x: -targetSize.width / 2, y: -targetSize.height / 2)
+
+                let imageRect = baseRect
+                renderImage.draw(in: imageRect)
+                context.cgContext.restoreGState()
             } else {
-                renderImage = baseImage
+                currentTextOnlyBackgroundImage(targetSize: targetSize).draw(in: rect)
             }
-
-            context.cgContext.saveGState()
-            let editorCanvasSize = currentMediaCanvasRect().size
-            let scaleFactorX = targetSize.width / max(editorCanvasSize.width, 1)
-            let scaleFactorY = targetSize.height / max(editorCanvasSize.height, 1)
-            let baseRect = mediaRectForStoryCanvas(mediaSize: renderImage.size, targetSize: targetSize)
-
-            context.cgContext.translateBy(
-                x: (targetSize.width / 2) + (imageOffset.width * scaleFactorX),
-                y: (targetSize.height / 2) + (imageOffset.height * scaleFactorY)
-            )
-            context.cgContext.rotate(by: imageRotation.radians)
-            context.cgContext.scaleBy(x: imageScale, y: imageScale)
-            context.cgContext.translateBy(x: -targetSize.width / 2, y: -targetSize.height / 2)
-
-            let imageRect = baseRect
-            renderImage.draw(in: imageRect)
-            context.cgContext.restoreGState()
 
             if let overlayImage = renderStoryOverlayImage(targetSize: targetSize, screenSize: editorCanvasSize) {
                 overlayImage.draw(in: rect)
@@ -2028,10 +2065,21 @@ struct StoryEditingView: View {
         return (finalMedia, preRenderedImage)
     }
 
+    private func makeTextOnlyStoryMedia(from image: UIImage) -> ProcessedMedia {
+        ProcessedMedia(
+            type: .image,
+            image: image,
+            videoURL: nil,
+            aspectRatio: .nineBySixteen,
+            recommendedAspectRatio: .nineBySixteen
+        )
+    }
+
     // ✅ FUNCIÓN ACTUALIZADA: Publicar historia con soporte para listas
     private func publishStory() {
-        guard let userId = Auth.auth().currentUser?.uid,
-              !selectedMediaItems.isEmpty else { return }
+        guard let userId = Auth.auth().currentUser?.uid else { return }
+        let hasStoryContent = !selectedMediaItems.isEmpty || !storyText.isEmpty || !selectedStickers.isEmpty || drawingImage != nil
+        guard hasStoryContent else { return }
 
 
         // 🔗 VALIDAR LÍMITES DE STORY CHAINS
@@ -2058,15 +2106,16 @@ struct StoryEditingView: View {
     }
 
     private func publishStoryAfterValidation() {
-        guard let media = selectedMediaItems.first else { return }
-
         // 1. Capturar todos los estados y renderizados en el Main Actor sincrónicamente antes de cerrar/resetear
         let targetSize = storyRenderTargetSize()
         let editorCanvasSize = currentMediaCanvasRect().size
         let finalRenderedImage = renderStoryWithOverlays()
+        let media = selectedMediaItems.first ?? makeTextOnlyStoryMedia(from: finalRenderedImage)
         let preRenderedOverlay = renderStoryOverlayImage(targetSize: targetSize, screenSize: editorCanvasSize)
-        let preRenderedBackground = storyBackgroundImage(baseImage: renderPaletteSourceImage(for: media), targetSize: targetSize)
-        let shouldBake = shouldBakeCurrentOverlaysIntoVideo(media)
+        let preRenderedBackground = selectedMediaItems.first.map {
+            storyBackgroundImage(baseImage: renderPaletteSourceImage(for: $0), targetSize: targetSize)
+        } ?? currentTextOnlyBackgroundImage(targetSize: targetSize)
+        let shouldBake = selectedMediaItems.first.map(shouldBakeCurrentOverlaysIntoVideo) ?? false
 
         let capturedImageScale = imageScale
         let capturedImageOffset = imageOffset
@@ -2109,6 +2158,7 @@ struct StoryEditingView: View {
             text: storyText,
             editorPosition: textPosition,
             contentRect: contentRect,
+            layerOrder: selectedStickers.count,
             style: selectedTextStyle,
             textColor: storyTextColor,
             fontSize: storyTextFontSize,

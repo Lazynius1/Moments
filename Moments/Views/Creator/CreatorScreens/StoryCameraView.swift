@@ -8,6 +8,7 @@ struct StoryCameraView: View {
     @Binding var selectedMediaItems: [CreatorMedia]
     @Binding var currentFlow: CreatorView.CreatorFlow
     @Binding var showCreatorView: Bool
+    @Binding var startsInTextMode: Bool
 
     @Environment(\.colorScheme) private var colorScheme
     private var safeAreaTintColor: Color {
@@ -87,6 +88,9 @@ struct StoryCameraView: View {
                 topControlsOverlay
                     .frame(width: captureRect.width, height: captureRect.height, alignment: .top)
                     .position(x: captureRect.midX, y: captureRect.midY)
+
+                textModeButtonOverlay
+                    .position(x: captureRect.maxX - 26, y: captureRect.midY)
 
                 // Bottom controls
                 recordingStatusView
@@ -198,6 +202,23 @@ struct StoryCameraView: View {
             onLongPressStart: { startRecording() },
             onLongPressEnd: { stopRecording() }
         )
+    }
+
+    private var textModeButtonOverlay: some View {
+        Button(action: openTextStoryMode) {
+            Text("Aa")
+                .font(.system(size: 20, weight: .semibold, design: .rounded))
+                .foregroundColor(topControlForegroundColor)
+                .frame(width: 48, height: 48)
+                .background {
+                    Color.clear
+                        .liquidGlass(in: Circle(), interactive: true)
+                }
+                .overlay(
+                    Circle()
+                        .stroke(topControlStrokeColor, lineWidth: 1)
+                )
+        }
     }
 
     private var galleryButton: some View {
@@ -332,6 +353,7 @@ struct StoryCameraView: View {
     }
 
     private func handleCapturedImage(_ image: UIImage) {
+        startsInTextMode = false
         let detectedRatio = CreatorMedia.AspectRatio.fromRatio(image.size.width / image.size.height)
         let processedMedia = CreatorMedia(
             id: UUID().uuidString,
@@ -359,6 +381,7 @@ struct StoryCameraView: View {
                 let detectedRatio = CreatorMedia.AspectRatio.fromRatio(thumbnail.size.width / thumbnail.size.height)
 
                 await MainActor.run {
+                    startsInTextMode = false
                     let processedMedia = CreatorMedia(
                         id: UUID().uuidString,
                         image: thumbnail,
@@ -373,6 +396,12 @@ struct StoryCameraView: View {
             } catch {
             }
         }
+    }
+
+    private func openTextStoryMode() {
+        startsInTextMode = true
+        selectedMediaItems = []
+        currentFlow = .storyEditing
     }
 
     private func loadLastGalleryImage() {

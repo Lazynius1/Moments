@@ -1065,7 +1065,7 @@ class BackgroundStoryUploadService: ObservableObject {
             ?? (uploadingStory.selectedTextStyle as? StoryEditingView.TextStyle)?.rawValue
         let resolvedTextOverlay = uploadingStory.textOverlayMetadata
 
-        let normalizedStickerData: [StickerData]? = uploadingStory.stickerData?.compactMap { stickerItem in
+        let normalizedStickerData: [StickerData]? = uploadingStory.stickerData?.enumerated().compactMap { index, stickerItem in
             var normalizedItem = stickerItem
 
             let safeWidth = max(contentRect.width, 1)
@@ -1080,6 +1080,7 @@ class BackgroundStoryUploadService: ObservableObject {
                 y: normalizedY.isFinite ? normalizedY : 0.5
             )
             normalizedItem.scale = normalizedScale.isFinite ? normalizedScale : stickerItem.scale
+            normalizedItem.zIndex = index
             return StickerData.from(normalizedItem)
         }
 

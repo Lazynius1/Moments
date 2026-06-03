@@ -50,8 +50,8 @@ struct StoryTextEditorInputRepresentable: UIViewRepresentable {
     }
 
     func sizeThatFits(_ proposal: ProposedViewSize, uiView: StoryTextEditorInputContainerView, context: Context) -> CGSize? {
-        let content = StoryTextAttributesBuilder.overlayContentSize(for: configuration, maxWidth: maxWidth)
-        return CGSize(width: content.width, height: max(140, min(280, content.height + 24)))
+        let content = StoryTextAttributesBuilder.measuredSize(for: configuration, maxWidth: maxWidth)
+        return CGSize(width: max(80, content.width), height: max(140, min(280, content.height + 24)))
     }
 
     final class Coordinator: NSObject, StoryTextEditorInputContainerDelegate {
@@ -105,7 +105,7 @@ final class StoryTextEditorInputContainerView: UIView, UITextViewDelegate {
         addSubview(textView)
         textView.delegate = self
         textView.backgroundColor = .clear
-        textView.textContainerInset = UIEdgeInsets(top: 10, left: 10, bottom: 10, right: 10)
+        textView.textContainerInset = .zero
         textView.textContainer.lineFragmentPadding = 0
         textView.isScrollEnabled = true
         textView.showsVerticalScrollIndicator = false
@@ -134,9 +134,12 @@ final class StoryTextEditorInputContainerView: UIView, UITextViewDelegate {
         effectView.apply(configuration: configuration, maxWidth: maxWidth)
         StoryTextMotionEngine.apply(to: effectView, motion: motion, replayToken: replayToken)
 
-        let contentSize = StoryTextAttributesBuilder.overlayContentSize(for: configuration, maxWidth: maxWidth)
+        let contentSize = StoryTextAttributesBuilder.measuredSize(for: configuration, maxWidth: maxWidth)
         let resolvedHeight = max(140, min(280, contentSize.height + 24))
-        let resolvedFrame = CGRect(origin: .zero, size: CGSize(width: contentSize.width, height: resolvedHeight))
+        let resolvedFrame = CGRect(
+            origin: .zero,
+            size: CGSize(width: max(80, contentSize.width), height: resolvedHeight)
+        )
         effectView.frame = resolvedFrame
         textView.frame = resolvedFrame
 
@@ -248,6 +251,7 @@ struct StoryTextOverlayContainerRepresentable: UIViewRepresentable {
 
 final class StoryTextOverlayContainerView: UIView {
     private let plateLayer = CALayer()
+    private let sparkleLayer = CALayer()
     private let glowLabel = UILabel()
     private let textLabel = UILabel()
 
@@ -255,8 +259,10 @@ final class StoryTextOverlayContainerView: UIView {
         super.init(frame: frame)
         isUserInteractionEnabled = false
         layer.addSublayer(plateLayer)
+        layer.addSublayer(sparkleLayer)
         addSubview(glowLabel)
         addSubview(textLabel)
+        sparkleLayer.isHidden = true
         glowLabel.numberOfLines = 0
         glowLabel.backgroundColor = .clear
         glowLabel.isUserInteractionEnabled = false
@@ -292,8 +298,10 @@ final class StoryTextOverlayContainerView: UIView {
         glowLabel.preferredMaxLayoutWidth = maxWidth
 
         plateLayer.isHidden = true
+        sparkleLayer.isHidden = true
         glowLabel.isHidden = true
         resetLabelLayers()
+        resetSparkles()
 
         switch treatment {
         case .sparklePulse:
@@ -333,6 +341,11 @@ final class StoryTextOverlayContainerView: UIView {
         }
     }
 
+    private func resetSparkles() {
+        sparkleLayer.sublayers?.forEach { $0.removeAllAnimations() }
+        sparkleLayer.sublayers = nil
+    }
+
     private func applySparkle(
         configuration: StoryTextRenderConfiguration,
         attributed: NSAttributedString,
@@ -342,18 +355,96 @@ final class StoryTextOverlayContainerView: UIView {
         textLabel.attributedText = attributed
         textLabel.textAlignment = alignment
         textLabel.layer.shadowColor = uiColor.cgColor
-        textLabel.layer.shadowRadius = 10
-        textLabel.layer.shadowOpacity = 0.9
+        textLabel.layer.shadowRadius = 8
+        textLabel.layer.shadowOpacity = 0.68
         textLabel.layer.shadowOffset = .zero
+        textLabel.layer.shouldRasterize = true
+        textLabel.layer.rasterizationScale = UIScreen.main.scale
 
-        glowLabel.isHidden = false
-        glowLabel.attributedText = attributed
-        glowLabel.textAlignment = alignment
-        glowLabel.textColor = uiColor.withAlphaComponent(0.35)
-        glowLabel.layer.shadowColor = UIColor.white.cgColor
-        glowLabel.layer.shadowRadius = 16
-        glowLabel.layer.shadowOpacity = 0.75
-        glowLabel.layer.shadowOffset = .zero
+        applySparkleAccents(
+            around: textLabel.frame,
+            tintColor: uiColor
+        )
+    }
+
+    private func applySparkleAccents(around textFrame: CGRect, tintColor: UIColor) {
+        let sparkleFrame = textFrame.insetBy(dx: -18, dy: -14)
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        sparkleLayer.isHidden = false
+        sparkleLayer.frame = sparkleFrame
+        sparkleLayer.opacity = 1
+        CATransaction.commit()
+
+        resetSparkles()
+
+        let sparkleSpecs: [(CGPoint, CGFloat, CFTimeInterval, UIColor)] = [
+            (CGPoint(x: 0.14, y: 0.22), 10, 0.00, UIColor.white.withAlphaComponent(0.95)),
+            (CGPoint(x: 0.82, y: 0.16), 8, 0.22, UIColor.white.withAlphaComponent(0.92)),
+            (CGPoint(x: 0.91, y: 0.60), 9, 0.44, tintColor.withAlphaComponent(0.88)),
+            (CGPoint(x: 0.22, y: 0.84), 7, 0.16, UIColor.white.withAlphaComponent(0.84)),
+            (CGPoint(x: 0.66, y: 0.90), 6, 0.36, tintColor.withAlphaComponent(0.72))
+        ]
+
+        for (normalizedPoint, size, delay, color) in sparkleSpecs {
+            let sparkle = CAShapeLayer()
+            sparkle.path = sparklePath(size: size).cgPath
+            sparkle.fillColor = color.cgColor
+            sparkle.shadowColor = UIColor.white.cgColor
+            sparkle.shadowOpacity = 0.9
+            sparkle.shadowRadius = 4
+            sparkle.shadowOffset = .zero
+            sparkle.bounds = CGRect(x: 0, y: 0, width: size, height: size)
+            sparkle.position = CGPoint(
+                x: sparkleFrame.width * normalizedPoint.x,
+                y: sparkleFrame.height * normalizedPoint.y
+            )
+            sparkle.opacity = 0.25
+
+            let opacity = CAKeyframeAnimation(keyPath: "opacity")
+            opacity.values = [0.18, 1.0, 0.32, 0.88, 0.2]
+            opacity.keyTimes = [0.0, 0.25, 0.5, 0.72, 1.0]
+
+            let scale = CAKeyframeAnimation(keyPath: "transform.scale")
+            scale.values = [0.72, 1.12, 0.86, 1.02, 0.76]
+            scale.keyTimes = [0.0, 0.25, 0.5, 0.72, 1.0]
+
+            let group = CAAnimationGroup()
+            group.animations = [opacity, scale]
+            group.duration = 1.9
+            group.beginTime = CACurrentMediaTime() + delay
+            group.repeatCount = .infinity
+            group.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
+            group.isRemovedOnCompletion = false
+
+            sparkle.add(group, forKey: "moments.sparkle.twinkle")
+            sparkleLayer.addSublayer(sparkle)
+        }
+    }
+
+    private func sparklePath(size: CGFloat) -> UIBezierPath {
+        let center = CGPoint(x: size / 2, y: size / 2)
+        let outerRadius = size / 2
+        let innerRadius = outerRadius * 0.34
+        let path = UIBezierPath()
+
+        for index in 0..<8 {
+            let angle = (CGFloat(index) * (.pi / 4)) - (.pi / 2)
+            let radius = index.isMultiple(of: 2) ? outerRadius : innerRadius
+            let point = CGPoint(
+                x: center.x + cos(angle) * radius,
+                y: center.y + sin(angle) * radius
+            )
+
+            if index == 0 {
+                path.move(to: point)
+            } else {
+                path.addLine(to: point)
+            }
+        }
+
+        path.close()
+        return path
     }
 
     private func applySoftGlow(
@@ -365,8 +456,8 @@ final class StoryTextOverlayContainerView: UIView {
         textLabel.attributedText = attributed
         textLabel.textAlignment = alignment
         textLabel.layer.shadowColor = uiColor.cgColor
-        textLabel.layer.shadowRadius = 14
-        textLabel.layer.shadowOpacity = 0.85
+        textLabel.layer.shadowRadius = 18
+        textLabel.layer.shadowOpacity = 0.92
         textLabel.layer.shadowOffset = .zero
     }
 

@@ -53,6 +53,7 @@ struct BackendStoryDocument: Codable {
     let textVisualEffect: String?
     let textMotion: String?
     let forcesAllCaps: Bool?
+    let textLayerOrder: Int?
     let textOverlayLive: Bool?
     let drawingData: String?
     let stickers: [StickerData]?

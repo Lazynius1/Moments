@@ -172,6 +172,14 @@ struct StoryViewerScreen: View {
         return stickers
     }
 
+    private var resolvedTextOverlayZIndex: Double {
+        if let explicitOrder = story.textLayerOrder {
+            return Double(explicitOrder)
+        }
+        let maxStickerOrder = storyStickers.map(\.zIndex).max() ?? -1
+        return Double(maxStickerOrder + 1)
+    }
+
     private func refreshStoryPlaybackIfNeeded() {
         let currentId = story.id
         guard currentId != lastPreparedStoryId else { return }
@@ -330,6 +338,7 @@ struct StoryViewerScreen: View {
                 .frame(width: captureRect.width, height: captureRect.height)
                 .position(x: captureRect.midX, y: captureRect.midY)
                 .allowsHitTesting(false)
+                .zIndex(resolvedTextOverlayZIndex)
             }
 
             // MARK: - 2. STICKERS (Fijos en sus posiciones)
@@ -351,6 +360,7 @@ struct StoryViewerScreen: View {
                         y: captureRect.minY + stickerDisplayPosition(sticker, containerSize: captureRect.size).y
                     )
                 )
+                .zIndex(Double(sticker.zIndex))
                 }
             }
 

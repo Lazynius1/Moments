@@ -34,6 +34,7 @@ struct StickerItem: Identifiable {
     var position: CGPoint
     var scale: CGFloat = 1.0
     var rotation: Angle = .zero
+    var zIndex: Int = 0
 
     let gifURL: URL?
     let videoURL: URL?
@@ -177,12 +178,14 @@ struct StickerItem: Identifiable {
         position: CGPoint,
         type: StickerType,
         interactionData: StickerInteractionData?,
+        zIndex: Int = 0,
         videoURL: URL? = nil,
         gifURL: URL? = nil
     ) {
         self.id = "\(type.rawValue)_\(UUID().uuidString)"
         self.image = image
         self.position = position
+        self.zIndex = zIndex
         self.type = type
         self.gifURL = gifURL
         self.videoURL = videoURL
@@ -195,11 +198,13 @@ struct StickerItem: Identifiable {
         gifURL: URL,
         position: CGPoint,
         type: StickerType,
-        interactionData: StickerInteractionData?
+        interactionData: StickerInteractionData?,
+        zIndex: Int = 0
     ) {
         self.id = "\(type.rawValue)_\(UUID().uuidString)"
         self.image = image
         self.position = position
+        self.zIndex = zIndex
         self.type = type
         self.gifURL = gifURL
         self.videoURL = nil
@@ -213,6 +218,7 @@ struct StickerItem: Identifiable {
         position: CGPoint,
         scale: CGFloat,
         rotation: Angle,
+        zIndex: Int = 0,
         gifURL: URL?,
         videoURL: URL? = nil,
         isAnimated: Bool,
@@ -224,6 +230,7 @@ struct StickerItem: Identifiable {
         self.position = position
         self.scale = scale
         self.rotation = rotation
+        self.zIndex = zIndex
         self.gifURL = gifURL
         self.videoURL = videoURL
         self.isAnimated = isAnimated

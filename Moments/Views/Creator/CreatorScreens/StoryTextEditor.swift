@@ -44,11 +44,21 @@ struct StoryTextEditor: View {
     var body: some View {
         GeometryReader { proxy in
             let canvasSize = proxy.size
+            let captureRect = creatorMomentsCaptureRect(
+                in: proxy.size,
+                topInset: proxy.safeAreaInsets.top,
+                bottomInset: proxy.safeAreaInsets.bottom
+            )
             let keyboardInset = max(0, keyboardMonitor.keyboardHeight - proxy.safeAreaInsets.bottom)
             let bottomToolbarLift = keyboardInset > 0
                 ? keyboardInset + StoryTextEditorChrome.keyboardChromeGap
                 : 0
             let chromeHeight = StoryTextEditorChrome.totalHeight(for: activeContext)
+            let canvasBottomGap = max(0, proxy.size.height - captureRect.maxY)
+            let centeredCanvasGapPadding = max(8, (canvasBottomGap - chromeHeight) / 2)
+            let bottomToolbarPadding = keyboardInset > 0
+                ? safeAreaBottom + 8
+                : centeredCanvasGapPadding
 
             ZStack {
                 LinearGradient(
@@ -91,8 +101,13 @@ struct StoryTextEditor: View {
                 VStack(spacing: 0) {
                     Spacer(minLength: 0)
 
-                    HStack(alignment: .center, spacing: 12) {
-                        FontSizeSlider(value: $textFontSize, range: 16...72)
+                    ZStack(alignment: .leading) {
+                        HStack {
+                            FontSizeSlider(value: $textFontSize, range: 16...72)
+                            Spacer(minLength: 0)
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.leading, 18)
 
                         StoryTextEditorInputRepresentable(
                             text: $text,
@@ -103,10 +118,10 @@ struct StoryTextEditor: View {
                             replayToken: motionPreviewToken
                         )
                         .frame(minHeight: 140, maxHeight: 280)
+                        .frame(maxWidth: .infinity, alignment: alignmentForText(textAlignment))
+                        .padding(.leading, 44)
+                        .padding(.trailing, 20)
                     }
-                    .frame(maxWidth: .infinity, alignment: alignmentForText(textAlignment))
-                    .padding(.leading, 4)
-                    .padding(.trailing, 20)
 
                     Spacer(minLength: 0)
                 }
@@ -153,7 +168,7 @@ struct StoryTextEditor: View {
                         cycleTextBackgroundFill()
                     }
                 )
-                .padding(.bottom, safeAreaBottom + StoryTextEditorChrome.chromeBottomPadding)
+                .padding(.bottom, bottomToolbarPadding)
                 .offset(y: -bottomToolbarLift)
                 .animation(.easeOut(duration: 0.22), value: bottomToolbarLift)
                 .animation(.easeOut(duration: 0.18), value: activeContext)
