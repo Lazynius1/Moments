@@ -19,7 +19,7 @@ enum StoryTextMotionEngine {
         case .wave:
             applyWave(to: view.layer)
         case .typewriter:
-            applyTypewriter(to: view.layer)
+            applyTypewriter(to: view)
         case .reveal:
             applyReveal(to: view.layer)
         case .none:
@@ -31,32 +31,100 @@ enum StoryTextMotionEngine {
 
     private static func applyPop(to layer: CALayer) {
         let scale = CAKeyframeAnimation(keyPath: "transform.scale")
-        scale.values = [0.78, 1.12, 0.97, 1.05, 1.0]
-        scale.keyTimes = [0, 0.28, 0.5, 0.72, 1]
-        scale.duration = 0.95
+        scale.values = [1.0, 1.15, 0.94, 1.05, 1.0, 1.0, 1.0]
+        scale.keyTimes = [0.0, 0.14, 0.28, 0.42, 0.54, 0.80, 1.0]
+        scale.duration = 1.2
         scale.repeatCount = .infinity
         scale.isRemovedOnCompletion = false
+
+        let easeOut = CAMediaTimingFunction(name: .easeOut)
+        let easeInOut = CAMediaTimingFunction(name: .easeInEaseOut)
+        let linear = CAMediaTimingFunction(name: .linear)
+
+        scale.timingFunctions = [
+            easeOut,   // 1.0 -> 1.15 (snappy pop out)
+            easeInOut, // 1.15 -> 0.94 (spring overshoot back)
+            easeInOut, // 0.94 -> 1.05 (settling up)
+            easeInOut, // 1.05 -> 1.0 (settling down)
+            linear,    // 1.0 -> 1.0 (hold)
+            linear     // 1.0 -> 1.0 (hold)
+        ]
         layer.add(scale, forKey: motionKey)
     }
 
     private static func applyBounce(to layer: CALayer) {
+        // Translation Y (vertical jump motion)
         let ty = CAKeyframeAnimation(keyPath: "transform.translation.y")
-        ty.values = [0, -14, 2, -8, 0]
-        ty.keyTimes = [0, 0.22, 0.45, 0.68, 1]
-        ty.duration = 0.9
-        ty.repeatCount = .infinity
-        ty.isRemovedOnCompletion = false
+        ty.values = [
+            0,      // Start
+            0,      // Pre-launch compression
+            -20,    // Ascent
+            -26,    // Peak airtime
+            -12,    // Descent
+            0,      // Impact landing
+            0,      // Bounce settle
+            0       // Rest hold
+        ]
+        ty.keyTimes = [
+            0.0,
+            0.12,
+            0.28,
+            0.42,
+            0.56,
+            0.70,
+            0.85,
+            1.0
+        ]
 
-        let sx = CAKeyframeAnimation(keyPath: "transform.scale.y")
-        sx.values = [1.0, 0.92, 1.04, 0.98, 1.0]
+        // Scale X (horizontal squash and stretch)
+        let sx = CAKeyframeAnimation(keyPath: "transform.scale.x")
+        sx.values = [
+            1.0,    // Start
+            1.12,   // Pre-launch squash (widens)
+            0.90,   // Ascent stretch (narrows)
+            1.00,   // Peak (reforms)
+            0.92,   // Descent stretch (narrows)
+            1.15,   // Landing squash (absorbs impact)
+            0.98,   // Settle
+            1.00    // Rest hold
+        ]
         sx.keyTimes = ty.keyTimes
-        sx.duration = ty.duration
-        sx.repeatCount = .infinity
-        sx.isRemovedOnCompletion = false
+
+        // Scale Y (vertical squash and stretch)
+        let sy = CAKeyframeAnimation(keyPath: "transform.scale.y")
+        sy.values = [
+            1.0,    // Start
+            0.86,   // Pre-launch squash (compresses)
+            1.14,   // Ascent stretch (extends)
+            1.00,   // Peak (reforms)
+            1.10,   // Descent stretch (extends)
+            0.83,   // Landing squash (absorbs impact)
+            1.02,   // Settle
+            1.00    // Rest hold
+        ]
+        sy.keyTimes = ty.keyTimes
+
+        let easeInOut = CAMediaTimingFunction(name: .easeInEaseOut)
+        let easeOut = CAMediaTimingFunction(name: .easeOut)
+        let easeIn = CAMediaTimingFunction(name: .easeIn)
+
+        let timingFunctions = [
+            easeInOut, // Start -> squash
+            easeOut,   // Squash -> launch
+            easeInOut, // Ascent -> peak
+            easeIn,    // Peak -> descent
+            easeIn,    // Descent -> landing
+            easeInOut, // Landing -> settle
+            easeInOut  // Settle -> rest
+        ]
+
+        ty.timingFunctions = timingFunctions
+        sx.timingFunctions = timingFunctions
+        sy.timingFunctions = timingFunctions
 
         let group = CAAnimationGroup()
-        group.animations = [ty, sx]
-        group.duration = ty.duration
+        group.animations = [ty, sx, sy]
+        group.duration = 1.3
         group.repeatCount = .infinity
         group.isRemovedOnCompletion = false
         layer.add(group, forKey: motionKey)
@@ -108,8 +176,20 @@ enum StoryTextMotionEngine {
         layer.add(group, forKey: motionKey)
     }
 
-    private static func applyTypewriter(to layer: CALayer) {
+    private static func applyTypewriter(to view: UIView) {
+        let layer = view.layer
         guard layer.bounds.width > 1, layer.bounds.height > 1 else { return }
+
+        // Find the visible text character count
+        var textLength = 10
+        for subview in view.subviews {
+            if let label = subview as? UILabel, !label.isHidden {
+                if let text = label.text, !text.isEmpty {
+                    textLength = text.count
+                    break
+                }
+            }
+        }
 
         let mask = CALayer()
         mask.backgroundColor = UIColor.black.cgColor
@@ -118,10 +198,31 @@ enum StoryTextMotionEngine {
         mask.bounds = CGRect(x: 0, y: 0, width: 0, height: layer.bounds.height)
         layer.mask = mask
 
-        let reveal = CABasicAnimation(keyPath: "bounds.size.width")
-        reveal.fromValue = 0
-        reveal.toValue = layer.bounds.width
-        reveal.duration = max(1.2, Double(layer.bounds.width) / 90)
+        let N = max(1, textLength)
+        // Add hold steps at the end (about 25-30% of the total duration) to pause on full word
+        let M = max(2, N / 3)
+        let totalSteps = N + M
+
+        var values: [CGFloat] = []
+        var keyTimes: [NSNumber] = []
+
+        // Typing phase (discrete steps)
+        for i in 0...N {
+            values.append(layer.bounds.width * CGFloat(i) / CGFloat(N))
+            keyTimes.append(NSNumber(value: Double(i) / Double(totalSteps)))
+        }
+
+        // Holding phase
+        for j in 1...M {
+            values.append(layer.bounds.width)
+            keyTimes.append(NSNumber(value: Double(N + j) / Double(totalSteps)))
+        }
+
+        let reveal = CAKeyframeAnimation(keyPath: "bounds.size.width")
+        reveal.values = values
+        reveal.keyTimes = keyTimes
+        reveal.calculationMode = .discrete
+        reveal.duration = max(1.2, Double(N) * 0.15) // snapper speed per character
         reveal.repeatCount = .infinity
         reveal.autoreverses = true
         reveal.isRemovedOnCompletion = false

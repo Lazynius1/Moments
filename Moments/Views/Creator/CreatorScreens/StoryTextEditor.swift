@@ -98,34 +98,42 @@ struct StoryTextEditor: View {
                     }
                 }
 
+                // Text input (centered vertically)
                 VStack(spacing: 0) {
                     Spacer(minLength: 0)
 
-                    ZStack(alignment: .leading) {
-                        HStack {
-                            FontSizeSlider(value: $textFontSize, range: 16...72)
-                            Spacer(minLength: 0)
-                        }
-                        .frame(maxWidth: .infinity)
-                        .padding(.leading, 18)
-
-                        StoryTextEditorInputRepresentable(
-                            text: $text,
-                            isFocused: $isTextFieldFocused,
-                            configuration: renderConfiguration,
-                            motion: textMotion,
-                            maxWidth: max(canvasSize.width - 108, 120),
-                            replayToken: motionPreviewToken
-                        )
-                        .frame(minHeight: 140, maxHeight: 280)
-                        .frame(maxWidth: .infinity, alignment: alignmentForText(textAlignment))
-                        .padding(.leading, 44)
-                        .padding(.trailing, 20)
-                    }
+                    StoryTextEditorInputRepresentable(
+                        text: $text,
+                        isFocused: $isTextFieldFocused,
+                        configuration: renderConfiguration,
+                        motion: textMotion,
+                        maxWidth: max(canvasSize.width - 100, 140),
+                        replayToken: motionPreviewToken
+                    )
+                    .frame(minHeight: 120, maxHeight: 340)
+                    .frame(maxWidth: .infinity, alignment: alignmentForText(textAlignment))
+                    .padding(.leading, 56)
+                    .padding(.trailing, 56) // Symmetrical padding to center the text nicely
 
                     Spacer(minLength: 0)
                 }
-                .padding(.bottom, chromeHeight)
+                .padding(.bottom, chromeHeight + keyboardInset)
+
+                // Font size slider on the left (overlay)
+                HStack(spacing: 0) {
+                    VStack(spacing: 0) {
+                        Spacer(minLength: 0)
+                        FontSizeSlider(value: $textFontSize, range: 16...72)
+                            .opacity(isTextFieldFocused ? 1.0 : 0.0)
+                            .offset(y: keyboardMonitor.keyboardHeight > 0 ? -40 : 0) // Lift it up when keyboard is shown to clear the bottom toolbar
+                            .animation(.spring(response: 0.3, dampingFraction: 0.8), value: isTextFieldFocused)
+                            .animation(.spring(response: 0.3, dampingFraction: 0.8), value: keyboardMonitor.keyboardHeight)
+                        Spacer(minLength: 0)
+                    }
+                    .padding(.leading, 16)
+                    Spacer(minLength: 0)
+                }
+                .padding(.bottom, chromeHeight + keyboardInset)
             }
             .frame(width: canvasSize.width, height: canvasSize.height)
             .overlay(alignment: .top) {
@@ -219,54 +227,15 @@ struct StoryTextEditor: View {
     private func cycleTextBackgroundFill() {
         switch textBackgroundFill {
         case .none:
-            textBackgroundFill = .black
-            reconcileTextColorForBackground()
-        case .black:
-            textBackgroundFill = .white
-            reconcileTextColorForBackground()
-        case .white:
+            textBackgroundFill = .solid
+        case .solid:
+            textBackgroundFill = .inverted
+        case .inverted:
+            textBackgroundFill = .semiTransparent
+        case .semiTransparent:
             textBackgroundFill = .none
-            if visualEffect == .marker, isDarkColor(textColor) {
-                textColor = .black
-            }
         }
-    }
-
-    private func reconcileTextColorForBackground() {
-        switch textBackgroundFill {
-        case .black:
-            if isDarkColor(textColor) || visualEffect == .neon {
-                textColor = .white
-            }
-        case .white:
-            if isLightColor(textColor) || visualEffect == .marker {
-                textColor = .black
-            }
-        case .none:
-            break
-        }
-    }
-
-    private func isLightColor(_ color: Color) -> Bool {
-        let uiColor = UIColor(color)
-        var white: CGFloat = 0, alpha: CGFloat = 0
-        if uiColor.getWhite(&white, alpha: &alpha) { return white > 0.82 }
-        var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0
-        if uiColor.getRed(&r, green: &g, blue: &b, alpha: &alpha) {
-            return (0.299 * r + 0.587 * g + 0.114 * b) > 0.82
-        }
-        return false
-    }
-
-    private func isDarkColor(_ color: Color) -> Bool {
-        let uiColor = UIColor(color)
-        var white: CGFloat = 0, alpha: CGFloat = 0
-        if uiColor.getWhite(&white, alpha: &alpha) { return white < 0.22 }
-        var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0
-        if uiColor.getRed(&r, green: &g, blue: &b, alpha: &alpha) {
-            return (0.299 * r + 0.587 * g + 0.114 * b) < 0.22
-        }
-        return false
+        UIImpactFeedbackGenerator(style: .light).impactOccurred()
     }
 
     private func alignmentForText(_ alignment: TextAlignment) -> Alignment {
@@ -281,6 +250,7 @@ struct StoryTextEditor: View {
     private var editorTextBackgroundUIColor: UIColor? {
         StoryTextAttributesBuilder.backgroundUIColor(
             fill: textBackgroundFill,
+            selectedColor: textColor,
             effect: visualEffect,
             style: selectedStyle
         )
@@ -288,7 +258,7 @@ struct StoryTextEditor: View {
 
     private var editorPalette: [Color] {
         [
-            .white, .black,
+            Color(hex: "FFFFFF"), Color(hex: "000000"),
             Color(hex: "FF3B30"), Color(hex: "FF9500"), Color(hex: "FFCC00"),
             Color(hex: "34C759"), Color(hex: "007AFF"), Color(hex: "5856D6"),
             Color(hex: "AF52DE"), Color(hex: "FF2D55"), Color(hex: "A2845E"),
@@ -345,7 +315,7 @@ struct StoryStyledTextView: UIViewRepresentable {
         let textView = UITextView()
         textView.delegate = context.coordinator
         textView.backgroundColor = .clear
-        textView.textContainerInset = UIEdgeInsets(top: 10, left: 14, bottom: 10, right: 14)
+        textView.textContainerInset = UIEdgeInsets(top: 4, left: 0, bottom: 4, right: 0)
         textView.textContainer.lineFragmentPadding = 0
         textView.isScrollEnabled = true
         textView.showsVerticalScrollIndicator = false
@@ -469,53 +439,98 @@ struct TextStyleOption: View {
     }
 }
 
-// MARK: - FontSizeSlider
+// MARK: - FontSizeSlider (Instagram-style cónico)
 struct FontSizeSlider: View {
     @Binding var value: CGFloat
     let range: ClosedRange<CGFloat>
 
     @State private var lastHapticStep: Int = -1
+    @State private var isDragging = false
 
     var body: some View {
         GeometryReader { proxy in
             let height = max(proxy.size.height, 1)
+            let trackHeight = height - 32
             let progress = (value - range.lowerBound) / max(range.upperBound - range.lowerBound, 0.001)
-            let knobY = (1 - progress) * (height - 14)
+            let knobY = 16 + (1 - progress) * trackHeight
 
             ZStack(alignment: .top) {
-                // Hairline track
-                Rectangle()
-                    .fill(Color.white.opacity(0.45))
-                    .frame(width: 1.5)
-                    .frame(maxHeight: .infinity)
+                // Tapered track background (Instagram wedge)
+                TaperedSliderTrack()
+                    .fill(Color.white.opacity(0.32))
+                    .frame(width: 16)
+                    .frame(height: trackHeight)
+                    .offset(y: 16)
 
-                // Glassmorphic knob
+                // White knob with shadow
                 Circle()
-                    .fill(.ultraThinMaterial)
-                    .frame(width: 14, height: 14)
-                    .overlay(Circle().stroke(Color.white, lineWidth: 1))
-                    .offset(x: 0, y: knobY)
+                    .fill(Color.white)
+                    .frame(width: 28, height: 28)
+                    .shadow(color: Color.black.opacity(isDragging ? 0.35 : 0.22), radius: isDragging ? 5 : 3, x: 0, y: isDragging ? 3 : 1)
+                    .scaleEffect(isDragging ? 1.12 : 1.0)
+                    .animation(.spring(response: 0.2, dampingFraction: 0.7), value: isDragging)
+                    .offset(x: 0, y: knobY - 14)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .contentShape(Rectangle())
             .gesture(
                 DragGesture(minimumDistance: 0)
                     .onChanged { gesture in
-                        let clampedY = min(max(gesture.location.y, 7), height - 7)
-                        let inverseProgress = 1 - ((clampedY - 7) / max(height - 14, 1))
-                        value = range.lowerBound + (inverseProgress * (range.upperBound - range.lowerBound))
+                        isDragging = true
+                        let clampedY = min(max(gesture.location.y, 16), height - 16)
+                        let inverseProgress = 1 - ((clampedY - 16) / max(trackHeight, 1))
+                        let newValue = range.lowerBound + (inverseProgress * (range.upperBound - range.lowerBound))
+                        value = min(max(newValue, range.lowerBound), range.upperBound)
 
-                        // Haptic every ~10% of range
-                        let totalSteps = 10
+                        // Haptic feedback on stepped values
+                        let totalSteps = 16
                         let currentStep = Int(inverseProgress * CGFloat(totalSteps))
                         if currentStep != lastHapticStep {
                             lastHapticStep = currentStep
                             UIImpactFeedbackGenerator(style: .light).impactOccurred()
                         }
                     }
+                    .onEnded { _ in
+                        isDragging = false
+                    }
             )
         }
-        .frame(width: 18, height: 176)
+        .frame(width: 44, height: 220)
+    }
+}
+
+struct TaperedSliderTrack: Shape {
+    func path(in rect: CGRect) -> Path {
+        var path = Path()
+        let topWidth: CGFloat = 12
+        let bottomWidth: CGFloat = 2.5
+        let midX = rect.midX
+
+        let topCenter = CGPoint(x: midX, y: rect.minY + topWidth / 2)
+        let bottomCenter = CGPoint(x: midX, y: rect.maxY - bottomWidth / 2)
+
+        path.addArc(
+            center: topCenter,
+            radius: topWidth / 2,
+            startAngle: .degrees(180),
+            endAngle: .degrees(0),
+            clockwise: false
+        )
+
+        path.addLine(to: CGPoint(x: midX + bottomWidth / 2, y: bottomCenter.y))
+
+        path.addArc(
+            center: bottomCenter,
+            radius: bottomWidth / 2,
+            startAngle: .degrees(0),
+            endAngle: .degrees(180),
+            clockwise: false
+        )
+
+        path.addLine(to: CGPoint(x: midX - topWidth / 2, y: topCenter.y))
+
+        path.closeSubpath()
+        return path
     }
 }
 
@@ -533,12 +548,12 @@ struct ColorOption: View {
         Button(action: onTap) {
             Circle()
                 .fill(color)
-                .frame(width: 28, height: 28)
+                .frame(width: 24, height: 24)
                 .overlay(
                     Circle()
                         .stroke(
                             isSelected ? Color.white : swatchStrokeColor,
-                            lineWidth: isSelected ? 2.5 : 1
+                            lineWidth: isSelected ? 2 : 1
                         )
                 )
         }

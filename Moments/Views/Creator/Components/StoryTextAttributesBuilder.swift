@@ -39,8 +39,17 @@ struct StoryTextRenderConfiguration: Equatable {
 }
 
 enum StoryTextAttributesBuilder {
+    static func contrastUIColor(for color: Color) -> UIColor {
+        let uiColor = UIColor(color)
+        var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
+        uiColor.getRed(&r, green: &g, blue: &b, alpha: &a)
+        let luminance = 0.299 * r + 0.587 * g + 0.114 * b
+        return luminance > 0.68 ? .black : .white
+    }
+
     static func backgroundUIColor(
         fill: StoryEditingView.TextBackgroundFill,
+        selectedColor: Color,
         effect: StoryEditingView.TextEffect,
         style: StoryEditingView.TextStyle
     ) -> UIColor? {
@@ -53,10 +62,12 @@ enum StoryTextAttributesBuilder {
                 return nil
             }
             return effect.uiBackgroundColor
-        case .black:
-            return UIColor.black.withAlphaComponent(0.58)
-        case .white:
-            return UIColor.white.withAlphaComponent(0.90)
+        case .solid:
+            return UIColor(selectedColor)
+        case .semiTransparent:
+            return UIColor(selectedColor).withAlphaComponent(0.70)
+        case .inverted:
+            return contrastUIColor(for: selectedColor) == .black ? .white : .black
         }
     }
 
@@ -69,25 +80,44 @@ enum StoryTextAttributesBuilder {
         }
         paragraphStyle.lineBreakMode = .byWordWrapping
 
-        let uiColor = UIColor(config.textColor)
+        let selectedColor = config.textColor
+        var textBackgroundColor: UIColor? = nil
+        var textForegroundColor: UIColor = UIColor(selectedColor)
+
+        if config.visualTreatment == .plain || config.visualTreatment == .boxedCaption {
+            textBackgroundColor = backgroundUIColor(
+                fill: config.textBackgroundFill,
+                selectedColor: selectedColor,
+                effect: config.effect,
+                style: config.style
+            )
+        }
+
+        switch config.textBackgroundFill {
+        case .none:
+            break
+        case .solid, .semiTransparent:
+            textForegroundColor = contrastUIColor(for: selectedColor)
+        case .inverted:
+            textForegroundColor = UIColor(selectedColor)
+        }
+
         var attributes: [NSAttributedString.Key: Any] = [
             .font: config.style.uiFont(size: config.fontSize),
-            .foregroundColor: uiColor,
+            .foregroundColor: textForegroundColor,
             .paragraphStyle: paragraphStyle
         ]
 
-        if config.visualTreatment == .plain || config.visualTreatment == .boxedCaption {
-            if let background = backgroundUIColor(
-                fill: config.textBackgroundFill,
-                effect: config.effect,
-                style: config.style
-            ), config.visualTreatment != .markerHighlight {
-                attributes[.backgroundColor] = background
-            }
+        if let bg = textBackgroundColor, config.visualTreatment != .markerHighlight {
+            attributes[.backgroundColor] = bg
+        }
+
+        if let shadow = config.effect.nsShadow(for: textForegroundColor) {
+            attributes[.shadow] = shadow
         }
 
         if config.textStroke != .none, config.visualTreatment != .memeStrong {
-            attributes[.strokeColor] = uiColor
+            attributes[.strokeColor] = textForegroundColor
             attributes[.strokeWidth] = config.textStroke.strokeWidth
         }
 

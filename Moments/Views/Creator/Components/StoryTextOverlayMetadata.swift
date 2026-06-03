@@ -101,16 +101,25 @@ struct StoryTextOverlayMetadata: Codable, Equatable {
 
     func renderConfiguration(text: String) -> StoryTextRenderConfiguration? {
         guard let style = StoryEditingView.TextStyle(rawValue: styleRaw) else { return nil }
-        let background = StoryEditingView.TextBackgroundFill(rawValue: backgroundFillRaw) ?? .none
         let stroke = StoryEditingView.TextStroke(rawValue: strokeRaw) ?? .none
-
         let effect = StoryEditingView.TextEffect(storedRawValue: visualEffectRaw) ?? .none
+
+        var background = StoryEditingView.TextBackgroundFill(rawValue: backgroundFillRaw) ?? .none
+        var resolvedColor = Color(hex: colorHex)
+
+        if backgroundFillRaw == "black" {
+            background = .solid
+            resolvedColor = .black
+        } else if backgroundFillRaw == "white" {
+            background = .solid
+            resolvedColor = .white
+        }
 
         return StoryTextRenderConfiguration(
             text: text,
             style: style,
             visualEffect: effect,
-            textColor: Color(hex: colorHex),
+            textColor: resolvedColor,
             textAlignment: Self.decodeAlignment(alignmentRaw),
             textBackgroundFill: background,
             fontSize: CGFloat(fontSize),

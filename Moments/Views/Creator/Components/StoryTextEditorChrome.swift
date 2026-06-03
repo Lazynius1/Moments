@@ -104,6 +104,30 @@ struct StoryTextEditorContextRow: View {
     private var colorContext: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 10) {
+                // Apple's native Color Picker
+                ColorPicker("", selection: $textColor, supportsOpacity: false)
+                    .labelsHidden()
+                    .frame(width: 24, height: 24)
+
+                Divider()
+                    .frame(height: 20)
+                    .background(Color.white.opacity(0.3))
+
+                // Moments backgrounds: Light (#FAF9F6) & Dark (#0B1215)
+                ColorOption(color: Color(hex: "FAF9F6"), isSelected: textColor == Color(hex: "FAF9F6")) {
+                    textColor = Color(hex: "FAF9F6")
+                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                }
+
+                ColorOption(color: Color(hex: "0B1215"), isSelected: textColor == Color(hex: "0B1215")) {
+                    textColor = Color(hex: "0B1215")
+                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                }
+
+                Divider()
+                    .frame(height: 20)
+                    .background(Color.white.opacity(0.3))
+
                 ForEach(Array(suggestedColors.enumerated()), id: \.offset) { _, color in
                     ColorOption(color: color, isSelected: textColor == color) {
                         textColor = color
@@ -121,14 +145,15 @@ struct StoryTextEditorContextRow: View {
                 if let onEyedropper {
                     Button(action: onEyedropper) {
                         Image(systemName: "eyedropper")
-                            .font(.system(size: 15, weight: .semibold))
+                            .font(.system(size: 14, weight: .semibold))
                             .foregroundColor(.white)
-                            .frame(width: 28, height: 28)
+                            .frame(width: 24, height: 24)
                     }
                     .buttonStyle(.plain)
                 }
             }
             .padding(.horizontal, 12)
+            .padding(.vertical, 6)
         }
     }
 
@@ -171,6 +196,7 @@ struct StoryMomentsTextToolbar: View {
     let styleUsesCaps: Bool
     @Binding var textAlignment: TextAlignment
     @Binding var textBackgroundFill: StoryEditingView.TextBackgroundFill
+    let selectedColor: Color
     let onAlignment: () -> Void
     let onBackground: () -> Void
 
@@ -336,11 +362,11 @@ struct StoryMomentsTextToolbar: View {
                     .frame(width: 22, height: 18)
                     .overlay(
                         RoundedRectangle(cornerRadius: 5, style: .continuous)
-                            .stroke(Color.white.opacity(0.55), lineWidth: 1)
+                            .stroke(textBackgroundFill == .none ? Color.white.opacity(0.55) : Color.clear, lineWidth: 1)
                     )
                 Text("A")
                     .font(.system(size: 11, weight: .bold))
-                    .foregroundColor(textBackgroundFill == .white ? .black : .white)
+                    .foregroundColor(textForegroundColor)
             }
             .frame(maxWidth: .infinity)
             .frame(height: StoryTextEditorChrome.toolbarHeight)
@@ -350,10 +376,34 @@ struct StoryMomentsTextToolbar: View {
 
     private var backgroundPreviewFill: Color {
         switch textBackgroundFill {
-        case .none: return .clear
-        case .black: return .black.opacity(0.85)
-        case .white: return .white.opacity(0.95)
+        case .none:
+            return .clear
+        case .solid:
+            return selectedColor
+        case .semiTransparent:
+            return selectedColor.opacity(0.70)
+        case .inverted:
+            return contrastColorIsDark ? .white : .black
         }
+    }
+
+    private var textForegroundColor: Color {
+        switch textBackgroundFill {
+        case .none:
+            return .white
+        case .solid, .semiTransparent:
+            return contrastColorIsDark ? .black : .white
+        case .inverted:
+            return selectedColor
+        }
+    }
+
+    private var contrastColorIsDark: Bool {
+        let uiColor = UIColor(selectedColor)
+        var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
+        uiColor.getRed(&r, green: &g, blue: &b, alpha: &a)
+        let luminance = 0.299 * r + 0.587 * g + 0.114 * b
+        return luminance > 0.68
     }
 }
 
@@ -393,6 +443,7 @@ struct StoryMomentsEditorChrome: View {
                 styleUsesCaps: selectedStyle.preset.usesAllCaps,
                 textAlignment: $textAlignment,
                 textBackgroundFill: $textBackgroundFill,
+                selectedColor: textColor,
                 onAlignment: {
                     switch textAlignment {
                     case .center: textAlignment = .leading

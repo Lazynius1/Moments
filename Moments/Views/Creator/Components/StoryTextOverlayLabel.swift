@@ -130,10 +130,6 @@ final class StoryTextEditorInputContainerView: UIView, UITextViewDelegate {
         latestMotion = motion
         latestReplayToken = replayToken
 
-        let signature = editorSignature(configuration: configuration, motion: motion, maxWidth: maxWidth)
-        effectView.apply(configuration: configuration, maxWidth: maxWidth)
-        StoryTextMotionEngine.apply(to: effectView, motion: motion, replayToken: replayToken)
-
         let contentSize = StoryTextAttributesBuilder.measuredSize(for: configuration, maxWidth: maxWidth)
         let resolvedHeight = max(140, min(280, contentSize.height + 24))
         let resolvedFrame = CGRect(
@@ -143,16 +139,34 @@ final class StoryTextEditorInputContainerView: UIView, UITextViewDelegate {
         effectView.frame = resolvedFrame
         textView.frame = resolvedFrame
 
-        textView.tintColor = UIColor(configuration.textColor)
+        effectView.apply(configuration: configuration, maxWidth: maxWidth, containerSize: resolvedFrame.size)
+        StoryTextMotionEngine.apply(to: effectView, motion: motion, replayToken: replayToken)
+
+        let caretColor: UIColor
+        switch configuration.textBackgroundFill {
+        case .none, .inverted:
+            caretColor = UIColor(configuration.textColor)
+        case .solid, .semiTransparent:
+            caretColor = StoryTextAttributesBuilder.contrastUIColor(for: configuration.textColor)
+        }
+        textView.tintColor = caretColor
         textView.textAlignment = configuration.uiTextAlignment
 
-        if signature != appliedSignature {
-            appliedSignature = signature
-            let clearAttributes = Self.clearTypingAttributes(for: configuration)
-            textView.typingAttributes = clearAttributes
-            if textView.text != configuration.text {
-                textView.attributedText = Self.clearAttributedString(for: configuration)
-            }
+        let stylingSignature = editorStylingSignature(configuration: configuration, motion: motion, maxWidth: maxWidth)
+        let textDidChange = textView.text != configuration.displayText
+        let styleDidChange = stylingSignature != appliedSignature
+
+        if textDidChange || styleDidChange {
+            appliedSignature = stylingSignature
+
+            let selectedRange = textView.selectedRange
+            textView.attributedText = Self.clearAttributedString(for: configuration)
+
+            let safeLocation = min(selectedRange.location, textView.attributedText.length)
+            let remaining = textView.attributedText.length - safeLocation
+            textView.selectedRange = NSRange(location: safeLocation, length: min(selectedRange.length, remaining))
+
+            textView.typingAttributes = Self.clearTypingAttributes(for: configuration)
         } else {
             textView.typingAttributes = Self.clearTypingAttributes(for: configuration)
         }
@@ -164,7 +178,7 @@ final class StoryTextEditorInputContainerView: UIView, UITextViewDelegate {
         }
     }
 
-    private func editorSignature(
+    private func editorStylingSignature(
         configuration: StoryTextRenderConfiguration,
         motion: StoryEditingView.TextMotion,
         maxWidth: CGFloat
@@ -178,7 +192,6 @@ final class StoryTextEditorInputContainerView: UIView, UITextViewDelegate {
             "\(configuration.textBackgroundFill)",
             "\(configuration.fontSize)",
             "\(configuration.forcesAllCaps)",
-            configuration.text,
             motion.rawValue,
             "\(maxWidth)"
         ].joined(separator: "|")
@@ -209,7 +222,17 @@ final class StoryTextEditorInputContainerView: UIView, UITextViewDelegate {
     func textViewDidChange(_ textView: UITextView) {
         latestConfiguration.text = textView.text
         delegate?.editorInputDidChangeText(textView.text)
-        effectView.apply(configuration: latestConfiguration, maxWidth: latestMaxWidth)
+
+        let contentSize = StoryTextAttributesBuilder.measuredSize(for: latestConfiguration, maxWidth: latestMaxWidth)
+        let resolvedHeight = max(140, min(280, contentSize.height + 24))
+        let resolvedFrame = CGRect(
+            origin: .zero,
+            size: CGSize(width: max(80, contentSize.width), height: resolvedHeight)
+        )
+        effectView.frame = resolvedFrame
+        textView.frame = resolvedFrame
+
+        effectView.apply(configuration: latestConfiguration, maxWidth: latestMaxWidth, containerSize: resolvedFrame.size)
         StoryTextMotionEngine.apply(to: effectView, motion: latestMotion, replayToken: latestReplayToken)
         textView.typingAttributes = Self.clearTypingAttributes(for: latestConfiguration)
     }
@@ -223,7 +246,7 @@ final class StoryTextEditorInputContainerView: UIView, UITextViewDelegate {
     }
 
     func textViewDidChangeSelection(_ textView: UITextView) {
-        // typingAttributes refreshed on next apply from SwiftUI
+        textView.typingAttributes = Self.clearTypingAttributes(for: latestConfiguration)
     }
 }
 
@@ -277,7 +300,7 @@ final class StoryTextOverlayContainerView: UIView {
         fatalError("init(coder:) has not been implemented")
     }
 
-    func apply(configuration: StoryTextRenderConfiguration, maxWidth: CGFloat) {
+    func apply(configuration: StoryTextRenderConfiguration, maxWidth: CGFloat, containerSize: CGSize? = nil) {
         let treatment = configuration.visualTreatment
         let baseAttributes = StoryTextAttributesBuilder.coreAttributes(for: configuration)
         let attributed = NSAttributedString(
@@ -290,7 +313,21 @@ final class StoryTextOverlayContainerView: UIView {
             maxWidth: maxWidth
         )
         let alignment = configuration.uiTextAlignment
-        let textFrame = CGRect(origin: .zero, size: size)
+
+        let finalSize = containerSize ?? size
+        let xOrigin: CGFloat
+        switch alignment {
+        case .left:
+            xOrigin = 0
+        case .right:
+            xOrigin = max(0, finalSize.width - size.width)
+        case .center:
+            xOrigin = max(0, (finalSize.width - size.width) / 2)
+        default:
+            xOrigin = 0
+        }
+
+        let textFrame = CGRect(x: xOrigin, y: 0, width: size.width, height: size.height)
 
         textLabel.frame = textFrame
         glowLabel.frame = textFrame
@@ -327,7 +364,12 @@ final class StoryTextOverlayContainerView: UIView {
         }
 
         textLabel.textAlignment = alignment
-        bounds = textFrame
+
+        if containerSize == nil {
+            bounds = textFrame
+        } else {
+            bounds = CGRect(origin: .zero, size: finalSize)
+        }
     }
 
     private func resetLabelLayers() {
@@ -489,7 +531,7 @@ final class StoryTextOverlayContainerView: UIView {
         let padH: CGFloat = 14
         let padV: CGFloat = 8
         plateLayer.isHidden = false
-        plateLayer.backgroundColor = UIColor.systemYellow.withAlphaComponent(0.88).cgColor
+        plateLayer.backgroundColor = UIColor(configuration.textColor).withAlphaComponent(0.35).cgColor
         plateLayer.cornerRadius = 6
         plateLayer.frame = textFrame.insetBy(dx: -padH, dy: -padV)
         plateLayer.zPosition = -1
@@ -524,14 +566,21 @@ final class StoryTextOverlayContainerView: UIView {
         textLabel.textAlignment = alignment
         textLabel.layer.magnificationFilter = .nearest
         textLabel.layer.minificationFilter = .nearest
+
+        // Enlarge bounds to provide padding for low-res rasterization and prevent letter clipping
+        let padX: CGFloat = 12
+        let padY: CGFloat = 6
+        textLabel.bounds = textLabel.bounds.insetBy(dx: -padX, dy: -padY)
+
         textLabel.transform = CGAffineTransform(scaleX: 1.08, y: 1.08)
         textLabel.layer.shouldRasterize = true
-        textLabel.layer.rasterizationScale = 0.25 * UIScreen.main.scale
+        textLabel.layer.rasterizationScale = 0.35 * UIScreen.main.scale
     }
 
     private func applyBoxedPlate(configuration: StoryTextRenderConfiguration, textFrame: CGRect) {
         guard let fill = StoryTextAttributesBuilder.backgroundUIColor(
             fill: configuration.textBackgroundFill,
+            selectedColor: configuration.textColor,
             effect: configuration.visualEffect,
             style: configuration.style
         ) else { return }

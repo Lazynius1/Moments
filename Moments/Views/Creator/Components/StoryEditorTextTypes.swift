@@ -81,7 +81,7 @@ extension StoryEditingView {
             case .typewriter:
                 return StoryTextStylePreset(
                     defaultColor: .white,
-                    defaultBackgroundFill: .black,
+                    defaultBackgroundFill: .solid,
                     defaultBackgroundUIColor: UIColor.gray.withAlphaComponent(0.55)
                 )
             case .handwritten:
@@ -89,7 +89,7 @@ extension StoryEditingView {
             case .bold:
                 return StoryTextStylePreset(
                     defaultColor: .white,
-                    defaultBackgroundFill: .black,
+                    defaultBackgroundFill: .solid,
                     defaultBackgroundUIColor: UIColor.black.withAlphaComponent(0.6)
                 )
             case .neon:
@@ -196,8 +196,9 @@ extension StoryEditingView {
 
     enum TextBackgroundFill: String, CaseIterable {
         case none
-        case black
-        case white
+        case solid
+        case inverted
+        case semiTransparent
     }
 
     enum TextStroke: String, CaseIterable {

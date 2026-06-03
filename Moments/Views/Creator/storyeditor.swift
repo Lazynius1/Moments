@@ -2282,16 +2282,19 @@ struct StoryEditingView: View {
         switch storyTextBackground {
         case .none:
             return nil
-        case .black:
-            return UIColor.black.withAlphaComponent(0.58)
-        case .white:
-            return UIColor.white.withAlphaComponent(0.90)
+        case .solid:
+            return UIColor(storyTextColor)
+        case .semiTransparent:
+            return UIColor(storyTextColor).withAlphaComponent(0.70)
+        case .inverted:
+            return StoryTextAttributesBuilder.contrastUIColor(for: storyTextColor) == .black ? .white : .black
         }
     }
 
     private func resolvedTextBackgroundUIColor() -> UIColor? {
         StoryTextAttributesBuilder.backgroundUIColor(
             fill: storyTextBackground,
+            selectedColor: storyTextColor,
             effect: selectedVisualEffect,
             style: selectedTextStyle
         )
