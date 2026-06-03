@@ -118,6 +118,7 @@ struct StoriesView: View {
                 StoryUserDeckPager(
                     userIds: userIds,
                     currentUserIndex: $currentUserIndex,
+                    isDeckGestureEnabled: !deckGestureGate.suppressDeckNavigation,
                     onUserChanged: { newIndex in
                         applyStoryIndexForUser(at: newIndex)
                     },

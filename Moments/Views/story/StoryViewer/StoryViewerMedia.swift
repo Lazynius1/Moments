@@ -15,6 +15,7 @@ struct GlassmorphicStoryVideoPlayer: UIViewControllerRepresentable {
     let url: URL
     @Binding var isPlaying: Bool
     @Binding var isReadyToPlay: Bool
+    let isMutedExternally: Bool
     let isHorizontalVideo: Bool
     let videoGravity: AVLayerVideoGravity
     let shouldLoop: Bool
@@ -41,6 +42,7 @@ struct GlassmorphicStoryVideoPlayer: UIViewControllerRepresentable {
             player = AVPlayer(playerItem: playerItem)
         }
 
+        player.isMuted = isMutedExternally || !isPlaying
         controller.player = player
         controller.showsPlaybackControls = false
         controller.videoGravity = videoGravity
@@ -105,11 +107,12 @@ struct GlassmorphicStoryVideoPlayer: UIViewControllerRepresentable {
 
         // ✅ EVITAR LOOP: Verificar estado actual del player
         let playerIsPlaying = uiViewController.player?.rate != 0.0
+        uiViewController.player?.isMuted = isMutedExternally || !isPlaying
 
         if isPlaying && !playerIsPlaying {
             // ✅ Solo reproducir si no está reproduciéndose
             if let player = uiViewController.player, player.currentItem != nil {
-                player.isMuted = false // ✅ ASEGURAR SONIDO AL VOLVER
+                player.isMuted = isMutedExternally
                 player.play()
             }
         } else if !isPlaying && playerIsPlaying {

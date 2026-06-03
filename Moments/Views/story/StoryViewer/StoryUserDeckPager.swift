@@ -14,13 +14,16 @@ private let storyDeckCoordinateSpaceName = "storyDeckCoordinateSpace"
 struct StoryUserDeckPager<Content: View>: View {
     let userIds: [String]
     @Binding var currentUserIndex: Int
+    var isDeckGestureEnabled: Bool = true
     var onUserChanged: ((Int) -> Void)?
     @ViewBuilder let content: (String, StoryDeckPageRole, Bool) -> Content
 
     @State private var dragOffset: CGFloat = 0
     @State private var isDraggingDeck = false
     @State private var exclusionZones: [StoryInteractionExclusionZone] = []
+    @Environment(\.storyDeckGestureGate) private var deckGestureGate
     @Environment(\.colorScheme) private var colorScheme
+    private let gestureCoordinator = StoryGestureCoordinator()
 
     private let commitThreshold: CGFloat = 0.28
     private let flickVelocity: CGFloat = 420
@@ -29,10 +32,6 @@ struct StoryUserDeckPager<Content: View>: View {
 
     private var deckBackground: Color {
         colorScheme == .dark ? Color(hex: "0B1215") : Color(hex: "FAF9F6")
-    }
-
-    private var exclusionRects: [CGRect] {
-        mergedStoryInteractionExclusionZones(from: exclusionZones)
     }
 
     var body: some View {
@@ -69,9 +68,20 @@ struct StoryUserDeckPager<Content: View>: View {
                 for zone in zones {
                     latestByID[zone.id] = zone
                 }
-                exclusionZones = Array(latestByID.values)
+                let resolvedZones = Array(latestByID.values)
+                exclusionZones = resolvedZones
+                deckGestureGate?.setInteractionRegions(
+                    resolvedZones.map {
+                        StoryGestureRegion(
+                            id: $0.id,
+                            rect: $0.rect,
+                            intents: $0.intents,
+                            suppressionScope: $0.suppressionScope
+                        )
+                    }
+                )
             }
-            .simultaneousGesture(deckDragGesture(width: width))
+            .simultaneousGesture(deckDragGesture(width: width, height: geometry.size.height))
         }
         .ignoresSafeArea()
     }
@@ -105,16 +115,18 @@ struct StoryUserDeckPager<Content: View>: View {
 
     // MARK: - Gesture (simultáneo + exclusión por startLocation, estilo IG)
 
-    private func deckDragGesture(width: CGFloat) -> some Gesture {
+    private func deckDragGesture(width: CGFloat, height: CGFloat) -> some Gesture {
         DragGesture(minimumDistance: 12, coordinateSpace: .named(storyDeckCoordinateSpaceName))
             .onChanged { value in
-                guard userIds.count > 1 else { return }
+                guard isDeckGestureEnabled, userIds.count > 1 else { return }
 
-                if touchIsInsideStoryInteractionExclusion(
-                    value.startLocation,
-                    zones: exclusionRects,
-                    padding: 12
-                ) {
+                let screenRect = CGRect(x: 0, y: 0, width: width, height: max(height, 1))
+                guard gestureCoordinator.shouldAllowDeckSwipeStart(
+                    at: value.startLocation,
+                    screenRect: screenRect,
+                    regions: deckGestureGate?.interactionRegions ?? [],
+                    gate: deckGestureGate
+                ) else {
                     if isDraggingDeck || dragOffset != 0 {
                         dragOffset = 0
                         isDraggingDeck = false
@@ -146,16 +158,18 @@ struct StoryUserDeckPager<Content: View>: View {
                 }
             }
             .onEnded { value in
-                guard userIds.count > 1 else {
+                guard isDeckGestureEnabled, userIds.count > 1 else {
                     resetDrag(animated: true)
                     return
                 }
 
-                if touchIsInsideStoryInteractionExclusion(
-                    value.startLocation,
-                    zones: exclusionRects,
-                    padding: 12
-                ) {
+                let screenRect = CGRect(x: 0, y: 0, width: width, height: max(height, 1))
+                guard gestureCoordinator.shouldAllowDeckSwipeStart(
+                    at: value.startLocation,
+                    screenRect: screenRect,
+                    regions: deckGestureGate?.interactionRegions ?? [],
+                    gate: deckGestureGate
+                ) else {
                     resetDrag(animated: true)
                     return
                 }

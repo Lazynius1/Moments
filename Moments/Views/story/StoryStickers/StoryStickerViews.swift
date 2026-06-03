@@ -683,7 +683,7 @@ private struct InteractiveEmojiSliderSticker: View {
                     onBegan: {
                         if !isInteractingWithSlider {
                             isInteractingWithSlider = true
-                            deckGestureGate?.setStickerInteractionActive(true)
+                            deckGestureGate?.setSuppressionScope(.suppressViewerGestures, for: "emojiSlider.\(storyId).\(stickerId)")
                         }
                     },
                     onChanged: { value in
@@ -717,7 +717,7 @@ private struct InteractiveEmojiSliderSticker: View {
     private func endSliderInteraction() {
         guard isInteractingWithSlider else { return }
         isInteractingWithSlider = false
-        deckGestureGate?.setStickerInteractionActive(false)
+        deckGestureGate?.clearSuppression(for: "emojiSlider.\(storyId).\(stickerId)")
     }
 
     private func sliderVotesCollection() -> CollectionReference {
@@ -830,22 +830,32 @@ struct StoryStickerView: View {
         "sticker.\(storyId).\(sticker.id)"
     }
 
-    /// Solo stickers con arrastre horizontal que compite con el deck.
-    private var needsDeckExclusion: Bool {
+    private var needsInteractionRegion: Bool {
         switch sticker.type {
-        case .poll, .question, .questionResponse, .quiz, .emojiSlider:
+        case .poll, .question, .questionResponse, .quiz, .emojiSlider, .mention, .link, .location, .frame, .shareMoment, .hashtag:
             return true
         default:
             return false
         }
     }
 
+    private var interactionRegionIntents: Set<StoryGestureIntent> {
+        [
+            .deckSwipe,
+            .storyNavigationTap,
+            .holdPause,
+            .replySwipe
+        ]
+    }
+
     var body: some View {
-        if needsDeckExclusion, reportsDeckInteractionExclusion {
+        if needsInteractionRegion, reportsDeckInteractionExclusion {
             interactiveStickerBody
                 .storyDeckInteractionExclusion(
                     id: exclusionZoneId,
-                    in: .named("storyDeckCoordinateSpace")
+                    in: .named("storyDeckCoordinateSpace"),
+                    intents: interactionRegionIntents,
+                    suppressionScope: .suppressStoryNavigation
                 )
         } else {
             interactiveStickerBody

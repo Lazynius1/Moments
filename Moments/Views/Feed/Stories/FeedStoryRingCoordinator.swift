@@ -10,12 +10,12 @@ typealias FeedStoryUserState = (userId: String, hasStory: Bool, hasUnseenStory: 
 final class FeedStoryRingCoordinator: ObservableObject {
     @Published var storyUsers: [FeedStoryUserState] = []
     @Published var isLoadingStories = true
-    @Published private(set) var isLoadingMoreRing = false
 
     /// Orden exacto del anillo del feed (tú + quienes tienen historia activa). Usar para swipe en el visor.
     var ringNavigationUserIds: [String] {
         storyUsers.filter(\.hasStory).map(\.userId)
     }
+    @Published private(set) var isLoadingMoreRing = false
 
     private let ringPageSize = 16
     private var ringNextCursor: StoryRingCursor?

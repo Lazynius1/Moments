@@ -89,6 +89,7 @@ struct StoryViewerScreen: View {
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.dismiss) private var dismiss
     @Environment(\.storyDeckGestureGate) private var deckGestureGate
+    private let gestureCoordinator = StoryGestureCoordinator()
     @State private var keyboardHeight: CGFloat = 0 // Track keyboard height
     @State private var isKeyboardVisible: Bool = false // Track keyboard state
     @State private var authorAllowsMessages: Bool = true
@@ -352,6 +353,7 @@ struct StoryViewerScreen: View {
                     storyId: story.id ?? "",
                     onPauseStory: { pauseStory() },
                     onResumeStory: { resumeStory() },
+                    reportsDeckInteractionExclusion: isDeckPageActive,
                     revealType: revealSticker.interactionData?.revealType,
                     revealPattern: revealSticker.interactionData?.revealPattern,
                     revealPrimaryColor: revealSticker.interactionData?.revealPrimaryColor,
@@ -885,6 +887,50 @@ struct StoryViewerScreen: View {
                     .buttonStyle(PlainButtonStyle())
                 }
             }
+
+            if chainStories.count > 1 {
+                HStack(spacing: 10) {
+                    Button(action: {
+                        goToPreviousChainPart()
+                    }) {
+                        HStack(spacing: 6) {
+                            Image(systemName: "chevron.left")
+                                .font(.system(size: 13, weight: .semibold))
+                            Text(NSLocalizedString("storyChains.previousPart", comment: "Previous part"))
+                                .font(.custom("Poppins-Medium", size: 13))
+                                .lineLimit(1)
+                        }
+                        .foregroundColor(chainPanelPrimary.opacity(currentChainIndex > 0 ? 1 : 0.45))
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 10)
+                        .frame(maxWidth: .infinity)
+                        .background(Color.white.opacity(0.001))
+                        .liquidGlass(in: Capsule(), interactive: currentChainIndex > 0)
+                    }
+                    .buttonStyle(PlainButtonStyle())
+                    .disabled(currentChainIndex <= 0)
+
+                    Button(action: {
+                        goToNextChainPart()
+                    }) {
+                        HStack(spacing: 6) {
+                            Text(NSLocalizedString("storyChains.nextPart", comment: "Next part"))
+                                .font(.custom("Poppins-Medium", size: 13))
+                                .lineLimit(1)
+                            Image(systemName: "chevron.right")
+                                .font(.system(size: 13, weight: .semibold))
+                        }
+                        .foregroundColor(chainPanelPrimary.opacity(currentChainIndex < chainStories.count - 1 ? 1 : 0.45))
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 10)
+                        .frame(maxWidth: .infinity)
+                        .background(Color.white.opacity(0.001))
+                        .liquidGlass(in: Capsule(), interactive: currentChainIndex < chainStories.count - 1)
+                    }
+                    .buttonStyle(PlainButtonStyle())
+                    .disabled(currentChainIndex >= chainStories.count - 1)
+                }
+            }
         }
         .padding(12)
         .frame(width: 270, alignment: .leading)
@@ -1153,6 +1199,7 @@ struct StoryViewerScreen: View {
                                     set: { playbackCoordinator.setPausedFromVideoBinding(!$0) }
                                 ),
                                 isReadyToPlay: $isStoryVideoReady,
+                                isMutedExternally: shouldMuteVideoForReveal,
                                 isHorizontalVideo: StoryViewerScreen.isHorizontalAspectRatio(story.aspectRatio),
                                 videoGravity: presentationMode.videoGravity,
                                 shouldLoop: false,
@@ -1234,14 +1281,19 @@ struct StoryViewerScreen: View {
                 if !isKeyboardVisible {
                     StoryNavigationTouchAreas(
                         canvasSize: resolvedScreenSize,
-                        shouldSuppressNavigationTap: shouldSuppressNavigationTap
-                            || (deckGestureGate?.suppressStoryNavigationGestures ?? false),
+                        shouldSuppressNavigationTapAt: { localPoint in
+                            shouldSuppressNavigationTap(
+                                atCanvasPoint: localPoint,
+                                captureRect: CGRect(origin: .zero, size: resolvedScreenSize)
+                            )
+                        },
                         onPrevious: onPrevious,
                         onNext: onNext
                     )
                     .allowsHitTesting(
                         !isStoryInteractionBlocked
                             && !(deckGestureGate?.suppressStoryNavigationGestures ?? false)
+                            && !(deckGestureGate?.suppressViewerGestures ?? false)
                     )
                 }
             }
@@ -1323,89 +1375,25 @@ struct StoryViewerScreen: View {
     }
 
     private func isProtectedGestureStart(_ location: CGPoint) -> Bool {
-        let topProtectedHeight: CGFloat = 180
-        let topRightProtectedX = screenSize.width - 120
-        let bottomProtectedHeight = screenSize.height - 170
-
-        if location.y < topProtectedHeight {
-            return true
-        }
-
-        if location.y < 220 && location.x > topRightProtectedX {
-            return true
-        }
-
-        if location.y > bottomProtectedHeight {
-            return true
-        }
-
-        if isStickerInteractionStart(location) {
-            return true
-        }
-
-        return false
+        gestureCoordinator.isInTopOrBottomProtectedChrome(location, screenSize: screenSize)
+            || gestureCoordinator.region(
+                containing: location,
+                in: activeInteractionRegions,
+                supporting: .holdPause
+            ) != nil
     }
 
-    private func isStickerInteractionStart(_ location: CGPoint) -> Bool {
-        guard !interactionCaptureRect.isEmpty, !storyStickers.isEmpty else { return false }
-
-        for sticker in storyStickers {
-            let displaySticker = stickerForDisplay(sticker, containerSize: interactionCaptureRect.size)
-            let center = CGPoint(
-                x: interactionCaptureRect.minX + stickerDisplayPosition(sticker, containerSize: interactionCaptureRect.size).x,
-                y: interactionCaptureRect.minY + stickerDisplayPosition(sticker, containerSize: interactionCaptureRect.size).y
-            )
-            let baseSize = stickerInteractiveBaseSize(for: displaySticker)
-            let size = CGSize(
-                width: max(baseSize.width, 44),
-                height: max(baseSize.height, 44)
-            )
-            let frame = CGRect(
-                x: center.x - (size.width / 2),
-                y: center.y - (size.height / 2),
-                width: size.width,
-                height: size.height
-            ).insetBy(dx: -18, dy: -18)
-
-            if frame.contains(location) {
-                return true
-            }
+    private func isUnrevealedRevealActive() -> Bool {
+        guard storyStickers.contains(where: { $0.type == .reveal }),
+              let storyId = story.id,
+              !storyId.isEmpty else {
+            return false
         }
-
-        return false
+        return !UserDefaults.standard.bool(forKey: "reveal_revealed_\(storyId)")
     }
 
-    private func stickerInteractiveBaseSize(for sticker: StickerItem) -> CGSize {
-        switch sticker.type {
-        case .poll:
-            return CGSize(width: 300 * sticker.scale, height: 172 * sticker.scale)
-        case .question:
-            return CGSize(width: 300 * sticker.scale, height: 132 * sticker.scale)
-        case .questionResponse:
-            return CGSize(
-                width: questionResponseStickerRenderSize.width * sticker.scale,
-                height: questionResponseStickerRenderSize.height * sticker.scale
-            )
-        case .quiz:
-            return CGSize(width: 300 * sticker.scale, height: 220 * sticker.scale)
-        case .frame:
-            return CGSize(width: 200 * sticker.scale, height: 240 * sticker.scale)
-        case .emojiSlider:
-            let prompt = sticker.interactionData?.sliderPrompt ?? ""
-            let size = emojiSliderRenderingSize(prompt: prompt)
-            return CGSize(width: size.width * sticker.scale, height: size.height * sticker.scale)
-        case .audio:
-            return CGSize(width: 220 * sticker.scale, height: 72 * sticker.scale)
-        case .weather:
-            return CGSize(width: 140 * sticker.scale, height: 50 * sticker.scale)
-        case .time:
-            return CGSize(width: 164 * sticker.scale, height: 56 * sticker.scale)
-        default:
-            return CGSize(
-                width: sticker.image.size.width * max(sticker.scale, 0.35),
-                height: sticker.image.size.height * max(sticker.scale, 0.35)
-            )
-        }
+    private var shouldMuteVideoForReveal: Bool {
+        story.mediaItem.type == .video && isUnrevealedRevealActive()
     }
 
     private var isStoryInteractionBlocked: Bool {
@@ -1465,30 +1453,42 @@ struct StoryViewerScreen: View {
     }
 
     private func canStartHoldGesture(from location: CGPoint) -> Bool {
-        guard !isMenuInteractionActive,
-              !isKeyboardVisible,
-              !isProtectedGestureStart(location),
-              !showQuickActions,
-              !showViewers,
-              !showingReportSheet,
-              !showingBlockConfirmation,
-              !showUserProfile,
-              !showChainView,
-              !showReactions,
-              !showEphemeralPicker,
-              !showBestFriendsOptOutConfirmation,
-              !showDeleteConfirmation,
-              !showUnfollowConfirmation,
-              !showMuteConfirmation else {
-            return false
-        }
-
-        return true
+        gestureCoordinator.shouldAllowHoldStart(
+            at: location,
+            screenSize: screenSize,
+            canvasRect: normalizedInteractionCanvasRect,
+            regions: activeInteractionRegions,
+            gate: deckGestureGate,
+            isKeyboardVisible: isKeyboardVisible,
+            overlaysBlocked: isStoryInteractionBlocked
+        )
     }
 
     private var shouldSuppressNavigationTap: Bool {
         guard let suppressNavigationTapUntil else { return false }
         return Date() < suppressNavigationTapUntil
+    }
+
+    private var activeInteractionRegions: [StoryGestureRegion] {
+        deckGestureGate?.interactionRegions ?? []
+    }
+
+    private var normalizedInteractionCanvasRect: CGRect {
+        interactionCaptureRect.isEmpty ? CGRect(origin: .zero, size: screenSize) : interactionCaptureRect
+    }
+
+    private func shouldSuppressNavigationTap(atCanvasPoint point: CGPoint, captureRect: CGRect) -> Bool {
+        let screenPoint = CGPoint(
+            x: captureRect.minX + point.x,
+            y: captureRect.minY + point.y
+        )
+        return shouldSuppressNavigationTap
+            || gestureCoordinator.shouldSuppressNavigationTap(
+                at: screenPoint,
+                in: captureRect,
+                regions: activeInteractionRegions,
+                gate: deckGestureGate
+            )
     }
 
     private func cancelPendingHoldPause() {
@@ -1497,17 +1497,20 @@ struct StoryViewerScreen: View {
         holdStartLocation = nil
     }
 
-    // ✅ UNIFIED GESTURE: Drag, Swipe Up, Chain horizontal
+    // ✅ UNIFIED GESTURE: Drag + Swipe Up
     private var unifiedDragGesture: some Gesture {
         DragGesture(minimumDistance: 8)
             .onChanged { value in
                 guard !isStoryInteractionBlocked else { return }
 
-                if isProtectedGestureStart(value.startLocation) {
-                    return
-                }
-
-                if deckGestureGate?.suppressStoryNavigationGestures == true {
+                guard gestureCoordinator.shouldAllowUnifiedViewerDragStart(
+                    at: value.startLocation,
+                    screenSize: screenSize,
+                    canvasRect: normalizedInteractionCanvasRect,
+                    regions: activeInteractionRegions,
+                    gate: deckGestureGate,
+                    overlaysBlocked: isStoryInteractionBlocked
+                ) else {
                     return
                 }
 
@@ -1532,22 +1535,18 @@ struct StoryViewerScreen: View {
                         gestureActionTriggered = true
                     }
                 }
-
-                // HORIZONTAL SWIPE — Chain navigation
-                else if story.chainId != nil, !chainStories.isEmpty {
-                    if value.translation.width > 60 {
-                         goToPreviousChainPart()
-                         gestureActionTriggered = true
-                    } else if value.translation.width < -60 {
-                         goToNextChainPart()
-                         gestureActionTriggered = true
-                    }
-                }
             }
             .onEnded { value in
                 guard !isStoryInteractionBlocked else { return }
 
-                if isProtectedGestureStart(value.startLocation) {
+                guard gestureCoordinator.shouldAllowUnifiedViewerDragStart(
+                    at: value.startLocation,
+                    screenSize: screenSize,
+                    canvasRect: normalizedInteractionCanvasRect,
+                    regions: activeInteractionRegions,
+                    gate: deckGestureGate,
+                    overlaysBlocked: isStoryInteractionBlocked
+                ) else {
                     return
                 }
 

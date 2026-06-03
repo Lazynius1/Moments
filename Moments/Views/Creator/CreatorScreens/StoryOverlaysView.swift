@@ -18,6 +18,7 @@ struct StoryOverlaysView: View {
     @Binding var stickers: [StickerItem]
     @Binding var drawingImage: UIImage?
     @Binding var isEditingSticker: Bool // ✅ NUEVO: Para ocultar la UI del padre
+    @Binding var editingRevealId: String?
 
     let onNavigateToProfile: (String) -> Void
     let onNavigateToLocation: (String, CLLocationCoordinate2D?) -> Void
@@ -38,9 +39,6 @@ struct StoryOverlaysView: View {
     @State private var focusedInlineStickerTransform: (id: String, pos: CGPoint, scale: CGFloat, rot: Angle)? = nil
     @State private var keyboardHeight: CGFloat = 0
     @Environment(\.colorScheme) private var colorScheme
-
-    // ✨ NUEVO: Estado para editar el diseño del Reveal
-    @State private var editingRevealId: String? = nil
 
     var body: some View {
         ZStack {
@@ -255,7 +253,7 @@ struct StoryOverlaysView: View {
             }
 
             // ✅ REVEAL STATUS BADGE (Top)
-            if stickers.contains(where: { $0.type == .reveal }) {
+            if stickers.contains(where: { $0.type == .reveal }) && editingRevealId == nil {
                 VStack {
                     HStack {
                         Spacer()
@@ -390,7 +388,7 @@ struct StoryOverlaysView: View {
         }
         .onChange(of: editingRevealId) { _, newValue in
             withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-                isEditingSticker = newValue != nil || editingPolaroidId != nil
+                isEditingSticker = newValue != nil || editingPolaroidId != nil || activeEditingStickerId != nil
             }
         }
         .onChange(of: isOverTrash) { oldValue, newValue in

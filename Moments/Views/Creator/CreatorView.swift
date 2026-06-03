@@ -651,28 +651,14 @@ struct RevealStickerEditorView: View {
     @Binding var stickers: [StickerItem]
     @Binding var editingId: String?
 
-    @State private var selectedTab: EditorTab = .presets
-    @State private var selectedPresetId: String = "classic"
-    @State private var tabTransientOffset: CGFloat = 0
-
-    // Custom state
-    @State private var customType: String = "solid"
-    @State private var customPattern: String = "dots"
-    @State private var customPrimary: Color = .black
-    @State private var customSecondary: Color = .black
-
-    enum EditorTab: CaseIterable, Hashable {
-        case presets
-        case custom
-    }
-
     private var currentStickerIndex: Int? {
         stickers.firstIndex(where: { $0.id == editingId })
     }
 
+    private let canvasCornerRadius: CGFloat = 28
+
     var body: some View {
         ZStack {
-            // 1. Preview Background (Full Screen)
             if let index = currentStickerIndex {
                 RevealSurfaceView(
                     type: stickers[index].interactionData?.revealType,
@@ -680,38 +666,16 @@ struct RevealStickerEditorView: View {
                     primaryColor: stickers[index].interactionData?.revealPrimaryColor,
                     secondaryColor: stickers[index].interactionData?.revealSecondaryColor
                 )
-                .ignoresSafeArea()
+                .clipShape(RoundedRectangle(cornerRadius: canvasCornerRadius, style: .continuous))
             }
 
-            // 2. Editor UI
             VStack(spacing: 0) {
                 headerView
 
                 Spacer()
-
-                VStack(spacing: 24) {
-                    tabSelector
-
-                    if selectedTab == .presets {
-                        presetsGrid
-                    } else {
-                        customControls
-                    }
-                }
-                .padding(.horizontal, 20)
-                .padding(.bottom, 65) // Ajustado a 65 según preferencia
-                .background(
-                    LinearGradient(
-                        colors: [.clear, .black.opacity(0.6), .black.opacity(0.9)],
-                        startPoint: .top,
-                        endPoint: .bottom
-                    )
-                )
             }
         }
-        .onAppear {
-            loadCurrentState()
-        }
+        .clipShape(RoundedRectangle(cornerRadius: canvasCornerRadius, style: .continuous))
     }
 
     private var headerView: some View {
@@ -743,7 +707,89 @@ struct RevealStickerEditorView: View {
             }
         }
         .padding(.horizontal, 20)
-        .padding(.top, 60)
+        .padding(.top, 12)
+    }
+}
+
+struct RevealStickerBottomControlsInset: View {
+    @Binding var stickers: [StickerItem]
+    @Binding var editingId: String?
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(spacing: 10) {
+                Image(systemName: "sparkles.rectangle.stack")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundColor(.white.opacity(0.92))
+
+                Text(NSLocalizedString("revealEditor.title", comment: "Customize Reveal"))
+                    .font(.custom("Poppins-SemiBold", size: 15))
+                    .foregroundColor(.white.opacity(0.96))
+
+                Spacer()
+            }
+
+            RevealStickerControlsContent(
+                stickers: $stickers,
+                editingId: $editingId,
+                presetPreviewSize: CGSize(width: 86, height: 126),
+                presetsHeight: 156
+            )
+        }
+        .padding(.horizontal, 16)
+        .padding(.top, 15)
+        .padding(.bottom, 16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            RoundedRectangle(cornerRadius: 26, style: .continuous)
+                .fill(Color.clear)
+                .liquidGlass(in: RoundedRectangle(cornerRadius: 26, style: .continuous), interactive: false)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 26, style: .continuous)
+                        .stroke(Color.white.opacity(0.05), lineWidth: 0.75)
+                )
+        )
+    }
+}
+
+private struct RevealStickerControlsContent: View {
+    @Binding var stickers: [StickerItem]
+    @Binding var editingId: String?
+
+    let presetPreviewSize: CGSize
+    let presetsHeight: CGFloat
+
+    @State private var selectedTab: EditorTab = .presets
+    @State private var selectedPresetId: String = "classic"
+    @State private var tabTransientOffset: CGFloat = 0
+    @State private var customType: String = "solid"
+    @State private var customPattern: String = "dots"
+    @State private var customPrimary: Color = .black
+    @State private var customSecondary: Color = .black
+
+    enum EditorTab: CaseIterable, Hashable {
+        case presets
+        case custom
+    }
+
+    private var currentStickerIndex: Int? {
+        stickers.firstIndex(where: { $0.id == editingId })
+    }
+
+    var body: some View {
+        VStack(spacing: 16) {
+            tabSelector
+
+            if selectedTab == .presets {
+                presetsGrid
+            } else {
+                customControls
+            }
+        }
+        .onAppear(perform: loadCurrentState)
+        .onChange(of: editingId) { _, _ in
+            loadCurrentState()
+        }
     }
 
     private var tabSelector: some View {
@@ -818,7 +864,7 @@ struct RevealStickerEditorView: View {
                                 primaryColor: preset.primary,
                                 secondaryColor: preset.secondary
                             )
-                            .frame(width: 80, height: 120)
+                            .frame(width: presetPreviewSize.width, height: presetPreviewSize.height)
                             .clipShape(RoundedRectangle(cornerRadius: 16))
                             .overlay(
                                 RoundedRectangle(cornerRadius: 16)
@@ -834,12 +880,11 @@ struct RevealStickerEditorView: View {
             }
             .padding(.horizontal, 5)
         }
-        .frame(height: 160)
+        .frame(height: presetsHeight)
     }
 
     private var customControls: some View {
-        VStack(spacing: 20) {
-            // Pattern Picker
+        VStack(spacing: 18) {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 12) {
                     ForEach(["none", "dots", "noise", "static", "scanlines", "grid", "lines", "waves", "matrix", "holographic"], id: \.self) { p in
@@ -856,7 +901,7 @@ struct RevealStickerEditorView: View {
                 }
             }
 
-            HStack(spacing: 30) {
+            HStack(spacing: 26) {
                 VStack(spacing: 4) {
                     ColorPicker(selection: $customPrimary, supportsOpacity: false) {
                         Circle()
@@ -872,7 +917,6 @@ struct RevealStickerEditorView: View {
                 }
                 .onChange(of: customPrimary) { updateCustomColors() }
 
-                // Color 2 (Optional)
                 if customType == "gradient" {
                     VStack(spacing: 4) {
                         ColorPicker(selection: $customSecondary, supportsOpacity: false) {
@@ -891,12 +935,30 @@ struct RevealStickerEditorView: View {
                 }
 
                 Button(action: toggleType) {
-                    Image(systemName: customType == "solid" ? "plus" : "minus")
-                        .font(.system(size: 18, weight: .bold))
+                    VStack(spacing: 6) {
+                        Image(systemName: customType == "solid" ? "plus" : "minus")
+                            .font(.system(size: 18, weight: .bold))
+
+                        Text(customType == "solid" ? "2" : "1")
+                            .font(.custom("Poppins-SemiBold", size: 12))
+                    }
+                    .foregroundColor(.white)
+                    .frame(width: 50, height: 50)
+                    .background(Color.white.opacity(0.1))
+                    .clipShape(Circle())
+                }
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(customType == "solid"
+                        ? NSLocalizedString("revealEditor.color1", comment: "")
+                        : NSLocalizedString("revealEditor.color2", comment: ""))
+                        .font(.custom("Poppins-Medium", size: 12))
                         .foregroundColor(.white)
-                        .padding(12)
-                        .background(Color.white.opacity(0.1))
-                        .clipShape(Circle())
+                    Text(customType == "solid"
+                        ? NSLocalizedString("revealEditor.tab.custom", comment: "Custom")
+                        : NSLocalizedString("revealEditor.tab.presets", comment: "Presets"))
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundColor(.white.opacity(0.55))
                 }
             }
         }

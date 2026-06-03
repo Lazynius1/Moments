@@ -296,6 +296,7 @@ struct EchoViewerUI: View {
                         url: url,
                         isPlaying: $viewModel.isVideoPlaying,
                         isReadyToPlay: .constant(true),
+                        isMutedExternally: false,
                         isHorizontalVideo: isHorizontal,
                         videoGravity: isHorizontal ? .resizeAspect : .resizeAspectFill,
                         shouldLoop: true,

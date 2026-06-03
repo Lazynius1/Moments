@@ -6,6 +6,8 @@ import UIKit
 struct StoryInteractionExclusionZone: Equatable, Identifiable {
     let id: String
     let rect: CGRect
+    let intents: Set<StoryGestureIntent>
+    let suppressionScope: StoryGestureSuppressionScope
 }
 
 struct StoryInteractionExclusionKey: PreferenceKey {
@@ -18,47 +20,32 @@ struct StoryInteractionExclusionKey: PreferenceKey {
 
 extension View {
     /// Reporta un rectángulo en el espacio del deck para bloquear el pan entre usuarios.
-    func storyDeckInteractionExclusion(id: String, in space: CoordinateSpace) -> some View {
+    func storyDeckInteractionExclusion(
+        id: String,
+        in space: CoordinateSpace,
+        intents: Set<StoryGestureIntent> = [.deckSwipe],
+        suppressionScope: StoryGestureSuppressionScope = .suppressDeck,
+        horizontalInsetFraction: CGFloat = 0,
+        verticalInset: CGFloat = 0
+    ) -> some View {
         background(
             GeometryReader { geometry in
+                let frame = geometry.frame(in: space)
+                let horizontalInset = frame.width * horizontalInsetFraction
+                let adjustedFrame = frame.insetBy(dx: horizontalInset, dy: verticalInset)
                 Color.clear.preference(
                     key: StoryInteractionExclusionKey.self,
                     value: [
                         StoryInteractionExclusionZone(
                             id: id,
-                            rect: geometry.frame(in: space)
+                            rect: adjustedFrame,
+                            intents: intents,
+                            suppressionScope: suppressionScope
                         )
                     ]
                 )
             }
         )
-    }
-}
-
-func mergedStoryInteractionExclusionZones(
-    from zones: [StoryInteractionExclusionZone]
-) -> [CGRect] {
-    zones.map(\.rect)
-}
-
-func isValidStoryInteractionExclusionRect(_ rect: CGRect) -> Bool {
-    guard rect.width > 4, rect.height > 4 else { return false }
-    let screen = UIScreen.main.bounds
-    // Descartar frames erróneos de layout (p. ej. GeometryReader a pantalla completa).
-    if rect.width >= screen.width * 0.9, rect.height >= screen.height * 0.9 {
-        return false
-    }
-    return true
-}
-
-func touchIsInsideStoryInteractionExclusion(
-    _ point: CGPoint,
-    zones: [CGRect],
-    padding: CGFloat = 32
-) -> Bool {
-    zones.contains { rect in
-        guard isValidStoryInteractionExclusionRect(rect) else { return false }
-        return rect.insetBy(dx: -padding, dy: -padding).contains(point)
     }
 }
 
@@ -145,5 +132,94 @@ struct EmojiSliderVotePanOverlay: UIViewRepresentable {
         let maxX = trackLeading + trackWidth
         let clampedX = min(max(locationX, minX), maxX)
         return Double((clampedX - minX) / max(trackWidth, 1))
+    }
+}
+
+// MARK: - Pan de rascado reveal (UIKit, no bloquea deck ni taps laterales)
+
+struct RevealScratchPanOverlay: UIViewRepresentable {
+    let isEnabled: Bool
+    var sidePassThroughFraction: CGFloat = StoryGestureCoordinator.revealSidePassthroughFraction
+    let onBegan: () -> Void
+    let onPoint: (CGPoint) -> Void
+    let onEnded: () -> Void
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator()
+    }
+
+    func makeUIView(context: Context) -> RevealScratchPanView {
+        let view = RevealScratchPanView()
+        view.coordinator = context.coordinator
+        view.sidePassThroughFraction = sidePassThroughFraction
+        return view
+    }
+
+    func updateUIView(_ uiView: RevealScratchPanView, context: Context) {
+        context.coordinator.parent = self
+        uiView.isUserInteractionEnabled = isEnabled
+        uiView.sidePassThroughFraction = sidePassThroughFraction
+    }
+
+    final class Coordinator: NSObject {
+        var parent: RevealScratchPanOverlay?
+        fileprivate func beginScratchIfNeeded() {
+            parent?.onBegan()
+        }
+
+        fileprivate func scratch(at point: CGPoint) {
+            parent?.onPoint(point)
+        }
+
+        fileprivate func endScratchIfNeeded() {
+            parent?.onEnded()
+        }
+    }
+
+    final class RevealScratchPanView: UIView {
+        weak var coordinator: Coordinator?
+        var sidePassThroughFraction: CGFloat = 0.26
+        private var panRecognizer: UIPanGestureRecognizer?
+
+        override init(frame: CGRect) {
+            super.init(frame: frame)
+            backgroundColor = .clear
+            isMultipleTouchEnabled = false
+            let pan = UIPanGestureRecognizer(target: self, action: #selector(handlePan(_:)))
+            pan.cancelsTouchesInView = true
+            pan.delaysTouchesBegan = false
+            addGestureRecognizer(pan)
+            panRecognizer = pan
+        }
+
+        required init?(coder: NSCoder) {
+            fatalError("init(coder:) has not been implemented")
+        }
+
+        override func point(inside point: CGPoint, with event: UIEvent?) -> Bool {
+            guard bounds.width > 0 else { return false }
+            let side = bounds.width * sidePassThroughFraction
+            if point.x < side || point.x > bounds.width - side {
+                return false
+            }
+            return super.point(inside: point, with: event)
+        }
+
+        @objc private func handlePan(_ recognizer: UIPanGestureRecognizer) {
+            guard let coordinator,
+                  coordinator.parent?.isEnabled == true else { return }
+
+            switch recognizer.state {
+            case .began:
+                coordinator.beginScratchIfNeeded()
+                coordinator.scratch(at: recognizer.location(in: self))
+            case .changed:
+                coordinator.scratch(at: recognizer.location(in: self))
+            case .ended, .cancelled, .failed:
+                coordinator.endScratchIfNeeded()
+            default:
+                break
+            }
+        }
     }
 }

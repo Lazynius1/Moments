@@ -359,32 +359,48 @@ struct StoryNoInteractionsNotice: View {
 /// Zonas laterales de navegación alineadas al rect del canvas (estilo IG).
 struct StoryNavigationTouchAreas: View {
     let canvasSize: CGSize
-    var sideWidthFraction: CGFloat = 0.26
-    let shouldSuppressNavigationTap: Bool
+    var sideWidthFraction: CGFloat = StoryGestureCoordinator.navigationSideWidthFraction
+    let shouldSuppressNavigationTapAt: (CGPoint) -> Bool
     let onPrevious: () -> Void
     let onNext: () -> Void
 
     var body: some View {
-        HStack(spacing: 0) {
-            Rectangle()
-                .fill(Color.clear)
-                .frame(width: max(canvasSize.width * sideWidthFraction, 1))
-                .contentShape(Rectangle())
-                .onTapGesture {
-                    guard !shouldSuppressNavigationTap else { return }
-                    onPrevious()
-                }
+        GeometryReader { geometry in
+            let sideWidth = max(geometry.size.width * sideWidthFraction, 1)
 
-            Spacer(minLength: 0)
+            ZStack {
+                Rectangle()
+                    .fill(Color.clear)
+                    .frame(width: sideWidth)
+                    .contentShape(Rectangle())
+                    .gesture(
+                        SpatialTapGesture()
+                            .onEnded { value in
+                                let point = value.location
+                                guard !shouldSuppressNavigationTapAt(point) else { return }
+                                onPrevious()
+                            }
+                    )
+                    .position(x: sideWidth / 2, y: geometry.size.height / 2)
 
-            Rectangle()
-                .fill(Color.clear)
-                .frame(width: max(canvasSize.width * sideWidthFraction, 1))
-                .contentShape(Rectangle())
-                .onTapGesture {
-                    guard !shouldSuppressNavigationTap else { return }
-                    onNext()
-                }
+                Rectangle()
+                    .fill(Color.clear)
+                    .frame(width: sideWidth)
+                    .contentShape(Rectangle())
+                    .gesture(
+                        SpatialTapGesture()
+                            .onEnded { value in
+                                let point = CGPoint(
+                                    x: geometry.size.width - sideWidth + value.location.x,
+                                    y: value.location.y
+                                )
+                                guard !shouldSuppressNavigationTapAt(point) else { return }
+                                onNext()
+                            }
+                    )
+                    .position(x: geometry.size.width - (sideWidth / 2), y: geometry.size.height / 2)
+            }
+            .frame(width: geometry.size.width, height: geometry.size.height)
         }
         .frame(width: canvasSize.width, height: canvasSize.height)
     }

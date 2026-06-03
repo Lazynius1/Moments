@@ -309,6 +309,7 @@ struct InteractiveRevealSticker: View {
     var storyId: String = ""
     var onPauseStory: (() -> Void)? = nil
     var onResumeStory: (() -> Void)? = nil
+    var reportsDeckInteractionExclusion: Bool = true
 
     // Design Configuration
     var revealType: String? = nil // "scratch", "solid", "gradient"
@@ -316,95 +317,31 @@ struct InteractiveRevealSticker: View {
     var revealPrimaryColor: String? = nil // Hex
     var revealSecondaryColor: String? = nil // Hex
 
+    @Environment(\.storyDeckGestureGate) private var deckGestureGate
     @State private var points: [CGPoint] = []
     @State private var isRevealed = false
-    @State private var scratchedGrid: Set<Int> = [] // Para seguimiento de área
+    @State private var isScratching = false
+    @State private var didPauseForScratch = false
+    @State private var scratchedGrid: Set<Int> = []
     @State private var showHint = false
     @State private var animateHint = false
-    private let gridSize: Int = 12 // Cuadrícula de 12x12
+    private let gridSize: Int = 12
 
     private var persistenceKey: String { "reveal_revealed_\(storyId)" }
+    private var deckExclusionZoneId: String { "reveal.scratch.\(storyId)" }
+    private var suppressionSourceId: String { "reveal.scratch.\(storyId)" }
 
     var body: some View {
-        GeometryReader { geo in
-            ZStack {
-                if !isRevealed {
-                    RevealSurfaceView(
-                        type: revealType,
-                        pattern: revealPattern,
-                        primaryColor: revealPrimaryColor,
-                        secondaryColor: revealSecondaryColor
-                    )
-                    .mask(
-                        Canvas { context, size in
-                            // Dibujar todo como opaco excepto donde rascamos
-                            context.fill(Path(CGRect(origin: .zero, size: size)), with: .color(.black))
-
-                            var path = Path()
-                            if let first = points.first {
-                                path.move(to: first)
-                                for i in 1..<points.count {
-                                    path.addLine(to: points[i])
-                                }
-                            }
-
-                            context.blendMode = .destinationOut
-                            context.stroke(path, with: .color(.black), style: StrokeStyle(lineWidth: 35, lineCap: .round, lineJoin: .round))
-                        }
-                    )
-
-                    if showHint {
-                        VStack {
-                            Spacer()
-
-                            HStack(spacing: 8) {
-                                Image(systemName: "hand.draw.fill")
-                                    .font(.system(size: 13, weight: .semibold))
-                                    .rotationEffect(.degrees(animateHint ? -8 : 6))
-                                    .offset(x: animateHint ? 6 : -5, y: animateHint ? 2 : -2)
-                                Text(NSLocalizedString("reveal.viewerHint", comment: "Reveal hint"))
-                                    .font(.custom("Poppins-SemiBold", size: 12))
-                            }
-                            .foregroundColor(.white.opacity(0.96))
-                            .padding(.horizontal, 14)
-                            .padding(.vertical, 10)
-                            .background(Color.white.opacity(0.001))
-                            .liquidGlass(in: Capsule())
-                            .scaleEffect(animateHint ? 1.03 : 0.985)
-                            .opacity(animateHint ? 1.0 : 0.82)
-                            .padding(.bottom, 140)
-                        }
-                        .allowsHitTesting(false)
-                    }
-                }
+        Group {
+            if isRevealed {
+                Color.clear
+                    .allowsHitTesting(false)
+            } else {
+                revealOverlay
             }
-            .contentShape(Rectangle())
-            .gesture(
-                DragGesture(minimumDistance: 0)
-                    .onChanged { value in
-                        guard !isRevealed else { return }
-                        if showHint {
-                            withAnimation(.easeOut(duration: 0.18)) {
-                                animateHint = false
-                                showHint = false
-                            }
-                        }
-                        onPauseStory?()
-                        points.append(value.location)
-                        checkRevealStatus(in: geo.size)
-                    }
-                    .onEnded { _ in
-                        if !isRevealed {
-                            onResumeStory?()
-                        }
-                    }
-            )
         }
-        .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
-        .contentShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
         .animation(.easeOut(duration: 0.6), value: isRevealed)
         .onAppear {
-            // Restaurar estado persistido
             if !storyId.isEmpty {
                 isRevealed = UserDefaults.standard.bool(forKey: persistenceKey)
             }
@@ -424,38 +361,157 @@ struct InteractiveRevealSticker: View {
                 }
             }
         }
+        .onDisappear {
+            endScratchSession(resumeStory: true)
+        }
+    }
+
+    private var revealOverlay: some View {
+        GeometryReader { geo in
+            ZStack {
+                RevealSurfaceView(
+                    type: revealType,
+                    pattern: revealPattern,
+                    primaryColor: revealPrimaryColor,
+                    secondaryColor: revealSecondaryColor
+                )
+                .allowsHitTesting(false)
+                .mask(scratchMaskCanvas)
+
+                if showHint {
+                    revealHint
+                }
+            }
+            .overlay {
+                RevealScratchPanOverlay(
+                    isEnabled: true,
+                    onBegan: { beginScratchSession() },
+                    onPoint: { point in
+                        points.append(point)
+                        checkRevealStatus(in: geo.size)
+                    },
+                    onEnded: { endScratchSession(resumeStory: true) }
+                )
+            }
+        }
+        .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
+        .zIndex(0.5)
+        .storyDeckInteractionExclusion(
+            id: deckExclusionZoneId,
+            in: .named("storyDeckCoordinateSpace"),
+            intents: [.deckSwipe, .storyNavigationTap, .holdPause, .replySwipe, .revealScratch],
+            suppressionScope: .suppressViewerGestures,
+            horizontalInsetFraction: StoryGestureCoordinator.revealSidePassthroughFraction,
+            verticalInset: 0
+        )
+    }
+
+    private var scratchMaskCanvas: some View {
+        Canvas { context, size in
+            context.fill(Path(CGRect(origin: .zero, size: size)), with: .color(.black))
+
+            var path = Path()
+            if let first = points.first {
+                path.move(to: first)
+                for i in 1..<points.count {
+                    path.addLine(to: points[i])
+                }
+            }
+
+            context.blendMode = .destinationOut
+            context.stroke(path, with: .color(.black), style: StrokeStyle(lineWidth: 35, lineCap: .round, lineJoin: .round))
+        }
+    }
+
+    private var revealHint: some View {
+        VStack {
+            Spacer()
+
+            HStack(spacing: 8) {
+                Image(systemName: "hand.draw.fill")
+                    .font(.system(size: 13, weight: .semibold))
+                    .rotationEffect(.degrees(animateHint ? -8 : 6))
+                    .offset(x: animateHint ? 6 : -5, y: animateHint ? 2 : -2)
+                Text(NSLocalizedString("reveal.viewerHint", comment: "Reveal hint"))
+                    .font(.custom("Poppins-SemiBold", size: 12))
+            }
+            .foregroundColor(.white.opacity(0.96))
+            .padding(.horizontal, 14)
+            .padding(.vertical, 10)
+            .background(Color.white.opacity(0.001))
+            .liquidGlass(in: Capsule())
+            .scaleEffect(animateHint ? 1.03 : 0.985)
+            .opacity(animateHint ? 1.0 : 0.82)
+            .padding(.bottom, 140)
+            .allowsHitTesting(false)
+        }
+    }
+
+    private func hideHintIfNeeded() {
+        guard showHint else { return }
+        withAnimation(.easeOut(duration: 0.18)) {
+            animateHint = false
+            showHint = false
+        }
+    }
+
+    private func beginScratchSession() {
+        hideHintIfNeeded()
+        guard !isScratching else { return }
+        isScratching = true
+        deckGestureGate?.setSuppressionScope(.suppressViewerGestures, for: suppressionSourceId)
+        if !didPauseForScratch {
+            didPauseForScratch = true
+            onPauseStory?()
+        }
+    }
+
+    private func endScratchSession(resumeStory: Bool) {
+        guard isScratching else { return }
+        isScratching = false
+        deckGestureGate?.clearSuppression(for: suppressionSourceId)
+        if resumeStory {
+            resumeStoryIfNeeded()
+        }
+    }
+
+    private func resumeStoryIfNeeded() {
+        guard didPauseForScratch, !isRevealed else { return }
+        didPauseForScratch = false
+        onResumeStory?()
+    }
+
+    private func completeReveal(persist: Bool) {
+        guard !isRevealed else { return }
+        endScratchSession(resumeStory: false)
+        withAnimation(.easeOut(duration: 0.8)) {
+            isRevealed = true
+        }
+        HapticManager.shared.notification(.success)
+        didPauseForScratch = false
+        deckGestureGate?.clearSuppression(for: suppressionSourceId)
+        onResumeStory?()
+        if persist, !storyId.isEmpty {
+            UserDefaults.standard.set(true, forKey: persistenceKey)
+        }
     }
 
     private func checkRevealStatus(in size: CGSize) {
         guard !isRevealed, let lastPoint = points.last else { return }
 
-        // 1. Mapear punto actual a la cuadrícula
         let col = Int((lastPoint.x / size.width) * CGFloat(gridSize))
         let row = Int((lastPoint.y / size.height) * CGFloat(gridSize))
 
-        // Validar límites
         if col >= 0 && col < gridSize && row >= 0 && row < gridSize {
             let index = row * gridSize + col
             scratchedGrid.insert(index)
         }
 
-        // 2. Calcular porcentaje (Umbral 65%)
         let totalCells = gridSize * gridSize
         let percentage = Double(scratchedGrid.count) / Double(totalCells)
 
         if percentage > 0.65 {
-            withAnimation(.easeOut(duration: 0.8)) {
-                isRevealed = true
-            }
-            HapticManager.shared.notification(.success)
-
-            // Reanudar historia inmediatamente al completar el revelado
-            onResumeStory?()
-
-            // Persistir para no tener que rascar de nuevo
-            if !storyId.isEmpty {
-                UserDefaults.standard.set(true, forKey: persistenceKey)
-            }
+            completeReveal(persist: true)
         }
     }
 }

@@ -152,7 +152,7 @@ struct StickerOverlayView: View {
     }
 
     private var clampedCurrentPosition: CGPoint {
-        clampedStickerPosition(currentPosition, scale: scale)
+        clampedStickerPosition(currentPosition, scale: scale, rotation: rotation)
     }
 
     var body: some View {
@@ -623,13 +623,13 @@ struct StickerOverlayView: View {
         // ✅ SINCRONIZAR CON EL PADRE PARA EL "VUELO HERO"
         .onChange(of: sticker.position) { _, newPos in
             withAnimation(.spring(response: 0.45, dampingFraction: 0.75)) {
-                currentPosition = clampedStickerPosition(newPos, scale: scale)
+                currentPosition = clampedStickerPosition(newPos, scale: scale, rotation: rotation)
             }
         }
         .onChange(of: sticker.scale) { _, newScale in
             withAnimation(.spring(response: 0.45, dampingFraction: 0.75)) {
                 scale = min(max(newScale, minimumStickerScale), maximumStickerScale)
-                let clampedPosition = clampedStickerPosition(currentPosition, scale: scale)
+                let clampedPosition = clampedStickerPosition(currentPosition, scale: scale, rotation: rotation)
                 currentPosition = clampedPosition
                 sticker.position = clampedPosition
             }
@@ -637,10 +637,13 @@ struct StickerOverlayView: View {
         .onChange(of: sticker.rotation) { _, newRot in
             withAnimation(.spring(response: 0.45, dampingFraction: 0.75)) {
                 rotation = newRot
+                let clampedPosition = clampedStickerPosition(currentPosition, scale: scale, rotation: newRot)
+                currentPosition = clampedPosition
+                sticker.position = clampedPosition
             }
         }
         .onChange(of: canvasSize) { _, _ in
-            let clampedPosition = clampedStickerPosition(currentPosition, scale: scale)
+            let clampedPosition = clampedStickerPosition(currentPosition, scale: scale, rotation: rotation)
             currentPosition = clampedPosition
             sticker.position = clampedPosition
         }
@@ -687,7 +690,7 @@ struct StickerOverlayView: View {
                         y: value.location.y - dragOffset.height
                     )
 
-                    let clampedPosition = clampedStickerPosition(newPos, scale: scale)
+                    let clampedPosition = clampedStickerPosition(newPos, scale: scale, rotation: rotation)
                     currentPosition = clampedPosition
                     onDragChanged(clampedPosition)
                     sticker.position = clampedPosition
@@ -700,7 +703,7 @@ struct StickerOverlayView: View {
                     }
 
                     dragOffset = .zero // Resetear para el próximo arrastre
-                    let clampedPosition = clampedStickerPosition(currentPosition, scale: scale)
+                    let clampedPosition = clampedStickerPosition(currentPosition, scale: scale, rotation: rotation)
                     currentPosition = clampedPosition
                     sticker.position = clampedPosition
                     onDragEnded(clampedPosition)
@@ -727,6 +730,9 @@ struct StickerOverlayView: View {
 
                     let newScale = baseScale * dampedMagnification(value)
                     scale = min(max(newScale, minimumStickerScale), maximumStickerScale)
+                    let clampedPosition = clampedStickerPosition(currentPosition, scale: scale, rotation: rotation)
+                    currentPosition = clampedPosition
+                    sticker.position = clampedPosition
                 }
                 .onEnded { _ in
                     if isEditingInline { return }
@@ -736,7 +742,7 @@ struct StickerOverlayView: View {
                     }
 
                     sticker.scale = scale
-                    let clampedPosition = clampedStickerPosition(currentPosition, scale: scale)
+                    let clampedPosition = clampedStickerPosition(currentPosition, scale: scale, rotation: rotation)
                     currentPosition = clampedPosition
                     sticker.position = clampedPosition
                     stickerPinchStartScale = nil
@@ -748,11 +754,17 @@ struct StickerOverlayView: View {
                     if isEditingInline { return }
                     guard !(isContentEditing && sticker.type == .frame) else { return }
                     rotation = sticker.rotation + value
+                    let clampedPosition = clampedStickerPosition(currentPosition, scale: scale, rotation: rotation)
+                    currentPosition = clampedPosition
+                    sticker.position = clampedPosition
                 }
                 .onEnded { value in
                     if isEditingInline { return }
                     guard !(isContentEditing && sticker.type == .frame) else { return }
                     sticker.rotation = rotation
+                    let clampedPosition = clampedStickerPosition(currentPosition, scale: scale, rotation: rotation)
+                    currentPosition = clampedPosition
+                    sticker.position = clampedPosition
                 }
         )
         .position(clampedCurrentPosition) // ✅ Posicionar en el lienzo global al final
@@ -870,9 +882,17 @@ struct StickerOverlayView: View {
         )
     }
 
-    private func clampedStickerPosition(_ proposedPosition: CGPoint, scale proposedScale: CGFloat) -> CGPoint {
-        let visualWidth = min(stickerSize.width * max(proposedScale, minimumStickerScale), canvasSize.width)
-        let visualHeight = min(stickerSize.height * max(proposedScale, minimumStickerScale), canvasSize.height)
+    private func clampedStickerPosition(
+        _ proposedPosition: CGPoint,
+        scale proposedScale: CGFloat,
+        rotation proposedRotation: Angle
+    ) -> CGPoint {
+        let bounds = rotatedStickerBoundingSize(
+            scale: max(proposedScale, minimumStickerScale),
+            rotation: proposedRotation
+        )
+        let visualWidth = min(bounds.width, canvasSize.width)
+        let visualHeight = min(bounds.height, canvasSize.height)
         let halfWidth = visualWidth / 2
         let halfHeight = visualHeight / 2
 
@@ -880,6 +900,19 @@ struct StickerOverlayView: View {
             x: min(max(proposedPosition.x, halfWidth), canvasSize.width - halfWidth),
             y: min(max(proposedPosition.y, halfHeight), canvasSize.height - halfHeight)
         )
+    }
+
+    private func rotatedStickerBoundingSize(scale: CGFloat, rotation: Angle) -> CGSize {
+        let scaledWidth = stickerSize.width * scale
+        let scaledHeight = stickerSize.height * scale
+        let radians = rotation.radians
+        let cosine = abs(cos(radians))
+        let sine = abs(sin(radians))
+
+        let rotatedWidth = (scaledWidth * cosine) + (scaledHeight * sine)
+        let rotatedHeight = (scaledWidth * sine) + (scaledHeight * cosine)
+
+        return CGSize(width: rotatedWidth, height: rotatedHeight)
     }
 
     private func makeCapturedSelfieStickerImage(from originalImage: UIImage, size: CGFloat) -> UIImage {
