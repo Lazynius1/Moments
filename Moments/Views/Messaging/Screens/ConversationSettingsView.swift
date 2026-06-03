@@ -458,6 +458,20 @@ struct SharedMediaThumbnail: View {
             .aspectRatio(contentMode: .fill)
             .frame(width: 100, height: 100)
             .clipShape(RoundedRectangle(cornerRadius: 16))
+            .overlay(alignment: .bottomLeading) {
+                if media.type == .video {
+                    HStack(spacing: 0) {
+                        Image(systemName: "play.fill")
+                            .font(.system(size: 10, weight: .bold))
+                    }
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 6)
+                    .background(Color.black.opacity(0.42))
+                    .clipShape(Capsule())
+                    .padding(8)
+                }
+            }
             .overlay(
                 RoundedRectangle(cornerRadius: 16)
                     .stroke(Color.white.opacity(0.1), lineWidth: 1)
@@ -854,7 +868,7 @@ struct FullScreenMediaView: View {
     @State private var isSendingReply = false
     @State private var showSaveResult = false
     @State private var saveResultMessage = ""
-    @State private var videoProgress: Double = 0
+    @State private var videoCurrentTime: Double = 0
     @State private var videoDuration: Double = 0
     @State private var seekTarget: Double? = nil
     @State private var sharedPlayer: AVPlayer? = nil
@@ -942,12 +956,6 @@ struct FullScreenMediaView: View {
                         .padding(.horizontal, 22)
                         .padding(.top, 18)
 
-                    if isVideo {
-                        videoProgressView
-                            .padding(.horizontal, 22)
-                            .padding(.top, 14)
-                    }
-
                     Spacer(minLength: 6)
 
                     mediaContent(in: geometry)
@@ -973,7 +981,7 @@ struct FullScreenMediaView: View {
             )
         }
         .onChange(of: selectedIndex) { _, _ in
-            videoProgress = 0
+            videoCurrentTime = 0
             videoDuration = 0
             isVideoPaused = false
         }
@@ -1040,9 +1048,9 @@ struct FullScreenMediaView: View {
                                 videoDuration = value
                             }
                         },
-                        onProgressFractionUpdate: { value in
+                        onProgressUpdate: { value in
                             if isActive {
-                                videoProgress = value
+                                videoCurrentTime = value
                             }
                         },
                         onVideoFinished: {},
@@ -1139,20 +1147,6 @@ struct FullScreenMediaView: View {
         .background(Color.clear.liquidGlass(in: Capsule(), interactive: true))
     }
 
-    private var videoProgressView: some View {
-        GeometryReader { geo in
-            ZStack(alignment: .leading) {
-                Capsule()
-                    .fill(Color.gray.opacity(colorScheme == .dark ? 0.36 : 0.22))
-
-                Capsule()
-                    .fill(Color(hex: "FFCC33"))
-                    .frame(width: geo.size.width * videoProgress)
-            }
-        }
-        .frame(height: 5)
-    }
-
     private var videoControlsOverlay: some View {
         ZStack {
             Button {
@@ -1212,6 +1206,21 @@ struct FullScreenMediaView: View {
                     .padding(12)
                 }
                 Spacer()
+            }
+
+            VStack {
+                Spacer()
+
+                MomentsVideoPlaybackTimeline(
+                    currentTime: videoCurrentTime,
+                    duration: videoDuration,
+                    horizontalPadding: 18,
+                    onSeek: { targetTime in
+                        videoCurrentTime = targetTime
+                        seekTarget = targetTime
+                    }
+                )
+                .padding(.bottom, 16)
             }
         }
     }

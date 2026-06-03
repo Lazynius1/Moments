@@ -136,11 +136,7 @@ struct NormalVideoPlayerView: View {
     @State private var isMuted = false
     @State private var currentTime: Double = 0
     @State private var duration: Double = 0
-
-    private var progressFraction: Double {
-        guard duration > 0 else { return 0 }
-        return min(max(currentTime / duration, 0), 1)
-    }
+    @State private var externalSeekTime: Double? = nil
 
     var body: some View {
         ZStack {
@@ -162,28 +158,13 @@ struct NormalVideoPlayerView: View {
                             currentTime = max(value, 0)
                         }
                     },
-                    onVideoFinished: {}
+                    onVideoFinished: {},
+                    externalSeekTime: $externalSeekTime
                 )
                 .ignoresSafeArea()
             }
 
             VStack(spacing: 0) {
-                HStack(spacing: 4) {
-                    GeometryReader { geo in
-                        ZStack(alignment: .leading) {
-                            Capsule()
-                                .fill(Color.white.opacity(0.3))
-
-                            Capsule()
-                                .fill(Color(hex: "FFCC33"))
-                                .frame(width: geo.size.width * progressFraction)
-                        }
-                    }
-                    .frame(height: 3)
-                }
-                .padding(.horizontal, 30)
-                .padding(.top, 4)
-
                 HStack {
                     HStack(spacing: 6) {
                         Image(systemName: "play.rectangle.fill")
@@ -225,6 +206,17 @@ struct NormalVideoPlayerView: View {
                 .padding(.top, 20)
 
                 Spacer()
+
+                MomentsVideoPlaybackTimeline(
+                    currentTime: currentTime,
+                    duration: duration,
+                    horizontalPadding: 30,
+                    onSeek: { targetTime in
+                        currentTime = targetTime
+                        externalSeekTime = targetTime
+                    }
+                )
+                .padding(.bottom, 26)
             }
         }
         .statusBar(hidden: false)

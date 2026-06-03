@@ -291,18 +291,47 @@ struct ClusterMediaViewer: View {
 
 struct ClusterMediaViewerPage: View {
     let message: EnhancedMessage
+    @State private var currentTime: Double = 0
+    @State private var duration: Double = 0
+    @State private var seekTarget: Double? = nil
+    @State private var isPaused = false
 
     var body: some View {
         Group {
             if message.type == .video, let mediaUrl = message.mediaUrl, let url = URL(string: mediaUrl) {
-                MomentsVideoPlayer(
-                    url: url,
-                    isLooping: true,
-                    isPaused: false,
-                    videoGravity: .resizeAspect,
-                    onVideoFinished: {}
-                )
-                .ignoresSafeArea()
+                ZStack(alignment: .bottom) {
+                    MomentsVideoPlayer(
+                        url: url,
+                        isLooping: true,
+                        isPaused: isPaused,
+                        videoGravity: .resizeAspect,
+                        onDurationReceived: { value in
+                            duration = value
+                        },
+                        onProgressUpdate: { value in
+                            if !isPaused {
+                                currentTime = value
+                            }
+                        },
+                        onVideoFinished: {},
+                        externalSeekTime: $seekTarget
+                    )
+                    .ignoresSafeArea()
+                    .onTapGesture {
+                        isPaused.toggle()
+                    }
+
+                    MomentsVideoPlaybackTimeline(
+                        currentTime: currentTime,
+                        duration: duration,
+                        horizontalPadding: 18,
+                        onSeek: { targetTime in
+                            currentTime = targetTime
+                            seekTarget = targetTime
+                        }
+                    )
+                    .padding(.bottom, 22)
+                }
             } else if let mediaUrl = message.mediaUrl, let url = URL(string: mediaUrl) {
                 KFImage(url)
                     .resizable()

@@ -883,94 +883,47 @@ private struct CameraMediaPreviewOverlay: View {
     }
 }
 
-private struct CameraPreviewVideoPlayer: UIViewRepresentable {
+private struct CameraPreviewVideoPlayer: View {
     let url: URL
+    @State private var isPaused = false
+    @State private var currentTime: Double = 0
+    @State private var duration: Double = 0
+    @State private var externalSeekTime: Double? = nil
 
-    func makeUIView(context: Context) -> PlayerContainerView {
-        let view = PlayerContainerView()
-        view.configure(url: url)
-        return view
-    }
+    var body: some View {
+        ZStack(alignment: .bottom) {
+            MomentsVideoPlayer(
+                url: url,
+                isLooping: true,
+                isPaused: isPaused,
+                prioritizeSmoothPlayback: true,
+                videoGravity: .resizeAspect,
+                onDurationReceived: { value in
+                    duration = max(value, 0)
+                },
+                onProgressUpdate: { value in
+                    if !isPaused {
+                        currentTime = max(value, 0)
+                    }
+                },
+                externalSeekTime: $externalSeekTime
+            )
+            .contentShape(Rectangle())
+            .onTapGesture {
+                isPaused.toggle()
+            }
 
-    func updateUIView(_ uiView: PlayerContainerView, context: Context) {
-        uiView.configure(url: url)
-    }
-}
-
-private final class PlayerContainerView: UIView {
-    private var player: AVPlayer?
-    private var playerLayer: AVPlayerLayer?
-    private var playbackObserver: NSObjectProtocol?
-    private var currentURL: URL?
-
-    override init(frame: CGRect) {
-        super.init(frame: frame)
-        backgroundColor = .clear
-        let tapGesture = UITapGestureRecognizer(target: self, action: #selector(togglePlayback))
-        addGestureRecognizer(tapGesture)
-    }
-
-    required init?(coder: NSCoder) {
-        super.init(coder: coder)
-        backgroundColor = .clear
-        let tapGesture = UITapGestureRecognizer(target: self, action: #selector(togglePlayback))
-        addGestureRecognizer(tapGesture)
-    }
-
-    override func layoutSubviews() {
-        super.layoutSubviews()
-        playerLayer?.frame = bounds
-    }
-
-    func configure(url: URL) {
-        guard currentURL != url else { return }
-        cleanup()
-
-        currentURL = url
-        let player = AVPlayer(url: url)
-        let layer = AVPlayerLayer(player: player)
-        layer.videoGravity = .resizeAspect
-        layer.frame = bounds
-        self.layer.addSublayer(layer)
-
-        playbackObserver = NotificationCenter.default.addObserver(
-            forName: .AVPlayerItemDidPlayToEndTime,
-            object: player.currentItem,
-            queue: .main
-        ) { [weak player] _ in
-            player?.seek(to: .zero)
-            player?.play()
+            MomentsVideoPlaybackTimeline(
+                currentTime: currentTime,
+                duration: duration,
+                horizontalPadding: 18,
+                onSeek: { targetTime in
+                    currentTime = targetTime
+                    externalSeekTime = targetTime
+                }
+            )
+            .padding(.bottom, 14)
         }
-
-        self.player = player
-        self.playerLayer = layer
-        player.play()
-    }
-
-    @objc
-    private func togglePlayback() {
-        guard let player else { return }
-        if player.timeControlStatus == .playing {
-            player.pause()
-        } else {
-            player.play()
-        }
-    }
-
-    private func cleanup() {
-        player?.pause()
-        if let playbackObserver {
-            NotificationCenter.default.removeObserver(playbackObserver)
-            self.playbackObserver = nil
-        }
-        playerLayer?.removeFromSuperlayer()
-        playerLayer = nil
-        player = nil
-        currentURL = nil
-    }
-
-    deinit {
-        cleanup()
     }
 }
 
