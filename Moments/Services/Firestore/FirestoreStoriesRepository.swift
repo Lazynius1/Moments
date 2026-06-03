@@ -55,6 +55,7 @@ extension FirestoreService {
         text: String? = nil,
         textPosition: CGPoint? = nil,
         textStyle: String? = nil,
+        textOverlay: StoryTextOverlayMetadata? = nil,
         stickers: [StickerData]? = nil,
         drawingData: Data? = nil,
         aspectRatio: String? = nil,
@@ -81,6 +82,7 @@ extension FirestoreService {
             text: text,
             textPosition: textPosition,
             textStyle: textStyle,
+            textOverlay: textOverlay,
             stickers: stickers,
             drawingData: drawingData,
             aspectRatio: aspectRatio,
@@ -107,6 +109,7 @@ extension FirestoreService {
         text: String? = nil,
         textPosition: CGPoint? = nil,
         textStyle: String? = nil,
+        textOverlay: StoryTextOverlayMetadata? = nil,
         stickers: [StickerData]? = nil,
         drawingData: Data? = nil,
         aspectRatio: String? = nil,
@@ -133,6 +136,7 @@ extension FirestoreService {
             text: text,
             textPosition: textPosition,
             textStyle: textStyle,
+            textOverlay: textOverlay,
             stickers: stickers,
             drawingData: drawingData,
             aspectRatio: aspectRatio,
@@ -161,6 +165,7 @@ extension FirestoreService {
         text: String?,
         textPosition: CGPoint?,
         textStyle: String?,
+        textOverlay: StoryTextOverlayMetadata? = nil,
         stickers: [StickerData]?,
         drawingData: Data?,
         aspectRatio: String?,
@@ -205,6 +210,17 @@ extension FirestoreService {
                     text: text,
                     textPosition: textPosition,
                     textStyle: textStyle,
+                    textPositionNormX: textOverlay.map { Double($0.normalizedPosition.x) },
+                    textPositionNormY: textOverlay.map { Double($0.normalizedPosition.y) },
+                    textColorHex: textOverlay?.colorHex,
+                    textFontSize: textOverlay?.fontSize,
+                    textAlignment: textOverlay?.alignmentRaw,
+                    textBackgroundFill: textOverlay?.backgroundFillRaw,
+                    textStroke: textOverlay?.strokeRaw,
+                    textVisualEffect: textOverlay?.visualEffectRaw,
+                    textMotion: textOverlay?.motionRaw,
+                    forcesAllCaps: textOverlay?.forcesAllCaps,
+                    textOverlayLive: textOverlay?.isLiveOverlay,
                     stickers: stickers,
                     drawingData: drawingData,
                     aspectRatio: aspectRatio,
@@ -286,6 +302,13 @@ extension FirestoreService {
         if let textPosition {
             storyData["textPositionX"] = textPosition.x
             storyData["textPositionY"] = textPosition.y
+        }
+
+        if let textPositionNormX = story.textPositionNormX {
+            storyData["textPositionNormX"] = textPositionNormX
+        }
+        if let textPositionNormY = story.textPositionNormY {
+            storyData["textPositionNormY"] = textPositionNormY
         }
 
         if let stickers {

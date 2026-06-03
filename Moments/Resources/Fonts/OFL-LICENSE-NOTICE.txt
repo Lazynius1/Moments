@@ -1,0 +1,9 @@
+Story editor fonts — Open Font License (OFL)
+Bundled families from Google Fonts (https://fonts.google.com):
+
+Bebas Neue, Lora, Anton, Pacifico, Varela Round, Barlow Condensed,
+Playfair Display, IBM Plex Serif, Poiret One, Caveat, Bangers,
+Dancing Script, Cormorant Garamond.
+
+Each family is licensed under the SIL Open Font License 1.1.
+See individual font directories at https://github.com/google/fonts

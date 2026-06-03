@@ -650,7 +650,6 @@ struct CreatorView_Previews: PreviewProvider {
 struct RevealStickerEditorView: View {
     @Binding var stickers: [StickerItem]
     @Binding var editingId: String?
-
     private var currentStickerIndex: Int? {
         stickers.firstIndex(where: { $0.id == editingId })
     }
@@ -714,19 +713,26 @@ struct RevealStickerEditorView: View {
 struct RevealStickerBottomControlsInset: View {
     @Binding var stickers: [StickerItem]
     @Binding var editingId: String?
+    @Environment(\.colorScheme) private var colorScheme
+
+    private var primaryTextColor: Color {
+        colorScheme == .dark ? .white.opacity(0.96) : Color.black.opacity(0.86)
+    }
+
+    private var secondaryTextColor: Color {
+        colorScheme == .dark ? .white.opacity(0.92) : Color.black.opacity(0.72)
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack(spacing: 10) {
-                Image(systemName: "sparkles.rectangle.stack")
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundColor(.white.opacity(0.92))
+                Spacer(minLength: 0)
 
                 Text(NSLocalizedString("revealEditor.title", comment: "Customize Reveal"))
                     .font(.custom("Poppins-SemiBold", size: 15))
-                    .foregroundColor(.white.opacity(0.96))
+                    .foregroundColor(primaryTextColor)
 
-                Spacer()
+                Spacer(minLength: 0)
             }
 
             RevealStickerControlsContent(
@@ -755,6 +761,7 @@ struct RevealStickerBottomControlsInset: View {
 private struct RevealStickerControlsContent: View {
     @Binding var stickers: [StickerItem]
     @Binding var editingId: String?
+    @Environment(\.colorScheme) private var colorScheme
 
     let presetPreviewSize: CGSize
     let presetsHeight: CGFloat
@@ -766,6 +773,42 @@ private struct RevealStickerControlsContent: View {
     @State private var customPattern: String = "dots"
     @State private var customPrimary: Color = .black
     @State private var customSecondary: Color = .black
+
+    private var primaryTextColor: Color {
+        colorScheme == .dark ? .white : .black
+    }
+
+    private var secondaryTextColor: Color {
+        colorScheme == .dark ? .white.opacity(0.7) : Color.black.opacity(0.62)
+    }
+
+    private var tertiaryTextColor: Color {
+        colorScheme == .dark ? .white.opacity(0.55) : Color.black.opacity(0.48)
+    }
+
+    private var tabInactiveTextColor: Color {
+        colorScheme == .dark ? .white.opacity(0.58) : Color.black.opacity(0.54)
+    }
+
+    private var tabActiveTextColor: Color {
+        colorScheme == .dark ? .white.opacity(0.96) : Color.black.opacity(0.86)
+    }
+
+    private var chipBackgroundColor: Color {
+        colorScheme == .dark ? Color.white : Color.black
+    }
+
+    private var chipInactiveBackgroundColor: Color {
+        colorScheme == .dark ? Color.white.opacity(0.1) : Color.black.opacity(0.08)
+    }
+
+    private var chipActiveTextColor: Color {
+        colorScheme == .dark ? .black : .white
+    }
+
+    private var circleButtonBackgroundColor: Color {
+        colorScheme == .dark ? Color.white.opacity(0.1) : Color.black.opacity(0.08)
+    }
 
     enum EditorTab: CaseIterable, Hashable {
         case presets
@@ -873,7 +916,7 @@ private struct RevealStickerControlsContent: View {
 
                             Text(NSLocalizedString("revealEditor.preset.\(preset.id)", comment: ""))
                                 .font(.custom("Poppins-Medium", size: 12))
-                                .foregroundColor(.white)
+                                .foregroundColor(primaryTextColor)
                         }
                     }
                 }
@@ -893,8 +936,8 @@ private struct RevealStickerControlsContent: View {
                                 .font(.custom("Poppins-Medium", size: 13))
                                 .padding(.horizontal, 16)
                                 .padding(.vertical, 8)
-                                .background(customPattern == p ? Color.white : Color.white.opacity(0.1))
-                                .foregroundColor(customPattern == p ? .black : .white)
+                                .background(customPattern == p ? chipBackgroundColor : chipInactiveBackgroundColor)
+                                .foregroundColor(customPattern == p ? chipActiveTextColor : primaryTextColor)
                                 .clipShape(Capsule())
                         }
                     }
@@ -913,7 +956,7 @@ private struct RevealStickerControlsContent: View {
 
                     Text(NSLocalizedString("revealEditor.color1", comment: ""))
                         .font(.caption2)
-                        .foregroundColor(.white.opacity(0.7))
+                        .foregroundColor(secondaryTextColor)
                 }
                 .onChange(of: customPrimary) { updateCustomColors() }
 
@@ -929,7 +972,7 @@ private struct RevealStickerControlsContent: View {
 
                         Text(NSLocalizedString("revealEditor.color2", comment: ""))
                             .font(.caption2)
-                            .foregroundColor(.white.opacity(0.7))
+                            .foregroundColor(secondaryTextColor)
                     }
                     .onChange(of: customSecondary) { updateCustomColors() }
                 }
@@ -942,9 +985,9 @@ private struct RevealStickerControlsContent: View {
                         Text(customType == "solid" ? "2" : "1")
                             .font(.custom("Poppins-SemiBold", size: 12))
                     }
-                    .foregroundColor(.white)
+                    .foregroundColor(primaryTextColor)
                     .frame(width: 50, height: 50)
-                    .background(Color.white.opacity(0.1))
+                    .background(circleButtonBackgroundColor)
                     .clipShape(Circle())
                 }
 
@@ -953,12 +996,12 @@ private struct RevealStickerControlsContent: View {
                         ? NSLocalizedString("revealEditor.color1", comment: "")
                         : NSLocalizedString("revealEditor.color2", comment: ""))
                         .font(.custom("Poppins-Medium", size: 12))
-                        .foregroundColor(.white)
+                        .foregroundColor(primaryTextColor)
                     Text(customType == "solid"
                         ? NSLocalizedString("revealEditor.tab.custom", comment: "Custom")
                         : NSLocalizedString("revealEditor.tab.presets", comment: "Presets"))
                         .font(.system(size: 11, weight: .medium))
-                        .foregroundColor(.white.opacity(0.55))
+                        .foregroundColor(tertiaryTextColor)
                 }
             }
         }
@@ -1009,7 +1052,7 @@ private struct RevealStickerControlsContent: View {
     }
 
     private func tabLabelColor(for index: Int, width: CGFloat) -> Color {
-        tabVisualIndex(for: width) == index ? .white.opacity(0.96) : .white.opacity(0.58)
+        tabVisualIndex(for: width) == index ? tabActiveTextColor : tabInactiveTextColor
     }
 
     private func constrainedTabTranslation(_ translation: CGFloat, width: CGFloat) -> CGFloat {

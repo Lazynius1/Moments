@@ -1109,6 +1109,19 @@ struct Story: Identifiable, Codable {
     let text: String?
     let textPosition: CGPoint?
     let textStyle: String?
+    /// Normalized (0–1) text anchor in the story canvas, same space as stickers.
+    let textPositionNormX: Double?
+    let textPositionNormY: Double?
+    let textColorHex: String?
+    let textFontSize: Double?
+    let textAlignment: String?
+    let textBackgroundFill: String?
+    let textStroke: String?
+    let textVisualEffect: String?
+    let textMotion: String?
+    let forcesAllCaps: Bool?
+    /// When true, text is rendered live in the viewer instead of baked into media.
+    let textOverlayLive: Bool?
     let stickers: [StickerData]?
     let drawingData: Data?
     let aspectRatio: String? // ✅ AÑADIDO: Aspect ratio del video/imagen
@@ -1131,7 +1144,20 @@ struct Story: Identifiable, Codable {
         case customListId // ✅ AÑADIDO: Clave de codificación
         case text
         case textPosition
+        case textPositionX
+        case textPositionY
+        case textPositionNormX
+        case textPositionNormY
         case textStyle
+        case textColorHex
+        case textFontSize
+        case textAlignment
+        case textBackgroundFill
+        case textStroke
+        case textVisualEffect
+        case textMotion
+        case forcesAllCaps
+        case textOverlayLive
         case stickers
         case drawingData
         case aspectRatio // ✅ AÑADIDO: Clave de codificación
@@ -1159,6 +1185,17 @@ struct Story: Identifiable, Codable {
          text: String? = nil,
          textPosition: CGPoint? = nil,
          textStyle: String? = nil,
+         textPositionNormX: Double? = nil,
+         textPositionNormY: Double? = nil,
+         textColorHex: String? = nil,
+         textFontSize: Double? = nil,
+         textAlignment: String? = nil,
+         textBackgroundFill: String? = nil,
+         textStroke: String? = nil,
+         textVisualEffect: String? = nil,
+         textMotion: String? = nil,
+         forcesAllCaps: Bool? = nil,
+         textOverlayLive: Bool? = nil,
          stickers: [StickerData]? = nil,
          drawingData: Data? = nil,
          aspectRatio: String? = nil, // ✅ AÑADIDO: Aspect ratio
@@ -1180,6 +1217,17 @@ struct Story: Identifiable, Codable {
         self.text = text
         self.textPosition = textPosition
         self.textStyle = textStyle
+        self.textPositionNormX = textPositionNormX
+        self.textPositionNormY = textPositionNormY
+        self.textColorHex = textColorHex
+        self.textFontSize = textFontSize
+        self.textAlignment = textAlignment
+        self.textBackgroundFill = textBackgroundFill
+        self.textStroke = textStroke
+        self.textVisualEffect = textVisualEffect
+        self.textMotion = textMotion
+        self.forcesAllCaps = forcesAllCaps
+        self.textOverlayLive = textOverlayLive
         self.stickers = stickers
         self.drawingData = drawingData
         self.aspectRatio = aspectRatio // ✅ AÑADIDO: Asignar aspect ratio
@@ -1205,13 +1253,27 @@ struct Story: Identifiable, Codable {
         self.customListId = try container.decodeIfPresent(String.self, forKey: .customListId) // ✅ AÑADIDO
         self.text = try container.decodeIfPresent(String.self, forKey: .text)
 
-        if let textPositionData = try container.decodeIfPresent(Data.self, forKey: .textPosition) {
+        if let textPositionX = try container.decodeIfPresent(Double.self, forKey: .textPositionX),
+           let textPositionY = try container.decodeIfPresent(Double.self, forKey: .textPositionY) {
+            self.textPosition = CGPoint(x: textPositionX, y: textPositionY)
+        } else if let textPositionData = try container.decodeIfPresent(Data.self, forKey: .textPosition) {
             self.textPosition = try? JSONDecoder().decode(CGPoint.self, from: textPositionData)
         } else {
             self.textPosition = nil
         }
 
         self.textStyle = try container.decodeIfPresent(String.self, forKey: .textStyle)
+        self.textPositionNormX = try container.decodeIfPresent(Double.self, forKey: .textPositionNormX)
+        self.textPositionNormY = try container.decodeIfPresent(Double.self, forKey: .textPositionNormY)
+        self.textColorHex = try container.decodeIfPresent(String.self, forKey: .textColorHex)
+        self.textFontSize = try container.decodeIfPresent(Double.self, forKey: .textFontSize)
+        self.textAlignment = try container.decodeIfPresent(String.self, forKey: .textAlignment)
+        self.textBackgroundFill = try container.decodeIfPresent(String.self, forKey: .textBackgroundFill)
+        self.textStroke = try container.decodeIfPresent(String.self, forKey: .textStroke)
+        self.textVisualEffect = try container.decodeIfPresent(String.self, forKey: .textVisualEffect)
+        self.textMotion = try container.decodeIfPresent(String.self, forKey: .textMotion)
+        self.forcesAllCaps = try container.decodeIfPresent(Bool.self, forKey: .forcesAllCaps)
+        self.textOverlayLive = try container.decodeIfPresent(Bool.self, forKey: .textOverlayLive)
         self.stickers = try container.decodeIfPresent([StickerData].self, forKey: .stickers)
         self.drawingData = try container.decodeIfPresent(Data.self, forKey: .drawingData)
         self.aspectRatio = try container.decodeIfPresent(String.self, forKey: .aspectRatio) // ✅ AÑADIDO: Decodificar aspect ratio
@@ -1252,6 +1314,17 @@ struct Story: Identifiable, Codable {
         }
 
         try container.encodeIfPresent(textStyle, forKey: .textStyle)
+        try container.encodeIfPresent(textPositionNormX, forKey: .textPositionNormX)
+        try container.encodeIfPresent(textPositionNormY, forKey: .textPositionNormY)
+        try container.encodeIfPresent(textColorHex, forKey: .textColorHex)
+        try container.encodeIfPresent(textFontSize, forKey: .textFontSize)
+        try container.encodeIfPresent(textAlignment, forKey: .textAlignment)
+        try container.encodeIfPresent(textBackgroundFill, forKey: .textBackgroundFill)
+        try container.encodeIfPresent(textStroke, forKey: .textStroke)
+        try container.encodeIfPresent(textVisualEffect, forKey: .textVisualEffect)
+        try container.encodeIfPresent(textMotion, forKey: .textMotion)
+        try container.encodeIfPresent(forcesAllCaps, forKey: .forcesAllCaps)
+        try container.encodeIfPresent(textOverlayLive, forKey: .textOverlayLive)
         try container.encodeIfPresent(stickers, forKey: .stickers)
         try container.encodeIfPresent(drawingData, forKey: .drawingData)
         try container.encodeIfPresent(aspectRatio, forKey: .aspectRatio) // ✅ AÑADIDO: Codificar aspect ratio

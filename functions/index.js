@@ -6777,6 +6777,8 @@ function firestoreValueToJSON(value) {
   return value;
 }
 
+// Passes through all Firestore story fields (including live text overlay metadata:
+// textOverlayLive, textPositionNormX/Y, textColorHex, textMotion, textVisualEffect, etc.)
 function serializeStoryDocument(doc) {
   const data = doc.data() || {};
   return {

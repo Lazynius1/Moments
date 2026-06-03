@@ -43,6 +43,17 @@ struct BackendStoryDocument: Codable {
     let textStyle: String?
     let textPositionX: Double?
     let textPositionY: Double?
+    let textPositionNormX: Double?
+    let textPositionNormY: Double?
+    let textColorHex: String?
+    let textFontSize: Double?
+    let textAlignment: String?
+    let textBackgroundFill: String?
+    let textStroke: String?
+    let textVisualEffect: String?
+    let textMotion: String?
+    let forcesAllCaps: Bool?
+    let textOverlayLive: Bool?
     let drawingData: String?
     let stickers: [StickerData]?
     let aspectRatio: String?

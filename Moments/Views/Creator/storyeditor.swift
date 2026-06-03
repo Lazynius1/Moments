@@ -21,7 +21,7 @@ struct StoryEditingView: View {
     @State private var showAlert = false
     @State private var showDiscardChangesAlert = false
     @State private var storyText = ""
-    @State private var textPosition: CGPoint = CGPoint(x: UIScreen.main.bounds.width / 2, y: 100)
+    @State private var textPosition: CGPoint = .zero
     @State private var storyTextColor: Color = .white
     @State private var storyTextAlignment: TextAlignment = .center
     @State private var storyTextBackground: TextBackgroundFill = .none
@@ -38,7 +38,10 @@ struct StoryEditingView: View {
     @Environment(\.colorScheme) var colorScheme
     @State private var showingAudienceSelector = false
     @State private var selectedTextStyle: TextStyle = .modern
-    @State private var selectedTextEffect: TextEffect = .none
+    @State private var selectedTextStroke: TextStroke = .none
+    @State private var selectedTextMotion: TextMotion = .none
+    @State private var selectedVisualEffect: TextEffect = .none
+    @State private var storyForcesAllCaps = false
     @State private var drawingImage: UIImage?
     @State private var editableImageViewRef: EditableImageView?
 
@@ -154,11 +157,14 @@ struct StoryEditingView: View {
                             text: $storyText,
                             textPosition: $textPosition,
                             textStyle: $selectedTextStyle,
-                            textEffect: $selectedTextEffect,
+                            visualEffect: $selectedVisualEffect,
                             textColor: $storyTextColor,
                             textAlignment: $storyTextAlignment,
                             textBackgroundFill: $storyTextBackground,
                             textFontSize: $storyTextFontSize,
+                            textStroke: $selectedTextStroke,
+                            textMotion: $selectedTextMotion,
+                            forcesAllCaps: $storyForcesAllCaps,
                             isTextEditorPresented: Binding(
                                 get: { isTextMode },
                                 set: { isPresented in
@@ -182,6 +188,19 @@ struct StoryEditingView: View {
                         .frame(width: mediaCanvasRect.width, height: mediaCanvasRect.height)
                         .position(x: mediaCanvasRect.midX, y: mediaCanvasRect.midY)
                     }
+
+                    Color.clear
+                        .frame(width: 0, height: 0)
+                        .onChange(of: activeEditorMode) { _, mode in
+                            if mode == .idle, !storyText.isEmpty {
+                                seedStoryTextPosition(canvasSize: mediaCanvasSize)
+                            }
+                        }
+                        .onChange(of: storyText) { _, newText in
+                            if !newText.isEmpty {
+                                seedStoryTextPosition(canvasSize: mediaCanvasSize)
+                            }
+                        }
 
                     // Controls
                     mainControlsOverlay(
@@ -212,11 +231,15 @@ struct StoryEditingView: View {
                             ),
                             text: $storyText,
                             selectedStyle: $selectedTextStyle,
-                            selectedEffect: $selectedTextEffect,
                             textColor: $storyTextColor,
                             textAlignment: $storyTextAlignment,
                             textBackgroundFill: $storyTextBackground,
-                            textFontSize: $storyTextFontSize
+                            textFontSize: $storyTextFontSize,
+                            textStroke: $selectedTextStroke,
+                            textMotion: $selectedTextMotion,
+                            visualEffect: $selectedVisualEffect,
+                            forcesAllCaps: $storyForcesAllCaps,
+                            mediaSampleImage: currentStorySampleImage()
                         )
                         .transition(.opacity.combined(with: .move(edge: .bottom)))
                         .zIndex(40)
@@ -246,6 +269,7 @@ struct StoryEditingView: View {
             }
             .toolbar(.hidden, for: .navigationBar)
         .onAppear {
+            StoryFontRegistry.registerFontsIfNeeded()
             loadUserDefaultAudienceSettings()
             setupStickerListener()
             setupChainContextListener()
@@ -1689,7 +1713,8 @@ struct StoryEditingView: View {
     }
 
     private func renderStoryOverlayImage(targetSize: CGSize, screenSize: CGSize) -> UIImage? {
-        guard drawingImage != nil || !storyText.isEmpty else { return nil }
+        // Text overlays are persisted as metadata and rendered live in the viewer (not baked into media).
+        guard drawingImage != nil else { return nil }
 
         let scaleFactorX = targetSize.width / max(screenSize.width, 1)
         let scaleFactorY = targetSize.height / max(screenSize.height, 1)
@@ -1705,53 +1730,6 @@ struct StoryEditingView: View {
                 drawing.draw(in: rect, blendMode: .normal, alpha: 1.0)
             }
 
-            if !storyText.isEmpty {
-                let paragraphStyle = NSMutableParagraphStyle()
-                paragraphStyle.alignment = nsTextAlignment(from: storyTextAlignment)
-
-                let scaledFontSize = storyTextFontSize * max(scaleFactorX, scaleFactorY)
-                let font = selectedTextStyle.uiFont(size: scaledFontSize)
-
-                var attributes: [NSAttributedString.Key: Any] = [
-                    .font: font,
-                    .foregroundColor: UIColor(storyTextColor),
-                    .paragraphStyle: paragraphStyle
-                ]
-
-                if let shadow = selectedTextEffect.nsShadow(for: UIColor(storyTextColor)) {
-                    attributes[.shadow] = shadow
-                }
-
-                let attributedText = NSAttributedString(string: storyText, attributes: attributes)
-                let maxTextWidth = max(
-                    (screenSize.width - ((editorOuterHorizontalPadding * 2) + (editorInnerHorizontalPadding * 2))) * scaleFactorX,
-                    120 * scaleFactorX
-                )
-                let measuredSize = attributedText.boundingRect(
-                    with: CGSize(width: maxTextWidth, height: .greatestFiniteMagnitude),
-                    options: [.usesLineFragmentOrigin, .usesFontLeading],
-                    context: nil
-                ).integral.size
-                let drawTextWidth = min(maxTextWidth, max(1, measuredSize.width))
-                let textRect = CGRect(
-                    x: (textPosition.x * scaleFactorX) - drawTextWidth / 2,
-                    y: (textPosition.y * scaleFactorY) - measuredSize.height / 2,
-                    width: drawTextWidth,
-                    height: measuredSize.height
-                )
-
-                if let backgroundUIColor = resolvedTextBackgroundUIColor() {
-                    backgroundUIColor.setFill()
-                    let backgroundRect = textRect.insetBy(
-                        dx: -(editorInnerHorizontalPadding * scaleFactorX),
-                        dy: -(editorInnerVerticalPadding * scaleFactorY)
-                    )
-                    let cornerRadius = 10 * max(scaleFactorX, scaleFactorY)
-                    UIBezierPath(roundedRect: backgroundRect, cornerRadius: cornerRadius).fill()
-                }
-
-                attributedText.draw(in: textRect)
-            }
         }
     }
 
@@ -2126,12 +2104,29 @@ struct StoryEditingView: View {
             }
         }()
 
+        let contentRect = currentMediaCanvasRect()
+        let textOverlayMetadata = storyText.isEmpty ? nil : StoryTextOverlayMetadata.build(
+            text: storyText,
+            editorPosition: textPosition,
+            contentRect: contentRect,
+            style: selectedTextStyle,
+            textColor: storyTextColor,
+            fontSize: storyTextFontSize,
+            alignment: storyTextAlignment,
+            backgroundFill: storyTextBackground,
+            stroke: selectedTextStroke,
+            visualEffect: selectedVisualEffect,
+            motion: selectedTextMotion,
+            forcesAllCaps: storyForcesAllCaps
+        )
+
         // 2. Iniciar preparación instantánea en el servicio con estado .initializing
         guard let uploadingStory = BackgroundStoryUploadService.shared.startPreparingStory(
             mediaItem: media,
             storyText: storyText.isEmpty ? nil : storyText,
             textPosition: storyText.isEmpty ? nil : textPosition,
             selectedTextStyle: storyText.isEmpty ? nil : selectedTextStyle,
+            textOverlayMetadata: textOverlayMetadata,
             stickerData: stickerData,
             drawingData: drawingData,
             audienceSetting: contentAudience,
@@ -2202,16 +2197,24 @@ struct StoryEditingView: View {
     // 🧹 AÑADE esta nueva función para limpiar el formulario:
     private func resetStoryForm() {
         storyText = ""
-        textPosition = CGPoint(x: UIScreen.main.bounds.width / 2, y: 100)
+        textPosition = .zero
         selectedStickers = []
         drawingImage = nil
         selectedTextStyle = .modern
-        selectedTextEffect = .none
+        selectedTextMotion = .none
+        selectedVisualEffect = .none
+        storyForcesAllCaps = false
         storyTextColor = .white
         storyTextAlignment = .center
         storyTextBackground = .none
         storyTextFontSize = 30
 
+    }
+
+    private func seedStoryTextPosition(canvasSize: CGSize) {
+        guard !storyText.isEmpty else { return }
+        guard StoryTextCanvasPlacement.needsSeed(position: textPosition, canvasSize: canvasSize) else { return }
+        textPosition = StoryTextCanvasPlacement.defaultPosition(in: canvasSize)
     }
 
     private func nsTextAlignment(from alignment: TextAlignment) -> NSTextAlignment {
@@ -2237,10 +2240,18 @@ struct StoryEditingView: View {
     }
 
     private func resolvedTextBackgroundUIColor() -> UIColor? {
-        if let explicitBackground = textBackgroundUIColor() {
-            return explicitBackground
+        StoryTextAttributesBuilder.backgroundUIColor(
+            fill: storyTextBackground,
+            effect: selectedVisualEffect,
+            style: selectedTextStyle
+        )
+    }
+
+    private func currentStorySampleImage() -> UIImage? {
+        if let filteredImage {
+            return filteredImage
         }
-        return selectedTextEffect.uiBackgroundColor
+        return selectedMediaItems.first?.image
     }
 
     // 🔗 MANEJAR ERRORES DE LÍMITES DE STORY CHAINS

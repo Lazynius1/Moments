@@ -9,11 +9,14 @@ struct StoryOverlaysView: View {
     @Binding var text: String
     @Binding var textPosition: CGPoint
     @Binding var textStyle: StoryEditingView.TextStyle
-    @Binding var textEffect: StoryEditingView.TextEffect
+    @Binding var visualEffect: StoryEditingView.TextEffect
     @Binding var textColor: Color
     @Binding var textAlignment: TextAlignment
     @Binding var textBackgroundFill: StoryEditingView.TextBackgroundFill
     @Binding var textFontSize: CGFloat
+    @Binding var textStroke: StoryEditingView.TextStroke
+    @Binding var textMotion: StoryEditingView.TextMotion
+    @Binding var forcesAllCaps: Bool
     @Binding var isTextEditorPresented: Bool
     @Binding var stickers: [StickerItem]
     @Binding var drawingImage: UIImage?
@@ -101,28 +104,31 @@ struct StoryOverlaysView: View {
 
             // Text overlay
             if !text.isEmpty && !isTextEditorPresented {
-                Text(text)
-                    .font(textStyle.font(size: textFontSize))
-                    .foregroundColor(textColor)
-                    .multilineTextAlignment(textAlignment)
-                    .lineLimit(nil)
-                    .padding(.vertical, 10)
-                    .padding(.horizontal, 14)
-                    .background(
-                        Group {
-                            if let backgroundColor = effectiveTextBackgroundColor {
-                                backgroundColor
-                            }
-                        }
-                    )
-                    .clipShape(
-                        RoundedRectangle(cornerRadius: effectiveTextBackgroundColor == nil ? 0 : 10, style: .continuous)
-                    )
-                    .padding(.horizontal, 24)
-                    .scaleEffect(1.0)
-                    .opacity(1.0)
-                    .modifier(TextEffectModifier(effect: textEffect, textColor: textColor))
-                    .contentShape(Rectangle()) // ✅ Área táctil limitada al texto
+                let textConfig = StoryTextRenderConfiguration(
+                    text: text,
+                    style: textStyle,
+                    visualEffect: visualEffect,
+                    textColor: textColor,
+                    textAlignment: textAlignment,
+                    textBackgroundFill: textBackgroundFill,
+                    fontSize: textFontSize,
+                    textStroke: textStroke,
+                    forcesAllCaps: forcesAllCaps
+                )
+                let maxTextWidth = max(canvasSize.width - 48, 120)
+                let overlaySize = StoryTextAttributesBuilder.overlayContentSize(
+                    for: textConfig,
+                    maxWidth: maxTextWidth
+                )
+
+                StoryTextOverlayContainerRepresentable(
+                    configuration: textConfig,
+                    motion: textMotion,
+                    maxWidth: maxTextWidth,
+                    replayToken: 0
+                )
+                    .frame(width: overlaySize.width, height: overlaySize.height)
+                    .contentShape(Rectangle())
                     .gesture(
                         DragGesture(coordinateSpace: .named("storyCanvas")) // ✅ Estabilidad absoluta en el canvas
                             .onChanged { value in
@@ -169,7 +175,7 @@ struct StoryOverlaysView: View {
                                 if pinchStartTextFontSize == nil {
                                     pinchStartTextFontSize = textFontSize
                                 }
-                                textFontSize = min(max(baseFontSize * value, 20), 56)
+                                textFontSize = min(max(baseFontSize * value, 16), 72)
                             }
                             .onEnded { _ in
                                 pinchStartTextFontSize = nil
@@ -180,7 +186,8 @@ struct StoryOverlaysView: View {
                         isEditingText = true
                         isTextEditorPresented = true
                     }
-                    .position(textPosition) // ✅ Posicionar al final
+                    .position(textPosition)
+                    .zIndex(20)
                     .animation(.easeInOut(duration: 0.2), value: isDraggingItem)
             }
 
@@ -412,18 +419,28 @@ struct StoryOverlaysView: View {
         .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillHideNotification)) { _ in
             keyboardHeight = 0
         }
+        .onAppear {
+            seedTextPositionIfNeeded()
+        }
+        .onChange(of: isTextEditorPresented) { _, isPresented in
+            if !isPresented {
+                seedTextPositionIfNeeded()
+            }
+        }
+        .onChange(of: text) { _, newValue in
+            if !newValue.isEmpty {
+                seedTextPositionIfNeeded()
+            }
+        }
 
     }
 
-    private var effectiveTextBackgroundColor: Color? {
-        switch textBackgroundFill {
-        case .none:
-            return textEffect.backgroundColor
-        case .black:
-            return Color.black.opacity(0.58)
-        case .white:
-            return Color.white.opacity(0.90)
+    private func seedTextPositionIfNeeded() {
+        guard !text.isEmpty else { return }
+        if StoryTextCanvasPlacement.needsSeed(position: textPosition, canvasSize: canvasSize) {
+            textPosition = StoryTextCanvasPlacement.defaultPosition(in: canvasSize)
         }
+        textPosition = clampedTextPosition(textPosition)
     }
 
     private func clampedTextPosition(_ proposedPosition: CGPoint) -> CGPoint {
@@ -440,29 +457,19 @@ struct StoryOverlaysView: View {
     private func estimatedTextBounds() -> CGSize {
         guard !text.isEmpty else { return CGSize(width: 44, height: 44) }
 
-        let font = textStyle.uiFont(size: textFontSize)
+        let config = StoryTextRenderConfiguration(
+            text: text,
+            style: textStyle,
+            visualEffect: visualEffect,
+            textColor: textColor,
+            textAlignment: textAlignment,
+            textBackgroundFill: textBackgroundFill,
+            fontSize: textFontSize,
+            textStroke: textStroke,
+            forcesAllCaps: forcesAllCaps
+        )
         let maxTextWidth = max(canvasSize.width - 76, 120)
-        let paragraphStyle = NSMutableParagraphStyle()
-        switch textAlignment {
-        case .leading:
-            paragraphStyle.alignment = .left
-        case .trailing:
-            paragraphStyle.alignment = .right
-        default:
-            paragraphStyle.alignment = .center
-        }
-
-        let attributes: [NSAttributedString.Key: Any] = [
-            .font: font,
-            .paragraphStyle: paragraphStyle
-        ]
-
-        let measured = (text as NSString).boundingRect(
-            with: CGSize(width: maxTextWidth, height: .greatestFiniteMagnitude),
-            options: [.usesLineFragmentOrigin, .usesFontLeading],
-            attributes: attributes,
-            context: nil
-        ).integral.size
+        let measured = StoryTextAttributesBuilder.measuredSize(for: config, maxWidth: maxTextWidth)
 
         return CGSize(
             width: min(canvasSize.width, measured.width + 28 + 48),

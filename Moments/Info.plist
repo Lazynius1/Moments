@@ -135,6 +135,22 @@
 	</array>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>en</string>
+	<key>UIAppFonts</key>
+	<array>
+		<string>BebasNeue-Regular.ttf</string>
+		<string>Lora-Regular.ttf</string>
+		<string>Anton-Regular.ttf</string>
+		<string>Pacifico-Regular.ttf</string>
+		<string>VarelaRound-Regular.ttf</string>
+		<string>BarlowCondensed-Bold.ttf</string>
+		<string>PlayfairDisplay-Bold.ttf</string>
+		<string>IBMPlexSerif-Regular.ttf</string>
+		<string>PoiretOne-Regular.ttf</string>
+		<string>Caveat-Bold.ttf</string>
+		<string>Bangers-Regular.ttf</string>
+		<string>DancingScript-Bold.ttf</string>
+		<string>CormorantGaramond-Italic.ttf</string>
+	</array>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
 	<key>CFBundleURLTypes</key>

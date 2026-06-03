@@ -16,6 +16,7 @@ final class CachedStory {
     var text: String?
     var textPositionData: Data? // JSON encoded CGPoint
     var textStyle: String?
+    var textOverlayMetadataData: Data?
     var stickersData: Data? // JSON encoded [StickerData]
     var drawingData: Data?
     var aspectRatio: String?
@@ -39,6 +40,7 @@ final class CachedStory {
          text: String? = nil,
          textPositionData: Data? = nil,
          textStyle: String? = nil,
+         textOverlayMetadataData: Data? = nil,
          stickersData: Data? = nil,
          drawingData: Data? = nil,
          aspectRatio: String? = nil,
@@ -59,6 +61,7 @@ final class CachedStory {
         self.text = text
         self.textPositionData = textPositionData
         self.textStyle = textStyle
+        self.textOverlayMetadataData = textOverlayMetadataData
         self.stickersData = stickersData
         self.drawingData = drawingData
         self.aspectRatio = aspectRatio
@@ -76,6 +79,7 @@ final class CachedStory {
         
         let mediaItemData = (try? JSONEncoder().encode(story.mediaItem)) ?? Data()
         let textPositionData = (try? JSONEncoder().encode(story.textPosition))
+        let textOverlayMetadataData = story.resolvedTextOverlayMetadata.flatMap { try? JSONEncoder().encode($0) }
         let stickersData = (try? JSONEncoder().encode(story.stickers))
 
         return CachedStory(
@@ -91,6 +95,7 @@ final class CachedStory {
             text: story.text,
             textPositionData: textPositionData,
             textStyle: story.textStyle,
+            textOverlayMetadataData: textOverlayMetadataData,
             stickersData: stickersData,
             drawingData: story.drawingData,
             aspectRatio: story.aspectRatio,
@@ -106,6 +111,7 @@ final class CachedStory {
     func toStory() -> Story {
         let mediaItem = (try? JSONDecoder().decode(MediaItem.self, from: mediaItemData)) ?? MediaItem(type: .image, url: "")
         let textPosition = textPositionData != nil ? (try? JSONDecoder().decode(CGPoint.self, from: textPositionData!)) : nil
+        let overlayMetadata = textOverlayMetadataData.flatMap { try? JSONDecoder().decode(StoryTextOverlayMetadata.self, from: $0) }
         let stickers = stickersData != nil ? (try? JSONDecoder().decode([StickerData].self, from: stickersData!)) : nil
         
         return Story(
@@ -121,7 +127,18 @@ final class CachedStory {
             customListId: customListId,
             text: text,
             textPosition: textPosition,
-            textStyle: textStyle,
+            textStyle: overlayMetadata?.styleRaw ?? textStyle,
+            textPositionNormX: overlayMetadata.map { Double($0.normalizedPosition.x) },
+            textPositionNormY: overlayMetadata.map { Double($0.normalizedPosition.y) },
+            textColorHex: overlayMetadata?.colorHex,
+            textFontSize: overlayMetadata?.fontSize,
+            textAlignment: overlayMetadata?.alignmentRaw,
+            textBackgroundFill: overlayMetadata?.backgroundFillRaw,
+            textStroke: overlayMetadata?.strokeRaw,
+            textVisualEffect: overlayMetadata?.visualEffectRaw,
+            textMotion: overlayMetadata?.motionRaw,
+            forcesAllCaps: overlayMetadata?.forcesAllCaps,
+            textOverlayLive: overlayMetadata?.isLiveOverlay,
             stickers: stickers,
             drawingData: drawingData,
             aspectRatio: aspectRatio,

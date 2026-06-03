@@ -122,6 +122,7 @@ struct StoryViewerScreen: View {
     @State private var isLoadingChainStories: Bool = false
     @StateObject private var playbackCoordinator = StoryPlaybackCoordinator()
     @State private var isStoryVideoReady = false
+    @State private var textMotionReplayToken = 0
 
     private let reactions: [String] = ["✌🏻", "🔥", "✅", "😊", "✨", "❤️", "💕", "😮", "😂", "😢", "🙏🏻", "⚡", "🧠", "🎨", "😌", "🎉"]
 
@@ -319,6 +320,18 @@ struct StoryViewerScreen: View {
                 .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
                 .position(x: captureRect.midX, y: captureRect.midY)
 
+            // MARK: - 1.5 LIVE TEXT OVERLAY (metadata — animación en reproducción)
+            if story.usesLiveTextOverlay {
+                StoryLiveTextOverlayView(
+                    story: story,
+                    containerSize: captureRect.size,
+                    replayToken: textMotionReplayToken
+                )
+                .frame(width: captureRect.width, height: captureRect.height)
+                .position(x: captureRect.midX, y: captureRect.midY)
+                .allowsHitTesting(false)
+            }
+
             // MARK: - 2. STICKERS (Fijos en sus posiciones)
             if !storyStickers.isEmpty {
                 ForEach(storyStickers, id: \.id) { sticker in
@@ -504,6 +517,7 @@ struct StoryViewerScreen: View {
             interactiveRootView
                 .onAppear {
                     lastPreparedStoryId = story.id
+                    textMotionReplayToken &+= 1
                     prepareAndStartStory()
                     setupKeyboardNotifications()
                     if storyStickers.isEmpty {
@@ -531,6 +545,7 @@ struct StoryViewerScreen: View {
                     }
                     if oldStoryId != newStoryId {
                         isStoryVideoReady = false
+                        textMotionReplayToken &+= 1
                         DispatchQueue.main.async {
                             refreshStoryPlaybackIfNeeded()
                         }

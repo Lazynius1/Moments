@@ -28,6 +28,7 @@ class UploadingStory: ObservableObject, Identifiable {
     let storyText: String?
     let textPosition: CGPoint?
     let selectedTextStyle: Any?
+    let textOverlayMetadata: StoryTextOverlayMetadata?
     let stickerData: [StickerItem]?
     let drawingData: Data?
     let audienceSetting: ContentAudience
@@ -61,6 +62,7 @@ class UploadingStory: ObservableObject, Identifiable {
         storyText: String?,
         textPosition: CGPoint?,
         selectedTextStyle: Any?,
+        textOverlayMetadata: StoryTextOverlayMetadata? = nil,
         stickerData: [StickerItem]?,
         drawingData: Data?,
         audienceSetting: ContentAudience,
@@ -87,6 +89,7 @@ class UploadingStory: ObservableObject, Identifiable {
         self.storyText = storyText
         self.textPosition = textPosition
         self.selectedTextStyle = selectedTextStyle
+        self.textOverlayMetadata = textOverlayMetadata
         self.stickerData = stickerData
         self.drawingData = drawingData
         self.audienceSetting = audienceSetting
@@ -118,6 +121,7 @@ struct StoryUploadPayload: Codable {
     let storyText: String?
     let textPosition: CGPoint?
     let selectedTextStyle: String?
+    let textOverlayMetadata: StoryTextOverlayMetadata?
     let stickers: [CachedSticker]?
     let drawingFileName: String?
     let audienceSetting: String
@@ -220,6 +224,7 @@ class BackgroundStoryUploadService: ObservableObject {
         storyText: String?,
         textPosition: CGPoint?,
         selectedTextStyle: Any?,
+        textOverlayMetadata: StoryTextOverlayMetadata? = nil,
         stickerData: [StickerItem]?,
         drawingData: Data?,
         audienceSetting: ContentAudience,
@@ -249,6 +254,7 @@ class BackgroundStoryUploadService: ObservableObject {
             storyText: storyText,
             textPosition: textPosition,
             selectedTextStyle: selectedTextStyle,
+            textOverlayMetadata: textOverlayMetadata,
             stickerData: stickerData,
             drawingData: drawingData,
             audienceSetting: audienceSetting,
@@ -338,6 +344,7 @@ class BackgroundStoryUploadService: ObservableObject {
         storyText: String?,
         textPosition: CGPoint?,
         selectedTextStyle: Any?,
+        textOverlayMetadata: StoryTextOverlayMetadata? = nil,
         stickerData: [StickerItem]?,
         drawingData: Data?,
         audienceSetting: ContentAudience,
@@ -404,6 +411,7 @@ class BackgroundStoryUploadService: ObservableObject {
             storyText: storyText,
             textPosition: textPosition,
             selectedTextStyle: selectedTextStyle,
+            textOverlayMetadata: textOverlayMetadata,
             stickerData: stickerData,
             drawingData: drawingData,
             audienceSetting: audienceSetting,
@@ -599,6 +607,7 @@ class BackgroundStoryUploadService: ObservableObject {
                 storyText: isFirstClip ? uploadingStory.storyText : nil,
                 textPosition: isFirstClip ? uploadingStory.textPosition : nil,
                 selectedTextStyle: isFirstClip ? uploadingStory.selectedTextStyle : nil,
+                textOverlayMetadata: isFirstClip ? uploadingStory.textOverlayMetadata : nil,
                 stickerData: isFirstClip ? uploadingStory.stickerData : revealStickers,
                 drawingData: isFirstClip ? uploadingStory.drawingData : nil,
                 audienceSetting: uploadingStory.audienceSetting,
@@ -1052,6 +1061,10 @@ class BackgroundStoryUploadService: ObservableObject {
         let contentRect = storyContentRectInEditor()
         let referenceContentWidth: CGFloat = 375.0
 
+        let resolvedTextStyle = uploadingStory.textOverlayMetadata?.styleRaw
+            ?? (uploadingStory.selectedTextStyle as? StoryEditingView.TextStyle)?.rawValue
+        let resolvedTextOverlay = uploadingStory.textOverlayMetadata
+
         let normalizedStickerData: [StickerData]? = uploadingStory.stickerData?.compactMap { stickerItem in
             var normalizedItem = stickerItem
 
@@ -1079,7 +1092,8 @@ class BackgroundStoryUploadService: ObservableObject {
                     customListId: uploadingStory.customListId!,
                     text: uploadingStory.storyText,
                     textPosition: uploadingStory.textPosition,
-                    textStyle: uploadingStory.selectedTextStyle != nil ? String(describing: uploadingStory.selectedTextStyle!) : nil,
+                    textStyle: resolvedTextStyle,
+                    textOverlay: resolvedTextOverlay,
                     stickers: normalizedStickerData,
                     drawingData: uploadingStory.drawingData,
                     aspectRatio: aspectRatio,
@@ -1116,7 +1130,8 @@ class BackgroundStoryUploadService: ObservableObject {
                     customViewers: uploadingStory.customViewers,
                     text: uploadingStory.storyText,
                     textPosition: uploadingStory.textPosition,
-                    textStyle: uploadingStory.selectedTextStyle != nil ? String(describing: uploadingStory.selectedTextStyle!) : nil,
+                    textStyle: resolvedTextStyle,
+                    textOverlay: resolvedTextOverlay,
                     stickers: normalizedStickerData,
                     drawingData: uploadingStory.drawingData,
                     aspectRatio: aspectRatio,
@@ -1651,7 +1666,9 @@ class BackgroundStoryUploadService: ObservableObject {
                 mediaItem: cachedMedia,
                 storyText: uploadingStory.storyText,
                 textPosition: uploadingStory.textPosition,
-                selectedTextStyle: uploadingStory.selectedTextStyle != nil ? String(describing: uploadingStory.selectedTextStyle!) : nil,
+                selectedTextStyle: uploadingStory.textOverlayMetadata?.styleRaw
+                    ?? (uploadingStory.selectedTextStyle as? StoryEditingView.TextStyle)?.rawValue,
+                textOverlayMetadata: uploadingStory.textOverlayMetadata,
                 stickers: cachedStickers.isEmpty ? nil : cachedStickers,
                 drawingFileName: drawingFileName,
                 audienceSetting: uploadingStory.audienceSetting.rawValue,
@@ -2026,6 +2043,7 @@ class BackgroundStoryUploadService: ObservableObject {
                 storyText: payload.storyText,
                 textPosition: payload.textPosition,
                 selectedTextStyle: payload.selectedTextStyle,
+                textOverlayMetadata: payload.textOverlayMetadata,
                 stickerData: stickers.isEmpty ? nil : stickers,
                 drawingData: drawingData,
                 audienceSetting: audience,
