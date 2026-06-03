@@ -6790,30 +6790,66 @@ async function preloadCustomStoryAllowanceMap(customStories, viewerId, db) {
   if (!customStories.length) return allowance;
 
   const refs = [];
-  const refToKey = new Map();
+  const refByPath = new Map();
+  const refRequests = new Map();
+  const stateByKey = new Map();
+  const addRefRequest = (ref, request) => {
+    if (!refByPath.has(ref.path)) {
+      refs.push(ref);
+      refByPath.set(ref.path, ref);
+    }
+    if (!refRequests.has(ref.path)) {
+      refRequests.set(ref.path, []);
+    }
+    refRequests.get(ref.path).push(request);
+  };
+
   for (const story of customStories) {
     if (!story.id || !story.authorId) continue;
     const key = `${story.authorId}|${story.id}`;
-    for (const docId of [`story_${story.id}`, 'default_story']) {
-      const ref = db.doc(`users/${story.authorId}/customAudiences/${docId}`);
-      refs.push(ref);
-      refToKey.set(ref.path, key);
+    if (!stateByKey.has(key)) {
+      stateByKey.set(key, { primaryExists: false, primaryAllowed: false, legacyAllowed: false });
     }
+
+    addRefRequest(db.doc(`users/${story.authorId}/customAudiences/story_${story.id}`), {
+      key,
+      scope: 'primary'
+    });
+    addRefRequest(db.doc(`users/${story.authorId}/customAudiences/default_story`), {
+      key,
+      scope: 'legacy'
+    });
   }
 
   for (let i = 0; i < refs.length; i += 100) {
     const docs = await db.getAll(...refs.slice(i, i + 100));
     docs.forEach((doc) => {
-      const key = refToKey.get(doc.ref.path);
-      if (!key || allowance.get(key) === true) return;
-      if (doc.exists) {
-        const allowedUsers = doc.data().allowedUsers || [];
-        if (allowedUsers.includes(viewerId)) {
-          allowance.set(key, true);
+      const requests = refRequests.get(doc.ref.path) || [];
+      if (!requests.length || !doc.exists) return;
+
+      const allowedUsers = doc.data().allowedUsers || [];
+      const includesViewer = allowedUsers.includes(viewerId);
+      requests.forEach(({ key, scope }) => {
+        const state = stateByKey.get(key);
+        if (!state) return;
+        if (scope === 'primary') {
+          state.primaryExists = true;
+          state.primaryAllowed = includesViewer;
+        } else {
+          state.legacyAllowed = includesViewer;
         }
-      }
+      });
     });
   }
+
+  stateByKey.forEach((state, key) => {
+    // Match canViewerSeeStory: a story-specific audience overrides default_story.
+    if (state.primaryExists) {
+      allowance.set(key, state.primaryAllowed);
+    } else if (state.legacyAllowed) {
+      allowance.set(key, true);
+    }
+  });
 
   return allowance;
 }
