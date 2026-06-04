@@ -115,7 +115,11 @@ struct AppealFormView: View {
                 characterCount: $characterCount,
                 messageError: $messageError,
                 title: NSLocalizedString("appeal.yourAppeal", comment: "Your appeal field title"),
-                placeholder: NSLocalizedString("appeal.yourAppeal.placeholder", comment: "Appeal message placeholder")
+                placeholder: NSLocalizedString("appeal.yourAppeal.placeholder", comment: "Appeal message placeholder"),
+                minimumLength: 50,
+                maximumLength: 2000,
+                tooShortFormatKey: "appeal.validation.tooShort",
+                tooLongFormatKey: "appeal.validation.tooLong"
             )
             
             // Additional info (optional)
@@ -336,6 +340,10 @@ struct AppealMessageField: View {
     @Binding var messageError: String?
     let title: String
     let placeholder: String
+    let minimumLength: Int
+    let maximumLength: Int
+    let tooShortFormatKey: String
+    let tooLongFormatKey: String
     @State private var isFocused = false
     
     var body: some View {
@@ -353,7 +361,7 @@ struct AppealMessageField: View {
                 
                 Text(String(format: NSLocalizedString("appeal.field.characterCount", comment: "Character count format"), characterCount))
                     .font(.system(size: 12, weight: .medium))
-                    .foregroundColor(characterCount < 50 ? .orange : characterCount > 2000 ? .red : AuthColors.secondary(colorScheme, opacity: 0.62))
+                    .foregroundColor(characterCount < minimumLength ? .orange : characterCount > maximumLength ? .red : AuthColors.secondary(colorScheme, opacity: 0.62))
             }
             
             ZStack(alignment: .topLeading) {
@@ -410,10 +418,17 @@ struct AppealMessageField: View {
     private func updateCharacterCount() {
         characterCount = message.trimmingCharacters(in: .whitespacesAndNewlines).count
         
-        if characterCount < 50 && !message.isEmpty {
-            messageError = "Mínimo 50 caracteres (actual: \(characterCount))"
-        } else if characterCount > 2000 {
-            messageError = "Máximo 2000 caracteres (actual: \(characterCount))"
+        if characterCount < minimumLength && !message.isEmpty {
+            messageError = String(
+                format: NSLocalizedString(tooShortFormatKey, comment: "Too short validation message"),
+                characterCount,
+                minimumLength
+            )
+        } else if characterCount > maximumLength {
+            messageError = String(
+                format: NSLocalizedString(tooLongFormatKey, comment: "Too long validation message"),
+                characterCount
+            )
         } else {
             messageError = nil
         }
@@ -710,6 +725,398 @@ struct AppealSuccessView: View {
         default:
             return .blue
         }
+    }
+}
+
+struct ModerationReviewRequestSheet: View {
+    let notification: Notification
+    @Binding var isPresented: Bool
+    @EnvironmentObject var authService: AuthService
+    @Environment(\.colorScheme) private var colorScheme
+
+    @State private var reviewMessage: String = ""
+    @State private var additionalInfo: String = ""
+    @State private var contactEmail: String = ""
+    @State private var reviewCharacterCount = 0
+    @State private var reviewMessageError: String?
+    @State private var isLoading = false
+    @State private var showAlert = false
+    @State private var alertTitle = ""
+    @State private var alertMessage = ""
+    @State private var showSuccessView = false
+    @State private var successTicketNumber: String?
+    @State private var previewURL: String?
+
+    @StateObject private var appealService = AppealService.shared
+
+    private let minimumLength = 25
+
+    var body: some View {
+        NavigationView {
+            ZStack {
+                Color.clear.ignoresSafeArea()
+
+                if showSuccessView {
+                    moderationSuccessView
+                } else {
+                    ScrollView {
+                        VStack(spacing: 24) {
+                            moderationHeader
+                            moderationPreviewCard
+                            moderationFields
+                        }
+                        .padding(.horizontal, 24)
+                        .padding(.top, 18)
+                        .padding(.bottom, 28)
+                    }
+                }
+            }
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar(.hidden, for: .navigationBar)
+        }
+        .onAppear {
+            if let email = authService.currentFirebaseUser?.email {
+                contactEmail = email
+            }
+            loadPreviewIfNeeded()
+        }
+        .alert(isPresented: $showAlert) {
+            Alert(
+                title: Text(alertTitle),
+                message: Text(alertMessage),
+                dismissButton: .default(Text(NSLocalizedString("appeal.error.ok", comment: "OK button for error alerts")))
+            )
+        }
+    }
+
+    private var moderationHeader: some View {
+        VStack(spacing: 18) {
+            HStack {
+                Button(action: { isPresented = false }) {
+                    Image(systemName: "chevron.down")
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundColor(AuthColors.primary(colorScheme))
+                        .frame(width: 38, height: 38)
+                        .background {
+                            Color.clear
+                                .liquidGlass(in: Circle(), interactive: true)
+                        }
+                }
+
+                Spacer()
+
+                Button(action: submitReviewRequest) {
+                    if isLoading {
+                        ProgressView()
+                            .tint(AuthColors.primary(colorScheme))
+                    } else {
+                        Text(NSLocalizedString("moderationReview.submit", comment: "Submit moderation review request"))
+                            .font(.system(size: 15, weight: .semibold))
+                            .foregroundColor(canSubmit ? AuthColors.primary(colorScheme) : AuthColors.secondary(colorScheme, opacity: 0.48))
+                    }
+                }
+                .disabled(!canSubmit)
+            }
+
+            VStack(spacing: 8) {
+                Text(NSLocalizedString("moderationReview.title", comment: "Moderation review title"))
+                    .font(.system(size: 28, weight: .bold))
+                    .foregroundColor(AuthColors.primary(colorScheme))
+                    .multilineTextAlignment(.center)
+
+                Text(NSLocalizedString("moderationReview.subtitle", comment: "Moderation review subtitle"))
+                    .font(.system(size: 15, weight: .medium))
+                    .foregroundColor(AuthColors.secondary(colorScheme, opacity: 0.76))
+                    .multilineTextAlignment(.center)
+            }
+        }
+    }
+
+    private var moderationPreviewCard: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            HStack(spacing: 12) {
+                previewMedia
+
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(NSLocalizedString("moderationReview.previewTitle", comment: "Moderation review preview title"))
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundColor(AuthColors.secondary(colorScheme, opacity: 0.74))
+
+                    Text(contentTypeTitle)
+                        .font(.system(size: 18, weight: .semibold))
+                        .foregroundColor(AuthColors.primary(colorScheme))
+
+                    Text(scopeDescription)
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundColor(AuthColors.secondary(colorScheme, opacity: 0.74))
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+
+                Spacer()
+            }
+
+            Text(NSLocalizedString("moderationReview.helper", comment: "Moderation review helper copy"))
+                .font(.system(size: 14, weight: .medium))
+                .foregroundColor(AuthColors.secondary(colorScheme, opacity: 0.78))
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(20)
+        .background {
+            Color.clear
+                .liquidGlass(in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+        }
+    }
+
+    @ViewBuilder
+    private var previewMedia: some View {
+        if let previewURL, let url = URL(string: previewURL) {
+            AsyncImage(url: url) { phase in
+                switch phase {
+                case .success(let image):
+                    image
+                        .resizable()
+                        .scaledToFill()
+                case .failure(_):
+                    previewPlaceholder
+                case .empty:
+                    ZStack {
+                        previewPlaceholder
+                        ProgressView()
+                            .tint(AuthColors.primary(colorScheme))
+                    }
+                @unknown default:
+                    previewPlaceholder
+                }
+            }
+            .frame(width: 88, height: 116)
+            .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+        } else {
+            previewPlaceholder
+                .frame(width: 88, height: 116)
+        }
+    }
+
+    private var previewPlaceholder: some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: 20, style: .continuous)
+                .fill(colorScheme == .dark ? Color.white.opacity(0.08) : Color.black.opacity(0.06))
+
+            VStack(spacing: 10) {
+                Image(systemName: contentTypeIsStory ? "rectangle.stack.fill" : "square.stack.3d.up.fill")
+                    .font(.system(size: 24, weight: .semibold))
+                    .foregroundColor(AuthColors.primary(colorScheme))
+
+                Text(contentTypeTitle)
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundColor(AuthColors.secondary(colorScheme, opacity: 0.72))
+                    .multilineTextAlignment(.center)
+            }
+            .padding(.horizontal, 8)
+        }
+    }
+
+    private var moderationFields: some View {
+        VStack(spacing: 18) {
+            AppealEmailField(
+                email: $contactEmail,
+                title: NSLocalizedString("moderationReview.contactEmail", comment: "Moderation review contact email"),
+                placeholder: NSLocalizedString("moderationReview.contactEmail.placeholder", comment: "Moderation review contact email placeholder")
+            )
+
+            AppealMessageField(
+                message: $reviewMessage,
+                characterCount: $reviewCharacterCount,
+                messageError: $reviewMessageError,
+                title: NSLocalizedString("moderationReview.messageTitle", comment: "Moderation review message title"),
+                placeholder: NSLocalizedString("moderationReview.messagePlaceholder", comment: "Moderation review message placeholder"),
+                minimumLength: minimumLength,
+                maximumLength: 2000,
+                tooShortFormatKey: "moderationReview.messageTooShort",
+                tooLongFormatKey: "moderationReview.messageTooLong"
+            )
+
+            AppealOptionalField(
+                text: $additionalInfo,
+                title: NSLocalizedString("moderationReview.additionalInfo", comment: "Moderation review additional info title"),
+                placeholder: NSLocalizedString("moderationReview.additionalInfo.placeholder", comment: "Moderation review additional info placeholder")
+            )
+        }
+    }
+
+    private var moderationSuccessView: some View {
+        VStack(spacing: 24) {
+            Spacer()
+
+            VStack(spacing: 16) {
+                Image(systemName: "checkmark.shield.fill")
+                    .font(.system(size: 52, weight: .semibold))
+                    .foregroundColor(.green.opacity(0.86))
+
+                Text(NSLocalizedString("moderationReview.success.title", comment: "Moderation review success title"))
+                    .font(.system(size: 24, weight: .bold))
+                    .foregroundColor(AuthColors.primary(colorScheme))
+
+                Text(successMessage)
+                    .font(.system(size: 15, weight: .medium))
+                    .foregroundColor(AuthColors.secondary(colorScheme, opacity: 0.78))
+                    .multilineTextAlignment(.center)
+            }
+            .padding(24)
+            .background {
+                Color.clear
+                    .liquidGlass(in: RoundedRectangle(cornerRadius: 26, style: .continuous))
+            }
+
+            Button(action: { isPresented = false }) {
+                Text(NSLocalizedString("appeal.understood", comment: "Understood button"))
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundColor(AuthColors.primary(colorScheme))
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 16)
+                    .background {
+                        Color.clear
+                            .liquidGlass(in: Capsule(), interactive: true)
+                    }
+            }
+            .buttonStyle(.plain)
+
+            Spacer()
+        }
+        .padding(.horizontal, 24)
+    }
+
+    private var canSubmit: Bool {
+        !isLoading &&
+        contactEmail.contains("@") &&
+        reviewCharacterCount >= minimumLength &&
+        reviewCharacterCount <= 2000
+    }
+
+    private var contentTypeIsStory: Bool {
+        notification.storyId?.isEmpty == false
+    }
+
+    private var contentTypeTitle: String {
+        contentTypeIsStory
+            ? NSLocalizedString("moderationReview.context.story", comment: "Story content type")
+            : NSLocalizedString("moderationReview.context.moment", comment: "Moment content type")
+    }
+
+    private var scopeDescription: String {
+        switch notification.moderationScope {
+        case "storySticker":
+            return NSLocalizedString("moderationReview.scope.storySticker", comment: "Story sticker moderation scope")
+        case "postHiddenLayer":
+            return NSLocalizedString("moderationReview.scope.postHiddenLayer", comment: "Post hidden layer moderation scope")
+        case "story":
+            return NSLocalizedString("moderationReview.scope.story", comment: "Story moderation scope")
+        default:
+            return NSLocalizedString("moderationReview.scope.post", comment: "Post moderation scope")
+        }
+    }
+
+    private var successMessage: String {
+        if let ticket = successTicketNumber, !ticket.isEmpty {
+            return String(
+                format: NSLocalizedString("moderationReview.success.message.ticket", comment: "Moderation review success message with ticket"),
+                ticket
+            )
+        }
+
+        return NSLocalizedString("moderationReview.success.message", comment: "Moderation review success message")
+    }
+
+    private func submitReviewRequest() {
+        guard let userId = authService.currentFirebaseUser?.uid else {
+            showError(
+                title: NSLocalizedString("appeal.error.title", comment: "Error title"),
+                message: NSLocalizedString("appeal.error.userInfo", comment: "Could not get user info")
+            )
+            return
+        }
+
+        let contentType = contentTypeIsStory ? "story" : "moment"
+        let contentId = notification.storyId ?? notification.momentId ?? ""
+        let moderationScope = notification.moderationScope ?? (contentTypeIsStory ? "story" : "post")
+
+        isLoading = true
+
+        Task {
+            do {
+                let response = try await appealService.submitModerationReview(
+                    userId: userId,
+                    contentType: contentType,
+                    contentId: contentId,
+                    moderationScope: moderationScope,
+                    message: reviewMessage,
+                    email: contactEmail,
+                    additionalInfo: additionalInfo.isEmpty ? nil : additionalInfo,
+                    notificationId: notification.id
+                )
+
+                await MainActor.run {
+                    isLoading = false
+                    successTicketNumber = response.ticketNumber
+                    withAnimation(.spring(response: 0.8, dampingFraction: 0.7)) {
+                        showSuccessView = true
+                    }
+                }
+            } catch let error as AppealError {
+                await MainActor.run {
+                    isLoading = false
+                    showError(
+                        title: NSLocalizedString("appeal.error.submit", comment: "Error submitting appeal"),
+                        message: error.localizedDescription
+                    )
+                }
+            } catch {
+                await MainActor.run {
+                    isLoading = false
+                    showError(
+                        title: NSLocalizedString("appeal.error.unexpected", comment: "Unexpected error"),
+                        message: error.localizedDescription
+                    )
+                }
+            }
+        }
+    }
+
+    private func loadPreviewIfNeeded() {
+        if let preview = notification.storyPreviewUrl?.trimmingCharacters(in: .whitespacesAndNewlines), !preview.isEmpty {
+            previewURL = preview
+            return
+        }
+
+        guard let currentUserId = authService.currentFirebaseUser?.uid else { return }
+
+        if let momentId = notification.momentId, !momentId.isEmpty {
+            let ownerId = notification.targetAuthorId ?? currentUserId
+            FirestoreService().fetchMoment(momentId: momentId, userId: ownerId) { result in
+                if case .success(let moment) = result {
+                    DispatchQueue.main.async {
+                        self.previewURL = moment.imagePath ?? moment.videoUrl
+                    }
+                }
+            }
+            return
+        }
+
+        if let storyId = notification.storyId, !storyId.isEmpty {
+            let authorId = notification.storyAuthorId ?? notification.targetAuthorId ?? currentUserId
+            StoryRepository().fetchStory(userId: authorId, storyId: storyId) { result in
+                if case .success(let story) = result {
+                    DispatchQueue.main.async {
+                        self.previewURL = story.mediaItem.url
+                    }
+                }
+            }
+        }
+    }
+
+    private func showError(title: String, message: String) {
+        alertTitle = title
+        alertMessage = message
+        showAlert = true
     }
 }
 

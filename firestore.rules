@@ -1342,6 +1342,22 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    match /moderationReviewQueue/{queueId} {
+      allow create: if request.auth != null
+                    && request.resource.data.userId is string
+                    && request.resource.data.userId == request.auth.uid
+                    && request.resource.data.contentId is string
+                    && request.resource.data.contentType is string
+                    && request.resource.data.moderationScope is string
+                    && request.resource.data.reason is string
+                    && request.resource.data.category is string
+                    && request.resource.data.status == 'pending';
+      allow read: if request.auth != null
+                  && request.auth.uid == "k95S89DDEMOSiwdX3W8cvwnUj7C3";
+      allow update: if false;
+      allow delete: if false;
+    }
+
     match /moderationSettings/{settingsId} {
       allow read: if request.auth != null;
       allow write: if request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['admin', 'moderador'];

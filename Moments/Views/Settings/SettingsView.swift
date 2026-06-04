@@ -101,6 +101,7 @@ struct SettingsView: View {
     @State private var isShowingSavedMoments: Bool = false
     @State private var isShowingUserActivity: Bool = false
     @State private var isShowingDataExport: Bool = false
+    @State private var isShowingModerationReviews: Bool = false
     @State private var isShowingArchivedStories: Bool = false
     @State private var isShowingSupportMoments: Bool = false
     @State private var isShowingNotificationSettings: Bool = false
@@ -140,6 +141,7 @@ struct SettingsView: View {
                         isShowingSavedMoments: $isShowingSavedMoments,
                         isShowingUserActivity: $isShowingUserActivity,
                         isShowingDataExport: $isShowingDataExport,
+                        isShowingModerationReviews: $isShowingModerationReviews,
                         isShowingArchivedStories: $isShowingArchivedStories,
                         isShowingSupportMoments: $isShowingSupportMoments,
                         isShowingNotificationSettings: $isShowingNotificationSettings,
@@ -255,8 +257,11 @@ struct SettingsView: View {
             .fullScreenCover(isPresented: $isShowingUserActivity) {
                 UserActivityView()
             }
-                    .fullScreenCover(isPresented: $isShowingDataExport) {
+            .fullScreenCover(isPresented: $isShowingDataExport) {
             DataExportView()
+            }
+            .fullScreenCover(isPresented: $isShowingModerationReviews) {
+                ModerationReviewStatusView()
             }
             .fullScreenCover(isPresented: $isShowingArchivedStories) {
                 ArchiveView()

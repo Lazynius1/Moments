@@ -34,6 +34,31 @@ struct AppealResponse: Codable {
     let supportInfo: SupportInfo?
 }
 
+struct ModerationReviewRequestPayload: Codable {
+    let userId: String
+    let contentType: String
+    let contentId: String
+    let moderationScope: String
+    let reviewMessage: String
+    let additionalInfo: String?
+    let contactEmail: String
+    let notificationId: String?
+    let deviceInfo: DeviceInfo
+    let appVersion: String
+}
+
+struct ModerationReviewCreateResponse: Codable {
+    let success: Bool
+    let reviewRequestId: String?
+    let ticketNumber: String?
+    let message: String?
+    let estimatedResponseTime: String?
+    let status: String?
+    let error: String?
+    let code: String?
+    let existingRequest: ExistingAppeal?
+}
+
 struct ExistingAppeal: Codable {
     let ticketNumber: String
     let status: String
@@ -208,6 +233,7 @@ enum AppealError: LocalizedError, Equatable {
     case userNotFound
     case userNotSuspended
     case appealAlreadyExists(ticketNumber: String, status: String)
+    case reviewAlreadyExists(ticketNumber: String, status: String)
     case rateLimited
     case serverError
     case networkError(String)
@@ -240,6 +266,8 @@ enum AppealError: LocalizedError, Equatable {
             return "Tu cuenta no está suspendida actualmente"
         case .appealAlreadyExists(let ticketNumber, let status):
             return "Ya tienes una apelación \(status): \(ticketNumber)"
+        case .reviewAlreadyExists(let ticketNumber, let status):
+            return "Ya tienes una solicitud de revisión \(status): \(ticketNumber)"
         case .rateLimited:
             return "Has alcanzado el límite de apelaciones. Inténtalo más tarde."
         case .serverError:
@@ -263,6 +291,8 @@ enum AppealError: LocalizedError, Equatable {
             return "Verifica que tu email tenga un formato válido (ej: usuario@ejemplo.com)."
         case .appealAlreadyExists:
             return "Puedes verificar el estado de tu apelación existente en Configuración."
+        case .reviewAlreadyExists:
+            return "Ya hemos recibido una solicitud para este contenido. Espera a que el equipo la revise."
         case .rateLimited:
             return "Espera un poco antes de intentar enviar otra apelación."
         case .networkError:
@@ -296,6 +326,114 @@ struct AppealResult {
 
 
 extension AppealService {
+    func submitModerationReview(
+        userId: String,
+        contentType: String,
+        contentId: String,
+        moderationScope: String,
+        message: String,
+        email: String,
+        additionalInfo: String? = nil,
+        notificationId: String? = nil
+    ) async throws -> ModerationReviewCreateResponse {
+        guard !userId.isEmpty else {
+            throw AppealError.invalidUserId
+        }
+
+        guard !contentId.isEmpty else {
+            throw AppealError.validationError("Contenido inválido")
+        }
+
+        let trimmedMessage = message.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard trimmedMessage.count >= 25 else {
+            throw AppealError.messageTooShort(current: trimmedMessage.count, required: 25)
+        }
+
+        guard trimmedMessage.count <= 2000 else {
+            throw AppealError.messageTooLong(current: trimmedMessage.count)
+        }
+
+        guard !email.isEmpty, email.contains("@") else {
+            throw AppealError.invalidEmail
+        }
+
+        guard let url = URL(string: "\(baseURL)/api/moderation-review-create") else {
+            throw AppealError.invalidURL
+        }
+
+        let deviceInfo = DeviceInfo(
+            platform: "iOS",
+            version: UIDevice.current.systemVersion,
+            model: UIDevice.current.model
+        )
+
+        let reviewRequest = ModerationReviewRequestPayload(
+            userId: userId,
+            contentType: contentType,
+            contentId: contentId,
+            moderationScope: moderationScope,
+            reviewMessage: trimmedMessage,
+            additionalInfo: additionalInfo?.isEmpty == false ? additionalInfo : nil,
+            contactEmail: email,
+            notificationId: notificationId,
+            deviceInfo: deviceInfo,
+            appVersion: Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0"
+        )
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = try JSONEncoder().encode(reviewRequest)
+
+        do {
+            let (data, response) = try await URLSession.shared.data(for: request)
+
+            guard let httpResponse = response as? HTTPURLResponse else {
+                throw AppealError.invalidResponse
+            }
+
+            let reviewResponse = try JSONDecoder().decode(ModerationReviewCreateResponse.self, from: data)
+
+            switch httpResponse.statusCode {
+            case 201:
+                return reviewResponse
+            case 400:
+                if let code = reviewResponse.code {
+                    switch code {
+                    case "MESSAGE_TOO_SHORT":
+                        throw AppealError.messageTooShort(current: trimmedMessage.count, required: 25)
+                    case "MESSAGE_TOO_LONG":
+                        throw AppealError.messageTooLong(current: trimmedMessage.count)
+                    default:
+                        throw AppealError.validationError(reviewResponse.error ?? "Error de validación")
+                    }
+                }
+                throw AppealError.validationError(reviewResponse.error ?? "Error de validación")
+            case 404:
+                throw AppealError.userNotFound
+            case 409:
+                throw AppealError.reviewAlreadyExists(
+                    ticketNumber: reviewResponse.existingRequest?.ticketNumber ?? "Desconocido",
+                    status: reviewResponse.existingRequest?.status ?? "pending"
+                )
+            case 429:
+                throw AppealError.rateLimited
+            case 500:
+                throw AppealError.serverError
+            default:
+                throw AppealError.httpError(statusCode: httpResponse.statusCode)
+            }
+        } catch let error as AppealError {
+            throw error
+        } catch {
+            if error is DecodingError {
+                throw AppealError.decodingError
+            } else {
+                throw AppealError.networkError(error.localizedDescription)
+            }
+        }
+    }
+
     
     // MARK: - Fetch User Appeals
     func fetchUserAppeals(userId: String) async throws -> [AppealStatus] {
@@ -407,6 +545,37 @@ extension AppealService {
             }
         }
     }
+
+    func fetchUserModerationReviews(userId: String) async throws -> [ModerationReviewStatus] {
+        guard !userId.isEmpty else {
+            throw AppealError.invalidUserId
+        }
+
+        guard let url = URL(string: "\(baseURL)/api/moderation-review-requests?userId=\(userId)") else {
+            throw AppealError.invalidURL
+        }
+
+        let (data, response) = try await URLSession.shared.data(for: URLRequest(url: url))
+
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw AppealError.invalidResponse
+        }
+
+        switch httpResponse.statusCode {
+        case 200:
+            let decoded = try JSONDecoder().decode(ModerationReviewListResponse.self, from: data)
+            return decoded.requests.map { ModerationReviewStatus(from: $0) }
+        case 404:
+            return []
+        case 400:
+            let errorResponse = try? JSONDecoder().decode(AppealResponse.self, from: data)
+            throw AppealError.validationError(errorResponse?.error ?? "Error de validación")
+        case 500:
+            throw AppealError.serverError
+        default:
+            throw AppealError.httpError(statusCode: httpResponse.statusCode)
+        }
+    }
 }
 
 // MARK: - Additional Response Models
@@ -456,6 +625,41 @@ struct AppealsSummary: Codable {
     let requires_info: Int
 }
 
+struct ModerationReviewListResponse: Codable {
+    let success: Bool
+    let requests: [ModerationReviewStatusResponse]
+    let stats: ModerationReviewSummary?
+}
+
+struct ModerationReviewSummary: Codable {
+    let total: Int
+    let pending: Int
+    let reviewing: Int
+    let approved: Int
+    let denied: Int
+    let requires_info: Int
+}
+
+struct ModerationReviewStatusResponse: Codable {
+    let id: String
+    let ticketNumber: String
+    let status: String
+    let priority: String?
+    let reviewMessage: String
+    let additionalInfo: String?
+    let contactEmail: String
+    let contentType: String
+    let contentId: String
+    let moderationScope: String
+    let moderationCategory: String?
+    let submittedAt: String?
+    let reviewedAt: String?
+    let resolvedAt: String?
+    let moderatorId: String?
+    let moderatorNotes: String?
+    let estimatedResponseTime: String?
+}
+
 struct AppealProgress: Codable {
     let percentage: Int
     let currentStage: String
@@ -467,6 +671,26 @@ struct AppealTimelineEvent: Codable {
     let event: String
     let description: String
     let moderator: String?
+}
+
+struct ModerationReviewStatus: Identifiable {
+    let id: String
+    let ticketNumber: String
+    let status: String
+    let priority: String
+    let reviewMessage: String
+    let additionalInfo: String?
+    let contactEmail: String
+    let contentType: String
+    let contentId: String
+    let moderationScope: String
+    let moderationCategory: String?
+    let submittedAt: String
+    let reviewedAt: String?
+    let resolvedAt: String?
+    let moderatorId: String?
+    let moderatorNotes: String?
+    let estimatedResponseTime: String
 }
 
 // MARK: - AppealStatus Extension
@@ -490,5 +714,27 @@ extension AppealStatus {
         self.estimatedResponseTime = response.estimatedResponseTime
         self.nextSteps = response.nextSteps
         self.statusDescription = response.statusDescription
+    }
+}
+
+extension ModerationReviewStatus {
+    init(from response: ModerationReviewStatusResponse) {
+        self.id = response.id
+        self.ticketNumber = response.ticketNumber
+        self.status = response.status
+        self.priority = response.priority ?? "medium"
+        self.reviewMessage = response.reviewMessage
+        self.additionalInfo = response.additionalInfo
+        self.contactEmail = response.contactEmail
+        self.contentType = response.contentType
+        self.contentId = response.contentId
+        self.moderationScope = response.moderationScope
+        self.moderationCategory = response.moderationCategory
+        self.submittedAt = response.submittedAt ?? ""
+        self.reviewedAt = response.reviewedAt
+        self.resolvedAt = response.resolvedAt
+        self.moderatorId = response.moderatorId
+        self.moderatorNotes = response.moderatorNotes
+        self.estimatedResponseTime = response.estimatedResponseTime ?? "24-72h"
     }
 }

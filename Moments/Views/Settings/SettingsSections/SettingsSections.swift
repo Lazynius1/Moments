@@ -27,6 +27,7 @@ struct SettingsFormView: View {
     @Binding var isShowingSavedMoments: Bool
     @Binding var isShowingUserActivity: Bool
     @Binding var isShowingDataExport: Bool
+    @Binding var isShowingModerationReviews: Bool
     @Binding var isShowingArchivedStories: Bool
     @Binding var isShowingSupportMoments: Bool
     @Binding var isShowingNotificationSettings: Bool
@@ -109,7 +110,7 @@ struct SettingsFormView: View {
                 .animation(.easeOut(duration: 0.6).delay(0.3), value: animateSections)
 
                 SettingsGroup(title: NSLocalizedString("settings.group.support", comment: "Data & Support")) {
-                    HelpSection()
+                    HelpSection(isShowingModerationReviews: $isShowingModerationReviews)
                 }
                 .opacity(animateSections ? 1 : 0)
                 .offset(y: animateSections ? 0 : 20)
@@ -1265,10 +1266,16 @@ struct NotificationsSection: View {
 }
 
 struct HelpSection: View {
+    @Binding var isShowingModerationReviews: Bool
     @State private var requiresPrivacyOptions = false
 
     var body: some View {
         VStack(spacing: 0) {
+            SettingsRow(icon: "checklist",
+                title: NSLocalizedString("settings.sections.contentReviews", comment: "Content reviews"),
+                subtitle: NSLocalizedString("settings.sections.contentReviews.subtitle", comment: "Check the status of your content review requests"),
+                action: { isShowingModerationReviews = true })
+
             SettingsRow(icon: "questionmark.circle",
                 title: NSLocalizedString("settings.sections.helpCenter", comment: "Help Center"),
                 subtitle: NSLocalizedString("settings.sections.helpCenter.subtitle", comment: "Get answers to your questions"),

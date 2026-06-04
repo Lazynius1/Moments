@@ -3166,7 +3166,39 @@
 "notification.moderation.postHiddenLayer.partial.title" = "Revisión de contenido";
 "notification.moderation.postHiddenLayer.partial.body.one" = "Hemos ocultado una capa oculta de tu publicación porque no cumple nuestras Normas de la comunidad. El resto sigue visible.";
 "notification.moderation.postHiddenLayer.partial.body.other" = "Hemos ocultado %d capas ocultas de tu publicación porque no cumplen nuestras Normas de la comunidad. El resto sigue visible.";
-"notifications.message.mediaModeration" = "Hemos revisado una publicación reciente para asegurar que cumple con nuestras Normas de la comunidad.";
+"notifications.message.mediaModeration" = "Hemos revisado una publicación reciente para asegurar que cumple con nuestras Normas de la comunidad. Si crees que se trata de un error, puedes solicitar una revisión.";
+"notifications.mediaModeration.reviewAction" = "Revisar";
+"moderationReview.title" = "Solicitar revisión";
+"moderationReview.subtitle" = "Si crees que esto es un error, cuéntanos el contexto y lo revisaremos manualmente.";
+"moderationReview.previewTitle" = "Contenido moderado";
+"moderationReview.helper" = "Tu contenido seguirá como está mientras lo revisamos. Si corresponde, podremos restaurarlo después de una revisión manual.";
+"moderationReview.contactEmail" = "Email de contacto";
+"moderationReview.contactEmail.placeholder" = "tu@email.com";
+"moderationReview.messageTitle" = "Explícanos por qué crees que deberíamos revisarlo";
+"moderationReview.messagePlaceholder" = "Cuéntanos qué crees que ha pasado y cualquier contexto útil para revisar esta moderación.";
+"moderationReview.additionalInfo" = "Información adicional";
+"moderationReview.additionalInfo.placeholder" = "Opcional: añade detalles extra que puedan ayudarnos a revisar este caso.";
+"moderationReview.submit" = "Enviar";
+"moderationReview.context.story" = "Historia";
+"moderationReview.context.moment" = "Moment";
+"moderationReview.scope.post" = "Contenido ocultado en tu publicación";
+"moderationReview.scope.story" = "Contenido ocultado en tu historia";
+"moderationReview.scope.storySticker" = "Sticker ocultado en tu historia";
+"moderationReview.scope.postHiddenLayer" = "Capa oculta moderada en tu publicación";
+"moderationReview.messageTooShort" = "Mínimo %2$d caracteres (actual: %1$d)";
+"moderationReview.messageTooLong" = "Máximo 2000 caracteres (actual: %d)";
+"moderationReview.success.title" = "Solicitud enviada";
+"moderationReview.success.message" = "Nuestro equipo revisará este caso manualmente y te avisaremos si hay novedades.";
+"moderationReview.success.message.ticket" = "Nuestro equipo revisará este caso manualmente. Tu ticket es %1$@.";
+"moderationReview.status.title" = "Revisiones de contenido";
+"moderationReview.status.detailTitle" = "Estado de la revisión";
+"moderationReview.status.ticket" = "Ticket %1$@";
+"moderationReview.status.estimatedResponse" = "Tiempo estimado de respuesta: %1$@";
+"moderationReview.status.teamNotes" = "Notas del equipo";
+"moderationReview.status.empty.title" = "Aún no has enviado revisiones";
+"moderationReview.status.empty.message" = "Cuando solicites una revisión de contenido moderado, podrás seguir su estado aquí.";
+"settings.sections.contentReviews" = "Revisiones de contenido";
+"settings.sections.contentReviews.subtitle" = "Consulta el estado de tus solicitudes";
 
 /* Banner - Moderación de contenido */
 "banner.verb.mediaModeration.partial" = "Se ha ocultado contenido de tu publicación";
@@ -3631,3 +3663,5 @@
 
 "userActivity.event.visit.clean" = "Visitó tu perfil";
 "userActivity.event.follow.clean" = "Comenzó a seguirte";
+"appeal.validation.tooShort" = "Mínimo %2$d caracteres (actual: %1$d)";
+"appeal.validation.tooLong" = "Máximo 2000 caracteres (actual: %d)";

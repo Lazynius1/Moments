@@ -3152,7 +3152,39 @@
 "notification.moderation.postHiddenLayer.partial.title" = "Revisió de contingut";
 "notification.moderation.postHiddenLayer.partial.body.one" = "Hem ocultat una capa oculta de la teva publicació perquè no compleix les nostres Normes de la comunitat. La resta segueix visible.";
 "notification.moderation.postHiddenLayer.partial.body.other" = "Hem ocultat %d capes ocultes de la teva publicació perquè no compleixen les nostres Normes de la comunitat. La resta segueix visible.";
-"notifications.message.mediaModeration" = "Hem revisat una publicació recent per assegurar que compleix les nostres Normes de la comunitat.";
+"notifications.message.mediaModeration" = "Hem revisat una publicació recent per assegurar que compleix les nostres Normes de la comunitat. Si creus que es tracta d'un error, pots sol·licitar una revisió.";
+"notifications.mediaModeration.reviewAction" = "Revisar";
+"moderationReview.title" = "Sol·licitar revisió";
+"moderationReview.subtitle" = "Si creus que això és un error, explica'ns el context i ho revisarem manualment.";
+"moderationReview.previewTitle" = "Contingut moderat";
+"moderationReview.helper" = "El teu contingut continuarà igual mentre el revisem. Si correspon, el podrem restaurar després d'una revisió manual.";
+"moderationReview.contactEmail" = "Correu de contacte";
+"moderationReview.contactEmail.placeholder" = "tu@email.com";
+"moderationReview.messageTitle" = "Explica'ns per què creus que ho hauríem de revisar";
+"moderationReview.messagePlaceholder" = "Explica'ns què creus que ha passat i qualsevol context útil per revisar aquesta moderació.";
+"moderationReview.additionalInfo" = "Informació addicional";
+"moderationReview.additionalInfo.placeholder" = "Opcional: afegeix detalls extra que ens puguin ajudar a revisar aquest cas.";
+"moderationReview.submit" = "Enviar";
+"moderationReview.context.story" = "Story";
+"moderationReview.context.moment" = "Moment";
+"moderationReview.scope.post" = "Contingut ocult a la teva publicació";
+"moderationReview.scope.story" = "Contingut ocult a la teva story";
+"moderationReview.scope.storySticker" = "Sticker ocult a la teva story";
+"moderationReview.scope.postHiddenLayer" = "Capa oculta moderada a la teva publicació";
+"moderationReview.messageTooShort" = "Mínim %2$d caràcters (actual: %1$d)";
+"moderationReview.messageTooLong" = "Màxim 2000 caràcters (actual: %d)";
+"moderationReview.success.title" = "Sol·licitud enviada";
+"moderationReview.success.message" = "El nostre equip revisarà aquest cas manualment i t'avisarà si hi ha novetats.";
+"moderationReview.success.message.ticket" = "El nostre equip revisarà aquest cas manualment. El teu tiquet és %1$@.";
+"moderationReview.status.title" = "Revisions de contingut";
+"moderationReview.status.detailTitle" = "Estat de la revisió";
+"moderationReview.status.ticket" = "Tiquet %1$@";
+"moderationReview.status.estimatedResponse" = "Temps estimat de resposta: %1$@";
+"moderationReview.status.teamNotes" = "Notes de l'equip";
+"moderationReview.status.empty.title" = "Encara no has enviat revisions";
+"moderationReview.status.empty.message" = "Quan sol·licitis una revisió de contingut moderat, en podràs seguir l'estat aquí.";
+"settings.sections.contentReviews" = "Revisions de contingut";
+"settings.sections.contentReviews.subtitle" = "Consulta l'estat de les teves sol·licituds";
 
 /* Banner - Moderació de contingut */
 "banner.verb.mediaModeration.partial" = "S'ha ocultat contingut de la teva publicació";
@@ -3617,3 +3649,5 @@
 
 "userActivity.event.visit.clean" = "Va visitar el teu perfil";
 "userActivity.event.follow.clean" = "Et va començar a seguir";
+"appeal.validation.tooShort" = "Mínim %2$d caràcters (actual: %1$d)";
+"appeal.validation.tooLong" = "Màxim 2000 caràcters (actual: %d)";

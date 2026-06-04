@@ -257,12 +257,26 @@ extension EnhancedNotificationRow {
                 .buttonStyle(PlainButtonStyle())
 
             case .mediaModeration:
-                // 🛡️ Icono de moderación limpio
-                Button(action: onTapAction) {
-                    Image(systemName: "exclamationmark.shield.fill")
-                        .foregroundColor(colorScheme == .dark ? .white.opacity(0.9) : .black.opacity(0.82))
-                        .font(.system(size: 20, weight: .semibold))
-                        .frame(width: 44, height: 44)
+                Button(action: {
+                    if let notification = group.notifications.first {
+                        onModerationReviewTap?(notification)
+                    }
+                }) {
+                    HStack(spacing: 6) {
+                        Image(systemName: "exclamationmark.shield.fill")
+                            .font(.system(size: 13, weight: .semibold))
+                        Text(NSLocalizedString("notifications.mediaModeration.reviewAction", comment: "Review action for moderated content"))
+                            .font(.system(size: 12, weight: .semibold))
+                    }
+                    .foregroundColor(colorScheme == .dark ? .white.opacity(0.92) : .black.opacity(0.84))
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 8)
+                    .background(.ultraThinMaterial)
+                    .clipShape(Capsule())
+                    .overlay(
+                        Capsule()
+                            .stroke(Color.orange.opacity(0.28), lineWidth: 1)
+                    )
                 }
                 .buttonStyle(PlainButtonStyle())
 

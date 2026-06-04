@@ -3141,7 +3141,39 @@
 "notification.moderation.postHiddenLayer.partial.title" = "Inhaltsprüfung";
 "notification.moderation.postHiddenLayer.partial.body.one" = "Wir haben eine versteckte Ebene aus deinem Beitrag ausgeblendet, weil sie nicht unseren Community-Richtlinien entspricht. Der Rest bleibt weiterhin sichtbar.";
 "notification.moderation.postHiddenLayer.partial.body.other" = "Wir haben %d versteckte Ebenen aus deinem Beitrag ausgeblendet, weil sie nicht unseren Community-Richtlinien entsprechen. Der Rest bleibt weiterhin sichtbar.";
-"notifications.message.mediaModeration" = "Wir haben einen aktuellen Beitrag überprüft, um sicherzustellen, dass er unseren Community-Richtlinien entspricht.";
+"notifications.message.mediaModeration" = "Wir haben einen aktuellen Beitrag überprüft, um sicherzustellen, dass er unseren Community-Richtlinien entspricht. Wenn du glaubst, dass das ein Fehler ist, kannst du eine Überprüfung anfordern.";
+"notifications.mediaModeration.reviewAction" = "Prüfen";
+"moderationReview.title" = "Überprüfung anfordern";
+"moderationReview.subtitle" = "Wenn du glaubst, dass dies ein Fehler ist, teile uns den Kontext mit und wir prüfen es manuell.";
+"moderationReview.previewTitle" = "Moderierter Inhalt";
+"moderationReview.helper" = "Dein Inhalt bleibt vorerst unverändert, während wir ihn prüfen. Falls passend, können wir ihn nach einer manuellen Prüfung wiederherstellen.";
+"moderationReview.contactEmail" = "Kontakt-E-Mail";
+"moderationReview.contactEmail.placeholder" = "du@email.com";
+"moderationReview.messageTitle" = "Erzähle uns, warum wir das überprüfen sollten";
+"moderationReview.messagePlaceholder" = "Erzähle uns, was deiner Meinung nach passiert ist, und gib uns hilfreichen Kontext für diese Moderation.";
+"moderationReview.additionalInfo" = "Zusätzliche Informationen";
+"moderationReview.additionalInfo.placeholder" = "Optional: Füge weitere Details hinzu, die uns bei der Prüfung helfen könnten.";
+"moderationReview.submit" = "Senden";
+"moderationReview.context.story" = "Story";
+"moderationReview.context.moment" = "Moment";
+"moderationReview.scope.post" = "Inhalt in deinem Beitrag ausgeblendet";
+"moderationReview.scope.story" = "Inhalt in deiner Story ausgeblendet";
+"moderationReview.scope.storySticker" = "Sticker in deiner Story ausgeblendet";
+"moderationReview.scope.postHiddenLayer" = "Versteckte Ebene in deinem Beitrag moderiert";
+"moderationReview.messageTooShort" = "Mindestens %2$d Zeichen (aktuell: %1$d)";
+"moderationReview.messageTooLong" = "Maximal 2000 Zeichen (aktuell: %d)";
+"moderationReview.success.title" = "Anfrage gesendet";
+"moderationReview.success.message" = "Unser Team wird diesen Fall manuell prüfen und dich informieren, wenn es Neuigkeiten gibt.";
+"moderationReview.success.message.ticket" = "Unser Team wird diesen Fall manuell prüfen. Dein Ticket ist %1$@.";
+"moderationReview.status.title" = "Inhaltsprüfungen";
+"moderationReview.status.detailTitle" = "Prüfungsstatus";
+"moderationReview.status.ticket" = "Ticket %1$@";
+"moderationReview.status.estimatedResponse" = "Geschätzte Antwortzeit: %1$@";
+"moderationReview.status.teamNotes" = "Notizen des Teams";
+"moderationReview.status.empty.title" = "Du hast noch keine Prüfungen gesendet";
+"moderationReview.status.empty.message" = "Wenn du eine Überprüfung für moderierten Inhalt anforderst, kannst du den Status hier verfolgen.";
+"settings.sections.contentReviews" = "Inhaltsprüfungen";
+"settings.sections.contentReviews.subtitle" = "Prüfe den Status deiner Anfragen";
 
 /* Banner - Media Moderation */
 "banner.verb.mediaModeration.partial" = "Einige Inhalte wurden aus deinem Beitrag ausgeblendet";
@@ -3606,3 +3638,5 @@
 
 "userActivity.event.visit.clean" = "Hat dein Profil besucht";
 "userActivity.event.follow.clean" = "Folgt dir jetzt";
+"appeal.validation.tooShort" = "Mindestens %2$d Zeichen (aktuell: %1$d)";
+"appeal.validation.tooLong" = "Maximal 2000 Zeichen (aktuell: %d)";

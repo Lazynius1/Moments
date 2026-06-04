@@ -3142,7 +3142,39 @@
 "notification.moderation.postHiddenLayer.partial.title" = "Content Review";
 "notification.moderation.postHiddenLayer.partial.body.one" = "We've hidden a hidden layer from your post because it doesn't meet our Community Guidelines. The rest is still visible.";
 "notification.moderation.postHiddenLayer.partial.body.other" = "We've hidden %d hidden layers from your post because they don't meet our Community Guidelines. The rest is still visible.";
-"notifications.message.mediaModeration" = "We reviewed a recent post to ensure it complies with our Community Guidelines.";
+"notifications.message.mediaModeration" = "We reviewed a recent post to ensure it complies with our Community Guidelines. If you think this is a mistake, you can request a review.";
+"notifications.mediaModeration.reviewAction" = "Review";
+"moderationReview.title" = "Request review";
+"moderationReview.subtitle" = "If you think this is a mistake, share the context and we will review it manually.";
+"moderationReview.previewTitle" = "Moderated content";
+"moderationReview.helper" = "Your content will stay as it is while we review it. If appropriate, we can restore it after a manual review.";
+"moderationReview.contactEmail" = "Contact email";
+"moderationReview.contactEmail.placeholder" = "you@email.com";
+"moderationReview.messageTitle" = "Tell us why you think we should review this";
+"moderationReview.messagePlaceholder" = "Tell us what you think happened and any useful context for reviewing this moderation.";
+"moderationReview.additionalInfo" = "Additional information";
+"moderationReview.additionalInfo.placeholder" = "Optional: add any extra details that could help us review this case.";
+"moderationReview.submit" = "Send";
+"moderationReview.context.story" = "Story";
+"moderationReview.context.moment" = "Moment";
+"moderationReview.scope.post" = "Content hidden in your post";
+"moderationReview.scope.story" = "Content hidden in your story";
+"moderationReview.scope.storySticker" = "Sticker hidden in your story";
+"moderationReview.scope.postHiddenLayer" = "Hidden layer moderated in your post";
+"moderationReview.messageTooShort" = "Minimum %2$d characters (current: %1$d)";
+"moderationReview.messageTooLong" = "Maximum 2000 characters (current: %d)";
+"moderationReview.success.title" = "Request sent";
+"moderationReview.success.message" = "Our team will review this case manually and let you know if there are updates.";
+"moderationReview.success.message.ticket" = "Our team will review this case manually. Your ticket is %1$@.";
+"moderationReview.status.title" = "Content reviews";
+"moderationReview.status.detailTitle" = "Review status";
+"moderationReview.status.ticket" = "Ticket %1$@";
+"moderationReview.status.estimatedResponse" = "Estimated response time: %1$@";
+"moderationReview.status.teamNotes" = "Team notes";
+"moderationReview.status.empty.title" = "You have not sent any reviews yet";
+"moderationReview.status.empty.message" = "When you request a review for moderated content, you will be able to track its status here.";
+"settings.sections.contentReviews" = "Content reviews";
+"settings.sections.contentReviews.subtitle" = "Check the status of your requests";
 
 /* Banner - Media Moderation */
 "banner.verb.mediaModeration.partial" = "Some content was hidden from your post";
@@ -3611,3 +3643,5 @@
 
 "userActivity.event.visit.clean" = "Visited your profile";
 "userActivity.event.follow.clean" = "Started following you";
+"appeal.validation.tooShort" = "Minimum %2$d characters (current: %1$d)";
+"appeal.validation.tooLong" = "Maximum 2000 characters (current: %d)";

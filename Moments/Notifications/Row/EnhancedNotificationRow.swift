@@ -9,6 +9,7 @@ struct EnhancedNotificationRow: View {
     @ObservedObject var viewModel: NotificationsViewModel
     let colorScheme: ColorScheme
     let onTapAction: () -> Void
+    let onModerationReviewTap: ((Notification) -> Void)?
     @State var showProfile = false
     @State var profileUserId: String?
     @State var showStories = false

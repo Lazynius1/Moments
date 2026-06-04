@@ -3141,7 +3141,39 @@
 "notification.moderation.postHiddenLayer.partial.title" = "Content Review";
 "notification.moderation.postHiddenLayer.partial.body.one" = "We've hidden a hidden layer from your post because it doesn't meet our Community Guidelines. The rest is still visible.";
 "notification.moderation.postHiddenLayer.partial.body.other" = "We've hidden %d hidden layers from your post because they don't meet our Community Guidelines. The rest is still visible.";
-"notifications.message.mediaModeration" = "We reviewed a recent post to ensure it complies with our Community Guidelines.";
+"notifications.message.mediaModeration" = "Nous avons examiné une publication récente pour vérifier qu'elle respecte nos Règles de la communauté. Si tu penses qu'il s'agit d'une erreur, tu peux demander une révision.";
+"notifications.mediaModeration.reviewAction" = "Réviser";
+"moderationReview.title" = "Demander une révision";
+"moderationReview.subtitle" = "Si tu penses qu'il s'agit d'une erreur, explique-nous le contexte et nous l'examinerons manuellement.";
+"moderationReview.previewTitle" = "Contenu modéré";
+"moderationReview.helper" = "Ton contenu restera tel quel pendant notre examen. Si nécessaire, nous pourrons le restaurer après une révision manuelle.";
+"moderationReview.contactEmail" = "E-mail de contact";
+"moderationReview.contactEmail.placeholder" = "toi@email.com";
+"moderationReview.messageTitle" = "Explique-nous pourquoi nous devrions le réexaminer";
+"moderationReview.messagePlaceholder" = "Explique-nous ce que tu penses qu'il s'est passé et tout contexte utile pour revoir cette modération.";
+"moderationReview.additionalInfo" = "Informations supplémentaires";
+"moderationReview.additionalInfo.placeholder" = "Optionnel : ajoute des détails supplémentaires qui pourraient nous aider à revoir ce cas.";
+"moderationReview.submit" = "Envoyer";
+"moderationReview.context.story" = "Story";
+"moderationReview.context.moment" = "Moment";
+"moderationReview.scope.post" = "Contenu masqué dans ta publication";
+"moderationReview.scope.story" = "Contenu masqué dans ta story";
+"moderationReview.scope.storySticker" = "Sticker masqué dans ta story";
+"moderationReview.scope.postHiddenLayer" = "Couche masquée modérée dans ta publication";
+"moderationReview.messageTooShort" = "Minimum %2$d caractères (actuel : %1$d)";
+"moderationReview.messageTooLong" = "Maximum 2000 caractères (actuel : %d)";
+"moderationReview.success.title" = "Demande envoyée";
+"moderationReview.success.message" = "Notre équipe examinera ce cas manuellement et te tiendra au courant s'il y a des nouvelles.";
+"moderationReview.success.message.ticket" = "Notre équipe examinera ce cas manuellement. Ton ticket est %1$@.";
+"moderationReview.status.title" = "Révisions de contenu";
+"moderationReview.status.detailTitle" = "Statut de la révision";
+"moderationReview.status.ticket" = "Ticket %1$@";
+"moderationReview.status.estimatedResponse" = "Délai de réponse estimé : %1$@";
+"moderationReview.status.teamNotes" = "Notes de l'équipe";
+"moderationReview.status.empty.title" = "Tu n'as pas encore envoyé de révisions";
+"moderationReview.status.empty.message" = "Lorsque tu demanderas une révision pour du contenu modéré, tu pourras suivre son statut ici.";
+"settings.sections.contentReviews" = "Révisions de contenu";
+"settings.sections.contentReviews.subtitle" = "Consulte le statut de tes demandes";
 
 /* Banner - Media Moderation */
 "banner.verb.mediaModeration.partial" = "Some content was hidden from your post";
@@ -3606,3 +3638,5 @@
 
 "userActivity.event.visit.clean" = "A visité votre profil";
 "userActivity.event.follow.clean" = "A commencé à vous suivre";
+"appeal.validation.tooShort" = "Minimum %2$d caractères (actuel : %1$d)";
+"appeal.validation.tooLong" = "Maximum 2000 caractères (actuel : %d)";

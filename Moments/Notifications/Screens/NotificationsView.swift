@@ -11,6 +11,7 @@ struct NotificationsView: View {
     @Environment(\.dismiss) var dismiss
     @Environment(\.colorScheme) var colorScheme // ✅ AGREGADO
     @State private var selectedMoment: Moment?
+    @State private var moderationReviewNotification: Notification?
     @State private var storyViewerPresentation: StoryViewerPresentation?
     @State private var selectedConversation: Conversation?
     @State private var showChat = false
@@ -91,6 +92,17 @@ struct NotificationsView: View {
             MomentDetailView(moment: moment)
                 .presentationDetents([.large])
                 .presentationDragIndicator(.visible)
+        }
+        .sheet(item: $moderationReviewNotification) { notification in
+            ModerationReviewRequestSheet(
+                notification: notification,
+                isPresented: Binding(
+                    get: { moderationReviewNotification != nil },
+                    set: { if !$0 { moderationReviewNotification = nil } }
+                )
+            )
+            .presentationDetents([.large])
+            .presentationDragIndicator(.visible)
         }
         .fullScreenCover(item: $storyViewerPresentation) { presentation in
             StoryViewerScreen(
@@ -294,6 +306,9 @@ struct NotificationsView: View {
                                 colorScheme: colorScheme,
                                 onTapAction: {
                                     handleNotificationTap(group: group)
+                                },
+                                onModerationReviewTap: { notification in
+                                    moderationReviewNotification = notification
                                 }
                             )
                         }

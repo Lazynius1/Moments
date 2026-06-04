@@ -1340,8 +1340,18 @@ class BackgroundStoryUploadService: ObservableObject {
             }
 
             switch result {
-            case .deleted, .warning:
+            case .deleted:
                 moderatedStickers[sticker.id] = result
+            case .warning:
+                MediaModerationService.shared.queueStoryStickerReviewItem(
+                    userId: uploadingStory.userId,
+                    storyId: storyId,
+                    stickerId: sticker.id,
+                    action: result,
+                    details: [
+                        "provider": "backend"
+                    ]
+                )
             case .approved, .error:
                 break
             }

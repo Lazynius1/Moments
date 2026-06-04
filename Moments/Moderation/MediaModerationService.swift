@@ -52,11 +52,24 @@ struct MediaModerationResult {
     let details: [String: Any]
 }
 
+private struct BackendMediaModerationResponse: Decodable {
+    let success: Bool
+    let action: String
+    let reason: String
+    let category: String
+    let provider: String?
+    let fallbackUsed: Bool?
+    let visualScore: Double?
+    let audioScore: Double?
+    let combinedScore: Double?
+}
+
 class MediaModerationService {
     static let shared = MediaModerationService()
 
     private let functionsRegion = "europe-southwest1"
     private let sightengineFunctionName = "proxySightengineFrame"
+    private let backendModerationFunctionName = "moderateMediaContent"
     private let speechFunctionName = "proxySpeechToText"
     
     // ✅ NUEVO: Queues dedicados para operaciones pesadas
@@ -148,78 +161,34 @@ class MediaModerationService {
         mediaItemId: String?,
         completion: @escaping (MediaModerationAction) -> Void
     ) {
-        downloadImageForAnalysis(from: url) { [weak self] result in
-            switch result {
-            case .success(let imageData):
-
-                // ✅ ANÁLISIS EN BACKGROUND CONCURRENTE
-                self?.concurrentQueue.async {
-                    self?.analyzeImageWithVisionAdvanced(
-                        imageData: imageData,
-                        originalURL: url,
-                        userId: userId,
-                        contentId: contentId,
-                        contentType: contentType,
-                        mediaItemId: mediaItemId,
-                        completion: { action in
-                            if let contentId = contentId {
-                                switch action {
-                                case .deleted, .warning:
-                                    if contentType == .moment,
-                                       let mediaItemId = mediaItemId,
-                                       self?.isHiddenLayerMediaItemId(mediaItemId) == true {
-                                        break
-                                    } else if contentType == .moment,
-                                              let mediaItemId = mediaItemId,
-                                              self?.isHiddenLayerMediaItemId(mediaItemId) == false {
-                                        self?.hideMomentMediaItem(
-                                            userId: userId,
-                                            contentId: contentId,
-                                            mediaItemId: mediaItemId,
-                                            action: action,
-                                            mediaURL: url,
-                                            mediaType: "image"
-                                        )
-                                    } else {
-                                        self?.hideContentUsingOnlyMe(
-                                            userId: userId,
-                                            contentId: contentId,
-                                            contentType: contentType,
-                                            action: action,
-                                            mediaURL: url,
-                                            mediaType: "image"
-                                        )
-                                    }
-                                    DispatchQueue.main.async {
-                                        completion(.approved)
-                                    }
-                                    return
-                                default:
-                                    break
-                                }
-                            }
-                            DispatchQueue.main.async {
-                                completion(action)
-                            }
-                        }
-                    )
-                }
-
-            case .failure(let error):
-                self?.logModerationEvent(
-                    userId: userId,
-                    mediaURL: url,
-                    mediaType: "image",
-                    contentType: contentType.rawValue,
-                    action: "moderation_error",
-                    reason: "Error descargando imagen: \(error.localizedDescription)",
-                    category: "system_error",
-                    contentId: contentId
-                )
-                DispatchQueue.main.async {
-                    completion(.approved) // ✅ En caso de error, aprobar para no bloquear
-                }
+        requestBackendModeration(mediaURL: url, mediaType: "image") { [weak self] result in
+            guard let self else {
+                DispatchQueue.main.async { completion(.approved) }
+                return
             }
+
+            self.logModerationEvent(
+                userId: userId,
+                mediaURL: url,
+                mediaType: "image",
+                contentType: contentType.rawValue,
+                action: self.actionToString(result.action),
+                reason: self.getReasonFromAction(result.action),
+                category: self.getCategoryFromAction(result.action),
+                contentId: contentId,
+                visionData: result.details
+            )
+
+            self.handleModerationResult(
+                result: result,
+                userId: userId,
+                contentId: contentId,
+                contentType: contentType,
+                mediaItemId: mediaItemId,
+                mediaURL: url,
+                mediaType: "image",
+                completion: completion
+            )
         }
     }
 
@@ -232,101 +201,34 @@ class MediaModerationService {
         mediaItemId: String?,
         completion: @escaping (MediaModerationAction) -> Void
     ) {
-
-        getVideoDuration(from: url) { [weak self] duration in
-            guard let duration = duration else {
-                self?.logModerationEvent(
-                    userId: userId,
-                    mediaURL: url,
-                    mediaType: "video",
-                    contentType: contentType.rawValue,
-                    action: "moderation_error",
-                    reason: "No se pudo obtener duración del video",
-                    category: "system_error",
-                    contentId: contentId
-                )
-                DispatchQueue.main.async {
-                    completion(.approved) // ✅ En caso de error, aprobar
-                }
+        requestBackendModeration(mediaURL: url, mediaType: "video") { [weak self] result in
+            guard let self else {
+                DispatchQueue.main.async { completion(.approved) }
                 return
             }
 
+            self.logModerationEvent(
+                userId: userId,
+                mediaURL: url,
+                mediaType: "video",
+                contentType: contentType.rawValue,
+                action: self.actionToString(result.action),
+                reason: self.getReasonFromAction(result.action),
+                category: self.getCategoryFromAction(result.action),
+                contentId: contentId,
+                visionData: result.details
+            )
 
-            // ✅ EXTRACCIÓN DE FRAMES EN BACKGROUND
-            self?.concurrentQueue.async {
-                self?.extractSmartFrames(from: url, duration: duration) { framesResult in
-                    switch framesResult {
-                    case .success(let frames):
-
-                        // ✅ ANÁLISIS EN BACKGROUND CONCURRENTE
-                        self?.analyzeMultipleFrames(
-                            frames: frames,
-                            originalURL: url,
-                            userId: userId,
-                            contentId: contentId,
-                            contentType: contentType
-                        ) { visualResult in
-                            // ✅ AUDIO ANÁLISIS SIMPLIFICADO (OPCIONAL)
-                            if duration > 5.0 {
-                                self?.extractAndAnalyzeAudioLightweight(
-                                    from: url,
-                                    duration: duration,
-                                    userId: userId,
-                                    contentId: contentId,
-                                    contentType: contentType
-                                ) { audioResult in
-                                    let finalResult = self?.combineResults(
-                                        visual: visualResult,
-                                        audio: audioResult,
-                                        mediaURL: url,
-                                        userId: userId,
-                                        contentId: contentId,
-                                        contentType: contentType
-                                    )
-
-                                    self?.handleModerationResult(
-                                        result: finalResult,
-                                        userId: userId,
-                                        contentId: contentId,
-                                        contentType: contentType,
-                                        mediaItemId: mediaItemId,
-                                        mediaURL: url,
-                                        mediaType: "video",
-                                        completion: completion
-                                    )
-                                }
-                            } else {
-                                // ✅ Videos cortos: solo análisis visual
-                                self?.handleModerationResult(
-                                    result: visualResult,
-                                    userId: userId,
-                                    contentId: contentId,
-                                    contentType: contentType,
-                                    mediaItemId: mediaItemId,
-                                    mediaURL: url,
-                                    mediaType: "video",
-                                    completion: completion
-                                )
-                            }
-                        }
-
-                    case .failure(let error):
-                        self?.logModerationEvent(
-                            userId: userId,
-                            mediaURL: url,
-                            mediaType: "video",
-                            contentType: contentType.rawValue,
-                            action: "moderation_error",
-                            reason: "Error extrayendo frames: \(error.localizedDescription)",
-                            category: "system_error",
-                            contentId: contentId
-                        )
-                        DispatchQueue.main.async {
-                            completion(.approved) // ✅ En caso de error, aprobar
-                        }
-                    }
-                }
-            }
+            self.handleModerationResult(
+                result: result,
+                userId: userId,
+                contentId: contentId,
+                contentType: contentType,
+                mediaItemId: mediaItemId,
+                mediaURL: url,
+                mediaType: "video",
+                completion: completion
+            )
         }
     }
     
@@ -350,7 +252,7 @@ class MediaModerationService {
         
         if let contentId = contentId {
             switch finalResult.action {
-            case .deleted, .warning:
+            case .deleted:
                 if contentType == .moment,
                    let mediaItemId = mediaItemId,
                    isHiddenLayerMediaItemId(mediaItemId) {
@@ -388,6 +290,24 @@ class MediaModerationService {
                     completion(.approved)
                 }
                 return
+            case .warning:
+                queueContentForManualReview(
+                    userId: userId,
+                    contentId: contentId,
+                    contentType: contentType,
+                    mediaItemId: mediaItemId,
+                    mediaURL: mediaURL,
+                    mediaType: mediaType,
+                    action: finalResult.action,
+                    visualScore: finalResult.visualScore,
+                    audioScore: finalResult.audioScore,
+                    combinedScore: finalResult.combinedScore,
+                    details: finalResult.details
+                )
+                DispatchQueue.main.async {
+                    completion(.approved)
+                }
+                return
             default:
                 break
             }
@@ -396,6 +316,334 @@ class MediaModerationService {
         DispatchQueue.main.async {
             completion(finalResult.action)
         }
+    }
+
+    private func queueContentForManualReview(
+        userId: String,
+        contentId: String,
+        contentType: ContentType,
+        mediaItemId: String?,
+        mediaURL: String,
+        mediaType: String,
+        action: MediaModerationAction,
+        visualScore: Double? = nil,
+        audioScore: Double? = nil,
+        combinedScore: Double? = nil,
+        details: [String: Any] = [:]
+    ) {
+        guard case .warning(let reason, let category) = action else {
+            return
+        }
+
+        DispatchQueue.global(qos: .utility).async {
+            let db = Firestore.firestore()
+            let collectionName = contentType == .moment ? "moments" : "stories"
+            let contentRef = db.collection("users").document(userId).collection(collectionName).document(contentId)
+
+            var contentUpdate: [String: Any] = [
+                "reviewRequired": true,
+                "moderationReason": "Advertencia: \(reason)",
+                "moderationCategory": category,
+                "moderationDetails": details,
+                "moderatedAt": FieldValue.serverTimestamp(),
+                "moderatedBy": "auto_moderation",
+                "isModerationHidden": false
+            ]
+
+            if let visualScore {
+                contentUpdate["visualScore"] = visualScore
+            }
+            if let audioScore {
+                contentUpdate["audioScore"] = audioScore
+            }
+            if let combinedScore {
+                contentUpdate["combinedScore"] = combinedScore
+            }
+
+            let batch = db.batch()
+            batch.setData(
+                self.makeModerationQueuePayload(
+                    userId: userId,
+                    contentId: contentId,
+                    contentType: contentType,
+                    mediaItemId: mediaItemId,
+                    mediaURL: mediaURL,
+                    mediaType: mediaType,
+                    reason: reason,
+                    category: category,
+                    details: details,
+                    visualScore: visualScore,
+                    audioScore: audioScore,
+                    combinedScore: combinedScore,
+                    contentVisible: true,
+                    reviewSource: "auto_warning"
+                ),
+                forDocument: db.collection("moderationReviewQueue").document()
+            )
+            batch.setData(contentUpdate, forDocument: contentRef, merge: true)
+            batch.commit { _ in }
+        }
+    }
+
+    private func queueHiddenModerationReview(
+        userId: String,
+        contentId: String,
+        contentType: ContentType,
+        mediaItemId: String? = nil,
+        mediaURL: String,
+        mediaType: String,
+        action: MediaModerationAction,
+        visualScore: Double? = nil,
+        audioScore: Double? = nil,
+        combinedScore: Double? = nil,
+        details: [String: Any] = [:]
+    ) {
+        let reason = getReasonFromAction(action)
+        let category = getCategoryFromAction(action)
+
+        DispatchQueue.global(qos: .utility).async {
+            let db = Firestore.firestore()
+            db.collection("moderationReviewQueue").addDocument(data: self.makeModerationQueuePayload(
+                userId: userId,
+                contentId: contentId,
+                contentType: contentType,
+                mediaItemId: mediaItemId,
+                mediaURL: mediaURL,
+                mediaType: mediaType,
+                reason: reason,
+                category: category,
+                details: details,
+                visualScore: visualScore,
+                audioScore: audioScore,
+                combinedScore: combinedScore,
+                contentVisible: false,
+                reviewSource: "auto_hidden"
+            )) { _ in }
+        }
+    }
+
+    private func makeModerationQueuePayload(
+        userId: String,
+        contentId: String,
+        contentType: ContentType,
+        mediaItemId: String?,
+        mediaURL: String,
+        mediaType: String,
+        reason: String,
+        category: String,
+        details: [String: Any],
+        visualScore: Double?,
+        audioScore: Double?,
+        combinedScore: Double?,
+        contentVisible: Bool,
+        reviewSource: String
+    ) -> [String: Any] {
+        var queueData: [String: Any] = [
+            "status": "pending",
+            "reviewSource": reviewSource,
+            "userId": userId,
+            "contentId": contentId,
+            "contentType": contentType.rawValue,
+            "moderationScope": moderationScope(
+                contentType: contentType,
+                mediaItemId: mediaItemId,
+                mediaType: mediaType
+            ),
+            "mediaURL": mediaURL,
+            "mediaType": mediaType,
+            "reason": reason,
+            "category": category,
+            "provider": details["provider"] as? String ?? "backend",
+            "fallbackUsed": details["fallbackUsed"] as? Bool ?? false,
+            "contentVisible": contentVisible,
+            "createdAt": FieldValue.serverTimestamp(),
+            "updatedAt": FieldValue.serverTimestamp()
+        ]
+
+        if let mediaItemId {
+            queueData["mediaItemId"] = mediaItemId
+        }
+        if let visualScore {
+            queueData["visualScore"] = visualScore
+        }
+        if let audioScore {
+            queueData["audioScore"] = audioScore
+        }
+        if let combinedScore {
+            queueData["combinedScore"] = combinedScore
+        }
+        if !details.isEmpty {
+            queueData["details"] = details
+        }
+
+        return queueData
+    }
+
+    private func moderationScope(
+        contentType: ContentType,
+        mediaItemId: String?,
+        mediaType: String
+    ) -> String {
+        if mediaType == "story_sticker" {
+            return "storySticker"
+        }
+        if contentType == .story {
+            return "story"
+        }
+        if let mediaItemId, isHiddenLayerMediaItemId(mediaItemId) {
+            return "postHiddenLayer"
+        }
+        return "post"
+    }
+
+    private func requestBackendModeration(
+        mediaURL: String? = nil,
+        mediaType: String,
+        imageBase64: String? = nil,
+        completion: @escaping (MediaModerationResult) -> Void
+    ) {
+        guard let url = cloudFunctionURL(functionName: backendModerationFunctionName) else {
+            completion(
+                MediaModerationResult(
+                    visualScore: 0,
+                    audioScore: nil,
+                    combinedScore: 0,
+                    action: .warning(
+                        reason: "Revisión manual pendiente por error interno de moderación",
+                        category: "system_error"
+                    ),
+                    details: ["provider": "backend_unavailable"]
+                )
+            )
+            return
+        }
+
+        var body: [String: Any] = [
+            "mediaType": mediaType
+        ]
+        if let mediaURL {
+            body["mediaURL"] = mediaURL
+        }
+        if let imageBase64 {
+            body["imageBase64"] = imageBase64
+        }
+
+        guard let jsonData = try? JSONSerialization.data(withJSONObject: body) else {
+            completion(
+                MediaModerationResult(
+                    visualScore: 0,
+                    audioScore: nil,
+                    combinedScore: 0,
+                    action: .warning(
+                        reason: "Revisión manual pendiente por error interno de moderación",
+                        category: "system_error"
+                    ),
+                    details: ["provider": "backend_request_encoding_failed"]
+                )
+            )
+            return
+        }
+
+        fetchIDToken { token in
+            guard let token else {
+                completion(
+                    MediaModerationResult(
+                        visualScore: 0,
+                        audioScore: nil,
+                        combinedScore: 0,
+                        action: .warning(
+                            reason: "Revisión manual pendiente por error interno de moderación",
+                            category: "system_error"
+                        ),
+                        details: ["provider": "backend_missing_auth"]
+                    )
+                )
+                return
+            }
+
+            var request = URLRequest(url: url)
+            request.httpMethod = "POST"
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+            request.httpBody = jsonData
+            request.timeoutInterval = 120.0
+
+            URLSession.shared.dataTask(with: request) { data, _, error in
+                if let error {
+                    completion(
+                        MediaModerationResult(
+                            visualScore: 0,
+                            audioScore: nil,
+                            combinedScore: 0,
+                            action: .warning(
+                                reason: "Revisión manual pendiente por indisponibilidad temporal del sistema de moderación",
+                                category: "system_error"
+                            ),
+                            details: ["provider": "backend_request_failed", "error": error.localizedDescription]
+                        )
+                    )
+                    return
+                }
+
+                guard let data else {
+                    completion(
+                        MediaModerationResult(
+                            visualScore: 0,
+                            audioScore: nil,
+                            combinedScore: 0,
+                            action: .warning(
+                                reason: "Revisión manual pendiente por indisponibilidad temporal del sistema de moderación",
+                                category: "system_error"
+                            ),
+                            details: ["provider": "backend_empty_response"]
+                        )
+                    )
+                    return
+                }
+
+                do {
+                    let response = try JSONDecoder().decode(BackendMediaModerationResponse.self, from: data)
+                    completion(self.mediaModerationResult(from: response))
+                } catch {
+                    completion(
+                        MediaModerationResult(
+                            visualScore: 0,
+                            audioScore: nil,
+                            combinedScore: 0,
+                            action: .warning(
+                                reason: "Revisión manual pendiente por indisponibilidad temporal del sistema de moderación",
+                                category: "system_error"
+                            ),
+                            details: ["provider": "backend_decode_failed", "error": error.localizedDescription]
+                        )
+                    )
+                }
+            }.resume()
+        }
+    }
+
+    private func mediaModerationResult(from response: BackendMediaModerationResponse) -> MediaModerationResult {
+        let action: MediaModerationAction
+
+        switch response.action {
+        case "deleted":
+            action = .deleted(reason: response.reason, category: response.category)
+        case "warning":
+            action = .warning(reason: response.reason, category: response.category)
+        default:
+            action = .approved
+        }
+
+        return MediaModerationResult(
+            visualScore: response.visualScore ?? 0,
+            audioScore: response.audioScore,
+            combinedScore: response.combinedScore ?? response.visualScore ?? 0,
+            action: action,
+            details: [
+                "provider": response.provider ?? "backend",
+                "fallbackUsed": response.fallbackUsed ?? false
+            ]
+        )
     }
 
     // MARK: - ⏱️ OBTENER DURACIÓN DEL VIDEO (SIN CAMBIOS)
@@ -1015,7 +1263,10 @@ class MediaModerationService {
                 return
             }
 
-            self.analyzeFrameWithVision(frameData: imageData, timestamp: 0.0) { [weak self] json in
+            self.requestBackendModeration(
+                mediaType: "story_sticker",
+                imageBase64: imageData.base64EncodedString()
+            ) { [weak self] result in
                 guard let self else {
                     DispatchQueue.main.async {
                         completion(.approved)
@@ -1023,28 +1274,24 @@ class MediaModerationService {
                     return
                 }
 
-                guard let json else {
-                    DispatchQueue.main.async {
-                        completion(.error("Error analizando sticker con Sightengine"))
-                    }
-                    return
-                }
-
-                let action = self.analyzeSightengineResult(json)
                 self.logModerationEvent(
                     userId: userId,
                     mediaURL: "story_sticker:\(stickerId)",
                     mediaType: "story_sticker",
                     contentType: "story",
-                    action: self.actionToString(action),
-                    reason: self.getReasonFromAction(action),
-                    category: self.getCategoryFromAction(action),
+                    action: self.actionToString(result.action),
+                    reason: self.getReasonFromAction(result.action),
+                    category: self.getCategoryFromAction(result.action),
                     contentId: storyId,
-                    visionData: ["provider": "sightengine", "stickerId": stickerId]
+                    visionData: [
+                        "provider": result.details["provider"] as? String ?? "backend",
+                        "fallbackUsed": result.details["fallbackUsed"] as? Bool ?? false,
+                        "stickerId": stickerId
+                    ]
                 )
 
                 DispatchQueue.main.async {
-                    completion(action)
+                    completion(result.action)
                 }
             }
         }
@@ -1101,7 +1348,7 @@ class MediaModerationService {
         reason: String,
         category: String,
         contentId: String?,
-        visionData: [String: String]? = nil
+        visionData: [String: Any]? = nil
     ) {
         // ✅ LOGGING EN BACKGROUND
         DispatchQueue.global(qos: .utility).async {
@@ -1123,6 +1370,12 @@ class MediaModerationService {
 
             if let visionData = visionData {
                 logData["visionData"] = visionData
+                if let provider = visionData["provider"] as? String {
+                    logData["provider"] = provider
+                }
+                if let fallbackUsed = visionData["fallbackUsed"] as? Bool {
+                    logData["fallbackUsed"] = fallbackUsed
+                }
             }
 
             db.collection("mediaModerationLogs").addDocument(data: logData) { _ in
@@ -1286,6 +1539,19 @@ class MediaModerationService {
 
                 contentRef.updateData(updateData) { error in
                     if error == nil {
+                        self.queueHiddenModerationReview(
+                            userId: userId,
+                            contentId: contentId,
+                            contentType: .moment,
+                            mediaItemId: mediaItemId,
+                            mediaURL: mediaURL,
+                            mediaType: mediaType,
+                            action: action,
+                            visualScore: visualScore,
+                            audioScore: audioScore,
+                            combinedScore: combinedScore,
+                            details: details
+                        )
                         // ✅ MODERACIÓN: Crear notificación para moderación parcial
                         self.createModerationNotification(
                             userId: userId,
@@ -1372,6 +1638,19 @@ class MediaModerationService {
 
                 contentRef.updateData(hideData) { error in
                     if error == nil {
+                        self.queueHiddenModerationReview(
+                            userId: userId,
+                            contentId: contentId,
+                            contentType: contentType,
+                            mediaItemId: nil,
+                            mediaURL: mediaURL,
+                            mediaType: mediaType,
+                            action: action,
+                            visualScore: visualScore,
+                            audioScore: audioScore,
+                            combinedScore: combinedScore,
+                            details: details
+                        )
                         // ✅ MODERACIÓN: Crear notificación para moderación completa (onlyMe)
                         self.createModerationNotification(
                             userId: userId,
@@ -1526,6 +1805,16 @@ class MediaModerationService {
                         return
                     }
 
+                    self.queueHiddenModerationReview(
+                        userId: userId,
+                        contentId: storyId,
+                        contentType: .story,
+                        mediaItemId: nil,
+                        mediaURL: "story_sticker:\(moderatedStickers.keys.first ?? "unknown")",
+                        mediaType: "story_sticker",
+                        action: primaryAction
+                    )
+
                     if newlyHiddenCount > 0 {
                         self.createModerationNotification(
                             userId: userId,
@@ -1543,6 +1832,54 @@ class MediaModerationService {
                     completion?(true)
                 }
             }
+        }
+    }
+
+    func queueStoryStickerReviewItem(
+        userId: String,
+        storyId: String,
+        stickerId: String,
+        action: MediaModerationAction,
+        details: [String: Any] = [:]
+    ) {
+        guard case .warning(let reason, let category) = action else {
+            return
+        }
+
+        DispatchQueue.global(qos: .utility).async {
+            let db = Firestore.firestore()
+            let storyRef = db.collection("users").document(userId).collection("stories").document(storyId)
+            let queueRef = db.collection("moderationReviewQueue").document()
+
+            let batch = db.batch()
+            batch.setData([
+                "status": "pending",
+                "reviewSource": "auto_warning",
+                "userId": userId,
+                "contentId": storyId,
+                "contentType": ContentType.story.rawValue,
+                "moderationScope": "storySticker",
+                "mediaType": "story_sticker",
+                "stickerId": stickerId,
+                "reason": reason,
+                "category": category,
+                "provider": details["provider"] as? String ?? "backend",
+                "fallbackUsed": details["fallbackUsed"] as? Bool ?? false,
+                "contentVisible": true,
+                "createdAt": FieldValue.serverTimestamp(),
+                "updatedAt": FieldValue.serverTimestamp()
+            ], forDocument: queueRef)
+
+            batch.setData([
+                "reviewRequired": true,
+                "moderationReason": "Advertencia: \(reason)",
+                "moderationCategory": category,
+                "moderatedAt": FieldValue.serverTimestamp(),
+                "moderatedBy": "auto_moderation",
+                "isModerationHidden": false
+            ], forDocument: storyRef, merge: true)
+
+            batch.commit { _ in }
         }
     }
 
