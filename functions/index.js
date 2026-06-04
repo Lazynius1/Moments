@@ -16,6 +16,8 @@ const { policyFromFirestoreSettings } = require('./moderation/policy');
 
 const VIDEO_DOWNLOAD_MAX_BYTES = 250 * 1024 * 1024;
 const VIDEO_DOWNLOAD_TIMEOUT_MS = 60 * 1000;
+const IMAGE_DOWNLOAD_MAX_BYTES = 15 * 1024 * 1024;
+const IMAGE_DOWNLOAD_TIMEOUT_MS = 30 * 1000;
 setGlobalOptions({ region: 'europe-southwest1', memory: '256MiB', concurrency: 80, retry: true });
 const admin = require('firebase-admin');
 admin.initializeApp();
@@ -464,24 +466,56 @@ function createRekognitionClient() {
   });
 }
 
-async function downloadUrlToBuffer(url, { maxBytes = 15 * 1024 * 1024, expectedPrefix = '' } = {}) {
-  const response = await fetch(url);
-  if (!response.ok) {
-    throw new Error(`Media download failed with status ${response.status}`);
+async function downloadStorageObjectToBuffer({
+  bucket,
+  objectName,
+  maxBytes = IMAGE_DOWNLOAD_MAX_BYTES,
+  expectedPrefix = 'image/',
+  timeoutMs = IMAGE_DOWNLOAD_TIMEOUT_MS
+}) {
+  const file = bucket.file(objectName);
+  const [metadata] = await file.getMetadata();
+  const size = Number(metadata.size || 0);
+  if (size > maxBytes) {
+    throw new Error('Image download exceeds maximum allowed size');
   }
 
-  const contentType = String(response.headers.get('content-type') || '').toLowerCase();
-  if (expectedPrefix && contentType && !contentType.startsWith(expectedPrefix)) {
-    throw new Error(`Unexpected content type: ${contentType}`);
+  const contentType = String(metadata.contentType || '').toLowerCase();
+  if (!contentType || !contentType.startsWith(expectedPrefix)) {
+    throw new Error('Storage object is not an image');
   }
 
-  const arrayBuffer = await response.arrayBuffer();
-  const buffer = Buffer.from(arrayBuffer);
-  if (buffer.length > maxBytes) {
-    throw new Error('Media download exceeds maximum allowed size');
-  }
+  return new Promise((resolve, reject) => {
+    let settled = false;
+    let receivedBytes = 0;
+    const chunks = [];
+    const readStream = file.createReadStream();
+    const timeout = setTimeout(() => {
+      readStream.destroy(new Error('Image download timed out'));
+    }, timeoutMs);
 
-  return buffer;
+    const done = (error) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timeout);
+      if (error) {
+        reject(error);
+      } else {
+        resolve(Buffer.concat(chunks));
+      }
+    };
+
+    readStream.on('data', (chunk) => {
+      receivedBytes += chunk.length;
+      if (receivedBytes > maxBytes) {
+        readStream.destroy(new Error('Image download exceeds maximum allowed size'));
+        return;
+      }
+      chunks.push(chunk);
+    });
+    readStream.on('error', done);
+    readStream.on('end', () => done());
+  });
 }
 
 async function callOpenAIModeration(input) {
@@ -1244,6 +1278,14 @@ function storageObjectBelongsToUser(objectName, uid) {
   }
 
   return false;
+}
+
+function userOwnedImageObjectNameFromFirebaseUrl(url, userId) {
+  const bucket = admin.storage().bucket();
+  const objectName = storageObjectNameFromFirebaseUrl(url, bucket.name);
+  if (!objectName || !storageObjectBelongsToUser(objectName, userId)) return null;
+
+  return objectName;
 }
 
 function addOwnedBackgroundFrameStorageUrl(targetSet, value, uid) {
@@ -2637,7 +2679,13 @@ exports.moderateMediaContent = onRequest(
         const imageBuffer = Buffer.from(imageBase64, 'base64');
         decision = await moderateImageBufferWithFallback(imageBuffer);
       } else if (mediaType === 'image') {
-        const imageBuffer = await downloadUrlToBuffer(mediaURL, { maxBytes: 15 * 1024 * 1024, expectedPrefix: 'image/' });
+        const bucket = admin.storage().bucket();
+        const objectName = userOwnedImageObjectNameFromFirebaseUrl(mediaURL, uid);
+        if (!objectName) {
+          throw new Error('Image source must be a Firebase Storage upload owned by this user');
+        }
+
+        const imageBuffer = await downloadStorageObjectToBuffer({ bucket, objectName });
         decision = await moderateImageBufferWithFallback(imageBuffer);
       } else {
         const bucket = admin.storage().bucket();
