@@ -19,8 +19,63 @@ enum StoryTextCanvasPlacement {
     }
 }
 
+struct StoryTextOverlayDraft: Identifiable, Equatable {
+    var id: String = UUID().uuidString
+    var text: String = ""
+    var position: CGPoint = .zero
+    var style: StoryEditingView.TextStyle = .modern
+    var visualEffect: StoryEditingView.TextEffect = .none
+    var textColor: Color = .white
+    var textAlignment: TextAlignment = .center
+    var textBackgroundFill: StoryEditingView.TextBackgroundFill = .none
+    var fontSize: CGFloat = 30
+    var textStroke: StoryEditingView.TextStroke = .none
+    var textMotion: StoryEditingView.TextMotion = .none
+    var forcesAllCaps: Bool = false
+    var layerOrder: Int = 0
+
+    func metadata(in contentRect: CGRect) -> StoryTextOverlayMetadata? {
+        StoryTextOverlayMetadata.build(
+            id: id,
+            text: text,
+            editorPosition: position,
+            contentRect: contentRect,
+            layerOrder: layerOrder,
+            style: style,
+            textColor: textColor,
+            fontSize: fontSize,
+            alignment: textAlignment,
+            backgroundFill: textBackgroundFill,
+            stroke: textStroke,
+            visualEffect: visualEffect,
+            motion: textMotion,
+            forcesAllCaps: forcesAllCaps
+        )
+    }
+
+    static func from(metadata: StoryTextOverlayMetadata, canvasSize: CGSize) -> StoryTextOverlayDraft {
+        StoryTextOverlayDraft(
+            id: metadata.id,
+            text: metadata.text,
+            position: metadata.displayPosition(in: canvasSize),
+            style: StoryEditingView.TextStyle(rawValue: metadata.styleRaw) ?? .modern,
+            visualEffect: StoryEditingView.TextEffect(storedRawValue: metadata.visualEffectRaw) ?? .none,
+            textColor: Color(hex: metadata.colorHex),
+            textAlignment: StoryTextOverlayMetadata.decodeAlignment(metadata.alignmentRaw),
+            textBackgroundFill: StoryEditingView.TextBackgroundFill(rawValue: metadata.backgroundFillRaw) ?? .none,
+            fontSize: CGFloat(metadata.fontSize),
+            textStroke: StoryEditingView.TextStroke(rawValue: metadata.strokeRaw) ?? .none,
+            textMotion: metadata.motion,
+            forcesAllCaps: metadata.forcesAllCaps,
+            layerOrder: metadata.layerOrder
+        )
+    }
+}
+
 /// Metadata for live story text overlays (rendered in the viewer, not baked into media).
 struct StoryTextOverlayMetadata: Codable, Equatable {
+    var id: String
+    var text: String
     var normalizedPosition: CGPoint
     var layerOrder: Int
     var styleRaw: String
@@ -34,7 +89,62 @@ struct StoryTextOverlayMetadata: Codable, Equatable {
     var forcesAllCaps: Bool
     var isLiveOverlay: Bool = true
 
+    enum CodingKeys: String, CodingKey {
+        case id
+        case text
+        case normalizedPosition
+        case layerOrder
+        case styleRaw
+        case colorHex
+        case fontSize
+        case alignmentRaw
+        case backgroundFillRaw
+        case strokeRaw
+        case visualEffectRaw
+        case motionRaw
+        case forcesAllCaps
+        case isLiveOverlay
+    }
+
+    private enum PointCodingKeys: String, CodingKey {
+        case x
+        case y
+    }
+
+    init(
+        id: String,
+        text: String,
+        normalizedPosition: CGPoint,
+        layerOrder: Int,
+        styleRaw: String,
+        colorHex: String,
+        fontSize: Double,
+        alignmentRaw: String,
+        backgroundFillRaw: String,
+        strokeRaw: String,
+        visualEffectRaw: String,
+        motionRaw: String,
+        forcesAllCaps: Bool,
+        isLiveOverlay: Bool = true
+    ) {
+        self.id = id
+        self.text = text
+        self.normalizedPosition = normalizedPosition
+        self.layerOrder = layerOrder
+        self.styleRaw = styleRaw
+        self.colorHex = colorHex
+        self.fontSize = fontSize
+        self.alignmentRaw = alignmentRaw
+        self.backgroundFillRaw = backgroundFillRaw
+        self.strokeRaw = strokeRaw
+        self.visualEffectRaw = visualEffectRaw
+        self.motionRaw = motionRaw
+        self.forcesAllCaps = forcesAllCaps
+        self.isLiveOverlay = isLiveOverlay
+    }
+
     static func build(
+        id: String = UUID().uuidString,
         text: String,
         editorPosition: CGPoint,
         contentRect: CGRect,
@@ -60,6 +170,8 @@ struct StoryTextOverlayMetadata: Codable, Equatable {
         )
 
         return StoryTextOverlayMetadata(
+            id: id,
+            text: trimmed,
             normalizedPosition: norm,
             layerOrder: layerOrder,
             styleRaw: style.rawValue,
@@ -99,7 +211,7 @@ struct StoryTextOverlayMetadata: Codable, Equatable {
         }
     }
 
-    func renderConfiguration(text: String) -> StoryTextRenderConfiguration? {
+    func renderConfiguration() -> StoryTextRenderConfiguration? {
         guard let style = StoryEditingView.TextStyle(rawValue: styleRaw) else { return nil }
         let stroke = StoryEditingView.TextStroke(rawValue: strokeRaw) ?? .none
         let effect = StoryEditingView.TextEffect(storedRawValue: visualEffectRaw) ?? .none
@@ -128,8 +240,8 @@ struct StoryTextOverlayMetadata: Codable, Equatable {
         )
     }
 
-    func scaledRenderConfiguration(text: String, containerWidth: CGFloat) -> StoryTextRenderConfiguration? {
-        guard var config = renderConfiguration(text: text) else { return nil }
+    func scaledRenderConfiguration(containerWidth: CGFloat) -> StoryTextRenderConfiguration? {
+        guard var config = renderConfiguration() else { return nil }
         config.fontSize = scaledFontSize(for: containerWidth)
         return config
     }
@@ -150,37 +262,104 @@ struct StoryTextOverlayMetadata: Codable, Equatable {
         let scaleFactor = max(containerWidth, 1) / 375.0
         return CGFloat(fontSize) * scaleFactor
     }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+
+        id = try container.decode(String.self, forKey: .id)
+        text = try container.decode(String.self, forKey: .text)
+        layerOrder = try container.decode(Int.self, forKey: .layerOrder)
+        styleRaw = try container.decode(String.self, forKey: .styleRaw)
+        colorHex = try container.decode(String.self, forKey: .colorHex)
+        fontSize = try container.decode(Double.self, forKey: .fontSize)
+        alignmentRaw = try container.decode(String.self, forKey: .alignmentRaw)
+        backgroundFillRaw = try container.decode(String.self, forKey: .backgroundFillRaw)
+        strokeRaw = try container.decode(String.self, forKey: .strokeRaw)
+        visualEffectRaw = try container.decode(String.self, forKey: .visualEffectRaw)
+        motionRaw = try container.decode(String.self, forKey: .motionRaw)
+        forcesAllCaps = try container.decode(Bool.self, forKey: .forcesAllCaps)
+        isLiveOverlay = try container.decodeIfPresent(Bool.self, forKey: .isLiveOverlay) ?? true
+
+        if let point = try? container.decode(CGPoint.self, forKey: .normalizedPosition) {
+            normalizedPosition = point
+        } else {
+            let pointContainer = try container.nestedContainer(keyedBy: PointCodingKeys.self, forKey: .normalizedPosition)
+            let x = try pointContainer.decode(CGFloat.self, forKey: .x)
+            let y = try pointContainer.decode(CGFloat.self, forKey: .y)
+            normalizedPosition = CGPoint(x: x, y: y)
+        }
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(id, forKey: .id)
+        try container.encode(text, forKey: .text)
+        try container.encode(layerOrder, forKey: .layerOrder)
+        try container.encode(styleRaw, forKey: .styleRaw)
+        try container.encode(colorHex, forKey: .colorHex)
+        try container.encode(fontSize, forKey: .fontSize)
+        try container.encode(alignmentRaw, forKey: .alignmentRaw)
+        try container.encode(backgroundFillRaw, forKey: .backgroundFillRaw)
+        try container.encode(strokeRaw, forKey: .strokeRaw)
+        try container.encode(visualEffectRaw, forKey: .visualEffectRaw)
+        try container.encode(motionRaw, forKey: .motionRaw)
+        try container.encode(forcesAllCaps, forKey: .forcesAllCaps)
+        try container.encode(isLiveOverlay, forKey: .isLiveOverlay)
+
+        var pointContainer = container.nestedContainer(keyedBy: PointCodingKeys.self, forKey: .normalizedPosition)
+        try pointContainer.encode(normalizedPosition.x, forKey: .x)
+        try pointContainer.encode(normalizedPosition.y, forKey: .y)
+    }
 }
 
 extension Story {
     var usesLiveTextOverlay: Bool {
+        if let textOverlays, !textOverlays.isEmpty { return true }
         guard let text, !text.isEmpty else { return false }
         if textOverlayLive == true { return true }
         return textColorHex != nil || textMotion != nil || textVisualEffect != nil
     }
 
-    var resolvedTextOverlayMetadata: StoryTextOverlayMetadata? {
-        guard usesLiveTextOverlay else { return nil }
-        guard let text, !text.isEmpty else { return nil }
+    var resolvedTextOverlays: [StoryTextOverlayMetadata] {
+        if let textOverlays, !textOverlays.isEmpty {
+            return textOverlays
+                .filter { !$0.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+                .sorted { lhs, rhs in
+                    if lhs.layerOrder == rhs.layerOrder {
+                        return lhs.id < rhs.id
+                    }
+                    return lhs.layerOrder < rhs.layerOrder
+                }
+        }
+
+        guard let text, !text.isEmpty else { return [] }
 
         let normX = textPositionNormX ?? inferredNormalizedX
         let normY = textPositionNormY ?? inferredNormalizedY
-        guard let normX, let normY else { return nil }
+        guard let normX, let normY else { return [] }
 
-        return StoryTextOverlayMetadata(
-            normalizedPosition: CGPoint(x: normX, y: normY),
-            layerOrder: textLayerOrder ?? 0,
-            styleRaw: textStyle ?? StoryEditingView.TextStyle.modern.rawValue,
-            colorHex: textColorHex ?? "FFFFFF",
-            fontSize: textFontSize ?? 30,
-            alignmentRaw: textAlignment ?? "center",
-            backgroundFillRaw: textBackgroundFill ?? StoryEditingView.TextBackgroundFill.none.rawValue,
-            strokeRaw: textStroke ?? StoryEditingView.TextStroke.none.rawValue,
-            visualEffectRaw: textVisualEffect ?? StoryEditingView.TextEffect.none.rawValue,
-            motionRaw: textMotion ?? StoryEditingView.TextMotion.none.rawValue,
-            forcesAllCaps: forcesAllCaps ?? false,
-            isLiveOverlay: true
-        )
+        return [
+            StoryTextOverlayMetadata(
+                id: "legacy-text-overlay",
+                text: text,
+                normalizedPosition: CGPoint(x: normX, y: normY),
+                layerOrder: textLayerOrder ?? 0,
+                styleRaw: textStyle ?? StoryEditingView.TextStyle.modern.rawValue,
+                colorHex: textColorHex ?? "FFFFFF",
+                fontSize: textFontSize ?? 30,
+                alignmentRaw: textAlignment ?? "center",
+                backgroundFillRaw: textBackgroundFill ?? StoryEditingView.TextBackgroundFill.none.rawValue,
+                strokeRaw: textStroke ?? StoryEditingView.TextStroke.none.rawValue,
+                visualEffectRaw: textVisualEffect ?? StoryEditingView.TextEffect.none.rawValue,
+                motionRaw: textMotion ?? StoryEditingView.TextMotion.none.rawValue,
+                forcesAllCaps: forcesAllCaps ?? false,
+                isLiveOverlay: true
+            )
+        ]
+    }
+
+    var resolvedTextOverlayMetadata: StoryTextOverlayMetadata? {
+        resolvedTextOverlays.first
     }
 
     private var inferredNormalizedX: Double? {

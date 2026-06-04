@@ -330,15 +330,17 @@ struct StoryViewerScreen: View {
 
             // MARK: - 1.5 LIVE TEXT OVERLAY (metadata — animación en reproducción)
             if story.usesLiveTextOverlay {
-                StoryLiveTextOverlayView(
-                    story: story,
-                    containerSize: captureRect.size,
-                    replayToken: textMotionReplayToken
-                )
-                .frame(width: captureRect.width, height: captureRect.height)
-                .position(x: captureRect.midX, y: captureRect.midY)
-                .allowsHitTesting(false)
-                .zIndex(resolvedTextOverlayZIndex)
+                ForEach(story.resolvedTextOverlays, id: \.id) { overlay in
+                    StoryLiveTextOverlayView(
+                        metadata: overlay,
+                        containerSize: captureRect.size,
+                        replayToken: textMotionReplayToken
+                    )
+                    .frame(width: captureRect.width, height: captureRect.height)
+                    .position(x: captureRect.midX, y: captureRect.midY)
+                    .allowsHitTesting(false)
+                    .zIndex(Double(overlay.layerOrder))
+                }
             }
 
             // MARK: - 2. STICKERS (Fijos en sus posiciones)

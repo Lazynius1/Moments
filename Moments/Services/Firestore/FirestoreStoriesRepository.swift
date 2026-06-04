@@ -11,6 +11,7 @@ extension FirestoreService {
         text: String? = nil,
         textPosition: CGPoint? = nil,
         textStyle: String? = nil,
+        textOverlays: [StoryTextOverlayMetadata]? = nil,
         stickers: [StickerData]? = nil,
         drawingData: Data? = nil,
         chainId: String? = nil,
@@ -28,6 +29,7 @@ extension FirestoreService {
             text: text,
             textPosition: textPosition,
             textStyle: textStyle,
+            textOverlays: textOverlays,
             stickers: stickers,
             drawingData: drawingData,
             aspectRatio: nil,
@@ -56,6 +58,7 @@ extension FirestoreService {
         textPosition: CGPoint? = nil,
         textStyle: String? = nil,
         textOverlay: StoryTextOverlayMetadata? = nil,
+        textOverlays: [StoryTextOverlayMetadata]? = nil,
         stickers: [StickerData]? = nil,
         drawingData: Data? = nil,
         aspectRatio: String? = nil,
@@ -83,6 +86,7 @@ extension FirestoreService {
             textPosition: textPosition,
             textStyle: textStyle,
             textOverlay: textOverlay,
+            textOverlays: textOverlays,
             stickers: stickers,
             drawingData: drawingData,
             aspectRatio: aspectRatio,
@@ -110,6 +114,7 @@ extension FirestoreService {
         textPosition: CGPoint? = nil,
         textStyle: String? = nil,
         textOverlay: StoryTextOverlayMetadata? = nil,
+        textOverlays: [StoryTextOverlayMetadata]? = nil,
         stickers: [StickerData]? = nil,
         drawingData: Data? = nil,
         aspectRatio: String? = nil,
@@ -137,6 +142,7 @@ extension FirestoreService {
             textPosition: textPosition,
             textStyle: textStyle,
             textOverlay: textOverlay,
+            textOverlays: textOverlays,
             stickers: stickers,
             drawingData: drawingData,
             aspectRatio: aspectRatio,
@@ -166,6 +172,7 @@ extension FirestoreService {
         textPosition: CGPoint?,
         textStyle: String?,
         textOverlay: StoryTextOverlayMetadata? = nil,
+        textOverlays: [StoryTextOverlayMetadata]? = nil,
         stickers: [StickerData]?,
         drawingData: Data?,
         aspectRatio: String?,
@@ -195,6 +202,9 @@ extension FirestoreService {
                 let expirationDate = self.calculateStoryExpirationDate(isChain: isChain, chainId: chainId)
                 let duration = duration ?? (mediaItem.type == .video ? 60.0 : 15.0)
                 let storyId = storyId ?? UUID().uuidString
+                let resolvedTextOverlays = (textOverlays?.isEmpty == false ? textOverlays : nil)
+                    ?? textOverlay.map { [$0] }
+                let primaryTextOverlay = resolvedTextOverlays?.sorted(by: { $0.layerOrder < $1.layerOrder }).first
 
                 let story = Story(
                     id: storyId,
@@ -207,21 +217,22 @@ extension FirestoreService {
                     profileImagePath: user.profileImagePath,
                     audience: audience,
                     customListId: customListId,
-                    text: text,
+                    text: primaryTextOverlay?.text ?? text,
                     textPosition: textPosition,
-                    textStyle: textStyle,
-                    textPositionNormX: textOverlay.map { Double($0.normalizedPosition.x) },
-                    textPositionNormY: textOverlay.map { Double($0.normalizedPosition.y) },
-                    textColorHex: textOverlay?.colorHex,
-                    textFontSize: textOverlay?.fontSize,
-                    textAlignment: textOverlay?.alignmentRaw,
-                    textBackgroundFill: textOverlay?.backgroundFillRaw,
-                    textStroke: textOverlay?.strokeRaw,
-                    textVisualEffect: textOverlay?.visualEffectRaw,
-                    textMotion: textOverlay?.motionRaw,
-                    forcesAllCaps: textOverlay?.forcesAllCaps,
-                    textLayerOrder: textOverlay?.layerOrder,
-                    textOverlayLive: textOverlay?.isLiveOverlay,
+                    textStyle: primaryTextOverlay?.styleRaw ?? textStyle,
+                    textPositionNormX: primaryTextOverlay.map { Double($0.normalizedPosition.x) },
+                    textPositionNormY: primaryTextOverlay.map { Double($0.normalizedPosition.y) },
+                    textColorHex: primaryTextOverlay?.colorHex,
+                    textFontSize: primaryTextOverlay?.fontSize,
+                    textAlignment: primaryTextOverlay?.alignmentRaw,
+                    textBackgroundFill: primaryTextOverlay?.backgroundFillRaw,
+                    textStroke: primaryTextOverlay?.strokeRaw,
+                    textVisualEffect: primaryTextOverlay?.visualEffectRaw,
+                    textMotion: primaryTextOverlay?.motionRaw,
+                    forcesAllCaps: primaryTextOverlay?.forcesAllCaps,
+                    textLayerOrder: primaryTextOverlay?.layerOrder,
+                    textOverlayLive: primaryTextOverlay?.isLiveOverlay,
+                    textOverlays: resolvedTextOverlays,
                     stickers: stickers,
                     drawingData: drawingData,
                     aspectRatio: aspectRatio,
@@ -313,6 +324,29 @@ extension FirestoreService {
         }
         if let textLayerOrder = story.textLayerOrder {
             storyData["textLayerOrder"] = textLayerOrder
+        }
+        if let textOverlays = story.textOverlays {
+            storyData["textOverlays"] = textOverlays.map { overlay in
+                [
+                    "id": overlay.id,
+                    "text": overlay.text,
+                    "normalizedPosition": [
+                        "x": Double(overlay.normalizedPosition.x),
+                        "y": Double(overlay.normalizedPosition.y)
+                    ],
+                    "layerOrder": overlay.layerOrder,
+                    "styleRaw": overlay.styleRaw,
+                    "colorHex": overlay.colorHex,
+                    "fontSize": overlay.fontSize,
+                    "alignmentRaw": overlay.alignmentRaw,
+                    "backgroundFillRaw": overlay.backgroundFillRaw,
+                    "strokeRaw": overlay.strokeRaw,
+                    "visualEffectRaw": overlay.visualEffectRaw,
+                    "motionRaw": overlay.motionRaw,
+                    "forcesAllCaps": overlay.forcesAllCaps,
+                    "isLiveOverlay": overlay.isLiveOverlay
+                ]
+            }
         }
 
         if let stickers {

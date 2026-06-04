@@ -331,6 +331,7 @@ final class StoryRepository {
             forcesAllCaps: document.forcesAllCaps,
             textLayerOrder: document.textLayerOrder,
             textOverlayLive: document.textOverlayLive,
+            textOverlays: document.textOverlays,
             stickers: document.stickers,
             drawingData: drawingData,
             aspectRatio: document.aspectRatio,

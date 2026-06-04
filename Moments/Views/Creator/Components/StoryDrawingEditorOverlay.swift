@@ -51,48 +51,59 @@ struct StoryDrawingEditorOverlay: View {
             let chromeHeight: CGFloat = 92 // 40 (palette) + 8 (spacing) + 44 (toolbar)
             let bottomPadding = max(8, (canvasBottomGap - chromeHeight) / 2)
 
+            let localTopExclude = max(0, (safeAreaTop + 60) - captureRect.minY)
+            let localBottomExclude = (proxy.size.height - (chromeHeight + bottomPadding)) - captureRect.minY
+
             ZStack {
-                if let baseDrawing {
-                    Image(uiImage: baseDrawing)
-                        .resizable()
-                        .aspectRatio(contentMode: .fill)
-                        .frame(width: canvasSize.width, height: canvasSize.height)
-                        .allowsHitTesting(false)
-                }
-
-                StoryDrawingCanvasView(
-                    brush: $brush,
-                    color: $color,
-                    brushWidth: $brushWidth,
-                    clearToken: $clearToken,
-                    undoToken: $undoToken,
-                    redoToken: $redoToken,
-                    exportToken: $exportToken,
-                    onExport: { strokesImage, hasStrokes in
-                        if hasStrokes {
-                            if let base = baseDrawing {
-                                drawingImage = merge(base: base, overlay: strokesImage)
-                            } else {
-                                drawingImage = strokesImage
-                            }
-                        } else {
-                            drawingImage = baseDrawing
-                        }
-                        isPresented = false
-                    },
-                    onLiveGlowPreview: { image in
-                        liveGlowImage = image
+                // Constraints base drawing, PencilKit canvas, and glow preview inside the story captureRect
+                ZStack {
+                    if let baseDrawing {
+                        Image(uiImage: baseDrawing)
+                            .resizable()
+                            .aspectRatio(contentMode: .fit)
+                            .frame(width: captureRect.width, height: captureRect.height)
+                            .allowsHitTesting(false)
                     }
-                )
-                .ignoresSafeArea()
 
-                if let liveGlowImage {
-                    Image(uiImage: liveGlowImage)
-                        .resizable()
-                        .aspectRatio(contentMode: .fill)
-                        .frame(width: canvasSize.width, height: canvasSize.height)
-                        .allowsHitTesting(false)
+                    StoryDrawingCanvasView(
+                        brush: $brush,
+                        color: $color,
+                        brushWidth: $brushWidth,
+                        clearToken: $clearToken,
+                        undoToken: $undoToken,
+                        redoToken: $redoToken,
+                        exportToken: $exportToken,
+                        onExport: { strokesImage, hasStrokes in
+                            if hasStrokes {
+                                if let base = baseDrawing {
+                                    drawingImage = merge(base: base, overlay: strokesImage)
+                                } else {
+                                    drawingImage = strokesImage
+                                }
+                            } else {
+                                drawingImage = baseDrawing
+                            }
+                            isPresented = false
+                        },
+                        onLiveGlowPreview: { image in
+                            liveGlowImage = image
+                        },
+                        localTopExclude: localTopExclude,
+                        localBottomExclude: localBottomExclude
+                    )
+                    .frame(width: captureRect.width, height: captureRect.height)
+
+                    if let liveGlowImage {
+                        Image(uiImage: liveGlowImage)
+                            .resizable()
+                            .aspectRatio(contentMode: .fit)
+                            .frame(width: captureRect.width, height: captureRect.height)
+                            .allowsHitTesting(false)
+                    }
                 }
+                .frame(width: captureRect.width, height: captureRect.height)
+                .position(x: captureRect.midX, y: captureRect.midY)
+                .clipped()
 
                 // Left side size slider
                 HStack(spacing: 0) {
@@ -165,8 +176,8 @@ struct StoryDrawingEditorOverlay: View {
                                 .background(Color.white.opacity(0.3))
 
                             // Moments backgrounds: Light (#FAF9F6) & Dark (#0B1215)
-                            colorSwatch(UIColor(Color(hex: "FAF9F6")))
-                            colorSwatch(UIColor(Color(hex: "0B1215")))
+                            colorSwatch(UIColor(hex: "FAF9F6"))
+                            colorSwatch(UIColor(hex: "0B1215"))
 
                             Divider()
                                 .frame(height: 20)
@@ -210,18 +221,18 @@ struct StoryDrawingEditorOverlay: View {
 
     private var drawingPalette: [UIColor] {
         [
-            Color(hex: "FFFFFF"), Color(hex: "000000"),
-            Color(hex: "FF3B30"), Color(hex: "FF9500"), Color(hex: "FFCC00"),
-            Color(hex: "34C759"), Color(hex: "007AFF"), Color(hex: "5856D6"),
-            Color(hex: "AF52DE"), Color(hex: "FF2D55"), Color(hex: "A2845E"),
-            Color(hex: "F2C94C"), Color(hex: "00C7BE"), Color(hex: "8E8E93"),
-            Color(hex: "FFD60A"), Color(hex: "BF5AF2"), Color(hex: "64D2FF"),
-            Color(hex: "FF6B6B"), Color(hex: "C4B5A5"), Color(hex: "1C1C1E")
-        ].map { UIColor($0) }
+            UIColor(hex: "FFFFFF"), UIColor(hex: "000000"),
+            UIColor(hex: "FF3B30"), UIColor(hex: "FF9500"), UIColor(hex: "FFCC00"),
+            UIColor(hex: "34C759"), UIColor(hex: "007AFF"), UIColor(hex: "5856D6"),
+            UIColor(hex: "AF52DE"), UIColor(hex: "FF2D55"), UIColor(hex: "A2845E"),
+            UIColor(hex: "F2C94C"), UIColor(hex: "00C7BE"), UIColor(hex: "8E8E93"),
+            UIColor(hex: "FFD60A"), UIColor(hex: "BF5AF2"), UIColor(hex: "64D2FF"),
+            UIColor(hex: "FF6B6B"), UIColor(hex: "C4B5A5"), UIColor(hex: "1C1C1E")
+        ]
     }
 
     private func merge(base: UIImage, overlay: UIImage) -> UIImage {
-        let size = CGSize(width: UIScreen.main.bounds.width, height: UIScreen.main.bounds.height)
+        let size = base.size
         let renderer = UIGraphicsImageRenderer(size: size)
         return renderer.image { _ in
             base.draw(in: CGRect(origin: .zero, size: size))
@@ -354,6 +365,21 @@ private struct StoryVerticalBrushSlider: View {
     }
 }
 
+private class MomentsPKCanvasView: PKCanvasView {
+    var localTopExclude: CGFloat = 0
+    var localBottomExclude: CGFloat = 999999
+
+    override func point(inside point: CGPoint, with event: UIEvent?) -> Bool {
+        if point.y < localTopExclude {
+            return false
+        }
+        if point.y > localBottomExclude {
+            return false
+        }
+        return super.point(inside: point, with: event)
+    }
+}
+
 private struct StoryDrawingCanvasView: UIViewRepresentable {
     @Binding var brush: StoryDrawingBrush
     @Binding var color: UIColor
@@ -366,6 +392,9 @@ private struct StoryDrawingCanvasView: UIViewRepresentable {
 
     let onExport: (UIImage, Bool) -> Void
     let onLiveGlowPreview: (UIImage?) -> Void
+
+    let localTopExclude: CGFloat
+    let localBottomExclude: CGFloat
 
     fileprivate struct StrokeMetadata {
         let brush: StoryDrawingBrush
@@ -394,7 +423,9 @@ private struct StoryDrawingCanvasView: UIViewRepresentable {
     }
 
     func makeUIView(context: Context) -> PKCanvasView {
-        let canvas = PKCanvasView()
+        let canvas = MomentsPKCanvasView()
+        canvas.localTopExclude = localTopExclude
+        canvas.localBottomExclude = localBottomExclude
         canvas.backgroundColor = .clear
         canvas.isOpaque = false
         canvas.drawingPolicy = .anyInput
@@ -403,7 +434,7 @@ private struct StoryDrawingCanvasView: UIViewRepresentable {
         canvas.showsVerticalScrollIndicator = false
         canvas.showsHorizontalScrollIndicator = false
         canvas.contentInset = .zero
-        canvas.contentSize = UIScreen.main.bounds.size
+        canvas.contentSize = .zero
         canvas.delegate = context.coordinator
         return canvas
     }
@@ -413,6 +444,15 @@ private struct StoryDrawingCanvasView: UIViewRepresentable {
         context.coordinator.currentColor = color
         context.coordinator.currentWidth = brushWidth
         uiView.tool = currentTool()
+
+        if let momentsCanvas = uiView as? MomentsPKCanvasView {
+            momentsCanvas.localTopExclude = localTopExclude
+            momentsCanvas.localBottomExclude = localBottomExclude
+        }
+
+        if uiView.contentSize != uiView.bounds.size {
+            uiView.contentSize = uiView.bounds.size
+        }
 
         if clearToken != context.coordinator.lastClearToken {
             context.coordinator.lastClearToken = clearToken

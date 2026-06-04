@@ -2,18 +2,14 @@ import SwiftUI
 import UIKit
 
 struct StoryLiveTextOverlayView: View {
-    let story: Story
+    let metadata: StoryTextOverlayMetadata
     let containerSize: CGSize
     let replayToken: Int
 
     var body: some View {
-        if let metadata = story.resolvedTextOverlayMetadata,
-           let text = story.text,
-           !text.isEmpty,
-           let config = metadata.scaledRenderConfiguration(
-               text: text,
-               containerWidth: containerSize.width
-           ) {
+        if let config = metadata.scaledRenderConfiguration(
+            containerWidth: containerSize.width
+        ) {
             let anchor = metadata.displayPosition(in: containerSize)
             StoryTextOverlayContainerRepresentable(
                 configuration: config,

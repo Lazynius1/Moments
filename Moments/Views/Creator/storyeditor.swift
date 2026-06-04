@@ -43,6 +43,8 @@ struct StoryEditingView: View {
     @State private var selectedTextMotion: TextMotion = .none
     @State private var selectedVisualEffect: TextEffect = .none
     @State private var storyForcesAllCaps = false
+    @State private var textOverlays: [StoryTextOverlayDraft] = []
+    @State private var activeTextOverlayId: String?
     @State private var drawingImage: UIImage?
     @State private var editableImageViewRef: EditableImageView?
 
@@ -112,6 +114,7 @@ struct StoryEditingView: View {
     private var chromeIconColor: Color { StoryEditorChromeColor.icon(colorScheme) }
     private var isCanvasModeActive: Bool { activeEditorMode != .idle }
     private var isEditingReveal: Bool { editingRevealStickerId != nil }
+    private var hasAnyTextOverlays: Bool { textOverlays.contains { !$0.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty } }
     private var showsGeneratedBackground: Bool {
         storyShouldShowGeneratedBackground(scale: imageScale, offset: imageOffset, rotation: imageRotation)
     }
@@ -155,27 +158,24 @@ struct StoryEditingView: View {
                     if !isTextMode && !isDrawingMode {
                         StoryOverlaysView(
                             canvasSize: mediaCanvasSize,
-                            text: $storyText,
-                            textPosition: $textPosition,
-                            textStyle: $selectedTextStyle,
-                            visualEffect: $selectedVisualEffect,
-                            textColor: $storyTextColor,
-                            textAlignment: $storyTextAlignment,
-                            textBackgroundFill: $storyTextBackground,
-                            textFontSize: $storyTextFontSize,
-                            textStroke: $selectedTextStroke,
-                            textMotion: $selectedTextMotion,
-                            forcesAllCaps: $storyForcesAllCaps,
+                            textOverlays: $textOverlays,
                             isTextEditorPresented: Binding(
                                 get: { isTextMode },
                                 set: { isPresented in
-                                    activeEditorMode = isPresented ? .text : .idle
+                                    if isPresented {
+                                        activeEditorMode = .text
+                                    } else {
+                                        finishTextEditing()
+                                    }
                                 }
                             ),
                             stickers: $selectedStickers,
                             drawingImage: $drawingImage,
                             isEditingSticker: $isEditingSticker,
                             editingRevealId: $editingRevealStickerId,
+                            onEditTextOverlay: { overlayId in
+                                beginEditingTextOverlay(id: overlayId, canvasSize: mediaCanvasSize)
+                            },
                             onNavigateToProfile: { userId in
                                 handleProfileNavigation(userId: userId)
                             },
@@ -193,8 +193,8 @@ struct StoryEditingView: View {
                     Color.clear
                         .frame(width: 0, height: 0)
                         .onChange(of: activeEditorMode) { _, mode in
-                            if mode == .idle, !storyText.isEmpty {
-                                seedStoryTextPosition(canvasSize: mediaCanvasSize)
+                            if mode == .idle {
+                                commitActiveTextOverlayIfNeeded(canvasSize: mediaCanvasSize)
                             }
                         }
                         .onChange(of: storyText) { _, newText in
@@ -227,7 +227,11 @@ struct StoryEditingView: View {
                             isPresented: Binding(
                                 get: { isTextMode },
                                 set: { isPresented in
-                                    activeEditorMode = isPresented ? .text : .idle
+                                    if isPresented {
+                                        activeEditorMode = .text
+                                    } else {
+                                        finishTextEditing()
+                                    }
                                 }
                             ),
                             text: $storyText,
@@ -297,7 +301,7 @@ struct StoryEditingView: View {
 
             if startInTextMode && selectedMediaItems.isEmpty {
                 applyRandomBackgroundPresetIfNeeded()
-                activeEditorMode = .text
+                beginCreatingTextOverlay(canvasSize: currentMediaCanvasRect().size)
                 startInTextMode = false
             } else if selectedMediaItems.isEmpty {
                 applyRandomBackgroundPresetIfNeeded()
@@ -862,7 +866,7 @@ struct StoryEditingView: View {
             VStack(spacing: 12) {
                 EditingToolIcon(icon: "textformat.alt") {
                     withAnimation(.spring(response: 0.28, dampingFraction: 0.86)) {
-                        activeEditorMode = .text
+                        beginCreatingTextOverlay(canvasSize: currentMediaCanvasRect().size)
                     }
                 }
                 EditingToolIcon(icon: "face.smiling", usesCustomStickerGlyph: true) {
@@ -1874,7 +1878,7 @@ struct StoryEditingView: View {
     private func shouldBakeCurrentOverlaysIntoVideo(_ media: ProcessedMedia) -> Bool {
         guard media.type == .video, media.storyVideoMode != .autoSplit else { return false }
         return drawingImage != nil
-            || !storyText.isEmpty
+            || hasAnyTextOverlays
             || abs(imageScale - 1) > 0.001
             || abs(imageOffset.width) > 0.5
             || abs(imageOffset.height) > 0.5
@@ -2078,7 +2082,7 @@ struct StoryEditingView: View {
     // ✅ FUNCIÓN ACTUALIZADA: Publicar historia con soporte para listas
     private func publishStory() {
         guard let userId = Auth.auth().currentUser?.uid else { return }
-        let hasStoryContent = !selectedMediaItems.isEmpty || !storyText.isEmpty || !selectedStickers.isEmpty || drawingImage != nil
+        let hasStoryContent = !selectedMediaItems.isEmpty || hasAnyTextOverlays || !selectedStickers.isEmpty || drawingImage != nil
         guard hasStoryContent else { return }
 
 
@@ -2154,29 +2158,21 @@ struct StoryEditingView: View {
         }()
 
         let contentRect = currentMediaCanvasRect()
-        let textOverlayMetadata = storyText.isEmpty ? nil : StoryTextOverlayMetadata.build(
-            text: storyText,
-            editorPosition: textPosition,
-            contentRect: contentRect,
-            layerOrder: selectedStickers.count,
-            style: selectedTextStyle,
-            textColor: storyTextColor,
-            fontSize: storyTextFontSize,
-            alignment: storyTextAlignment,
-            backgroundFill: storyTextBackground,
-            stroke: selectedTextStroke,
-            visualEffect: selectedVisualEffect,
-            motion: selectedTextMotion,
-            forcesAllCaps: storyForcesAllCaps
-        )
+        commitActiveTextOverlayIfNeeded(canvasSize: contentRect.size)
+        let preparedTextOverlays = textOverlays
+            .sorted { $0.layerOrder < $1.layerOrder }
+            .compactMap { $0.metadata(in: contentRect) }
+        let primaryTextOverlay = preparedTextOverlays.first
+        let legacyStoryText = primaryTextOverlay?.text
 
         // 2. Iniciar preparación instantánea en el servicio con estado .initializing
         guard let uploadingStory = BackgroundStoryUploadService.shared.startPreparingStory(
             mediaItem: media,
-            storyText: storyText.isEmpty ? nil : storyText,
-            textPosition: storyText.isEmpty ? nil : textPosition,
-            selectedTextStyle: storyText.isEmpty ? nil : selectedTextStyle,
-            textOverlayMetadata: textOverlayMetadata,
+            storyText: legacyStoryText,
+            textPosition: primaryTextOverlay?.displayPosition(in: contentRect.size),
+            selectedTextStyle: primaryTextOverlay.flatMap { StoryEditingView.TextStyle(rawValue: $0.styleRaw) },
+            textOverlayMetadata: primaryTextOverlay,
+            textOverlays: preparedTextOverlays.isEmpty ? nil : preparedTextOverlays,
             stickerData: stickerData,
             drawingData: drawingData,
             audienceSetting: contentAudience,
@@ -2248,6 +2244,8 @@ struct StoryEditingView: View {
     private func resetStoryForm() {
         storyText = ""
         textPosition = .zero
+        activeTextOverlayId = nil
+        textOverlays = []
         selectedStickers = []
         drawingImage = nil
         selectedTextStyle = .modern
@@ -2265,6 +2263,112 @@ struct StoryEditingView: View {
         guard !storyText.isEmpty else { return }
         guard StoryTextCanvasPlacement.needsSeed(position: textPosition, canvasSize: canvasSize) else { return }
         textPosition = StoryTextCanvasPlacement.defaultPosition(in: canvasSize)
+    }
+
+    private func beginCreatingTextOverlay(canvasSize: CGSize) {
+        commitActiveTextOverlayIfNeeded(canvasSize: canvasSize)
+
+        let nextOrder = nextTextLayerOrder()
+        let initialPosition = StoryTextCanvasPlacement.defaultPosition(in: canvasSize)
+        let newOverlay = StoryTextOverlayDraft(
+            text: "",
+            position: initialPosition,
+            style: selectedTextStyle,
+            visualEffect: selectedVisualEffect,
+            textColor: storyTextColor,
+            textAlignment: storyTextAlignment,
+            textBackgroundFill: storyTextBackground,
+            fontSize: storyTextFontSize,
+            textStroke: selectedTextStroke,
+            textMotion: selectedTextMotion,
+            forcesAllCaps: storyForcesAllCaps,
+            layerOrder: nextOrder
+        )
+
+        textOverlays.append(newOverlay)
+        loadEditorBuffer(from: newOverlay)
+        activeTextOverlayId = newOverlay.id
+        activeEditorMode = .text
+    }
+
+    private func beginEditingTextOverlay(id: String, canvasSize: CGSize) {
+        commitActiveTextOverlayIfNeeded(canvasSize: canvasSize)
+        guard let index = textOverlays.firstIndex(where: { $0.id == id }) else { return }
+        let frontmostOrder = nextTextLayerOrder()
+        textOverlays[index].layerOrder = frontmostOrder
+        let overlay = textOverlays[index]
+        loadEditorBuffer(from: overlay)
+        activeTextOverlayId = id
+        activeEditorMode = .text
+    }
+
+    private func finishTextEditing() {
+        commitActiveTextOverlayIfNeeded(canvasSize: currentMediaCanvasRect().size)
+        activeEditorMode = .idle
+        activeTextOverlayId = nil
+    }
+
+    private func commitActiveTextOverlayIfNeeded(canvasSize: CGSize) {
+        guard let activeTextOverlayId else { return }
+        let trimmed = storyText.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        if trimmed.isEmpty {
+            textOverlays.removeAll { $0.id == activeTextOverlayId }
+            return
+        }
+
+        let seededPosition: CGPoint
+        if StoryTextCanvasPlacement.needsSeed(position: textPosition, canvasSize: canvasSize) {
+            seededPosition = StoryTextCanvasPlacement.defaultPosition(in: canvasSize)
+        } else {
+            seededPosition = textPosition
+        }
+
+        let updated = StoryTextOverlayDraft(
+            id: activeTextOverlayId,
+            text: trimmed,
+            position: seededPosition,
+            style: selectedTextStyle,
+            visualEffect: selectedVisualEffect,
+            textColor: storyTextColor,
+            textAlignment: storyTextAlignment,
+            textBackgroundFill: storyTextBackground,
+            fontSize: storyTextFontSize,
+            textStroke: selectedTextStroke,
+            textMotion: selectedTextMotion,
+            forcesAllCaps: storyForcesAllCaps,
+            layerOrder: layerOrder(for: activeTextOverlayId)
+        )
+
+        if let index = textOverlays.firstIndex(where: { $0.id == activeTextOverlayId }) {
+            textOverlays[index] = updated
+        } else {
+            textOverlays.append(updated)
+        }
+    }
+
+    private func loadEditorBuffer(from overlay: StoryTextOverlayDraft) {
+        storyText = overlay.text
+        textPosition = overlay.position
+        selectedTextStyle = overlay.style
+        selectedVisualEffect = overlay.visualEffect
+        storyTextColor = overlay.textColor
+        storyTextAlignment = overlay.textAlignment
+        storyTextBackground = overlay.textBackgroundFill
+        storyTextFontSize = overlay.fontSize
+        selectedTextStroke = overlay.textStroke
+        selectedTextMotion = overlay.textMotion
+        storyForcesAllCaps = overlay.forcesAllCaps
+    }
+
+    private func nextTextLayerOrder() -> Int {
+        let maxTextOrder = textOverlays.map(\.layerOrder).max() ?? -1
+        let maxStickerOrder = selectedStickers.map { $0.zIndex ?? 0 }.max() ?? -1
+        return max(maxTextOrder, maxStickerOrder) + 1
+    }
+
+    private func layerOrder(for overlayId: String) -> Int {
+        textOverlays.first(where: { $0.id == overlayId })?.layerOrder ?? nextTextLayerOrder()
     }
 
     private func nsTextAlignment(from alignment: TextAlignment) -> NSTextAlignment {

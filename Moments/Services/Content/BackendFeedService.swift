@@ -55,6 +55,7 @@ struct BackendStoryDocument: Codable {
     let forcesAllCaps: Bool?
     let textLayerOrder: Int?
     let textOverlayLive: Bool?
+    let textOverlays: [StoryTextOverlayMetadata]?
     let drawingData: String?
     let stickers: [StickerData]?
     let aspectRatio: String?

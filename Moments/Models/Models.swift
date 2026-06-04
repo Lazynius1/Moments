@@ -1123,6 +1123,7 @@ struct Story: Identifiable, Codable {
     let textLayerOrder: Int?
     /// When true, text is rendered live in the viewer instead of baked into media.
     let textOverlayLive: Bool?
+    let textOverlays: [StoryTextOverlayMetadata]?
     let stickers: [StickerData]?
     let drawingData: Data?
     let aspectRatio: String? // ✅ AÑADIDO: Aspect ratio del video/imagen
@@ -1160,6 +1161,7 @@ struct Story: Identifiable, Codable {
         case forcesAllCaps
         case textLayerOrder
         case textOverlayLive
+        case textOverlays
         case stickers
         case drawingData
         case aspectRatio // ✅ AÑADIDO: Clave de codificación
@@ -1199,6 +1201,7 @@ struct Story: Identifiable, Codable {
          forcesAllCaps: Bool? = nil,
          textLayerOrder: Int? = nil,
          textOverlayLive: Bool? = nil,
+         textOverlays: [StoryTextOverlayMetadata]? = nil,
          stickers: [StickerData]? = nil,
          drawingData: Data? = nil,
          aspectRatio: String? = nil, // ✅ AÑADIDO: Aspect ratio
@@ -1232,6 +1235,7 @@ struct Story: Identifiable, Codable {
         self.forcesAllCaps = forcesAllCaps
         self.textLayerOrder = textLayerOrder
         self.textOverlayLive = textOverlayLive
+        self.textOverlays = textOverlays
         self.stickers = stickers
         self.drawingData = drawingData
         self.aspectRatio = aspectRatio // ✅ AÑADIDO: Asignar aspect ratio
@@ -1279,6 +1283,7 @@ struct Story: Identifiable, Codable {
         self.forcesAllCaps = try container.decodeIfPresent(Bool.self, forKey: .forcesAllCaps)
         self.textLayerOrder = try container.decodeIfPresent(Int.self, forKey: .textLayerOrder)
         self.textOverlayLive = try container.decodeIfPresent(Bool.self, forKey: .textOverlayLive)
+        self.textOverlays = try container.decodeIfPresent([StoryTextOverlayMetadata].self, forKey: .textOverlays)
         self.stickers = try container.decodeIfPresent([StickerData].self, forKey: .stickers)
         self.drawingData = try container.decodeIfPresent(Data.self, forKey: .drawingData)
         self.aspectRatio = try container.decodeIfPresent(String.self, forKey: .aspectRatio) // ✅ AÑADIDO: Decodificar aspect ratio
@@ -1331,6 +1336,7 @@ struct Story: Identifiable, Codable {
         try container.encodeIfPresent(forcesAllCaps, forKey: .forcesAllCaps)
         try container.encodeIfPresent(textLayerOrder, forKey: .textLayerOrder)
         try container.encodeIfPresent(textOverlayLive, forKey: .textOverlayLive)
+        try container.encodeIfPresent(textOverlays, forKey: .textOverlays)
         try container.encodeIfPresent(stickers, forKey: .stickers)
         try container.encodeIfPresent(drawingData, forKey: .drawingData)
         try container.encodeIfPresent(aspectRatio, forKey: .aspectRatio) // ✅ AÑADIDO: Codificar aspect ratio
