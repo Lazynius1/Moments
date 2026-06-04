@@ -14,11 +14,24 @@ class NotificationService: ObservableObject {
     @Published var isLoading: Bool = false
     @Published var isLoadingMore: Bool = false
     @Published var canLoadMore: Bool = true
-    
+    @Published var pendingDeletion: PendingNotificationDeletion?
+
     private var listener: ListenerRegistration?
     private var lastDocument: DocumentSnapshot?
     private let pageSize = 20
     private var profileCache: [String: User] = [:]
+    private var pendingDeletionTask: Task<Void, Never>?
+    private var hiddenPendingDeletionIds: Set<String> = []
+    private let deletionUndoWindow: TimeInterval = 3
+
+    struct PendingNotificationDeletion: Equatable {
+        let id = UUID()
+        let notifications: [Notification]
+
+        static func == (lhs: PendingNotificationDeletion, rhs: PendingNotificationDeletion) -> Bool {
+            lhs.id == rhs.id
+        }
+    }
     
     private init() {
         startObserving()
@@ -38,7 +51,7 @@ class NotificationService: ObservableObject {
         // 🔥 LOCAL-FIRST: Cargar del caché inmediatamente
         let cached = LocalPersistenceService.shared.loadNotifications()
         if !cached.isEmpty {
-            self.notifications = cached
+            self.notifications = visibleNotifications(from: cached)
             self.updateUnreadCount()
             self.isLoading = false
             print("🔔 NotificationService: Cargadas \(cached.count) notificaciones del caché")
@@ -57,9 +70,10 @@ class NotificationService: ObservableObject {
                 self.lastDocument = documents.last
                 self.canLoadMore = documents.count >= self.pageSize
                 
-                self.notifications = documents.compactMap { doc in
+                let fetched = documents.compactMap { doc in
                     self.decodeNotificationDocument(doc)
                 }
+                self.notifications = self.visibleNotifications(from: fetched)
                 // ✅ Guardar en caché local
                 // Si es el primer snapshot, usamos sync: true para purgar borrados del servidor
                 LocalPersistenceService.shared.saveNotifications(self.notifications, sync: isFirstSnapshot)
@@ -95,9 +109,9 @@ class NotificationService: ObservableObject {
                     self.lastDocument = documents.last
                     self.canLoadMore = documents.count >= self.pageSize
                     
-                    let newNotifications = documents.compactMap { doc in
+                    let newNotifications = self.visibleNotifications(from: documents.compactMap { doc in
                         self.decodeNotificationDocument(doc)
-                    }
+                    })
                     
                     self.notifications.append(contentsOf: newNotifications)
                     self.isLoadingMore = false
@@ -430,14 +444,115 @@ class NotificationService: ObservableObject {
     }
     
     func deleteNotification(_ notification: Notification) {
-        guard let userId = Auth.auth().currentUser?.uid, let notificationId = notification.id else { return }
-        
-        db.collection("users").document(userId).collection("notifications").document(notificationId).delete()
-        
-        notifications.removeAll { $0.id == notification.id }
+        stageDeletion([notification])
+    }
+
+    func deleteNotifications(_ notificationsToDelete: [Notification]) {
+        stageDeletion(notificationsToDelete)
+    }
+
+    func stageDeletion(_ notificationsToDelete: [Notification]) {
+        guard Auth.auth().currentUser?.uid != nil else { return }
+
+        let valid = notificationsToDelete.filter { $0.id != nil }
+        guard !valid.isEmpty else { return }
+
+        if pendingDeletion != nil {
+            commitPendingDeletion()
+        }
+
+        let ids = Set(valid.compactMap(\.id))
+        hiddenPendingDeletionIds.formUnion(ids)
+        removeFromLocalState(valid)
+        pendingDeletion = PendingNotificationDeletion(notifications: valid)
+        schedulePendingDeletionCommit()
+    }
+
+    func undoPendingDeletion() {
+        guard let pending = pendingDeletion else { return }
+
+        pendingDeletionTask?.cancel()
+        pendingDeletionTask = nil
+
+        let ids = Set(pending.notifications.compactMap(\.id))
+        hiddenPendingDeletionIds.subtract(ids)
+
+        let existingIds = Set(notifications.compactMap(\.id))
+        let restored = pending.notifications.filter { notification in
+            guard let id = notification.id else { return false }
+            return !existingIds.contains(id)
+        }
+
+        notifications.append(contentsOf: restored)
+        notifications.sort { $0.timestamp > $1.timestamp }
+        LocalPersistenceService.shared.saveNotifications(restored, sync: false)
+
+        pendingDeletion = nil
         updateUnreadCount()
     }
-    
+
+    func commitPendingDeletion() {
+        guard let pending = pendingDeletion else { return }
+
+        pendingDeletionTask?.cancel()
+        pendingDeletionTask = nil
+
+        commitDeletionToFirestore(pending.notifications)
+        hiddenPendingDeletionIds.subtract(Set(pending.notifications.compactMap(\.id)))
+        pendingDeletion = nil
+    }
+
+    private func schedulePendingDeletionCommit() {
+        let pendingId = pendingDeletion?.id
+        pendingDeletionTask?.cancel()
+        pendingDeletionTask = Task { [weak self] in
+            try? await Task.sleep(nanoseconds: UInt64((self?.deletionUndoWindow ?? 3) * 1_000_000_000))
+            guard !Task.isCancelled else { return }
+            await MainActor.run {
+                guard let self, self.pendingDeletion?.id == pendingId else { return }
+                self.commitPendingDeletion()
+            }
+        }
+    }
+
+    private func visibleNotifications(from fetched: [Notification]) -> [Notification] {
+        guard !hiddenPendingDeletionIds.isEmpty else { return fetched }
+        return fetched.filter { notification in
+            guard let id = notification.id else { return true }
+            return !hiddenPendingDeletionIds.contains(id)
+        }
+    }
+
+    private func removeFromLocalState(_ notificationsToDelete: [Notification]) {
+        let idSet = Set(notificationsToDelete.compactMap(\.id))
+        notifications.removeAll { notification in
+            guard let id = notification.id else { return false }
+            return idSet.contains(id)
+        }
+        updateUnreadCount()
+        LocalPersistenceService.shared.deleteNotifications(ids: Array(idSet))
+    }
+
+    private func commitDeletionToFirestore(_ notificationsToDelete: [Notification]) {
+        guard let userId = Auth.auth().currentUser?.uid else { return }
+        let ids = notificationsToDelete.compactMap(\.id)
+        guard !ids.isEmpty else { return }
+
+        Task {
+            let batch = db.batch()
+            for id in ids {
+                let ref = db.collection("users").document(userId).collection("notifications").document(id)
+                batch.deleteDocument(ref)
+            }
+
+            do {
+                try await batch.commit()
+            } catch {
+                print("❌ Error deleting notifications: \(error)")
+            }
+        }
+    }
+
     func removeNotification(type: NotificationType, senderId: String, recipientId: String, momentId: String? = nil, storyId: String? = nil, commentId: String? = nil, reaction: String? = nil) {
         
         var query = db.collection("users").document(recipientId).collection("notifications")

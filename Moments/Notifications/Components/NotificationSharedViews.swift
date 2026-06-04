@@ -98,6 +98,41 @@ struct NotificationSkeletonRow: View {
     }
 }
 
+struct NotificationDeletionUndoToast: View {
+    let deletedCount: Int
+    let colorScheme: ColorScheme
+    let onUndo: () -> Void
+
+    private var message: String {
+        deletedCount > 1
+            ? NSLocalizedString("notifications.deleted.toast.plural", comment: "Notifications deleted toast")
+            : NSLocalizedString("notifications.deleted.toast", comment: "Notification deleted toast")
+    }
+
+    var body: some View {
+        HStack(spacing: 10) {
+            Text(message)
+                .font(.custom("Poppins-SemiBold", size: 14))
+                .foregroundColor(colorScheme == .dark ? .white : .black)
+                .lineLimit(1)
+
+            Spacer(minLength: 8)
+
+            Button(action: onUndo) {
+                Text(NSLocalizedString("notifications.deleted.undo", comment: "Undo notification deletion"))
+                    .font(.custom("Poppins-SemiBold", size: 14))
+                    .foregroundColor(colorScheme == .dark ? .white : .black)
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(.horizontal, 18)
+        .padding(.vertical, 17)
+        .frame(maxWidth: .infinity)
+        .liquidGlass(in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .padding(.horizontal, 16)
+    }
+}
+
 // ✅ BUTTON STYLES GLASSMORPHIC ADAPTATIVO
 struct GlassmorphicButtonStyle: ButtonStyle {
     let color: Color

@@ -2202,6 +2202,10 @@
 "notifications.empty.follows" = "Sense nous seguidors";
 "notifications.empty.default" = "Sense notificacions";
 "notifications.loadMore" = "Carregar més";
+"notifications.delete" = "Eliminar";
+"notifications.deleted.toast" = "Notificació eliminada";
+"notifications.deleted.toast.plural" = "Notificacions eliminades";
+"notifications.deleted.undo" = "Desfer";
 "notifications.accept" = "Acceptar";
 "notifications.reject" = "Rebutjar";
 "notifications.date.today" = "Avui";

@@ -2179,6 +2179,10 @@
 "notifications.empty.follows" = "Keine neuen Follower";
 "notifications.empty.default" = "Keine Benachrichtigungen";
 "notifications.loadMore" = "Mehr laden";
+"notifications.delete" = "Löschen";
+"notifications.deleted.toast" = "Benachrichtigung gelöscht";
+"notifications.deleted.toast.plural" = "Benachrichtigungen gelöscht";
+"notifications.deleted.undo" = "Rückgängig";
 "notifications.accept" = "Annehmen";
 "notifications.reject" = "Ablehnen";
 "notifications.date.today" = "Heute";

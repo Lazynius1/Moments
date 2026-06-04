@@ -2180,6 +2180,10 @@
 "notifications.empty.follows" = "No new followers";
 "notifications.empty.default" = "No notifications";
 "notifications.loadMore" = "Load more";
+"notifications.delete" = "Delete";
+"notifications.deleted.toast" = "Notification deleted";
+"notifications.deleted.toast.plural" = "Notifications deleted";
+"notifications.deleted.undo" = "Undo";
 "notifications.accept" = "Accept";
 "notifications.reject" = "Reject";
 "notifications.date.today" = "Today";

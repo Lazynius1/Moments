@@ -21,6 +21,7 @@ class NotificationsViewModel: ObservableObject {
     @Published var hasUnreadNotifications = false
     @Published var canLoadMore = true
     @Published var isLoadingMore = false
+    @Published var pendingDeletion: NotificationService.PendingNotificationDeletion?
     
     private let firestoreService = FirestoreService()
     private let notificationService = NotificationService.shared
@@ -54,6 +55,11 @@ class NotificationsViewModel: ObservableObject {
         notificationService.$canLoadMore
             .receive(on: DispatchQueue.main)
             .assign(to: \.canLoadMore, on: self)
+            .store(in: &cancellables)
+
+        notificationService.$pendingDeletion
+            .receive(on: DispatchQueue.main)
+            .assign(to: \.pendingDeletion, on: self)
             .store(in: &cancellables)
     }
 
@@ -219,6 +225,18 @@ class NotificationsViewModel: ObservableObject {
 
     func deleteNotification(_ notification: Notification) {
         notificationService.deleteNotification(notification)
+    }
+
+    func deleteNotificationGroup(_ group: NotificationGroup) {
+        notificationService.stageDeletion(group.notifications)
+    }
+
+    func undoPendingDeletion() {
+        notificationService.undoPendingDeletion()
+    }
+
+    func commitPendingDeletion() {
+        notificationService.commitPendingDeletion()
     }
 
     // ✅ Acciones de solicitudes de seguimiento simplificadas (OFFLINE AWARE)

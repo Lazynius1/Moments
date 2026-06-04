@@ -531,6 +531,20 @@ final class LocalPersistenceService: ObservableObject {
         trimNotifications()
     }
     
+    /// Elimina notificaciones del caché local por ID.
+    func deleteNotifications(ids: [String]) {
+        guard let context = modelContext, !ids.isEmpty else { return }
+
+        let idSet = Set(ids)
+        let descriptor = FetchDescriptor<CachedNotification>()
+        guard let cached = try? context.fetch(descriptor) else { return }
+
+        for notification in cached where idSet.contains(notification.id) {
+            context.delete(notification)
+        }
+        saveContext()
+    }
+
     /// Carga notificaciones desde el caché local
     func loadNotifications() -> [Notification] {
         guard let context = modelContext else { return [] }

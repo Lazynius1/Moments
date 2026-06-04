@@ -2207,6 +2207,10 @@
 "notifications.empty.follows" = "Todavía no tienes seguidores";
 "notifications.empty.default" = "No hay notificaciones";
 "notifications.loadMore" = "Cargar más";
+"notifications.delete" = "Eliminar";
+"notifications.deleted.toast" = "Notificación eliminada";
+"notifications.deleted.toast.plural" = "Notificaciones eliminadas";
+"notifications.deleted.undo" = "Deshacer";
 "notifications.accept" = "Aceptar";
 "notifications.reject" = "Rechazar";
 "notifications.date.today" = "Hoy";

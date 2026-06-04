@@ -2179,6 +2179,10 @@
 "notifications.empty.follows" = "No new followers";
 "notifications.empty.default" = "Aucune notification";
 "notifications.loadMore" = "Voir plus";
+"notifications.delete" = "Supprimer";
+"notifications.deleted.toast" = "Notification supprimée";
+"notifications.deleted.toast.plural" = "Notifications supprimées";
+"notifications.deleted.undo" = "Annuler";
 "notifications.accept" = "Accepter";
 "notifications.reject" = "Refuser";
 "notifications.date.today" = "Aujourd’hui";

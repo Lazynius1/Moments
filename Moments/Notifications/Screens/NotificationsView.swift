@@ -38,39 +38,55 @@ struct NotificationsView: View {
     }
 
     var body: some View {
-        NavigationStack {
-            VStack(spacing: 0) {
-                tabBarView
-                contentView
-            }
-            .background(colorScheme == .dark ? Color(hex: "0B1215") : Color(hex: "FAF9F6"))
-            .navigationDestination(isPresented: $showChat) {
-                chatDestination
-            }
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button(action: { dismiss() }) {
-                        Image(systemName: "chevron.left")
-                            .font(.system(size: 16, weight: .semibold))
+        ZStack(alignment: .bottom) {
+            NavigationStack {
+                VStack(spacing: 0) {
+                    tabBarView
+                    contentView
+                }
+                .background(colorScheme == .dark ? Color(hex: "0B1215") : Color(hex: "FAF9F6"))
+                .navigationDestination(isPresented: $showChat) {
+                    chatDestination
+                }
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .navigationBarLeading) {
+                        Button(action: { dismiss() }) {
+                            Image(systemName: "chevron.left")
+                                .font(.system(size: 16, weight: .semibold))
+                                .foregroundColor(colorScheme == .dark ? .white : .black)
+                        }
+                    }
+
+                    ToolbarItem(placement: .principal) {
+                        Text("notifications.title")
+                            .font(.system(size: 18, weight: .semibold))
                             .foregroundColor(colorScheme == .dark ? .white : .black)
                     }
                 }
-
-                ToolbarItem(placement: .principal) {
-                    Text("notifications.title")
-                        .font(.system(size: 18, weight: .semibold))
-                        .foregroundColor(colorScheme == .dark ? .white : .black)
-                }
+                .toolbarBackground(.visible, for: .navigationBar)
+                .toolbarBackground(
+                    colorScheme == .dark ?
+                    Color(hex: "0B1215").opacity(0.72) :
+                    Color(hex: "FAF9F6").opacity(0.9),
+                    for: .navigationBar
+                )
             }
-            .toolbarBackground(.visible, for: .navigationBar)
-            .toolbarBackground(
-                colorScheme == .dark ?
-                Color(hex: "0B1215").opacity(0.72) :
-                Color(hex: "FAF9F6").opacity(0.9),
-                for: .navigationBar
-            )
+
+            if let pendingDeletion = viewModel.pendingDeletion {
+                NotificationDeletionUndoToast(
+                    deletedCount: pendingDeletion.notifications.count,
+                    colorScheme: colorScheme,
+                    onUndo: {
+                        HapticManager.shared.lightImpact()
+                        viewModel.undoPendingDeletion()
+                    }
+                )
+                .padding(.bottom, 16)
+                .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
         }
+        .animation(.spring(response: 0.32, dampingFraction: 0.84), value: viewModel.pendingDeletion?.id)
         .onAppear {
             Task {
                 await viewModel.refreshNotifications()
@@ -78,6 +94,7 @@ struct NotificationsView: View {
             clearNotificationsAutomatically()
         }
         .onDisappear {
+            viewModel.commitPendingDeletion()
             NotificationBadgeService.shared.clearNotificationBadge()
             onNotificationsCleared?()
         }
@@ -295,44 +312,61 @@ struct NotificationsView: View {
     }
 
     private var notificationsListView: some View {
-        ScrollView {
-            LazyVStack(spacing: 0) {
-                ForEach(viewModel.dateKeys, id: \.self) { dateKey in
-                    Section {
-                        ForEach(viewModel.groupedByDate[dateKey] ?? []) { group in
-                            EnhancedNotificationRow(
-                                group: group,
-                                viewModel: viewModel,
-                                colorScheme: colorScheme,
-                                onTapAction: {
-                                    handleNotificationTap(group: group)
-                                },
-                                onModerationReviewTap: { notification in
-                                    moderationReviewNotification = notification
-                                }
-                            )
+        List {
+            ForEach(viewModel.dateKeys, id: \.self) { dateKey in
+                Section {
+                    ForEach(viewModel.groupedByDate[dateKey] ?? []) { group in
+                        EnhancedNotificationRow(
+                            group: group,
+                            viewModel: viewModel,
+                            colorScheme: colorScheme,
+                            onTapAction: {
+                                handleNotificationTap(group: group)
+                            },
+                            onModerationReviewTap: { notification in
+                                moderationReviewNotification = notification
+                            }
+                        )
+                        .listRowInsets(EdgeInsets())
+                        .listRowSeparator(.hidden)
+                        .listRowBackground(Color.clear)
+                        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                            Button {
+                                HapticManager.shared.lightImpact()
+                                viewModel.deleteNotificationGroup(group)
+                            } label: {
+                                Label(
+                                    NSLocalizedString("notifications.delete", comment: "Delete notification"),
+                                    systemImage: "trash.fill"
+                                )
+                            }
+                            .tint(colorScheme == .dark ? Color(hex: "FF453A") : Color(hex: "FF3B30"))
                         }
-                    } header: {
-                        NotificationDateHeaderView(dateString: dateKey, colorScheme: colorScheme)
                     }
+                } header: {
+                    NotificationDateHeaderView(dateString: dateKey, colorScheme: colorScheme)
                 }
-                
-                // ✅ Indicador de carga más notificaciones
-                if viewModel.canLoadMore {
+            }
+
+            if viewModel.canLoadMore {
+                Section {
                     Button(NSLocalizedString("notifications.loadMore", comment: "Load more button")) {
                         viewModel.loadMoreNotifications()
                     }
                     .disabled(viewModel.isLoadingMore)
-                    .padding()
-                    
+                    .frame(maxWidth: .infinity, alignment: .center)
+
                     if viewModel.isLoadingMore {
                         ProgressView()
-                            .padding()
+                            .frame(maxWidth: .infinity, alignment: .center)
                     }
                 }
+                .listRowBackground(Color.clear)
             }
-            .padding(.top, 4)
         }
+        .listStyle(.plain)
+        .scrollContentBackground(.hidden)
+        .padding(.top, 4)
     }
     
 
