@@ -476,6 +476,20 @@ function storageMetadataOwnerMatches(metadata, uid) {
   return Boolean(ownerId && uid && ownerId === String(uid).trim());
 }
 
+function expectedImageMetadataFromObjectName(objectName) {
+  const parts = objectName.split('/');
+  if (parts.length === 6 && parts[2] === 'moments' && parts[4] === 'media') {
+    return { type: 'moment_image', contentKey: 'momentId', contentId: parts[3] };
+  }
+  if (parts.length === 6 && parts[2] === 'stories' && parts[4] === 'media') {
+    return { type: 'story_image', contentKey: 'storyId', contentId: parts[3] };
+  }
+  if (parts.length === 7 && parts[2] === 'moments' && parts[4] === 'hidden_layers') {
+    return { type: 'moment_hidden_layer_image', contentKey: 'momentId', contentId: parts[3], layerId: parts[5] };
+  }
+  return null;
+}
+
 async function downloadStorageObjectToBuffer({
   bucket,
   objectName,
@@ -492,9 +506,15 @@ async function downloadStorageObjectToBuffer({
   }
 
   const customMetadata = storageCustomMetadata(metadata);
-  const expectedType = objectName.includes('/moments/') ? 'moment_image' : 'story_image';
-  if (customMetadata.type !== expectedType) {
-    throw new Error('Storage object is not publishable image media');
+  const expectedMetadata = expectedImageMetadataFromObjectName(objectName);
+  if (!expectedMetadata || customMetadata.type !== expectedMetadata.type) {
+    throw new Error('Storage object is not approved image media');
+  }
+  if (String(customMetadata[expectedMetadata.contentKey] || '').trim() !== expectedMetadata.contentId) {
+    throw new Error('Storage object content metadata does not match its path');
+  }
+  if (expectedMetadata.layerId && String(customMetadata.layerId || '').trim() !== expectedMetadata.layerId) {
+    throw new Error('Storage object layer metadata does not match its path');
   }
 
   const size = Number(metadata.size || 0);
@@ -1022,11 +1042,51 @@ function userOwnedPublishableMediaObjectNameFromFirebaseUrl(
   return objectName;
 }
 
+function hiddenLayerIdFromMediaItemId(mediaItemId) {
+  const value = String(mediaItemId || '').trim();
+  const prefix = 'hiddenLayer_';
+  if (!value.startsWith(prefix) || value.length <= prefix.length) return '';
+  return value.slice(prefix.length);
+}
+
+function userOwnedHiddenLayerImageObjectNameFromFirebaseUrl(url, userId, { contentType = '', contentId = '', mediaItemId = '' } = {}) {
+  const bucket = admin.storage().bucket();
+  const objectName = storageObjectNameFromFirebaseUrl(url, bucket.name);
+  if (!objectName || !userId) return null;
+
+  const safeUid = String(userId).trim();
+  const expectedMomentId = String(contentId || '').trim();
+  const expectedLayerId = hiddenLayerIdFromMediaItemId(mediaItemId);
+  if (!safeUid || contentType !== 'moment' || !expectedMomentId || !expectedLayerId) return null;
+
+  const parts = objectName.split('/');
+  if (
+    parts.length !== 7 ||
+    parts[0] !== 'users' ||
+    parts[1] !== safeUid ||
+    parts[2] !== 'moments' ||
+    parts[3] !== expectedMomentId ||
+    parts[4] !== 'hidden_layers' ||
+    parts[5] !== expectedLayerId
+  ) {
+    return null;
+  }
+
+  const fileName = parts[6];
+  const extension = path.posix.extname(fileName).slice(1).toLowerCase();
+  if (path.posix.basename(fileName, path.posix.extname(fileName)) !== 'media') return null;
+  if (!extension || !PUBLISHABLE_IMAGE_EXTENSIONS.has(extension)) return null;
+
+  return objectName;
+}
+
 function userOwnedImageObjectNameFromFirebaseUrl(url, userId, expectedContent = {}) {
-  return userOwnedPublishableMediaObjectNameFromFirebaseUrl(url, userId, PUBLISHABLE_IMAGE_EXTENSIONS, {
-    ...expectedContent,
-    requireContentBinding: true
-  });
+  return (
+    userOwnedPublishableMediaObjectNameFromFirebaseUrl(url, userId, PUBLISHABLE_IMAGE_EXTENSIONS, {
+      ...expectedContent,
+      requireContentBinding: true
+    }) || userOwnedHiddenLayerImageObjectNameFromFirebaseUrl(url, userId, expectedContent)
+  );
 }
 
 function userOwnedVideoObjectNameFromFirebaseUrl(url, userId) {
