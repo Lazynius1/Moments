@@ -17,13 +17,21 @@ extension StoryEditingView {
     enum TextStyle: String, CaseIterable {
         case modern
         case classic
+        case clean
+        case grotesk
+        case oswald
+        case spartan
         case poster
         case editorial
+        case slab
         case rounded
         case signature
+        case casual
+        case fancy
         case marker
         case typewriter
         case handwritten
+        case indie
         case bold
         case neon
         case chalk
@@ -36,13 +44,21 @@ extension StoryEditingView {
             switch self {
             case .modern: return "Modern"
             case .classic: return "Classic"
+            case .clean: return "Clean"
+            case .grotesk: return "Grotesk"
+            case .oswald: return "Condensed"
+            case .spartan: return "Geo"
             case .poster: return "Poster"
             case .editorial: return "Editor"
+            case .slab: return "Slab"
             case .rounded: return "Bubble"
             case .signature: return "Signature"
+            case .casual: return "Script"
+            case .fancy: return "Fancy"
             case .marker: return "Marker"
             case .typewriter: return "Mono"
             case .handwritten: return "Journal"
+            case .indie: return "Indie"
             case .bold: return "Strong"
             case .neon: return "Neon"
             case .chalk: return "Chalk"
@@ -53,12 +69,13 @@ extension StoryEditingView {
             }
         }
 
-        /// Solo tipografía (Aa). Neon/Marker/Pixel van en la toolbar de efectos visuales.
+        /// Tipografías del carrusel Aa (estilo Instagram).
         static var fontPickerStyles: [TextStyle] {
             [
-                .modern, .classic, .editorial, .rounded, .signature,
-                .typewriter, .handwritten, .bold, .poster, .meme,
-                .squeeze, .elegant, .deco
+                .modern, .classic, .clean, .grotesk, .bold, .oswald, .spartan, .squeeze,
+                .rounded, .poster, .editorial, .slab, .elegant, .fancy, .deco,
+                .signature, .casual, .indie, .handwritten, .marker,
+                .typewriter, .meme, .neon, .chalk
             ]
         }
 
@@ -68,14 +85,28 @@ extension StoryEditingView {
                 return StoryTextStylePreset(usesAllCaps: true, letterSpacing: 1.2, defaultColor: .white)
             case .classic:
                 return StoryTextStylePreset(defaultColor: .white)
+            case .clean:
+                return StoryTextStylePreset(defaultColor: .white)
+            case .grotesk:
+                return StoryTextStylePreset(letterSpacing: 0.4, defaultColor: .white, fontSizeOffset: 1)
+            case .oswald:
+                return StoryTextStylePreset(usesAllCaps: true, letterSpacing: 0.6, defaultColor: .white, fontSizeOffset: 2)
+            case .spartan:
+                return StoryTextStylePreset(letterSpacing: 0.5, defaultColor: .white, fontSizeOffset: 1)
             case .poster:
                 return StoryTextStylePreset(defaultColor: .white, fontSizeOffset: 4)
             case .editorial:
                 return StoryTextStylePreset(letterSpacing: 0.8, defaultColor: .white, fontSizeOffset: 1)
+            case .slab:
+                return StoryTextStylePreset(letterSpacing: 0.3, defaultColor: .white, fontSizeOffset: 1)
             case .rounded:
                 return StoryTextStylePreset(defaultColor: .white)
             case .signature:
                 return StoryTextStylePreset(defaultColor: .white, fontSizeOffset: 4)
+            case .casual:
+                return StoryTextStylePreset(defaultColor: .white, fontSizeOffset: 3)
+            case .fancy:
+                return StoryTextStylePreset(defaultColor: .white, fontSizeOffset: 6)
             case .marker:
                 return StoryTextStylePreset(defaultColor: .black, defaultEffect: .marker)
             case .typewriter:
@@ -85,6 +116,8 @@ extension StoryEditingView {
                     defaultBackgroundUIColor: UIColor.gray.withAlphaComponent(0.55)
                 )
             case .handwritten:
+                return StoryTextStylePreset(defaultColor: .white, fontSizeOffset: 2)
+            case .indie:
                 return StoryTextStylePreset(defaultColor: .white, fontSizeOffset: 2)
             case .bold:
                 return StoryTextStylePreset(
@@ -140,13 +173,21 @@ extension StoryEditingView {
             switch self {
             case .modern: return StoryFontRegistry.uiFont(fileName: "BebasNeue-Regular", size: size)
             case .classic: return StoryFontRegistry.uiFont(fileName: "Lora-Regular", size: size)
+            case .clean: return nil
+            case .grotesk: return StoryFontRegistry.uiFont(fileName: "Montserrat-Black", size: size)
+            case .oswald: return StoryFontRegistry.uiFont(fileName: "Oswald-Bold", size: size)
+            case .spartan: return StoryFontRegistry.uiFont(fileName: "LeagueSpartan-Bold", size: size)
             case .poster: return StoryFontRegistry.uiFont(fileName: "PlayfairDisplay-Bold", size: size)
             case .editorial: return StoryFontRegistry.uiFont(fileName: "IBMPlexSerif-Regular", size: size)
+            case .slab: return StoryFontRegistry.uiFont(fileName: "RobotoSlab-Bold", size: size)
             case .rounded: return StoryFontRegistry.uiFont(fileName: "VarelaRound-Regular", size: size)
             case .signature: return StoryFontRegistry.uiFont(fileName: "DancingScript-Bold", size: size)
-            case .marker: return StoryFontRegistry.uiFont(fileName: "Caveat-Bold", size: size)
+            case .casual: return StoryFontRegistry.uiFont(fileName: "Satisfy-Regular", size: size)
+            case .fancy: return StoryFontRegistry.uiFont(fileName: "GreatVibes-Regular", size: size)
+            case .marker: return StoryFontRegistry.uiFont(fileName: "PermanentMarker-Regular", size: size)
             case .typewriter: return UIFont.monospacedSystemFont(ofSize: max(12, size - 2), weight: .regular)
             case .handwritten: return StoryFontRegistry.uiFont(fileName: "Caveat-Bold", size: size)
+            case .indie: return StoryFontRegistry.uiFont(fileName: "IndieFlower-Regular", size: size)
             case .bold: return StoryFontRegistry.uiFont(fileName: "Anton-Regular", size: size)
             case .neon: return StoryFontRegistry.uiFont(fileName: "Pacifico-Regular", size: size)
             case .chalk: return UIFont(name: "ChalkboardSE-Bold", size: size) ?? .systemFont(ofSize: size, weight: .bold)
@@ -161,13 +202,25 @@ extension StoryEditingView {
             switch self {
             case .modern: return .systemFont(ofSize: size, weight: .medium)
             case .classic: return UIFont(name: "Georgia", size: size) ?? .systemFont(ofSize: size)
+            case .clean:
+                if let rounded = UIFont.systemFont(ofSize: size, weight: .semibold).fontDescriptor.withDesign(.rounded) {
+                    return UIFont(descriptor: rounded, size: size)
+                }
+                return .systemFont(ofSize: size, weight: .semibold)
+            case .grotesk: return .systemFont(ofSize: size, weight: .black)
+            case .oswald: return .boldSystemFont(ofSize: size)
+            case .spartan: return .systemFont(ofSize: size, weight: .heavy)
             case .poster: return .boldSystemFont(ofSize: size)
             case .editorial: return UIFont(name: "Georgia", size: size) ?? .systemFont(ofSize: size)
+            case .slab: return UIFont(name: "Georgia-Bold", size: size) ?? .boldSystemFont(ofSize: size)
             case .rounded: return .systemFont(ofSize: size, weight: .semibold)
             case .signature: return .italicSystemFont(ofSize: size)
+            case .casual: return .italicSystemFont(ofSize: size)
+            case .fancy: return .italicSystemFont(ofSize: size)
             case .marker: return .systemFont(ofSize: size, weight: .bold)
             case .typewriter: return .monospacedSystemFont(ofSize: size, weight: .regular)
             case .handwritten: return .systemFont(ofSize: size, weight: .semibold)
+            case .indie: return .systemFont(ofSize: size, weight: .medium)
             case .bold: return .systemFont(ofSize: size, weight: .heavy)
             case .neon: return .systemFont(ofSize: size, weight: .black)
             case .chalk: return .systemFont(ofSize: size, weight: .bold)
@@ -184,11 +237,13 @@ extension StoryEditingView {
             }
             switch self {
             case .modern: return Color.black.opacity(0.6)
+            case .clean: return Color.black.opacity(0.45)
             case .rounded: return Color.black.opacity(0.22)
             case .marker: return Color.yellow.opacity(0.18)
             case .neon: return Color.purple.opacity(0.8)
             case .typewriter: return Color.gray.opacity(0.55)
             case .chalk: return Color.black.opacity(0.18)
+            case .grotesk, .bold: return Color.black.opacity(0.5)
             default: return .clear
             }
         }
@@ -225,39 +280,38 @@ extension StoryEditingView {
 
     enum TextEffect: String, CaseIterable {
         case none
+        case sticker
+        case outline
+        case gradient
         case sparkle
         case neon
         case glow
+        case glass
+        case holographic
+        case tape
+        case pulse
+        case textShimmer
         case marker
         case chalk
         case pixel
         case shimmer
 
         var displayName: String {
-            switch self {
-            case .none: return "None"
-            case .sparkle: return "Sparkle"
-            case .neon: return "Neon"
-            case .glow: return "Glow"
-            case .marker: return "Marker"
-            case .chalk: return "Chalk"
-            case .pixel: return "Pixel"
-            case .shimmer: return "Shimmer"
-            }
+            momentsToolbarLabel
         }
 
-        /// Decodifica valores legacy de Firestore (`shimmer` → destello visual).
+        /// Decodifica valores legacy de Firestore.
         init?(storedRawValue: String) {
             let normalized: String
             switch storedRawValue {
-            case "shimmer": normalized = TextEffect.sparkle.rawValue
+            case "shimmer": normalized = TextEffect.textShimmer.rawValue
             default: normalized = storedRawValue
             }
             self.init(rawValue: normalized)
         }
 
         static var toolbarEffects: [TextEffect] {
-            [.none, .sparkle, .neon, .glow, .marker, .chalk, .pixel]
+            momentsVisualToolbar
         }
 
         func cycled() -> TextEffect {
@@ -282,11 +336,10 @@ extension StoryEditingView {
 
         func shadow(for textColor: Color) -> (color: Color, radius: CGFloat, x: CGFloat, y: CGFloat)? {
             switch self {
-            case .glow, .shimmer, .sparkle, .neon:
-                return (textColor.opacity(0.92), 12, 0, 0)
             case .chalk, .pixel:
                 return (Color.black.opacity(0.62), 1.0, 1.0, 1.0)
-            case .none, .marker:
+            case .none, .marker, .glow, .neon, .sparkle, .shimmer, .textShimmer,
+                 .sticker, .outline, .gradient, .glass, .holographic, .tape, .pulse:
                 return nil
             }
         }
@@ -294,17 +347,13 @@ extension StoryEditingView {
         func nsShadow(for textColor: UIColor) -> NSShadow? {
             let shadow = NSShadow()
             switch self {
-            case .glow, .shimmer, .sparkle, .neon:
-                shadow.shadowColor = textColor.withAlphaComponent(0.92)
-                shadow.shadowBlurRadius = 12
-                shadow.shadowOffset = .zero
-                return shadow
             case .chalk, .pixel:
                 shadow.shadowColor = UIColor.black.withAlphaComponent(0.62)
                 shadow.shadowBlurRadius = 1
                 shadow.shadowOffset = CGSize(width: 1, height: 1)
                 return shadow
-            case .none, .marker:
+            case .none, .marker, .glow, .neon, .sparkle, .shimmer, .textShimmer,
+                 .sticker, .outline, .gradient, .glass, .holographic, .tape, .pulse:
                 return nil
             }
         }

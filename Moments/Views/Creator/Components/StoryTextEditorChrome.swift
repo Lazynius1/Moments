@@ -71,10 +71,14 @@ struct StoryTextEditorContextRow: View {
     @Binding var textColor: Color
     @Binding var textMotion: StoryEditingView.TextMotion
     @Binding var visualEffect: StoryEditingView.TextEffect
+    @Binding var gradientStops: [Color]
+    @Binding var gradientAngle: Int
+    @Binding var selectedGradientStopIndex: Int
     let swatchColors: [Color]
     let suggestedColors: [Color]
     var onEyedropper: (() -> Void)?
     let onStyleSelect: (StoryEditingView.TextStyle) -> Void
+    let onVisualEffectSelect: (StoryEditingView.TextEffect) -> Void
 
     var body: some View {
         Group {
@@ -82,7 +86,11 @@ struct StoryTextEditorContextRow: View {
             case .fonts:
                 StoryMomentsFontRow(selectedStyle: $selectedStyle, onSelect: onStyleSelect)
             case .colors:
-                colorContext
+                if visualEffect == .gradient {
+                    gradientColorContext
+                } else {
+                    colorContext
+                }
             case .motion:
                 pillContext(
                     items: StoryEditingView.TextMotion.momentsToolbarMotions.map { ($0.displayName, $0) },
@@ -93,12 +101,136 @@ struct StoryTextEditorContextRow: View {
                 pillContext(
                     items: StoryEditingView.TextEffect.momentsVisualToolbar.map { ($0.momentsToolbarLabel, $0) },
                     isSelected: { visualEffect == $0 },
-                    onSelect: { visualEffect = $0 }
+                    onSelect: { onVisualEffectSelect($0) }
                 )
             }
         }
         .frame(height: StoryTextEditorChrome.contextRowHeight)
         .animation(.easeOut(duration: 0.18), value: context)
+    }
+
+    private var gradientColorContext: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 10) {
+                ForEach(Array(gradientStops.enumerated()), id: \.offset) { index, stop in
+                    Button {
+                        selectedGradientStopIndex = index
+                        textColor = stop
+                        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                    } label: {
+                        Circle()
+                            .fill(stop)
+                            .frame(width: 26, height: 26)
+                            .overlay(
+                                Circle()
+                                    .stroke(
+                                        selectedGradientStopIndex == index ? Color.white : Color.white.opacity(0.25),
+                                        lineWidth: selectedGradientStopIndex == index ? 2.5 : 1
+                                    )
+                            )
+                    }
+                    .buttonStyle(.plain)
+                    .contextMenu {
+                        if gradientStops.count > StoryTextGradientSettings.minStops {
+                            Button(role: .destructive) {
+                                gradientStops.remove(at: index)
+                                selectedGradientStopIndex = min(selectedGradientStopIndex, max(0, gradientStops.count - 1))
+                            } label: {
+                                Text(NSLocalizedString("storyTextGradient.removeStop", comment: "Remove color stop"))
+                            }
+                        }
+                    }
+                }
+
+                if gradientStops.count < StoryTextGradientSettings.maxStops {
+                    Button {
+                        gradientStops.append(textColor)
+                        selectedGradientStopIndex = gradientStops.count - 1
+                        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                    } label: {
+                        Image(systemName: "plus")
+                            .font(.system(size: 14, weight: .bold))
+                            .foregroundColor(.white)
+                            .frame(width: 26, height: 26)
+                            .background(Circle().fill(Color.white.opacity(0.18)))
+                    }
+                    .buttonStyle(.plain)
+                }
+
+                ColorPicker(
+                    "",
+                    selection: Binding(
+                        get: {
+                            guard gradientStops.indices.contains(selectedGradientStopIndex) else { return textColor }
+                            return gradientStops[selectedGradientStopIndex]
+                        },
+                        set: { newColor in
+                            if gradientStops.indices.contains(selectedGradientStopIndex) {
+                                gradientStops[selectedGradientStopIndex] = newColor
+                            }
+                            textColor = newColor
+                        }
+                    ),
+                    supportsOpacity: false
+                )
+                .labelsHidden()
+                .frame(width: 26, height: 26)
+
+                Button {
+                    gradientAngle = StoryTextGradientSettings.cycleAngle(gradientAngle)
+                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                } label: {
+                    Text(StoryTextGradientSettings.angleSymbol(gradientAngle))
+                        .font(.system(size: 15, weight: .bold))
+                        .foregroundColor(.white)
+                        .frame(width: 30, height: 26)
+                        .background(RoundedRectangle(cornerRadius: 8).fill(Color.white.opacity(0.14)))
+                }
+                .buttonStyle(.plain)
+
+                gradientPresetButton(
+                    title: NSLocalizedString("storyTextGradient.preset.moments", comment: "Moments preset"),
+                    colors: StoryTextGradientSettings.presetMoments
+                )
+                gradientPresetButton(
+                    title: NSLocalizedString("storyTextGradient.preset.sunset", comment: "Sunset preset"),
+                    colors: StoryTextGradientSettings.presetSunset
+                )
+                gradientPresetButton(
+                    title: NSLocalizedString("storyTextGradient.preset.ocean", comment: "Ocean preset"),
+                    colors: StoryTextGradientSettings.presetOcean
+                )
+
+                if let onEyedropper {
+                    Button(action: onEyedropper) {
+                        Image(systemName: "eyedropper")
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundColor(.white)
+                            .frame(width: 26, height: 26)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 6)
+        }
+    }
+
+    private func gradientPresetButton(title: String, colors: [Color]) -> some View {
+        Button {
+            gradientStops = Array(colors.prefix(StoryTextGradientSettings.maxStops))
+            selectedGradientStopIndex = 0
+            textColor = gradientStops.first ?? textColor
+            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        } label: {
+            Text(title)
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundColor(.white)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 7)
+                .background(RoundedRectangle(cornerRadius: 8).fill(Color.white.opacity(0.14)))
+        }
+        .buttonStyle(.plain)
     }
 
     private var colorContext: some View {
@@ -414,6 +546,9 @@ struct StoryMomentsEditorChrome: View {
     @Binding var textBackgroundFill: StoryEditingView.TextBackgroundFill
     @Binding var textMotion: StoryEditingView.TextMotion
     @Binding var visualEffect: StoryEditingView.TextEffect
+    @Binding var gradientStops: [Color]
+    @Binding var gradientAngle: Int
+    @Binding var selectedGradientStopIndex: Int
     @Binding var forcesAllCaps: Bool
     @Binding var activeContext: StoryTextEditorContext
 
@@ -421,6 +556,7 @@ struct StoryMomentsEditorChrome: View {
     let suggestedColors: [Color]
     var onEyedropper: (() -> Void)?
     let onStyleSelect: (StoryEditingView.TextStyle) -> Void
+    let onVisualEffectSelect: (StoryEditingView.TextEffect) -> Void
     let onBackground: () -> Void
 
     var body: some View {
@@ -431,10 +567,14 @@ struct StoryMomentsEditorChrome: View {
                 textColor: $textColor,
                 textMotion: $textMotion,
                 visualEffect: $visualEffect,
+                gradientStops: $gradientStops,
+                gradientAngle: $gradientAngle,
+                selectedGradientStopIndex: $selectedGradientStopIndex,
                 swatchColors: swatchColors,
                 suggestedColors: suggestedColors,
                 onEyedropper: onEyedropper,
-                onStyleSelect: onStyleSelect
+                onStyleSelect: onStyleSelect,
+                onVisualEffectSelect: onVisualEffectSelect
             )
 
             StoryMomentsTextToolbar(

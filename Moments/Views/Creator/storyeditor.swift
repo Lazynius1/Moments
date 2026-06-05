@@ -42,6 +42,9 @@ struct StoryEditingView: View {
     @State private var selectedTextStroke: TextStroke = .none
     @State private var selectedTextMotion: TextMotion = .none
     @State private var selectedVisualEffect: TextEffect = .none
+    @State private var storyGradientStops: [Color] = []
+    @State private var storyGradientAngle: Int = 0
+    @State private var storySelectedGradientStopIndex: Int = 0
     @State private var storyForcesAllCaps = false
     @State private var textOverlays: [StoryTextOverlayDraft] = []
     @State private var activeTextOverlayId: String?
@@ -243,6 +246,9 @@ struct StoryEditingView: View {
                             textStroke: $selectedTextStroke,
                             textMotion: $selectedTextMotion,
                             visualEffect: $selectedVisualEffect,
+                            gradientStops: $storyGradientStops,
+                            gradientAngle: $storyGradientAngle,
+                            selectedGradientStopIndex: $storySelectedGradientStopIndex,
                             forcesAllCaps: $storyForcesAllCaps,
                             mediaSampleImage: currentStorySampleImage()
                         )
@@ -2251,6 +2257,9 @@ struct StoryEditingView: View {
         selectedTextStyle = .modern
         selectedTextMotion = .none
         selectedVisualEffect = .none
+        storyGradientStops = []
+        storyGradientAngle = 0
+        storySelectedGradientStopIndex = 0
         storyForcesAllCaps = false
         storyTextColor = .white
         storyTextAlignment = .center
@@ -2282,7 +2291,9 @@ struct StoryEditingView: View {
             textStroke: selectedTextStroke,
             textMotion: selectedTextMotion,
             forcesAllCaps: storyForcesAllCaps,
-            layerOrder: nextOrder
+            layerOrder: nextOrder,
+            gradientStopHexes: StoryTextGradientSettings.encodeStops(storyGradientStops),
+            gradientAngle: storyGradientAngle
         )
 
         textOverlays.append(newOverlay)
@@ -2337,7 +2348,9 @@ struct StoryEditingView: View {
             textStroke: selectedTextStroke,
             textMotion: selectedTextMotion,
             forcesAllCaps: storyForcesAllCaps,
-            layerOrder: layerOrder(for: activeTextOverlayId)
+            layerOrder: layerOrder(for: activeTextOverlayId),
+            gradientStopHexes: StoryTextGradientSettings.encodeStops(storyGradientStops),
+            gradientAngle: storyGradientAngle
         )
 
         if let index = textOverlays.firstIndex(where: { $0.id == activeTextOverlayId }) {
@@ -2359,6 +2372,9 @@ struct StoryEditingView: View {
         selectedTextStroke = overlay.textStroke
         selectedTextMotion = overlay.textMotion
         storyForcesAllCaps = overlay.forcesAllCaps
+        storyGradientStops = overlay.gradientColors
+        storyGradientAngle = overlay.gradientAngle
+        storySelectedGradientStopIndex = 0
     }
 
     private func nextTextLayerOrder() -> Int {

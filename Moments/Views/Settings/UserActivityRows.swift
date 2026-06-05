@@ -693,6 +693,7 @@ struct ActivityReactionMomentCard: View {
     let size: CGFloat
     let isSelectionMode: Bool
     let isSelected: Bool
+    var showsOverlayBadges: Bool = true
     @State private var generatedVideoThumbnail: UIImage?
     @State private var isGeneratingThumbnail = false
 
@@ -708,12 +709,19 @@ struct ActivityReactionMomentCard: View {
                     restrictedOverlay
                 }
 
-                if item.reactionType == "moment" || item.reactionType == "reel" || item.reactionType == "archived" || item.reactionType == "recentlyDeleted" {
-                    audienceBadge
-                        .padding(6)
-                } else {
-                    reactionBadge
-                        .padding(6)
+                if showsOverlayBadges {
+                    if item.reactionType == "moment" || item.reactionType == "reel" || item.reactionType == "archived" || item.reactionType == "recentlyDeleted" {
+                        audienceBadge
+                            .padding(6)
+                    } else {
+                        reactionBadge
+                            .padding(6)
+                    }
+                }
+
+                if !showsOverlayBadges, isVideoMoment, item.canView {
+                    ActivityThumbnailVideoPlayIndicator()
+                        .frame(width: size, height: size)
                 }
 
                 if isSelectionMode {
@@ -733,6 +741,17 @@ struct ActivityReactionMomentCard: View {
             .contentShape(RoundedRectangle(cornerRadius: 8))
             .clipShape(RoundedRectangle(cornerRadius: 8))
         }
+    }
+
+    private var isVideoMoment: Bool {
+        guard let moment = item.moment else { return false }
+        if let media = moment.primaryVisibleMediaItem {
+            return media.type != .image
+        }
+        if let video = moment.previewVideoURLString, !video.isEmpty {
+            return true
+        }
+        return false
     }
 
     private func isProtectedMoment(_ moment: Moment?) -> Bool {
@@ -807,10 +826,12 @@ struct ActivityReactionMomentCard: View {
                     }
             }
 
-            Image(systemName: "play.circle.fill")
-                .font(.system(size: 24, weight: .regular))
-                .foregroundColor(.white.opacity(0.9))
-                .shadow(radius: 3)
+            if showsOverlayBadges {
+                Image(systemName: "play.circle.fill")
+                    .font(.system(size: 24, weight: .regular))
+                    .foregroundColor(.white.opacity(0.9))
+                    .shadow(radius: 3)
+            }
         }
         .frame(width: size, height: size)
         .clipped()
@@ -1004,17 +1025,10 @@ struct ActivityDeletedStoryCard: View {
                 }
                 .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
 
-            HStack(spacing: 4) {
-                Image(systemName: item.story.mediaItem.type == .video ? "play.fill" : "circle.dashed")
-                    .font(.system(size: 10, weight: .bold))
-                Text(NSLocalizedString("notifications.tab.stories", comment: "Stories"))
-                    .font(.custom("Poppins-SemiBold", size: 10))
+            if item.story.mediaItem.type == .video {
+                ActivityThumbnailVideoPlayIndicator()
+                    .frame(width: size, height: size)
             }
-            .foregroundColor(.white)
-            .padding(.horizontal, 7)
-            .padding(.vertical, 5)
-            .background(Capsule().fill(Color.black.opacity(0.45)))
-            .padding(6)
 
             if isSelectionMode {
                 VStack {
@@ -1040,5 +1054,23 @@ struct ActivityDeletedStoryCard: View {
                 .font(.system(size: 24, weight: .semibold))
                 .foregroundColor(.secondary)
         }
+    }
+}
+
+private struct ActivityThumbnailVideoPlayIndicator: View {
+    var body: some View {
+        VStack {
+            Spacer()
+            HStack {
+                Spacer()
+                Image(systemName: "play.fill")
+                    .font(.system(size: 10, weight: .bold))
+                    .foregroundColor(.white)
+                    .padding(5)
+                    .background(Circle().fill(Color.black.opacity(0.55)))
+            }
+        }
+        .padding(6)
+        .allowsHitTesting(false)
     }
 }

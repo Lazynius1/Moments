@@ -193,7 +193,9 @@ final class StoryTextEditorInputContainerView: UIView, UITextViewDelegate {
             "\(configuration.fontSize)",
             "\(configuration.forcesAllCaps)",
             motion.rawValue,
-            "\(maxWidth)"
+            "\(maxWidth)",
+            configuration.gradientStops.map(\.description).joined(separator: ","),
+            "\(configuration.gradientAngle)"
         ].joined(separator: "|")
     }
 
@@ -275,17 +277,27 @@ struct StoryTextOverlayContainerRepresentable: UIViewRepresentable {
 final class StoryTextOverlayContainerView: UIView {
     private let plateLayer = CALayer()
     private let sparkleLayer = CALayer()
+    private let gradientLayer = CAGradientLayer()
+    private let glassEffectView = UIVisualEffectView(effect: UIBlurEffect(style: .systemUltraThinMaterialDark))
     private let glowLabel = UILabel()
     private let textLabel = UILabel()
+    private var holographicAnimationKey = "moments.text.holographic"
 
     override init(frame: CGRect) {
         super.init(frame: frame)
         isUserInteractionEnabled = false
         layer.addSublayer(plateLayer)
+        layer.addSublayer(gradientLayer)
         layer.addSublayer(sparkleLayer)
+        addSubview(glassEffectView)
         addSubview(glowLabel)
         addSubview(textLabel)
         sparkleLayer.isHidden = true
+        gradientLayer.isHidden = true
+        glassEffectView.isHidden = true
+        glassEffectView.isUserInteractionEnabled = false
+        glassEffectView.layer.cornerRadius = 10
+        glassEffectView.clipsToBounds = true
         glowLabel.numberOfLines = 0
         glowLabel.backgroundColor = .clear
         glowLabel.isUserInteractionEnabled = false
@@ -336,7 +348,11 @@ final class StoryTextOverlayContainerView: UIView {
 
         plateLayer.isHidden = true
         sparkleLayer.isHidden = true
+        gradientLayer.isHidden = true
+        glassEffectView.isHidden = true
         glowLabel.isHidden = true
+        gradientLayer.mask = nil
+        gradientLayer.removeAnimation(forKey: holographicAnimationKey)
         resetLabelLayers()
         resetSparkles()
 
@@ -347,6 +363,22 @@ final class StoryTextOverlayContainerView: UIView {
             applyNeon(configuration: configuration, attributed: attributed, alignment: alignment)
         case .softGlow:
             applySoftGlow(configuration: configuration, attributed: attributed, alignment: alignment)
+        case .pulseHalo:
+            applyPulse(configuration: configuration, attributed: attributed, alignment: alignment)
+        case .outlinePop:
+            applyOutline(configuration: configuration, attributed: attributed, alignment: alignment)
+        case .stickerCutout:
+            applySticker(configuration: configuration, attributed: attributed, alignment: alignment)
+        case .gradientFill:
+            applyGradient(configuration: configuration, attributed: attributed, alignment: alignment, textFrame: textFrame)
+        case .glassText:
+            applyGlass(configuration: configuration, attributed: attributed, alignment: alignment, textFrame: textFrame)
+        case .holographicFill:
+            applyHolographic(configuration: configuration, attributed: attributed, alignment: alignment, textFrame: textFrame)
+        case .tapeLabel:
+            applyTape(configuration: configuration, attributed: attributed, alignment: alignment, textFrame: textFrame)
+        case .textShimmer:
+            applyTextShimmer(configuration: configuration, attributed: attributed, alignment: alignment, textFrame: textFrame)
         case .markerHighlight:
             applyMarker(configuration: configuration, textFrame: textFrame)
             textLabel.attributedText = attributed
@@ -394,11 +426,12 @@ final class StoryTextOverlayContainerView: UIView {
         alignment: NSTextAlignment
     ) {
         let uiColor = UIColor(configuration.textColor)
-        textLabel.attributedText = attributed
+        let clean = attributedWithoutShadow(attributed)
+        textLabel.attributedText = clean
         textLabel.textAlignment = alignment
         textLabel.layer.shadowColor = uiColor.cgColor
-        textLabel.layer.shadowRadius = 8
-        textLabel.layer.shadowOpacity = 0.68
+        textLabel.layer.shadowRadius = 6
+        textLabel.layer.shadowOpacity = 0.55
         textLabel.layer.shadowOffset = .zero
         textLabel.layer.shouldRasterize = true
         textLabel.layer.rasterizationScale = UIScreen.main.scale
@@ -489,18 +522,252 @@ final class StoryTextOverlayContainerView: UIView {
         return path
     }
 
+    private func attributedWithoutShadow(_ attributed: NSAttributedString) -> NSAttributedString {
+        let mutable = NSMutableAttributedString(attributedString: attributed)
+        mutable.removeAttribute(.shadow, range: NSRange(location: 0, length: mutable.length))
+        return mutable
+    }
+
     private func applySoftGlow(
         configuration: StoryTextRenderConfiguration,
         attributed: NSAttributedString,
         alignment: NSTextAlignment
     ) {
         let uiColor = UIColor(configuration.textColor)
-        textLabel.attributedText = attributed
+        let clean = attributedWithoutShadow(attributed)
+        textLabel.attributedText = clean
         textLabel.textAlignment = alignment
         textLabel.layer.shadowColor = uiColor.cgColor
-        textLabel.layer.shadowRadius = 18
-        textLabel.layer.shadowOpacity = 0.92
+        textLabel.layer.shadowRadius = 8
+        textLabel.layer.shadowOpacity = 0.42
         textLabel.layer.shadowOffset = .zero
+        textLabel.layer.masksToBounds = false
+    }
+
+    private func applyPulse(
+        configuration: StoryTextRenderConfiguration,
+        attributed: NSAttributedString,
+        alignment: NSTextAlignment
+    ) {
+        let uiColor = UIColor(configuration.textColor)
+        let clean = attributedWithoutShadow(attributed)
+        textLabel.attributedText = clean
+        textLabel.textAlignment = alignment
+        textLabel.layer.shadowColor = uiColor.cgColor
+        textLabel.layer.shadowRadius = 6
+        textLabel.layer.shadowOpacity = 0.75
+        textLabel.layer.shadowOffset = .zero
+
+        let pulse = CABasicAnimation(keyPath: "shadowRadius")
+        pulse.fromValue = 4
+        pulse.toValue = 14
+        pulse.duration = 1.1
+        pulse.autoreverses = true
+        pulse.repeatCount = .infinity
+        pulse.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
+        pulse.isRemovedOnCompletion = false
+        textLabel.layer.add(pulse, forKey: "moments.text.pulse")
+    }
+
+    private func applyOutline(
+        configuration: StoryTextRenderConfiguration,
+        attributed: NSAttributedString,
+        alignment: NSTextAlignment
+    ) {
+        let strokeColor = StoryTextAttributesBuilder.contrastUIColor(for: configuration.textColor)
+        let mutable = NSMutableAttributedString(attributedString: attributedWithoutShadow(attributed))
+        let range = NSRange(location: 0, length: mutable.length)
+        mutable.addAttribute(.strokeColor, value: strokeColor, range: range)
+        mutable.addAttribute(.strokeWidth, value: -3.0, range: range)
+        textLabel.attributedText = mutable
+        textLabel.textAlignment = alignment
+    }
+
+    private func applySticker(
+        configuration: StoryTextRenderConfiguration,
+        attributed: NSAttributedString,
+        alignment: NSTextAlignment
+    ) {
+        let mutable = NSMutableAttributedString(attributedString: attributedWithoutShadow(attributed))
+        let range = NSRange(location: 0, length: mutable.length)
+        mutable.addAttribute(.foregroundColor, value: UIColor.white, range: range)
+        mutable.addAttribute(.strokeColor, value: UIColor.black, range: range)
+        mutable.addAttribute(.strokeWidth, value: -5.0, range: range)
+        textLabel.attributedText = mutable
+        textLabel.textAlignment = alignment
+    }
+
+    private func applyGradient(
+        configuration: StoryTextRenderConfiguration,
+        attributed: NSAttributedString,
+        alignment: NSTextAlignment,
+        textFrame: CGRect
+    ) {
+        let clean = attributedWithoutShadow(attributed)
+        textLabel.attributedText = clearAttributedString(from: clean)
+        textLabel.textAlignment = alignment
+        applyGradientLayer(
+            configuration: configuration,
+            attributed: clean,
+            alignment: alignment,
+            textFrame: textFrame,
+            animated: false
+        )
+    }
+
+    private func applyHolographic(
+        configuration: StoryTextRenderConfiguration,
+        attributed: NSAttributedString,
+        alignment: NSTextAlignment,
+        textFrame: CGRect
+    ) {
+        var holoConfig = configuration
+        if holoConfig.gradientStops.count < StoryTextGradientSettings.minStops {
+            holoConfig.gradientStops = StoryTextGradientSettings.presetMoments
+        }
+        let clean = attributedWithoutShadow(attributed)
+        textLabel.attributedText = clearAttributedString(from: clean)
+        textLabel.textAlignment = alignment
+        applyGradientLayer(
+            configuration: holoConfig,
+            attributed: clean,
+            alignment: alignment,
+            textFrame: textFrame,
+            animated: true
+        )
+    }
+
+    private func applyTextShimmer(
+        configuration: StoryTextRenderConfiguration,
+        attributed: NSAttributedString,
+        alignment: NSTextAlignment,
+        textFrame: CGRect
+    ) {
+        var shimmerConfig = configuration
+        if shimmerConfig.gradientStops.isEmpty {
+            shimmerConfig.gradientStops = [
+                configuration.textColor.opacity(0.35),
+                configuration.textColor,
+                .white.opacity(0.95),
+                configuration.textColor,
+                configuration.textColor.opacity(0.35)
+            ]
+        }
+        let clean = attributedWithoutShadow(attributed)
+        textLabel.attributedText = clearAttributedString(from: clean)
+        textLabel.textAlignment = alignment
+        applyGradientLayer(
+            configuration: shimmerConfig,
+            attributed: clean,
+            alignment: alignment,
+            textFrame: textFrame,
+            animated: true,
+            shimmer: true
+        )
+    }
+
+    private func applyGradientLayer(
+        configuration: StoryTextRenderConfiguration,
+        attributed: NSAttributedString,
+        alignment: NSTextAlignment,
+        textFrame: CGRect,
+        animated: Bool,
+        shimmer: Bool = false
+    ) {
+        gradientLayer.isHidden = false
+        gradientLayer.frame = textFrame
+        let colors = configuration.resolvedGradientStops
+        gradientLayer.colors = colors.map(\.cgColor)
+        let points = configuration.gradientUnitPoints
+        gradientLayer.startPoint = points.start
+        gradientLayer.endPoint = points.end
+
+        let mask = CATextLayer()
+        mask.contentsScale = UIScreen.main.scale
+        mask.isWrapped = true
+        mask.alignmentMode = textLayerAlignmentMode(for: alignment)
+        mask.string = attributed
+        mask.frame = gradientLayer.bounds
+        gradientLayer.mask = mask
+
+        gradientLayer.removeAnimation(forKey: holographicAnimationKey)
+        guard animated else { return }
+
+        if shimmer {
+            let shift = CABasicAnimation(keyPath: "locations")
+            shift.fromValue = [0.0, 0.12, 0.28, 0.44, 1.0]
+            shift.toValue = [0.0, 0.44, 0.6, 0.76, 1.0]
+            shift.duration = 1.6
+            shift.repeatCount = .infinity
+            shift.autoreverses = true
+            shift.isRemovedOnCompletion = false
+            gradientLayer.locations = [0.0, 0.2, 0.4, 0.6, 1.0]
+            gradientLayer.add(shift, forKey: holographicAnimationKey)
+        } else {
+            let cycle = CAKeyframeAnimation(keyPath: "colors")
+            let expanded = colors + colors
+            cycle.values = expanded.map { $0.cgColor }
+            cycle.duration = 3.2
+            cycle.repeatCount = .infinity
+            cycle.isRemovedOnCompletion = false
+            gradientLayer.add(cycle, forKey: holographicAnimationKey)
+        }
+    }
+
+    private func applyGlass(
+        configuration: StoryTextRenderConfiguration,
+        attributed: NSAttributedString,
+        alignment: NSTextAlignment,
+        textFrame: CGRect
+    ) {
+        let padH: CGFloat = 16
+        let padV: CGFloat = 10
+        glassEffectView.isHidden = false
+        glassEffectView.frame = textFrame.insetBy(dx: -padH, dy: -padV)
+
+        var mutable = NSMutableAttributedString(attributedString: attributedWithoutShadow(attributed))
+        let range = NSRange(location: 0, length: mutable.length)
+        mutable.addAttribute(.foregroundColor, value: UIColor.white.withAlphaComponent(0.96), range: range)
+        textLabel.attributedText = mutable
+        textLabel.textAlignment = alignment
+        textLabel.layer.shadowColor = UIColor.black.withAlphaComponent(0.35).cgColor
+        textLabel.layer.shadowRadius = 4
+        textLabel.layer.shadowOpacity = 1
+        textLabel.layer.shadowOffset = CGSize(width: 0, height: 1)
+    }
+
+    private func applyTape(
+        configuration: StoryTextRenderConfiguration,
+        attributed: NSAttributedString,
+        alignment: NSTextAlignment,
+        textFrame: CGRect
+    ) {
+        let padH: CGFloat = 18
+        let padV: CGFloat = 10
+        plateLayer.isHidden = false
+        plateLayer.backgroundColor = UIColor.white.withAlphaComponent(0.22).cgColor
+        plateLayer.cornerRadius = 4
+        plateLayer.frame = textFrame.insetBy(dx: -padH, dy: -padV)
+        plateLayer.zPosition = -1
+        plateLayer.transform = CATransform3DMakeRotation(-2.5 * .pi / 180, 0, 0, 1)
+
+        textLabel.attributedText = attributedWithoutShadow(attributed)
+        textLabel.textAlignment = alignment
+    }
+
+    private func clearAttributedString(from attributed: NSAttributedString) -> NSAttributedString {
+        let mutable = NSMutableAttributedString(attributedString: attributed)
+        let range = NSRange(location: 0, length: mutable.length)
+        mutable.addAttribute(.foregroundColor, value: UIColor.clear, range: range)
+        return mutable
+    }
+
+    private func textLayerAlignmentMode(for alignment: NSTextAlignment) -> CATextLayerAlignmentMode {
+        switch alignment {
+        case .left: return .left
+        case .right: return .right
+        default: return .center
+        }
     }
 
     private func applyNeon(
@@ -509,22 +776,37 @@ final class StoryTextOverlayContainerView: UIView {
         alignment: NSTextAlignment
     ) {
         let uiColor = UIColor(configuration.textColor)
+        let clean = attributedWithoutShadow(attributed)
+        let range = NSRange(location: 0, length: clean.length)
+
+        // Tubo de neón: color saturado pegado al trazo (sin halo difuso ancho).
+        let tube = NSMutableAttributedString(attributedString: clean)
+        tube.addAttribute(.foregroundColor, value: uiColor, range: range)
+
         glowLabel.isHidden = false
-        glowLabel.attributedText = attributed
+        glowLabel.attributedText = tube
         glowLabel.textAlignment = alignment
-        glowLabel.textColor = uiColor.withAlphaComponent(0.55)
         glowLabel.layer.shadowColor = uiColor.cgColor
-        glowLabel.layer.shadowRadius = 22
+        glowLabel.layer.shadowRadius = 2.5
         glowLabel.layer.shadowOpacity = 1
         glowLabel.layer.shadowOffset = .zero
+        glowLabel.layer.masksToBounds = false
 
-        textLabel.attributedText = attributed
+        // Núcleo caliente: blanco con un destello mínimo del mismo color.
+        let core = NSMutableAttributedString(attributedString: clean)
+        core.addAttribute(
+            .foregroundColor,
+            value: UIColor.white.withAlphaComponent(0.98),
+            range: range
+        )
+
+        textLabel.attributedText = core
         textLabel.textAlignment = alignment
-        textLabel.textColor = .white
         textLabel.layer.shadowColor = uiColor.cgColor
-        textLabel.layer.shadowRadius = 8
-        textLabel.layer.shadowOpacity = 0.95
+        textLabel.layer.shadowRadius = 1.5
+        textLabel.layer.shadowOpacity = 0.92
         textLabel.layer.shadowOffset = .zero
+        textLabel.layer.masksToBounds = false
     }
 
     private func applyMarker(configuration: StoryTextRenderConfiguration, textFrame: CGRect) {

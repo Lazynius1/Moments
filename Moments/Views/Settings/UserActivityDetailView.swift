@@ -16,6 +16,7 @@ struct ActivityInteractionDetailView: View {
     @State private var selectedAuthorId: String?
     @State private var showingAuthorFilterSheet = false
     @State private var selectedMomentForDetail: Moment?
+    @State private var recentlyDeletedStoryPresentation: RecentlyDeletedStoriesPresentation?
     @State private var storyRoute: IdentifiableString?
     @State private var selectedProfileUserIdForSheet: String?
     @State private var isSelectionMode = false
@@ -193,6 +194,12 @@ struct ActivityInteractionDetailView: View {
                 MomentDetailView(moment: moment)
             }
         }
+        .fullScreenCover(item: $recentlyDeletedStoryPresentation) { presentation in
+            ArchiveDayStoriesViewer(
+                stories: presentation.stories,
+                initialIndex: presentation.initialIndex
+            )
+        }
         .fullScreenCover(item: $storyRoute) { route in
             StoriesView(startWithUserId: .constant(route.id))
         }
@@ -313,6 +320,21 @@ struct ActivityInteractionDetailView: View {
         let id: String
     }
 
+    private struct RecentlyDeletedStoriesPresentation: Identifiable {
+        let id = UUID()
+        let stories: [Story]
+        let initialIndex: Int
+    }
+
+    private func openRecentlyDeletedStory(_ item: ActivityDeletedStoryItem) {
+        let items = filteredDeletedStoryItems
+        guard let index = items.firstIndex(where: { $0.id == item.id }) else { return }
+        recentlyDeletedStoryPresentation = RecentlyDeletedStoriesPresentation(
+            stories: items.map(\.story),
+            initialIndex: index
+        )
+    }
+
     private var reactionsContent: some View {
         VStack(spacing: 0) {
             reactionsFiltersBar
@@ -385,7 +407,8 @@ struct ActivityInteractionDetailView: View {
                                     item: item,
                                     size: side,
                                     isSelectionMode: isSelectionMode,
-                                    isSelected: selectedReactionIds.contains(item.id)
+                                    isSelected: selectedReactionIds.contains(item.id),
+                                    showsOverlayBadges: category != .recentlyDeleted
                                 )
                                 .frame(width: side, height: side)
                                 .contentShape(RoundedRectangle(cornerRadius: 8))
@@ -467,7 +490,9 @@ struct ActivityInteractionDetailView: View {
                                     }
                                     if isSelectionMode {
                                         toggleSelection(for: item.id)
+                                        return
                                     }
+                                    openRecentlyDeletedStory(item)
                                 }
                                 .onLongPressGesture(minimumDuration: 0.3) {
                                     longPressActivatedItemId = item.id
@@ -1116,6 +1141,10 @@ struct ActivityInteractionDetailView: View {
                     size: EchoesIconMetrics.emptyState,
                     gradient: EchoesIconView.echoesBrandGradient
                 )
+            } else if category == .recentlyDeleted {
+                Image(systemName: "trash")
+                    .font(.system(size: 40, weight: .light))
+                    .foregroundColor(.secondary.opacity(0.55))
             } else {
                 ZStack {
                     Circle()

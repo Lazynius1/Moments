@@ -520,7 +520,7 @@ final class ActivityInteractionDetailViewModel: ObservableObject, @unchecked Sen
                         id: doc.documentID,
                         authorId: userId,
                         momentId: doc.documentID,
-                        reactionType: "deleted_moment",
+                        reactionType: "moment",
                         reactedAt: timestamp,
                         moment: moment,
                         canView: true

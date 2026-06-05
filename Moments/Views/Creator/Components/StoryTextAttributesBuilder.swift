@@ -12,6 +12,8 @@ struct StoryTextRenderConfiguration: Equatable {
     var textStroke: StoryEditingView.TextStroke
     var forcesAllCaps: Bool = false
     var appliesDisplayTransform: Bool = true
+    var gradientStops: [Color] = []
+    var gradientAngle: Int = 0
 
     var effect: StoryEditingView.TextEffect { visualEffect }
 
@@ -112,11 +114,22 @@ enum StoryTextAttributesBuilder {
             attributes[.backgroundColor] = bg
         }
 
-        if let shadow = config.effect.nsShadow(for: textForegroundColor) {
-            attributes[.shadow] = shadow
+        // Glow / neon / sparkle se pintan con CALayer en StoryTextOverlayContainerView;
+        // NSShadow aquí duplica el efecto y lo deja borroso o “sucio”.
+        switch config.visualTreatment {
+        case .softGlow, .neonGlow, .sparklePulse, .pulseHalo, .gradientFill, .holographicFill,
+             .glassText, .textShimmer, .outlinePop, .stickerCutout, .tapeLabel:
+            break
+        default:
+            if let shadow = config.effect.nsShadow(for: textForegroundColor) {
+                attributes[.shadow] = shadow
+            }
         }
 
-        if config.textStroke != .none, config.visualTreatment != .memeStrong {
+        if config.textStroke != .none,
+           config.visualTreatment != .memeStrong,
+           config.visualTreatment != .outlinePop,
+           config.visualTreatment != .stickerCutout {
             attributes[.strokeColor] = textForegroundColor
             attributes[.strokeWidth] = config.textStroke.strokeWidth
         }
@@ -163,12 +176,18 @@ enum StoryTextAttributesBuilder {
         let measured = measuredSize(for: config, maxWidth: maxWidth)
         let glowPad: CGFloat
         switch config.visualTreatment {
-        case .neonGlow, .softGlow, .sparklePulse:
+        case .neonGlow:
+            glowPad = 14
+        case .softGlow, .sparklePulse, .pulseHalo, .textShimmer:
             glowPad = 28
-        case .markerHighlight, .boxedCaption:
+        case .gradientFill, .holographicFill:
             glowPad = 32
-        case .memeStrong:
-            glowPad = 16
+        case .markerHighlight, .boxedCaption, .tapeLabel:
+            glowPad = 32
+        case .glassText:
+            glowPad = 36
+        case .memeStrong, .stickerCutout, .outlinePop:
+            glowPad = 20
         default:
             glowPad = 12
         }

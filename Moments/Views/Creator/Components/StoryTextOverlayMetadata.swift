@@ -33,6 +33,12 @@ struct StoryTextOverlayDraft: Identifiable, Equatable {
     var textMotion: StoryEditingView.TextMotion = .none
     var forcesAllCaps: Bool = false
     var layerOrder: Int = 0
+    var gradientStopHexes: [String] = []
+    var gradientAngle: Int = 0
+
+    var gradientColors: [Color] {
+        StoryTextGradientSettings.decodeStops(gradientStopHexes, fallback: textColor)
+    }
 
     func metadata(in contentRect: CGRect) -> StoryTextOverlayMetadata? {
         StoryTextOverlayMetadata.build(
@@ -49,25 +55,31 @@ struct StoryTextOverlayDraft: Identifiable, Equatable {
             stroke: textStroke,
             visualEffect: visualEffect,
             motion: textMotion,
-            forcesAllCaps: forcesAllCaps
+            forcesAllCaps: forcesAllCaps,
+            gradientStopHexes: gradientStopHexes,
+            gradientAngle: gradientAngle
         )
     }
 
     static func from(metadata: StoryTextOverlayMetadata, canvasSize: CGSize) -> StoryTextOverlayDraft {
-        StoryTextOverlayDraft(
+        let color = Color(hex: metadata.colorHex)
+        return StoryTextOverlayDraft(
             id: metadata.id,
             text: metadata.text,
             position: metadata.displayPosition(in: canvasSize),
             style: StoryEditingView.TextStyle(rawValue: metadata.styleRaw) ?? .modern,
             visualEffect: StoryEditingView.TextEffect(storedRawValue: metadata.visualEffectRaw) ?? .none,
-            textColor: Color(hex: metadata.colorHex),
+            textColor: color,
             textAlignment: StoryTextOverlayMetadata.decodeAlignment(metadata.alignmentRaw),
             textBackgroundFill: StoryEditingView.TextBackgroundFill(rawValue: metadata.backgroundFillRaw) ?? .none,
             fontSize: CGFloat(metadata.fontSize),
             textStroke: StoryEditingView.TextStroke(rawValue: metadata.strokeRaw) ?? .none,
             textMotion: metadata.motion,
             forcesAllCaps: metadata.forcesAllCaps,
-            layerOrder: metadata.layerOrder
+            layerOrder: metadata.layerOrder,
+            gradientStopHexes: metadata.gradientStopHexes
+                ?? StoryTextGradientSettings.encodeStops(StoryTextGradientSettings.defaultStops(anchoredTo: color)),
+            gradientAngle: metadata.gradientAngle ?? 0
         )
     }
 }
@@ -88,6 +100,8 @@ struct StoryTextOverlayMetadata: Codable, Equatable {
     var motionRaw: String
     var forcesAllCaps: Bool
     var isLiveOverlay: Bool = true
+    var gradientStopHexes: [String]?
+    var gradientAngle: Int?
 
     enum CodingKeys: String, CodingKey {
         case id
@@ -104,6 +118,8 @@ struct StoryTextOverlayMetadata: Codable, Equatable {
         case motionRaw
         case forcesAllCaps
         case isLiveOverlay
+        case gradientStopHexes
+        case gradientAngle
     }
 
     private enum PointCodingKeys: String, CodingKey {
@@ -125,7 +141,9 @@ struct StoryTextOverlayMetadata: Codable, Equatable {
         visualEffectRaw: String,
         motionRaw: String,
         forcesAllCaps: Bool,
-        isLiveOverlay: Bool = true
+        isLiveOverlay: Bool = true,
+        gradientStopHexes: [String]? = nil,
+        gradientAngle: Int? = nil
     ) {
         self.id = id
         self.text = text
@@ -141,6 +159,8 @@ struct StoryTextOverlayMetadata: Codable, Equatable {
         self.motionRaw = motionRaw
         self.forcesAllCaps = forcesAllCaps
         self.isLiveOverlay = isLiveOverlay
+        self.gradientStopHexes = gradientStopHexes
+        self.gradientAngle = gradientAngle
     }
 
     static func build(
@@ -157,7 +177,9 @@ struct StoryTextOverlayMetadata: Codable, Equatable {
         stroke: StoryEditingView.TextStroke,
         visualEffect: StoryEditingView.TextEffect,
         motion: StoryEditingView.TextMotion,
-        forcesAllCaps: Bool
+        forcesAllCaps: Bool,
+        gradientStopHexes: [String] = [],
+        gradientAngle: Int = 0
     ) -> StoryTextOverlayMetadata? {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return nil }
@@ -183,7 +205,9 @@ struct StoryTextOverlayMetadata: Codable, Equatable {
             visualEffectRaw: visualEffect.rawValue,
             motionRaw: Self.sanitizeMotionRaw(motion.rawValue),
             forcesAllCaps: forcesAllCaps,
-            isLiveOverlay: true
+            isLiveOverlay: true,
+            gradientStopHexes: visualEffect == .gradient && !gradientStopHexes.isEmpty ? gradientStopHexes : nil,
+            gradientAngle: visualEffect == .gradient ? gradientAngle : nil
         )
     }
 
@@ -236,7 +260,9 @@ struct StoryTextOverlayMetadata: Codable, Equatable {
             textBackgroundFill: background,
             fontSize: CGFloat(fontSize),
             textStroke: stroke,
-            forcesAllCaps: forcesAllCaps
+            forcesAllCaps: forcesAllCaps,
+            gradientStops: StoryTextGradientSettings.decodeStops(gradientStopHexes, fallback: resolvedColor),
+            gradientAngle: gradientAngle ?? 0
         )
     }
 
@@ -279,6 +305,8 @@ struct StoryTextOverlayMetadata: Codable, Equatable {
         motionRaw = try container.decode(String.self, forKey: .motionRaw)
         forcesAllCaps = try container.decode(Bool.self, forKey: .forcesAllCaps)
         isLiveOverlay = try container.decodeIfPresent(Bool.self, forKey: .isLiveOverlay) ?? true
+        gradientStopHexes = try container.decodeIfPresent([String].self, forKey: .gradientStopHexes)
+        gradientAngle = try container.decodeIfPresent(Int.self, forKey: .gradientAngle)
 
         if let point = try? container.decode(CGPoint.self, forKey: .normalizedPosition) {
             normalizedPosition = point
@@ -305,6 +333,8 @@ struct StoryTextOverlayMetadata: Codable, Equatable {
         try container.encode(motionRaw, forKey: .motionRaw)
         try container.encode(forcesAllCaps, forKey: .forcesAllCaps)
         try container.encode(isLiveOverlay, forKey: .isLiveOverlay)
+        try container.encodeIfPresent(gradientStopHexes, forKey: .gradientStopHexes)
+        try container.encodeIfPresent(gradientAngle, forKey: .gradientAngle)
 
         var pointContainer = container.nestedContainer(keyedBy: PointCodingKeys.self, forKey: .normalizedPosition)
         try pointContainer.encode(normalizedPosition.x, forKey: .x)

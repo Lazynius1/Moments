@@ -150,6 +150,14 @@
 		<string>Bangers-Regular.ttf</string>
 		<string>DancingScript-Bold.ttf</string>
 		<string>CormorantGaramond-Italic.ttf</string>
+		<string>Oswald-Bold.ttf</string>
+		<string>Montserrat-Black.ttf</string>
+		<string>RobotoSlab-Bold.ttf</string>
+		<string>Satisfy-Regular.ttf</string>
+		<string>GreatVibes-Regular.ttf</string>
+		<string>PermanentMarker-Regular.ttf</string>
+		<string>IndieFlower-Regular.ttf</string>
+		<string>LeagueSpartan-Bold.ttf</string>
 	</array>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>

@@ -18,7 +18,15 @@ enum StoryFontRegistry {
         "Caveat-Bold",
         "Bangers-Regular",
         "DancingScript-Bold",
-        "CormorantGaramond-Italic"
+        "CormorantGaramond-Italic",
+        "Oswald-Bold",
+        "Montserrat-Black",
+        "RobotoSlab-Bold",
+        "Satisfy-Regular",
+        "GreatVibes-Regular",
+        "PermanentMarker-Regular",
+        "IndieFlower-Regular",
+        "LeagueSpartan-Bold"
     ]
 
     static func registerFontsIfNeeded() {

@@ -16,6 +16,9 @@ struct StoryTextEditor: View {
     @Binding var textStroke: StoryEditingView.TextStroke
     @Binding var textMotion: StoryEditingView.TextMotion
     @Binding var visualEffect: StoryEditingView.TextEffect
+    @Binding var gradientStops: [Color]
+    @Binding var gradientAngle: Int
+    @Binding var selectedGradientStopIndex: Int
     @Binding var forcesAllCaps: Bool
     var mediaSampleImage: UIImage?
 
@@ -37,7 +40,9 @@ struct StoryTextEditor: View {
             fontSize: textFontSize,
             textStroke: textStroke,
             forcesAllCaps: forcesAllCaps,
-            appliesDisplayTransform: true
+            appliesDisplayTransform: true,
+            gradientStops: StoryTextGradientSettings.normalizedStops(gradientStops, fallback: textColor),
+            gradientAngle: gradientAngle
         )
     }
 
@@ -164,6 +169,9 @@ struct StoryTextEditor: View {
                     textBackgroundFill: $textBackgroundFill,
                     textMotion: $textMotion,
                     visualEffect: $visualEffect,
+                    gradientStops: $gradientStops,
+                    gradientAngle: $gradientAngle,
+                    selectedGradientStopIndex: $selectedGradientStopIndex,
                     forcesAllCaps: $forcesAllCaps,
                     activeContext: $activeContext,
                     swatchColors: editorPalette,
@@ -172,6 +180,7 @@ struct StoryTextEditor: View {
                         isEyedropperActive = true
                     } : nil,
                     onStyleSelect: applyStyleSelection,
+                    onVisualEffectSelect: applyVisualEffectSelection,
                     onBackground: {
                         cycleTextBackgroundFill()
                     }
@@ -203,6 +212,32 @@ struct StoryTextEditor: View {
         .onChange(of: visualEffect) { _, _ in
             motionPreviewToken += 1
         }
+        .onChange(of: gradientStops) { _, _ in
+            motionPreviewToken += 1
+        }
+        .onChange(of: gradientAngle) { _, _ in
+            motionPreviewToken += 1
+        }
+        .onChange(of: textColor) { _, newColor in
+            guard visualEffect == .gradient,
+                  gradientStops.indices.contains(selectedGradientStopIndex) else { return }
+            gradientStops[selectedGradientStopIndex] = newColor
+        }
+    }
+
+    private func applyVisualEffectSelection(_ effect: StoryEditingView.TextEffect) {
+        withAnimation(.spring(response: 0.22, dampingFraction: 0.78)) {
+            visualEffect = effect
+            if effect == .gradient, gradientStops.count < StoryTextGradientSettings.minStops {
+                gradientStops = StoryTextGradientSettings.defaultStops(anchoredTo: textColor)
+                selectedGradientStopIndex = 0
+            }
+            if effect.opensColorContextOnSelect {
+                activeContext = .colors
+            }
+        }
+        motionPreviewToken += 1
+        UIImpactFeedbackGenerator(style: .light).impactOccurred()
     }
 
     private func applyStyleSelection(_ style: StoryEditingView.TextStyle) {
