@@ -16,6 +16,9 @@ const { policyFromFirestoreSettings } = require('./moderation/policy');
 
 const VIDEO_DOWNLOAD_MAX_BYTES = 250 * 1024 * 1024;
 const VIDEO_DOWNLOAD_TIMEOUT_MS = 60 * 1000;
+const IMAGE_DOWNLOAD_MAX_BYTES = 15 * 1024 * 1024;
+const IMAGE_DOWNLOAD_TIMEOUT_MS = 30 * 1000;
+const PUBLISHABLE_IMAGE_EXTENSIONS = new Set(['jpg', 'jpeg', 'png', 'webp', 'heic', 'heif']);
 setGlobalOptions({ region: 'europe-southwest1', memory: '256MiB', concurrency: 80, retry: true });
 const admin = require('firebase-admin');
 admin.initializeApp();
@@ -464,24 +467,97 @@ function createRekognitionClient() {
   });
 }
 
-async function downloadUrlToBuffer(url, { maxBytes = 15 * 1024 * 1024, expectedPrefix = '' } = {}) {
-  const response = await fetch(url);
-  if (!response.ok) {
-    throw new Error(`Media download failed with status ${response.status}`);
+function storageCustomMetadata(metadata = {}) {
+  return metadata.metadata && typeof metadata.metadata === 'object' ? metadata.metadata : {};
+}
+
+function storageMetadataOwnerMatches(metadata, uid) {
+  const ownerId = String(storageCustomMetadata(metadata).ownerId || '').trim();
+  return Boolean(ownerId && uid && ownerId === String(uid).trim());
+}
+
+function expectedImageMetadataFromObjectName(objectName) {
+  const parts = objectName.split('/');
+  if (parts.length === 6 && parts[2] === 'moments' && parts[4] === 'media') {
+    return { type: 'moment_image', contentKey: 'momentId', contentId: parts[3] };
+  }
+  if (parts.length === 6 && parts[2] === 'stories' && parts[4] === 'media') {
+    return { type: 'story_image', contentKey: 'storyId', contentId: parts[3] };
+  }
+  if (parts.length === 7 && parts[2] === 'moments' && parts[4] === 'hidden_layers') {
+    return { type: 'moment_hidden_layer_image', contentKey: 'momentId', contentId: parts[3], layerId: parts[5] };
+  }
+  return null;
+}
+
+async function downloadStorageObjectToBuffer({
+  bucket,
+  objectName,
+  uid,
+  maxBytes = IMAGE_DOWNLOAD_MAX_BYTES,
+  expectedPrefix = 'image/',
+  timeoutMs = IMAGE_DOWNLOAD_TIMEOUT_MS
+}) {
+  const file = bucket.file(objectName);
+  const [metadata] = await file.getMetadata();
+
+  if (!storageMetadataOwnerMatches(metadata, uid)) {
+    throw new Error('Storage object owner metadata does not match this user');
   }
 
-  const contentType = String(response.headers.get('content-type') || '').toLowerCase();
-  if (expectedPrefix && contentType && !contentType.startsWith(expectedPrefix)) {
-    throw new Error(`Unexpected content type: ${contentType}`);
+  const customMetadata = storageCustomMetadata(metadata);
+  const expectedMetadata = expectedImageMetadataFromObjectName(objectName);
+  if (!expectedMetadata || customMetadata.type !== expectedMetadata.type) {
+    throw new Error('Storage object is not approved image media');
+  }
+  if (String(customMetadata[expectedMetadata.contentKey] || '').trim() !== expectedMetadata.contentId) {
+    throw new Error('Storage object content metadata does not match its path');
+  }
+  if (expectedMetadata.layerId && String(customMetadata.layerId || '').trim() !== expectedMetadata.layerId) {
+    throw new Error('Storage object layer metadata does not match its path');
   }
 
-  const arrayBuffer = await response.arrayBuffer();
-  const buffer = Buffer.from(arrayBuffer);
-  if (buffer.length > maxBytes) {
-    throw new Error('Media download exceeds maximum allowed size');
+  const size = Number(metadata.size || 0);
+  if (size > maxBytes) {
+    throw new Error('Image download exceeds maximum allowed size');
   }
 
-  return buffer;
+  const contentType = String(metadata.contentType || '').toLowerCase();
+  if (!contentType || !contentType.startsWith(expectedPrefix)) {
+    throw new Error('Storage object is not an image');
+  }
+
+  return new Promise((resolve, reject) => {
+    let settled = false;
+    let receivedBytes = 0;
+    const chunks = [];
+    const readStream = file.createReadStream();
+    const timeout = setTimeout(() => {
+      readStream.destroy(new Error('Image download timed out'));
+    }, timeoutMs);
+
+    const done = (error) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timeout);
+      if (error) {
+        reject(error);
+      } else {
+        resolve(Buffer.concat(chunks));
+      }
+    };
+
+    readStream.on('data', (chunk) => {
+      receivedBytes += chunk.length;
+      if (receivedBytes > maxBytes) {
+        readStream.destroy(new Error('Image download exceeds maximum allowed size'));
+        return;
+      }
+      chunks.push(chunk);
+    });
+    readStream.on('error', done);
+    readStream.on('end', () => done());
+  });
 }
 
 async function callOpenAIModeration(input) {
@@ -926,7 +1002,12 @@ function storageObjectNameFromFirebaseUrl(url, expectedBucketName) {
   }
 }
 
-function userOwnedVideoObjectNameFromFirebaseUrl(url, userId) {
+function userOwnedPublishableMediaObjectNameFromFirebaseUrl(
+  url,
+  userId,
+  allowedExtensions,
+  { contentType = '', contentId = '', mediaItemId = '', requireContentBinding = false } = {}
+) {
   const bucket = admin.storage().bucket();
   const objectName = storageObjectNameFromFirebaseUrl(url, bucket.name);
   if (!objectName || !userId) return null;
@@ -934,23 +1015,100 @@ function userOwnedVideoObjectNameFromFirebaseUrl(url, userId) {
   const safeUid = String(userId).trim();
   if (!safeUid) return null;
 
-  // New layout: users/{uid}/moments|stories/{contentId}/media/{mediaId}.mp4
-  const newMediaMatch = objectName.match(
-    new RegExp(`^users/${safeUid}/(moments|stories)/[^/]+/media/[^/]+\\.mp4$`)
-  );
-  if (newMediaMatch) {
-    return objectName;
-  }
-
-  // Legacy layout: videos/{uuid}_{uid}.mp4
-  if (!objectName.startsWith('videos/')) return null;
-
-  const expectedSuffix = `_${safeUid}.mp4`;
-  if (path.posix.dirname(objectName) !== 'videos' || !path.posix.basename(objectName).endsWith(expectedSuffix)) {
+  const parts = objectName.split('/');
+  if (parts.length !== 6 || parts[0] !== 'users' || parts[1] !== safeUid || parts[4] !== 'media') {
     return null;
   }
 
+  const collection = parts[2];
+  if (!['moments', 'stories'].includes(collection)) return null;
+
+  const fileName = parts[5];
+  const extension = path.posix.extname(fileName).slice(1).toLowerCase();
+  if (!extension || !allowedExtensions.has(extension)) return null;
+
+  if (requireContentBinding) {
+    const expectedCollection = contentType === 'moment' ? 'moments' : contentType === 'story' ? 'stories' : '';
+    const expectedContentId = String(contentId || '').trim();
+    if (!expectedCollection || !expectedContentId) return null;
+    if (collection !== expectedCollection || parts[3] !== expectedContentId) return null;
+
+    const expectedMediaItemId = String(mediaItemId || '').trim();
+    if (expectedMediaItemId && path.posix.basename(fileName, path.posix.extname(fileName)) !== expectedMediaItemId) {
+      return null;
+    }
+  }
+
   return objectName;
+}
+
+function hiddenLayerIdFromMediaItemId(mediaItemId) {
+  const value = String(mediaItemId || '').trim();
+  const prefix = 'hiddenLayer_';
+  if (!value.startsWith(prefix) || value.length <= prefix.length) return '';
+  return value.slice(prefix.length);
+}
+
+function userOwnedHiddenLayerImageObjectNameFromFirebaseUrl(url, userId, { contentType = '', contentId = '', mediaItemId = '' } = {}) {
+  const bucket = admin.storage().bucket();
+  const objectName = storageObjectNameFromFirebaseUrl(url, bucket.name);
+  if (!objectName || !userId) return null;
+
+  const safeUid = String(userId).trim();
+  const expectedMomentId = String(contentId || '').trim();
+  const expectedLayerId = hiddenLayerIdFromMediaItemId(mediaItemId);
+  if (!safeUid || contentType !== 'moment' || !expectedMomentId || !expectedLayerId) return null;
+
+  const parts = objectName.split('/');
+  if (
+    parts.length !== 7 ||
+    parts[0] !== 'users' ||
+    parts[1] !== safeUid ||
+    parts[2] !== 'moments' ||
+    parts[3] !== expectedMomentId ||
+    parts[4] !== 'hidden_layers' ||
+    parts[5] !== expectedLayerId
+  ) {
+    return null;
+  }
+
+  const fileName = parts[6];
+  const extension = path.posix.extname(fileName).slice(1).toLowerCase();
+  if (path.posix.basename(fileName, path.posix.extname(fileName)) !== 'media') return null;
+  if (!extension || !PUBLISHABLE_IMAGE_EXTENSIONS.has(extension)) return null;
+
+  return objectName;
+}
+
+function userOwnedImageObjectNameFromFirebaseUrl(url, userId, expectedContent = {}) {
+  return (
+    userOwnedPublishableMediaObjectNameFromFirebaseUrl(url, userId, PUBLISHABLE_IMAGE_EXTENSIONS, {
+      ...expectedContent,
+      requireContentBinding: true
+    }) || userOwnedHiddenLayerImageObjectNameFromFirebaseUrl(url, userId, expectedContent)
+  );
+}
+
+function userOwnedVideoObjectNameFromFirebaseUrl(url, userId) {
+  const objectName = userOwnedPublishableMediaObjectNameFromFirebaseUrl(url, userId, new Set(['mp4']));
+  if (objectName) return objectName;
+
+  const bucket = admin.storage().bucket();
+  const legacyObjectName = storageObjectNameFromFirebaseUrl(url, bucket.name);
+  if (!legacyObjectName || !userId) return null;
+
+  const safeUid = String(userId).trim();
+  if (!safeUid) return null;
+
+  // Legacy layout: videos/{uuid}_{uid}.mp4
+  if (!legacyObjectName.startsWith('videos/')) return null;
+
+  const expectedSuffix = `_${safeUid}.mp4`;
+  if (path.posix.dirname(legacyObjectName) !== 'videos' || !path.posix.basename(legacyObjectName).endsWith(expectedSuffix)) {
+    return null;
+  }
+
+  return legacyObjectName;
 }
 
 async function downloadStorageObjectToFile({ bucket, objectName, destinationPath, maxBytes = VIDEO_DOWNLOAD_MAX_BYTES }) {
@@ -2613,6 +2771,9 @@ exports.moderateMediaContent = onRequest(
     const mediaType = typeof body.mediaType === 'string' ? body.mediaType : '';
     const mediaURL = typeof body.mediaURL === 'string' ? body.mediaURL.trim() : '';
     const imageBase64 = typeof body.imageBase64 === 'string' ? body.imageBase64.trim() : '';
+    const contentType = typeof body.contentType === 'string' ? body.contentType.trim() : '';
+    const contentId = typeof body.contentId === 'string' ? body.contentId.trim() : '';
+    const mediaItemId = typeof body.mediaItemId === 'string' ? body.mediaItemId.trim() : '';
 
     if (!['image', 'video', 'story_sticker'].includes(mediaType)) {
       res.status(400).json({ error: 'Unsupported mediaType' });
@@ -2637,7 +2798,13 @@ exports.moderateMediaContent = onRequest(
         const imageBuffer = Buffer.from(imageBase64, 'base64');
         decision = await moderateImageBufferWithFallback(imageBuffer);
       } else if (mediaType === 'image') {
-        const imageBuffer = await downloadUrlToBuffer(mediaURL, { maxBytes: 15 * 1024 * 1024, expectedPrefix: 'image/' });
+        const bucket = admin.storage().bucket();
+        const objectName = userOwnedImageObjectNameFromFirebaseUrl(mediaURL, uid, { contentType, contentId, mediaItemId });
+        if (!objectName) {
+          throw new Error('Image source must match publishable Firebase Storage media for this content and user');
+        }
+
+        const imageBuffer = await downloadStorageObjectToBuffer({ bucket, objectName, uid });
         decision = await moderateImageBufferWithFallback(imageBuffer);
       } else {
         const bucket = admin.storage().bucket();
