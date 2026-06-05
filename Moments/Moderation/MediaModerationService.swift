@@ -161,7 +161,13 @@ class MediaModerationService {
         mediaItemId: String?,
         completion: @escaping (MediaModerationAction) -> Void
     ) {
-        requestBackendModeration(mediaURL: url, mediaType: "image") { [weak self] result in
+        requestBackendModeration(
+            mediaURL: url,
+            mediaType: "image",
+            contentId: contentId,
+            contentType: contentType,
+            mediaItemId: mediaItemId
+        ) { [weak self] result in
             guard let self else {
                 DispatchQueue.main.async { completion(.approved) }
                 return
@@ -201,7 +207,13 @@ class MediaModerationService {
         mediaItemId: String?,
         completion: @escaping (MediaModerationAction) -> Void
     ) {
-        requestBackendModeration(mediaURL: url, mediaType: "video") { [weak self] result in
+        requestBackendModeration(
+            mediaURL: url,
+            mediaType: "video",
+            contentId: contentId,
+            contentType: contentType,
+            mediaItemId: mediaItemId
+        ) { [weak self] result in
             guard let self else {
                 DispatchQueue.main.async { completion(.approved) }
                 return
@@ -500,6 +512,9 @@ class MediaModerationService {
         mediaURL: String? = nil,
         mediaType: String,
         imageBase64: String? = nil,
+        contentId: String? = nil,
+        contentType: ContentType? = nil,
+        mediaItemId: String? = nil,
         completion: @escaping (MediaModerationResult) -> Void
     ) {
         guard let url = cloudFunctionURL(functionName: backendModerationFunctionName) else {
@@ -526,6 +541,15 @@ class MediaModerationService {
         }
         if let imageBase64 {
             body["imageBase64"] = imageBase64
+        }
+        if let contentId {
+            body["contentId"] = contentId
+        }
+        if let contentType {
+            body["contentType"] = contentType.rawValue
+        }
+        if let mediaItemId {
+            body["mediaItemId"] = mediaItemId
         }
 
         guard let jsonData = try? JSONSerialization.data(withJSONObject: body) else {
