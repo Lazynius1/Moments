@@ -1795,6 +1795,15 @@
 "contextMenu.pinLimit.cancel" = "Annulla";
 "contextMenu.pinMoment.toast.pinned" = "Momento fissato";
 "contextMenu.pinMoment.toast.unpinned" = "Momento rimosso dai fissati";
+"contextMenu.adjustPreview" = "Regola anteprima";
+"profileGridPreview.title" = "Regola anteprima";
+"profileGridPreview.mode.fill" = "Riempi";
+"profileGridPreview.mode.fit" = "Adatta";
+"profileGridPreview.background.black" = "Nero";
+"profileGridPreview.background.white" = "Bianco";
+"profileGridPreview.background.label" = "Sfondo";
+"profileGridPreview.hint" = "Pizzica per ingrandire e trascina per spostare. Doppio tocco per ripristinare.";
+"profileGridPreview.hint.drag" = "Trascina per regolare";
 "contextMenu.archiveMoment" = "Archivia momento";
 "contextMenu.archiveMoment.subtitle" = "Nascondi dal tuo profilo";
 "contextMenu.deleteMoment" = "Elimina momento";

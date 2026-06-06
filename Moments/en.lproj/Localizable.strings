@@ -1820,6 +1820,15 @@
 "contextMenu.pinLimit.cancel" = "Cancel";
 "contextMenu.pinMoment.toast.pinned" = "Moment pinned";
 "contextMenu.pinMoment.toast.unpinned" = "Moment unpinned";
+"contextMenu.adjustPreview" = "Adjust preview";
+"profileGridPreview.title" = "Adjust preview";
+"profileGridPreview.mode.fill" = "Fill";
+"profileGridPreview.mode.fit" = "Fit";
+"profileGridPreview.background.black" = "Black";
+"profileGridPreview.background.white" = "White";
+"profileGridPreview.background.label" = "Background";
+"profileGridPreview.hint" = "Pinch to zoom and drag to reposition. Double-tap to reset.";
+"profileGridPreview.hint.drag" = "Drag to adjust";
 "contextMenu.archiveMoment" = "Archive moment";
 "contextMenu.archiveMoment.subtitle" = "Hide from your profile";
 "contextMenu.deleteMoment" = "Delete moment";

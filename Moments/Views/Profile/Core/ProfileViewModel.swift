@@ -336,6 +336,17 @@ class ProfileViewModel: ObservableObject, UserListViewModel {
         }
     }
 
+    func applyGridPreview(momentId: String, settings: MomentGridPreviewSettings) {
+        moments = moments.map { moment in
+            guard moment.id == momentId else { return moment }
+            return momentWithGridPreview(moment, settings: settings)
+        }
+
+        if let userId = userProfile?.id {
+            LocalPersistenceService.shared.saveProfileMoments(moments, userId: userId, sync: true)
+        }
+    }
+
     func applyPinReplacement(unpinningMomentId: String, pinningMomentId: String, pinnedAt: Date) {
         moments = sortProfileMoments(
             moments.map { moment in
@@ -388,6 +399,61 @@ class ProfileViewModel: ObservableObject, UserListViewModel {
             archivedAt: moment.archivedAt,
             isPinned: isPinned,
             pinnedAt: pinnedAt,
+            gridPreviewScale: moment.gridPreviewScale,
+            gridPreviewOffsetX: moment.gridPreviewOffsetX,
+            gridPreviewOffsetY: moment.gridPreviewOffsetY,
+            gridPreviewFitMode: moment.gridPreviewFitMode,
+            gridPreviewBackground: moment.gridPreviewBackground,
+            hasHiddenLayers: moment.hasHiddenLayers,
+            hiddenLayerCount: moment.hiddenLayerCount,
+            isModerationHidden: moment.isModerationHidden,
+            originalAudience: moment.originalAudience,
+            reviewRequired: moment.reviewRequired,
+            canRestore: moment.canRestore
+        )
+    }
+
+    private func momentWithGridPreview(_ moment: Moment, settings: MomentGridPreviewSettings) -> Moment {
+        let persistedSettings = settings.isDefault ? MomentGridPreviewSettings.default : settings
+
+        return Moment(
+            id: moment.id,
+            authorId: moment.authorId,
+            username: moment.username,
+            content: moment.content,
+            imagePath: moment.imagePath,
+            videoUrl: moment.videoUrl,
+            timestamp: moment.timestamp,
+            reactions: moment.reactions,
+            commentCount: moment.commentCount,
+            profileImagePath: moment.profileImagePath,
+            taggedUsers: moment.taggedUsers,
+            mentionedUsers: moment.mentionedUsers,
+            location: moment.location,
+            locationCoordinate: moment.locationCoordinate,
+            audience: moment.audience,
+            mediaItems: moment.mediaItems,
+            aspectRatio: moment.aspectRatio,
+            customListId: moment.customListId,
+            thumbnailUrl: moment.thumbnailUrl,
+            videoDuration: moment.videoDuration,
+            videoFileSize: moment.videoFileSize,
+            videoResolution: moment.videoResolution,
+            disableComments: moment.disableComments,
+            hideLikeCounts: moment.hideLikeCounts,
+            allowSharing: moment.allowSharing,
+            scheduledDate: moment.scheduledDate,
+            trendingScore: moment.trendingScore,
+            engagementRate: moment.engagementRate,
+            isArchived: moment.isArchived,
+            archivedAt: moment.archivedAt,
+            isPinned: moment.isPinned,
+            pinnedAt: moment.pinnedAt,
+            gridPreviewScale: persistedSettings.isDefault ? nil : Double(persistedSettings.scale),
+            gridPreviewOffsetX: persistedSettings.isDefault ? nil : Double(persistedSettings.offsetX),
+            gridPreviewOffsetY: persistedSettings.isDefault ? nil : Double(persistedSettings.offsetY),
+            gridPreviewFitMode: persistedSettings.isDefault ? nil : persistedSettings.fitMode.rawValue,
+            gridPreviewBackground: persistedSettings.isDefault ? nil : persistedSettings.background.rawValue,
             hasHiddenLayers: moment.hasHiddenLayers,
             hiddenLayerCount: moment.hiddenLayerCount,
             isModerationHidden: moment.isModerationHidden,

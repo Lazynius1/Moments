@@ -1007,6 +1007,11 @@ final class LocalPersistenceService: ObservableObject {
         existing.scheduledDate = new.scheduledDate
         existing.isPinned = new.isPinned
         existing.pinnedAt = new.pinnedAt
+        existing.gridPreviewScale = new.gridPreviewScale
+        existing.gridPreviewOffsetX = new.gridPreviewOffsetX
+        existing.gridPreviewOffsetY = new.gridPreviewOffsetY
+        existing.gridPreviewFitMode = new.gridPreviewFitMode
+        existing.gridPreviewBackground = new.gridPreviewBackground
         existing.hasHiddenLayers = new.hasHiddenLayers
         existing.hiddenLayerCount = new.hiddenLayerCount
         existing.trendingScore = new.trendingScore

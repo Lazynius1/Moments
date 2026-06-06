@@ -3,6 +3,18 @@ import Kingfisher
 import AVFoundation
 import FirebaseAuth
 
+enum ProfileMomentsGridMetrics {
+    static let spacing: CGFloat = 1
+    static let columns = 3
+
+    static func height(for itemCount: Int) -> CGFloat {
+        let rows = ceil(Double(itemCount) / Double(columns))
+        let totalSpacing = spacing * CGFloat(columns - 1)
+        let itemWidth = (UIScreen.main.bounds.width - totalSpacing) / CGFloat(columns)
+        return CGFloat(rows) * itemWidth + (CGFloat(max(rows - 1, 0)) * spacing)
+    }
+}
+
 // MARK: - Thumbnail de momento moderno (OPTIMIZADO)
 struct ModernMomentThumbnail: View {
     let moment: Moment
@@ -95,24 +107,22 @@ struct ModernMomentThumbnail: View {
                     }
                 } else if let imagePath = moment.imagePath, let url = getImageURL(from: imagePath) {
                     // ✅ MANTENER: Fallback para momentos legacy con imagePath
-                    KFImage(url)
-                        .placeholder {
-                            RoundedRectangle(cornerRadius: 12)
-                                .fill(.ultraThinMaterial)
-                                .overlay(
-                                    Image(systemName: "photo")
-                                        .font(.system(size: 20))
-                                        .foregroundColor(.gray.opacity(0.6))
-                                )
-                                .overlay(ProgressView().tint(Color(hex: "007AFF")))
-                        }
-                        .resizable()
-                        .aspectRatio(contentMode: .fill)
-                        .frame(width: size, height: size)
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
-                        .contentShape(RoundedRectangle(cornerRadius: 12))
-                        .overlay(borderOverlay())
-                        .clipped()
+                    GridPreviewThumbnailFrame(size: size, settings: moment.gridPreviewSettings) {
+                        KFImage(url)
+                            .placeholder {
+                                Rectangle()
+                                    .fill(.ultraThinMaterial)
+                                    .overlay(
+                                        Image(systemName: "photo")
+                                            .font(.system(size: 20))
+                                            .foregroundColor(.gray.opacity(0.6))
+                                    )
+                                    .overlay(ProgressView().tint(Color(hex: "007AFF")))
+                            }
+                            .resizable()
+                    }
+                    .contentShape(Rectangle())
+                    .overlay(borderOverlay())
                 } else {
                     // ✅ MANTENER: Placeholder para sin contenido
                     emptyContentView()
@@ -185,9 +195,8 @@ struct ModernMomentThumbnail: View {
                     .padding(4)
                 }
             }
-        .scaleEffect(isPressed ? 0.96 : 1.0)
+        .scaleEffect(isPressed ? 0.97 : 1.0)
         .animation(.easeInOut(duration: 0.12), value: isPressed)
-        .shadow(color: .black.opacity(0.15), radius: 4, x: 0, y: 2)
         .overlay {
             if isInteractionEnabled, onTap != nil || onLongPress != nil {
                 ProfileMomentThumbnailGestureOverlay(
@@ -252,16 +261,14 @@ struct ModernMomentThumbnail: View {
     private func videoThumbnailView(videoURL: String) -> some View {
         ZStack {
             if let thumbnail = videoThumbnail {
-                Image(uiImage: thumbnail)
-                    .resizable()
-                    .aspectRatio(contentMode: .fill)
-                    .frame(width: size, height: size)
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
-                    .contentShape(RoundedRectangle(cornerRadius: 12))
-                    .overlay(borderOverlay())
-                    .clipped()
+                GridPreviewThumbnailFrame(size: size, settings: moment.gridPreviewSettings) {
+                    Image(uiImage: thumbnail)
+                        .resizable()
+                }
+                .contentShape(Rectangle())
+                .overlay(borderOverlay())
             } else {
-                RoundedRectangle(cornerRadius: 12)
+                Rectangle()
                     .fill(.ultraThinMaterial)
                     .frame(width: size, height: size)
                     .overlay(
@@ -299,28 +306,26 @@ struct ModernMomentThumbnail: View {
     @ViewBuilder
     private func imageView(imageURL: String) -> some View {
         if let url = getImageURL(from: imageURL) {
-            KFImage(url)
-                .placeholder {
-                    RoundedRectangle(cornerRadius: 12)
-                        .fill(.ultraThinMaterial)
-                        .overlay(
-                            VStack(spacing: 6) {
-                                ProgressView()
-                                    .tint(Color(hex: "007AFF"))
-                                    .scaleEffect(0.8)
-                                Text("profile.image.uploading")
-                                    .font(.custom("Poppins-Regular", size: 8))
-                                    .foregroundColor(.white.opacity(0.6))
-                            }
-                        )
-                }
-                .resizable()
-                .aspectRatio(contentMode: .fill)
-                .frame(width: size, height: size)
-                .clipShape(RoundedRectangle(cornerRadius: 12))
-                .contentShape(RoundedRectangle(cornerRadius: 12))
-                .overlay(borderOverlay())
-                .clipped()
+            GridPreviewThumbnailFrame(size: size, settings: moment.gridPreviewSettings) {
+                KFImage(url)
+                    .placeholder {
+                        Rectangle()
+                            .fill(.ultraThinMaterial)
+                            .overlay(
+                                VStack(spacing: 6) {
+                                    ProgressView()
+                                        .tint(Color(hex: "007AFF"))
+                                        .scaleEffect(0.8)
+                                    Text("profile.image.uploading")
+                                        .font(.custom("Poppins-Regular", size: 8))
+                                        .foregroundColor(.white.opacity(0.6))
+                                }
+                            )
+                    }
+                    .resizable()
+            }
+            .contentShape(Rectangle())
+            .overlay(borderOverlay())
         } else {
             emptyContentView()
         }
@@ -329,7 +334,7 @@ struct ModernMomentThumbnail: View {
     // ✅ NUEVA: Vista para contenido vacío
     @ViewBuilder
     private func emptyContentView() -> some View {
-        RoundedRectangle(cornerRadius: 12)
+        Rectangle()
             .fill(.ultraThinMaterial)
             .frame(width: size, height: size)
             .overlay(

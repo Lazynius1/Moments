@@ -1818,6 +1818,15 @@
 "contextMenu.pinLimit.cancel" = "Cancelar";
 "contextMenu.pinMoment.toast.pinned" = "Momento fijado";
 "contextMenu.pinMoment.toast.unpinned" = "Momento desfijado";
+"contextMenu.adjustPreview" = "Ajustar vista previa";
+"profileGridPreview.title" = "Ajustar vista previa";
+"profileGridPreview.mode.fill" = "Rellenar";
+"profileGridPreview.mode.fit" = "Ajustar";
+"profileGridPreview.background.black" = "Negro";
+"profileGridPreview.background.white" = "Blanco";
+"profileGridPreview.background.label" = "Fondo";
+"profileGridPreview.hint" = "Pellizca para ampliar y arrastra para mover. Doble toque para restablecer.";
+"profileGridPreview.hint.drag" = "Arrastra para ajustar";
 "contextMenu.archiveMoment" = "Archivar momento";
 "contextMenu.archiveMoment.subtitle" = "Ocultarlo de tu perfil";
 "contextMenu.deleteMoment" = "Eliminar momento";

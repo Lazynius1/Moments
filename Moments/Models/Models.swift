@@ -733,6 +733,11 @@ struct Moment: Identifiable, Codable, Equatable {
     let archivedAt: Date?             // ✅ NUEVO: Fecha de archivo
     let isPinned: Bool?
     let pinnedAt: Date?
+    let gridPreviewScale: Double?
+    let gridPreviewOffsetX: Double?
+    let gridPreviewOffsetY: Double?
+    let gridPreviewFitMode: String?
+    let gridPreviewBackground: String?
     let hasHiddenLayers: Bool
     let hiddenLayerCount: Int
     let isModerationHidden: Bool?
@@ -847,6 +852,7 @@ struct Moment: Identifiable, Codable, Equatable {
         case scheduledDate
         case isArchived, archivedAt
         case isPinned, pinnedAt
+        case gridPreviewScale, gridPreviewOffsetX, gridPreviewOffsetY, gridPreviewFitMode, gridPreviewBackground
         case thumbnailUrl, videoDuration, videoFileSize, videoResolution
         case trendingScore, engagementRate
         case hasHiddenLayers, hiddenLayerCount
@@ -914,6 +920,11 @@ struct Moment: Identifiable, Codable, Equatable {
         } else {
             self.pinnedAt = try container.decodeIfPresent(Date.self, forKey: .pinnedAt)
         }
+        self.gridPreviewScale = try container.decodeIfPresent(Double.self, forKey: .gridPreviewScale)
+        self.gridPreviewOffsetX = try container.decodeIfPresent(Double.self, forKey: .gridPreviewOffsetX)
+        self.gridPreviewOffsetY = try container.decodeIfPresent(Double.self, forKey: .gridPreviewOffsetY)
+        self.gridPreviewFitMode = try container.decodeIfPresent(String.self, forKey: .gridPreviewFitMode)
+        self.gridPreviewBackground = try container.decodeIfPresent(String.self, forKey: .gridPreviewBackground)
 
         self.disableComments = (try? container.decodeIfPresent(Bool.self, forKey: .disableComments)) ?? false
         self.hideLikeCounts = (try? container.decodeIfPresent(Bool.self, forKey: .hideLikeCounts)) ?? false
@@ -970,6 +981,11 @@ struct Moment: Identifiable, Codable, Equatable {
             try container.encode(Timestamp(date: pinnedAt), forKey: .pinnedAt)
         }
         try container.encodeIfPresent(isPinned, forKey: .isPinned)
+        try container.encodeIfPresent(gridPreviewScale, forKey: .gridPreviewScale)
+        try container.encodeIfPresent(gridPreviewOffsetX, forKey: .gridPreviewOffsetX)
+        try container.encodeIfPresent(gridPreviewOffsetY, forKey: .gridPreviewOffsetY)
+        try container.encodeIfPresent(gridPreviewFitMode, forKey: .gridPreviewFitMode)
+        try container.encodeIfPresent(gridPreviewBackground, forKey: .gridPreviewBackground)
 
         try container.encode(disableComments, forKey: .disableComments)
         try container.encode(hideLikeCounts, forKey: .hideLikeCounts)
@@ -1022,6 +1038,11 @@ struct Moment: Identifiable, Codable, Equatable {
         archivedAt: Date? = nil,
         isPinned: Bool? = nil,
         pinnedAt: Date? = nil,
+        gridPreviewScale: Double? = nil,
+        gridPreviewOffsetX: Double? = nil,
+        gridPreviewOffsetY: Double? = nil,
+        gridPreviewFitMode: String? = nil,
+        gridPreviewBackground: String? = nil,
         hasHiddenLayers: Bool = false,
         hiddenLayerCount: Int = 0,
         isModerationHidden: Bool? = nil,
@@ -1061,6 +1082,11 @@ struct Moment: Identifiable, Codable, Equatable {
         self.archivedAt = archivedAt
         self.isPinned = isPinned
         self.pinnedAt = pinnedAt
+        self.gridPreviewScale = gridPreviewScale
+        self.gridPreviewOffsetX = gridPreviewOffsetX
+        self.gridPreviewOffsetY = gridPreviewOffsetY
+        self.gridPreviewFitMode = gridPreviewFitMode
+        self.gridPreviewBackground = gridPreviewBackground
         self.hasHiddenLayers = hasHiddenLayers
         self.hiddenLayerCount = hiddenLayerCount
         self.isModerationHidden = isModerationHidden

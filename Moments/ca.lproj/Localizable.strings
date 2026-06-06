@@ -1793,6 +1793,15 @@
 "contextMenu.pinLimit.cancel" = "Cancel·lar";
 "contextMenu.pinMoment.toast.pinned" = "Moment fixat";
 "contextMenu.pinMoment.toast.unpinned" = "Moment desfixat";
+"contextMenu.adjustPreview" = "Ajustar vista prèvia";
+"profileGridPreview.title" = "Ajustar vista prèvia";
+"profileGridPreview.mode.fill" = "Omplir";
+"profileGridPreview.mode.fit" = "Ajustar";
+"profileGridPreview.background.black" = "Negre";
+"profileGridPreview.background.white" = "Blanc";
+"profileGridPreview.background.label" = "Fons";
+"profileGridPreview.hint" = "Pessiga per ampliar i arrossega per moure. Doble toc per restablir.";
+"profileGridPreview.hint.drag" = "Arrossega per ajustar";
 "contextMenu.archiveMoment" = "Arxivar moment";
 "contextMenu.archiveMoment.subtitle" = "Amagar-lo del teu perfil";
 "contextMenu.deleteMoment" = "Eliminar moment";

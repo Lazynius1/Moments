@@ -100,9 +100,9 @@ struct UserModernPublicProfileView: View {
                                     .frame(maxWidth: UIScreen.main.bounds.width - 40)
                             } else {
                                 GeometryReader { geometry in
-                                    let spacing: CGFloat = 4
-                                    let columns = 3
-                                    let totalSpacing = spacing * CGFloat(columns - 1) + 16
+                                    let spacing = ProfileMomentsGridMetrics.spacing
+                                    let columns = ProfileMomentsGridMetrics.columns
+                                    let totalSpacing = spacing * CGFloat(columns - 1)
                                     let itemWidth = (geometry.size.width - totalSpacing) / CGFloat(columns)
 
                                     LazyVGrid(columns: Array(repeating: GridItem(.fixed(itemWidth), spacing: spacing), count: columns), spacing: spacing) {
@@ -121,7 +121,6 @@ struct UserModernPublicProfileView: View {
                                             }
                                         }
                                     }
-                                    .padding(.horizontal, 8)
                                 }
                                 .frame(height: calculateGridHeight(itemCount: viewModel.moments.count))
                             }
@@ -142,9 +141,9 @@ struct UserModernPublicProfileView: View {
                                     .frame(height: 400, alignment: .top)
                                 } else {
                                     GeometryReader { geometry in
-                                        let spacing: CGFloat = 4
-                                        let columns = 3
-                                        let totalSpacing = spacing * CGFloat(columns - 1) + 16
+                                        let spacing = ProfileMomentsGridMetrics.spacing
+                                        let columns = ProfileMomentsGridMetrics.columns
+                                        let totalSpacing = spacing * CGFloat(columns - 1)
                                         let itemWidth = (geometry.size.width - totalSpacing) / CGFloat(columns)
 
                                         LazyVGrid(columns: Array(repeating: GridItem(.fixed(itemWidth), spacing: spacing), count: columns), spacing: spacing) {
@@ -163,7 +162,6 @@ struct UserModernPublicProfileView: View {
                                                 }
                                             }
                                         }
-                                        .padding(.horizontal, 8)
                                     }
                                     .frame(height: calculateGridHeight(itemCount: viewModel.taggedMoments.count))
                                 }

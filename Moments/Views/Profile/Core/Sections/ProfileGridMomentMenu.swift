@@ -115,6 +115,13 @@ struct ProfileMomentThumbnailGestureOverlay: UIViewRepresentable {
 // MARK: - Hero sizing
 
 private let profileGridHeroMaxWidth: CGFloat = 350
+private let profileGridHeroCornerRadius: CGFloat = 18
+private let profileGridHeroTopBleed: CGFloat = 22
+private let profileGridHeroCapsuleHeight: CGFloat = 60
+private let profileGridHeroCapsuleLeadingPadding: CGFloat = 6
+private let profileGridHeroCapsuleTrailingPadding: CGFloat = 12
+private let profileGridHeroAvatarSize: CGFloat = 34
+private let profileGridHeroCapsuleContentYOffset: CGFloat = 4
 
 private func profileGridHeroMediaHeight(width: CGFloat, aspectRatio: String?) -> CGFloat {
     let ratio = profileGridParsedAspectRatio(aspectRatio)
@@ -146,53 +153,99 @@ private struct ProfileGridHeroCard: View {
         profileGridHeroMediaHeight(width: width, aspectRatio: moment.aspectRatio)
     }
 
-    private var cardBackground: Color {
-        colorScheme == .dark ? Color(hex: "1C1C1E") : .white
-    }
-
     private var primaryTextColor: Color {
         colorScheme == .dark ? .white : .black
     }
 
     private var secondaryTextColor: Color {
-        colorScheme == .dark ? Color.white.opacity(0.65) : Color.black.opacity(0.55)
+        colorScheme == .dark ? Color.white.opacity(0.72) : Color.black.opacity(0.58)
+    }
+
+    private var locationText: String? {
+        let location = moment.location?.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let location, !location.isEmpty else { return nil }
+        return location
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            HStack(spacing: 8) {
-                AsyncProfileImageView(userId: moment.authorId)
-                    .frame(width: 28, height: 28)
-                    .clipShape(Circle())
-
-                VStack(alignment: .leading, spacing: 1) {
-                    Text(moment.username)
-                        .font(.custom("Poppins-SemiBold", size: 13))
-                        .foregroundColor(primaryTextColor)
-
-                    if let location = moment.location?.trimmingCharacters(in: .whitespacesAndNewlines),
-                       !location.isEmpty {
-                        Text(location)
-                            .font(.custom("Poppins-Regular", size: 11))
-                            .foregroundColor(secondaryTextColor)
-                            .lineLimit(1)
-                    }
-                }
-
-                Spacer(minLength: 0)
-            }
-            .padding(.horizontal, 12)
-            .padding(.top, 10)
-            .padding(.bottom, 8)
-
+        ZStack(alignment: .top) {
             heroMedia
-                .frame(width: width, height: mediaHeight)
-                .clipped()
+                .frame(width: width, height: mediaHeight + profileGridHeroTopBleed)
+                .offset(y: -profileGridHeroTopBleed * 0.72)
+
+            LinearGradient(
+                colors: [
+                    .black.opacity(colorScheme == .dark ? 0.38 : 0.24),
+                    .black.opacity(0.1),
+                    .clear
+                ],
+                startPoint: .top,
+                endPoint: UnitPoint(x: 0.5, y: 0.42)
+            )
+
+            heroTopGlassExtension
         }
-        .frame(width: width)
-        .background(cardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-        .shadow(color: .black.opacity(colorScheme == .dark ? 0.28 : 0.12), radius: 12, x: 0, y: 6)
+        .frame(width: width, height: mediaHeight)
+        .clipShape(RoundedRectangle(cornerRadius: profileGridHeroCornerRadius, style: .continuous))
+        .overlay(alignment: .topTrailing) {
+            if moment.primaryVisibleMediaItem?.type == .video {
+                Image(systemName: "play.fill")
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundColor(.white)
+                    .padding(8)
+                    .background(.black.opacity(0.38), in: Circle())
+                    .padding(.top, profileGridHeroCapsuleHeight + 6)
+                    .padding(.trailing, profileGridHeroCapsuleTrailingPadding)
+            }
+        }
+        .shadow(color: .black.opacity(colorScheme == .dark ? 0.32 : 0.14), radius: 16, x: 0, y: 8)
+    }
+
+    private var heroCapsuleShape: UnevenRoundedRectangle {
+        UnevenRoundedRectangle(
+            topLeadingRadius: profileGridHeroCornerRadius,
+            bottomLeadingRadius: 0,
+            bottomTrailingRadius: 0,
+            topTrailingRadius: profileGridHeroCornerRadius,
+            style: .continuous
+        )
+    }
+
+    private var heroTopGlassExtension: some View {
+        HStack(alignment: .center, spacing: 10) {
+            AsyncProfileImageView(userId: moment.authorId)
+                .frame(width: profileGridHeroAvatarSize, height: profileGridHeroAvatarSize)
+                .clipShape(Circle())
+                .overlay(Circle().strokeBorder(Color.white.opacity(0.28), lineWidth: 0.5))
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(moment.username)
+                    .font(.custom("Poppins-SemiBold", size: 13))
+                    .foregroundColor(.white)
+                    .shadow(color: .black.opacity(0.45), radius: 2, x: 0, y: 1)
+                    .lineLimit(1)
+
+                if let locationText {
+                    Text(locationText)
+                        .font(.custom("Poppins-Regular", size: 11))
+                        .foregroundColor(.white.opacity(0.82))
+                        .shadow(color: .black.opacity(0.4), radius: 2, x: 0, y: 1)
+                        .lineLimit(1)
+                }
+            }
+
+            Spacer(minLength: 0)
+        }
+        .padding(.leading, profileGridHeroCapsuleLeadingPadding)
+        .padding(.trailing, profileGridHeroCapsuleTrailingPadding)
+        .offset(y: profileGridHeroCapsuleContentYOffset)
+        .frame(height: profileGridHeroCapsuleHeight, alignment: .center)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background {
+            heroCapsuleShape
+                .fill(Color.black.opacity(0.22))
+        }
+        .liquidGlass(in: heroCapsuleShape)
     }
 
     @ViewBuilder
@@ -332,6 +385,7 @@ struct ProfileGridMomentMenuOverlay: View {
     let onEdit: (Moment) -> Void
     let onDelete: (Moment) -> Void
     let onArchive: (Moment) -> Void
+    let onAdjustPreview: (Moment) -> Void
     let onPin: (Moment, Bool, Bool) -> Void
 
     @Environment(\.colorScheme) private var colorScheme
@@ -421,6 +475,17 @@ struct ProfileGridMomentMenuOverlay: View {
                 ),
                 action: { handlePin(moment) }
             )
+
+            if moment.canAdjustGridPreview {
+                ProfileGridMenuRow(
+                    icon: "viewfinder",
+                    title: NSLocalizedString("contextMenu.adjustPreview", comment: "Adjust grid preview"),
+                    action: {
+                        dismissMenu()
+                        onAdjustPreview(moment)
+                    }
+                )
+            }
 
             ProfileGridMenuRow(
                 icon: "archivebox",
@@ -523,8 +588,9 @@ struct ProfileGridMomentMenuOverlay: View {
 
     private func heroStackCenterY(cardWidth: CGFloat, moment: Moment) -> CGFloat {
         let mediaHeight = profileGridHeroMediaHeight(width: cardWidth, aspectRatio: moment.aspectRatio)
-        let menuHeight: CGFloat = showPinConfirm ? 220 : CGFloat(46 * 4)
-        let stackHeight = 46 + mediaHeight + 14 + menuHeight
+        let menuRowCount = moment.canAdjustGridPreview ? 5 : 4
+        let menuHeight: CGFloat = showPinConfirm ? 220 : CGFloat(46 * menuRowCount)
+        let stackHeight = mediaHeight + 14 + menuHeight
         let minCenter = safeAreaInsets.top + 20 + (stackHeight / 2)
         let maxCenter = containerSize.height - safeAreaInsets.bottom - 20 - (stackHeight / 2)
         let preferred = containerSize.height / 2

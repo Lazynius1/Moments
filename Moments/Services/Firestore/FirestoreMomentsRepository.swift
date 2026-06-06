@@ -193,6 +193,34 @@ extension FirestoreService {
         }
     }
 
+    func updateMomentGridPreview(
+        userId: String,
+        momentId: String,
+        settings: MomentGridPreviewSettings,
+        completion: @escaping (Error?) -> Void
+    ) {
+        let momentRef = db.collection("users").document(userId).collection("moments").document(momentId)
+        var updateData: [String: Any] = [
+            "gridPreviewScale": settings.scale,
+            "gridPreviewOffsetX": settings.offsetX,
+            "gridPreviewOffsetY": settings.offsetY,
+            "gridPreviewFitMode": settings.fitMode.rawValue,
+            "gridPreviewBackground": settings.background.rawValue
+        ]
+
+        if settings.isDefault {
+            updateData["gridPreviewScale"] = FieldValue.delete()
+            updateData["gridPreviewOffsetX"] = FieldValue.delete()
+            updateData["gridPreviewOffsetY"] = FieldValue.delete()
+            updateData["gridPreviewFitMode"] = FieldValue.delete()
+            updateData["gridPreviewBackground"] = FieldValue.delete()
+        }
+
+        momentRef.updateData(updateData) { error in
+            completion(error)
+        }
+    }
+
     func pinMomentReplacingOldestIfNeeded(
         userId: String,
         momentId: String,

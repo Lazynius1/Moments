@@ -34,6 +34,11 @@ final class CachedMoment {
     var scheduledDate: Date?
     var isPinned: Bool?
     var pinnedAt: Date?
+    var gridPreviewScale: Double?
+    var gridPreviewOffsetX: Double?
+    var gridPreviewOffsetY: Double?
+    var gridPreviewFitMode: String?
+    var gridPreviewBackground: String?
     var hasHiddenLayers: Bool?
     var hiddenLayerCount: Int?
     
@@ -80,6 +85,11 @@ final class CachedMoment {
         scheduledDate: Date? = nil,
         isPinned: Bool? = nil,
         pinnedAt: Date? = nil,
+        gridPreviewScale: Double? = nil,
+        gridPreviewOffsetX: Double? = nil,
+        gridPreviewOffsetY: Double? = nil,
+        gridPreviewFitMode: String? = nil,
+        gridPreviewBackground: String? = nil,
         hasHiddenLayers: Bool? = false,
         hiddenLayerCount: Int? = 0,
         trendingScore: Double? = nil,
@@ -116,6 +126,11 @@ final class CachedMoment {
         self.scheduledDate = scheduledDate
         self.isPinned = isPinned
         self.pinnedAt = pinnedAt
+        self.gridPreviewScale = gridPreviewScale
+        self.gridPreviewOffsetX = gridPreviewOffsetX
+        self.gridPreviewOffsetY = gridPreviewOffsetY
+        self.gridPreviewFitMode = gridPreviewFitMode
+        self.gridPreviewBackground = gridPreviewBackground
         self.hasHiddenLayers = hasHiddenLayers
         self.hiddenLayerCount = hiddenLayerCount
         self.trendingScore = trendingScore
@@ -173,6 +188,11 @@ extension CachedMoment {
             scheduledDate: moment.scheduledDate,
             isPinned: moment.isPinned,
             pinnedAt: moment.pinnedAt,
+            gridPreviewScale: moment.gridPreviewScale,
+            gridPreviewOffsetX: moment.gridPreviewOffsetX,
+            gridPreviewOffsetY: moment.gridPreviewOffsetY,
+            gridPreviewFitMode: moment.gridPreviewFitMode,
+            gridPreviewBackground: moment.gridPreviewBackground,
             hasHiddenLayers: moment.hasHiddenLayers,
             hiddenLayerCount: moment.hiddenLayerCount,
             trendingScore: moment.trendingScore,
@@ -251,6 +271,11 @@ extension CachedMoment {
             engagementRate: engagementRate,
             isPinned: isPinned,
             pinnedAt: pinnedAt,
+            gridPreviewScale: gridPreviewScale,
+            gridPreviewOffsetX: gridPreviewOffsetX,
+            gridPreviewOffsetY: gridPreviewOffsetY,
+            gridPreviewFitMode: gridPreviewFitMode,
+            gridPreviewBackground: gridPreviewBackground,
             hasHiddenLayers: hasHiddenLayers ?? false,
             hiddenLayerCount: hiddenLayerCount ?? 0
         )

@@ -38,25 +38,23 @@ struct UserModernMomentThumbnail: View {
                     }
                 } else if let imagePath = moment.imagePath, let url = getImageURL(from: imagePath) {
                     // ✅ MANTENER: Fallback para momentos legacy con imagePath
-                    KFImage(url)
-                        .placeholder {
-                            RoundedRectangle(cornerRadius: 12)
-                                .fill(UserProfileColors.cardBackground)
-                                .frame(width: size, height: size)
-                                .overlay(
-                                    Image(systemName: "photo")
-                                        .font(.system(size: 20))
-                                        .foregroundColor(UserProfileColors.textTertiary)
-                                )
-                                .overlay(ProgressView().tint(UserProfileColors.accent))
-                        }
-                        .resizable()
-                        .aspectRatio(contentMode: .fill)
-                        .frame(width: size, height: size)
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
-                        .contentShape(RoundedRectangle(cornerRadius: 12))
-                        .overlay(borderOverlay())
-                        .clipped()
+                    GridPreviewThumbnailFrame(size: size, settings: moment.gridPreviewSettings) {
+                        KFImage(url)
+                            .placeholder {
+                                Rectangle()
+                                    .fill(UserProfileColors.cardBackground)
+                                    .frame(width: size, height: size)
+                                    .overlay(
+                                        Image(systemName: "photo")
+                                            .font(.system(size: 20))
+                                            .foregroundColor(UserProfileColors.textTertiary)
+                                    )
+                                    .overlay(ProgressView().tint(UserProfileColors.accent))
+                            }
+                            .resizable()
+                    }
+                    .contentShape(Rectangle())
+                    .overlay(borderOverlay())
                 } else {
                     // ✅ MANTENER: Placeholder para sin contenido
                     emptyContentView()
@@ -135,9 +133,8 @@ struct UserModernMomentThumbnail: View {
                     }
                 }
             }
-            .scaleEffect(isPressed ? 0.95 : 1.0)
+            .scaleEffect(isPressed ? 0.97 : 1.0)
             .animation(.easeInOut(duration: 0.1), value: isPressed)
-            .shadow(color: UserProfileColors.shadowColor, radius: 4, x: 0, y: 2)
         }
         .onLongPressGesture(minimumDuration: 0, maximumDistance: .infinity, pressing: { isPressed = $0 }, perform: {})
     }
@@ -157,16 +154,14 @@ struct UserModernMomentThumbnail: View {
     private func videoThumbnailView(videoURL: String) -> some View {
         ZStack {
             if let thumbnail = videoThumbnail {
-                Image(uiImage: thumbnail)
-                    .resizable()
-                    .aspectRatio(contentMode: .fill)
-                    .frame(width: size, height: size)
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
-                    .contentShape(RoundedRectangle(cornerRadius: 12))
-                    .overlay(borderOverlay())
-                    .clipped()
+                GridPreviewThumbnailFrame(size: size, settings: moment.gridPreviewSettings) {
+                    Image(uiImage: thumbnail)
+                        .resizable()
+                }
+                .contentShape(Rectangle())
+                .overlay(borderOverlay())
             } else {
-                RoundedRectangle(cornerRadius: 12)
+                Rectangle()
                     .fill(UserProfileColors.cardBackground)
                     .frame(width: size, height: size)
                     .overlay(
@@ -204,28 +199,26 @@ struct UserModernMomentThumbnail: View {
     @ViewBuilder
     private func imageView(imageURL: String) -> some View {
         if let url = getImageURL(from: imageURL) {
-            KFImage(url)
-                .placeholder {
-                    RoundedRectangle(cornerRadius: 12)
-                        .fill(UserProfileColors.cardBackground)
-                        .overlay(
-                            VStack(spacing: 6) {
-                                ProgressView()
-                                    .tint(UserProfileColors.accent)
-                                    .scaleEffect(0.8)
-                                Text("userProfile.image.loading")
-                                    .font(.custom("Poppins-Regular", size: 8))
-                                    .foregroundColor(UserProfileColors.textSecondary)
-                            }
-                        )
-                }
-                .resizable()
-                .aspectRatio(contentMode: .fill)
-                .frame(width: size, height: size)
-                .clipShape(RoundedRectangle(cornerRadius: 12))
-                .contentShape(RoundedRectangle(cornerRadius: 12))
-                .overlay(borderOverlay())
-                .clipped()
+            GridPreviewThumbnailFrame(size: size, settings: moment.gridPreviewSettings) {
+                KFImage(url)
+                    .placeholder {
+                        Rectangle()
+                            .fill(UserProfileColors.cardBackground)
+                            .overlay(
+                                VStack(spacing: 6) {
+                                    ProgressView()
+                                        .tint(UserProfileColors.accent)
+                                        .scaleEffect(0.8)
+                                    Text("userProfile.image.loading")
+                                        .font(.custom("Poppins-Regular", size: 8))
+                                        .foregroundColor(UserProfileColors.textSecondary)
+                                }
+                            )
+                    }
+                    .resizable()
+            }
+            .contentShape(Rectangle())
+            .overlay(borderOverlay())
         } else {
             emptyContentView()
         }
@@ -234,7 +227,7 @@ struct UserModernMomentThumbnail: View {
     // ✅ NUEVA: Vista para contenido vacío
     @ViewBuilder
     private func emptyContentView() -> some View {
-        RoundedRectangle(cornerRadius: 12)
+        Rectangle()
             .fill(UserProfileColors.cardBackground)
             .frame(width: size, height: size)
             .overlay(
@@ -302,10 +295,5 @@ struct UserModernMomentThumbnail: View {
 
 // MARK: - Función auxiliar para calcular altura del grid (añadir a UserModernPublicProfileView)
 func calculateGridHeight(itemCount: Int) -> CGFloat {
-    let columns = 3
-    let rows = ceil(Double(itemCount) / Double(columns))
-    let spacing: CGFloat = 4
-    let totalSpacing = spacing * CGFloat(columns - 1) + 16
-    let itemWidth = (UIScreen.main.bounds.width - totalSpacing) / 3
-    return CGFloat(rows) * itemWidth + (CGFloat(rows - 1) * spacing)
+    ProfileMomentsGridMetrics.height(for: itemCount)
 }

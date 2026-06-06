@@ -2605,6 +2605,15 @@
 "contextMenu.pinLimit.cancel" = "Cancelar";
 "contextMenu.pinMoment.toast.pinned" = "Momento fixado";
 "contextMenu.pinMoment.toast.unpinned" = "Momento desafixado";
+"contextMenu.adjustPreview" = "Ajustar pré-visualização";
+"profileGridPreview.title" = "Ajustar pré-visualização";
+"profileGridPreview.mode.fill" = "Preencher";
+"profileGridPreview.mode.fit" = "Ajustar";
+"profileGridPreview.background.black" = "Preto";
+"profileGridPreview.background.white" = "Branco";
+"profileGridPreview.background.label" = "Fundo";
+"profileGridPreview.hint" = "Belisque para ampliar e arraste para mover. Toque duplo para repor.";
+"profileGridPreview.hint.drag" = "Arraste para ajustar";
 "contextMenu.archiveMoment" = "Arquivar moment";
 "contextMenu.archiveMoment.subtitle" = "Ocultar do teu perfil";
 "contextMenu.deleteMoment" = "Eliminar moment";

@@ -93,6 +93,7 @@ struct ModernProfileContentView: View {
     @State private var gridMenuSelection: ProfileGridMomentMenuSelection?
     @State private var showGridPinConfirm = false
     @State private var gridMenuToastMessage: String?
+    @State private var gridPreviewMoment: Moment?
 
     var body: some View {
         if viewModel.isLoading {
@@ -165,9 +166,9 @@ struct ModernProfileContentView: View {
                                         .frame(maxWidth: UIScreen.main.bounds.width - 40)
                                 } else {
                                     GeometryReader { geometry in
-                                        let spacing: CGFloat = 4
-                                        let columns = 3
-                                        let totalSpacing = spacing * CGFloat(columns - 1) + 16
+                                        let spacing = ProfileMomentsGridMetrics.spacing
+                                        let columns = ProfileMomentsGridMetrics.columns
+                                        let totalSpacing = spacing * CGFloat(columns - 1)
                                         let itemWidth = (geometry.size.width - totalSpacing) / CGFloat(columns)
                                         LazyVGrid(columns: Array(repeating: GridItem(.fixed(itemWidth), spacing: spacing), count: columns), spacing: spacing) {
                                             ForEach(Array(viewModel.moments.enumerated()), id: \.offset) { index, moment in
@@ -189,7 +190,6 @@ struct ModernProfileContentView: View {
                                                 }
                                             }
                                         }
-                                        .padding(.horizontal, 8)
                                     }
                                     .frame(height: calculateGridHeight(itemCount: viewModel.moments.count))
                                 }
@@ -220,37 +220,33 @@ struct ModernProfileContentView: View {
                                         )
                                         .frame(height: 400, alignment: .top)
                                     } else {
-                                        LazyVGrid(columns: [
-                                            GridItem(.flexible(), spacing: 4),
-                                            GridItem(.flexible(), spacing: 4),
-                                            GridItem(.flexible(), spacing: 4)
-                                        ], spacing: 4) {
-                                            ForEach(Array(viewModel.taggedMoments.enumerated()), id: \.element.id) { index, moment in
-                                                ScreenshotProtectedView(
-                                                    isProtected: (moment.audience?.lowercased() ?? "") != "everyone"
-                                                ) {
-                                                    Button(action: {
-                                                        selectedMomentIndex = index
-                                                        showMomentDetail = true
-                                                    }) {
-                                                        if let imagePath = moment.imagePath, let url = URL(string: imagePath) {
-                                                            AsyncImage(url: url) { image in
-                                                                image
-                                                                    .resizable()
-                                                                    .aspectRatio(contentMode: .fill)
-                                                            } placeholder: {
-                                                                Rectangle()
-                                                                    .fill(Color.gray.opacity(0.3))
+                                        GeometryReader { geometry in
+                                            let spacing = ProfileMomentsGridMetrics.spacing
+                                            let columns = ProfileMomentsGridMetrics.columns
+                                            let totalSpacing = spacing * CGFloat(columns - 1)
+                                            let itemWidth = (geometry.size.width - totalSpacing) / CGFloat(columns)
+
+                                            LazyVGrid(
+                                                columns: Array(repeating: GridItem(.fixed(itemWidth), spacing: spacing), count: columns),
+                                                spacing: spacing
+                                            ) {
+                                                ForEach(Array(viewModel.taggedMoments.enumerated()), id: \.element.id) { index, moment in
+                                                    ScreenshotProtectedView(
+                                                        isProtected: (moment.audience?.lowercased() ?? "") != "everyone"
+                                                    ) {
+                                                        ModernMomentThumbnail(
+                                                            moment: moment,
+                                                            size: itemWidth,
+                                                            customListNamesById: viewModel.customListNamesById,
+                                                            onTap: {
+                                                                selectedMomentIndex = index
+                                                                showMomentDetail = true
                                                             }
-                                                            .frame(width: (UIScreen.main.bounds.width - 16) / 3, height: (UIScreen.main.bounds.width - 16) / 3)
-                                                            .clipped()
-                                                            .cornerRadius(4)
-                                                        }
+                                                        )
                                                     }
                                                 }
                                             }
                                         }
-                                        .padding(.horizontal, 8)
                                         .frame(height: calculateGridHeight(itemCount: viewModel.taggedMoments.count))
                                     }
                                 }
@@ -321,11 +317,55 @@ struct ModernProfileContentView: View {
                             viewModel.moments.removeAll { $0.id == momentId }
                         }
                     },
+                    onAdjustPreview: { moment in
+                        gridPreviewMoment = moment
+                    },
                     onPin: { moment, shouldPin, replaceOldest in
                         handleGridPin(moment: moment, shouldPin: shouldPin, replaceOldest: replaceOldest)
                     }
                 )
                 }
+            }
+            .sheet(item: $gridPreviewMoment) { moment in
+                if let imagePath = moment.previewImageURLString,
+                   let url = profileGridPreviewImageURL(from: imagePath) {
+                    ProfileGridPreviewEditorView(
+                        imageURL: url,
+                        initialSettings: moment.gridPreviewSettings,
+                        onSave: { settings in
+                            saveGridPreview(for: moment, settings: settings)
+                        }
+                    )
+                    .presentationDetents([.large])
+                    .presentationDragIndicator(.visible)
+                }
+            }
+        }
+    }
+
+    private func profileGridPreviewImageURL(from path: String) -> URL? {
+        if path.hasPrefix("https://") {
+            return URL(string: path)
+        }
+        let baseURLString = "https://firebasestorage.googleapis.com/v0/b/glowsy-6a40e/o/"
+        let encodedPath = path.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? path
+        return URL(string: "\(baseURLString)\(encodedPath)?alt=media")
+    }
+
+    private func saveGridPreview(for moment: Moment, settings: MomentGridPreviewSettings) {
+        guard let momentId = moment.id else { return }
+        let previousSettings = moment.gridPreviewSettings
+
+        viewModel.applyGridPreview(momentId: momentId, settings: settings)
+
+        FirestoreService.shared.updateMomentGridPreview(
+            userId: moment.authorId,
+            momentId: momentId,
+            settings: settings
+        ) { error in
+            guard error != nil else { return }
+            DispatchQueue.main.async {
+                viewModel.applyGridPreview(momentId: momentId, settings: previousSettings)
             }
         }
     }
@@ -389,11 +429,7 @@ struct ModernProfileContentView: View {
 
     // Moved calculateGridHeight to this scope
     private func calculateGridHeight(itemCount: Int) -> CGFloat {
-        let columns = 3
-        let rows = ceil(Double(itemCount) / Double(columns))
-        let spacing: CGFloat = 4
-        let itemWidth = (UIScreen.main.bounds.width - 16 - (spacing * 2)) / 3
-        return CGFloat(rows) * itemWidth + (CGFloat(rows - 1) * spacing)
+        ProfileMomentsGridMetrics.height(for: itemCount)
     }
 }
 
