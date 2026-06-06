@@ -326,7 +326,8 @@ final class ActivityInteractionDetailViewModel: ObservableObject, @unchecked Sen
 
         do {
             for id in ids {
-                try await FirestoreService.shared.unarchiveMoment(momentId: id, userId: userId)
+                let ownerId = self.reactionItems.first(where: { $0.id == id })?.authorId ?? userId
+                try await FirestoreService.shared.unarchiveMoment(momentId: id, userId: ownerId)
             }
             await MainActor.run {
                 self.reactionItems.removeAll { ids.contains($0.id) }

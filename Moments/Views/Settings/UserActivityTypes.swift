@@ -23,19 +23,23 @@ enum RecentlyDeletedConfirmationAction: Identifiable {
 }
 
 enum ActivitySelectionConfirmationAction: Identifiable {
-    case archivedRestore
+    case archivedRestore(ids: Set<String>)
     case reactionsDelete
     case tagsRemove
     case commentsDelete
     case stickerRepliesDelete
+    case recentlyDeletedRestore
+    case recentlyDeletedDelete
 
     var id: String {
         switch self {
-        case .archivedRestore: return "archivedRestore"
+        case .archivedRestore(let ids): return "archivedRestore-\(ids.sorted().joined(separator: ","))"
         case .reactionsDelete: return "reactionsDelete"
         case .tagsRemove: return "tagsRemove"
         case .commentsDelete: return "commentsDelete"
         case .stickerRepliesDelete: return "stickerRepliesDelete"
+        case .recentlyDeletedRestore: return "recentlyDeletedRestore"
+        case .recentlyDeletedDelete: return "recentlyDeletedDelete"
         }
     }
 }

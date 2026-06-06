@@ -3044,6 +3044,8 @@
 "userActivity.event.archived.confirm.restore.title" = "Restaurar archivados";
 "userActivity.event.archived.confirm.restore.message" = "¿Quieres restaurar el contenido archivado seleccionado?";
 "userActivity.event.archived.success.restore" = "Contenido archivado restaurado";
+"userActivity.event.archived.processing.restore" = "Restaurando archivados";
+"userActivity.event.archived.processingButton.restore" = "Restaurando…";
 "userActivity.simple.stickers.confirm.delete.title" = "Eliminar respuestas";
 "userActivity.simple.stickers.confirm.delete.message" = "¿Quieres eliminar las respuestas seleccionadas?";
 "userActivity.simple.stickers.success.delete" = "Respuestas eliminadas";

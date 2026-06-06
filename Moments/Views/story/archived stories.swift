@@ -11,6 +11,8 @@ struct ArchiveView: View {
     @StateObject private var viewModel = ArchiveViewModel()
     @State private var storyViewerPresentation: StoryViewerPresentation?
     @State private var storyStatsPresentation: StoryStatsPresentation?
+    @State private var highlightedActivityStoryId: String?
+    @State private var archiveStoryCardFrames: [String: CGRect] = [:]
     @State private var selectedDisplayMode: ArchiveDisplayMode = .stories
     @State private var mapPosition: MapCameraPosition = .region(
         MKCoordinateRegion(
@@ -112,25 +114,40 @@ struct ArchiveView: View {
                             )
                         } else {
                             ScrollView {
-                                LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 3), count: 3), spacing: 3) {
-                                    ForEach(storiesForGrid) { story in
-                                        ArchiveStorySquareCard(
-                                            story: story,
-                                            onTap: {
-                                                storyViewerPresentation = StoryViewerPresentation(
-                                                    stories: [story],
-                                                    initialIndex: 0
-                                                )
-                                            },
-                                            onStatsTap: {
-                                                storyStatsPresentation = StoryStatsPresentation(story: story)
-                                            }
-                                        )
+                                ZStack(alignment: .topLeading) {
+                                    LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 3), count: 3), spacing: 3) {
+                                        ForEach(storiesForGrid) { story in
+                                            ArchiveStorySquareCard(
+                                                story: story,
+                                                isLifted: highlightedActivityStoryId == story.id,
+                                                onTap: {
+                                                    storyViewerPresentation = StoryViewerPresentation(
+                                                        stories: [story],
+                                                        initialIndex: 0
+                                                    )
+                                                },
+                                                onStatsTap: {
+                                                    presentStoryActivity(for: story)
+                                                }
+                                            )
+                                        }
+                                    }
+                                    .padding(.horizontal, sectionHorizontalPadding)
+                                    .padding(.top, 8)
+                                    .padding(.bottom, 20)
+
+                                    if let storyId = highlightedActivityStoryId,
+                                       let frame = archiveStoryCardFrames[storyId],
+                                       let story = storiesForGrid.first(where: { $0.id == storyId }) {
+                                        ArchiveStoryLiftedPreview(story: story, frame: frame)
+                                            .zIndex(2)
+                                            .transition(.identity)
                                     }
                                 }
-                                .padding(.horizontal, sectionHorizontalPadding)
-                                .padding(.top, 8)
-                                .padding(.bottom, 20)
+                                .coordinateSpace(name: "archiveStoryGrid")
+                            }
+                            .onPreferenceChange(ArchiveStoryCardFrameKey.self) { frames in
+                                archiveStoryCardFrames = frames
                             }
                         }
                     case .calendar:
@@ -229,12 +246,19 @@ struct ArchiveView: View {
                 initialIndex: presentation.initialIndex
             )
         }
-        .sheet(item: $storyStatsPresentation) { presentation in
+        .sheet(item: $storyStatsPresentation, onDismiss: {
+            highlightedActivityStoryId = nil
+        }) { presentation in
             StoryStatsView(story: presentation.story)
         }
         .navigationDestination(isPresented: $navigateToArchivedMoments) {
             ActivityInteractionDetailView(category: .archived)
         }
+    }
+
+    private func presentStoryActivity(for story: Story) {
+        highlightedActivityStoryId = story.id
+        storyStatsPresentation = StoryStatsPresentation(story: story)
     }
 
     private func archiveEmptyView(icon: String, text: String) -> some View {
@@ -996,73 +1020,129 @@ struct ArchiveStoryVerticalCard: View {
     }
 }
 
-// MARK: - Archive Story SQUARE Card
-struct ArchiveStorySquareCard: View {
-    let story: Story
-    let onTap: () -> Void
-    let onStatsTap: () -> Void
-    
-    var body: some View {
-        Button(action: onTap) {
-            GeometryReader { geometry in
-                ZStack {
-                    if let url = URL(string: story.mediaItem.url) {
-                        KFImage(url)
-                            .placeholder {
-                                RoundedRectangle(cornerRadius: 8)
-                                    .fill(Color.gray.opacity(0.24))
-                            }
-                            .resizable()
-                            .scaledToFill()
-                            .frame(width: geometry.size.width, height: geometry.size.height)
-                            .clipped()
-                    } else {
-                        RoundedRectangle(cornerRadius: 8)
-                            .fill(Color.gray.opacity(0.26))
-                            .overlay(
-                                Image(systemName: "photo")
-                                    .foregroundColor(.gray)
-                            )
-                    }
-                    
-                    if story.mediaItem.type == .video {
-                        VStack {
-                            HStack {
-                                Spacer()
-                                Image(systemName: "play.circle.fill")
-                                    .foregroundColor(.white)
-                                    .font(.system(size: 15))
-                                    .shadow(radius: 2)
-                            }
-                            Spacer()
-                        }
-                        .padding(7)
-                    }
+private struct ArchiveStoryCardFrameKey: PreferenceKey {
+    static var defaultValue: [String: CGRect] = [:]
 
+    static func reduce(value: inout [String: CGRect], nextValue: () -> [String: CGRect]) {
+        value.merge(nextValue(), uniquingKeysWith: { _, new in new })
+    }
+}
+
+private struct ArchiveStoryCardVisual: View {
+    let story: Story
+    let cornerRadius: CGFloat
+
+    var body: some View {
+        GeometryReader { geometry in
+            ZStack {
+                if let url = URL(string: story.mediaItem.url) {
+                    KFImage(url)
+                        .placeholder {
+                            RoundedRectangle(cornerRadius: cornerRadius)
+                                .fill(Color.gray.opacity(0.24))
+                        }
+                        .resizable()
+                        .scaledToFill()
+                        .frame(width: geometry.size.width, height: geometry.size.height)
+                        .clipped()
+                } else {
+                    RoundedRectangle(cornerRadius: cornerRadius)
+                        .fill(Color.gray.opacity(0.26))
+                        .overlay(
+                            Image(systemName: "photo")
+                                .foregroundColor(.gray)
+                        )
+                }
+
+                if story.mediaItem.type == .video {
                     VStack {
                         HStack {
-                            Text(formatShortDate(story.timestamp))
-                                .font(.custom("Poppins-SemiBold", size: 9))
-                                .foregroundColor(.white)
-                                .padding(.horizontal, 6)
-                                .padding(.vertical, 3)
-                                .background(
-                                    Capsule()
-                                        .fill(Color.black.opacity(0.6))
-                                )
                             Spacer()
+                            Image(systemName: "play.circle.fill")
+                                .foregroundColor(.white)
+                                .font(.system(size: 15))
+                                .shadow(radius: 2)
                         }
                         Spacer()
                     }
-                    .padding(4)
+                    .padding(7)
+                }
+
+                VStack {
+                    HStack {
+                        Text(ArchiveStoryCardVisual.formatShortDate(story.timestamp))
+                            .font(.custom("Poppins-SemiBold", size: 9))
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 3)
+                            .background(
+                                Capsule()
+                                    .fill(Color.black.opacity(0.6))
+                            )
+                        Spacer()
+                    }
+                    Spacer()
+                }
+                .padding(4)
+            }
+        }
+        .aspectRatio(9.0 / 16.0, contentMode: .fit)
+        .clipShape(RoundedRectangle(cornerRadius: cornerRadius))
+    }
+
+    static func formatShortDate(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.locale = Locale.current
+        formatter.dateFormat = "d MMM"
+        return formatter.string(from: date)
+    }
+}
+
+private struct ArchiveStoryLiftedPreview: View {
+    let story: Story
+    let frame: CGRect
+
+    var body: some View {
+        ArchiveStoryCardVisual(story: story, cornerRadius: 12)
+            .frame(width: frame.width, height: frame.height)
+            .scaleEffect(1.14)
+            .shadow(color: Color.black.opacity(0.38), radius: 22, y: 10)
+            .position(x: frame.midX, y: frame.midY)
+            .allowsHitTesting(false)
+    }
+}
+
+// MARK: - Archive Story SQUARE Card
+struct ArchiveStorySquareCard: View {
+    let story: Story
+    var isLifted: Bool = false
+    let onTap: () -> Void
+    let onStatsTap: () -> Void
+
+    var body: some View {
+        Button(action: onTap) {
+            ZStack {
+                ArchiveStoryCardVisual(story: story, cornerRadius: 8)
+                    .opacity(isLifted ? 0 : 1)
+
+                if isLifted {
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(Color.gray.opacity(0.24))
+                        .aspectRatio(9.0 / 16.0, contentMode: .fit)
                 }
             }
-            .aspectRatio(9.0 / 16.0, contentMode: .fit)
-            .cornerRadius(8)
             .overlay(
                 RoundedRectangle(cornerRadius: 8)
                     .stroke(Color.gray.opacity(0.14), lineWidth: 0.5)
             )
+            .background {
+                GeometryReader { proxy in
+                    Color.clear.preference(
+                        key: ArchiveStoryCardFrameKey.self,
+                        value: story.id.map { [$0: proxy.frame(in: .named("archiveStoryGrid"))] } ?? [:]
+                    )
+                }
+            }
         }
         .buttonStyle(PlainButtonStyle())
         .contextMenu {
@@ -1072,13 +1152,6 @@ struct ArchiveStorySquareCard: View {
                 Label("archivedStories.viewActivity", systemImage: "chart.bar.fill")
             }
         }
-    }
-    
-    private func formatShortDate(_ date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.locale = Locale.current
-        formatter.dateFormat = "d MMM"
-        return formatter.string(from: date)
     }
 }
 
@@ -1168,205 +1241,264 @@ struct ArchiveDayStoriesViewer: View {
 // MARK: - Story Stats View
 struct StoryStatsView: View {
     let story: Story
-    @Environment(\.dismiss) var dismiss
-    @Environment(\.colorScheme) var colorScheme
+    @Environment(\.dismiss) private var dismiss
+    @Environment(\.colorScheme) private var colorScheme
     @StateObject private var viewModel = StoryStatsViewModel()
-    @State private var selectedSection: StatsSection = .viewers
+    @State private var selectedTab = 0
     @State private var viewerSearchText = ""
-    
-    enum StatsSection: String, CaseIterable, Identifiable {
-        case viewers
-        case reactions
-        
-        var id: String { rawValue }
-        
-        var titleKey: String {
-            switch self {
-            case .viewers: return "archivedStories.whoViewed"
-            case .reactions: return "archivedStories.reactions"
+    @State private var reactionSearchText = ""
+    @State private var reactionUsersById: [String: AppUser] = [:]
+
+    private var primaryText: Color {
+        colorScheme == .dark ? .white : .black.opacity(0.88)
+    }
+
+    private var secondaryText: Color {
+        colorScheme == .dark ? .white.opacity(0.62) : .black.opacity(0.54)
+    }
+
+    var body: some View {
+        Group {
+            if viewModel.isLoading {
+                VStack(spacing: 14) {
+                    ProgressView()
+                        .tint(primaryText)
+
+                    Text(NSLocalizedString("archivedStories.loadingStats", comment: "Loading statistics"))
+                        .font(.custom("Poppins-Regular", size: 14))
+                        .foregroundColor(secondaryText)
+                }
+            } else {
+                VStack(spacing: 0) {
+                    statsHeader
+                        .padding(.horizontal, 22)
+                        .padding(.top, 12)
+
+                    storyMetaSection
+                        .padding(.horizontal, 22)
+                        .padding(.top, 16)
+
+                    statsMetricsRow
+                        .padding(.horizontal, 22)
+                        .padding(.top, 18)
+
+                    GlassmorphicTabSelector(
+                        tabs: [
+                            String(format: NSLocalizedString("stories.activity.viewersTab", comment: ""), viewModel.viewers.count),
+                            String(format: NSLocalizedString("stories.activity.reactionsTab", comment: ""), viewModel.reactions.count)
+                        ],
+                        selectedIndex: $selectedTab
+                    )
+                    .padding(.horizontal, 22)
+                    .padding(.top, 14)
+
+                    TabView(selection: $selectedTab) {
+                        viewersTab.tag(0)
+                        reactionsTab.tag(1)
+                    }
+                    .tabViewStyle(.page(indexDisplayMode: .never))
+                }
             }
         }
+        .presentationDetents([.medium, .large])
+        .presentationDragIndicator(.visible)
+        .presentationBackground(.clear)
+        .onAppear {
+            viewModel.loadStats(for: story)
+            loadReactionUsersIfNeeded()
+        }
+        .onChange(of: viewModel.reactions.map(\.userId)) { _, _ in
+            loadReactionUsersIfNeeded()
+        }
     }
-    
-    var body: some View {
-        NavigationView {
-            ZStack {
-                Color(colorScheme == .dark ? .black : .white).ignoresSafeArea()
-                
-                if viewModel.isLoading {
-                    VStack(spacing: 16) {
-                        ProgressView()
-                            .progressViewStyle(CircularProgressViewStyle())
-                            .scaleEffect(1.2)
-                        
-                        Text(NSLocalizedString("archivedStories.loadingStats", comment: "Loading statistics"))
-                            .font(.custom("Poppins-Regular", size: 16))
-                            .foregroundColor(.gray)
-                    }
-                } else {
-                    ScrollView {
-                        VStack(spacing: 14) {
-                            HStack(alignment: .top, spacing: 12) {
-                                if let url = URL(string: story.mediaItem.url) {
-                                    KFImage(url)
-                                        .resizable()
-                                        .scaledToFill()
-                                        .frame(width: 110, height: 196)
-                                        .clipShape(RoundedRectangle(cornerRadius: 16))
-                                        .overlay(
-                                            RoundedRectangle(cornerRadius: 16)
-                                                .stroke(Color.gray.opacity(0.22), lineWidth: 1)
-                                        )
-                                }
-                                
-                                VStack(alignment: .leading, spacing: 8) {
-                                    Text(String(format: NSLocalizedString("archivedStories.storyFrom", comment: "Story from date"), formatStoryDate(story.timestamp)))
-                                        .font(.custom("Poppins-SemiBold", size: 16))
-                                        .foregroundColor(colorScheme == .dark ? .white : .black)
-                                        .multilineTextAlignment(.leading)
-                                    
-                                    Text(String(format: NSLocalizedString("archivedStories.publishedAt", comment: "Published at time"), formatStoryTime(story.timestamp)))
-                                        .font(.custom("Poppins-Regular", size: 13))
-                                        .foregroundColor(.gray)
-                                    
-                                    pill(text: story.mediaItem.type == .video
-                                         ? NSLocalizedString("archivedStories.video", comment: "Video")
-                                         : NSLocalizedString("archivedStories.photo", comment: "Photo"))
-                                }
-                                Spacer(minLength: 0)
-                            }
-                            
-                            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 10) {
-                                StatsCard(
-                                    icon: "eye.fill",
-                                    title: NSLocalizedString("archivedStories.stats.views", comment: "Views"),
-                                    value: "\(viewModel.viewCount)",
-                                    color: .blue
-                                )
-                                
-                                StatsCard(
-                                    icon: "heart.fill",
-                                    title: NSLocalizedString("archivedStories.stats.reactions", comment: "Reactions"),
-                                    value: "\(viewModel.reactionCount)",
-                                    color: .red
-                                )
-                                
-                                StatsCard(
-                                    icon: "paperplane.fill",
-                                    title: NSLocalizedString("archivedStories.stats.shares", comment: "Shares"),
-                                    value: "\(viewModel.shareCount)",
-                                    color: Color(hex: "007AFF")
-                                )
-                                
-                                StatsCard(
-                                    icon: "person.2.fill",
-                                    title: NSLocalizedString("archivedStories.stats.reach", comment: "Reach"),
-                                    value: "\(viewModel.reachCount)",
-                                    color: .purple
-                                )
-                            }
-                            
-                            HStack(spacing: 8) {
-                                ForEach(StatsSection.allCases) { section in
-                                    Button {
-                                        withAnimation(.easeInOut(duration: 0.18)) {
-                                            selectedSection = section
-                                        }
-                                    } label: {
-                                        Text(NSLocalizedString(section.titleKey, comment: "Story stats section"))
-                                            .font(.custom("Poppins-SemiBold", size: 12))
-                                            .foregroundColor(selectedSection == section ? .white : (colorScheme == .dark ? .white : .black))
-                                            .frame(maxWidth: .infinity)
-                                            .padding(.vertical, 10)
-                                            .background(
-                                                Capsule()
-                                                    .fill(
-                                                        selectedSection == section
-                                                        ? Color(hex: "007AFF")
-                                                        : Color(colorScheme == .dark ? .white : .black).opacity(0.08)
-                                                    )
-                                            )
-                                    }
-                                    .buttonStyle(.plain)
-                                }
-                            }
-                            
-                            if selectedSection == .viewers {
-                                VStack(alignment: .leading, spacing: 10) {
-                                    sectionHeader(
-                                        title: NSLocalizedString("archivedStories.whoViewed", comment: "Who viewed it"),
-                                        countText: String(format: NSLocalizedString("archivedStories.peopleCount", comment: "People count"), filteredViewers.count)
-                                    )
 
-                                    if !viewModel.viewers.isEmpty {
-                                        viewerSearchBar
-                                    }
-                                    
-                                    if viewModel.viewers.isEmpty {
-                                        emptySection(
-                                            icon: "eye.slash",
-                                            text: NSLocalizedString("archivedStories.stats.empty.viewers", comment: "No story viewers yet")
-                                        )
-                                    } else if filteredViewers.isEmpty {
-                                        emptySection(
-                                            icon: "magnifyingglass",
-                                            text: NSLocalizedString(
-                                                "stories.activity.search.empty",
-                                                value: "No hay viewers que coincidan con tu busqueda.",
-                                                comment: "No matching viewers for search"
-                                            )
-                                        )
-                                    } else {
-                                        LazyVStack(spacing: 8) {
-                                            ForEach(filteredViewers, id: \.id) { viewer in
-                                                ViewerRow(viewer: viewer)
-                                            }
-                                        }
-                                    }
-                                }
-                            } else {
-                                VStack(alignment: .leading, spacing: 10) {
-                                    sectionHeader(
-                                        title: NSLocalizedString("archivedStories.reactions", comment: "Reactions"),
-                                        countText: "\(viewModel.reactions.count)"
-                                    )
-                                    
-                                    if viewModel.reactions.isEmpty {
-                                        emptySection(
-                                            icon: "heart.slash",
-                                            text: NSLocalizedString("archivedStories.stats.empty.reactions", comment: "No story reactions yet")
-                                        )
-                                    } else {
-                                        LazyVStack(spacing: 8) {
-                                            ForEach(viewModel.reactions, id: \.id) { reaction in
-                                                ReactionRow(reaction: reaction)
-                                            }
-                                        }
-                                    }
+    private var statsHeader: some View {
+        ZStack(alignment: .top) {
+            HStack {
+                Button(action: { dismiss() }) {
+                    Image(systemName: "chevron.down")
+                        .font(.system(size: 17, weight: .semibold))
+                        .foregroundColor(primaryText)
+                        .frame(width: 40, height: 40)
+                        .background(Color.white.opacity(0.001))
+                        .liquidGlass(in: Circle(), interactive: true)
+                }
+                .buttonStyle(.plain)
+
+                Spacer()
+            }
+
+            Text(NSLocalizedString("archivedStories.stats.title", comment: "Statistics title"))
+                .font(.custom("Poppins-SemiBold", size: 18))
+                .foregroundColor(primaryText)
+                .padding(.top, 2)
+        }
+    }
+
+    private var storyMetaSection: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(String(format: NSLocalizedString("archivedStories.storyFrom", comment: "Story from date"), formatStoryDate(story.timestamp)))
+                .font(.custom("Poppins-SemiBold", size: 15))
+                .foregroundColor(primaryText)
+
+            Text(String(format: NSLocalizedString("archivedStories.publishedAt", comment: "Published at time"), formatStoryTime(story.timestamp)))
+                .font(.custom("Poppins-Regular", size: 13))
+                .foregroundColor(secondaryText)
+
+            Text(story.mediaItem.type == .video
+                 ? NSLocalizedString("archivedStories.video", comment: "Video")
+                 : NSLocalizedString("archivedStories.photo", comment: "Photo"))
+                .font(.custom("Poppins-Medium", size: 12))
+                .foregroundColor(secondaryText)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var statsMetricsRow: some View {
+        HStack(spacing: 0) {
+            ArchivedStoryStatMetric(
+                value: "\(viewModel.viewCount)",
+                title: NSLocalizedString("archivedStories.stats.views", comment: "Views")
+            )
+
+            metricDivider
+
+            ArchivedStoryStatMetric(
+                value: "\(viewModel.reactionCount)",
+                title: NSLocalizedString("archivedStories.stats.reactions", comment: "Reactions")
+            )
+
+            metricDivider
+
+            ArchivedStoryStatMetric(
+                value: "\(viewModel.shareCount)",
+                title: NSLocalizedString("archivedStories.stats.shares", comment: "Shares")
+            )
+
+            metricDivider
+
+            ArchivedStoryStatMetric(
+                value: "\(viewModel.reachCount)",
+                title: NSLocalizedString("archivedStories.stats.reach", comment: "Reach")
+            )
+        }
+    }
+
+    private var metricDivider: some View {
+        Rectangle()
+            .fill(secondaryText.opacity(colorScheme == .dark ? 0.18 : 0.12))
+            .frame(width: 1, height: 28)
+    }
+
+    private var viewersTab: some View {
+        ZStack {
+            if viewModel.viewers.isEmpty {
+                GlassmorphicEmptyState(
+                    icon: "eye.slash",
+                    message: NSLocalizedString("archivedStories.stats.empty.viewers", comment: "No story viewers yet")
+                )
+                .frame(maxHeight: .infinity)
+            } else {
+                ScrollView {
+                    VStack(spacing: 16) {
+                        archivedSearchBar(text: $viewerSearchText)
+
+                        if filteredViewers.isEmpty {
+                            GlassmorphicEmptyState(
+                                icon: "magnifyingglass",
+                                message: NSLocalizedString(
+                                    "stories.activity.search.empty",
+                                    value: "No hay viewers que coincidan con tu busqueda.",
+                                    comment: "No matching viewers for search"
+                                )
+                            )
+                            .frame(maxWidth: .infinity)
+                            .padding(.top, 8)
+                        } else {
+                            LazyVStack(spacing: 0) {
+                                ForEach(filteredViewers, id: \.id) { viewer in
+                                    ArchivedStoryViewerRow(viewer: viewer)
                                 }
                             }
                         }
-                        .padding(.horizontal, 12)
-                        .padding(.top, 12)
-                        .padding(.bottom, 28)
                     }
-                }
-            }
-            .navigationTitle(NSLocalizedString("archivedStories.stats.title", comment: "Statistics title"))
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button(NSLocalizedString("archivedStories.close", comment: "Close")) {
-                        dismiss()
-                    }
-                    .font(.custom("Poppins-Medium", size: 16))
-                    .foregroundColor(Color(hex: "00A896"))
+                    .padding(.horizontal, 22)
+                    .padding(.top, 18)
+                    .padding(.bottom, 28)
                 }
             }
         }
-        .onAppear {
-            viewModel.loadStats(for: story)
+    }
+
+    private var reactionsTab: some View {
+        ZStack {
+            if viewModel.reactions.isEmpty {
+                GlassmorphicEmptyState(
+                    icon: "heart.slash",
+                    message: NSLocalizedString("archivedStories.stats.empty.reactions", comment: "No story reactions yet")
+                )
+                .frame(maxHeight: .infinity)
+            } else {
+                ScrollView {
+                    VStack(spacing: 16) {
+                        archivedSearchBar(text: $reactionSearchText)
+
+                        if filteredReactions.isEmpty {
+                            GlassmorphicEmptyState(
+                                icon: "magnifyingglass",
+                                message: NSLocalizedString(
+                                    "stories.activity.search.empty",
+                                    value: "No hay viewers que coincidan con tu busqueda.",
+                                    comment: "No matching viewers for search"
+                                )
+                            )
+                            .frame(maxWidth: .infinity)
+                            .padding(.top, 8)
+                        } else {
+                            LazyVStack(spacing: 0) {
+                                ForEach(filteredReactions, id: \.id) { reaction in
+                                    ArchivedStoryReactionRow(
+                                        reaction: reaction,
+                                        user: reactionUsersById[reaction.userId]
+                                    )
+                                }
+                            }
+                        }
+                    }
+                    .padding(.horizontal, 22)
+                    .padding(.top, 18)
+                    .padding(.bottom, 28)
+                }
+            }
         }
+    }
+
+    private func archivedSearchBar(text: Binding<String>) -> some View {
+        HStack(spacing: 10) {
+            Image(systemName: "magnifyingglass")
+                .foregroundColor(colorScheme == .dark ? .white.opacity(0.55) : .black.opacity(0.45))
+                .font(.system(size: 15, weight: .medium))
+
+            TextField(NSLocalizedString("userListView.search.placeholder", comment: "Search users placeholder"), text: text)
+                .font(.custom("Poppins-Regular", size: 14))
+                .foregroundColor(primaryText)
+                .textFieldStyle(.plain)
+
+            if !text.wrappedValue.isEmpty {
+                Button {
+                    text.wrappedValue = ""
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .foregroundColor(colorScheme == .dark ? .white.opacity(0.45) : .black.opacity(0.35))
+                        .font(.system(size: 16))
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+        .background(Color.white.opacity(0.001))
+        .liquidGlass(in: Capsule())
     }
 
     private var filteredViewers: [StoryViewer] {
@@ -1377,86 +1509,38 @@ struct StoryStatsView: View {
                 .localizedCaseInsensitiveContains(query)
         }
     }
-    
-    private func pill(text: String) -> some View {
-        Text(text)
-            .font(.custom("Poppins-SemiBold", size: 10))
-            .foregroundColor(colorScheme == .dark ? .white : .black)
-            .padding(.horizontal, 8)
-            .padding(.vertical, 5)
-            .background(
-                Capsule()
-                    .fill(Color(colorScheme == .dark ? .white : .black).opacity(0.08))
-            )
+
+    private var filteredReactions: [StoryReaction] {
+        let query = reactionSearchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !query.isEmpty else { return viewModel.reactions }
+        return viewModel.reactions.filter { reaction in
+            let username = reactionUsersById[reaction.userId]?.username
+                ?? NSLocalizedString("archivedStories.user", comment: "User")
+            return username.localizedCaseInsensitiveContains(query)
+        }
     }
 
-    private var viewerSearchBar: some View {
-        HStack(spacing: 10) {
-            Image(systemName: "magnifyingglass")
-                .foregroundColor(.gray)
-                .font(.system(size: 15, weight: .medium))
+    private func loadReactionUsersIfNeeded() {
+        let missingIds = Array(Set(viewModel.reactions.map(\.userId))).filter { reactionUsersById[$0] == nil }
+        guard !missingIds.isEmpty else { return }
 
-            TextField(NSLocalizedString("userListView.search.placeholder", comment: "Search users placeholder"), text: $viewerSearchText)
-                .font(.custom("Poppins-Regular", size: 14))
-                .foregroundColor(colorScheme == .dark ? .white : .black)
-                .textFieldStyle(.plain)
-
-            if !viewerSearchText.isEmpty {
-                Button {
-                    viewerSearchText = ""
-                } label: {
-                    Image(systemName: "xmark.circle.fill")
-                        .foregroundColor(.gray)
-                        .font(.system(size: 16))
+        FirestoreService.shared.fetchUsers(userIds: missingIds) { result in
+            guard case .success(let users) = result else { return }
+            DispatchQueue.main.async {
+                for user in users {
+                    reactionUsersById[user.id] = user
                 }
-                .buttonStyle(.plain)
             }
         }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 11)
-        .background(
-            Capsule()
-                .fill(Color(colorScheme == .dark ? .white : .black).opacity(0.06))
-        )
     }
-    
-    private func sectionHeader(title: String, countText: String) -> some View {
-        HStack {
-            Text(title)
-                .font(.custom("Poppins-SemiBold", size: 17))
-                .foregroundColor(colorScheme == .dark ? .white : .black)
-            Spacer()
-            Text(countText)
-                .font(.custom("Poppins-Regular", size: 13))
-                .foregroundColor(.gray)
-        }
-    }
-    
-    private func emptySection(icon: String, text: String) -> some View {
-        VStack(spacing: 8) {
-            Image(systemName: icon)
-                .font(.system(size: 20, weight: .semibold))
-                .foregroundColor(.gray.opacity(0.75))
-            Text(text)
-                .font(.custom("Poppins-Regular", size: 13))
-                .foregroundColor(.gray)
-                .multilineTextAlignment(.center)
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 22)
-        .background(
-            RoundedRectangle(cornerRadius: 14)
-                .fill(Color(colorScheme == .dark ? .white : .black).opacity(0.05))
-        )
-    }
-    
+
     private func formatStoryDate(_ date: Date) -> String {
         let formatter = DateFormatter()
         formatter.locale = Locale.current
         formatter.dateStyle = .medium
         return formatter.string(from: date)
     }
-    
+
     private func formatStoryTime(_ date: Date) -> String {
         let formatter = DateFormatter()
         formatter.locale = Locale.current
@@ -1465,132 +1549,130 @@ struct StoryStatsView: View {
     }
 }
 
-// MARK: - Stats Card
-struct StatsCard: View {
-    let icon: String
-    let title: String
+private struct ArchivedStoryStatMetric: View {
     let value: String
-    let color: Color
-    @Environment(\.colorScheme) var colorScheme
-    
+    let title: String
+    @Environment(\.colorScheme) private var colorScheme
+
+    private var primaryText: Color {
+        colorScheme == .dark ? .white : .black.opacity(0.88)
+    }
+
+    private var secondaryText: Color {
+        colorScheme == .dark ? .white.opacity(0.62) : .black.opacity(0.54)
+    }
+
     var body: some View {
-        HStack(spacing: 10) {
-            ZStack {
-                Circle()
-                    .fill(color.opacity(0.14))
-                    .frame(width: 32, height: 32)
-                
-                Image(systemName: icon)
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundColor(color)
-            }
-            
-            VStack(alignment: .leading, spacing: 2) {
-                Text(value)
-                    .font(.custom("Poppins-Bold", size: 18))
-                    .foregroundColor(colorScheme == .dark ? .white : .black)
-                Text(title)
-                    .font(.custom("Poppins-Regular", size: 11))
-                    .foregroundColor(.gray)
-                    .lineLimit(1)
-            }
+        VStack(spacing: 3) {
+            Text(value)
+                .font(.custom("Poppins-Bold", size: 17))
+                .foregroundColor(primaryText)
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
+
+            Text(title)
+                .font(.custom("Poppins-Regular", size: 10))
+                .foregroundColor(secondaryText)
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.horizontal, 12)
-        .padding(.vertical, 11)
-        .background(
-            RoundedRectangle(cornerRadius: 14)
-                .fill(Color(colorScheme == .dark ? .white : .black).opacity(0.05))
-        )
+        .frame(maxWidth: .infinity)
     }
 }
 
-// MARK: - Stats Card
-struct ViewerRow: View {
+private struct ArchivedStoryViewerRow: View {
     let viewer: StoryViewer
-    @Environment(\.colorScheme) var colorScheme
-    
+    @Environment(\.colorScheme) private var colorScheme
+
+    private var primaryText: Color {
+        colorScheme == .dark ? .white : .black.opacity(0.88)
+    }
+
+    private var secondaryText: Color {
+        colorScheme == .dark ? .white.opacity(0.65) : .black.opacity(0.52)
+    }
+
     var body: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: 16) {
             StoryRingAvatarView(
                 userId: viewer.userId,
-                size: 44,
+                size: 48,
                 lineWidth: 2.3
             )
-            
+
             HStack(spacing: 6) {
                 Text(viewer.username ?? NSLocalizedString("archivedStories.user", comment: "User"))
-                    .font(.custom("Poppins-SemiBold", size: 14))
-                    .foregroundColor(colorScheme == .dark ? .white : .black)
+                    .font(.custom("Poppins-SemiBold", size: 15))
+                    .foregroundColor(primaryText)
 
                 if let badgeText = viewer.rewatchBadgeText {
                     Text(badgeText)
-                        .font(.custom("Poppins-SemiBold", size: 14))
-                        .foregroundColor(colorScheme == .dark ? .white : .black)
+                        .font(.custom("Poppins-SemiBold", size: 15))
+                        .foregroundColor(primaryText)
                 }
             }
-            
-            Spacer()
+
+            Spacer(minLength: 0)
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 10)
-        .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(Color(colorScheme == .dark ? .white : .black).opacity(0.04))
-        )
+        .padding(.vertical, 12)
+        .overlay(alignment: .bottom) {
+            Divider()
+                .background(secondaryText.opacity(colorScheme == .dark ? 0.18 : 0.12))
+        }
     }
 }
 
-struct ReactionRow: View {
+private struct ArchivedStoryReactionRow: View {
     let reaction: StoryReaction
-    @Environment(\.colorScheme) var colorScheme
-    @State private var username: String = NSLocalizedString("archivedStories.user", comment: "User")
-    
+    let user: AppUser?
+    @Environment(\.colorScheme) private var colorScheme
+
+    private var primaryText: Color {
+        colorScheme == .dark ? .white : .black.opacity(0.88)
+    }
+
+    private var secondaryText: Color {
+        colorScheme == .dark ? .white.opacity(0.65) : .black.opacity(0.52)
+    }
+
     var body: some View {
-        HStack(spacing: 12) {
-            StoryRingAvatarView(
-                userId: reaction.userId,
-                size: 44,
-                lineWidth: 2.3
-            )
-            
+        HStack(spacing: 16) {
+            if let user {
+                StoryRingAvatarView(
+                    userId: user.id,
+                    size: 48,
+                    lineWidth: 2.3
+                )
+            } else {
+                StoryRingAvatarView(
+                    userId: reaction.userId,
+                    size: 48,
+                    lineWidth: 2.3
+                )
+            }
+
             VStack(alignment: .leading, spacing: 4) {
-                Text(username)
-                    .font(.custom("Poppins-SemiBold", size: 14))
-                    .foregroundColor(colorScheme == .dark ? .white : .black)
-                
+                Text(user?.username ?? NSLocalizedString("archivedStories.user", comment: "User"))
+                    .font(.custom("Poppins-SemiBold", size: 15))
+                    .foregroundColor(primaryText)
+
                 Text(timeAgo(from: reaction.timestamp))
                     .font(.custom("Poppins-Regular", size: 12))
-                    .foregroundColor(.gray)
+                    .foregroundColor(secondaryText)
             }
-            
-            Spacer()
-            
+
+            Spacer(minLength: 0)
+
             Text(reaction.reaction)
                 .font(.system(size: 28))
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 10)
-        .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(Color(colorScheme == .dark ? .white : .black).opacity(0.04))
-        )
-        .onAppear {
-            fetchUsername()
+        .padding(.vertical, 12)
+        .overlay(alignment: .bottom) {
+            Divider()
+                .background(secondaryText.opacity(colorScheme == .dark ? 0.18 : 0.12))
         }
     }
-    
-    private func fetchUsername() {
-        FirestoreService().fetchUserProfile(userId: reaction.userId) { result in
-            switch result {
-            case .success(let user):
-                self.username = user.username
-            case .failure(_):
-                self.username = NSLocalizedString("archivedStories.user", comment: "User")
-            }
-        }
-    }
-    
+
     private func timeAgo(from date: Date) -> String {
         let formatter = RelativeDateTimeFormatter()
         formatter.locale = Locale.current

@@ -3026,6 +3026,8 @@
 "userActivity.event.archived.confirm.restore.title" = "Restore archived content";
 "userActivity.event.archived.confirm.restore.message" = "Do you want to restore the selected archived content?";
 "userActivity.event.archived.success.restore" = "Archived content restored";
+"userActivity.event.archived.processing.restore" = "Restoring archived content";
+"userActivity.event.archived.processingButton.restore" = "Restoring…";
 "userActivity.simple.stickers.confirm.delete.title" = "Delete replies";
 "userActivity.simple.stickers.confirm.delete.message" = "Do you want to delete the selected sticker replies?";
 "userActivity.simple.stickers.success.delete" = "Replies deleted";

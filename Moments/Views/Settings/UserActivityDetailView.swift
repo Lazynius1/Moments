@@ -32,8 +32,8 @@ struct ActivityInteractionDetailView: View {
     @State private var gridSelectionDragMode: SelectionDragMode?
     @State private var gridSelectionDragTouchedIds: Set<String> = []
     @State private var pendingActivitySelectionConfirmation: ActivitySelectionConfirmationAction?
-    @State private var pendingRecentlyDeletedConfirmation: RecentlyDeletedConfirmationAction?
     @State private var recentlyDeletedInFlightAction: RecentlyDeletedConfirmationAction?
+    @State private var isRestoringArchivedSelection = false
     @State private var activitySelectionSuccessBannerKey: String?
     @State private var recentlyDeletedSuccessBannerKey: String?
     @State private var recentlyDeletedAutoScrollDirection: RecentlyDeletedAutoScrollDirection?
@@ -122,9 +122,6 @@ struct ActivityInteractionDetailView: View {
         .alert(item: $pendingActivitySelectionConfirmation) { action in
             activitySelectionConfirmationAlert(for: action)
         }
-        .alert(item: $pendingRecentlyDeletedConfirmation) { action in
-            recentlyDeletedConfirmationAlert(for: action)
-        }
         .onAppear {
             viewModel.loadIfNeeded()
         }
@@ -167,6 +164,14 @@ struct ActivityInteractionDetailView: View {
             if let action = recentlyDeletedInFlightAction {
                 processingBanner(
                     titleKey: recentlyDeletedProcessingTitleKey(for: action),
+                    subtitleKey: "userActivity.simple.recentlyDeleted.processing.subtitle"
+                )
+                .padding(.top, 12)
+                .transition(.move(edge: .top).combined(with: .opacity))
+            }
+            if isRestoringArchivedSelection {
+                processingBanner(
+                    titleKey: "userActivity.event.archived.processing.restore",
                     subtitleKey: "userActivity.simple.recentlyDeleted.processing.subtitle"
                 )
                 .padding(.top, 12)
@@ -1231,13 +1236,24 @@ struct ActivityInteractionDetailView: View {
 
                 HStack(spacing: 12) {
                     Button {
-                        pendingActivitySelectionConfirmation = .archivedRestore
+                        pendingActivitySelectionConfirmation = .archivedRestore(ids: selectedReactionIds)
                     } label: {
-                        Text(NSLocalizedString("userActivity.event.archived.action.restore", comment: "Restore action"))
-                            .font(.custom("Poppins-SemiBold", size: 13))
-                            .foregroundColor(SettingsProfileColors.accent(colorScheme))
+                        Group {
+                            if isRestoringArchivedSelection {
+                                HStack(spacing: 8) {
+                                    ProgressView()
+                                        .controlSize(.small)
+                                        .tint(SettingsProfileColors.accent(colorScheme))
+                                    Text(NSLocalizedString("userActivity.event.archived.processingButton.restore", comment: "Restoring archived action"))
+                                }
+                            } else {
+                                Text(NSLocalizedString("userActivity.event.archived.action.restore", comment: "Restore action"))
+                            }
+                        }
+                        .font(.custom("Poppins-SemiBold", size: 13))
+                        .foregroundColor(SettingsProfileColors.accent(colorScheme))
                     }
-                    .disabled(selectedCount == 0 || viewModel.isLoading)
+                    .disabled(selectedCount == 0 || viewModel.isLoading || isRestoringArchivedSelection)
                 }
             }
             .padding(.horizontal, sectionHorizontalPadding)
@@ -1281,7 +1297,7 @@ struct ActivityInteractionDetailView: View {
                     .disabled(visibleRecentlyDeletedIds.isEmpty || viewModel.isLoading || isProcessing)
 
                     Button {
-                        pendingRecentlyDeletedConfirmation = .restore
+                        pendingActivitySelectionConfirmation = .recentlyDeletedRestore
                     } label: {
                         Group {
                             if recentlyDeletedInFlightAction == .restore {
@@ -1301,7 +1317,7 @@ struct ActivityInteractionDetailView: View {
                     .disabled(selectedCount == 0 || viewModel.isLoading || isProcessing)
 
                     Button {
-                        pendingRecentlyDeletedConfirmation = .permanentlyDelete
+                        pendingActivitySelectionConfirmation = .recentlyDeletedDelete
                     } label: {
                         Group {
                             if recentlyDeletedInFlightAction == .permanentlyDelete {
@@ -1703,35 +1719,6 @@ struct ActivityInteractionDetailView: View {
         }
     }
 
-    private func recentlyDeletedConfirmationAlert(for action: RecentlyDeletedConfirmationAction) -> Alert {
-        switch action {
-        case .restore:
-            return Alert(
-                title: Text(NSLocalizedString("userActivity.simple.recentlyDeleted.confirm.restore.title", comment: "Restore recently deleted confirmation title")),
-                message: Text(NSLocalizedString("userActivity.simple.recentlyDeleted.confirm.restore.message", comment: "Restore recently deleted confirmation message")),
-                primaryButton: .default(
-                    Text(NSLocalizedString("userActivity.simple.recentlyDeleted.restore.single", comment: "Restore action")),
-                    action: {
-                        Task { await performRecentlyDeletedRestore() }
-                    }
-                ),
-                secondaryButton: .cancel(Text(NSLocalizedString("common.cancel", comment: "Cancel")))
-            )
-        case .permanentlyDelete:
-            return Alert(
-                title: Text(NSLocalizedString("userActivity.simple.recentlyDeleted.confirm.delete.title", comment: "Delete recently deleted confirmation title")),
-                message: Text(NSLocalizedString("userActivity.simple.recentlyDeleted.confirm.delete.message", comment: "Delete recently deleted confirmation message")),
-                primaryButton: .destructive(
-                    Text(NSLocalizedString("userActivity.simple.recentlyDeleted.delete.single", comment: "Delete action")),
-                    action: {
-                        Task { await performRecentlyDeletedPermanentDelete() }
-                    }
-                ),
-                secondaryButton: .cancel(Text(NSLocalizedString("common.cancel", comment: "Cancel")))
-            )
-        }
-    }
-
     private func selectionSuccessBanner(textKey: String) -> some View {
         HStack(spacing: 10) {
             Image(systemName: "checkmark.circle.fill")
@@ -1793,14 +1780,38 @@ struct ActivityInteractionDetailView: View {
 
     private func activitySelectionConfirmationAlert(for action: ActivitySelectionConfirmationAction) -> Alert {
         switch action {
-        case .archivedRestore:
+        case .archivedRestore(let ids):
             return Alert(
                 title: Text(NSLocalizedString("userActivity.event.archived.confirm.restore.title", comment: "Archived restore confirmation title")),
                 message: Text(NSLocalizedString("userActivity.event.archived.confirm.restore.message", comment: "Archived restore confirmation message")),
                 primaryButton: .default(
                     Text(NSLocalizedString("userActivity.event.archived.action.restore", comment: "Restore action")),
                     action: {
-                        Task { await performArchivedRestore() }
+                        Task { await performArchivedRestore(ids: ids) }
+                    }
+                ),
+                secondaryButton: .cancel(Text(NSLocalizedString("common.cancel", comment: "Cancel")))
+            )
+        case .recentlyDeletedRestore:
+            return Alert(
+                title: Text(NSLocalizedString("userActivity.simple.recentlyDeleted.confirm.restore.title", comment: "Restore recently deleted confirmation title")),
+                message: Text(NSLocalizedString("userActivity.simple.recentlyDeleted.confirm.restore.message", comment: "Restore recently deleted confirmation message")),
+                primaryButton: .default(
+                    Text(NSLocalizedString("userActivity.simple.recentlyDeleted.restore.single", comment: "Restore action")),
+                    action: {
+                        Task { await performRecentlyDeletedRestore() }
+                    }
+                ),
+                secondaryButton: .cancel(Text(NSLocalizedString("common.cancel", comment: "Cancel")))
+            )
+        case .recentlyDeletedDelete:
+            return Alert(
+                title: Text(NSLocalizedString("userActivity.simple.recentlyDeleted.confirm.delete.title", comment: "Delete recently deleted confirmation title")),
+                message: Text(NSLocalizedString("userActivity.simple.recentlyDeleted.confirm.delete.message", comment: "Delete recently deleted confirmation message")),
+                primaryButton: .destructive(
+                    Text(NSLocalizedString("userActivity.simple.recentlyDeleted.delete.single", comment: "Delete action")),
+                    action: {
+                        Task { await performRecentlyDeletedPermanentDelete() }
                     }
                 ),
                 secondaryButton: .cancel(Text(NSLocalizedString("common.cancel", comment: "Cancel")))
@@ -1856,13 +1867,22 @@ struct ActivityInteractionDetailView: View {
         }
     }
 
-    private func performArchivedRestore() async {
-        let result = await viewModel.unarchiveSelection(withIds: selectedReactionIds)
+    private func performArchivedRestore(ids: Set<String>) async {
+        guard !ids.isEmpty else { return }
+
         await MainActor.run {
+            isRestoringArchivedSelection = true
+        }
+
+        let result = await viewModel.unarchiveSelection(withIds: ids)
+        await MainActor.run {
+            isRestoringArchivedSelection = false
             switch result {
             case .success:
-                selectedReactionIds.removeAll()
-                isSelectionMode = false
+                selectedReactionIds.subtract(ids)
+                if selectedReactionIds.isEmpty {
+                    isSelectionMode = false
+                }
                 showActivitySelectionSuccessBanner("userActivity.event.archived.success.restore")
             case .failure(let error):
                 viewModel.errorMessage = error.localizedDescription
