@@ -731,6 +731,8 @@ struct Moment: Identifiable, Codable, Equatable {
     let scheduledDate: Date?         // ✅ NUEVO: Fecha programada
     let isArchived: Bool?             // ✅ NUEVO: Momento archivado
     let archivedAt: Date?             // ✅ NUEVO: Fecha de archivo
+    let isPinned: Bool?
+    let pinnedAt: Date?
     let hasHiddenLayers: Bool
     let hiddenLayerCount: Int
     let isModerationHidden: Bool?
@@ -844,6 +846,7 @@ struct Moment: Identifiable, Codable, Equatable {
         case disableComments, hideLikeCounts, allowSharing
         case scheduledDate
         case isArchived, archivedAt
+        case isPinned, pinnedAt
         case thumbnailUrl, videoDuration, videoFileSize, videoResolution
         case trendingScore, engagementRate
         case hasHiddenLayers, hiddenLayerCount
@@ -905,6 +908,12 @@ struct Moment: Identifiable, Codable, Equatable {
         } else {
             self.archivedAt = try container.decodeIfPresent(Date.self, forKey: .archivedAt)
         }
+        self.isPinned = try container.decodeIfPresent(Bool.self, forKey: .isPinned)
+        if let pinnedTimestamp = try? container.decodeIfPresent(Timestamp.self, forKey: .pinnedAt) {
+            self.pinnedAt = pinnedTimestamp.dateValue()
+        } else {
+            self.pinnedAt = try container.decodeIfPresent(Date.self, forKey: .pinnedAt)
+        }
 
         self.disableComments = (try? container.decodeIfPresent(Bool.self, forKey: .disableComments)) ?? false
         self.hideLikeCounts = (try? container.decodeIfPresent(Bool.self, forKey: .hideLikeCounts)) ?? false
@@ -957,6 +966,10 @@ struct Moment: Identifiable, Codable, Equatable {
             try container.encode(Timestamp(date: archivedAt), forKey: .archivedAt)
         }
         try container.encodeIfPresent(isArchived, forKey: .isArchived)
+        if let pinnedAt = pinnedAt {
+            try container.encode(Timestamp(date: pinnedAt), forKey: .pinnedAt)
+        }
+        try container.encodeIfPresent(isPinned, forKey: .isPinned)
 
         try container.encode(disableComments, forKey: .disableComments)
         try container.encode(hideLikeCounts, forKey: .hideLikeCounts)
@@ -1007,6 +1020,8 @@ struct Moment: Identifiable, Codable, Equatable {
         engagementRate: Double? = nil,
         isArchived: Bool? = nil,
         archivedAt: Date? = nil,
+        isPinned: Bool? = nil,
+        pinnedAt: Date? = nil,
         hasHiddenLayers: Bool = false,
         hiddenLayerCount: Int = 0,
         isModerationHidden: Bool? = nil,
@@ -1044,6 +1059,8 @@ struct Moment: Identifiable, Codable, Equatable {
         self.engagementRate = engagementRate
         self.isArchived = isArchived
         self.archivedAt = archivedAt
+        self.isPinned = isPinned
+        self.pinnedAt = pinnedAt
         self.hasHiddenLayers = hasHiddenLayers
         self.hiddenLayerCount = hiddenLayerCount
         self.isModerationHidden = isModerationHidden
@@ -1099,6 +1116,7 @@ struct Story: Identifiable, Codable {
     @DocumentID var id: String?
     let authorId: String
     let duration: Double
+    let expirationHours: Int?
     let expirationDate: Date
     let mediaItem: MediaItem
     let profileImagePath: String?
@@ -1137,6 +1155,7 @@ struct Story: Identifiable, Codable {
         case id
         case authorId
         case duration
+        case expirationHours
         case expirationDate
         case mediaItem
         case profileImagePath
@@ -1182,6 +1201,7 @@ struct Story: Identifiable, Codable {
          mediaItem: MediaItem,
          duration: Double,
          timestamp: Date,
+         expirationHours: Int? = nil,
          expirationDate: Date,
          profileImagePath: String?,
          audience: String? = nil,
@@ -1216,6 +1236,7 @@ struct Story: Identifiable, Codable {
         self.mediaItem = mediaItem
         self.duration = duration
         self.timestamp = timestamp
+        self.expirationHours = expirationHours
         self.expirationDate = expirationDate
         self.profileImagePath = profileImagePath
         self.audience = audience
@@ -1292,6 +1313,8 @@ struct Story: Identifiable, Codable {
         self.chainId = try container.decodeIfPresent(String.self, forKey: .chainId) // 🔗 AÑADIDO: Decodificar ID de la cadena
         self.chainPosition = try container.decodeIfPresent(Int.self, forKey: .chainPosition) // 🔗 AÑADIDO: Decodificar posición en la cadena
         self.chainTitle = try container.decodeIfPresent(String.self, forKey: .chainTitle) // 🔗 AÑADIDO: Decodificar título de la cadena
+        self.expirationHours = try container.decodeIfPresent(Int.self, forKey: .expirationHours)
+            ?? (self.chainId != nil ? 48 : 24)
 
         if let mediaItem = try? container.decodeIfPresent(MediaItem.self, forKey: .mediaItem) {
             self.mediaItem = mediaItem
@@ -1311,6 +1334,7 @@ struct Story: Identifiable, Codable {
         try container.encode(username, forKey: .username)
         try container.encode(mediaItem, forKey: .mediaItem)
         try container.encode(duration, forKey: .duration)
+        try container.encodeIfPresent(expirationHours, forKey: .expirationHours)
         try container.encode(Timestamp(date: timestamp), forKey: .timestamp)
         try container.encode(Timestamp(date: expirationDate), forKey: .expirationDate)
         try container.encodeIfPresent(profileImagePath, forKey: .profileImagePath)

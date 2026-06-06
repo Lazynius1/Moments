@@ -737,6 +737,8 @@ service cloud.firestore {
                           request.resource.data.customListId is string)
                       && (!("customListName" in request.resource.data) ||
                           request.resource.data.customListName is string)
+                      && (!("expirationHours" in request.resource.data) ||
+                          request.resource.data.expirationHours in [24, 48])
                       && request.resource.data.keys().hasAll(['authorId', 'mediaItem'])
                       && request.resource.data.authorId is string
                       && request.resource.data.mediaItem is map

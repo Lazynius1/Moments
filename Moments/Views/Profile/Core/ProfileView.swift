@@ -256,8 +256,6 @@ struct ProfileView: View {
     @State private var showExternalProfile = false
     @State private var editingMoment: Moment? = nil
     @State private var pendingDeleteMoment: Moment? = nil
-
-
     enum UserListType: Identifiable {
         case visits
         case admirers

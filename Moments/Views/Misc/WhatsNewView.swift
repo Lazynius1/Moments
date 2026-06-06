@@ -8,34 +8,44 @@ struct WhatsNewView: View {
     private var features: [WhatsNewFeature] {
         [
             WhatsNewFeature(
-                icon: .asset("NovaTabIcon"),
-                title: NSLocalizedString("whatsNew.nova.title", comment: ""),
-                description: NSLocalizedString("whatsNew.nova.description", comment: "")
+                icon: .system("textformat.alt"),
+                title: NSLocalizedString("whatsNew.stories.title", comment: ""),
+                description: NSLocalizedString("whatsNew.stories.description", comment: "")
             ),
             WhatsNewFeature(
-                icon: .system("lock.shield.fill"),
-                title: NSLocalizedString("whatsNew.account.title", comment: ""),
-                description: NSLocalizedString("whatsNew.account.description", comment: "")
+                icon: .system("timer"),
+                title: NSLocalizedString("whatsNew.sharing.title", comment: ""),
+                description: NSLocalizedString("whatsNew.sharing.description", comment: "")
             ),
             WhatsNewFeature(
                 icon: .storyRing,
-                title: NSLocalizedString("whatsNew.glass.title", comment: ""),
-                description: NSLocalizedString("whatsNew.glass.description", comment: "")
+                title: NSLocalizedString("whatsNew.viewer.title", comment: ""),
+                description: NSLocalizedString("whatsNew.viewer.description", comment: "")
+            ),
+            WhatsNewFeature(
+                icon: .system("eye.fill"),
+                title: NSLocalizedString("whatsNew.activity.title", comment: ""),
+                description: NSLocalizedString("whatsNew.activity.description", comment: "")
+            ),
+            WhatsNewFeature(
+                icon: .system("archivebox.fill"),
+                title: NSLocalizedString("whatsNew.archive.title", comment: ""),
+                description: NSLocalizedString("whatsNew.archive.description", comment: "")
+            ),
+            WhatsNewFeature(
+                icon: .system("pin.fill"),
+                title: NSLocalizedString("whatsNew.profile.title", comment: ""),
+                description: NSLocalizedString("whatsNew.profile.description", comment: "")
             ),
             WhatsNewFeature(
                 icon: .system("bell.badge.fill"),
-                title: NSLocalizedString("whatsNew.creator.title", comment: ""),
-                description: NSLocalizedString("whatsNew.creator.description", comment: "")
-            ),
-            WhatsNewFeature(
-                icon: .asset("AudienceOnlyMeIcon"),
-                title: NSLocalizedString("whatsNew.feed.title", comment: ""),
-                description: NSLocalizedString("whatsNew.feed.description", comment: "")
+                title: NSLocalizedString("whatsNew.notifications.title", comment: ""),
+                description: NSLocalizedString("whatsNew.notifications.description", comment: "")
             ),
             WhatsNewFeature(
                 icon: .system("play.square.stack.fill"),
-                title: NSLocalizedString("whatsNew.social.title", comment: ""),
-                description: NSLocalizedString("whatsNew.social.description", comment: "")
+                title: NSLocalizedString("whatsNew.media.title", comment: ""),
+                description: NSLocalizedString("whatsNew.media.description", comment: "")
             )
         ]
     }

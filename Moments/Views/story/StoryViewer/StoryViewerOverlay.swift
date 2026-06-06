@@ -235,11 +235,14 @@ struct GlassmorphicViewersSheet: View {
     @Environment(\.dismiss) var dismiss
     @Environment(\.colorScheme) private var colorScheme
     @State private var selectedTab = 0
+    @State private var viewerSearchText = ""
+    @State private var reactionSearchText = ""
     @State private var audienceUsers: [AppUser] = []
     @State private var audienceListName: String?
     @State private var isLoadingAudience = false
     @State private var didLoadAudience = false
     @State private var showAudienceList = false
+    @State private var reactionUsersById: [String: AppUser] = [:]
     private let firestoreService = FirestoreService()
 
     private var normalizedAudience: String {
@@ -273,6 +276,23 @@ struct GlassmorphicViewersSheet: View {
         ContentAudience.fromAudienceValue(story.audience)
     }
 
+    private var filteredViewers: [StoryViewer] {
+        let query = viewerSearchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !query.isEmpty else { return viewers }
+        return viewers.filter { viewer in
+            (viewer.username ?? "Usuario").localizedCaseInsensitiveContains(query)
+        }
+    }
+
+    private var filteredReactions: [StoryReaction] {
+        let query = reactionSearchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !query.isEmpty else { return reactions }
+        return reactions.filter { reaction in
+            let username = reactionUsersById[reaction.userId]?.username ?? "Usuario"
+            return username.localizedCaseInsensitiveContains(query)
+        }
+    }
+
     var body: some View {
         VStack(spacing: 0) {
             storyActivityHeader
@@ -303,9 +323,26 @@ struct GlassmorphicViewersSheet: View {
                         .frame(maxHeight: .infinity)
                     } else {
                         ScrollView {
-                            LazyVStack(spacing: 0) {
-                                ForEach(viewers) { viewer in
-                                    GlassmorphicViewerRow(viewer: viewer)
+                            VStack(spacing: 16) {
+                                viewersSearchBar
+
+                                if filteredViewers.isEmpty {
+                                    GlassmorphicEmptyState(
+                                        icon: "magnifyingglass",
+                                        message: NSLocalizedString(
+                                            "stories.activity.search.empty",
+                                            value: "No viewers match your search.",
+                                            comment: "No matching viewers for search"
+                                        )
+                                    )
+                                    .frame(maxWidth: .infinity)
+                                    .padding(.top, 8)
+                                } else {
+                                    LazyVStack(spacing: 0) {
+                                        ForEach(filteredViewers) { viewer in
+                                            GlassmorphicViewerRow(viewer: viewer)
+                                        }
+                                    }
                                 }
                             }
                             .padding(.horizontal, 22)
@@ -325,9 +362,29 @@ struct GlassmorphicViewersSheet: View {
                         .frame(maxHeight: .infinity)
                     } else {
                         ScrollView {
-                            LazyVStack(spacing: 0) {
-                                ForEach(reactions) { reaction in
-                                    GlassmorphicReactionRow(reaction: reaction)
+                            VStack(spacing: 16) {
+                                reactionsSearchBar
+
+                                if filteredReactions.isEmpty {
+                                    GlassmorphicEmptyState(
+                                        icon: "magnifyingglass",
+                                        message: NSLocalizedString(
+                                            "stories.activity.search.empty",
+                                            value: "No viewers match your search.",
+                                            comment: "No matching viewers for search"
+                                        )
+                                    )
+                                    .frame(maxWidth: .infinity)
+                                    .padding(.top, 8)
+                                } else {
+                                    LazyVStack(spacing: 0) {
+                                        ForEach(filteredReactions) { reaction in
+                                            GlassmorphicReactionRow(
+                                                reaction: reaction,
+                                                user: reactionUsersById[reaction.userId]
+                                            )
+                                        }
+                                    }
                                 }
                             }
                             .padding(.horizontal, 22)
@@ -348,12 +405,83 @@ struct GlassmorphicViewersSheet: View {
             guard !didLoadAudience else { return }
             didLoadAudience = true
             loadAudienceMembers()
+            loadReactionUsersIfNeeded()
         }
         .sheet(isPresented: $showAudienceList) {
             GlassmorphicAudienceMembersSheet(
                 title: audienceTitle,
                 users: audienceUsers
             )
+        }
+    }
+
+    private var viewersSearchBar: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "magnifyingglass")
+                .foregroundColor(colorScheme == .dark ? .white.opacity(0.55) : .black.opacity(0.45))
+                .font(.system(size: 15, weight: .medium))
+
+            TextField(NSLocalizedString("userListView.search.placeholder", comment: "Search users placeholder"), text: $viewerSearchText)
+                .font(.custom("Poppins-Regular", size: 14))
+                .foregroundColor(colorScheme == .dark ? .white : .black.opacity(0.88))
+                .textFieldStyle(.plain)
+
+            if !viewerSearchText.isEmpty {
+                Button {
+                    viewerSearchText = ""
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .foregroundColor(colorScheme == .dark ? .white.opacity(0.45) : .black.opacity(0.35))
+                        .font(.system(size: 16))
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+        .background(Color.white.opacity(0.001))
+        .liquidGlass(in: Capsule())
+    }
+
+    private var reactionsSearchBar: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "magnifyingglass")
+                .foregroundColor(colorScheme == .dark ? .white.opacity(0.55) : .black.opacity(0.45))
+                .font(.system(size: 15, weight: .medium))
+
+            TextField(NSLocalizedString("userListView.search.placeholder", comment: "Search users placeholder"), text: $reactionSearchText)
+                .font(.custom("Poppins-Regular", size: 14))
+                .foregroundColor(colorScheme == .dark ? .white : .black.opacity(0.88))
+                .textFieldStyle(.plain)
+
+            if !reactionSearchText.isEmpty {
+                Button {
+                    reactionSearchText = ""
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .foregroundColor(colorScheme == .dark ? .white.opacity(0.45) : .black.opacity(0.35))
+                        .font(.system(size: 16))
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+        .background(Color.white.opacity(0.001))
+        .liquidGlass(in: Capsule())
+    }
+
+    private func loadReactionUsersIfNeeded() {
+        let missingIds = Array(Set(reactions.map(\.userId))).filter { reactionUsersById[$0] == nil }
+        guard !missingIds.isEmpty else { return }
+
+        firestoreService.fetchUsers(userIds: missingIds) { result in
+            guard case .success(let users) = result else { return }
+            DispatchQueue.main.async {
+                for user in users {
+                    self.reactionUsersById[user.id] = user
+                }
+            }
         }
     }
 
@@ -776,14 +904,16 @@ struct GlassmorphicViewerRow: View {
             }
 
             // User info
-            VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 6) {
                 Text(viewer.username ?? "Usuario")
                     .font(.custom("Poppins-SemiBold", size: 15))
                     .foregroundColor(primaryTextColor)
 
-                Text(timeAgo(from: viewer.timestamp))
-                    .font(.custom("Poppins-Regular", size: 13))
-                    .foregroundColor(secondaryTextColor)
+                if let badgeText = viewer.rewatchBadgeText {
+                    Text(badgeText)
+                        .font(.custom("Poppins-SemiBold", size: 15))
+                        .foregroundColor(primaryTextColor)
+                }
             }
 
             Spacer()
@@ -794,17 +924,11 @@ struct GlassmorphicViewerRow: View {
                 .background(secondaryTextColor.opacity(colorScheme == .dark ? 0.18 : 0.12))
         }
     }
-
-    private func timeAgo(from date: Date) -> String {
-        let formatter = RelativeDateTimeFormatter()
-        formatter.unitsStyle = .abbreviated
-        formatter.locale = Locale(identifier: "es")
-        return formatter.localizedString(for: date, relativeTo: Date())
-    }
 }
 
 struct GlassmorphicReactionRow: View {
     let reaction: StoryReaction
+    let user: AppUser?
     @State private var username: String = "Usuario"
     @State private var profileImagePath: String?
     @Environment(\.colorScheme) private var colorScheme
@@ -864,11 +988,17 @@ struct GlassmorphicReactionRow: View {
                 .background(secondaryTextColor.opacity(colorScheme == .dark ? 0.18 : 0.12))
         }
         .onAppear {
-            fetchUserInfo()
+            hydrateUserInfo()
         }
     }
 
-    private func fetchUserInfo() {
+    private func hydrateUserInfo() {
+        if let user {
+            username = user.username
+            profileImagePath = user.profileImagePath
+            return
+        }
+
         FirestoreService().fetchUserProfile(userId: reaction.userId) { result in
             switch result {
             case .success(let user):

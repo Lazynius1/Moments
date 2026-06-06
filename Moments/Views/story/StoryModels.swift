@@ -24,6 +24,62 @@ struct StoryViewer: Identifiable {
     let username: String?
     let profileImagePath: String?
     let timestamp: Date
+    let viewCount: Int
+    let firstViewedAt: Date?
+    let lastViewedAt: Date?
+
+    init(
+        id: String,
+        userId: String,
+        username: String?,
+        profileImagePath: String?,
+        timestamp: Date,
+        viewCount: Int = 1,
+        firstViewedAt: Date? = nil,
+        lastViewedAt: Date? = nil
+    ) {
+        self.id = id
+        self.userId = userId
+        self.username = username
+        self.profileImagePath = profileImagePath
+        self.timestamp = timestamp
+        self.viewCount = max(viewCount, 1)
+        self.firstViewedAt = firstViewedAt
+        self.lastViewedAt = lastViewedAt
+    }
+
+    var rewatchBadgeText: String? {
+        guard viewCount > 1 else { return nil }
+        return "x\(viewCount)"
+    }
+
+    static func from(documentId: String, data: [String: Any]) -> StoryViewer? {
+        guard let userId = data["userId"] as? String else {
+            return nil
+        }
+
+        let lastViewedAt = (data["lastViewedAt"] as? Timestamp)?.dateValue()
+        let timestamp = (data["timestamp"] as? Timestamp)?.dateValue()
+            ?? lastViewedAt
+            ?? (data["firstViewedAt"] as? Timestamp)?.dateValue()
+        guard let timestamp else {
+            return nil
+        }
+
+        let firstViewedAt = (data["firstViewedAt"] as? Timestamp)?.dateValue()
+        let rawViewCount = data["viewCount"] as? Int ?? 1
+
+        return StoryViewer(
+            id: documentId,
+            userId: userId,
+            username: data["username"] as? String,
+            profileImagePath: data["profileImagePath"] as? String,
+            timestamp: timestamp,
+            viewCount: rawViewCount,
+            firstViewedAt: firstViewedAt,
+            lastViewedAt: lastViewedAt ?? timestamp
+        )
+    }
 }
 
 // MARK: - Story Ring Component

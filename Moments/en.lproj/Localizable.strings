@@ -1,6 +1,11 @@
 "storyEditor.customAudience.single" = "%d person";
 "storyEditor.customAudience.multiple" = "%d people";
 "storyEditor.loadingSettings" = "Loading...";
+"storyEditor.expiration.selector" = "Story duration";
+"storyEditor.expiration.option" = "%dh";
+"storyEditor.expiration.optionAccessibility" = "%d hour story";
+"storyEditor.expiration.info.title" = "Story duration";
+"storyEditor.expiration.info.message" = "Tap to switch between 24h and 48h. Regular stories default to 24h.";
 "storyEditor.savedToGallery" = "Story saved to your gallery";
 "storyEditor.reveal.active" = "Reveal effect active, tap to customize";
 "revealEditor.title" = "Customize Reveal";
@@ -404,6 +409,7 @@
 "stories.seeActivity" = "See activity";
 "stories.ownBottom.activity" = "Activity";
 "stories.ownBottom.audienceAccessibility" = "Audience: %@";
+"stories.ownBottom.audienceDurationAccessibility" = "Audience: %@, duration %@";
 "stories.ownBottom.noViews" = "No views yet";
 "stories.ownBottom.viewsOne" = "1 view";
 "stories.ownBottom.viewsMany" = "%d views";
@@ -420,6 +426,7 @@
 "stories.activity.title" = "Story activity";
 "stories.activity.noViewers" = "No one has viewed this story yet";
 "stories.activity.noReactions" = "No reactions yet";
+"stories.activity.search.empty" = "No results for this search";
 "stories.activity.viewersTab" = "Views (%d)";
 "stories.activity.reactionsTab" = "Reactions (%d)";
 "stories.activity.audienceTitle" = "Audience";
@@ -1801,6 +1808,18 @@
 /* ContextMenu */
 "contextMenu.editMoment" = "Edit moment";
 "contextMenu.editMoment.subtitle" = "Change description";
+"contextMenu.pinMoment" = "Pin moment";
+"contextMenu.pinMoment.subtitle" = "Keep it at the top of your profile";
+"contextMenu.unpinMoment" = "Unpin moment";
+"contextMenu.unpinMoment.subtitle" = "Remove it from pinned";
+"contextMenu.pinLimit.title" = "Pinned limit reached";
+"contextMenu.pinLimit.message" = "You can only have 3 pinned moments. Unpin one to pin another.";
+"contextMenu.pinLimit.confirm.title" = "Pinned moments limit reached";
+"contextMenu.pinLimit.confirm.message" = "Pin this moment? You can only pin three on your profile. Pinning this one will replace your oldest pinned moment.";
+"contextMenu.pinLimit.confirm" = "Confirm";
+"contextMenu.pinLimit.cancel" = "Cancel";
+"contextMenu.pinMoment.toast.pinned" = "Moment pinned";
+"contextMenu.pinMoment.toast.unpinned" = "Moment unpinned";
 "contextMenu.archiveMoment" = "Archive moment";
 "contextMenu.archiveMoment.subtitle" = "Hide from your profile";
 "contextMenu.deleteMoment" = "Delete moment";
@@ -2518,36 +2537,34 @@
 "banner.verb.story" = "reacted to your story";
 "banner.verb.message" = "sent you a message";
 
-/* Whats New v2.8 */
+/* Whats New v2.14 */
 "whatsNew.title" = "New in Moments!";
-"whatsNew.subtitle" = "Version 2.13.0";
-"whatsNew.button" = "Explore Moments 2.13";
+"whatsNew.subtitle" = "More creativity in Stories, more control when sharing, and more polish across the app.";
+"whatsNew.button" = "Explore Moments 2.14";
 
-/* Nova */
-"whatsNew.nova.title" = "A much better Nova";
-"whatsNew.nova.description" = "Nova now understands context better and supports your actions in a much more natural way across Moments.";
+"whatsNew.stories.title" = "Much more creative stories";
+"whatsNew.stories.description" = "We've refreshed the Stories experience with more text options, new styles, and a more comfortable visual editor.";
 
-"whatsNew.account.title" = "More secure chat";
-"whatsNew.account.description" = "Photos, videos, and audio in private chat now use end-to-end encryption with a much more polished messaging experience.";
+"whatsNew.sharing.title" = "More control when sharing";
+"whatsNew.sharing.description" = "You can now choose whether your story lasts 24 or 48h, so it is easier to decide how long it stays visible.";
 
-/* Liquid glass */
-"whatsNew.glass.title" = "Smoother stories";
-"whatsNew.glass.description" = "Browsing, replying to, and sharing stories now feels much more continuous, immersive, and natural.";
+"whatsNew.viewer.title" = "Watching stories feels better";
+"whatsNew.viewer.description" = "Browsing stories now feels smoother and more natural, with better loading and a more stable viewer.";
 
-/* Creator */
-"whatsNew.creator.title" = "Clearer notifications";
-"whatsNew.creator.description" = "We've better organized notifications and Your Activity so keeping up with what happens in Moments feels much easier.";
+"whatsNew.activity.title" = "Clearer activity";
+"whatsNew.activity.description" = "It is now easier to understand who viewed your story, how they reacted, and what activity it had.";
 
-/* Feed */
-"whatsNew.feed.title" = "More control and privacy";
-"whatsNew.feed.description" = "Requests, mentions, tags, and visibility now feel much more consistent with the privacy of each moment.";
+"whatsNew.archive.title" = "More useful archived stories";
+"whatsNew.archive.description" = "We also improved archived stories and several related views around them.";
 
-"whatsNew.social.title" = "Smarter video";
-"whatsNew.social.description" = "Videos now adapt better to your connection for smoother and more stable playback.";
+"whatsNew.profile.title" = "More polished profiles";
+"whatsNew.profile.description" = "You can now pin your favorite moments on your profile to highlight them better.";
 
-/* Fixes */
-"whatsNew.fixes.title" = "More stability while creating and watching";
-"whatsNew.fixes.description" = "We kept refining rendering, playback, uploads, permissions, and small visual details across the app.";
+"whatsNew.notifications.title" = "Clearer notifications and reviews";
+"whatsNew.notifications.description" = "We improved important notifications and the follow-up when content needs review.";
+
+"whatsNew.media.title" = "Video, messages, and general polish";
+"whatsNew.media.description" = "We also improved video playback in chats and many visual and stability details across the app.";
 
 /* Best Friends */
 "bestFriends.title" = "Best Friends";

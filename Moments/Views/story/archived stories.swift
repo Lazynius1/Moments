@@ -1172,6 +1172,7 @@ struct StoryStatsView: View {
     @Environment(\.colorScheme) var colorScheme
     @StateObject private var viewModel = StoryStatsViewModel()
     @State private var selectedSection: StatsSection = .viewers
+    @State private var viewerSearchText = ""
     
     enum StatsSection: String, CaseIterable, Identifiable {
         case viewers
@@ -1294,17 +1295,30 @@ struct StoryStatsView: View {
                                 VStack(alignment: .leading, spacing: 10) {
                                     sectionHeader(
                                         title: NSLocalizedString("archivedStories.whoViewed", comment: "Who viewed it"),
-                                        countText: String(format: NSLocalizedString("archivedStories.peopleCount", comment: "People count"), viewModel.viewers.count)
+                                        countText: String(format: NSLocalizedString("archivedStories.peopleCount", comment: "People count"), filteredViewers.count)
                                     )
+
+                                    if !viewModel.viewers.isEmpty {
+                                        viewerSearchBar
+                                    }
                                     
                                     if viewModel.viewers.isEmpty {
                                         emptySection(
                                             icon: "eye.slash",
                                             text: NSLocalizedString("archivedStories.stats.empty.viewers", comment: "No story viewers yet")
                                         )
+                                    } else if filteredViewers.isEmpty {
+                                        emptySection(
+                                            icon: "magnifyingglass",
+                                            text: NSLocalizedString(
+                                                "stories.activity.search.empty",
+                                                value: "No hay viewers que coincidan con tu busqueda.",
+                                                comment: "No matching viewers for search"
+                                            )
+                                        )
                                     } else {
                                         LazyVStack(spacing: 8) {
-                                            ForEach(viewModel.viewers, id: \.id) { viewer in
+                                            ForEach(filteredViewers, id: \.id) { viewer in
                                                 ViewerRow(viewer: viewer)
                                             }
                                         }
@@ -1354,6 +1368,15 @@ struct StoryStatsView: View {
             viewModel.loadStats(for: story)
         }
     }
+
+    private var filteredViewers: [StoryViewer] {
+        let query = viewerSearchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !query.isEmpty else { return viewModel.viewers }
+        return viewModel.viewers.filter { viewer in
+            (viewer.username ?? NSLocalizedString("archivedStories.user", comment: "User"))
+                .localizedCaseInsensitiveContains(query)
+        }
+    }
     
     private func pill(text: String) -> some View {
         Text(text)
@@ -1365,6 +1388,36 @@ struct StoryStatsView: View {
                 Capsule()
                     .fill(Color(colorScheme == .dark ? .white : .black).opacity(0.08))
             )
+    }
+
+    private var viewerSearchBar: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "magnifyingglass")
+                .foregroundColor(.gray)
+                .font(.system(size: 15, weight: .medium))
+
+            TextField(NSLocalizedString("userListView.search.placeholder", comment: "Search users placeholder"), text: $viewerSearchText)
+                .font(.custom("Poppins-Regular", size: 14))
+                .foregroundColor(colorScheme == .dark ? .white : .black)
+                .textFieldStyle(.plain)
+
+            if !viewerSearchText.isEmpty {
+                Button {
+                    viewerSearchText = ""
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .foregroundColor(.gray)
+                        .font(.system(size: 16))
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 11)
+        .background(
+            Capsule()
+                .fill(Color(colorScheme == .dark ? .white : .black).opacity(0.06))
+        )
     }
     
     private func sectionHeader(title: String, countText: String) -> some View {
@@ -1465,14 +1518,16 @@ struct ViewerRow: View {
                 lineWidth: 2.3
             )
             
-            VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 6) {
                 Text(viewer.username ?? NSLocalizedString("archivedStories.user", comment: "User"))
                     .font(.custom("Poppins-SemiBold", size: 14))
                     .foregroundColor(colorScheme == .dark ? .white : .black)
-                
-                Text(timeAgo(from: viewer.timestamp))
-                    .font(.custom("Poppins-Regular", size: 12))
-                    .foregroundColor(.gray)
+
+                if let badgeText = viewer.rewatchBadgeText {
+                    Text(badgeText)
+                        .font(.custom("Poppins-SemiBold", size: 14))
+                        .foregroundColor(colorScheme == .dark ? .white : .black)
+                }
             }
             
             Spacer()
@@ -1483,13 +1538,6 @@ struct ViewerRow: View {
             RoundedRectangle(cornerRadius: 12)
                 .fill(Color(colorScheme == .dark ? .white : .black).opacity(0.04))
         )
-    }
-    
-    private func timeAgo(from date: Date) -> String {
-        let formatter = RelativeDateTimeFormatter()
-        formatter.locale = Locale.current
-        formatter.unitsStyle = .abbreviated
-        return formatter.localizedString(for: date, relativeTo: Date())
     }
 }
 
@@ -1639,21 +1687,8 @@ class StoryStatsViewModel: ObservableObject {
                     return
                 }
                 
-                let viewers = snapshot?.documents.compactMap { doc -> StoryViewer? in
-                    let data = doc.data()
-                    guard let userId = data["userId"] as? String,
-                          let timestamp = (data["timestamp"] as? Timestamp)?.dateValue() else {
-                        return nil
-                    }
-                    let username = data["username"] as? String
-                    let profileImagePath = data["profileImagePath"] as? String
-                    return StoryViewer(
-                        id: doc.documentID,
-                        userId: userId,
-                        username: username,
-                        profileImagePath: profileImagePath,
-                        timestamp: timestamp
-                    )
+                let viewers = snapshot?.documents.compactMap { doc in
+                    StoryViewer.from(documentId: doc.documentID, data: doc.data())
                 } ?? []
                 
                 DispatchQueue.main.async {

@@ -35,6 +35,7 @@ struct StoryEditingView: View {
     @State private var showingStickerPicker = false
     @State private var isPublishing = false
     @State private var storyAudience: CaptionAndDetailsView.AudienceSetting = .everyone
+    @State private var storyExpirationHours = 24
     @State private var isLoadingUserSettings = true // NUEVO
     @Environment(\.colorScheme) var colorScheme
     @State private var showingAudienceSelector = false
@@ -109,6 +110,7 @@ struct StoryEditingView: View {
     @State private var showingChainConfiguration = false
     @State private var primaryVideoPresentationSize: CGSize? = nil
     @State private var isVideoPreviewMuted = false
+    @State private var showingExpirationInfoOverlay = false
 
 
     private var isTextMode: Bool { activeEditorMode == .text }
@@ -118,6 +120,7 @@ struct StoryEditingView: View {
     private var isCanvasModeActive: Bool { activeEditorMode != .idle }
     private var isEditingReveal: Bool { editingRevealStickerId != nil }
     private var hasAnyTextOverlays: Bool { textOverlays.contains { !$0.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty } }
+    private var showsStoryExpirationSelector: Bool { !isCreatingChain && !isContinuingChain }
     private var showsGeneratedBackground: Bool {
         storyShouldShowGeneratedBackground(scale: imageScale, offset: imageOffset, rotation: imageRotation)
     }
@@ -923,6 +926,27 @@ struct StoryEditingView: View {
                             .overlay(Circle().stroke(isCreatingChain ? Color.blue : Color.clear, lineWidth: 1))
                     }
                 }
+
+                if showsStoryExpirationSelector {
+                    Button(action: {
+                        storyExpirationHours = storyExpirationHours == 24 ? 48 : 24
+                    }) {
+                        Text(String(format: NSLocalizedString("storyEditor.expiration.option", comment: "Story expiration option"), storyExpirationHours))
+                            .font(.system(size: 14, weight: .bold))
+                            .foregroundColor(chromeIconColor)
+                            .frame(width: 44, height: 44)
+                            .liquidGlass(in: Circle())
+                    }
+                    .simultaneousGesture(
+                        LongPressGesture(minimumDuration: 0.45).onEnded { _ in
+                            withAnimation(.spring(response: 0.28, dampingFraction: 0.88)) {
+                                showingExpirationInfoOverlay = true
+                            }
+                        }
+                    )
+                    .accessibilityLabel(NSLocalizedString("storyEditor.expiration.selector", comment: "Story expiration selector"))
+                    .accessibilityHint(String(format: NSLocalizedString("storyEditor.expiration.optionAccessibility", comment: "Story expiration option accessibility"), storyExpirationHours))
+                }
             }
             .padding(.trailing, 16)
         }
@@ -963,7 +987,47 @@ struct StoryEditingView: View {
                 .opacity((isEditingSticker && !isEditingReveal) ? 0 : 1)
                 .disabled(isEditingSticker && !isEditingReveal)
             }
+            .overlay(alignment: .topTrailing) {
+                if showingExpirationInfoOverlay {
+                    ZStack(alignment: .topTrailing) {
+                        Color.black.opacity(0.001)
+                            .ignoresSafeArea()
+                            .contentShape(Rectangle())
+                            .onTapGesture {
+                                withAnimation(.easeOut(duration: 0.18)) {
+                                    showingExpirationInfoOverlay = false
+                                }
+                            }
+
+                        storyExpirationInfoOverlay
+                            .padding(.top, max(proxy.safeAreaInsets.top, 16) + 84)
+                            .padding(.trailing, 68)
+                    }
+                }
+            }
             .frame(width: proxy.size.width, height: proxy.size.height, alignment: .top)
+        }
+    }
+
+    @ViewBuilder
+    private var storyExpirationInfoOverlay: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(NSLocalizedString("storyEditor.expiration.info.title", comment: "Story expiration info title"))
+                .font(.system(size: 16, weight: .bold))
+                .foregroundStyle(colorScheme == .dark ? Color.white : Color.black)
+
+            Text(NSLocalizedString("storyEditor.expiration.info.message", comment: "Story expiration info message"))
+                .font(.system(size: 14, weight: .medium))
+                .foregroundStyle((colorScheme == .dark ? Color.white : Color.black).opacity(0.78))
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 14)
+        .frame(maxWidth: 260, alignment: .leading)
+        .liquidGlass(in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+        .shadow(color: .black.opacity(colorScheme == .dark ? 0.24 : 0.12), radius: 20, x: 0, y: 10)
+        .onTapGesture {
+            // Consume taps inside the card so only outside taps dismiss it.
         }
     }
 
@@ -2133,6 +2197,7 @@ struct StoryEditingView: View {
 
         let stickerData = selectedStickers
         let drawingData = drawingImage?.pngData()
+        let resolvedExpirationHours = (isCreatingChain || isContinuingChain) ? 48 : storyExpirationHours
 
         var finalChainId: String? = nil
         var finalChainPosition: Int? = nil
@@ -2193,6 +2258,7 @@ struct StoryEditingView: View {
             continuationCustomViewers: (isCreatingChain || isContinuingChain) ? customSelectedUsers : nil,
             continuationCustomListId: (isCreatingChain || isContinuingChain) ? selectedListId : nil,
             continuationCustomListName: (isCreatingChain || isContinuingChain) ? selectedListName : nil,
+            expirationHours: resolvedExpirationHours,
             storyVideoMode: media.storyVideoMode
         ) else {
             // Feedback háptico de error
@@ -2250,6 +2316,7 @@ struct StoryEditingView: View {
     private func resetStoryForm() {
         storyText = ""
         textPosition = .zero
+        storyExpirationHours = 24
         activeTextOverlayId = nil
         textOverlays = []
         selectedStickers = []

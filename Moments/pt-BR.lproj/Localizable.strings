@@ -1,6 +1,11 @@
 "storyEditor.customAudience.single" = "%d pessoa";
 "storyEditor.customAudience.multiple" = "%d pessoas";
 "storyEditor.loadingSettings" = "Carregando...";
+"storyEditor.expiration.selector" = "Duração do story";
+"storyEditor.expiration.option" = "%dh";
+"storyEditor.expiration.optionAccessibility" = "Story de %d horas";
+"storyEditor.expiration.info.title" = "Duração do story";
+"storyEditor.expiration.info.message" = "Toque para alternar entre 24h e 48h. Os stories normais duram 24h por padrão.";
 "storyEditor.savedToGallery" = "Story salva na sua galeria";
 "storyEditor.reveal.active" = "Efeito Reveal ativado, toque para personalizar";
 "revealEditor.title" = "Personalizar efeito Reveal";
@@ -383,6 +388,7 @@
 "stories.seeActivity" = "Ver atividade";
 "stories.ownBottom.activity" = "Atividade";
 "stories.ownBottom.audienceAccessibility" = "Público: %@";
+"stories.ownBottom.audienceDurationAccessibility" = "Público: %@, duração %@";
 "stories.ownBottom.noViews" = "Nenhuma visualização ainda";
 "stories.ownBottom.viewsOne" = "1 visualização";
 "stories.ownBottom.viewsMany" = "%d visualizações";
@@ -399,6 +405,7 @@
 "stories.activity.title" = "Atividade do story";
 "stories.activity.noViewers" = "Ainda ninguém viu este story";
 "stories.activity.noReactions" = "Ainda não há reações";
+"stories.activity.search.empty" = "Nenhum resultado para esta busca";
 "stories.activity.viewersTab" = "Visualizações (%d)";
 "stories.activity.reactionsTab" = "Reações (%d)";
 "stories.activity.audienceTitle" = "Público";
@@ -1776,6 +1783,18 @@
 /* ContextMenu */
 "contextMenu.editMoment" = "Editar momento";
 "contextMenu.editMoment.subtitle" = "Alterar descrição";
+"contextMenu.pinMoment" = "Fixar momento";
+"contextMenu.pinMoment.subtitle" = "Mantê-lo no topo do seu perfil";
+"contextMenu.unpinMoment" = "Desafixar momento";
+"contextMenu.unpinMoment.subtitle" = "Remover dos fixados";
+"contextMenu.pinLimit.title" = "Limite de fixados atingido";
+"contextMenu.pinLimit.message" = "Você só pode ter 3 momentos fixados. Desafixe um para fixar outro.";
+"contextMenu.pinLimit.confirm.title" = "Limite de momentos fixados atingido";
+"contextMenu.pinLimit.confirm.message" = "Fixar este momento? Você só pode fixar três no perfil. O mais antigo será substituído.";
+"contextMenu.pinLimit.confirm" = "Confirmar";
+"contextMenu.pinLimit.cancel" = "Cancelar";
+"contextMenu.pinMoment.toast.pinned" = "Momento fixado";
+"contextMenu.pinMoment.toast.unpinned" = "Momento desafixado";
 "contextMenu.archiveMoment" = "Arquivar momento";
 "contextMenu.archiveMoment.subtitle" = "Ocultar do seu perfil";
 "contextMenu.deleteMoment" = "Excluir momento";
@@ -2498,36 +2517,34 @@
 "banner.verb.story" = "reacted to your story";
 "banner.verb.message" = "sent you a message";
 
-/* Whats New v2.8 */
+/* Whats New v2.14 */
 "whatsNew.title" = "Novidades no Moments!";
-"whatsNew.subtitle" = "Versão 2.13.0";
-"whatsNew.button" = "Explorar o Moments 2.13";
+"whatsNew.subtitle" = "Mais criatividade nas Stories, mais controle ao compartilhar e mais polimento em todo o app.";
+"whatsNew.button" = "Explorar o Moments 2.14";
 
-/* Nova */
-"whatsNew.nova.title" = "Uma Nova muito melhor";
-"whatsNew.nova.description" = "A Nova agora entende melhor o contexto e acompanha suas ações de forma muito mais natural dentro do Moments.";
+"whatsNew.stories.title" = "Stories muito mais criativas";
+"whatsNew.stories.description" = "Renovamos a experiencia de Stories com mais opcoes de texto, novos estilos e um editor mais confortavel e visual.";
 
-"whatsNew.account.title" = "Chat mais seguro";
-"whatsNew.account.description" = "Fotos, vídeos e áudios no chat privado agora contam com criptografia de ponta a ponta e uma experiência muito mais caprichada.";
+"whatsNew.sharing.title" = "Mais controle ao compartilhar";
+"whatsNew.sharing.description" = "Agora voce pode escolher se a sua story dura 24 ou 48h.";
 
-/* Liquid glass */
-"whatsNew.glass.title" = "Stories mais fluidos";
-"whatsNew.glass.description" = "Navegar, responder e compartilhar stories agora parece muito mais contínuo, imersivo e natural.";
+"whatsNew.viewer.title" = "Ver stories esta melhor";
+"whatsNew.viewer.description" = "Navegar pelas stories agora esta mais fluido e natural, com melhor carregamento e um viewer mais estavel.";
 
-/* Creator */
-"whatsNew.creator.title" = "Notificações mais claras";
-"whatsNew.creator.description" = "Organizamos melhor as notificações e Sua atividade para que acompanhar o que acontece no Moments fique muito mais fácil.";
+"whatsNew.activity.title" = "Atividade mais clara";
+"whatsNew.activity.description" = "Agora ficou mais facil entender quem viu a sua story, como reagiu e que atividade ela teve.";
 
-/* Feed */
-"whatsNew.feed.title" = "Mais controle e privacidade";
-"whatsNew.feed.description" = "Solicitações, menções, marcações e visibilidade agora parecem muito mais coerentes com a privacidade de cada momento.";
+"whatsNew.archive.title" = "Stories arquivadas mais uteis";
+"whatsNew.archive.description" = "Tambem melhoramos stories arquivadas e varias visualizacoes relacionadas.";
 
-"whatsNew.social.title" = "Vídeo mais inteligente";
-"whatsNew.social.description" = "Os vídeos agora se adaptam melhor à sua conexão para oferecer uma reprodução mais fluida e mais estável.";
+"whatsNew.profile.title" = "Perfis mais caprichados";
+"whatsNew.profile.description" = "Agora voce pode fixar seus moments favoritos no perfil para destacar melhor.";
 
-/* Fixes */
-"whatsNew.fixes.title" = "Mais estabilidade ao criar e assistir";
-"whatsNew.fixes.description" = "Seguimos refinando renderização, reprodução, uploads, permissões e pequenos detalhes visuais em todo o app.";
+"whatsNew.notifications.title" = "Notificacoes e revisoes mais claras";
+"whatsNew.notifications.description" = "Melhoramos algumas notificacoes importantes e o acompanhamento quando um conteudo precisa de revisao.";
+
+"whatsNew.media.title" = "Video, mensagens e polimento geral";
+"whatsNew.media.description" = "Tambem melhoramos a reproducao de video nos chats e muitos detalhes visuais e de estabilidade.";
 
 /* Best Friends */
 "bestFriends.title" = "Melhores amigos";

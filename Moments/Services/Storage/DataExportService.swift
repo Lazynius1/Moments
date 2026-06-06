@@ -553,7 +553,7 @@ class DataExportService: ObservableObject {
     }
     
     private func createStoriesCSV(stories: [[String: Any]], directory: URL) throws {
-        var csvContent = "DocumentID,AuthorID,Username,MediaType,MediaURL,Timestamp,ExpirationDate,Duration\n"
+        var csvContent = "DocumentID,AuthorID,Username,MediaType,MediaURL,Timestamp,ExpirationDate,ExpirationHours,Duration\n"
         
         for story in stories {
             let documentId = story["documentId"] as? String ?? ""
@@ -561,6 +561,7 @@ class DataExportService: ObservableObject {
             let username = story["username"] as? String ?? ""
             let timestamp = formatTimestamp(story["timestamp"])
             let expirationDate = formatTimestamp(story["expirationDate"])
+            let expirationHours = story["expirationHours"] as? Int ?? (story["chainId"] != nil ? 48 : 24)
             let duration = story["duration"] as? Double ?? 0.0
             
             var mediaType = ""
@@ -570,7 +571,7 @@ class DataExportService: ObservableObject {
                 mediaURL = mediaItem["url"] as? String ?? ""
             }
             
-            csvContent += "\"\(documentId)\",\"\(authorId)\",\"\(username)\",\"\(mediaType)\",\"\(mediaURL)\",\"\(timestamp)\",\"\(expirationDate)\",\(duration)\n"
+            csvContent += "\"\(documentId)\",\"\(authorId)\",\"\(username)\",\"\(mediaType)\",\"\(mediaURL)\",\"\(timestamp)\",\"\(expirationDate)\",\(expirationHours),\(duration)\n"
         }
         
         let fileURL = directory.appendingPathComponent("stories.csv")

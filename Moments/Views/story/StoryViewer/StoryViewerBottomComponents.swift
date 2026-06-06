@@ -36,6 +36,7 @@ struct StoryOwnStoryBottomBar: View {
     let reactions: [StoryReaction]
     let audience: String?
     let customListId: String?
+    let expirationHours: Int?
     let authorId: String
     let onViewActivity: () -> Void
     let onReactionsActivity: () -> Void
@@ -65,6 +66,17 @@ struct StoryOwnStoryBottomBar: View {
 
     private var audienceTitle: String {
         StoryAudienceBottomInfo.title(for: audience, listName: audienceListName)
+    }
+
+    private var storyDurationHours: Int {
+        expirationHours == 48 ? 48 : 24
+    }
+
+    private var storyDurationLabel: String {
+        String(
+            format: NSLocalizedString("storyEditor.expiration.option", comment: "Story duration option"),
+            storyDurationHours
+        )
     }
 
     private var displayAudience: ContentAudience {
@@ -236,12 +248,19 @@ struct StoryOwnStoryBottomBar: View {
                 .lineLimit(1)
                 .minimumScaleFactor(0.75)
                 .frame(maxWidth: 88)
+
+            Text(storyDurationLabel)
+                .font(.custom("Poppins-Regular", size: 11))
+                .foregroundColor(chromeColors.messageTextColor.opacity(0.92))
+                .shadow(color: labelShadowColor, radius: 4, x: 0, y: 1)
+                .lineLimit(1)
         }
         .frame(minWidth: 56)
         .accessibilityLabel(
             String(
-                format: NSLocalizedString("stories.ownBottom.audienceAccessibility", comment: "Story audience"),
-                audienceTitle
+                format: NSLocalizedString("stories.ownBottom.audienceDurationAccessibility", comment: "Story audience and duration"),
+                audienceTitle,
+                storyDurationLabel
             )
         )
     }

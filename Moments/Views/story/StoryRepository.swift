@@ -144,19 +144,8 @@ final class StoryRepository {
                     return
                 }
 
-                let viewers = snapshot?.documents.compactMap { doc -> StoryViewer? in
-                    let data = doc.data()
-                    guard let userId = data["userId"] as? String,
-                          let timestamp = (data["timestamp"] as? Timestamp)?.dateValue() else {
-                        return nil
-                    }
-                    return StoryViewer(
-                        id: doc.documentID,
-                        userId: userId,
-                        username: data["username"] as? String,
-                        profileImagePath: data["profileImagePath"] as? String,
-                        timestamp: timestamp
-                    )
+                let viewers = snapshot?.documents.compactMap { doc in
+                    StoryViewer.from(documentId: doc.documentID, data: doc.data())
                 } ?? []
 
                 completion(viewers)
@@ -164,17 +153,41 @@ final class StoryRepository {
     }
 
     func markStoryAsViewed(authorId: String, storyId: String, viewer: AppUser, completion: ((Error?) -> Void)? = nil) {
-        let viewerData: [String: Any] = [
-            "userId": viewer.id,
-            "username": viewer.username,
-            "profileImagePath": viewer.profileImagePath ?? "",
-            "timestamp": Timestamp()
-        ]
+        let viewerRef = firestoreService.db.collection("users").document(authorId).collection("stories").document(storyId)
+            .collection("viewers").document(viewer.id)
+        let now = Timestamp(date: Date())
 
-        firestoreService.db.collection("users").document(authorId).collection("stories").document(storyId)
-            .collection("viewers").document(viewer.id).setData(viewerData) { error in
-                completion?(error)
+        firestoreService.db.runTransaction({ transaction, errorPointer in
+            let snapshot: DocumentSnapshot
+
+            do {
+                snapshot = try transaction.getDocument(viewerRef)
+            } catch let error as NSError {
+                errorPointer?.pointee = error
+                return nil
             }
+
+            let existingData = snapshot.data() ?? [:]
+            let existingCount = existingData["viewCount"] as? Int ?? 1
+            let firstViewedAt = existingData["firstViewedAt"] as? Timestamp
+                ?? existingData["timestamp"] as? Timestamp
+                ?? now
+
+            let viewerData: [String: Any] = [
+                "userId": viewer.id,
+                "username": viewer.username,
+                "profileImagePath": viewer.profileImagePath ?? "",
+                "timestamp": now,
+                "firstViewedAt": firstViewedAt,
+                "lastViewedAt": now,
+                "viewCount": snapshot.exists ? existingCount + 1 : 1
+            ]
+
+            transaction.setData(viewerData, forDocument: viewerRef, merge: true)
+            return nil
+        }) { _, error in
+            completion?(error)
+        }
     }
 
     func addReaction(userId: String, storyId: String, currentUserId: String, reaction: String, completion: @escaping (Error?) -> Void) {
@@ -290,7 +303,11 @@ final class StoryRepository {
         }
 
         let timestamp = Date(timeIntervalSince1970: (document.timestamp ?? Date().timeIntervalSince1970 * 1000.0) / 1000.0)
-        let expirationDate = Date(timeIntervalSince1970: (document.expirationDate ?? timestamp.addingTimeInterval(24 * 60 * 60).timeIntervalSince1970 * 1000.0) / 1000.0)
+        let resolvedExpirationHours = document.expirationHours ?? (document.chainId != nil ? 48 : 24)
+        let expirationDate = Date(timeIntervalSince1970: (
+            document.expirationDate
+            ?? timestamp.addingTimeInterval(TimeInterval(resolvedExpirationHours * 60 * 60)).timeIntervalSince1970 * 1000.0
+        ) / 1000.0)
         let textPosition: CGPoint?
         if let textPositionX = document.textPositionX,
            let textPositionY = document.textPositionY {
@@ -312,6 +329,7 @@ final class StoryRepository {
             mediaItem: mediaItem,
             duration: document.duration ?? 5.0,
             timestamp: timestamp,
+            expirationHours: resolvedExpirationHours,
             expirationDate: expirationDate,
             profileImagePath: document.profileImagePath,
             audience: document.audience,

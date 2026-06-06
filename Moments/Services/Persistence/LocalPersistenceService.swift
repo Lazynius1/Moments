@@ -1004,6 +1004,9 @@ final class LocalPersistenceService: ObservableObject {
         existing.disableComments = new.disableComments
         existing.hideLikeCounts = new.hideLikeCounts
         existing.allowSharing = new.allowSharing
+        existing.scheduledDate = new.scheduledDate
+        existing.isPinned = new.isPinned
+        existing.pinnedAt = new.pinnedAt
         existing.hasHiddenLayers = new.hasHiddenLayers
         existing.hiddenLayerCount = new.hiddenLayerCount
         existing.trendingScore = new.trendingScore
@@ -1011,6 +1014,7 @@ final class LocalPersistenceService: ObservableObject {
         existing.reactionsData = new.reactionsData
         existing.mediaItemsData = new.mediaItemsData
         existing.taggedUsersData = new.taggedUsersData
+        existing.mentionedUsersData = new.mentionedUsersData
         existing.lastSyncedAt = Date()
     }
     

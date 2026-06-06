@@ -1,6 +1,11 @@
 "storyEditor.customAudience.single" = "%d persona";
 "storyEditor.customAudience.multiple" = "%d persones";
 "storyEditor.loadingSettings" = "Carregant...";
+"storyEditor.expiration.selector" = "Durada de la història";
+"storyEditor.expiration.option" = "%dh";
+"storyEditor.expiration.optionAccessibility" = "Història de %d hores";
+"storyEditor.expiration.info.title" = "Durada de la story";
+"storyEditor.expiration.info.message" = "Toca per alternar entre 24h i 48h. Les stories normals duren 24h per defecte.";
 "storyEditor.savedToGallery" = "Història desada a la teva galeria";
 "storyEditor.reveal.active" = "Efecte de revelat actiu, toca per personalitzar";
 "revealEditor.title" = "Personalitzar Revelat";
@@ -380,6 +385,7 @@
 "stories.seeActivity" = "Veure activitat";
 "stories.ownBottom.activity" = "Activitat";
 "stories.ownBottom.audienceAccessibility" = "Audiència: %@";
+"stories.ownBottom.audienceDurationAccessibility" = "Audiència: %@, durada %@";
 "stories.ownBottom.noViews" = "Encara sense visualitzacions";
 "stories.ownBottom.viewsOne" = "1 visualització";
 "stories.ownBottom.viewsMany" = "%d visualitzacions";
@@ -396,6 +402,7 @@
 "stories.activity.title" = "Activitat de la història";
 "stories.activity.noViewers" = "Ningú ha vist aquesta història encara";
 "stories.activity.noReactions" = "Sense reaccions encara";
+"stories.activity.search.empty" = "No hi ha resultats per a aquesta cerca";
 "stories.activity.viewersTab" = "Vistes (%d)";
 "stories.activity.reactionsTab" = "Reaccions (%d)";
 "stories.activity.audienceTitle" = "Audiència";
@@ -1774,6 +1781,18 @@
 /* ContextMenu */
 "contextMenu.editMoment" = "Editar moment";
 "contextMenu.editMoment.subtitle" = "Canviar descripció";
+"contextMenu.pinMoment" = "Fixar moment";
+"contextMenu.pinMoment.subtitle" = "Mantenir-lo a dalt del teu perfil";
+"contextMenu.unpinMoment" = "Desfixar moment";
+"contextMenu.unpinMoment.subtitle" = "Treure'l dels fixats";
+"contextMenu.pinLimit.title" = "S'ha assolit el límit de fixats";
+"contextMenu.pinLimit.message" = "Només pots tenir 3 moments fixats. Desfixa'n un per fixar-ne un altre.";
+"contextMenu.pinLimit.confirm.title" = "S'ha assolit el límit de moments fixats";
+"contextMenu.pinLimit.confirm.message" = "Segur que vols fixar aquest moment? Només en pots fixar tres al perfil. Si fixes aquest, es reemplaçarà el més antic.";
+"contextMenu.pinLimit.confirm" = "Confirmar";
+"contextMenu.pinLimit.cancel" = "Cancel·lar";
+"contextMenu.pinMoment.toast.pinned" = "Moment fixat";
+"contextMenu.pinMoment.toast.unpinned" = "Moment desfixat";
 "contextMenu.archiveMoment" = "Arxivar moment";
 "contextMenu.archiveMoment.subtitle" = "Amagar-lo del teu perfil";
 "contextMenu.deleteMoment" = "Eliminar moment";
@@ -2510,36 +2529,34 @@
 "notifications.empty.default" = "No hi ha notificacions";
 "notifications.empty.mentions" = "Sense mencions encara";
 
-/* Whats New v2.8 */
+/* Whats New v2.14 */
 "whatsNew.title" = "Novetats a Moments!";
-"whatsNew.subtitle" = "Versió 2.13.0";
-"whatsNew.button" = "Explorar Moments 2.13";
+"whatsNew.subtitle" = "Mes creativitat a Histories, mes control en compartir i mes polit a tota l'app.";
+"whatsNew.button" = "Explorar Moments 2.14";
 
-/* Nova */
-"whatsNew.nova.title" = "Una Nova molt millor";
-"whatsNew.nova.description" = "Ara Nova entén millor el context i acompanya les teves accions d'una manera molt més natural dins de Moments.";
+"whatsNew.stories.title" = "Histories molt mes creatives";
+"whatsNew.stories.description" = "Hem renovat l'experiencia d'Histories amb mes opcions de text, nous estils i una edicio mes comoda i visual.";
 
-"whatsNew.account.title" = "Xat més segur";
-"whatsNew.account.description" = "Les fotos, vídeos i àudios del xat privat ara compten amb xifratge d'extrem a extrem i una experiència molt més cuidada.";
+"whatsNew.sharing.title" = "Mes control en compartir";
+"whatsNew.sharing.description" = "Ara pots escollir si la teva historia dura 24 o 48h, per decidir millor quant temps vols que segueixi visible.";
 
-/* Liquid glass */
-"whatsNew.glass.title" = "Històries més fluides";
-"whatsNew.glass.description" = "Navegar, respondre i compartir històries ara se sent molt més continu, immersiu i natural.";
+"whatsNew.viewer.title" = "Veure histories se sent millor";
+"whatsNew.viewer.description" = "Navegar per histories ara es mes fluid i natural, amb millor carrega i un visor mes estable.";
 
-/* Creator */
-"whatsNew.creator.title" = "Notificacions més clares";
-"whatsNew.creator.description" = "Hem ordenat millor les notificacions i La teva activitat perquè seguir el que passa a Moments sigui molt més còmode.";
+"whatsNew.activity.title" = "Activitat mes clara";
+"whatsNew.activity.description" = "Ara es mes facil entendre qui ha vist la teva historia, com ha reaccionat i quina activitat ha tingut.";
 
-/* Feed */
-"whatsNew.feed.title" = "Més control i privacitat";
-"whatsNew.feed.description" = "Sol·licituds, mencions, etiquetes i visibilitat ara se senten molt més coherents amb la privacitat de cada moment.";
+"whatsNew.archive.title" = "Histories arxivades mes utils";
+"whatsNew.archive.description" = "Tambe hem millorat les histories arxivades i diverses vistes relacionades.";
 
-"whatsNew.social.title" = "Vídeo més intel·ligent";
-"whatsNew.social.description" = "Els vídeos ara s'adapten millor a la teva connexió per oferir una reproducció més fluida i més estable.";
+"whatsNew.profile.title" = "Perfils mes cuidats";
+"whatsNew.profile.description" = "Ara pots fixar els teus moments preferits al teu perfil per destacar-los millor.";
 
-/* Fixes */
-"whatsNew.fixes.title" = "Més estabilitat en crear i veure";
-"whatsNew.fixes.description" = "Continuem polint render, reproducció, pujades, permisos i petits detalls visuals a tota l'app.";
+"whatsNew.notifications.title" = "Notificacions i revisions mes clares";
+"whatsNew.notifications.description" = "Hem millorat algunes notificacions importants i el seguiment quan un contingut necessita revisio.";
+
+"whatsNew.media.title" = "Video, missatges i polit general";
+"whatsNew.media.description" = "Tambe hem millorat la reproduccio de video als xats i molts detalls visuals i d'estabilitat.";
 
 /* Best Friends */
 "bestFriends.title" = "Millors Amics";

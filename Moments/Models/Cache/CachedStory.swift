@@ -10,6 +10,7 @@ final class CachedStory {
     var profileImagePath: String?
     var timestamp: Date
     var expirationDate: Date
+    var expirationHours: Int?
     var mediaItemData: Data // JSON encoded MediaItem
     var audience: String?
     var customListId: String?
@@ -35,6 +36,7 @@ final class CachedStory {
          profileImagePath: String?,
          timestamp: Date,
          expirationDate: Date,
+         expirationHours: Int? = nil,
          mediaItemData: Data,
          audience: String? = nil,
          customListId: String? = nil,
@@ -57,6 +59,7 @@ final class CachedStory {
         self.profileImagePath = profileImagePath
         self.timestamp = timestamp
         self.expirationDate = expirationDate
+        self.expirationHours = expirationHours
         self.mediaItemData = mediaItemData
         self.audience = audience
         self.customListId = customListId
@@ -93,6 +96,7 @@ final class CachedStory {
             profileImagePath: story.profileImagePath,
             timestamp: story.timestamp,
             expirationDate: story.expirationDate,
+            expirationHours: story.expirationHours,
             mediaItemData: mediaItemData,
             audience: story.audience,
             customListId: story.customListId,
@@ -127,6 +131,7 @@ final class CachedStory {
             mediaItem: mediaItem,
             duration: 15.0, // Default duration if not saved
             timestamp: timestamp,
+            expirationHours: expirationHours ?? (chainId != nil ? 48 : 24),
             expirationDate: expirationDate,
             profileImagePath: profileImagePath,
             audience: audience,

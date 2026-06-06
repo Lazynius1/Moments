@@ -33,6 +33,7 @@ struct BackendStoryDocument: Codable {
     let id: String
     let authorId: String
     let duration: Double?
+    let expirationHours: Int?
     let expirationDate: Double?
     let timestamp: Double?
     let username: String?

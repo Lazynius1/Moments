@@ -173,6 +173,62 @@ extension FirestoreService {
         }
     }
 
+    func pinMoment(userId: String, momentId: String, completion: @escaping (Error?) -> Void) {
+        let momentRef = db.collection("users").document(userId).collection("moments").document(momentId)
+        momentRef.updateData([
+            "isPinned": true,
+            "pinnedAt": FieldValue.serverTimestamp()
+        ]) { error in
+            completion(error)
+        }
+    }
+
+    func unpinMoment(userId: String, momentId: String, completion: @escaping (Error?) -> Void) {
+        let momentRef = db.collection("users").document(userId).collection("moments").document(momentId)
+        momentRef.updateData([
+            "isPinned": FieldValue.delete(),
+            "pinnedAt": FieldValue.delete()
+        ]) { error in
+            completion(error)
+        }
+    }
+
+    func pinMomentReplacingOldestIfNeeded(
+        userId: String,
+        momentId: String,
+        pinnedMoments: [Moment],
+        completion: @escaping (Error?) -> Void
+    ) {
+        let currentlyPinned = pinnedMoments.filter { $0.isPinned == true && $0.id != momentId }
+
+        if currentlyPinned.count < 3 {
+            pinMoment(userId: userId, momentId: momentId, completion: completion)
+            return
+        }
+
+        guard let oldestPinned = currentlyPinned.min(by: {
+            ($0.pinnedAt ?? $0.timestamp) < ($1.pinnedAt ?? $1.timestamp)
+        }), let oldestId = oldestPinned.id else {
+            completion(
+                NSError(
+                    domain: "FirestoreMomentsRepository",
+                    code: -1,
+                    userInfo: [NSLocalizedDescriptionKey: "Unable to resolve oldest pinned moment"]
+                )
+            )
+            return
+        }
+
+        unpinMoment(userId: userId, momentId: oldestId) { [weak self] error in
+            guard let self else { return }
+            if let error {
+                completion(error)
+                return
+            }
+            self.pinMoment(userId: userId, momentId: momentId, completion: completion)
+        }
+    }
+
     func unarchiveMoment(momentId: String, userId: String) async throws {
         try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
             unarchiveMoment(userId: userId, momentId: momentId) { error in
@@ -547,40 +603,88 @@ extension FirestoreService {
     }
 
     func fetchMoments(for userId: String, completion: @escaping (Result<[Moment], Error>) -> Void) {
-        self.db.collection("users").document(userId).collection("moments")
+        let momentsRef = self.db.collection("users").document(userId).collection("moments")
+        let pinnedQuery = momentsRef
+            .whereField("isPinned", isEqualTo: true)
+            .limit(to: 50)
+        let recentQuery = momentsRef
             .order(by: "timestamp", descending: true)
-            .limit(to: 20)
-            .getDocuments { snapshot, error in
-                if let error = error {
-                    completion(.failure(error))
-                    return
-                }
+            .limit(to: 50)
 
-                guard let documents = snapshot?.documents else {
-                    completion(.success([]))
-                    return
-                }
+        let group = DispatchGroup()
+        var pinnedDocuments: [QueryDocumentSnapshot] = []
+        var recentDocuments: [QueryDocumentSnapshot] = []
+        var firstError: Error?
 
-                let moments = documents.compactMap { doc -> Moment? in
-                    try? doc.data(as: Moment.self)
-                }
-
-                let currentUserId = Auth.auth().currentUser?.uid
-                let now = Date()
-
-                let filteredMoments = moments.filter { moment in
-                    if moment.isArchived == true { return false }
-
-                    if moment.authorId == currentUserId {
-                        return true
-                    }
-
-                    guard let scheduledDate = moment.scheduledDate else { return true }
-                    return scheduledDate <= now
-                }
-
-                completion(.success(filteredMoments))
+        group.enter()
+        pinnedQuery.getDocuments { snapshot, error in
+            defer { group.leave() }
+            if let error {
+                firstError = error
+                return
             }
+            pinnedDocuments = snapshot?.documents ?? []
+        }
+
+        group.enter()
+        recentQuery.getDocuments { snapshot, error in
+            defer { group.leave() }
+            if let error {
+                firstError = error
+                return
+            }
+            recentDocuments = snapshot?.documents ?? []
+        }
+
+        group.notify(queue: .main) {
+            if let firstError {
+                completion(.failure(firstError))
+                return
+            }
+
+            let currentUserId = Auth.auth().currentUser?.uid
+            let now = Date()
+            var seenIds = Set<String>()
+            let mergedDocuments = (pinnedDocuments + recentDocuments).filter { doc in
+                seenIds.insert(doc.documentID).inserted
+            }
+
+            let moments = mergedDocuments.compactMap { doc -> Moment? in
+                try? doc.data(as: Moment.self)
+            }
+
+            let filteredMoments = moments.filter { moment in
+                if moment.isArchived == true { return false }
+
+                if moment.authorId == currentUserId {
+                    return true
+                }
+
+                guard let scheduledDate = moment.scheduledDate else { return true }
+                return scheduledDate <= now
+            }
+
+            let sortedMoments = filteredMoments.sorted { lhs, rhs in
+                let lhsPinned = lhs.isPinned == true
+                let rhsPinned = rhs.isPinned == true
+
+                if lhsPinned != rhsPinned {
+                    return lhsPinned && !rhsPinned
+                }
+
+                if lhsPinned, rhsPinned {
+                    let lhsPinnedAt = lhs.pinnedAt ?? lhs.timestamp
+                    let rhsPinnedAt = rhs.pinnedAt ?? rhs.timestamp
+                    if lhsPinnedAt != rhsPinnedAt {
+                        return lhsPinnedAt > rhsPinnedAt
+                    }
+                }
+
+                return lhs.timestamp > rhs.timestamp
+            }
+
+            completion(.success(sortedMoments))
+        }
     }
 
     func createMomentWithVisibility(

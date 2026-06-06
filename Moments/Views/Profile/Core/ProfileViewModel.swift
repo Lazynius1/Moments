@@ -87,7 +87,7 @@ class ProfileViewModel: ObservableObject, UserListViewModel {
 
         let cachedMoments = LocalPersistenceService.shared.loadProfileMoments(userId: userId)
         if !cachedMoments.isEmpty && self.moments.isEmpty {
-            self.moments = cachedMoments
+            self.moments = sortProfileMoments(cachedMoments)
         }
 
         self.firestoreService.fetchUserProfile(userId: userId) { [weak self] result in
@@ -275,20 +275,126 @@ class ProfileViewModel: ObservableObject, UserListViewModel {
         firestoreService.fetchMoments(for: userId) { [weak self] result in
             guard let self = self else { return }
             switch result {
-            case .success(let moments):
-                DispatchQueue.main.async {
-                    self.moments = moments
+                case .success(let moments):
+                    DispatchQueue.main.async {
+                    self.moments = self.sortProfileMoments(moments)
 
                     // ✅ SwiftData: Guardar moments del perfil en caché local
                     Task { @MainActor in
                         // Usamos sync: true para purgar momentos eliminados del perfil
-                        LocalPersistenceService.shared.saveProfileMoments(moments, userId: userId, sync: true)
+                        LocalPersistenceService.shared.saveProfileMoments(self.moments, userId: userId, sync: true)
                     }
                 }
             case .failure(let error):
                 self.errorMessage = "Error al cargar momentos: \(error.localizedDescription)"
             }
         }
+    }
+
+    private func sortProfileMoments(_ moments: [Moment]) -> [Moment] {
+        moments.sorted { lhs, rhs in
+            let lhsPinned = lhs.isPinned == true
+            let rhsPinned = rhs.isPinned == true
+
+            if lhsPinned != rhsPinned {
+                return lhsPinned && !rhsPinned
+            }
+
+            if lhsPinned, rhsPinned {
+                let lhsPinnedAt = lhs.pinnedAt ?? lhs.timestamp
+                let rhsPinnedAt = rhs.pinnedAt ?? rhs.timestamp
+                if lhsPinnedAt != rhsPinnedAt {
+                    return lhsPinnedAt > rhsPinnedAt
+                }
+            }
+
+            return lhs.timestamp > rhs.timestamp
+        }
+    }
+
+    func oldestPinnedMomentId(excluding momentId: String? = nil) -> String? {
+        moments
+            .filter { $0.isPinned == true && $0.id != momentId }
+            .min(by: { ($0.pinnedAt ?? $0.timestamp) < ($1.pinnedAt ?? $1.timestamp) })?
+            .id
+    }
+
+    func applyMomentPinState(momentId: String, isPinned: Bool, pinnedAt: Date) {
+        moments = sortProfileMoments(
+            moments.map { moment in
+                guard moment.id == momentId else { return moment }
+                return rebuiltMoment(
+                    moment,
+                    isPinned: isPinned ? true : nil,
+                    pinnedAt: isPinned ? pinnedAt : nil
+                )
+            }
+        )
+
+        if let userId = userProfile?.id {
+            LocalPersistenceService.shared.saveProfileMoments(moments, userId: userId, sync: true)
+        }
+    }
+
+    func applyPinReplacement(unpinningMomentId: String, pinningMomentId: String, pinnedAt: Date) {
+        moments = sortProfileMoments(
+            moments.map { moment in
+                if moment.id == unpinningMomentId {
+                    return rebuiltMoment(moment, isPinned: nil, pinnedAt: nil)
+                }
+                if moment.id == pinningMomentId {
+                    return rebuiltMoment(moment, isPinned: true, pinnedAt: pinnedAt)
+                }
+                return moment
+            }
+        )
+
+        if let userId = userProfile?.id {
+            LocalPersistenceService.shared.saveProfileMoments(moments, userId: userId, sync: true)
+        }
+    }
+
+    private func rebuiltMoment(_ moment: Moment, isPinned: Bool?, pinnedAt: Date?) -> Moment {
+        Moment(
+            id: moment.id,
+            authorId: moment.authorId,
+            username: moment.username,
+            content: moment.content,
+            imagePath: moment.imagePath,
+            videoUrl: moment.videoUrl,
+            timestamp: moment.timestamp,
+            reactions: moment.reactions,
+            commentCount: moment.commentCount,
+            profileImagePath: moment.profileImagePath,
+            taggedUsers: moment.taggedUsers,
+            mentionedUsers: moment.mentionedUsers,
+            location: moment.location,
+            locationCoordinate: moment.locationCoordinate,
+            audience: moment.audience,
+            mediaItems: moment.mediaItems,
+            aspectRatio: moment.aspectRatio,
+            customListId: moment.customListId,
+            thumbnailUrl: moment.thumbnailUrl,
+            videoDuration: moment.videoDuration,
+            videoFileSize: moment.videoFileSize,
+            videoResolution: moment.videoResolution,
+            disableComments: moment.disableComments,
+            hideLikeCounts: moment.hideLikeCounts,
+            allowSharing: moment.allowSharing,
+            scheduledDate: moment.scheduledDate,
+            trendingScore: moment.trendingScore,
+            engagementRate: moment.engagementRate,
+            isArchived: moment.isArchived,
+            archivedAt: moment.archivedAt,
+            isPinned: isPinned,
+            pinnedAt: pinnedAt,
+            hasHiddenLayers: moment.hasHiddenLayers,
+            hiddenLayerCount: moment.hiddenLayerCount,
+            isModerationHidden: moment.isModerationHidden,
+            originalAudience: moment.originalAudience,
+            reviewRequired: moment.reviewRequired,
+            canRestore: moment.canRestore
+        )
     }
 
     private func fetchCustomAudienceListNames(userId: String, completion: (() -> Void)? = nil) {

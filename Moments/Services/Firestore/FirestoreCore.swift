@@ -42,11 +42,16 @@ extension FirestoreService {
 
     // MARK: - Story expiration helpers
 
-    func calculateStoryExpirationDate(isChain: Bool = false, chainId: String? = nil) -> Date {
+    func calculateStoryExpirationDate(
+        isChain: Bool = false,
+        chainId: String? = nil,
+        expirationHours: Int? = nil
+    ) -> Date {
         if isChain, let chainId = chainId {
             return calculateChainExpirationDate(chainId: chainId)
         } else {
-            return Calendar.current.date(byAdding: .hour, value: 24, to: Date()) ?? Date()
+            let resolvedHours = expirationHours == 48 ? 48 : 24
+            return Calendar.current.date(byAdding: .hour, value: resolvedHours, to: Date()) ?? Date()
         }
     }
 

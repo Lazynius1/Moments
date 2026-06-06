@@ -9,6 +9,8 @@ struct ModernMomentThumbnail: View {
     let size: CGFloat
     let customListNamesById: [String: String]
     let onTap: (() -> Void)? // ✅ MANTENER: Callback opcional
+    var onLongPress: (() -> Void)? = nil
+    var isInteractionEnabled: Bool = true
     @State private var isPressed = false
 
     // ✅ NUEVOS: Estados para thumbnails de video
@@ -75,10 +77,7 @@ struct ModernMomentThumbnail: View {
     }
 
     var body: some View {
-        Button(action: {
-            onTap?() // ✅ MANTENER: Ejecutar callback si existe
-        }) {
-            ZStack(alignment: .bottomTrailing) {
+        ZStack(alignment: .bottomTrailing) {
                 // ✅ NUEVO: Lógica actualizada para manejar videos y imágenes
                 if let mediaItem = moment.primaryVisibleMediaItem, !mediaItem.url.isEmpty {
                     // Es un momento nuevo con mediaItems
@@ -140,11 +139,27 @@ struct ModernMomentThumbnail: View {
                     VStack {
                         HStack {
                             Spacer()
+                            if moment.isPinned == true {
+                                pinnedBadgeView
+                                    .padding(6)
+                            }
+                        }
+                        Spacer()
+                        HStack {
                             Image(systemName: "play.circle.fill")
                                 .font(.system(size: 18))
                                 .foregroundColor(.white)
                                 .background(Color.black.opacity(0.6))
                                 .clipShape(Circle())
+                                .padding(6)
+                            Spacer()
+                        }
+                    }
+                } else if moment.isPinned == true {
+                    VStack {
+                        HStack {
+                            Spacer()
+                            pinnedBadgeView
                                 .padding(6)
                         }
                         Spacer()
@@ -170,11 +185,18 @@ struct ModernMomentThumbnail: View {
                     .padding(4)
                 }
             }
-            .scaleEffect(isPressed ? 0.95 : 1.0)
-            .animation(.easeInOut(duration: 0.1), value: isPressed)
-            .shadow(color: .black.opacity(0.15), radius: 4, x: 0, y: 2)
+        .scaleEffect(isPressed ? 0.96 : 1.0)
+        .animation(.easeInOut(duration: 0.12), value: isPressed)
+        .shadow(color: .black.opacity(0.15), radius: 4, x: 0, y: 2)
+        .overlay {
+            if isInteractionEnabled, onTap != nil || onLongPress != nil {
+                ProfileMomentThumbnailGestureOverlay(
+                    onTap: { onTap?() },
+                    onLongPress: onLongPress,
+                    onPressingChanged: { isPressed = $0 }
+                )
+            }
         }
-        .onLongPressGesture(minimumDuration: 0, maximumDistance: .infinity, pressing: { isPressed = $0 }, perform: {})
     }
 
     @ViewBuilder
@@ -213,6 +235,16 @@ struct ModernMomentThumbnail: View {
         .background(Color.black.opacity(0.72))
         .clipShape(Capsule())
         .padding(.horizontal, 6)
+    }
+
+    @ViewBuilder
+    private var pinnedBadgeView: some View {
+        Image(systemName: "pin.fill")
+            .font(.system(size: 10, weight: .bold))
+            .foregroundColor(.white)
+            .padding(6)
+            .background(Color.black.opacity(0.68))
+            .clipShape(Circle())
     }
 
     // ✅ NUEVA: Vista para thumbnails de video
@@ -363,12 +395,20 @@ struct ModernMomentThumbnail: View {
         return URL(string: "\(baseURLString)\(encodedPath)?alt=media")
     }
 
-    // ✅ MANTENER: Inicializador existente
-    init(moment: Moment, size: CGFloat, customListNamesById: [String: String] = [:], onTap: (() -> Void)? = nil) {
+    init(
+        moment: Moment,
+        size: CGFloat,
+        customListNamesById: [String: String] = [:],
+        onTap: (() -> Void)? = nil,
+        onLongPress: (() -> Void)? = nil,
+        isInteractionEnabled: Bool = true
+    ) {
         self.moment = moment
         self.size = size
         self.customListNamesById = customListNamesById
         self.onTap = onTap
+        self.onLongPress = onLongPress
+        self.isInteractionEnabled = isInteractionEnabled
     }
 }
 

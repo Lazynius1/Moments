@@ -17,6 +17,7 @@ extension FirestoreService {
         chainId: String? = nil,
         chainPosition: Int? = nil,
         chainTitle: String? = nil,
+        expirationHours: Int? = 24,
         duration: Double? = nil,
         completion: @escaping (Error?) -> Void
     ) {
@@ -38,6 +39,7 @@ extension FirestoreService {
             chainId: chainId,
             chainPosition: chainPosition,
             chainTitle: chainTitle,
+            expirationHours: expirationHours,
             allowOthersToContinue: nil,
             continuationAudience: nil,
             continuationCustomViewers: nil,
@@ -72,6 +74,7 @@ extension FirestoreService {
         continuationCustomViewers: [String]? = nil,
         continuationCustomListId: String? = nil,
         continuationCustomListName: String? = nil,
+        expirationHours: Int? = 24,
         duration: Double? = nil,
         storyId: String? = nil,
         completion: @escaping (String?, Error?) -> Void
@@ -95,6 +98,7 @@ extension FirestoreService {
             chainId: chainId,
             chainPosition: chainPosition,
             chainTitle: chainTitle,
+            expirationHours: expirationHours,
             allowOthersToContinue: allowOthersToContinue,
             continuationAudience: continuationAudience,
             continuationCustomViewers: continuationCustomViewers,
@@ -128,6 +132,7 @@ extension FirestoreService {
         continuationCustomViewers: [String]? = nil,
         continuationCustomListId: String? = nil,
         continuationCustomListName: String? = nil,
+        expirationHours: Int? = 24,
         duration: Double? = nil,
         storyId: String? = nil,
         completion: @escaping (String?, Error?) -> Void
@@ -151,6 +156,7 @@ extension FirestoreService {
             chainId: chainId,
             chainPosition: chainPosition,
             chainTitle: chainTitle,
+            expirationHours: expirationHours,
             allowOthersToContinue: allowOthersToContinue,
             continuationAudience: continuationAudience,
             continuationCustomViewers: continuationCustomViewers,
@@ -181,6 +187,7 @@ extension FirestoreService {
         chainId: String?,
         chainPosition: Int?,
         chainTitle: String?,
+        expirationHours: Int?,
         allowOthersToContinue: Bool?,
         continuationAudience: ContentAudience?,
         continuationCustomViewers: [String]?,
@@ -199,7 +206,12 @@ extension FirestoreService {
             switch result {
             case .success(let user):
                 let isChain = chainId != nil
-                let expirationDate = self.calculateStoryExpirationDate(isChain: isChain, chainId: chainId)
+                let resolvedExpirationHours = isChain ? 48 : (expirationHours == 48 ? 48 : 24)
+                let expirationDate = self.calculateStoryExpirationDate(
+                    isChain: isChain,
+                    chainId: chainId,
+                    expirationHours: resolvedExpirationHours
+                )
                 let duration = duration ?? (mediaItem.type == .video ? 60.0 : 15.0)
                 let storyId = storyId ?? UUID().uuidString
                 let resolvedTextOverlays = (textOverlays?.isEmpty == false ? textOverlays : nil)
@@ -213,6 +225,7 @@ extension FirestoreService {
                     mediaItem: mediaItem,
                     duration: duration,
                     timestamp: Date(),
+                    expirationHours: resolvedExpirationHours,
                     expirationDate: expirationDate,
                     profileImagePath: user.profileImagePath,
                     audience: audience,

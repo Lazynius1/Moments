@@ -90,6 +90,9 @@ struct ModernProfileContentView: View {
     @Binding var pendingDeleteMoment: Moment?
     @StateObject private var savedMomentsViewModel = SavedMomentsViewModel()  // ✅ NUEVO: Guardados
     @State private var showingFullInfo = false // ✅ NUEVO: Para expandir intereses dentro del bloque social
+    @State private var gridMenuSelection: ProfileGridMomentMenuSelection?
+    @State private var showGridPinConfirm = false
+    @State private var gridMenuToastMessage: String?
 
     var body: some View {
         if viewModel.isLoading {
@@ -102,6 +105,7 @@ struct ModernProfileContentView: View {
             })
         } else {
             GeometryReader { proxy in
+                ZStack(alignment: .topLeading) {
                 ScrollView {
                     VStack(spacing: 0) {
                         ModernProfileHeader(
@@ -165,7 +169,6 @@ struct ModernProfileContentView: View {
                                         let columns = 3
                                         let totalSpacing = spacing * CGFloat(columns - 1) + 16
                                         let itemWidth = (geometry.size.width - totalSpacing) / CGFloat(columns)
-
                                         LazyVGrid(columns: Array(repeating: GridItem(.fixed(itemWidth), spacing: spacing), count: columns), spacing: spacing) {
                                             ForEach(Array(viewModel.moments.enumerated()), id: \.offset) { index, moment in
                                                 ScreenshotProtectedView(
@@ -178,31 +181,11 @@ struct ModernProfileContentView: View {
                                                         onTap: {
                                                             selectedMomentIndex = index
                                                             showMomentDetail = true
+                                                        },
+                                                        onLongPress: {
+                                                            openGridMenu(moment: moment, index: index)
                                                         }
                                                     )
-                                                }
-                                                .contextMenu {
-                                                    Button {
-                                                        if let momentId = moment.id {
-                                                            FirestoreService.shared.archiveMoment(userId: moment.authorId, momentId: momentId) { _ in
-                                                                viewModel.moments.removeAll { $0.id == momentId }
-                                                            }
-                                                        }
-                                                    } label: {
-                                                        Label(NSLocalizedString("contextMenu.archiveMoment", comment: "Archive"), systemImage: "archivebox")
-                                                    }
-
-                                                    Button {
-                                                        editingMoment = moment
-                                                    } label: {
-                                                        Label(NSLocalizedString("contextMenu.editMoment", comment: "Edit"), systemImage: "pencil")
-                                                    }
-
-                                                    Button(role: .destructive) {
-                                                        pendingDeleteMoment = moment
-                                                    } label: {
-                                                        Label(NSLocalizedString("contextMenu.deleteMoment", comment: "Delete"), systemImage: "trash")
-                                                    }
                                                 }
                                             }
                                         }
@@ -313,8 +296,92 @@ struct ModernProfileContentView: View {
                         }
                     }
                 }
+                .scrollDisabled(gridMenuSelection != nil)
                 .onPreferenceChange(ScrollOffsetPreferenceKey.self) { value in
                     scrollOffset = value
+                }
+
+                ProfileGridMomentMenuOverlay(
+                    selection: $gridMenuSelection,
+                    showPinConfirm: $showGridPinConfirm,
+                    toastMessage: $gridMenuToastMessage,
+                    containerSize: proxy.size,
+                    safeAreaInsets: proxy.safeAreaInsets,
+                    pinnedMomentsCount: viewModel.moments.filter { $0.isPinned == true }.count,
+                    pinnedMomentsLimit: 3,
+                    onEdit: { moment in
+                        editingMoment = moment
+                    },
+                    onDelete: { moment in
+                        pendingDeleteMoment = moment
+                    },
+                    onArchive: { moment in
+                        guard let momentId = moment.id else { return }
+                        FirestoreService.shared.archiveMoment(userId: moment.authorId, momentId: momentId) { _ in
+                            viewModel.moments.removeAll { $0.id == momentId }
+                        }
+                    },
+                    onPin: { moment, shouldPin, replaceOldest in
+                        handleGridPin(moment: moment, shouldPin: shouldPin, replaceOldest: replaceOldest)
+                    }
+                )
+                }
+            }
+        }
+    }
+
+    private func openGridMenu(moment: Moment, index: Int) {
+        showGridPinConfirm = false
+        gridMenuSelection = ProfileGridMomentMenuSelection(moment: moment, index: index)
+    }
+
+    private func handleGridPin(moment: Moment, shouldPin: Bool, replaceOldest: Bool) {
+        guard let momentId = moment.id else { return }
+        let pinnedAt = Date()
+
+        if shouldPin {
+            let completion: (Error?) -> Void = { error in
+                guard error == nil else { return }
+                DispatchQueue.main.async {
+                    if replaceOldest, let oldestId = viewModel.oldestPinnedMomentId(excluding: momentId) {
+                        viewModel.applyPinReplacement(
+                            unpinningMomentId: oldestId,
+                            pinningMomentId: momentId,
+                            pinnedAt: pinnedAt
+                        )
+                    } else {
+                        viewModel.applyMomentPinState(
+                            momentId: momentId,
+                            isPinned: true,
+                            pinnedAt: pinnedAt
+                        )
+                    }
+                }
+            }
+
+            if replaceOldest {
+                FirestoreService.shared.pinMomentReplacingOldestIfNeeded(
+                    userId: moment.authorId,
+                    momentId: momentId,
+                    pinnedMoments: viewModel.moments,
+                    completion: completion
+                )
+            } else {
+                FirestoreService.shared.pinMoment(
+                    userId: moment.authorId,
+                    momentId: momentId,
+                    completion: completion
+                )
+            }
+        } else {
+            FirestoreService.shared.unpinMoment(userId: moment.authorId, momentId: momentId) { error in
+                guard error == nil else { return }
+                DispatchQueue.main.async {
+                    viewModel.applyMomentPinState(
+                        momentId: momentId,
+                        isPinned: false,
+                        pinnedAt: pinnedAt
+                    )
                 }
             }
         }

@@ -1037,6 +1037,7 @@ struct StoryViewerScreen: View {
                     reactions: currentStoryReactions,
                     audience: story.audience,
                     customListId: story.customListId,
+                    expirationHours: story.expirationHours,
                     authorId: story.authorId,
                     onViewActivity: { fetchViewersAndShow(tab: 0) },
                     onReactionsActivity: { fetchViewersAndShow(tab: 1) },

@@ -1,6 +1,11 @@
 "storyEditor.customAudience.single" = "%d Person";
 "storyEditor.customAudience.multiple" = "%d Personen";
 "storyEditor.loadingSettings" = "Wird geladen...";
+"storyEditor.expiration.selector" = "Story-Dauer";
+"storyEditor.expiration.option" = "%dh";
+"storyEditor.expiration.optionAccessibility" = "%d-Stunden-Story";
+"storyEditor.expiration.info.title" = "Story-Dauer";
+"storyEditor.expiration.info.message" = "Tippe, um zwischen 24h und 48h zu wechseln. Normale Stories dauern standardmäßig 24h.";
 "storyEditor.savedToGallery" = "Story in deiner Galerie gespeichert";
 "storyEditor.reveal.active" = "Reveal-Effekt aktiv, tippe zum Anpassen";
 "revealEditor.title" = "Reveal anpassen";
@@ -383,6 +388,7 @@
 "stories.seeActivity" = "Aktivität ansehen";
 "stories.ownBottom.activity" = "Aktivität";
 "stories.ownBottom.audienceAccessibility" = "Zielgruppe: %@";
+"stories.ownBottom.audienceDurationAccessibility" = "Zielgruppe: %@, Dauer %@";
 "stories.ownBottom.noViews" = "Noch keine Aufrufe";
 "stories.ownBottom.viewsOne" = "1 Aufruf";
 "stories.ownBottom.viewsMany" = "%d Aufrufe";
@@ -399,6 +405,7 @@
 "stories.activity.title" = "Story-Aktivität";
 "stories.activity.noViewers" = "Diese Story wurde noch von niemandem angesehen";
 "stories.activity.noReactions" = "Noch keine Reaktionen";
+"stories.activity.search.empty" = "Keine Ergebnisse für diese Suche";
 "stories.activity.viewersTab" = "Aufrufe (%d)";
 "stories.activity.reactionsTab" = "Reaktionen (%d)";
 "stories.activity.audienceTitle" = "Zielgruppe";
@@ -1776,6 +1783,18 @@
 /* ContextMenu */
 "contextMenu.editMoment" = "Moment bearbeiten";
 "contextMenu.editMoment.subtitle" = "Beschreibung ändern";
+"contextMenu.pinMoment" = "Moment anheften";
+"contextMenu.pinMoment.subtitle" = "Oben in deinem Profil behalten";
+"contextMenu.unpinMoment" = "Moment lösen";
+"contextMenu.unpinMoment.subtitle" = "Aus den Angehefteten entfernen";
+"contextMenu.pinLimit.title" = "Limit für angeheftete Momente erreicht";
+"contextMenu.pinLimit.message" = "Du kannst nur 3 Momente anheften. Löse einen, um einen anderen anzuheften.";
+"contextMenu.pinLimit.confirm.title" = "Limit für angeheftete Momente erreicht";
+"contextMenu.pinLimit.confirm.message" = "Diesen Moment wirklich anheften? Du kannst nur drei an deinem Profil anheften. Der älteste wird ersetzt.";
+"contextMenu.pinLimit.confirm" = "Bestätigen";
+"contextMenu.pinLimit.cancel" = "Abbrechen";
+"contextMenu.pinMoment.toast.pinned" = "Moment angeheftet";
+"contextMenu.pinMoment.toast.unpinned" = "Moment gelöst";
 "contextMenu.archiveMoment" = "Moment archivieren";
 "contextMenu.archiveMoment.subtitle" = "Aus deinem Profil ausblenden";
 "contextMenu.deleteMoment" = "Moment löschen";
@@ -2498,36 +2517,34 @@
 "banner.verb.story" = "hat auf deine Story reagiert";
 "banner.verb.message" = "hat dir eine Nachricht gesendet";
 
-/* Whats New v2.8 */
+/* Whats New v2.14 */
 "whatsNew.title" = "Neu in Moments!";
-"whatsNew.subtitle" = "Version 2.13.0";
-"whatsNew.button" = "Moments 2.13 entdecken";
+"whatsNew.subtitle" = "Mehr Kreativitat in Stories, mehr Kontrolle beim Teilen und mehr Feinschliff in der ganzen App.";
+"whatsNew.button" = "Moments 2.14 entdecken";
 
-/* Nova */
-"whatsNew.nova.title" = "Eine deutlich bessere Nova";
-"whatsNew.nova.description" = "Nova versteht den Kontext jetzt besser und begleitet deine Aktionen in Moments deutlich natürlicher.";
+"whatsNew.stories.title" = "Viel kreativere Stories";
+"whatsNew.stories.description" = "Wir haben Stories mit mehr Textoptionen, neuen Stilen und einem angenehmeren visuellen Editor erneuert.";
 
-"whatsNew.account.title" = "Sichererer Chat";
-"whatsNew.account.description" = "Fotos, Videos und Audios in privaten Chats sind jetzt Ende-zu-Ende-verschlüsselt und das gesamte Chat-Erlebnis wirkt deutlich ausgereifter.";
+"whatsNew.sharing.title" = "Mehr Kontrolle beim Teilen";
+"whatsNew.sharing.description" = "Du kannst jetzt wahlen, ob deine Story 24 oder 48h sichtbar bleibt.";
 
-/* Liquid glass */
-"whatsNew.glass.title" = "Flüssigere Stories";
-"whatsNew.glass.description" = "Stories anzusehen, darauf zu antworten und sie zu teilen fühlt sich jetzt viel fließender, immersiver und natürlicher an.";
+"whatsNew.viewer.title" = "Stories ansehen fuhlt sich besser an";
+"whatsNew.viewer.description" = "Stories wirken jetzt flussiger und naturlicher, mit besserem Laden und einem stabileren Viewer.";
 
-/* Creator */
-"whatsNew.creator.title" = "Klarere Benachrichtigungen";
-"whatsNew.creator.description" = "Wir haben Benachrichtigungen und Deine Aktivität besser geordnet, damit du leichter verfolgen kannst, was in Moments passiert.";
+"whatsNew.activity.title" = "Klarere Aktivitat";
+"whatsNew.activity.description" = "Es ist jetzt leichter zu verstehen, wer deine Story gesehen hat, wie reagiert wurde und welche Aktivitat es gab.";
 
-/* Feed */
-"whatsNew.feed.title" = "Mehr Kontrolle und Privatsphäre";
-"whatsNew.feed.description" = "Anfragen, Erwähnungen, Markierungen und Sichtbarkeit passen jetzt viel stimmiger zur Privatsphäre jedes Moments.";
+"whatsNew.archive.title" = "Nutzlichere archivierte Stories";
+"whatsNew.archive.description" = "Wir haben auch archivierte Stories und mehrere zugehorige Ansichten verbessert.";
 
-"whatsNew.social.title" = "Intelligenteres Video";
-"whatsNew.social.description" = "Videos passen sich jetzt besser an deine Verbindung an und sorgen so für flüssigere und stabilere Wiedergabe.";
+"whatsNew.profile.title" = "Sorgfaltigere Profile";
+"whatsNew.profile.description" = "Du kannst jetzt deine Lieblingsmomente im Profil anheften, um sie besser hervorzuheben.";
 
-/* Fixes */
-"whatsNew.fixes.title" = "Mehr Stabilität beim Erstellen und Ansehen";
-"whatsNew.fixes.description" = "Wir feilen weiter an Rendering, Wiedergabe, Uploads, Berechtigungen und kleinen visuellen Details in der ganzen App.";
+"whatsNew.notifications.title" = "Klarere Benachrichtigungen und Prufungen";
+"whatsNew.notifications.description" = "Wir haben wichtige Benachrichtigungen und die Nachverfolgung verbessert, wenn Inhalte gepruft werden.";
+
+"whatsNew.media.title" = "Video, Nachrichten und allgemeiner Feinschliff";
+"whatsNew.media.description" = "Wir haben auch die Videowiedergabe in Chats und viele visuelle sowie Stabilitatsdetails verbessert.";
 
 /* Best Friends */
 "bestFriends.title" = "Enge Freunde";

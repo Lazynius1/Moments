@@ -67,11 +67,27 @@ struct UserModernMomentThumbnail: View {
                     VStack {
                         HStack {
                             Spacer()
+                            if moment.isPinned == true {
+                                pinnedBadgeView
+                                    .padding(6)
+                            }
+                        }
+                        Spacer()
+                        HStack {
                             Image(systemName: "play.circle.fill")
                                 .font(.system(size: 18))
                                 .foregroundColor(.white)
                                 .background(Color.black.opacity(0.6))
                                 .clipShape(Circle())
+                                .padding(6)
+                            Spacer()
+                        }
+                    }
+                } else if moment.isPinned == true {
+                    VStack {
+                        HStack {
+                            Spacer()
+                            pinnedBadgeView
                                 .padding(6)
                         }
                         Spacer()
@@ -124,6 +140,16 @@ struct UserModernMomentThumbnail: View {
             .shadow(color: UserProfileColors.shadowColor, radius: 4, x: 0, y: 2)
         }
         .onLongPressGesture(minimumDuration: 0, maximumDistance: .infinity, pressing: { isPressed = $0 }, perform: {})
+    }
+
+    @ViewBuilder
+    private var pinnedBadgeView: some View {
+        Image(systemName: "pin.fill")
+            .font(.system(size: 10, weight: .bold))
+            .foregroundColor(.white)
+            .padding(6)
+            .background(Color.black.opacity(colorScheme == .dark ? 0.68 : 0.58))
+            .clipShape(Circle())
     }
 
     // ✅ NUEVA: Vista para thumbnails de video
