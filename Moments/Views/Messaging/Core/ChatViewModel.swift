@@ -827,17 +827,19 @@ class EnhancedChatViewModel: ObservableObject {
             !$0.isRead && $0.senderId != currentUserId
         }
         
-        guard !unreadMessages.isEmpty else { return }
-        
-        let messageIds = unreadMessages.map { $0.id }
-        
-        chatService.markMessagesAsRead(
-            conversationId: conversationId,
-            messageIds: messageIds,
-            readerId: currentUserId
-        ) { error in
-            if error != nil {
-                // Error marking messages as read
+        if unreadMessages.isEmpty {
+            // Si no hay mensajes individuales sin leer, de todos modos marcamos el documento de la conversación como leído (útil si se marcó como no leído manualmente).
+            chatService.markConversationAsRead(conversationId: conversationId, userId: currentUserId)
+        } else {
+            let messageIds = unreadMessages.map { $0.id }
+            chatService.markMessagesAsRead(
+                conversationId: conversationId,
+                messageIds: messageIds,
+                readerId: currentUserId
+            ) { error in
+                if error != nil {
+                    // Error marking messages as read
+                }
             }
         }
     }

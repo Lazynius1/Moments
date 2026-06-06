@@ -73,6 +73,8 @@ struct MessagingView: View {
     // ✅ NUEVO: Estado para el selector de estados online
     @StateObject private var onlineStatusService = OnlineStatusService()
     @State private var showingStatusSelector = false
+    @State private var conversationMenuSelection: ConversationMenuSelection?
+    @State private var conversationRowFrames: [String: CGRect] = [:]
 
     private var adaptiveColors: AdaptiveColors {
         AdaptiveColors(colorScheme: colorScheme)
@@ -96,7 +98,23 @@ struct MessagingView: View {
 
                         conversationList
                     }
+
+                    GeometryReader { proxy in
+                        ConversationContextMenuOverlay(
+                            selection: $conversationMenuSelection,
+                            containerSize: proxy.size,
+                            safeAreaInsets: proxy.safeAreaInsets,
+                            colorScheme: colorScheme,
+                            onMarkUnread: markConversationUnread,
+                            onPin: pinConversation,
+                            onMute: muteConversation,
+                            onDelete: deleteConversation
+                        )
+                    }
+                    .ignoresSafeArea()
+                    .allowsHitTesting(conversationMenuSelection != nil)
                 }
+                .coordinateSpace(name: "messagingRoot")
                 .navigationBarHidden(true)
                 .sheet(isPresented: $isShowingNewConversation) {
                     GlassmorphicNewConversationView(viewModel: viewModel) { conversation in
@@ -497,18 +515,20 @@ struct MessagingView: View {
 
                  Spacer()
              }
-         } else {
+         } else if isSearching {
              ScrollView(showsIndicators: false) {
-                 VStack(spacing: 0) { // ✅ Sin spacing entre conversaciones
-                     if isSearching {
-                         searchResultsSection
-                     } else {
-                         conversationsSection
-                     }
+                 VStack(spacing: 0) {
+                     searchResultsSection
                  }
-                 .padding(.horizontal, 0) // ✅ Sin padding horizontal
-                 .padding(.vertical, 0) // ✅ Sin padding vertical
              }
+         } else {
+             List {
+                 conversationsSection
+             }
+             .listStyle(.plain)
+             .scrollContentBackground(.hidden)
+             .scrollDisabled(conversationMenuSelection != nil)
+             .onPreferenceChange(ConversationRowFrameKey.self) { conversationRowFrames = $0 }
          }
      }
 
@@ -603,6 +623,11 @@ struct MessagingView: View {
         }
     }
 
+    private func markConversationUnread(_ conversation: Conversation) {
+        HapticManager.shared.lightImpact()
+        viewModel.markConversationAsUnread(conversation)
+    }
+
     private func muteConversation(_ conversation: Conversation) {
         guard let conversationId = conversation.id,
               let currentUserId = Auth.auth().currentUser?.uid else { return }
@@ -621,176 +646,89 @@ struct MessagingView: View {
         }
     }
 
-    // ✅ NUEVO: Sección de conversaciones normales con swipe actions
     @ViewBuilder
     private var conversationsSection: some View {
         ForEach(viewModel.conversations) { conversation in
             if let conversationId = conversation.id, !conversationId.isEmpty {
-                SwipeableConversationRow(
-                    conversation: conversation,
-                    onTap: {
-                        selectedConversation = conversation
-                    },
-                    onDelete: {
-                        deleteConversation(conversation)
-                    },
-                    onPin: {
-                        pinConversation(conversation)
-                    },
-                    onMute: {
-                        muteConversation(conversation)
-                    }
-                )
+                conversationRow(conversation)
             }
         }
+    }
+
+    @ViewBuilder
+    private func conversationRow(_ conversation: Conversation) -> some View {
+        let isMenuSelected = conversationMenuSelection?.conversation.id == conversation.id
+
+        ConversationPressableRow(
+            conversation: conversation,
+            isMenuSelected: isMenuSelected,
+            colorScheme: colorScheme,
+            onTap: {
+                selectedConversation = conversation
+            },
+            onLongPress: {
+                guard let conversationId = conversation.id,
+                      let frame = conversationRowFrames[conversationId],
+                      frame.width > 0, frame.height > 0 else { return }
+                conversationMenuSelection = ConversationMenuSelection(
+                    conversation: conversation,
+                    rowFrame: frame
+                )
+            }
+        )
+        .listRowInsets(EdgeInsets())
+        .listRowSeparator(.hidden)
+        .listRowBackground(Color.clear)
+        .zIndex(isMenuSelected ? 1 : 0)
     }
 }
 
-// ✅ NUEVO COMPONENTE: Conversación con swipe actions
-struct SwipeableConversationRow: View {
+// MARK: - Pressable row wrapper (scale feedback)
+
+private struct ConversationPressableRow: View {
     let conversation: Conversation
+    let isMenuSelected: Bool
+    let colorScheme: ColorScheme
     let onTap: () -> Void
-    let onDelete: () -> Void
-    let onPin: () -> Void
-    let onMute: () -> Void
+    let onLongPress: () -> Void
 
-    @State private var offset: CGFloat = 0
-    @State private var showingActions = false
-    @State private var isSwipeGestureActive = false
-    @Environment(\.colorScheme) private var colorScheme
-
-    private var rowMaskColor: Color {
-        colorScheme == .dark ? Color(hex: "0B1215") : Color(hex: "FAF9F6")
-    }
-
-    private var swipeHighlightColor: Color {
-        colorScheme == .dark ? Color.white.opacity(0.05) : Color.black.opacity(0.035)
-    }
-
-    private let swipeOpenThreshold: CGFloat = 96
-    private let swipeMaxOffset: CGFloat = 200
-    private let swipeActivationThreshold: CGFloat = 34
+    @State private var isPressing = false
 
     var body: some View {
-        ZStack {
-            // ✅ Acciones de fondo (aparecen al deslizar)
-            HStack(spacing: 4) {
-                Spacer()
-
-                // Botón de silenciar
-                Button(action: {
-                    closeSwipeThenPerform(onMute)
-                }) {
-                    Image(systemName: conversation.isMuted == true ? "bell.fill" : "bell.slash.fill")
-                        .font(.system(size: 17, weight: .semibold))
-                        .foregroundColor(colorScheme == .dark ? .white.opacity(0.9) : .black.opacity(0.85))
-                        .frame(width: 50, height: 50)
-                }
-                .buttonStyle(.plain)
-
-                // Botón de pin
-                Button(action: {
-                    closeSwipeThenPerform(onPin)
-                }) {
-                    Image(systemName: conversation.isPinned == true ? "pin.slash.fill" : "pin.fill")
-                        .font(.system(size: 17, weight: .semibold))
-                        .foregroundColor(colorScheme == .dark ? .white.opacity(0.9) : .black.opacity(0.85))
-                        .frame(width: 50, height: 50)
-                }
-                .buttonStyle(.plain)
-
-                // Botón de eliminar
-                Button(action: {
-                    closeSwipeThenPerform(onDelete)
-                }) {
-                    Image(systemName: "trash.fill")
-                        .font(.system(size: 17, weight: .semibold))
-                        .foregroundColor(.red)
-                        .frame(width: 50, height: 50)
-                }
-                .buttonStyle(.plain)
-            }
-            .padding(.trailing, 12)
-            .frame(maxWidth: .infinity, alignment: .trailing)
-            .contentShape(Rectangle())
-            .opacity(offset < -12 ? 1 : 0)
-            .allowsHitTesting(offset < -12)
-            .zIndex(2)
-
-            // ✅ Fila de conversación principal
-            GlassmorphicConversationRow(conversation: conversation, onTap: onTap)
-                .background(offset < -2 ? rowMaskColor : Color.clear)
-                .overlay(
-                    Rectangle()
-                        .fill(swipeHighlightColor)
-                        .opacity(offset < -2 ? min(abs(offset) / 140, 1) : 0)
-                )
-                .offset(x: offset)
-                .contentShape(Rectangle())
-                .zIndex(1)
-                .gesture(
-                    DragGesture(minimumDistance: 24, coordinateSpace: .local)
-                        .onChanged { value in
-                            let isHorizontal = abs(value.translation.width) > abs(value.translation.height)
-                            guard isHorizontal else { return }
-
-                            if !isSwipeGestureActive {
-                                guard abs(value.translation.width) > swipeActivationThreshold else { return }
-                                isSwipeGestureActive = true
-                            }
-
-                            if showingActions {
-                                offset = min(0, max(-swipeMaxOffset + value.translation.width, -swipeMaxOffset))
-                            } else if value.translation.width < 0 {
-                                offset = max(value.translation.width, -swipeMaxOffset)
-                            }
-                        }
-                        .onEnded { value in
-                            defer { isSwipeGestureActive = false }
-
-                            guard isSwipeGestureActive else { return }
-
-                            let isHorizontal = abs(value.translation.width) > abs(value.translation.height)
-                            guard isHorizontal else { return }
-
-                            withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-                                let proposedOffset = showingActions
-                                    ? (-swipeMaxOffset + value.translation.width)
-                                    : value.translation.width
-
-                                if proposedOffset < -swipeOpenThreshold {
-                                    offset = -swipeMaxOffset
-                                    showingActions = true
-                                } else {
-                                    offset = 0
-                                    showingActions = false
-                                }
-                            }
-                        }
-                )
-                .onTapGesture {
-                    if offset == 0 {
-                        onTap()
-                    } else {
-                        withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-                            offset = 0
-                            showingActions = false
-                        }
+        GlassmorphicConversationRow(
+            conversation: conversation,
+            onTap: onTap,
+            listInteraction: ConversationListInteraction(
+                onTap: onTap,
+                onLongPress: {
+                    // No reseteamos isPressing aquí — el gesture .ended lo hace
+                    // via onPressingChanged(false), manteniendo el scale visible
+                    onLongPress()
+                },
+                onPressingChanged: { pressing in
+                    withAnimation(.spring(response: 0.22, dampingFraction: 0.7)) {
+                        isPressing = pressing
                     }
                 }
+            )
+        )
+        .background {
+            // Frame capturado en espacio global para alinearse con el overlay ignoresSafeArea
+            GeometryReader { geo in
+                let frame = geo.frame(in: .global)
+                Color.clear
+                    .preference(
+                        key: ConversationRowFrameKey.self,
+                        value: [conversation.id ?? "": frame] as [String: CGRect]
+                    )
+            }
         }
-        .clipped()
-    }
-
-    private func closeSwipeThenPerform(_ action: @escaping () -> Void) {
-        withAnimation(.spring(response: 0.28, dampingFraction: 0.84)) {
-            offset = 0
-            showingActions = false
-        }
-
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.14) {
-            action()
-        }
+        .modifier(ConversationRowMenuHighlight(
+            isSelected: isMenuSelected,
+            colorScheme: colorScheme
+        ))
+        .scaleEffect((isPressing || isMenuSelected) ? 0.92 : 1.0)
+        .animation(.spring(response: 0.22, dampingFraction: 0.7), value: isPressing || isMenuSelected)
     }
 }
 
@@ -921,7 +859,8 @@ struct SearchUserRow: View {
 // MARK: - Glassmorphic Conversation Row
 struct GlassmorphicConversationRow: View {
     let conversation: Conversation
-    let onTap: () -> Void // ✅ NUEVO: Callback para abrir el chat
+    let onTap: () -> Void
+    var listInteraction: ConversationListInteraction? = nil
     @Environment(\.colorScheme) var colorScheme
 
     // ✅ NUEVO: Estados para navegación
@@ -940,105 +879,12 @@ struct GlassmorphicConversationRow: View {
 
     var body: some View {
         HStack(spacing: 14) {
-            ZStack {
-                if isOtherParticipantUnavailable && !isOtherParticipantBlockedByCurrentUser {
-                    Button(action: {
-                        showingUserProfile = true
-                    }) {
-                        ProfileUnavailableAvatar(size: 56)
-                    }
-                    .buttonStyle(PlainButtonStyle())
-                } else {
-                    StoryRingAvatarView(
-                        userId: conversation.otherParticipantId,
-                        size: 56,
-                        lineWidth: 2.5,
-                        isOwnStory: false,
-                        hapticsEnabled: true
-                    ) { hasStory in
-                        guard !isOtherParticipantBlockedByCurrentUser else {
-                            showingUserProfile = true
-                            return
-                        }
+            conversationAvatar
 
-                        if hasStory {
-                            storyRoute = MessagingStoryRoute(id: conversation.otherParticipantId)
-                        } else {
-                            showingUserProfile = true
-                        }
-                    }
-                }
-            }
-
-            VStack(alignment: .leading, spacing: 4) {
-                HStack(spacing: 4) {
-                    // ✅ SEPARADO: Botón solo para el nombre (siempre al perfil)
-                    Button(action: {
-                        showingUserProfile = true
-                    }) {
-                        HStack(spacing: 4) {
-                            Text(displayUsername)
-                                .font(.custom("Poppins-SemiBold", size: 16))
-                                .strikethrough(isOtherParticipantUnavailable && !isOtherParticipantBlockedByCurrentUser, color: colorScheme == .dark ? .white.opacity(0.55) : .black.opacity(0.45))
-                                .foregroundColor((colorScheme == .dark ? Color.white : Color.black).opacity(isOtherParticipantUnavailable ? 0.72 : 1.0))
-
-                            // ✅ INSIGNIA DE VERIFICADO
-                            if !isOtherParticipantUnavailable {
-                                VerifiedBadgeView(userId: conversation.otherParticipantId, size: 14)
-                            }
-
-                            // ✅ INDICADOR DE PIN
-                            if conversation.isPinned == true {
-                                Image(systemName: "pin.fill")
-                                    .font(.system(size: 12))
-                                    .foregroundColor(.blue)
-                            }
-
-                            // ✅ INDICADOR DE MUTE
-                            if conversation.isMuted == true {
-                                Image(systemName: "bell.slash.fill")
-                                    .font(.system(size: 12))
-                                    .foregroundColor(.orange)
-                            }
-                        }
-                    }
-                    .buttonStyle(PlainButtonStyle())
-                }
-
-                // ✅ SEPARADO: Botón para el resto de la fila (abrir chat)
-                Button(action: {
-                    onTap() // ✅ Abrir el chat
-                }) {
-                    Text(isOtherParticipantUnavailable && !isOtherParticipantBlockedByCurrentUser ? NSLocalizedString("messaging.profileUnavailable.preview", comment: "Unavailable profile preview") : conversation.messagePreview)
-                        .font(.custom("Poppins-Regular", size: 14))
-                        .foregroundColor(colorScheme == .dark ? .white.opacity(0.8) : .black.opacity(0.7))
-                        .lineLimit(1)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                }
-                .buttonStyle(PlainButtonStyle())
-            }
-
-            Spacer()
-
-            VStack(alignment: .trailing, spacing: 6) {
-                Text(formattedTimestamp(conversation.timestamp))
-                    .font(.custom("Poppins-Regular", size: 12))
-                    .foregroundColor(colorScheme == .dark ? .white.opacity(0.7) : .black.opacity(0.5))
-
-                if !(conversation.readStatus[Auth.auth().currentUser?.uid ?? ""] ?? true) {
-                    Circle()
-                        .fill(Color(hex: "007AFF"))
-                        .frame(width: 10, height: 10)
-                        .overlay(
-                            Circle()
-                                .stroke(colorScheme == .dark ? Color.black : Color.white, lineWidth: 2)
-                        )
-                }
-            }
+            rowContent
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 10)
-        .background(Color.clear)
         .onAppear {
             refreshOtherParticipantUsername()
             refreshOtherParticipantAvailability()
@@ -1047,14 +893,142 @@ struct GlassmorphicConversationRow: View {
             refreshOtherParticipantUsername()
             refreshOtherParticipantAvailability()
         }
-        // ✅ NUEVO: Sheet para mostrar historias del usuario
         .fullScreenCover(item: $storyRoute) { route in
             StoriesView(startWithUserId: .constant(route.id))
-                .ignoresSafeArea(.keyboard) // ✅ Prevenir shift del keyboard
+                .ignoresSafeArea(.keyboard)
         }
-        // ✅ NUEVO: Sheet para navegación al perfil del usuario
         .sheet(isPresented: $showingUserProfile) {
             UserProfileView(userId: conversation.otherParticipantId)
+        }
+    }
+
+    @ViewBuilder
+    private var conversationAvatar: some View {
+        if isOtherParticipantUnavailable && !isOtherParticipantBlockedByCurrentUser {
+            Button(action: { showingUserProfile = true }) {
+                ProfileUnavailableAvatar(size: 56)
+            }
+            .buttonStyle(PlainButtonStyle())
+        } else {
+            StoryRingAvatarView(
+                userId: conversation.otherParticipantId,
+                size: 56,
+                lineWidth: 2.5,
+                isOwnStory: false,
+                hapticsEnabled: true
+            ) { hasStory in
+                guard !isOtherParticipantBlockedByCurrentUser else {
+                    showingUserProfile = true
+                    return
+                }
+
+                if hasStory {
+                    storyRoute = MessagingStoryRoute(id: conversation.otherParticipantId)
+                } else {
+                    showingUserProfile = true
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var rowContent: some View {
+        let content = HStack(spacing: 0) {
+            VStack(alignment: .leading, spacing: 4) {
+                usernameRow
+                messagePreviewText
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+
+            conversationTrailingColumn
+        }
+
+        if let listInteraction {
+            ZStack {
+                content
+                ProfileMomentThumbnailGestureOverlay(
+                    onTap: listInteraction.onTap,
+                    onLongPress: listInteraction.onLongPress,
+                    onPressingChanged: listInteraction.onPressingChanged
+                )
+            }
+        } else {
+            content
+        }
+    }
+
+    @ViewBuilder
+    private var usernameRow: some View {
+        let label = HStack(spacing: 4) {
+            Text(displayUsername)
+                .font(.custom("Poppins-SemiBold", size: 16))
+                .strikethrough(isOtherParticipantUnavailable && !isOtherParticipantBlockedByCurrentUser, color: colorScheme == .dark ? .white.opacity(0.55) : .black.opacity(0.45))
+                .foregroundColor((colorScheme == .dark ? Color.white : Color.black).opacity(isOtherParticipantUnavailable ? 0.72 : 1.0))
+
+            if !isOtherParticipantUnavailable {
+                VerifiedBadgeView(userId: conversation.otherParticipantId, size: 14)
+            }
+
+            if conversation.isPinned == true {
+                Image(systemName: "pin.fill")
+                    .font(.system(size: 12))
+                    .foregroundColor(.blue)
+            }
+
+            if conversation.isMuted == true {
+                Image(systemName: "bell.slash.fill")
+                    .font(.system(size: 12))
+                    .foregroundColor(.orange)
+            }
+        }
+
+        if listInteraction == nil {
+            Button(action: { showingUserProfile = true }) {
+                label
+            }
+            .buttonStyle(PlainButtonStyle())
+        } else {
+            label
+        }
+    }
+
+    @ViewBuilder
+    private var messagePreviewText: some View {
+        let preview = Text(
+            isOtherParticipantUnavailable && !isOtherParticipantBlockedByCurrentUser
+                ? NSLocalizedString("messaging.profileUnavailable.preview", comment: "Unavailable profile preview")
+                : conversation.messagePreview
+        )
+        .font(.custom("Poppins-Regular", size: 14))
+        .foregroundColor(colorScheme == .dark ? .white.opacity(0.8) : .black.opacity(0.7))
+        .lineLimit(1)
+
+        if listInteraction == nil {
+            Button(action: onTap) {
+                preview
+            }
+            .buttonStyle(PlainButtonStyle())
+        } else {
+            preview
+        }
+    }
+
+    @ViewBuilder
+    private var conversationTrailingColumn: some View {
+        VStack(alignment: .trailing, spacing: 6) {
+            Text(formattedTimestamp(conversation.timestamp))
+                .font(.custom("Poppins-Regular", size: 12))
+                .foregroundColor(colorScheme == .dark ? .white.opacity(0.7) : .black.opacity(0.5))
+
+            if !(conversation.readStatus[Auth.auth().currentUser?.uid ?? ""] ?? true) {
+                Circle()
+                    .fill(Color(hex: "007AFF"))
+                    .frame(width: 10, height: 10)
+                    .overlay(
+                        Circle()
+                            .stroke(colorScheme == .dark ? Color.black : Color.white, lineWidth: 2)
+                    )
+            }
         }
     }
 

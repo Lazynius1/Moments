@@ -2547,7 +2547,7 @@
 "whatsNew.archive.description" = "Abbiamo anche migliorato le stories archiviate e diverse viste collegate.";
 
 "whatsNew.profile.title" = "Profili piu curati";
-"whatsNew.profile.description" = "Ora puoi fissare i tuoi moment preferiti sul profilo per metterli piu in evidenza.";
+"whatsNew.profile.description" = "Ora puoi fissare i tuoi moment preferiti e regolare meglio come appaiono sul tuo profilo.";
 
 "whatsNew.notifications.title" = "Notifiche e revisioni piu chiare";
 "whatsNew.notifications.description" = "Abbiamo migliorato alcune notifiche importanti e il seguito quando un contenuto ha bisogno di revisione.";
@@ -3251,6 +3251,11 @@
 "chat.profileUnavailable" = "Profilo non disponibile";
 "chat.input.unavailable" = "Non puoi inviare messaggi a questo profilo.";
 "messaging.profileUnavailable.preview" = "Profilo non disponibile";
+"messaging.swipe.mute" = "Silenzia";
+"messaging.swipe.unmute" = "Riattiva";
+"messaging.swipe.pin" = "Fissa";
+"messaging.swipe.unpin" = "Rimuovi";
+"messaging.menu.markUnread" = "Segna come non letto";
 "feed.refreshing" = "Aggiornamento in corso";
 "profile.ui.posts" = "Post";
 "userProfile.blockedByMe.title" = "Utente bloccato";

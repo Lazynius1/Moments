@@ -1177,6 +1177,17 @@ class ChatService: ObservableObject {
             }
         }
     }
+
+    func markConversationAsRead(conversationId: String, userId: String, completion: ((Error?) -> Void)? = nil) {
+        db.collection("conversations")
+            .document(conversationId)
+            .updateData([
+                "readStatus.\(userId)": true,
+                "lastReadAt.\(userId)": FieldValue.serverTimestamp()
+            ]) { error in
+                completion?(error)
+            }
+    }
     
     // ✅ Función para marcar mensajes como entregados automáticamente
     func markMessagesAsDelivered(messages: [EnhancedMessage], conversationId: String, currentUserId: String) {

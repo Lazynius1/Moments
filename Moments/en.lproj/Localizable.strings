@@ -2567,7 +2567,7 @@
 "whatsNew.archive.description" = "We also improved archived stories and several related views around them.";
 
 "whatsNew.profile.title" = "More polished profiles";
-"whatsNew.profile.description" = "You can now pin your favorite moments on your profile to highlight them better.";
+"whatsNew.profile.description" = "You can now pin your favorite moments and better adjust how they look on your profile.";
 
 "whatsNew.notifications.title" = "Clearer notifications and reviews";
 "whatsNew.notifications.description" = "We improved important notifications and the follow-up when content needs review.";
@@ -3271,6 +3271,11 @@
 "chat.profileUnavailable" = "Profile unavailable";
 "chat.input.unavailable" = "You can't send messages to this profile.";
 "messaging.profileUnavailable.preview" = "Profile unavailable";
+"messaging.swipe.mute" = "Mute";
+"messaging.swipe.unmute" = "Unmute";
+"messaging.swipe.pin" = "Pin";
+"messaging.swipe.unpin" = "Unpin";
+"messaging.menu.markUnread" = "Mark as unread";
 "feed.refreshing" = "Refreshing";
 "profile.ui.posts" = "Posts";
 "userProfile.blockedByMe.title" = "Blocked user";

@@ -2559,7 +2559,7 @@
 "whatsNew.archive.description" = "Tambe hem millorat les histories arxivades i diverses vistes relacionades.";
 
 "whatsNew.profile.title" = "Perfils mes cuidats";
-"whatsNew.profile.description" = "Ara pots fixar els teus moments preferits al teu perfil per destacar-los millor.";
+"whatsNew.profile.description" = "Ara pots fixar els teus moments preferits i ajustar millor com es veuen al teu perfil.";
 
 "whatsNew.notifications.title" = "Notificacions i revisions mes clares";
 "whatsNew.notifications.description" = "Hem millorat algunes notificacions importants i el seguiment quan un contingut necessita revisio.";
@@ -3262,6 +3262,11 @@
 "chat.profileUnavailable" = "Perfil no disponible";
 "chat.input.unavailable" = "No es poden enviar missatges a aquest perfil.";
 "messaging.profileUnavailable.preview" = "Perfil no disponible";
+"messaging.swipe.mute" = "Silenciar";
+"messaging.swipe.unmute" = "Activar";
+"messaging.swipe.pin" = "Fixar";
+"messaging.swipe.unpin" = "Desfixar";
+"messaging.menu.markUnread" = "Marcar com a no llegit";
 "feed.refreshing" = "Actualitzant";
 "profile.ui.posts" = "Posts";
 "userProfile.blockedByMe.title" = "Usuari bloquejat";

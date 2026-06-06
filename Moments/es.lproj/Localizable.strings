@@ -2589,7 +2589,7 @@
 "whatsNew.archive.description" = "Tambien hemos mejorado la lectura de historias archivadas y varias vistas relacionadas.";
 
 "whatsNew.profile.title" = "Perfiles mas cuidados";
-"whatsNew.profile.description" = "Ahora puedes fijar tus moments favoritos en tu perfil para destacarlos mejor.";
+"whatsNew.profile.description" = "Ahora puedes fijar tus moments favoritos y ajustar mejor como se ven en tu perfil.";
 
 "whatsNew.notifications.title" = "Notificaciones y revisiones mas claras";
 "whatsNew.notifications.description" = "Hemos mejorado algunas notificaciones importantes y el seguimiento cuando un contenido necesita revision.";
@@ -3295,6 +3295,11 @@
 "chat.profileUnavailable" = "Perfil no disponible";
 "chat.input.unavailable" = "No se pueden enviar mensajes a este perfil.";
 "messaging.profileUnavailable.preview" = "Perfil no disponible";
+"messaging.swipe.mute" = "Silenciar";
+"messaging.swipe.unmute" = "Activar";
+"messaging.swipe.pin" = "Fijar";
+"messaging.swipe.unpin" = "Desfijar";
+"messaging.menu.markUnread" = "Marcar como no leído";
 "feed.refreshing" = "Actualizando";
 "userProfile.blockedByMe.title" = "Usuario bloqueado";
 "userProfile.blockedByMe.description" = "Bloqueaste a esta persona. No puede enviarte mensajes ni interactuar contigo.";
