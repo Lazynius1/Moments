@@ -649,13 +649,12 @@ class AuthService: ObservableObject {
                     return
                 }
 
-                if isActive, let userData {
-                    completion(.success(.accountComplete(userData)))
-                    return
-                }
-
                 if let userData {
-                    completion(.success(.deactivated(userData)))
+                    if userData.isActive {
+                        completion(.success(.accountComplete(userData)))
+                    } else {
+                        completion(.success(.deactivated(userData)))
+                    }
                     return
                 }
 
@@ -769,7 +768,11 @@ class AuthService: ObservableObject {
                 self?.firestoreService.fetchUser(userId: userId) { result in
                     switch result {
                     case .success(let appUser):
-                        completion(true, appUser, false)
+                        self?.saveCachedAccountStatus(
+                            userId: userId,
+                            decision: appUser.isActive ? .allowed : .deactivated
+                        )
+                        completion(appUser.isActive, appUser, false)
 
                     case .failure:
 
@@ -1283,7 +1286,11 @@ class AuthService: ObservableObject {
                     self?.firestoreService.fetchUser(userId: userId) { result in
                         switch result {
                         case .success(let appUser):
-                            completion(true, appUser, false)
+                            self?.saveCachedAccountStatus(
+                                userId: userId,
+                                decision: appUser.isActive ? .allowed : .deactivated
+                            )
+                            completion(appUser.isActive, appUser, false)
 
                         case .failure(let error):
 
