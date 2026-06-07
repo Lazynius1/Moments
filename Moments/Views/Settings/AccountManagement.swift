@@ -2,6 +2,7 @@ import SwiftUI
 import FirebaseAuth
 import FirebaseCore
 import FirebaseFirestore
+import AuthenticationServices
 
 // MARK: - Account Management Section para SettingsView
 struct AccountManagementSection: View {
@@ -57,14 +58,15 @@ struct AccountManagementSection: View {
             DeleteAccountVerificationView(
                 isProcessing: $isProcessing,
                 passwordErrorMessage: $deletePasswordErrorMessage,
-                onConfirm: { password in
-                    deleteAccount(password: password)
+                onConfirm: { confirmation in
+                    deleteAccount(confirmation: confirmation)
                 },
                 onCancel: {
                     deletePasswordErrorMessage = nil
                     showDeleteVerification = false
                 }
             )
+            .environmentObject(authService)
             .presentationDetents([.medium, .large])
             .presentationDragIndicator(.visible)
             .interactiveDismissDisabled(isProcessing)
@@ -104,7 +106,7 @@ struct AccountManagementSection: View {
         }
     }
 
-    private func deleteAccount(password: String) {
+    private func deleteAccount(confirmation: AccountDeletionConfirmation) {
         guard let user = Auth.auth().currentUser else {
             DispatchQueue.main.async {
                 isProcessing = false
@@ -119,13 +121,14 @@ struct AccountManagementSection: View {
 
         let accountService = AccountManagementService()
 
-        accountService.deleteAccount(user: user, password: password) { result in
+        accountService.deleteAccount(user: user, confirmation: confirmation) { result in
             DispatchQueue.main.async {
                 self.isProcessing = false
 
                 switch result {
                 case .success:
                     self.showDeleteVerification = false
+                    self.authService.logout()
                 case .failure(let error):
                     if let passwordError = AccountDeletionErrorPresenter.passwordMessage(for: error) {
                         self.deletePasswordErrorMessage = passwordError
@@ -139,12 +142,40 @@ struct AccountManagementSection: View {
     }
 }
 
+enum AccountDeletionVerificationMethod {
+    case password
+    case apple
+    case passwordOrApple
+}
+
+enum AccountDeletionConfirmation {
+    case password(String)
+    case appleVerified
+}
+
+enum AccountDeletionAuthSupport {
+    static func verificationMethod(for user: User) -> AccountDeletionVerificationMethod {
+        let providers = Set(user.providerData.map(\.providerID))
+        let hasPassword = providers.contains("password")
+        let hasApple = providers.contains("apple.com")
+
+        if hasPassword && hasApple {
+            return .passwordOrApple
+        }
+        if hasApple {
+            return .apple
+        }
+        return .password
+    }
+}
+
 // MARK: - Delete Account Verification View
 struct DeleteAccountVerificationView: View {
     @Environment(\.colorScheme) var colorScheme
+    @EnvironmentObject private var authService: AuthService
     @Binding var isProcessing: Bool
     @Binding var passwordErrorMessage: String?
-    let onConfirm: (String) -> Void
+    let onConfirm: (AccountDeletionConfirmation) -> Void
     let onCancel: () -> Void
 
     private enum FlowDestination: Equatable {
@@ -158,13 +189,39 @@ struct DeleteAccountVerificationView: View {
     @State private var isPasswordVisible = false
     @State private var confirmText: String = ""
     @State private var agreeToDelete: Bool = false
+    @State private var identityVerified = false
+    @State private var verificationErrorMessage: String?
     @FocusState private var isPasswordFocused: Bool
     @FocusState private var isConfirmFocused: Bool
 
     private let requiredText = NSLocalizedString("accountManagement.requiredText", comment: "Required text for deletion")
 
+    private var verificationMethod: AccountDeletionVerificationMethod {
+        guard let user = Auth.auth().currentUser else { return .password }
+        return AccountDeletionAuthSupport.verificationMethod(for: user)
+    }
+
+    private var showsPasswordField: Bool {
+        verificationMethod == .password || verificationMethod == .passwordOrApple
+    }
+
+    private var showsAppleVerification: Bool {
+        verificationMethod == .apple || verificationMethod == .passwordOrApple
+    }
+
+    private var identityRequirementMet: Bool {
+        switch verificationMethod {
+        case .password:
+            return !password.isEmpty
+        case .apple:
+            return identityVerified
+        case .passwordOrApple:
+            return identityVerified || !password.isEmpty
+        }
+    }
+
     var isFormValid: Bool {
-        !password.isEmpty &&
+        identityRequirementMet &&
         confirmText == requiredText &&
         agreeToDelete
     }
@@ -191,6 +248,9 @@ struct DeleteAccountVerificationView: View {
         .animation(.easeInOut(duration: 0.18), value: passwordErrorMessage)
         .onChange(of: password) { _, _ in
             passwordErrorMessage = nil
+        }
+        .onChange(of: identityVerified) { _, _ in
+            verificationErrorMessage = nil
         }
         .disabled(isProcessing)
     }
@@ -272,8 +332,8 @@ struct DeleteAccountVerificationView: View {
     private var confirmationContent: some View {
         VStack(spacing: 0) {
             DeleteAccountHeader(
-                title: NSLocalizedString("accountManagement.confirmPassword", comment: "Confirm password"),
-                subtitle: NSLocalizedString("accountManagement.delete.message", comment: "Delete account message"),
+                title: confirmationHeaderTitle,
+                subtitle: confirmationHeaderSubtitle,
                 leadingIcon: "chevron.left",
                 onLeadingTap: { navigate(to: .overview, forward: false) }
             )
@@ -282,61 +342,26 @@ struct DeleteAccountVerificationView: View {
 
             ScrollView(showsIndicators: false) {
                 VStack(alignment: .leading, spacing: 22) {
-                    VStack(alignment: .leading, spacing: 10) {
-                        Text("accountManagement.confirmPassword")
-                            .font(.custom("Poppins-SemiBold", size: 14))
-                            .foregroundColor(AuthColors.primary(colorScheme))
+                    if showsPasswordField {
+                        passwordVerificationSection
+                    }
 
-                        HStack(spacing: 12) {
-                            ZStack(alignment: .leading) {
-                                if password.isEmpty {
-                                    Text(NSLocalizedString("accountManagement.currentPassword", comment: "Current password placeholder"))
-                                        .font(.custom("Poppins-Regular", size: 15))
-                                        .foregroundColor(AuthColors.secondary(colorScheme, opacity: 0.42))
-                                }
-
-                                if isPasswordVisible {
-                                    TextField("", text: $password)
-                                        .focused($isPasswordFocused)
-                                        .font(.custom("Poppins-Regular", size: 15))
-                                        .foregroundColor(AuthColors.primary(colorScheme))
-                                        .textContentType(.password)
-                                } else {
-                                    SecureField("", text: $password)
-                                        .focused($isPasswordFocused)
-                                        .font(.custom("Poppins-Regular", size: 15))
-                                        .foregroundColor(AuthColors.primary(colorScheme))
-                                        .textContentType(.password)
-                                }
-                            }
-
-                            Button(action: { isPasswordVisible.toggle() }) {
-                                Image(systemName: isPasswordVisible ? "eye.slash" : "eye")
-                                    .font(.system(size: 15, weight: .semibold))
-                                    .foregroundColor(AuthColors.secondary(colorScheme, opacity: 0.58))
-                                    .frame(width: 30, height: 30)
-                            }
-                            .buttonStyle(.plain)
-                        }
-                        .padding(.leading, 18)
-                        .padding(.trailing, 12)
-                        .frame(height: 54)
-                        .background {
-                            Color.clear
-                                .liquidGlass(in: Capsule(), interactive: true)
-                        }
-                        .overlay {
-                            Capsule()
-                                .stroke(passwordErrorMessage == nil ? Color.clear : Color.red.opacity(0.46), lineWidth: 1)
-                        }
-
-                        if let passwordErrorMessage {
-                            Text(passwordErrorMessage)
+                    if showsPasswordField && showsAppleVerification {
+                        HStack {
+                            Rectangle()
+                                .fill(AuthColors.secondary(colorScheme, opacity: 0.16))
+                                .frame(height: 1)
+                            Text("accountManagement.deleteAuthDivider")
                                 .font(.custom("Poppins-Regular", size: 12))
-                                .foregroundColor(.red.opacity(colorScheme == .dark ? 0.88 : 0.78))
-                                .padding(.horizontal, 18)
-                                .transition(.opacity.combined(with: .move(edge: .top)))
+                                .foregroundColor(AuthColors.secondary(colorScheme, opacity: 0.52))
+                            Rectangle()
+                                .fill(AuthColors.secondary(colorScheme, opacity: 0.16))
+                                .frame(height: 1)
                         }
+                    }
+
+                    if showsAppleVerification {
+                        appleVerificationSection
                     }
 
                     VStack(alignment: .leading, spacing: 10) {
@@ -387,7 +412,7 @@ struct DeleteAccountVerificationView: View {
                     }
                     .buttonStyle(.plain)
 
-                    Button(action: { onConfirm(password) }) {
+                    Button(action: submitDeletion) {
                         HStack(spacing: 10) {
                             Image(systemName: "trash")
                                 .font(.system(size: 15, weight: .semibold))
@@ -443,9 +468,183 @@ struct DeleteAccountVerificationView: View {
         )
     }
 
+    private var confirmationHeaderTitle: String {
+        switch verificationMethod {
+        case .apple:
+            return NSLocalizedString("accountManagement.confirmIdentity.title", comment: "Confirm identity title")
+        case .password, .passwordOrApple:
+            return NSLocalizedString("accountManagement.confirmPassword", comment: "Confirm password")
+        }
+    }
+
+    private var confirmationHeaderSubtitle: String {
+        switch verificationMethod {
+        case .apple:
+            return NSLocalizedString("accountManagement.confirmIdentity.subtitle", comment: "Confirm identity subtitle")
+        case .password:
+            return NSLocalizedString("accountManagement.delete.message", comment: "Delete account message")
+        case .passwordOrApple:
+            return NSLocalizedString("accountManagement.verifyWithPasswordOrApple", comment: "Verify with password or Apple")
+        }
+    }
+
+    private var passwordVerificationSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("accountManagement.confirmPassword")
+                .font(.custom("Poppins-SemiBold", size: 14))
+                .foregroundColor(AuthColors.primary(colorScheme))
+
+            HStack(spacing: 12) {
+                ZStack(alignment: .leading) {
+                    if password.isEmpty {
+                        Text(NSLocalizedString("accountManagement.currentPassword", comment: "Current password placeholder"))
+                            .font(.custom("Poppins-Regular", size: 15))
+                            .foregroundColor(AuthColors.secondary(colorScheme, opacity: 0.42))
+                    }
+
+                    if isPasswordVisible {
+                        TextField("", text: $password)
+                            .focused($isPasswordFocused)
+                            .font(.custom("Poppins-Regular", size: 15))
+                            .foregroundColor(AuthColors.primary(colorScheme))
+                            .textContentType(.password)
+                    } else {
+                        SecureField("", text: $password)
+                            .focused($isPasswordFocused)
+                            .font(.custom("Poppins-Regular", size: 15))
+                            .foregroundColor(AuthColors.primary(colorScheme))
+                            .textContentType(.password)
+                    }
+                }
+
+                Button(action: { isPasswordVisible.toggle() }) {
+                    Image(systemName: isPasswordVisible ? "eye.slash" : "eye")
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundColor(AuthColors.secondary(colorScheme, opacity: 0.58))
+                        .frame(width: 30, height: 30)
+                }
+                .buttonStyle(.plain)
+            }
+            .padding(.leading, 18)
+            .padding(.trailing, 12)
+            .frame(height: 54)
+            .background {
+                Color.clear
+                    .liquidGlass(in: Capsule(), interactive: true)
+            }
+            .overlay {
+                Capsule()
+                    .stroke(passwordErrorMessage == nil ? Color.clear : Color.red.opacity(0.46), lineWidth: 1)
+            }
+
+            if let passwordErrorMessage {
+                Text(passwordErrorMessage)
+                    .font(.custom("Poppins-Regular", size: 12))
+                    .foregroundColor(.red.opacity(colorScheme == .dark ? 0.88 : 0.78))
+                    .padding(.horizontal, 18)
+                    .transition(.opacity.combined(with: .move(edge: .top)))
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var appleVerificationSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            if identityVerified {
+                HStack(spacing: 10) {
+                    Image(systemName: "checkmark.seal.fill")
+                        .font(.system(size: 18, weight: .semibold))
+                        .foregroundColor(.green)
+                    Text("accountManagement.identityVerified")
+                        .font(.custom("Poppins-SemiBold", size: 14))
+                        .foregroundColor(AuthColors.primary(colorScheme))
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 12)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background {
+                    Color.clear
+                        .liquidGlass(in: RoundedRectangle(cornerRadius: 16, style: .continuous), interactive: false)
+                }
+            } else {
+                SignInWithAppleButton(.continue) { request in
+                    let nonce = authService.startAppleSignIn()
+                    request.requestedScopes = []
+                    request.nonce = nonce
+                } onCompletion: { result in
+                    handleAppleVerificationResult(result)
+                }
+                .signInWithAppleButtonStyle(colorScheme == .dark ? .white : .black)
+                .frame(height: AuthFormMetrics.buttonHeight)
+                .clipShape(RoundedRectangle(cornerRadius: AuthFormMetrics.buttonCornerRadius, style: .continuous))
+            }
+
+            if let verificationErrorMessage {
+                Text(verificationErrorMessage)
+                    .font(.custom("Poppins-Regular", size: 12))
+                    .foregroundColor(.red.opacity(colorScheme == .dark ? 0.88 : 0.78))
+                    .padding(.horizontal, 4)
+            }
+        }
+    }
+
+    private func submitDeletion() {
+        switch verificationMethod {
+        case .apple:
+            onConfirm(.appleVerified)
+        case .password:
+            onConfirm(.password(password))
+        case .passwordOrApple:
+            if identityVerified {
+                onConfirm(.appleVerified)
+            } else {
+                onConfirm(.password(password))
+            }
+        }
+    }
+
+    private func handleAppleVerificationResult(_ result: Result<ASAuthorization, Error>) {
+        switch result {
+        case .success(let authorization):
+            guard let credential = authorization.credential as? ASAuthorizationAppleIDCredential,
+                  let nonce = authService.currentNonce,
+                  let tokenData = credential.identityToken,
+                  let idToken = String(data: tokenData, encoding: .utf8),
+                  let user = Auth.auth().currentUser else {
+                verificationErrorMessage = NSLocalizedString("accountManagement.error.appleReauth", comment: "Apple reauth failed")
+                return
+            }
+
+            isProcessing = true
+            verificationErrorMessage = nil
+            passwordErrorMessage = nil
+
+            let oauthCredential = OAuthProvider.credential(providerID: .apple, idToken: idToken, rawNonce: nonce)
+            user.reauthenticate(with: oauthCredential) { _, error in
+                DispatchQueue.main.async {
+                    isProcessing = false
+                    if let error {
+                        verificationErrorMessage = error.localizedDescription
+                        identityVerified = false
+                    } else {
+                        identityVerified = true
+                        verificationErrorMessage = nil
+                    }
+                }
+            }
+        case .failure(let error):
+            if let authError = error as? ASAuthorizationError, authError.code == .canceled {
+                return
+            }
+            verificationErrorMessage = error.localizedDescription
+        }
+    }
+
     private func navigate(to destination: FlowDestination, forward: Bool = true) {
         navigatingForward = forward
         passwordErrorMessage = nil
+        verificationErrorMessage = nil
+        identityVerified = false
         flowDestination = destination
     }
 }
@@ -557,22 +756,26 @@ class AccountManagementService {
     }
 
     // MARK: - Delete Account
-    func deleteAccount(user: User, password: String, completion: @escaping (Result<Void, Error>) -> Void) {
-        guard let email = user.email else {
-            let error = NSError(domain: "AccountDeletion", code: -1, userInfo: [NSLocalizedDescriptionKey: NSLocalizedString("accountManagement.error.noEmail", comment: "No email error")])
-            completion(.failure(error))
-            return
-        }
-
-        let credential = EmailAuthProvider.credential(withEmail: email, password: password)
-
-        user.reauthenticate(with: credential) { _, error in
-            if let error = error {
+    func deleteAccount(user: User, confirmation: AccountDeletionConfirmation, completion: @escaping (Result<Void, Error>) -> Void) {
+        switch confirmation {
+        case .appleVerified:
+            requestBackendAccountDeletion(user: user, completion: completion)
+        case .password(let password):
+            guard let email = user.email else {
+                let error = NSError(domain: "AccountDeletion", code: -1, userInfo: [NSLocalizedDescriptionKey: NSLocalizedString("accountManagement.error.noEmail", comment: "No email error")])
                 completion(.failure(error))
                 return
             }
 
-            self.requestBackendAccountDeletion(user: user, completion: completion)
+            let credential = EmailAuthProvider.credential(withEmail: email, password: password)
+            user.reauthenticate(with: credential) { _, error in
+                if let error = error {
+                    completion(.failure(error))
+                    return
+                }
+
+                self.requestBackendAccountDeletion(user: user, completion: completion)
+            }
         }
     }
 

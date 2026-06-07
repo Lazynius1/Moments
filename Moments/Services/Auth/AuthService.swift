@@ -20,13 +20,68 @@ class AuthService: ObservableObject {
 
     // ✅ NUEVO: Flag público para controlar el flujo de registro (observado por las vistas)
     @Published var isRegistering: Bool = false
+    @Published var resumingOnboardingContext: OnboardingDraftContext = .apple
+    @Published var isResumingOnboarding: Bool = false
 
     // ✅ NUEVO: Para Sign in with Apple
     @Published var currentNonce: String?
+    var pendingAppleRegistrationEmail: String?
 
     // ✅ NUEVO: Verificar si Apple está vinculado
     var isAppleLinked: Bool {
         return currentFirebaseUser?.providerData.contains { $0.providerID == "apple.com" } ?? false
+    }
+
+    private var linkedProviderIDs: [String] {
+        (Auth.auth().currentUser ?? currentFirebaseUser)?
+            .providerData
+            .map(\.providerID) ?? []
+    }
+
+    var isPasswordLinked: Bool {
+        linkedProviderIDs.contains("password")
+    }
+
+    var canUnlinkApple: Bool {
+        isAppleLinked && isPasswordLinked
+    }
+
+    var isAppleOnlyAccess: Bool {
+        isAppleLinked && !isPasswordLinked
+    }
+
+    enum BackupEmailStatus {
+        case missing
+        case appleRelay
+        case usable
+    }
+
+    static func isApplePrivateRelayEmail(_ email: String) -> Bool {
+        email.range(
+            of: "@privaterelay\\.appleid\\.com$",
+            options: [.regularExpression, .caseInsensitive]
+        ) != nil
+    }
+
+    static func isValidEmail(_ email: String) -> Bool {
+        let emailRegex = "^[A-Z0-9a-z._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,64}$"
+        return NSPredicate(format: "SELF MATCHES %@", emailRegex)
+            .evaluate(with: email.trimmingCharacters(in: .whitespacesAndNewlines))
+    }
+
+    var backupEmailStatus: BackupEmailStatus {
+        guard let email = currentFirebaseUser?.email?.trimmingCharacters(in: .whitespacesAndNewlines),
+              !email.isEmpty else {
+            return .missing
+        }
+        if Self.isApplePrivateRelayEmail(email) {
+            return .appleRelay
+        }
+        return .usable
+    }
+
+    var requiresBackupEmailSetup: Bool {
+        backupEmailStatus != .usable
     }
 
     // ✅ NUEVO: Queue serial para thread safety
@@ -40,6 +95,17 @@ class AuthService: ObservableObject {
         case idle
         case registering
         case completing
+    }
+
+    enum RegistrationRecoveryCode {
+        static let accountAlreadyComplete = 9_001
+    }
+
+    private enum RegistrationSessionResolution {
+        case suspended
+        case accountComplete(AppUser)
+        case deactivated(AppUser)
+        case incompleteProfile
     }
 
     private enum CachedAccountDecision: String, Codable {
@@ -156,6 +222,8 @@ class AuthService: ObservableObject {
     }
 
     init() {
+        cleanupExpiredOnboardingDraft()
+
         cleanupHolder.authHandle = Auth.auth().addStateDidChangeListener { [weak self] auth, user in
             guard let self = self else { return }
 
@@ -229,7 +297,7 @@ class AuthService: ObservableObject {
                                 LocalPersistenceService.shared.saveCurrentUser(userData)
 
                             } else {
-                                self.forceLogout()
+                                self.handleMissingFirestoreProfile(userId: user.uid)
                             }
                         }
                     }
@@ -295,7 +363,6 @@ class AuthService: ObservableObject {
                     }
 
                     DispatchQueue.main.async {
-                        print("📶 AuthService: Sesión local válida, verificando cuenta en segundo plano")
                         self.isLoggedIn = true
                         self.currentUser = cachedUser
                         self.currentFirebaseUser = user
@@ -347,7 +414,6 @@ class AuthService: ObservableObject {
                             }
                         } else {
                             DispatchQueue.main.async {
-                                print("📶 AuthService: No se pudo confirmar cuenta; se mantiene sesión local")
                                 self.isLoggedIn = true
                                 self.currentUser = cachedUser
                                 self.currentFirebaseUser = user
@@ -383,6 +449,7 @@ class AuthService: ObservableObject {
                         }
 
                         if isActive {
+                            OnboardingDraftStore.clear()
                             if let userData {
                                 self.saveCachedAccountStatus(userId: user.uid, decision: .allowed)
                                 LocalPersistenceService.shared.saveCurrentUser(userData)
@@ -400,7 +467,7 @@ class AuthService: ObservableObject {
                             // ✅ Sincronizar datos de perfil para el widget
                             self.syncProfileDataToWidget(userData: userData)
 
-                        } else {
+                        } else if let userData {
                             self.saveCachedAccountStatus(userId: user.uid, decision: .deactivated)
                             self.isLoggedIn = false
                             self.currentUser = nil
@@ -408,6 +475,10 @@ class AuthService: ObservableObject {
                             self.isAccountDeactivated = true
                             self.deactivatedUserData = userData
                             self.authState = .deactivated
+                        } else if self.isRegistering || self.isInRegistrationProcess {
+                            return
+                        } else {
+                            self.handleMissingFirestoreProfile(userId: user.uid)
                         }
 
                     }
@@ -439,6 +510,235 @@ class AuthService: ObservableObject {
                 }
             }
         }
+
+        DispatchQueue.main.async { [weak self] in
+            self?.bootstrapIncompleteOnboardingIfNeeded()
+        }
+    }
+
+    private func cleanupExpiredOnboardingDraft() {
+        guard let draft = OnboardingDraftStore.load(), OnboardingDraftStore.isExpired(draft) else { return }
+        OnboardingDraftStore.clear()
+    }
+
+    private func bootstrapIncompleteOnboardingIfNeeded() {
+        guard Auth.auth().currentUser == nil else { return }
+        guard let draft = OnboardingDraftStore.load(), !OnboardingDraftStore.isExpired(draft) else { return }
+        beginOnboardingResumeWithoutAuthenticatedUser(draft: draft)
+    }
+
+    func persistOnboardingDraft(
+        context: OnboardingDraftContext,
+        step: Int,
+        username: String,
+        email: String,
+        selectedInterests: [String],
+        privacyPolicyAccepted: Bool,
+        profileImage: UIImage?,
+        firebaseUID: String? = nil,
+        pendingAppleEmail: String? = nil
+    ) {
+        if OnboardingDraftStore.load() == nil {
+            OnboardingDraftStore.markStarted(
+                context: context,
+                firebaseUID: firebaseUID,
+                pendingAppleEmail: pendingAppleEmail
+            )
+        }
+
+        OnboardingDraftStore.update(
+            step: step,
+            username: username,
+            email: email,
+            selectedInterests: selectedInterests,
+            privacyPolicyAccepted: privacyPolicyAccepted,
+            profileImage: profileImage,
+            firebaseUID: firebaseUID ?? Auth.auth().currentUser?.uid,
+            pendingAppleEmail: pendingAppleEmail
+        )
+    }
+
+    private func inferredOnboardingContext(for user: User, draft: OnboardingDraft?) -> OnboardingDraftContext {
+        if let draft, draft.firebaseUID == user.uid || draft.firebaseUID == nil {
+            return draft.context
+        }
+        if user.providerData.contains(where: { $0.providerID == "apple.com" }) {
+            return .apple
+        }
+        return .email
+    }
+
+    private func beginOnboardingResume(for user: User) {
+        let draft = OnboardingDraftStore.load()
+        let context = inferredOnboardingContext(for: user, draft: draft)
+
+        if draft == nil || draft?.firebaseUID != user.uid {
+            OnboardingDraftStore.markStarted(
+                context: context,
+                firebaseUID: user.uid,
+                pendingAppleEmail: user.email
+            )
+        } else {
+            OnboardingDraftStore.updateUID(user.uid)
+        }
+
+        authQueue.sync {
+            self._registrationState = .registering
+            self._isAuthProcessingEnabled = false
+        }
+
+        DispatchQueue.main.async {
+            self.resumingOnboardingContext = context
+            self.isResumingOnboarding = true
+            self.isRegistering = true
+            self.isVerifyingAccount = false
+            self.isAccountDeactivated = false
+            self.deactivatedUserData = nil
+            self.isLoggedIn = false
+            self.currentUser = nil
+            self.currentFirebaseUser = user
+            self.authState = .unauthenticated
+
+            if context == .apple {
+                self.pendingAppleRegistrationEmail = draft?.pendingAppleEmail ?? user.email
+            }
+        }
+
+    }
+
+    private func beginOnboardingResumeWithoutAuthenticatedUser(draft: OnboardingDraft) {
+        authQueue.sync {
+            self._registrationState = .registering
+            self._isAuthProcessingEnabled = false
+        }
+
+        DispatchQueue.main.async {
+            self.resumingOnboardingContext = draft.context
+            self.isResumingOnboarding = true
+            self.isRegistering = true
+            self.isVerifyingAccount = false
+            self.isAccountDeactivated = false
+            self.deactivatedUserData = nil
+            self.isLoggedIn = false
+            self.currentUser = nil
+            self.authState = .unauthenticated
+
+            if draft.context == .apple {
+                self.pendingAppleRegistrationEmail = draft.pendingAppleEmail
+            }
+        }
+
+    }
+
+    private func handleMissingFirestoreProfile(userId: String) {
+        guard let user = Auth.auth().currentUser, user.uid == userId else {
+            forceLogout(signOut: true)
+            return
+        }
+        beginOnboardingResume(for: user)
+    }
+
+    private func resolveAuthenticatedUserForRegistration(
+        user: User,
+        completion: @escaping (Result<RegistrationSessionResolution, Error>) -> Void
+    ) {
+        checkAccountStatus(userId: user.uid, allowMissingProfile: true) { isActive, userData, isSuspended in
+            DispatchQueue.main.async {
+                if isSuspended {
+                    completion(.success(.suspended))
+                    return
+                }
+
+                if isActive, let userData {
+                    completion(.success(.accountComplete(userData)))
+                    return
+                }
+
+                if let userData {
+                    completion(.success(.deactivated(userData)))
+                    return
+                }
+
+                completion(.success(.incompleteProfile))
+            }
+        }
+    }
+
+    private func hydrateAuthenticatedSession(user: User, userData: AppUser) {
+        OnboardingDraftStore.clear()
+        saveCachedAccountStatus(userId: user.uid, decision: .allowed)
+        LocalPersistenceService.shared.saveCurrentUser(userData)
+        isLoggedIn = true
+        currentUser = userData
+        currentFirebaseUser = user
+        isAccountDeactivated = false
+        deactivatedUserData = nil
+        isResumingOnboarding = false
+        authState = .authenticated
+        startSuspensionListener()
+        syncProfileDataToWidget(userData: userData)
+    }
+
+    private func applyDeactivatedSession(user: User, userData: AppUser) {
+        saveCachedAccountStatus(userId: user.uid, decision: .deactivated)
+        isLoggedIn = false
+        currentUser = nil
+        currentFirebaseUser = user
+        isAccountDeactivated = true
+        deactivatedUserData = userData
+        authState = .deactivated
+    }
+
+    private func handleRegistrationSessionResolution(
+        _ resolution: RegistrationSessionResolution,
+        user: User,
+        finalizeRegistration: ((User, String) -> Void)?,
+        completion: @escaping (Result<Void, Error>) -> Void
+    ) {
+        switch resolution {
+        case .suspended:
+            clearRegistrationState()
+            completion(.failure(NSError(
+                domain: "",
+                code: -1,
+                userInfo: [NSLocalizedDescriptionKey: NSLocalizedString("auth.error.userDisabled", comment: "User disabled")]
+            )))
+
+        case .accountComplete(let userData):
+            hydrateAuthenticatedSession(user: user, userData: userData)
+            clearRegistrationState()
+            completion(.failure(NSError(
+                domain: "AuthService",
+                code: RegistrationRecoveryCode.accountAlreadyComplete,
+                userInfo: [NSLocalizedDescriptionKey: NSLocalizedString("auth.error.accountAlreadyComplete", comment: "Account already complete")]
+            )))
+
+        case .deactivated(let userData):
+            clearRegistrationState()
+            applyDeactivatedSession(user: user, userData: userData)
+            completion(.failure(NSError(
+                domain: "",
+                code: -1,
+                userInfo: [NSLocalizedDescriptionKey: NSLocalizedString("auth.error.userDisabled", comment: "User disabled")]
+            )))
+
+        case .incompleteProfile:
+            guard let finalizeRegistration else {
+                completion(.failure(NSError(
+                    domain: "",
+                    code: -1,
+                    userInfo: [NSLocalizedDescriptionKey: NSLocalizedString("login.error.unknown", comment: "Unknown login error")]
+                )))
+                return
+            }
+            OnboardingDraftStore.updateUID(user.uid)
+            currentFirebaseUser = user
+            finalizeRegistration(user, user.uid)
+        }
+    }
+
+    private func isMissingFirestoreProfileFailure(_ error: Error) -> Bool {
+        isMissingUserProfileError(error)
     }
 
     // ✅ NUEVA FUNCIÓN: Retry especial para usuarios recién creados
@@ -477,8 +777,7 @@ class AuthService: ObservableObject {
                             // Continuar reintentando
                             self?.retryUserFetchWithCustomParams(userId: userId, maxRetries: maxRetries, baseDelay: baseDelay, maxDelay: maxDelay, retryCount: retryCount + 1, completion: completion)
                         } else {
-                            // Se acabaron los reintentos para usuario recién creado
-                            self?.forceLogout()
+                            self?.handleMissingFirestoreProfile(userId: userId)
                             completion(false, nil, false)
                         }
                     }
@@ -518,11 +817,13 @@ class AuthService: ObservableObject {
 
                     if isActive, let userData = userData {
                         // ✅ ÉXITO: Primero establecemos estado autenticado
+                        OnboardingDraftStore.clear()
                         self.isLoggedIn = true
                         self.currentUser = userData
                         self.currentFirebaseUser = user
                         self.isAccountDeactivated = false
                         self.deactivatedUserData = nil
+                        self.isResumingOnboarding = false
                         self.authState = .authenticated
 
                         self.startSuspensionListener()
@@ -552,9 +853,11 @@ class AuthService: ObservableObject {
                         self.retryUserFetchForNewUser(userId: user.uid) { success, user, suspended in
                             DispatchQueue.main.async {
                                 if success, let user = user {
+                                    OnboardingDraftStore.clear()
                                     self.isLoggedIn = true
                                     self.currentUser = user
                                     self.currentFirebaseUser = Auth.auth().currentUser
+                                    self.isResumingOnboarding = false
                                     self.authState = .authenticated
                                     self.startSuspensionListener()
 
@@ -762,7 +1065,7 @@ class AuthService: ObservableObject {
             self.authState = .verifyingAccount
         }
 
-        checkAccountStatus(userId: user.uid) { isActive, userData, isSuspended in
+        checkAccountStatus(userId: user.uid, allowMissingProfile: true) { isActive, userData, isSuspended in
             DispatchQueue.main.async {
                 self.isVerifyingAccount = false
 
@@ -774,18 +1077,16 @@ class AuthService: ObservableObject {
 
                 if isActive {
                     if let userData {
-                        self.saveCachedAccountStatus(userId: user.uid, decision: .allowed)
-                        LocalPersistenceService.shared.saveCurrentUser(userData)
+                        self.hydrateAuthenticatedSession(user: user, userData: userData)
+                    } else {
+                        self.isLoggedIn = true
+                        self.currentUser = nil
+                        self.currentFirebaseUser = user
+                        self.isAccountDeactivated = false
+                        self.deactivatedUserData = nil
+                        self.authState = .authenticated
+                        self.startSuspensionListener()
                     }
-
-                    self.isLoggedIn = true
-                    self.currentUser = userData
-                    self.currentFirebaseUser = user
-                    self.isAccountDeactivated = false
-                    self.deactivatedUserData = nil
-                    self.authState = .authenticated
-                    self.startSuspensionListener()
-                    self.syncProfileDataToWidget(userData: userData)
 
                     self.authQueue.async { self._transitionLock = false }
                     completion(.success(()))
@@ -793,28 +1094,31 @@ class AuthService: ObservableObject {
                 }
 
                 if let userData {
-                    self.saveCachedAccountStatus(userId: user.uid, decision: .deactivated)
-                    self.isLoggedIn = false
-                    self.currentUser = nil
-                    self.currentFirebaseUser = user
-                    self.isAccountDeactivated = true
-                    self.deactivatedUserData = userData
-                    self.authState = .deactivated
-
+                    self.applyDeactivatedSession(user: user, userData: userData)
                     self.authQueue.async { self._transitionLock = false }
                     completion(.success(()))
                     return
                 }
 
                 self.authQueue.async { self._transitionLock = false }
-                self.forceLogout()
-                completion(.failure(NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: NSLocalizedString("login.error.unknown", comment: "Unknown login error")])))
+                self.beginOnboardingResume(for: user)
+                completion(.success(()))
             }
         }
     }
 
+    private nonisolated func isMissingUserProfileError(_ error: Error) -> Bool {
+        let nsError = error as NSError
+        let documentNotFound = NSLocalizedString("errors.documentNotFound", comment: "Document not found")
+        return nsError.code == -1 && nsError.localizedDescription == documentNotFound
+    }
+
     // ✅ FUNCIÓN CORREGIDA: Verificar estado y suspensión con retry para registro
-    private func checkAccountStatus(userId: String, completion: @escaping (Bool, AppUser?, Bool) -> Void) {
+    private func checkAccountStatus(
+        userId: String,
+        allowMissingProfile: Bool = false,
+        completion: @escaping (Bool, AppUser?, Bool) -> Void
+    ) {
 
         // ✅ THREAD-SAFE: Verificar estado de registro
         let registrationState = authQueue.sync { _registrationState }
@@ -827,7 +1131,6 @@ class AuthService: ObservableObject {
 
         // ✅ NUEVO: Si estamos offline, cargar perfil de SwiftData inmediatamente
         if !NetworkMonitor.shared.isConnected {
-            print("📶 AuthService: Modo Offline detectado, cargando perfil local")
             let cachedUser = LocalPersistenceService.shared.loadUser(userId: userId)
             let cachedStatus = loadCachedAccountStatus(userId: userId)
 
@@ -854,7 +1157,6 @@ class AuthService: ObservableObject {
         // Bootstrap de sesión: si no podemos confirmar estado pero hay caché válida, mantenemos sesión local.
         DispatchQueue.main.asyncAfter(deadline: .now() + 8.0) { [weak self] in
             if !hasCompleted {
-                print("⚠️ AuthService: Timeout en bootstrap de sesión (\(userIdToFetch))")
                 let cachedUser = LocalPersistenceService.shared.loadUser(userId: userIdToFetch)
                 let cachedStatus = self?.loadCachedAccountStatus(userId: userIdToFetch)
 
@@ -926,13 +1228,14 @@ class AuthService: ObservableObject {
                         // ✅ Verificar nuevamente si estamos en registro (para evitar falsos negativos)
                         let currentRegistrationState = self?.authQueue.sync { self?._registrationState } ?? .idle
 
-                        if currentRegistrationState == .registering || self?.isRegistering == true {
+                        if allowMissingProfile && self?.isMissingUserProfileError(error) == true {
+                            safeCompletion(false, nil, false)
+                        } else if currentRegistrationState == .registering || self?.isRegistering == true {
                             safeCompletion(false, nil, false)
                         } else {
                             // Si la red falla después de arrancar online, no asumimos cuenta válida.
                             let nsError = error as NSError
                             if nsError.domain == FirestoreErrorDomain && (nsError.code == FirestoreErrorCode.unavailable.rawValue || nsError.code == FirestoreErrorCode.deadlineExceeded.rawValue) {
-                                print("⚠️ AuthService: No se pudo confirmar el estado de cuenta")
                                 let cachedUser = LocalPersistenceService.shared.loadUser(userId: userId)
                                 let cachedStatus = self?.loadCachedAccountStatus(userId: userId)
 
@@ -945,8 +1248,11 @@ class AuthService: ObservableObject {
                                 } else {
                                     safeCompletion(false, nil, false)
                                 }
+                            } else if self?.isMissingFirestoreProfileFailure(error) == true {
+                                self?.handleMissingFirestoreProfile(userId: userId)
+                                safeCompletion(false, nil, false)
                             } else {
-                                self?.forceLogout()
+                                self?.forceLogout(signOut: true)
                                 safeCompletion(false, nil, false)
                             }
                         }
@@ -979,7 +1285,7 @@ class AuthService: ObservableObject {
                         case .success(let appUser):
                             completion(true, appUser, false)
 
-                        case .failure:
+                        case .failure(let error):
 
                             if retryCount < maxRetries - 1 {
                                 // Continuar reintentando
@@ -993,7 +1299,7 @@ class AuthService: ObservableObject {
                                 if registrationState == .registering || self?.isRegistering == true {
                                     completion(true, nil, false) // Asumir activo temporalmente
                                 } else {
-                                    self?.forceLogout()
+                                    self?.handleMissingFirestoreProfile(userId: userId)
                                     completion(false, nil, false)
                                 }
                             }
@@ -1015,16 +1321,21 @@ class AuthService: ObservableObject {
             WidgetCenter.shared.reloadTimelines(ofKind: "GlowsyWidgetExtension")
         }
 
-        private func forceLogout() {
+        private func forceLogout(signOut: Bool = false) {
             DispatchQueue.main.async {
                 self.isLoggedIn = false
                 self.currentUser = nil
-                self.currentFirebaseUser = nil
                 self.isAccountDeactivated = false
                 self.deactivatedUserData = nil
                 self.isVerifyingAccount = false
                 self.isRegistering = false
+                self.isResumingOnboarding = false
                 self.authState = .unauthenticated
+
+                if signOut {
+                    try? Auth.auth().signOut()
+                    self.currentFirebaseUser = nil
+                }
 
                 // ✅ Thread-safe cleanup
                 self.authQueue.async {
@@ -1045,6 +1356,74 @@ class AuthService: ObservableObject {
 
             DispatchQueue.main.async {
                 self.isRegistering = false
+                self.isResumingOnboarding = false
+                self.pendingAppleRegistrationEmail = nil
+            }
+        }
+
+        func cancelOnboardingRegistration(
+            deleteIncompleteAccount: Bool = false,
+            signOut: Bool = true,
+            completion: ((Result<Void, Error>) -> Void)? = nil
+        ) {
+            let finish: (Result<Void, Error>) -> Void = { [weak self] result in
+                guard let self else { return }
+                self.authQueue.async {
+                    self._registrationState = .idle
+                    self._isAuthProcessingEnabled = true
+                    self._transitionLock = false
+                }
+
+                DispatchQueue.main.async {
+                    self.isRegistering = false
+                    self.isResumingOnboarding = false
+                    self.pendingAppleRegistrationEmail = nil
+                    self.isLoggedIn = false
+                    self.currentUser = nil
+                    self.isAccountDeactivated = false
+                    self.deactivatedUserData = nil
+                    self.isVerifyingAccount = false
+                    self.authState = .unauthenticated
+                    OnboardingDraftStore.clear()
+
+                    if signOut {
+                        try? Auth.auth().signOut()
+                    }
+                    self.currentFirebaseUser = nil
+                    completion?(result)
+                }
+            }
+
+            guard deleteIncompleteAccount, let user = Auth.auth().currentUser else {
+                if deleteIncompleteAccount {
+                    OnboardingDraftStore.clear()
+                }
+                finish(.success(()))
+                return
+            }
+
+            let userId = user.uid
+
+            Firestore.firestore().collection("users").document(userId).getDocument { [weak self] snapshot, error in
+                guard let self else { return }
+
+                if let error {
+                    finish(.failure(error))
+                    return
+                }
+
+                if snapshot?.exists == true {
+                    finish(.success(()))
+                    return
+                }
+
+                user.delete { deleteError in
+                    if let deleteError {
+                        finish(.failure(self.mapAuthError(deleteError)))
+                    } else {
+                        finish(.success(()))
+                    }
+                }
             }
         }
 
@@ -1128,7 +1507,7 @@ class AuthService: ObservableObject {
             return
         }
 
-        guard let email = firebaseUser?.email else {
+        guard let email = firebaseUser?.email ?? pendingAppleRegistrationEmail, !email.isEmpty else {
             completion(.failure(NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "No se encontró el Email del usuario de Firebase"])))
             return
         }
@@ -1177,6 +1556,15 @@ class AuthService: ObservableObject {
 
         }
 
+        OnboardingDraftStore.markStarted(context: .email)
+        OnboardingDraftStore.update(
+            step: 3,
+            username: username,
+            email: email,
+            selectedInterests: interests,
+            privacyPolicyAccepted: privacyPolicyAccepted
+        )
+
         // ✅ Pequeño delay para asegurar que los flags se propaguen
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
             // Verificar disponibilidad de username
@@ -1196,47 +1584,152 @@ class AuthService: ObservableObject {
                     return
                 }
 
+                let existingUser = Auth.auth().currentUser
+                let isResumingExistingAuth = existingUser?.email?.lowercased() == email.lowercased()
+
+                let finalizeRegistration: (User, String) -> Void = { user, userId in
+                    OnboardingDraftStore.updateUID(userId)
+
+                    self.uploadProfileImageIfNeeded(image: profileImage, userId: userId) { profileImagePath in
+                        self.firestoreService.createUser(
+                            userId: userId,
+                            username: username,
+                            email: email,
+                            interests: interests,
+                            profileImagePath: profileImagePath
+                        ) { error in
+                            DispatchQueue.main.async {
+                                if let error = error {
+                                    if !isResumingExistingAuth {
+                                        user.delete { _ in }
+                                        OnboardingDraftStore.update(firebaseUID: nil)
+                                    }
+                                    self.clearRegistrationState()
+                                    completion(.failure(error))
+                                } else {
+                                    completion(.success(()))
+                                }
+                            }
+                        }
+                    }
+                }
+
+                if let existingUser, isResumingExistingAuth {
+                    self.resolveAuthenticatedUserForRegistration(user: existingUser) { result in
+                        DispatchQueue.main.async {
+                            switch result {
+                            case .failure(let error):
+                                self.clearRegistrationState()
+                                completion(.failure(error))
+                            case .success(let resolution):
+                                self.handleRegistrationSessionResolution(
+                                    resolution,
+                                    user: existingUser,
+                                    finalizeRegistration: finalizeRegistration,
+                                    completion: completion
+                                )
+                            }
+                        }
+                    }
+                    return
+                }
 
                 // ✅ Crear usuario en Firebase Auth
                 Auth.auth().createUser(withEmail: email, password: password) { result, error in
                     DispatchQueue.main.async {
                         if let error = error {
+                            if AuthErrorCode(rawValue: (error as NSError).code) == .emailAlreadyInUse {
+                                self.attemptResumeEmailRegistrationAfterConflict(
+                                    email: email,
+                                    password: password,
+                                    username: username,
+                                    interests: interests,
+                                    profileImage: profileImage,
+                                    finalizeRegistration: finalizeRegistration,
+                                    completion: completion
+                                )
+                                return
+                            }
+
                             self.clearRegistrationState()
                             completion(.failure(self.mapAuthError(error)))
                             return
                         }
-                        guard let userId = result?.user.uid else {
+                        guard let user = result?.user else {
                             self.clearRegistrationState()
                             completion(.failure(NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: NSLocalizedString("auth.error.userIdNotFound", comment: "User ID not found")])))
                             return
                         }
 
-                        // Enviar verificación de email
-                        result?.user.sendEmailVerification { _ in }
+                        user.sendEmailVerification { _ in }
+                        finalizeRegistration(user, user.uid)
+                    }
+                }
+            }
+        }
+    }
 
-                        // ✅ Upload imagen con mejor control de tiempo
-                        self.uploadProfileImageIfNeeded(image: profileImage, userId: userId) { profileImagePath in
-                            // Usar FirestoreService para crear el usuario
-                            self.firestoreService.createUser(
-                                userId: userId,
-                                username: username,
-                                email: email,
-                                interests: interests,
-                                profileImagePath: profileImagePath
-                            ) { error in
-                                DispatchQueue.main.async {
-                                    if let error = error {
-                                        // Si falla Firestore, eliminar usuario de Auth y limpiar estado
-                                        result?.user.delete { _ in }
-                                        self.clearRegistrationState()
-                                        completion(.failure(error))
-                                    } else {
-                                        completion(.success(()))
-                                        // ✅ NO limpiar estado aquí - se limpiará en completeRegistration()
-                                    }
-                                }
-                            }
-                        }
+    private func attemptResumeEmailRegistrationAfterConflict(
+        email: String,
+        password: String,
+        username: String,
+        interests: [String],
+        profileImage: UIImage?,
+        finalizeRegistration: @escaping (User, String) -> Void,
+        completion: @escaping (Result<Void, Error>) -> Void
+    ) {
+        self.authQueue.sync {
+            self._registrationState = .registering
+            self._isAuthProcessingEnabled = false
+        }
+
+        DispatchQueue.main.async {
+            self.isRegistering = true
+            self.isResumingOnboarding = true
+            self.resumingOnboardingContext = .email
+        }
+
+        Auth.auth().signIn(withEmail: email, password: password) { [weak self] authResult, error in
+            guard let self else { return }
+
+            if let error = error {
+                self.clearRegistrationState()
+                DispatchQueue.main.async {
+                    self.isResumingOnboarding = false
+                }
+
+                let authCode = AuthErrorCode(rawValue: (error as NSError).code)
+                if authCode == .wrongPassword || authCode == .invalidCredential {
+                    completion(.failure(NSError(
+                        domain: "AuthService",
+                        code: -1,
+                        userInfo: [NSLocalizedDescriptionKey: NSLocalizedString("auth.error.incompleteRegistrationWrongPassword", comment: "Wrong password for incomplete registration")]
+                    )))
+                } else {
+                    completion(.failure(self.mapAuthError(error)))
+                }
+                return
+            }
+
+            guard let user = authResult?.user else {
+                self.clearRegistrationState()
+                completion(.failure(NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: NSLocalizedString("auth.error.userIdNotFound", comment: "User ID not found")])))
+                return
+            }
+
+            self.resolveAuthenticatedUserForRegistration(user: user) { result in
+                DispatchQueue.main.async {
+                    switch result {
+                    case .failure(let error):
+                        self.clearRegistrationState()
+                        completion(.failure(error))
+                    case .success(let resolution):
+                        self.handleRegistrationSessionResolution(
+                            resolution,
+                            user: user,
+                            finalizeRegistration: finalizeRegistration,
+                            completion: completion
+                        )
                     }
                 }
             }
@@ -1485,6 +1978,8 @@ class AuthService: ObservableObject {
                 errorMessage = NSLocalizedString("auth.error.invalidCredentials", comment: "Invalid credentials")
             case .userDisabled:
                 errorMessage = NSLocalizedString("auth.error.userDisabled", comment: "User disabled")
+            case .requiresRecentLogin:
+                errorMessage = NSLocalizedString("settings.security.appleId.error.requiresRecentLogin", comment: "Recent login required to unlink Apple ID")
             default:
                 // ✅ Mensaje más user-friendly basado en el contenido del error
                 if rawDescription.contains("malformed") || rawDescription.contains("expired") || rawDescription.contains("invalid credential") {
@@ -1528,7 +2023,173 @@ class AuthService: ObservableObject {
         }
     }
 
+    func refreshLinkedProviders(completion: (() -> Void)? = nil) {
+        guard let user = Auth.auth().currentUser else {
+            currentFirebaseUser = nil
+            completion?()
+            return
+        }
+
+        user.reload { [weak self] _ in
+            DispatchQueue.main.async {
+                self?.currentFirebaseUser = Auth.auth().currentUser
+                completion?()
+            }
+        }
+    }
+
+    func reauthenticateWithApple(idToken: String, nonce: String, completion: @escaping (Result<Void, Error>) -> Void) {
+        guard let user = Auth.auth().currentUser else {
+            completion(.failure(NSError(
+                domain: "",
+                code: -1,
+                userInfo: [NSLocalizedDescriptionKey: NSLocalizedString("auth.error.userNotFound", comment: "User not found")]
+            )))
+            return
+        }
+
+        let credential = OAuthProvider.credential(providerID: .apple, idToken: idToken, rawNonce: nonce)
+        user.reauthenticate(with: credential) { [weak self] _, error in
+            DispatchQueue.main.async {
+                if let error {
+                    completion(.failure(self?.mapAuthError(error) ?? error))
+                } else {
+                    completion(.success(()))
+                }
+            }
+        }
+    }
+
+    func updateAccountEmail(_ email: String, completion: @escaping (Result<Void, Error>) -> Void) {
+        guard let user = Auth.auth().currentUser else {
+            completion(.failure(NSError(
+                domain: "",
+                code: -1,
+                userInfo: [NSLocalizedDescriptionKey: NSLocalizedString("auth.error.userNotFound", comment: "User not found")]
+            )))
+            return
+        }
+
+        let normalizedEmail = email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        guard Self.isValidEmail(normalizedEmail) else {
+            completion(.failure(NSError(
+                domain: "",
+                code: -1,
+                userInfo: [NSLocalizedDescriptionKey: NSLocalizedString("auth.error.invalidEmail", comment: "Invalid email")]
+            )))
+            return
+        }
+
+        if Self.isApplePrivateRelayEmail(normalizedEmail) {
+            completion(.failure(NSError(
+                domain: "",
+                code: -1,
+                userInfo: [NSLocalizedDescriptionKey: NSLocalizedString("settings.security.password.relayNotAllowed", comment: "Relay email not allowed")]
+            )))
+            return
+        }
+
+        user.updateEmail(to: normalizedEmail) { [weak self] error in
+            DispatchQueue.main.async {
+                if let error {
+                    completion(.failure(self?.mapAuthError(error) ?? error))
+                    return
+                }
+
+                self?.currentFirebaseUser = Auth.auth().currentUser
+                user.sendEmailVerification(completion: nil)
+                self?.updateUserField("email", value: normalizedEmail) { _ in }
+                completion(.success(()))
+            }
+        }
+    }
+
+    func linkPassword(email: String, password: String, completion: @escaping (Result<Void, Error>) -> Void) {
+        guard let user = Auth.auth().currentUser else {
+            completion(.failure(NSError(
+                domain: "",
+                code: -1,
+                userInfo: [NSLocalizedDescriptionKey: NSLocalizedString("auth.error.userNotFound", comment: "User not found")]
+            )))
+            return
+        }
+
+        guard !isPasswordLinked else {
+            completion(.failure(NSError(
+                domain: "",
+                code: -1,
+                userInfo: [NSLocalizedDescriptionKey: NSLocalizedString("settings.security.password.alreadySet", comment: "Password already set")]
+            )))
+            return
+        }
+
+        let normalizedEmail = email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        guard Self.isValidEmail(normalizedEmail) else {
+            completion(.failure(NSError(
+                domain: "",
+                code: -1,
+                userInfo: [NSLocalizedDescriptionKey: NSLocalizedString("auth.error.invalidEmail", comment: "Invalid email")]
+            )))
+            return
+        }
+
+        if Self.isApplePrivateRelayEmail(normalizedEmail) {
+            completion(.failure(NSError(
+                domain: "",
+                code: -1,
+                userInfo: [NSLocalizedDescriptionKey: NSLocalizedString("settings.security.password.relayNotAllowed", comment: "Relay email not allowed")]
+            )))
+            return
+        }
+
+        let credential = EmailAuthProvider.credential(withEmail: normalizedEmail, password: password)
+        user.link(with: credential) { [weak self] authResult, error in
+            DispatchQueue.main.async {
+                if let error {
+                    completion(.failure(self?.mapAuthError(error) ?? error))
+                } else {
+                    self?.currentFirebaseUser = authResult?.user
+                    completion(.success(()))
+                }
+            }
+        }
+    }
+
+    func unlinkFromApple(completion: @escaping (Result<Void, Error>) -> Void) {
+        guard let user = Auth.auth().currentUser else {
+            completion(.failure(NSError(
+                domain: "",
+                code: -1,
+                userInfo: [NSLocalizedDescriptionKey: NSLocalizedString("auth.error.userNotFound", comment: "User not found")]
+            )))
+            return
+        }
+
+        guard canUnlinkApple else {
+            completion(.failure(NSError(
+                domain: "",
+                code: -1,
+                userInfo: [NSLocalizedDescriptionKey: NSLocalizedString("settings.security.appleId.error.noAlternative", comment: "Cannot unlink Apple ID without another sign-in method")]
+            )))
+            return
+        }
+
+        user.unlink(fromProvider: "apple.com") { [weak self] updatedUser, error in
+            if let error = error {
+                completion(.failure(self?.mapAuthError(error) ?? error))
+            } else {
+                DispatchQueue.main.async {
+                    self?.currentFirebaseUser = updatedUser
+                    completion(.success(()))
+                }
+            }
+        }
+    }
+
     func signInWithApple(idToken: String, nonce: String, fullName: String?, email: String?, completion: @escaping (Result<Bool, Error>) -> Void) {
+        if let email, !email.isEmpty {
+            pendingAppleRegistrationEmail = email
+        }
 
         // 1. ACTIVAR LOCK: Silenciar listener global inmediatamente
         authQueue.async {
@@ -1553,9 +2214,10 @@ class AuthService: ObservableObject {
                 return
             }
 
+
             // Verificar si el usuario ya existe en Firestore
             // El lock sigue activo, por lo que el listener global ignorará los eventos de Auth
-            self.checkAccountStatus(userId: user.uid) { isActive, userData, isSuspended in
+            self.checkAccountStatus(userId: user.uid, allowMissingProfile: true) { isActive, userData, isSuspended in
                 DispatchQueue.main.async {
                     if isSuspended {
                         // Usuario existente suspendido: no debe entrar al flujo de registro social.
@@ -1616,7 +2278,13 @@ class AuthService: ObservableObject {
                         }
 
                         self.isRegistering = true
+                        self.resumingOnboardingContext = .apple
                         self.currentFirebaseUser = user
+                        OnboardingDraftStore.markStarted(
+                            context: .apple,
+                            firebaseUID: user.uid,
+                            pendingAppleEmail: user.email
+                        )
 
                         completion(.success(false))
                     }

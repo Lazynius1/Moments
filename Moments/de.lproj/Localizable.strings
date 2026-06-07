@@ -833,6 +833,16 @@
 "register.completeProfile.step3" = "Letzter Schritt vor dem Start";
 "register.completeProfile.finish" = "Jetzt starten";
 "register.completeProfile.appleAccount" = "Apple-Konto";
+"onboarding.email.title.step1" = "Konto erstellen";
+"onboarding.email.subtitle.step1" = "Benutzername, E-Mail und Passwort";
+"onboarding.apple.title.step1" = "Dein Profil";
+"onboarding.apple.subtitle.step1" = "Wähle, wie andere dich sehen";
+"onboarding.title.step2" = "Profil personalisieren";
+"onboarding.subtitle.step2" = "Foto und Interessen, damit wir dich kennenlernen";
+"onboarding.title.step3" = "So wirst du auf Moments erscheinen";
+"onboarding.subtitle.step3" = "Überprüfe alles, bevor du startest";
+"onboarding.cancelRegistration" = "Registrierung abbrechen";
+"onboarding.resume.banner" = "Mach dort weiter, wo du aufgehört hast. Deine Daten wurden gespeichert.";
 "register.close" = "Registrierung schließen";
 "register.error.usernameTooShort" = "Mindestens 3 Zeichen";
 
@@ -1468,6 +1478,12 @@
 "accountManagement.writeHere" = "Hier schreiben";
 "accountManagement.understandIrreversible" = "Ich verstehe, dass diese Aktion unumkehrbar ist und nicht rückgängig gemacht werden kann";
 "accountManagement.deleteAccountPermanently" = "Konto dauerhaft löschen";
+"accountManagement.confirmIdentity.title" = "Identität bestätigen";
+"accountManagement.confirmIdentity.subtitle" = "Bestätige, dass du es bist, bevor du dein Konto löschst";
+"accountManagement.identityVerified" = "Identität bestätigt";
+"accountManagement.verifyWithPasswordOrApple" = "Passwort verwenden oder mit Apple bestätigen";
+"accountManagement.deleteAuthDivider" = "oder";
+"accountManagement.error.appleReauth" = "Verifizierung mit Apple fehlgeschlagen. Bitte erneut versuchen.";
 "accountManagement.deleteAccount.title" = "Konto löschen";
 
 /* Blocked Users */
@@ -2500,6 +2516,8 @@
 "auth.error.privacyPolicyRequired" = "Du musst die Datenschutzrichtlinie akzeptieren.";
 "auth.error.usernameUnavailable" = "Benutzername nicht verfügbar.";
 "auth.error.userIdNotFound" = "Nutzer-ID konnte nicht ermittelt werden.";
+"auth.error.incompleteRegistrationWrongPassword" = "Diese E-Mail hat eine unvollständige Registrierung. Verwende das Passwort von der Anmeldung.";
+"auth.error.accountAlreadyComplete" = "Du hast bereits ein Konto. Du bist jetzt angemeldet.";
 
 /* Notification Summary */
 "feed.summary.highlights" = "Highlights";
@@ -2728,6 +2746,40 @@
 "settings.security.appleId.error.nonce" = "Beim Verbinden mit Apple ist ein Sicherheitsproblem aufgetreten. Bitte versuche es erneut.";
 "settings.security.appleId.error.token" = "Der Verknüpfungsvorgang mit Apple konnte nicht abgeschlossen werden. Bitte versuche es erneut.";
 "settings.security.appleId.error.invalidToken" = "Die Apple-Sitzung ist ungültig. Bitte melde dich erneut an.";
+"settings.security.appleId.unlinkHint" = "Tippen, um Apple-ID zu trennen";
+"settings.security.appleId.unlink.title" = "Apple-ID trennen";
+"settings.security.appleId.unlink.message" = "Du kannst dich danach nicht mehr mit der Apple-ID anmelden. E-Mail und Passwort bleiben verfügbar.";
+"settings.security.appleId.unlink.confirm" = "Trennen";
+"settings.security.appleId.unlink.success" = "Die Apple-ID wurde von deinem Konto getrennt.";
+"settings.security.appleId.error.noAlternative" = "Du brauchst eine andere Anmeldemethode, bevor du die Apple-ID trennen kannst.";
+"settings.security.appleId.error.requiresRecentLogin" = "Aus Sicherheitsgründen melde dich ab und erneut an, bevor du die Apple-ID trennst.";
+"settings.security.appleId.onlyMethod" = "Apple-ID ist deine einzige Anmeldemethode. Du kannst sie nicht trennen.";
+"settings.security.appleId.cannotUnlink.title" = "Apple-ID kann nicht getrennt werden";
+"settings.security.appleId.cannotUnlink.message" = "Das ist deine einzige Anmeldemethode. Füge zuerst eine echte E-Mail und ein Backup-Passwort hinzu.";
+"settings.security.backup.title" = "Backup-Anmeldemethode hinzufügen";
+"settings.security.backup.appleOnly" = "Du hast nur Apple-ID. Füge eine echte E-Mail und ein Passwort oder Passkey hinzu, damit du nicht ausgesperrt wirst.";
+"settings.security.backup.missingPasskey" = "Richte Passkey ein, um schneller einzusteigen, ohne von einer Methode abhängig zu sein.";
+"settings.security.backup.missingApple" = "Verknüpfe Apple-ID als weitere Anmeldemöglichkeit.";
+"settings.security.backup.general" = "Je mehr Anmeldemethoden du hast, desto geringer das Aussperr-Risiko.";
+"settings.security.backup.chip.apple" = "Apple";
+"settings.security.backup.chip.password" = "Passwort";
+"settings.security.backup.chip.passkey" = "Passkey";
+"settings.security.password.add" = "Passwort hinzufügen";
+"settings.security.password.addDescription" = "Backup-Passwort erstellen";
+"settings.security.password.addSheetDescription" = "So kannst du dich anmelden, auch wenn Apple-ID nicht verfügbar ist.";
+"settings.security.password.addSheetDescriptionNoEmail" = "Füge zuerst eine echte E-Mail hinzu, auf die du Zugriff hast. Dann erstelle ein Backup-Passwort.";
+"settings.security.password.enterEmail" = "du@email.com";
+"settings.security.password.emailRequired" = "Du brauchst eine echte E-Mail zur Wiederherstellung. Apples versteckte E-Mail reicht nicht.";
+"settings.security.password.relayWarning" = "Apple hat deine E-Mail versteckt (@privaterelay). Gib eine echte an (Gmail, iCloud usw.).";
+"settings.security.password.relayNotAllowed" = "Apples Relay-E-Mail kann nicht als Backup dienen. Verwende eine echte E-Mail.";
+"settings.security.password.emailLoginHint" = "Du meldest dich mit dieser E-Mail und dem neuen Passwort an.";
+"settings.security.password.addSuccessMessageVerify" = "Passwort hinzugefügt. Wir haben eine Bestätigungs-E-Mail gesendet — bitte bestätigen.";
+"settings.security.password.accountEmail" = "Konto-E-Mail";
+"settings.security.password.verifyApple" = "Mit Apple bestätigen, um fortzufahren";
+"settings.security.password.save" = "Passwort speichern";
+"settings.security.password.addSuccess" = "Passwort hinzugefügt";
+"settings.security.password.addSuccessMessage" = "Du hast jetzt ein Passwort als alternative Anmeldemethode.";
+"settings.security.password.alreadySet" = "Dieses Konto hat bereits ein Passwort.";
 
 "echo.leave.locked" = "Du kannst das Echo nicht verlassen, bevor es beendet ist (24 Std.). Warte, bis deine Freunde beitreten!";
 

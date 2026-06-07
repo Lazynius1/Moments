@@ -66,7 +66,7 @@ struct SettingsProfileColors {
 }
 
 extension View {
-    /// Aplica el tinte verde estándar de iOS a `Toggle` dentro de Ajustes.
+    /// Tinte verde solo para `Toggle`. No aplicar en contenedores amplios: tiñe también los botones de `.alert`.
     func settingsSwitchTint() -> some View {
         tint(SettingsProfileColors.toggleTint)
     }
@@ -249,7 +249,18 @@ struct SettingsView: View {
                 MuteSettingsView()
             }
             .fullScreenCover(isPresented: $isShowingPasswordChange) {
-                PasswordChangeView()
+                Group {
+                    if authService.isPasswordLinked {
+                        PasswordChangeView()
+                            .environmentObject(authService)
+                    } else {
+                        SetPasswordView()
+                            .environmentObject(authService)
+                    }
+                }
+                .onAppear {
+                    authService.refreshLinkedProviders()
+                }
             }
             .fullScreenCover(isPresented: $isShowingSavedMoments) {
                 SavedMomentsView()
@@ -287,6 +298,7 @@ struct SettingsView: View {
                     .presentationDetents([.medium, .large])
                     .presentationDragIndicator(.visible)
             }
+            .tint(colorScheme == .dark ? .white : .black)
             .navigationViewStyle(StackNavigationViewStyle()) // Forzar navegación por stack
     }
 

@@ -19,7 +19,13 @@ enum AuthFormMetrics {
     }
 
     static let registerLogoHeight: CGFloat = 112
+    static let onboardingLogoHeight: CGFloat = 72
+    static let onboardingFieldSpacing: CGFloat = 24
+    static let onboardingSectionSpacing: CGFloat = 28
+    static let onboardingTopPadding: CGFloat = 12
+    static let onboardingTitleToFieldsSpacing: CGFloat = 36
     static let profilePhotoSize: CGFloat = 96
+    static let onboardingPreviewPhotoSize: CGFloat = 88
     static let fieldHeight: CGFloat = 50
     static let buttonHeight: CGFloat = 50
     static let fieldCornerRadius: CGFloat = 14

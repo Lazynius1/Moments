@@ -857,6 +857,16 @@
 "register.completeProfile.step3" = "Last step before entering";
 "register.completeProfile.finish" = "Start now";
 "register.completeProfile.appleAccount" = "Apple account";
+"onboarding.email.title.step1" = "Create your account";
+"onboarding.email.subtitle.step1" = "Username, email and password";
+"onboarding.apple.title.step1" = "Your profile";
+"onboarding.apple.subtitle.step1" = "Choose how others will see you";
+"onboarding.title.step2" = "Personalize your profile";
+"onboarding.subtitle.step2" = "Photo and interests to get to know you";
+"onboarding.title.step3" = "This is how you'll appear on Moments";
+"onboarding.subtitle.step3" = "Review everything before you start";
+"onboarding.cancelRegistration" = "Cancel registration";
+"onboarding.resume.banner" = "Pick up where you left off. Your progress has been saved.";
 "register.close" = "Close registration";
 "register.error.usernameTooShort" = "Minimum 3 characters";
 
@@ -1493,6 +1503,12 @@
 "accountManagement.writeHere" = "Write here";
 "accountManagement.understandIrreversible" = "I understand that this action is irreversible and cannot be undone";
 "accountManagement.deleteAccountPermanently" = "Delete Account Permanently";
+"accountManagement.confirmIdentity.title" = "Confirm Identity";
+"accountManagement.confirmIdentity.subtitle" = "Verify it's you before deleting your account";
+"accountManagement.identityVerified" = "Identity verified";
+"accountManagement.verifyWithPasswordOrApple" = "Use your password or confirm with Apple";
+"accountManagement.deleteAuthDivider" = "or";
+"accountManagement.error.appleReauth" = "Could not verify with Apple. Please try again.";
 "accountManagement.deleteAccount.title" = "Delete Account";
 
 /* Blocked Users */
@@ -2520,6 +2536,8 @@
 "auth.error.privacyPolicyRequired" = "You must accept the privacy policy.";
 "auth.error.usernameUnavailable" = "Username not available.";
 "auth.error.userIdNotFound" = "Could not get user ID.";
+"auth.error.incompleteRegistrationWrongPassword" = "This email has an unfinished registration. Use the password you chose when signing up.";
+"auth.error.accountAlreadyComplete" = "You already have an account. You're now signed in.";
 
 /* Notification Summary */
 "feed.summary.highlights" = "Highlights";
@@ -2748,6 +2766,40 @@
 "settings.security.appleId.error.nonce" = "There was a security issue connecting with Apple. Please try again.";
 "settings.security.appleId.error.token" = "Could not complete the Apple linking process. Please try again.";
 "settings.security.appleId.error.invalidToken" = "The Apple session is invalid. Please try signing in again.";
+"settings.security.appleId.unlinkHint" = "Tap to unlink Apple ID";
+"settings.security.appleId.unlink.title" = "Unlink Apple ID";
+"settings.security.appleId.unlink.message" = "You will no longer be able to sign in with Apple ID. Your email and password will remain available.";
+"settings.security.appleId.unlink.confirm" = "Unlink";
+"settings.security.appleId.unlink.success" = "Apple ID has been unlinked from your account.";
+"settings.security.appleId.error.noAlternative" = "You need another sign-in method before unlinking Apple ID.";
+"settings.security.appleId.error.requiresRecentLogin" = "For security, sign out and sign in again before unlinking Apple ID.";
+"settings.security.appleId.onlyMethod" = "Apple ID is your only sign-in method. You can't unlink it.";
+"settings.security.appleId.cannotUnlink.title" = "Can't unlink Apple ID";
+"settings.security.appleId.cannotUnlink.message" = "It's your only sign-in method. Add a real email and backup password first.";
+"settings.security.backup.title" = "Add a backup sign-in method";
+"settings.security.backup.appleOnly" = "You only have Apple ID. Add a real email and password, or Passkey, so you don't get locked out.";
+"settings.security.backup.missingPasskey" = "Set up Passkey to sign in faster without relying on a single method.";
+"settings.security.backup.missingApple" = "Link Apple ID to have another way into your account.";
+"settings.security.backup.general" = "The more sign-in methods you have, the lower the risk of getting locked out.";
+"settings.security.backup.chip.apple" = "Apple";
+"settings.security.backup.chip.password" = "Password";
+"settings.security.backup.chip.passkey" = "Passkey";
+"settings.security.password.add" = "Add password";
+"settings.security.password.addDescription" = "Create a backup password";
+"settings.security.password.addSheetDescription" = "You'll be able to sign in even if Apple ID isn't available.";
+"settings.security.password.addSheetDescriptionNoEmail" = "First add a real email you can access. Then create a backup password.";
+"settings.security.password.enterEmail" = "you@email.com";
+"settings.security.password.emailRequired" = "You need a real email for account recovery. Apple's hidden email won't work.";
+"settings.security.password.relayWarning" = "Apple hid your email (@privaterelay). Enter a real one you use (Gmail, iCloud, etc.).";
+"settings.security.password.relayNotAllowed" = "Apple's hidden relay email can't be used as backup. Use a real email.";
+"settings.security.password.emailLoginHint" = "You'll sign in with this email and the password you create.";
+"settings.security.password.addSuccessMessageVerify" = "Password added. We sent a verification email — confirm it to secure your access.";
+"settings.security.password.accountEmail" = "Account email";
+"settings.security.password.verifyApple" = "Confirm with Apple to continue";
+"settings.security.password.save" = "Save password";
+"settings.security.password.addSuccess" = "Password added";
+"settings.security.password.addSuccessMessage" = "You now have a password as an alternative sign-in method.";
+"settings.security.password.alreadySet" = "This account already has a password.";
 
 "echo.leave.locked" = "You cannot leave the Echo until it finishes (24h). Wait for your friends to join!";
 

@@ -18,7 +18,7 @@ struct LoginView: View {
     @State private var isVisible = false
 
     var body: some View {
-        NavigationView {
+        NavigationStack {
             ZStack {
                 LiquidAuroraBackground()
 
@@ -87,6 +87,11 @@ struct LoginView: View {
                 EnhancedResetPasswordView(email: $resetEmail, isPresented: $showResetPassword)
                     .presentationDetents([.medium])
                     .presentationDragIndicator(.visible)
+            }
+            .navigationDestination(isPresented: $authService.isRegistering) {
+                ProfileOnboardingView(
+                    context: authService.resumingOnboardingContext == .email ? .email : .apple
+                )
             }
         }
         // ✅ NUEVO: Observar cambios en el estado de autenticación
@@ -205,9 +210,6 @@ struct EnhancedFormView: View {
                 .authScreenContentWidth()
                 .padding(.top, 18)
         }
-        .navigationDestination(isPresented: $authService.isRegistering) {
-            SocialProfileCompletionView()
-        }
         .padding(.bottom, 18)
     }
 
@@ -286,11 +288,8 @@ struct EnhancedFormView: View {
                                     isLoading = false
                                     switch result {
                                     case .success(let isComplete):
-                                        if !isComplete {
-                                        } else {
-                                            if let userId = Auth.auth().currentUser?.uid {
-                                                RealLoginActivityService.shared.recordSuccessfulLogin(userId: userId, method: "apple")
-                                            }
+                                        if isComplete, let userId = Auth.auth().currentUser?.uid {
+                                            RealLoginActivityService.shared.recordSuccessfulLogin(userId: userId, method: "apple")
                                         }
                                     case .failure(let error):
                                         errorMessage = mapAppleError(error)
@@ -365,7 +364,7 @@ struct EnhancedFormView: View {
             }
 
             VStack(spacing: 10) {
-                NavigationLink(destination: RegisterView()) {
+                NavigationLink(destination: RegisterView().environmentObject(authService)) {
                     HStack {
                         Text("login.noAccount")
                             .font(.system(size: 15, weight: .regular))

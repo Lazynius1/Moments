@@ -833,6 +833,16 @@
 "register.completeProfile.step3" = "Dernière étape avant d’entrer";
 "register.completeProfile.finish" = "Commencer maintenant";
 "register.completeProfile.appleAccount" = "Compte Apple";
+"onboarding.email.title.step1" = "Créez votre compte";
+"onboarding.email.subtitle.step1" = "Nom d'utilisateur, e-mail et mot de passe";
+"onboarding.apple.title.step1" = "Votre profil";
+"onboarding.apple.subtitle.step1" = "Choisissez comment les autres vous verront";
+"onboarding.title.step2" = "Personnalisez votre profil";
+"onboarding.subtitle.step2" = "Photo et centres d'intérêt pour mieux vous connaître";
+"onboarding.title.step3" = "Voici comment vous apparaîtrez sur Moments";
+"onboarding.subtitle.step3" = "Vérifiez tout avant de commencer";
+"onboarding.cancelRegistration" = "Annuler l'inscription";
+"onboarding.resume.banner" = "Reprenez où vous vous étiez arrêté. Vos données ont été enregistrées.";
 "register.close" = "Fermer l’inscription";
 "register.error.usernameTooShort" = "Minimum 3 caractères";
 
@@ -1468,6 +1478,12 @@
 "accountManagement.writeHere" = "Écrivez ici";
 "accountManagement.understandIrreversible" = "Je comprends que cette action est irréversible et ne peut pas être annulée";
 "accountManagement.deleteAccountPermanently" = "Supprimer définitivement le compte";
+"accountManagement.confirmIdentity.title" = "Confirmer l'identité";
+"accountManagement.confirmIdentity.subtitle" = "Vérifiez qu'il s'agit bien de vous avant de supprimer votre compte";
+"accountManagement.identityVerified" = "Identité vérifiée";
+"accountManagement.verifyWithPasswordOrApple" = "Utilisez votre mot de passe ou confirmez avec Apple";
+"accountManagement.deleteAuthDivider" = "ou";
+"accountManagement.error.appleReauth" = "Impossible de vérifier avec Apple. Réessayez.";
 "accountManagement.deleteAccount.title" = "Supprimer le compte";
 
 /* Blocked Users */
@@ -2500,6 +2516,8 @@
 "auth.error.privacyPolicyRequired" = "Vous devez accepter la politique de confidentialité.";
 "auth.error.usernameUnavailable" = "Nom d’utilisateur indisponible.";
 "auth.error.userIdNotFound" = "Impossible de récupérer l’identifiant utilisateur.";
+"auth.error.incompleteRegistrationWrongPassword" = "Cet e-mail a une inscription inachevée. Utilisez le mot de passe choisi lors de l'inscription.";
+"auth.error.accountAlreadyComplete" = "Vous avez déjà un compte. Vous êtes connecté.";
 
 /* Notification Summary */
 "feed.summary.highlights" = "Highlights";
@@ -2727,7 +2745,41 @@
 "settings.security.appleId.linked" = "Your account is linked with Apple ID";
 "settings.security.appleId.error.nonce" = "There was a security issue connecting with Apple. Please try again.";
 "settings.security.appleId.error.token" = "Could not complete the Apple linking process. Please try again.";
-"settings.security.appleId.error.invalidToken" = "The Apple session is invalid. Please try signing in again.";
+"settings.security.appleId.error.invalidToken" = "La session Apple n'est pas valide. Veuillez vous reconnecter.";
+"settings.security.appleId.unlinkHint" = "Appuyez pour dissocier l'Apple ID";
+"settings.security.appleId.unlink.title" = "Dissocier l'Apple ID";
+"settings.security.appleId.unlink.message" = "Vous ne pourrez plus vous connecter avec l'Apple ID. Votre e-mail et votre mot de passe resteront disponibles.";
+"settings.security.appleId.unlink.confirm" = "Dissocier";
+"settings.security.appleId.unlink.success" = "L'Apple ID a été dissocié de votre compte.";
+"settings.security.appleId.error.noAlternative" = "Vous devez disposer d'un autre moyen de connexion avant de dissocier l'Apple ID.";
+"settings.security.appleId.error.requiresRecentLogin" = "Pour des raisons de sécurité, déconnectez-vous et reconnectez-vous avant de dissocier l'Apple ID.";
+"settings.security.appleId.onlyMethod" = "L'Apple ID est votre seule méthode de connexion. Vous ne pouvez pas le dissocier.";
+"settings.security.appleId.cannotUnlink.title" = "Impossible de dissocier l'Apple ID";
+"settings.security.appleId.cannotUnlink.message" = "C'est votre seule méthode de connexion. Ajoutez d'abord un e-mail réel et un mot de passe de secours.";
+"settings.security.backup.title" = "Ajoutez une méthode de secours";
+"settings.security.backup.appleOnly" = "Vous n'avez que l'Apple ID. Ajoutez un e-mail réel et un mot de passe, ou Passkey, pour ne pas rester bloqué.";
+"settings.security.backup.missingPasskey" = "Activez Passkey pour vous connecter plus vite sans dépendre d'une seule méthode.";
+"settings.security.backup.missingApple" = "Associez l'Apple ID pour avoir un autre moyen d'accéder à votre compte.";
+"settings.security.backup.general" = "Plus vous avez de méthodes, moins vous risquez d'être bloqué.";
+"settings.security.backup.chip.apple" = "Apple";
+"settings.security.backup.chip.password" = "Mot de passe";
+"settings.security.backup.chip.passkey" = "Passkey";
+"settings.security.password.add" = "Ajouter un mot de passe";
+"settings.security.password.addDescription" = "Créer un mot de passe de secours";
+"settings.security.password.addSheetDescription" = "Vous pourrez vous connecter même si l'Apple ID n'est pas disponible.";
+"settings.security.password.addSheetDescriptionNoEmail" = "Ajoutez d'abord un e-mail réel auquel vous avez accès. Puis créez un mot de passe de secours.";
+"settings.security.password.enterEmail" = "vous@email.com";
+"settings.security.password.emailRequired" = "Il vous faut un e-mail réel pour récupérer l'accès. L'e-mail masqué d'Apple ne convient pas.";
+"settings.security.password.relayWarning" = "Apple a masqué votre e-mail (@privaterelay). Saisissez un e-mail réel (Gmail, iCloud, etc.).";
+"settings.security.password.relayNotAllowed" = "L'e-mail relais masqué d'Apple ne peut pas servir de secours. Utilisez un e-mail réel.";
+"settings.security.password.emailLoginHint" = "Vous vous connecterez avec cet e-mail et le mot de passe créé.";
+"settings.security.password.addSuccessMessageVerify" = "Mot de passe ajouté. E-mail de vérification envoyé — confirmez-le pour sécuriser l'accès.";
+"settings.security.password.accountEmail" = "E-mail du compte";
+"settings.security.password.verifyApple" = "Confirmez avec Apple pour continuer";
+"settings.security.password.save" = "Enregistrer le mot de passe";
+"settings.security.password.addSuccess" = "Mot de passe ajouté";
+"settings.security.password.addSuccessMessage" = "Vous avez maintenant un mot de passe comme méthode alternative.";
+"settings.security.password.alreadySet" = "Ce compte a déjà un mot de passe.";
 
 "echo.leave.locked" = "You cannot leave the Echo until it finishes (24h). Wait for your friends to join!";
 

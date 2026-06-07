@@ -9851,3 +9851,55 @@ exports.passkeyLoginVerify = onRequest({ timeoutSeconds: 30 }, async (req, res) 
     res.status(500).json({ error: 'Failed to verify login', details: error.message });
   }
 });
+
+// Cuentas Auth sin documento users/{uid} tras 30 días (registros abandonados).
+exports.cleanupIncompleteAuthAccounts = onSchedule(
+  {
+    schedule: '0 4 * * 0',
+    timeZone: 'Europe/Madrid',
+    region: 'europe-southwest1',
+    timeoutSeconds: 540,
+    memory: '512MiB',
+    concurrency: 1
+  },
+  async () => {
+    const auth = admin.auth();
+    const db = admin.firestore();
+    const minAgeMs = 30 * 24 * 60 * 60 * 1000;
+    const now = Date.now();
+    let nextPageToken;
+    let deleted = 0;
+    let scanned = 0;
+
+    try {
+      do {
+        const listResult = await auth.listUsers(1000, nextPageToken);
+        for (const userRecord of listResult.users) {
+          scanned += 1;
+          const createdAt = new Date(userRecord.metadata.creationTime).getTime();
+          if (now - createdAt < minAgeMs) {
+            continue;
+          }
+
+          const userDoc = await db.collection('users').doc(userRecord.uid).get();
+          if (userDoc.exists) {
+            continue;
+          }
+
+          try {
+            await auth.deleteUser(userRecord.uid);
+            deleted += 1;
+          } catch (deleteError) {
+            console.error('cleanupIncompleteAuthAccounts delete failed', userRecord.uid, deleteError);
+          }
+        }
+        nextPageToken = listResult.pageToken;
+      } while (nextPageToken);
+
+      console.log(`cleanupIncompleteAuthAccounts scanned=${scanned} deleted=${deleted}`);
+    } catch (error) {
+      console.error('cleanupIncompleteAuthAccounts failed', error);
+      throw error;
+    }
+  }
+);

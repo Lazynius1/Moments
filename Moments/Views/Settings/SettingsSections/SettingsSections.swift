@@ -130,7 +130,6 @@ struct SettingsFormView: View {
             .padding(.horizontal, 20)
             .padding(.vertical, 16)
         }
-        .settingsSwitchTint()
         .onAppear {
             withAnimation(.easeOut(duration: 0.6)) {
                 animateSections = true
@@ -323,9 +322,10 @@ struct AdvancedAccountManagementView: View {
                 DeleteAccountVerificationView(
                     isProcessing: $isProcessing,
                     passwordErrorMessage: $deletePasswordErrorMessage,
-                    onConfirm: deleteAccount(password:),
+                    onConfirm: deleteAccount(confirmation:),
                     onCancel: { navigate(to: .main, forward: false) }
                 )
+                .environmentObject(authService)
                 .transition(flowTransition)
             }
         }
@@ -447,7 +447,7 @@ struct AdvancedAccountManagementView: View {
         }
     }
 
-    private func deleteAccount(password: String) {
+    private func deleteAccount(confirmation: AccountDeletionConfirmation) {
         guard let user = Auth.auth().currentUser else {
             errorMessage = NSLocalizedString("accountManagement.userNotFound", comment: "User not found error")
             showError = true
@@ -457,13 +457,14 @@ struct AdvancedAccountManagementView: View {
         isProcessing = true
         deletePasswordErrorMessage = nil
 
-        AccountManagementService().deleteAccount(user: user, password: password) { result in
+        AccountManagementService().deleteAccount(user: user, confirmation: confirmation) { result in
             DispatchQueue.main.async {
                 isProcessing = false
 
                 switch result {
                 case .success:
                     dismiss()
+                    authService.logout()
                 case .failure(let error):
                     if let passwordError = AccountDeletionErrorPresenter.passwordMessage(for: error) {
                         deletePasswordErrorMessage = passwordError
@@ -980,31 +981,28 @@ struct ConnectionVisibilityView: View {
     }
 }
 
-struct SecurityStatusRow<OverlayView: View>: View {
-    @Environment(\.colorScheme) var colorScheme
-    let icon: String
-    let title: LocalizedStringKey
-    let subtitle: LocalizedStringKey
-    let isConfigured: Bool
+private struct AppleLinkSettingsRow: View {
+    @EnvironmentObject private var authService: AuthService
+
+    let colorScheme: ColorScheme
     let isLoading: Bool
-    let action: (() -> Void)?
-    let overlayView: OverlayView
+    let onCompletion: (Result<ASAuthorization, Error>) -> Void
 
     var body: some View {
-        Button(action: { action?() }) {
-            VStack(spacing: 0) {
+        VStack(spacing: 0) {
+            VStack(alignment: .leading, spacing: 10) {
                 HStack(spacing: 14) {
-                    Image(systemName: icon)
+                    Image(systemName: "applelogo")
                         .font(.system(size: 19, weight: .regular))
                         .foregroundColor(colorScheme == .dark ? .white : .black)
                         .frame(width: 28, alignment: .center)
 
                     VStack(alignment: .leading, spacing: 1) {
-                        Text(title)
+                        Text("settings.security.appleId")
                             .font(.custom("Poppins-Medium", size: 15))
                             .foregroundColor(colorScheme == .dark ? .white : .black)
 
-                        Text(subtitle)
+                        Text("settings.security.appleId.description")
                             .font(.custom("Poppins-Regular", size: 12))
                             .foregroundColor(.gray)
                     }
@@ -1014,40 +1012,120 @@ struct SecurityStatusRow<OverlayView: View>: View {
                     if isLoading {
                         ProgressView()
                             .scaleEffect(0.8)
-                    } else if isConfigured {
-                        Image(systemName: "checkmark")
-                            .font(.system(size: 14, weight: .bold))
-                            .foregroundColor(Color(hex: "34C759"))
-                    } else {
-                        Image(systemName: "chevron.right")
-                            .font(.system(size: 12, weight: .semibold))
-                            .foregroundColor(.gray.opacity(0.3))
                     }
                 }
-                .padding(.vertical, 11)
-                .padding(.horizontal, 4)
-                .contentShape(Rectangle())
 
-                Divider()
-                    .opacity(0.2)
-                    .padding(.leading, 42)
+                Group {
+                    if colorScheme == .dark {
+                        appleLinkButton(style: .white)
+                    } else {
+                        appleLinkButton(style: .black)
+                    }
+                }
+                .frame(height: 44)
+                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                .disabled(isLoading)
+            }
+            .padding(.vertical, 11)
+            .padding(.horizontal, 4)
+
+            Divider()
+                .opacity(0.2)
+                .padding(.leading, 42)
+        }
+    }
+
+    private func appleLinkButton(style: SignInWithAppleButton.Style) -> some View {
+        SignInWithAppleButton(.continue) { request in
+            let nonce = authService.startAppleSignIn()
+            request.requestedScopes = [.fullName, .email]
+            request.nonce = nonce
+        } onCompletion: { result in
+            onCompletion(result)
+        }
+        .signInWithAppleButtonStyle(style)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+}
+
+struct SecurityStatusRow<OverlayView: View>: View {
+    @Environment(\.colorScheme) var colorScheme
+    let icon: String
+    let title: LocalizedStringKey
+    let subtitle: LocalizedStringKey
+    let isConfigured: Bool
+    let isLoading: Bool
+    let usesOverlayForInteraction: Bool
+    let action: (() -> Void)?
+    let overlayView: OverlayView
+
+    private var rowBody: some View {
+        VStack(spacing: 0) {
+            HStack(spacing: 14) {
+                Image(systemName: icon)
+                    .font(.system(size: 19, weight: .regular))
+                    .foregroundColor(colorScheme == .dark ? .white : .black)
+                    .frame(width: 28, alignment: .center)
+
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(title)
+                        .font(.custom("Poppins-Medium", size: 15))
+                        .foregroundColor(colorScheme == .dark ? .white : .black)
+
+                    Text(subtitle)
+                        .font(.custom("Poppins-Regular", size: 12))
+                        .foregroundColor(.gray)
+                }
+
+                Spacer()
+
+                if isLoading {
+                    ProgressView()
+                        .scaleEffect(0.8)
+                } else if isConfigured {
+                    Image(systemName: "checkmark")
+                        .font(.system(size: 14, weight: .bold))
+                        .foregroundColor(Color(hex: "34C759"))
+                } else {
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundColor(.gray.opacity(0.3))
+                }
+            }
+            .padding(.vertical, 11)
+            .padding(.horizontal, 4)
+            .contentShape(Rectangle())
+
+            Divider()
+                .opacity(0.2)
+                .padding(.leading, 42)
+        }
+    }
+
+    var body: some View {
+        Group {
+            if !isConfigured && usesOverlayForInteraction {
+                rowBody
+                    .overlay {
+                        overlayView
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                            .contentShape(Rectangle())
+                    }
+            } else if let action {
+                Button(action: action) {
+                    rowBody
+                }
+                .buttonStyle(.plain)
+            } else {
+                rowBody
             }
         }
-        .buttonStyle(.plain)
-        .overlay {
-            if !isConfigured {
-                overlayView
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .contentShape(Rectangle())
-                    .opacity(0.011)
-            }
-        }
-        .allowsHitTesting(!isConfigured)
         .disabled(isLoading)
     }
 }
 
 struct SecuritySection: View {
+    @Environment(\.colorScheme) private var colorScheme
     @EnvironmentObject var authService: AuthService
     @Binding var isShowingPasswordChange: Bool
 
@@ -1057,15 +1135,35 @@ struct SecuritySection: View {
     @State private var alertTitle: String = "common.error"
     @State private var showAlert = false
     @State private var showChatRecoverySettings = false
+    @State private var showUnlinkAppleConfirmation = false
+    @State private var showAppleOnlyAccessInfo = false
     @State private var hasPasskey = false
+
+    private var appleIdSubtitle: LocalizedStringKey {
+        if authService.isAppleLinked {
+            if authService.isAppleOnlyAccess {
+                return "settings.security.appleId.onlyMethod"
+            }
+            return authService.canUnlinkApple
+                ? "settings.security.appleId.unlinkHint"
+                : "settings.security.appleId.linked"
+        }
+        return "settings.security.appleId.description"
+    }
 
     var body: some View {
         VStack(spacing: 0) {
             SettingsRow(
                 icon: "key",
-                title: NSLocalizedString("settings.sections.password", comment: "Password"),
-                subtitle: NSLocalizedString("settings.sections.password.subtitle", comment: "Change password"),
-                action: { isShowingPasswordChange = true }
+                title: authService.isPasswordLinked
+                    ? NSLocalizedString("settings.sections.password", comment: "Password")
+                    : NSLocalizedString("settings.security.password.add", comment: "Add password"),
+                subtitle: authService.isPasswordLinked
+                    ? NSLocalizedString("settings.sections.password.subtitle", comment: "Change password")
+                    : NSLocalizedString("settings.security.password.addDescription", comment: "Add backup password"),
+                action: {
+                    isShowingPasswordChange = true
+                }
             )
 
             SettingsRow(
@@ -1075,26 +1173,31 @@ struct SecuritySection: View {
                 action: { showChatRecoverySettings = true }
             )
 
-            // ✅ NUEVO: Vincular con Apple
-            SecurityStatusRow(
-                icon: "applelogo",
-                title: "settings.security.appleId",
-                subtitle: authService.isAppleLinked ? "settings.security.appleId.linked" : "settings.security.appleId.description",
-                isConfigured: authService.isAppleLinked,
-                isLoading: isLoading,
-                action: nil,
-                overlayView: Group {
-                    if !authService.isAppleLinked {
-                        SignInWithAppleButton(.continue) { request in
-                            let nonce = authService.startAppleSignIn()
-                            request.requestedScopes = [.fullName, .email]
-                            request.nonce = nonce
-                        } onCompletion: { result in
-                            handleAppleLinkingResult(result)
+            // Vincular / gestionar Apple ID
+            if authService.isAppleLinked {
+                SecurityStatusRow(
+                    icon: "applelogo",
+                    title: "settings.security.appleId",
+                    subtitle: appleIdSubtitle,
+                    isConfigured: true,
+                    isLoading: isLoading,
+                    usesOverlayForInteraction: false,
+                    action: {
+                        if authService.canUnlinkApple {
+                            showUnlinkAppleConfirmation = true
+                        } else {
+                            showAppleOnlyAccessInfo = true
                         }
-                    }
-                }
-            )
+                    },
+                    overlayView: EmptyView()
+                )
+            } else {
+                AppleLinkSettingsRow(
+                    colorScheme: colorScheme,
+                    isLoading: isLoading,
+                    onCompletion: handleAppleLinkingResult
+                )
+            }
 
             // ✅ NUEVO: Registro de Passkey
             SecurityStatusRow(
@@ -1103,31 +1206,30 @@ struct SecuritySection: View {
                 subtitle: hasPasskey ? "settings.security.passkey.generated" : "settings.security.passkey.description",
                 isConfigured: hasPasskey,
                 isLoading: isLoading,
-                action: {
-                    if !hasPasskey {
-                        isLoading = true
-                        PasskeyService.shared.registerPasskey { result in
-                            DispatchQueue.main.async {
-                                isLoading = false
-                                switch result {
-                                case .success:
-                                    let impact = UINotificationFeedbackGenerator()
-                                    impact.notificationOccurred(.success)
-                                    if let uid = Auth.auth().currentUser?.uid {
-                                        UserDefaults.standard.set(true, forKey: "hasPasskey_\(uid)")
-                                    }
-                                    hasPasskey = true
-                                    alertTitle = "common.success"
-                                    errorMessage = NSLocalizedString("settings.security.passkey.success", comment: "Passkey registered successfully")
-                                    showAlert = true
-                                case .failure(let error):
-                                    if (error as NSError).code == ASAuthorizationError.canceled.rawValue {
-                                        return
-                                    }
-                                    alertTitle = "common.error"
-                                    errorMessage = error.localizedDescription
-                                    showAlert = true
+                usesOverlayForInteraction: false,
+                action: hasPasskey ? nil : {
+                    isLoading = true
+                    PasskeyService.shared.registerPasskey { result in
+                        DispatchQueue.main.async {
+                            isLoading = false
+                            switch result {
+                            case .success:
+                                let impact = UINotificationFeedbackGenerator()
+                                impact.notificationOccurred(.success)
+                                if let uid = Auth.auth().currentUser?.uid {
+                                    UserDefaults.standard.set(true, forKey: "hasPasskey_\(uid)")
                                 }
+                                hasPasskey = true
+                                alertTitle = "common.success"
+                                errorMessage = NSLocalizedString("settings.security.passkey.success", comment: "Passkey registered successfully")
+                                showAlert = true
+                            case .failure(let error):
+                                if let authError = error as? ASAuthorizationError, authError.code == .canceled {
+                                    return
+                                }
+                                alertTitle = "common.error"
+                                errorMessage = error.localizedDescription
+                                showAlert = true
                             }
                         }
                     }
@@ -1136,6 +1238,7 @@ struct SecuritySection: View {
             )
         }
         .onAppear {
+            authService.refreshLinkedProviders()
             if let uid = Auth.auth().currentUser?.uid {
                 let localHasPasskey = UserDefaults.standard.bool(forKey: "hasPasskey_\(uid)")
                 hasPasskey = localHasPasskey
@@ -1144,7 +1247,11 @@ struct SecuritySection: View {
                 // Así ahorramos lecturas de base de datos.
                 if !localHasPasskey {
                     Firestore.firestore().collection("users").document(uid).collection("passkeys").limit(to: 1).getDocuments { snapshot, error in
-                        if let snapshot = snapshot, !snapshot.isEmpty {
+                        if error != nil {
+                            return
+                        }
+                        let found = !(snapshot?.isEmpty ?? true)
+                        if found {
                             DispatchQueue.main.async {
                                 hasPasskey = true
                             }
@@ -1159,8 +1266,43 @@ struct SecuritySection: View {
         } message: {
             Text(errorMessage ?? NSLocalizedString("comments.error.unknown", comment: "Unknown error"))
         }
+        .alert("settings.security.appleId.unlink.title", isPresented: $showUnlinkAppleConfirmation) {
+            Button("common.cancel", role: .cancel) {}
+            Button("settings.security.appleId.unlink.confirm", role: .destructive) {
+                unlinkAppleId()
+            }
+        } message: {
+            Text("settings.security.appleId.unlink.message")
+        }
+        .alert("settings.security.appleId.cannotUnlink.title", isPresented: $showAppleOnlyAccessInfo) {
+            Button("common.ok", role: .cancel) {}
+            Button("settings.security.password.add") {
+                isShowingPasswordChange = true
+            }
+        } message: {
+            Text("settings.security.appleId.cannotUnlink.message")
+        }
         .sheet(isPresented: $showChatRecoverySettings) {
             ChatRecoverySettingsView()
+        }
+    }
+
+    private func unlinkAppleId() {
+        isLoading = true
+        authService.unlinkFromApple { result in
+            isLoading = false
+            switch result {
+            case .success:
+                let impact = UINotificationFeedbackGenerator()
+                impact.notificationOccurred(.success)
+                alertTitle = "common.success"
+                errorMessage = NSLocalizedString("settings.security.appleId.unlink.success", comment: "Apple ID unlinked successfully")
+                showAlert = true
+            case .failure(let error):
+                alertTitle = "common.error"
+                errorMessage = error.localizedDescription
+                showAlert = true
+            }
         }
     }
 
@@ -1191,7 +1333,6 @@ struct SecuritySection: View {
                     isLoading = false
                     switch result {
                     case .success:
-                        // Refrescar UI (isAppleLinked cambiará automáticamente)
                         let impact = UINotificationFeedbackGenerator()
                         impact.notificationOccurred(.success)
                     case .failure(let error):
@@ -1202,12 +1343,12 @@ struct SecuritySection: View {
                 }
             }
         case .failure(let error):
-            // Si el usuario cancela, no mostramos error
-            if (error as NSError).code != ASAuthorizationError.canceled.rawValue {
-                alertTitle = "common.error"
-                errorMessage = error.localizedDescription
-                showAlert = true
+            if let authError = error as? ASAuthorizationError, authError.code == .canceled {
+                return
             }
+            alertTitle = "common.error"
+            errorMessage = error.localizedDescription
+            showAlert = true
         }
     }
 }

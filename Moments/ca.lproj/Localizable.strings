@@ -835,6 +835,16 @@
 "register.completeProfile.step3" = "Últim pas abans d'entrar";
 "register.completeProfile.finish" = "Començar ara";
 "register.completeProfile.appleAccount" = "Compte d'Apple";
+"onboarding.email.title.step1" = "Crea el teu compte";
+"onboarding.email.subtitle.step1" = "Usuari, correu i contrasenya";
+"onboarding.apple.title.step1" = "El teu perfil";
+"onboarding.apple.subtitle.step1" = "Tria com et veuran els altres";
+"onboarding.title.step2" = "Personalitza el teu perfil";
+"onboarding.subtitle.step2" = "Foto i interessos per conèixer-te millor";
+"onboarding.title.step3" = "Així et veuran a Moments";
+"onboarding.subtitle.step3" = "Revisa-ho tot abans d'entrar";
+"onboarding.cancelRegistration" = "Cancel·lar registre";
+"onboarding.resume.banner" = "Continua on ho vas deixar. Les teves dades s'han desat.";
 "register.close" = "Tancar registre";
 
 /* Splash */
@@ -2219,6 +2229,12 @@
 "accountManagement.writeHere" = "Escriu aquí";
 "accountManagement.understandIrreversible" = "Entenc que aquesta acció és irreversible i accepto l'eliminació permanent del meu compte i totes les meves dades.";
 "accountManagement.deleteAccountPermanently" = "Eliminar compte permanentment";
+"accountManagement.confirmIdentity.title" = "Confirmar identitat";
+"accountManagement.confirmIdentity.subtitle" = "Verifica que ets tu abans d'eliminar el teu compte";
+"accountManagement.identityVerified" = "Identitat verificada";
+"accountManagement.verifyWithPasswordOrApple" = "Fes servir la contrasenya o confirma amb Apple";
+"accountManagement.deleteAuthDivider" = "o";
+"accountManagement.error.appleReauth" = "No s'ha pogut verificar amb Apple. Torna-ho a provar.";
 
 /* Notifications */
 "notifications.error.unknown" = "S'ha produït un error desconegut";
@@ -2523,6 +2539,8 @@
 "auth.error.privacyPolicyRequired" = "Has d'acceptar les polítiques de privacitat.";
 "auth.error.usernameUnavailable" = "Nom d'usuari no disponible.";
 "auth.error.userIdNotFound" = "No s'ha pogut obtenir l'ID de l'usuari.";
+"auth.error.incompleteRegistrationWrongPassword" = "Aquest correu té un registre sense acabar. Fes servir la contrasenya que vas triar en registrar-te.";
+"auth.error.accountAlreadyComplete" = "Ja tens un compte. T'hem iniciat la sessió.";
 
 /* Notification Summary */
 "feed.summary.highlights" = "Novetats";
@@ -2739,6 +2757,40 @@
 "settings.security.appleId.error.nonce" = "Hi ha hagut un problema de seguretat al connectar amb Apple. Si us plau, torna-ho a provar.";
 "settings.security.appleId.error.token" = "No s'ha pogut completar la vinculació amb Apple. Torna-ho a provar.";
 "settings.security.appleId.error.invalidToken" = "La sessió d'Apple no és vàlida. Intenta iniciar sessió de nou.";
+"settings.security.appleId.unlinkHint" = "Toca per desvincular Apple ID";
+"settings.security.appleId.unlink.title" = "Desvincular Apple ID";
+"settings.security.appleId.unlink.message" = "Ja no podràs iniciar sessió amb Apple ID. El teu correu i contrasenya seguiran disponibles.";
+"settings.security.appleId.unlink.confirm" = "Desvincular";
+"settings.security.appleId.unlink.success" = "Apple ID s'ha desvinculat del teu compte.";
+"settings.security.appleId.error.noAlternative" = "Necessites un altre mètode d'accés abans de desvincular Apple ID.";
+"settings.security.appleId.error.requiresRecentLogin" = "Per seguretat, tanca la sessió i torna a iniciar-la abans de desvincular Apple ID.";
+"settings.security.appleId.onlyMethod" = "Apple ID és el teu únic accés. No el pots desvincular.";
+"settings.security.appleId.cannotUnlink.title" = "No pots desvincular Apple ID";
+"settings.security.appleId.cannotUnlink.message" = "És el teu únic mètode d'accés. Primer afegeix un email real i una contrasenya de respatller.";
+"settings.security.backup.title" = "Afegeix un mètode de respatller";
+"settings.security.backup.appleOnly" = "Només tens Apple ID. Afegeix un email real i contrasenya, o Passkey, per no quedar-te fora.";
+"settings.security.backup.missingPasskey" = "Activa Passkey per entrar més ràpid sense dependre d'un sol mètode.";
+"settings.security.backup.missingApple" = "Vincula Apple ID per tenir una altra forma d'entrar al compte.";
+"settings.security.backup.general" = "Com més mètodes tinguis, menys risc de quedar-te fora.";
+"settings.security.backup.chip.apple" = "Apple";
+"settings.security.backup.chip.password" = "Contrasenya";
+"settings.security.backup.chip.passkey" = "Passkey";
+"settings.security.password.add" = "Afegir contrasenya";
+"settings.security.password.addDescription" = "Crea una contrasenya de respatller";
+"settings.security.password.addSheetDescription" = "Així podràs entrar encara que no tinguis Apple ID disponible.";
+"settings.security.password.addSheetDescriptionNoEmail" = "Primer afegeix un email real al qual tinguis accés. Després crea una contrasenya de respatller.";
+"settings.security.password.enterEmail" = "tu@email.com";
+"settings.security.password.emailRequired" = "Necessites un email real per recuperar l'accés. No val l'email ocult d'Apple.";
+"settings.security.password.relayWarning" = "Apple ha ocultat el teu email (@privaterelay). Posa'n un de real (Gmail, iCloud, etc.).";
+"settings.security.password.relayNotAllowed" = "Aquest email ocult d'Apple no serveix com a respatller. Fes servir un email real.";
+"settings.security.password.emailLoginHint" = "Entraràs amb aquest email i la contrasenya que creïs.";
+"settings.security.password.addSuccessMessageVerify" = "Contrasenya afegida. T'hem enviat un email de verificació: confirma'l per assegurar l'accés.";
+"settings.security.password.accountEmail" = "Email del compte";
+"settings.security.password.verifyApple" = "Confirma amb Apple per continuar";
+"settings.security.password.save" = "Desar contrasenya";
+"settings.security.password.addSuccess" = "Contrasenya afegida";
+"settings.security.password.addSuccessMessage" = "Ja tens contrasenya com a mètode d'accés alternatiu.";
+"settings.security.password.alreadySet" = "Aquest compte ja té contrasenya.";
 
 "echo.leave.locked" = "No pots sortir de l'Echo fins que finalitzi (24h). Espera que s'uneixin els teus amics!";
 /* Echo Lock-in */

@@ -867,6 +867,16 @@
 "register.completeProfile.step3" = "Último paso antes de entrar";
 "register.completeProfile.finish" = "Empezar ahora";
 "register.completeProfile.appleAccount" = "Cuenta de Apple";
+"onboarding.email.title.step1" = "Crea tu cuenta";
+"onboarding.email.subtitle.step1" = "Usuario, correo y contraseña";
+"onboarding.apple.title.step1" = "Tu perfil";
+"onboarding.apple.subtitle.step1" = "Elige cómo te verán los demás";
+"onboarding.title.step2" = "Personaliza tu perfil";
+"onboarding.subtitle.step2" = "Foto e intereses para conocerte mejor";
+"onboarding.title.step3" = "Así te verán en Moments";
+"onboarding.subtitle.step3" = "Revisa todo antes de entrar";
+"onboarding.cancelRegistration" = "Cancelar registro";
+"onboarding.resume.banner" = "Continúa donde lo dejaste. Tus datos se han guardado.";
 "register.close" = "Cerrar registro";
 "register.error.usernameTooShort" = "Mínimo 3 caracteres";
 
@@ -2243,6 +2253,12 @@
 "accountManagement.writeHere" = "Escribe aquí";
 "accountManagement.understandIrreversible" = "Entiendo que esta acción es irreversible y acepto la eliminación permanente de mi cuenta y todos mis datos.";
 "accountManagement.deleteAccountPermanently" = "Eliminar cuenta permanentemente";
+"accountManagement.confirmIdentity.title" = "Confirmar identidad";
+"accountManagement.confirmIdentity.subtitle" = "Verifica que eres tú antes de eliminar tu cuenta";
+"accountManagement.identityVerified" = "Identidad verificada";
+"accountManagement.verifyWithPasswordOrApple" = "Usa tu contraseña o confirma con Apple";
+"accountManagement.deleteAuthDivider" = "o";
+"accountManagement.error.appleReauth" = "No se pudo verificar con Apple. Inténtalo de nuevo.";
 
 /* Notifications */
 "notifications.error.unknown" = "Ocurrió un error desconocido";
@@ -2547,6 +2563,8 @@
 "auth.error.privacyPolicyRequired" = "Debes aceptar las políticas de privacidad.";
 "auth.error.usernameUnavailable" = "Nombre de usuario no disponible.";
 "auth.error.userIdNotFound" = "No se pudo obtener el ID del usuario.";
+"auth.error.incompleteRegistrationWrongPassword" = "Este correo tiene un registro sin terminar. Usa la contraseña que elegiste al registrarte.";
+"auth.error.accountAlreadyComplete" = "Ya tienes una cuenta. Te hemos iniciado sesión.";
 
 /* Notification Summary */
 "feed.summary.highlights" = "Novedades";
@@ -2772,6 +2790,40 @@
 "settings.security.appleId.error.nonce" = "Hubo un problema de seguridad al conectar con Apple. Por favor, inténtalo de nuevo.";
 "settings.security.appleId.error.token" = "No se pudo completar la vinculación con Apple. Inténtalo de nuevo.";
 "settings.security.appleId.error.invalidToken" = "La sesión de Apple no es válida. Intenta iniciar sesión de nuevo.";
+"settings.security.appleId.unlinkHint" = "Toca para desvincular Apple ID";
+"settings.security.appleId.unlink.title" = "Desvincular Apple ID";
+"settings.security.appleId.unlink.message" = "Ya no podrás iniciar sesión con Apple ID. Tu email y contraseña seguirán disponibles.";
+"settings.security.appleId.unlink.confirm" = "Desvincular";
+"settings.security.appleId.unlink.success" = "Apple ID se ha desvinculado de tu cuenta.";
+"settings.security.appleId.error.noAlternative" = "Necesitas otro método de acceso antes de desvincular Apple ID.";
+"settings.security.appleId.error.requiresRecentLogin" = "Por seguridad, cierra sesión e inicia sesión de nuevo antes de desvincular Apple ID.";
+"settings.security.appleId.onlyMethod" = "Apple ID es tu único acceso. No puedes desvincularlo.";
+"settings.security.appleId.cannotUnlink.title" = "No puedes desvincular Apple ID";
+"settings.security.appleId.cannotUnlink.message" = "Es tu único método de acceso. Primero añade un email real y una contraseña de respaldo.";
+"settings.security.backup.title" = "Añade un método de respaldo";
+"settings.security.backup.appleOnly" = "Solo tienes Apple ID. Añade un email real y contraseña, o Passkey, para no quedarte fuera.";
+"settings.security.backup.missingPasskey" = "Activa Passkey para entrar más rápido sin depender de un solo método.";
+"settings.security.backup.missingApple" = "Vincula Apple ID para tener otra forma de entrar a tu cuenta.";
+"settings.security.backup.general" = "Cuantos más métodos tengas, menos riesgo de quedarte fuera.";
+"settings.security.backup.chip.apple" = "Apple";
+"settings.security.backup.chip.password" = "Contraseña";
+"settings.security.backup.chip.passkey" = "Passkey";
+"settings.security.password.add" = "Añadir contraseña";
+"settings.security.password.addDescription" = "Crea una contraseña de respaldo";
+"settings.security.password.addSheetDescription" = "Así podrás entrar aunque no tengas Apple ID disponible.";
+"settings.security.password.addSheetDescriptionNoEmail" = "Primero añade un email real al que tengas acceso. Luego crea una contraseña de respaldo.";
+"settings.security.password.enterEmail" = "tu@email.com";
+"settings.security.password.emailRequired" = "Necesitas un email real para recuperar el acceso. No vale el email oculto de Apple.";
+"settings.security.password.relayWarning" = "Apple ocultó tu email (@privaterelay). Pon uno real que uses (Gmail, iCloud, etc.).";
+"settings.security.password.relayNotAllowed" = "Ese email de Apple oculto no sirve como respaldo. Usa un email real.";
+"settings.security.password.emailLoginHint" = "Entrarás con este email y la contraseña que crees.";
+"settings.security.password.addSuccessMessageVerify" = "Contraseña añadida. Te hemos enviado un email de verificación: confírmalo para asegurar el acceso.";
+"settings.security.password.accountEmail" = "Email de la cuenta";
+"settings.security.password.verifyApple" = "Confirma con Apple para continuar";
+"settings.security.password.save" = "Guardar contraseña";
+"settings.security.password.addSuccess" = "Contraseña añadida";
+"settings.security.password.addSuccessMessage" = "Ya tienes contraseña como método de acceso alternativo.";
+"settings.security.password.alreadySet" = "Esta cuenta ya tiene contraseña.";
 
 "echo.leave.locked" = "No puedes salir del Echo hasta que finalice (24h). ¡Espera a que se unan tus amigos!";
 

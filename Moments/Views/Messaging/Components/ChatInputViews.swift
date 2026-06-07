@@ -17,9 +17,10 @@ struct GlassmorphicInputBar: View {
     }
 
     var body: some View {
-        HStack(spacing: 12) {
+        HStack(alignment: .center, spacing: 12) {
             if !isRecordingVoice {
-                HStack(spacing: 8) {
+                HStack(alignment: .center, spacing: 8) {
+                    // Cámara — alineada al centro
                     Button(action: {
                         onCamera()
                     }) {
@@ -38,7 +39,9 @@ struct GlassmorphicInputBar: View {
                     }
                     .buttonStyle(PlainButtonStyle())
 
+                    // TextField crece hacia arriba, alineado al centro
                     TextField(LocalizedStringKey("chat.input.placeholder"), text: $text, axis: .vertical)
+                        .lineLimit(1...6)
                         .font(.custom("Poppins-Regular", size: 15))
                         .foregroundColor(adaptiveColors.primary)
                         .accentColor(adaptiveColors.primary)
@@ -72,10 +75,10 @@ struct GlassmorphicInputBar: View {
                 }
                 .padding(.leading, 10)
                 .padding(.trailing, 6)
-                .padding(.vertical, 6)
-                .liquidGlass(in: Capsule(), interactive: true)
+                .padding(.vertical, 4)
+                .liquidGlass(in: RoundedRectangle(cornerRadius: 22, style: .continuous), interactive: true)
                 .overlay(
-                    Capsule()
+                    RoundedRectangle(cornerRadius: 22, style: .continuous)
                         .stroke(
                             colorScheme == .dark ?
                             Color.white.opacity(0.08) :
@@ -96,6 +99,7 @@ struct GlassmorphicInputBar: View {
                 )
             }
 
+            // Botón enviar — alineado al centro
             if !text.isEmpty && !isRecordingVoice {
                 Button(action: {
                     onSend()
@@ -111,7 +115,7 @@ struct GlassmorphicInputBar: View {
             }
         }
         .padding(.horizontal, 16)
-        .padding(.vertical, 10)
+        .padding(.vertical, 8)
     }
 }
 

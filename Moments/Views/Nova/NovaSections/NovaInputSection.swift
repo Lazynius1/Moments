@@ -47,8 +47,8 @@ struct EnhancedInputBar: View {
                 }
 
                 HStack(alignment: .center, spacing: 10) {
-                    HStack(alignment: .center, spacing: 10) {
-                        // ✅ Botón para adjuntar imágenes
+                    HStack(alignment: .center, spacing: 8) {
+                        // ✅ Botón + alineado al centro
                         PhotosPicker(selection: $selectedItem, matching: .images) {
                             Image(systemName: "plus")
                                 .font(.system(size: 18, weight: .semibold))
@@ -66,12 +66,12 @@ struct EnhancedInputBar: View {
                             }
                         }
 
-                        // ✅ TextField con cambios en el overlay para rendimiento
+                        // ✅ TextField: crece hacia arriba, alineado al centro
                         TextField(NSLocalizedString("nova.input.placeholder", comment: "Ask Nova something placeholder"), text: $viewModel.inputText, axis: .vertical)
                             .lineLimit(1...6)
                             .font(.custom("Poppins-Regular", size: 16))
                             .foregroundColor(NovaColors.textPrimary)
-                            .padding(.vertical, 12)
+                            .padding(.vertical, 10)
                             .focused($isTextFieldFocused)
                             .onChange(of: isTextFieldFocused) { _, focused in
                                 onFocusChange?(focused)
@@ -84,12 +84,13 @@ struct EnhancedInputBar: View {
                             }
                     }
                     .padding(.leading, 10)
-                    .padding(.trailing, 16)
+                    .padding(.trailing, 12)
+                    .padding(.vertical, 4)
                     .background {
                         Color.clear
-                            .liquidGlass(in: Capsule(), interactive: true)
+                            .liquidGlass(in: RoundedRectangle(cornerRadius: 22, style: .continuous), interactive: true)
                             .overlay {
-                                Capsule()
+                                RoundedRectangle(cornerRadius: 22, style: .continuous)
                                     .stroke(
                                         isTextFieldFocused ? NovaColors.textPrimary.opacity(0.14) : Color.clear,
                                         lineWidth: 1
@@ -97,26 +98,23 @@ struct EnhancedInputBar: View {
                             }
                     }
 
-                    HStack(spacing: 8) {
-                        // ✅ Ahora solo el botón de enviar, se muestra si hay texto.
-                        if !viewModel.inputText.isEmpty { // Si hay texto, mostrar botón de enviar
-                            Button(action: {
-                                viewModel.sendMessage()
-                                showSuggestedOptions = false
-                                isTextFieldFocused = false
-                            }) {
-                                Image(systemName: "paperplane.fill")
-                                    .font(.system(size: 18, weight: .semibold))
-                                    .foregroundColor(NovaColors.textPrimary)
-                                    .frame(width: 44, height: 44)
-                                    .background {
-                                        Color.clear
-                                            .liquidGlass(in: Circle(), interactive: true)
-                                    }
-                            }
-                            .padding(.bottom, 2) // Pequeño ajuste para aliñar con el círculo
-                            .transition(.scale.combined(with: .opacity))
+                    // ✅ Botón enviar alineado al centro
+                    if !viewModel.inputText.isEmpty {
+                        Button(action: {
+                            viewModel.sendMessage()
+                            showSuggestedOptions = false
+                            isTextFieldFocused = false
+                        }) {
+                            Image(systemName: "paperplane.fill")
+                                .font(.system(size: 18, weight: .semibold))
+                                .foregroundColor(NovaColors.textPrimary)
+                                .frame(width: 44, height: 44)
+                                .background {
+                                    Color.clear
+                                        .liquidGlass(in: Circle(), interactive: true)
+                                }
                         }
+                        .transition(.scale.combined(with: .opacity))
                     }
                 }
                 .padding(.horizontal, 16)
