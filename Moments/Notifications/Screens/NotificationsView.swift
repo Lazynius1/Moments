@@ -15,6 +15,7 @@ struct NotificationsView: View {
     @State private var storyViewerPresentation: StoryViewerPresentation?
     @State private var selectedConversation: Conversation?
     @State private var showChat = false
+    @State private var groupedFollowersOverlayGroup: NotificationGroup?
     @Namespace private var tabAnimation
     let onNotificationsCleared: (() -> Void)?
 
@@ -85,8 +86,23 @@ struct NotificationsView: View {
                 .padding(.bottom, 16)
                 .transition(.move(edge: .bottom).combined(with: .opacity))
             }
+
+            if let overlayGroup = groupedFollowersOverlayGroup {
+                NotificationGroupedFollowersOverlay(
+                    group: overlayGroup,
+                    viewModel: viewModel,
+                    colorScheme: colorScheme,
+                    isPresented: Binding(
+                        get: { groupedFollowersOverlayGroup != nil },
+                        set: { if !$0 { groupedFollowersOverlayGroup = nil } }
+                    )
+                )
+                .transition(.scale(scale: 0.94).combined(with: .opacity))
+                .zIndex(5000)
+            }
         }
         .animation(.spring(response: 0.32, dampingFraction: 0.84), value: viewModel.pendingDeletion?.id)
+        .animation(.spring(response: 0.38, dampingFraction: 0.86), value: groupedFollowersOverlayGroup?.id)
         .onAppear {
             Task {
                 await viewModel.refreshNotifications()
@@ -322,6 +338,9 @@ struct NotificationsView: View {
                             colorScheme: colorScheme,
                             onTapAction: {
                                 handleNotificationTap(group: group)
+                            },
+                            onShowGroupedFollowers: { overlayGroup in
+                                groupedFollowersOverlayGroup = overlayGroup
                             },
                             onModerationReviewTap: { notification in
                                 moderationReviewNotification = notification

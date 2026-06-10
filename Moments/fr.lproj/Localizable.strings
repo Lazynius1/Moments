@@ -3691,6 +3691,11 @@
 "notifications.empty.follows.message" = "Quand quelqu'un te suit, ça apparaîtra ici";
 "notifications.empty.default.message" = "Quand quelqu'un interagit avec toi, ça apparaîtra ici";
 "notifications.echo.viewAction" = "Voir l'Echo";
+"notifications.groupedFollowers.viewAction" = "Voir";
+"notifications.groupedFollowers.title.followers" = "Nouveaux abonnés";
+"notifications.groupedFollowers.title.mutual" = "Connexions mutuelles";
+"notifications.groupedFollowers.unknownUser" = "Quelqu'un";
+"notifications.groupedFollowers.subtitle" = "Gérez chaque abonné séparément.";
 "notificationType.like" = "Réaction";
 "notificationType.reaction" = "Réactions aux moments";
 "notificationType.comment" = "Commentaire";

@@ -3702,6 +3702,11 @@
 "notifications.empty.follows.message" = "Quan algú et segueixi, apareixerà aquí";
 "notifications.empty.default.message" = "Quan algú interactuï amb tu, apareixerà aquí";
 "notifications.echo.viewAction" = "Veure Echo";
+"notifications.groupedFollowers.viewAction" = "Veure";
+"notifications.groupedFollowers.title.followers" = "Nous seguidors";
+"notifications.groupedFollowers.title.mutual" = "Connexions mútues";
+"notifications.groupedFollowers.unknownUser" = "Algú";
+"notifications.groupedFollowers.subtitle" = "Gestiona cada seguidor per separat.";
 "notificationType.like" = "Reacció";
 "notificationType.reaction" = "Reaccions a moments";
 "notificationType.comment" = "Comentari";

@@ -398,7 +398,11 @@ service cloud.firestore {
           request.auth.uid == userId || // El destinatario puede actualizar
           request.auth.uid == resource.data.senderId // El remitente puede actualizar
         );
-        allow delete: if request.auth != null && request.auth.uid == userId;
+        // Remitente o destinatario pueden eliminar (cancelación / rechazo / aceptación)
+        allow delete: if request.auth != null && (
+          request.auth.uid == userId ||
+          request.auth.uid == resource.data.senderId
+        );
       }
 
       // ✅ ACTUALIZADO: Reglas para listas de audiencia personalizada

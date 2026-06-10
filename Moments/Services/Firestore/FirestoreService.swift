@@ -477,9 +477,7 @@ class FirestoreService: ObservableObject {
                 .collection("receivedFollowRequests").document(request.id)
             batch.deleteDocument(recipientRequestRef)
 
-            let notificationRef = self.db.collection("users").document(targetUserId)
-                .collection("notifications").document("followRequest_\(currentUserId)")
-            batch.deleteDocument(notificationRef)
+            // La notificación la limpia onFollowRequestRemoved (Cloud Function) al borrar receivedFollowRequests.
 
             batch.commit { error in
                 completion(error)

@@ -180,25 +180,39 @@ extension EnhancedNotificationRow {
                 }
 
             case .newFollower, .mutualConnection:
-                Button(action: {
-                    toggleFollow()
-                }) {
-                    HStack(spacing: 6) {
-                        Image(systemName: notificationFollowIcon)
-                            .font(.system(size: 12, weight: .semibold))
-
-                        Text(notificationFollowTitle)
+                if hasMultipleGroupedFollowActors {
+                    Button(action: {
+                        onShowGroupedFollowers?(group)
+                    }) {
+                        Text(NSLocalizedString("notifications.groupedFollowers.viewAction", comment: "View grouped followers"))
                             .font(.custom("Poppins-SemiBold", size: 12))
+                            .foregroundColor(colorScheme == .dark ? .white : .black)
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 8)
+                            .liquidGlass(in: Capsule(), interactive: true)
                     }
-                        .font(.custom("Poppins-SemiBold", size: 12))
-                        .foregroundColor(colorScheme == .dark ? .white : .black)
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 8)
-                        .liquidGlass(in: Capsule(), interactive: followButtonState.isActionable)
+                    .buttonStyle(PlainButtonStyle())
+                } else {
+                    Button(action: {
+                        toggleFollow()
+                    }) {
+                        HStack(spacing: 6) {
+                            Image(systemName: notificationFollowIcon)
+                                .font(.system(size: 12, weight: .semibold))
+
+                            Text(notificationFollowTitle)
+                                .font(.custom("Poppins-SemiBold", size: 12))
+                        }
+                            .font(.custom("Poppins-SemiBold", size: 12))
+                            .foregroundColor(colorScheme == .dark ? .white : .black)
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 8)
+                            .liquidGlass(in: Capsule(), interactive: followButtonState.isActionable)
+                    }
+                    .buttonStyle(PlainButtonStyle())
+                    .disabled(!followButtonState.isActionable)
+                    .opacity(notificationFollowIsPassive ? 0.78 : 1)
                 }
-                .buttonStyle(PlainButtonStyle())
-                .disabled(!followButtonState.isActionable)
-                .opacity(notificationFollowIsPassive ? 0.78 : 1)
 
             case .echoSuggestion:
                 // 🌊 Echo notification preview with Nova Spark styling

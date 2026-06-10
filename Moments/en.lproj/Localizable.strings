@@ -3717,6 +3717,11 @@
 "notifications.empty.follows.message" = "When someone follows you, it'll appear here";
 "notifications.empty.default.message" = "When someone interacts with you, it'll appear here";
 "notifications.echo.viewAction" = "View Echo";
+"notifications.groupedFollowers.viewAction" = "View";
+"notifications.groupedFollowers.title.followers" = "New followers";
+"notifications.groupedFollowers.title.mutual" = "Mutual connections";
+"notifications.groupedFollowers.unknownUser" = "Someone";
+"notifications.groupedFollowers.subtitle" = "Manage each follower individually.";
 "notificationType.like" = "Reaction";
 "notificationType.reaction" = "Moment reactions";
 "notificationType.comment" = "Comment";

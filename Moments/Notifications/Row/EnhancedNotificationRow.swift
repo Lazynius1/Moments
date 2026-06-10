@@ -9,6 +9,7 @@ struct EnhancedNotificationRow: View {
     @ObservedObject var viewModel: NotificationsViewModel
     let colorScheme: ColorScheme
     let onTapAction: () -> Void
+    let onShowGroupedFollowers: ((NotificationGroup) -> Void)?
     let onModerationReviewTap: ((Notification) -> Void)?
     @State var showProfile = false
     @State var profileUserId: String?
@@ -23,6 +24,12 @@ struct EnhancedNotificationRow: View {
     @State var isPressed: Bool = false
     @State var senderUsernameOverride: String?
     @State var showingUnfollowConfirmation = false
+
+    var hasMultipleGroupedFollowActors: Bool {
+        guard let type = group.notifications.first?.type else { return false }
+        guard type == .newFollower || type == .mutualConnection else { return false }
+        return uniqueSenderIdList.count > 1
+    }
 
     var body: some View {
         HStack(spacing: 12) {
@@ -289,7 +296,7 @@ struct EnhancedNotificationRow: View {
             }
         }
         
-        if first.type == .newFollower || first.type == .mutualConnection {
+        if (first.type == .newFollower || first.type == .mutualConnection) && !hasMultipleGroupedFollowActors {
             checkFollowingStatus()
         }
     }
