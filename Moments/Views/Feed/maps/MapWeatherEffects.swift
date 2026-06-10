@@ -276,3 +276,43 @@ final class WeatherEffectsUIView: UIView {
         }
     }
 }
+
+extension WeatherData {
+    var mapOverlayColor: Color {
+        switch condition {
+        case .clear:
+            return isNight ? Color.blue : Color.yellow
+        case .partlyCloudy:
+            return isNight ? Color.indigo : Color.orange
+        case .cloudy:
+            return Color.gray
+        case .rain:
+            return Color.blue
+        case .snow:
+            return Color.white
+        case .thunderstorm:
+            return Color.purple
+        case .unknown:
+            return Color.clear
+        }
+    }
+
+    var mapOverlayOpacity: Double {
+        switch condition {
+        case .clear:
+            return isNight ? 0.1 : 0.05
+        case .partlyCloudy:
+            return 0.08
+        case .cloudy:
+            return 0.15
+        case .rain:
+            return 0.2
+        case .snow:
+            return 0.25
+        case .thunderstorm:
+            return 0.3
+        case .unknown:
+            return 0.0
+        }
+    }
+}

@@ -774,6 +774,7 @@
 "login.password.show" = "Mostra password";
 "login.password.hide" = "Nascondi password";
 "login.signIn" = "Accedi";
+"login.signingIn" = "Accesso in corso...";
 "login.or" = "oppure";
 "login.orContinue" = "oppure continua con";
 "login.close" = "Chiudi";

@@ -43,9 +43,11 @@ struct DiscoverMapView: View {
     @State private var timeFilter: MapDiscoverTimeFilter = .all
     @State private var zoneName: String?
     @State private var discoverWeather: WeatherData?
+    @State private var weatherEffectsEnabled = true
     @State private var searchText = ""
     @State private var isSearchActive = false
     @FocusState private var searchFieldFocused: Bool
+    @State private var isViewActive = true
 
     private struct MapStoryViewerPresentation: Identifiable {
         let id = UUID()
@@ -109,14 +111,8 @@ struct DiscoverMapView: View {
         return result
     }
 
-    private var hasActiveWeatherEffects: Bool {
-        guard let discoverWeather else { return false }
-        switch discoverWeather.condition {
-        case .rain, .snow, .thunderstorm:
-            return true
-        default:
-            return false
-        }
+    private var showsWeatherEffects: Bool {
+        weatherEffectsEnabled && discoverWeather != nil
     }
 
     var body: some View {
@@ -156,7 +152,14 @@ struct DiscoverMapView: View {
                 scheduleRegionSearch()
             }
 
-            if hasActiveWeatherEffects, let discoverWeather {
+            if showsWeatherEffects, let discoverWeather {
+                Rectangle()
+                    .fill(discoverWeather.mapOverlayColor)
+                    .allowsHitTesting(false)
+                    .opacity(discoverWeather.mapOverlayOpacity)
+                    .animation(.easeInOut(duration: 2.0), value: discoverWeather.condition)
+                    .ignoresSafeArea()
+
                 MapWeatherEffectsView(weather: discoverWeather)
                     .allowsHitTesting(false)
                     .ignoresSafeArea()
@@ -227,9 +230,15 @@ struct DiscoverMapView: View {
             }
         }
         .onAppear {
+            isViewActive = true
             locationManager.requestLocationPermission()
             loadFollowingIds()
             bootstrapMapCenter()
+        }
+        .onDisappear {
+            isViewActive = false
+            regionSearchTask?.cancel()
+            regionSearchTask = nil
         }
         .fullScreenCover(item: $momentDetailRoute, onDismiss: {
             restoreBottomSheetIfNeeded()
@@ -260,77 +269,133 @@ struct DiscoverMapView: View {
     }
 
     private var header: some View {
-        HStack(spacing: 12) {
-            Button {
-                isPresented = false
-            } label: {
-                Image(systemName: "xmark")
-                    .font(.system(size: 14, weight: .bold))
-                    .foregroundColor(adaptiveColors.primary)
-                    .frame(width: 36, height: 36)
-                    .background(Color.clear.liquidGlass(in: Circle(), interactive: true))
-            }
+        VStack(alignment: .trailing, spacing: 8) {
+            HStack(alignment: .top, spacing: 12) {
+                HStack(spacing: 12) {
+                    Button {
+                        closeDiscoverMap()
+                    } label: {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 16, weight: .bold))
+                            .foregroundStyle(adaptiveColors.primary)
+                            .frame(width: 32, height: 32)
+                    }
 
-            VStack(alignment: .leading, spacing: 2) {
-                Text(zoneName ?? NSLocalizedString("maps.discover.title", comment: "Discover map title"))
-                    .font(.custom("Poppins-Bold", size: 17))
-                    .foregroundColor(adaptiveColors.primary)
-                    .lineLimit(1)
-                Text(headerSubtitle)
-                    .font(.custom("Poppins-Medium", size: 12))
-                    .foregroundColor(adaptiveColors.secondary)
-                    .lineLimit(1)
-            }
+                    VStack(alignment: .leading, spacing: 0) {
+                        Text(zoneName ?? NSLocalizedString("maps.discover.title", comment: "Discover map title"))
+                            .font(.custom("Poppins-SemiBold", size: 16))
+                            .foregroundColor(adaptiveColors.primary)
+                            .lineLimit(1)
 
-            Spacer()
-
-            Button {
-                withAnimation(.easeInOut(duration: 0.2)) {
-                    isSearchActive.toggle()
+                        Text(headerSubtitle)
+                            .font(.custom("Poppins-Regular", size: 11))
+                            .foregroundColor(adaptiveColors.tertiary)
+                            .lineLimit(1)
+                    }
                 }
-                if isSearchActive {
-                    searchFieldFocused = true
-                } else {
-                    searchText = ""
-                }
-            } label: {
-                Image(systemName: isSearchActive ? "xmark.circle.fill" : "magnifyingglass")
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundColor(adaptiveColors.primary)
-                    .frame(width: 36, height: 36)
-                    .background(Color.clear.liquidGlass(in: Circle(), interactive: true))
-            }
+                .padding(.leading, 8)
+                .padding(.trailing, 16)
+                .padding(.vertical, 8)
+                .background(Color.clear.liquidGlass(in: Capsule()))
+                .overlay(
+                    Capsule()
+                        .stroke(Color.white.opacity(0.15), lineWidth: 0.5)
+                )
+                .shadow(color: adaptiveColors.shadowColor.opacity(0.15), radius: 10, x: 0, y: 5)
 
-            Button {
-                recenterOnUser()
-            } label: {
-                Image(systemName: "location.fill")
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundColor(adaptiveColors.accent)
-                    .frame(width: 36, height: 36)
-                    .background(Color.clear.liquidGlass(in: Circle(), interactive: true))
+                Spacer()
+
+                VStack(alignment: .trailing, spacing: 4) {
+                    HStack(spacing: 10) {
+                        Button {
+                            withAnimation(.easeInOut(duration: 0.2)) {
+                                isSearchActive.toggle()
+                            }
+                            if isSearchActive {
+                                searchFieldFocused = true
+                            } else {
+                                searchText = ""
+                            }
+                        } label: {
+                            Image(systemName: isSearchActive ? "xmark.circle.fill" : "magnifyingglass")
+                                .font(.system(size: 15, weight: .semibold))
+                                .foregroundStyle(adaptiveColors.primary)
+                                .frame(width: 28, height: 28)
+                        }
+
+                        Button {
+                            recenterOnUser()
+                        } label: {
+                            Image(systemName: "location.fill")
+                                .font(.system(size: 14, weight: .semibold))
+                                .foregroundStyle(adaptiveColors.accent)
+                                .frame(width: 28, height: 28)
+                        }
+
+                        if let discoverWeather {
+                            Button {
+                                withAnimation(.easeInOut(duration: 0.3)) {
+                                    weatherEffectsEnabled.toggle()
+                                }
+                            } label: {
+                                HStack(spacing: 8) {
+                                    Image(systemName: weatherEffectsEnabled ? discoverWeather.condition.systemImageName : "cloud.slash.fill")
+                                        .font(.system(size: 16, weight: .semibold))
+                                        .foregroundStyle(weatherEffectsEnabled ? adaptiveColors.accent : adaptiveColors.primary.opacity(0.7))
+
+                                    VStack(alignment: .leading, spacing: -2) {
+                                        Text(discoverWeather.temperatureFormatted)
+                                            .font(.custom("Poppins-Bold", size: 13))
+                                            .foregroundColor(adaptiveColors.primary)
+
+                                        Text(discoverWeather.condition.displayName)
+                                            .font(.custom("Poppins-Medium", size: 9))
+                                            .foregroundColor(adaptiveColors.secondary)
+                                            .lineLimit(1)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    .padding(.leading, 12)
+                    .padding(.trailing, 8)
+                    .padding(.vertical, 8)
+                    .background(Color.clear.liquidGlass(in: Capsule()))
+                    .overlay(
+                        Capsule()
+                            .stroke(Color.white.opacity(0.15), lineWidth: 0.5)
+                    )
+                    .shadow(color: adaptiveColors.shadowColor.opacity(0.15), radius: 10, x: 0, y: 5)
+
+                    if discoverWeather != nil && weatherEffectsEnabled {
+                        HStack(spacing: 4) {
+                            Text(NSLocalizedString("weather.attribution.text", comment: "Weather attribution text"))
+                                .font(.custom("Poppins-Regular", size: 7))
+                                .foregroundColor(.secondary.opacity(0.8))
+
+                            Link(
+                                NSLocalizedString("weather.attribution.link", comment: "Weather attribution link"),
+                                destination: URL(string: "https://weatherkit.apple.com/legal-attribution.html")!
+                            )
+                            .font(.custom("Poppins-Medium", size: 7))
+                            .foregroundColor(.blue.opacity(0.6))
+                        }
+                        .padding(.trailing, 8)
+                    }
+                }
             }
         }
     }
 
     private var headerSubtitle: String {
-        var parts: [String] = []
-        if let discoverWeather {
-            parts.append(discoverWeather.temperatureFormatted)
-        }
         let placeCount = mapPlaceLayout.placeClusters.count
         if placeCount > 0 {
-            parts.append(
-                String(
-                    format: NSLocalizedString("maps.discover.activePlaces", comment: "Active places count"),
-                    placeCount
-                )
+            return String(
+                format: NSLocalizedString("maps.discover.activePlaces", comment: "Active places count"),
+                placeCount
             )
         }
-        if parts.isEmpty {
-            return NSLocalizedString("maps.discover.subtitle", comment: "Discover map subtitle")
-        }
-        return parts.joined(separator: " · ")
+        return NSLocalizedString("maps.discover.subtitle", comment: "Discover map subtitle")
     }
 
     private var searchBar: some View {
@@ -378,6 +443,29 @@ struct DiscoverMapView: View {
         }
     }
 
+    private func closeDiscoverMap() {
+        guard isViewActive else { return }
+        isViewActive = false
+        regionSearchTask?.cancel()
+        regionSearchTask = nil
+        searchFieldFocused = false
+
+        let hadSheet = showingBottomSheet
+        showingBottomSheet = false
+        momentDetailRoute = nil
+        storyViewerPresentation = nil
+        pendingMomentDetailRoute = nil
+        pendingStoryPresentation = nil
+
+        if hadSheet {
+            DispatchQueue.main.asyncAfter(deadline: .now() + MapSheetPresentationDelay.dismissBeforeNextPresentation) {
+                isPresented = false
+            }
+        } else {
+            isPresented = false
+        }
+    }
+
     private func bootstrapMapCenter() {
         if let coordinate = locationManager.currentLocation?.coordinate {
             focus(on: coordinate, autoSearch: true)
@@ -386,6 +474,7 @@ struct DiscoverMapView: View {
 
         locationManager.getCurrentLocation { coordinate in
             DispatchQueue.main.async {
+                guard isViewActive else { return }
                 if let coordinate {
                     focus(on: coordinate, autoSearch: true)
                 } else {
@@ -403,6 +492,7 @@ struct DiscoverMapView: View {
         locationManager.getCurrentLocation { coordinate in
             guard let coordinate else { return }
             DispatchQueue.main.async {
+                guard isViewActive else { return }
                 focus(on: coordinate, autoSearch: true)
             }
         }
@@ -426,6 +516,7 @@ struct DiscoverMapView: View {
             try? await Task.sleep(nanoseconds: 900_000_000)
             guard !Task.isCancelled else { return }
             await MainActor.run {
+                guard isViewActive else { return }
                 performRegionSearch()
             }
         }
@@ -442,6 +533,7 @@ struct DiscoverMapView: View {
         MKLocalSearch(request: request).start { response, _ in
             guard let item = response?.mapItems.first else { return }
             DispatchQueue.main.async {
+                guard isViewActive else { return }
                 searchFieldFocused = false
                 withAnimation(.easeInOut(duration: 0.2)) {
                     isSearchActive = false
@@ -465,6 +557,7 @@ struct DiscoverMapView: View {
 
     private func refreshZoneContext() {
         MapZoneContextService.shared.zoneName(for: region.center) { name in
+            guard isViewActive else { return }
             zoneName = name
         }
 
@@ -472,6 +565,7 @@ struct DiscoverMapView: View {
         Task {
             let weather = await WeatherService.shared.getWeatherSafely(for: center)
             await MainActor.run {
+                guard isViewActive else { return }
                 discoverWeather = weather
             }
         }
@@ -484,6 +578,7 @@ struct DiscoverMapView: View {
         refreshZoneContext()
 
         LocationSearchService.shared.searchDiscoverContentInRegion(region: region) { payload in
+            guard isViewActive else { return }
             moments = payload.moments
             stories = payload.stories
             friendPins = LocationSearchService.shared.buildFriendActivityPins(
@@ -635,6 +730,7 @@ struct DiscoverMapView: View {
         guard pendingMomentDetailRoute != nil || pendingStoryPresentation != nil else { return }
 
         DispatchQueue.main.asyncAfter(deadline: .now() + MapSheetPresentationDelay.dismissBeforeNextPresentation) {
+            guard isViewActive else { return }
             if let pendingRoute = pendingMomentDetailRoute {
                 momentDetailRoute = pendingRoute
                 pendingMomentDetailRoute = nil
@@ -653,6 +749,7 @@ struct DiscoverMapView: View {
         resumeBottomSheetAfterDetail = false
 
         DispatchQueue.main.asyncAfter(deadline: .now() + MapSheetPresentationDelay.reopenBottomSheetAfterDetail) {
+            guard isViewActive else { return }
             if sheetCluster.totalCount > 0 {
                 showingBottomSheet = true
             }
@@ -669,6 +766,7 @@ struct DiscoverMapView: View {
         )
 
         DispatchQueue.main.async {
+            guard isViewActive else { return }
             isOpeningStory = false
             if showingBottomSheet {
                 pendingStoryPresentation = presentation
@@ -689,6 +787,7 @@ struct DiscoverMapView: View {
             .getDocuments { snapshot, _ in
                 let ids = Set(snapshot?.documents.map(\.documentID) ?? [])
                 DispatchQueue.main.async {
+                    guard isViewActive else { return }
                     followingIds = ids
                     friendPins = LocationSearchService.shared.buildFriendActivityPins(
                         moments: moments,

@@ -800,6 +800,7 @@
 "login.password.show" = "Show password";
 "login.password.hide" = "Hide password";
 "login.signIn" = "Sign in";
+"login.signingIn" = "Signing in...";
 "login.or" = "or";
 "login.orContinue" = "or continue with";
 "login.close" = "Close";

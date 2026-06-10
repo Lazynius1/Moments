@@ -81,6 +81,7 @@ struct LocationMapView: View {
 
     // ✅ NUEVO: Estado para manejar mejor la carga inicial
     @State private var hasInitializedMap = false
+    @State private var isViewActive = true
 
     private struct LocationMapStoryViewerPresentation: Identifiable {
         let id = UUID()
@@ -171,6 +172,13 @@ struct LocationMapView: View {
         return locationName
     }
 
+    /// Índice de lugares en el sheet cuando hay varios clusters tras panear/buscar en la zona.
+    private var contextualPlaceIndex: [MapPlaceCluster] {
+        guard !isEchoHistoryMode, selectedPlaceCluster == nil else { return [] }
+        let clusters = locationMapPlaceLayout.placeClusters
+        return clusters.count > 1 ? clusters : []
+    }
+
     var body: some View {
         ZStack {
             // ✅ EL MAPA OCUPA TODO EL FONDO
@@ -200,7 +208,11 @@ struct LocationMapView: View {
                     openPlaceStories(cluster)
                 },
                 weather: currentWeather,
-                userLocation: locationManager.currentLocation?.coordinate
+                userLocation: locationManager.currentLocation?.coordinate,
+                placeIndex: contextualPlaceIndex,
+                onPlaceTap: contextualPlaceIndex.isEmpty ? nil : { place in
+                    selectPlaceFromIndex(place)
+                }
             )
             .mapLocationSystemSheet(detent: $mapSheetDetent)
         }
@@ -217,6 +229,7 @@ struct LocationMapView: View {
             }
         }
         .onAppear {
+            isViewActive = true
             if mapHeaderLocationName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                 mapHeaderLocationName = locationName
             }
@@ -226,6 +239,9 @@ struct LocationMapView: View {
             } else {
                 checkLocationPermissionsAndSetup()
             }
+        }
+        .onDisappear {
+            isViewActive = false
         }
         .onChange(of: coordinate?.latitude) { _, _ in
             // ✅ NUEVO: Reaccionar a cambios en las coordenadas usando latitude como trigger
@@ -372,7 +388,7 @@ struct LocationMapView: View {
             HStack(alignment: .top, spacing: 12) {
                 // ✅ PILL 1: NAVEGACIÓN Y INFO
                 HStack(spacing: 12) {
-                    Button(action: { isPresented = false }) {
+                    Button(action: closeLocationMap) {
                         Image(systemName: "chevron.left")
                             .font(.system(size: 18, weight: .bold))
                             .foregroundStyle(adaptiveColors.primary)
@@ -635,9 +651,9 @@ struct LocationMapView: View {
                     // ✅ OVERLAY DE COLOR SEGÚN CLIMA
                     if let weather = currentWeather, weatherEffectsEnabled {
                         Rectangle()
-                            .fill(getWeatherOverlayColor(weather))
+                            .fill(weather.mapOverlayColor)
                             .allowsHitTesting(false)
-                            .opacity(getWeatherOverlayOpacity(weather))
+                            .opacity(weather.mapOverlayOpacity)
                             .animation(.easeInOut(duration: 2.0), value: weather.condition)
                     }
 
@@ -661,46 +677,6 @@ struct LocationMapView: View {
             return .standard // iOS ya maneja el modo nocturno automáticamente
         } else {
             return .standard
-        }
-    }
-
-    // ✅ COLOR DE OVERLAY SEGÚN CONDICIÓN CLIMÁTICA
-    private func getWeatherOverlayColor(_ weather: WeatherData) -> Color {
-        switch weather.condition {
-        case .clear:
-            return weather.isNight ? Color.blue : Color.yellow
-        case .partlyCloudy:
-            return weather.isNight ? Color.indigo : Color.orange
-        case .cloudy:
-            return Color.gray
-        case .rain:
-            return Color.blue
-        case .snow:
-            return Color.white
-        case .thunderstorm:
-            return Color.purple
-        case .unknown:
-            return Color.clear
-        }
-    }
-
-    // ✅ OPACIDAD DEL OVERLAY
-    private func getWeatherOverlayOpacity(_ weather: WeatherData) -> Double {
-        switch weather.condition {
-        case .clear:
-            return weather.isNight ? 0.1 : 0.05
-        case .partlyCloudy:
-            return 0.08
-        case .cloudy:
-            return 0.15
-        case .rain:
-            return 0.2
-        case .snow:
-            return 0.25
-        case .thunderstorm:
-            return 0.3
-        case .unknown:
-            return 0.0
         }
     }
 
@@ -1211,6 +1187,48 @@ extension LocationMapView {
         return "\(lat)|\(lon)|\(normalizedLocation)"
     }
 
+    private func closeLocationMap() {
+        guard isViewActive else { return }
+        isViewActive = false
+
+        let hadSheet = showingBottomSheet
+        showingBottomSheet = false
+        momentDetailRoute = nil
+        storyViewerPresentation = nil
+        pendingMomentDetailRoute = nil
+        pendingStoryPresentation = nil
+
+        if hadSheet {
+            DispatchQueue.main.asyncAfter(deadline: .now() + MapSheetPresentationDelay.dismissBeforeNextPresentation) {
+                isPresented = false
+            }
+        } else {
+            isPresented = false
+        }
+    }
+
+    private func selectPlaceFromIndex(_ place: MapPlaceCluster) {
+        selectedPlaceCluster = place
+        let availableMoments = place.moments.filter {
+            momentAvailability[$0.mapAvailabilityKey] ?? !isEchoHistoryMode
+        }
+        locationMoments = availableMoments.isEmpty ? place.moments : availableMoments
+        refreshMomentAvailability(for: locationMoments)
+
+        let title = place.displayName.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !title.isEmpty {
+            mapHeaderLocationName = title
+        }
+
+        let nextRegion = MKCoordinateRegion(
+            center: place.coordinate,
+            span: MKCoordinateSpan(latitudeDelta: 0.015, longitudeDelta: 0.015)
+        )
+        withAnimation(.easeInOut(duration: 0.4)) {
+            mapPosition = .region(nextRegion)
+        }
+    }
+
     private func openPlaceCluster(_ cluster: MapPlaceCluster) {
         let availableMoments = cluster.moments.filter {
             momentAvailability[$0.mapAvailabilityKey] ?? !isEchoHistoryMode
@@ -1260,6 +1278,7 @@ extension LocationMapView {
         guard pendingMomentDetailRoute != nil || pendingStoryPresentation != nil else { return }
 
         DispatchQueue.main.asyncAfter(deadline: .now() + MapSheetPresentationDelay.dismissBeforeNextPresentation) {
+            guard isViewActive else { return }
             if let pendingRoute = pendingMomentDetailRoute {
                 momentDetailRoute = pendingRoute
                 pendingMomentDetailRoute = nil
@@ -1278,6 +1297,7 @@ extension LocationMapView {
         resumeBottomSheetAfterDetail = false
 
         DispatchQueue.main.asyncAfter(deadline: .now() + MapSheetPresentationDelay.reopenBottomSheetAfterDetail) {
+            guard isViewActive else { return }
             if sheetCluster.totalCount > 0 {
                 showingBottomSheet = true
             }
@@ -1294,6 +1314,7 @@ extension LocationMapView {
         )
 
         DispatchQueue.main.async {
+            guard isViewActive else { return }
             isOpeningStory = false
             if showingBottomSheet {
                 pendingStoryPresentation = presentation
@@ -1351,6 +1372,7 @@ extension LocationMapView {
             currentUserId: Auth.auth().currentUser?.uid
         ) { result in
             DispatchQueue.main.async {
+                guard self.isViewActive else { return }
                 // Evitar resultados stale si el usuario ya movió el mapa a otra región.
                 guard self.lastNearbyQueryKey == queryKey else { return }
                 self.isLoadingNearbyMoments = false
@@ -1361,6 +1383,7 @@ extension LocationMapView {
                     self.showSearchInAreaButton = false
                     self.errorMessage = nil
                     self.contentErrorMessage = nil
+                    self.selectedPlaceCluster = nil
 
                     if !moments.isEmpty {
                         self.locationMoments = moments

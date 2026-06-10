@@ -1584,6 +1584,7 @@
 "login.password.show" = "Mostrar palavra-passe";
 "login.password.hide" = "Ocultar palavra-passe";
 "login.signIn" = "Iniciar sessão";
+"login.signingIn" = "A iniciar sessão...";
 "login.or" = "ou";
 "login.orContinue" = "ou continuar com";
 "login.close" = "Fechar";

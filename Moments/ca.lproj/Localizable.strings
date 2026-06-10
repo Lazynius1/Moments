@@ -765,6 +765,7 @@
 "login.password.show" = "Mostrar contrasenya";
 "login.password.hide" = "Amagar contrasenya";
 "login.signIn" = "Iniciar sessió";
+"login.signingIn" = "Iniciant sessió...";
 "login.or" = "o";
 "login.orContinue" = "o continua amb";
 "login.close" = "Tancar";

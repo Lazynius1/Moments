@@ -630,12 +630,88 @@ class AuthService: ObservableObject {
 
     }
 
+    /// Resultado de la verificación definitiva contra el servidor de `users/{uid}`.
+    private enum ServerProfileCheck {
+        case missing            // El servidor confirma que el perfil NO existe
+        case exists(AppUser?)   // El perfil existe (con datos parseados si fue posible)
+        case unreachable        // No se pudo contactar al servidor (red, timeout...)
+    }
+
+    /// Verificación definitiva contra el servidor antes de mandar a nadie a reanudar onboarding.
+    /// Un fallo transitorio de red NUNCA debe confundirse con "el perfil no existe".
+    private func confirmProfileMissingOnServer(userId: String, completion: @escaping (ServerProfileCheck) -> Void) {
+        db.collection("users").document(userId).getDocument(source: .server) { snapshot, error in
+            DispatchQueue.main.async {
+                if error != nil {
+                    completion(.unreachable)
+                    return
+                }
+
+                guard let snapshot, snapshot.exists else {
+                    completion(.missing)
+                    return
+                }
+
+                completion(.exists(try? snapshot.data(as: AppUser.self)))
+            }
+        }
+    }
+
     private func handleMissingFirestoreProfile(userId: String) {
         guard let user = Auth.auth().currentUser, user.uid == userId else {
             forceLogout(signOut: true)
             return
         }
-        beginOnboardingResume(for: user)
+
+        confirmProfileMissingOnServer(userId: userId) { [weak self] result in
+            guard let self, let currentAuthUser = Auth.auth().currentUser, currentAuthUser.uid == userId else { return }
+
+            switch result {
+            case .missing:
+                // Confirmado por el servidor: registro incompleto real
+                self.beginOnboardingResume(for: currentAuthUser)
+
+            case .exists(let appUser):
+                // El perfil SÍ existe: el fallo anterior fue transitorio. Restaurar sesión.
+                if let appUser {
+                    if appUser.isActive {
+                        self.hydrateAuthenticatedSession(user: currentAuthUser, userData: appUser)
+                    } else {
+                        self.saveCachedAccountStatus(userId: userId, decision: .deactivated)
+                        self.applyDeactivatedSession(user: currentAuthUser, userData: appUser)
+                    }
+                } else {
+                    // Existe pero no se pudo parsear directamente: usar el fetch normal
+                    // (incluye decodificación manual de respaldo). Nunca reanudar onboarding aquí.
+                    self.firestoreService.fetchUser(userId: userId) { result in
+                        DispatchQueue.main.async {
+                            switch result {
+                            case .success(let userData):
+                                if userData.isActive {
+                                    self.hydrateAuthenticatedSession(user: currentAuthUser, userData: userData)
+                                } else {
+                                    self.saveCachedAccountStatus(userId: userId, decision: .deactivated)
+                                    self.applyDeactivatedSession(user: currentAuthUser, userData: userData)
+                                }
+                            case .failure:
+                                self.forceLogout(signOut: true)
+                            }
+                        }
+                    }
+                }
+
+            case .unreachable:
+                // Sin red no podemos afirmar nada. Solo reanudar onboarding si hay un
+                // borrador local de ESTE usuario (registro incompleto genuino offline).
+                if let draft = OnboardingDraftStore.load(),
+                   draft.firebaseUID == userId,
+                   !OnboardingDraftStore.isExpired(draft) {
+                    self.beginOnboardingResume(for: currentAuthUser)
+                } else {
+                    self.forceLogout(signOut: true)
+                }
+            }
+        }
     }
 
     private func resolveAuthenticatedUserForRegistration(
@@ -1103,11 +1179,78 @@ class AuthService: ObservableObject {
                     return
                 }
 
-                self.authQueue.async { self._transitionLock = false }
-                self.beginOnboardingResume(for: user)
-                completion(.success(()))
+                // ✅ No hay datos de perfil: antes de mandar al usuario a "continuar donde
+                // lo dejaste", confirmar contra el SERVIDOR que el perfil realmente no existe.
+                // Un fallo transitorio de red no debe disparar el flujo de onboarding.
+                self.isVerifyingAccount = true
+                self.authState = .verifyingAccount
+
+                self.confirmProfileMissingOnServer(userId: user.uid) { result in
+                    self.isVerifyingAccount = false
+
+                    switch result {
+                    case .missing:
+                        self.authQueue.async { self._transitionLock = false }
+                        self.beginOnboardingResume(for: user)
+                        completion(.success(()))
+
+                    case .exists(let appUser):
+                        if let appUser {
+                            if appUser.isActive {
+                                self.hydrateAuthenticatedSession(user: user, userData: appUser)
+                            } else {
+                                self.saveCachedAccountStatus(userId: user.uid, decision: .deactivated)
+                                self.applyDeactivatedSession(user: user, userData: appUser)
+                            }
+                            self.authQueue.async { self._transitionLock = false }
+                            completion(.success(()))
+                        } else {
+                            self.firestoreService.fetchUser(userId: user.uid) { fetchResult in
+                                DispatchQueue.main.async {
+                                    self.authQueue.async { self._transitionLock = false }
+                                    switch fetchResult {
+                                    case .success(let userData):
+                                        if userData.isActive {
+                                            self.hydrateAuthenticatedSession(user: user, userData: userData)
+                                        } else {
+                                            self.saveCachedAccountStatus(userId: user.uid, decision: .deactivated)
+                                            self.applyDeactivatedSession(user: user, userData: userData)
+                                        }
+                                        completion(.success(()))
+                                    case .failure(let error):
+                                        self.failCredentialLogin(error: error, completion: completion)
+                                    }
+                                }
+                            }
+                        }
+
+                    case .unreachable:
+                        self.authQueue.async { self._transitionLock = false }
+                        self.failCredentialLogin(
+                            error: NSError(
+                                domain: "",
+                                code: -1009,
+                                userInfo: [NSLocalizedDescriptionKey: NSLocalizedString("auth.error.network", comment: "Network error")]
+                            ),
+                            completion: completion
+                        )
+                    }
+                }
             }
         }
+    }
+
+    /// El sign-in de Firebase tuvo éxito pero no pudimos verificar la cuenta.
+    /// Cerramos sesión y devolvemos el error para que el usuario reintente,
+    /// en lugar de mostrarle un flujo de onboarding que no le corresponde.
+    private func failCredentialLogin(error: Error, completion: @escaping (Result<Void, Error>) -> Void) {
+        try? Auth.auth().signOut()
+        currentFirebaseUser = nil
+        isLoggedIn = false
+        currentUser = nil
+        isVerifyingAccount = false
+        authState = .unauthenticated
+        completion(.failure(error))
     }
 
     private nonisolated func isMissingUserProfileError(_ error: Error) -> Bool {

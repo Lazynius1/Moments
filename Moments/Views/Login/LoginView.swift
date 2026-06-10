@@ -452,6 +452,10 @@ struct EnhancedLoginButton: View {
                     ProgressView()
                         .progressViewStyle(CircularProgressViewStyle(tint: primaryText))
                         .scaleEffect(0.75)
+                    Text("login.signingIn")
+                        .font(.system(size: AuthFormMetrics.buttonFontSize, weight: .semibold))
+                        .foregroundColor(primaryText)
+                        .transition(.opacity)
                 } else {
                     Text("login.signIn")
                         .font(.system(size: AuthFormMetrics.buttonFontSize, weight: .semibold))
