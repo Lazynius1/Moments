@@ -8262,6 +8262,163 @@ exports.getAuthorStoryBundle = onRequest(
 );
 
 /**
+ * Map visibility helpers — server-side only; never leak hidden / onlyMe content on map surfaces.
+ */
+function isMapContentVisible(data) {
+  if (!data || typeof data !== 'object') return false;
+  // Derived server-side from "has location + audience"; not a separate user opt-out.
+  if (data.mapVisibility === 'hidden') return false;
+  if (data.audience === 'onlyMe') return false;
+  return true;
+}
+
+function shouldFuzzMapCoordinate(audience, authorData) {
+  const normalizedAudience = audience || 'everyone';
+  if (normalizedAudience === 'onlyMe') return true;
+  if (authorData && authorData.isPrivate === true && normalizedAudience !== 'everyone') {
+    return true;
+  }
+  return normalizedAudience !== 'everyone';
+}
+
+function hashStringToUnit(seed) {
+  let hash = 2166136261;
+  const input = String(seed || '');
+  for (let i = 0; i < input.length; i += 1) {
+    hash ^= input.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  return (hash >>> 0) / 4294967295;
+}
+
+function fuzzMapCoordinate(coordinate, seed) {
+  const lat = Number(coordinate && coordinate.latitude);
+  const lon = Number(coordinate && coordinate.longitude);
+  if (!Number.isFinite(lat) || !Number.isFinite(lon)) return coordinate;
+
+  const angle = hashStringToUnit(`${seed}|angle`) * Math.PI * 2;
+  const distanceMeters = 180 + (hashStringToUnit(`${seed}|distance`) * 220);
+  const latOffset = (distanceMeters / 111320) * Math.sin(angle);
+  const cosLat = Math.max(0.2, Math.cos((lat * Math.PI) / 180));
+  const lonOffset = (distanceMeters / (111320 * cosLat)) * Math.cos(angle);
+
+  return {
+    latitude: Math.max(-90, Math.min(90, lat + latOffset)),
+    longitude: Math.max(-180, Math.min(180, lon + lonOffset))
+  };
+}
+
+function serializeMomentForMap(docId, data, authorData) {
+  const serialized = serializeMoment(docId, data);
+  const audience = data.audience || 'everyone';
+  if (serialized.locationCoordinate && shouldFuzzMapCoordinate(audience, authorData)) {
+    serialized.locationCoordinate = fuzzMapCoordinate(
+      serialized.locationCoordinate,
+      `${data.authorId || ''}|${docId}`
+    );
+    serialized.locationFuzzed = true;
+  }
+  return serialized;
+}
+
+function extractStoryMapLocation(data) {
+  if (!data || typeof data !== 'object') return null;
+
+  const denormalized = data.mapLocation || null;
+  if (denormalized && typeof denormalized === 'object') {
+    const lat = Number(denormalized.latitude);
+    const lon = Number(denormalized.longitude);
+    if (Number.isFinite(lat) && Number.isFinite(lon)) {
+      const locationName = typeof denormalized.locationName === 'string'
+        ? denormalized.locationName.trim()
+        : '';
+      return { latitude: lat, longitude: lon, locationName };
+    }
+  }
+
+  const stickers = Array.isArray(data.stickers) ? data.stickers : [];
+  for (const sticker of stickers) {
+    if (!sticker || typeof sticker !== 'object') continue;
+    if (sticker.type !== 'location') continue;
+    const lat = Number(sticker.latitude);
+    const lon = Number(sticker.longitude);
+    if (!Number.isFinite(lat) || !Number.isFinite(lon)) continue;
+    const locationName = typeof sticker.location === 'string' ? sticker.location.trim() : '';
+    return { latitude: lat, longitude: lon, locationName };
+  }
+
+  return null;
+}
+
+function storyMatchesMapLocationName(mapLocation, locationName) {
+  if (!mapLocation || !locationName) return false;
+  const normalizedTarget = String(locationName).trim().toLowerCase();
+  const normalizedSource = String(mapLocation.locationName || '').trim().toLowerCase();
+  if (!normalizedTarget || !normalizedSource) return false;
+  return normalizedSource === normalizedTarget
+    || normalizedSource.includes(normalizedTarget)
+    || normalizedTarget.includes(normalizedSource);
+}
+
+function storyMatchesMapRegion(mapLocation, latitudeMin, latitudeMax, longitudeMin, longitudeMax) {
+  if (!mapLocation) return false;
+  const lat = Number(mapLocation.latitude);
+  const lon = Number(mapLocation.longitude);
+  if (!Number.isFinite(lat) || !Number.isFinite(lon)) return false;
+  return lat >= latitudeMin && lat <= latitudeMax && lon >= longitudeMin && lon <= longitudeMax;
+}
+
+function serializeMapStory(docId, data, mapLocation, authorData) {
+  const audience = data.audience || 'everyone';
+  let coordinate = {
+    latitude: mapLocation.latitude,
+    longitude: mapLocation.longitude
+  };
+  if (shouldFuzzMapCoordinate(audience, authorData)) {
+    coordinate = fuzzMapCoordinate(coordinate, `${data.authorId || ''}|story|${docId}`);
+  }
+
+  return {
+    id: docId,
+    authorId: data.authorId || '',
+    username: data.username || '',
+    profileImagePath: data.profileImagePath || null,
+    timestamp: tsToMillis(data.timestamp),
+    expirationDate: tsToMillis(data.expirationDate),
+    audience,
+    locationName: mapLocation.locationName || null,
+    locationCoordinate: coordinate,
+    locationFuzzed: shouldFuzzMapCoordinate(audience, authorData),
+    previewUrl: pickStoryPreviewUrl(data),
+    contentType: 'story'
+  };
+}
+
+async function fetchMapStoryCandidates(db, uid, viewerCtx, mode, filters, limit) {
+  const candidateUserIds = await buildMapFallbackCandidateUserIds(uid, viewerCtx, db);
+  const now = admin.firestore.Timestamp.now();
+  const storyDocs = await fetchActiveStoryDocsForAuthors(db, candidateUserIds, now);
+
+  return storyDocs.filter(({ data }) => {
+    if (!isMapContentVisible(data)) return false;
+    const mapLocation = extractStoryMapLocation(data);
+    if (!mapLocation) return false;
+
+    if (mode === 'location') {
+      return storyMatchesMapLocationName(mapLocation, filters.locationName || '');
+    }
+
+    return storyMatchesMapRegion(
+      mapLocation,
+      filters.latitudeMin,
+      filters.latitudeMax,
+      filters.longitudeMin,
+      filters.longitudeMax
+    );
+  }).slice(0, Math.max(limit * 4, 200));
+}
+
+/**
  * 🗺️ getMapMomentsPage — Returns moments visible to the viewer for map surfaces.
  *
  * POST body:
@@ -8389,6 +8546,8 @@ exports.getMapMomentsPage = onRequest(
       const candidateDocs = snapshot.docs.filter((doc) => {
         const data = doc.data() || {};
 
+        if (!isMapContentVisible(data)) return false;
+
         if (data.isArchived === true) return false;
 
         if (data.authorId !== uid) {
@@ -8439,7 +8598,10 @@ exports.getMapMomentsPage = onRequest(
         })
         .slice(0, limit);
 
-      const moments = visible.map(({ doc, data }) => serializeMoment(doc.id, data));
+      const moments = visible.map(({ doc, data }) => {
+        const authorData = authorMap.get(data.authorId);
+        return serializeMomentForMap(doc.id, data, authorData);
+      });
 
       const pathTag = usedFallbackPath ? 'fallback_author_batches' : 'geo_query';
       console.log(`✅ getMapMomentsPage: uid=${uid}, scope=${debugScope}, path=${pathTag}, candidates=${candidateDocs.length}, visible=${visible.length}, returned=${moments.length}`);
@@ -8452,6 +8614,158 @@ exports.getMapMomentsPage = onRequest(
     } catch (error) {
       console.error('❌ getMapMomentsPage error:', error);
       res.status(500).json({ error: 'Map moments fetch failed', details: error.message });
+    }
+  }
+);
+
+/**
+ * 🗺️ getMapStoriesPage — Active stories with location stickers visible to the viewer.
+ *
+ * POST body mirrors getMapMomentsPage.
+ * Response: { stories: [...], source: "backend", totalCandidates: number }
+ */
+exports.getMapStoriesPage = onRequest(
+  {
+    timeoutSeconds: 30,
+    memory: '512MiB',
+    concurrency: 40
+  },
+  async (req, res) => {
+    setProxyCors(res);
+    if (req.method === 'OPTIONS') {
+      res.status(204).send('');
+      return;
+    }
+    if (req.method !== 'POST') {
+      res.status(405).json({ error: 'Method not allowed' });
+      return;
+    }
+
+    const uid = await verifyFirebaseAuth(req, res);
+    if (!uid) return;
+
+    const body = parseJsonBody(req);
+    const mode = body.mode === 'location' ? 'location' : 'region';
+    const rawLimit = Number(body.limit);
+    const limit = Number.isFinite(rawLimit) ? Math.max(1, Math.min(rawLimit, 120)) : 80;
+    const db = admin.firestore();
+
+    try {
+      const viewerCtx = await buildViewerContext(uid);
+
+      let latitudeMin = -90;
+      let latitudeMax = 90;
+      let longitudeMin = -180;
+      let longitudeMax = 180;
+      let debugScope = 'region';
+
+      if (mode === 'location') {
+        const locationName = typeof body.locationName === 'string' ? body.locationName.trim() : '';
+        if (!locationName) {
+          res.status(400).json({ error: 'Missing locationName' });
+          return;
+        }
+        debugScope = `location:${locationName}`;
+      } else {
+        const centerLatitude = Number(body.centerLatitude);
+        const centerLongitude = Number(body.centerLongitude);
+        const latitudeDelta = Number(body.latitudeDelta);
+        const longitudeDelta = Number(body.longitudeDelta);
+
+        const validRegion = Number.isFinite(centerLatitude)
+          && Number.isFinite(centerLongitude)
+          && Number.isFinite(latitudeDelta)
+          && Number.isFinite(longitudeDelta)
+          && latitudeDelta > 0
+          && longitudeDelta > 0;
+
+        if (!validRegion) {
+          res.status(400).json({ error: 'Invalid region payload' });
+          return;
+        }
+
+        latitudeMin = Math.max(-90, centerLatitude - (latitudeDelta / 2));
+        latitudeMax = Math.min(90, centerLatitude + (latitudeDelta / 2));
+        longitudeMin = Math.max(-180, centerLongitude - (longitudeDelta / 2));
+        longitudeMax = Math.min(180, centerLongitude + (longitudeDelta / 2));
+      }
+
+      const filters = mode === 'location'
+        ? { locationName: typeof body.locationName === 'string' ? body.locationName.trim() : '' }
+        : { latitudeMin, latitudeMax, longitudeMin, longitudeMax };
+
+      const candidateStories = await fetchMapStoryCandidates(
+        db,
+        uid,
+        viewerCtx,
+        mode,
+        filters,
+        limit
+      );
+
+      const authorIds = [...new Set(candidateStories.map(({ data }) => data.authorId).filter(Boolean))];
+      const authorMap = await batchLoadAuthorDocs(authorIds);
+
+      const customCandidates = candidateStories.map(({ doc, data }) => ({
+        id: doc.id,
+        authorId: data.authorId,
+        audience: data.audience
+      })).filter((story) => story.audience === 'custom');
+      const customAllowanceMap = await preloadCustomStoryAllowanceMap(customCandidates, uid, db);
+
+      const privacyResults = await Promise.all(
+        candidateStories.map(async ({ doc, data }) => {
+          const authorData = authorMap.get(data.authorId);
+          if (!authorData) return null;
+
+          const mapLocation = extractStoryMapLocation(data);
+          if (!mapLocation) return null;
+
+          const storyForCheck = {
+            id: doc.id,
+            authorId: data.authorId,
+            audience: data.audience,
+            customListId: data.customListId
+          };
+
+          const canView = await canViewerSeeStoryOptimized(
+            storyForCheck,
+            uid,
+            viewerCtx,
+            authorData,
+            customAllowanceMap
+          );
+          if (!canView) return null;
+
+          return { doc, data, mapLocation };
+        })
+      );
+
+      const visible = privacyResults
+        .filter(Boolean)
+        .sort((a, b) => {
+          const tsA = tsToMillis(a.data.timestamp) || 0;
+          const tsB = tsToMillis(b.data.timestamp) || 0;
+          if (tsB !== tsA) return tsB - tsA;
+          return String(b.doc.id).localeCompare(String(a.doc.id));
+        })
+        .slice(0, limit);
+
+      const stories = visible.map(({ doc, data, mapLocation }) => {
+        const authorData = authorMap.get(data.authorId);
+        return serializeMapStory(doc.id, data, mapLocation, authorData);
+      });
+
+      console.log(`✅ getMapStoriesPage: uid=${uid}, scope=${debugScope}, candidates=${candidateStories.length}, visible=${visible.length}, returned=${stories.length}`);
+
+      res.status(200).json({
+        stories,
+        source: 'backend',
+        totalCandidates: candidateStories.length
+      });
+    } catch (error) {
+      console.error('❌ getMapStoriesPage error:', error);
+      res.status(500).json({ error: 'Map stories fetch failed', details: error.message });
     }
   }
 );

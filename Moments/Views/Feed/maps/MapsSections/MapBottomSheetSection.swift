@@ -3,7 +3,6 @@ import AVFoundation
 import Kingfisher
 
 struct LocationBottomSheet: View {
-    @Binding var isPresented: Bool
     let moments: [Moment]
     let momentAvailability: [String: Bool]
     let isLoadingMoments: Bool
@@ -11,13 +10,10 @@ struct LocationBottomSheet: View {
     let colorScheme: ColorScheme
     let onMomentTap: (Moment) -> Void
 
-    @State private var offset: CGFloat = UIScreen.main.bounds.height
     @State private var viewMode: ViewMode = .gallery
-    @State private var dragStartOffset: CGFloat = 0
 
-    private let sheetLargeOffset: CGFloat = 0
-    private let sheetMediumOffset: CGFloat = 170
-    private let sheetHiddenOffset: CGFloat = UIScreen.main.bounds.height + 60
+    private let gridSpacing: CGFloat = 1
+    private let gridColumns = 3
 
     enum ViewMode: String, CaseIterable {
         case gallery = "gallery"
@@ -35,165 +31,81 @@ struct LocationBottomSheet: View {
         AdaptiveColors(colorScheme: colorScheme)
     }
 
+    private var uniqueContributors: [Moment] {
+        var seen = Set<String>()
+        return moments.filter { moment in
+            guard !seen.contains(moment.authorId) else { return false }
+            seen.insert(moment.authorId)
+            return true
+        }
+    }
+
+    private var statsText: String {
+        String(
+            format: NSLocalizedString("maps.bottomSheet.stats", comment: "Moments and contributor count"),
+            moments.count,
+            uniqueContributors.count
+        )
+    }
+
     var body: some View {
-        GeometryReader { geometry in
-            ZStack {
-                // Eliminamos el fondo oscuro para permitir navegación en el mapa
-
-                VStack {
-                    Spacer()
-
-                    VStack(spacing: 0) {
-                        dragHandle
-                        bottomSheetHeader
-                        bottomSheetContent
-                    }
-                    .background(glassmorphicBackground)
-                    .clipShape(RoundedRectangle(cornerRadius: 24))
-                    .shadow(color: adaptiveColors.shadowColor, radius: 20, x: 0, y: -8)
-                    .offset(y: offset)
-                    // Eliminamos el frames fijos aquí para que el contenido mande si es poco
-                    .frame(maxHeight: min(geometry.size.height * 0.8, geometry.size.height - 100), alignment: .bottom)
-                }
-            }
+        VStack(spacing: 0) {
+            bottomSheetHeader
+            bottomSheetContent
         }
-        .animation(.interactiveSpring(response: 0.6, dampingFraction: 0.8), value: offset)
-        .onAppear {
-            if isPresented {
-                showBottomSheet()
-            }
-        }
-        .onChange(of: isPresented) { _, presented in
-            if presented {
-                showBottomSheet()
-            } else {
-                hideBottomSheet()
-            }
-        }
-        .onChange(of: moments.count) { _, _ in
-            if isPresented && offset > 50 {
-                showBottomSheet()
-            }
-        }
-    }
-
-    // ✅ FONDO GLASSMORPHIC MEJORADO (Transpariencia máxima)
-    private var glassmorphicBackground: some View {
-        ZStack {
-            Color.clear
-                .liquidGlass(in: RoundedRectangle(cornerRadius: 24, style: .continuous))
-
-            RoundedRectangle(cornerRadius: 24, style: .continuous)
-                .stroke(
-                    LinearGradient(
-                        colors: adaptiveColors.overlayStroke,
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    ),
-                    lineWidth: 0.75
-                )
-        }
-    }
-
-    // ✅ HANDLE DRAG
-    private var dragHandle: some View {
-        Capsule()
-            .fill(
-                LinearGradient(
-                    colors: [
-                        adaptiveColors.tertiary.opacity(0.42),
-                        adaptiveColors.tertiary.opacity(0.26)
-                    ],
-                    startPoint: .top,
-                    endPoint: .bottom
-                )
-            )
-            .frame(width: 42, height: 5)
-            .overlay(
-                Capsule()
-                    .stroke(Color.white.opacity(colorScheme == .dark ? 0.16 : 0.22), lineWidth: 0.5)
-            )
-            .shadow(color: .black.opacity(colorScheme == .dark ? 0.18 : 0.08), radius: 6, x: 0, y: 2)
-            .padding(.top, 12)
-            .padding(.bottom, 6)
-            .gesture(dragGesture)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
     }
 
     // ✅ HEADER CON GLASSMORPHISM
     private var bottomSheetHeader: some View {
         VStack(spacing: 0) {
-            HStack(alignment: .top, spacing: 16) {
-                VStack(alignment: .leading, spacing: 6) {
+            VStack(spacing: 10) {
+                HStack(alignment: .center, spacing: 12) {
+                    ZStack {
+                        Circle()
+                            .fill(Color.clear)
+                            .frame(width: 40, height: 40)
+                            .liquidGlass(in: Circle(), interactive: false)
+
+                        Image(systemName: "mappin.circle.fill")
+                            .font(.system(size: 22, weight: .semibold))
+                            .foregroundStyle(
+                                LinearGradient(
+                                    colors: [adaptiveColors.accent, adaptiveColors.accent.opacity(0.75)],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                )
+                            )
+                    }
+
                     Text(locationName)
-                        .font(.custom("Poppins-Bold", size: 22))
+                        .font(.custom("Poppins-Bold", size: 18))
                         .foregroundColor(adaptiveColors.primary)
                         .lineLimit(1)
 
-                    HStack(spacing: 8) {
-                        Text(String(format: NSLocalizedString("maps.bottomSheet.moments", comment: "Number of moments in location"), moments.count))
-                            .font(.custom("Poppins-Regular", size: 14))
-                            .foregroundColor(adaptiveColors.secondary)
+                    Spacer()
 
-
+                    if !moments.isEmpty {
+                        viewModeToggle
                     }
                 }
 
-                Spacer()
+                HStack(spacing: 10) {
+                    Text(statsText)
+                        .font(.custom("Poppins-Regular", size: 13))
+                        .foregroundColor(adaptiveColors.secondary)
+                        .lineLimit(1)
 
-                // ✅ TOGGLE VIEW MODE CON GLASSMORPHISM
-                if !moments.isEmpty {
-                    HStack(spacing: 2) {
-                        ForEach(ViewMode.allCases, id: \.self) { mode in
-                            Button(action: {
-                                withAnimation(.easeInOut(duration: 0.2)) {
-                                    viewMode = mode
-                                }
-                            }) {
-                                Image(systemName: mode.icon)
-                                    .font(.system(size: 16, weight: .medium))
-                                    .foregroundColor(viewMode == mode ? .white : adaptiveColors.tertiary)
-                                    .frame(width: 36, height: 36)
-                                    .background(
-                                        RoundedRectangle(cornerRadius: 10)
-                                            .fill(
-                                                viewMode == mode ?
-                                                LinearGradient(
-                                                    colors: [adaptiveColors.accent, adaptiveColors.accent.opacity(0.8)],
-                                                    startPoint: .topLeading,
-                                                    endPoint: .bottomTrailing
-                                                ) :
-                                                LinearGradient(
-                                                    colors: [Color.clear],
-                                                    startPoint: .topLeading,
-                                                    endPoint: .bottomTrailing
-                                                )
-                                            )
-                                    )
-                                    .animation(.easeInOut(duration: 0.2), value: viewMode)
-                            }
-                        }
+                    Spacer()
+
+                    if !uniqueContributors.isEmpty {
+                        contributorAvatarStack
                     }
-                    .padding(4)
-                    .background(
-                        Color.clear
-                            .liquidGlass(in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 14, style: .continuous)
-                                    .stroke(
-                                        LinearGradient(
-                                            colors: adaptiveColors.overlayStroke,
-                                            startPoint: .topLeading,
-                                            endPoint: .bottomTrailing
-                                        ),
-                                        lineWidth: 1
-                                    )
-                            )
-                    )
-                    .shadow(color: adaptiveColors.shadowColor, radius: 4, x: 0, y: 2)
                 }
             }
             .padding(.horizontal, 20)
-            .padding(.bottom, 8)
+            .padding(.top, 8)
+            .padding(.bottom, 10)
 
             // ✅ SEPARADOR GLASSMORPHIC
             if !moments.isEmpty && !isLoadingMoments {
@@ -207,6 +119,89 @@ struct LocationBottomSheet: View {
                     )
                     .frame(height: 0.5)
                     .padding(.horizontal, 20)
+            }
+        }
+    }
+
+    private var viewModeToggle: some View {
+        HStack(spacing: 2) {
+            ForEach(ViewMode.allCases, id: \.self) { mode in
+                Button(action: {
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        viewMode = mode
+                    }
+                }) {
+                    Image(systemName: mode.icon)
+                        .font(.system(size: 16, weight: .medium))
+                        .foregroundColor(viewMode == mode ? .white : adaptiveColors.tertiary)
+                        .frame(width: 36, height: 36)
+                        .background(
+                            RoundedRectangle(cornerRadius: 10)
+                                .fill(
+                                    viewMode == mode ?
+                                    LinearGradient(
+                                        colors: [adaptiveColors.accent, adaptiveColors.accent.opacity(0.8)],
+                                        startPoint: .topLeading,
+                                        endPoint: .bottomTrailing
+                                    ) :
+                                    LinearGradient(
+                                        colors: [Color.clear],
+                                        startPoint: .topLeading,
+                                        endPoint: .bottomTrailing
+                                    )
+                                )
+                        )
+                        .animation(.easeInOut(duration: 0.2), value: viewMode)
+                }
+            }
+        }
+        .padding(4)
+        .background(
+            Color.clear
+                .liquidGlass(in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 14, style: .continuous)
+                        .stroke(
+                            LinearGradient(
+                                colors: adaptiveColors.overlayStroke,
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            ),
+                            lineWidth: 1
+                        )
+                )
+        )
+        .shadow(color: adaptiveColors.shadowColor, radius: 4, x: 0, y: 2)
+    }
+
+    private var contributorAvatarStack: some View {
+        HStack(spacing: -10) {
+            ForEach(Array(uniqueContributors.prefix(3)), id: \.authorId) { moment in
+                StoryRingAvatarView(
+                    userId: moment.authorId,
+                    size: 30,
+                    lineWidth: 1.5
+                )
+                .overlay(
+                    Circle()
+                        .stroke(adaptiveColors.background.opacity(0.9), lineWidth: 2)
+                )
+            }
+
+            if uniqueContributors.count > 3 {
+                Text("+\(uniqueContributors.count - 3)")
+                    .font(.custom("Poppins-SemiBold", size: 11))
+                    .foregroundColor(adaptiveColors.primary)
+                    .frame(width: 30, height: 30)
+                    .background(
+                        Circle()
+                            .fill(Color.clear)
+                            .liquidGlass(in: Circle(), interactive: false)
+                    )
+                    .overlay(
+                        Circle()
+                            .stroke(adaptiveColors.background.opacity(0.9), lineWidth: 2)
+                    )
             }
         }
     }
@@ -234,63 +229,29 @@ struct LocationBottomSheet: View {
                     .padding(.bottom, 30)
                 }
                 .scrollIndicators(.hidden)
-                .scrollDisabled(viewMode == .gallery && moments.count <= 3)
-                .frame(maxHeight: viewMode == .list ? UIScreen.main.bounds.height * 0.68 : (moments.count <= 3 ? 320 : 500))
             }
         }
     }
 
-    // ✅ VISTA DE GALERÍA MEJORADA (Grid estilo Explorer)
+    // ✅ VISTA DE GALERÍA (grid compacto tipo perfil, fondo glass conservado)
     private var galleryView: some View {
-        LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 2), count: 3), spacing: 2) {
+        LazyVGrid(
+            columns: Array(repeating: GridItem(.flexible(), spacing: gridSpacing), count: gridColumns),
+            spacing: gridSpacing
+        ) {
             ForEach(moments) { moment in
                 let isAvailable = momentAvailability[moment.mapAvailabilityKey] ?? true
                 Button(action: { onMomentTap(moment) }) {
-                    GeometryReader { geometry in
-                        ZStack {
-                            // Fondo material por si la imagen tarda o es pequeña
-                            Rectangle()
-                                .fill(.ultraThinMaterial)
-
-                            // ✅ DETECTAR SI ES VIDEO O IMAGEN
-                            if moment.mapHasVideoMedia {
-                                MapsVideoThumbnailView(
-                                    moment: moment,
-                                    size: CGSize(width: geometry.size.width, height: geometry.size.width),
-                                    cornerRadius: 0,
-                                    colorScheme: colorScheme
-                                )
-                            } else {
-                                KFImage(URL(string: moment.mapPreferredImageURL ?? ""))
-                                    .placeholder {
-                                        ProgressView()
-                                            .tint(adaptiveColors.accent)
-                                            .scaleEffect(0.6)
-                                    }
-                                    .resizable()
-                                    .aspectRatio(contentMode: .fill)
-                                    .frame(width: geometry.size.width, height: geometry.size.width)
-                                    .clipped()
-                            }
-                        }
-                        .blur(radius: isAvailable ? 0 : 14)
-                        .overlay {
-                            if !isAvailable {
-                                MomentUnavailableOverlay(compact: true, cornerRadius: 4)
-                            }
-                        }
-                    }
-                    .aspectRatio(1, contentMode: .fit)
+                    MapBottomSheetGridCell(
+                        moment: moment,
+                        colorScheme: colorScheme,
+                        isAvailable: isAvailable
+                    )
                 }
-                .buttonStyle(PlainButtonStyle())
-                .clipShape(RoundedRectangle(cornerRadius: 4))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 4)
-                        .stroke(Color.white.opacity(0.1), lineWidth: 0.5)
-                )
+                .buttonStyle(.plain)
             }
         }
-        .padding(.horizontal, 16)
+        .padding(.horizontal, 2)
     }
 
     // ✅ VISTA DE LISTA MODERNA (Estilo Feed)
@@ -393,77 +354,91 @@ struct LocationBottomSheet: View {
         }
         .frame(height: 300)
     }
+}
 
-    // ✅ GESTOS Y ANIMACIONES
-    private var dragGesture: some Gesture {
-        DragGesture()
-            .onChanged { value in
-                if abs(value.translation.height) < 0.5 {
-                    dragStartOffset = offset
-                }
-                let proposed = dragStartOffset + value.translation.height
-                offset = min(max(proposed, sheetLargeOffset), sheetHiddenOffset)
-            }
-            .onEnded { value in
-                let velocity = value.predictedEndTranslation.height
+struct MapLocationSystemSheetModifier: ViewModifier {
+    @Binding var selectedDetent: PresentationDetent
 
-                if velocity > 280 || offset > 240 {
-                    hideBottomSheet()
-                } else if velocity < -180 || offset < 85 {
-                    snapToLarge()
+    func body(content: Content) -> some View {
+        content
+            .presentationDetents(
+                [.fraction(0.38), .medium, .large],
+                selection: $selectedDetent
+            )
+            .presentationDragIndicator(.visible)
+            .presentationCornerRadius(24)
+            .presentationBackgroundInteraction(.enabled(upThrough: .medium))
+            .presentationBackground(.clear)
+    }
+}
+
+extension View {
+    func mapLocationSystemSheet(detent: Binding<PresentationDetent>) -> some View {
+        modifier(MapLocationSystemSheetModifier(selectedDetent: detent))
+    }
+}
+
+struct MapBottomSheetGridCell: View {
+    let moment: Moment
+    let colorScheme: ColorScheme
+    let isAvailable: Bool
+
+    private var adaptiveColors: AdaptiveColors {
+        AdaptiveColors(colorScheme: colorScheme)
+    }
+
+    private var hasMultipleMedia: Bool {
+        (moment.mediaItems?.count ?? 0) > 1
+    }
+
+    var body: some View {
+        GeometryReader { geometry in
+            ZStack {
+                Rectangle()
+                    .fill(.ultraThinMaterial)
+
+                if moment.mapHasVideoMedia {
+                    MapsVideoThumbnailView(
+                        moment: moment,
+                        size: CGSize(width: geometry.size.width, height: geometry.size.width),
+                        cornerRadius: 0,
+                        colorScheme: colorScheme
+                    )
                 } else {
-                    snapToMedium()
+                    KFImage(URL(string: moment.mapPreferredImageURL ?? ""))
+                        .placeholder {
+                            ProgressView()
+                                .tint(adaptiveColors.accent)
+                                .scaleEffect(0.6)
+                        }
+                        .resizable()
+                        .aspectRatio(contentMode: .fill)
+                        .frame(width: geometry.size.width, height: geometry.size.width)
+                        .clipped()
+                }
+
+                if hasMultipleMedia {
+                    VStack {
+                        HStack {
+                            Spacer()
+                            Image(systemName: "square.on.square")
+                                .font(.system(size: 11, weight: .semibold))
+                                .foregroundColor(.white)
+                                .shadow(color: .black.opacity(0.45), radius: 2, x: 0, y: 1)
+                                .padding(6)
+                        }
+                        Spacer()
+                    }
                 }
             }
-    }
-
-    // ✅ FUNCIONES DE ANIMACIÓN
-    private func showBottomSheet() {
-        withAnimation(.interactiveSpring(response: 0.6, dampingFraction: 0.8)) {
-            offset = sheetMediumOffset
+            .blur(radius: isAvailable ? 0 : 14)
+            .overlay {
+                if !isAvailable {
+                    MomentUnavailableOverlay(compact: true, cornerRadius: 0)
+                }
+            }
         }
-    }
-
-    private func hideBottomSheet() {
-        withAnimation(.interactiveSpring(response: 0.5, dampingFraction: 0.9)) {
-            offset = sheetHiddenOffset
-        }
-
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-            isPresented = false
-        }
-    }
-
-    private func snapToMedium() {
-        withAnimation(.interactiveSpring(response: 0.5, dampingFraction: 0.85)) {
-            offset = sheetMediumOffset
-        }
-    }
-
-    private func snapToLarge() {
-        withAnimation(.interactiveSpring(response: 0.5, dampingFraction: 0.85)) {
-            offset = sheetLargeOffset
-        }
-    }
-
-    // ✅ HELPER PARA COLORES DEL CLIMA
-    private func getWeatherColor(_ condition: WeatherCondition) -> Color {
-        switch condition {
-        case .clear:
-            return .yellow
-        case .partlyCloudy:
-            return .orange
-        case .cloudy:
-            return .gray
-        case .rain:
-            return .blue
-        case .snow:
-            return .white
-        case .thunderstorm:
-            return .purple
-        case .unknown:
-            return adaptiveColors.secondary
-        }
+        .aspectRatio(1, contentMode: .fit)
     }
 }
 

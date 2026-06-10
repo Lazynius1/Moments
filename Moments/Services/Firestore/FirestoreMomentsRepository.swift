@@ -796,6 +796,10 @@ extension FirestoreService {
                     momentData["mediaItems"] = self.serializedMediaItems(mediaItems, encoder: encoder)
                     momentData["hasHiddenLayers"] = false
                     momentData["hiddenLayerCount"] = 0
+                    momentData["mapVisibility"] = MapVisibilityPolicy.resolvedVisibility(
+                        hasLocation: location != nil || locationCoordinate != nil,
+                        audience: contentAudience.rawValue
+                    )
                     let resolvedMomentId = momentId ?? UUID().uuidString
 
                     if audienceSetting == .custom, let customViewers, !customViewers.isEmpty {
@@ -918,6 +922,10 @@ extension FirestoreService {
                     momentData["mediaItems"] = self.serializedMediaItems(mediaItems, encoder: encoder)
                     momentData["hasHiddenLayers"] = false
                     momentData["hiddenLayerCount"] = 0
+                    momentData["mapVisibility"] = MapVisibilityPolicy.resolvedVisibility(
+                        hasLocation: location != nil || locationCoordinate != nil,
+                        audience: ContentAudience.customList.rawValue
+                    )
 
                     let resolvedMomentId = momentId ?? UUID().uuidString
                     self.db.collection("users")

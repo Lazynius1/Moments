@@ -3,18 +3,21 @@ import CoreLocation
 import MapKit
 import FirebaseAuth
 import FirebaseCore
-import FirebaseFirestore
 
 class LocationSearchService {
     static let shared = LocationSearchService()
-    private let db = Firestore.firestore()
-    private let privacyService = PrivacyService()
     private let functionsRegion = "europe-southwest1"
 
     private init() {}
 
     private struct BackendMapMomentsResponse: Codable {
         let moments: [BackendMoment]
+        let source: String?
+        let totalCandidates: Int?
+    }
+
+    private struct BackendMapStoriesResponse: Codable {
+        let stories: [BackendMapStory]
         let source: String?
         let totalCandidates: Int?
     }
@@ -27,66 +30,226 @@ class LocationSearchService {
     func searchMomentsByLocation(
         locationName: String,
         currentUserId: String?,
-        completion: @escaping ([Moment]) -> Void
+        completion: @escaping (Result<[Moment], MapServiceError>) -> Void
     ) {
         guard currentUserId != nil else {
-            searchMomentsByLocationLegacy(
-                locationName: locationName,
-                currentUserId: currentUserId,
-                completion: completion
-            )
+            completion(.failure(.unauthenticated))
             return
         }
 
-        fetchMapMomentsFromBackend(mode: .location(locationName), limit: 400) { [weak self] backendMoments in // ✅ Aumentado límite para no perder posts antiguos
-            if let backendMoments {
-                completion(backendMoments)
-                return
-            }
-
-            self?.searchMomentsByLocationLegacy(
-                locationName: locationName,
-                currentUserId: currentUserId,
-                completion: completion
-            )
-        }
+        fetchMapMomentsFromBackend(mode: .location(locationName), limit: 400, completion: completion)
     }
 
     func searchMomentsInRegion(
         region: MKCoordinateRegion,
         currentUserId: String?,
-        completion: @escaping ([Moment]) -> Void
+        completion: @escaping (Result<[Moment], MapServiceError>) -> Void
     ) {
         guard currentUserId != nil else {
-            searchMomentsInRegionLegacy(
-                region: region,
-                currentUserId: currentUserId,
-                completion: completion
+            completion(.failure(.unauthenticated))
+            return
+        }
+
+        fetchMapMomentsFromBackend(mode: .region(region), limit: 400, completion: completion)
+    }
+
+    func searchDiscoverContentInRegion(
+        region: MKCoordinateRegion,
+        completion: @escaping (MapDiscoverPayload) -> Void
+    ) {
+        guard Auth.auth().currentUser != nil else {
+            completion(
+                MapDiscoverPayload(
+                    moments: [],
+                    stories: [],
+                    source: "unauthenticated",
+                    momentsError: .unauthenticated,
+                    storiesError: .unauthenticated
+                )
             )
             return
         }
 
-        fetchMapMomentsFromBackend(mode: .region(region), limit: 400) { [weak self] backendMoments in // ✅ Aumentado límite para no perder posts antiguos
-            if let backendMoments {
-                completion(backendMoments)
-                return
-            }
+        let group = DispatchGroup()
+        var moments: [Moment] = []
+        var stories: [MapStoryPreview] = []
+        var momentsError: MapServiceError?
+        var storiesError: MapServiceError?
 
-            self?.searchMomentsInRegionLegacy(
-                region: region,
-                currentUserId: currentUserId,
-                completion: completion
+        group.enter()
+        fetchMapMomentsFromBackend(mode: .region(region), limit: 120) { result in
+            switch result {
+            case .success(let fetchedMoments):
+                moments = fetchedMoments
+            case .failure(let error):
+                momentsError = error
+            }
+            group.leave()
+        }
+
+        group.enter()
+        fetchMapStoriesFromBackend(mode: .region(region), limit: 120) { result in
+            switch result {
+            case .success(let fetchedStories):
+                stories = fetchedStories
+            case .failure(let error):
+                storiesError = error
+            }
+            group.leave()
+        }
+
+        group.notify(queue: .main) {
+            completion(
+                MapDiscoverPayload(
+                    moments: moments,
+                    stories: stories,
+                    source: "backend",
+                    momentsError: momentsError,
+                    storiesError: storiesError
+                )
             )
         }
+    }
+
+    func searchStoriesByLocation(
+        locationName: String,
+        completion: @escaping (Result<[MapStoryPreview], MapServiceError>) -> Void
+    ) {
+        fetchMapStoriesFromBackend(mode: .location(locationName), limit: 120, completion: completion)
+    }
+
+    func buildFriendActivityPins(
+        moments: [Moment],
+        stories: [MapStoryPreview],
+        followingIds: Set<String>,
+        within hours: TimeInterval = 48 * 3600
+    ) -> [MapFriendActivityPin] {
+        let cutoff = Date().addingTimeInterval(-hours)
+        var grouped: [String: (coordinate: CLLocationCoordinate2D, latest: Date, moments: Int, stories: Int, username: String, profile: String?)] = [:]
+
+        for moment in moments where followingIds.contains(moment.authorId) && moment.timestamp >= cutoff {
+            guard let coordinate = moment.locationCoordinate?.toCLLocationCoordinate2D,
+                  CLLocationCoordinate2DIsValid(coordinate) else { continue }
+            let key = moment.authorId
+            if var entry = grouped[key] {
+                entry.moments += 1
+                if moment.timestamp > entry.latest {
+                    entry.latest = moment.timestamp
+                    entry.coordinate = coordinate
+                }
+                grouped[key] = entry
+            } else {
+                grouped[key] = (
+                    coordinate,
+                    moment.timestamp,
+                    1,
+                    0,
+                    moment.username,
+                    moment.profileImagePath
+                )
+            }
+        }
+
+        for story in stories where followingIds.contains(story.authorId) && story.timestamp >= cutoff {
+            guard let coordinate = story.coordinate, CLLocationCoordinate2DIsValid(coordinate) else { continue }
+            let key = story.authorId
+            if var entry = grouped[key] {
+                entry.stories += 1
+                if story.timestamp > entry.latest {
+                    entry.latest = story.timestamp
+                    entry.coordinate = coordinate
+                }
+                grouped[key] = entry
+            } else {
+                grouped[key] = (
+                    coordinate,
+                    story.timestamp,
+                    0,
+                    1,
+                    story.username,
+                    story.profileImagePath
+                )
+            }
+        }
+
+        return grouped.map { authorId, value in
+            MapFriendActivityPin(
+                id: authorId,
+                authorId: authorId,
+                username: value.username,
+                profileImagePath: value.profile,
+                coordinate: value.coordinate,
+                latestTimestamp: value.latest,
+                momentCount: value.moments,
+                storyCount: value.stories
+            )
+        }
+        .sorted { $0.latestTimestamp > $1.latestTimestamp }
     }
 
     private func fetchMapMomentsFromBackend(
         mode: MapQueryMode,
         limit: Int,
-        completion: @escaping ([Moment]?) -> Void
+        completion: @escaping (Result<[Moment], MapServiceError>) -> Void
+    ) {
+        postMapEndpoint(
+            functionName: "getMapMomentsPage",
+            mode: mode,
+            limit: limit
+        ) { result in
+            guard case .success(let data) = result else {
+                if case .failure(let error) = result {
+                    completion(.failure(error))
+                }
+                return
+            }
+            do {
+                let decoded = try JSONDecoder().decode(BackendMapMomentsResponse.self, from: data)
+                let moments = decoded.moments
+                    .map { $0.toMoment() }
+                    .filter { $0.isArchived != true && $0.mapHasRenderableMedia }
+                    .sorted { $0.timestamp > $1.timestamp }
+                completion(.success(moments))
+            } catch {
+                completion(.failure(.decoding))
+            }
+        }
+    }
+
+    private func fetchMapStoriesFromBackend(
+        mode: MapQueryMode,
+        limit: Int,
+        completion: @escaping (Result<[MapStoryPreview], MapServiceError>) -> Void
+    ) {
+        postMapEndpoint(
+            functionName: "getMapStoriesPage",
+            mode: mode,
+            limit: limit
+        ) { result in
+            guard case .success(let data) = result else {
+                if case .failure(let error) = result {
+                    completion(.failure(error))
+                }
+                return
+            }
+            do {
+                let decoded = try JSONDecoder().decode(BackendMapStoriesResponse.self, from: data)
+                let stories = decoded.stories.map { $0.toStoryPreview() }
+                completion(.success(stories))
+            } catch {
+                completion(.failure(.decoding))
+            }
+        }
+    }
+
+    private func postMapEndpoint(
+        functionName: String,
+        mode: MapQueryMode,
+        limit: Int,
+        completion: @escaping (Result<Data, MapServiceError>) -> Void
     ) {
         guard let user = Auth.auth().currentUser else {
-            completion(nil)
+            completion(.failure(.unauthenticated))
             return
         }
 
@@ -94,12 +257,12 @@ class LocationSearchService {
             do {
                 let idToken = try await user.getIDToken()
                 guard let projectId = FirebaseApp.app()?.options.projectID, !projectId.isEmpty else {
-                    await MainActor.run { completion(nil) }
+                    await MainActor.run { completion(.failure(.invalidConfiguration)) }
                     return
                 }
 
-                guard let url = URL(string: "https://\(functionsRegion)-\(projectId).cloudfunctions.net/getMapMomentsPage") else {
-                    await MainActor.run { completion(nil) }
+                guard let url = URL(string: "https://\(functionsRegion)-\(projectId).cloudfunctions.net/\(functionName)") else {
+                    await MainActor.run { completion(.failure(.invalidConfiguration)) }
                     return
                 }
 
@@ -125,191 +288,15 @@ class LocationSearchService {
 
                 let (data, response) = try await URLSession.shared.data(for: request)
                 guard let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 else {
-                    await MainActor.run { completion(nil) }
+                    await MainActor.run { completion(.failure(.invalidResponse)) }
                     return
                 }
 
-                let decoded = try JSONDecoder().decode(BackendMapMomentsResponse.self, from: data)
-                let moments = decoded.moments
-                    .map { $0.toMoment() }
-                    .filter { $0.isArchived != true }
-                    .sorted { $0.timestamp > $1.timestamp }
-
-                await MainActor.run { completion(moments) }
+                await MainActor.run { completion(.success(data)) }
             } catch {
-                await MainActor.run { completion(nil) }
+                await MainActor.run { completion(.failure(.network)) }
             }
         }
-    }
-
-    private func searchMomentsByLocationLegacy(
-        locationName: String,
-        currentUserId: String?,
-        completion: @escaping ([Moment]) -> Void
-    ) {
-        let now = Date()
-
-        db.collectionGroup("moments")
-            .whereField("location", isEqualTo: locationName)
-            .whereField("audience", isEqualTo: "everyone")
-            .limit(to: 400) // ✅ Limite super alto para pillar posts antiguos sin saturar la RAM
-            .getDocuments { [weak self] snapshot, error in
-                if let _ = error {
-                    completion([])
-                    return
-                }
-
-                guard let documents = snapshot?.documents else {
-                    completion([])
-                    return
-                }
-
-                let group = DispatchGroup()
-                var moments: [Moment] = []
-                let syncQueue = DispatchQueue(label: "location.moments.sync")
-
-                for document in documents {
-                    group.enter()
-                    do {
-                        var moment = try document.data(as: Moment.self)
-                        moment.id = document.documentID
-
-                        guard moment.isArchived != true else {
-                            group.leave()
-                            continue
-                        }
-
-                        let isAuthor = (currentUserId == moment.authorId)
-                        if !isAuthor,
-                           let scheduledDate = moment.scheduledDate,
-                           scheduledDate > now {
-                            group.leave()
-                            continue
-                        }
-
-                        guard moment.mapHasRenderableMedia,
-                              !moment.username.isEmpty else {
-                            group.leave()
-                            continue
-                        }
-
-                        if let currentUserId = currentUserId {
-                            self?.privacyService.canUserViewMomentInExplore(moment, viewerId: currentUserId) { canView in
-                                if canView {
-                                    syncQueue.async {
-                                        moments.append(moment)
-                                    }
-                                }
-                                group.leave()
-                            }
-                        } else {
-                            syncQueue.async {
-                                moments.append(moment)
-                            }
-                            group.leave()
-                        }
-                    } catch {
-                        group.leave()
-                    }
-                }
-
-                group.notify(queue: .main) {
-                    completion(moments.sorted { $0.timestamp > $1.timestamp })
-                }
-            }
-    }
-
-    private func searchMomentsInRegionLegacy(
-        region: MKCoordinateRegion,
-        currentUserId: String?,
-        completion: @escaping ([Moment]) -> Void
-    ) {
-        let now = Date()
-        let latitudeMin = max(-90.0, region.center.latitude - (region.span.latitudeDelta / 2.0))
-        let latitudeMax = min(90.0, region.center.latitude + (region.span.latitudeDelta / 2.0))
-        let longitudeMin = max(-180.0, region.center.longitude - (region.span.longitudeDelta / 2.0))
-        let longitudeMax = min(180.0, region.center.longitude + (region.span.longitudeDelta / 2.0))
-
-        db.collectionGroup("moments")
-            .whereField("audience", isEqualTo: "everyone")
-            .whereField("locationCoordinate.latitude", isGreaterThanOrEqualTo: latitudeMin)
-            .whereField("locationCoordinate.latitude", isLessThanOrEqualTo: latitudeMax)
-            .order(by: "locationCoordinate.latitude")
-            .limit(to: 400) // ✅ Limite super alto para pillar posts antiguos sin saturar la RAM
-            .getDocuments { [weak self] snapshot, error in
-                if let _ = error {
-                    completion([])
-                    return
-                }
-
-                guard let documents = snapshot?.documents else {
-                    completion([])
-                    return
-                }
-
-                let group = DispatchGroup()
-                var moments: [Moment] = []
-                let syncQueue = DispatchQueue(label: "location.region.moments.sync")
-
-                for document in documents {
-                    group.enter()
-                    do {
-                        var moment = try document.data(as: Moment.self)
-                        moment.id = document.documentID
-
-                        guard moment.isArchived != true else {
-                            group.leave()
-                            continue
-                        }
-
-                        let isAuthor = (currentUserId == moment.authorId)
-                        if !isAuthor,
-                           let scheduledDate = moment.scheduledDate,
-                           scheduledDate > now {
-                            group.leave()
-                            continue
-                        }
-
-                        guard moment.mapHasRenderableMedia,
-                              !moment.username.isEmpty else {
-                            group.leave()
-                            continue
-                        }
-
-                        guard let coordinate = moment.locationCoordinate else {
-                            group.leave()
-                            continue
-                        }
-
-                        guard coordinate.longitude >= longitudeMin, coordinate.longitude <= longitudeMax else {
-                            group.leave()
-                            continue
-                        }
-
-                        if let currentUserId = currentUserId {
-                            self?.privacyService.canUserViewMomentInExplore(moment, viewerId: currentUserId) { canView in
-                                if canView {
-                                    syncQueue.async {
-                                        moments.append(moment)
-                                    }
-                                }
-                                group.leave()
-                            }
-                        } else {
-                            syncQueue.async {
-                                moments.append(moment)
-                            }
-                            group.leave()
-                        }
-                    } catch {
-                        group.leave()
-                    }
-                }
-
-                group.notify(queue: .main) {
-                    completion(moments.sorted { $0.timestamp > $1.timestamp })
-                }
-            }
     }
 }
 

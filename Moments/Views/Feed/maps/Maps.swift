@@ -42,8 +42,10 @@ struct LocationMapView: View {
     @State private var annotations: [MapsLocationAnnotation] = []
     @State private var isLoading = true
     @State private var errorMessage: String?
+    @State private var contentErrorMessage: String?
     @State private var locationMoments: [Moment] = []  // ✅ USAR MOMENT EN VEZ DE LocationMoment
     @State private var nearbyMoments: [Moment] = []
+    @State private var locationStories: [MapStoryPreview] = []
     @State private var echoHistoryMoments: [Moment] = []
     @State private var echoIdByMomentIdentity: [String: String] = [:]
     @State private var isLoadingMoments = false
@@ -51,16 +53,22 @@ struct LocationMapView: View {
     @State private var showingGallery = false
     @State private var selectedMoment: Moment?  // ✅ USAR MOMENT
     @State private var showingProfile = false
-    @State private var showingDetail = false
     @State private var selectedMomentIndex = 0
 
     @State private var locationPermissionGranted = false
     @StateObject private var locationManager = LocationUtilities.shared
+    @StateObject private var storyViewModel = StoryViewModel()
 
     @StateObject private var weatherService = WeatherService.shared
     @State private var currentWeather: WeatherData?
     @State private var weatherEffectsEnabled = true
     @State private var showingBottomSheet = false
+    @State private var mapSheetDetent: PresentationDetent = .medium
+    @State private var momentDetailRoute: MapMomentDetailRoute?
+    @State private var pendingMomentDetailRoute: MapMomentDetailRoute?
+    @State private var pendingStoryPresentation: LocationMapStoryViewerPresentation?
+    @State private var resumeBottomSheetAfterDetail = false
+    @State private var selectedPlaceCluster: MapPlaceCluster?
     @State private var bottomSheetOffset: CGFloat = 300
     @State private var isDragging = false
     @State private var showSearchInAreaButton = false
@@ -68,9 +76,17 @@ struct LocationMapView: View {
     @State private var mapHeaderLocationName: String = ""
     @State private var momentAvailability: [String: Bool] = [:]
     @State private var availabilityValidationToken = UUID()
+    @State private var storyViewerPresentation: LocationMapStoryViewerPresentation?
+    @State private var isOpeningStory = false
 
     // ✅ NUEVO: Estado para manejar mejor la carga inicial
     @State private var hasInitializedMap = false
+
+    private struct LocationMapStoryViewerPresentation: Identifiable {
+        let id = UUID()
+        let previews: [MapStoryPreview]
+        let initialPreviewId: String?
+    }
 
     private let firestoreService = FirestoreService()
     private let privacyService = PrivacyService()
@@ -102,49 +118,51 @@ struct LocationMapView: View {
         }
     }
 
-    private var mapCombinedAnnotations: [CombinedMapAnnotation] {
-        var groupedMoments: [String: [Moment]] = [:]
-        var groupedCoordinates: [String: CLLocationCoordinate2D] = [:]
-        var groupedLocationTitles: [String: String] = [:]
-
-        for moment in mapPinMoments {
-            guard let coordinate = moment.locationCoordinate?.toCLLocationCoordinate2D,
-                  CLLocationCoordinate2DIsValid(coordinate) else { continue }
-
-            let clusterKey = locationClusterKey(for: moment, coordinate: coordinate)
-            groupedMoments[clusterKey, default: []].append(moment)
-
-            if groupedCoordinates[clusterKey] == nil {
-                if isEchoHistoryMode, let echoId = echoId(for: moment) {
-                    groupedCoordinates[clusterKey] = jitteredCoordinate(for: coordinate, seed: echoId)
-                } else {
-                    groupedCoordinates[clusterKey] = coordinate
-                }
+    private var locationMapPlaceLayout: MapPlaceLayout {
+        if isEchoHistoryMode {
+            let clusters = mapPinMoments.compactMap { moment -> MapPlaceCluster? in
+                guard let coordinate = moment.locationCoordinate?.toCLLocationCoordinate2D,
+                      CLLocationCoordinate2DIsValid(coordinate) else { return nil }
+                let displayCoordinate: CLLocationCoordinate2D = {
+                    if let echoId = echoId(for: moment), !echoId.isEmpty {
+                        return jitteredCoordinate(for: coordinate, seed: echoId)
+                    }
+                    return coordinate
+                }()
+                return MapPlaceCluster(
+                    id: selectionKey(for: moment),
+                    coordinate: displayCoordinate,
+                    displayName: normalizedLocationName(from: moment) ?? effectiveHeaderLocationName,
+                    moments: [moment],
+                    stories: [],
+                    friends: []
+                )
             }
-            if groupedLocationTitles[clusterKey] == nil,
-               let title = normalizedLocationName(from: moment) {
-                groupedLocationTitles[clusterKey] = title
-            }
+            return MapPlaceLayout(placeClusters: clusters, standaloneFriends: [])
         }
 
-        var items: [CombinedMapAnnotation] = groupedMoments.compactMap { key, moments in
-            guard let coordinate = groupedCoordinates[key] else { return nil }
-            let sortedMoments = moments.sorted { $0.timestamp > $1.timestamp }
-            return CombinedMapAnnotation(
-                id: "cluster-\(key)",
-                coordinate: coordinate,
-                locationTitle: groupedLocationTitles[key],
-                moment: sortedMoments.first,
-                moments: sortedMoments
-            )
-        }
+        return MapPlaceClusterEngine.build(
+            moments: mapPinMoments,
+            stories: locationStories,
+            friendPins: [],
+            filter: .all,
+            region: region
+        )
+    }
 
-        items.sort { lhs, rhs in
-            let leftDate = lhs.primaryMoment?.timestamp ?? .distantPast
-            let rightDate = rhs.primaryMoment?.timestamp ?? .distantPast
-            return leftDate > rightDate
+    private var sheetCluster: MapPlaceCluster {
+        if let selectedPlaceCluster {
+            return selectedPlaceCluster
         }
-        return items
+        let availableMoments = locationMoments.filter {
+            momentAvailability[$0.mapAvailabilityKey] ?? !isEchoHistoryMode
+        }
+        return MapPlaceClusterEngine.aggregateRegionCluster(
+            title: effectiveHeaderLocationName,
+            moments: availableMoments,
+            stories: locationStories,
+            center: region.center
+        )
     }
 
     private var effectiveHeaderLocationName: String {
@@ -165,29 +183,39 @@ struct LocationMapView: View {
             // ✅ BARRA DE ESTADÍSTICAS (SI EXISTE) - La movimos dentro de modernHeaderView en el paso anterior,
             // pero si hay componentes adicionales los manejamos aquí.
 
-            // ✅ BOTTOM SHEET
-            LocationBottomSheet(
-                isPresented: $showingBottomSheet,
-                moments: locationMoments,
-                momentAvailability: momentAvailability,
-                isLoadingMoments: isLoadingMoments,
-                locationName: effectiveHeaderLocationName,
-                colorScheme: colorScheme,
-                onMomentTap: { moment in
-                    Task { @MainActor in
-                        try? await Task.sleep(nanoseconds: 100_000_000)
-
-                        if let selectedIndex = locationMoments.firstIndex(where: { selectionKey(for: $0) == selectionKey(for: moment) }) {
-                            selectedMoment = moment
-                            selectedMomentIndex = selectedIndex
-                            showingDetail = true
-                        }
-                    }
-                }
-            )
-
         }
         .navigationBarHidden(true)
+        .sheet(isPresented: $showingBottomSheet) {
+            MapPlaceBottomSheet(
+                cluster: sheetCluster,
+                momentAvailability: momentAvailability,
+                isLoading: isLoadingMoments,
+                colorScheme: colorScheme,
+                onMomentTap: { moment in
+                    locationMoments = sheetCluster.moments
+                    guard let selectedIndex = sheetCluster.moments.firstIndex(where: { selectionKey(for: $0) == selectionKey(for: moment) }) else { return }
+                    openMomentDetail(at: selectedIndex)
+                },
+                onPlaceStoriesTap: { cluster in
+                    openPlaceStories(cluster)
+                },
+                weather: currentWeather,
+                userLocation: locationManager.currentLocation?.coordinate
+            )
+            .mapLocationSystemSheet(detent: $mapSheetDetent)
+        }
+        .onChange(of: showingBottomSheet) { _, isShowing in
+            if isShowing {
+                mapSheetDetent = .medium
+                return
+            }
+            presentDeferredMapContent()
+        }
+        .onChange(of: sheetCluster.totalCount) { _, count in
+            if count == 0 && !isLoadingMoments {
+                showingBottomSheet = false
+            }
+        }
         .onAppear {
             if mapHeaderLocationName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                 mapHeaderLocationName = locationName
@@ -234,19 +262,32 @@ struct LocationMapView: View {
                 UserProfileView(userId: moment.authorId)
             }
         }
-        .fullScreenCover(isPresented: $showingDetail) {
+        .fullScreenCover(item: $momentDetailRoute, onDismiss: {
+            restoreBottomSheetIfNeeded()
+        }) { route in
             LocationMomentDetailView(
-                locationMoments: locationMoments,
-                initialIndex: selectedMomentIndex,
-                locationName: effectiveHeaderLocationName,
+                locationMoments: route.moments,
+                initialIndex: route.initialIndex,
+                locationName: route.locationName,
                 momentAvailability: $momentAvailability,
-                isPresented: $showingDetail
+                isPresented: Binding(
+                    get: { momentDetailRoute != nil },
+                    set: { if !$0 { momentDetailRoute = nil } }
+                )
             )
         }
-        .onChange(of: showingDetail) { _, _ in
-            // ✅ onChange vacío para mantener la funcionalidad
+        .fullScreenCover(item: $storyViewerPresentation, onDismiss: {
+            restoreBottomSheetIfNeeded()
+        }) { presentation in
+            MapPlaceStoryDeckView(
+                previews: presentation.previews,
+                initialPreviewId: presentation.initialPreviewId,
+                onClose: { storyViewerPresentation = nil }
+            )
+            .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("CloseStoryViewer"))) { _ in
+                storyViewerPresentation = nil
+            }
         }
-
     }
 
     // ✅ MISMO FONDO QUE TU FEEDVIEW
@@ -286,9 +327,14 @@ struct LocationMapView: View {
     }
 
     private var topControlsOverlay: some View {
-        VStack(spacing: 0) {
+        VStack(spacing: 10) {
             modernHeaderView
+            if let contentErrorMessage, errorMessage == nil {
+                compactContentErrorBanner(message: contentErrorMessage)
+            }
         }
+        .padding(.top, 8)
+        .padding(.horizontal, 16)
         .frame(maxWidth: .infinity, alignment: .top)
     }
 
@@ -496,6 +542,31 @@ struct LocationMapView: View {
         }
     }
 
+    private func compactContentErrorBanner(message: String) -> some View {
+        HStack(spacing: 10) {
+            Image(systemName: "exclamationmark.triangle.fill")
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundColor(.orange)
+
+            Text(message)
+                .font(.custom("Poppins-Medium", size: 12))
+                .foregroundColor(adaptiveColors.primary)
+                .lineLimit(2)
+
+            Spacer(minLength: 0)
+
+            Button(action: searchInCurrentArea) {
+                Text(NSLocalizedString("maps.error.retry", comment: "Retry button text"))
+                    .font(.custom("Poppins-SemiBold", size: 11))
+                    .foregroundColor(adaptiveColors.accent)
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
+        .background(Color.clear.liquidGlass(in: RoundedRectangle(cornerRadius: 16, style: .continuous)))
+    }
+
     // ✅ NUEVO: Formatear rango de fechas
     private func formatDateRange() -> String {
         guard !locationMoments.isEmpty else { return "N/A" }
@@ -544,20 +615,14 @@ struct LocationMapView: View {
                 ZStack {
                     // ✅ MAPA BASE
                     Map(position: $mapPosition) {
-                        ForEach(mapCombinedAnnotations) { annotation in
-                            Annotation(annotation.locationTitle ?? "", coordinate: annotation.coordinate) {
-                                if let moment = annotation.primaryMoment {
-                                    Button {
-                                        openMomentFromMapAnnotation(annotation)
-                                    } label: {
-                                        MapMomentPin(
-                                            moment: moment,
-                                            colorScheme: colorScheme,
-                                            count: annotation.count
-                                        )
-                                    }
-                                    .buttonStyle(.plain)
+                        ForEach(locationMapPlaceLayout.placeClusters) { cluster in
+                            Annotation(cluster.displayName, coordinate: cluster.coordinate) {
+                                Button {
+                                    openPlaceCluster(cluster)
+                                } label: {
+                                    MapPlacePin(cluster: cluster, colorScheme: colorScheme)
                                 }
+                                .buttonStyle(.plain)
                             }
                         }
                     }
@@ -578,7 +643,7 @@ struct LocationMapView: View {
 
                     // ✅ EFECTOS DE PARTÍCULAS (LLUVIA/NIEVE)
                     if let weather = currentWeather, weatherEffectsEnabled {
-                        WeatherParticleEffectView(weather: weather)
+                        MapWeatherEffectsView(weather: weather)
                             .allowsHitTesting(false)
                     }
                 }
@@ -1060,6 +1125,7 @@ extension LocationMapView {
     func loadLocationMoments() {
         DispatchQueue.main.async {
             self.isLoadingMoments = true
+            self.contentErrorMessage = nil
         }
 
         if isEchoHistoryMode {
@@ -1071,15 +1137,52 @@ extension LocationMapView {
         LocationSearchService.shared.searchMomentsByLocation(
             locationName: locationName,
             currentUserId: Auth.auth().currentUser?.uid
-        ) { moments in
+        ) { result in
             DispatchQueue.main.async {
-                self.locationMoments = moments
-                self.refreshMomentAvailability(for: moments)
                 self.isLoadingMoments = false
 
-                // ✅ AGREGAR ESTA LÍNEA:
-                if !moments.isEmpty {
-                    self.showingBottomSheet = true
+                switch result {
+                case .success(let moments):
+                    self.locationMoments = moments
+                    self.refreshMomentAvailability(for: moments)
+                    if !moments.isEmpty || !self.locationStories.isEmpty {
+                        self.errorMessage = nil
+                        self.contentErrorMessage = nil
+                        self.showingBottomSheet = true
+                    } else if self.locationStories.isEmpty {
+                        self.contentErrorMessage = nil
+                    }
+                case .failure:
+                    self.locationMoments = []
+                    self.refreshMomentAvailability(for: [])
+                    if self.locationStories.isEmpty {
+                        self.errorMessage = NSLocalizedString("maps.error.mapUnavailable", comment: "Map content unavailable")
+                    } else {
+                        self.contentErrorMessage = NSLocalizedString("maps.error.mapPartialContent", comment: "Map partial content warning")
+                    }
+                }
+            }
+        }
+
+        LocationSearchService.shared.searchStoriesByLocation(locationName: locationName) { result in
+            DispatchQueue.main.async {
+                switch result {
+                case .success(let stories):
+                    self.locationStories = stories
+                    if !stories.isEmpty && self.locationMoments.isEmpty && !self.isLoadingMoments {
+                        self.errorMessage = nil
+                        self.contentErrorMessage = nil
+                        self.showingBottomSheet = true
+                    } else if !stories.isEmpty {
+                        self.errorMessage = nil
+                    }
+                case .failure:
+                    self.locationStories = []
+                    if self.locationMoments.isEmpty && !self.isLoadingMoments {
+                        self.errorMessage = NSLocalizedString("maps.error.mapUnavailable", comment: "Map content unavailable")
+                    } else if !self.locationMoments.isEmpty {
+                        self.contentErrorMessage = NSLocalizedString("maps.error.mapPartialContent", comment: "Map partial content warning")
+                    }
                 }
             }
         }
@@ -1108,29 +1211,98 @@ extension LocationMapView {
         return "\(lat)|\(lon)|\(normalizedLocation)"
     }
 
-    private func openMomentFromMapAnnotation(_ annotation: CombinedMapAnnotation) {
-        let clusterMoments: [Moment] = {
-            if !annotation.moments.isEmpty { return annotation.moments }
-            if let single = annotation.moment { return [single] }
-            return []
-        }()
-        .filter { moment in
-            momentAvailability[moment.mapAvailabilityKey] ?? !isEchoHistoryMode
+    private func openPlaceCluster(_ cluster: MapPlaceCluster) {
+        let availableMoments = cluster.moments.filter {
+            momentAvailability[$0.mapAvailabilityKey] ?? !isEchoHistoryMode
         }
-        guard !clusterMoments.isEmpty else { return }
 
-        locationMoments = clusterMoments
-        refreshMomentAvailability(for: clusterMoments)
-        if let title = annotation.locationTitle?.trimmingCharacters(in: .whitespacesAndNewlines),
-           !title.isEmpty {
+        if cluster.storyCount == 0 && availableMoments.isEmpty {
+            return
+        }
+
+        if availableMoments.isEmpty, cluster.primaryStory != nil {
+            openPlaceStories(cluster)
+            return
+        }
+
+        locationMoments = availableMoments.isEmpty ? cluster.moments : availableMoments
+        refreshMomentAvailability(for: locationMoments)
+
+        let title = cluster.displayName.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !title.isEmpty {
             mapHeaderLocationName = title
-        } else if let fallbackTitle = normalizedLocationName(from: clusterMoments[0]) {
-            mapHeaderLocationName = fallbackTitle
         }
 
-        selectedMoment = clusterMoments[0]
+        selectedPlaceCluster = cluster
+        selectedMoment = locationMoments.first
         selectedMomentIndex = 0
         showingBottomSheet = true
+    }
+
+    private func openMomentDetail(at index: Int) {
+        selectedMomentIndex = index
+        let route = MapMomentDetailRoute(
+            moments: locationMoments,
+            initialIndex: index,
+            locationName: effectiveHeaderLocationName
+        )
+
+        if showingBottomSheet {
+            pendingMomentDetailRoute = route
+            resumeBottomSheetAfterDetail = true
+            showingBottomSheet = false
+        } else {
+            momentDetailRoute = route
+        }
+    }
+
+    private func presentDeferredMapContent() {
+        guard pendingMomentDetailRoute != nil || pendingStoryPresentation != nil else { return }
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + MapSheetPresentationDelay.dismissBeforeNextPresentation) {
+            if let pendingRoute = pendingMomentDetailRoute {
+                momentDetailRoute = pendingRoute
+                pendingMomentDetailRoute = nil
+                return
+            }
+
+            if let pendingStory = pendingStoryPresentation {
+                storyViewerPresentation = pendingStory
+                pendingStoryPresentation = nil
+            }
+        }
+    }
+
+    private func restoreBottomSheetIfNeeded() {
+        guard resumeBottomSheetAfterDetail else { return }
+        resumeBottomSheetAfterDetail = false
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + MapSheetPresentationDelay.reopenBottomSheetAfterDetail) {
+            if sheetCluster.totalCount > 0 {
+                showingBottomSheet = true
+            }
+        }
+    }
+
+    private func openPlaceStories(_ cluster: MapPlaceCluster, startingAt preview: MapStoryPreview? = nil) {
+        guard !cluster.stories.isEmpty, !isOpeningStory else { return }
+        isOpeningStory = true
+
+        let presentation = LocationMapStoryViewerPresentation(
+            previews: cluster.stories,
+            initialPreviewId: preview?.id ?? cluster.primaryStory?.id
+        )
+
+        DispatchQueue.main.async {
+            isOpeningStory = false
+            if showingBottomSheet {
+                pendingStoryPresentation = presentation
+                resumeBottomSheetAfterDetail = true
+                showingBottomSheet = false
+            } else {
+                storyViewerPresentation = presentation
+            }
+        }
     }
 
     private func normalizedLocationName(from moment: Moment) -> String? {
@@ -1171,26 +1343,37 @@ extension LocationMapView {
         DispatchQueue.main.async {
             self.isLoadingNearbyMoments = true
             self.lastNearbyQueryKey = queryKey
+            self.contentErrorMessage = nil
         }
 
         LocationSearchService.shared.searchMomentsInRegion(
             region: region,
             currentUserId: Auth.auth().currentUser?.uid
-        ) { moments in
+        ) { result in
             DispatchQueue.main.async {
                 // Evitar resultados stale si el usuario ya movió el mapa a otra región.
                 guard self.lastNearbyQueryKey == queryKey else { return }
-                self.nearbyMoments = moments
                 self.isLoadingNearbyMoments = false
-                self.showSearchInAreaButton = false
 
-                if !moments.isEmpty {
-                    self.locationMoments = moments
-                    self.refreshMomentAvailability(for: moments)
-                    if let firstLocation = moments.compactMap({ self.normalizedLocationName(from: $0) }).first {
-                        self.mapHeaderLocationName = firstLocation
+                switch result {
+                case .success(let moments):
+                    self.nearbyMoments = moments
+                    self.showSearchInAreaButton = false
+                    self.errorMessage = nil
+                    self.contentErrorMessage = nil
+
+                    if !moments.isEmpty {
+                        self.locationMoments = moments
+                        self.refreshMomentAvailability(for: moments)
+                        if let firstLocation = moments.compactMap({ self.normalizedLocationName(from: $0) }).first {
+                            self.mapHeaderLocationName = firstLocation
+                        }
+                        self.showingBottomSheet = true
                     }
-                    self.showingBottomSheet = true
+                case .failure:
+                    self.nearbyMoments = []
+                    self.contentErrorMessage = NSLocalizedString("maps.error.mapUnavailable", comment: "Map content unavailable")
+                    self.showSearchInAreaButton = true
                 }
             }
         }
@@ -1632,124 +1815,6 @@ extension LocationMapView {
                 return LinearGradient(colors: [.purple, .indigo], startPoint: .topLeading, endPoint: .bottomTrailing)
             case .unknown:
                 return LinearGradient(colors: [.gray, .secondary], startPoint: .topLeading, endPoint: .bottomTrailing)
-            }
-        }
-    }
-
-    // ✅ EFECTOS DE PARTÍCULAS (LLUVIA/NIEVE)
-    struct WeatherParticleEffectView: UIViewRepresentable {
-        let weather: WeatherData
-
-        func makeUIView(context: Context) -> UIView {
-            let view = UIView()
-            view.backgroundColor = .clear
-            return view
-        }
-
-        func updateUIView(_ uiView: UIView, context: Context) {
-            // Limpiar layers existentes
-            uiView.layer.sublayers?.forEach { layer in
-                if layer is CAEmitterLayer {
-                    layer.removeFromSuperlayer()
-                }
-            }
-
-            // Agregar efectos según condición climática
-            switch weather.condition {
-            case .rain:
-                addRainEffect(to: uiView)
-            case .snow:
-                addSnowEffect(to: uiView)
-            case .thunderstorm:
-                addRainEffect(to: uiView)
-                addLightningEffect(to: uiView)
-            default:
-                break
-            }
-        }
-
-        private func addRainEffect(to view: UIView) {
-            let emitter = CAEmitterLayer()
-            emitter.emitterPosition = CGPoint(x: view.bounds.midX, y: -10)
-            emitter.emitterShape = .line
-            emitter.emitterSize = CGSize(width: view.bounds.width * 2, height: 1)
-
-            let cell = CAEmitterCell()
-            cell.birthRate = weather.precipitation > 5 ? 300 : 150 // Más gotas si llueve fuerte
-            cell.lifetime = 3.0
-            cell.velocity = 200
-            cell.velocityRange = 50
-            cell.emissionLongitude = CGFloat.pi
-            cell.emissionRange = 0.1
-            cell.scale = 0.3
-            cell.scaleRange = 0.2
-            cell.alphaSpeed = -0.5
-            cell.contents = createRainDropImage()?.cgImage
-
-            emitter.emitterCells = [cell]
-            view.layer.addSublayer(emitter)
-        }
-
-        private func addSnowEffect(to view: UIView) {
-            let emitter = CAEmitterLayer()
-            emitter.emitterPosition = CGPoint(x: view.bounds.midX, y: -10)
-            emitter.emitterShape = .line
-            emitter.emitterSize = CGSize(width: view.bounds.width * 2, height: 1)
-
-            let cell = CAEmitterCell()
-            cell.birthRate = 50
-            cell.lifetime = 8.0
-            cell.velocity = 50
-            cell.velocityRange = 30
-            cell.emissionLongitude = CGFloat.pi / 6
-            cell.emissionRange = CGFloat.pi / 3
-            cell.scale = 0.5
-            cell.scaleRange = 0.3
-            cell.alphaSpeed = -0.1
-            cell.contents = createSnowflakeImage()?.cgImage
-
-            emitter.emitterCells = [cell]
-            view.layer.addSublayer(emitter)
-        }
-
-        private func addLightningEffect(to view: UIView) {
-            // Efecto de flash ocasional para tormentas
-            Timer.scheduledTimer(withTimeInterval: Double.random(in: 3...8), repeats: true) { _ in
-                let flash = CALayer()
-                flash.backgroundColor = UIColor.white.cgColor
-                flash.opacity = 0.3
-                flash.frame = view.bounds
-                view.layer.addSublayer(flash)
-
-                let animation = CABasicAnimation(keyPath: "opacity")
-                animation.fromValue = 0.3
-                animation.toValue = 0.0
-                animation.duration = 0.2
-                animation.autoreverses = true
-                animation.repeatCount = 2
-
-                CATransaction.begin()
-                CATransaction.setCompletionBlock {
-                    flash.removeFromSuperlayer()
-                }
-                flash.add(animation, forKey: "flash")
-                CATransaction.commit()
-            }
-        }
-
-        private func createRainDropImage() -> UIImage? {
-            let size = CGSize(width: 2, height: 12)
-            return UIGraphicsImageRenderer(size: size).image { context in
-                context.cgContext.setFillColor(UIColor.cyan.withAlphaComponent(0.6).cgColor)
-                context.cgContext.fill(CGRect(origin: .zero, size: size))
-            }
-        }
-
-        private func createSnowflakeImage() -> UIImage? {
-            let size = CGSize(width: 8, height: 8)
-            return UIGraphicsImageRenderer(size: size).image { context in
-                context.cgContext.setFillColor(UIColor.white.withAlphaComponent(0.8).cgColor)
-                context.cgContext.fillEllipse(in: CGRect(origin: .zero, size: size))
             }
         }
     }

@@ -366,6 +366,21 @@ extension FirestoreService {
             storyData["stickers"] = stickers.map(serializedStorySticker)
         }
 
+        if let mapLocation = MapVisibilityPolicy.storyMapLocation(from: stickers) {
+            storyData["mapLocation"] = [
+                "latitude": mapLocation.coordinate.latitude,
+                "longitude": mapLocation.coordinate.longitude,
+                "locationName": mapLocation.name
+            ]
+        } else {
+            storyData.removeValue(forKey: "mapLocation")
+        }
+
+        storyData["mapVisibility"] = MapVisibilityPolicy.resolvedVisibility(
+            hasLocation: MapVisibilityPolicy.storyMapLocation(from: stickers) != nil,
+            audience: story.audience
+        )
+
         return storyData
     }
 

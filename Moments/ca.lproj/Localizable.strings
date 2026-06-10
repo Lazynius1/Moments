@@ -2469,6 +2469,31 @@
 "maps.error.locationLoadFailed" = "No s'ha pogut carregar la ubicació";
 "maps.error.retry" = "Reintentar";
 "maps.error.configurePermissions" = "Configurar permisos";
+"maps.discover.title" = "Mapa";
+"maps.discover.subtitle" = "Explora moments i stories a prop";
+"maps.discover.empty" = "No hi ha res en aquesta zona";
+"maps.filter.all" = "Tot";
+"maps.filter.friends" = "Amics";
+"maps.filter.places" = "Llocs";
+"maps.bottomSheet.stats" = "%d moments · %d persones";
+"maps.gallery.explore" = "Explorar galeria";
+"maps.gallery.seeAll" = "Veure totes";
+"maps.gallery.empty" = "Encara no hi ha fotos";
+"maps.placeSheet.stats" = "%d moments · %d stories";
+"maps.placeSheet.stories" = "Stories";
+"maps.placeSheet.moments" = "Moments";
+"maps.place.unnamed" = "Lloc sense nom";
+"maps.zoneSheet.stats" = "%d llocs · %d moments";
+"maps.zoneSheet.places" = "Llocs";
+"maps.zoneSheet.storiesCount" = "%d stories";
+"maps.timeFilter.today" = "Avui";
+"maps.timeFilter.week" = "Setmana";
+"maps.timeFilter.all" = "Tot";
+"maps.distance.meters" = "%d m";
+"maps.distance.kilometersDecimal" = "%.1f km";
+"maps.distance.kilometers" = "%d km";
+"maps.search.placeholder" = "Cerca un lloc o ciutat";
+"maps.discover.activePlaces" = "%d llocs actius";
 
 /* Weather Conditions */
 "weather.condition.clear" = "Descobert";
@@ -3433,6 +3458,8 @@
 "maps.error.invalidCoordinates" = "Coordenades d'ubicació no vàlides";
 "maps.defaultLocation.title" = "Ubicació per defecte";
 "maps.defaultLocation.message" = "S'està mostrant la ubicació per defecte. No s'ha pogut trobar '%@'.";
+"maps.error.mapUnavailable" = "No s'ha pogut carregar el contingut del mapa ara mateix.";
+"maps.error.mapPartialContent" = "No s'ha pogut carregar part del contingut del mapa.";
 "profileEditor.website" = "Lloc web";
 
 /* Passkeys */

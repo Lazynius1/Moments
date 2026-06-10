@@ -15,7 +15,7 @@ struct TrendingView: View {
     @State private var selectedHashtag: String = ""
     @State private var showExploreWithHashtag = false
     @State private var selectedLocation: String = ""
-    @State private var showExploreWithLocation = false
+    @State private var showLocationMap = false
     @Environment(\.colorScheme) var colorScheme
     
     private var TrendingadaptiveColors: TrendingAdaptiveColors {
@@ -52,8 +52,12 @@ struct TrendingView: View {
         .sheet(isPresented: $showExploreWithHashtag) {
             ExploreView(initialSearchQuery: "#\(selectedHashtag)")
         }
-        .sheet(isPresented: $showExploreWithLocation) {
-            ExploreView(initialSearchQuery: selectedLocation)
+        .fullScreenCover(isPresented: $showLocationMap) {
+            LocationMapView(
+                locationName: selectedLocation,
+                coordinate: nil,
+                isPresented: $showLocationMap
+            )
         }
         .sheet(item: $selectedMoment) { moment in
             MomentDetailView(moment: moment)
@@ -122,7 +126,7 @@ struct TrendingView: View {
                         onLocationTap: { location in
                             ExploreHapticFeedback.impact(.medium)
                             selectedLocation = location
-                            showExploreWithLocation = true
+                            showLocationMap = true
                         }
                     )
                     

@@ -2446,6 +2446,31 @@
 "maps.error.locationLoadFailed" = "Não foi possível carregar a localização";
 "maps.error.retry" = "Tentar novamente";
 "maps.error.configurePermissions" = "Configurar permissões";
+"maps.discover.title" = "Mapa";
+"maps.discover.subtitle" = "Explore momentos e stories por perto";
+"maps.discover.empty" = "Nada nesta área";
+"maps.filter.all" = "Tudo";
+"maps.filter.friends" = "Amigos";
+"maps.filter.places" = "Lugares";
+"maps.bottomSheet.stats" = "%d momentos · %d pessoas";
+"maps.gallery.explore" = "Explorar galeria";
+"maps.gallery.seeAll" = "Ver todas";
+"maps.gallery.empty" = "Ainda não há fotos";
+"maps.placeSheet.stats" = "%d momentos · %d stories";
+"maps.placeSheet.stories" = "Stories";
+"maps.placeSheet.moments" = "Momentos";
+"maps.place.unnamed" = "Local sem nome";
+"maps.zoneSheet.stats" = "%d lugares · %d momentos";
+"maps.zoneSheet.places" = "Lugares";
+"maps.zoneSheet.storiesCount" = "%d stories";
+"maps.timeFilter.today" = "Hoje";
+"maps.timeFilter.week" = "Semana";
+"maps.timeFilter.all" = "Tudo";
+"maps.distance.meters" = "%d m";
+"maps.distance.kilometersDecimal" = "%.1f km";
+"maps.distance.kilometers" = "%d km";
+"maps.search.placeholder" = "Busque um lugar ou cidade";
+"maps.discover.activePlaces" = "%d lugares ativos";
 
 /* Weather Conditions */
 "weather.condition.clear" = "Céu limpo";
@@ -3422,6 +3447,8 @@
 "maps.error.invalidCoordinates" = "Coordenadas de localização inválidas";
 "maps.defaultLocation.title" = "Localização padrão";
 "maps.defaultLocation.message" = "Mostrando localização padrão. '%@' não pôde ser encontrado.";
+"maps.error.mapUnavailable" = "Nao foi possivel carregar o conteudo do mapa agora.";
+"maps.error.mapPartialContent" = "Parte do conteudo do mapa nao pode ser carregada.";
 "profileEditor.website" = "Site";
 
 /* Passkeys */

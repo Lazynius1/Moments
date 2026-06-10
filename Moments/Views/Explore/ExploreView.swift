@@ -14,6 +14,7 @@ struct ExploreView: View {
     @State private var selectedMoment: Moment?
     @State private var selectedUser: AppUser?
     @State private var showTrendingView = false
+    @State private var showDiscoverMap = false
 
     @State private var showSuggestedUsersView = false
     let initialSearchQuery: String?
@@ -47,6 +48,14 @@ struct ExploreView: View {
                 }
 
                 ToolbarItemGroup(placement: .topBarTrailing) {
+                    Button {
+                        ExploreHapticFeedback.impact(.medium)
+                        showDiscoverMap = true
+                    } label: {
+                        Image(systemName: "map.fill")
+                            .foregroundColor(Color(hex: "0A84FF"))
+                    }
+
                     Button {
                         ExploreHapticFeedback.impact(.medium)
                         showTrendingView = true
@@ -192,6 +201,9 @@ struct ExploreView: View {
             }
             .fullScreenCover(isPresented: $showTrendingView) {
                 TrendingView()
+            }
+            .fullScreenCover(isPresented: $showDiscoverMap) {
+                DiscoverMapView(isPresented: $showDiscoverMap)
             }
             .sheet(isPresented: $showSuggestedUsersView) {
                 SuggestedUsersView()

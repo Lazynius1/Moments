@@ -3,42 +3,83 @@ import MapKit
 import CoreLocation
 import Kingfisher
 
+struct MapPlacePin: View {
+    let cluster: MapPlaceCluster
+    let colorScheme: ColorScheme
+
+    @State private var isPulsing = false
+
+    private var adaptiveColors: AdaptiveColors {
+        AdaptiveColors(colorScheme: colorScheme)
+    }
+
+    private var extraCount: Int {
+        max(0, cluster.totalCount - 1)
+    }
+
+    var body: some View {
+        ZStack(alignment: .topTrailing) {
+            // Pulso: hay una story de hace menos de 1 h → "está pasando ahora"
+            if cluster.hasFreshStory && !MotionPolicy.reduceMotion {
+                Circle()
+                    .stroke(adaptiveColors.accent.opacity(0.55), lineWidth: 2)
+                    .frame(width: 54, height: 54)
+                    .scaleEffect(isPulsing ? 1.45 : 1.0)
+                    .opacity(isPulsing ? 0 : 0.8)
+                    .animation(
+                        .easeOut(duration: 1.8).repeatForever(autoreverses: false),
+                        value: isPulsing
+                    )
+            }
+
+            if let story = cluster.primaryStory {
+                MapStoryPin(story: story, colorScheme: colorScheme)
+            } else if let moment = cluster.primaryMoment {
+                // count: 1 → solo la miniatura; el badge +N lo pone MapPlacePin
+                MapMomentPin(moment: moment, colorScheme: colorScheme, count: 1)
+            } else {
+                Circle()
+                    .fill(Color.gray.opacity(0.25))
+                    .frame(width: 48, height: 48)
+                    .overlay(Image(systemName: "mappin").foregroundColor(.white))
+            }
+
+            if extraCount > 0 {
+                Text("+\(extraCount)")
+                    .font(.system(size: 10, weight: .bold))
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 3)
+                    .background(Capsule().fill(Color.black.opacity(0.78)))
+                    .overlay(Capsule().stroke(Color.white.opacity(0.25), lineWidth: 0.5))
+                    .offset(x: 8, y: -8)
+            }
+        }
+        .onAppear {
+            if cluster.hasFreshStory {
+                isPulsing = true
+            }
+        }
+    }
+}
+
 struct MapMomentPin: View {
     let moment: Moment
     let colorScheme: ColorScheme
     let count: Int
 
-    private var pinSize: CGFloat { count > 1 ? 58 : 50 }
-    private var mediaSize: CGFloat { pinSize - 6 }
+    private var pinSize: CGFloat { count > 1 ? 56 : 48 }
+    private var mediaSize: CGFloat { count > 1 ? 40 : 42 }
 
     var body: some View {
         ZStack {
-            if let previewURL, let url = URL(string: previewURL) {
-                KFImage(url)
-                    .resizable()
-                    .scaledToFill()
-                    .frame(width: mediaSize, height: mediaSize)
-                    .clipShape(Circle())
-                    .overlay(
-                        Circle()
-                            .stroke(Color.white, lineWidth: 2)
-                    )
-                    .shadow(color: .black.opacity(0.22), radius: 6, x: 0, y: 2)
-            } else {
-                Circle()
-                    .fill(Color.black.opacity(colorScheme == .dark ? 0.35 : 0.15))
-                    .frame(width: mediaSize, height: mediaSize)
-                    .overlay(
-                        ZStack {
-                            Image(systemName: "photo")
-                                .font(.system(size: 15, weight: .semibold))
-                                .foregroundColor(colorScheme == .dark ? .white : .black)
-                            Circle()
-                                .stroke(Color.white, lineWidth: 2)
-                        }
-                    )
-                    .shadow(color: .black.opacity(0.22), radius: 6, x: 0, y: 2)
+            if count > 1 {
+                stackedPlaceholder(offset: CGSize(width: -7, height: 5), scale: 0.88, opacity: 0.55)
+                stackedPlaceholder(offset: CGSize(width: 7, height: -5), scale: 0.88, opacity: 0.7)
             }
+
+            momentThumbnail
+                .shadow(color: .black.opacity(0.28), radius: 7, x: 0, y: 3)
 
             if count > 1 {
                 VStack {
@@ -47,15 +88,50 @@ struct MapMomentPin: View {
                         Text("+\(count)")
                             .font(.system(size: 10, weight: .bold))
                             .foregroundColor(.white)
-                            .padding(.horizontal, 5)
-                            .padding(.vertical, 2)
-                            .background(Capsule().fill(Color.black.opacity(0.72)))
-                            .offset(x: 8, y: -8)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 3)
+                            .background(Capsule().fill(Color.black.opacity(0.78)))
+                            .overlay(Capsule().stroke(Color.white.opacity(0.25), lineWidth: 0.5))
+                            .offset(x: 10, y: -10)
                     }
                     Spacer()
                 }
+                .frame(width: pinSize, height: pinSize)
             }
         }
+        .frame(width: pinSize, height: pinSize)
+    }
+
+    @ViewBuilder
+    private var momentThumbnail: some View {
+        if let previewURL, let url = URL(string: previewURL) {
+            KFImage(url)
+                .resizable()
+                .scaledToFill()
+                .frame(width: mediaSize, height: mediaSize)
+                .clipShape(Circle())
+                .overlay(Circle().stroke(Color.white, lineWidth: 2.5))
+        } else {
+            Circle()
+                .fill(Color.black.opacity(colorScheme == .dark ? 0.35 : 0.15))
+                .frame(width: mediaSize, height: mediaSize)
+                .overlay(
+                    Image(systemName: "photo")
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundColor(colorScheme == .dark ? .white : .black)
+                )
+                .overlay(Circle().stroke(Color.white, lineWidth: 2.5))
+        }
+    }
+
+    @ViewBuilder
+    private func stackedPlaceholder(offset: CGSize, scale: CGFloat, opacity: Double) -> some View {
+        Circle()
+            .fill(Color.white.opacity(colorScheme == .dark ? 0.18 : 0.92))
+            .frame(width: mediaSize * scale, height: mediaSize * scale)
+            .overlay(Circle().stroke(Color.white.opacity(0.85), lineWidth: 1.5))
+            .offset(offset)
+            .opacity(opacity)
     }
 
     private var previewURL: String? {
@@ -166,7 +242,7 @@ struct ModernLocationGallery: View {
                         .font(.system(size: 14))
                         .foregroundColor(adaptiveColors.accent)
 
-                    Text("Explorar galería")
+                    Text(NSLocalizedString("maps.gallery.explore", comment: "Explore gallery section title"))
                         .font(.custom("Poppins-Bold", size: 16))
                         .foregroundColor(adaptiveColors.primary)
                 }
@@ -175,7 +251,7 @@ struct ModernLocationGallery: View {
 
                 if !moments.isEmpty {
                     Button(action: onShowAll) {
-                        Text("Ver todas")
+                        Text(NSLocalizedString("maps.gallery.seeAll", comment: "See all gallery items"))
                             .font(.custom("Poppins-SemiBold", size: 13))
                             .foregroundColor(adaptiveColors.accent)
                             .padding(.horizontal, 12)
@@ -375,7 +451,7 @@ struct ModernLocationGalleryView: View {
                     .foregroundColor(adaptiveColors.primary)
                     .lineLimit(1)
 
-                Text("\(moments.count) Momentos")
+                Text(String(format: NSLocalizedString("maps.bottomSheet.moments", comment: "Number of moments in location"), moments.count))
                     .font(.custom("Poppins-Medium", size: 12))
                     .foregroundColor(adaptiveColors.accent)
             }
@@ -411,7 +487,7 @@ struct ModernLocationGalleryView: View {
                 .font(.system(size: 50))
                 .foregroundColor(adaptiveColors.tertiary)
 
-            Text("No hay fotos aún")
+            Text(NSLocalizedString("maps.gallery.empty", comment: "Gallery empty state"))
                 .font(.custom("Poppins-SemiBold", size: 18))
                 .foregroundColor(adaptiveColors.primary)
         }
