@@ -27,7 +27,7 @@ private extension Moment {
 
 struct FeedView: View {
     @EnvironmentObject var authService: AuthService
-    @StateObject private var viewModel = FeedViewModel()
+    @State private var viewModel = FeedViewModel()
     @StateObject private var notificationsViewModel = NotificationsViewModel()
     @StateObject private var messagingViewModel = MessagingViewModel()
     @StateObject private var firestoreService = FirestoreService()
@@ -725,97 +725,12 @@ struct FeedView: View {
                             .frame(height: feedContentTopInset)
                         
                         ForEach(Array(viewModel.moments.enumerated()), id: \.element.feedViewIdentity) { index, moment in
-                            VStack(spacing: max(15, screenHeight * 0.02)) {
-                                
-                                // ✅ Protección de screenshots para momentos privados
-                                // Solo los momentos con audiencia "everyone" son visibles en capturas.
-                                ScreenshotProtectedView(
-                                    isProtected: (moment.audience?.lowercased() ?? "") != "everyone"
-                                ) {
-                                    ModernPostCardView(
-                                        moment: moment,
-                                        availableHeight: availableHeight,
-                                        colorScheme: colorScheme,
-                                        onComment: {
-                                            selectedMoment = moment
-                                        },
-                                        onNearEnd: {
-                                            if moment.id == viewModel.moments.last?.id,
-                                               let userId = Auth.auth().currentUser?.uid {
-                                                viewModel.loadMoreMoments(userId: userId)
-                                            }
-                                        },
-                                        onHashtagTap: { hashtag in
-                            
-                                            selectedHashtag = "#\(hashtag)"
-                                            showExploreWithHashtag = true
-                                        },
-                                        onLocationTap: { locationName, coordinate in
-                                            DispatchQueue.main.async {
-                                                self.selectedLocationName = locationName
-                                                self.selectedLocationCoordinate = coordinate
-                                                self.showingLocationMap = true
-                                            }
-                                        },
-                                        // ✅ NUEVO: Callback para mostrar menú contextual global
-                                        onContextMenu: { moment in
-        
-                                            selectedMomentForMenu = moment
-                                            withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
-                                                showGlobalContextMenu = true
-                                            }
-                                        },
-                                        onTagTap: { userId in
-                                            // ✅ Tag Navigation
-                                            openUserProfile(userId)
-                                        },
-                                        onPeek: { imageURL, ratio, isPressing in
-                                            // ✅ PREFETCHING POR INTENCIÓN (ESTRATEGIA 3)
-                                            // Si el usuario empieza a presionar (Peek), cargamos la versión de alta resolución proactivamente
-                                            if isPressing, let url = URL(string: imageURL) {
-                                                KingfisherManager.shared.retrieveImage(with: url) { _ in }
-                                            }
-                                            
-                                            // ✅ LONG PRESS PEEK (Visual)
-                                            withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
-                                                if isPressing {
-                                                    peekImageURL = imageURL
-                                                    peekAspectRatio = ratio
-                                                    peekIsProtected = (moment.audience?.lowercased() ?? "") != "everyone"
-                                                    isPeeking = true
-                                                } else {
-                                                    isPeeking = false
-                                                    peekIsProtected = false
-                                                }
-                                            }
-                                        }
-                                    )
-                                    .onAppear {
-                                        // ✅ PREFETCHING DE LISTA (ESTRATEGIA 1)
-                                        // Cuando un post aparece, precargamos las imágenes de los siguientes 5
-                                        let nextIndex = index + 1
-                                        if nextIndex < viewModel.moments.count {
-                                            let endIndex = min(nextIndex + 5, viewModel.moments.count)
-                                            let urlsToPrefetch = viewModel.moments[nextIndex..<endIndex].compactMap { moment -> URL? in
-                                                guard let firstMedia = moment.mediaItems?.first?.url else { return nil }
-                                                return URL(string: firstMedia)
-                                            }
-                                            if !urlsToPrefetch.isEmpty {
-                                                ImagePrefetchManager.shared.prefetch(urls: urlsToPrefetch)
-                                            }
-                                        }
-                                    }
-                                    .environmentObject(firestoreService)
-                                    .environmentObject(viewModel)
-                                }
-
-                                let adInterval = selectedFeedType == .forYou ? 3 : 5
-                                if (index + 1) % adInterval == 0 && index < viewModel.moments.count - 1 {
-                                    SmartNativeAdView()
-                                        .onAppear {
-                                        }
-                                }
-                            }
+                            feedMomentRow(
+                                index: index,
+                                moment: moment,
+                                availableHeight: availableHeight,
+                                rowSpacing: max(15, screenHeight * 0.02)
+                            )
                         }
     
                         if viewModel.isLoadingMore {
@@ -824,6 +739,9 @@ struct FeedView: View {
                         }
                     }
                     .padding(.vertical, 15)
+                    .onPreferenceChange(MomentVisibilityPreference.self) { values in
+                        FeedVisibilityCoordinator.shared.update(all: values)
+                    }
                 }
                 .simultaneousGesture(
                     DragGesture(minimumDistance: 8)
@@ -873,8 +791,119 @@ struct FeedView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .onChange(of: viewModel.moments.count) { _, _ in
+            VideoMomentsIndex.shared.rebuild(from: viewModel.moments)
+        }
     }
     
+    // MARK: - Feed row helpers (evita timeouts del type-checker)
+
+    @ViewBuilder
+    private func feedMomentRow(
+        index: Int,
+        moment: Moment,
+        availableHeight: CGFloat,
+        rowSpacing: CGFloat
+    ) -> some View {
+        VStack(spacing: rowSpacing) {
+            feedMomentCard(moment: moment, availableHeight: availableHeight, index: index)
+
+            let adInterval = selectedFeedType == .forYou ? 3 : 5
+            if (index + 1) % adInterval == 0 && index < viewModel.moments.count - 1 {
+                SmartNativeAdView()
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func feedMomentCard(moment: Moment, availableHeight: CGFloat, index: Int) -> some View {
+        let isProtected = (moment.audience?.lowercased() ?? "") != "everyone"
+
+        ScreenshotProtectedView(isProtected: isProtected) {
+            ModernPostCardView(
+                moment: moment,
+                availableHeight: availableHeight,
+                colorScheme: colorScheme,
+                onComment: { selectedMoment = moment },
+                onNearEnd: { handleFeedNearEnd(for: moment) },
+                onHashtagTap: handleFeedHashtagTap,
+                onLocationTap: handleFeedLocationTap,
+                onContextMenu: handleFeedContextMenu,
+                onTagTap: openUserProfile,
+                onPeek: { imageURL, ratio, isPressing in
+                    handleFeedPeek(imageURL: imageURL, ratio: ratio, isPressing: isPressing, moment: moment)
+                }
+            )
+            .equatable()
+            .onAppear { prefetchUpcomingMoments(from: index) }
+            .environmentObject(firestoreService)
+            .environment(viewModel)
+        }
+    }
+
+    private func handleFeedNearEnd(for moment: Moment) {
+        guard moment.id == viewModel.moments.last?.id,
+              let userId = Auth.auth().currentUser?.uid else { return }
+        viewModel.loadMoreMoments(userId: userId)
+    }
+
+    private func handleFeedHashtagTap(_ hashtag: String) {
+        selectedHashtag = "#\(hashtag)"
+        showExploreWithHashtag = true
+    }
+
+    private func handleFeedLocationTap(_ locationName: String, _ coordinate: CLLocationCoordinate2D?) {
+        selectedLocationName = locationName
+        selectedLocationCoordinate = coordinate
+        showingLocationMap = true
+    }
+
+    private func handleFeedContextMenu(_ moment: Moment) {
+        selectedMomentForMenu = moment
+        withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+            showGlobalContextMenu = true
+        }
+    }
+
+    private func handleFeedPeek(imageURL: String, ratio: CGFloat, isPressing: Bool, moment: Moment) {
+        if isPressing, let url = URL(string: imageURL) {
+            KingfisherManager.shared.retrieveImage(with: url) { _ in }
+        }
+
+        withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
+            if isPressing {
+                peekImageURL = imageURL
+                peekAspectRatio = ratio
+                peekIsProtected = (moment.audience?.lowercased() ?? "") != "everyone"
+                isPeeking = true
+            } else {
+                isPeeking = false
+                peekIsProtected = false
+            }
+        }
+    }
+
+    private func prefetchUpcomingMoments(from index: Int) {
+        let nextIndex = index + 1
+        guard nextIndex < viewModel.moments.count else { return }
+
+        let endIndex = min(nextIndex + 8, viewModel.moments.count)
+        let upcoming = Array(viewModel.moments[nextIndex..<endIndex])
+
+        let imageURLs = upcoming.compactMap { moment -> URL? in
+            guard let firstMedia = moment.mediaItems?.first?.url else { return nil }
+            return URL(string: firstMedia)
+        }
+        if !imageURLs.isEmpty {
+            ImagePrefetchManager.shared.prefetch(urls: imageURLs)
+        }
+
+        let videoURLs = VideoPlaybackSelector.shared.preloadURLStrings(from: upcoming, maxMoments: 4)
+        if !videoURLs.isEmpty {
+            VideoPreloader.shared.preloadAssets(urls: videoURLs)
+        }
+    }
+
     private func startTimeUpdate() {
         Timer.scheduledTimer(withTimeInterval: 60, repeats: true) { _ in
             withAnimation {
@@ -1427,11 +1456,18 @@ struct FeedView: View {
     
     // ✅ OPTIMIZADO: Prefetching mejorado
     private func prefetchImages() {
-        let momentUrls = viewModel.moments
-            .prefix(10) // ✅ AUMENTADO: De 3 a 10 imágenes
+        let moments = Array(viewModel.moments.prefix(12))
+        VideoMomentsIndex.shared.rebuild(from: viewModel.moments)
+
+        let momentUrls = moments
             .compactMap { $0.imagePath }
             .compactMap { URL(string: $0) }
         ImagePrefetchManager.shared.prefetch(urls: momentUrls)
+
+        let videoURLs = VideoPlaybackSelector.shared.preloadURLStrings(from: moments, maxMoments: 6)
+        if !videoURLs.isEmpty {
+            VideoPreloader.shared.preloadAssets(urls: videoURLs)
+        }
     }
 }
 

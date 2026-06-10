@@ -18,6 +18,25 @@ struct StoryReaction: Identifiable {
     let timestamp: Date
 }
 
+extension Array where Element == StoryReaction {
+    /// Una reacción por persona: la más reciente sobrescribe las anteriores.
+    func latestPerUser() -> [StoryReaction] {
+        var latestByUser: [String: StoryReaction] = [:]
+
+        for reaction in self {
+            if let existing = latestByUser[reaction.userId] {
+                if reaction.timestamp > existing.timestamp {
+                    latestByUser[reaction.userId] = reaction
+                }
+            } else {
+                latestByUser[reaction.userId] = reaction
+            }
+        }
+
+        return latestByUser.values.sorted { $0.timestamp > $1.timestamp }
+    }
+}
+
 struct StoryViewer: Identifiable {
     let id: String
     let userId: String

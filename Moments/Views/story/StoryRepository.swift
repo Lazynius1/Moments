@@ -130,7 +130,7 @@ final class StoryRepository {
                     return StoryReaction(id: doc.documentID, userId: userId, reaction: reaction, timestamp: timestamp)
                 } ?? []
 
-                onChange(reactions)
+                onChange(reactions.latestPerUser())
             }
     }
 
@@ -191,15 +191,34 @@ final class StoryRepository {
     }
 
     func addReaction(userId: String, storyId: String, currentUserId: String, reaction: String, completion: @escaping (Error?) -> Void) {
+        let db = firestoreService.db
+        let reactionsCollection = db.collection("users").document(userId).collection("stories").document(storyId)
+            .collection("reactions")
+        let canonicalRef = reactionsCollection.document(currentUserId)
+
         let reactionData: [String: Any] = [
             "userId": currentUserId,
             "reaction": reaction,
             "timestamp": Timestamp()
         ]
 
-        firestoreService.db.collection("users").document(userId).collection("stories").document(storyId)
-            .collection("reactions").addDocument(data: reactionData) { error in
-                completion(error)
+        // Upsert por usuario y elimina docs legacy con IDs aleatorios.
+        reactionsCollection
+            .whereField("userId", isEqualTo: currentUserId)
+            .getDocuments { snapshot, error in
+                if let error {
+                    completion(error)
+                    return
+                }
+
+                let batch = db.batch()
+                batch.setData(reactionData, forDocument: canonicalRef, merge: true)
+
+                for doc in snapshot?.documents ?? [] where doc.documentID != currentUserId {
+                    batch.deleteDocument(doc.reference)
+                }
+
+                batch.commit(completion: completion)
             }
     }
 

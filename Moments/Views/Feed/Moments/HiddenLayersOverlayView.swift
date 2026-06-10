@@ -876,6 +876,7 @@ private struct HiddenLayerAudioTagView: View {
     @State private var progress: Double = 0
     @State private var audioPlayer: AVAudioPlayer?
     @State private var timer: Timer?
+    @State private var waveTask: Task<Void, Never>?
     @State private var animatedHeights: [CGFloat] = [10, 14, 10]
     @State private var didAppear = false
     @State private var previousAudioCategory: AVAudioSession.Category?
@@ -931,6 +932,7 @@ private struct HiddenLayerAudioTagView: View {
             }
         }
         .onDisappear {
+            waveTask?.cancel()
             stopPlayback()
         }
         .onChange(of: isPlaying) { _, newValue in
@@ -1039,11 +1041,9 @@ private struct HiddenLayerAudioTagView: View {
 
     private func startProgressTimer() {
         timer?.invalidate()
-        timer = Timer.scheduledTimer(withTimeInterval: 0.05, repeats: true) { _ in
+        timer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { _ in
             if let player = self.audioPlayer {
-                withAnimation(.linear(duration: 0.05)) {
-                    self.progress = player.currentTime / player.duration
-                }
+                self.progress = player.currentTime / max(player.duration, 0.001)
                 if !player.isPlaying {
                     finishPlayback()
                 }
@@ -1052,23 +1052,27 @@ private struct HiddenLayerAudioTagView: View {
     }
 
     private func startWaveAnimation() {
-        guard isPlaying else { return }
-
-        withAnimation(.easeInOut(duration: 0.2)) {
-            animatedHeights = [
-                CGFloat.random(in: 6...16),
-                CGFloat.random(in: 10...20),
-                CGFloat.random(in: 6...16)
-            ]
+        waveTask?.cancel()
+        guard isPlaying else {
+            animatedHeights = [10, 14, 10]
+            return
+        }
+        guard !MotionPolicy.reduceMotion else {
+            animatedHeights = [12, 16, 12]
+            return
         }
 
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
-            if self.isPlaying {
-                self.startWaveAnimation()
-            } else {
-                withAnimation {
-                    self.animatedHeights = [10, 14, 10]
-                }
+        waveTask = Task { @MainActor in
+            while isPlaying && !Task.isCancelled {
+                animatedHeights = [
+                    CGFloat.random(in: 6...16),
+                    CGFloat.random(in: 10...20),
+                    CGFloat.random(in: 6...16)
+                ]
+                try? await Task.sleep(nanoseconds: 200_000_000)
+            }
+            if !isPlaying {
+                animatedHeights = [10, 14, 10]
             }
         }
     }

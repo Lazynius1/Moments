@@ -160,7 +160,11 @@ struct ModernLoadingMoreView: View {
         .clipShape(Capsule())
         .shadow(color: adaptiveColors.shadowColor.opacity(0.3), radius: 6, x: 0, y: 3)
         .onAppear {
-            // Iniciar animación de respiración
+            guard !MotionPolicy.reduceMotion else {
+                scale = 1.0
+                opacity = 1.0
+                return
+            }
             withAnimation(.easeInOut(duration: 1.2).repeatForever(autoreverses: true)) {
                 scale = 1.2
                 opacity = 1.0
@@ -185,7 +189,7 @@ struct ModernPostCardView: View {
     var onTagTap: ((String) -> Void)? = nil // ✅ Tag Navigation Callback
     var onPeek: ((String, CGFloat, Bool) -> Void)? = nil // ✅ PEEK: (imageURL, realRatio, isPressing)
     @EnvironmentObject private var firestoreService: FirestoreService
-    @EnvironmentObject private var feedViewModel: FeedViewModel
+    @Environment(FeedViewModel.self) private var feedViewModel
     @State private var currentImageIndex = 0
     @State private var detectedAspectRatio: CGFloat
     @State private var followButtonState: FollowButtonState = .canFollow
@@ -201,9 +205,12 @@ struct ModernPostCardView: View {
 
     // ✅ ACTUALIZADO: AspectRatioType mejorado con soporte para reels
     @State private var aspectRatioType: AspectRatioType = .square
-    @State private var cachedCardHeight: CGFloat?
-    @State private var lastCalculatedSize: CGSize = .zero
+    @State private var resolvedCardHeight: CGFloat = 300
     @State private var isFirstAppear = true
+
+    private var cardHeight: CGFloat {
+        max(resolvedCardHeight, 200)
+    }
 
     init(moment: Moment,
          availableHeight: CGFloat,
@@ -336,30 +343,12 @@ struct ModernPostCardView: View {
         return items.isEmpty ? [MediaItem(type: .image, url: "")] : items
     }
 
-    // ✅ MEJORADO: Cálculo de altura con validaciones completas
-    private var cardHeight: CGFloat {
-        let currentSize = CGSize(
+    private func refreshCardHeight() {
+        let containerSize = CGSize(
             width: UIScreen.main.bounds.width - 16,
             height: availableHeight
         )
-
-        // ✅ CACHEAR: Solo recalcular si el tamaño cambió significativamente
-        if let cached = cachedCardHeight,
-           abs(currentSize.width - lastCalculatedSize.width) < 1.0,
-           abs(currentSize.height - lastCalculatedSize.height) < 1.0 {
-            return cached
-        }
-
-        let newHeight = calculateCardHeight(for: currentSize)
-
-        DispatchQueue.main.async {
-            if self.cachedCardHeight != newHeight {
-                self.cachedCardHeight = newHeight
-                self.lastCalculatedSize = currentSize
-            }
-        }
-
-        return newHeight
+        resolvedCardHeight = calculateCardHeight(for: containerSize)
     }
 
     private func calculateCardHeight(for containerSize: CGSize) -> CGFloat {
@@ -386,21 +375,27 @@ struct ModernPostCardView: View {
                     EnhancedCarouselView(
                         mediaItems: mediaItems,
                         currentIndex: $currentImageIndex,
-                        showTags: $showTags, // ✅ PASAR binding
+                        showTags: $showTags,
                         aspectRatio: detectedAspectRatio > 0 && detectedAspectRatio.isFinite ? detectedAspectRatio : 1.0,
-                        allMoments: feedViewModel.moments,
                         currentMoment: moment,
-                        onTagTap: onTagTap, // ✅ Propagate to parent
-                        isImmersive: $isImmersive // ✅ NUEVO: Faltaba este parámetro
+                        onTagTap: onTagTap,
+                        isImmersive: $isImmersive
                     )
-                    .frame(height: max(cardHeight, 200))
+                    .frame(height: cardHeight)
                     .clipShape(RoundedRectangle(cornerRadius: isImmersive ? 12 : 20))
-                    .animation(.spring(response: 0.4, dampingFraction: 0.8), value: isImmersive)
-                    // ✅ NUEVO: Sistema de sombras multi-nivel (Efecto de profundidad premium)
-                    .shadow(color: colorScheme == .dark ? .black.opacity(0.4) : .black.opacity(0.12), radius: 15, x: 0, y: 10)
-                    .shadow(color: colorScheme == .dark ? .white.opacity(0.05) : .black.opacity(0.08), radius: 1, x: 0, y: 1)
+                    .animation(MotionPolicy.animation(.spring(response: 0.4, dampingFraction: 0.8), value: isImmersive), value: isImmersive)
+                    .shadow(
+                        color: colorScheme == .dark ? .black.opacity(0.35) : .black.opacity(0.1),
+                        radius: 12,
+                        x: 0,
+                        y: 8
+                    )
                     .onAppear {
                         detectAspectRatio()
+                        refreshCardHeight()
+                    }
+                    .onChange(of: availableHeight) { _, _ in
+                        refreshCardHeight()
                     }
                     // ✅ NUEVO: Gesto para Modo Inmersivo
                     .simultaneousGesture(
@@ -441,7 +436,7 @@ struct ModernPostCardView: View {
                        mediaItems.first?.type == .image,
                        currentImageIndex == 0 {
                         HiddenLayersOverlayView(moment: moment, isImmersive: isImmersive, requiresFocusForIntro: true)
-                            .frame(height: max(cardHeight, 200))
+                            .frame(height: cardHeight)
                             .clipShape(RoundedRectangle(cornerRadius: isImmersive ? 12 : 20))
                             .zIndex(3)
                     }
@@ -544,25 +539,21 @@ struct ModernPostCardView: View {
             .opacity(isImmersive ? 0 : 1)
             .animation(.easeInOut(duration: 0.3), value: isImmersive)
         }
+        .feedMomentVisibility(momentId: moment.id ?? "\(moment.authorId)_\(moment.timestamp.timeIntervalSince1970)")
         .onAppear {
             if !hasLoadedInitialData {
                 loadAllPostData()
                 refreshAuthorUsername()
                 hasLoadedInitialData = true
 
-                // ✅ MARCAR que ya no es primera aparición
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                     isFirstAppear = false
                 }
             } else if liveAuthorUsername.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                 refreshAuthorUsername()
             }
+            refreshCardHeight()
             onNearEnd()
-
-            // Solo para videos, notificar que está visible
-            if mediaItems.first?.type == .video {
-
-            }
         }
         .onChange(of: firestoreService.savedMomentIds) { _, _ in
             guard let currentUserId = Auth.auth().currentUser?.uid,
@@ -790,7 +781,7 @@ struct ModernPostCardView: View {
                 DispatchQueue.main.async {
                     self.realAspectRatio = expectedRatioValue // ✅ Siempre guardar el real
                     self.detectedAspectRatio = displayRatio
-                    self.cachedCardHeight = nil
+                    self.refreshCardHeight()
 
                     // Clasificar el tipo
                     if displayRatio < 0.7 { self.aspectRatioType = .reels }
@@ -814,7 +805,7 @@ struct ModernPostCardView: View {
             DispatchQueue.main.async {
                 self.detectedAspectRatio = 0.8 // Fallback a 4:5
                 self.aspectRatioType = .portrait
-                self.cachedCardHeight = nil // Invalidar cache
+                self.refreshCardHeight()
             }
             return
         }
@@ -1097,43 +1088,43 @@ struct ModernPostCardView: View {
 }
 // ✅ COMPONENTES AUXILIARES (reusables)
 
-// Enhanced Carousel View (mantener igual que antes)
+// Enhanced Carousel View — render lazy (±1 slide)
 struct EnhancedCarouselView: View {
     let mediaItems: [MediaItem]
     @Binding var currentIndex: Int
-    @Binding var showTags: Bool // ✅ NUEVO: Binding
+    @Binding var showTags: Bool
     let aspectRatio: CGFloat
-    let allMoments: [Moment] // ✅ NUEVO: Todos los momentos del feed
-    let currentMoment: Moment // ✅ NUEVO: Momento actual
-    var onTagTap: ((String) -> Void)? = nil // ✅ Tag Navigation
-    @Binding var isImmersive: Bool // ✅ NUEVO
+    let currentMoment: Moment
+    var onTagTap: ((String) -> Void)? = nil
+    @Binding var isImmersive: Bool
 
     var body: some View {
         GeometryReader { geometry in
             TabView(selection: $currentIndex) {
                 ForEach(Array(mediaItems.enumerated()), id: \.element.id) { index, item in
-                    MediaItemView(
-                        item: item,
-                        aspectRatio: aspectRatio,
-                        prefersUnifiedCarouselFrame: mediaItems.count > 1,
-                        allMoments: allMoments, // ✅ PASAR todos los momentos
-                        currentMoment: currentMoment, // ✅ PASAR momento actual
-                        showTags: $showTags, // ✅ PASAR binding
-                        onTagTap: onTagTap, // ✅ Propagate
-                        isImmersive: $isImmersive // ✅ NUEVO
-                    )
+                    Group {
+                        if abs(index - currentIndex) <= 1 {
+                            MediaItemView(
+                                item: item,
+                                aspectRatio: aspectRatio,
+                                prefersUnifiedCarouselFrame: mediaItems.count > 1,
+                                currentMoment: currentMoment,
+                                showTags: $showTags,
+                                onTagTap: onTagTap,
+                                isImmersive: $isImmersive
+                            )
+                        } else {
+                            RoundedRectangle(cornerRadius: 20)
+                                .fill(.ultraThinMaterial)
+                        }
+                    }
                     .tag(index)
                     .frame(width: geometry.size.width)
                     .clipped()
-                    .transition(.asymmetric(
-                        insertion: .opacity.combined(with: .scale(scale: 0.95)),
-                        removal: .opacity.combined(with: .scale(scale: 1.05))
-                    ))
-                    .animation(.easeInOut(duration: 0.3), value: currentIndex)
                 }
             }
             .tabViewStyle(PageTabViewStyle(indexDisplayMode: .never))
-            .animation(.easeInOut(duration: 0.4), value: currentIndex)
+            .animation(MotionPolicy.animation(.easeInOut(duration: 0.4), value: currentIndex), value: currentIndex)
         }
     }
 }
@@ -1142,15 +1133,15 @@ struct MediaItemView: View {
     let item: MediaItem
     let aspectRatio: CGFloat
     let prefersUnifiedCarouselFrame: Bool
-    let allMoments: [Moment]
     let currentMoment: Moment
-    @Binding var showTags: Bool // ✅ AHORA ES BINDING
-    var onTagTap: ((String) -> Void)? = nil // ✅ Tag Navigation
-    @Binding var isImmersive: Bool // ✅ NUEVO
+    @Binding var showTags: Bool
+    var onTagTap: ((String) -> Void)? = nil
+    @Binding var isImmersive: Bool
 
     @State private var showReelsViewer = false
     @State private var isVisible = false
     @State private var loadedAspectRatio: CGFloat? = nil
+    @ObservedObject private var videoIndex = VideoMomentsIndex.shared
 
     private var resolvedItemAspectRatio: CGFloat {
         if let loadedAspectRatio, loadedAspectRatio.isFinite, loadedAspectRatio > 0 {
@@ -1275,8 +1266,8 @@ struct MediaItemView: View {
         }
         .fullScreenCover(isPresented: $showReelsViewer) {
             ReelsViewer(
-                videos: allMoments.videoMoments,
-                startIndex: findVideoIndex(),
+                videos: videoIndex.videoMoments,
+                startIndex: videoIndex.reelsStartIndex(for: currentMoment.id),
                 initialStartSeconds: currentPlaybackStartSeconds
             )
             .environmentObject(FirestoreService.shared)
@@ -1285,11 +1276,6 @@ struct MediaItemView: View {
 
     private func openReelsViewer() {
         showReelsViewer = true
-    }
-
-    private func findVideoIndex() -> Int {
-        let videoMoments = allMoments.videoMoments
-        return videoMoments.firstIndex { $0.moment.id == currentMoment.id } ?? 0
     }
 
     private var currentPlaybackStartSeconds: Double {
@@ -1304,8 +1290,9 @@ private struct CarouselMediaBackdropView: View {
     var body: some View {
         ZStack {
             backdropContent
-                .blur(radius: 30)
+                .blur(radius: 20)
                 .saturation(0.9)
+                .drawingGroup(opaque: false)
                 .overlay(Color.black.opacity(0.18))
 
             LinearGradient(
@@ -1378,7 +1365,7 @@ private struct ModeratedMediaItemView: View {
                 .placeholder { Color.black.opacity(0.28) }
                 .resizable()
                 .scaledToFill()
-                .blur(radius: 30)
+                .blur(radius: 20)
                 .saturation(0)
                 .overlay(Color.black.opacity(0.18))
                 .clipped()
@@ -1387,7 +1374,7 @@ private struct ModeratedMediaItemView: View {
                 .placeholder { Color.black.opacity(0.28) }
                 .resizable()
                 .scaledToFill()
-                .blur(radius: 30)
+                .blur(radius: 20)
                 .saturation(0)
                 .overlay(Color.black.opacity(0.18))
                 .clipped()
@@ -1756,5 +1743,15 @@ struct ExpandableContentView: View {
         .onAppear {
             needsExpansion = content.count > maxCharacters
         }
+    }
+}
+
+// MARK: - Equatable (evita re-diff del feed completo en cada update)
+
+extension ModernPostCardView: Equatable {
+    static func == (lhs: ModernPostCardView, rhs: ModernPostCardView) -> Bool {
+        lhs.moment == rhs.moment
+            && lhs.colorScheme == rhs.colorScheme
+            && abs(lhs.availableHeight - rhs.availableHeight) < 1
     }
 }

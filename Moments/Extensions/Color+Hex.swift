@@ -36,6 +36,21 @@ extension Color {
         let b = Float(components[2])
         return String(format: "%02lX%02lX%02lX", lroundf(r * 255), lroundf(g * 255), lroundf(b * 255))
     }
+
+    var isLightColor: Bool {
+        let uiColor = UIColor(self)
+        var red: CGFloat = 0
+        var green: CGFloat = 0
+        var blue: CGFloat = 0
+        var alpha: CGFloat = 0
+        uiColor.getRed(&red, green: &green, blue: &blue, alpha: &alpha)
+        let luminance = 0.299 * red + 0.587 * green + 0.114 * blue
+        return luminance > 0.6
+    }
+
+    func revealContrastingEffectColor() -> Color {
+        isLightColor ? Color(hex: "#1A1A1A") : Color(hex: "#F2F2F2")
+    }
 }
 
 extension UIColor {

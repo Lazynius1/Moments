@@ -102,6 +102,7 @@ struct StoryViewerScreen: View {
     @State private var showUserProfile = false
     @State private var selectedUserId: String = ""
     @State private var floatingHearts: [FloatingHeart] = [] // ✅ FLOATING HEARTS ANIMATION
+    @State private var smileyButtonCenter: CGPoint? = nil // ✅ Smiley button position for burst origin
     @State private var isUIHidden: Bool = false // ✅ IMMERSIVE MODE STATE
     @State private var gestureActionTriggered: Bool = false // ✅ UNIFIED GESTURE STATE
     @State private var isHoldingStory: Bool = false
@@ -367,10 +368,13 @@ struct StoryViewerScreen: View {
             }
 
             // MARK: - 3. FLOATING HEARTS (Under UI, Over Content)
-            FloatingHeartsView(hearts: floatingHearts)
-                .allowsHitTesting(false)
-                .frame(width: captureRect.width, height: captureRect.height)
-                .position(x: captureRect.midX, y: captureRect.midY)
+            StoryFloatingReactionLayer(
+                hearts: floatingHearts,
+                frameSize: screenSize,
+                midX: screenSize.width / 2,
+                midY: screenSize.height / 2
+            )
+            .allowsHitTesting(false)
 
             // MARK: - 3.5 REVEAL OVERLAY (sobre contenido, debajo de la UI)
             if let revealSticker = revealSticker {
@@ -382,7 +386,8 @@ struct StoryViewerScreen: View {
                     revealType: revealSticker.interactionData?.revealType,
                     revealPattern: revealSticker.interactionData?.revealPattern,
                     revealPrimaryColor: revealSticker.interactionData?.revealPrimaryColor,
-                    revealSecondaryColor: revealSticker.interactionData?.revealSecondaryColor
+                    revealSecondaryColor: revealSticker.interactionData?.revealSecondaryColor,
+                    revealEffectColor: revealSticker.interactionData?.revealEffectColor
                 )
                 .frame(width: captureRect.width, height: captureRect.height)
                 .position(x: captureRect.midX, y: captureRect.midY)
@@ -390,13 +395,18 @@ struct StoryViewerScreen: View {
 
             // MARK: - 4. PROGRESS - EN EL HUECO SUPERIOR, FUERA DEL MARCO
             if !isUIHidden {
-                glassmorphicProgressBar
-                    .padding(.horizontal, 12)
-                    .position(
-                        x: geometry.size.width / 2,
-                        y: progressY
-                    )
-                    .zIndex(1)
+                StorySegmentProgressChrome(
+                    storyCount: storyCount,
+                    storyIndex: storyIndex,
+                    playbackCoordinator: playbackCoordinator,
+                    audienceForSegment: audienceForSegment(index:)
+                )
+                .padding(.horizontal, 12)
+                .position(
+                    x: geometry.size.width / 2,
+                    y: progressY
+                )
+                .zIndex(1)
             }
 
             // MARK: - 4. HEADER - DENTRO DEL MEDIA
@@ -464,6 +474,8 @@ struct StoryViewerScreen: View {
                 .zIndex(30)
             }
         }
+        .coordinateSpace(name: "storyViewerSpace")
+        .environment(\.storyEffectsActive, isDeckPageActive)
         .onAppear {
             interactionCaptureRect = captureRect
         }
@@ -720,18 +732,6 @@ struct StoryViewerScreen: View {
     }
 
     // MARK: - Glassmorphic Components
-
-    private var glassmorphicProgressBar: some View {
-        HStack(spacing: 4) {
-            ForEach(0..<storyCount, id: \.self) { index in
-                GlassmorphicProgressBar(
-                    progress: getProgressForSegment(index: index),
-                    isActive: index == storyIndex,
-                    audience: audienceForSegment(index: index)
-                )
-            }
-        }
-    }
 
     private func audienceForSegment(index: Int) -> String? {
         guard let storiesForAuthor = storyViewModel.stories[story.authorId],
@@ -1026,7 +1026,9 @@ struct StoryViewerScreen: View {
                 StoryReactionsStrip(
                     reactions: reactions,
                     showReactions: showReactions,
-                    onReaction: sendReaction
+                    onReaction: { reaction in
+                        sendReaction(reaction, sourcePoint: smileyButtonCenter)
+                    }
                 )
             }
 
@@ -1112,6 +1114,18 @@ struct StoryViewerScreen: View {
                                         showReactions.toggle()
                                     }
                                 }
+                                .background(
+                                    GeometryReader { geo in
+                                        Color.clear.onAppear {
+                                            let frame = geo.frame(in: .named("storyViewerSpace"))
+                                            smileyButtonCenter = CGPoint(x: frame.midX, y: frame.midY)
+                                        }
+                                        .onChange(of: geo.size) { _, _ in
+                                            let frame = geo.frame(in: .named("storyViewerSpace"))
+                                            smileyButtonCenter = CGPoint(x: frame.midX, y: frame.midY)
+                                        }
+                                    }
+                                )
                                 .onChange(of: showReactions) { _, isOpen in
                                     if isOpen {
                                         pauseStory()
@@ -1717,7 +1731,7 @@ struct StoryViewerScreen: View {
         }
     }
 
-    private func sendReaction(_ reaction: String) {
+    private func sendReaction(_ reaction: String, sourcePoint: CGPoint? = nil) {
         guard let storyId = story.id else { return }
 
         storyViewModel.sendReaction(
@@ -1730,19 +1744,14 @@ struct StoryViewerScreen: View {
             showReactions = false
         }
 
-        // ✅ TRIGGER FLOATING VISUAL FEEDBACK
-        let randomX = CGFloat.random(in: 50...(screenSize.width - 50))
-        let heart = FloatingHeart(emoji: reaction, startX: randomX)
-        floatingHearts.append(heart)
-
-        // Remove heart after animation
-        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
-            if !floatingHearts.isEmpty {
-                floatingHearts.removeFirst()
-            }
+        StoryReactionBurst.emit(
+            &floatingHearts,
+            emoji: reaction,
+            from: sourcePoint,
+            in: screenSize
+        ) { heartId in
+            floatingHearts.removeAll { $0.id == heartId }
         }
-
-        showSuccessAnimation(NSLocalizedString("stories.reactionSent", comment: "Reaction sent"))
 
         // ✅ Reanudar historia inmediatamente después de enviar reacción
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
@@ -2082,10 +2091,6 @@ struct StoryViewerScreen: View {
 
         // ✅ SIMPLIFICADO: Sin delay, transición inmediata
         prepareAndStartStory()
-    }
-
-    private func getProgressForSegment(index: Int) -> Double {
-        playbackCoordinator.progressForSegment(index: index, storyIndex: storyIndex)
     }
 
     private func timeAgoString(from date: Date) -> String {

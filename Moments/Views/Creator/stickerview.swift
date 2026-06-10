@@ -1768,7 +1768,8 @@ struct StickerPickerView: View {
                 revealType: "solid",
                 revealPattern: "dots",
                 revealPrimaryColor: "#000000",
-                revealSecondaryColor: "#000000"
+                revealSecondaryColor: "#000000",
+                revealEffectColor: "#FFFFFF"
             )
         )
         selectedStickers.append(sticker)

@@ -666,7 +666,8 @@ struct RevealStickerEditorView: View {
                     type: stickers[index].interactionData?.revealType,
                     pattern: stickers[index].interactionData?.revealPattern,
                     primaryColor: stickers[index].interactionData?.revealPrimaryColor,
-                    secondaryColor: stickers[index].interactionData?.revealSecondaryColor
+                    secondaryColor: stickers[index].interactionData?.revealSecondaryColor,
+                    effectColor: stickers[index].interactionData?.revealEffectColor
                 )
                 .clipShape(RoundedRectangle(cornerRadius: canvasCornerRadius, style: .continuous))
             }
@@ -776,6 +777,7 @@ private struct RevealStickerControlsContent: View {
     @State private var customPattern: String = "dots"
     @State private var customPrimary: Color = .black
     @State private var customSecondary: Color = .black
+    @State private var customEffect: Color = .white
 
     private var primaryTextColor: Color {
         colorScheme == .dark ? .white : .black
@@ -908,7 +910,8 @@ private struct RevealStickerControlsContent: View {
                                 type: preset.type,
                                 pattern: preset.pattern,
                                 primaryColor: preset.primary,
-                                secondaryColor: preset.secondary
+                                secondaryColor: preset.secondary,
+                                effectColor: preset.effect
                             )
                             .frame(width: presetPreviewSize.width, height: presetPreviewSize.height)
                             .clipShape(RoundedRectangle(cornerRadius: 16))
@@ -947,37 +950,29 @@ private struct RevealStickerControlsContent: View {
                 }
             }
 
-            HStack(spacing: 26) {
-                VStack(spacing: 4) {
-                    ColorPicker(selection: $customPrimary, supportsOpacity: false) {
-                        Circle()
-                            .fill(customPrimary)
-                            .frame(width: 44, height: 44)
-                            .overlay(Circle().stroke(Color.white, lineWidth: 2))
-                    }
-                    .labelsHidden()
-
-                    Text(NSLocalizedString("revealEditor.color1", comment: ""))
-                        .font(.caption2)
-                        .foregroundColor(secondaryTextColor)
+            ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 20) {
+                revealColorPicker(
+                    color: $customPrimary,
+                    labelKey: customType == "solid" ? "revealEditor.color.background" : "revealEditor.color1"
+                )
+                .onChange(of: customPrimary) { _, _ in
+                    ensureContrastingEffectColorIfNeeded()
+                    updateCustomColors()
                 }
-                .onChange(of: customPrimary) { updateCustomColors() }
 
                 if customType == "gradient" {
-                    VStack(spacing: 4) {
-                        ColorPicker(selection: $customSecondary, supportsOpacity: false) {
-                            Circle()
-                                .fill(customSecondary)
-                                .frame(width: 44, height: 44)
-                                .overlay(Circle().stroke(Color.white, lineWidth: 2))
+                    revealColorPicker(color: $customSecondary, labelKey: "revealEditor.color2")
+                        .onChange(of: customSecondary) { _, _ in
+                            updateCustomColors()
                         }
-                        .labelsHidden()
+                }
 
-                        Text(NSLocalizedString("revealEditor.color2", comment: ""))
-                            .font(.caption2)
-                            .foregroundColor(secondaryTextColor)
-                    }
-                    .onChange(of: customSecondary) { updateCustomColors() }
+                if customPattern != "none" {
+                    revealColorPicker(color: $customEffect, labelKey: "revealEditor.color.effect")
+                        .onChange(of: customEffect) { _, _ in
+                            updateCustomColors()
+                        }
                 }
 
                 Button(action: toggleType) {
@@ -996,17 +991,35 @@ private struct RevealStickerControlsContent: View {
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(customType == "solid"
-                        ? NSLocalizedString("revealEditor.color1", comment: "")
-                        : NSLocalizedString("revealEditor.color2", comment: ""))
+                        ? NSLocalizedString("revealEditor.color.background", comment: "")
+                        : NSLocalizedString("revealEditor.color1", comment: ""))
                         .font(.custom("Poppins-Medium", size: 12))
                         .foregroundColor(primaryTextColor)
                     Text(customType == "solid"
                         ? NSLocalizedString("revealEditor.tab.custom", comment: "Custom")
-                        : NSLocalizedString("revealEditor.tab.presets", comment: "Presets"))
+                        : NSLocalizedString("revealEditor.color2", comment: ""))
                         .font(.system(size: 11, weight: .medium))
                         .foregroundColor(tertiaryTextColor)
                 }
             }
+            .padding(.horizontal, 2)
+            }
+        }
+    }
+
+    private func revealColorPicker(color: Binding<Color>, labelKey: String) -> some View {
+        VStack(spacing: 4) {
+            ColorPicker(selection: color, supportsOpacity: false) {
+                Circle()
+                    .fill(color.wrappedValue)
+                    .frame(width: 40, height: 40)
+                    .overlay(Circle().stroke(Color.white, lineWidth: 2))
+            }
+            .labelsHidden()
+
+            Text(NSLocalizedString(labelKey, comment: ""))
+                .font(.caption2)
+                .foregroundColor(secondaryTextColor)
         }
     }
 
@@ -1106,6 +1119,12 @@ private struct RevealStickerControlsContent: View {
         customPattern = data?.revealPattern ?? "dots"
         customPrimary = Color(hex: data?.revealPrimaryColor ?? "#000000")
         customSecondary = Color(hex: data?.revealSecondaryColor ?? "#000000")
+        if let effectHex = data?.revealEffectColor, !effectHex.isEmpty {
+            customEffect = Color(hex: effectHex)
+        } else {
+            customEffect = resolvedLegacyEffectColor(from: data)
+        }
+        ensureContrastingEffectColorIfNeeded()
 
         // Try to match preset
         if let preset = revealPresets.first(where: {
@@ -1124,27 +1143,61 @@ private struct RevealStickerControlsContent: View {
 
     private func applyPreset(_ preset: RevealPreset) {
         selectedPresetId = preset.id
-        updateSticker(type: preset.type, pattern: preset.pattern, primary: preset.primary, secondary: preset.secondary)
+        customPrimary = Color(hex: preset.primary)
+        customSecondary = Color(hex: preset.secondary)
+        customEffect = Color(hex: preset.effect)
+        updateSticker(
+            type: preset.type,
+            pattern: preset.pattern,
+            primary: preset.primary,
+            secondary: preset.secondary,
+            effect: preset.effect
+        )
         HapticManager.shared.lightImpact()
     }
 
     private func updateCustomPattern(_ p: String) {
         customPattern = p
-        updateSticker(type: customType, pattern: p, primary: customPrimary.toHex(), secondary: customSecondary.toHex())
+        ensureContrastingEffectColorIfNeeded()
+        updateCustomColors()
+    }
+
+    private func resolvedLegacyEffectColor(from data: StickerItem.StickerInteractionData?) -> Color {
+        if let secondary = data?.revealSecondaryColor,
+           let primary = data?.revealPrimaryColor,
+           !secondary.isEmpty,
+           secondary.lowercased() != primary.lowercased() {
+            return Color(hex: secondary)
+        }
+        return customPrimary.revealContrastingEffectColor()
+    }
+
+    private func ensureContrastingEffectColorIfNeeded() {
+        guard customPattern != "none" else { return }
+        if customPrimary.toHex().lowercased() == customEffect.toHex().lowercased() {
+            customEffect = customPrimary.revealContrastingEffectColor()
+        }
     }
 
     private func updateCustomColors() {
-        updateSticker(type: customType, pattern: customPattern, primary: customPrimary.toHex(), secondary: customSecondary.toHex())
+        updateSticker(
+            type: customType,
+            pattern: customPattern,
+            primary: customPrimary.toHex(),
+            secondary: customSecondary.toHex(),
+            effect: customPattern == "none" ? nil : customEffect.toHex()
+        )
     }
 
     private func toggleType() {
         withAnimation {
             customType = customType == "solid" ? "gradient" : "solid"
         }
+        ensureContrastingEffectColorIfNeeded()
         updateCustomColors()
     }
 
-    private func updateSticker(type: String, pattern: String, primary: String, secondary: String) {
+    private func updateSticker(type: String, pattern: String, primary: String, secondary: String, effect: String?) {
         guard let index = currentStickerIndex else { return }
         var data = stickers[index].interactionData ?? StickerItem.StickerInteractionData()
 
@@ -1152,6 +1205,7 @@ private struct RevealStickerControlsContent: View {
         data.revealPattern = pattern
         data.revealPrimaryColor = primary
         data.revealSecondaryColor = secondary
+        data.revealEffectColor = effect
 
         stickers[index].interactionData = data
     }
@@ -1164,16 +1218,17 @@ struct RevealPreset: Identifiable {
     let pattern: String
     let primary: String
     let secondary: String
+    let effect: String
 }
 
 let revealPresets: [RevealPreset] = [
-    RevealPreset(id: "classic", name: "Classic", type: "solid", pattern: "dots", primary: "#000000", secondary: "#000000"),
-    RevealPreset(id: "midnight", name: "Midnight", type: "solid", pattern: "grid", primary: "#0B1215", secondary: "#0B1215"),
-    RevealPreset(id: "golden", name: "Golden", type: "gradient", pattern: "noise", primary: "#BF953F", secondary: "#8E6E2D"),
-    RevealPreset(id: "neon", name: "Neon Glow", type: "gradient", pattern: "lines", primary: "#430089", secondary: "#82009F"),
-    RevealPreset(id: "silver", name: "Silver", type: "gradient", pattern: "dots", primary: "#C0C0C0", secondary: "#708090"),
-    RevealPreset(id: "retro", name: "Old TV", type: "solid", pattern: "static", primary: "#FFFFFF", secondary: "#FFFFFF"),
-    RevealPreset(id: "matrix", name: "Matrix", type: "solid", pattern: "matrix", primary: "#000000", secondary: "#000000"),
-    RevealPreset(id: "blueprint", name: "Blueprint", type: "solid", pattern: "grid", primary: "#003366", secondary: "#003366"),
-    RevealPreset(id: "magic", name: "Magic", type: "solid", pattern: "holographic", primary: "#C8C8C8", secondary: "#C8C8C8")
+    RevealPreset(id: "classic", name: "Classic", type: "solid", pattern: "dots", primary: "#000000", secondary: "#000000", effect: "#FFFFFF"),
+    RevealPreset(id: "midnight", name: "Midnight", type: "solid", pattern: "grid", primary: "#0B1215", secondary: "#0B1215", effect: "#7EC8FF"),
+    RevealPreset(id: "golden", name: "Golden", type: "gradient", pattern: "noise", primary: "#BF953F", secondary: "#8E6E2D", effect: "#FFF4D6"),
+    RevealPreset(id: "neon", name: "Neon Glow", type: "gradient", pattern: "lines", primary: "#430089", secondary: "#82009F", effect: "#FF8AF8"),
+    RevealPreset(id: "silver", name: "Silver", type: "gradient", pattern: "dots", primary: "#C0C0C0", secondary: "#708090", effect: "#FFFFFF"),
+    RevealPreset(id: "retro", name: "Old TV", type: "solid", pattern: "static", primary: "#FFFFFF", secondary: "#FFFFFF", effect: "#2B2B2B"),
+    RevealPreset(id: "matrix", name: "Matrix", type: "solid", pattern: "matrix", primary: "#000000", secondary: "#000000", effect: "#00FF41"),
+    RevealPreset(id: "blueprint", name: "Blueprint", type: "solid", pattern: "grid", primary: "#003366", secondary: "#003366", effect: "#8FD3FF"),
+    RevealPreset(id: "magic", name: "Magic", type: "solid", pattern: "holographic", primary: "#C8C8C8", secondary: "#C8C8C8", effect: "#FF6AD5")
 ]

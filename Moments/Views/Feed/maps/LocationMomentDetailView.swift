@@ -801,8 +801,7 @@ struct LocationMomentCard: View {
                     currentIndex: $currentImageIndex,
                     showTags: $showTags, // ✅ PASAR binding
                     aspectRatio: detectedAspectRatio > 0 && detectedAspectRatio.isFinite ? detectedAspectRatio : 1.0,
-                    allMoments: [moment], // Solo el momento actual
-                    currentMoment: moment, // El momento actual
+                    currentMoment: moment,
                     isImmersive: $isImmersive // ✅ NUEVO
                 )
                 .simultaneousGesture(

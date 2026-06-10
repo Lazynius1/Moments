@@ -23,6 +23,8 @@
 "revealEditor.pattern.holographic" = "Holographic";
 "revealEditor.color1" = "Color 1";
 "revealEditor.color2" = "Color 2";
+"revealEditor.color.background" = "Background";
+"revealEditor.color.effect" = "Effect";
 "revealEditor.colorPicker.primary" = "Select Color";
 "revealEditor.colorPicker.secondary" = "Select Secondary Color";
 "revealEditor.preset.classic" = "Classic";

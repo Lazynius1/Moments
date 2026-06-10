@@ -1521,6 +1521,7 @@ struct Story: Identifiable, Codable {
                 revealPattern: stickerData.revealPattern,
                 revealPrimaryColor: stickerData.revealPrimaryColor,
                 revealSecondaryColor: stickerData.revealSecondaryColor,
+                revealEffectColor: stickerData.revealEffectColor,
                 frameStyle: stickerData.frameStyle,
                 contentScale: stickerData.contentScale,
                 contentOffsetX: stickerData.contentOffsetX,
@@ -1818,6 +1819,7 @@ struct StickerData: Codable {
     let revealPattern: String?
     let revealPrimaryColor: String?
     let revealSecondaryColor: String?
+    let revealEffectColor: String?
     let frameStyle: String?
     let contentScale: CGFloat?
     let contentOffsetX: CGFloat?
@@ -1840,7 +1842,7 @@ struct StickerData: Codable {
          username: String? = nil, userId: String? = nil, hashtag: String? = nil,
          location: String? = nil, latitude: Double? = nil, longitude: Double? = nil, styleVariant: Int? = nil, questionText: String? = nil, pollOptions: [String]? = nil, weatherSymbol: String? = nil, linkURL: String? = nil, linkTitle: String? = nil, countdownTitle: String? = nil, countdownTargetAtMs: Double? = nil, sliderEmoji: String? = nil, sliderPrompt: String? = nil, caption: String? = nil, profileImagePath: String? = nil, momentId: String? = nil, mediaCount: Int? = nil,
          quizQuestion: String? = nil, quizOptions: [String]? = nil, quizCorrectIndex: Int? = nil,
-         revealType: String? = nil, revealPattern: String? = nil, revealPrimaryColor: String? = nil, revealSecondaryColor: String? = nil,
+         revealType: String? = nil, revealPattern: String? = nil, revealPrimaryColor: String? = nil, revealSecondaryColor: String? = nil, revealEffectColor: String? = nil,
          frameStyle: String? = nil,
          contentScale: CGFloat? = nil, contentOffsetX: CGFloat? = nil, contentOffsetY: CGFloat? = nil,
          moderationState: String? = nil, moderationReason: String? = nil, moderationCategory: String? = nil,
@@ -1880,6 +1882,7 @@ struct StickerData: Codable {
         self.revealPattern = revealPattern
         self.revealPrimaryColor = revealPrimaryColor
         self.revealSecondaryColor = revealSecondaryColor
+        self.revealEffectColor = revealEffectColor
         self.frameStyle = frameStyle
         self.contentScale = contentScale
         self.contentOffsetX = contentOffsetX
@@ -1945,6 +1948,7 @@ struct StickerData: Codable {
         self.revealPattern = try container.decodeIfPresent(String.self, forKey: .revealPattern)
         self.revealPrimaryColor = try container.decodeIfPresent(String.self, forKey: .revealPrimaryColor)
         self.revealSecondaryColor = try container.decodeIfPresent(String.self, forKey: .revealSecondaryColor)
+        self.revealEffectColor = try container.decodeIfPresent(String.self, forKey: .revealEffectColor)
         self.frameStyle = try container.decodeIfPresent(String.self, forKey: .frameStyle)
         self.contentScale = try container.decodeIfPresent(CGFloat.self, forKey: .contentScale)
         self.contentOffsetX = try container.decodeIfPresent(CGFloat.self, forKey: .contentOffsetX)
@@ -2016,6 +2020,7 @@ struct StickerData: Codable {
             revealPattern: stickerItem.interactionData?.revealPattern,
             revealPrimaryColor: stickerItem.interactionData?.revealPrimaryColor,
             revealSecondaryColor: stickerItem.interactionData?.revealSecondaryColor,
+            revealEffectColor: stickerItem.interactionData?.revealEffectColor,
             frameStyle: stickerItem.interactionData?.frameStyle,
             contentScale: stickerItem.interactionData?.contentScale,
             contentOffsetX: stickerItem.interactionData?.contentOffsetX,
@@ -2123,6 +2128,7 @@ extension StickerData {
         case revealPattern
         case revealPrimaryColor
         case revealSecondaryColor
+        case revealEffectColor
         case frameStyle
         case contentScale
         case contentOffsetX
@@ -2173,6 +2179,7 @@ extension StickerData {
         try container.encodeIfPresent(revealPattern, forKey: .revealPattern)
         try container.encodeIfPresent(revealPrimaryColor, forKey: .revealPrimaryColor)
         try container.encodeIfPresent(revealSecondaryColor, forKey: .revealSecondaryColor)
+        try container.encodeIfPresent(revealEffectColor, forKey: .revealEffectColor)
         try container.encodeIfPresent(frameStyle, forKey: .frameStyle)
         try container.encodeIfPresent(contentScale, forKey: .contentScale)
         try container.encodeIfPresent(contentOffsetX, forKey: .contentOffsetX)

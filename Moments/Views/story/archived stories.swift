@@ -1802,9 +1802,10 @@ class StoryStatsViewModel: ObservableObject {
                     return StoryReaction(id: doc.documentID, userId: userId, reaction: reaction, timestamp: timestamp)
                 } ?? []
                 
+                let uniqueReactions = reactions.latestPerUser()
                 DispatchQueue.main.async {
-                    self?.reactions = reactions
-                    self?.reactionCount = reactions.count
+                    self?.reactions = uniqueReactions
+                    self?.reactionCount = uniqueReactions.count
                 }
             }
         

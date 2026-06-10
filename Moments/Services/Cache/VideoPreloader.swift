@@ -10,6 +10,7 @@ class VideoPreloader {
     private init() {}
     
     func preloadAssets(urls: [String]) {
+        PerformanceSignposts.event("VideoPreloadBatch")
         queue.async { [weak self] in
             guard let self = self else { return }
             

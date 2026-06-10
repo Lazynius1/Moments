@@ -83,16 +83,20 @@ struct StoryOwnStoryBottomBar: View {
         ContentAudience.fromAudienceValue(audience)
     }
 
-    private var reactionCount: Int {
-        reactions.count
+    private var uniqueReactions: [StoryReaction] {
+        reactions.latestPerUser()
     }
 
-    /// Hasta 3 emojis distintos, los más recientes primero (p. ej. 🔥 😂 ❤️).
+    private var reactionCount: Int {
+        uniqueReactions.count
+    }
+
+    /// Hasta 3 emojis distintos de personas distintas, los más recientes primero.
     private var distinctReactionEmojis: [String] {
         var seen = Set<String>()
         var result: [String] = []
-        let sorted = reactions.sorted { $0.timestamp > $1.timestamp }
-        for item in sorted {
+
+        for item in uniqueReactions {
             let emoji = item.reaction.trimmingCharacters(in: .whitespacesAndNewlines)
             guard !emoji.isEmpty, seen.insert(emoji).inserted else { continue }
             result.append(emoji)
@@ -353,6 +357,7 @@ struct StoryReactionsStrip: View {
                 .padding(.horizontal, 20)
                 .padding(.vertical, 8)
             }
+            .scrollClipDisabled()
             .frame(height: 70)
         }
         .transition(.asymmetric(

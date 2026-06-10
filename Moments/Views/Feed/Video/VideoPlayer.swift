@@ -144,6 +144,7 @@ struct ModernVideoPlayer: View {
     @State private var setupRetries = 0
     @State private var setupGeneration = 0
     @State private var hasLoadError = false
+    @ObservedObject private var visibilityCoordinator = FeedVisibilityCoordinator.shared
     
     private let maxSetupRetries = 2
     private let setupTimeoutSeconds: Double = 4.0
@@ -226,7 +227,7 @@ struct ModernVideoPlayer: View {
                     VStack {
                         Spacer()
                         if playerManager.duration > 0 {
-                            progressBar
+                            VideoFeedProgressBar(progress: progress)
                         }
                     }
                 }
@@ -235,22 +236,21 @@ struct ModernVideoPlayer: View {
         .onAppear {
             setupPlayer()
             globalManager.registerPlayer(videoId, manager: playerManager)
-            
-            // ✅ NUEVO: Detectar visibilidad
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                isVisible = true
-                checkAutoPlay()
-            }
+            isVisible = true
+            updatePlaybackForVisibility(activeId: visibilityCoordinator.activeVideoMomentId)
         }
         .onDisappear {
             isVisible = false
             globalManager.unregisterPlayer(videoId)
+            globalManager.pauseVideo(videoId)
             playerManager.cleanup()
-            // Importante: permitir re-setup al reaparecer la celda en feed.
             hasSetupPlayer = false
             hasLoadError = false
             setupRetries = 0
             setupGeneration += 1
+        }
+        .onChange(of: visibilityCoordinator.activeVideoMomentId) { _, activeId in
+            updatePlaybackForVisibility(activeId: activeId)
         }
         .onTapGesture {
             if allowsPauseInteraction {
@@ -364,27 +364,12 @@ struct ModernVideoPlayer: View {
         .animation(.easeInOut(duration: 0.3), value: showMuteButton)
     }
     
-    // MARK: - Progress Bar (igual que antes)
-    private var progressBar: some View {
-        GeometryReader { geometry in
-            ZStack(alignment: .leading) {
-                Rectangle()
-                    .fill(Color.white.opacity(0.3))
-                    .frame(height: 2)
-                
-                Rectangle()
-                    .fill(Color.white)
-                    .frame(width: geometry.size.width * progress, height: 2)
-                    .animation(.linear(duration: 0.1), value: progress)
-            }
-        }
-        .frame(height: 2)
-        .padding(.horizontal, 0)
-        .padding(.bottom, 0)
-    }
-    
     // MARK: - Functions
     private func setupPlayer() {
+        let signpostID = PerformanceSignposts.makeID()
+        PerformanceSignposts.begin("VideoPlayerSetup", id: signpostID)
+        defer { PerformanceSignposts.end("VideoPlayerSetup", id: signpostID) }
+
         guard let videoURL = resolvedPlaybackURL() else {
             hasLoadError = true
             return
@@ -444,7 +429,7 @@ struct ModernVideoPlayer: View {
         playerManager.cleanup()
         setupPlayer()
         if isVisible {
-            checkAutoPlay()
+            updatePlaybackForVisibility(activeId: visibilityCoordinator.activeVideoMomentId)
         }
     }
     
@@ -459,16 +444,13 @@ struct ModernVideoPlayer: View {
         }
     }
     
-    // ✅ NUEVO: Auto-play inteligente
-    private func checkAutoPlay() {
-        // ✅ Auto-play al hacerse visible: este vídeo pasa a ser el activo
-        // GlobalVideoManager se encarga de pausar los demás
-        if isVisible {
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                if self.isVisible {
-                    self.globalManager.playVideo(self.videoId)
-                }
-            }
+    private func updatePlaybackForVisibility(activeId: String?) {
+        guard isVisible else { return }
+        let playbackMomentId = moment?.id ?? videoId
+        if activeId == playbackMomentId {
+            globalManager.playVideo(videoId)
+        } else {
+            globalManager.pauseVideo(videoId)
         }
     }
     
@@ -509,8 +491,9 @@ class VideoPlayerManager: ObservableObject {
     @Published var isReadyToPlay = false
     @Published var duration: Double = 0
     @Published var currentTime: Double = 0
-    
+
     private var timeObserver: Any?
+    private var lastPublishedTime: Double = -1
     private var endObserver: NSObjectProtocol?
     private var statusObserver: NSKeyValueObservation?
     private var consumerId: String?
@@ -643,8 +626,13 @@ class VideoPlayerManager: ObservableObject {
                 let currentSeconds = CMTimeGetSeconds(time)
                 
                 if !durationSeconds.isNaN && !currentSeconds.isNaN && durationSeconds > 0 {
-                    self.duration = durationSeconds
-                    self.currentTime = currentSeconds
+                    if abs(self.duration - durationSeconds) > 0.01 {
+                        self.duration = durationSeconds
+                    }
+                    if abs(self.lastPublishedTime - currentSeconds) >= 0.08 {
+                        self.lastPublishedTime = currentSeconds
+                        self.currentTime = currentSeconds
+                    }
                 }
             }
         }
@@ -676,6 +664,7 @@ class VideoPlayerManager: ObservableObject {
         
         isPlaying = false
         isReadyToPlay = false
+        lastPublishedTime = -1
     }
     
     deinit {

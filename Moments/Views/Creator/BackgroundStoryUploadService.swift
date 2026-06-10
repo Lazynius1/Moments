@@ -192,6 +192,7 @@ struct CachedStickerInteractionData: Codable {
     let revealPattern: String?
     let revealPrimaryColor: String?
     let revealSecondaryColor: String?
+    let revealEffectColor: String?
     let frameStyle: String?
     let contentScale: CGFloat?
     let contentOffsetX: CGFloat?
@@ -1821,6 +1822,7 @@ class BackgroundStoryUploadService: ObservableObject {
                 revealPattern: data.revealPattern,
                 revealPrimaryColor: data.revealPrimaryColor,
                 revealSecondaryColor: data.revealSecondaryColor,
+                revealEffectColor: data.revealEffectColor,
                 frameStyle: data.frameStyle,
                 contentScale: data.contentScale,
                 contentOffsetX: data.contentOffsetX,
@@ -1992,6 +1994,7 @@ class BackgroundStoryUploadService: ObservableObject {
                             revealPattern: data.revealPattern,
                             revealPrimaryColor: data.revealPrimaryColor,
                             revealSecondaryColor: data.revealSecondaryColor,
+                            revealEffectColor: data.revealEffectColor,
                             frameStyle: data.frameStyle,
                             contentScale: data.contentScale,
                             contentOffsetX: data.contentOffsetX,

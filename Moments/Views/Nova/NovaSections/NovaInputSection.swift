@@ -186,12 +186,16 @@ struct NovaShimmerModifier: ViewModifier {
                 }
             )
             .onAppear {
+                guard !MotionPolicy.reduceMotion else { return }
                 withAnimation(
                     Animation.linear(duration: 1.5)
                         .repeatForever(autoreverses: false)
                 ) {
                     phase = 1.0
                 }
+            }
+            .onDisappear {
+                phase = 0
             }
     }
 }

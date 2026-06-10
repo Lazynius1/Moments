@@ -1228,7 +1228,6 @@ struct ModernSavedDetailMomentCard: View {
                         currentIndex: $currentImageIndex,
                         showTags: $showTags,
                         aspectRatio: detectedAspectRatio,
-                        allMoments: [moment],
                         currentMoment: moment,
                         isImmersive: $isImmersive // ✅ NUEVO
                     )

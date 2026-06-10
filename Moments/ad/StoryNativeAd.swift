@@ -970,9 +970,14 @@ struct StoryAdLoadingView: View {
             storyTouchAreas
         }
         .onAppear {
-            withAnimation(.easeInOut(duration: 1.5).repeatForever(autoreverses: true)) {
-                isAnimating = true
+            if !MotionPolicy.reduceMotion {
+                withAnimation(.easeInOut(duration: 1.5).repeatForever(autoreverses: true)) {
+                    isAnimating = true
+                }
             }
+        }
+        .onDisappear {
+            isAnimating = false
         }
     }
     

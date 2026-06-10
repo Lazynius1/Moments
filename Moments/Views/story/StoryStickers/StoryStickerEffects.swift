@@ -333,46 +333,163 @@ struct FloatingHeart: Identifiable, Equatable {
     let id = UUID()
     let emoji: String
     let startX: CGFloat
+    let startY: CGFloat
+    let fontSize: CGFloat
+    let rotation: Double
+    let delay: TimeInterval
+    let duration: TimeInterval
+    let lateralDrift: CGFloat
+    let verticalTravel: CGFloat
+    let peakScale: CGFloat
+    let targetScale: CGFloat
+    let rotationDelta: Double
+    let swayAmplitude: CGFloat
+    let swayFrequency: Double
+
+    init(
+        emoji: String,
+        startX: CGFloat,
+        startY: CGFloat,
+        fontSize: CGFloat = 44,
+        rotation: Double = 0,
+        delay: TimeInterval = 0,
+        duration: TimeInterval = 2.0,
+        lateralDrift: CGFloat = 0,
+        verticalTravel: CGFloat = 400,
+        peakScale: CGFloat = 1.08,
+        targetScale: CGFloat = 1.1,
+        rotationDelta: Double = 0,
+        swayAmplitude: CGFloat = 0,
+        swayFrequency: Double = 0
+    ) {
+        self.emoji = emoji
+        self.startX = startX
+        self.startY = startY
+        self.fontSize = fontSize
+        self.rotation = rotation
+        self.delay = delay
+        self.duration = duration
+        self.lateralDrift = lateralDrift
+        self.verticalTravel = verticalTravel
+        self.peakScale = peakScale
+        self.targetScale = targetScale
+        self.rotationDelta = rotationDelta
+        self.swayAmplitude = swayAmplitude
+        self.swayFrequency = swayFrequency
+    }
 }
 
 struct FloatingHeartsView: View {
     let hearts: [FloatingHeart]
+    var containerSize: CGSize = .zero
 
     var body: some View {
         ZStack {
             ForEach(hearts) { heart in
-                FloatingHeartToView(heart: heart)
+                FloatingHeartParticleView(heart: heart)
             }
+        }
+        .frame(width: containerSize.width, height: containerSize.height)
+        .allowsHitTesting(false)
+    }
+}
+
+struct FloatingHeartParticleView: View {
+    let heart: FloatingHeart
+    @State private var progress: CGFloat = 0.0
+
+    var body: some View {
+        Text(heart.emoji)
+            .font(.system(size: heart.fontSize))
+            .shadow(color: .black.opacity(0.25), radius: heart.fontSize > 42 ? 3 : 1.5, x: 0, y: 1)
+            .modifier(FloatingHeartFlightModifier(progress: progress, heart: heart))
+            .onAppear {
+                startAnimation()
+            }
+    }
+
+    private func startAnimation() {
+        if MotionPolicy.reduceMotion {
+            progress = 0.0
+            withAnimation(.easeOut(duration: min(heart.duration, 1.4))) {
+                progress = 1.0
+            }
+            return
+        }
+
+        progress = 0.0
+        withAnimation(.easeOut(duration: heart.duration).delay(heart.delay)) {
+            progress = 1.0
         }
     }
 }
 
-struct FloatingHeartToView: View {
+/// Animatable modifier that SwiftUI interpolates per-frame, so all
+/// derived transforms (sway, opacity fade-in/out, scale pop) evaluate
+/// with intermediate `progress` values rather than just start/end.
+private struct FloatingHeartFlightModifier: ViewModifier, Animatable {
+    var progress: CGFloat
     let heart: FloatingHeart
-    @State private var offset: CGFloat = 0
-    @State private var opacity: Double = 1
-    @State private var scale: CGFloat = 0.5
-    @State private var xOffset: CGFloat = 0
 
-    var body: some View {
-        Text(heart.emoji)
-            .font(.system(size: 50))
-            .shadow(color: .black.opacity(0.3), radius: 2, x: 0, y: 1)
-            .position(x: heart.startX + xOffset, y: UIScreen.main.bounds.height - 150)
-            .offset(y: offset)
-            .opacity(opacity)
-            .scaleEffect(scale)
-            .onAppear {
-                // Randomize trajectory slightly
-                let randomXPath = CGFloat.random(in: -30...30)
+    var animatableData: CGFloat {
+        get { progress }
+        set { progress = newValue }
+    }
 
-                withAnimation(.easeOut(duration: 2.0)) {
-                    offset = -UIScreen.main.bounds.height * 0.7
-                    opacity = 0
-                    scale = 1.2
-                    xOffset = randomXPath
-                }
-            }
+    func body(content: Content) -> some View {
+        content
+            .scaleEffect(scaleValue)
+            .opacity(opacityValue)
+            .rotationEffect(.degrees(rotationValue))
+            .position(
+                x: heart.startX + xOffset,
+                y: heart.startY + yOffset
+            )
+    }
+
+    // MARK: - Per-frame derived values
+
+    private var yOffset: CGFloat {
+        if MotionPolicy.reduceMotion {
+            return -progress * heart.verticalTravel * 0.55
+        }
+        return -progress * heart.verticalTravel
+    }
+
+    private var xOffset: CGFloat {
+        if MotionPolicy.reduceMotion {
+            return progress * heart.lateralDrift * 0.5
+        }
+        let sway = sin(progress * .pi * CGFloat(heart.swayFrequency)) * heart.swayAmplitude
+        let drift = progress * heart.lateralDrift
+        return sway + drift
+    }
+
+    private var scaleValue: CGFloat {
+        if MotionPolicy.reduceMotion {
+            return progress < 0.2 ? (progress / 0.2) * heart.peakScale : heart.peakScale
+        }
+
+        if progress < 0.15 {
+            return (progress / 0.15) * heart.peakScale
+        } else {
+            let t = (progress - 0.15) / 0.85
+            return heart.peakScale + t * (heart.targetScale - heart.peakScale)
+        }
+    }
+
+    private var opacityValue: Double {
+        if progress < 0.05 {
+            return Double(progress / 0.05)
+        } else if progress > 0.75 {
+            return Double(1.0 - (progress - 0.75) / 0.25)
+        } else {
+            return 1.0
+        }
+    }
+
+    private var rotationValue: Double {
+        heart.rotation + Double(progress) * heart.rotationDelta
     }
 }
 

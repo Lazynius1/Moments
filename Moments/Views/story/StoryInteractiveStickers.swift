@@ -315,7 +315,8 @@ struct InteractiveRevealSticker: View {
     var revealType: String? = nil // "scratch", "solid", "gradient"
     var revealPattern: String? = nil // "dots", "noise", "grid", "lines", "none"
     var revealPrimaryColor: String? = nil // Hex
-    var revealSecondaryColor: String? = nil // Hex
+    var revealSecondaryColor: String? = nil // Hex — fin del degradado
+    var revealEffectColor: String? = nil // Hex — color de partículas/efectos
 
     @Environment(\.storyDeckGestureGate) private var deckGestureGate
     @State private var points: [CGPoint] = []
@@ -325,6 +326,7 @@ struct InteractiveRevealSticker: View {
     @State private var scratchedGrid: Set<Int> = []
     @State private var showHint = false
     @State private var animateHint = false
+    @State private var hintTask: Task<Void, Never>?
     private let gridSize: Int = 12
 
     private var persistenceKey: String { "reveal_revealed_\(storyId)" }
@@ -349,19 +351,10 @@ struct InteractiveRevealSticker: View {
             guard !isRevealed else { return }
 
             showHint = true
-            withAnimation(.easeInOut(duration: 0.72).repeatForever(autoreverses: true)) {
-                animateHint = true
-            }
-
-            DispatchQueue.main.asyncAfter(deadline: .now() + 3.8) {
-                guard points.isEmpty, !isRevealed else { return }
-                withAnimation(.easeOut(duration: 0.22)) {
-                    animateHint = false
-                    showHint = false
-                }
-            }
+            startHintAnimation()
         }
         .onDisappear {
+            hintTask?.cancel()
             endScratchSession(resumeStory: true)
         }
     }
@@ -373,7 +366,8 @@ struct InteractiveRevealSticker: View {
                     type: revealType,
                     pattern: revealPattern,
                     primaryColor: revealPrimaryColor,
-                    secondaryColor: revealSecondaryColor
+                    secondaryColor: revealSecondaryColor,
+                    effectColor: revealEffectColor
                 )
                 .allowsHitTesting(false)
                 .mask(scratchMaskCanvas)
@@ -449,9 +443,32 @@ struct InteractiveRevealSticker: View {
 
     private func hideHintIfNeeded() {
         guard showHint else { return }
+        hintTask?.cancel()
         withAnimation(.easeOut(duration: 0.18)) {
             animateHint = false
             showHint = false
+        }
+    }
+
+    private func startHintAnimation() {
+        hintTask?.cancel()
+        guard !MotionPolicy.reduceMotion else {
+            animateHint = true
+            return
+        }
+
+        hintTask = Task { @MainActor in
+            withAnimation(.easeInOut(duration: 0.72).repeatForever(autoreverses: true)) {
+                animateHint = true
+            }
+
+            try? await Task.sleep(nanoseconds: 3_800_000_000)
+            guard !Task.isCancelled, points.isEmpty, !isRevealed else { return }
+
+            withAnimation(.easeOut(duration: 0.22)) {
+                animateHint = false
+                showHint = false
+            }
         }
     }
 
@@ -523,6 +540,7 @@ struct RevealSurfaceView: View {
     let pattern: String?
     let primaryColor: String?
     let secondaryColor: String?
+    let effectColor: String?
 
     var body: some View {
         ZStack {
@@ -533,8 +551,8 @@ struct RevealSurfaceView: View {
             if let patternType = pattern, patternType != "none" {
                 RevealPatternOverlayView(
                     type: patternType,
-                    color: patternType == "holographic" ? Color(hex: primaryColor ?? "#C8C8C8") : patternColor,
-                    color2: Color(hex: secondaryColor ?? "#C8C8C8")
+                    color: resolvedEffectColor(for: patternType),
+                    color2: Color(hex: resolvedAccentColor(for: patternType) ?? "#C8C8C8")
                 )
             } else if type == nil || type == "scratch" || type == "none" {
                 // Default legacy style o si no hay tipo definido
@@ -560,24 +578,29 @@ struct RevealSurfaceView: View {
         }
     }
 
-    private var patternColor: Color {
-        // Decide pattern color based on background brightness
-        let pColor = Color(hex: primaryColor ?? "#000000")
-        return isLight(pColor) ? .black.opacity(0.25) : .white.opacity(0.35)
+    private func resolvedEffectColor(for patternType: String) -> Color {
+        if patternType == "holographic" {
+            return Color(hex: primaryColor ?? "#C8C8C8")
+        }
+
+        if let effectColor, !effectColor.isEmpty {
+            return Color(hex: effectColor)
+        }
+
+        // Compatibilidad con reveals antiguos que guardaban el efecto en secondary.
+        if let secondaryColor, !secondaryColor.isEmpty,
+           secondaryColor.lowercased() != (primaryColor ?? "").lowercased() {
+            return Color(hex: secondaryColor)
+        }
+
+        return Color(hex: primaryColor ?? "#000000").revealContrastingEffectColor()
     }
 
-    private func isLight(_ color: Color) -> Bool {
-        let uiColor = UIColor(color)
-        var red: CGFloat = 0
-        var green: CGFloat = 0
-        var blue: CGFloat = 0
-        var alpha: CGFloat = 0
-
-        uiColor.getRed(&red, green: &green, blue: &blue, alpha: &alpha)
-
-        // Fórmula estándar de luminancia (ITU-R BT.601)
-        let luminance = 0.299 * red + 0.587 * green + 0.114 * blue
-        return luminance > 0.6
+    private func resolvedAccentColor(for patternType: String) -> String? {
+        if patternType == "holographic" {
+            return effectColor ?? secondaryColor
+        }
+        return effectColor ?? secondaryColor
     }
 }
 
@@ -585,27 +608,28 @@ struct RevealPatternOverlayView: View {
     let type: String
     let color: Color
     var color2: Color = .white
+    @Environment(\.storyEffectsActive) private var effectsActive
 
     var body: some View {
         switch type {
         case "dots":
             StickerDitherPattern(color: color)
         case "grid":
-            RevealGridPattern(color: color)
+            RevealGridPattern(color: color, isActive: effectsActive)
         case "lines":
             RevealLinesPattern(color: color)
         case "noise":
-            RevealNoisePattern(color: color)
+            RevealNoisePattern(color: color, isActive: effectsActive)
         case "static":
-            RevealStaticPattern(color: color)
+            RevealStaticPattern(color: color, isActive: effectsActive)
         case "scanlines":
-            RevealScanlinesPattern(color: color)
+            RevealScanlinesPattern(color: color, isActive: effectsActive)
         case "waves":
-            RevealWavesPattern(color: color)
+            RevealWavesPattern(color: color, isActive: effectsActive)
         case "matrix":
-            RevealMatrixPattern()
+            RevealMatrixPattern(color: color, isActive: effectsActive)
         case "holographic":
-            RevealHolographicPattern(color: color, accentColor: color2)
+            RevealHolographicPattern(color: color, accentColor: color2, isActive: effectsActive)
         default:
             EmptyView()
         }
@@ -614,8 +638,13 @@ struct RevealPatternOverlayView: View {
 
 struct RevealGridPattern: View {
     let color: Color
+    var isActive: Bool = true
+
     var body: some View {
-        TimelineView(.periodic(from: .now, by: 1/30)) { timeline in
+        if !isActive || MotionPolicy.reduceMotion {
+            RevealLinesPattern(color: color)
+        } else {
+        TimelineView(.periodic(from: .now, by: 1 / MotionPolicy.canvasFPS)) { timeline in
             let time = timeline.date.timeIntervalSince1970
             Canvas { context, size in
                 let spacing: CGFloat = 30
@@ -646,6 +675,8 @@ struct RevealGridPattern: View {
                     }
                 }
             }
+            .drawingGroup(opaque: false)
+        }
         }
     }
 }
@@ -667,20 +698,18 @@ struct RevealLinesPattern: View {
 
 struct RevealNoisePattern: View {
     let color: Color
+    var isActive: Bool = true
 
     var body: some View {
-        // Volvemos a un refresco fluido de 30 o 60fps, ya que el movimiento del video es suave y continuo
-        TimelineView(.animation(minimumInterval: 1/30)) { timeline in
+        if !isActive || MotionPolicy.reduceMotion {
+            Color.clear
+        } else {
+            TimelineView(.animation(minimumInterval: 1 / MotionPolicy.canvasFPS)) { timeline in
             let time = timeline.date.timeIntervalSinceReferenceDate
 
             Canvas { context, size in
-                let area = max(size.width * size.height, 1)
-
-                // 1. MOTAS BLANCAS PRINCIPALES (El núcleo visual de tu video)
-                // Usamos un número fijo de partículas con un generador determinista (Seeded)
-                // para que mantengan su identidad y no aparezcan/desaparezcan salvajemente.
                 var rng = SeededRandom(seed: 42)
-                let particleCount = min(max(Int(area / 90), 80), 600) // Densidad elegante y exacta
+                let particleCount = MotionPolicy.revealParticleCount(for: size)
 
                 for index in 0..<particleCount {
                     // Posición base fija para esta partícula en el lienzo
@@ -713,17 +742,11 @@ struct RevealNoisePattern: View {
                                       y: y >= 0 ? y : y + size.height,
                                       width: dotSize, height: dotSize)
 
-                    // Renderizado de las micro-texturas
-                    if index % 7 == 0 {
-                        // Un pequeño porcentaje de motas ligeramente más difusas o del color del fondo
-                        context.fill(Path(ellipseIn: rect), with: .color(color.opacity(opacity * 0.8)))
-                    } else {
-                        // La mayoría son blancas puras y brillantes como en tu video
-                        context.fill(Path(ellipseIn: rect), with: .color(.white.opacity(opacity)))
-                    }
+                    let tone = index % 7 == 0 ? color.opacity(opacity * 0.65) : color.opacity(opacity)
+                    context.fill(Path(ellipseIn: rect), with: .color(tone))
                 }
 
-                // 2. MICRO POLVO DE FONDO (Capa casi imperceptible que da profundidad)
+                let area = max(size.width * size.height, 1)
                 let microCount = min(max(Int(area / 150), 40), 250)
                 for _ in 0..<microCount {
                     let mx = (CGFloat(rng.next()) * size.width + CGFloat(sin(time * 0.15)))
@@ -732,9 +755,11 @@ struct RevealNoisePattern: View {
                         .truncatingRemainder(dividingBy: size.height)
 
                     let mRect = CGRect(x: mx, y: my, width: 0.8, height: 0.8)
-                    context.fill(Path(mRect), with: .color(.white.opacity(0.22)))
+                    context.fill(Path(mRect), with: .color(color.opacity(0.22)))
                 }
             }
+            .drawingGroup(opaque: false)
+        }
         }
     }
 }
@@ -742,7 +767,12 @@ struct RevealNoisePattern: View {
 
 struct RevealStaticPattern: View {
     let color: Color
+    var isActive: Bool = true
+
     var body: some View {
+        if !isActive || MotionPolicy.reduceMotion {
+            Color.black.opacity(0.08)
+        } else {
         TimelineView(.periodic(from: .now, by: 1/24)) { timeline in
             let time = timeline.date.timeIntervalSince1970
             Canvas { context, size in
@@ -782,33 +812,36 @@ struct RevealStaticPattern: View {
                 context.fill(Path(CGRect(origin: .zero, size: size)), with: gradient)
             }
         }
+        }
     }
 }
 
 struct RevealMatrixPattern: View {
+    let color: Color
+    var isActive: Bool = true
+
     var body: some View {
+        if !isActive || MotionPolicy.reduceMotion {
+            RevealLinesPattern(color: color)
+        } else {
         TimelineView(.periodic(from: .now, by: 1/20)) { timeline in
             let time = timeline.date.timeIntervalSince1970
             Canvas { context, size in
                 let columns = Int(size.width / 20)
-                let greenColor = Color(red: 0, green: 0.8, blue: 0)
 
                 for i in 0..<columns {
                     let x = CGFloat(i * 20) + 10
-                    // Velocidad aleatoria por columna
                     let speed = (sin(Double(i) * 0.5) + 2.0) * 80.0
                     let yOffset = (time * speed).truncatingRemainder(dividingBy: size.height + 200) - 100
 
-                    // Dibujamos un "rastro" de luz
                     for segment in 0..<12 {
                         let segmentY = yOffset - CGFloat(segment * 15)
                         let opacity = 1.0 - (Double(segment) / 12.0)
 
                         if segmentY > 0 && segmentY < size.height {
                             let rect = CGRect(x: x - 4, y: segmentY, width: 8, height: 12)
-                            context.fill(Path(rect), with: .color(greenColor.opacity(opacity * 0.6)))
+                            context.fill(Path(rect), with: .color(color.opacity(opacity * 0.6)))
 
-                            // Un puntito más brillante en la cabeza
                             if segment == 0 {
                                 context.fill(Path(rect), with: .color(.white.opacity(0.4)))
                             }
@@ -816,13 +849,20 @@ struct RevealMatrixPattern: View {
                     }
                 }
             }
+            .drawingGroup(opaque: false)
+        }
         }
     }
 }
 
 struct RevealScanlinesPattern: View {
     let color: Color
+    var isActive: Bool = true
+
     var body: some View {
+        if !isActive || MotionPolicy.reduceMotion {
+            RevealLinesPattern(color: color)
+        } else {
         TimelineView(.periodic(from: .now, by: 1/30)) { timeline in
             let time = timeline.date.timeIntervalSince1970
             Canvas { context, size in
@@ -842,12 +882,18 @@ struct RevealScanlinesPattern: View {
                 context.fill(Path(interferenceRect), with: .color(color.opacity(0.05)))
             }
         }
+        }
     }
 }
 
 struct RevealWavesPattern: View {
     let color: Color
+    var isActive: Bool = true
+
     var body: some View {
+        if !isActive || MotionPolicy.reduceMotion {
+            RevealLinesPattern(color: color)
+        } else {
         TimelineView(.periodic(from: .now, by: 1/30)) { timeline in
             let time = timeline.date.timeIntervalSince1970
             Canvas { context, size in
@@ -865,12 +911,14 @@ struct RevealWavesPattern: View {
                 }
             }
         }
+        }
     }
 }
 
 struct RevealHolographicPattern: View {
     let color: Color
-    var accentColor: Color = .purple  // Color 2 — tinte de la ola iridiscente
+    var accentColor: Color = .purple
+    var isActive: Bool = true
     @StateObject private var motion = HolographicMotionManager()
 
     // Hue base del color 1 (dots de purpurina)
@@ -888,12 +936,15 @@ struct RevealHolographicPattern: View {
     }
 
     var body: some View {
+        Group {
+            if !isActive || MotionPolicy.reduceMotion {
+                RevealLinesPattern(color: color)
+            } else {
         TimelineView(.periodic(from: .now, by: 1/24)) { timeline in
             GeometryReader { geometry in
                 let size = geometry.size
                 let time = timeline.date.timeIntervalSince1970
 
-                // El tilt del dispositivo controla el desplazamiento del espectro
                 let tiltX = motion.roll / .pi
                 let tiltY = motion.pitch / (.pi / 2)
 
@@ -988,6 +1039,15 @@ struct RevealHolographicPattern: View {
                 }
             }
         }
+            }
+        }
+        .onAppear { motion.setActive(isActive) }
+        .onChange(of: isActive) { _, active in
+            motion.setActive(active)
+        }
+        .onDisappear {
+            motion.setActive(false)
+        }
     }
 }
 
@@ -1008,21 +1068,36 @@ class HolographicMotionManager: ObservableObject {
     private let motionManager = CMMotionManager()
     @Published var pitch: Double = 0.0
     @Published var roll: Double = 0.0
-    @Published var rotationRate: Double = 0.0 // Magnitud de la rotación para detectar movimiento
+    @Published var rotationRate: Double = 0.0
+    private var isActive = false
 
-    init() {
-        if motionManager.isDeviceMotionAvailable {
-            motionManager.deviceMotionUpdateInterval = 1/30
-            motionManager.startDeviceMotionUpdates(to: .main) { [weak self] motion, _ in
-                guard let motion = motion else { return }
-                self?.pitch = motion.attitude.pitch
-                self?.roll = motion.attitude.roll
-
-                // Calculamos la magnitud de la rotación (movimiento)
-                let rate = motion.rotationRate
-                self?.rotationRate = sqrt(rate.x * rate.x + rate.y * rate.y + rate.z * rate.z)
-            }
+    func setActive(_ active: Bool) {
+        guard active != isActive else { return }
+        isActive = active
+        if active {
+            startIfNeeded()
+        } else {
+            stop()
         }
+    }
+
+    private func startIfNeeded() {
+        guard motionManager.isDeviceMotionAvailable, !motionManager.isDeviceMotionActive else { return }
+        motionManager.deviceMotionUpdateInterval = 1 / 30
+        motionManager.startDeviceMotionUpdates(to: .main) { [weak self] motion, _ in
+            guard let self, self.isActive, let motion else { return }
+            pitch = motion.attitude.pitch
+            roll = motion.attitude.roll
+            let rate = motion.rotationRate
+            rotationRate = sqrt(rate.x * rate.x + rate.y * rate.y + rate.z * rate.z)
+        }
+    }
+
+    private func stop() {
+        motionManager.stopDeviceMotionUpdates()
+        pitch = 0
+        roll = 0
+        rotationRate = 0
     }
 
     deinit {

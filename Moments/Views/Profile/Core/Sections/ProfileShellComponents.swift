@@ -471,12 +471,17 @@ struct ModernRefreshIndicator: View {
         .clipShape(Capsule())
         .shadow(color: ProfileColors.shadowColor, radius: 8, x: 0, y: 4)
         .onAppear {
+            guard !MotionPolicy.reduceMotion else { return }
             withAnimation(.linear(duration: 1.5).repeatForever(autoreverses: false)) {
                 rotationAngle = 360
             }
             withAnimation(.easeInOut(duration: 1.0).repeatForever(autoreverses: true)) {
                 pulseScale = 1.1
             }
+        }
+        .onDisappear {
+            rotationAngle = 0
+            pulseScale = 1.0
         }
     }
 }

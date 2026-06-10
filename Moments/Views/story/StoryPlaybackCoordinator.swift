@@ -177,7 +177,7 @@ final class StoryPlaybackCoordinator: ObservableObject {
         let duration = story.duration > 0 ? story.duration : defaultStoryDuration
         invalidateImageTimer()
 
-        imageTimer = Timer.scheduledTimer(withTimeInterval: 0.05, repeats: true) { [weak self] _ in
+        imageTimer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { [weak self] _ in
             Task { @MainActor [weak self] in
                 self?.tickImageStory(duration: duration, onComplete: onComplete)
             }
@@ -187,7 +187,7 @@ final class StoryPlaybackCoordinator: ObservableObject {
     private func tickImageStory(duration: Double, onComplete: @escaping () -> Void) {
         guard !isPaused else { return }
 
-        progress += 0.05 / duration
+        progress += 0.1 / duration
 
         if progress >= 1.0 {
             progress = 1.0

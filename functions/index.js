@@ -1,4 +1,4 @@
-const { onDocumentCreated, onDocumentDeleted } = require('firebase-functions/v2/firestore');
+const { onDocumentCreated, onDocumentDeleted, onDocumentWritten } = require('firebase-functions/v2/firestore');
 const { onSchedule } = require('firebase-functions/v2/scheduler');
 const { onRequest } = require('firebase-functions/v2/https');
 const { setGlobalOptions } = require('firebase-functions/v2');
@@ -5667,11 +5667,21 @@ exports.onMessageAdded = onDocumentCreated('conversations/{conversationId}/messa
   }
 });
 
-// 📖 REACCIONES EN HISTORIAS
-exports.onStoryReactionAdded = onDocumentCreated('users/{userId}/stories/{storyId}/reactions/{reactionId}', async (event) => {
-  const snap = event.data;
+// 📖 REACCIONES EN HISTORIAS (1 doc por reactor; update solo notifica si cambia el emoji)
+exports.onStoryReactionAdded = onDocumentWritten('users/{userId}/stories/{storyId}/reactions/{reactionId}', async (event) => {
+  const beforeSnap = event.data.before;
+  const afterSnap = event.data.after;
   const { userId, storyId, reactionId } = event.params;
-  const reaction = snap.data();
+
+  if (!afterSnap.exists) return null;
+
+  const reaction = afterSnap.data();
+  const previousReaction = beforeSnap.exists ? beforeSnap.data() : null;
+
+  // Mismo emoji en un update (p. ej. re-tap): no spamear push ni reescribir in-app.
+  if (previousReaction && previousReaction.reaction === reaction.reaction) {
+    return null;
+  }
 
   try {
     if (reaction.userId === userId) return null;

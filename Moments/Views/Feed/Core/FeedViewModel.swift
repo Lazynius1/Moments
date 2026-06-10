@@ -2,24 +2,26 @@ import SwiftUI
 import FirebaseAuth
 @preconcurrency import FirebaseFirestore
 import SwiftData
+import Observation
 
 // MARK: - FeedViewModel CORREGIDO - Versión que funciona
 
 @MainActor
-class FeedViewModel: ObservableObject {
-    @Published var moments: [Moment] = []
-    @Published var isLoading: Bool = false
-    @Published var isLoadingMore: Bool = false
-    @Published var errorMessage: String?
-    @Published var userProfileImage: String?
-    @Published var connections: [Connection] = []
-    @Published var admirers: [Admirer] = []
+@Observable
+class FeedViewModel {
+    var moments: [Moment] = []
+    var isLoading: Bool = false
+    var isLoadingMore: Bool = false
+    var errorMessage: String?
+    var userProfileImage: String?
+    var connections: [Connection] = []
+    var admirers: [Admirer] = []
 
     // Propiedades para el selector de feed
-    @Published var currentFeedType: FeedType = .following
-    @Published var forYouMoments: [Moment] = []
-    @Published var followingMoments: [Moment] = []
-    @Published var isPausedForUploads = false
+    var currentFeedType: FeedType = .following
+    var forYouMoments: [Moment] = []
+    var followingMoments: [Moment] = []
+    var isPausedForUploads = false
 
     private let firestoreService = FirestoreService()
     private let privacyService = PrivacyService()
@@ -43,16 +45,12 @@ class FeedViewModel: ObservableObject {
     private let momentsQueue = DispatchQueue(label: "moments.sync", attributes: .concurrent)
 
     deinit {
-        let momentListenersToClear = momentListeners
-        let commentListenersToClear = commentListeners
-        let userListenerToClear = userListener
-        let pendingUpdatesToClear = pendingUpdates
-        
-        Task { @MainActor in
-            momentListenersToClear.values.forEach { $0.remove() }
-            commentListenersToClear.values.forEach { $0.remove() }
-            userListenerToClear?.remove()
-            pendingUpdatesToClear.values.forEach { $0.cancel() }
+        // FeedViewModel solo vive en el hilo principal (@State en FeedView).
+        MainActor.assumeIsolated {
+            momentListeners.values.forEach { $0.remove() }
+            commentListeners.values.forEach { $0.remove() }
+            userListener?.remove()
+            pendingUpdates.values.forEach { $0.cancel() }
         }
     }
 
@@ -145,6 +143,7 @@ class FeedViewModel: ObservableObject {
 
             if !cached.isEmpty && self.moments.isEmpty {
                 self.moments = cached
+                VideoMomentsIndex.shared.rebuild(from: cached)
 
                 if targetFeedType == .following {
                     self.followingMoments = cached
@@ -174,6 +173,7 @@ class FeedViewModel: ObservableObject {
                 let visibleCached = cached.filter { !mutedUserIds.contains($0.authorId) }
                 if !visibleCached.isEmpty {
                     self.moments = visibleCached
+                    VideoMomentsIndex.shared.rebuild(from: visibleCached)
 
                     if targetFeedType == .following {
                         self.followingMoments = visibleCached
@@ -352,6 +352,7 @@ class FeedViewModel: ObservableObject {
                     self.isLoading = false
                     self.followingMoments = finalMoments
                     self.moments = finalMoments
+                    VideoMomentsIndex.shared.rebuild(from: finalMoments)
                     self.feedLoadedFromBackend[.following] = true
                     if let nextCursor = result.nextCursor {
                         self.backendCursors[.following] = nextCursor
@@ -425,6 +426,7 @@ class FeedViewModel: ObservableObject {
                     self.isLoading = false
                     self.forYouMoments = finalMoments
                     self.moments = finalMoments
+                    VideoMomentsIndex.shared.rebuild(from: finalMoments)
                     self.feedLoadedFromBackend[.forYou] = true
                     if let nextCursor = result.nextCursor {
                         self.backendCursors[.forYou] = nextCursor
@@ -646,6 +648,7 @@ class FeedViewModel: ObservableObject {
                     }
 
                         self.moments = filteredMoments
+                        VideoMomentsIndex.shared.rebuild(from: filteredMoments)
 
                     // ✅ OFFLINE: Guardar en caché para la próxima vez
                     // Como es el fetch inicial, usamos sync: true para limpiar momentos borrados
@@ -1190,13 +1193,7 @@ class FeedViewModel: ObservableObject {
     }
 
     func fetchConnections(userId: String) {
-        firestoreService.fetchConnections(userId: userId) { result in
-            if case .success = result {
-                DispatchQueue.main.async {
-                    self.objectWillChange.send()
-                }
-            }
-        }
+        firestoreService.fetchConnections(userId: userId) { _ in }
     }
 
     // ✅ NUEVO: Remover listener específico (Lazy Loading)

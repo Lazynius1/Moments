@@ -95,6 +95,7 @@ struct StickerItem: Identifiable {
         var revealPattern: String?
         var revealPrimaryColor: String?
         var revealSecondaryColor: String?
+        var revealEffectColor: String?
 
         var frameStyle: String?
         var contentScale: CGFloat?
@@ -131,6 +132,7 @@ struct StickerItem: Identifiable {
             revealPattern: String? = nil,
             revealPrimaryColor: String? = nil,
             revealSecondaryColor: String? = nil,
+            revealEffectColor: String? = nil,
             frameStyle: String? = nil,
             contentScale: CGFloat? = nil,
             contentOffsetX: CGFloat? = nil,
@@ -164,6 +166,7 @@ struct StickerItem: Identifiable {
             self.revealPattern = revealPattern
             self.revealPrimaryColor = revealPrimaryColor
             self.revealSecondaryColor = revealSecondaryColor
+            self.revealEffectColor = revealEffectColor
             self.frameStyle = frameStyle
             self.contentScale = contentScale
             self.contentOffsetX = contentOffsetX

@@ -465,6 +465,9 @@ extension FirestoreService {
         if let revealSecondaryColor = sticker.revealSecondaryColor {
             stickerData["revealSecondaryColor"] = revealSecondaryColor
         }
+        if let revealEffectColor = sticker.revealEffectColor {
+            stickerData["revealEffectColor"] = revealEffectColor
+        }
         if let frameStyle = sticker.frameStyle {
             stickerData["frameStyle"] = frameStyle
         }

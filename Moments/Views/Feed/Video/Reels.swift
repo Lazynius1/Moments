@@ -33,14 +33,20 @@ struct ReelsViewer: View {
             if !videos.isEmpty {
                 TabView(selection: $currentIndex) {
                     ForEach(Array(videos.enumerated()), id: \.offset) { index, video in
-                        ReelVideoView(
-                            video: video,
-                            isCurrentVideo: currentIndex == index,
-                            startAtSeconds: index == startIndex ? initialStartSeconds : 0,
-                            onClose: {
-                                dismiss()
+                        Group {
+                            if abs(index - currentIndex) <= 1 {
+                                ReelVideoView(
+                                    video: video,
+                                    isCurrentVideo: currentIndex == index,
+                                    startAtSeconds: index == startIndex ? initialStartSeconds : 0,
+                                    onClose: {
+                                        dismiss()
+                                    }
+                                )
+                            } else {
+                                Color.black
                             }
-                        )
+                        }
                         .tag(index)
                     }
                 }

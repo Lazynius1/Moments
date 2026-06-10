@@ -32,6 +32,7 @@ struct EpicReactionButton: View {
     @State private var rotationAngle: Double = 0
     @State private var showRipple = false
     @State private var showReactionsSheet = false
+    @State private var explosionTask: Task<Void, Never>?
     
     @EnvironmentObject private var firestoreService: FirestoreService
     
@@ -162,6 +163,7 @@ struct EpicReactionButton: View {
         }
         .onDisappear {
             reactionListener?.remove()
+            explosionTask?.cancel()
         }
         .onChange(of: hasReacted) { _, _ in
             if hasReacted {
@@ -279,36 +281,42 @@ struct EpicReactionButton: View {
     }
     
     private func triggerExplosionAnimation() {
-        withAnimation(.easeOut(duration: 0.8)) {
-            showParticles = true
-        }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
+        explosionTask?.cancel()
+        explosionTask = Task { @MainActor in
+            MotionPolicy.withOptionalAnimation(.easeOut(duration: 0.8)) {
+                showParticles = true
+            }
+            try? await Task.sleep(nanoseconds: 800_000_000)
+            guard !Task.isCancelled else { return }
             showParticles = false
-        }
-        
-        withAnimation(.easeOut(duration: 0.6)) {
-            showRipple = true
-        }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+
+            MotionPolicy.withOptionalAnimation(.easeOut(duration: 0.6)) {
+                showRipple = true
+            }
+            try? await Task.sleep(nanoseconds: 100_000_000)
+            guard !Task.isCancelled else { return }
             showRipple = false
         }
     }
     
     private func triggerSuccessAnimation() {
-        withAnimation(.easeInOut(duration: 0.15)) {
-            pulseScale = 1.2
-        }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
-            withAnimation(.bouncy(duration: 0.3)) {
+        explosionTask?.cancel()
+        explosionTask = Task { @MainActor in
+            MotionPolicy.withOptionalAnimation(.easeInOut(duration: 0.15)) {
+                pulseScale = 1.2
+            }
+            try? await Task.sleep(nanoseconds: 150_000_000)
+            guard !Task.isCancelled else { return }
+            MotionPolicy.withOptionalAnimation(.bouncy(duration: 0.3)) {
                 pulseScale = 1.0
             }
-        }
-        
-        withAnimation(.easeInOut(duration: 0.3)) {
-            rotationAngle = 10
-        }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-            withAnimation(.easeInOut(duration: 0.3)) {
+
+            MotionPolicy.withOptionalAnimation(.easeInOut(duration: 0.3)) {
+                rotationAngle = 10
+            }
+            try? await Task.sleep(nanoseconds: 300_000_000)
+            guard !Task.isCancelled else { return }
+            MotionPolicy.withOptionalAnimation(.easeInOut(duration: 0.3)) {
                 rotationAngle = 0
             }
         }

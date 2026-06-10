@@ -657,7 +657,6 @@ struct ModernDetailMomentCard: View {
                         currentIndex: $currentImageIndex,
                         showTags: $showTags,
                         aspectRatio: detectedAspectRatio > 0 && detectedAspectRatio.isFinite ? detectedAspectRatio : 1.0,
-                        allMoments: [moment],
                         currentMoment: moment,
                         onTagTap: onTagTap,
                         isImmersive: $isImmersive
