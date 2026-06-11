@@ -378,8 +378,6 @@ struct ProfileOnboardingView: View {
     private func checkAndFinalizeRegistration() {
         guard firebaseOperationsCompleted && animationFinished else { return }
 
-        FeatureDiscoveryStore.markPending()
-
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
             isCreatingProfile = false
             authService.completeRegistration()

@@ -2276,16 +2276,6 @@
 "nova.input.addPhoto.accessibility" = "Aggiungi foto";
 "nova.input.removePhoto.accessibility" = "Rimuovi foto";
 "nova.input.send.accessibility" = "Invia messaggio";
-"featureDiscovery.skip" = "Salta";
-"featureDiscovery.next" = "Avanti";
-"featureDiscovery.continue" = "Inizia";
-"featureDiscovery.echo.title" = "Echo";
-"featureDiscovery.echo.subtitle" = "Condividi momenti vocali che scompaiono dopo 24 ore.";
-"featureDiscovery.nova.title" = "Nova";
-"featureDiscovery.nova.subtitle" = "Il tuo assistente IA per idee, testi e ispirazione.";
-"featureDiscovery.map.title" = "Mappa Discover";
-"featureDiscovery.map.subtitle" = "Esplora momenti e storie vicino a te sulla mappa.";
-
 /* In-App Banners */
 "banner.verb.like" = "ha messo mi piace al tuo momento";
 "banner.verb.comment" = "ha commentato il tuo momento";

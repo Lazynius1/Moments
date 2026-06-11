@@ -42,7 +42,6 @@ struct TabBarView: View {
     @State private var pendingEchoId: String = ""
     @State private var echoInvitationRoute: EchoInvitationRoute?
     @State private var showEchoViewer: Bool = false
-    @State private var showFeatureDiscovery = false
     @Environment(\.colorScheme) var colorScheme
 
     var body: some View {
@@ -104,14 +103,6 @@ struct TabBarView: View {
         .onAppear {
             // ✅ Activar listener para banners in-app
             InAppNotificationService.shared.startListing()
-            if FeatureDiscoveryStore.shouldPresent {
-                showFeatureDiscovery = true
-            }
-        }
-        .fullScreenCover(isPresented: $showFeatureDiscovery) {
-            FeatureDiscoveryView {
-                showFeatureDiscovery = false
-            }
         }
         .onOpenURL { url in
             IncognitoModeService.shared.handlePendingAppGroupActionIfNeeded()

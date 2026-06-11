@@ -2308,16 +2308,6 @@
 "nova.input.addPhoto.accessibility" = "Afegir foto";
 "nova.input.removePhoto.accessibility" = "Treure foto";
 "nova.input.send.accessibility" = "Enviar missatge";
-"featureDiscovery.skip" = "Ometre";
-"featureDiscovery.next" = "Següent";
-"featureDiscovery.continue" = "Començar";
-"featureDiscovery.echo.title" = "Echo";
-"featureDiscovery.echo.subtitle" = "Comparteix moments de veu que desapareixen en 24 hores.";
-"featureDiscovery.nova.title" = "Nova";
-"featureDiscovery.nova.subtitle" = "El teu assistent d'IA per a idees, textos i inspiració.";
-"featureDiscovery.map.title" = "Mapa Discover";
-"featureDiscovery.map.subtitle" = "Explora moments i històries a prop teu al mapa.";
-
 /* In-App Banners */
 "banner.verb.like" = "li ha agradat el teu moment";
 "banner.verb.comment" = "ha comentat el teu moment";

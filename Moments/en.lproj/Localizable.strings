@@ -2298,16 +2298,6 @@
 "nova.input.addPhoto.accessibility" = "Add photo";
 "nova.input.removePhoto.accessibility" = "Remove photo";
 "nova.input.send.accessibility" = "Send message";
-"featureDiscovery.skip" = "Skip";
-"featureDiscovery.next" = "Next";
-"featureDiscovery.continue" = "Get started";
-"featureDiscovery.echo.title" = "Echo";
-"featureDiscovery.echo.subtitle" = "Share voice moments that disappear after 24 hours.";
-"featureDiscovery.nova.title" = "Nova";
-"featureDiscovery.nova.subtitle" = "Your AI assistant for ideas, captions, and inspiration.";
-"featureDiscovery.map.title" = "Discover Map";
-"featureDiscovery.map.subtitle" = "Explore moments and stories near you on the map.";
-
 /* In-App Banners */
 "banner.verb.like" = "liked your moment";
 "banner.verb.comment" = "commented on your moment";
