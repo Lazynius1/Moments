@@ -9,16 +9,8 @@ struct DiscoverMapView: View {
     @Environment(\.colorScheme) private var colorScheme
 
     @StateObject private var locationManager = LocationUtilities.shared
-    @State private var mapPosition = MapCameraPosition.region(
-        MKCoordinateRegion(
-            center: CLLocationCoordinate2D(latitude: 40.4168, longitude: -3.7038),
-            span: MKCoordinateSpan(latitudeDelta: 0.08, longitudeDelta: 0.08)
-        )
-    )
-    @State private var region = MKCoordinateRegion(
-        center: CLLocationCoordinate2D(latitude: 40.4168, longitude: -3.7038),
-        span: MKCoordinateSpan(latitudeDelta: 0.08, longitudeDelta: 0.08)
-    )
+    @State private var mapPosition = MapCameraPosition.region(MapRegionStore.initialRegion())
+    @State private var region = MapRegionStore.initialRegion()
 
     @State private var contentFilter: MapDiscoverContentFilter = .all
     @State private var moments: [Moment] = []
@@ -119,7 +111,7 @@ struct DiscoverMapView: View {
         ZStack {
             Map(position: $mapPosition) {
                 ForEach(mapPlaceLayout.placeClusters) { cluster in
-                    Annotation(cluster.displayName, coordinate: cluster.coordinate) {
+                    Annotation(clusterAccessibilityLabel(for: cluster), coordinate: cluster.coordinate) {
                         Button {
                             openPlaceCluster(cluster)
                         } label: {
@@ -149,6 +141,7 @@ struct DiscoverMapView: View {
             .ignoresSafeArea()
             .onMapCameraChange(frequency: .onEnd) { context in
                 region = context.region
+                MapRegionStore.save(region: context.region)
                 scheduleRegionSearch()
             }
 
@@ -243,14 +236,16 @@ struct DiscoverMapView: View {
         .fullScreenCover(item: $momentDetailRoute, onDismiss: {
             restoreBottomSheetIfNeeded()
         }) { route in
-            LocationMomentDetailView(
-                locationMoments: route.moments,
-                initialIndex: route.initialIndex,
-                locationName: route.locationName,
-                momentAvailability: .constant([:]),
-                isPresented: Binding(
-                    get: { momentDetailRoute != nil },
-                    set: { if !$0 { momentDetailRoute = nil } }
+            MomentDetailContainerView(
+                context: .map(
+                    moments: route.moments,
+                    initialIndex: route.initialIndex,
+                    locationName: route.locationName,
+                    momentAvailability: .constant([:]),
+                    isPresented: Binding(
+                        get: { momentDetailRoute != nil },
+                        set: { if !$0 { momentDetailRoute = nil } }
+                    )
                 )
             )
         }
@@ -466,6 +461,14 @@ struct DiscoverMapView: View {
         }
     }
 
+    private func clusterAccessibilityLabel(for cluster: MapPlaceCluster) -> String {
+        String(
+            format: NSLocalizedString("maps.pin.accessibility", comment: "Map pin accessibility label"),
+            cluster.displayName,
+            cluster.totalCount
+        )
+    }
+
     private func bootstrapMapCenter() {
         if let coordinate = locationManager.currentLocation?.coordinate {
             focus(on: coordinate, autoSearch: true)
@@ -478,6 +481,19 @@ struct DiscoverMapView: View {
                 if let coordinate {
                     focus(on: coordinate, autoSearch: true)
                 } else {
+                    applyFallbackRegion(andSearch: true)
+                }
+            }
+        }
+    }
+
+    private func applyFallbackRegion(andSearch: Bool) {
+        MapRegionStore.resolveFallbackRegion { fallbackRegion in
+            DispatchQueue.main.async {
+                guard isViewActive else { return }
+                region = fallbackRegion
+                mapPosition = .region(fallbackRegion)
+                if andSearch {
                     performRegionSearch()
                 }
             }
@@ -505,6 +521,7 @@ struct DiscoverMapView: View {
         )
         region = nextRegion
         mapPosition = .region(nextRegion)
+        MapRegionStore.save(region: nextRegion)
         if autoSearch {
             performRegionSearch()
         }

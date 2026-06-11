@@ -91,10 +91,7 @@ enum MomentMentionNavigation {
 
         FirestoreService.shared.fetchUserByUsername(clean) { result in
             if case .success(let user) = result {
-                NotificationCenter.default.post(
-                    name: NSNotification.Name("NavigateToProfile"),
-                    object: user.id
-                )
+                LegacyNavigationBridge.profile(userId: user.id)
             }
         }
     }

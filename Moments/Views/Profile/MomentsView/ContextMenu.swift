@@ -509,10 +509,7 @@ struct ModernContextMenuOverlay: View {
 
     private func openDiscoveryProfile(userId: String) {
         guard !userId.isEmpty else { return }
-        NotificationCenter.default.post(
-            name: NSNotification.Name("NavigateToProfile"),
-            object: userId
-        )
+        LegacyNavigationBridge.profile(userId: userId)
     }
     
     // ✅ LÓGICA DE COMPARTIR INTEGRADA (Copiada de share.swift para consistencia)

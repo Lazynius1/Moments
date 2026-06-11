@@ -112,9 +112,9 @@ struct ModernEmptyFeedView: View {
     private func primaryAction() {
         switch feedType {
         case .following:
-            NotificationCenter.default.post(name: NSNotification.Name("ShowExploreView"), object: nil)
+            LegacyNavigationBridge.showExplore()
         case .forYou:
-            NotificationCenter.default.post(name: NSNotification.Name("ShowExploreView"), object: nil)
+            LegacyNavigationBridge.showExplore()
         }
     }
 }

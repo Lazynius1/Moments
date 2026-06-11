@@ -158,6 +158,10 @@ struct EpicReactionButton: View {
             }
         }
         .frame(width: size, height: size)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(reactionAccessibilityLabel)
+        .accessibilityHint(Text("feed.reaction.accessibilityHint"))
+        .accessibilityAddTraits(.isButton)
         .onAppear {
             setupReactionListener()
         }
@@ -178,6 +182,20 @@ struct EpicReactionButton: View {
             .presentationDragIndicator(.visible)
             .interactiveDismissDisabled(false)
         }
+    }
+
+    private var reactionAccessibilityLabel: String {
+        if hasReacted, let currentReaction {
+            return String(
+                format: NSLocalizedString("feed.reaction.accessibility.selected", comment: "Selected reaction accessibility label"),
+                currentReaction.filledIcon,
+                reactionCount
+            )
+        }
+        return String(
+            format: NSLocalizedString("feed.reaction.accessibility.default", comment: "Default reaction accessibility label"),
+            reactionCount
+        )
     }
     
     // ✅ NUEVO: Setup con listener en tiempo real

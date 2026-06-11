@@ -176,10 +176,7 @@ struct MainActionsView: View {
                 )
                 .onTapGesture {
                     guard !moment.authorId.isEmpty else { return }
-                    NotificationCenter.default.post(
-                        name: NSNotification.Name("NavigateToProfile"),
-                        object: moment.authorId
-                    )
+                    LegacyNavigationBridge.profile(userId: moment.authorId)
                 }
                 
                 VStack(alignment: .leading, spacing: 2) {
@@ -953,7 +950,7 @@ struct AddToStoryView: View {
     private func preFetchAndRender() {
         guard let imageUrlString = moment.imagePath ?? moment.videoUrl,
               let contentUrl = URL(string: imageUrlString) else {
-            errorMessage = "No se pudo obtener la imagen del momento"
+            errorMessage = NSLocalizedString("errors.momentImageUnavailable", comment: "Moment image unavailable")
             return
         }
         
@@ -1055,7 +1052,7 @@ struct AddToStoryView: View {
                 self.showCreatorView = true
             }
         } else {
-            errorMessage = "Error al generar el sticker"
+            errorMessage = NSLocalizedString("errors.stickerGenerationFailed", comment: "Sticker generation failed")
         }
     }
 }

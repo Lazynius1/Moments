@@ -24,7 +24,7 @@ class ExploreViewModel: ObservableObject {
     @Published var followerUserIds: Set<String> = []
 
 
-    private let firestoreService = FirestoreService()
+    private let firestoreService = FirestoreService.shared
     private let privacyService = PrivacyService()
     var currentUserInterests: [String] = []
     private var currentUserId: String?
@@ -58,7 +58,7 @@ class ExploreViewModel: ObservableObject {
     // MARK: - FLUJO PRINCIPAL SIMPLIFICADO
     func fetchMomentsByInterests() {
         guard let userId = Auth.auth().currentUser?.uid else {
-            self.errorMessage = "Usuario no autenticado. Por favor, inicia sesión."
+            self.errorMessage = NSLocalizedString("errors.authRequired", comment: "User not authenticated")
             return
         }
 
@@ -94,7 +94,10 @@ class ExploreViewModel: ObservableObject {
             case .failure(let error):
                 DispatchQueue.main.async {
                     self.isLoading = false
-                    self.errorMessage = "Error al cargar tu perfil: \(error.localizedDescription)"
+                    self.errorMessage = String(
+                        format: NSLocalizedString("errors.profileLoadFailed", comment: "Profile load failed"),
+                        error.localizedDescription
+                    )
                 }
             }
         }
@@ -240,7 +243,10 @@ class ExploreViewModel: ObservableObject {
             case .failure(let error):
                 DispatchQueue.main.async {
                     self.isLoading = false
-                    self.errorMessage = "Error al cargar momentos: \(error.localizedDescription)"
+                    self.errorMessage = String(
+                        format: NSLocalizedString("errors.momentsLoadFailed", comment: "Moments load failed"),
+                        error.localizedDescription
+                    )
                 }
             }
         }
@@ -463,7 +469,10 @@ class ExploreViewModel: ObservableObject {
             firestoreService.cancelFollowRequest(currentUserId: currentUserId, targetUserId: userId) { [weak self] error in
                 DispatchQueue.main.async {
                     if let error = error {
-                        self?.errorMessage = "Error al cancelar solicitud: \(error.localizedDescription)"
+                        self?.errorMessage = String(
+                            format: NSLocalizedString("errors.cancelRequestFailed", comment: "Cancel request failed"),
+                            error.localizedDescription
+                        )
                     } else {
                         self?.userButtonStates[userId] = .canRequestFollow
                         self?.pendingRequests.remove(userId)
@@ -496,7 +505,10 @@ class ExploreViewModel: ObservableObject {
                     ) { [weak self] error in
                         DispatchQueue.main.async {
                             if let error = error {
-                                self?.errorMessage = "Error al enviar solicitud: \(error.localizedDescription)"
+                                self?.errorMessage = String(
+                                    format: NSLocalizedString("errors.sendRequestFailed", comment: "Send request failed"),
+                                    error.localizedDescription
+                                )
                                 // Si hay error, revertir el estado del botón
                                 self?.userButtonStates[userId] = .canRequestFollow
                                 self?.pendingRequests.remove(userId)
@@ -522,7 +534,10 @@ class ExploreViewModel: ObservableObject {
                     ) { [weak self] error in
                         DispatchQueue.main.async {
                             if let error = error {
-                                self?.errorMessage = "Error al seguir usuario: \(error.localizedDescription)"
+                                self?.errorMessage = String(
+                                    format: NSLocalizedString("errors.followUserFailed", comment: "Follow user failed"),
+                                    error.localizedDescription
+                                )
                                 // Si hay error, revertir el estado del botón
                                 self?.userButtonStates[userId] = .canFollow
                                 self?.followedUserIds.remove(userId)
@@ -535,7 +550,10 @@ class ExploreViewModel: ObservableObject {
 
             case .failure(let error):
                 DispatchQueue.main.async {
-                    self.errorMessage = "Error al obtener perfil: \(error.localizedDescription)"
+                    self.errorMessage = String(
+                        format: NSLocalizedString("errors.fetchProfileFailed", comment: "Fetch profile failed"),
+                        error.localizedDescription
+                    )
                 }
             }
         }
@@ -670,7 +688,10 @@ extension ExploreViewModel {
 
 
                 case .failure(let error):
-                    self?.trendingError = "Error cargando trending: \(error.localizedDescription)"
+                    self?.trendingError = String(
+                        format: NSLocalizedString("errors.trendingLoadFailed", comment: "Trending load failed"),
+                        error.localizedDescription
+                    )
                 }
             }
         }
@@ -827,7 +848,10 @@ extension ExploreViewModel {
             switch result {
             case .failure(let error):
                 DispatchQueue.main.async {
-                    self.errorMessage = "Error al buscar usuarios: \(error.localizedDescription)"
+                    self.errorMessage = String(
+                        format: NSLocalizedString("errors.searchUsersFailed", comment: "Search users failed"),
+                        error.localizedDescription
+                    )
                 }
             case .success(let users):
                 let currentUserId = self.currentUserId ?? ""

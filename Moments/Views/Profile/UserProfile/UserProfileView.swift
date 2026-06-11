@@ -398,13 +398,15 @@ struct UserProfileView: View {
         }
         // ✅ CORREGIDO: Eliminar el sheet duplicado y usar solo fullScreenCover
         .fullScreenCover(isPresented: $showMomentDetail) {
-            ModernMomentDetailView(
-                moments: selectedTab == .moments ? viewModel.moments : viewModel.taggedMoments,
-                initialIndex: selectedMomentIndex,
-                topContentInset: selectedTab == .moments ? 24 : 64,
-                onDismiss: {
-                    showMomentDetail = false
-                }
+            MomentDetailContainerView(
+                context: .profileCarousel(
+                    moments: selectedTab == .moments ? viewModel.moments : viewModel.taggedMoments,
+                    initialIndex: selectedMomentIndex,
+                    topContentInset: selectedTab == .moments ? 24 : 64,
+                    onDismiss: {
+                        showMomentDetail = false
+                    }
+                )
             )
         }
         .fullScreenCover(isPresented: $showStoryViewer) {

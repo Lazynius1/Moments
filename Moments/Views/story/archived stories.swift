@@ -1028,7 +1028,7 @@ private struct ArchiveStoryCardFrameKey: PreferenceKey {
     }
 }
 
-private struct ArchiveStoryCardVisual: View {
+struct ArchiveStoryCardVisual: View {
     let story: Story
     let cornerRadius: CGFloat
 

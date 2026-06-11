@@ -155,7 +155,7 @@ struct GlassmorphicChatView: View {
             // ✅ NUEVO: Sheet para navegación al detalle del momento
             .sheet(isPresented: $showingMomentDetail) {
                 if let moment = selectedMoment {
-                    MomentDetailView(moment: moment)
+                    MomentDetailContainerView(context: .single(moment))
                 }
             }
             // ✅ NUEVO: Alert para error al cargar momento

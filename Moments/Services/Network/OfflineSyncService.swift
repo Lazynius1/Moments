@@ -40,9 +40,18 @@ class OfflineSyncService: ObservableObject {
             .store(in: &cancellables)
     }
     
+    /// Reintento explícito desde el banner offline (no exige que el sync automático esté activo).
+    func retryFromUserAction() async {
+        await syncPendingActions(requireAutomaticSync: false)
+    }
+
     /// Empieza a procesar la cola de acciones persistente
-    func syncPendingActions() async {
-        guard isAutomaticSyncEnabled && !isSyncing && NetworkMonitor.shared.isConnected else { return }
+    func syncPendingActions(requireAutomaticSync: Bool = true) async {
+        if requireAutomaticSync {
+            guard isAutomaticSyncEnabled && !isSyncing && NetworkMonitor.shared.isConnected else { return }
+        } else {
+            guard !isSyncing && NetworkMonitor.shared.isConnected else { return }
+        }
         
         isSyncing = true
         defer { isSyncing = false }

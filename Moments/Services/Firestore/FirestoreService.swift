@@ -1362,6 +1362,20 @@ class FirestoreService: ObservableObject {
 
 
 
+    func fetchMomentAuthorId(momentId: String, completion: @escaping (String?) -> Void) {
+        db.collectionGroup("moments")
+            .whereField(FieldPath.documentID(), isEqualTo: momentId)
+            .limit(to: 1)
+            .getDocuments { snapshot, _ in
+                guard let document = snapshot?.documents.first,
+                      let moment = try? document.data(as: Moment.self) else {
+                    completion(nil)
+                    return
+                }
+                completion(moment.authorId)
+            }
+    }
+
     func fetchMoment(momentId: String, userId: String, completion: @escaping (Result<Moment, Error>) -> Void) {
         self.db.collection("users").document(userId).collection("moments").document(momentId).getDocument { snapshot, error in
             if let error = error {

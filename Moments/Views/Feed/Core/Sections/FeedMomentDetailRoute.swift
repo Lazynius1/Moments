@@ -17,9 +17,9 @@ struct MomentDetailFromNotificationView: View {
                     isPresented = false
                 }
             } else if let moment = moment {
-                MomentDetailView(moment: moment)
+                MomentDetailContainerView(context: .single(moment))
             } else {
-                ErrorMomentView(message: "Momento no encontrado") {
+                ErrorMomentView(message: NSLocalizedString("errors.momentNotFound", comment: "Moment not found")) {
                     isPresented = false
                 }
             }
@@ -31,14 +31,14 @@ struct MomentDetailFromNotificationView: View {
 
     private func loadMoment() {
         // ✅ USAR TU MÉTODO EXISTENTE
-        FirestoreService().fetchMoment(momentId: momentId, userId: userId) { result in
+        FirestoreService.shared.fetchMoment(momentId: momentId, userId: userId) { result in
             DispatchQueue.main.async {
                 isLoading = false
                 switch result {
                 case .success(let loadedMoment):
                     moment = loadedMoment
                 case .failure:
-                    errorMessage = "No se pudo cargar el momento"
+                    errorMessage = NSLocalizedString("errors.momentLoadFailed", comment: "Moment load failed")
                 }
             }
         }
@@ -81,7 +81,7 @@ struct ErrorMomentView: View {
                     .foregroundColor(.white)
                     .multilineTextAlignment(.center)
 
-                Button("Cerrar") {
+                Button(NSLocalizedString("common.close", comment: "Close")) {
                     onClose()
                 }
                 .font(.custom("Poppins-SemiBold", size: 16))

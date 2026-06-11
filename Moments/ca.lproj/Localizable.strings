@@ -2091,6 +2091,29 @@
 "highlightedStories.create" = "Crear destacada";
 "highlightedStories.title" = "Històries Destacades";
 "highlightedStories.new" = "Nova";
+"highlightedStories.selectStories" = "Seleccionar històries";
+"highlightedStories.newHighlight" = "Nova destacada";
+"highlightedStories.noStoriesToSelect" = "No hi ha històries per seleccionar";
+"highlightedStories.editCover" = "Editar portada";
+"highlightedStories.titleLabel" = "Títol";
+"highlightedStories.titlePlaceholder" = "p. ex. Estiu 2024";
+"highlightedStories.selectCover" = "Seleccionar portada";
+"highlightedStories.storyCount" = "%d història%@";
+"highlightedStories.edit" = "Editar destacada";
+"highlightedStories.selectedCount" = "%d seleccionades";
+"highlightedStories.loadFailed" = "No s'han pogut carregar les històries";
+"highlightedStories.invalidHighlight" = "No s'ha pogut editar aquesta historia destacada.";
+"highlightedStories.next" = "Següent";
+"highlightedStories.add" = "Afegeix";
+"highlightedStories.back" = "Enrere";
+"highlightedStories.nameAndCover" = "Anomena la teva destacada";
+"highlightedStories.selectFromArchive" = "Seleccionar històries";
+"highlightedStories.archiveEmpty" = "Encara no tens històries a l'arxiu";
+"highlightedStories.titleMaxHint" = "Els noms curts es veuen millor al perfil";
+"highlightedStories.defaultTitle" = "Destacada";
+"highlightedStories.newHighlightTitle" = "Nova història destacada";
+"highlightedStories.editHighlightTitle" = "Editar història destacada";
+"highlightedStories.addToHighlights" = "Afegir a històries destacades";
 
 /* Stories View - Additional */
 "stories.noStoriesAvailable" = "No hi ha històries disponibles";
@@ -2275,6 +2298,25 @@
 
 /* Network Status - Offline Banners */
 "network.offline.title" = "Modo offline";
+"offline.banner.message" = "Estàs sense connexió. Les accions pendents es sincronitzaran en reconnectar.";
+"offline.banner.expandHint" = "Toca dues vegades per expandir l'estat offline";
+"tabBar.create" = "Crear";
+"maps.pin.accessibility" = "%@, %lld moments";
+"feed.reaction.accessibility.default" = "Reaccionar, %lld reaccions";
+"feed.reaction.accessibility.selected" = "La teva reacció %@, %lld reaccions";
+"feed.reaction.accessibilityHint" = "Toca dues vegades per reaccionar. Mantén premut per a més reaccions.";
+"nova.input.addPhoto.accessibility" = "Afegir foto";
+"nova.input.removePhoto.accessibility" = "Treure foto";
+"nova.input.send.accessibility" = "Enviar missatge";
+"featureDiscovery.skip" = "Ometre";
+"featureDiscovery.next" = "Següent";
+"featureDiscovery.continue" = "Començar";
+"featureDiscovery.echo.title" = "Echo";
+"featureDiscovery.echo.subtitle" = "Comparteix moments de veu que desapareixen en 24 hores.";
+"featureDiscovery.nova.title" = "Nova";
+"featureDiscovery.nova.subtitle" = "El teu assistent d'IA per a idees, textos i inspiració.";
+"featureDiscovery.map.title" = "Mapa Discover";
+"featureDiscovery.map.subtitle" = "Explora moments i històries a prop teu al mapa.";
 
 /* In-App Banners */
 "banner.verb.like" = "li ha agradat el teu moment";
@@ -3771,3 +3813,16 @@
 "userActivity.event.follow.clean" = "Et va començar a seguir";
 "appeal.validation.tooShort" = "Mínim %2$d caràcters (actual: %1$d)";
 "appeal.validation.tooLong" = "Màxim 2000 caràcters (actual: %d)";
+
+"errors.authRequired" = "Please sign in to continue.";
+"errors.profileLoadFailed" = "Could not load your profile: %@";
+"errors.momentsLoadFailed" = "Could not load moments: %@";
+"errors.cancelRequestFailed" = "Could not cancel request: %@";
+"errors.sendRequestFailed" = "Could not send follow request: %@";
+"errors.followUserFailed" = "Could not follow user: %@";
+"errors.fetchProfileFailed" = "Could not load profile: %@";
+"errors.trendingLoadFailed" = "Could not load trending: %@";
+"errors.searchUsersFailed" = "Could not search users: %@";
+"errors.momentImageUnavailable" = "Could not load the moment image.";
+"errors.stickerGenerationFailed" = "Could not generate the sticker.";
+"errors.momentLoadFailed" = "Could not load the moment.";

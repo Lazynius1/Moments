@@ -98,6 +98,32 @@ struct FeedNotificationRoutingModifier: ViewModifier {
                 let authorId = (userInfo["authorId"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines)
                 onOpenStory(storyId, authorId?.isEmpty == false ? authorId : nil)
             }
+            .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("NavigateToConversation"))) { notification in
+                guard let conversationId = notification.object as? String,
+                      !conversationId.isEmpty else { return }
+                targetConversationId = conversationId
+                showMessages = true
+            }
+            .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("NavigateToMoment"))) { notification in
+                guard let momentId = notification.object as? String,
+                      !momentId.isEmpty else { return }
+
+                if let userId = notification.userInfo?["userId"] as? String, !userId.isEmpty {
+                    targetMomentId = momentId
+                    targetMomentUserId = userId
+                    showMomentDetail = true
+                    return
+                }
+
+                firestoreService.fetchMomentAuthorId(momentId: momentId) { authorId in
+                    DispatchQueue.main.async {
+                        guard let authorId, !authorId.isEmpty else { return }
+                        targetMomentId = momentId
+                        targetMomentUserId = authorId
+                        showMomentDetail = true
+                    }
+                }
+            }
     }
 }
 

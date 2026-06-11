@@ -341,20 +341,14 @@ struct ModernCommentsView: View {
                             onAvatarTap: { userId, hasStory in
                                 guard !userId.isEmpty else { return }
                                 if userId == Auth.auth().currentUser?.uid {
-                                    NotificationCenter.default.post(
-                                        name: NSNotification.Name("NavigateToOwnProfileTab"),
-                                        object: nil
-                                    )
+                                    LegacyNavigationBridge.ownProfileTab()
                                     return
                                 }
                                 if hasStory {
                                     selectedStoryUserId = userId
                                     showSpecificUserStories = true
                                 } else {
-                                    NotificationCenter.default.post(
-                                        name: NSNotification.Name("NavigateToProfile"),
-                                        object: userId
-                                    )
+                                    LegacyNavigationBridge.profile(userId: userId)
                                 }
                             },
                             onMentionTap: { identifier in
@@ -366,15 +360,9 @@ struct ModernCommentsView: View {
                                         case .success(let user):
                                             DispatchQueue.main.async {
                                                 if user.id == Auth.auth().currentUser?.uid {
-                                                    NotificationCenter.default.post(
-                                                        name: NSNotification.Name("NavigateToOwnProfileTab"),
-                                                        object: nil
-                                                    )
+                                                    LegacyNavigationBridge.ownProfileTab()
                                                 } else {
-                                                    NotificationCenter.default.post(
-                                                        name: NSNotification.Name("NavigateToProfile"),
-                                                        object: user.id
-                                                    )
+                                                    LegacyNavigationBridge.profile(userId: user.id)
                                                 }
                                             }
                                         case .failure(let error):
@@ -383,15 +371,9 @@ struct ModernCommentsView: View {
                                     }
                                 } else {
                                     if identifier == Auth.auth().currentUser?.uid {
-                                        NotificationCenter.default.post(
-                                            name: NSNotification.Name("NavigateToOwnProfileTab"),
-                                            object: nil
-                                        )
+                                        LegacyNavigationBridge.ownProfileTab()
                                     } else {
-                                        NotificationCenter.default.post(
-                                            name: NSNotification.Name("NavigateToProfile"),
-                                            object: identifier
-                                        )
+                                        LegacyNavigationBridge.profile(userId: identifier)
                                     }
                                 }
                             },
@@ -559,10 +541,7 @@ struct ModernCommentsView: View {
                                         selectedStoryUserId = currentUserId
                                         showSpecificUserStories = true
                                     } else {
-                                        NotificationCenter.default.post(
-                                            name: NSNotification.Name("NavigateToProfile"),
-                                            object: currentUserId
-                                        )
+                                        LegacyNavigationBridge.profile(userId: currentUserId)
                                     }
                                 }
                             )

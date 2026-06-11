@@ -427,11 +427,14 @@ struct ModernLocationGalleryView: View {
         .fullScreenCover(isPresented: $showingDetail) {
             if let selectedMoment = selectedMoment,
                let selectedIndex = moments.firstIndex(where: { $0.id == selectedMoment.id }) {
-                LocationMomentDetailView(
-                    locationMoments: moments,
-                    initialIndex: selectedIndex,
-                    locationName: locationName,
-                    isPresented: $showingDetail
+                MomentDetailContainerView(
+                    context: .map(
+                        moments: moments,
+                        initialIndex: selectedIndex,
+                        locationName: locationName,
+                        momentAvailability: .constant([:]),
+                        isPresented: $showingDetail
+                    )
                 )
             }
         }

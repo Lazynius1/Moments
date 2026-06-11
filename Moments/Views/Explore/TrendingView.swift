@@ -60,7 +60,7 @@ struct TrendingView: View {
             )
         }
         .sheet(item: $selectedMoment) { moment in
-            MomentDetailView(moment: moment)
+            MomentDetailContainerView(context: .single(moment))
         }
     }
     

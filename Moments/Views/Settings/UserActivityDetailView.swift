@@ -196,7 +196,7 @@ struct ActivityInteractionDetailView: View {
             }
         )) {
             if let moment = selectedMomentForDetail {
-                MomentDetailView(moment: moment)
+                MomentDetailContainerView(context: .single(moment))
             }
         }
         .fullScreenCover(item: $recentlyDeletedStoryPresentation) { presentation in

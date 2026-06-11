@@ -2130,6 +2130,20 @@
 "highlightedStories.selectCover" = "Select cover";
 "highlightedStories.storyCount" = "%d story%@";
 "highlightedStories.edit" = "Edit highlight";
+"highlightedStories.selectedCount" = "%d selected";
+"highlightedStories.loadFailed" = "Couldn't load stories";
+"highlightedStories.invalidHighlight" = "This highlight could not be edited.";
+"highlightedStories.next" = "Next";
+"highlightedStories.add" = "Add";
+"highlightedStories.back" = "Back";
+"highlightedStories.nameAndCover" = "Name your highlight";
+"highlightedStories.selectFromArchive" = "Select stories";
+"highlightedStories.archiveEmpty" = "No archived stories yet";
+"highlightedStories.titleMaxHint" = "Shorter names look better on your profile";
+"highlightedStories.defaultTitle" = "Highlight";
+"highlightedStories.newHighlightTitle" = "New highlight";
+"highlightedStories.editHighlightTitle" = "Edit highlight";
+"highlightedStories.addToHighlights" = "Add to highlights";
 
 /* Stories View - Additional */
 "stories.noStoriesAvailable" = "No stories available";
@@ -2274,6 +2288,25 @@
 
 /* Network Status - Offline Banners */
 "network.offline.title" = "Offline mode";
+"offline.banner.message" = "You're offline. Pending actions will sync when you reconnect.";
+"offline.banner.expandHint" = "Double tap to expand offline status";
+"tabBar.create" = "Create";
+"maps.pin.accessibility" = "%@, %lld moments";
+"feed.reaction.accessibility.default" = "React, %lld reactions";
+"feed.reaction.accessibility.selected" = "Your reaction %@, %lld reactions";
+"feed.reaction.accessibilityHint" = "Double tap to react. Long press for more reactions.";
+"nova.input.addPhoto.accessibility" = "Add photo";
+"nova.input.removePhoto.accessibility" = "Remove photo";
+"nova.input.send.accessibility" = "Send message";
+"featureDiscovery.skip" = "Skip";
+"featureDiscovery.next" = "Next";
+"featureDiscovery.continue" = "Get started";
+"featureDiscovery.echo.title" = "Echo";
+"featureDiscovery.echo.subtitle" = "Share voice moments that disappear after 24 hours.";
+"featureDiscovery.nova.title" = "Nova";
+"featureDiscovery.nova.subtitle" = "Your AI assistant for ideas, captions, and inspiration.";
+"featureDiscovery.map.title" = "Discover Map";
+"featureDiscovery.map.subtitle" = "Explore moments and stories near you on the map.";
 
 /* In-App Banners */
 "banner.verb.like" = "liked your moment";
@@ -3788,3 +3821,16 @@
 "userActivity.event.follow.clean" = "Started following you";
 "appeal.validation.tooShort" = "Minimum %2$d characters (current: %1$d)";
 "appeal.validation.tooLong" = "Maximum 2000 characters (current: %d)";
+
+"errors.authRequired" = "Please sign in to continue.";
+"errors.profileLoadFailed" = "Could not load your profile: %@";
+"errors.momentsLoadFailed" = "Could not load moments: %@";
+"errors.cancelRequestFailed" = "Could not cancel request: %@";
+"errors.sendRequestFailed" = "Could not send follow request: %@";
+"errors.followUserFailed" = "Could not follow user: %@";
+"errors.fetchProfileFailed" = "Could not load profile: %@";
+"errors.trendingLoadFailed" = "Could not load trending: %@";
+"errors.searchUsersFailed" = "Could not search users: %@";
+"errors.momentImageUnavailable" = "Could not load the moment image.";
+"errors.stickerGenerationFailed" = "Could not generate the sticker.";
+"errors.momentLoadFailed" = "Could not load the moment.";

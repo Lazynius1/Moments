@@ -98,10 +98,7 @@ struct ExploreView: View {
                                         )
                                         .onTapGesture {
                                             guard !targetId.isEmpty else { return }
-                                            NotificationCenter.default.post(
-                                                name: NSNotification.Name("NavigateToProfile"),
-                                                object: targetId
-                                            )
+                                            LegacyNavigationBridge.profile(userId: targetId)
                                         }
                                     } else {
                                         Image(systemName: searchTypeIcon(for: search.type))
@@ -195,7 +192,7 @@ struct ExploreView: View {
                 UserProfileView(userId: user.id)
             }
             .sheet(item: $selectedMoment) { moment in
-                MomentDetailView(moment: moment)
+                MomentDetailContainerView(context: .single(moment))
                     .presentationDetents([.medium, .large])
                     .presentationDragIndicator(.visible)
             }
@@ -238,15 +235,25 @@ struct ExploreView: View {
     }
 
     private var mainContent: some View {
-        Group {
-            if viewModel.isLoading {
-                LoadingStateView()
-            } else if let errorMessage = viewModel.errorMessage {
-                ErrorStateView(message: errorMessage) {
+        ZStack(alignment: .top) {
+            Group {
+                if viewModel.isLoading && viewModel.moments.isEmpty && viewModel.errorMessage == nil {
+                    LoadingStateView()
+                } else if let errorMessage = viewModel.errorMessage, viewModel.moments.isEmpty {
+                    ErrorStateView(message: errorMessage) {
+                        viewModel.fetchMomentsByInterests()
+                    }
+                } else {
+                    contentScrollView
+                }
+            }
+
+            if let errorMessage = viewModel.errorMessage, !viewModel.moments.isEmpty {
+                AppErrorBanner(message: errorMessage) {
                     viewModel.fetchMomentsByInterests()
                 }
-            } else {
-                contentScrollView
+                .padding(.horizontal, 16)
+                .padding(.top, 8)
             }
         }
     }

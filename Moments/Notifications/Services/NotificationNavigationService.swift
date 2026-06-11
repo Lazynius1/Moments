@@ -22,17 +22,21 @@ class NotificationNavigationService: ObservableObject {
     
     private init() {}
     
+    func syncPendingNavigation(from destination: AppRouter.Destination) {
+        pendingNavigation = destination.legacyPendingNavigation
+    }
+
     // ✅ Helpers para navegación directa (usados por InAppBannerView)
     func navigateToMoment(momentId: String, userId: String) {
-         pendingNavigation = .moment(momentId, userId)
+        AppRouter.shared.navigate(to: .moment(id: momentId, authorId: userId))
     }
     
     func navigateToProfile(userId: String) {
-        pendingNavigation = .profile(userId)
+        AppRouter.shared.navigate(to: .profile(userId: userId))
     }
     
     func navigateToNotifications(filter: String?) {
-        pendingNavigation = .notifications(filter)
+        AppRouter.shared.navigate(to: .notifications(filter: filter))
     }
     
     func navigateToStory(storyId: String) {
@@ -40,15 +44,15 @@ class NotificationNavigationService: ObservableObject {
     }
 
     func navigateToStory(storyId: String, authorId: String?) {
-        pendingNavigation = .story(storyId: storyId, authorId: authorId)
+        AppRouter.shared.navigate(to: .story(storyId: storyId, authorId: authorId))
     }
     
     func navigateToConversation(conversationId: String) {
-        pendingNavigation = .conversation(conversationId)
+        AppRouter.shared.navigate(to: .conversation(id: conversationId))
     }
 
     func navigateToCreator() {
-        pendingNavigation = .creator
+        AppRouter.shared.navigate(to: .creator)
     }
     
     // ✅ SIMPLIFICADO: Método para procesar datos de notificación
@@ -61,13 +65,13 @@ class NotificationNavigationService: ObservableObject {
         case "reaction":
             if let momentId = firstString(in: userInfo, keys: ["momentId", "targetId"]),
                let userId = firstString(in: userInfo, keys: ["targetAuthorId", "momentOwnerId"]) {
-                pendingNavigation = .moment(momentId, userId)
+                AppRouter.shared.navigate(to: .moment(id: momentId, authorId: userId))
             }
             
         case "comment":
             if let momentId = firstString(in: userInfo, keys: ["momentId", "targetId"]),
                let userId = firstString(in: userInfo, keys: ["targetAuthorId", "momentOwnerId"]) {
-                pendingNavigation = .moment(momentId, userId)
+                AppRouter.shared.navigate(to: .moment(id: momentId, authorId: userId))
             }
             
         case "storyReaction":
@@ -75,32 +79,32 @@ class NotificationNavigationService: ObservableObject {
                 let authorId = userInfo["storyAuthorId"] as? String
                     ?? userInfo["storyOwnerId"] as? String
                     ?? userInfo["targetAuthorId"] as? String
-                pendingNavigation = .story(storyId: storyId, authorId: authorId)
+                AppRouter.shared.navigate(to: .story(storyId: storyId, authorId: authorId))
             }
             
         case "newFollower":
             if let userId = firstString(in: userInfo, keys: ["followerId", "senderId", "targetId"]) {
-                pendingNavigation = .profile(userId)
+                AppRouter.shared.navigate(to: .profile(userId: userId))
             }
             
         case "mutualConnection":
             if let userId = firstString(in: userInfo, keys: ["senderId", "targetId"]) {
-                pendingNavigation = .profile(userId)
+                AppRouter.shared.navigate(to: .profile(userId: userId))
             }
 
         case "requestAccepted":
             if let userId = firstString(in: userInfo, keys: ["senderId", "targetId"]) {
-                pendingNavigation = .profile(userId)
+                AppRouter.shared.navigate(to: .profile(userId: userId))
             }
             
         case "message":
             if let conversationId = userInfo["conversationId"] as? String {
-                pendingNavigation = .conversation(conversationId)
+                AppRouter.shared.navigate(to: .conversation(id: conversationId))
             }
             
         case "followRequest":
             if let requestId = userInfo["requestId"] as? String {
-                pendingNavigation = .followRequests(requestId)
+                AppRouter.shared.navigate(to: .followRequests(requestId: requestId))
             }
             
         case "mention":
@@ -110,45 +114,45 @@ class NotificationNavigationService: ObservableObject {
                     ?? userInfo["senderId"] as? String
                     ?? ""
                 if !userId.isEmpty {
-                    pendingNavigation = .moment(momentId, userId)
+                    AppRouter.shared.navigate(to: .moment(id: momentId, authorId: userId))
                 } else {
-                    pendingNavigation = .notifications(nil)
+                    AppRouter.shared.navigate(to: .notifications(filter: nil))
                 }
             } else if let storyId = userInfo["storyId"] as? String, !storyId.isEmpty {
                 let authorId = userInfo["storyAuthorId"] as? String
                     ?? userInfo["targetAuthorId"] as? String
                     ?? userInfo["senderId"] as? String
-                pendingNavigation = .story(storyId: storyId, authorId: authorId)
+                AppRouter.shared.navigate(to: .story(storyId: storyId, authorId: authorId))
             } else if let userId = userInfo["senderId"] as? String {
-                pendingNavigation = .profile(userId)
+                AppRouter.shared.navigate(to: .profile(userId: userId))
             }
 
         case "gentle_reminder":
-            pendingNavigation = .creator
+            AppRouter.shared.navigate(to: .creator)
             
         // 🔗 STORY CHAINS: Notificación cuando alguien continúa una cadena
         case "storyChainContinued":
             if let chainId = userInfo["chainId"] as? String,
                let chainTitle = userInfo["chainTitle"] as? String {
-                pendingNavigation = .storyChain(chainId, chainTitle)
+                AppRouter.shared.navigate(to: .storyChain(chainId: chainId, title: chainTitle))
             } else if let storyId = userInfo["storyId"] as? String {
-                pendingNavigation = .story(storyId: storyId, authorId: userInfo["senderId"] as? String)
+                AppRouter.shared.navigate(to: .story(storyId: storyId, authorId: userInfo["senderId"] as? String))
             }
             
         // ✅ CASO LEGACY: Para notificaciones antiguas de tipo 'like'
         case "echoSuggestion":
             if let echoId = userInfo["echoId"] as? String {
-                pendingNavigation = .echoSuggestion(echoId)
+                AppRouter.shared.navigate(to: .echoSuggestion(echoId: echoId))
             }
             
         case "like", "photoTag":
             if let momentId = firstString(in: userInfo, keys: ["momentId", "targetId"]) {
                 // ✅ BUSCAR userId en la notificación legacy
                 if let userId = firstString(in: userInfo, keys: ["targetAuthorId", "momentOwnerId", "senderId"]) {
-                    pendingNavigation = .moment(momentId, userId)
+                    AppRouter.shared.navigate(to: .moment(id: momentId, authorId: userId))
                 } else {
                     // ✅ FALLBACK: Si no hay userId, ir a notificaciones
-                    pendingNavigation = .notifications(nil)
+                    AppRouter.shared.navigate(to: .notifications(filter: nil))
                 }
             }
             
@@ -156,24 +160,24 @@ class NotificationNavigationService: ObservableObject {
             if let momentId = firstString(in: userInfo, keys: ["momentId", "targetId"]), !momentId.isEmpty {
                 let userId = firstString(in: userInfo, keys: ["targetAuthorId", "momentOwnerId", "senderId"]) ?? ""
                 if !userId.isEmpty {
-                    pendingNavigation = .moment(momentId, userId)
+                    AppRouter.shared.navigate(to: .moment(id: momentId, authorId: userId))
                 } else {
-                    pendingNavigation = .notifications(nil)
+                    AppRouter.shared.navigate(to: .notifications(filter: nil))
                 }
             } else if let storyId = userInfo["storyId"] as? String, !storyId.isEmpty {
-                pendingNavigation = .story(
+                AppRouter.shared.navigate(to: .story(
                     storyId: storyId,
                     authorId: userInfo["storyAuthorId"] as? String ?? userInfo["targetAuthorId"] as? String
-                )
+                ))
             } else {
-                pendingNavigation = .notifications(nil)
+                AppRouter.shared.navigate(to: .notifications(filter: nil))
             }
 
         default:
             #if DEBUG
             print("⚠️ Unknown notification push type: \(type)")
             #endif
-            pendingNavigation = .notifications(nil)
+            AppRouter.shared.navigate(to: .notifications(filter: nil))
         }
         
     }

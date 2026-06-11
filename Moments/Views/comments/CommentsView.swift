@@ -116,10 +116,7 @@ struct CommentsView: View {
                         selectedStoryUserId = userId
                         showSpecificUserStories = true
                     } else {
-                        NotificationCenter.default.post(
-                            name: NSNotification.Name("NavigateToProfile"),
-                            object: userId
-                        )
+                        LegacyNavigationBridge.profile(userId: userId)
                     }
                 }
             )

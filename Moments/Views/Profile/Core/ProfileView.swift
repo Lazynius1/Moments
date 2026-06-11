@@ -372,13 +372,15 @@ struct ProfileView: View {
                 }
 
                 .fullScreenCover(isPresented: $showMomentDetail) {
-                    ModernMomentDetailView(
-                        moments: selectedProfileTab == .tagged ? viewModel.taggedMoments : viewModel.moments,
-                        initialIndex: selectedMomentIndex,
-                        topContentInset: selectedProfileTab == .tagged ? 64 : 24,
-                        onDismiss: {
-                            showMomentDetail = false
-                        }
+                    MomentDetailContainerView(
+                        context: .profileCarousel(
+                            moments: selectedProfileTab == .tagged ? viewModel.taggedMoments : viewModel.moments,
+                            initialIndex: selectedMomentIndex,
+                            topContentInset: selectedProfileTab == .tagged ? 64 : 24,
+                            onDismiss: {
+                                showMomentDetail = false
+                            }
+                        )
                     )
                 }
                 .sheet(item: $showingUserList) { listType in

@@ -23,12 +23,14 @@ class FeedViewModel {
     var followingMoments: [Moment] = []
     var isPausedForUploads = false
 
-    private let firestoreService = FirestoreService()
+    private let firestoreService = FirestoreService.shared
     private let privacyService = PrivacyService()
     private var lastDocument: DocumentSnapshot?
     private var userListener: ListenerRegistration?
     private var momentListeners: [String: ListenerRegistration] = [:]
     private var commentListeners: [String: ListenerRegistration] = [:]
+    private let listenerVisibilityThreshold: CGFloat = 0.08
+    private let listenerIndexBuffer = 5
     private var pendingUpdates: [String: DispatchWorkItem] = [:]
     private let updateDebounceTime: TimeInterval = 0.3
     private var lastUpdateHashes: [String: Int] = [:]
@@ -161,6 +163,20 @@ class FeedViewModel {
 
         guard NetworkMonitor.shared.isConnected else {
             DispatchQueue.main.async {
+                if !cached.isEmpty {
+                    self.moments = cached
+                    VideoMomentsIndex.shared.rebuild(from: cached)
+
+                    if targetFeedType == .following {
+                        self.followingMoments = cached
+                    } else {
+                        self.forYouMoments = cached
+                    }
+
+                    VideoPreloader.shared.preloadAssets(
+                        urls: VideoPlaybackSelector.shared.preloadURLStrings(from: cached)
+                    )
+                }
                 self.isLoading = false
             }
             return
@@ -314,7 +330,6 @@ class FeedViewModel {
         case .following:
             if !followingMoments.isEmpty {
                 moments = followingMoments
-                setupListenersForMoments(followingMoments)
             } else {
                 moments = []
                 isLoading = true
@@ -323,7 +338,6 @@ class FeedViewModel {
         case .forYou:
             if !forYouMoments.isEmpty {
                 moments = forYouMoments
-                setupListenersForMoments(forYouMoments)
             } else {
                 moments = []
                 isLoading = true
@@ -982,11 +996,32 @@ class FeedViewModel {
         self.commentListeners.removeAll()
     }
 
-    private func setupListenersForMoments(_ moments: [Moment]) {
-        for moment in moments {
-            if let momentId = moment.id {
-                self.listenForCommentUpdates(momentId: momentId, authorId: moment.authorId)
+    /// Mantiene listeners solo para momentos visibles en viewport (+ buffer de índices).
+    func syncMomentListeners(visibilityByMomentId: [String: CGFloat]) {
+        var eligibleIds = Set<String>()
+
+        for (index, moment) in moments.enumerated() {
+            guard let momentId = moment.id else { continue }
+            let fraction = visibilityByMomentId[momentId] ?? 0
+            guard fraction >= listenerVisibilityThreshold else { continue }
+
+            let lowerBound = max(0, index - listenerIndexBuffer)
+            let upperBound = min(moments.count - 1, index + listenerIndexBuffer)
+            for bufferIndex in lowerBound...upperBound {
+                if let bufferId = moments[bufferIndex].id {
+                    eligibleIds.insert(bufferId)
+                }
             }
+        }
+
+        for momentId in eligibleIds {
+            guard let moment = moments.first(where: { $0.id == momentId }) else { continue }
+            listenForCommentUpdates(momentId: momentId, authorId: moment.authorId)
+        }
+
+        let activeIds = Set(momentListeners.keys).union(Set(commentListeners.keys))
+        for momentId in activeIds where !eligibleIds.contains(momentId) {
+            removeMomentListeners(momentId: momentId)
         }
     }
 
@@ -1196,12 +1231,24 @@ class FeedViewModel {
         firestoreService.fetchConnections(userId: userId) { _ in }
     }
 
-    // ✅ NUEVO: Remover listener específico (Lazy Loading)
     func removeCommentListener(momentId: String) {
         if let listener = self.commentListeners[momentId] {
             listener.remove()
             self.commentListeners.removeValue(forKey: momentId)
         }
+    }
+
+    func removeMomentListeners(momentId: String) {
+        removeCommentListener(momentId: momentId)
+
+        if let listener = momentListeners[momentId] {
+            listener.remove()
+            momentListeners.removeValue(forKey: momentId)
+        }
+
+        pendingUpdates[momentId]?.cancel()
+        pendingUpdates.removeValue(forKey: momentId)
+        lastUpdateHashes.removeValue(forKey: momentId)
     }
 
     func fetchAdmirers(userId: String) {

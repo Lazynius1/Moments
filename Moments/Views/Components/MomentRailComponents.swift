@@ -9,6 +9,10 @@ struct AdaptiveColors {
     var background: Color {
         colorScheme == .dark ? .black : .white
     }
+
+    var surfaceBackground: Color {
+        colorScheme == .dark ? Color(hex: "0B1215") : Color(hex: "FAF9F6")
+    }
     
     // Colores principales
     var primary: Color {

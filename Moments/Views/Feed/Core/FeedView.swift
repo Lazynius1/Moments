@@ -16,21 +16,12 @@ import MapKit
 import UserNotifications
 import Combine
 
-private extension Moment {
-    var feedViewIdentity: String {
-        if let id, !id.isEmpty {
-            return "\(authorId)_\(id)"
-        }
-        return "\(authorId)_\(timestamp.timeIntervalSince1970)_\(content.prefix(24))"
-    }
-}
-
 struct FeedView: View {
     @EnvironmentObject var authService: AuthService
     @State private var viewModel = FeedViewModel()
     @StateObject private var notificationsViewModel = NotificationsViewModel()
     @StateObject private var messagingViewModel = MessagingViewModel()
-    @StateObject private var firestoreService = FirestoreService()
+    @StateObject private var firestoreService = FirestoreService.shared
     @StateObject private var storyRingCoordinator = FeedStoryRingCoordinator()
     @StateObject private var storyViewModel = StoryViewModel()
     @StateObject private var uploadService = BackgroundMomentUploadService.shared
@@ -117,16 +108,25 @@ struct FeedView: View {
                 .environmentObject(uploadService)
                 .zIndex(1200)
             
-            // ✅ Pill flotante sobre el contenido
-            floatingFeedSelector
+            FeedFloatingSelector(
+                selectedFeedType: $selectedFeedType,
+                isManualRefreshing: $isManualRefreshing,
+                viewModel: viewModel,
+                colorScheme: colorScheme,
+                floatingSelectorTopInset: floatingSelectorTopInset,
+                isFeedHeaderHidden: isFeedHeaderHidden,
+                pendingEchoesCount: pendingEchoes.count
+            )
             
-            // ✅ NUEVO: Banners de estado de red (COMO OVERLAY)
                 .overlay(
-                    VStack {
-                        OfflineBanner(networkMonitor: networkMonitor) {
-                            forceRefresh()
-                        }
+                    VStack(spacing: 8) {
                         SlowConnectionBanner(networkMonitor: networkMonitor)
+                        if let errorMessage = viewModel.errorMessage {
+                            AppErrorBanner(message: errorMessage) {
+                                forceRefresh()
+                            }
+                            .padding(.horizontal, 16)
+                        }
                     }
                     .padding(.top, 60)
                     .frame(maxWidth: .infinity, alignment: .top)
@@ -134,97 +134,24 @@ struct FeedView: View {
                     , alignment: .top
                 )
             
-            // ✅ LONG PRESS PEEK: Overlay a pantalla completa
-            if isPeeking, let imageURL = peekImageURL {
-                ZStack {
-                    ScreenshotProtectedView(isProtected: peekIsProtected, fillsContainer: true) {
-                        ZStack {
-                            Rectangle()
-                                .fill(.ultraThinMaterial)
-                                .ignoresSafeArea()
-                            
-                            KFImage(URL(string: imageURL))
-                                .resizable()
-                                .scaledToFill()
-                                .frame(
-                                    width: UIScreen.main.bounds.width - 32,
-                                    height: (UIScreen.main.bounds.width - 32) / peekAspectRatio
-                                )
-                                .clipShape(RoundedRectangle(cornerRadius: 20))
-                                .shadow(color: .black.opacity(0.4), radius: 20, y: 10)
-                        }
-                    }
-                }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .ignoresSafeArea()
-                .transition(.opacity)
-                .animation(.spring(response: 0.35, dampingFraction: 0.85), value: isPeeking)
-                .allowsHitTesting(false)
-                .zIndex(998)
-            }
-                
-                if showGlobalContextMenu, let moment = selectedMomentForMenu {
-                    ModernContextMenuOverlay(
-                        moment: moment,
-                        isPresented: $showGlobalContextMenu,
-                        onEdit: {
-                            editedContent = moment.content
-                            showEditSheet = true
-                        },
-                        onDelete: {
-                            showDeleteAlert = true
-                        },
-                        onReport: {
-                            // showReportSheet = true // ❌ Ya no se usa sheet
-                        }
-                    )
-                    .transition(.asymmetric(
-                        insertion: .move(edge: .bottom).combined(with: .opacity),
-                        removal: .move(edge: .bottom).combined(with: .opacity)
-                    ))
-                    .zIndex(1000)
-                    .animation(.spring(response: 0.4, dampingFraction: 0.8), value: showGlobalContextMenu)
-                }
-                
-
-                
-            if showShareSheet, let moment = selectedMomentForMenu {
-                ModernShareBottomSheet(moment: moment, isPresented: $showShareSheet)
-                    .transition(.asymmetric(
-                        insertion: .move(edge: .bottom).combined(with: .opacity),
-                        removal: .move(edge: .bottom).combined(with: .opacity)
-                    ))
-                    .zIndex(1001)
-                    .animation(.spring(response: 0.4, dampingFraction: 0.8), value: showShareSheet)
-            }
-            
-            VStack {
-                NotificationSummaryPopup(
-                    isPresented: $notificationSummaryService.shouldShowSummary,
-                    unreadNotifications: badgeService.unreadNotificationsCount,
-                    unreadMessages: badgeService.unreadMessagesCount,
-                    colorScheme: colorScheme
-                )
-                
-                Spacer() // Para que se mantenga arriba
-            }
-            .zIndex(2000) // Por encima de todo
-
-            if let route = pendingEchoInvitationRoute {
-                EchoInvitationView(
-                    echoId: route.echoId,
-                    onDismiss: {
-                        pendingEchoInvitationRoute = nil
-                        showPendingEchoInvitation = false
-                        selectedPendingEchoId = ""
-                    },
-                    onAccept: { echoId in
-                        NotificationNavigationService.shared.pendingNavigation = .echo(echoId)
-                    }
-                )
-                .transition(.opacity.combined(with: .scale(scale: 0.98)))
-                .zIndex(2100)
-            }
+            FeedOverlaysSection(
+                isPeeking: $isPeeking,
+                peekImageURL: $peekImageURL,
+                peekAspectRatio: $peekAspectRatio,
+                peekIsProtected: $peekIsProtected,
+                showGlobalContextMenu: $showGlobalContextMenu,
+                showShareSheet: $showShareSheet,
+                showEditSheet: $showEditSheet,
+                showDeleteAlert: $showDeleteAlert,
+                editedContent: $editedContent,
+                selectedMomentForMenu: $selectedMomentForMenu,
+                pendingEchoInvitationRoute: $pendingEchoInvitationRoute,
+                showPendingEchoInvitation: $showPendingEchoInvitation,
+                selectedPendingEchoId: $selectedPendingEchoId,
+                notificationSummaryService: notificationSummaryService,
+                badgeService: badgeService,
+                colorScheme: colorScheme
+            )
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
             .onAppear {
@@ -304,6 +231,18 @@ struct FeedView: View {
 
         .onChange(of: badgeService.unreadNotificationsCount) { _, count in
 
+        }
+        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name.forceFeedRefresh)) { _ in
+            guard let userId = Auth.auth().currentUser?.uid else { return }
+            Task {
+                await performManualRefresh(userId: userId)
+                await OfflineSyncService.shared.retryFromUserAction()
+                if NetworkMonitor.shared.isConnected {
+                    HapticManager.shared.notification(.success)
+                } else {
+                    HapticManager.shared.notification(.warning)
+                }
+            }
         }
         .environmentObject(firestoreService)
         .feedPresentations(
@@ -440,23 +379,53 @@ struct FeedView: View {
 
     // ✅ Fondo moderno como ProfileView
     private var modernBackgroundView: some View {
-        ZStack {
-            if colorScheme == .dark {
-                Color(hex: "0B1215")
-                    .ignoresSafeArea()
-            } else {
-                Color(hex: "FAF9F6")
-                    .ignoresSafeArea()
-            }
-        }
+        AdaptiveColors(colorScheme: colorScheme).surfaceBackground
+            .ignoresSafeArea()
     }
     
     private var mainContent: some View {
         ZStack(alignment: .top) {
-            scrollableContent
+            FeedListSection(
+                viewModel: viewModel,
+                isFeedHeaderHidden: $isFeedHeaderHidden,
+                selectedMoment: $selectedMoment,
+                selectedFeedType: $selectedFeedType,
+                selectedHashtag: $selectedHashtag,
+                showExploreWithHashtag: $showExploreWithHashtag,
+                selectedLocationName: $selectedLocationName,
+                selectedLocationCoordinate: $selectedLocationCoordinate,
+                showingLocationMap: $showingLocationMap,
+                showGlobalContextMenu: $showGlobalContextMenu,
+                selectedMomentForMenu: $selectedMomentForMenu,
+                peekImageURL: $peekImageURL,
+                peekAspectRatio: $peekAspectRatio,
+                isPeeking: $isPeeking,
+                peekIsProtected: $peekIsProtected,
+                colorScheme: colorScheme,
+                feedContentTopInset: feedContentTopInset,
+                feedHeaderHeight: feedHeaderHeight,
+                feedSelectorHeight: feedSelectorHeight,
+                onForceRefresh: forceRefresh,
+                onManualRefresh: performManualRefresh,
+                onOpenUserProfile: openUserProfile
+            )
                 .ignoresSafeArea(edges: .top)
             
-            modernHeaderView
+            FeedHeaderBar(
+                showCreatorView: $showCreatorView,
+                showNotifications: $showNotifications,
+                showMessages: $showMessages,
+                showEchoHistory: $showEchoHistory,
+                showPendingEchoInvitation: $showPendingEchoInvitation,
+                selectedPendingEchoId: $selectedPendingEchoId,
+                pendingEchoInvitationRoute: $pendingEchoInvitationRoute,
+                storyRingCoordinator: storyRingCoordinator,
+                storyUploadService: storyUploadService,
+                badgeService: badgeService,
+                colorScheme: colorScheme,
+                pendingEchoes: pendingEchoes,
+                onOpenStory: openStoryViewer
+            )
             .offset(y: isFeedHeaderHidden ? -(feedHeaderHeight + 20) : 0)
             .opacity(isFeedHeaderHidden ? 0 : 1)
             .allowsHitTesting(!isFeedHeaderHidden)
@@ -464,41 +433,6 @@ struct FeedView: View {
             .animation(.spring(response: 0.32, dampingFraction: 0.86), value: isFeedHeaderHidden)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
-    
-    // ✅ NUEVO: Pill flotante sobre el contenido con indicadores de Echo
-    private var floatingFeedSelector: some View {
-        VStack {
-            Spacer()
-                .frame(height: floatingSelectorTopInset)
-            
-            // Centro: Feed Toggle
-            FloatingGlassFeedToggle(selectedFeedType: $selectedFeedType)
-
-            if isManualRefreshing {
-                FeedRefreshIndicator(colorScheme: colorScheme)
-                    .padding(.top, 8)
-                    .transition(.move(edge: .top).combined(with: .opacity))
-            }
-            
-            Spacer()
-        }
-        .padding(.horizontal, 12)
-        .shadow(color: Color.black.opacity(0.15), radius: 12, x: 0, y: 4)
-        .animation(.spring(response: 0.32, dampingFraction: 0.86), value: isFeedHeaderHidden)
-        .onChange(of: selectedFeedType) { _, newFeedType in
-            // ✅ NUEVO: Guardar la preferencia del usuario
-            UserDefaults.standard.selectedFeedType = newFeedType
-            
-            // ✅ Cambiar tipo de feed cuando se selecciona
-            if let userId = Auth.auth().currentUser?.uid {
-                viewModel.switchFeedType(to: newFeedType, userId: userId)
-            }
-            
-            // ✅ NUEVO: Track analytics para preferencias
-        }
-        .animation(.spring(response: 0.3, dampingFraction: 0.7), value: pendingEchoes.count)
-        .zIndex(998)
     }
 
     private func openUserProfile(_ userId: String) {
@@ -511,20 +445,15 @@ struct FeedView: View {
             }
             selectedUserId = ""
             selectedProfileRoute = nil
-            NotificationCenter.default.post(name: NSNotification.Name("NavigateToOwnProfileTab"), object: nil)
+            LegacyNavigationBridge.ownProfileTab()
             return
         }
 
         selectedUserId = trimmedUserId
 
         if let currentMoment = selectedMoment {
-            // Guardamos el momento actual para volver a abrir los comentarios después
             suspendedMomentForComments = currentMoment
-
-            // Cerramos el comments sheet primero
             selectedMoment = nil
-
-            // Esperamos a que termine la animación de cierre del sheet de comentarios antes de abrir el perfil
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.45) {
                 selectedProfileRoute = FeedProfileSheetRoute(userId: trimmedUserId)
             }
@@ -532,378 +461,7 @@ struct FeedView: View {
             selectedProfileRoute = FeedProfileSheetRoute(userId: trimmedUserId)
         }
     }
-
-    private struct FeedRefreshIndicator: View {
-        let colorScheme: ColorScheme
-
-        var body: some View {
-            HStack(spacing: 8) {
-                ProgressView()
-                    .progressViewStyle(CircularProgressViewStyle(tint: colorScheme == .dark ? .white : .black))
-                    .scaleEffect(0.72)
-
-                Text("feed.refreshing")
-                    .font(.custom("Poppins-Medium", size: 12))
-                    .foregroundColor(colorScheme == .dark ? .white.opacity(0.74) : .black.opacity(0.62))
-            }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
-            .liquidGlass(in: Capsule(), interactive: false)
-        }
-    }
     
-    // ✅ Header moderno
-    private var modernHeaderView: some View {
-        HStack(spacing: 8) {
-            // Sección de historias CON progreso de upload
-                if storyRingCoordinator.isLoadingStories && storyRingCoordinator.storyUsers.isEmpty {
-                    StoryRingTraySkeletonRow(colorScheme: colorScheme)
-                } else {
-                    ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: 10) {
-                            // 🔥 NUEVO: Tu historia con progreso de upload si está subiendo
-                            YourStoryCircleWithProgress(
-                                hasStory: storyRingCoordinator.storyUsers.first?.userId == Auth.auth().currentUser?.uid ? (storyRingCoordinator.storyUsers.first?.hasStory ?? false) : false,
-                                storyCount: storyRingCoordinator.storyUsers.first?.userId == Auth.auth().currentUser?.uid ? (storyRingCoordinator.storyUsers.first?.storyCount ?? 0) : 0,
-                                storyAudiences: storyRingCoordinator.storyUsers.first?.userId == Auth.auth().currentUser?.uid ? (storyRingCoordinator.storyUsers.first?.storyAudiences ?? []) : [],
-                                colorScheme: colorScheme,
-                                storyUploadService: storyUploadService
-                            ) {
-                                // ✅ LÓGICA SIMPLE Y CLARA
-                                if let currentUserId = Auth.auth().currentUser?.uid,
-                                   storyRingCoordinator.storyUsers.first?.hasStory == true && storyRingCoordinator.storyUsers.first?.userId == currentUserId {
-                                    
-                                    // 📖 Si tienes historia, mostrar tus historias
-                                    openStoryViewer(for: currentUserId)
-
-                                    
-                                } else {
-                                    
-                                    // ➕ Si no tienes historia, crear nueva
-                                    showCreatorView = true
-
-                                    
-                                }
-                            }
-                            
-                            // Resto de historias (usuarios que sigues)
-                            ForEach(Array(storyRingCoordinator.storyUsers.dropFirst().enumerated()), id: \.element.userId) { index, storyUser in
-                                RealStoryCircle(
-                                    userId: storyUser.userId,
-                                    fallbackUsername: "",
-                                    hasStory: storyUser.hasStory,
-                                    hasUnseenStory: storyUser.hasUnseenStory,
-                                    storyCount: storyUser.storyCount,
-                                    storyViewedStatus: storyUser.storyViewedStatus,
-                                    storyAudiences: storyUser.storyAudiences,
-                                    isOwnStory: false,
-                                    colorScheme: colorScheme
-                                ) {
-                                    guard !storyUser.userId.isEmpty else {
-                                        return
-                                    }
-                                    openStoryViewer(for: storyUser.userId)
-                                }
-                                .onAppear {
-                                    if let currentUserId = Auth.auth().currentUser?.uid {
-                                        storyRingCoordinator.loadMoreRingUsersIfNeeded(
-                                            visibleIndex: index + 1,
-                                            currentUserId: currentUserId
-                                        )
-                                    }
-                                }
-                            }
-
-                            if storyRingCoordinator.isLoadingMoreRing {
-                                StoryRingTrayLoadingTail(colorScheme: colorScheme)
-                            }
-                        }
-                        .padding(.leading, 12)
-                        .padding(.trailing, 4)
-                    }
-                }
-                
-                Spacer()
-                
-                // Botones integrados con espaciado natural
-                HStack(spacing: 20) {
-                    // 🌊 Echo History & Pending Indicator
-                    if !pendingEchoes.isEmpty {
-                        Menu {
-                            Button(NSLocalizedString("feed.echo.actions.viewInvitations", comment: "View pending invitations")) {
-                                if let firstPending = pendingEchoes.first, let echoId = firstPending.id {
-                                    selectedPendingEchoId = echoId
-                                    showPendingEchoInvitation = true
-                                    pendingEchoInvitationRoute = FeedEchoInvitationRoute(echoId: echoId)
-                                }
-                            }
-                            Button(NSLocalizedString("feed.echo.actions.viewHistory", comment: "View echo history")) {
-                                showEchoHistory = true
-                            }
-                        } label: {
-                            echoApertureIcon
-                        }
-                    } else {
-                        Button(action: {
-                            showEchoHistory = true
-                        }) {
-                            echoApertureIcon
-                        }
-                    }
-                    
-                    // ✅ NUEVO: Botón del mapa global
-
-                    
-                    ModernNotificationButton(
-                        hasNotification: badgeService.unreadNotificationsCount > 0,
-                        colorScheme: colorScheme,
-                        action: {
-                            
-                            // ✅ Marcar como leídas y limpiar badge al abrir desde el icono
-                            NotificationService.shared.markAllAsRead()
-                            NotificationBadgeService.shared.clearNotificationBadge()
-                            
-                            showNotifications = true
-                        }
-                    )
-                    
-                    ModernMessageButton(
-                        hasMessage: badgeService.unreadMessagesCount > 0,    // ✅ Badge aparece si > 0
-                        messageCount: badgeService.unreadMessagesCount,      // ✅ Número real
-                        colorScheme: colorScheme,
-                        action: {
-                            showMessages = true
-                        }
-                    )
-                }
-                .padding(.trailing, 12)
-            }
-            .padding(.top, 16)
-            .padding(.bottom, 4)
-            .background(
-                Rectangle()
-                    .fill(colorScheme == .dark ? Color(hex: "0B1215") : Color(hex: "FAF9F6"))
-                    .ignoresSafeArea(edges: .top)
-            )
-    }
-
-    private var echoApertureIcon: some View {
-        ZStack(alignment: .topTrailing) {
-            EchoesIconView(
-                size: EchoesIconMetrics.feedToolbar,
-                gradient: EchoesIconView.echoesBrandGradientHorizontal
-            )
-            .frame(width: 36, height: 36, alignment: .center)
-
-            if !pendingEchoes.isEmpty {
-                Text("\(pendingEchoes.count)")
-                    .font(.system(size: 10, weight: .bold))
-                    .foregroundColor(.white)
-                    .frame(width: 16, height: 16)
-                    .background(Color.orange)
-                    .clipShape(Circle())
-                    .offset(x: 5, y: -5)
-                    .transition(.scale)
-            }
-        }
-    }
-    
-    // ✅ Contenido del scroll
-    private var scrollableContent: some View {
-        ScrollViewReader { proxy in
-            ZStack {
-                ScrollView(.vertical, showsIndicators: false) {
-                    let screenHeight = UIScreen.main.bounds.height
-                    let headerHeight = feedHeaderHeight
-                    let segmentedToggleHeight = feedSelectorHeight
-                    let tabbarHeight = 50.0
-                    let availableHeight = screenHeight - headerHeight - segmentedToggleHeight - tabbarHeight - 60
-                    
-                    LazyVStack(spacing: max(15, screenHeight * 0.02)) {
-                        // ✅ Espacio para que el primer post empiece debajo del header
-                        Spacer()
-                            .frame(height: feedContentTopInset)
-                        
-                        ForEach(Array(viewModel.moments.enumerated()), id: \.element.feedViewIdentity) { index, moment in
-                            feedMomentRow(
-                                index: index,
-                                moment: moment,
-                                availableHeight: availableHeight,
-                                rowSpacing: max(15, screenHeight * 0.02)
-                            )
-                        }
-    
-                        if viewModel.isLoadingMore {
-                            ModernLoadingMoreView(colorScheme: colorScheme)
-                                .padding(.vertical, 15)
-                        }
-                    }
-                    .padding(.vertical, 15)
-                    .onPreferenceChange(MomentVisibilityPreference.self) { values in
-                        FeedVisibilityCoordinator.shared.update(all: values)
-                    }
-                }
-                .simultaneousGesture(
-                    DragGesture(minimumDistance: 8)
-                        .onChanged { value in
-                            if value.translation.height < -40 && !isFeedHeaderHidden {
-                                withAnimation(.spring(response: 0.32, dampingFraction: 0.86)) {
-                                    isFeedHeaderHidden = true
-                                }
-                            } else if value.translation.height > 28 && isFeedHeaderHidden {
-                                withAnimation(.spring(response: 0.32, dampingFraction: 0.86)) {
-                                    isFeedHeaderHidden = false
-                                }
-                            }
-                        }
-                )
-                
-                // ✅ ESTADO VACÍO: Fuera del ScrollView para control total de la atmósfera
-                if viewModel.moments.isEmpty && !viewModel.isLoading {
-                    ModernEmptyFeedView(feedType: selectedFeedType)
-                        .zIndex(10)
-                }
-            }
-            .onAppear {
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                    proxy.scrollTo(0, anchor: .top)
-                }
-            }
-            .refreshable {
-                if let userId = Auth.auth().currentUser?.uid {
-                    // ✅ OPTIMIZADO: Usar forceRefresh en lugar de refreshFeed
-                    forceRefresh()
-                    await performManualRefresh(userId: userId)
-                }
-            }
-            .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("ScrollFeedToTop"))) { _ in
-                // ✅ NUEVO: Scroll al inicio y refrescar cuando se toca Home de nuevo
-                withAnimation(.easeInOut(duration: 0.3)) {
-                    proxy.scrollTo(0, anchor: .top)
-                }
-                // Refrescar el feed
-                if let userId = Auth.auth().currentUser?.uid {
-                    forceRefresh()
-                    Task {
-                        await performManualRefresh(userId: userId)
-                    }
-                }
-            }
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .onChange(of: viewModel.moments.count) { _, _ in
-            VideoMomentsIndex.shared.rebuild(from: viewModel.moments)
-        }
-    }
-    
-    // MARK: - Feed row helpers (evita timeouts del type-checker)
-
-    @ViewBuilder
-    private func feedMomentRow(
-        index: Int,
-        moment: Moment,
-        availableHeight: CGFloat,
-        rowSpacing: CGFloat
-    ) -> some View {
-        VStack(spacing: rowSpacing) {
-            feedMomentCard(moment: moment, availableHeight: availableHeight, index: index)
-
-            let adInterval = selectedFeedType == .forYou ? 3 : 5
-            if (index + 1) % adInterval == 0 && index < viewModel.moments.count - 1 {
-                SmartNativeAdView()
-            }
-        }
-    }
-
-    @ViewBuilder
-    private func feedMomentCard(moment: Moment, availableHeight: CGFloat, index: Int) -> some View {
-        let isProtected = (moment.audience?.lowercased() ?? "") != "everyone"
-
-        ScreenshotProtectedView(isProtected: isProtected) {
-            ModernPostCardView(
-                moment: moment,
-                availableHeight: availableHeight,
-                colorScheme: colorScheme,
-                onComment: { selectedMoment = moment },
-                onNearEnd: { handleFeedNearEnd(for: moment) },
-                onHashtagTap: handleFeedHashtagTap,
-                onLocationTap: handleFeedLocationTap,
-                onContextMenu: handleFeedContextMenu,
-                onTagTap: openUserProfile,
-                onPeek: { imageURL, ratio, isPressing in
-                    handleFeedPeek(imageURL: imageURL, ratio: ratio, isPressing: isPressing, moment: moment)
-                }
-            )
-            .equatable()
-            .onAppear { prefetchUpcomingMoments(from: index) }
-            .environmentObject(firestoreService)
-            .environment(viewModel)
-        }
-    }
-
-    private func handleFeedNearEnd(for moment: Moment) {
-        guard moment.id == viewModel.moments.last?.id,
-              let userId = Auth.auth().currentUser?.uid else { return }
-        viewModel.loadMoreMoments(userId: userId)
-    }
-
-    private func handleFeedHashtagTap(_ hashtag: String) {
-        selectedHashtag = "#\(hashtag)"
-        showExploreWithHashtag = true
-    }
-
-    private func handleFeedLocationTap(_ locationName: String, _ coordinate: CLLocationCoordinate2D?) {
-        selectedLocationName = locationName
-        selectedLocationCoordinate = coordinate
-        showingLocationMap = true
-    }
-
-    private func handleFeedContextMenu(_ moment: Moment) {
-        selectedMomentForMenu = moment
-        withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
-            showGlobalContextMenu = true
-        }
-    }
-
-    private func handleFeedPeek(imageURL: String, ratio: CGFloat, isPressing: Bool, moment: Moment) {
-        if isPressing, let url = URL(string: imageURL) {
-            KingfisherManager.shared.retrieveImage(with: url) { _ in }
-        }
-
-        withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
-            if isPressing {
-                peekImageURL = imageURL
-                peekAspectRatio = ratio
-                peekIsProtected = (moment.audience?.lowercased() ?? "") != "everyone"
-                isPeeking = true
-            } else {
-                isPeeking = false
-                peekIsProtected = false
-            }
-        }
-    }
-
-    private func prefetchUpcomingMoments(from index: Int) {
-        let nextIndex = index + 1
-        guard nextIndex < viewModel.moments.count else { return }
-
-        let endIndex = min(nextIndex + 8, viewModel.moments.count)
-        let upcoming = Array(viewModel.moments[nextIndex..<endIndex])
-
-        let imageURLs = upcoming.compactMap { moment -> URL? in
-            guard let firstMedia = moment.mediaItems?.first?.url else { return nil }
-            return URL(string: firstMedia)
-        }
-        if !imageURLs.isEmpty {
-            ImagePrefetchManager.shared.prefetch(urls: imageURLs)
-        }
-
-        let videoURLs = VideoPlaybackSelector.shared.preloadURLStrings(from: upcoming, maxMoments: 4)
-        if !videoURLs.isEmpty {
-            VideoPreloader.shared.preloadAssets(urls: videoURLs)
-        }
-    }
-
     private func startTimeUpdate() {
         Timer.scheduledTimer(withTimeInterval: 60, repeats: true) { _ in
             withAnimation {
@@ -912,458 +470,6 @@ struct FeedView: View {
         }
     }
     
-    // MARK: - Componentes de Stories (mantener igual)
-    struct RealStoryCircle: View {
-        let userId: String
-        let fallbackUsername: String
-        let hasStory: Bool
-        let hasUnseenStory: Bool
-        let storyCount: Int
-        let storyViewedStatus: [Bool]
-        let storyAudiences: [String?]
-        let isOwnStory: Bool
-        let colorScheme: ColorScheme
-        let action: () -> Void
-        
-        var body: some View {
-            VStack(spacing: 3) {
-                Button(action: action) {
-                    ZStack {
-                        AsyncProfileImageView(userId: userId)
-                            .frame(width: 50, height: 50)
-                            .clipShape(Circle())
-                            .overlay(
-                                StorySegmentedRing(
-                                    storyCount: storyCount,
-                                    hasStory: hasStory,
-                                    hasUnseenStory: hasUnseenStory,
-                                    storyViewedStatus: storyViewedStatus,
-                                    storyAudiences: storyAudiences,
-                                    isOwnStory: isOwnStory,
-                                    colorScheme: colorScheme,
-                                    ringSize: 50,
-                                    lineWidth: 3.0, // ✅ Grosor ligeramente mayor para Tier 1
-                                    hapticsEnabled: true
-                                )
-                            )
-                    }
-                    .frame(width: 56, height: 56) // ✅ Frame mayor para evitar cortes
-                    .padding(2) // ✅ Margen de seguridad
-                }
-                .buttonStyle(.plain)
-
-                LiveUsernameContent(userId: userId, fallbackUsername: fallbackUsername) { username in
-                    Text(username)
-                        .font(.custom("Poppins-Medium", size: 10))
-                        .foregroundColor(Color.primary.opacity(0.76))
-                        .lineLimit(1)
-                        .truncationMode(.tail)
-                        .minimumScaleFactor(0.75)
-                        .frame(width: 64)
-                }
-            }
-            .frame(width: 64)
-        }
-    }
-    
-    // ✅ NOTA: StorySegmentedRing y StorySegment ahora están en un archivo compartido
-    // Moments/Views/story/StorySegmentedRing.swift
-    
-    /// ///
-    //Progeso subida Stories
-    ///
-    struct YourStoryCircleWithProgress: View {
-        let hasStory: Bool
-        let storyCount: Int
-        let storyAudiences: [String?]
-        let colorScheme: ColorScheme
-        @ObservedObject var storyUploadService: BackgroundStoryUploadService
-        let action: () -> Void
-        
-        var body: some View {
-            VStack(spacing: 3) {
-                Button(action: {
-                    // Si hay upload en progreso y falló, reintentar
-                    if let uploadingStory = storyUploadService.uploadingStory,
-                       uploadingStory.status == .failed {
-                        storyUploadService.retryUpload(uploadingStory)
-                    } else {
-                        // ✅ SIMPLE: Siempre ejecutar la acción que se pasa
-                        action()
-                    }
-                }) {
-                    ZStack {
-                        // Imagen de perfil del usuario actual
-                        AsyncProfileImageView(userId: Auth.auth().currentUser?.uid ?? "")
-                            .frame(width: 50, height: 50)
-                            .clipShape(Circle())
-                            .overlay(
-                                StorySegmentedRing(
-                                    storyCount: storyCount,
-                                    hasStory: hasStory,
-                                    hasUnseenStory: false, // Tu propia historia siempre está vista
-                                    storyViewedStatus: Array(repeating: true, count: storyCount), // ✅ Todas las historias propias están "vistas"
-                                    storyAudiences: storyAudiences,
-                                    isOwnStory: true, // ✅ Es tu propia historia
-                                    colorScheme: colorScheme,
-                                    ringSize: 50,
-                                    lineWidth: 3.0, // ✅ Consistente con RealStoryCircle
-                                    hapticsEnabled: true
-                                )
-                            )
-
-                        if let uploadingStory = storyUploadService.uploadingStory {
-                            StoryUploadCircleOverlay(
-                                uploadingStory: uploadingStory,
-                                colorScheme: colorScheme
-                            )
-                        }
-                    }
-                    .frame(width: 56, height: 56) // ✅ Frame mayor para evitar cortes
-                    .padding(2) // ✅ Margen de seguridad
-                }
-                .buttonStyle(.plain)
-
-                if let uploadingStory = storyUploadService.uploadingStory {
-                    StoryUploadStatusLabel(uploadingStory: uploadingStory)
-                } else {
-                    Text(NSLocalizedString("stories.yourStory", comment: "Your story label"))
-                        .font(.custom("Poppins-Medium", size: 10))
-                        .foregroundColor(Color.primary.opacity(0.76))
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.75)
-                        .frame(width: 64)
-                }
-            }
-            .frame(width: 64)
-            .scaleEffect(storyUploadService.uploadingStory?.status == .failed ? 0.95 : 1.0)
-            .animation(.spring(response: 0.3, dampingFraction: 0.6), value: storyUploadService.uploadingStory?.status)
-        }
-    }
-
-    private struct StoryUploadStatusLabel: View {
-        @ObservedObject var uploadingStory: UploadingStory
-
-        var body: some View {
-            Text(labelText)
-                .font(.custom("Poppins-Medium", size: 10))
-                .foregroundColor(Color.primary.opacity(0.76))
-                .lineLimit(1)
-                .minimumScaleFactor(0.75)
-                .frame(width: 64)
-                .animation(.spring(response: 0.24, dampingFraction: 0.82), value: uploadingStory.status)
-        }
-
-        private var labelText: String {
-            switch status {
-            case .initializing:
-                return NSLocalizedString("feed.uploading.initializing", value: "Iniciando...", comment: "Initializing upload status")
-            case .uploading, .processing:
-                return NSLocalizedString("feed.uploading.uploading", comment: "Uploading files status")
-            case .completed, .moderated:
-                return NSLocalizedString("feed.uploading.published", comment: "Moment published status")
-            case .failed:
-                return NSLocalizedString("feed.uploading.retry", comment: "Retry upload")
-            }
-        }
-
-        private var status: UploadStatus {
-            uploadingStory.status
-        }
-    }
-
-    private struct StoryUploadCircleOverlay: View {
-        @ObservedObject var uploadingStory: UploadingStory
-        let colorScheme: ColorScheme
-
-        @State private var renderedProgress: Double = 0
-        @State private var arrowOffset: CGFloat = 0
-        @State private var arrowOpacity: Double = 1
-        @State private var checkmarkScale: CGFloat = 0
-        @State private var checkmarkRotation: Double = -15
-        @State private var checkmarkOpacity: Double = 0
-        @State private var completionPulse = false
-        @State private var completionAnimationScheduled = false
-        @State private var rippleScale: CGFloat = 0.2
-        @State private var rippleOpacity: Double = 0
-        @State private var auraOffset: CGFloat = 0
-        @State private var auraOpacity: Double = 0
-        @State private var auraScale: CGFloat = 1
-        @State private var auraBlur: CGFloat = 0
-        @State private var isPulsing = false // 🔄 Estado para el anillo pulsante
-
-        var body: some View {
-            ZStack {
-                if uploadingStory.status == .initializing {
-                    Circle()
-                        .stroke(
-                            LinearGradient(
-                                colors: [Color(hex: "6A11CB"), Color(hex: "007AFF")],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            ),
-                            lineWidth: 3
-                        )
-                        .frame(width: 54, height: 54)
-                        .scaleEffect(isPulsing ? 1.08 : 0.94)
-                        .opacity(isPulsing ? 0.9 : 0.4)
-                        .onAppear {
-                            withAnimation(.easeInOut(duration: 1.0).repeatForever(autoreverses: true)) {
-                                isPulsing = true
-                            }
-                        }
-                } else {
-                    Circle()
-                        .stroke(trackColor, lineWidth: 3)
-                        .frame(width: 54, height: 54)
-
-                    Circle()
-                        .trim(from: 0, to: max(0.04, min(renderedProgress, 1.0)))
-                        .stroke(
-                            progressGradient,
-                            style: StrokeStyle(lineWidth: 3, lineCap: .round)
-                        )
-                        .frame(width: 54, height: 54)
-                        .rotationEffect(.degrees(-90))
-                        .animation(.linear(duration: 0.22), value: renderedProgress)
-                }
-
-                Circle()
-                    .fill((colorScheme == .dark ? Color(hex: "0B1215") : Color(hex: "FAF9F6")).opacity(0.42))
-                    .frame(width: 50, height: 50)
-
-                Circle()
-                    .stroke(Color.white.opacity(0.8), lineWidth: 2)
-                    .frame(width: 54, height: 54)
-                    .scaleEffect(rippleScale)
-                    .opacity(rippleOpacity)
-
-                statusGlyph
-            }
-            .scaleEffect(completionPulse ? 1.06 : 1.0)
-            .contentShape(Circle())
-            .onAppear {
-                syncRenderedProgress(animated: false)
-                updateArrowAnimation(for: uploadingStory.status)
-                if uploadingStory.status == .completed || uploadingStory.status == .moderated {
-                    handleCompletion()
-                }
-            }
-            .onChange(of: uploadingStory.uploadProgress) { _, _ in
-                syncRenderedProgress()
-            }
-            .onChange(of: uploadingStory.status) { _, newStatus in
-                updateArrowAnimation(for: newStatus)
-                if newStatus == .completed || newStatus == .moderated {
-                    handleCompletion()
-                } else {
-                    resetCompletionState()
-                }
-            }
-        }
-
-        @ViewBuilder
-        private var statusGlyph: some View {
-            switch uploadingStory.status {
-            case .initializing:
-                Image(systemName: "arrow.up")
-                    .font(.system(size: 18, weight: .bold))
-                    .foregroundStyle(.white.opacity(0.6))
-            case .completed, .moderated:
-                if checkmarkOpacity > 0 {
-                    Image(systemName: "checkmark")
-                        .font(.system(size: 18, weight: .bold))
-                        .foregroundStyle(.white)
-                        .scaleEffect(checkmarkScale)
-                        .rotationEffect(.degrees(checkmarkRotation))
-                        .opacity(checkmarkOpacity)
-                } else {
-                    uploadArrow
-                }
-            case .failed:
-                Image(systemName: "exclamationmark")
-                    .font(.system(size: 18, weight: .bold))
-                    .foregroundStyle(.white)
-            case .uploading, .processing:
-                ZStack {
-                    Image(systemName: "arrow.up")
-                        .font(.system(size: 18, weight: .bold))
-                        .foregroundStyle(.white)
-                        .offset(y: auraOffset)
-                        .scaleEffect(auraScale)
-                        .opacity(auraOpacity)
-                        .blur(radius: auraBlur)
-
-                    uploadArrow
-                }
-            }
-        }
-
-        private var uploadArrow: some View {
-            Image(systemName: "arrow.up")
-                .font(.system(size: 18, weight: .bold))
-                .foregroundStyle(.white)
-                .offset(y: arrowOffset)
-                .opacity(arrowOpacity)
-        }
-
-        private func syncRenderedProgress(animated: Bool = true) {
-            let targetProgress = min(max(uploadingStory.uploadProgress, 0), 1)
-            guard animated else {
-                renderedProgress = targetProgress
-                return
-            }
-
-            let delta = abs(targetProgress - renderedProgress)
-            let duration = min(0.5, max(0.14, delta * 1.05))
-            withAnimation(.linear(duration: duration)) {
-                renderedProgress = targetProgress
-            }
-        }
-
-        private func updateArrowAnimation(for status: UploadStatus) {
-            switch status {
-            case .initializing:
-                arrowOffset = 0
-                arrowOpacity = 0.6
-                auraOffset = 0
-                auraOpacity = 0
-                auraScale = 1
-                auraBlur = 0
-            case .uploading, .processing:
-                arrowOpacity = 1
-                withAnimation(.easeInOut(duration: 1.2).repeatForever(autoreverses: true)) {
-                    arrowOffset = -3
-                }
-
-                auraOffset = 10
-                auraOpacity = 0.6
-                auraScale = 0.8
-                auraBlur = 1.0
-                withAnimation(.easeOut(duration: 1.6).repeatForever(autoreverses: false)) {
-                    auraOffset = -18
-                    auraOpacity = 0
-                    auraScale = 1.3
-                    auraBlur = 3.0
-                }
-            case .completed, .moderated:
-                break
-            case .failed:
-                withAnimation(.spring(response: 0.28, dampingFraction: 0.72)) {
-                    arrowOffset = 0
-                    arrowOpacity = 1
-                    auraOffset = 0
-                    auraOpacity = 0
-                    auraScale = 1
-                    auraBlur = 0
-                }
-            }
-        }
-
-        private func handleCompletion() {
-            guard !completionAnimationScheduled else { return }
-            completionAnimationScheduled = true
-            HapticManager.shared.notification(.success)
-
-            withAnimation(.linear(duration: 0.45)) {
-                renderedProgress = 1.0
-            }
-
-            arrowOffset = 0
-            arrowOpacity = 1
-            withAnimation(.easeIn(duration: 0.28)) {
-                arrowOffset = -26
-                arrowOpacity = 0
-            }
-
-            rippleScale = 0.2
-            rippleOpacity = 0.8
-            withAnimation(.easeOut(duration: 0.55)) {
-                rippleScale = 1.6
-                rippleOpacity = 0
-            }
-
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.22) {
-                checkmarkScale = 0
-                checkmarkRotation = -15
-                checkmarkOpacity = 0
-                withAnimation(.spring(response: 0.34, dampingFraction: 0.52)) {
-                    checkmarkScale = 1
-                    checkmarkRotation = 0
-                    checkmarkOpacity = 1
-                    completionPulse = true
-                }
-
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
-                    withAnimation(.spring(response: 0.34, dampingFraction: 0.72)) {
-                        completionPulse = false
-                    }
-                }
-            }
-        }
-
-        private func resetCompletionState() {
-            completionAnimationScheduled = false
-            checkmarkScale = 0
-            checkmarkRotation = -15
-            checkmarkOpacity = 0
-            completionPulse = false
-            rippleScale = 0.2
-            rippleOpacity = 0
-        }
-
-        private var progressGradient: LinearGradient {
-            switch uploadingStory.status {
-            case .failed:
-                return LinearGradient(
-                    colors: [Color(hex: "FF453A"), Color(hex: "FF8A3D")],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
-            default:
-                let progress = max(0, min(renderedProgress, 1))
-                let startColor = interpolateColor(
-                    from: Color(hex: "6A11CB"),
-                    to: Color(hex: "34C759"),
-                    fraction: progress
-                )
-                let endColor = interpolateColor(
-                    from: Color(hex: "007AFF"),
-                    to: Color(hex: "1EA84C"),
-                    fraction: progress
-                )
-                return LinearGradient(
-                    colors: [startColor, endColor],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
-            }
-        }
-
-        private func interpolateColor(from color1: Color, to color2: Color, fraction: Double) -> Color {
-            let f = CGFloat(max(0.0, min(1.0, fraction)))
-
-            var r1: CGFloat = 0, g1: CGFloat = 0, b1: CGFloat = 0, a1: CGFloat = 0
-            var r2: CGFloat = 0, g2: CGFloat = 0, b2: CGFloat = 0, a2: CGFloat = 0
-
-            let uiColor1 = UIColor(color1)
-            let uiColor2 = UIColor(color2)
-            let success1 = uiColor1.getRed(&r1, green: &g1, blue: &b1, alpha: &a1)
-            let success2 = uiColor2.getRed(&r2, green: &g2, blue: &b2, alpha: &a2)
-            guard success1 && success2 else { return color2 }
-
-            let r = r1 + (r2 - r1) * f
-            let g = g1 + (g2 - g1) * f
-            let b = b1 + (b2 - b1) * f
-            let a = a1 + (a2 - a1) * f
-
-            return Color(.sRGB, red: Double(r), green: Double(g), blue: Double(b), opacity: Double(a))
-        }
-
-        private var trackColor: Color {
-            colorScheme == .dark ? Color.white.opacity(0.10) : Color.black.opacity(0.10)
-        }
-    }
     
     // MARK: - Funciones de carga
     private func loadInitialData() {

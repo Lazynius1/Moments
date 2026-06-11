@@ -469,3 +469,76 @@ class LocationUtilities: NSObject, ObservableObject, CLLocationManagerDelegate {
         }
     }
 }
+
+// MARK: - Región inicial del mapa Discover
+
+enum MapRegionStore {
+    private static let lastRegionKey = "discoverMap.lastRegion"
+    private static let defaultSpan = MKCoordinateSpan(latitudeDelta: 0.08, longitudeDelta: 0.08)
+
+    /// Centro de España como fallback geográfico (no Madrid hardcoded).
+    static let spainCenter = CLLocationCoordinate2D(latitude: 40.0, longitude: -4.0)
+
+    static func initialRegion() -> MKCoordinateRegion {
+        loadSavedRegion() ?? MKCoordinateRegion(center: spainCenter, span: defaultSpan)
+    }
+
+    static func save(region: MKCoordinateRegion) {
+        let payload: [String: Double] = [
+            "lat": region.center.latitude,
+            "lon": region.center.longitude,
+            "latDelta": region.span.latitudeDelta,
+            "lonDelta": region.span.longitudeDelta
+        ]
+        UserDefaults.standard.set(payload, forKey: lastRegionKey)
+    }
+
+    private static func loadSavedRegion() -> MKCoordinateRegion? {
+        guard let payload = UserDefaults.standard.dictionary(forKey: lastRegionKey) as? [String: Double],
+              let lat = payload["lat"],
+              let lon = payload["lon"],
+              let latDelta = payload["latDelta"],
+              let lonDelta = payload["lonDelta"] else {
+            return nil
+        }
+
+        return MKCoordinateRegion(
+            center: CLLocationCoordinate2D(latitude: lat, longitude: lon),
+            span: MKCoordinateSpan(latitudeDelta: latDelta, longitudeDelta: lonDelta)
+        )
+    }
+
+    static func resolveFallbackRegion(completion: @escaping (MKCoordinateRegion) -> Void) {
+        if let saved = loadSavedRegion() {
+            completion(saved)
+            return
+        }
+
+        guard let userId = Auth.auth().currentUser?.uid else {
+            completion(MKCoordinateRegion(center: spainCenter, span: defaultSpan))
+            return
+        }
+
+        FirestoreService.shared.db.collection("users").document(userId).collection("moments")
+            .order(by: "timestamp", descending: true)
+            .limit(to: 8)
+            .getDocuments { snapshot, _ in
+                if let document = snapshot?.documents.first(where: { doc in
+                    let data = doc.data()
+                    return data["latitude"] != nil && data["longitude"] != nil
+                }) {
+                    let data = document.data()
+                    if let lat = data["latitude"] as? Double,
+                       let lon = data["longitude"] as? Double {
+                        completion(MKCoordinateRegion(
+                            center: CLLocationCoordinate2D(latitude: lat, longitude: lon),
+                            span: defaultSpan
+                        ))
+                        return
+                    }
+                }
+
+                completion(MKCoordinateRegion(center: spainCenter, span: defaultSpan))
+            }
+    }
+}

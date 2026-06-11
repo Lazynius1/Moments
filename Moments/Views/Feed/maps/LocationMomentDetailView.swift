@@ -7,7 +7,7 @@ import AVFoundation
 
 // MARK: - ✅ Vista detallada para momentos de ubicación con diseño moderno
 struct LocationMomentDetailView: View {
-    let locationMoments: [Moment]
+    @State private var moments: [Moment]
     let initialIndex: Int
     let locationName: String
     @Binding var momentAvailability: [String: Bool]
@@ -49,7 +49,7 @@ struct LocationMomentDetailView: View {
     }
 
     private var currentHeaderLocationName: String {
-        guard let moment = locationMoments[safe: currentIndex],
+        guard let moment = moments[safe: currentIndex],
               let location = moment.location?.trimmingCharacters(in: .whitespacesAndNewlines),
               !location.isEmpty else {
             return locationName
@@ -64,7 +64,7 @@ struct LocationMomentDetailView: View {
         momentAvailability: Binding<[String: Bool]> = .constant([:]),
         isPresented: Binding<Bool>
     ) {
-        self.locationMoments = locationMoments
+        self._moments = State(initialValue: locationMoments)
         self.initialIndex = initialIndex
         self.locationName = locationName
         self._momentAvailability = momentAvailability
@@ -75,7 +75,7 @@ struct LocationMomentDetailView: View {
     var body: some View {
         return GeometryReader { geometry in
             let safeAreaTop = geometry.safeAreaInsets.top
-            let headerReservedHeight: CGFloat = locationMoments.count > 1 ? 72 : 52
+            let headerReservedHeight: CGFloat = moments.count > 1 ? 72 : 52
 
             ZStack(alignment: .top) {
                 // ✅ Fondo moderno como el feed
@@ -173,10 +173,10 @@ struct LocationMomentDetailView: View {
         .onAppear {
             currentIndex = initialIndex
             loadAllMomentsData()
-            trackMomentViewIfNeeded(for: locationMoments[safe: initialIndex])
+            trackMomentViewIfNeeded(for: moments[safe: initialIndex])
         }
         .onChange(of: currentIndex) { _, newIndex in
-            trackMomentViewIfNeeded(for: locationMoments[safe: newIndex])
+            trackMomentViewIfNeeded(for: moments[safe: newIndex])
         }
         .gesture(
             // ✅ Drag gesture suave como MomentDetailView
@@ -233,10 +233,7 @@ struct LocationMomentDetailView: View {
             selectedStoryUserId = normalizedUserId
             showSpecificUserStories = true
         } else {
-            NotificationCenter.default.post(
-                name: NSNotification.Name("NavigateToProfile"),
-                object: normalizedUserId
-            )
+            LegacyNavigationBridge.profile(userId: normalizedUserId)
         }
     }
 
@@ -305,7 +302,7 @@ struct LocationMomentDetailView: View {
                             .foregroundColor(colorScheme == .dark ? .white : .black)
                             .lineLimit(1)
 
-                        Text("\(currentIndex + 1) de \(locationMoments.count)")
+                        Text("\(currentIndex + 1) de \(moments.count)")
                             .font(.custom("Poppins-Medium", size: 11))
                             .foregroundColor(.gray.opacity(0.9))
                     }
@@ -327,9 +324,9 @@ struct LocationMomentDetailView: View {
             .padding(.horizontal, 16)
             .padding(.top, 6)
 
-            if locationMoments.count > 1 {
+            if moments.count > 1 {
                 HStack(spacing: 4) {
-                    ForEach(0..<locationMoments.count, id: \.self) { index in
+                    ForEach(0..<moments.count, id: \.self) { index in
                         Capsule()
                             .fill(
                                 currentIndex == index ?
@@ -409,10 +406,14 @@ struct LocationMomentDetailView: View {
             },
             mediaItems: payload.mediaItems
         ) { error in
-            if error == nil {
-                // ✅ Actualizar el momento en el array local
-                if locationMoments.contains(where: { $0.id == moment.id }) {
-                    // TODO: Actualizar el array de momentos si es necesario
+            guard error == nil, let momentId = moment.id else { return }
+            DispatchQueue.main.async {
+                firestoreService.fetchMoment(momentId: momentId, userId: moment.authorId) { result in
+                    DispatchQueue.main.async {
+                        guard case .success(let updated) = result,
+                              let index = moments.firstIndex(where: { $0.id == momentId }) else { return }
+                        moments[index] = updated
+                    }
                 }
             }
         }
@@ -433,16 +434,21 @@ struct LocationMomentDetailView: View {
                 self.isDeleting = false
 
                 if error == nil {
-                    // ✅ Cerrar la vista si se elimina el momento actual
-                    if let index = locationMoments.firstIndex(where: { $0.id == moment.id }) {
-                        if index == currentIndex {
-                            // Si es el momento actual, cerrar la vista
+                    if let index = moments.firstIndex(where: { $0.id == moment.id }) {
+                        moments.remove(at: index)
+                        if moments.isEmpty {
                             withAnimation(.easeOut(duration: 0.3)) {
                                 isPresented = false
                             }
-                        } else {
-                            // Si no es el actual, solo remover del array
-                            // TODO: Actualizar el array de momentos si es necesario
+                            return
+                        }
+                        if index <= currentIndex {
+                            currentIndex = min(currentIndex, max(0, moments.count - 1))
+                        }
+                        if index == currentIndex && currentIndex >= moments.count {
+                            withAnimation(.easeOut(duration: 0.3)) {
+                                isPresented = false
+                            }
                         }
                     }
                 }
@@ -452,7 +458,7 @@ struct LocationMomentDetailView: View {
 
     private func locationMomentsCarousel(geometry: GeometryProxy) -> some View {
         TabView(selection: $currentIndex) {
-            ForEach(Array(locationMoments.enumerated()), id: \.offset) { index, moment in
+            ForEach(Array(moments.enumerated()), id: \.offset) { index, moment in
                 let isAvailable = momentAvailability[moment.mapAvailabilityKey] ?? true
                 ScreenshotProtectedView(
                     isProtected: (moment.audience?.lowercased() ?? "") != "everyone"
@@ -498,7 +504,7 @@ struct LocationMomentDetailView: View {
     private func loadAllMomentsData() {
         guard let currentUserId = Auth.auth().currentUser?.uid else { return }
 
-        for moment in locationMoments {
+        for moment in moments {
             guard let momentId = moment.id else { continue }
 
             loadCommentCount(for: moment)
@@ -1572,10 +1578,7 @@ struct LocationCommentRow: View {
                     if let onAvatarTap {
                         onAvatarTap(comment.authorId, hasStory)
                     } else if !hasStory {
-                        NotificationCenter.default.post(
-                            name: NSNotification.Name("NavigateToProfile"),
-                            object: comment.authorId
-                        )
+                        LegacyNavigationBridge.profile(userId: comment.authorId)
                     }
                 }
             )

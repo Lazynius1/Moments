@@ -601,6 +601,41 @@ extension FirestoreService {
             }
     }
 
+    func fetchArchivedStoriesPaginated(
+        userId: String,
+        limit: Int,
+        lastDocument: DocumentSnapshot?,
+        completion: @escaping (Result<(stories: [Story], lastDoc: DocumentSnapshot?), Error>) -> Void
+    ) {
+        var query = db.collection("users").document(userId).collection("stories")
+            .whereField("expirationDate", isLessThan: Date())
+            .order(by: "expirationDate", descending: true)
+            .order(by: "timestamp", descending: true)
+            .limit(to: limit)
+
+        if let lastDoc = lastDocument {
+            query = query.start(afterDocument: lastDoc)
+        }
+
+        query.getDocuments { snapshot, error in
+            if let error = error {
+                completion(.failure(error))
+                return
+            }
+
+            guard let snapshot = snapshot else {
+                completion(.success((stories: [], lastDoc: nil)))
+                return
+            }
+
+            let stories = snapshot.documents.compactMap { doc -> Story? in
+                try? doc.data(as: Story.self)
+            }
+
+            completion(.success((stories: stories, lastDoc: snapshot.documents.last)))
+        }
+    }
+
     // ✅ NUEVA: Paginación para mejor rendimiento
     func fetchStoriesPaginated(userId: String, limit: Int, lastDocument: DocumentSnapshot?, completion: @escaping (Result<(stories: [Story], lastDoc: DocumentSnapshot?), Error>) -> Void) {
         var query = db.collection("users").document(userId).collection("stories")

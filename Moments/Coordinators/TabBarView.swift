@@ -31,7 +31,7 @@ struct TabBarView: View {
     @StateObject private var authService = AuthService()
     @StateObject private var exploreViewModel = ExploreViewModel()
     @StateObject private var navigationService = NotificationNavigationService.shared
-    @StateObject private var firestoreService = FirestoreService() // ✅ Service para resolver usuarios
+    @StateObject private var firestoreService = FirestoreService.shared
     @State private var selectedTab: Int = 0
     @State private var previousSelectedTab: Int = 0
     @State private var showCreatorView: Bool = false
@@ -42,6 +42,7 @@ struct TabBarView: View {
     @State private var pendingEchoId: String = ""
     @State private var echoInvitationRoute: EchoInvitationRoute?
     @State private var showEchoViewer: Bool = false
+    @State private var showFeatureDiscovery = false
     @Environment(\.colorScheme) var colorScheme
 
     var body: some View {
@@ -61,7 +62,10 @@ struct TabBarView: View {
                             showEchoViewer: $showEchoViewer,
                             exploreViewModel: exploreViewModel,
                             authService: authService,
-                            navigationService: navigationService
+                            navigationService: navigationService,
+                            onEchoInvitationRoute: { echoId in
+                                echoInvitationRoute = EchoInvitationRoute(echoId: echoId)
+                            }
                         )
                         .overlay(alignment: .top) {
                             InAppBannerView()
@@ -96,9 +100,18 @@ struct TabBarView: View {
                 .zIndex(1000)
             }
         }
+        .offlineBannerOverlay()
         .onAppear {
             // ✅ Activar listener para banners in-app
             InAppNotificationService.shared.startListing()
+            if FeatureDiscoveryStore.shouldPresent {
+                showFeatureDiscovery = true
+            }
+        }
+        .fullScreenCover(isPresented: $showFeatureDiscovery) {
+            FeatureDiscoveryView {
+                showFeatureDiscovery = false
+            }
         }
         .onOpenURL { url in
             IncognitoModeService.shared.handlePendingAppGroupActionIfNeeded()
@@ -146,6 +159,7 @@ struct ModernTabView: View {
     @ObservedObject var exploreViewModel: ExploreViewModel
     @ObservedObject var authService: AuthService
     @ObservedObject var navigationService: NotificationNavigationService
+    var onEchoInvitationRoute: (String) -> Void = { _ in }
     @Environment(\.colorScheme) private var colorScheme
     // This struct owns modernTab so @available is not needed on a stored property
     @State private var modernTab: AppTab = .home
@@ -221,7 +235,8 @@ struct ModernTabView: View {
             pendingEchoId: $pendingEchoId,
             showEchoViewer: $showEchoViewer,
             exploreViewModel: exploreViewModel,
-            navigationService: navigationService
+            navigationService: navigationService,
+            onEchoInvitationRoute: onEchoInvitationRoute
         )
         // Keep modernTab in sync when navigationService changes selectedTab
         .onChange(of: selectedTab) { _, newInt in
@@ -314,72 +329,16 @@ struct ModernTabView: View {
             pendingEchoId: $pendingEchoId,
             showEchoViewer: $showEchoViewer,
             exploreViewModel: exploreViewModel,
-            navigationService: navigationService
+            navigationService: navigationService,
+            onEchoInvitationRoute: { echoId in
+                echoInvitationRoute = EchoInvitationRoute(echoId: echoId)
+            }
         )
         .overlay(alignment: .top) {
             InAppBannerView() // ✅ NUEVO: Banners in-app
         }
     }
-    
-    // ✅ SIMPLIFICADO: Función para manejar navegación desde notificaciones
-    private func handlePendingNavigation(_ navigation: NotificationNavigationService.PendingNavigation?) {
-        guard let navigation = navigation else { return }
-        
-        switch navigation {
-        case .moment(let momentId, _):
-            selectedTab = 0
-            NotificationCenter.default.post(name: NSNotification.Name("NavigateToMoment"), object: momentId)
-            
-        case .profile(let userId):
-            selectedTab = 0
-            NotificationCenter.default.post(name: NSNotification.Name("NavigateToProfile"), object: userId)
-            
-        case .conversation(let conversationId):
-            NotificationCenter.default.post(name: NSNotification.Name("NavigateToConversation"), object: conversationId)
-            
-        case .story(let storyId, let authorId):
-            selectedTab = 0
-            NotificationCenter.default.post(
-                name: NSNotification.Name("NavigateToStoryInFeed"),
-                object: nil,
-                userInfo: ["storyId": storyId, "authorId": authorId ?? ""]
-            )
-            
-        case .storyChain(let chainId, let chainTitle):
-            selectedTab = 0
-            NotificationCenter.default.post(
-                name: NSNotification.Name("NavigateToStoryChain"),
-                object: nil,
-                userInfo: ["chainId": chainId, "chainTitle": chainTitle]
-            )
-            
-        case .followRequests(let requestId):
-            selectedTab = 4
-            NotificationCenter.default.post(name: NSNotification.Name("NavigateToFollowRequests"), object: requestId)
-            
-        case .notifications(let filter):
-            selectedTab = 4
-            NotificationCenter.default.post(name: NSNotification.Name("NavigateToNotifications"), object: filter)
 
-        case .creator:
-            selectedTab = 0
-            self.showCreatorView = true
-            
-        case .echoSuggestion(let echoId):
-            self.pendingEchoId = echoId
-            self.showEchoInvitation = true
-            self.echoInvitationRoute = EchoInvitationRoute(echoId: echoId)
-            
-        case .echo(let echoId):
-            self.pendingEchoId = echoId
-            self.showEchoViewer = true
-        }
-        
-        // ✅ Limpiar navegación pendiente
-        navigationService.clearPendingNavigation()
-        
-    }
-    
     // ✅ NUEVO: Manejador de Deep Links extraído para evitar errores de compilador
     private func handleDeepLink(_ url: URL) {
         // ✅ 1. Manejar esquemas personalizados (moments:// o glowsy://)
@@ -412,8 +371,7 @@ struct ModernTabView: View {
         if host == "moment", url.pathComponents.count > 1 {
             // glowsy://moment/ID
             let momentId = url.pathComponents[1]
-            NotificationCenter.default.post(name: NSNotification.Name("NavigateToMoment"), object: momentId)
-            selectedTab = 0
+            AppRouter.shared.navigate(to: .moment(id: momentId, authorId: ""))
         } else if host == "story", path == "/create" {
             // Abrir creator en modo historia
             openCreatorInStoryMode = true
@@ -425,7 +383,7 @@ struct ModernTabView: View {
                 // Abrir perfil propio y mostrar visitas
                 selectedTab = 4
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                    NotificationCenter.default.post(name: NSNotification.Name("ShowProfileVisits"), object: nil)
+                    AppRouter.shared.navigate(to: .showProfileVisits)
                 }
             } else if url.pathComponents.count > 1 {
                 // Es un perfil de usuario: glowsy://profile/username
@@ -436,7 +394,7 @@ struct ModernTabView: View {
                     switch result {
                     case .success(let user):
                         DispatchQueue.main.async {
-                            NotificationCenter.default.post(name: NSNotification.Name("ShowUserProfile"), object: user.id)
+                            AppRouter.shared.navigate(to: .showUserProfile(userId: user.id))
                         }
                     case .failure(let error):
                         print("Error resolving username from deep link: \(error.localizedDescription)")
@@ -445,14 +403,13 @@ struct ModernTabView: View {
             }
         } else if url.host == "messages" {
             // Abrir mensajes
-            NotificationCenter.default.post(name: NSNotification.Name("ShowMessages"), object: nil)
+            AppRouter.shared.navigate(to: .showMessages)
         } else if url.host == "notifications" {
             // Abrir notificaciones
-            NotificationCenter.default.post(name: NSNotification.Name("ShowNotifications"), object: nil)
+            AppRouter.shared.navigate(to: .showNotifications)
         } else if host == "stories" {
             // Abrir feed y mostrar historias
-            selectedTab = 0
-            NotificationCenter.default.post(name: NSNotification.Name("ShowStories"), object: nil)
+            AppRouter.shared.navigate(to: .showStories)
         } else if host == "incognito", path == "/pause" {
             IncognitoModeService.shared.pauseFromLiveActivity()
         }
@@ -466,9 +423,8 @@ struct ModernTabView: View {
             let momentId = pathComponents[2]
             
             // Navegar al momento
-            selectedTab = 0
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                NotificationCenter.default.post(name: NSNotification.Name("NavigateToMoment"), object: momentId)
+                AppRouter.shared.navigate(to: .moment(id: momentId, authorId: ""))
             }
         }
     }
@@ -601,6 +557,8 @@ struct TabBarItem: View {
             .contentShape(Rectangle()) // Área de toque completa según HIG
         }
         .buttonStyle(PlainButtonStyle()) // Estilo plano para mejor control
+        .accessibilityLabel(title)
+        .accessibilityAddTraits(isSelected ? [.isSelected] : [])
     }
 }
 
@@ -645,6 +603,7 @@ struct CreateButton: View {
                     .foregroundColor(.white)
             }
         }
+        .accessibilityLabel(Text("tabBar.create"))
     }
 }
 
@@ -661,9 +620,11 @@ extension View {
         pendingEchoId: Binding<String>,
         showEchoViewer: Binding<Bool>,
         exploreViewModel: ExploreViewModel,
-        navigationService: NotificationNavigationService
+        navigationService: NotificationNavigationService,
+        onEchoInvitationRoute: @escaping (String) -> Void = { _ in }
     ) -> some View {
-        self
+        let appRouter = AppRouter.shared
+        return self
             .onAppear {
                 previousSelectedTab.wrappedValue = selectedTab.wrappedValue
                 if (Auth.auth().currentUser?.uid) != nil {
@@ -693,64 +654,22 @@ extension View {
                     previousSelectedTab.wrappedValue = newSelection
                 }
             }
-            .onChange(of: navigationService.pendingNavigation) { _, navigation in
-                if let navigation = navigation {
-                    switch navigation {
-                    case .moment(let momentId, _):
-                        selectedTab.wrappedValue = 0
-                        NotificationCenter.default.post(name: NSNotification.Name("NavigateToMoment"), object: momentId)
-                        
-                    case .profile(let userId):
-                        selectedTab.wrappedValue = 0
-                        NotificationCenter.default.post(name: NSNotification.Name("NavigateToProfile"), object: userId)
-                        
-                    case .conversation(let conversationId):
-                        NotificationCenter.default.post(name: NSNotification.Name("NavigateToConversation"), object: conversationId)
-                        
-                    case .story(let storyId, let authorId):
-                        selectedTab.wrappedValue = 0
-                        NotificationCenter.default.post(
-                            name: NSNotification.Name("NavigateToStoryInFeed"),
-                            object: nil,
-                            userInfo: ["storyId": storyId, "authorId": authorId ?? ""]
-                        )
-                        
-                    case .storyChain(let chainId, let chainTitle):
-                        selectedTab.wrappedValue = 0
-                        NotificationCenter.default.post(
-                            name: NSNotification.Name("NavigateToStoryChain"),
-                            object: nil,
-                            userInfo: ["chainId": chainId, "chainTitle": chainTitle]
-                        )
-                        
-                    case .followRequests(let requestId):
-                        selectedTab.wrappedValue = 4
-                        NotificationCenter.default.post(name: NSNotification.Name("NavigateToFollowRequests"), object: requestId)
-                        
-                    case .notifications(let filter):
-                        selectedTab.wrappedValue = 4
-                        NotificationCenter.default.post(name: NSNotification.Name("NavigateToNotifications"), object: filter)
-
-                    case .creator:
-                        selectedTab.wrappedValue = 0
-                        showCreatorView.wrappedValue = true
-                        
-                    case .echoSuggestion(let echoId):
-                        pendingEchoId.wrappedValue = echoId
-                        showEchoInvitation.wrappedValue = true
-                        
-                    case .echo(let echoId):
-                        pendingEchoId.wrappedValue = echoId
-                        showEchoViewer.wrappedValue = true
-                    }
-                    
-                    navigationService.clearPendingNavigation()
-                    
-                }
+            .onChange(of: appRouter.pending) { _, pending in
+                guard pending != nil else { return }
+                appRouter.dispatchPending(
+                    using: AppRouterTabBarContext(
+                        selectedTab: selectedTab,
+                        showCreatorView: showCreatorView,
+                        pendingEchoId: pendingEchoId,
+                        showEchoInvitation: showEchoInvitation,
+                        showEchoViewer: showEchoViewer,
+                        onEchoInvitationRoute: onEchoInvitationRoute
+                    )
+                )
             }
             .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("NavigateToUserProfile"))) { notification in
                 if let userId = notification.object as? String {
-                    navigationService.pendingNavigation = .profile(userId)
+                    appRouter.navigate(to: .profile(userId: userId))
                 }
             }
             .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("NavigateToOwnProfileTab"))) { _ in

@@ -6,7 +6,7 @@ import CoreLocation
 class EchoService {
     static let shared = EchoService()
     private let db = Firestore.firestore()
-    private let firestoreService = FirestoreService()
+    private let firestoreService = FirestoreService.shared
 
     /// Límite de valores en `in` para Firestore (documentación actual; Firebase iOS 11+).
     private let maxAuthorIdsPerEchoQuery = 30

@@ -38,6 +38,7 @@ struct StoriesView: View {
     @State private var chainStories: [Story] = []
     @State private var currentChainIndex: Int = 0
     @State private var isInChainMode: Bool = false
+    @State private var highlightTitle: String?
     private let chainModeUserId = "__chain__"
 
     @Binding var startWithUserId: String?
@@ -66,12 +67,13 @@ struct StoriesView: View {
     }
 
     // 🔗 STORY CHAINS: Inicializador para cadenas de historias
-    init(chainStories: [Story], startAtIndex: Int = 0) {
+    init(chainStories: [Story], startAtIndex: Int = 0, highlightTitle: String? = nil) {
         self._startWithUserId = .constant(nil)
         self.shouldIncludeConnections = false
         self._chainStories = State(initialValue: chainStories)
         self._currentChainIndex = State(initialValue: startAtIndex)
         self._isInChainMode = State(initialValue: true)
+        self._highlightTitle = State(initialValue: highlightTitle)
     }
 
     /// Carga todo el ring y empieza en `userId` (feed). Permite Deck Pass entre usuarios.
@@ -299,7 +301,8 @@ struct StoriesView: View {
                         dismiss()
                     },
                     onProfileTap: {},
-                    isDeckPageActive: isDeckPageActive
+                    isDeckPageActive: isDeckPageActive,
+                    highlightTitle: highlightTitle
                 )
             } else {
                 Color.clear

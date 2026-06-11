@@ -448,7 +448,7 @@ struct ModernSelectionInterface: View {
             .frame(width: size.width + 40, height: size.height + 40)
         }
         .onAppear {
-            withAnimation(.easeInOut(duration: 0.2)) {
+            MotionPolicy.withOptionalAnimation(.easeInOut(duration: 0.2)) {
                 showDeleteButton = true
             }
         }
@@ -873,7 +873,7 @@ private struct RevealStickerControlsContent: View {
                     }
                 }
                 .padding(.horizontal, 3)
-                .animation(.smooth(duration: 0.18, extraBounce: 0.01), value: tabVisualIndex(for: proxy.size.width))
+                .animation(MotionPolicy.animation(.smooth(duration: 0.18, extraBounce: 0.01), value: tabVisualIndex(for: proxy.size.width)), value: tabVisualIndex(for: proxy.size.width))
 
                 Capsule()
                     .fill(Color.black.opacity(0.001))
@@ -1102,7 +1102,7 @@ private struct RevealStickerControlsContent: View {
             HapticManager.shared.selection()
         }
 
-        withAnimation(.smooth(duration: 0.18, extraBounce: 0.01)) {
+        MotionPolicy.withOptionalAnimation(.smooth(duration: 0.18, extraBounce: 0.01)) {
             selectedTab = targetTab
             tabTransientOffset = 0
         }

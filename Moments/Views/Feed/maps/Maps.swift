@@ -281,14 +281,16 @@ struct LocationMapView: View {
         .fullScreenCover(item: $momentDetailRoute, onDismiss: {
             restoreBottomSheetIfNeeded()
         }) { route in
-            LocationMomentDetailView(
-                locationMoments: route.moments,
-                initialIndex: route.initialIndex,
-                locationName: route.locationName,
-                momentAvailability: $momentAvailability,
-                isPresented: Binding(
-                    get: { momentDetailRoute != nil },
-                    set: { if !$0 { momentDetailRoute = nil } }
+            MomentDetailContainerView(
+                context: .map(
+                    moments: route.moments,
+                    initialIndex: route.initialIndex,
+                    locationName: route.locationName,
+                    momentAvailability: $momentAvailability,
+                    isPresented: Binding(
+                        get: { momentDetailRoute != nil },
+                        set: { if !$0 { momentDetailRoute = nil } }
+                    )
                 )
             )
         }

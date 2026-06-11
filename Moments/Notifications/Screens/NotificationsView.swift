@@ -122,7 +122,7 @@ struct NotificationsView: View {
             )
         }
         .sheet(item: $selectedMoment) { moment in
-            MomentDetailView(moment: moment)
+            MomentDetailContainerView(context: .single(moment))
                 .presentationDetents([.large])
                 .presentationDragIndicator(.visible)
         }
@@ -420,13 +420,13 @@ struct NotificationsView: View {
         case .echoSuggestion:
             // 🌊 Navigate to Echo Viewer
             if let echoId = firstNotification.echoId {
-                NotificationNavigationService.shared.pendingNavigation = .echo(echoId)
+                AppRouter.shared.navigate(to: .echo(echoId: echoId))
             }
         case .storyChainContinued:
             // 🔗 Navigate to Story Chain
             if let chainId = firstNotification.chainId {
                 let chainTitle = firstNotification.chainTitle ?? ""
-                NotificationNavigationService.shared.pendingNavigation = .storyChain(chainId, chainTitle)
+                AppRouter.shared.navigate(to: .storyChain(chainId: chainId, title: chainTitle))
             }
         case .dataExportReady:
             guard

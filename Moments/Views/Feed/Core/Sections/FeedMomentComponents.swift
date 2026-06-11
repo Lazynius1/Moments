@@ -606,7 +606,7 @@ struct ModernPostCardView: View {
                     showSpecificUserStories = true
                 } else {
                     // Si no tiene historia, ir al perfil
-                    NotificationCenter.default.post(name: NSNotification.Name("NavigateToUserProfileInFeed"), object: moment.authorId)
+                    LegacyNavigationBridge.userProfileInFeed(userId: moment.authorId)
                 }
             }) {
                 ZStack {
@@ -637,7 +637,7 @@ struct ModernPostCardView: View {
                         if moment.authorId == Auth.auth().currentUser?.uid {
                             Button(action: {
                                 // Navegar al perfil propio (Tab 4) o mostrar hoja
-                                NotificationCenter.default.post(name: NSNotification.Name("NavigateToUserProfileInFeed"), object: moment.authorId)
+                                LegacyNavigationBridge.userProfileInFeed(userId: moment.authorId)
                             }) {
                                 Text(displayAuthorUsername)
                                     .font(.custom("Poppins-SemiBold", size: 15))
@@ -647,7 +647,7 @@ struct ModernPostCardView: View {
                         } else {
                             Button(action: {
                                 // Navegar a perfil de otro usuario
-                                NotificationCenter.default.post(name: NSNotification.Name("NavigateToUserProfileInFeed"), object: moment.authorId)
+                                LegacyNavigationBridge.userProfileInFeed(userId: moment.authorId)
                             }) {
                                 Text(displayAuthorUsername)
                                     .font(.custom("Poppins-SemiBold", size: 15))
@@ -905,8 +905,6 @@ struct ModernPostCardView: View {
 
         // ✅ PERF: Usar contador denormalizado del moment para evitar query por card
         commentCount = moment.commentCount
-
-        feedViewModel.listenForCommentUpdates(momentId: momentId, authorId: moment.authorId)
 
         if moment.authorId != currentUserId {
             if let cachedState = FollowStateStore.shared.state(for: moment.authorId) {

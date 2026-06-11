@@ -36,6 +36,7 @@ struct EnhancedInputBar: View {
                                     .background(Circle().fill(Color.black.opacity(0.5)))
                                     .font(.system(size: 20))
                             }
+                            .accessibilityLabel(Text("nova.input.removePhoto.accessibility"))
                             .offset(x: 10, y: -10)
                         }
                         .padding(.top, 8)
@@ -43,7 +44,7 @@ struct EnhancedInputBar: View {
 
                         Spacer()
                     }
-                    .transition(.scale.combined(with: .opacity))
+                    .transition(MotionPolicy.reduceMotion ? .opacity : .scale.combined(with: .opacity))
                 }
 
                 HStack(alignment: .center, spacing: 10) {
@@ -55,6 +56,7 @@ struct EnhancedInputBar: View {
                                 .foregroundColor(NovaColors.textPrimary)
                                 .frame(width: 34, height: 34)
                         }
+                        .accessibilityLabel(Text("nova.input.addPhoto.accessibility"))
                         .onChange(of: selectedItem) { _, newItem in
                             Task {
                                 if let data = try? await newItem?.loadTransferable(type: Data.self),
@@ -114,7 +116,8 @@ struct EnhancedInputBar: View {
                                         .liquidGlass(in: Circle(), interactive: true)
                                 }
                         }
-                        .transition(.scale.combined(with: .opacity))
+                        .accessibilityLabel(Text("nova.input.send.accessibility"))
+                        .transition(MotionPolicy.reduceMotion ? .opacity : .scale.combined(with: .opacity))
                     }
                 }
                 .padding(.horizontal, 16)
@@ -122,8 +125,7 @@ struct EnhancedInputBar: View {
             }
         }
         .background(Color.clear)
-        // ✅ Animar solo la aparición/desaparición del botón enviar
-        .animation(.easeInOut(duration: 0.25), value: viewModel.inputText.isEmpty)
+        .animation(MotionPolicy.animation(.easeInOut(duration: 0.25), value: viewModel.inputText.isEmpty), value: viewModel.inputText.isEmpty)
     }
 }
 

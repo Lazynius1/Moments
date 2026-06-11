@@ -1,4 +1,5 @@
 import CoreGraphics
+import UIKit
 
 let creatorMomentsCaptureAspectRatio: CGFloat = 9.0 / 16.0
 let creatorMomentsCaptureTopOffset: CGFloat = 8.0
@@ -31,5 +32,38 @@ func creatorMomentsCaptureRect(in size: CGSize, topInset: CGFloat, bottomInset: 
         y: creatorMomentsCaptureTopOffset,
         width: resolvedWidth,
         height: resolvedHeight
+    )
+}
+
+let storyViewerCanvasCornerRadius: CGFloat = 28
+
+func keyWindowSafeAreaInsets() -> UIEdgeInsets {
+    let scenes = UIApplication.shared.connectedScenes
+        .compactMap { $0 as? UIWindowScene }
+    let keyWindow = scenes
+        .flatMap(\.windows)
+        .first(where: \.isKeyWindow)
+    return keyWindow?.safeAreaInsets ?? .zero
+}
+
+/// Misma geometría de canvas que `StoryViewerScreen`.
+func storyViewerCaptureRect(
+    in size: CGSize,
+    safeAreaTop: CGFloat,
+    safeAreaBottom: CGFloat
+) -> CGRect {
+    let windowInsets = keyWindowSafeAreaInsets()
+    let resolvedTopInset = max(safeAreaTop, windowInsets.top)
+    let resolvedBottomInset = max(safeAreaBottom, windowInsets.bottom)
+    let baseCaptureRect = creatorMomentsCaptureRect(
+        in: size,
+        topInset: resolvedTopInset,
+        bottomInset: resolvedBottomInset
+    )
+    return CGRect(
+        x: baseCaptureRect.origin.x,
+        y: baseCaptureRect.origin.y + resolvedTopInset,
+        width: baseCaptureRect.width,
+        height: baseCaptureRect.height
     )
 }

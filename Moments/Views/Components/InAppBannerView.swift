@@ -310,7 +310,7 @@ struct InAppBannerView: View {
             }
         case .storyChainContinued:
             if let chainId = notification.chainId {
-                navigationService.pendingNavigation = .storyChain(chainId, notification.chainTitle ?? "")
+                AppRouter.shared.navigate(to: .storyChain(chainId: chainId, title: notification.chainTitle ?? ""))
             } else if let storyId = notification.storyId {
                 navigationService.navigateToStory(storyId: storyId, authorId: storyAuthorId(for: notification))
             }
@@ -320,7 +320,7 @@ struct InAppBannerView: View {
             }
         case .echoSuggestion:
             if let echoId = notification.echoId {
-                navigationService.pendingNavigation = .echoSuggestion(echoId)
+                AppRouter.shared.navigate(to: .echoSuggestion(echoId: echoId))
             }
         default:
             break

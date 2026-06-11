@@ -83,9 +83,9 @@ struct NotificationSummaryPopup: View {
             
             // ✅ Navegación inteligente: Si solo hay mensajes, ir al chat
             if unreadMessages > 0 && unreadNotifications == 0 {
-                NotificationCenter.default.post(name: NSNotification.Name("ShowMessages"), object: nil)
+                LegacyNavigationBridge.showMessages()
             } else {
-                NotificationCenter.default.post(name: NSNotification.Name("OpenNotifications"), object: nil)
+                LegacyNavigationBridge.showNotifications()
             }
         }) {
             HStack(spacing: 16) {

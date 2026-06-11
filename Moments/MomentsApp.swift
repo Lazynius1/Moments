@@ -46,6 +46,7 @@ struct MomentsApp: App {
         WindowGroup {
             ZStack {
                 TabBarView()
+                    .environment(AppRouter.shared)
                     .environmentObject(ephemeralCleanupManager)
                     .environmentObject(MessageRequestService())
                     .onAppear {
@@ -123,18 +124,9 @@ struct MomentsApp: App {
                     }
                     .onReceive(NotificationCenter.default.publisher(for: UIApplication.willResignActiveNotification)) { _ in
                     }
-                    .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("NavigateToMoment"))) { notification in
-                        if notification.object is String {
-                        }
-                    }
                     .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("NavigateToProfile"))) { notification in
                         if let userId = notification.object as? String {
-                            // En lugar de mostrar sheet, enviar a TabBarView para manejar
-                            NotificationCenter.default.post(name: NSNotification.Name("ShowUserProfile"), object: userId)
-                        }
-                    }
-                    .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("NavigateToConversation"))) { notification in
-                        if notification.object is String {
+                            AppRouter.shared.navigate(to: .showUserProfile(userId: userId))
                         }
                     }
                     .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("NavigateToStoryChain"))) { notification in

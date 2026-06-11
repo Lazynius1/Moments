@@ -909,10 +909,7 @@ struct InlineCommentRow: View {
             )
             .onTapGesture {
                 guard !comment.authorId.isEmpty else { return }
-                NotificationCenter.default.post(
-                    name: NSNotification.Name("NavigateToProfile"),
-                    object: comment.authorId
-                )
+                LegacyNavigationBridge.profile(userId: comment.authorId)
             }
             
             VStack(alignment: .leading, spacing: 4) {

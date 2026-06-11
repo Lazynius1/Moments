@@ -412,10 +412,7 @@ struct ModernProfileUserRowView<ViewModel: UserListViewModel>: View {
         }
 
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
-            NotificationCenter.default.post(
-                name: NSNotification.Name("NavigateToProfile"),
-                object: user.id
-            )
+            LegacyNavigationBridge.profile(userId: user.id)
         }
     }
 }

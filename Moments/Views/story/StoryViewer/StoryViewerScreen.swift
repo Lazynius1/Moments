@@ -27,6 +27,7 @@ struct StoryViewerScreen: View {
     let onClose: () -> Void
     let onProfileTap: () -> Void
     var isDeckPageActive: Bool
+    var highlightTitle: String?
 
     init(
         story: Story,
@@ -43,7 +44,8 @@ struct StoryViewerScreen: View {
         onPrevious: @escaping () -> Void,
         onClose: @escaping () -> Void,
         onProfileTap: @escaping () -> Void,
-        isDeckPageActive: Bool = true
+        isDeckPageActive: Bool = true,
+        highlightTitle: String? = nil
     ) {
         self.story = story
         self.storyCount = storyCount
@@ -60,6 +62,7 @@ struct StoryViewerScreen: View {
         self.onClose = onClose
         self.onProfileTap = onProfileTap
         self.isDeckPageActive = isDeckPageActive
+        self.highlightTitle = highlightTitle
     }
 
     @State private var showMomentDetail: Bool = false
@@ -417,6 +420,16 @@ struct StoryViewerScreen: View {
                     .position(
                         x: captureRect.midX,
                         y: captureRect.minY + 26
+                    )
+                    .zIndex(1)
+            }
+
+            if let highlightTitle, !highlightTitle.isEmpty, !isUIHidden {
+                HighlightViewerTitlePill(title: highlightTitle)
+                    .frame(maxWidth: max(captureRect.width - 32, 0))
+                    .position(
+                        x: captureRect.midX,
+                        y: captureRect.maxY - 30
                     )
                     .zIndex(1)
             }
