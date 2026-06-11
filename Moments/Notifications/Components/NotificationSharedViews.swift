@@ -163,6 +163,10 @@ struct GlassmorphicButtonStyle: ButtonStyle {
             )
             .shadow(color: color.opacity(0.3), radius: 4, x: 0, y: 2)
             .scaleEffect(configuration.isPressed ? 0.95 : 1.0)
-            .animation(.easeInOut(duration: 0.1), value: configuration.isPressed)
+            .opacity(configuration.isPressed ? 0.9 : 1.0)
+            .animation(
+                MotionPolicy.animation(MotionPolicy.Spring.press, value: configuration.isPressed),
+                value: configuration.isPressed
+            )
     }
 }

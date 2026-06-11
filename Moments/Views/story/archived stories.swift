@@ -115,7 +115,10 @@ struct ArchiveView: View {
                         } else {
                             ScrollView {
                                 ZStack(alignment: .topLeading) {
-                                    LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 3), count: 3), spacing: 3) {
+                                    LazyVGrid(
+                                        columns: Array(repeating: GridItem(.flexible(), spacing: 1), count: 3),
+                                        spacing: 1
+                                    ) {
                                         ForEach(storiesForGrid) { story in
                                             ArchiveStorySquareCard(
                                                 story: story,
@@ -132,7 +135,6 @@ struct ArchiveView: View {
                                             )
                                         }
                                     }
-                                    .padding(.horizontal, sectionHorizontalPadding)
                                     .padding(.top, 8)
                                     .padding(.bottom, 20)
 
@@ -780,7 +782,10 @@ struct ArchiveDateSectionGrid: View {
             .padding(.horizontal, 20)
             .padding(.top, 14)
             
-            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 3), count: 3), spacing: 3) {
+            LazyVGrid(
+                columns: Array(repeating: GridItem(.flexible(), spacing: 1), count: 3),
+                spacing: 1
+            ) {
                 ForEach(stories) { story in
                     ArchiveStorySquareCard(
                         story: story,
@@ -789,7 +794,6 @@ struct ArchiveDateSectionGrid: View {
                     )
                 }
             }
-            .padding(.horizontal, 20)
             
             Divider()
                 .padding(.horizontal, 20)
@@ -1035,10 +1039,10 @@ struct ArchiveStoryCardVisual: View {
     var body: some View {
         GeometryReader { geometry in
             ZStack {
-                if let url = URL(string: story.mediaItem.url) {
+                if let url = previewURL {
                     KFImage(url)
                         .placeholder {
-                            RoundedRectangle(cornerRadius: cornerRadius)
+                            Rectangle()
                                 .fill(Color.gray.opacity(0.24))
                         }
                         .resizable()
@@ -1046,7 +1050,7 @@ struct ArchiveStoryCardVisual: View {
                         .frame(width: geometry.size.width, height: geometry.size.height)
                         .clipped()
                 } else {
-                    RoundedRectangle(cornerRadius: cornerRadius)
+                    Rectangle()
                         .fill(Color.gray.opacity(0.26))
                         .overlay(
                             Image(systemName: "photo")
@@ -1054,47 +1058,37 @@ struct ArchiveStoryCardVisual: View {
                         )
                 }
 
-                if story.mediaItem.type == .video {
+                VStack {
+                    HStack {
+                        HighlightStoryDateBadge(date: story.timestamp)
+                        Spacer(minLength: 0)
+                    }
+                    Spacer(minLength: 0)
+                }
+                .padding(7)
+
+                if story.mediaItem.type == .video, story.duration > 0 {
                     VStack {
+                        Spacer(minLength: 0)
                         HStack {
                             Spacer()
-                            Image(systemName: "play.circle.fill")
+                            Text(HighlightArchiveStoryCardVisual.formatVideoDuration(story.duration))
+                                .font(.system(size: 12, weight: .semibold))
                                 .foregroundColor(.white)
-                                .font(.system(size: 15))
-                                .shadow(radius: 2)
+                                .shadow(color: .black.opacity(0.45), radius: 2, y: 1)
                         }
-                        Spacer()
                     }
                     .padding(7)
                 }
-
-                VStack {
-                    HStack {
-                        Text(ArchiveStoryCardVisual.formatShortDate(story.timestamp))
-                            .font(.custom("Poppins-SemiBold", size: 9))
-                            .foregroundColor(.white)
-                            .padding(.horizontal, 6)
-                            .padding(.vertical, 3)
-                            .background(
-                                Capsule()
-                                    .fill(Color.black.opacity(0.6))
-                            )
-                        Spacer()
-                    }
-                    Spacer()
-                }
-                .padding(4)
             }
         }
         .aspectRatio(9.0 / 16.0, contentMode: .fit)
-        .clipShape(RoundedRectangle(cornerRadius: cornerRadius))
+        .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
     }
 
-    static func formatShortDate(_ date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.locale = Locale.current
-        formatter.dateFormat = "d MMM"
-        return formatter.string(from: date)
+    private var previewURL: URL? {
+        let urlString = story.mediaItem.thumbnailUrl ?? story.mediaItem.url
+        return URL(string: urlString)
     }
 }
 
@@ -1103,7 +1097,7 @@ private struct ArchiveStoryLiftedPreview: View {
     let frame: CGRect
 
     var body: some View {
-        ArchiveStoryCardVisual(story: story, cornerRadius: 12)
+        ArchiveStoryCardVisual(story: story, cornerRadius: 0)
             .frame(width: frame.width, height: frame.height)
             .scaleEffect(1.14)
             .shadow(color: Color.black.opacity(0.38), radius: 22, y: 10)
@@ -1122,19 +1116,15 @@ struct ArchiveStorySquareCard: View {
     var body: some View {
         Button(action: onTap) {
             ZStack {
-                ArchiveStoryCardVisual(story: story, cornerRadius: 8)
+                ArchiveStoryCardVisual(story: story, cornerRadius: 0)
                     .opacity(isLifted ? 0 : 1)
 
                 if isLifted {
-                    RoundedRectangle(cornerRadius: 8)
+                    Rectangle()
                         .fill(Color.gray.opacity(0.24))
                         .aspectRatio(9.0 / 16.0, contentMode: .fit)
                 }
             }
-            .overlay(
-                RoundedRectangle(cornerRadius: 8)
-                    .stroke(Color.gray.opacity(0.14), lineWidth: 0.5)
-            )
             .background {
                 GeometryReader { proxy in
                     Color.clear.preference(

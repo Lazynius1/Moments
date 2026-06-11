@@ -103,6 +103,7 @@ struct ModernActionButtons: View {
                             count: commentCount
                         )
                     }
+                    .buttonStyle(.momentsPress(scale: 0.9, haptic: .light))
                 }
                 
                 // ✅ GUARDAR
@@ -121,13 +122,11 @@ struct ModernActionButtons: View {
                             )
                         }
                     }
+                    .buttonStyle(.momentsPress(scale: 0.9, haptic: .light))
                 }
                 
                 // ✅ OPCIONES (Ellipsis integrada)
-                Button(action: {
-                    HapticManager.shared.lightImpact()
-                    onContextMenu()
-                }) {
+                Button(action: onContextMenu) {
                     iconButton(
                         systemName: "ellipsis",
                         color: .white,
@@ -135,12 +134,13 @@ struct ModernActionButtons: View {
                         isActive: false
                     )
                 }
+                .buttonStyle(.momentsPress(scale: 0.9, haptic: .light))
             }
             .padding(6)
             .liquidGlass(in: Capsule())
             .shadow(color: .black.opacity(0.3), radius: 10, x: 0, y: 5)
             .opacity(isImmersive ? 0 : 1)
-            .animation(.easeInOut(duration: 0.3), value: isImmersive)
+            .animation(MotionPolicy.animation(MotionPolicy.Spring.toggle, value: isImmersive), value: isImmersive)
         }
         .padding(.trailing, 16)
         .padding(.bottom, 16)

@@ -9,13 +9,17 @@ struct MomentDetailContainerView: View {
         case .single(let moment):
             MomentDetailView(moment: moment)
 
-        case .profileCarousel(let moments, let initialIndex, let topContentInset, let onDismiss):
+        case .profileCarousel(let moments, let initialIndex, let initialMomentId, let topContentInset, let restrictPlaybackToInitialIndex, let onDismiss):
             ModernMomentDetailView(
                 moments: moments,
                 initialIndex: initialIndex,
+                initialMomentId: initialMomentId,
                 topContentInset: topContentInset,
+                restrictPlaybackToInitialIndex: restrictPlaybackToInitialIndex,
                 onDismiss: onDismiss
             )
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(Color(UIColor.systemBackground).ignoresSafeArea())
 
         case .map(let moments, let initialIndex, let locationName, let momentAvailability, let isPresented):
             LocationMomentDetailView(

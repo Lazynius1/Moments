@@ -430,7 +430,7 @@ struct FeedView: View {
             .opacity(isFeedHeaderHidden ? 0 : 1)
             .allowsHitTesting(!isFeedHeaderHidden)
             .padding(.top, -8)
-            .animation(.spring(response: 0.32, dampingFraction: 0.86), value: isFeedHeaderHidden)
+            .animation(MotionPolicy.animation(MotionPolicy.Spring.header, value: isFeedHeaderHidden), value: isFeedHeaderHidden)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }

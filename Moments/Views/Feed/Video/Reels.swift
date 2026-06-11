@@ -193,7 +193,7 @@ struct ReelVideoView: View {
                             .stroke(colorScheme == .dark ? Color.white.opacity(0.10) : Color.black.opacity(0.10), lineWidth: 1)
                     )
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(.momentsPressSubtle)
             }
         }
         .padding(.horizontal, 16)
@@ -325,8 +325,7 @@ struct ReelVideoView: View {
 
                         VStack(spacing: 10) {
                             Button(action: {
-                                let haptic = UIImpactFeedbackGenerator(style: .medium)
-                                haptic.impactOccurred()
+                                HapticManager.shared.mediumImpact()
                                 onClose()
                             }) {
                                 Image(systemName: "xmark")
@@ -337,11 +336,10 @@ struct ReelVideoView: View {
                                     .contentShape(Circle())
                                     .liquidGlass(in: Circle(), interactive: true)
                             }
-                            .buttonStyle(.plain)
+                            .buttonStyle(.momentsPress(scale: 0.9, haptic: .none))
 
                             Button(action: {
-                                let haptic = UIImpactFeedbackGenerator(style: .light)
-                                haptic.impactOccurred()
+                                HapticManager.shared.lightImpact()
                                 playerManager.toggleMute()
                             }) {
                                 Image(systemName: playerManager.isMuted ? "speaker.slash.fill" : "speaker.wave.2.fill")
@@ -352,7 +350,7 @@ struct ReelVideoView: View {
                                     .contentShape(Circle())
                                     .liquidGlass(in: Circle(), interactive: true)
                             }
-                            .buttonStyle(.plain)
+                            .buttonStyle(.momentsPress(scale: 0.9, haptic: .none))
                             .accessibilityLabel(
                                 playerManager.isMuted
                                 ? NSLocalizedString("feed.video.unmute", comment: "Unmute video")
@@ -404,7 +402,7 @@ struct ReelVideoView: View {
                                                 )
                                             )
                                     }
-                                    .buttonStyle(.plain)
+                                    .buttonStyle(.momentsPress(scale: 0.94, haptic: .none))
 
                                     VStack(alignment: .leading, spacing: 3) {
                                             HStack(spacing: 6) {

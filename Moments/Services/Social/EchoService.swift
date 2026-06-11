@@ -103,13 +103,24 @@ class EchoService {
             let wave = Array(chunks[chunkStart..<chunkEnd])
 
             try await withThrowingTaskGroup(of: [QueryDocumentSnapshot].self) { group in
-                for chunk in wave where !chunk.isEmpty {
-                    group.addTask {
-                        let momentQuery = db.collectionGroup("moments")
-                            .whereField("authorId", in: chunk)
-                            .whereField("timestamp", isGreaterThan: Timestamp(date: searchWindow))
-                        let snapshot = try await momentQuery.getDocuments()
-                        return snapshot.documents
+                for chunk in wave {
+                    for authorId in chunk where !authorId.isEmpty {
+                        group.addTask {
+                            // Subcolección por autor: evita permission denied de collectionGroup
+                            // cuando hay posts con audiencia restringida entre mutuos.
+                            do {
+                                let snapshot = try await db.collection("users")
+                                    .document(authorId)
+                                    .collection("moments")
+                                    .whereField("timestamp", isGreaterThan: Timestamp(date: searchWindow))
+                                    .order(by: "timestamp", descending: true)
+                                    .limit(to: 50)
+                                    .getDocuments()
+                                return snapshot.documents
+                            } catch {
+                                return []
+                            }
+                        }
                     }
                 }
                 for try await docs in group {

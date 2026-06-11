@@ -83,11 +83,11 @@ struct FeedListSection: View {
                     DragGesture(minimumDistance: 8)
                         .onChanged { value in
                             if value.translation.height < -40 && !isFeedHeaderHidden {
-                                withAnimation(.spring(response: 0.32, dampingFraction: 0.86)) {
+                                MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.header) {
                                     isFeedHeaderHidden = true
                                 }
                             } else if value.translation.height > 28 && isFeedHeaderHidden {
-                                withAnimation(.spring(response: 0.32, dampingFraction: 0.86)) {
+                                MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.header) {
                                     isFeedHeaderHidden = false
                                 }
                             }
@@ -111,7 +111,7 @@ struct FeedListSection: View {
                 }
             }
             .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("ScrollFeedToTop"))) { _ in
-                withAnimation(.easeInOut(duration: 0.3)) {
+                MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.sheet) {
                     proxy.scrollTo(0, anchor: .top)
                 }
                 if let userId = Auth.auth().currentUser?.uid {

@@ -51,6 +51,14 @@ final class SharedVideoPlayerPool {
         evictSlot(at: index)
     }
 
+    func hasActiveItem(for consumerId: String) -> Bool {
+        lock.lock()
+        defer { lock.unlock() }
+
+        guard let index = slots.firstIndex(where: { $0.consumerId == consumerId }) else { return false }
+        return slots[index].player.currentItem != nil
+    }
+
     private func evictSlot(at index: Int) {
         let player = slots[index].player
         player.pause()

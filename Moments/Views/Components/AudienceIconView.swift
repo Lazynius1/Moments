@@ -15,6 +15,8 @@ enum AudienceIconMetrics {
     static let storyBottomBar: CGFloat = 34
     /// Resumen en actividad de historia.
     static let storyActivity: CGFloat = 17
+    /// Miniatura en grids de actividad / perfil (solo icono, sin cápsula).
+    static let activityGridThumbnail: CGFloat = 15
 }
 
 struct AudienceIconView: View {
@@ -52,5 +54,21 @@ struct AudienceIconView: View {
             .frame(width: size, height: size)
             .foregroundStyle(tintColor)
             .accessibilityHidden(true)
+    }
+}
+
+/// Icono de audiencia discreto para overlays en grids (sin texto ni cápsula).
+struct ActivityGridAudienceIcon: View {
+    let audience: ContentAudience
+    var size: CGFloat = AudienceIconMetrics.activityGridThumbnail
+
+    var body: some View {
+        AudienceIconView(
+            audience: audience,
+            size: size,
+            tintColor: audience == .bestFriends ? Color(hex: "34C759") : .white
+        )
+        .shadow(color: .black.opacity(0.55), radius: 2, y: 1)
+        .allowsHitTesting(false)
     }
 }

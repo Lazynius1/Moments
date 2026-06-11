@@ -449,7 +449,7 @@ class BackgroundMomentUploadService: ObservableObject {
             await updateProgress(uploadingMoment, progress: baseProgress)
 
             let momentId = uploadingMoment.plannedMomentId
-            let mediaId = media.id
+            let mediaId = StoragePathBuilder.storageSafeSegment(media.id)
             let uploadContext = FeedMediaUploadContext.moment(momentId: momentId, mediaId: mediaId)
 
             let finalMediaItem = UploadMediaItem(
@@ -512,6 +512,7 @@ class BackgroundMomentUploadService: ObservableObject {
             let shouldProcessVideo = mediaItemType == .video &&
                 (finalVideoFileSize ?? 0) > CreatorMedia.maxMomentVideoReadySizeBytes
             uploadedItems.append(MediaItem(
+                id: mediaId,
                 type: mediaItemType,
                 url: urlString,
                 aspectRatio: media.aspectRatio.displayName,

@@ -183,6 +183,11 @@ enum StoragePathBuilder {
         return false
     }
 
+    /// Segmento seguro para rutas Storage y `mediaItemId` de moderación (p. ej. `UUID/L0/001` → `UUID_L0_001`).
+    static func storageSafeSegment(_ value: String) -> String {
+        sanitized(value)
+    }
+
     private static func sanitized(_ value: String) -> String {
         let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
         let allowed = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "-_"))

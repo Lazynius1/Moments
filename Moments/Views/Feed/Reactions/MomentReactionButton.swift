@@ -106,8 +106,8 @@ struct EpicReactionButton: View {
                 }
                 .contentShape(Circle())
                 .scaleEffect(isPressed ? 0.85 : (hasReacted ? 1.15 : 1.0))
-                .animation(.interpolatingSpring(stiffness: 600, damping: 15), value: isPressed)
-                .animation(.interpolatingSpring(stiffness: 400, damping: 12), value: hasReacted)
+                .animation(MotionPolicy.animation(MotionPolicy.Spring.press, value: isPressed), value: isPressed)
+                .animation(MotionPolicy.animation(MotionPolicy.Spring.toggle, value: hasReacted), value: hasReacted)
                 .onTapGesture {
                     if hasReacted {
                         removeReactionWithAnimation()
@@ -448,12 +448,13 @@ struct FloatingReactionItemView: View {
                     value: isFloating
                 )
         }
-        .buttonStyle(PlainButtonStyle())
+        .buttonStyle(.momentsPress(scale: 0.82, haptic: .none))
         .onAppear {
+            guard !MotionPolicy.reduceMotion else { return }
             isFloating = true
         }
         .onLongPressGesture(minimumDuration: 0, maximumDistance: .infinity, pressing: { pressing in
-            withAnimation(.spring(response: 0.15, dampingFraction: 0.6)) {
+            MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.press) {
                 isPressed = pressing
             }
         }, perform: {})

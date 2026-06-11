@@ -28,6 +28,12 @@ final class FeedVisibilityCoordinator: ObservableObject {
         pickWinner()
     }
 
+    /// Fija un único vídeo activo (p. ej. durante hero → detalle).
+    func pinActiveVideo(momentId: String) {
+        visibilityByMomentId = [momentId: 1.0]
+        activeVideoMomentId = momentId
+    }
+
     func isActive(momentId: String?) -> Bool {
         guard let momentId, let activeVideoMomentId else { return false }
         return activeVideoMomentId == momentId

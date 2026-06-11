@@ -7,8 +7,11 @@ class GlobalVideoManager: ObservableObject {
     static let shared = GlobalVideoManager()
     
     @Published private(set) var activeVideoId: String?
+    @Published private(set) var livePlaybackSeconds: [String: Double] = [:]
     private var allPlayers: [String: VideoPlayerManager] = [:]
     private var playbackPositionsByMomentId: [String: Double] = [:]
+    private var preservedPlayerConsumerIds: Set<String> = []
+    private var pendingDetailHandoffMomentIds: Set<String> = []
     
     // ✅ ESTILO INSTAGRAM: Si el usuario activa el sonido en algún video, todos los posteriores tienen sonido
     @Published private(set) var userHasEnabledSoundInSession: Bool = false
@@ -37,12 +40,18 @@ class GlobalVideoManager: ObservableObject {
         }
     }
     
-    func unregisterPlayer(_ playerId: String) {
-        allPlayers.removeValue(forKey: playerId)
-        
-        if activeVideoId == playerId {
-            activeVideoId = nil
+    func unregisterPlayer(_ playerId: String, manager: VideoPlayerManager) {
+        if allPlayers[playerId] === manager {
+            allPlayers.removeValue(forKey: playerId)
+            
+            if activeVideoId == playerId {
+                activeVideoId = nil
+            }
         }
+    }
+    
+    func isRegisteredPlayer(_ playerId: String, manager: VideoPlayerManager) -> Bool {
+        return allPlayers[playerId] === manager
     }
     
     func playVideo(_ playerId: String) {
@@ -75,22 +84,24 @@ class GlobalVideoManager: ObservableObject {
         userHasEnabledSoundInSession = true
     }
 
-    // ✅ ESTILO INSTAGRAM: Toggle mute que activa el sonido para toda la sesión
+    // ✅ ESTILO INSTAGRAM: Toggle mute que activa/desactiva el sonido para toda la sesión
     func toggleMute(_ playerId: String) {
         guard let manager = allPlayers[playerId] else { return }
         
         let wasMuted = manager.isMuted
         manager.toggleMute(respectSilentMode: true)
         
-        // ✅ Si el usuario desmutea (activa el sonido), activar sonido para toda la sesión
         if wasMuted && !manager.isMuted {
+            // El usuario activó el sonido → aplicar a toda la sesión
             userHasEnabledSoundInSession = true
-            
-            // ✅ Aplicar sonido a todos los videos activos
-            for (id, playerManager) in allPlayers {
-                if id != playerId {
-                    playerManager.setMuted(false, respectSilentMode: true)
-                }
+            for (id, playerManager) in allPlayers where id != playerId {
+                playerManager.setMuted(false, respectSilentMode: true)
+            }
+        } else if !wasMuted && manager.isMuted {
+            // El usuario silenció → actualizar sesión y mutear todos
+            userHasEnabledSoundInSession = false
+            for (id, playerManager) in allPlayers where id != playerId {
+                playerManager.setMuted(true)
             }
         }
     }
@@ -103,10 +114,60 @@ class GlobalVideoManager: ObservableObject {
     func setPlaybackPosition(seconds: Double, forMomentId momentId: String) {
         guard seconds.isFinite, seconds >= 0 else { return }
         playbackPositionsByMomentId[momentId] = seconds
+        // Publicar cambio para que LiveVideoTimeLabel actualice en tiempo real.
+        livePlaybackSeconds[momentId] = seconds
     }
 
     func playbackPosition(forMomentId momentId: String) -> Double {
         playbackPositionsByMomentId[momentId] ?? 0
+    }
+
+    func resetPlaybackPosition(forMomentId momentId: String) {
+        playbackPositionsByMomentId[momentId] = 0
+    }
+
+    static func profileVideoConsumerId(for moment: Moment) -> String {
+        moment.id ?? "video_\(moment.authorId)_\(Int(moment.timestamp.timeIntervalSince1970))"
+    }
+
+    /// Hero → detalle: conservar `AVPlayer` y posición hasta que monte el player del detalle.
+    func markProfileHeroHandoff(forMomentId momentId: String) {
+        pendingDetailHandoffMomentIds.insert(momentId)
+        preservedPlayerConsumerIds.insert(momentId)
+    }
+
+    func shouldPreserveSharedPlayer(consumerId: String) -> Bool {
+        preservedPlayerConsumerIds.contains(consumerId)
+    }
+
+    func canReuseSharedPlayer(consumerId: String) -> Bool {
+        guard preservedPlayerConsumerIds.contains(consumerId) else { return false }
+        return SharedVideoPlayerPool.shared.hasActiveItem(for: consumerId)
+    }
+
+    func hasPendingProfileDetailHandoff(forMomentId momentId: String) -> Bool {
+        pendingDetailHandoffMomentIds.contains(momentId)
+    }
+
+    /// Consumido una sola vez al montar el video en detalle tras transición hero.
+    func consumeProfileDetailHandoff(forMomentId momentId: String) -> (reuseExistingItem: Bool, startAtSeconds: Double)? {
+        guard pendingDetailHandoffMomentIds.remove(momentId) != nil else { return nil }
+        preservedPlayerConsumerIds.remove(momentId)
+        return (true, playbackPosition(forMomentId: momentId))
+    }
+
+    func clearProfilePlaybackHandoffState() {
+        let orphanedPreservedPlayers = preservedPlayerConsumerIds
+        pendingDetailHandoffMomentIds.removeAll()
+        preservedPlayerConsumerIds.removeAll()
+        for consumerId in orphanedPreservedPlayers {
+            SharedVideoPlayerPool.shared.release(consumerId: consumerId)
+        }
+    }
+
+    func releasePreservedPlayer(consumerId: String) {
+        preservedPlayerConsumerIds.remove(consumerId)
+        SharedVideoPlayerPool.shared.release(consumerId: consumerId)
     }
     
     // ✅ Verificar si el iPhone está en modo silencioso
@@ -130,6 +191,8 @@ struct ModernVideoPlayer: View {
     let posterURLString: String?
     let mediaItem: MediaItem?
     let moment: Moment?
+    let activationMode: VideoPlaybackActivationMode
+    let consumesDetailHandoff: Bool
 
     private var usesSocialChrome: Bool { chromeStyle == .socialReels }
     
@@ -158,7 +221,9 @@ struct ModernVideoPlayer: View {
         allowsPauseInteraction: Bool = true,
         posterURLString: String? = nil,
         mediaItem: MediaItem? = nil,
-        moment: Moment? = nil
+        moment: Moment? = nil,
+        activationMode: VideoPlaybackActivationMode = .feedVisibility,
+        consumesDetailHandoff: Bool = true
     ) {
         self.url = url
         self.aspectRatio = aspectRatio
@@ -169,6 +234,8 @@ struct ModernVideoPlayer: View {
         self.posterURLString = posterURLString
         self.mediaItem = mediaItem
         self.moment = moment
+        self.activationMode = activationMode
+        self.consumesDetailHandoff = consumesDetailHandoff
     }
     
     var body: some View {
@@ -237,20 +304,24 @@ struct ModernVideoPlayer: View {
             setupPlayer()
             globalManager.registerPlayer(videoId, manager: playerManager)
             isVisible = true
-            updatePlaybackForVisibility(activeId: visibilityCoordinator.activeVideoMomentId)
+            applyActivationMode(activeId: visibilityCoordinator.activeVideoMomentId)
         }
         .onDisappear {
             isVisible = false
-            globalManager.unregisterPlayer(videoId)
-            globalManager.pauseVideo(videoId)
-            playerManager.cleanup()
+            let isCurrent = globalManager.isRegisteredPlayer(videoId, manager: playerManager)
+            if isCurrent {
+                globalManager.pauseVideo(videoId)
+                globalManager.unregisterPlayer(videoId, manager: playerManager)
+            }
+            let preservePool = globalManager.shouldPreserveSharedPlayer(consumerId: videoId)
+            playerManager.cleanup(releaseFromPool: !preservePool)
             hasSetupPlayer = false
             hasLoadError = false
             setupRetries = 0
             setupGeneration += 1
         }
         .onChange(of: visibilityCoordinator.activeVideoMomentId) { _, activeId in
-            updatePlaybackForVisibility(activeId: activeId)
+            applyActivationMode(activeId: activeId)
         }
         .onTapGesture {
             if allowsPauseInteraction {
@@ -262,8 +333,11 @@ struct ModernVideoPlayer: View {
             globalManager.pauseAllVideos()
         }
         .onChange(of: playerManager.currentTime) { _, newTime in
-            guard usesSocialChrome, let momentId = moment?.id else { return }
-            globalManager.setPlaybackPosition(seconds: newTime, forMomentId: momentId)
+            guard usesSocialChrome, let moment else { return }
+            globalManager.setPlaybackPosition(
+                seconds: newTime,
+                forMomentId: GlobalVideoManager.profileVideoConsumerId(for: moment)
+            )
         }
     }
     
@@ -377,9 +451,35 @@ struct ModernVideoPlayer: View {
         
         hasLoadError = false
         setupGeneration += 1
-        playerManager.setupPlayer(with: videoURL, consumerId: videoId)
+
+        let handoff = consumesDetailHandoff
+            ? moment.flatMap {
+                globalManager.consumeProfileDetailHandoff(
+                    forMomentId: GlobalVideoManager.profileVideoConsumerId(for: $0)
+                )
+            }
+            : nil
+        let reuseExistingItem = handoff?.reuseExistingItem
+            ?? globalManager.canReuseSharedPlayer(consumerId: videoId)
+        let startAtSeconds: Double? = {
+            if let handoff, handoff.startAtSeconds > 0.05 {
+                return handoff.startAtSeconds
+            }
+            return nil
+        }()
+
+        playerManager.setupPlayer(
+            with: videoURL,
+            consumerId: videoId,
+            startAtSeconds: startAtSeconds,
+            reuseExistingItem: reuseExistingItem
+        )
         hasSetupPlayer = true
         scheduleSetupTimeout(for: setupGeneration)
+
+        if activationMode == .alwaysWhenVisible {
+            globalManager.playVideo(videoId)
+        }
     }
 
     private func resolvedPlaybackURL() -> URL? {
@@ -429,7 +529,17 @@ struct ModernVideoPlayer: View {
         playerManager.cleanup()
         setupPlayer()
         if isVisible {
-            updatePlaybackForVisibility(activeId: visibilityCoordinator.activeVideoMomentId)
+            applyActivationMode(activeId: visibilityCoordinator.activeVideoMomentId)
+        }
+    }
+
+    private func applyActivationMode(activeId: String?) {
+        switch activationMode {
+        case .feedVisibility:
+            updatePlaybackForVisibility(activeId: activeId)
+        case .alwaysWhenVisible:
+            guard isVisible else { return }
+            globalManager.playVideo(videoId)
         }
     }
     
@@ -446,8 +556,7 @@ struct ModernVideoPlayer: View {
     
     private func updatePlaybackForVisibility(activeId: String?) {
         guard isVisible else { return }
-        let playbackMomentId = moment?.id ?? videoId
-        if activeId == playbackMomentId {
+        if activeId == videoId {
             globalManager.playVideo(videoId)
         } else {
             globalManager.pauseVideo(videoId)
@@ -498,38 +607,83 @@ class VideoPlayerManager: ObservableObject {
     private var statusObserver: NSKeyValueObservation?
     private var consumerId: String?
     private var activeItem: AVPlayerItem?
-    
-    func setupPlayer(with url: URL, consumerId: String) {
+    private var pendingSeekSeconds: Double?
+
+    func setupPlayer(
+        with url: URL,
+        consumerId: String,
+        startAtSeconds: Double? = nil,
+        reuseExistingItem: Bool = false
+    ) {
         self.consumerId = consumerId
-        
+        pendingSeekSeconds = startAtSeconds
+
+        let pooledPlayer = SharedVideoPlayerPool.shared.player(for: consumerId)
+
+        if reuseExistingItem,
+           let existingItem = pooledPlayer.currentItem,
+           existingItem.status != .failed {
+            player = pooledPlayer
+            activeItem = existingItem
+            isReadyToPlay = existingItem.status == .readyToPlay
+            isPlaying = pooledPlayer.rate > 0
+            applySessionMuteState(on: pooledPlayer)
+            observeItemStatus(existingItem)
+            observePlayback()
+            setupLooping(for: existingItem)
+            applyPendingSeekIfPossible(on: pooledPlayer, item: existingItem)
+            return
+        }
+
         let playerItem = VideoPreloader.shared.getPlayerItem(for: url.absoluteString)
         playerItem.preferredForwardBufferDuration = 2.5
         playerItem.canUseNetworkResourcesForLiveStreamingWhilePaused = true
-        
+
         if #available(iOS 14.0, *) {
             playerItem.preferredPeakBitRate = 2_500_000
         }
-        
-        let pooledPlayer = SharedVideoPlayerPool.shared.player(for: consumerId)
+
         pooledPlayer.replaceCurrentItem(with: playerItem)
-        pooledPlayer.isMuted = true
+        applySessionMuteState(on: pooledPlayer)
         pooledPlayer.automaticallyWaitsToMinimizeStalling = false
-        
+
         player = pooledPlayer
         activeItem = playerItem
         isReadyToPlay = playerItem.status == .readyToPlay
         isPlaying = false
-        
+
         observeItemStatus(playerItem)
         observePlayback()
         setupLooping(for: playerItem)
+        applyPendingSeekIfPossible(on: pooledPlayer, item: playerItem)
+    }
+
+    private func applySessionMuteState(on player: AVPlayer) {
+        let shouldMute = !GlobalVideoManager.shared.userHasEnabledSoundInSession
+        player.isMuted = shouldMute
+        isMuted = shouldMute
+    }
+
+    private func applyPendingSeekIfPossible(on player: AVPlayer, item: AVPlayerItem) {
+        guard let seconds = pendingSeekSeconds, seconds > 0.05 else { return }
+        guard item.status == .readyToPlay else { return }
+        pendingSeekSeconds = nil
+        player.seek(
+            to: CMTime(seconds: seconds, preferredTimescale: 600),
+            toleranceBefore: .zero,
+            toleranceAfter: .zero
+        )
     }
 
     private func observeItemStatus(_ playerItem: AVPlayerItem) {
         statusObserver?.invalidate()
         statusObserver = playerItem.observe(\.status, options: [.initial, .new]) { [weak self] item, _ in
             DispatchQueue.main.async {
-                self?.isReadyToPlay = item.status == .readyToPlay
+                guard let self else { return }
+                self.isReadyToPlay = item.status == .readyToPlay
+                if item.status == .readyToPlay, let player = self.player {
+                    self.applyPendingSeekIfPossible(on: player, item: item)
+                }
             }
         }
     }
@@ -638,7 +792,7 @@ class VideoPlayerManager: ObservableObject {
         }
     }
     
-    func cleanup() {
+    func cleanup(releaseFromPool: Bool = true) {
         if let timeObserver = timeObserver {
             player?.removeTimeObserver(timeObserver)
             self.timeObserver = nil
@@ -652,8 +806,12 @@ class VideoPlayerManager: ObservableObject {
         statusObserver?.invalidate()
         statusObserver = nil
         
-        player?.pause()
-        if let consumerId {
+        let isCurrent = consumerId.map { GlobalVideoManager.shared.isRegisteredPlayer($0, manager: self) } ?? true
+        
+        if isCurrent {
+            player?.pause()
+        }
+        if let consumerId, releaseFromPool && isCurrent {
             SharedVideoPlayerPool.shared.release(consumerId: consumerId)
         }
         player = nil

@@ -14,9 +14,7 @@ struct UserModernPublicProfileView: View {
     let safeAreaTop: CGFloat
     let safeAreaBottom: CGFloat
     @Binding var showingUserList: UserProfileView.UserListType?
-    @Binding var selectedMoment: Moment?
-    @Binding var showMomentDetail: Bool
-    @Binding var selectedMomentIndex: Int
+    @EnvironmentObject private var heroCoordinator: ProfileGridHeroTransitionCoordinator
     @Binding var showStoryViewer: Bool
     @Binding var selectedStoryIndex: Int
     @Binding var navigateToChat: Bool
@@ -100,29 +98,30 @@ struct UserModernPublicProfileView: View {
                                     .frame(maxWidth: UIScreen.main.bounds.width - 40)
                             } else {
                                 GeometryReader { geometry in
-                                    let spacing = ProfileMomentsGridMetrics.spacing
-                                    let columns = ProfileMomentsGridMetrics.columns
-                                    let totalSpacing = spacing * CGFloat(columns - 1)
-                                    let itemWidth = (geometry.size.width - totalSpacing) / CGFloat(columns)
-
-                                    LazyVGrid(columns: Array(repeating: GridItem(.fixed(itemWidth), spacing: spacing), count: columns), spacing: spacing) {
-                                        ForEach(Array(viewModel.moments.enumerated()), id: \.offset) { index, moment in
-                                            ScreenshotProtectedView(
-                                                isProtected: (moment.audience?.lowercased() ?? "") != "everyone"
-                                            ) {
-                                                UserModernMomentThumbnail(
-                                                    moment: moment,
-                                                    size: itemWidth,
-                                                    onTap: {
-                                                        selectedMomentIndex = index
-                                                        showMomentDetail = true
-                                                    }
-                                                )
-                                            }
-                                        }
+                                    ProfileMomentsBentoGrid(
+                                        moments: viewModel.moments,
+                                        availableWidth: geometry.size.width,
+                                        descriptors: ProfileBentoTileAssigner.assign(moments: viewModel.moments)
+                                    ) { moment, itemWidth, index, descriptor in
+                                                ScreenshotProtectedView(
+                                                    isProtected: (moment.audience?.lowercased() ?? "") != "everyone"
+                                                ) {
+                                                    UserModernMomentThumbnail(
+                                                        moment: moment,
+                                                        size: itemWidth,
+                                                        onTap: {
+                                                            heroCoordinator.openDirectDetail(
+                                                                moments: viewModel.moments,
+                                                                initialIndex: index
+                                                            )
+                                                        },
+                                                        gridIndex: index,
+                                                        descriptor: descriptor
+                                                    )
+                                                }
                                     }
                                 }
-                                .frame(height: calculateGridHeight(itemCount: viewModel.moments.count))
+                                .frame(height: calculateBentoGridHeight(moments: viewModel.moments))
                             }
 
                         case .tagged:
@@ -141,29 +140,30 @@ struct UserModernPublicProfileView: View {
                                     .frame(height: 400, alignment: .top)
                                 } else {
                                     GeometryReader { geometry in
-                                        let spacing = ProfileMomentsGridMetrics.spacing
-                                        let columns = ProfileMomentsGridMetrics.columns
-                                        let totalSpacing = spacing * CGFloat(columns - 1)
-                                        let itemWidth = (geometry.size.width - totalSpacing) / CGFloat(columns)
-
-                                        LazyVGrid(columns: Array(repeating: GridItem(.fixed(itemWidth), spacing: spacing), count: columns), spacing: spacing) {
-                                            ForEach(Array(viewModel.taggedMoments.enumerated()), id: \.element.id) { index, moment in
-                                                ScreenshotProtectedView(
-                                                    isProtected: (moment.audience?.lowercased() ?? "") != "everyone"
-                                                ) {
-                                                    UserModernMomentThumbnail(
-                                                        moment: moment,
-                                                        size: itemWidth,
-                                                        onTap: {
-                                                            selectedMomentIndex = index
-                                                            showMomentDetail = true
-                                                        }
-                                                    )
-                                                }
+                                        ProfileMomentsBentoGrid(
+                                            moments: viewModel.taggedMoments,
+                                            availableWidth: geometry.size.width,
+                                            descriptors: ProfileBentoTileAssigner.simple(moments: viewModel.taggedMoments)
+                                        ) { moment, itemWidth, index, descriptor in
+                                            ScreenshotProtectedView(
+                                                isProtected: (moment.audience?.lowercased() ?? "") != "everyone"
+                                            ) {
+                                                UserModernMomentThumbnail(
+                                                    moment: moment,
+                                                    size: itemWidth,
+                                                    onTap: {
+                                                        heroCoordinator.openDirectDetail(
+                                                            moments: viewModel.taggedMoments,
+                                                            initialIndex: index
+                                                        )
+                                                    },
+                                                    gridIndex: index,
+                                                    descriptor: descriptor
+                                                )
                                             }
                                         }
                                     }
-                                    .frame(height: calculateGridHeight(itemCount: viewModel.taggedMoments.count))
+                                    .frame(height: calculateTaggedGridHeight(moments: viewModel.taggedMoments))
                                 }
                             }
                             .onAppear {
@@ -200,6 +200,10 @@ struct UserModernPublicProfileView: View {
             .onPreferenceChange(UserScrollOffsetPreferenceKey.self) { value in
                 scrollOffset = value
             }
+            .onPreferenceChange(ProfileGridThumbnailFramePreferenceKey.self) { frames in
+                heroCoordinator.ingestThumbnailFrames(frames)
+            }
+            .coordinateSpace(name: "profileGridOverlay")
         }
     }
 }

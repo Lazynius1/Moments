@@ -115,10 +115,12 @@ struct FeedHeaderBar: View {
                     } label: {
                         echoApertureIcon
                     }
+                    .buttonStyle(.momentsPressIcon)
                 } else {
                     Button(action: { showEchoHistory = true }) {
                         echoApertureIcon
                     }
+                    .buttonStyle(.momentsPressIcon)
                 }
 
                 ModernNotificationButton(
@@ -199,14 +201,14 @@ struct FeedFloatingSelector: View {
         }
         .padding(.horizontal, 12)
         .shadow(color: Color.black.opacity(0.15), radius: 12, x: 0, y: 4)
-        .animation(.spring(response: 0.32, dampingFraction: 0.86), value: isFeedHeaderHidden)
+        .animation(MotionPolicy.animation(MotionPolicy.Spring.header, value: isFeedHeaderHidden), value: isFeedHeaderHidden)
         .onChange(of: selectedFeedType) { _, newFeedType in
             UserDefaults.standard.selectedFeedType = newFeedType
             if let userId = Auth.auth().currentUser?.uid {
                 viewModel.switchFeedType(to: newFeedType, userId: userId)
             }
         }
-        .animation(.spring(response: 0.3, dampingFraction: 0.7), value: pendingEchoesCount)
+        .animation(MotionPolicy.animation(MotionPolicy.Spring.toggle, value: pendingEchoesCount), value: pendingEchoesCount)
         .zIndex(998)
     }
 }

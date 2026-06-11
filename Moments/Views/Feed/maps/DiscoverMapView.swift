@@ -275,6 +275,7 @@ struct DiscoverMapView: View {
                             .foregroundStyle(adaptiveColors.primary)
                             .frame(width: 32, height: 32)
                     }
+                    .buttonStyle(.momentsPressIcon)
 
                     VStack(alignment: .leading, spacing: 0) {
                         Text(zoneName ?? NSLocalizedString("maps.discover.title", comment: "Discover map title"))
@@ -303,7 +304,7 @@ struct DiscoverMapView: View {
                 VStack(alignment: .trailing, spacing: 4) {
                     HStack(spacing: 10) {
                         Button {
-                            withAnimation(.easeInOut(duration: 0.2)) {
+                            MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.toggle) {
                                 isSearchActive.toggle()
                             }
                             if isSearchActive {
@@ -317,6 +318,7 @@ struct DiscoverMapView: View {
                                 .foregroundStyle(adaptiveColors.primary)
                                 .frame(width: 28, height: 28)
                         }
+                        .buttonStyle(.momentsPressIcon)
 
                         Button {
                             recenterOnUser()
@@ -326,10 +328,11 @@ struct DiscoverMapView: View {
                                 .foregroundStyle(adaptiveColors.accent)
                                 .frame(width: 28, height: 28)
                         }
+                        .buttonStyle(.momentsPressIcon)
 
                         if let discoverWeather {
                             Button {
-                                withAnimation(.easeInOut(duration: 0.3)) {
+                                MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.toggle) {
                                     weatherEffectsEnabled.toggle()
                                 }
                             } label: {
@@ -350,6 +353,7 @@ struct DiscoverMapView: View {
                                     }
                                 }
                             }
+                            .buttonStyle(.momentsPressSubtle)
                         }
                     }
                     .padding(.leading, 12)

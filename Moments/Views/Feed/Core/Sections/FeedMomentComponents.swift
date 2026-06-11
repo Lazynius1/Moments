@@ -49,7 +49,10 @@ struct ModernStoryButton: View {
             }
         }
         .scaleEffect(uploadProgressManager.isUploading ? 0.95 : 1.0)
-        .animation(.spring(response: 0.2, dampingFraction: 0.8), value: uploadProgressManager.isUploading)
+        .animation(
+            MotionPolicy.animation(MotionPolicy.Spring.press, value: uploadProgressManager.isUploading),
+            value: uploadProgressManager.isUploading
+        )
     }
 }
 
@@ -79,7 +82,8 @@ struct ModernNotificationButton: View {
                                         Color.black.opacity(0.8)))
             }
         }
-        .animation(.spring(response: 0.3, dampingFraction: 0.8), value: hasNotification)
+        .buttonStyle(.momentsPressIcon)
+        .animation(MotionPolicy.animation(MotionPolicy.Spring.row, value: hasNotification), value: hasNotification)
     }
 }
 
@@ -113,10 +117,11 @@ struct ModernMessageButton: View {
                     }
                     .offset(x: 10, y: -10)
                     .scaleEffect(hasMessage ? 1.0 : 0.1)
-                    .animation(.spring(response: 0.3, dampingFraction: 0.6), value: hasMessage)
+                    .animation(MotionPolicy.animation(MotionPolicy.Spring.row, value: hasMessage), value: hasMessage)
                 }
             }
         }
+        .buttonStyle(.momentsPressIcon)
     }
 }
 
@@ -397,38 +402,14 @@ struct ModernPostCardView: View {
                     .onChange(of: availableHeight) { _, _ in
                         refreshCardHeight()
                     }
-                    // ✅ NUEVO: Gesto para Modo Inmersivo
-                    .simultaneousGesture(
-                        LongPressGesture(minimumDuration: 0.1)
-                            .sequenced(before: DragGesture(minimumDistance: 0, coordinateSpace: .local))
-                            .onEnded { value in
-                                // No hacemos nada en onEnded si queremos que sea momentáneo al soltar
-                            }
+                    .carouselImmersivePeekGesture(
+                        isImmersive: $isImmersive,
+                        mediaItems: mediaItems,
+                        currentImageIndex: currentImageIndex,
+                        detectedAspectRatio: detectedAspectRatio,
+                        realAspectRatio: realAspectRatio,
+                        onPeek: onPeek
                     )
-                    .onLongPressGesture(minimumDuration: .infinity, pressing: { isPressing in
-                        let currentItem = mediaItems.indices.contains(currentImageIndex) ? mediaItems[currentImageIndex] : mediaItems.first
-                        let shouldUseFullscreenPeek = mediaItems.count > 1 &&
-                            currentItem?.type == .image &&
-                            currentItem?.isHiddenByModeration != true
-
-                        withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
-                            self.isImmersive = isPressing
-                            if isPressing {
-                                HapticManager.shared.mediumImpact()
-                                // ✅ PEEK: Comunicar imagen al FeedView para overlay
-                                if let item = currentItem, item.type == .image, !item.isHiddenByModeration {
-                                    let currentItemRatio = item.resolvedAspectRatioValue ?? realAspectRatio
-                                    if currentItemRatio > 0,
-                                       currentItemRatio.isFinite,
-                                       (shouldUseFullscreenPeek || abs(currentItemRatio - detectedAspectRatio) > 0.035) {
-                                        onPeek?(item.url, currentItemRatio, true)
-                                    }
-                                }
-                            } else {
-                                onPeek?("", 1.0, false)
-                            }
-                        }
-                    }, perform: {})
 
                     if moment.hasHiddenLayers,
                        moment.hiddenLayerCount > 0,
@@ -443,15 +424,11 @@ struct ModernPostCardView: View {
 
                     if mediaItems.count > 1 {
                         VStack {
-                            HStack(spacing: 8) {
-                                ForEach(0..<mediaItems.count, id: \.self) { index in
-                                    Capsule()
-                                        .fill(currentImageIndex == index ? getIndicatorColor(for: index) : Color.white.opacity(0.3))
-                                        .frame(width: currentImageIndex == index ? 30 : 10, height: 6)
-                                        .animation(.easeInOut(duration: 0.3), value: currentImageIndex)
-                                }
-                            }
-                            .padding(.top, 20) // ✅ Más arriba para mejor visibilidad
+                            MomentCarouselPageIndicators(
+                                count: mediaItems.count,
+                                currentIndex: currentImageIndex
+                            )
+                            .padding(.top, 20)
                             Spacer()
                         }
                         .opacity(isImmersive ? 0 : 1)
@@ -539,7 +516,7 @@ struct ModernPostCardView: View {
             .opacity(isImmersive ? 0 : 1)
             .animation(.easeInOut(duration: 0.3), value: isImmersive)
         }
-        .feedMomentVisibility(momentId: moment.id ?? "\(moment.authorId)_\(moment.timestamp.timeIntervalSince1970)")
+        .feedMomentVisibility(momentId: GlobalVideoManager.profileVideoConsumerId(for: moment))
         .onAppear {
             if !hasLoadedInitialData {
                 loadAllPostData()
@@ -741,22 +718,6 @@ struct ModernPostCardView: View {
             self.storyAudiences = snapshot.storyAudiences
             self.isLoadingStory = false
         }
-    }
-
-    // ✅ NUEVO: Función para colores de indicadores multicolores
-    private func getIndicatorColor(for index: Int) -> Color {
-        let colors: [Color] = [
-            Color(hex: "#5b2c6f"), // Púrpura
-            Color(hex: "#007bff"), // Azul
-            Color(hex: "#40dfcf"), // Turquesa
-            Color(hex: "#ff6b6b"), // Rojo coral
-            Color(hex: "#4ecdc4"), // Verde azulado
-            Color(hex: "#45b7d1"), // Azul claro
-            Color(hex: "#96ceb4"), // Verde menta
-            Color(hex: "#feca57")  // Amarillo
-        ]
-
-        return colors[index % colors.count]
     }
 
     // ✅ MEJORADO: Función detectAspectRatio - SIEMPRE usar el aspect ratio guardado si está disponible
@@ -1086,7 +1047,7 @@ struct ModernPostCardView: View {
 }
 // ✅ COMPONENTES AUXILIARES (reusables)
 
-// Enhanced Carousel View — render lazy (±1 slide)
+// Enhanced Carousel View — ScrollView paging (estilo Instagram, sin lazy-swap ni TabView)
 struct EnhancedCarouselView: View {
     let mediaItems: [MediaItem]
     @Binding var currentIndex: Int
@@ -1094,35 +1055,68 @@ struct EnhancedCarouselView: View {
     let aspectRatio: CGFloat
     let currentMoment: Moment
     var onTagTap: ((String) -> Void)? = nil
+    var reelsVideos: [VideoMoment]? = nil
+    var allowsVideoPlayback: Bool = true
     @Binding var isImmersive: Bool
+
+    @State private var scrollPosition: Int?
+
+    private var isCarousel: Bool { mediaItems.count > 1 }
 
     var body: some View {
         GeometryReader { geometry in
-            TabView(selection: $currentIndex) {
-                ForEach(Array(mediaItems.enumerated()), id: \.element.id) { index, item in
-                    Group {
-                        if abs(index - currentIndex) <= 1 {
+            let pageWidth = geometry.size.width
+            let pageHeight = geometry.size.height
+
+            if isCarousel {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    LazyHStack(spacing: 0) {
+                        ForEach(Array(mediaItems.enumerated()), id: \.element.id) { index, item in
                             MediaItemView(
                                 item: item,
                                 aspectRatio: aspectRatio,
-                                prefersUnifiedCarouselFrame: mediaItems.count > 1,
+                                prefersUnifiedCarouselFrame: true,
                                 currentMoment: currentMoment,
                                 showTags: $showTags,
                                 onTagTap: onTagTap,
+                                reelsVideos: reelsVideos,
+                                allowsVideoPlayback: allowsVideoPlayback,
                                 isImmersive: $isImmersive
                             )
-                        } else {
-                            RoundedRectangle(cornerRadius: 20)
-                                .fill(.ultraThinMaterial)
+                            .frame(width: pageWidth, height: pageHeight)
+                            .id(index)
                         }
                     }
-                    .tag(index)
-                    .frame(width: geometry.size.width)
-                    .clipped()
+                    .scrollTargetLayout()
                 }
+                .scrollTargetBehavior(.paging)
+                .scrollPosition(id: $scrollPosition)
+                .scrollClipDisabled(false)
+                .onAppear {
+                    scrollPosition = currentIndex
+                }
+                .onChange(of: currentIndex) { _, newValue in
+                    guard scrollPosition != newValue else { return }
+                    scrollPosition = newValue
+                }
+                .onChange(of: scrollPosition) { _, newValue in
+                    guard let newValue, newValue != currentIndex else { return }
+                    currentIndex = newValue
+                }
+            } else if let item = mediaItems.first {
+                MediaItemView(
+                    item: item,
+                    aspectRatio: aspectRatio,
+                    prefersUnifiedCarouselFrame: false,
+                    currentMoment: currentMoment,
+                    showTags: $showTags,
+                    onTagTap: onTagTap,
+                    reelsVideos: reelsVideos,
+                    allowsVideoPlayback: allowsVideoPlayback,
+                    isImmersive: $isImmersive
+                )
+                .frame(width: pageWidth, height: pageHeight)
             }
-            .tabViewStyle(PageTabViewStyle(indexDisplayMode: .never))
-            .animation(MotionPolicy.animation(.easeInOut(duration: 0.4), value: currentIndex), value: currentIndex)
         }
     }
 }
@@ -1134,6 +1128,8 @@ struct MediaItemView: View {
     let currentMoment: Moment
     @Binding var showTags: Bool
     var onTagTap: ((String) -> Void)? = nil
+    var reelsVideos: [VideoMoment]? = nil
+    var allowsVideoPlayback: Bool = true
     @Binding var isImmersive: Bool
 
     @State private var showReelsViewer = false
@@ -1162,9 +1158,10 @@ struct MediaItemView: View {
     var body: some View {
         GeometryReader { geometry in
             ZStack { // ✅ CAMBIADO: ZStack para que el overlay esté ENCIMA
-                // ✅ SKELETON: Reserva el espacio exacto del ratio con cristal
-                RoundedRectangle(cornerRadius: 20)
-                    .fill(.ultraThinMaterial)
+                if !prefersUnifiedCarouselFrame {
+                    RoundedRectangle(cornerRadius: 20)
+                        .fill(.ultraThinMaterial)
+                }
 
                 if item.isHiddenByModeration {
                     ModeratedMediaItemView(item: item)
@@ -1230,6 +1227,7 @@ struct MediaItemView: View {
                         aspectRatio: aspectRatio,
                         prefersUnifiedCarouselFrame: prefersUnifiedCarouselFrame,
                         currentMoment: currentMoment,
+                        allowsVideoPlayback: allowsVideoPlayback,
                         onTap: {
                             if let tags = item.tags, !tags.isEmpty {
                                 withAnimation(.spring()) {
@@ -1251,25 +1249,43 @@ struct MediaItemView: View {
             }
         }
         .clipped()
-        .opacity(isVisible ? 1.0 : 0.8)
-        .scaleEffect(isVisible ? 1.0 : 0.98)
-        .animation(.easeInOut(duration: 0.4), value: isVisible)
+        .opacity(prefersUnifiedCarouselFrame ? 1.0 : (isVisible ? 1.0 : 0.8))
+        .scaleEffect(prefersUnifiedCarouselFrame ? 1.0 : (isVisible ? 1.0 : 0.98))
+        .animation(prefersUnifiedCarouselFrame ? nil : .easeInOut(duration: 0.4), value: isVisible)
         .onAppear {
-            withAnimation(.easeInOut(duration: 0.4)) {
+            if prefersUnifiedCarouselFrame {
                 isVisible = true
+            } else {
+                withAnimation(.easeInOut(duration: 0.4)) {
+                    isVisible = true
+                }
             }
         }
         .onDisappear {
-            isVisible = false
+            if !prefersUnifiedCarouselFrame {
+                isVisible = false
+            }
         }
         .fullScreenCover(isPresented: $showReelsViewer) {
             ReelsViewer(
-                videos: videoIndex.videoMoments,
-                startIndex: videoIndex.reelsStartIndex(for: currentMoment.id),
+                videos: resolvedReelsVideos,
+                startIndex: resolvedReelsStartIndex,
                 initialStartSeconds: currentPlaybackStartSeconds
             )
             .environmentObject(FirestoreService.shared)
         }
+    }
+
+    private var resolvedReelsVideos: [VideoMoment] {
+        reelsVideos ?? videoIndex.videoMoments
+    }
+
+    private var resolvedReelsStartIndex: Int {
+        guard let momentId = currentMoment.id else { return 0 }
+        if let reelsVideos {
+            return reelsVideos.firstIndex { $0.moment.id == momentId } ?? 0
+        }
+        return videoIndex.reelsStartIndex(for: momentId)
     }
 
     private func openReelsViewer() {
@@ -1277,8 +1293,9 @@ struct MediaItemView: View {
     }
 
     private var currentPlaybackStartSeconds: Double {
-        guard let momentId = currentMoment.id else { return 0 }
-        return GlobalVideoManager.shared.playbackPosition(forMomentId: momentId)
+        GlobalVideoManager.shared.playbackPosition(
+            forMomentId: GlobalVideoManager.profileVideoConsumerId(for: currentMoment)
+        )
     }
 }
 
@@ -1389,10 +1406,37 @@ struct CroppedVideoPlayer: View {
     let aspectRatio: CGFloat
     let prefersUnifiedCarouselFrame: Bool
     let currentMoment: Moment
+    var allowsVideoPlayback: Bool = true
     let onTap: () -> Void
     @Binding var isImmersive: Bool // ✅ NUEVO
 
+    @Environment(\.profileDetailDirectVideoPlayback) private var profileDetailDirectVideoPlayback
     @State private var isVisible = false
+    @ObservedObject private var globalManager = GlobalVideoManager.shared
+
+    private var videoConsumerId: String {
+        GlobalVideoManager.profileVideoConsumerId(for: currentMoment)
+    }
+
+    private var detailVideoActivationMode: VideoPlaybackActivationMode {
+        profileDetailDirectVideoPlayback ? .alwaysWhenVisible : .feedVisibility
+    }
+
+    /// Botón de silencio/volumen — se oculta cuando isImmersive (ReelsViewer abierto).
+    private var muteToggleButton: some View {
+        Button {
+            globalManager.toggleMute(videoConsumerId)
+        } label: {
+            // userHasEnabledSoundInSession es @Published → el botón se actualiza reactivamente.
+            let isMuted = !globalManager.userHasEnabledSoundInSession
+            Image(systemName: isMuted ? "speaker.slash.fill" : "speaker.wave.2.fill")
+                .font(.system(size: 15, weight: .semibold))
+                .foregroundColor(.white)
+                .padding(10)
+                .background(.black.opacity(0.48), in: Circle())
+        }
+        .buttonStyle(PlainButtonStyle())
+    }
 
     private var resolvedItemAspectRatio: CGFloat {
         guard let ratio = item.resolvedAspectRatioValue, ratio.isFinite, ratio > 0 else {
@@ -1409,19 +1453,41 @@ struct CroppedVideoPlayer: View {
         ) == .fitWithBlur
     }
 
+    @ViewBuilder
+    private var videoPosterFallback: some View {
+        if let posterURLString = currentMoment.videoPosterURLString(for: item),
+           let url = URL(string: posterURLString) {
+            KFImage(url)
+                .resizable()
+                .scaledToFill()
+        } else if let thumbnailUrl = item.thumbnailUrl,
+                  !thumbnailUrl.isEmpty,
+                  let url = URL(string: thumbnailUrl) {
+            KFImage(url)
+                .resizable()
+                .scaledToFill()
+        } else {
+            Color.black.opacity(0.12)
+        }
+    }
+
     var body: some View {
         ZStack {
-            if usesBlurredFitLayout {
+            if !allowsVideoPlayback {
+                videoPosterFallback
+            } else if usesBlurredFitLayout {
                 CarouselMediaBackdropView(item: item)
 
                 ModernVideoPlayer(
                     url: item.url,
                     aspectRatio: resolvedItemAspectRatio,
-                    videoId: currentMoment.id ?? "video_\(UUID().uuidString)",
+                    videoId: GlobalVideoManager.profileVideoConsumerId(for: currentMoment),
                     chromeStyle: .socialReels,
                     posterURLString: currentMoment.videoPosterURLString(for: item),
                     mediaItem: item,
-                    moment: currentMoment
+                    moment: currentMoment,
+                    activationMode: detailVideoActivationMode,
+                    consumesDetailHandoff: profileDetailDirectVideoPlayback
                 )
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .padding(.vertical, 10)
@@ -1430,21 +1496,13 @@ struct CroppedVideoPlayer: View {
                 VStack {
                     HStack {
                         Spacer()
-
-                        if let duration = item.videoDuration ?? currentMoment.videoDuration {
-                            Text(formatDuration(duration))
-                                .font(.caption2)
-                                .fontWeight(.semibold)
-                                .foregroundColor(.white)
-                                .padding(.horizontal, 6)
-                                .padding(.vertical, 3)
-                                .background(Color(hex: "0B1215").opacity(0.6))
-                                .cornerRadius(6)
-                                .padding(.trailing, 8)
-                                .padding(.top, 8)
-                        }
+                        LiveVideoTimeLabel(
+                            consumerId: videoConsumerId,
+                            totalDuration: item.videoDuration ?? currentMoment.videoDuration
+                        )
+                        .padding(.trailing, 8)
+                        .padding(.top, 8)
                     }
-
                     Spacer()
                 }
                 .opacity(isImmersive ? 0 : 1)
@@ -1455,12 +1513,14 @@ struct CroppedVideoPlayer: View {
                     ModernVideoPlayer(
                         url: item.url,
                         aspectRatio: aspectRatio,
-                        videoId: currentMoment.id ?? "video_\(UUID().uuidString)",
+                        videoId: GlobalVideoManager.profileVideoConsumerId(for: currentMoment),
                         chromeStyle: .socialReels,
                         allowsPauseInteraction: false,
                         posterURLString: currentMoment.videoPosterURLString(for: item),
                         mediaItem: item,
-                        moment: currentMoment
+                        moment: currentMoment,
+                        activationMode: detailVideoActivationMode,
+                        consumesDetailHandoff: profileDetailDirectVideoPlayback
                     )
 
                     // ✅ OVERLAY con gradiente sutil nativo
@@ -1515,47 +1575,18 @@ struct CroppedVideoPlayer: View {
 
                             Spacer()
 
-                            // Duración del video (esquina superior derecha)
-                            if let duration = item.videoDuration ?? currentMoment.videoDuration {
-                                Text(formatDuration(duration))
-                                    .font(.caption2)
-                                    .fontWeight(.semibold)
-                                    .foregroundColor(.white)
-                                    .padding(.horizontal, 6)
-                                    .padding(.vertical, 3)
-                                    .background(Color(hex: "0B1215").opacity(0.6))
-                                    .cornerRadius(6)
-                                    .padding(.trailing, 12)
-                                    .padding(.top, 12)
-                            }
+                            // Tiempo en vivo — se oculta al abrir el ReelsViewer
+                            LiveVideoTimeLabel(
+                                consumerId: videoConsumerId,
+                                totalDuration: item.videoDuration ?? currentMoment.videoDuration
+                            )
+                            .padding(.trailing, 12)
+                            .padding(.top, 12)
                         }
 
                         Spacer()
-
-                        // ✅ Indicador de expansión mejorado (centro abajo)
-                        HStack {
-                            Spacer()
-
-                            HStack(spacing: 4) {
-                                Text(NSLocalizedString("feed.reels.tapToView", comment: "Tap to view reels"))
-                                    .font(.caption)
-                                    .fontWeight(.medium)
-                                Image(systemName: "arrow.up.right.square.fill")
-                                    .font(.system(size: 12, weight: .medium))
-                            }
-                            .foregroundColor(.white.opacity(0.9))
-                            .padding(.horizontal, 10)
-                            .padding(.vertical, 6)
-                            .background(
-                                Capsule()
-                                    .fill(Color(hex: "0B1215").opacity(0.5))
-                            )
-
-                            Spacer()
-                        }
-                        .padding(.bottom, 12)
                     }
-                    .zIndex(100) // ✅ Asegurar que todos los controles estén por encima del overlay
+                    .zIndex(100)
                     .opacity(isImmersive ? 0 : 1)
                     .animation(.easeInOut(duration: 0.3), value: isImmersive)
                 }
@@ -1565,37 +1596,31 @@ struct CroppedVideoPlayer: View {
                     ModernVideoPlayer(
                         url: item.url,
                         aspectRatio: feedDisplayRatio,
-                        videoId: currentMoment.id ?? "video_\(UUID().uuidString)",
+                        videoId: GlobalVideoManager.profileVideoConsumerId(for: currentMoment),
                         chromeStyle: .socialReels,
                         posterURLString: currentMoment.videoPosterURLString(for: item),
                         mediaItem: item,
-                        moment: currentMoment
+                        moment: currentMoment,
+                        activationMode: detailVideoActivationMode,
+                        consumesDetailHandoff: profileDetailDirectVideoPlayback
                     )
 
                     // ✅ INDICADORES sutiles para videos horizontales
                     VStack {
                         HStack {
                             Spacer()
-
-                            if let duration = item.videoDuration ?? currentMoment.videoDuration {
-                                Text(formatDuration(duration))
-                                    .font(.caption2)
-                                    .fontWeight(.semibold)
-                                    .foregroundColor(.white)
-                                    .padding(.horizontal, 6)
-                                    .padding(.vertical, 3)
-                                    .background(Color(hex: "0B1215").opacity(0.6))
-                                    .cornerRadius(6)
-                                    .padding(.trailing, 8)
-                                    .padding(.top, 8)
-                            }
+                            LiveVideoTimeLabel(
+                                consumerId: videoConsumerId,
+                                totalDuration: item.videoDuration ?? currentMoment.videoDuration
+                            )
+                            .padding(.trailing, 8)
+                            .padding(.top, 8)
                         }
 
                         Spacer()
 
                         HStack {
                             Spacer()
-
                             Image(systemName: "arrow.up.right.square")
                                 .font(.system(size: 14, weight: .medium))
                                 .foregroundColor(.white.opacity(0.7))
@@ -1609,6 +1634,14 @@ struct CroppedVideoPlayer: View {
                     .opacity(isImmersive ? 0 : 1)
                     .animation(.easeInOut(duration: 0.3), value: isImmersive)
                 }
+            }
+        }
+        // Botón mute siempre visible en detalle — el ReelsViewer tiene el suyo propio.
+        .overlay(alignment: .bottomLeading) {
+            if allowsVideoPlayback {
+                muteToggleButton
+                    .padding(.leading, 12)
+                    .padding(.bottom, 12)
             }
         }
         .onAppear {
@@ -1741,6 +1774,109 @@ struct ExpandableContentView: View {
         .onAppear {
             needsExpansion = content.count > maxCharacters
         }
+    }
+}
+
+// MARK: - Carrusel: peek inmersivo sin interferir con el swipe horizontal
+
+private struct CarouselImmersivePeekModifier: ViewModifier {
+    @Binding var isImmersive: Bool
+    let mediaItems: [MediaItem]
+    let currentImageIndex: Int
+    let detectedAspectRatio: CGFloat
+    let realAspectRatio: CGFloat
+    var onPeek: ((String, CGFloat, Bool) -> Void)? = nil
+
+    @State private var immersiveActivationTask: DispatchWorkItem?
+
+    func body(content: Content) -> some View {
+        content
+            .onLongPressGesture(
+                minimumDuration: .infinity,
+                maximumDistance: 12,
+                pressing: { isPressing in
+                    if isPressing {
+                        scheduleActivation()
+                    } else {
+                        cancelActivation()
+                        endImmersive()
+                    }
+                },
+                perform: {}
+            )
+            .onDisappear {
+                cancelActivation()
+                if isImmersive {
+                    endImmersive()
+                }
+            }
+    }
+
+    private func scheduleActivation() {
+        cancelActivation()
+
+        let task = DispatchWorkItem {
+            withAnimation(.spring(response: 0.36, dampingFraction: 0.82)) {
+                isImmersive = true
+                HapticManager.shared.mediumImpact()
+
+                let currentItem = mediaItems.indices.contains(currentImageIndex)
+                    ? mediaItems[currentImageIndex]
+                    : mediaItems.first
+                let shouldUseFullscreenPeek = mediaItems.count > 1 &&
+                    currentItem?.type == .image &&
+                    currentItem?.isHiddenByModeration != true
+
+                guard let item = currentItem,
+                      item.type == .image,
+                      !item.isHiddenByModeration else { return }
+
+                let currentItemRatio = item.resolvedAspectRatioValue ?? realAspectRatio
+                guard currentItemRatio > 0,
+                      currentItemRatio.isFinite,
+                      shouldUseFullscreenPeek || abs(currentItemRatio - detectedAspectRatio) > 0.035 else { return }
+
+                onPeek?(item.url, currentItemRatio, true)
+            }
+        }
+
+        immersiveActivationTask = task
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.22, execute: task)
+    }
+
+    private func cancelActivation() {
+        immersiveActivationTask?.cancel()
+        immersiveActivationTask = nil
+    }
+
+    private func endImmersive() {
+        guard isImmersive else { return }
+        withAnimation(.spring(response: 0.32, dampingFraction: 0.86)) {
+            isImmersive = false
+            onPeek?("", 1.0, false)
+        }
+    }
+}
+
+extension View {
+    func carouselImmersivePeekGesture(
+        isImmersive: Binding<Bool>,
+        mediaItems: [MediaItem],
+        currentImageIndex: Int,
+        detectedAspectRatio: CGFloat,
+        realAspectRatio: CGFloat,
+        onPeek: ((String, CGFloat, Bool) -> Void)? = nil
+    ) -> some View {
+        modifier(
+            CarouselImmersivePeekModifier(
+                isImmersive: isImmersive,
+                mediaItems: mediaItems,
+                currentImageIndex: currentImageIndex,
+                detectedAspectRatio: detectedAspectRatio,
+                realAspectRatio: realAspectRatio,
+                onPeek: onPeek
+            )
+        )
     }
 }
 

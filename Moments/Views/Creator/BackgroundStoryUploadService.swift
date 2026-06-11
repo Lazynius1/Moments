@@ -1285,8 +1285,9 @@ class BackgroundStoryUploadService: ObservableObject {
                 mediaURL: mediaUrl,
                 mediaType: uploadingStory.mediaItem.type == .video ? .video : .image,
                 userId: uploadingStory.userId,
-                contentId: storyId, // Usar storyId correctamente
-                contentType: .story  // ✅ CRUCIAL: Especificar que es una historia
+                contentId: storyId,
+                contentType: .story,
+                mediaItemId: uploadingStory.mediaItem.id
             ) { result in
                 switch result {
                 case .approved:

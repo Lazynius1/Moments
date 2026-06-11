@@ -7,196 +7,117 @@ enum ProfileMomentsGridMetrics {
     static let spacing: CGFloat = 1
     static let columns = 3
 
-    static func height(for itemCount: Int) -> CGFloat {
-        let rows = ceil(Double(itemCount) / Double(columns))
+    static func columnWidth(for availableWidth: CGFloat = UIScreen.main.bounds.width) -> CGFloat {
         let totalSpacing = spacing * CGFloat(columns - 1)
-        let itemWidth = (UIScreen.main.bounds.width - totalSpacing) / CGFloat(columns)
-        return CGFloat(rows) * itemWidth + (CGFloat(max(rows - 1, 0)) * spacing)
+        return (availableWidth - totalSpacing) / CGFloat(columns)
+    }
+
+    static func tileSize(kind: BentoTileKind, unitWidth: CGFloat, spacing: CGFloat = spacing) -> CGSize {
+        switch kind {
+        case .unit:
+            return CGSize(width: unitWidth, height: unitWidth)
+        case .tall:
+            return CGSize(width: unitWidth, height: unitWidth * 2 + spacing)
+        case .hero:
+            let side = unitWidth * 2 + spacing
+            return CGSize(width: side, height: side)
+        }
+    }
+
+    static func bentoHeight(tileKinds: [BentoTileKind], availableWidth: CGFloat = UIScreen.main.bounds.width) -> CGFloat {
+        guard !tileKinds.isEmpty else { return 0 }
+        let unitWidth = columnWidth(for: availableWidth)
+        let columnCount = columns
+        var columnHeights = Array(repeating: CGFloat(0), count: columnCount)
+
+        for kind in tileKinds {
+            let tileSize = tileSize(kind: kind, unitWidth: unitWidth)
+            let colSpan = kind.colSpan
+            var bestColumn = 0
+            var bestY = CGFloat.greatestFiniteMagnitude
+
+            for startColumn in 0...(columnCount - colSpan) {
+                let y = columnHeights[startColumn..<(startColumn + colSpan)].map { height in
+                    height > 0 ? height + spacing : 0
+                }.max() ?? 0
+                if y < bestY || (y == bestY && startColumn < bestColumn) {
+                    bestY = y
+                    bestColumn = startColumn
+                }
+            }
+
+            let newBottom = bestY + tileSize.height
+            for column in bestColumn..<(bestColumn + colSpan) {
+                columnHeights[column] = newBottom
+            }
+        }
+
+        return columnHeights.max() ?? 0
     }
 }
 
-// MARK: - Thumbnail de momento moderno (OPTIMIZADO)
 struct ModernMomentThumbnail: View {
     let moment: Moment
     let size: CGFloat
     let customListNamesById: [String: String]
-    let onTap: (() -> Void)? // ✅ MANTENER: Callback opcional
+    let onTap: (() -> Void)?
     var onLongPress: (() -> Void)? = nil
     var isInteractionEnabled: Bool = true
+    var usesDiscreetAudienceIcon: Bool = false
+    var showsAudienceBadge: Bool = true
+    var gridIndex: Int = 0
+    let descriptor: ProfileGridTileDescriptor
     @State private var isPressed = false
-
-    // ✅ NUEVOS: Estados para thumbnails de video
     @State private var videoThumbnail: UIImage?
     @State private var isLoadingVideoThumbnail = false
 
-    private struct AudienceBadgeStyle {
-        let icon: String
-        let title: String
-        let background: Color
+    private var cellWidth: CGFloat {
+        ProfileMomentsGridMetrics.tileSize(kind: descriptor.layoutKind, unitWidth: size).width
     }
 
-    private var normalizedAudience: String {
-        moment.audience?
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-            .lowercased()
-            .replacingOccurrences(of: "_", with: "")
-            .replacingOccurrences(of: "-", with: "") ?? "everyone"
+    private var cellHeight: CGFloat {
+        ProfileMomentsGridMetrics.tileSize(kind: descriptor.layoutKind, unitWidth: size).height
     }
 
-    private var audienceBadgeStyle: AudienceBadgeStyle {
-        switch normalizedAudience {
-        case "bestfriends", "bestfriend":
-            return AudienceBadgeStyle(
-                icon: "heart.fill",
-                title: NSLocalizedString("audience.type.bestFriends", comment: "Best friends audience type"),
-                background: Color(hex: "24C26A").opacity(0.92)
-            )
-        case "connections", "connection", "mutuals", "mutual":
-            return AudienceBadgeStyle(
-                icon: "person.2.fill",
-                title: NSLocalizedString("audience.type.connections", comment: "Connections audience type"),
-                background: Color(hex: "00B4D8").opacity(0.92)
-            )
-        case "customlist":
-            let listName = moment.customListId.flatMap { customListNamesById[$0] }
-            let resolvedName = (listName?.isEmpty == false)
-                ? (listName ?? "")
-                : NSLocalizedString("audience.type.customList", comment: "Custom list audience type")
-            return AudienceBadgeStyle(
-                icon: "list.bullet.rectangle",
-                title: resolvedName,
-                background: Color(hex: "A855F7").opacity(0.92)
-            )
-        case "custom":
-            return AudienceBadgeStyle(
-                icon: "person.crop.circle.badge.plus",
-                title: NSLocalizedString("audience.type.custom", comment: "Custom audience type"),
-                background: Color(hex: "F59E0B").opacity(0.92)
-            )
-        case "onlyme":
-            return AudienceBadgeStyle(
-                icon: "lock.fill",
-                title: NSLocalizedString("audience.type.onlyMe", comment: "Only me audience type"),
-                background: Color.black.opacity(0.78)
-            )
-        default:
-            return AudienceBadgeStyle(
-                icon: "globe",
-                title: NSLocalizedString("audience.type.everyone", comment: "Everyone audience type"),
-                background: Color(hex: "0EA5A3").opacity(0.9)
-            )
-        }
+    init(
+        moment: Moment,
+        size: CGFloat,
+        customListNamesById: [String: String] = [:],
+        onTap: (() -> Void)? = nil,
+        onLongPress: (() -> Void)? = nil,
+        isInteractionEnabled: Bool = true,
+        usesDiscreetAudienceIcon: Bool = false,
+        showsAudienceBadge: Bool = true,
+        gridIndex: Int = 0,
+        descriptor: ProfileGridTileDescriptor? = nil
+    ) {
+        self.moment = moment
+        self.size = size
+        self.customListNamesById = customListNamesById
+        self.onTap = onTap
+        self.onLongPress = onLongPress
+        self.isInteractionEnabled = isInteractionEnabled
+        self.usesDiscreetAudienceIcon = usesDiscreetAudienceIcon
+        self.showsAudienceBadge = showsAudienceBadge
+        self.gridIndex = gridIndex
+        self.descriptor = descriptor ?? ProfileGridTileDescriptor.standard(for: moment)
     }
 
     var body: some View {
-        ZStack(alignment: .bottomTrailing) {
-                // ✅ NUEVO: Lógica actualizada para manejar videos y imágenes
-                if let mediaItem = moment.primaryVisibleMediaItem, !mediaItem.url.isEmpty {
-                    // Es un momento nuevo con mediaItems
-                    if mediaItem.type == .video {
-                        // ✅ NUEVO: Priorizar thumbnailUrl si existe
-                        if let thumbnailUrl = mediaItem.thumbnailUrl, !thumbnailUrl.isEmpty {
-                            imageView(imageURL: thumbnailUrl)
-                        } else {
-                            // Si no hay thumbnail URL (legacy), generar uno
-                            videoThumbnailView(videoURL: mediaItem.url)
-                        }
-                    } else {
-                        // ✅ NUEVO: Mostrar imagen desde mediaItems
-                        imageView(imageURL: mediaItem.url)
-                    }
-                } else if let imagePath = moment.imagePath, let url = getImageURL(from: imagePath) {
-                    // ✅ MANTENER: Fallback para momentos legacy con imagePath
-                    GridPreviewThumbnailFrame(size: size, settings: moment.gridPreviewSettings) {
-                        KFImage(url)
-                            .placeholder {
-                                Rectangle()
-                                    .fill(.ultraThinMaterial)
-                                    .overlay(
-                                        Image(systemName: "photo")
-                                            .font(.system(size: 20))
-                                            .foregroundColor(.gray.opacity(0.6))
-                                    )
-                                    .overlay(ProgressView().tint(Color(hex: "007AFF")))
-                            }
-                            .resizable()
-                    }
-                    .contentShape(Rectangle())
-                    .overlay(borderOverlay())
-                } else {
-                    // ✅ MANTENER: Placeholder para sin contenido
-                    emptyContentView()
-                }
-
-                // ✅ NUEVO: Badge de audiencia en esquina superior izquierda
-                VStack {
-                    HStack {
-                        VStack(alignment: .leading, spacing: 4) {
-                            audienceBadgeView
-
-                            // Indicador de publicación programada (solo autor)
-                            if moment.isScheduled && moment.authorId == Auth.auth().currentUser?.uid {
-                                scheduledBadgeView
-                            }
-                        }
-                        Spacer()
-                    }
-                    Spacer()
-                }
-
-                // ✅ NUEVO: Indicador de video
-                if let mediaItem = moment.primaryVisibleMediaItem, mediaItem.type == .video {
-                    VStack {
-                        HStack {
-                            Spacer()
-                            if moment.isPinned == true {
-                                pinnedBadgeView
-                                    .padding(6)
-                            }
-                        }
-                        Spacer()
-                        HStack {
-                            Image(systemName: "play.circle.fill")
-                                .font(.system(size: 18))
-                                .foregroundColor(.white)
-                                .background(Color.black.opacity(0.6))
-                                .clipShape(Circle())
-                                .padding(6)
-                            Spacer()
-                        }
-                    }
-                } else if moment.isPinned == true {
-                    VStack {
-                        HStack {
-                            Spacer()
-                            pinnedBadgeView
-                                .padding(6)
-                        }
-                        Spacer()
-                    }
-                }
-
-                // ✅ MANTENER: Contador de likes
-                // ✅ NUEVO: El autor siempre ve el contador, los demás solo si no está oculto
-                if let likeCount = moment.reactions["heart"]?.count, likeCount > 0,
-                   (moment.authorId == Auth.auth().currentUser?.uid || !moment.hideLikeCounts) {
-                    HStack(spacing: 3) {
-                        Image(systemName: "heart.fill")
-                            .foregroundColor(.red)
-                            .font(.system(size: 9))
-                        Text("\(likeCount)")
-                            .font(.custom("Poppins-Medium", size: 9))
-                            .foregroundColor(.white)
-                    }
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 3)
-                    .background(.ultraThinMaterial)
-                    .clipShape(Capsule())
-                    .padding(4)
-                }
-            }
+        ZStack(alignment: .bottomLeading) {
+            mediaBody
+            cinematicOverlay
+            topChrome
+            bottomChrome
+        }
+        .frame(width: cellWidth, height: cellHeight)
+        .clipped()
         .scaleEffect(isPressed ? 0.97 : 1.0)
         .animation(.easeInOut(duration: 0.12), value: isPressed)
+        .profileGridThumbnailFrameReporter(
+            momentId: moment.id ?? "profile-grid-\(gridIndex)",
+            coordinateSpace: .named("profileGridOverlay")
+        )
         .overlay {
             if isInteractionEnabled, onTap != nil || onLongPress != nil {
                 ProfileMomentThumbnailGestureOverlay(
@@ -208,69 +129,195 @@ struct ModernMomentThumbnail: View {
         }
     }
 
-    @ViewBuilder
-    private var audienceBadgeView: some View {
-        let style = audienceBadgeStyle
-        HStack(spacing: 4) {
-            Image(systemName: style.icon)
-                .font(.system(size: 8, weight: .bold))
-                .foregroundColor(.white)
-            Text(style.title)
-                .font(.custom("Poppins-SemiBold", size: 8))
-                .foregroundColor(.white)
-                .lineLimit(1)
-                .truncationMode(.tail)
+    private var resolvedContentAudience: ContentAudience {
+        let audience = ContentAudience.fromAudienceValue(moment.audience)
+        if moment.customListId != nil, audience == .custom {
+            return .customList
         }
-        .padding(.horizontal, 6)
-        .padding(.vertical, 3)
-        .background(style.background)
-        .clipShape(Capsule())
-        .padding(6)
+        return audience
+    }
+
+    @ViewBuilder
+    private var mediaBody: some View {
+        if descriptor.usesPortraitCrop {
+            portraitMedia
+        } else if let mediaItem = moment.primaryVisibleMediaItem, !mediaItem.url.isEmpty {
+            if mediaItem.type == .video {
+                if let thumbnailUrl = mediaItem.thumbnailUrl, !thumbnailUrl.isEmpty {
+                    imageView(imageURL: thumbnailUrl)
+                } else {
+                    videoThumbnailView(videoURL: mediaItem.url)
+                }
+            } else {
+                imageView(imageURL: mediaItem.url)
+            }
+        } else if let imagePath = moment.imagePath, let url = getImageURL(from: imagePath) {
+            GridPreviewThumbnailFrame(size: size, settings: moment.gridPreviewSettings) {
+                KFImage(url)
+                    .placeholder {
+                        Rectangle()
+                            .fill(.ultraThinMaterial)
+                            .overlay(
+                                Image(systemName: "photo")
+                                    .font(.system(size: 20))
+                                    .foregroundColor(.gray.opacity(0.6))
+                            )
+                            .overlay(ProgressView().tint(Color(hex: "007AFF")))
+                    }
+                    .resizable()
+            }
+            .contentShape(Rectangle())
+        } else {
+            emptyContentView()
+        }
+    }
+
+    @ViewBuilder
+    private var topChrome: some View {
+        VStack {
+            HStack {
+                if moment.isCarouselMoment {
+                    MomentCarouselIndicatorIcon()
+                        .padding(6)
+                }
+                if showsAudienceBadge && usesDiscreetAudienceIcon {
+                    ActivityGridAudienceIcon(audience: resolvedContentAudience)
+                        .padding(6)
+                        .accessibilityLabel(resolvedContentAudience.title)
+                }
+                if descriptor.showsScheduledCue && moment.authorId == Auth.auth().currentUser?.uid {
+                    scheduledBadgeView
+                        .padding(6)
+                }
+                Spacer()
+                if descriptor.showsPin {
+                    pinnedBadgeView
+                        .padding(6)
+                }
+            }
+            Spacer()
+        }
+    }
+
+    @ViewBuilder
+    private var bottomChrome: some View {
+        if descriptor.showsPlayCue {
+            HStack(spacing: 6) {
+                Image(systemName: "play.fill")
+                    .font(.system(size: 8, weight: .bold))
+                    .foregroundColor(.white)
+
+                if descriptor.showsDuration, let duration = moment.videoDuration {
+                    Text(Self.formatVideoDuration(duration))
+                        .font(.custom("Poppins-SemiBold", size: 8))
+                        .foregroundColor(.white)
+                }
+            }
+            .padding(.horizontal, 8)
+            .padding(.vertical, 6)
+            .background(Color.black.opacity(0.34))
+            .clipShape(Capsule())
+            .padding(6)
+        }
+    }
+
+    @ViewBuilder
+    private var portraitMedia: some View {
+        if let mediaItem = moment.primaryVisibleMediaItem, !mediaItem.url.isEmpty {
+            if mediaItem.type == .image {
+                portraitFillImage(urlString: mediaItem.url)
+            } else if let thumbnailUrl = mediaItem.thumbnailUrl, !thumbnailUrl.isEmpty {
+                portraitFillImage(urlString: thumbnailUrl)
+            } else {
+                videoThumbnailView(videoURL: mediaItem.url)
+            }
+        } else if let imagePath = moment.previewImageURLString, !imagePath.isEmpty {
+            portraitFillImage(urlString: imagePath)
+        } else if let video = moment.previewVideoURLString, !video.isEmpty {
+            videoThumbnailView(videoURL: video)
+        } else {
+            emptyContentView()
+        }
+    }
+
+    @ViewBuilder
+    private func portraitFillImage(urlString: String) -> some View {
+        if let url = getImageURL(from: urlString) {
+            KFImage(url)
+                .placeholder {
+                    Rectangle().fill(.ultraThinMaterial)
+                }
+                .resizable()
+                .scaledToFill()
+                .frame(width: cellWidth, height: cellHeight)
+                .clipped()
+        } else {
+            emptyContentView()
+        }
     }
 
     @ViewBuilder
     private var scheduledBadgeView: some View {
         HStack(spacing: 4) {
             Image(systemName: "clock.fill")
-                .font(.system(size: 8, weight: .bold))
+                .font(.system(size: 7, weight: .bold))
             Text(moment.scheduledRemainingText)
-                .font(.custom("Poppins-Bold", size: 8))
+                .font(.custom("Poppins-SemiBold", size: 8))
                 .lineLimit(1)
-                .truncationMode(.tail)
         }
         .foregroundColor(.white)
-        .padding(.horizontal, 6)
-        .padding(.vertical, 3)
-        .background(Color.black.opacity(0.72))
+        .padding(.horizontal, 7)
+        .padding(.vertical, 4)
+        .background(Color.black.opacity(0.52))
         .clipShape(Capsule())
-        .padding(.horizontal, 6)
     }
 
     @ViewBuilder
     private var pinnedBadgeView: some View {
         Image(systemName: "pin.fill")
-            .font(.system(size: 10, weight: .bold))
+            .font(.system(size: 9, weight: .bold))
             .foregroundColor(.white)
-            .padding(6)
-            .background(Color.black.opacity(0.68))
+            .padding(5)
+            .background(Color.black.opacity(0.56))
             .clipShape(Circle())
     }
 
-    // ✅ NUEVA: Vista para thumbnails de video
+    @ViewBuilder
+    private var cinematicOverlay: some View {
+        if descriptor.showsPlayCue || descriptor.showsPin || descriptor.showsScheduledCue {
+            LinearGradient(
+                colors: [
+                    Color.black.opacity(0.12),
+                    Color.clear,
+                    Color.black.opacity(descriptor.usesPortraitCrop ? 0.34 : 0.18)
+                ],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+        }
+    }
+
     @ViewBuilder
     private func videoThumbnailView(videoURL: String) -> some View {
         ZStack {
             if let thumbnail = videoThumbnail {
-                GridPreviewThumbnailFrame(size: size, settings: moment.gridPreviewSettings) {
+                if descriptor.usesPortraitCrop {
                     Image(uiImage: thumbnail)
                         .resizable()
+                        .scaledToFill()
+                        .frame(width: cellWidth, height: cellHeight)
+                        .clipped()
+                } else {
+                    GridPreviewThumbnailFrame(size: size, settings: moment.gridPreviewSettings) {
+                        Image(uiImage: thumbnail)
+                            .resizable()
+                    }
+                    .contentShape(Rectangle())
                 }
-                .contentShape(Rectangle())
-                .overlay(borderOverlay())
             } else {
                 Rectangle()
                     .fill(.ultraThinMaterial)
-                    .frame(width: size, height: size)
+                    .frame(width: cellWidth, height: cellHeight)
                     .overlay(
                         Group {
                             if isLoadingVideoThumbnail {
@@ -294,7 +341,6 @@ struct ModernMomentThumbnail: View {
                             }
                         }
                     )
-                    .overlay(borderOverlay())
             }
         }
         .onAppear {
@@ -302,7 +348,6 @@ struct ModernMomentThumbnail: View {
         }
     }
 
-    // ✅ NUEVA: Vista para imágenes desde mediaItems
     @ViewBuilder
     private func imageView(imageURL: String) -> some View {
         if let url = getImageURL(from: imageURL) {
@@ -325,18 +370,16 @@ struct ModernMomentThumbnail: View {
                     .resizable()
             }
             .contentShape(Rectangle())
-            .overlay(borderOverlay())
         } else {
             emptyContentView()
         }
     }
 
-    // ✅ NUEVA: Vista para contenido vacío
     @ViewBuilder
     private func emptyContentView() -> some View {
         Rectangle()
             .fill(.ultraThinMaterial)
-            .frame(width: size, height: size)
+            .frame(width: cellWidth, height: cellHeight)
             .overlay(
                 VStack(spacing: 6) {
                     Image(systemName: "text.bubble")
@@ -351,20 +394,10 @@ struct ModernMomentThumbnail: View {
                         .padding(.horizontal, 3)
                 }
             )
-            .overlay(borderOverlay())
     }
 
-    // ✅ NUEVA: Overlay de borde reutilizable
-    @ViewBuilder
-    private func borderOverlay() -> some View {
-        EmptyView()
-    }
-
-    // ✅ NUEVA: Función para cargar thumbnail de video
     private func loadVideoThumbnail(from urlString: String) {
-        guard let url = URL(string: urlString) else {
-            return
-        }
+        guard let url = URL(string: urlString) else { return }
 
         isLoadingVideoThumbnail = true
 
@@ -372,14 +405,12 @@ struct ModernMomentThumbnail: View {
             let asset = AVURLAsset(url: url)
             let imageGenerator = AVAssetImageGenerator(asset: asset)
             imageGenerator.appliesPreferredTrackTransform = true
-            imageGenerator.maximumSize = CGSize(width: size * 2, height: size * 2) // Retina
+            imageGenerator.maximumSize = CGSize(width: size * 2, height: size * 2)
 
             do {
                 let (cgImage, _) = try await imageGenerator.image(at: CMTime(seconds: 1, preferredTimescale: 600))
-                let uiImage = UIImage(cgImage: cgImage)
-
                 await MainActor.run {
-                    self.videoThumbnail = uiImage
+                    self.videoThumbnail = UIImage(cgImage: cgImage)
                     self.isLoadingVideoThumbnail = false
                 }
             } catch {
@@ -390,7 +421,6 @@ struct ModernMomentThumbnail: View {
         }
     }
 
-    // ✅ MANTENER: Función existente
     private func getImageURL(from path: String) -> URL? {
         if path.hasPrefix("https://") {
             return URL(string: path)
@@ -400,25 +430,14 @@ struct ModernMomentThumbnail: View {
         return URL(string: "\(baseURLString)\(encodedPath)?alt=media")
     }
 
-    init(
-        moment: Moment,
-        size: CGFloat,
-        customListNamesById: [String: String] = [:],
-        onTap: (() -> Void)? = nil,
-        onLongPress: (() -> Void)? = nil,
-        isInteractionEnabled: Bool = true
-    ) {
-        self.moment = moment
-        self.size = size
-        self.customListNamesById = customListNamesById
-        self.onTap = onTap
-        self.onLongPress = onLongPress
-        self.isInteractionEnabled = isInteractionEnabled
+    private static func formatVideoDuration(_ duration: Double) -> String {
+        let totalSeconds = max(Int(duration.rounded()), 0)
+        let minutes = totalSeconds / 60
+        let seconds = totalSeconds % 60
+        return String(format: "%d:%02d", minutes, seconds)
     }
 }
 
-
-// MARK: - Estado vacío para momentos
 struct ProfileSectionEmptyState: View {
     let icon: String
     let titleKey: LocalizedStringKey
@@ -453,7 +472,6 @@ struct ProfileSectionEmptyState: View {
     }
 }
 
-// MARK: - Estado vacío para momentos
 struct ModernEmptyMomentsView: View {
     var body: some View {
         ProfileSectionEmptyState(
@@ -464,7 +482,6 @@ struct ModernEmptyMomentsView: View {
     }
 }
 
-// MARK: - ✅ NUEVO: Placeholder para Guardados
 struct ProfileSavedPlaceholder: View {
     var body: some View {
         ProfileSectionEmptyState(
@@ -472,5 +489,18 @@ struct ProfileSavedPlaceholder: View {
             titleKey: LocalizedStringKey("profile.saved.empty.title"),
             subtitleKey: LocalizedStringKey("profile.saved.empty.subtitle")
         )
+    }
+}
+
+struct MomentCarouselIndicatorIcon: View {
+    var size: CGFloat = 18
+
+    var body: some View {
+        Image("CarouselPostIcon")
+            .resizable()
+            .renderingMode(.original)
+            .scaledToFit()
+            .frame(width: size, height: size)
+            .accessibilityHidden(true)
     }
 }

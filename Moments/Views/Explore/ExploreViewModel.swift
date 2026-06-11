@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 import FirebaseFirestore
 import FirebaseAuth
 
@@ -748,21 +749,18 @@ extension ExploreViewModel {
     }
 }
 
-// ✅ UTILIDAD: Haptic Feedback (agregar a tu proyecto)
+// ✅ UTILIDAD: Haptic Feedback — delega en HapticManager centralizado.
 struct ExploreHapticFeedback {
     static func impact(_ style: UIImpactFeedbackGenerator.FeedbackStyle = .medium) {
-        let feedback = UIImpactFeedbackGenerator(style: style)
-        feedback.impactOccurred()
+        HapticManager.shared.impact(style)
     }
 
     static func success() {
-        let feedback = UINotificationFeedbackGenerator()
-        feedback.notificationOccurred(.success)
+        HapticManager.shared.success()
     }
 
     static func error() {
-        let feedback = UINotificationFeedbackGenerator()
-        feedback.notificationOccurred(.error)
+        HapticManager.shared.error()
     }
 }
 

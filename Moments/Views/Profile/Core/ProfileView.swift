@@ -74,6 +74,18 @@ enum ProfileTabType: String, CaseIterable {
     }
 }
 
+struct ProfileMomentDetailRoute: Identifiable, Equatable {
+    let id = UUID()
+    let moments: [Moment]
+    let initialIndex: Int
+    let initialMomentId: String?
+    var entryKind: ProfileMomentDetailEntryKind = .direct
+
+    static func == (lhs: ProfileMomentDetailRoute, rhs: ProfileMomentDetailRoute) -> Bool {
+        lhs.id == rhs.id
+    }
+}
+
 // MARK: - ✅ NUEVO: Pill Tabs Component
 struct ProfilePillTabs: View {
     @Binding var selectedTab: ProfileTabType
@@ -242,8 +254,7 @@ struct ProfileView: View {
     @State private var showStoryViewer: Bool = false
     @State private var selectedStoryIndex: Int = 0
     @State private var scrollOffset: CGFloat = 0
-    @State private var showMomentDetail = false
-    @State private var selectedMomentIndex = 0
+    @StateObject private var heroCoordinator = ProfileGridHeroTransitionCoordinator()
     @State private var showingReportSheet = false
     @State private var showingBlockConfirmation = false
     @State private var showingThemeSelector = false // ✅ NUEVO: Estado para selector de tema
@@ -286,6 +297,7 @@ struct ProfileView: View {
             let safeAreaTop = geometry.safeAreaInsets.top
             let safeAreaBottom = geometry.safeAreaInsets.bottom
 
+            ZStack {
             NavigationView {
                 ZStack {
                     // Fondo dinámico mejorado con efectos (FULLSCREEN)
@@ -310,8 +322,6 @@ struct ProfileView: View {
                         selectedStoryIndex: $selectedStoryIndex,
                         selectedPhoto: $selectedPhoto,
                         scrollOffset: $scrollOffset,
-                        showMomentDetail: $showMomentDetail,
-                        selectedMomentIndex: $selectedMomentIndex,
                         showingThemeSelector: $showingThemeSelector,
                         selectedProfileTab: $selectedProfileTab,  // ✅ NUEVO
                         showingQRCode: $isShowingQRCode, // ✅ NUEVO: Binding
@@ -321,7 +331,7 @@ struct ProfileView: View {
                         editingMoment: $editingMoment,
                         pendingDeleteMoment: $pendingDeleteMoment
                     )
-
+                    .environmentObject(heroCoordinator)
                 }
                 .navigationBarHidden(true)
                 .ignoresSafeArea(.all, edges: .all)
@@ -371,18 +381,6 @@ struct ProfileView: View {
                     )
                 }
 
-                .fullScreenCover(isPresented: $showMomentDetail) {
-                    MomentDetailContainerView(
-                        context: .profileCarousel(
-                            moments: selectedProfileTab == .tagged ? viewModel.taggedMoments : viewModel.moments,
-                            initialIndex: selectedMomentIndex,
-                            topContentInset: selectedProfileTab == .tagged ? 64 : 24,
-                            onDismiss: {
-                                showMomentDetail = false
-                            }
-                        )
-                    )
-                }
                 .sheet(item: $showingUserList) { listType in
                     switch listType {
                     case .visits:
@@ -488,6 +486,10 @@ struct ProfileView: View {
                     if newTab == 4 {
                         isShowingSettings = false
                         isShowingEditProfile = false
+                    } else {
+                        // ✅ Resetear detalle y menús al salir del tab de perfil
+                        heroCoordinator.dismissMenu()
+                        heroCoordinator.dismissDetail()
                     }
                 }
                 .onAppear {
@@ -506,8 +508,28 @@ struct ProfileView: View {
                 .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("ShowProfileVisits"))) { _ in
                     showingUserList = .visits
                 }
+                .onDisappear {
+                    // Reset profile transition and detail states immediately when switching tabs or leaving the screen
+                    heroCoordinator.resetToIdle()
+                }
+            }
+
+            ProfileGridHeroDetailLayer(
+                coordinator: heroCoordinator,
+                containerSize: geometry.size,
+                safeAreaInsets: EdgeInsets(
+                    top: geometry.safeAreaInsets.top,
+                    leading: geometry.safeAreaInsets.leading,
+                    bottom: geometry.safeAreaInsets.bottom,
+                    trailing: geometry.safeAreaInsets.trailing
+                ),
+                moments: selectedProfileTab == .moments ? viewModel.moments : (selectedProfileTab == .tagged ? viewModel.taggedMoments : [])
+            )
+            .zIndex(100)
             }
         }
+        .environmentObject(heroCoordinator)
+        .environment(\.profileGridHeroTransitionCoordinator, heroCoordinator)
     }
 
     private func usersForList(type: UserListType) -> [AppUser] {
@@ -575,14 +597,6 @@ struct ProfileView: View {
         }
     }
 
-    // Función auxiliar para calcular altura del grid
-    private func calculateGridHeight(itemCount: Int) -> CGFloat {
-        let columns = 3
-        let rows = ceil(Double(itemCount) / Double(columns))
-        let spacing: CGFloat = 4
-        let itemWidth = (UIScreen.main.bounds.width - 16 - (spacing * 2)) / 3
-        return CGFloat(rows) * itemWidth + (CGFloat(rows - 1) * spacing)
-    }
 }
 
 struct ProfileView_Previews: PreviewProvider {

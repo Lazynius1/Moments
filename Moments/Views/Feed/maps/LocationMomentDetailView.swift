@@ -782,22 +782,6 @@ struct LocationMomentCard: View {
     // ✅ NUEVO: Estado para carrusel
     @State private var currentImageIndex = 0
 
-    // ✅ NUEVO: Función para colores de indicadores multicolores
-    private func getIndicatorColor(for index: Int) -> Color {
-        let colors: [Color] = [
-            Color(hex: "#5b2c6f"), // Púrpura
-            Color(hex: "#007bff"), // Azul
-            Color(hex: "#40dfcf"), // Turquesa
-            Color(hex: "#ff6b6b"), // Rojo coral
-            Color(hex: "#4ecdc4"), // Verde azulado
-            Color(hex: "#45b7d1"), // Azul claro
-            Color(hex: "#96ceb4"), // Verde menta
-            Color(hex: "#feca57")  // Amarillo
-        ]
-
-        return colors[index % colors.count]
-    }
-
     // ✅ Imagen principal con aspect ratio dinámico
     private var locationMomentImageView: some View {
         ZStack {
@@ -810,19 +794,13 @@ struct LocationMomentCard: View {
                     currentMoment: moment,
                     isImmersive: $isImmersive // ✅ NUEVO
                 )
-                .simultaneousGesture(
-                    LongPressGesture(minimumDuration: 0.1)
-                        .sequenced(before: DragGesture(minimumDistance: 0, coordinateSpace: .local))
-                        .onEnded { _ in }
+                .carouselImmersivePeekGesture(
+                    isImmersive: $isImmersive,
+                    mediaItems: mediaItems,
+                    currentImageIndex: currentImageIndex,
+                    detectedAspectRatio: detectedAspectRatio,
+                    realAspectRatio: detectedAspectRatio
                 )
-                .onLongPressGesture(minimumDuration: .infinity, pressing: { isPressing in
-                    withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
-                        self.isImmersive = isPressing
-                        if isPressing {
-                            HapticManager.shared.mediumImpact()
-                        }
-                    }
-                }, perform: {})
             .frame(height: cardHeight)
             .clipShape(RoundedRectangle(cornerRadius: 20))
             .shadow(color: colorScheme == .dark ? .white.opacity(0.1) : .black.opacity(0.2), radius: 12, x: 0, y: 8)
@@ -844,15 +822,10 @@ struct LocationMomentCard: View {
             // ✅ NUEVO: Indicadores de media múltiple mejorados
             if mediaItems.count > 1 {
                 VStack {
-                    HStack(spacing: 8) {
-                        ForEach(0..<mediaItems.count, id: \.self) { index in
-                            Capsule()
-                                .fill(currentImageIndex == index ? getIndicatorColor(for: index) : Color.white.opacity(0.3))
-                                .frame(width: currentImageIndex == index ? 30 : 10, height: 6)
-                                .animation(.easeInOut(duration: 0.3), value: currentImageIndex)
-                                .shadow(color: .black.opacity(0.3), radius: 2, x: 0, y: 1)
-                        }
-                    }
+                    MomentCarouselPageIndicators(
+                        count: mediaItems.count,
+                        currentIndex: currentImageIndex
+                    )
                     .padding(.top, 20)
                     Spacer()
                 }

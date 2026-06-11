@@ -15,14 +15,10 @@ struct FloatingGlassFeedToggle: View {
                                 selectedType: selectedFeedType,
                                 namespace: animationNamespace
                             ) {
-                                withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                                MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.toggle) {
                                     selectedFeedType = feedType
                                 }
-                                
-                                // Haptic feedback
-                                let impactMed = UIImpactFeedbackGenerator(style: .light)
-                                impactMed.impactOccurred()
-                                
+                                HapticManager.shared.selection()
                             }
                         }
                     }
@@ -35,14 +31,10 @@ struct FloatingGlassFeedToggle: View {
                             selectedType: selectedFeedType,
                             namespace: animationNamespace
                         ) {
-                            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                            MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.toggle) {
                                 selectedFeedType = feedType
                             }
-                            
-                            // Haptic feedback
-                            let impactMed = UIImpactFeedbackGenerator(style: .light)
-                            impactMed.impactOccurred()
-                            
+                            HapticManager.shared.selection()
                         }
                     }
                 }
@@ -131,7 +123,7 @@ private struct FeedTypeButton: View {
                     }
                 }
         }
-        .buttonStyle(PlainButtonStyle())
+        .buttonStyle(.momentsPress(scale: 0.96, pressedOpacity: 0.92, haptic: .none))
     }
 }
 

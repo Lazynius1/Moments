@@ -78,8 +78,6 @@ struct ModernProfileContentView: View {
     @Binding var selectedStoryIndex: Int
     @Binding var selectedPhoto: PhotosPickerItem?
     @Binding var scrollOffset: CGFloat
-    @Binding var showMomentDetail: Bool
-    @Binding var selectedMomentIndex: Int
     @Binding var showingThemeSelector: Bool
     @Binding var selectedProfileTab: ProfileTabType  // ✅ NUEVO: Tab selector
     @Binding var showingQRCode: Bool // ✅ NUEVO: Binding para QR
@@ -90,9 +88,7 @@ struct ModernProfileContentView: View {
     @Binding var pendingDeleteMoment: Moment?
     @StateObject private var savedMomentsViewModel = SavedMomentsViewModel()  // ✅ NUEVO: Guardados
     @State private var showingFullInfo = false // ✅ NUEVO: Para expandir intereses dentro del bloque social
-    @State private var gridMenuSelection: ProfileGridMomentMenuSelection?
-    @State private var showGridPinConfirm = false
-    @State private var gridMenuToastMessage: String?
+    @EnvironmentObject private var heroCoordinator: ProfileGridHeroTransitionCoordinator
     @State private var gridPreviewMoment: Moment?
 
     var body: some View {
@@ -166,32 +162,36 @@ struct ModernProfileContentView: View {
                                         .frame(maxWidth: UIScreen.main.bounds.width - 40)
                                 } else {
                                     GeometryReader { geometry in
-                                        let spacing = ProfileMomentsGridMetrics.spacing
-                                        let columns = ProfileMomentsGridMetrics.columns
-                                        let totalSpacing = spacing * CGFloat(columns - 1)
-                                        let itemWidth = (geometry.size.width - totalSpacing) / CGFloat(columns)
-                                        LazyVGrid(columns: Array(repeating: GridItem(.fixed(itemWidth), spacing: spacing), count: columns), spacing: spacing) {
-                                            ForEach(Array(viewModel.moments.enumerated()), id: \.offset) { index, moment in
-                                                ScreenshotProtectedView(
-                                                    isProtected: (moment.audience?.lowercased() ?? "") != "everyone"
-                                                ) {
-                                                    ModernMomentThumbnail(
-                                                        moment: moment,
-                                                        size: itemWidth,
-                                                        customListNamesById: viewModel.customListNamesById,
-                                                        onTap: {
-                                                            selectedMomentIndex = index
-                                                            showMomentDetail = true
-                                                        },
-                                                        onLongPress: {
-                                                            openGridMenu(moment: moment, index: index)
-                                                        }
-                                                    )
-                                                }
+                                        ProfileMomentsBentoGrid(
+                                            moments: viewModel.moments,
+                                            availableWidth: geometry.size.width,
+                                            descriptors: ProfileBentoTileAssigner.assign(moments: viewModel.moments)
+                                        ) { moment, itemWidth, index, descriptor in
+                                            ScreenshotProtectedView(
+                                                isProtected: (moment.audience?.lowercased() ?? "") != "everyone"
+                                            ) {
+                                                ModernMomentThumbnail(
+                                                    moment: moment,
+                                                    size: itemWidth,
+                                                    customListNamesById: viewModel.customListNamesById,
+                                                    onTap: {
+                                                        heroCoordinator.openDirectDetail(
+                                                            moments: viewModel.moments,
+                                                            initialIndex: index
+                                                        )
+                                                    },
+                                                    onLongPress: {
+                                                        openGridMenu(moment: moment, index: index)
+                                                    },
+                                                    usesDiscreetAudienceIcon: true,
+                                                    showsAudienceBadge: false,
+                                                    gridIndex: index,
+                                                    descriptor: descriptor
+                                                )
                                             }
                                         }
                                     }
-                                    .frame(height: calculateGridHeight(itemCount: viewModel.moments.count))
+                                    .frame(height: calculateBentoGridHeight(moments: viewModel.moments))
                                 }
 
                             case .saved:
@@ -221,33 +221,32 @@ struct ModernProfileContentView: View {
                                         .frame(height: 400, alignment: .top)
                                     } else {
                                         GeometryReader { geometry in
-                                            let spacing = ProfileMomentsGridMetrics.spacing
-                                            let columns = ProfileMomentsGridMetrics.columns
-                                            let totalSpacing = spacing * CGFloat(columns - 1)
-                                            let itemWidth = (geometry.size.width - totalSpacing) / CGFloat(columns)
-
-                                            LazyVGrid(
-                                                columns: Array(repeating: GridItem(.fixed(itemWidth), spacing: spacing), count: columns),
-                                                spacing: spacing
-                                            ) {
-                                                ForEach(Array(viewModel.taggedMoments.enumerated()), id: \.element.id) { index, moment in
-                                                    ScreenshotProtectedView(
-                                                        isProtected: (moment.audience?.lowercased() ?? "") != "everyone"
-                                                    ) {
-                                                        ModernMomentThumbnail(
-                                                            moment: moment,
-                                                            size: itemWidth,
-                                                            customListNamesById: viewModel.customListNamesById,
-                                                            onTap: {
-                                                                selectedMomentIndex = index
-                                                                showMomentDetail = true
-                                                            }
-                                                        )
-                                                    }
+                                            ProfileMomentsBentoGrid(
+                                                moments: viewModel.taggedMoments,
+                                                availableWidth: geometry.size.width,
+                                                descriptors: ProfileBentoTileAssigner.simple(moments: viewModel.taggedMoments)
+                                            ) { moment, itemWidth, index, descriptor in
+                                                ScreenshotProtectedView(
+                                                    isProtected: (moment.audience?.lowercased() ?? "") != "everyone"
+                                                ) {
+                                                    ModernMomentThumbnail(
+                                                        moment: moment,
+                                                        size: itemWidth,
+                                                        customListNamesById: viewModel.customListNamesById,
+                                                        onTap: {
+                                                            heroCoordinator.openDirectDetail(
+                                                                moments: viewModel.taggedMoments,
+                                                                initialIndex: index
+                                                            )
+                                                        },
+                                                        showsAudienceBadge: false,
+                                                        gridIndex: index,
+                                                        descriptor: descriptor
+                                                    )
                                                 }
                                             }
                                         }
-                                        .frame(height: calculateGridHeight(itemCount: viewModel.taggedMoments.count))
+                                        .frame(height: calculateTaggedGridHeight(moments: viewModel.taggedMoments))
                                     }
                                 }
                                 .onAppear {
@@ -292,38 +291,38 @@ struct ModernProfileContentView: View {
                         }
                     }
                 }
-                .scrollDisabled(gridMenuSelection != nil)
+                .scrollDisabled(heroCoordinator.isInteractive)
+                .scaleEffect(heroCoordinator.backgroundContentScale, anchor: .center)
+                .animation(ProfileGridHeroLayout.peekSpring, value: heroCoordinator.peekProgress)
+                .animation(ProfileGridHeroLayout.expandSpring, value: heroCoordinator.expandProgress)
                 .onPreferenceChange(ScrollOffsetPreferenceKey.self) { value in
                     scrollOffset = value
                 }
+                .onPreferenceChange(ProfileGridThumbnailFramePreferenceKey.self) { frames in
+                    heroCoordinator.ingestThumbnailFrames(frames)
+                }
 
-                ProfileGridMomentMenuOverlay(
-                    selection: $gridMenuSelection,
-                    showPinConfirm: $showGridPinConfirm,
-                    toastMessage: $gridMenuToastMessage,
-                    containerSize: proxy.size,
-                    safeAreaInsets: proxy.safeAreaInsets,
-                    pinnedMomentsCount: viewModel.moments.filter { $0.isPinned == true }.count,
-                    pinnedMomentsLimit: 3,
-                    onEdit: { moment in
+                }
+                .coordinateSpace(name: "profileGridOverlay")
+                .onAppear {
+                    heroCoordinator.onEdit = { moment in
                         editingMoment = moment
-                    },
-                    onDelete: { moment in
+                    }
+                    heroCoordinator.onDelete = { moment in
                         pendingDeleteMoment = moment
-                    },
-                    onArchive: { moment in
+                    }
+                    heroCoordinator.onArchive = { moment in
                         guard let momentId = moment.id else { return }
                         FirestoreService.shared.archiveMoment(userId: moment.authorId, momentId: momentId) { _ in
                             viewModel.moments.removeAll { $0.id == momentId }
                         }
-                    },
-                    onAdjustPreview: { moment in
+                    }
+                    heroCoordinator.onAdjustPreview = { moment in
                         gridPreviewMoment = moment
-                    },
-                    onPin: { moment, shouldPin, replaceOldest in
+                    }
+                    heroCoordinator.onPin = { moment, shouldPin, replaceOldest in
                         handleGridPin(moment: moment, shouldPin: shouldPin, replaceOldest: replaceOldest)
                     }
-                )
                 }
             }
             .sheet(item: $gridPreviewMoment) { moment in
@@ -371,8 +370,7 @@ struct ModernProfileContentView: View {
     }
 
     private func openGridMenu(moment: Moment, index: Int) {
-        showGridPinConfirm = false
-        gridMenuSelection = ProfileGridMomentMenuSelection(moment: moment, index: index)
+        heroCoordinator.openMenu(moment: moment, index: index)
     }
 
     private func handleGridPin(moment: Moment, shouldPin: Bool, replaceOldest: Bool) {
@@ -427,9 +425,14 @@ struct ModernProfileContentView: View {
         }
     }
 
-    // Moved calculateGridHeight to this scope
-    private func calculateGridHeight(itemCount: Int) -> CGFloat {
-        ProfileMomentsGridMetrics.height(for: itemCount)
+    private func calculateBentoGridHeight(moments: [Moment]) -> CGFloat {
+        let descriptors = ProfileBentoTileAssigner.assign(moments: moments)
+        return ProfileMomentsGridMetrics.bentoHeight(tileKinds: descriptors.map(\.layoutKind))
+    }
+
+    private func calculateTaggedGridHeight(moments: [Moment]) -> CGFloat {
+        let descriptors = ProfileBentoTileAssigner.simple(moments: moments)
+        return ProfileMomentsGridMetrics.bentoHeight(tileKinds: descriptors.map(\.layoutKind))
     }
 }
 

@@ -39,7 +39,7 @@ struct RealStoryCircle: View {
                 .frame(width: 56, height: 56) // ✅ Frame mayor para evitar cortes
                 .padding(2) // ✅ Margen de seguridad
             }
-            .buttonStyle(.plain)
+            .buttonStyle(.momentsPress(scale: 0.94, haptic: .none))
 
             LiveUsernameContent(userId: userId, fallbackUsername: fallbackUsername) { username in
                 Text(username)
@@ -111,7 +111,7 @@ struct YourStoryCircleWithProgress: View {
                 .frame(width: 56, height: 56) // ✅ Frame mayor para evitar cortes
                 .padding(2) // ✅ Margen de seguridad
             }
-            .buttonStyle(.plain)
+            .buttonStyle(.momentsPress(scale: 0.94, haptic: .none))
 
             if let uploadingStory = storyUploadService.uploadingStory {
                 StoryUploadStatusLabel(uploadingStory: uploadingStory)
@@ -126,7 +126,10 @@ struct YourStoryCircleWithProgress: View {
         }
         .frame(width: 64)
         .scaleEffect(storyUploadService.uploadingStory?.status == .failed ? 0.95 : 1.0)
-        .animation(.spring(response: 0.3, dampingFraction: 0.6), value: storyUploadService.uploadingStory?.status)
+        .animation(
+            MotionPolicy.animation(MotionPolicy.Spring.row, value: storyUploadService.uploadingStory?.status),
+            value: storyUploadService.uploadingStory?.status
+        )
     }
 }
 

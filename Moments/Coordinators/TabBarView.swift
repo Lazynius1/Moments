@@ -478,7 +478,7 @@ struct CustomTabBar: View {
                 previousSelectedTab: $previousSelectedTab
             )
             .scaleEffect(selectedTab == 2 ? 1.1 : 1.0)
-            .animation(.spring(response: 0.3, dampingFraction: 0.7), value: selectedTab)
+            .animation(MotionPolicy.animation(MotionPolicy.Spring.toggle, value: selectedTab), value: selectedTab)
             
             // Tab 3: Explore
             TabBarItem(
@@ -547,7 +547,7 @@ struct TabBarItem: View {
             .frame(maxWidth: .infinity)
             .contentShape(Rectangle()) // Área de toque completa según HIG
         }
-        .buttonStyle(PlainButtonStyle()) // Estilo plano para mejor control
+        .buttonStyle(.momentsPress(haptic: .none))
         .accessibilityLabel(title)
         .accessibilityAddTraits(isSelected ? [.isSelected] : [])
     }
@@ -594,6 +594,7 @@ struct CreateButton: View {
                     .foregroundColor(.white)
             }
         }
+        .buttonStyle(.momentsPress(scale: 0.92, haptic: .none))
         .accessibilityLabel(Text("tabBar.create"))
     }
 }

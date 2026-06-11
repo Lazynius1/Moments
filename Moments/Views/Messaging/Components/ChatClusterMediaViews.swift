@@ -451,9 +451,7 @@ struct GlassmorphicMediaSelectionSheet: View {
 // MARK: - Helper Styles
 struct ScaleButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .scaleEffect(configuration.isPressed ? 0.94 : 1.0)
-            .animation(.spring(response: 0.3, dampingFraction: 0.6), value: configuration.isPressed)
-            .opacity(configuration.isPressed ? 0.9 : 1.0)
+        MomentsPressButtonStyle(scale: 0.94, pressedOpacity: 0.9, haptic: .none)
+            .makeBody(configuration: configuration)
     }
 }

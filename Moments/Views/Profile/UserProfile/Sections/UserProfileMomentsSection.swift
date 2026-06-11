@@ -6,164 +6,236 @@ import CoreMotion
 import FirebaseFirestore
 import AVKit
 
-// MARK: - ✅ NUEVO: Thumbnail de momento moderno como ProfileView
 struct UserModernMomentThumbnail: View {
     let moment: Moment
     let size: CGFloat
     let onTap: () -> Void
+    var gridIndex: Int = 0
+    let descriptor: ProfileGridTileDescriptor
     @State private var isPressed = false
     @Environment(\.colorScheme) var colorScheme
-
-    // ✅ NUEVOS: Estados para thumbnails de video
     @State private var videoThumbnail: UIImage?
     @State private var isLoadingVideoThumbnail = false
 
+    init(
+        moment: Moment,
+        size: CGFloat,
+        onTap: @escaping () -> Void,
+        gridIndex: Int = 0,
+        descriptor: ProfileGridTileDescriptor? = nil
+    ) {
+        self.moment = moment
+        self.size = size
+        self.onTap = onTap
+        self.gridIndex = gridIndex
+        self.descriptor = descriptor ?? ProfileGridTileDescriptor.standard(for: moment)
+    }
+
+    private var cellWidth: CGFloat {
+        ProfileMomentsGridMetrics.tileSize(kind: descriptor.layoutKind, unitWidth: size).width
+    }
+
+    private var cellHeight: CGFloat {
+        ProfileMomentsGridMetrics.tileSize(kind: descriptor.layoutKind, unitWidth: size).height
+    }
+
     var body: some View {
         Button(action: onTap) {
-            ZStack(alignment: .bottomTrailing) {
-                // ✅ NUEVO: Lógica actualizada para manejar videos y imágenes
-                if let mediaItem = moment.primaryVisibleMediaItem, !mediaItem.url.isEmpty {
-                    // Es un momento nuevo con mediaItems
-                    if mediaItem.type == .video {
-                        // ✅ NUEVO: Priorizar thumbnailUrl si existe
-                        if let thumbnailUrl = mediaItem.thumbnailUrl, !thumbnailUrl.isEmpty {
-                            imageView(imageURL: thumbnailUrl)
-                        } else {
-                            // Si no hay thumbnail URL (legacy), generar uno
-                            videoThumbnailView(videoURL: mediaItem.url)
-                        }
-                    } else {
-                        // ✅ NUEVO: Mostrar imagen desde mediaItems
-                        imageView(imageURL: mediaItem.url)
-                    }
-                } else if let imagePath = moment.imagePath, let url = getImageURL(from: imagePath) {
-                    // ✅ MANTENER: Fallback para momentos legacy con imagePath
-                    GridPreviewThumbnailFrame(size: size, settings: moment.gridPreviewSettings) {
-                        KFImage(url)
-                            .placeholder {
-                                Rectangle()
-                                    .fill(UserProfileColors.cardBackground)
-                                    .frame(width: size, height: size)
-                                    .overlay(
-                                        Image(systemName: "photo")
-                                            .font(.system(size: 20))
-                                            .foregroundColor(UserProfileColors.textTertiary)
-                                    )
-                                    .overlay(ProgressView().tint(UserProfileColors.accent))
-                            }
-                            .resizable()
-                    }
-                    .contentShape(Rectangle())
-                    .overlay(borderOverlay())
+            ZStack(alignment: .bottomLeading) {
+                mediaBody
+                cinematicOverlay
+                topChrome
+                bottomChrome
+            }
+        .frame(width: cellWidth, height: cellHeight)
+        .clipped()
+        .scaleEffect(isPressed ? 0.97 : 1.0)
+        .animation(.easeInOut(duration: 0.1), value: isPressed)
+        .profileGridThumbnailFrameReporter(
+            momentId: moment.id ?? "profile-grid-\(gridIndex)",
+            coordinateSpace: .named("profileGridOverlay")
+        )
+    }
+        .buttonStyle(.plain)
+        .onLongPressGesture(minimumDuration: 0, maximumDistance: .infinity, pressing: { isPressed = $0 }, perform: {})
+    }
+
+    @ViewBuilder
+    private var mediaBody: some View {
+        if descriptor.usesPortraitCrop {
+            portraitMedia
+        } else if let mediaItem = moment.primaryVisibleMediaItem, !mediaItem.url.isEmpty {
+            if mediaItem.type == .video {
+                if let thumbnailUrl = mediaItem.thumbnailUrl, !thumbnailUrl.isEmpty {
+                    imageView(imageURL: thumbnailUrl)
                 } else {
-                    // ✅ MANTENER: Placeholder para sin contenido
-                    emptyContentView()
+                    videoThumbnailView(videoURL: mediaItem.url)
                 }
+            } else {
+                imageView(imageURL: mediaItem.url)
+            }
+        } else if let imagePath = moment.imagePath, let url = getImageURL(from: imagePath) {
+            GridPreviewThumbnailFrame(size: size, settings: moment.gridPreviewSettings) {
+                KFImage(url)
+                    .placeholder {
+                        Rectangle()
+                            .fill(UserProfileColors.cardBackground)
+                            .overlay(
+                                Image(systemName: "photo")
+                                    .font(.system(size: 20))
+                                    .foregroundColor(UserProfileColors.textTertiary)
+                            )
+                            .overlay(ProgressView().tint(UserProfileColors.accent))
+                    }
+                    .resizable()
+            }
+            .contentShape(Rectangle())
+        } else {
+            emptyContentView()
+        }
+    }
 
-                // ✅ NUEVO: Indicador de video
-                if let mediaItem = moment.primaryVisibleMediaItem, mediaItem.type == .video {
-                    VStack {
-                        HStack {
-                            Spacer()
-                            if moment.isPinned == true {
-                                pinnedBadgeView
-                                    .padding(6)
-                            }
-                        }
-                        Spacer()
-                        HStack {
-                            Image(systemName: "play.circle.fill")
-                                .font(.system(size: 18))
-                                .foregroundColor(.white)
-                                .background(Color.black.opacity(0.6))
-                                .clipShape(Circle())
-                                .padding(6)
-                            Spacer()
-                        }
-                    }
-                } else if moment.isPinned == true {
-                    VStack {
-                        HStack {
-                            Spacer()
-                            pinnedBadgeView
-                                .padding(6)
-                        }
-                        Spacer()
-                    }
+    @ViewBuilder
+    private var topChrome: some View {
+        VStack {
+            HStack {
+                if moment.isCarouselMoment {
+                    MomentCarouselIndicatorIcon()
+                        .padding(6)
                 }
-
-                // ✅ MANTENER: Contador de likes
-                // ✅ NUEVO: El autor siempre ve el contador, los demás solo si no está oculto
-                if let likeCount = moment.reactions["heart"]?.count, likeCount > 0,
-                   (moment.authorId == Auth.auth().currentUser?.uid || !moment.hideLikeCounts) {
-                    HStack(spacing: 3) {
-                        Image(systemName: "heart.fill")
-                            .foregroundColor(.red)
-                            .font(.system(size: 9))
-                        Text(String(format: NSLocalizedString("userProfile.likes.count", comment: "Likes count"), likeCount))
-                            .font(.custom("Poppins-Medium", size: 9))
-                            .foregroundColor(UserProfileColors.textPrimary)
-                    }
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 3)
-                    .background(UserProfileColors.materialBackground)
-                    .clipShape(Capsule())
-                    .padding(4)
+                if descriptor.showsScheduledCue && moment.authorId == Auth.auth().currentUser?.uid {
+                    scheduledBadgeView
+                        .padding(6)
                 }
-
-                // ✅ NUEVO: Indicador de publicación programada (Solo para el autor)
-                if moment.isScheduled && moment.authorId == Auth.auth().currentUser?.uid {
-                    VStack {
-                        HStack {
-                            HStack(spacing: 4) {
-                                Image(systemName: "clock.fill")
-                                    .font(.system(size: 10, weight: .bold))
-                                Text(moment.scheduledRemainingText)
-                                    .font(.custom("Poppins-Bold", size: 9))
-                            }
-                            .foregroundColor(.white)
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 4)
-                            .background(Color.black.opacity(0.6))
-                            .clipShape(Capsule())
-                            .padding(6)
-                            Spacer()
-                        }
-                        Spacer()
-                    }
+                Spacer()
+                if descriptor.showsPin {
+                    pinnedBadgeView
+                        .padding(6)
                 }
             }
-            .scaleEffect(isPressed ? 0.97 : 1.0)
-            .animation(.easeInOut(duration: 0.1), value: isPressed)
+            Spacer()
         }
-        .onLongPressGesture(minimumDuration: 0, maximumDistance: .infinity, pressing: { isPressed = $0 }, perform: {})
+    }
+
+    @ViewBuilder
+    private var bottomChrome: some View {
+        if descriptor.showsPlayCue {
+            HStack(spacing: 6) {
+                Image(systemName: "play.fill")
+                    .font(.system(size: 8, weight: .bold))
+                    .foregroundColor(.white)
+
+                if descriptor.showsDuration, let duration = moment.videoDuration {
+                    Text(Self.formatVideoDuration(duration))
+                        .font(.custom("Poppins-SemiBold", size: 8))
+                        .foregroundColor(.white)
+                }
+            }
+            .padding(.horizontal, 8)
+            .padding(.vertical, 6)
+            .background(Color.black.opacity(0.34))
+            .clipShape(Capsule())
+            .padding(6)
+        }
+    }
+
+    @ViewBuilder
+    private var portraitMedia: some View {
+        if let mediaItem = moment.primaryVisibleMediaItem, !mediaItem.url.isEmpty {
+            if mediaItem.type == .image {
+                portraitFillImage(urlString: mediaItem.url)
+            } else if let thumbnailUrl = mediaItem.thumbnailUrl, !thumbnailUrl.isEmpty {
+                portraitFillImage(urlString: thumbnailUrl)
+            } else {
+                videoThumbnailView(videoURL: mediaItem.url)
+            }
+        } else if let imagePath = moment.previewImageURLString, !imagePath.isEmpty {
+            portraitFillImage(urlString: imagePath)
+        } else if let video = moment.previewVideoURLString, !video.isEmpty {
+            videoThumbnailView(videoURL: video)
+        } else {
+            emptyContentView()
+        }
+    }
+
+    @ViewBuilder
+    private func portraitFillImage(urlString: String) -> some View {
+        if let url = getImageURL(from: urlString) {
+            KFImage(url)
+                .placeholder {
+                    Rectangle().fill(UserProfileColors.cardBackground)
+                }
+                .resizable()
+                .scaledToFill()
+                .frame(width: cellWidth, height: cellHeight)
+                .clipped()
+        } else {
+            emptyContentView()
+        }
     }
 
     @ViewBuilder
     private var pinnedBadgeView: some View {
         Image(systemName: "pin.fill")
-            .font(.system(size: 10, weight: .bold))
+            .font(.system(size: 9, weight: .bold))
             .foregroundColor(.white)
-            .padding(6)
-            .background(Color.black.opacity(colorScheme == .dark ? 0.68 : 0.58))
+            .padding(5)
+            .background(Color.black.opacity(colorScheme == .dark ? 0.58 : 0.48))
             .clipShape(Circle())
     }
 
-    // ✅ NUEVA: Vista para thumbnails de video
+    @ViewBuilder
+    private var scheduledBadgeView: some View {
+        HStack(spacing: 4) {
+            Image(systemName: "clock.fill")
+                .font(.system(size: 7, weight: .bold))
+            Text(moment.scheduledRemainingText)
+                .font(.custom("Poppins-SemiBold", size: 8))
+                .lineLimit(1)
+        }
+        .foregroundColor(.white)
+        .padding(.horizontal, 7)
+        .padding(.vertical, 4)
+        .background(Color.black.opacity(0.52))
+        .clipShape(Capsule())
+    }
+
+    @ViewBuilder
+    private var cinematicOverlay: some View {
+        if descriptor.showsPlayCue || descriptor.showsPin || descriptor.showsScheduledCue {
+            LinearGradient(
+                colors: [
+                    Color.black.opacity(0.12),
+                    Color.clear,
+                    Color.black.opacity(descriptor.usesPortraitCrop ? 0.34 : 0.18)
+                ],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+        }
+    }
+
     @ViewBuilder
     private func videoThumbnailView(videoURL: String) -> some View {
         ZStack {
             if let thumbnail = videoThumbnail {
-                GridPreviewThumbnailFrame(size: size, settings: moment.gridPreviewSettings) {
+                if descriptor.usesPortraitCrop {
                     Image(uiImage: thumbnail)
                         .resizable()
+                        .scaledToFill()
+                        .frame(width: cellWidth, height: cellHeight)
+                        .clipped()
+                } else {
+                    GridPreviewThumbnailFrame(size: size, settings: moment.gridPreviewSettings) {
+                        Image(uiImage: thumbnail)
+                            .resizable()
+                    }
+                    .contentShape(Rectangle())
                 }
-                .contentShape(Rectangle())
-                .overlay(borderOverlay())
             } else {
                 Rectangle()
                     .fill(UserProfileColors.cardBackground)
-                    .frame(width: size, height: size)
+                    .frame(width: cellWidth, height: cellHeight)
                     .overlay(
                         Group {
                             if isLoadingVideoThumbnail {
@@ -187,7 +259,6 @@ struct UserModernMomentThumbnail: View {
                             }
                         }
                     )
-                    .overlay(borderOverlay())
             }
         }
         .onAppear {
@@ -195,7 +266,6 @@ struct UserModernMomentThumbnail: View {
         }
     }
 
-    // ✅ NUEVA: Vista para imágenes desde mediaItems
     @ViewBuilder
     private func imageView(imageURL: String) -> some View {
         if let url = getImageURL(from: imageURL) {
@@ -218,18 +288,16 @@ struct UserModernMomentThumbnail: View {
                     .resizable()
             }
             .contentShape(Rectangle())
-            .overlay(borderOverlay())
         } else {
             emptyContentView()
         }
     }
 
-    // ✅ NUEVA: Vista para contenido vacío
     @ViewBuilder
     private func emptyContentView() -> some View {
         Rectangle()
             .fill(UserProfileColors.cardBackground)
-            .frame(width: size, height: size)
+            .frame(width: cellWidth, height: cellHeight)
             .overlay(
                 VStack(spacing: 6) {
                     Image(systemName: "text.bubble")
@@ -244,20 +312,10 @@ struct UserModernMomentThumbnail: View {
                         .padding(.horizontal, 3)
                 }
             )
-            .overlay(borderOverlay())
     }
 
-    // ✅ NUEVA: Overlay de borde reutilizable
-    @ViewBuilder
-    private func borderOverlay() -> some View {
-        EmptyView()
-    }
-
-    // ✅ NUEVA: Función para cargar thumbnail de video
     private func loadVideoThumbnail(from urlString: String) {
-        guard let url = URL(string: urlString) else {
-            return
-        }
+        guard let url = URL(string: urlString) else { return }
 
         isLoadingVideoThumbnail = true
 
@@ -265,14 +323,12 @@ struct UserModernMomentThumbnail: View {
             let asset = AVURLAsset(url: url)
             let imageGenerator = AVAssetImageGenerator(asset: asset)
             imageGenerator.appliesPreferredTrackTransform = true
-            imageGenerator.maximumSize = CGSize(width: size * 2, height: size * 2) // Retina
+            imageGenerator.maximumSize = CGSize(width: size * 2, height: size * 2)
 
             do {
                 let (cgImage, _) = try await imageGenerator.image(at: CMTime(seconds: 1, preferredTimescale: 600))
-                let uiImage = UIImage(cgImage: cgImage)
-
                 await MainActor.run {
-                    self.videoThumbnail = uiImage
+                    self.videoThumbnail = UIImage(cgImage: cgImage)
                     self.isLoadingVideoThumbnail = false
                 }
             } catch {
@@ -291,9 +347,21 @@ struct UserModernMomentThumbnail: View {
         let encodedPath = path.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? path
         return URL(string: "\(baseURLString)\(encodedPath)?alt=media")
     }
+
+    private static func formatVideoDuration(_ duration: Double) -> String {
+        let totalSeconds = max(Int(duration.rounded()), 0)
+        let minutes = totalSeconds / 60
+        let seconds = totalSeconds % 60
+        return String(format: "%d:%02d", minutes, seconds)
+    }
 }
 
-// MARK: - Función auxiliar para calcular altura del grid (añadir a UserModernPublicProfileView)
-func calculateGridHeight(itemCount: Int) -> CGFloat {
-    ProfileMomentsGridMetrics.height(for: itemCount)
+func calculateBentoGridHeight(moments: [Moment]) -> CGFloat {
+    let descriptors = ProfileBentoTileAssigner.assign(moments: moments)
+    return ProfileMomentsGridMetrics.bentoHeight(tileKinds: descriptors.map(\.layoutKind))
+}
+
+func calculateTaggedGridHeight(moments: [Moment]) -> CGFloat {
+    let descriptors = ProfileBentoTileAssigner.simple(moments: moments)
+    return ProfileMomentsGridMetrics.bentoHeight(tileKinds: descriptors.map(\.layoutKind))
 }

@@ -764,6 +764,25 @@ struct Moment: Identifiable, Codable, Equatable {
         visibleMediaItems.first
     }
 
+    var visibleMediaCount: Int {
+        if !visibleMediaItems.isEmpty {
+            return visibleMediaItems.count
+        }
+
+        var count = 0
+        if let imagePath = imagePath?.trimmingCharacters(in: .whitespacesAndNewlines), !imagePath.isEmpty {
+            count += 1
+        }
+        if let videoUrl = videoUrl?.trimmingCharacters(in: .whitespacesAndNewlines), !videoUrl.isEmpty {
+            count += 1
+        }
+        return count
+    }
+
+    var isCarouselMoment: Bool {
+        visibleMediaCount > 1
+    }
+
     var previewImageURLString: String? {
         if let primaryVisibleMediaItem {
             switch primaryVisibleMediaItem.type {

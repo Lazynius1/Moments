@@ -53,6 +53,21 @@ struct ActivityInteractionDetailView: View {
 
     private var sectionHorizontalPadding: CGFloat { 8 }
 
+    private var activityGridSpacing: CGFloat { 1 }
+
+    private var reactionCardOverlayBadge: ActivityOverlayBadgeStyle {
+        switch category {
+        case .reactions, .tags:
+            return .reactionDiscreet
+        case .archived:
+            return .audience
+        case .recentlyDeleted:
+            return .none
+        default:
+            return .none
+        }
+    }
+
     private var detailNavigationTitleKey: String {
         switch category {
         case .archived:
@@ -395,14 +410,10 @@ struct ActivityInteractionDetailView: View {
                 emptyState(textKey: category.emptyKey)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
             } else {
-                let spacing: CGFloat = 2
-                let totalSpacing: CGFloat = spacing * 2
-                let side = floor((geometry.size.width - (sectionHorizontalPadding * 2) - totalSpacing) / 3)
-                let columns = [
-                    GridItem(.fixed(side), spacing: spacing),
-                    GridItem(.fixed(side), spacing: spacing),
-                    GridItem(.fixed(side), spacing: spacing)
-                ]
+                let spacing = activityGridSpacing
+                let totalSpacing = spacing * 2
+                let side = floor((geometry.size.width - totalSpacing) / 3)
+                let columns = Array(repeating: GridItem(.flexible(), spacing: spacing), count: 3)
 
                 ScrollViewReader { proxy in
                     ScrollView {
@@ -413,10 +424,9 @@ struct ActivityInteractionDetailView: View {
                                     size: side,
                                     isSelectionMode: isSelectionMode,
                                     isSelected: selectedReactionIds.contains(item.id),
-                                    showsOverlayBadges: category != .recentlyDeleted
+                                    overlayBadge: reactionCardOverlayBadge
                                 )
-                                .frame(width: side, height: side)
-                                .contentShape(RoundedRectangle(cornerRadius: 8))
+                                .contentShape(Rectangle())
                                 .id(item.id)
                                 .onTapGesture {
                                     if longPressActivatedItemId == item.id {
@@ -442,7 +452,6 @@ struct ActivityInteractionDetailView: View {
                                 }
                             }
                         }
-                        .padding(.horizontal, sectionHorizontalPadding)
                         .padding(.top, 8)
                         .padding(.bottom, isSelectionMode ? 88 : 12)
                         .simultaneousGesture(
@@ -451,7 +460,8 @@ struct ActivityInteractionDetailView: View {
                                 side: side,
                                 spacing: spacing,
                                 viewportHeight: geometry.size.height,
-                                scrollProxy: proxy
+                                scrollProxy: proxy,
+                                horizontalInset: 0
                             )
                         )
                     }
@@ -466,14 +476,10 @@ struct ActivityInteractionDetailView: View {
                 emptyState(textKey: category.emptyKey)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
             } else {
-                let spacing: CGFloat = 2
+                let spacing: CGFloat = 1
                 let totalSpacing: CGFloat = spacing * 2
-                let side = floor((geometry.size.width - (sectionHorizontalPadding * 2) - totalSpacing) / 3)
-                let columns = [
-                    GridItem(.fixed(side), spacing: spacing),
-                    GridItem(.fixed(side), spacing: spacing),
-                    GridItem(.fixed(side), spacing: spacing)
-                ]
+                let side = floor((geometry.size.width - totalSpacing) / 3)
+                let columns = Array(repeating: GridItem(.flexible(), spacing: spacing), count: 3)
 
                 ScrollViewReader { proxy in
                     ScrollView {
@@ -481,12 +487,10 @@ struct ActivityInteractionDetailView: View {
                             ForEach(Array(filteredDeletedStoryItems.enumerated()), id: \.element.id) { _, item in
                                 ActivityDeletedStoryCard(
                                     item: item,
-                                    size: side,
                                     isSelectionMode: isSelectionMode,
                                     isSelected: selectedReactionIds.contains(item.id)
                                 )
-                                .frame(width: side, height: side)
-                                .contentShape(RoundedRectangle(cornerRadius: 8))
+                                .contentShape(Rectangle())
                                 .id(item.id)
                                 .onTapGesture {
                                     if longPressActivatedItemId == item.id {
@@ -510,7 +514,6 @@ struct ActivityInteractionDetailView: View {
                                 }
                             }
                         }
-                        .padding(.horizontal, sectionHorizontalPadding)
                         .padding(.top, 8)
                         .padding(.bottom, isSelectionMode ? 88 : 12)
                         .simultaneousGesture(
@@ -519,7 +522,9 @@ struct ActivityInteractionDetailView: View {
                                 side: side,
                                 spacing: spacing,
                                 viewportHeight: geometry.size.height,
-                                scrollProxy: proxy
+                                scrollProxy: proxy,
+                                horizontalInset: 0,
+                                usesPortraitStoryCells: true
                             )
                         )
                     }
@@ -534,32 +539,37 @@ struct ActivityInteractionDetailView: View {
                 emptyState(textKey: category.emptyKey)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
             } else {
-                let spacing: CGFloat = 2
-                let totalSpacing: CGFloat = spacing * 2
-                let side = floor((geometry.size.width - (sectionHorizontalPadding * 2) - totalSpacing) / 3)
-                let columns = [
-                    GridItem(.fixed(side), spacing: spacing),
-                    GridItem(.fixed(side), spacing: spacing),
-                    GridItem(.fixed(side), spacing: spacing)
-                ]
+                let spacing = activityGridSpacing
+                let totalSpacing = spacing * 2
+                let columnWidth = floor((geometry.size.width - totalSpacing) / 3)
+                let columns = Array(repeating: GridItem(.flexible(), spacing: spacing), count: 3)
+                let isReelsCategory = category == .reels
 
                 ScrollView {
                     LazyVGrid(columns: columns, spacing: spacing) {
                         ForEach(filteredMoments) { moment in
-                            ScreenshotProtectedView(isProtected: (moment.audience?.lowercased() ?? "") != "everyone") {
-                                ModernMomentThumbnail(
-                                    moment: moment,
-                                    size: side,
-                                    customListNamesById: viewModel.customListNamesById,
-                                    onTap: {
+                            if isReelsCategory {
+                                ActivityPortraitMomentCard(moment: moment)
+                                    .contentShape(Rectangle())
+                                    .onTapGesture {
                                         selectedMomentForDetail = moment
                                     }
-                                )
-                                .frame(width: side, height: side)
+                            } else {
+                                ScreenshotProtectedView(isProtected: (moment.audience?.lowercased() ?? "") != "everyone") {
+                                    ModernMomentThumbnail(
+                                        moment: moment,
+                                        size: columnWidth,
+                                        customListNamesById: viewModel.customListNamesById,
+                                        onTap: {
+                                            selectedMomentForDetail = moment
+                                        },
+                                        usesDiscreetAudienceIcon: true
+                                    )
+                                    .frame(width: columnWidth, height: columnWidth)
+                                }
                             }
                         }
                     }
-                    .padding(.horizontal, sectionHorizontalPadding)
                     .padding(.top, 8)
                     .padding(.bottom, 20)
                 }
@@ -1524,9 +1534,13 @@ struct ActivityInteractionDetailView: View {
         side: CGFloat,
         spacing: CGFloat,
         viewportHeight: CGFloat,
-        scrollProxy: ScrollViewProxy
+        scrollProxy: ScrollViewProxy,
+        horizontalInset: CGFloat? = nil,
+        usesPortraitStoryCells: Bool = false
     ) -> some Gesture {
-        DragGesture(minimumDistance: 8, coordinateSpace: .local)
+        let resolvedHorizontalInset = horizontalInset ?? sectionHorizontalPadding
+
+        return DragGesture(minimumDistance: 8, coordinateSpace: .local)
             .onChanged { value in
                 guard category == .recentlyDeleted, isSelectionMode else { return }
                 updateRecentlyDeletedAutoScroll(
@@ -1539,7 +1553,9 @@ struct ActivityInteractionDetailView: View {
                     at: value.location,
                     items: items,
                     side: side,
-                    spacing: spacing
+                    spacing: spacing,
+                    horizontalInset: resolvedHorizontalInset,
+                    usesPortraitStoryCells: usesPortraitStoryCells
                 ) else { return }
                 recentlyDeletedDragCurrentId = id
                 applyRecentlyDeletedDragSelection(to: id)
@@ -1553,14 +1569,17 @@ struct ActivityInteractionDetailView: View {
         at location: CGPoint,
         items: [String],
         side: CGFloat,
-        spacing: CGFloat
+        spacing: CGFloat,
+        horizontalInset: CGFloat,
+        usesPortraitStoryCells: Bool = false
     ) -> String? {
-        let x = location.x - sectionHorizontalPadding
+        let x = location.x - horizontalInset
         let y = location.y - 8
         guard x >= 0, y >= 0 else { return nil }
 
         let columnWidth = side + spacing
-        let rowHeight = side + spacing
+        let cellHeight = usesPortraitStoryCells ? (side * 16.0 / 9.0) : side
+        let rowHeight = cellHeight + spacing
         guard columnWidth > 0, rowHeight > 0 else { return nil }
 
         let column = Int(x / columnWidth)
@@ -1569,7 +1588,7 @@ struct ActivityInteractionDetailView: View {
 
         let columnRemainder = x.truncatingRemainder(dividingBy: columnWidth)
         let rowRemainder = y.truncatingRemainder(dividingBy: rowHeight)
-        guard columnRemainder <= side, rowRemainder <= side else { return nil }
+        guard columnRemainder <= side, rowRemainder <= cellHeight else { return nil }
 
         let index = row * 3 + column
         guard items.indices.contains(index) else { return nil }

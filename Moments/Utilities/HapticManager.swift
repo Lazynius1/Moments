@@ -48,4 +48,30 @@ class HapticManager {
         notificationFeedback.notificationOccurred(type)
         notificationFeedback.prepare()
     }
+
+    /// Impact genérico (p. ej. Explore legacy).
+    func impact(_ style: UIImpactFeedbackGenerator.FeedbackStyle) {
+        switch style {
+        case .light, .soft:
+            lightImpact()
+        case .medium:
+            mediumImpact()
+        case .heavy, .rigid:
+            heavyImpact()
+        @unknown default:
+            mediumImpact()
+        }
+    }
+
+    func success() {
+        notification(.success)
+    }
+
+    func warning() {
+        notification(.warning)
+    }
+
+    func error() {
+        notification(.error)
+    }
 }

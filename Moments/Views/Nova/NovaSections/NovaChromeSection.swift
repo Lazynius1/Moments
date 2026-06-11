@@ -22,18 +22,18 @@ struct NovaHeader: View {
 
     var body: some View {
         HStack {
-            ZStack {
-                NovaBrandIcon(size: 22, color: NovaColors.textPrimary)
-                    .scaleEffect(logoScale * (logoPulse ? 1.06 : 1.0))
+            Button(action: handleLogoTap) {
+                ZStack {
+                    NovaBrandIcon(size: 22, color: NovaColors.textPrimary)
+                        .scaleEffect(logoScale * (logoPulse ? 1.06 : 1.0))
+                }
+                .frame(width: 40, height: 40)
+                .background {
+                    Color.clear
+                        .liquidGlass(in: Circle(), interactive: true)
+                }
             }
-            .frame(width: 40, height: 40)
-            .background {
-                Color.clear
-                    .liquidGlass(in: Circle(), interactive: true)
-            }
-            .onTapGesture {
-                handleLogoTap()
-            }
+            .buttonStyle(.momentsPress(scale: 0.92, haptic: .none))
             .alert("nova.easterEgg.title", isPresented: $showDeveloperEasterEgg) {
                 Button("nova.easterEgg.primaryButton") {
                     resetEasterEgg()
@@ -71,6 +71,7 @@ struct NovaHeader: View {
                                 .liquidGlass(in: Circle(), interactive: true)
                         }
                 }
+                .buttonStyle(.momentsPressIcon)
 
                 if !viewModel.conversationHistory.isEmpty {
                     Button(action: {
@@ -86,6 +87,7 @@ struct NovaHeader: View {
                                     .liquidGlass(in: Circle(), interactive: true)
                             }
                     }
+                    .buttonStyle(.momentsPressIcon)
                 }
 
                 Button(action: {
@@ -100,6 +102,7 @@ struct NovaHeader: View {
                                     .liquidGlass(in: Circle(), interactive: true)
                             }
                 }
+                .buttonStyle(.momentsPressIcon)
             }
         }
         .padding(.horizontal, 20)

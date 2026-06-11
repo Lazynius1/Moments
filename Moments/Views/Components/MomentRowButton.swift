@@ -23,11 +23,8 @@ struct MomentRowButton<Content: View>: View {
 
 struct MomentRowButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .contentShape(Rectangle())
-            .scaleEffect(configuration.isPressed ? 0.98 : 1.0)
-            .opacity(configuration.isPressed ? 0.88 : 1.0)
-            .animation(.spring(response: 0.3, dampingFraction: 0.8), value: configuration.isPressed)
+        MomentsPressButtonStyle(scale: 0.98, pressedOpacity: 0.88, haptic: .none)
+            .makeBody(configuration: configuration)
     }
 }
 

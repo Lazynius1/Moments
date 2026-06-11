@@ -6,7 +6,9 @@ enum MomentDetailContext {
     case profileCarousel(
         moments: [Moment],
         initialIndex: Int,
+        initialMomentId: String? = nil,
         topContentInset: CGFloat = 0,
+        restrictPlaybackToInitialIndex: Bool = false,
         onDismiss: () -> Void = {}
     )
     case map(

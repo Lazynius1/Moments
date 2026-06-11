@@ -112,6 +112,7 @@ struct ProfileHighlightsView: View {
                                 }
                             }
                         }
+                        .buttonStyle(.momentsPress(scale: 0.94, haptic: .light))
                         .accessibilityLabel(Text("highlightedStories.new"))
                     }
 
@@ -129,6 +130,7 @@ struct ProfileHighlightsView: View {
                                     .frame(width: isCompact ? 60 : 70)
                             }
                         }
+                        .buttonStyle(.momentsPress(scale: 0.94, haptic: .light))
                         .accessibilityLabel(highlight.title)
                         .contextMenu {
                             if isOwnProfile {

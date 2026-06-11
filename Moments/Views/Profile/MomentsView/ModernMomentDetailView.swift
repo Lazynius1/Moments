@@ -10,8 +10,11 @@ import CoreLocation
 struct ModernMomentDetailView: View {
     let moments: [Moment]
     let initialIndex: Int
+    let initialMomentId: String?
     let topContentInset: CGFloat
+    let restrictPlaybackToInitialIndex: Bool
     let onDismiss: () -> Void
+    private let resolvedInitialIndex: Int
     
     @StateObject private var firestoreService = FirestoreService()
     @State private var currentIndex: Int
@@ -23,6 +26,7 @@ struct ModernMomentDetailView: View {
     @State private var peekIsProtected = false
     @State private var selectedMoment: Moment?
     @State private var scrollOffset: CGFloat = 0
+    @State private var scrollPosition: Int?
     @State private var trackedMomentViewIds: Set<String> = []
     
     // ✅ Estados para el menú contextual
@@ -49,23 +53,47 @@ struct ModernMomentDetailView: View {
     @State private var showSpecificUserStories = false
     @State private var selectedStoryUserId: String = ""
     @State private var selectedLocationMoment: Moment? // ✅ Usar Item Binding para evitar race conditions en SwiftUI
+    @State private var hasAppliedInitialScroll = false
+    @State private var hasSettledAtInitialIndex = false
+    @Environment(\.profileDetailVideoPlaybackEnabled) private var profileDetailVideoPlaybackEnabled
+    @Environment(\.profileGridHeroTransitionCoordinator) private var heroCoordinator
     
     private let privacyService = PrivacyService()
     private let firestoreService2 = FirestoreService()
     
-    init(moments: [Moment], initialIndex: Int, topContentInset: CGFloat = 64, onDismiss: @escaping () -> Void) {
+    init(
+        moments: [Moment],
+        initialIndex: Int,
+        initialMomentId: String? = nil,
+        topContentInset: CGFloat = 64,
+        restrictPlaybackToInitialIndex: Bool = false,
+        onDismiss: @escaping () -> Void
+    ) {
         self.moments = moments
         self.initialIndex = initialIndex
+        self.initialMomentId = initialMomentId
         self.topContentInset = topContentInset
+        self.restrictPlaybackToInitialIndex = restrictPlaybackToInitialIndex
         self.onDismiss = onDismiss
-        self._currentIndex = State(initialValue: initialIndex)
+        
+        let resolved: Int
+        if let initialMomentId,
+           let matchedIndex = moments.firstIndex(where: { $0.id == initialMomentId }) {
+            resolved = matchedIndex
+        } else {
+            resolved = initialIndex
+        }
+        self.resolvedInitialIndex = resolved
+        
+        let clamped = moments.isEmpty ? 0 : min(max(resolved, 0), moments.count - 1)
+        self._currentIndex = State(initialValue: clamped)
+        self._scrollPosition = State(initialValue: clamped)
     }
     
     var body: some View {
         ZStack { // ✅ Root ZStack para overlays globales
             GeometryReader { geometry in
-                let safeAreaTop = geometry.safeAreaInsets.top
-            let safeAreaBottom = geometry.safeAreaInsets.bottom
+                let safeAreaBottom = geometry.safeAreaInsets.bottom
             
             ZStack(alignment: .top) {
                 // ✅ Fondo que se desvanece durante el drag
@@ -73,38 +101,33 @@ struct ModernMomentDetailView: View {
                     .ignoresSafeArea(.all)
                     .opacity(backgroundOpacity)
                 
-                // ✅ Header fijo superior con efecto cristal
-                ModernDetailHeader(
-                    moment: moments[safe: currentIndex],
-                    safeAreaTop: safeAreaTop,
-                    onDismiss: onDismiss,
-                    onAvatarTap: { userId, hasStory in
-                        let normalizedUserId = userId.trimmingCharacters(in: .whitespacesAndNewlines)
-                        guard !normalizedUserId.isEmpty else { return }
-                        if hasStory {
-                            selectedStoryUserId = normalizedUserId
-                            showSpecificUserStories = true
-                        } else {
-                            selectedUserId = normalizedUserId
-                            showUserProfile = true
-                        }
-                    }
+                // ✅ Scroll a pantalla completa; el contenido pasa por debajo del header al desplazarse
+                modernMomentsScrollView(
+                    geometry: geometry,
+                    safeAreaBottom: safeAreaBottom
                 )
-                .ignoresSafeArea(.container, edges: .top) // ✅ El header debe ignorar el safe area para pegarse al notch
-                .zIndex(10)
-                
-                // ✅ Contenido principal
-                VStack(spacing: 0) {
-                    modernMomentsScrollView(
-                        geometry: geometry,
-                        safeAreaBottom: safeAreaBottom,
-                        topContentInset: topContentInset
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .safeAreaInset(edge: .top, spacing: 0) {
+                    ModernDetailHeader(
+                        moment: moments[safe: currentIndex],
+                        topInset: 8,
+                        onDismiss: onDismiss,
+                        onAvatarTap: { userId, hasStory in
+                            let normalizedUserId = userId.trimmingCharacters(in: .whitespacesAndNewlines)
+                            guard !normalizedUserId.isEmpty else { return }
+                            if hasStory {
+                                selectedStoryUserId = normalizedUserId
+                                showSpecificUserStories = true
+                            } else {
+                                selectedUserId = normalizedUserId
+                                showUserProfile = true
+                            }
+                        }
                     )
+                    .padding(.bottom, 8)
                 }
                 .offset(x: dragOffset)
-                .scaleEffect(isDragging ? max(0.85, 1 - abs(dragOffset) / 1000) : 1.0) // ✅ Escala durante drag
-                
-                // ✅ (Eliminado overlay anterior dentro del GeometryReader)
+                .scaleEffect(isDragging ? max(0.85, 1 - abs(dragOffset) / 1000) : 1.0)
             }
         }
         
@@ -245,11 +268,52 @@ struct ModernMomentDetailView: View {
             )
         }
         .onAppear {
-            currentIndex = initialIndex
-            trackMomentViewIfNeeded(for: moments[safe: initialIndex])
+            let target = clampedInitialIndex
+            scrollPosition = target
+            currentIndex = target
+            VideoMomentsIndex.shared.rebuild(from: moments)
+
+            // Hero → detalle: no pausar; el handoff mantiene el mismo player en marcha.
+            let initialMoment = moments[safe: target]
+            let hasHeroHandoff = initialMoment.map {
+                GlobalVideoManager.shared.hasPendingProfileDetailHandoff(
+                    forMomentId: GlobalVideoManager.profileVideoConsumerId(for: $0)
+                )
+            } ?? false
+
+            if !hasHeroHandoff {
+                GlobalVideoManager.shared.pauseAllVideos()
+                // Entrada directa desde el grid: activar el video inicial una vez
+                // que el player ya se haya registrado (dos ciclos de layout, ~150ms).
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+                    activateVideoForIndex(target)
+                }
+            }
+            // Para el path hero, la activación la gestiona el coordinator vía
+            // profileDetailVideoPlaybackEnabled + restrictPlaybackToInitialIndex.
+
+            trackMomentViewIfNeeded(for: moments[safe: target])
+        }
+        .onChange(of: profileDetailVideoPlaybackEnabled) { _, enabled in
+            guard enabled, restrictPlaybackToInitialIndex else { return }
+            activateInitialProfileVideoIfNeeded()
+        }
+        .onDisappear {
+            GlobalVideoManager.shared.pauseAllVideos()
+            FeedVisibilityCoordinator.shared.update(all: [:])
+        }
+        .onChange(of: scrollPosition) { _, newPosition in
+            guard let newPosition, newPosition != currentIndex else { return }
+            currentIndex = newPosition
         }
         .onChange(of: currentIndex) { _, newIndex in
             trackMomentViewIfNeeded(for: moments[safe: newIndex])
+            // Activar el video del nuevo índice al paginar en el detalle.
+            activateVideoForIndex(newIndex)
+        }
+        .background {
+            ModernDetailBackground(scrollOffset: scrollOffset)
+                .ignoresSafeArea()
         }
         .gesture(
             // ✅ NUEVO: Drag gesture suave e interactivo
@@ -280,6 +344,7 @@ struct ModernMomentDetailView: View {
                         
                         // ✅ Ejecutar dismiss después de la animación
                         DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                            heroCoordinator?.isDismissingInteractively = true
                             onDismiss()
                         }
                     } else {
@@ -305,6 +370,15 @@ struct ModernMomentDetailView: View {
         }
     }
     
+    private var clampedInitialIndex: Int {
+        clampedIndex(resolvedInitialIndex)
+    }
+
+    private func clampedIndex(_ index: Int) -> Int {
+        guard !moments.isEmpty else { return 0 }
+        return min(max(index, 0), moments.count - 1)
+    }
+
     private func resolvedLocationName(_ rawValue: String) -> String {
         let trimmed = rawValue.trimmingCharacters(in: .whitespacesAndNewlines)
         if !trimmed.isEmpty { return trimmed }
@@ -315,75 +389,133 @@ struct ModernMomentDetailView: View {
         self.selectedLocationMoment = moment
     }
     
-    // ✅ ScrollView principal MODIFICADO para conectar con el menú contextual
-    private func modernMomentsScrollView(geometry: GeometryProxy, safeAreaBottom: CGFloat, topContentInset: CGFloat) -> some View {
-        ScrollViewReader { proxy in
-            ScrollView(.vertical, showsIndicators: false) {
-                LazyVStack(spacing: 40) {
-                    Color.clear
-                        .frame(height: topContentInset)
+    private func handleDetailPeek(moment: Moment, imageURL: String, ratio: CGFloat, isPressing: Bool) {
+        withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
+            if isPressing {
+                peekImageURL = imageURL
+                peekAspectRatio = ratio
+                peekIsProtected = (moment.audience?.lowercased() ?? "") != "everyone"
+                isPeeking = true
+            } else {
+                isPeeking = false
+                peekIsProtected = false
+            }
+        }
+    }
 
+    @ViewBuilder
+    private func detailMomentRow(
+        index: Int,
+        moment: Moment,
+        geometry: GeometryProxy,
+        profileVideoMoments: [VideoMoment]
+    ) -> some View {
+        let momentId = GlobalVideoManager.profileVideoConsumerId(for: moment)
+        let isProtected = (moment.audience?.lowercased() ?? "") != "everyone"
+        let cardHeight = geometry.size.height - 200
+        let allowsVideoPlayback = rowAllowsVideoPlayback(index)
+
+        ScreenshotProtectedView(isProtected: isProtected) {
+            ModernDetailMomentCard(
+                moment: moment,
+                availableHeight: cardHeight,
+                onComment: { selectedMoment = moment },
+                onContextMenu: {
+                    contextMenuMoment = moment
+                    withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                        showContextMenu = true
+                    }
+                },
+                onHashtagTap: { hashtag in
+                    selectedHashtag = "#\(hashtag)"
+                    showExploreWithHashtag = true
+                },
+                onTagTap: { userId in
+                    selectedUserId = userId
+                    showUserProfile = true
+                },
+                onLocationTap: { openLocationMap(for: moment) },
+                onPeek: { imageURL, ratio, isPressing in
+                    handleDetailPeek(moment: moment, imageURL: imageURL, ratio: ratio, isPressing: isPressing)
+                },
+                reelsVideos: profileVideoMoments,
+                allowsVideoPlayback: allowsVideoPlayback
+            )
+        }
+        .id(index)
+        .environmentObject(firestoreService)
+        .modifier(DetailMomentVisibilityReporter(
+            momentId: momentId,
+            isEnabled: allowsVideoPlayback
+        ))
+    }
+
+    private func rowAllowsVideoPlayback(_ index: Int) -> Bool {
+        guard profileDetailVideoPlaybackEnabled else { return false }
+        guard restrictPlaybackToInitialIndex else { return true }
+        // La fila inicial puede reproducir en cuanto el coordinator lo permite (handoff del hero).
+        if index == clampedInitialIndex { return true }
+        return hasSettledAtInitialIndex
+    }
+
+    private func activateInitialProfileVideoIfNeeded() {
+        activateVideoForIndex(clampedInitialIndex)
+    }
+
+    /// Activa (pin + play) el video del índice dado, o pausa todos si no hay video.
+    private func activateVideoForIndex(_ index: Int) {
+        guard let moment = moments[safe: index] else { return }
+        guard moment.hasVideoMedia else {
+            // Si el post actual no tiene video, no hay nada que reproducir.
+            return
+        }
+        let consumerId = GlobalVideoManager.profileVideoConsumerId(for: moment)
+        FeedVisibilityCoordinator.shared.pinActiveVideo(momentId: consumerId)
+        GlobalVideoManager.shared.playVideo(consumerId)
+    }
+
+    private func mergedVisibilityValues(_ values: [String: CGFloat]) -> [String: CGFloat] {
+        guard restrictPlaybackToInitialIndex, profileDetailVideoPlaybackEnabled else { return values }
+        guard let moment = moments[safe: clampedInitialIndex] else { return values }
+
+        var merged = values
+        let consumerId = GlobalVideoManager.profileVideoConsumerId(for: moment)
+        merged[consumerId] = max(merged[consumerId] ?? 0, 1.0)
+        return merged
+    }
+
+    // ✅ ScrollView principal MODIFICADO para conectar con el menú contextual
+    private func modernMomentsScrollView(
+        geometry: GeometryProxy,
+        safeAreaBottom: CGFloat
+    ) -> some View {
+        let profileVideoMoments = moments.videoMoments
+ 
+        return ScrollViewReader { proxy in
+            ScrollView(.vertical, showsIndicators: false) {
+                // ✅ VStack estándar: calcula las alturas de todas las celdas instantáneamente para un posicionamiento 100% fiable
+                VStack(spacing: 16) {
                     ForEach(Array(moments.enumerated()), id: \.offset) { index, moment in
-                        ScreenshotProtectedView(
-                            isProtected: (moment.audience?.lowercased() ?? "") != "everyone"
-                        ) {
-                            ModernDetailMomentCard(
-                                moment: moment,
-                                availableHeight: geometry.size.height - 200,
-                                onComment: {
-                                    selectedMoment = moment
-                                },
-                                onContextMenu: {
-                                    contextMenuMoment = moment
-                                    withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
-                                        showContextMenu = true
-                                    }
-                                },
-                                onHashtagTap: { hashtag in
-                                    selectedHashtag = "#\(hashtag)"
-                                    showExploreWithHashtag = true
-                                },
-                                onTagTap: { userId in
-                                    // ✅ NAVEGACIÓN A PERFIL
-                                    selectedUserId = userId
-                                    showUserProfile = true
-                                },
-                                onLocationTap: {
-                                    openLocationMap(for: moment)
-                                },
-                                onPeek: { imageURL, ratio, isPressing in
-                                    // ✅ LONG PRESS PEEK
-                                    withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
-                                        if isPressing {
-                                            peekImageURL = imageURL
-                                            peekAspectRatio = ratio
-                                            peekIsProtected = (moment.audience?.lowercased() ?? "") != "everyone"
-                                            isPeeking = true
-                                        } else {
-                                            isPeeking = false
-                                            peekIsProtected = false
-                                        }
-                                    }
-                                }
-                            )
-                        }
-                        .id(index)
-                        .environmentObject(firestoreService)
-                        .onAppear {
-                            if index != currentIndex {
-                                currentIndex = index
-                            }
-                        }
+                        detailMomentRow(
+                            index: index,
+                            moment: moment,
+                            geometry: geometry,
+                            profileVideoMoments: profileVideoMoments
+                        )
                     }
                 }
-                .padding(.top, 0)
-                .padding(.bottom, safeAreaBottom + 40)
+                .scrollTargetLayout()
+                .padding(.bottom, safeAreaBottom + 24)
+                .onPreferenceChange(MomentVisibilityPreference.self) { values in
+                    FeedVisibilityCoordinator.shared.update(all: mergedVisibilityValues(values))
+                }
             }
+            .scrollPosition(id: $scrollPosition, anchor: .top)
+            .environment(\.profileDetailDirectVideoPlayback, restrictPlaybackToInitialIndex)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
             .coordinateSpace(name: "scroll")
             .onAppear {
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                    proxy.scrollTo(initialIndex, anchor: .center)
-                }
+                applyInitialScrollIfNeeded(using: proxy)
             }
         }
     }
@@ -425,13 +557,44 @@ struct ModernMomentDetailView: View {
     
     private func scrollToMoment(at index: Int) {
         currentIndex = index
+        scrollPosition = clampedIndex(index)
+    }
+ 
+    private func applyInitialScrollIfNeeded(using proxy: ScrollViewProxy) {
+        guard !hasAppliedInitialScroll else { return }
+        hasAppliedInitialScroll = true
+ 
+        let target = clampedInitialIndex
+ 
+        DispatchQueue.main.async {
+            scrollPosition = target
+        }
+ 
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+            scrollPosition = target
+            proxy.scrollTo(target, anchor: .top)
+            hasSettledAtInitialIndex = true
+        }
+    }
+}
+
+private struct DetailMomentVisibilityReporter: ViewModifier {
+    let momentId: String
+    let isEnabled: Bool
+
+    func body(content: Content) -> some View {
+        if isEnabled {
+            content.feedMomentVisibility(momentId: momentId)
+        } else {
+            content
+        }
     }
 }
 
 // MARK: - ✅ Header centrado y limpio
 struct ModernDetailHeader: View {
     let moment: Moment?
-    let safeAreaTop: CGFloat
+    let topInset: CGFloat
     let onDismiss: () -> Void
     let onAvatarTap: (String, Bool) -> Void
     @Environment(\.colorScheme) var colorScheme
@@ -439,9 +602,8 @@ struct ModernDetailHeader: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            // Relleno ajustado para el área segura (notch)
             Color.clear
-                .frame(height: max(24, safeAreaTop - 6))
+                .frame(height: topInset)
 
             HStack(spacing: 12) {
                 Button {
@@ -547,26 +709,13 @@ struct ModernDetailMomentCard: View {
     var onTagTap: ((String) -> Void)? = nil // ✅ Tag Navigation
     var onLocationTap: (() -> Void)? = nil
     var onPeek: ((String, CGFloat, Bool) -> Void)? = nil // ✅ PEEK callback
-    
+    var reelsVideos: [VideoMoment]? = nil
+    var allowsVideoPlayback: Bool = true
+
     @EnvironmentObject private var firestoreService: FirestoreService
     @Environment(\.colorScheme) var colorScheme
     @State private var currentImageIndex = 0
     
-    // ✅ NUEVO: Función para colores de indicadores multicolores
-    private func getIndicatorColor(for index: Int) -> Color {
-        let colors: [Color] = [
-            Color(hex: "#5b2c6f"), // Púrpura
-            Color(hex: "#007bff"), // Azul
-            Color(hex: "#40dfcf"), // Turquesa
-            Color(hex: "#ff6b6b"), // Rojo coral
-            Color(hex: "#4ecdc4"), // Verde azulado
-            Color(hex: "#45b7d1"), // Azul claro
-            Color(hex: "#96ceb4"), // Verde menta
-            Color(hex: "#feca57")  // Amarillo
-        ]
-        
-        return colors[index % colors.count]
-    }
     @State private var detectedAspectRatio: CGFloat = 1.0
     @State private var realAspectRatio: CGFloat = 1.0 // ✅ Ratio real sin cap
     @State private var isSaved: Bool = false
@@ -659,36 +808,18 @@ struct ModernDetailMomentCard: View {
                         aspectRatio: detectedAspectRatio > 0 && detectedAspectRatio.isFinite ? detectedAspectRatio : 1.0,
                         currentMoment: moment,
                         onTagTap: onTagTap,
+                        reelsVideos: reelsVideos,
+                        allowsVideoPlayback: allowsVideoPlayback,
                         isImmersive: $isImmersive
                     )
-                    .simultaneousGesture(
-                        LongPressGesture(minimumDuration: 0.1)
-                            .sequenced(before: DragGesture(minimumDistance: 0, coordinateSpace: .local))
-                            .onEnded { _ in }
+                    .carouselImmersivePeekGesture(
+                        isImmersive: $isImmersive,
+                        mediaItems: mediaItems,
+                        currentImageIndex: currentImageIndex,
+                        detectedAspectRatio: detectedAspectRatio,
+                        realAspectRatio: realAspectRatio,
+                        onPeek: onPeek
                     )
-                    .onLongPressGesture(minimumDuration: .infinity, pressing: { isPressing in
-                        withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
-                            self.isImmersive = isPressing
-                            if isPressing {
-                                HapticManager.shared.mediumImpact()
-                                let currentItem = activeMediaItem
-                                let shouldUseFullscreenPeek = mediaItems.count > 1 &&
-                                    currentItem?.type == .image &&
-                                    currentItem?.isHiddenByModeration != true
-
-                                if let item = currentItem, item.type == .image, !item.isHiddenByModeration {
-                                    let currentItemRatio = item.resolvedAspectRatioValue ?? realAspectRatio
-                                    if currentItemRatio > 0,
-                                       currentItemRatio.isFinite,
-                                       (shouldUseFullscreenPeek || abs(currentItemRatio - detectedAspectRatio) > 0.035) {
-                                        onPeek?(item.url, currentItemRatio, true)
-                                    }
-                                }
-                            } else {
-                                onPeek?("", 1.0, false)
-                            }
-                        }
-                    }, perform: {})
                     .frame(height: max(cardHeight, 200))
                     .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
                     .contentShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
@@ -714,14 +845,10 @@ struct ModernDetailMomentCard: View {
                         .animation(.easeInOut(duration: 0.3), value: isImmersive)
 
                     if mediaItems.count > 1 {
-                        HStack(spacing: 6) {
-                            ForEach(0..<mediaItems.count, id: \.self) { index in
-                                Capsule()
-                                    .fill(currentImageIndex == index ? .white : .white.opacity(0.4))
-                                    .frame(width: currentImageIndex == index ? 24 : 6, height: 4)
-                                    .animation(.spring(response: 0.3, dampingFraction: 0.7), value: currentImageIndex)
-                            }
-                        }
+                        MomentCarouselPageIndicators(
+                            count: mediaItems.count,
+                            currentIndex: currentImageIndex
+                        )
                         .frame(maxWidth: .infinity, alignment: .center)
                         .padding(.top, aspectRatioType == .reels ? 80 : 18)
                         .opacity(isImmersive ? 0 : 1)
@@ -754,7 +881,6 @@ struct ModernDetailMomentCard: View {
             .padding(.horizontal, 4)
         }
         .padding(.horizontal, 14)
-        .padding(.vertical, 4)
         .onAppear {
             if !hasLoadedInitialData {
                 loadMomentData()

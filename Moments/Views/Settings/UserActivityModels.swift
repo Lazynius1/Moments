@@ -1,5 +1,11 @@
 import Foundation
 
+enum ActivityOverlayBadgeStyle {
+    case none
+    case audience
+    case reactionDiscreet
+}
+
 struct ActivityReactionItem: Identifiable {
     let id: String
     let authorId: String

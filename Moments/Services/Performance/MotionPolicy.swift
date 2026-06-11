@@ -54,4 +54,17 @@ enum MotionPolicy {
             try body()
         }
     }
+
+    /// Presets de spring alineados con micro-interacciones tipo Instagram.
+    enum Spring {
+        static var press: Animation { .spring(response: 0.28, dampingFraction: 0.72) }
+        static var toggle: Animation { .spring(response: 0.32, dampingFraction: 0.78) }
+        static var sheet: Animation { .smooth(duration: 0.18, extraBounce: 0.01) }
+        static var header: Animation { .spring(response: 0.32, dampingFraction: 0.86) }
+        static var row: Animation { .spring(response: 0.3, dampingFraction: 0.8) }
+
+        static func repeatingPulse(duration: TimeInterval = 1.2) -> Animation? {
+            reduceMotion ? nil : .easeInOut(duration: duration).repeatForever(autoreverses: true)
+        }
+    }
 }

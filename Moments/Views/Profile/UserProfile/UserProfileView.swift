@@ -231,7 +231,6 @@ struct UserProfileView: View {
     @State private var messageRequestText = ""
     @State private var messageRequestError: String?
     @State private var showingSuccessMessage = false
-    @State private var selectedMoment: Moment?
     @State private var showingUnfollowConfirmation = false
     @State private var showingRelationshipSheet = false
 
@@ -239,8 +238,7 @@ struct UserProfileView: View {
     @State private var showStoryViewer: Bool = false
     @State private var selectedStoryIndex: Int = 0
     @State private var scrollOffset: CGFloat = 0
-    @State private var showMomentDetail = false
-    @State private var selectedMomentIndex = 0
+    @StateObject private var heroCoordinator = ProfileGridHeroTransitionCoordinator()
     // NUEVO: Estado para el gesto de arrastre
     @State private var dragAmount = CGSize.zero
     @State private var isDragging = false
@@ -287,22 +285,37 @@ struct UserProfileView: View {
     }
 
     var body: some View {
-        ZStack {
-            EnhancedProfileBackground(
-                profileImagePath: viewModel.userProfile?.profileImagePath,
-                scrollOffset: scrollOffset,
-                profileTheme: viewModel.userProfile?.currentProfileTheme ?? .default,
-                user: viewModel.userProfile
-            )
-            .ignoresSafeArea(.all, edges: .all)
+        GeometryReader { geometry in
+            let safeAreaTop = geometry.safeAreaInsets.top
+            let safeAreaBottom = geometry.safeAreaInsets.bottom
 
-            GeometryReader { geometry in
-                let safeAreaTop = geometry.safeAreaInsets.top
-                let safeAreaBottom = geometry.safeAreaInsets.bottom
+            ZStack {
+                EnhancedProfileBackground(
+                    profileImagePath: viewModel.userProfile?.profileImagePath,
+                    scrollOffset: scrollOffset,
+                    profileTheme: viewModel.userProfile?.currentProfileTheme ?? .default,
+                    user: viewModel.userProfile
+                )
+                .ignoresSafeArea(.all, edges: .all)
 
                 contentView(safeAreaTop: safeAreaTop, safeAreaBottom: safeAreaBottom)
+
+                ProfileGridHeroDetailLayer(
+                    coordinator: heroCoordinator,
+                    containerSize: geometry.size,
+                    safeAreaInsets: EdgeInsets(
+                        top: geometry.safeAreaInsets.top,
+                        leading: geometry.safeAreaInsets.leading,
+                        bottom: geometry.safeAreaInsets.bottom,
+                        trailing: geometry.safeAreaInsets.trailing
+                    ),
+                    moments: selectedTab == .moments ? viewModel.moments : viewModel.taggedMoments
+                )
+                .zIndex(100)
             }
         }
+        .environmentObject(heroCoordinator)
+        .environment(\.profileGridHeroTransitionCoordinator, heroCoordinator)
         .navigationBarHidden(true)
         .offset(x: dragAmount.width)
         .opacity(isDragging ? 0.8 : 1.0)
@@ -397,18 +410,6 @@ struct UserProfileView: View {
             Text(NSLocalizedString("messageRequestModal.success.message", comment: "Success message"))
         }
         // ✅ CORREGIDO: Eliminar el sheet duplicado y usar solo fullScreenCover
-        .fullScreenCover(isPresented: $showMomentDetail) {
-            MomentDetailContainerView(
-                context: .profileCarousel(
-                    moments: selectedTab == .moments ? viewModel.moments : viewModel.taggedMoments,
-                    initialIndex: selectedMomentIndex,
-                    topContentInset: selectedTab == .moments ? 24 : 64,
-                    onDismiss: {
-                        showMomentDetail = false
-                    }
-                )
-            )
-        }
         .fullScreenCover(isPresented: $showStoryViewer) {
             if let stories = storyViewModel.stories[userId], !stories.isEmpty {
                 let safeStoryIndex = min(max(selectedStoryIndex, 0), stories.count - 1)
@@ -534,6 +535,10 @@ struct UserProfileView: View {
                 messagingViewModel.fetchConversations(for: currentUserId)
             }
         }
+        .onDisappear {
+            // Reset profile transition and detail states immediately when leaving this user's profile view
+            heroCoordinator.resetToIdle()
+        }
     }
 
     // ✅ NUEVA: Función para enviar solicitud de mensaje
@@ -623,9 +628,6 @@ struct UserProfileView: View {
                     safeAreaTop: safeAreaTop,
                     safeAreaBottom: safeAreaBottom,
                     showingUserList: $showingUserList,
-                    selectedMoment: $selectedMoment,
-                    showMomentDetail: $showMomentDetail,
-                    selectedMomentIndex: $selectedMomentIndex,
                     showStoryViewer: $showStoryViewer,
                     selectedStoryIndex: $selectedStoryIndex,
                     navigateToChat: $navigateToChat,

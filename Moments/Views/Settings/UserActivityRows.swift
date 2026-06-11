@@ -138,6 +138,17 @@ struct ActivityCommentMomentPreview: View {
                     placeholder
                 }
 
+                if let moment, moment.isCarouselMoment, canView {
+                    VStack {
+                        HStack {
+                            MomentCarouselIndicatorIcon(size: 15)
+                                .padding(6)
+                            Spacer()
+                        }
+                        Spacer()
+                    }
+                }
+
                 if !canView {
                     restrictedOverlay
                 }
@@ -693,7 +704,7 @@ struct ActivityReactionMomentCard: View {
     let size: CGFloat
     let isSelectionMode: Bool
     let isSelected: Bool
-    var showsOverlayBadges: Bool = true
+    var overlayBadge: ActivityOverlayBadgeStyle = .none
     @State private var generatedVideoThumbnail: UIImage?
     @State private var isGeneratingThumbnail = false
 
@@ -709,20 +720,7 @@ struct ActivityReactionMomentCard: View {
                     restrictedOverlay
                 }
 
-                if showsOverlayBadges {
-                    if item.reactionType == "moment" || item.reactionType == "reel" || item.reactionType == "archived" || item.reactionType == "recentlyDeleted" {
-                        audienceBadge
-                            .padding(6)
-                    } else {
-                        reactionBadge
-                            .padding(6)
-                    }
-                }
-
-                if !showsOverlayBadges, isVideoMoment, item.canView {
-                    ActivityThumbnailVideoPlayIndicator()
-                        .frame(width: size, height: size)
-                }
+                overlayContent
 
                 if isSelectionMode {
                     VStack {
@@ -738,9 +736,36 @@ struct ActivityReactionMomentCard: View {
                 }
             }
             .frame(width: size, height: size)
-            .contentShape(RoundedRectangle(cornerRadius: 8))
-            .clipShape(RoundedRectangle(cornerRadius: 8))
+            .contentShape(Rectangle())
+            .clipped()
         }
+    }
+
+    @ViewBuilder
+    private var overlayContent: some View {
+        switch overlayBadge {
+        case .reactionDiscreet:
+            discreetReactionBadge
+                .frame(width: size, height: size, alignment: .bottomTrailing)
+        case .audience:
+            discreetAudienceIcon
+                .frame(width: size, height: size, alignment: .topLeading)
+        case .none:
+            if isVideoMoment, item.canView {
+                ActivityThumbnailVideoPlayIndicator()
+                    .frame(width: size, height: size)
+            }
+        }
+    }
+
+    private var discreetReactionBadge: some View {
+        let style = reactionStyle(from: item.reactionType)
+
+        return Text(style.icon)
+            .font(.system(size: 14))
+            .shadow(color: .black.opacity(0.55), radius: 2, y: 1)
+            .padding(6)
+            .allowsHitTesting(false)
     }
 
     private var isVideoMoment: Bool {
@@ -826,11 +851,8 @@ struct ActivityReactionMomentCard: View {
                     }
             }
 
-            if showsOverlayBadges {
-                Image(systemName: "play.circle.fill")
-                    .font(.system(size: 24, weight: .regular))
-                    .foregroundColor(.white.opacity(0.9))
-                    .shadow(radius: 3)
+            if overlayBadge == .none {
+                ActivityThumbnailVideoPlayIndicator()
             }
         }
         .frame(width: size, height: size)
@@ -872,26 +894,6 @@ struct ActivityReactionMomentCard: View {
         }
     }
 
-    private var reactionBadge: some View {
-        let style = reactionStyle(from: item.reactionType)
-
-        return HStack(spacing: 4) {
-            Text(style.icon)
-                .font(.system(size: 13))
-
-            Text(style.label)
-                .font(.custom("Poppins-SemiBold", size: 10))
-                .foregroundColor(.white)
-                .lineLimit(1)
-        }
-        .padding(.horizontal, 7)
-        .padding(.vertical, 4)
-        .background(
-            Capsule()
-                .fill(style.color.opacity(0.88))
-        )
-    }
-
     private var restrictedOverlay: some View {
         ZStack {
             Rectangle()
@@ -924,52 +926,22 @@ struct ActivityReactionMomentCard: View {
         .allowsHitTesting(false)
     }
 
-    private var audienceBadge: some View {
-        guard let moment = item.moment else { return AnyView(EmptyView()) }
-
-        let normalizedAudience = moment.audience?
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-            .lowercased()
-            .replacingOccurrences(of: "_", with: "")
-            .replacingOccurrences(of: "-", with: "") ?? "everyone"
-
-        let icon: String
-        let title: String
-        let background: Color
-
-        switch normalizedAudience {
-        case "bestfriends", "bestfriend":
-            icon = "heart.fill"
-            title = NSLocalizedString("audience.type.bestFriends", comment: "")
-            background = Color(hex: "24C26A").opacity(0.92)
-        case "connections", "connection", "mutuals", "mutual":
-            icon = "person.2.fill"
-            title = NSLocalizedString("audience.type.connections", comment: "")
-            background = Color(hex: "00B4D8").opacity(0.92)
-        case "onlyme":
-            icon = "lock.fill"
-            title = NSLocalizedString("audience.type.onlyMe", comment: "")
-            background = Color.black.opacity(0.78)
-        default:
-            icon = "globe"
-            title = NSLocalizedString("audience.type.everyone", comment: "")
-            background = Color(hex: "0EA5A3").opacity(0.9)
+    @ViewBuilder
+    private var discreetAudienceIcon: some View {
+        if let moment = item.moment {
+            let audience = resolvedAudience(for: moment)
+            ActivityGridAudienceIcon(audience: audience)
+                .padding(6)
+                .accessibilityLabel(audience.title)
         }
+    }
 
-        return AnyView(
-            HStack(spacing: 4) {
-                Image(systemName: icon)
-                    .font(.system(size: 8, weight: .bold))
-                Text(title)
-                    .font(.custom("Poppins-SemiBold", size: 8))
-                    .lineLimit(1)
-            }
-            .foregroundColor(.white)
-            .padding(.horizontal, 6)
-            .padding(.vertical, 3)
-            .background(background)
-            .clipShape(Capsule())
-        )
+    private func resolvedAudience(for moment: Moment) -> ContentAudience {
+        let audience = ContentAudience.fromAudienceValue(moment.audience)
+        if moment.customListId != nil, audience == .custom {
+            return .customList
+        }
+        return audience
     }
 
     private func reactionStyle(from rawValue: String) -> (icon: String, label: String, color: Color) {
@@ -989,10 +961,129 @@ struct ActivityReactionMomentCard: View {
     }
 }
 
+// MARK: - Tarjeta portrait 9:16 para reels en actividad
+
+struct ActivityPortraitMomentCard: View {
+    @Environment(\.colorScheme) private var colorScheme
+    let moment: Moment
+    @State private var generatedVideoThumbnail: UIImage?
+    @State private var isGeneratingThumbnail = false
+
+    private var isVideoMoment: Bool {
+        if let media = moment.primaryVisibleMediaItem {
+            return media.type != .image
+        }
+        if let video = moment.previewVideoURLString, !video.isEmpty {
+            return true
+        }
+        return false
+    }
+
+    var body: some View {
+        ScreenshotProtectedView(isProtected: (moment.audience?.lowercased() ?? "") != "everyone") {
+            GeometryReader { geometry in
+                ZStack {
+                    cardPreview
+                        .frame(width: geometry.size.width, height: geometry.size.height)
+                        .clipped()
+
+                    if isVideoMoment {
+                        ActivityThumbnailVideoPlayIndicator()
+                    }
+                }
+            }
+            .aspectRatio(9.0 / 16.0, contentMode: .fit)
+            .clipped()
+        }
+    }
+
+    @ViewBuilder
+    private var cardPreview: some View {
+        if let media = moment.primaryVisibleMediaItem {
+            if media.type == .image {
+                mediaImage(urlString: media.url)
+            } else {
+                mediaVideoPreview(videoURL: media.url, thumbnailURL: media.thumbnailUrl ?? moment.thumbnailUrl)
+            }
+        } else if let imagePath = moment.previewImageURLString, !imagePath.isEmpty {
+            mediaImage(urlString: imagePath)
+        } else if let video = moment.previewVideoURLString, !video.isEmpty {
+            mediaVideoPreview(videoURL: video, thumbnailURL: moment.previewImageURLString ?? moment.thumbnailUrl)
+        } else {
+            videoPlaceholder
+        }
+    }
+
+    private func mediaImage(urlString: String) -> some View {
+        KFImage(URL(string: urlString))
+            .placeholder {
+                Color(colorScheme == .dark ? .white.opacity(0.08) : .black.opacity(0.08))
+            }
+            .resizable()
+            .scaledToFill()
+    }
+
+    @ViewBuilder
+    private func mediaVideoPreview(videoURL: String, thumbnailURL: String?) -> some View {
+        ZStack {
+            if let thumb = thumbnailURL, !thumb.isEmpty {
+                KFImage(URL(string: thumb))
+                    .placeholder {
+                        Color(colorScheme == .dark ? .white.opacity(0.08) : .black.opacity(0.08))
+                    }
+                    .resizable()
+                    .scaledToFill()
+            } else if let generatedVideoThumbnail {
+                Image(uiImage: generatedVideoThumbnail)
+                    .resizable()
+                    .scaledToFill()
+            } else {
+                videoPlaceholder
+                    .onAppear {
+                        generateThumbnail(for: videoURL)
+                    }
+            }
+        }
+    }
+
+    private var videoPlaceholder: some View {
+        ZStack {
+            Color(colorScheme == .dark ? .white.opacity(0.08) : .black.opacity(0.08))
+            Image(systemName: "video")
+                .font(.system(size: 22, weight: .regular))
+                .foregroundColor(.gray)
+        }
+    }
+
+    private func generateThumbnail(for videoPath: String) {
+        guard !isGeneratingThumbnail, generatedVideoThumbnail == nil, let videoURL = URL(string: videoPath) else { return }
+        isGeneratingThumbnail = true
+
+        Task {
+            let asset = AVURLAsset(url: videoURL)
+            let generator = AVAssetImageGenerator(asset: asset)
+            generator.appliesPreferredTrackTransform = true
+            generator.maximumSize = CGSize(width: 700, height: 1244)
+
+            do {
+                let (cgImage, _) = try await generator.image(at: CMTime(seconds: 0.8, preferredTimescale: 600))
+                let thumbnail = UIImage(cgImage: cgImage)
+                await MainActor.run {
+                    self.generatedVideoThumbnail = thumbnail
+                    self.isGeneratingThumbnail = false
+                }
+            } catch {
+                await MainActor.run {
+                    self.isGeneratingThumbnail = false
+                }
+            }
+        }
+    }
+}
+
 struct ActivityDeletedStoryCard: View {
     @Environment(\.colorScheme) private var colorScheme
     let item: ActivityDeletedStoryItem
-    let size: CGFloat
     let isSelectionMode: Bool
     let isSelected: Bool
 
@@ -1008,42 +1099,53 @@ struct ActivityDeletedStoryCard: View {
     }
 
     var body: some View {
-        ZStack(alignment: .topLeading) {
-            RoundedRectangle(cornerRadius: 8, style: .continuous)
-                .fill(colorScheme == .dark ? Color.white.opacity(0.08) : Color.black.opacity(0.06))
-                .overlay {
-                    if let previewURLString, let url = URL(string: previewURLString) {
-                        KFImage(url)
-                            .placeholder {
-                                placeholder
-                            }
-                            .resizable()
-                            .scaledToFill()
-                    } else {
-                        placeholder
-                    }
+        GeometryReader { geometry in
+            ZStack(alignment: .topTrailing) {
+                if let previewURLString, let url = URL(string: previewURLString) {
+                    KFImage(url)
+                        .placeholder {
+                            placeholder
+                        }
+                        .resizable()
+                        .scaledToFill()
+                        .frame(width: geometry.size.width, height: geometry.size.height)
+                        .clipped()
+                } else {
+                    placeholder
                 }
-                .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
 
-            if item.story.mediaItem.type == .video {
-                ActivityThumbnailVideoPlayIndicator()
-                    .frame(width: size, height: size)
-            }
-
-            if isSelectionMode {
                 VStack {
                     HStack {
-                        Spacer()
-                        Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
-                            .font(.system(size: 20, weight: .semibold))
-                            .foregroundColor(isSelected ? Color(hex: "2563EB") : .white.opacity(0.92))
-                            .padding(6)
+                        HighlightStoryDateBadge(date: item.story.timestamp)
+                        Spacer(minLength: 0)
                     }
-                    Spacer()
+                    Spacer(minLength: 0)
+                }
+                .padding(7)
+
+                if item.story.mediaItem.type == .video, item.story.duration > 0 {
+                    VStack {
+                        Spacer(minLength: 0)
+                        HStack {
+                            Spacer(minLength: 0)
+                            Text(HighlightArchiveStoryCardVisual.formatVideoDuration(item.story.duration))
+                                .font(.system(size: 12, weight: .semibold))
+                                .foregroundColor(.white)
+                                .shadow(color: .black.opacity(0.45), radius: 2, y: 1)
+                        }
+                    }
+                    .padding(7)
+                }
+
+                if isSelectionMode {
+                    Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+                        .font(.system(size: 20, weight: .semibold))
+                        .foregroundColor(isSelected ? Color(hex: "2563EB") : .white.opacity(0.92))
+                        .padding(8)
                 }
             }
         }
-        .frame(width: size, height: size)
+        .aspectRatio(9.0 / 16.0, contentMode: .fit)
         .clipped()
     }
 
@@ -1057,7 +1159,7 @@ struct ActivityDeletedStoryCard: View {
     }
 }
 
-private struct ActivityThumbnailVideoPlayIndicator: View {
+struct ActivityThumbnailVideoPlayIndicator: View {
     var body: some View {
         VStack {
             Spacer()

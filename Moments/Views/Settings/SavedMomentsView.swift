@@ -654,13 +654,8 @@ private struct SavedMomentGridCard: View {
                         savedRestrictedOverlay
                     }
 
-                    if mediaCount > 1 && !isRestricted {
-                        Label("\(mediaCount)", systemImage: "square.stack.3d.up")
-                            .font(.custom("Poppins-SemiBold", size: 10))
-                            .foregroundColor(.white)
-                            .padding(.horizontal, 7)
-                            .padding(.vertical, 4)
-                            .background(Capsule().fill(Color.black.opacity(0.55)))
+                    if moment.isCarouselMoment && !isRestricted {
+                        MomentCarouselIndicatorIcon(size: 16)
                             .padding(6)
                     }
                 }
@@ -788,6 +783,7 @@ private struct SavedMomentGridCard: View {
 
             if !isRestricted {
                 VStack {
+                    Spacer()
                     HStack {
                         Image(systemName: "play.fill")
                             .font(.system(size: 10, weight: .bold))
@@ -796,21 +792,10 @@ private struct SavedMomentGridCard: View {
                             .background(Circle().fill(Color.black.opacity(0.55)))
                         Spacer()
                     }
-                    Spacer()
                 }
                 .padding(6)
             }
         }
-    }
-
-    private var mediaCount: Int {
-        if let items = moment.mediaItems, !items.isEmpty {
-            return items.count
-        }
-        var count = 0
-        if moment.imagePath != nil { count += 1 }
-        if moment.videoUrl != nil { count += 1 }
-        return max(count, 1)
     }
 
     private func generateThumbnail(for videoPath: String) {
@@ -1148,7 +1133,6 @@ struct ModernSavedDetailMomentCard: View {
     @State private var showTags: Bool = false // ✅ NUEVO: Control de etiquetas
     @State private var isImmersive: Bool = false // ✅ NUEVO: Soporte para modo inmersivo
     @State private var realAspectRatio: CGFloat = 1.0
-    @State private var immersiveActivationTask: DispatchWorkItem?
     @State private var aspectRatioType: AspectRatioType = .square
     @State private var showContextMenu = false
     @State private var showEditSheet = false
@@ -1231,14 +1215,14 @@ struct ModernSavedDetailMomentCard: View {
                         currentMoment: moment,
                         isImmersive: $isImmersive // ✅ NUEVO
                     )
-                    .onLongPressGesture(minimumDuration: .infinity, maximumDistance: 10, pressing: { isPressing in
-                        if isPressing {
-                            scheduleImmersiveActivation()
-                        } else {
-                            cancelImmersiveActivation()
-                            endImmersive()
-                        }
-                    }, perform: {})
+                    .carouselImmersivePeekGesture(
+                        isImmersive: $isImmersive,
+                        mediaItems: mediaItems,
+                        currentImageIndex: currentImageIndex,
+                        detectedAspectRatio: detectedAspectRatio,
+                        realAspectRatio: realAspectRatio,
+                        onPeek: onPeek
+                    )
                     .frame(height: max(cardHeight, 200))
                     .clipShape(RoundedRectangle(cornerRadius: isImmersive ? 12 : 28, style: .continuous))
                     .contentShape(RoundedRectangle(cornerRadius: isImmersive ? 12 : 28, style: .continuous))
@@ -1265,14 +1249,10 @@ struct ModernSavedDetailMomentCard: View {
                         .animation(.easeInOut(duration: 0.3), value: isImmersive)
 
                     if mediaItems.count > 1 {
-                        HStack(spacing: 6) {
-                            ForEach(0..<mediaItems.count, id: \.self) { index in
-                                Capsule()
-                                    .fill(currentImageIndex == index ? .white : .white.opacity(0.4))
-                                    .frame(width: currentImageIndex == index ? 24 : 6, height: 4)
-                                    .animation(.spring(response: 0.3, dampingFraction: 0.7), value: currentImageIndex)
-                            }
-                        }
+                        MomentCarouselPageIndicators(
+                            count: mediaItems.count,
+                            currentIndex: currentImageIndex
+                        )
                         .frame(maxWidth: .infinity, alignment: .center)
                         .padding(.top, aspectRatioType == .reels ? 80 : 18)
                         .opacity(isImmersive ? 0 : 1)
@@ -1328,7 +1308,6 @@ struct ModernSavedDetailMomentCard: View {
             }
         }
         .onDisappear {
-            cancelImmersiveActivation()
             onPeek?("", 1.0, false)
         }
         .overlay {
@@ -1546,45 +1525,6 @@ struct ModernSavedDetailMomentCard: View {
         }
     }
 
-    private func scheduleImmersiveActivation() {
-        cancelImmersiveActivation()
-
-        let task = DispatchWorkItem {
-            withAnimation(.spring(response: 0.36, dampingFraction: 0.82)) {
-                self.isImmersive = true
-                HapticManager.shared.mediumImpact()
-
-                let currentItem = mediaItems.indices.contains(currentImageIndex) ? mediaItems[currentImageIndex] : mediaItems.first
-                let shouldUseFullscreenPeek = mediaItems.count > 1 &&
-                    currentItem?.type == .image &&
-                    currentItem?.isHiddenByModeration != true
-
-                if let item = currentItem, item.type == .image, !item.isHiddenByModeration {
-                    let currentItemRatio = item.resolvedAspectRatioValue ?? realAspectRatio
-                    if currentItemRatio > 0,
-                       currentItemRatio.isFinite,
-                       (shouldUseFullscreenPeek || abs(currentItemRatio - detectedAspectRatio) > 0.035) {
-                        onPeek?(item.url, currentItemRatio, true)
-                    }
-                }
-            }
-        }
-
-        immersiveActivationTask = task
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.22, execute: task)
-    }
-
-    private func cancelImmersiveActivation() {
-        immersiveActivationTask?.cancel()
-        immersiveActivationTask = nil
-    }
-
-    private func endImmersive() {
-        withAnimation(.spring(response: 0.32, dampingFraction: 0.86)) {
-            self.isImmersive = false
-            onPeek?("", 1.0, false)
-        }
-    }
 }
 struct SavedDetailScrollOffsetKey: PreferenceKey {
     static var defaultValue: CGFloat = 0

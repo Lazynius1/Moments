@@ -344,6 +344,7 @@ struct ProfileSavedMomentThumbnail: View {
                 // Play indicator si es video
                 if isVideo && !isRestricted {
                     VStack {
+                        Spacer()
                         HStack {
                             Image(systemName: "play.fill")
                                 .font(.system(size: 8))
@@ -352,12 +353,22 @@ struct ProfileSavedMomentThumbnail: View {
                                 .background(Circle().fill(.black.opacity(0.3)))
                             Spacer()
                         }
-                        Spacer()
                     }
                     .padding(6)
                 }
 
                 if !isRestricted {
+                    if moment.isCarouselMoment {
+                        VStack {
+                            HStack {
+                                MomentCarouselIndicatorIcon(size: 16)
+                                Spacer()
+                            }
+                            Spacer()
+                        }
+                        .padding(6)
+                    }
+
                     // Badge de guardado
                     VStack {
                         HStack {

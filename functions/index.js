@@ -985,6 +985,32 @@ function firebaseStorageDownloadUrl(bucketName, objectName, token) {
   return `https://firebasestorage.googleapis.com/v0/b/${bucketName}/o/${encodeURIComponent(objectName)}?alt=media&token=${token}`;
 }
 
+function storageProjectIdFromBucketName(bucketName) {
+  const value = String(bucketName || '').trim();
+  if (!value) return '';
+  if (value.endsWith('.firebasestorage.app')) {
+    return value.slice(0, -'.firebasestorage.app'.length);
+  }
+  if (value.endsWith('.appspot.com')) {
+    return value.slice(0, -'.appspot.com'.length);
+  }
+  return value;
+}
+
+function storageBucketsAreEquivalent(left, right) {
+  const projectA = storageProjectIdFromBucketName(left);
+  const projectB = storageProjectIdFromBucketName(right);
+  return Boolean(projectA) && projectA === projectB;
+}
+
+function sanitizeStorageSegment(value) {
+  return String(value || '')
+    .trim()
+    .split('')
+    .map((ch) => (/[a-zA-Z0-9\-_]/.test(ch) ? ch : '_'))
+    .join('');
+}
+
 function storageObjectNameFromFirebaseUrl(url, expectedBucketName) {
   try {
     const parsed = new URL(url);
@@ -994,12 +1020,22 @@ function storageObjectNameFromFirebaseUrl(url, expectedBucketName) {
     if (!match) return null;
 
     const bucketName = decodeURIComponent(match[1]);
-    if (bucketName !== expectedBucketName) return null;
+    if (!storageBucketsAreEquivalent(bucketName, expectedBucketName)) return null;
 
     return decodeURIComponent(match[2]);
   } catch (error) {
     return null;
   }
+}
+
+function resolveStorageObjectNameFromClientMediaReference(mediaReference, bucket) {
+  const bucketName = bucket?.name || '';
+  if (!bucketName) return null;
+
+  const fromUrl = storageObjectNameFromFirebaseUrl(mediaReference, bucketName);
+  if (fromUrl) return fromUrl;
+
+  return storageObjectNameFromTrustedValue(mediaReference, bucketName);
 }
 
 function userOwnedPublishableMediaObjectNameFromFirebaseUrl(
@@ -1009,14 +1045,14 @@ function userOwnedPublishableMediaObjectNameFromFirebaseUrl(
   { contentType = '', contentId = '', mediaItemId = '', requireContentBinding = false } = {}
 ) {
   const bucket = admin.storage().bucket();
-  const objectName = storageObjectNameFromFirebaseUrl(url, bucket.name);
+  const objectName = resolveStorageObjectNameFromClientMediaReference(url, bucket);
   if (!objectName || !userId) return null;
 
-  const safeUid = String(userId).trim();
+  const safeUid = sanitizeStorageSegment(userId);
   if (!safeUid) return null;
 
   const parts = objectName.split('/');
-  if (parts.length !== 6 || parts[0] !== 'users' || parts[1] !== safeUid || parts[4] !== 'media') {
+  if (parts.length !== 6 || parts[0] !== 'users' || sanitizeStorageSegment(parts[1]) !== safeUid || parts[4] !== 'media') {
     return null;
   }
 
@@ -1029,13 +1065,14 @@ function userOwnedPublishableMediaObjectNameFromFirebaseUrl(
 
   if (requireContentBinding) {
     const expectedCollection = contentType === 'moment' ? 'moments' : contentType === 'story' ? 'stories' : '';
-    const expectedContentId = String(contentId || '').trim();
+    const expectedContentId = sanitizeStorageSegment(contentId);
     if (!expectedCollection || !expectedContentId) return null;
-    if (collection !== expectedCollection || parts[3] !== expectedContentId) return null;
+    if (collection !== expectedCollection || sanitizeStorageSegment(parts[3]) !== expectedContentId) return null;
 
-    const expectedMediaItemId = String(mediaItemId || '').trim();
-    if (expectedMediaItemId && path.posix.basename(fileName, path.posix.extname(fileName)) !== expectedMediaItemId) {
-      return null;
+    const expectedMediaItemId = sanitizeStorageSegment(mediaItemId);
+    if (expectedMediaItemId) {
+      const fileBase = path.posix.basename(fileName, path.posix.extname(fileName));
+      if (sanitizeStorageSegment(fileBase) !== expectedMediaItemId) return null;
     }
   }
 
@@ -1051,23 +1088,23 @@ function hiddenLayerIdFromMediaItemId(mediaItemId) {
 
 function userOwnedHiddenLayerImageObjectNameFromFirebaseUrl(url, userId, { contentType = '', contentId = '', mediaItemId = '' } = {}) {
   const bucket = admin.storage().bucket();
-  const objectName = storageObjectNameFromFirebaseUrl(url, bucket.name);
+  const objectName = resolveStorageObjectNameFromClientMediaReference(url, bucket);
   if (!objectName || !userId) return null;
 
-  const safeUid = String(userId).trim();
-  const expectedMomentId = String(contentId || '').trim();
-  const expectedLayerId = hiddenLayerIdFromMediaItemId(mediaItemId);
+  const safeUid = sanitizeStorageSegment(userId);
+  const expectedMomentId = sanitizeStorageSegment(contentId);
+  const expectedLayerId = sanitizeStorageSegment(hiddenLayerIdFromMediaItemId(mediaItemId));
   if (!safeUid || contentType !== 'moment' || !expectedMomentId || !expectedLayerId) return null;
 
   const parts = objectName.split('/');
   if (
     parts.length !== 7 ||
     parts[0] !== 'users' ||
-    parts[1] !== safeUid ||
+    sanitizeStorageSegment(parts[1]) !== safeUid ||
     parts[2] !== 'moments' ||
-    parts[3] !== expectedMomentId ||
+    sanitizeStorageSegment(parts[3]) !== expectedMomentId ||
     parts[4] !== 'hidden_layers' ||
-    parts[5] !== expectedLayerId
+    sanitizeStorageSegment(parts[5]) !== expectedLayerId
   ) {
     return null;
   }
@@ -1094,7 +1131,7 @@ function userOwnedVideoObjectNameFromFirebaseUrl(url, userId) {
   if (objectName) return objectName;
 
   const bucket = admin.storage().bucket();
-  const legacyObjectName = storageObjectNameFromFirebaseUrl(url, bucket.name);
+  const legacyObjectName = resolveStorageObjectNameFromClientMediaReference(url, bucket);
   if (!legacyObjectName || !userId) return null;
 
   const safeUid = String(userId).trim();
@@ -2801,6 +2838,16 @@ exports.moderateMediaContent = onRequest(
         const bucket = admin.storage().bucket();
         const objectName = userOwnedImageObjectNameFromFirebaseUrl(mediaURL, uid, { contentType, contentId, mediaItemId });
         if (!objectName) {
+          const resolvedPath = resolveStorageObjectNameFromClientMediaReference(mediaURL, bucket);
+          console.warn('moderateMediaContent rejected image source', {
+            uid,
+            contentType,
+            contentId,
+            mediaItemId,
+            bucket: bucket.name,
+            resolvedPath,
+            mediaURLPrefix: String(mediaURL || '').slice(0, 180)
+          });
           throw new Error('Image source must match publishable Firebase Storage media for this content and user');
         }
 

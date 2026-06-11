@@ -1,5 +1,13 @@
 import SwiftUI
 
+/// Cómo decide el reproductor cuándo reproducirse automáticamente.
+enum VideoPlaybackActivationMode: Equatable {
+    /// Feed / detalle perfil: solo si `FeedVisibilityCoordinator` lo marca activo.
+    case feedVisibility
+    /// Hero de perfil y previews: reproduce al aparecer.
+    case alwaysWhenVisible
+}
+
 /// Estilo de controles del reproductor (Instagram Reels 2026 vs clásico).
 enum VideoPlaybackChromeStyle {
     /// Barra de progreso, mute persistente, overlay play grande al tap.

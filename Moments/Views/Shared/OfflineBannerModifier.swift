@@ -33,7 +33,7 @@ struct CollapsibleOfflineBanner: View {
                 handleBecameOffline()
             }
         }
-        .animation(.spring(response: 0.38, dampingFraction: 0.78), value: isExpanded)
+        .animation(MotionPolicy.animation(MotionPolicy.Spring.toggle, value: isExpanded), value: isExpanded)
     }
 
     @ViewBuilder
@@ -87,23 +87,22 @@ struct CollapsibleOfflineBanner: View {
     }
 
     private var compactOrb: some View {
-        ZStack {
-            Circle()
-                .fill(Color.clear)
-                .frame(width: 44, height: 44)
-                .liquidGlass(in: Circle(), interactive: false)
+        Button(action: expandFromCompact) {
+            ZStack {
+                Circle()
+                    .fill(Color.clear)
+                    .frame(width: 44, height: 44)
+                    .liquidGlass(in: Circle(), interactive: false)
 
-            Image(systemName: "wifi.slash")
-                .font(.system(size: 16, weight: .bold))
-                .foregroundColor(.primary)
+                Image(systemName: "wifi.slash")
+                    .font(.system(size: 16, weight: .bold))
+                    .foregroundColor(.primary)
+            }
+            .shadow(color: Color.red.opacity(0.22), radius: 14, x: 0, y: 8)
+            .padding(10)
+            .contentShape(Circle())
         }
-        .shadow(color: Color.red.opacity(0.22), radius: 14, x: 0, y: 8)
-        .padding(10)
-        .contentShape(Circle())
-        .onTapGesture {
-            expandFromCompact()
-        }
-        .accessibilityAddTraits(.isButton)
+        .buttonStyle(.momentsPress(scale: 0.9, haptic: .light))
         .accessibilityLabel(Text("network.offline.title"))
         .accessibilityHint(Text("offline.banner.expandHint"))
     }
@@ -122,7 +121,7 @@ struct CollapsibleOfflineBanner: View {
     private func scheduleCollapse() {
         cancelCollapse()
         let work = DispatchWorkItem {
-            withAnimation(.spring(response: 0.4, dampingFraction: 0.84)) {
+            MotionPolicy.withOptionalAnimation(MotionPolicy.Spring.sheet) {
                 isExpanded = false
             }
         }
