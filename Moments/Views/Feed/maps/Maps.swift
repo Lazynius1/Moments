@@ -64,8 +64,10 @@ struct LocationMapView: View {
     @State private var weatherEffectsEnabled = true
     @State private var showingBottomSheet = false
     @State private var mapSheetDetent: PresentationDetent = .medium
-    @State private var momentDetailRoute: MapMomentDetailRoute?
-    @State private var pendingMomentDetailRoute: MapMomentDetailRoute?
+    @Namespace private var zoomNamespace
+    @State private var zoomDestination: MomentZoomDestination?
+    @State private var zoomMoments: [Moment] = []
+    @State private var isMapDetailPresented = false
     @State private var pendingStoryPresentation: LocationMapStoryViewerPresentation?
     @State private var resumeBottomSheetAfterDetail = false
     @State private var selectedPlaceCluster: MapPlaceCluster?
@@ -180,7 +182,8 @@ struct LocationMapView: View {
     }
 
     var body: some View {
-        ZStack {
+        NavigationStack {
+            ZStack {
             // ✅ EL MAPA OCUPA TODO EL FONDO
             modernMapView
                 .ignoresSafeArea()
@@ -191,14 +194,25 @@ struct LocationMapView: View {
             // ✅ BARRA DE ESTADÍSTICAS (SI EXISTE) - La movimos dentro de modernHeaderView en el paso anterior,
             // pero si hay componentes adicionales los manejamos aquí.
 
+            }
+            .navigationDestination(item: $zoomDestination) { destination in
+                MomentZoomDetailDestination(
+                    destination: destination,
+                    moments: zoomMoments,
+                    namespace: zoomNamespace,
+                    mapDetailPresented: $isMapDetailPresented
+                )
+            }
+            .toolbar(.hidden, for: .navigationBar)
         }
-        .navigationBarHidden(true)
+        .momentZoomNavigationSurface(colorScheme: colorScheme)
         .sheet(isPresented: $showingBottomSheet) {
             MapPlaceBottomSheet(
                 cluster: sheetCluster,
                 momentAvailability: momentAvailability,
                 isLoading: isLoadingMoments,
                 colorScheme: colorScheme,
+                zoomNamespace: zoomNamespace,
                 onMomentTap: { moment in
                     locationMoments = sheetCluster.moments
                     guard let selectedIndex = sheetCluster.moments.firstIndex(where: { selectionKey(for: $0) == selectionKey(for: moment) }) else { return }
@@ -278,21 +292,10 @@ struct LocationMapView: View {
                 UserProfileView(userId: moment.authorId)
             }
         }
-        .fullScreenCover(item: $momentDetailRoute, onDismiss: {
-            restoreBottomSheetIfNeeded()
-        }) { route in
-            MomentDetailContainerView(
-                context: .map(
-                    moments: route.moments,
-                    initialIndex: route.initialIndex,
-                    locationName: route.locationName,
-                    momentAvailability: $momentAvailability,
-                    isPresented: Binding(
-                        get: { momentDetailRoute != nil },
-                        set: { if !$0 { momentDetailRoute = nil } }
-                    )
-                )
-            )
+        .onChange(of: zoomDestination) { _, newValue in
+            if newValue == nil {
+                restoreBottomSheetIfNeeded()
+            }
         }
         .fullScreenCover(item: $storyViewerPresentation, onDismiss: {
             restoreBottomSheetIfNeeded()
@@ -1195,9 +1198,8 @@ extension LocationMapView {
 
         let hadSheet = showingBottomSheet
         showingBottomSheet = false
-        momentDetailRoute = nil
+        zoomDestination = nil
         storyViewerPresentation = nil
-        pendingMomentDetailRoute = nil
         pendingStoryPresentation = nil
 
         if hadSheet {
@@ -1261,31 +1263,27 @@ extension LocationMapView {
 
     private func openMomentDetail(at index: Int) {
         selectedMomentIndex = index
-        let route = MapMomentDetailRoute(
+        guard locationMoments.indices.contains(index) else { return }
+        let moment = locationMoments[index]
+        isMapDetailPresented = true
+        if showingBottomSheet {
+            resumeBottomSheetAfterDetail = true
+        }
+        MomentZoomOpener.open(
+            moment: moment,
             moments: locationMoments,
             initialIndex: index,
-            locationName: effectiveHeaderLocationName
+            presentation: .map(locationName: effectiveHeaderLocationName),
+            destination: &zoomDestination,
+            snapshot: &zoomMoments
         )
-
-        if showingBottomSheet {
-            pendingMomentDetailRoute = route
-            resumeBottomSheetAfterDetail = true
-            showingBottomSheet = false
-        } else {
-            momentDetailRoute = route
-        }
     }
 
     private func presentDeferredMapContent() {
-        guard pendingMomentDetailRoute != nil || pendingStoryPresentation != nil else { return }
+        guard pendingStoryPresentation != nil else { return }
 
         DispatchQueue.main.asyncAfter(deadline: .now() + MapSheetPresentationDelay.dismissBeforeNextPresentation) {
             guard isViewActive else { return }
-            if let pendingRoute = pendingMomentDetailRoute {
-                momentDetailRoute = pendingRoute
-                pendingMomentDetailRoute = nil
-                return
-            }
 
             if let pendingStory = pendingStoryPresentation {
                 storyViewerPresentation = pendingStory

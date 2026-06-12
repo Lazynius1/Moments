@@ -15,7 +15,9 @@ struct ActivityInteractionDetailView: View {
     @State private var customDateTo: Date = Date()
     @State private var selectedAuthorId: String?
     @State private var showingAuthorFilterSheet = false
-    @State private var selectedMomentForDetail: Moment?
+    @Namespace private var zoomNamespace
+    @State private var zoomDestination: MomentZoomDestination?
+    @State private var zoomMoments: [Moment] = []
     @State private var recentlyDeletedStoryPresentation: RecentlyDeletedStoriesPresentation?
     @State private var storyRoute: IdentifiableString?
     @State private var selectedProfileUserIdForSheet: String?
@@ -202,17 +204,12 @@ struct ActivityInteractionDetailView: View {
             .presentationDetents([.medium, .large])
             .presentationDragIndicator(.visible)
         }
-        .sheet(isPresented: Binding(
-            get: { selectedMomentForDetail != nil },
-            set: { isPresented in
-                if !isPresented {
-                    selectedMomentForDetail = nil
-                }
-            }
-        )) {
-            if let moment = selectedMomentForDetail {
-                MomentDetailContainerView(context: .single(moment))
-            }
+        .navigationDestination(item: $zoomDestination) { destination in
+            MomentZoomDetailDestination(
+                destination: destination,
+                moments: zoomMoments,
+                namespace: zoomNamespace
+            )
         }
         .fullScreenCover(item: $recentlyDeletedStoryPresentation) { presentation in
             ArchiveDayStoriesViewer(
@@ -346,6 +343,20 @@ struct ActivityInteractionDetailView: View {
         let initialIndex: Int
     }
 
+    private func openActivityMomentZoom(moment: Moment, moments: [Moment]) {
+        let sourceMoments = moments.isEmpty ? [moment] : moments
+        let resolvedIndex = sourceMoments.firstIndex(where: { $0.id == moment.id }) ?? 0
+        let presentation: MomentZoomPresentationKind = sourceMoments.count > 1 ? .carousel : .single
+        MomentZoomOpener.open(
+            moment: moment,
+            moments: sourceMoments,
+            initialIndex: resolvedIndex,
+            presentation: presentation,
+            destination: &zoomDestination,
+            snapshot: &zoomMoments
+        )
+    }
+
     private func openRecentlyDeletedStory(_ item: ActivityDeletedStoryItem) {
         let items = filteredDeletedStoryItems
         guard let index = items.firstIndex(where: { $0.id == item.id }) else { return }
@@ -418,7 +429,7 @@ struct ActivityInteractionDetailView: View {
                 ScrollViewReader { proxy in
                     ScrollView {
                         LazyVGrid(columns: columns, spacing: spacing) {
-                            ForEach(Array(filteredReactionItems.enumerated()), id: \.element.id) { _, item in
+                            ForEach(Array(filteredReactionItems.enumerated()), id: \.element.id) { index, item in
                                 ActivityReactionMomentCard(
                                     item: item,
                                     size: side,
@@ -427,6 +438,13 @@ struct ActivityInteractionDetailView: View {
                                     overlayBadge: reactionCardOverlayBadge
                                 )
                                 .contentShape(Rectangle())
+                                .modifier(ProfileMomentZoomSourceModifier(
+                                    namespace: item.moment == nil ? nil : zoomNamespace,
+                                    sourceID: item.moment.map {
+                                        ProfileMomentZoomNavigation.sourceID(moment: $0, index: index, prefix: "activity-reaction")
+                                    },
+                                    cornerRadius: 4
+                                ))
                                 .id(item.id)
                                 .onTapGesture {
                                     if longPressActivatedItemId == item.id {
@@ -438,7 +456,10 @@ struct ActivityInteractionDetailView: View {
                                         return
                                     }
                                     guard item.canView, let moment = item.moment else { return }
-                                    selectedMomentForDetail = moment
+                                    openActivityMomentZoom(
+                                        moment: moment,
+                                        moments: filteredReactionItems.compactMap(\.moment)
+                                    )
                                 }
                                 .onLongPressGesture(minimumDuration: 0.3) {
                                     guard category == .archived || category == .recentlyDeleted else { return }
@@ -547,12 +568,16 @@ struct ActivityInteractionDetailView: View {
 
                 ScrollView {
                     LazyVGrid(columns: columns, spacing: spacing) {
-                        ForEach(filteredMoments) { moment in
+                        ForEach(Array(filteredMoments.enumerated()), id: \.element.id) { index, moment in
                             if isReelsCategory {
                                 ActivityPortraitMomentCard(moment: moment)
                                     .contentShape(Rectangle())
+                                    .modifier(ProfileMomentZoomSourceModifier(
+                                        namespace: zoomNamespace,
+                                        sourceID: ProfileMomentZoomNavigation.sourceID(moment: moment, index: index, prefix: "activity-reels")
+                                    ))
                                     .onTapGesture {
-                                        selectedMomentForDetail = moment
+                                        openActivityMomentZoom(moment: moment, moments: filteredMoments)
                                     }
                             } else {
                                 ScreenshotProtectedView(isProtected: (moment.audience?.lowercased() ?? "") != "everyone") {
@@ -560,8 +585,10 @@ struct ActivityInteractionDetailView: View {
                                         moment: moment,
                                         size: columnWidth,
                                         customListNamesById: viewModel.customListNamesById,
+                                        zoomNamespace: zoomNamespace,
+                                        zoomSourceID: ProfileMomentZoomNavigation.sourceID(moment: moment, index: index, prefix: "activity"),
                                         onTap: {
-                                            selectedMomentForDetail = moment
+                                            openActivityMomentZoom(moment: moment, moments: filteredMoments)
                                         },
                                         usesDiscreetAudienceIcon: true
                                     )
@@ -591,7 +618,10 @@ struct ActivityInteractionDetailView: View {
                                 isSelected: selectedCommentIds.contains(item.id),
                                 onOpenMoment: {
                                     guard item.canView, let moment = item.moment else { return }
-                                    selectedMomentForDetail = moment
+                                    openActivityMomentZoom(
+                                        moment: moment,
+                                        moments: filteredCommentItems.compactMap(\.moment)
+                                    )
                                 },
                                 onOpenAuthorAvatar: { hasStory in
                                     openAuthor(authorId: item.authorId, hasStory: hasStory)

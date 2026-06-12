@@ -90,6 +90,9 @@ struct ModernProfileContentView: View {
     @State private var showingFullInfo = false // ✅ NUEVO: Para expandir intereses dentro del bloque social
     @EnvironmentObject private var heroCoordinator: ProfileGridHeroTransitionCoordinator
     @State private var gridPreviewMoment: Moment?
+    @Namespace private var profileZoomNamespace
+    @State private var zoomDestination: ProfileMomentZoomDestination?
+    @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
         if viewModel.isLoading {
@@ -101,8 +104,12 @@ struct ModernProfileContentView: View {
                 }
             })
         } else {
-            GeometryReader { proxy in
+            NavigationStack {
                 ZStack(alignment: .topLeading) {
+                ProfileMomentZoomNavigation.canvasBackground(for: colorScheme)
+                    .ignoresSafeArea()
+                    .allowsHitTesting(false)
+
                 ScrollView {
                     VStack(spacing: 0) {
                         ModernProfileHeader(
@@ -174,10 +181,13 @@ struct ModernProfileContentView: View {
                                                     moment: moment,
                                                     size: itemWidth,
                                                     customListNamesById: viewModel.customListNamesById,
+                                                    zoomNamespace: profileZoomNamespace,
+                                                    zoomSourceID: ProfileMomentZoomNavigation.sourceID(moment: moment, gridIndex: index),
                                                     onTap: {
                                                         heroCoordinator.openDirectDetail(
                                                             moments: viewModel.moments,
-                                                            initialIndex: index
+                                                            initialIndex: index,
+                                                            feedKind: .ownMoments
                                                         )
                                                     },
                                                     onLongPress: {
@@ -197,7 +207,8 @@ struct ModernProfileContentView: View {
                             case .saved:
                                 // ✅ NUEVO: Contenido real de guardados
                                 ProfileSavedContent(
-                                    viewModel: savedMomentsViewModel
+                                    viewModel: savedMomentsViewModel,
+                                    zoomNamespace: profileZoomNamespace
                                 )
                                 .onAppear {
                                     if savedMomentsViewModel.moments.isEmpty && !savedMomentsViewModel.isLoading {
@@ -233,10 +244,13 @@ struct ModernProfileContentView: View {
                                                         moment: moment,
                                                         size: itemWidth,
                                                         customListNamesById: viewModel.customListNamesById,
+                                                        zoomNamespace: profileZoomNamespace,
+                                                        zoomSourceID: ProfileMomentZoomNavigation.sourceID(moment: moment, gridIndex: index),
                                                         onTap: {
                                                             heroCoordinator.openDirectDetail(
                                                                 moments: viewModel.taggedMoments,
-                                                                initialIndex: index
+                                                                initialIndex: index,
+                                                                feedKind: .taggedMoments
                                                             )
                                                         },
                                                         showsAudienceBadge: false,
@@ -291,10 +305,8 @@ struct ModernProfileContentView: View {
                         }
                     }
                 }
+                .profileGridNavigationChrome(colorScheme: colorScheme)
                 .scrollDisabled(heroCoordinator.isInteractive)
-                .scaleEffect(heroCoordinator.backgroundContentScale, anchor: .center)
-                .animation(ProfileGridHeroLayout.peekSpring, value: heroCoordinator.peekProgress)
-                .animation(ProfileGridHeroLayout.expandSpring, value: heroCoordinator.expandProgress)
                 .onPreferenceChange(ScrollOffsetPreferenceKey.self) { value in
                     scrollOffset = value
                 }
@@ -304,7 +316,24 @@ struct ModernProfileContentView: View {
 
                 }
                 .coordinateSpace(name: "profileGridOverlay")
+                .navigationDestination(item: $zoomDestination) { destination in
+                    ProfileMomentZoomDetailDestination(
+                        destination: destination,
+                        moments: momentsForZoomDestination(destination),
+                        namespace: profileZoomNamespace,
+                        onRemoveSavedMoment: destination.feedKind == .savedMoments ? { moment in
+                            if let momentId = moment.id {
+                                savedMomentsViewModel.removeMoment(momentId: momentId)
+                            }
+                        } : nil
+                    )
+                }
+                .toolbar(.hidden, for: .navigationBar)
+            }
+            .profileNavigationSurface(colorScheme: colorScheme)
                 .onAppear {
+                    heroCoordinator.openZoomDetail = { zoomDestination = $0 }
+                    heroCoordinator.clearZoomNavigation = { zoomDestination = nil }
                     heroCoordinator.onEdit = { moment in
                         editingMoment = moment
                     }
@@ -324,7 +353,6 @@ struct ModernProfileContentView: View {
                         handleGridPin(moment: moment, shouldPin: shouldPin, replaceOldest: replaceOldest)
                     }
                 }
-            }
             .sheet(item: $gridPreviewMoment) { moment in
                 if let imagePath = moment.previewImageURLString,
                    let url = profileGridPreviewImageURL(from: imagePath) {
@@ -371,6 +399,19 @@ struct ModernProfileContentView: View {
 
     private func openGridMenu(moment: Moment, index: Int) {
         heroCoordinator.openMenu(moment: moment, index: index)
+    }
+
+    private func momentsForZoomDestination(_ destination: ProfileMomentZoomDestination) -> [Moment] {
+        switch destination.feedKind {
+        case .ownMoments:
+            return viewModel.moments
+        case .taggedMoments:
+            return viewModel.taggedMoments
+        case .userProfileMoments, .userProfileTagged:
+            return []
+        case .savedMoments:
+            return heroCoordinator.zoomMomentsSnapshot
+        }
     }
 
     private func handleGridPin(moment: Moment, shouldPin: Bool, replaceOldest: Bool) {

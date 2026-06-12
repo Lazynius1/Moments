@@ -5,7 +5,6 @@ import Kingfisher
 import AVKit
 import AVFoundation
 import CoreLocation
-
 struct MomentDetailView: View {
     let moment: Moment
     @StateObject private var viewModel: MomentDetailViewModel
@@ -47,55 +46,7 @@ struct MomentDetailView: View {
 
     var body: some View {
         GeometryReader { geometry in
-            let safeAreaBottom = geometry.safeAreaInsets.bottom
-            let headerTopInset: CGFloat = 8
-            
-            ZStack(alignment: .top) {
-                // ✅ Fondo moderno como el feed
-                modernBackgroundView
-                    .ignoresSafeArea(.all)
-                    .opacity(backgroundOpacity)
-                
-                // ✅ Header fijo superior pegado al notch
-                modernHeaderSection(topInset: headerTopInset)
-                    .zIndex(10)
-                    .opacity(backgroundOpacity)
-                
-                // ✅ Contenido principal
-                VStack(spacing: 0) {
-                    if viewModel.isLoading {
-                        MomentLoadingStateView()
-                    } else if let errorMessage = viewModel.errorMessage {
-                        MomentErrorStateView(message: errorMessage) {
-                            dismiss()
-                        }
-                    } else {
-                        contentScrollView(safeAreaBottom: safeAreaBottom)
-                    }
-                }
-                .padding(.top, headerTopInset + 57)
-                .offset(x: dragOffset)
-                .scaleEffect(isDragging ? max(0.85, 1 - abs(dragOffset) / 1000) : 1.0)
-                
-                // ✅ Context menu overlay
-                if showContextMenu {
-                    ModernContextMenuOverlay(
-                        moment: moment,
-                        isPresented: $showContextMenu,
-                        onEdit: {
-                            editedContent = moment.content
-                            showEditSheet = true
-                        },
-                        onDelete: {
-                            showDeleteAlert = true
-                        },
-                        onReport: {
-                            // showReportSheet = true // ❌ Ya no se usa sheet
-                        }
-                    )
-                    .zIndex(1000)
-                }
-            }
+            standaloneDetailBody(safeAreaBottom: geometry.safeAreaInsets.bottom)
         }
         .navigationBarHidden(true)
         .onAppear {
@@ -140,40 +91,7 @@ struct MomentDetailView: View {
         .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillHideNotification)) { _ in
             keyboardHeight = 0
         }
-        .gesture(
-            // ✅ Drag gesture suave como ModernMomentDetailView
-            DragGesture(coordinateSpace: .global)
-                .onChanged { value in
-                    if value.translation.width > 0 {
-                        withAnimation(.interactiveSpring(response: 0.3, dampingFraction: 0.8)) {
-                            dragOffset = value.translation.width
-                            isDragging = true
-                            let progress = min(value.translation.width / 200, 1.0)
-                            backgroundOpacity = 1.0 - (progress * 0.4)
-                        }
-                    }
-                }
-                .onEnded { value in
-                    let dismissThreshold: CGFloat = 120
-                    let velocity = value.predictedEndTranslation.width
-                    
-                    if value.translation.width > dismissThreshold || velocity > 300 {
-                        withAnimation(.easeOut(duration: 0.3)) {
-                            dragOffset = UIScreen.main.bounds.width
-                            backgroundOpacity = 0.0
-                        }
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
-                            dismiss()
-                        }
-                    } else {
-                        withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
-                            dragOffset = 0
-                            isDragging = false
-                            backgroundOpacity = 1.0
-                        }
-                    }
-                }
-        )
+        .momentDetailSwipeDismiss(swipeToDismissGesture, enabled: true)
         .sheet(isPresented: $navigateToProfile) {
             UserProfileView(userId: moment.authorId)
         }
@@ -196,6 +114,68 @@ struct MomentDetailView: View {
         .environmentObject(firestoreService)
     }
     
+    private func standaloneDetailBody(safeAreaBottom: CGFloat) -> some View {
+        ZStack(alignment: .top) {
+            modernBackgroundView
+                .ignoresSafeArea(.all)
+                .opacity(backgroundOpacity)
+
+            detailMainContent(safeAreaBottom: safeAreaBottom)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .safeAreaInset(edge: .top, spacing: 0) {
+                    ModernExploreDetailHeader(
+                        moment: moment,
+                        topInset: 8,
+                        onDismiss: closeDetail,
+                        onAvatarTap: handleExploreHeaderAvatarTap,
+                        onLocationTap: { _, _ in
+                            openLocationMap(for: moment)
+                        }
+                    )
+                    .padding(.bottom, 8)
+                    .opacity(backgroundOpacity)
+                    .allowsHitTesting(true)
+                }
+                .offset(x: dragOffset)
+                .scaleEffect(isDragging ? max(0.85, 1 - abs(dragOffset) / 1000) : 1.0)
+
+            contextMenuOverlay
+        }
+    }
+
+    private func handleExploreHeaderAvatarTap(_ userId: String, _ hasStory: Bool) {
+        guard !userId.isEmpty else { return }
+        if hasStory {
+            showingStories = true
+        } else {
+            navigateToProfile = true
+        }
+    }
+
+    @ViewBuilder
+    private var contextMenuOverlay: some View {
+        if showContextMenu {
+            ModernContextMenuOverlay(
+                moment: moment,
+                isPresented: $showContextMenu,
+                onEdit: {
+                    editedContent = moment.content
+                    showEditSheet = true
+                },
+                onDelete: {
+                    showDeleteAlert = true
+                },
+                onReport: {}
+            )
+            .zIndex(1000)
+        }
+    }
+
+    @ViewBuilder
+    private func detailMainContent(safeAreaBottom: CGFloat) -> some View {
+        contentScrollView(safeAreaBottom: safeAreaBottom)
+    }
+
     private func resolvedLocationName(_ rawValue: String) -> String {
         let trimmed = rawValue.trimmingCharacters(in: .whitespacesAndNewlines)
         if !trimmed.isEmpty { return trimmed }
@@ -215,97 +195,63 @@ struct MomentDetailView: View {
         }
     }
     
-    private func modernHeaderSection(topInset: CGFloat) -> some View {
-        VStack(spacing: 0) {
-            Color.clear
-                .frame(height: topInset)
-            
-            HStack {
-                Spacer()
-                
-                HStack(spacing: 10) {
-                    StoryRingAvatarView(
-                        userId: moment.authorId,
-                        size: 38,
-                        lineWidth: 2.2,
-                        onTap: { hasStory in
-                            if hasStory {
-                                showingStories = true
-                            } else {
-                                navigateToProfile = true
-                            }
-                        }
-                    )
-                    
-                    VStack(alignment: .leading, spacing: 0) {
-                        HStack(spacing: 4) {
-                            Button(action: {
-                                if !moment.authorId.isEmpty {
-                                    navigateToProfile = true
-                                }
-                            }) {
-                                LiveUsernameText(userId: moment.authorId, fallbackUsername: moment.username)
-                                    .font(.custom("Poppins-SemiBold", size: 16))
-                                    .foregroundColor(.primary)
-                            }
-                            .buttonStyle(PlainButtonStyle())
-                            
-                            VerifiedBadgeView(userId: moment.authorId, size: 13)
-                        }
-                        
-                        Text(moment.timestamp.timeAgoDisplay())
-                            .font(.custom("Poppins-Regular", size: 10))
-                            .foregroundColor(.secondary.opacity(0.7))
-                        
-                        if let location = moment.location?.trimmingCharacters(in: .whitespacesAndNewlines),
-                           !location.isEmpty {
-                            Button(action: {
-                                openLocationMap(for: moment)
-                            }) {
-                                HStack(spacing: 4) {
-                                    Image(systemName: "location.fill")
-                                        .font(.system(size: 10, weight: .medium))
-                                        .foregroundColor(.blue.opacity(0.85))
-                                    
-                                    Text(location)
-                                        .font(.custom("Poppins-Regular", size: 11))
-                                        .foregroundColor(.secondary)
-                                        .lineLimit(1)
-                                }
-                            }
-                            .buttonStyle(PlainButtonStyle())
-                        }
+    private var swipeToDismissGesture: some Gesture {
+        DragGesture(coordinateSpace: .global)
+            .onChanged { value in
+                if value.translation.width > 0 {
+                    withAnimation(.interactiveSpring(response: 0.3, dampingFraction: 0.8)) {
+                        dragOffset = value.translation.width
+                        isDragging = true
+                        let progress = min(value.translation.width / 200, 1.0)
+                        backgroundOpacity = 1.0 - (progress * 0.4)
                     }
                 }
-
-                Spacer()
             }
-            .padding(.horizontal, 20)
-            .padding(.vertical, 8)
-        }
-        .background(colorScheme == .dark ? Color(hex: "0B1215") : Color(hex: "FAF9F6"))
+            .onEnded { value in
+                let dismissThreshold: CGFloat = 120
+                let velocity = value.predictedEndTranslation.width
+
+                if value.translation.width > dismissThreshold || velocity > 300 {
+                    withAnimation(.easeOut(duration: 0.3)) {
+                        dragOffset = UIScreen.main.bounds.width
+                        backgroundOpacity = 0.0
+                    }
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                        closeDetail()
+                    }
+                } else {
+                    withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                        dragOffset = 0
+                        isDragging = false
+                        backgroundOpacity = 1.0
+                    }
+                }
+            }
     }
 
+    private func closeDetail() {
+        dismiss()
+    }
+
+    @ViewBuilder
     private func contentScrollView(safeAreaBottom: CGFloat) -> some View {
-        ScrollView(.vertical, showsIndicators: false) {
-            VStack(spacing: 0) {
-                // ✅ Contenido del momento con aspect ratio dinámico
-                // ✅ Protección de screenshots para momentos privados
-                ScreenshotProtectedView(
-                    isProtected: (moment.audience?.lowercased() ?? "") != "everyone"
-                ) {
-                    momentContentCard
-                }
-                
-                // ✅ Comentarios inline
-                if !moment.disableComments {
-                    inlineCommentsSection
-                }
-                
-                // Espaciado para el área segura inferior
-                Color.clear
-                    .frame(height: safeAreaBottom + 40)
+        let content = VStack(spacing: 0) {
+            ScreenshotProtectedView(
+                isProtected: (moment.audience?.lowercased() ?? "") != "everyone"
+            ) {
+                momentContentCard
             }
+
+            if !moment.disableComments {
+                inlineCommentsSection
+            }
+
+            Color.clear
+                .frame(height: safeAreaBottom + 40)
+        }
+
+        ScrollView(.vertical, showsIndicators: false) {
+            content
         }
         .coordinateSpace(name: "scroll")
     }
@@ -551,7 +497,7 @@ struct MomentDetailView: View {
         
         let aspectRatio: CGFloat = (detectedAspectRatio > 0 && detectedAspectRatio.isFinite) ? detectedAspectRatio : aspectRatioType.exactRatio
         let calculatedHeight = maxWidth / aspectRatio
-        
+
         // Para Reels, dejamos que crezca más libremente como en el perfil
         if aspectRatioType == .reels {
             let maxReelsHeight = UIScreen.main.bounds.height * 0.75
@@ -606,7 +552,14 @@ struct MomentDetailView: View {
             }
             .padding(.horizontal, 20)
             
-            if viewModel.comments.isEmpty {
+            if viewModel.isLoadingComments {
+                HStack {
+                    Spacer()
+                    ProgressView()
+                    Spacer()
+                }
+                .padding(.vertical, 32)
+            } else if viewModel.comments.isEmpty {
                 // Estado vacío de comentarios mejorado
                 VStack(spacing: 16) {
                     ZStack {
@@ -822,9 +775,9 @@ struct MomentDetailView: View {
             
             DispatchQueue.main.async {
                 self.isDeleting = false
-        self.dismiss()
-    }
-}
+                self.closeDetail()
+            }
+        }
     }
 }
 
@@ -1305,7 +1258,7 @@ class MomentDetailViewModel: ObservableObject {
     @Published var isFollowing: Bool = false
     @Published var likeCount: Int
     @Published var newComment: String = ""
-    @Published var isLoading: Bool = false
+    @Published var isLoadingComments: Bool = false
     @Published var errorMessage: String?
     @Published var authorProfile: AppUser?
     @Published var isEditingComment: Bool = false
@@ -1389,12 +1342,12 @@ class MomentDetailViewModel: ObservableObject {
         }
 
         let momentOwnerId = moment.authorId
-        isLoading = true
+        isLoadingComments = true
         
         // ✅ USAR EL NUEVO MÉTODO DE COMENTARIOS CON CALLBACK ACTUALIZADO
         firestoreService.fetchComments(for: momentId, userId: momentOwnerId) { [weak self] result in
             DispatchQueue.main.async {
-                self?.isLoading = false
+                self?.isLoadingComments = false
                 switch result {
                 case .success(let (comments, _)):
                     self?.comments = comments
@@ -1589,6 +1542,17 @@ class MomentDetailViewModel: ObservableObject {
                     break
                 }
             }
+        }
+    }
+}
+
+private extension View {
+    @ViewBuilder
+    func momentDetailSwipeDismiss<G: Gesture>(_ gesture: G, enabled: Bool) -> some View {
+        if enabled {
+            self.gesture(gesture)
+        } else {
+            self
         }
     }
 }

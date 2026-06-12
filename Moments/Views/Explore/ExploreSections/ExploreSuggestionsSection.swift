@@ -561,7 +561,13 @@ struct FollowButton: View {
 // MARK: - Grid Dinámico (Quilt Pattern)
 struct DynamicMomentsGrid: View {
     let moments: [Moment]
-    let onMomentTap: (Moment) -> Void
+    var zoomNamespace: Namespace.ID? = nil
+    let onMomentTap: (Moment, Int, [Moment]) -> Void
+
+    private func handleTap(_ moment: Moment) {
+        let index = moments.firstIndex(where: { $0.id == moment.id }) ?? 0
+        onMomentTap(moment, index, moments)
+    }
 
     // El patrón se repite cada 12 items: 3, 3, 3(1L+2S), 3, 3(2S+1R) NO, CORRECCIÓN:
     // Mejor ciclo: Row(3) -> BigLeft(3 consumidos) -> Row(3) -> BigRight(3 consumidos). Total 12 items.
@@ -575,7 +581,12 @@ struct DynamicMomentsGrid: View {
                 let items = Array(chunk)
 
                 // Renderizar el bloque de 12 (o menos si es el final)
-                DynamicGridBlock(items: items, onMomentTap: onMomentTap)
+                DynamicGridBlock(
+                    items: items,
+                    allMoments: moments,
+                    zoomNamespace: zoomNamespace,
+                    onMomentTap: handleTap
+                )
             }
         }
     }
@@ -583,38 +594,40 @@ struct DynamicMomentsGrid: View {
 
 struct DynamicGridBlock: View {
     let items: [Moment] // Up to 12 items
+    let allMoments: [Moment]
+    var zoomNamespace: Namespace.ID? = nil
     let onMomentTap: (Moment) -> Void
 
     var body: some View {
         // Calcular filas basados en disponibilidad
         // Fila 1: 0,1,2 (3 items)
         if items.count >= 3 {
-             MomentsRowView(moments: Array(items[0..<3]), onTap: onMomentTap)
+             MomentsRowView(moments: Array(items[0..<3]), allMoments: allMoments, zoomNamespace: zoomNamespace, onTap: onMomentTap)
         } else {
-             MomentsRowView(moments: items, onTap: onMomentTap)
+             MomentsRowView(moments: items, allMoments: allMoments, zoomNamespace: zoomNamespace, onTap: onMomentTap)
         }
 
         // Bloque Big Left: 3,4,5 (3 items) -> Index 3 es Big
         if items.count >= 6 {
-            BigLeftRowView(moments: Array(items[3..<6]), onTap: onMomentTap)
+            BigLeftRowView(moments: Array(items[3..<6]), allMoments: allMoments, zoomNamespace: zoomNamespace, onTap: onMomentTap)
         } else if items.count > 3 {
             // Remainder row
-            MomentsRowView(moments: Array(items[3..<items.count]), onTap: onMomentTap)
+            MomentsRowView(moments: Array(items[3..<items.count]), allMoments: allMoments, zoomNamespace: zoomNamespace, onTap: onMomentTap)
         }
 
         // Fila 3: 6,7,8 (3 items)
         if items.count >= 9 {
-             MomentsRowView(moments: Array(items[6..<9]), onTap: onMomentTap)
+             MomentsRowView(moments: Array(items[6..<9]), allMoments: allMoments, zoomNamespace: zoomNamespace, onTap: onMomentTap)
         } else if items.count > 6 {
-             MomentsRowView(moments: Array(items[6..<items.count]), onTap: onMomentTap)
+             MomentsRowView(moments: Array(items[6..<items.count]), allMoments: allMoments, zoomNamespace: zoomNamespace, onTap: onMomentTap)
         }
 
         // Bloque Big Right: 9,10,11 (3 items) -> Index 11 es Big
         if items.count >= 12 {
-            BigRightRowView(moments: Array(items[9..<12]), onTap: onMomentTap)
+            BigRightRowView(moments: Array(items[9..<12]), allMoments: allMoments, zoomNamespace: zoomNamespace, onTap: onMomentTap)
         } else if items.count > 9 {
             // Remainder row
-            MomentsRowView(moments: Array(items[9..<items.count]), onTap: onMomentTap)
+            MomentsRowView(moments: Array(items[9..<items.count]), allMoments: allMoments, zoomNamespace: zoomNamespace, onTap: onMomentTap)
         }
     }
 }
@@ -622,6 +635,8 @@ struct DynamicGridBlock: View {
 // Fila Standard de 3 items
 struct MomentsRowView: View {
     let moments: [Moment]
+    let allMoments: [Moment]
+    var zoomNamespace: Namespace.ID? = nil
     let onTap: (Moment) -> Void
 
     var body: some View {
@@ -630,7 +645,13 @@ struct MomentsRowView: View {
             let width = (geo.size.width - (spacing * 2)) / 3
             HStack(spacing: spacing) {
                 ForEach(moments) { moment in
-                    MomentCard(moment: moment, onTap: { onTap(moment) })
+                    let index = allMoments.firstIndex(where: { $0.id == moment.id }) ?? 0
+                    MomentCard(
+                        moment: moment,
+                        zoomNamespace: zoomNamespace,
+                        zoomSourceID: ProfileMomentZoomNavigation.sourceID(moment: moment, index: index, prefix: "explore"),
+                        onTap: { onTap(moment) }
+                    )
                         .frame(width: width, height: width)
                         .clipped()
                 }
@@ -648,6 +669,8 @@ struct MomentsRowView: View {
 // Bloque Grande Izquierda: [ Big(2x2) ] [ Small / Small ]
 struct BigLeftRowView: View {
     let moments: [Moment] // Expects 3 items: [Big, Small, Small]
+    let allMoments: [Moment]
+    var zoomNamespace: Namespace.ID? = nil
     let onTap: (Moment) -> Void
 
     var body: some View {
@@ -659,32 +682,41 @@ struct BigLeftRowView: View {
             HStack(alignment: .top, spacing: spacing) {
                 // Item 0: Grande
                 if moments.indices.contains(0) {
-                    MomentCard(moment: moments[0], onTap: { onTap(moments[0]) })
-                        .frame(width: twoUnits, height: twoUnits)
-                        .clipped()
+                    exploreMomentCard(moments[0], width: twoUnits, height: twoUnits)
                 }
 
                 VStack(spacing: spacing) {
                     if moments.indices.contains(1) {
-                        MomentCard(moment: moments[1], onTap: { onTap(moments[1]) })
-                            .frame(width: oneUnit, height: oneUnit)
-                            .clipped()
+                        exploreMomentCard(moments[1], width: oneUnit, height: oneUnit)
                     }
                     if moments.indices.contains(2) {
-                        MomentCard(moment: moments[2], onTap: { onTap(moments[2]) })
-                            .frame(width: oneUnit, height: oneUnit)
-                            .clipped()
+                        exploreMomentCard(moments[2], width: oneUnit, height: oneUnit)
                     }
                 }
             }
         }
         .frame(height: (UIScreen.main.bounds.width / 3) * 2 + 4)
     }
+
+    @ViewBuilder
+    private func exploreMomentCard(_ moment: Moment, width: CGFloat, height: CGFloat) -> some View {
+        let index = allMoments.firstIndex(where: { $0.id == moment.id }) ?? 0
+        MomentCard(
+            moment: moment,
+            zoomNamespace: zoomNamespace,
+            zoomSourceID: ProfileMomentZoomNavigation.sourceID(moment: moment, index: index, prefix: "explore"),
+            onTap: { onTap(moment) }
+        )
+        .frame(width: width, height: height)
+        .clipped()
+    }
 }
 
 // Bloque Grande Derecha: [ Small / Small ] [ Big(2x2) ]
 struct BigRightRowView: View {
     let moments: [Moment] // Expects 3 items: [Small, Small, Big]
+    let allMoments: [Moment]
+    var zoomNamespace: Namespace.ID? = nil
     let onTap: (Moment) -> Void
 
     var body: some View {
@@ -697,32 +729,41 @@ struct BigRightRowView: View {
                 // Stack Izquierda: Items 0, 1
                 VStack(spacing: spacing) {
                     if moments.indices.contains(0) {
-                        MomentCard(moment: moments[0], onTap: { onTap(moments[0]) })
-                            .frame(width: oneUnit, height: oneUnit)
-                            .clipped()
+                        exploreMomentCard(moments[0], width: oneUnit, height: oneUnit)
                     }
                     if moments.indices.contains(1) {
-                        MomentCard(moment: moments[1], onTap: { onTap(moments[1]) })
-                            .frame(width: oneUnit, height: oneUnit)
-                            .clipped()
+                        exploreMomentCard(moments[1], width: oneUnit, height: oneUnit)
                     }
                 }
 
                 // Item 2: Grande
                 if moments.indices.contains(2) {
-                    MomentCard(moment: moments[2], onTap: { onTap(moments[2]) })
-                        .frame(width: twoUnits, height: twoUnits)
-                        .clipped()
+                    exploreMomentCard(moments[2], width: twoUnits, height: twoUnits)
                 }
             }
         }
         .frame(height: (UIScreen.main.bounds.width / 3) * 2 + 4)
+    }
+
+    @ViewBuilder
+    private func exploreMomentCard(_ moment: Moment, width: CGFloat, height: CGFloat) -> some View {
+        let index = allMoments.firstIndex(where: { $0.id == moment.id }) ?? 0
+        MomentCard(
+            moment: moment,
+            zoomNamespace: zoomNamespace,
+            zoomSourceID: ProfileMomentZoomNavigation.sourceID(moment: moment, index: index, prefix: "explore"),
+            onTap: { onTap(moment) }
+        )
+        .frame(width: width, height: height)
+        .clipped()
     }
 }
 
 // MARK: - Tarjeta de Moment
 struct MomentCard: View {
     let moment: Moment
+    var zoomNamespace: Namespace.ID? = nil
+    var zoomSourceID: String? = nil
     let onTap: () -> Void
 
     var body: some View {
@@ -770,6 +811,7 @@ struct MomentCard: View {
             }
             .buttonStyle(PlainButtonStyle())
         }
+        .modifier(ProfileMomentZoomSourceModifier(namespace: zoomNamespace, sourceID: zoomSourceID, cornerRadius: 14))
     }
 
     @ViewBuilder

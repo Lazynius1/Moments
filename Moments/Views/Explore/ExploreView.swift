@@ -11,7 +11,9 @@ struct ExploreView: View {
     @StateObject private var viewModel = ExploreViewModel()
     @State private var searchText: String = ""
     @State private var showPrivateProfileAlert: Bool = false
-    @State private var selectedMoment: Moment?
+    @Namespace private var zoomNamespace
+    @State private var zoomDestination: MomentZoomDestination?
+    @State private var zoomMoments: [Moment] = []
     @State private var selectedUser: AppUser?
     @State private var showTrendingView = false
     @State private var showDiscoverMap = false
@@ -191,10 +193,12 @@ struct ExploreView: View {
             .fullScreenCover(item: $selectedUser) { user in
                 UserProfileView(userId: user.id)
             }
-            .sheet(item: $selectedMoment) { moment in
-                MomentDetailContainerView(context: .single(moment))
-                    .presentationDetents([.medium, .large])
-                    .presentationDragIndicator(.visible)
+            .navigationDestination(item: $zoomDestination) { destination in
+                MomentZoomDetailDestination(
+                    destination: destination,
+                    moments: zoomMoments,
+                    namespace: zoomNamespace
+                )
             }
             .fullScreenCover(isPresented: $showTrendingView) {
                 TrendingView()
@@ -209,6 +213,7 @@ struct ExploreView: View {
                     .interactiveDismissDisabled(false)
             }
         }
+        .momentZoomNavigationSurface(colorScheme: colorScheme)
     }
 
     private func searchTypeIcon(for type: String) -> String {
@@ -265,7 +270,11 @@ struct ExploreView: View {
                     suggestedUsersSection
 
                     if !viewModel.moments.isEmpty {
-                        DynamicMomentsGrid(moments: viewModel.moments, onMomentTap: handleMomentTap)
+                        DynamicMomentsGrid(
+                            moments: viewModel.moments,
+                            zoomNamespace: zoomNamespace,
+                            onMomentTap: handleMomentTap
+                        )
                             .padding(.bottom, 80)
                     }
                 } else {
@@ -301,14 +310,31 @@ struct ExploreView: View {
         }
 
         // MARK: - Handlers
-        private func handleMomentTap(_ moment: Moment) {
+        private func handleMomentTap(_ moment: Moment, index: Int, sourceMoments: [Moment]) {
             viewModel.checkCanViewContent(for: moment.authorId) { canView in
                 if canView {
-                    selectedMoment = moment
+                    openMomentZoom(
+                        moment: moment,
+                        index: index,
+                        moments: sourceMoments,
+                        presentation: .single
+                    )
                 } else {
                     showPrivateProfileAlert = true
                 }
             }
+        }
+
+        private func openMomentZoom(moment: Moment, index: Int, moments: [Moment], presentation: MomentZoomPresentationKind) {
+            let resolvedIndex = moments.firstIndex(where: { $0.id == moment.id }) ?? index
+            MomentZoomOpener.open(
+                moment: moment,
+                moments: moments,
+                initialIndex: resolvedIndex,
+                presentation: presentation,
+                destination: &zoomDestination,
+                snapshot: &zoomMoments
+            )
         }
 
         // Removed redundant momentsSection property
@@ -328,10 +354,11 @@ struct ExploreView: View {
                     viewModel.saveSearchRecord(query: user.username, type: "user", targetId: user.id)
                 },
 
-                onMomentTap: { moment in
+                zoomNamespace: zoomNamespace,
+                onMomentTap: { moment, index, sourceMoments in
                     viewModel.checkCanViewContent(for: moment.authorId) { canView in
                         if canView {
-                            selectedMoment = moment
+                            openMomentZoom(moment: moment, index: index, moments: sourceMoments, presentation: .single)
                         } else {
                             showPrivateProfileAlert = true
                         }

@@ -87,7 +87,7 @@ struct FeedView: View {
     @State private var selectedPendingEchoId: String = ""
     @State private var pendingEchoInvitationRoute: FeedEchoInvitationRoute?
     @State private var pendingEchoesListener: ListenerRegistration?
-    
+
     private var adaptiveColors: AdaptiveColors {
         AdaptiveColors(colorScheme: colorScheme)
     }

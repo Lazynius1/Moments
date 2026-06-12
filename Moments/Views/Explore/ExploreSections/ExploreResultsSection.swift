@@ -9,7 +9,8 @@ struct SmartSearchResultsView: View {
     let currentUserInterests: [String]
     let onFollowUser: (String) -> Void
     let onUserTap: (AppUser) -> Void
-    let onMomentTap: (Moment) -> Void
+    var zoomNamespace: Namespace.ID? = nil
+    let onMomentTap: (Moment, Int, [Moment]) -> Void
 
     var searchType: SearchDisplayType {
         if searchQuery.hasPrefix("#") {
@@ -99,7 +100,7 @@ struct SmartSearchResultsView: View {
             .padding(.horizontal, 24)
 
             // Grid de momentos
-            MomentsSearchGrid(moments: moments, onMomentTap: onMomentTap)
+            MomentsSearchGrid(moments: moments, zoomNamespace: zoomNamespace, onMomentTap: onMomentTap)
         }
     }
 
@@ -141,7 +142,7 @@ struct SmartSearchResultsView: View {
             }
             .padding(.horizontal, 24)
 
-            MomentsSearchGrid(moments: moments, onMomentTap: onMomentTap)
+            MomentsSearchGrid(moments: moments, zoomNamespace: zoomNamespace, onMomentTap: onMomentTap)
         }
     }
 
@@ -194,7 +195,7 @@ struct SmartSearchResultsView: View {
                     }
                     .padding(.horizontal, 24)
 
-                    MomentsSearchGrid(moments: moments, onMomentTap: onMomentTap)
+                    MomentsSearchGrid(moments: moments, zoomNamespace: zoomNamespace, onMomentTap: onMomentTap)
                 }
             }
         }
@@ -254,7 +255,8 @@ enum SearchDisplayType {
 
 struct MomentsSearchGrid: View {
     let moments: [Moment]
-    let onMomentTap: (Moment) -> Void
+    var zoomNamespace: Namespace.ID? = nil
+    let onMomentTap: (Moment, Int, [Moment]) -> Void
 
     private let columns = [
         GridItem(.flexible(), spacing: 2),
@@ -264,10 +266,12 @@ struct MomentsSearchGrid: View {
 
     var body: some View {
         LazyVGrid(columns: columns, spacing: 2) {
-            ForEach(moments.prefix(12), id: \.id) { moment in
+            ForEach(Array(moments.prefix(12).enumerated()), id: \.element.id) { index, moment in
                 MomentCard(
                     moment: moment,
-                    onTap: { onMomentTap(moment) }
+                    zoomNamespace: zoomNamespace,
+                    zoomSourceID: ProfileMomentZoomNavigation.sourceID(moment: moment, index: index, prefix: "explore-search"),
+                    onTap: { onMomentTap(moment, index, Array(moments.prefix(12))) }
                 )
             }
         }

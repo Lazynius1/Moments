@@ -309,7 +309,8 @@ struct UserProfileView: View {
                         bottom: geometry.safeAreaInsets.bottom,
                         trailing: geometry.safeAreaInsets.trailing
                     ),
-                    moments: selectedTab == .moments ? viewModel.moments : viewModel.taggedMoments
+                    moments: selectedTab == .moments ? viewModel.moments : viewModel.taggedMoments,
+                    zoomFeedKind: selectedTab == .tagged ? .userProfileTagged : .userProfileMoments
                 )
                 .zIndex(100)
             }

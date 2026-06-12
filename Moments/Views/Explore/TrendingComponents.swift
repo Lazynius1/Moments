@@ -216,6 +216,7 @@ struct TrendingLocationCard: View {
 // MARK: - 🚀 Sección de Momentos Trending
 struct TrendingMomentsSection: View {
     let moments: [TrendingService.TrendingMoment]
+    var zoomNamespace: Namespace.ID? = nil
     let onMomentTap: (Moment) -> Void
     
     private let columns = [
@@ -233,9 +234,11 @@ struct TrendingMomentsSection: View {
                 )
                 
                 LazyVGrid(columns: columns, spacing: 4) {
-                    ForEach(moments.prefix(9)) { trendingMoment in
+                    ForEach(Array(moments.prefix(9).enumerated()), id: \.element.id) { index, trendingMoment in
                         TrendingMomentCard(
                             trendingMoment: trendingMoment,
+                            zoomNamespace: zoomNamespace,
+                            zoomSourceID: ProfileMomentZoomNavigation.sourceID(moment: trendingMoment.moment, index: index, prefix: "trending"),
                             onTap: { onMomentTap(trendingMoment.moment) }
                         )
                     }
@@ -250,6 +253,8 @@ struct TrendingMomentsSection: View {
 // MARK: - 📸 Tarjeta de Momento Trending
 struct TrendingMomentCard: View {
     let trendingMoment: TrendingService.TrendingMoment
+    var zoomNamespace: Namespace.ID? = nil
+    var zoomSourceID: String? = nil
     let onTap: () -> Void
     @State private var isPressed = false
     
@@ -302,6 +307,7 @@ struct TrendingMomentCard: View {
         .onLongPressGesture(minimumDuration: 0, maximumDistance: 50) { isPressing in
             isPressed = isPressing
         } perform: {}
+        .modifier(ProfileMomentZoomSourceModifier(namespace: zoomNamespace, sourceID: zoomSourceID, cornerRadius: 12))
     }
     
     private var trendingBadge: some View {
@@ -372,6 +378,7 @@ struct TrendingMomentCard: View {
 // MARK: - 🎯 Sección "Para Ti" Personalizada
 struct ForYouSection: View {
     let moments: [TrendingService.TrendingMoment]
+    var zoomNamespace: Namespace.ID? = nil
     let onMomentTap: (Moment) -> Void
     let onHashtagTap: (String) -> Void
     let onSeeAllTap: () -> Void
@@ -401,9 +408,11 @@ struct ForYouSection: View {
                 .padding(.horizontal, 16)
                 
                 LazyVGrid(columns: columns, spacing: 12) {
-                    ForEach(moments.prefix(6)) { trendingMoment in
+                    ForEach(Array(moments.prefix(6).enumerated()), id: \.element.id) { index, trendingMoment in
                         ForYouMomentCard(
                             trendingMoment: trendingMoment,
+                            zoomNamespace: zoomNamespace,
+                            zoomSourceID: ProfileMomentZoomNavigation.sourceID(moment: trendingMoment.moment, index: index, prefix: "trending-foryou"),
                             onTap: { onMomentTap(trendingMoment.moment) },
                             onHashtagTap: onHashtagTap
                         )
@@ -419,6 +428,8 @@ struct ForYouSection: View {
 // MARK: - 🎯 Tarjeta Para Ti (Más grande)
 struct ForYouMomentCard: View {
     let trendingMoment: TrendingService.TrendingMoment
+    var zoomNamespace: Namespace.ID? = nil
+    var zoomSourceID: String? = nil
     let onTap: () -> Void
     let onHashtagTap: (String) -> Void
     @State private var isPressed = false
@@ -477,6 +488,7 @@ struct ForYouMomentCard: View {
         .onLongPressGesture(minimumDuration: 0, maximumDistance: 50) { isPressing in
             isPressed = isPressing
         } perform: {}
+        .modifier(ProfileMomentZoomSourceModifier(namespace: zoomNamespace, sourceID: zoomSourceID, cornerRadius: 16))
     }
     
     private var forYouOverlay: some View {

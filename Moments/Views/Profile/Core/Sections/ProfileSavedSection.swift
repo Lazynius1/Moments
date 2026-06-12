@@ -4,11 +4,10 @@ import AVFoundation
 
 struct ProfileSavedContent: View {
     @ObservedObject var viewModel: SavedMomentsViewModel
-    @State private var showingSavedMomentDetail = false
-    @State private var selectedSavedMomentIndex = 0
+    var zoomNamespace: Namespace.ID
+    @EnvironmentObject private var heroCoordinator: ProfileGridHeroTransitionCoordinator
     @State private var showingSavedManager = false
     @State private var selectedFilter: SavedQuickFilter = .all
-    @State private var detailMoments: [Moment] = []
     @Environment(\.colorScheme) var colorScheme
     @State private var showingRestrictedRemoveAlert = false
     @State private var restrictedMomentToRemove: Moment?
@@ -157,6 +156,8 @@ struct ProfileSavedContent: View {
                                     size: gridItemSize,
                                     isRestricted: isMomentRestricted(moment),
                                     isMutedRestriction: isMomentRestricted(moment) && isMomentMuted(moment),
+                                    zoomNamespace: zoomNamespace,
+                                    zoomSourceID: ProfileMomentZoomNavigation.sourceID(moment: moment, index: index, prefix: "saved"),
                                     onTap: {
                                         handleSavedMomentTap(
                                             moment: moment,
@@ -181,7 +182,7 @@ struct ProfileSavedContent: View {
 
                         ScrollView(.horizontal, showsIndicators: false) {
                             HStack(spacing: 8) {
-                                ForEach(Array(recentMoments.enumerated()), id: \.offset) { _, moment in
+                                ForEach(Array(recentMoments.enumerated()), id: \.offset) { index, moment in
                                     ScreenshotProtectedView(
                                         isProtected: (moment.audience?.lowercased() ?? "") != "everyone"
                                     ) {
@@ -190,11 +191,13 @@ struct ProfileSavedContent: View {
                                             size: 92,
                                             isRestricted: isMomentRestricted(moment),
                                             isMutedRestriction: isMomentRestricted(moment) && isMomentMuted(moment),
+                                            zoomNamespace: zoomNamespace,
+                                            zoomSourceID: ProfileMomentZoomNavigation.sourceID(moment: moment, index: index, prefix: "saved-recent"),
                                             onTap: {
                                                 handleSavedMomentTap(
                                                     moment: moment,
                                                     sourceMoments: recentMoments,
-                                                    fallbackIndex: 0
+                                                    fallbackIndex: index
                                                 )
                                             }
                                         )
@@ -205,20 +208,6 @@ struct ProfileSavedContent: View {
                         }
                     }
                 }
-            }
-            .fullScreenCover(isPresented: $showingSavedMomentDetail) {
-                ModernSavedMomentsDetailView(
-                    moments: detailMoments.isEmpty ? filteredMoments.filter { !isMomentRestricted($0) } : detailMoments,
-                    initialIndex: selectedSavedMomentIndex,
-                    onDismiss: {
-                        showingSavedMomentDetail = false
-                    },
-                    onRemoveMoment: { moment in
-                        if let momentId = moment.id {
-                            viewModel.removeMoment(momentId: momentId)
-                        }
-                    }
-                )
             }
             .fullScreenCover(isPresented: $showingSavedManager) {
                 SavedMomentsView()
@@ -287,9 +276,12 @@ struct ProfileSavedContent: View {
 
         guard !accessibleMoments.isEmpty else { return }
 
-        detailMoments = accessibleMoments
-        selectedSavedMomentIndex = accessibleMoments.firstIndex(where: { $0.id == momentId }) ?? min(fallbackIndex, max(accessibleMoments.count - 1, 0))
-        showingSavedMomentDetail = true
+        let resolvedIndex = accessibleMoments.firstIndex(where: { $0.id == momentId }) ?? min(fallbackIndex, max(accessibleMoments.count - 1, 0))
+        heroCoordinator.openDirectDetail(
+            moments: accessibleMoments,
+            initialIndex: resolvedIndex,
+            feedKind: .savedMoments
+        )
     }
 
     private func calculateSavedGridHeight(itemCount: Int) -> CGFloat {
@@ -306,6 +298,8 @@ struct ProfileSavedMomentThumbnail: View {
     let size: CGFloat
     let isRestricted: Bool
     let isMutedRestriction: Bool
+    var zoomNamespace: Namespace.ID? = nil
+    var zoomSourceID: String? = nil
     let onTap: () -> Void
     @Environment(\.colorScheme) var colorScheme
 
@@ -386,6 +380,7 @@ struct ProfileSavedMomentThumbnail: View {
             }
         }
         .clipShape(RoundedRectangle(cornerRadius: 8))
+        .modifier(ProfileMomentZoomSourceModifier(namespace: zoomNamespace, sourceID: zoomSourceID, cornerRadius: 8))
     }
 
     private var isVideo: Bool {

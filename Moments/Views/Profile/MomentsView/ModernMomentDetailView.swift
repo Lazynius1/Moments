@@ -493,8 +493,8 @@ struct ModernMomentDetailView: View {
  
         return ScrollViewReader { proxy in
             ScrollView(.vertical, showsIndicators: false) {
-                // ✅ VStack estándar: calcula las alturas de todas las celdas instantáneamente para un posicionamiento 100% fiable
-                VStack(spacing: 16) {
+                // ✅ LazyVStack: solo monta filas visibles → carga instantánea al abrir desde el grid
+                LazyVStack(spacing: 16) {
                     ForEach(Array(moments.enumerated()), id: \.offset) { index, moment in
                         detailMomentRow(
                             index: index,
@@ -563,17 +563,20 @@ struct ModernMomentDetailView: View {
     private func applyInitialScrollIfNeeded(using proxy: ScrollViewProxy) {
         guard !hasAppliedInitialScroll else { return }
         hasAppliedInitialScroll = true
- 
+
         let target = clampedInitialIndex
- 
-        DispatchQueue.main.async {
-            scrollPosition = target
-        }
- 
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
-            scrollPosition = target
-            proxy.scrollTo(target, anchor: .top)
-            hasSettledAtInitialIndex = true
+        scrollPosition = target
+        hasSettledAtInitialIndex = !restrictPlaybackToInitialIndex
+
+        // LazyVStack monta la celda objetivo de forma diferida: reintentar el scroll brevemente.
+        for attempt in 0..<4 {
+            DispatchQueue.main.asyncAfter(deadline: .now() + Double(attempt) * 0.05) {
+                scrollPosition = target
+                proxy.scrollTo(target, anchor: .top)
+                if attempt == 3, restrictPlaybackToInitialIndex {
+                    hasSettledAtInitialIndex = true
+                }
+            }
         }
     }
 }
@@ -697,7 +700,6 @@ struct ModernDetailHeader: View {
         }
     }
 }
-
 
 // MARK: - ✅ Tarjeta de momento detallada con aspect ratios dinámicos CORREGIDA
 struct ModernDetailMomentCard: View {

@@ -10,7 +10,9 @@ struct NotificationsView: View {
     @StateObject private var storyViewModel = StoryViewModel() // ✅ AGREGADO
     @Environment(\.dismiss) var dismiss
     @Environment(\.colorScheme) var colorScheme // ✅ AGREGADO
-    @State private var selectedMoment: Moment?
+    @Namespace private var momentZoomNamespace
+    @State private var zoomDestination: MomentZoomDestination?
+    @State private var zoomMoments: [Moment] = []
     @State private var moderationReviewNotification: Notification?
     @State private var storyViewerPresentation: StoryViewerPresentation?
     @State private var selectedConversation: Conversation?
@@ -48,6 +50,13 @@ struct NotificationsView: View {
                 .background(colorScheme == .dark ? Color(hex: "0B1215") : Color(hex: "FAF9F6"))
                 .navigationDestination(isPresented: $showChat) {
                     chatDestination
+                }
+                .navigationDestination(item: $zoomDestination) { destination in
+                    MomentZoomDetailDestination(
+                        destination: destination,
+                        moments: zoomMoments,
+                        namespace: momentZoomNamespace
+                    )
                 }
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
@@ -120,11 +129,6 @@ struct NotificationsView: View {
                 message: Text(viewModel.errorMessage),
                 dismissButton: .default(Text("notifications.ok"))
             )
-        }
-        .sheet(item: $selectedMoment) { moment in
-            MomentDetailContainerView(context: .single(moment))
-                .presentationDetents([.large])
-                .presentationDragIndicator(.visible)
         }
         .sheet(item: $moderationReviewNotification) { notification in
             ModerationReviewRequestSheet(
@@ -455,7 +459,14 @@ struct NotificationsView: View {
             switch result {
             case .success(let moment):
                 DispatchQueue.main.async {
-                    self.selectedMoment = moment
+                    MomentZoomOpener.open(
+                        moment: moment,
+                        moments: [moment],
+                        initialIndex: 0,
+                        presentation: .single,
+                        destination: &self.zoomDestination,
+                        snapshot: &self.zoomMoments
+                    )
                 }
             case .failure(_):
                 break

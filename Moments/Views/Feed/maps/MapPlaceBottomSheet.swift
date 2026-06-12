@@ -19,6 +19,7 @@ struct MapPlaceBottomSheet: View {
     let momentAvailability: [String: Bool]
     let isLoading: Bool
     let colorScheme: ColorScheme
+    var zoomNamespace: Namespace.ID? = nil
     let onMomentTap: (Moment) -> Void
     let onPlaceStoriesTap: (MapPlaceCluster) -> Void
     var weather: WeatherData?
@@ -311,7 +312,7 @@ struct MapPlaceBottomSheet: View {
                 columns: Array(repeating: GridItem(.flexible(), spacing: 1), count: 3),
                 spacing: 1
             ) {
-                ForEach(cluster.moments) { moment in
+                ForEach(Array(cluster.moments.enumerated()), id: \.element.id) { index, moment in
                     let isAvailable = momentAvailability[moment.mapAvailabilityKey] ?? true
                     Button {
                         onMomentTap(moment)
@@ -323,6 +324,11 @@ struct MapPlaceBottomSheet: View {
                         )
                     }
                     .buttonStyle(.plain)
+                    .modifier(ProfileMomentZoomSourceModifier(
+                        namespace: zoomNamespace,
+                        sourceID: ProfileMomentZoomNavigation.sourceID(moment: moment, index: index, prefix: "map"),
+                        cornerRadius: 2
+                    ))
                 }
             }
             .padding(.horizontal, 2)

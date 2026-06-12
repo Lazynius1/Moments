@@ -9,8 +9,9 @@ struct TrendingView: View {
     @State private var trendingContent: TrendingService.PersonalizedTrendingContent?
     @State private var isLoading = true
     @State private var errorMessage: String?
-    @State private var selectedMoment: Moment?
-    @State private var showMomentDetail = false
+    @Namespace private var zoomNamespace
+    @State private var zoomDestination: MomentZoomDestination?
+    @State private var zoomMoments: [Moment] = []
     @State private var scrollOffset: CGFloat = 0
     @State private var selectedHashtag: String = ""
     @State private var showExploreWithHashtag = false
@@ -23,7 +24,8 @@ struct TrendingView: View {
     }
     
     var body: some View {
-        ZStack {
+        NavigationStack {
+            ZStack {
             // Fondo moderno
             modernBackgroundView
                 .ignoresSafeArea(.all)
@@ -41,8 +43,17 @@ struct TrendingView: View {
                     loadTrendingContent()
                 }
             }
+            }
+            .navigationDestination(item: $zoomDestination) { destination in
+                MomentZoomDetailDestination(
+                    destination: destination,
+                    moments: zoomMoments,
+                    namespace: zoomNamespace
+                )
+            }
+            .toolbar(.hidden, for: .navigationBar)
         }
-        .navigationBarHidden(true)
+        .momentZoomNavigationSurface(colorScheme: colorScheme)
         .onAppear {
             loadTrendingContent()
         }
@@ -59,9 +70,19 @@ struct TrendingView: View {
                 isPresented: $showLocationMap
             )
         }
-        .sheet(item: $selectedMoment) { moment in
-            MomentDetailContainerView(context: .single(moment))
-        }
+    }
+
+    private func openTrendingMomentZoom(_ moment: Moment, in trendingMoments: [TrendingService.TrendingMoment]) {
+        let moments = trendingMoments.map(\.moment)
+        guard let index = moments.firstIndex(where: { $0.id == moment.id }) else { return }
+        MomentZoomOpener.open(
+            moment: moment,
+            moments: moments,
+            initialIndex: index,
+            presentation: .carousel,
+            destination: &zoomDestination,
+            snapshot: &zoomMoments
+        )
     }
     
     // MARK: - Fondo moderno
@@ -133,9 +154,10 @@ struct TrendingView: View {
                     // Para Ti (Momentos personalizados)
                     ForYouSection(
                         moments: content.moments,
+                        zoomNamespace: zoomNamespace,
                         onMomentTap: { moment in
                             ExploreHapticFeedback.impact(.light)
-                            selectedMoment = moment
+                            openTrendingMomentZoom(moment, in: content.moments)
                         },
                         onHashtagTap: { hashtag in
                             ExploreHapticFeedback.impact(.light)
@@ -153,9 +175,10 @@ struct TrendingView: View {
                     // Trending Moments Grid
                     TrendingMomentsSection(
                         moments: content.moments,
+                        zoomNamespace: zoomNamespace,
                         onMomentTap: { moment in
                             ExploreHapticFeedback.impact(.light)
-                            selectedMoment = moment
+                            openTrendingMomentZoom(moment, in: content.moments)
                         }
                     )
                     

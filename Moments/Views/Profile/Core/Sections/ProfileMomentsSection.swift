@@ -60,6 +60,8 @@ struct ModernMomentThumbnail: View {
     let moment: Moment
     let size: CGFloat
     let customListNamesById: [String: String]
+    var zoomNamespace: Namespace.ID? = nil
+    var zoomSourceID: String? = nil
     let onTap: (() -> Void)?
     var onLongPress: (() -> Void)? = nil
     var isInteractionEnabled: Bool = true
@@ -83,6 +85,8 @@ struct ModernMomentThumbnail: View {
         moment: Moment,
         size: CGFloat,
         customListNamesById: [String: String] = [:],
+        zoomNamespace: Namespace.ID? = nil,
+        zoomSourceID: String? = nil,
         onTap: (() -> Void)? = nil,
         onLongPress: (() -> Void)? = nil,
         isInteractionEnabled: Bool = true,
@@ -94,6 +98,8 @@ struct ModernMomentThumbnail: View {
         self.moment = moment
         self.size = size
         self.customListNamesById = customListNamesById
+        self.zoomNamespace = zoomNamespace
+        self.zoomSourceID = zoomSourceID
         self.onTap = onTap
         self.onLongPress = onLongPress
         self.isInteractionEnabled = isInteractionEnabled
@@ -112,6 +118,7 @@ struct ModernMomentThumbnail: View {
         }
         .frame(width: cellWidth, height: cellHeight)
         .clipped()
+        .modifier(ProfileMomentZoomSourceModifier(namespace: zoomNamespace, sourceID: zoomSourceID))
         .scaleEffect(isPressed ? 0.97 : 1.0)
         .animation(.easeInOut(duration: 0.12), value: isPressed)
         .profileGridThumbnailFrameReporter(

@@ -30,9 +30,17 @@ struct UserModernPublicProfileView: View {
 
     @State private var showingFullInfo = false // ✅ NUEVO: Colapsable
     @Binding var selectedTab: UserProfileTabType // ✅ NUEVO: Tab seleccionado (Binding)
+    @Namespace private var profileZoomNamespace
+    @State private var zoomDestination: ProfileMomentZoomDestination?
+    @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
-        GeometryReader { proxy in
+        NavigationStack {
+            ZStack(alignment: .topLeading) {
+            ProfileMomentZoomNavigation.canvasBackground(for: colorScheme)
+                .ignoresSafeArea()
+                .allowsHitTesting(false)
+
             ScrollView {
                 VStack(spacing: 0) {
                     // Header del perfil
@@ -109,10 +117,13 @@ struct UserModernPublicProfileView: View {
                                                     UserModernMomentThumbnail(
                                                         moment: moment,
                                                         size: itemWidth,
+                                                        zoomNamespace: profileZoomNamespace,
+                                                        zoomSourceID: ProfileMomentZoomNavigation.sourceID(moment: moment, gridIndex: index),
                                                         onTap: {
                                                             heroCoordinator.openDirectDetail(
                                                                 moments: viewModel.moments,
-                                                                initialIndex: index
+                                                                initialIndex: index,
+                                                                feedKind: .userProfileMoments
                                                             )
                                                         },
                                                         gridIndex: index,
@@ -151,10 +162,13 @@ struct UserModernPublicProfileView: View {
                                                 UserModernMomentThumbnail(
                                                     moment: moment,
                                                     size: itemWidth,
+                                                    zoomNamespace: profileZoomNamespace,
+                                                    zoomSourceID: ProfileMomentZoomNavigation.sourceID(moment: moment, gridIndex: index),
                                                     onTap: {
                                                         heroCoordinator.openDirectDetail(
                                                             moments: viewModel.taggedMoments,
-                                                            initialIndex: index
+                                                            initialIndex: index,
+                                                            feedKind: .userProfileTagged
                                                         )
                                                     },
                                                     gridIndex: index,
@@ -203,7 +217,33 @@ struct UserModernPublicProfileView: View {
             .onPreferenceChange(ProfileGridThumbnailFramePreferenceKey.self) { frames in
                 heroCoordinator.ingestThumbnailFrames(frames)
             }
+            .profileGridNavigationChrome(colorScheme: colorScheme)
+            }
             .coordinateSpace(name: "profileGridOverlay")
+            .navigationDestination(item: $zoomDestination) { destination in
+                ProfileMomentZoomDetailDestination(
+                    destination: destination,
+                    moments: momentsForZoomDestination(destination),
+                    namespace: profileZoomNamespace
+                )
+            }
+            .toolbar(.hidden, for: .navigationBar)
+            .onAppear {
+                heroCoordinator.openZoomDetail = { zoomDestination = $0 }
+                heroCoordinator.clearZoomNavigation = { zoomDestination = nil }
+            }
+        }
+        .profileNavigationSurface(colorScheme: colorScheme)
+    }
+
+    private func momentsForZoomDestination(_ destination: ProfileMomentZoomDestination) -> [Moment] {
+        switch destination.feedKind {
+        case .userProfileMoments:
+            return viewModel.moments
+        case .userProfileTagged:
+            return viewModel.taggedMoments
+        default:
+            return []
         }
     }
 }

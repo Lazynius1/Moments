@@ -9,6 +9,8 @@ import AVKit
 struct UserModernMomentThumbnail: View {
     let moment: Moment
     let size: CGFloat
+    var zoomNamespace: Namespace.ID? = nil
+    var zoomSourceID: String? = nil
     let onTap: () -> Void
     var gridIndex: Int = 0
     let descriptor: ProfileGridTileDescriptor
@@ -20,12 +22,16 @@ struct UserModernMomentThumbnail: View {
     init(
         moment: Moment,
         size: CGFloat,
+        zoomNamespace: Namespace.ID? = nil,
+        zoomSourceID: String? = nil,
         onTap: @escaping () -> Void,
         gridIndex: Int = 0,
         descriptor: ProfileGridTileDescriptor? = nil
     ) {
         self.moment = moment
         self.size = size
+        self.zoomNamespace = zoomNamespace
+        self.zoomSourceID = zoomSourceID
         self.onTap = onTap
         self.gridIndex = gridIndex
         self.descriptor = descriptor ?? ProfileGridTileDescriptor.standard(for: moment)
@@ -49,6 +55,7 @@ struct UserModernMomentThumbnail: View {
             }
         .frame(width: cellWidth, height: cellHeight)
         .clipped()
+        .modifier(ProfileMomentZoomSourceModifier(namespace: zoomNamespace, sourceID: zoomSourceID))
         .scaleEffect(isPressed ? 0.97 : 1.0)
         .animation(.easeInOut(duration: 0.1), value: isPressed)
         .profileGridThumbnailFrameReporter(

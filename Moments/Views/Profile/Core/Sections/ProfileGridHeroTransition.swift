@@ -246,6 +246,13 @@ final class ProfileGridHeroTransitionCoordinator: ObservableObject {
     var onAdjustPreview: ((Moment) -> Void)? = nil
     var onPin: ((Moment, Bool, Bool) -> Void)? = nil
 
+    /// Navegación zoom iOS 18 → detalle (NavigationStack).
+    var openZoomDetail: ((ProfileMomentZoomDestination) -> Void)? = nil
+    var clearZoomNavigation: (() -> Void)? = nil
+
+    /// Lista activa para zoom (guardados, filtros, etc.).
+    var zoomMomentsSnapshot: [Moment] = []
+
     private var thumbnailFrames: [String: CGRect] = [:]
 
     var activeMoment: Moment? {
@@ -357,102 +364,84 @@ final class ProfileGridHeroTransitionCoordinator: ObservableObject {
         }
     }
 
-    func openDirectDetail(moments: [Moment], initialIndex: Int) {
+    func openDirectDetail(
+        moments: [Moment],
+        initialIndex: Int,
+        feedKind: ProfileMomentZoomFeedKind
+    ) {
+        guard let moment = moments[safe: initialIndex] else { return }
+
+        zoomMomentsSnapshot = moments
+
         GlobalVideoManager.shared.pauseAllVideos()
         GlobalVideoManager.shared.clearProfilePlaybackHandoffState()
 
-        if let moment = moments[safe: initialIndex], moment.hasVideoMedia {
+        if moment.hasVideoMedia {
             let consumerId = GlobalVideoManager.profileVideoConsumerId(for: moment)
             GlobalVideoManager.shared.resetPlaybackPosition(forMomentId: consumerId)
             GlobalVideoManager.shared.releasePreservedPlayer(consumerId: consumerId)
         }
 
-        var route = ProfileMomentDetailRoute(
-            moments: moments,
+        openZoomDetail?(ProfileMomentZoomDestination(
+            zoomSourceID: momentFrameKey(moment, index: initialIndex),
             initialIndex: initialIndex,
-            initialMomentId: moments[safe: initialIndex]?.id
-        )
-        route.entryKind = .direct
-        phase = .detail(route)
-        expandProgress = 1
-        peekProgress = 1
-        detailContentOpacity = 0
-        scrimOpacity = 0
-        menuOpacity = 0
-
-        withAnimation(ProfileGridHeroLayout.revealSmooth) {
-            detailContentOpacity = 1
-        }
-        activateDetailVideoIfNeeded(moments: moments, initialIndex: initialIndex)
+            initialMomentId: moment.id,
+            feedKind: feedKind,
+            restrictPlaybackToInitialIndex: false
+        ))
     }
 
-    func expandToDetail(moments: [Moment], initialIndex: Int) {
+    func expandToDetail(
+        moments: [Moment],
+        initialIndex: Int,
+        feedKind: ProfileMomentZoomFeedKind
+    ) {
         guard case .menuPeek(let selection) = phase else { return }
-        let resolvedIndex = resolvedDetailIndex(for: selection, in: moments)
-        var route = ProfileMomentDetailRoute(
+        openZoomDetailFromMenu(
             moments: moments,
-            initialIndex: resolvedIndex,
-            initialMomentId: selection.moment.id
+            selection: selection,
+            feedKind: feedKind
         )
-        route.entryKind = .hero(sourceFrame: resolvedSourceFrame(for: selection))
-        phase = .expanding(route)
-        detailContentOpacity = 0
+    }
 
-        if selection.moment.hasVideoMedia {
-            let consumerId = GlobalVideoManager.profileVideoConsumerId(for: selection.moment)
+    func openZoomDetailFromMenu(
+        moments: [Moment],
+        selection: ProfileGridMomentMenuSelection,
+        feedKind: ProfileMomentZoomFeedKind
+    ) {
+        guard case .menuPeek = phase else { return }
+
+        let resolvedIndex = resolvedDetailIndex(for: selection, in: moments)
+        let moment = moments[safe: resolvedIndex] ?? selection.moment
+        let sourceID = momentFrameKey(selection.moment, index: selection.index)
+
+        if moment.hasVideoMedia {
+            let consumerId = GlobalVideoManager.profileVideoConsumerId(for: moment)
             GlobalVideoManager.shared.markProfileHeroHandoff(forMomentId: consumerId)
             FeedVisibilityCoordinator.shared.pinActiveVideo(momentId: consumerId)
         }
 
         HapticManager.shared.lightImpact()
-        
-        // Activate video playback immediately
-        self.activateDetailVideoIfNeeded(moments: moments, initialIndex: resolvedIndex)
 
-        withAnimation(ProfileGridHeroLayout.expandSpring) {
-            menuOpacity = 0
+        withAnimation(ProfileGridHeroLayout.dismissSpring) {
+            peekProgress = 0
             scrimOpacity = 0
-            expandProgress = 1
-            detailContentOpacity = 1 // concurrent fade-in
+            menuOpacity = 0
         }
+        phase = .idle
 
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.48) { [weak self] in
-            guard let self else { return }
-            guard case .expanding(let current) = self.phase, current.id == route.id else { return }
-            self.phase = .detail(route)
-        }
+        openZoomDetail?(ProfileMomentZoomDestination(
+            zoomSourceID: sourceID,
+            initialIndex: resolvedIndex,
+            initialMomentId: moment.id,
+            feedKind: feedKind,
+            restrictPlaybackToInitialIndex: true
+        ))
     }
 
     func dismissDetail() {
-        guard let route = activeRoute else {
-            resetToIdle()
-            return
-        }
-
-        if case .hero = route.entryKind, !isDismissingInteractively {
-            phase = .retracting(route)
-            collapseProgress = 0
-            menuOpacity = 0
-
-            withAnimation(ProfileGridHeroLayout.hideSmooth) {
-                detailContentOpacity = 0
-            }
-
-            withAnimation(ProfileGridHeroLayout.retractSpring) {
-                collapseProgress = 1
-            }
-
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.54) { [weak self] in
-                self?.resetToIdle()
-            }
-        } else {
-            withAnimation(ProfileGridHeroLayout.hideSmooth) {
-                detailContentOpacity = 0
-            }
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.28) { [weak self] in
-                self?.resetToIdle()
-            }
-        }
+        clearZoomNavigation?()
+        resetToIdle()
     }
 
     private func resolvedDetailIndex(
@@ -531,17 +520,6 @@ final class ProfileGridHeroTransitionCoordinator: ObservableObject {
 
     var scrimPresentationOpacity: CGFloat {
         0.28 * ProfileGridHeroMotion.easeOut(scrimOpacity)
-    }
-
-    var backgroundContentScale: CGFloat {
-        switch phase {
-        case .menuPeek:
-            return 1 - peekProgress * 0.028
-        case .expanding:
-            return 0.972 + expandProgress * 0.028
-        default:
-            return 1
-        }
     }
 
     func menuRowRevealProgress(index: Int) -> CGFloat {
@@ -664,9 +642,9 @@ final class ProfileGridHeroTransitionCoordinator: ObservableObject {
 
     var shouldRenderFlyingHero: Bool {
         switch phase {
-        case .menuPeek, .expanding, .retracting:
+        case .menuPeek:
             return flyingHeroOpacity > 0.02
-        case .detail, .idle:
+        default:
             return false
         }
     }
@@ -703,6 +681,7 @@ struct ProfileGridHeroDetailLayer: View {
 
     // Context menu properties
     var moments: [Moment] = []
+    var zoomFeedKind: ProfileMomentZoomFeedKind = .ownMoments
 
     private var pinnedMomentsCount: Int {
         moments.filter { $0.isPinned == true }.count
@@ -727,33 +706,7 @@ struct ProfileGridHeroDetailLayer: View {
                     .zIndex(0)
             }
 
-            // 2. Detail Backdrop and Container
-            if coordinator.showsDetailLayer {
-                detailBackdrop
-                    .opacity(coordinator.detailBackdropOpacityForLayer)
-                    .zIndex(1)
-
-                if let route = coordinator.activeRoute {
-                    MomentDetailContainerView(
-                        context: .profileCarousel(
-                            moments: route.moments,
-                            initialIndex: route.initialIndex,
-                            initialMomentId: route.initialMomentId,
-                            topContentInset: 0,
-                            restrictPlaybackToInitialIndex: route.entryKind != .direct,
-                            onDismiss: {
-                                coordinator.dismissDetail()
-                            }
-                        )
-                    )
-                    .id(route.id)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .opacity(coordinator.detailContentOpacity)
-                    .zIndex(2)
-                }
-            }
-
-            // 3. Single Flying Hero Card (renders during menuPeek, expanding, and retracting)
+            // 2. Flying hero (solo menú contextual / peek)
             if coordinator.shouldRenderFlyingHero, let moment = coordinator.activeMoment {
                 let presentation = coordinator.heroPresentation(
                     containerSize: containerSize,
@@ -768,7 +721,11 @@ struct ProfileGridHeroDetailLayer: View {
                         width: presentation.frame.width,
                         onOpenMoment: {
                             if case .menuPeek(let selection) = coordinator.phase {
-                                coordinator.expandToDetail(moments: moments, initialIndex: selection.index)
+                                coordinator.expandToDetail(
+                                    moments: moments,
+                                    initialIndex: selection.index,
+                                    feedKind: zoomFeedKind
+                                )
                             }
                         }
                     )
@@ -777,7 +734,7 @@ struct ProfileGridHeroDetailLayer: View {
                 .zIndex(3)
             }
 
-            // 4. Menu Stack for context menu actions
+            // 3. Menu Stack for context menu actions
             if let selection = coordinator.menuSelection {
                 menuStack(for: selection)
                     .opacity(coordinator.menuOpacity)
@@ -786,7 +743,7 @@ struct ProfileGridHeroDetailLayer: View {
                     .zIndex(4)
             }
 
-            // 5. Toast alerts
+            // 4. Toast alerts
             if let toastMessage = coordinator.toastMessage {
                 VStack {
                     Spacer()
@@ -798,16 +755,12 @@ struct ProfileGridHeroDetailLayer: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .allowsHitTesting(coordinator.isInteractive || coordinator.showsDetailLayer)
+        .allowsHitTesting(coordinator.isInteractive)
         .animation(ProfileGridHeroLayout.peekSpring, value: coordinator.menuSelection?.moment.id)
         .animation(ProfileGridHeroLayout.peekSpring, value: coordinator.showPinConfirm)
         .animation(ProfileGridHeroLayout.peekSpring, value: coordinator.menuOpacity)
         .animation(ProfileGridHeroLayout.peekSpring, value: coordinator.peekProgress)
         .animation(ProfileGridHeroLayout.peekSpring, value: coordinator.scrimOpacity)
-        .animation(ProfileGridHeroLayout.expandSpring, value: coordinator.expandProgress)
-        .animation(ProfileGridHeroLayout.retractSpring, value: coordinator.collapseProgress)
-        .animation(ProfileGridHeroLayout.revealSmooth, value: coordinator.detailContentOpacity)
-        .environment(\.profileDetailVideoPlaybackEnabled, coordinator.allowsDetailVideoPlayback)
         .environment(\.profileHeroShowsChrome, coordinator.showsFlyingHeroChrome)
         .onChange(of: coordinator.toastMessage) { _, newValue in
             guard newValue != nil else { return }

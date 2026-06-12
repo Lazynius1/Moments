@@ -1266,7 +1266,11 @@ struct MediaItemView: View {
                 isVisible = false
             }
         }
-        .fullScreenCover(isPresented: $showReelsViewer) {
+        .fullScreenCover(isPresented: $showReelsViewer, onDismiss: {
+            withAnimation(.easeInOut(duration: 0.3)) {
+                isImmersive = false
+            }
+        }) {
             ReelsViewer(
                 videos: resolvedReelsVideos,
                 startIndex: resolvedReelsStartIndex,
@@ -1289,6 +1293,9 @@ struct MediaItemView: View {
     }
 
     private func openReelsViewer() {
+        withAnimation(.easeInOut(duration: 0.3)) {
+            isImmersive = true
+        }
         showReelsViewer = true
     }
 

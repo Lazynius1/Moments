@@ -10,6 +10,8 @@ struct ProfileHighlightsView: View {
 
     @StateObject private var viewModel = ProfileHighlightsViewModel()
     @State private var presentation = HighlightPresentationCoordinator()
+    @Namespace private var highlightZoomNamespace
+    @State private var highlightZoomDestination: HighlightZoomDestination?
     @Environment(\.colorScheme) var colorScheme
 
     private var circleSize: CGFloat { isCompact ? 58 : 64 }
@@ -51,8 +53,19 @@ struct ProfileHighlightsView: View {
                 viewModel.loadHighlights(userId: userId)
             }
         }
-        .fullScreenCover(item: $presentation.viewerHighlight) { highlight in
-            HighlightViewer(highlight: highlight)
+        .navigationDestination(item: $highlightZoomDestination) { destination in
+            if let highlight = presentation.viewerHighlight {
+                HighlightZoomDetailDestination(
+                    destination: destination,
+                    highlight: highlight,
+                    namespace: highlightZoomNamespace
+                )
+            }
+        }
+        .onChange(of: highlightZoomDestination) { _, newValue in
+            if newValue == nil {
+                presentation.dismissViewer()
+            }
         }
     }
 
@@ -116,12 +129,21 @@ struct ProfileHighlightsView: View {
                         .accessibilityLabel(Text("highlightedStories.new"))
                     }
 
-                    ForEach(viewModel.highlights) { highlight in
+                    ForEach(Array(viewModel.highlights.enumerated()), id: \.element.id) { index, highlight in
                         Button {
                             presentation.presentViewer(highlight)
+                            highlightZoomDestination = HighlightZoomDestination(
+                                zoomSourceID: ProfileMomentZoomNavigation.highlightSourceID(highlight: highlight, index: index),
+                                highlightId: highlight.id ?? "highlight-\(index)"
+                            )
                         } label: {
                             VStack(spacing: 6) {
                                 HighlightIconView(highlight: highlight, size: circleSize)
+                                    .modifier(HighlightZoomSourceModifier(
+                                        namespace: highlightZoomNamespace,
+                                        sourceID: ProfileMomentZoomNavigation.highlightSourceID(highlight: highlight, index: index),
+                                        size: circleSize
+                                    ))
 
                                 Text(highlight.title)
                                     .font(.custom("Poppins-Medium", size: isCompact ? 10 : 11))

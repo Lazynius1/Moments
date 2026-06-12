@@ -298,7 +298,6 @@ struct ProfileView: View {
             let safeAreaBottom = geometry.safeAreaInsets.bottom
 
             ZStack {
-            NavigationView {
                 ZStack {
                     // Fondo dinámico mejorado con efectos (FULLSCREEN)
                     EnhancedProfileBackground(
@@ -333,7 +332,6 @@ struct ProfileView: View {
                     )
                     .environmentObject(heroCoordinator)
                 }
-                .navigationBarHidden(true)
                 .ignoresSafeArea(.all, edges: .all)
                 .fullScreenCover(isPresented: $isShowingSettings) {
                     SettingsView()
@@ -512,7 +510,6 @@ struct ProfileView: View {
                     // Reset profile transition and detail states immediately when switching tabs or leaving the screen
                     heroCoordinator.resetToIdle()
                 }
-            }
 
             ProfileGridHeroDetailLayer(
                 coordinator: heroCoordinator,
@@ -523,7 +520,8 @@ struct ProfileView: View {
                     bottom: geometry.safeAreaInsets.bottom,
                     trailing: geometry.safeAreaInsets.trailing
                 ),
-                moments: selectedProfileTab == .moments ? viewModel.moments : (selectedProfileTab == .tagged ? viewModel.taggedMoments : [])
+                moments: selectedProfileTab == .moments ? viewModel.moments : (selectedProfileTab == .tagged ? viewModel.taggedMoments : []),
+                zoomFeedKind: selectedProfileTab == .tagged ? .taggedMoments : .ownMoments
             )
             .zIndex(100)
             }

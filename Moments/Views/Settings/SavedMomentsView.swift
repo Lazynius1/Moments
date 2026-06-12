@@ -20,7 +20,9 @@ struct SavedMomentsView: View {
     @State private var isSelectionMode = false
     @State private var selectedMomentIds: Set<String> = []
 
-    @State private var detailRoute: SavedMomentsDetailRoute?
+    @Namespace private var zoomNamespace
+    @State private var zoomDestination: MomentZoomDestination?
+    @State private var zoomMoments: [Moment] = []
 
     @State private var showRemoveSelectionAlert = false
     @State private var restrictedMomentToRemove: Moment?
@@ -70,34 +72,50 @@ struct SavedMomentsView: View {
     }
 
     var body: some View {
-        ZStack(alignment: .bottom) {
-            background
+        NavigationStack {
+            ZStack(alignment: .bottom) {
+                background
 
-            VStack(spacing: 14) {
-                header
+                VStack(spacing: 14) {
+                    header
 
-                if viewModel.isLoading {
-                    loadingView
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                } else if let error = viewModel.error {
-                    errorView(error)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                } else if viewModel.moments.isEmpty {
-                    emptyStateView
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                } else {
-                    content
+                    if viewModel.isLoading {
+                        loadingView
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    } else if let error = viewModel.error {
+                        errorView(error)
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    } else if viewModel.moments.isEmpty {
+                        emptyStateView
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    } else {
+                        content
+                    }
+                }
+                .padding(.top, 8)
+
+                if isSelectionMode {
+                    selectionBar
+                        .transition(.move(edge: .bottom).combined(with: .opacity))
+                        .padding(.horizontal, 12)
+                        .padding(.bottom, 10)
                 }
             }
-            .padding(.top, 8)
-
-            if isSelectionMode {
-                selectionBar
-                    .transition(.move(edge: .bottom).combined(with: .opacity))
-                    .padding(.horizontal, 12)
-                    .padding(.bottom, 10)
+            .navigationDestination(item: $zoomDestination) { destination in
+                MomentZoomDetailDestination(
+                    destination: destination,
+                    moments: zoomMoments,
+                    namespace: zoomNamespace,
+                    onRemoveSavedMoment: { moment in
+                        if let momentId = moment.id {
+                            viewModel.removeMoment(momentId: momentId)
+                        }
+                    }
+                )
             }
+            .toolbar(.hidden, for: .navigationBar)
         }
+        .momentZoomNavigationSurface(colorScheme: colorScheme)
         .onAppear {
             if viewModel.moments.isEmpty && !viewModel.isLoading {
                 viewModel.loadSavedMoments()
@@ -105,21 +123,6 @@ struct SavedMomentsView: View {
         }
         .refreshable {
             await refreshMoments()
-        }
-        .fullScreenCover(item: $detailRoute) { route in
-            ModernSavedMomentsDetailView(
-                moments: route.moments,
-                initialIndex: route.initialIndex,
-                onDismiss: {
-                    detailRoute = nil
-                },
-                onRemoveMoment: { momentToRemove in
-                    if let momentId = momentToRemove.id {
-                        viewModel.removeMoment(momentId: momentId)
-                    }
-                }
-            )
-            .environmentObject(FirestoreService())
         }
         .alert(NSLocalizedString("savedMoments.selection.remove.title", comment: "Remove selected alert title"), isPresented: $showRemoveSelectionAlert) {
             Button(NSLocalizedString("savedMoments.cancel", comment: "Cancel action"), role: .cancel) { }
@@ -376,6 +379,8 @@ struct SavedMomentsView: View {
                                 isMutedRestriction: isMutedRestriction,
                                 isSelectionMode: isSelectionMode,
                                 isSelected: selectedMomentIds.contains(momentId),
+                                zoomNamespace: zoomNamespace,
+                                zoomSourceID: ProfileMomentZoomNavigation.sourceID(moment: moment, index: index, prefix: "saved-manager"),
                                 onTap: {
                                     handleTap(moment: moment, currentList: filteredMoments)
                                 },
@@ -391,6 +396,7 @@ struct SavedMomentsView: View {
                         }
                     }
                 }
+                .profileGridNavigationChrome(colorScheme: colorScheme)
                 .padding(.horizontal, 10)
                 .padding(.bottom, isSelectionMode ? 90 : 20)
             }
@@ -555,9 +561,14 @@ struct SavedMomentsView: View {
             return
         }
 
-        detailRoute = SavedMomentsDetailRoute(
+        guard let moment = accessibleMoments[safe: resolvedIndex] else { return }
+        MomentZoomOpener.open(
+            moment: moment,
             moments: accessibleMoments,
-            initialIndex: resolvedIndex
+            initialIndex: resolvedIndex,
+            presentation: .saved,
+            destination: &zoomDestination,
+            snapshot: &zoomMoments
         )
     }
 
@@ -635,6 +646,8 @@ private struct SavedMomentGridCard: View {
     let isMutedRestriction: Bool
     let isSelectionMode: Bool
     let isSelected: Bool
+    var zoomNamespace: Namespace.ID? = nil
+    var zoomSourceID: String? = nil
     let onTap: () -> Void
     let onLongPress: () -> Void
 
@@ -666,6 +679,7 @@ private struct SavedMomentGridCard: View {
                 RoundedRectangle(cornerRadius: 8)
                     .stroke(isSelected ? Color(hex: "2563EB") : Color.clear, lineWidth: 2)
             )
+            .modifier(ProfileMomentZoomSourceModifier(namespace: zoomNamespace, sourceID: zoomSourceID, cornerRadius: 8))
 
             if isSelectionMode && !isRestricted {
                 Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
