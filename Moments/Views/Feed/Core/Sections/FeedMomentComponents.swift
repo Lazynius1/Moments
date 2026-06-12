@@ -192,6 +192,8 @@ struct ModernPostCardView: View {
     let onLocationTap: (String, CLLocationCoordinate2D?) -> Void
     let onContextMenu: (Moment) -> Void
     var onTagTap: ((String) -> Void)? = nil // ✅ Tag Navigation Callback
+    var onOpenUserProfile: ((String) -> Void)? = nil
+    var profileZoomNamespace: Namespace.ID? = nil
     var onPeek: ((String, CGFloat, Bool) -> Void)? = nil // ✅ PEEK: (imageURL, realRatio, isPressing)
     @EnvironmentObject private var firestoreService: FirestoreService
     @Environment(FeedViewModel.self) private var feedViewModel
@@ -226,6 +228,8 @@ struct ModernPostCardView: View {
          onLocationTap: @escaping (String, CLLocationCoordinate2D?) -> Void,
          onContextMenu: @escaping (Moment) -> Void,
          onTagTap: ((String) -> Void)? = nil,
+         onOpenUserProfile: ((String) -> Void)? = nil,
+         profileZoomNamespace: Namespace.ID? = nil,
          onPeek: ((String, CGFloat, Bool) -> Void)? = nil) {
 
         self.moment = moment
@@ -237,6 +241,8 @@ struct ModernPostCardView: View {
         self.onLocationTap = onLocationTap
         self.onContextMenu = onContextMenu
         self.onTagTap = onTagTap
+        self.onOpenUserProfile = onOpenUserProfile
+        self.profileZoomNamespace = profileZoomNamespace
         self.onPeek = onPeek
         _commentCount = State(initialValue: moment.commentCount)
 
@@ -582,8 +588,7 @@ struct ModernPostCardView: View {
                 if hasStory {
                     showSpecificUserStories = true
                 } else {
-                    // Si no tiene historia, ir al perfil
-                    LegacyNavigationBridge.userProfileInFeed(userId: moment.authorId)
+                    openAuthorProfile()
                 }
             }) {
                 ZStack {
@@ -605,33 +610,23 @@ struct ModernPostCardView: View {
                             )
                         )
                 }
+                .userProfileZoomSource(
+                    userId: moment.authorId,
+                    namespace: profileZoomNamespace,
+                    cornerRadius: 22
+                )
             }
             .buttonStyle(PlainButtonStyle())
 
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 6) {
                     HStack(spacing: 4) {
-                        if moment.authorId == Auth.auth().currentUser?.uid {
-                            Button(action: {
-                                // Navegar al perfil propio (Tab 4) o mostrar hoja
-                                LegacyNavigationBridge.userProfileInFeed(userId: moment.authorId)
-                            }) {
-                                Text(displayAuthorUsername)
-                                    .font(.custom("Poppins-SemiBold", size: 15))
-                                    .foregroundColor(adaptiveColors.primary)
-                            }
-                            .buttonStyle(PlainButtonStyle())
-                        } else {
-                            Button(action: {
-                                // Navegar a perfil de otro usuario
-                                LegacyNavigationBridge.userProfileInFeed(userId: moment.authorId)
-                            }) {
-                                Text(displayAuthorUsername)
-                                    .font(.custom("Poppins-SemiBold", size: 15))
-                                    .foregroundColor(adaptiveColors.primary)
-                            }
-                            .buttonStyle(PlainButtonStyle())
+                        Button(action: openAuthorProfile) {
+                            Text(displayAuthorUsername)
+                                .font(.custom("Poppins-SemiBold", size: 15))
+                                .foregroundColor(adaptiveColors.primary)
                         }
+                        .buttonStyle(PlainButtonStyle())
 
                         // ✅ INSIGNIA DE VERIFICADO
                         if moment.authorId == Auth.auth().currentUser?.uid {
@@ -891,6 +886,17 @@ struct ModernPostCardView: View {
                     }
                 }
             }
+        }
+    }
+
+    private func openAuthorProfile() {
+        let authorId = moment.authorId.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !authorId.isEmpty else { return }
+
+        if let onOpenUserProfile {
+            onOpenUserProfile(authorId)
+        } else {
+            LegacyNavigationBridge.userProfileInFeed(userId: authorId)
         }
     }
 

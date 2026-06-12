@@ -7,6 +7,7 @@ struct ModernExploreDetailHeader: View {
     let moment: Moment?
     let topInset: CGFloat
     let onDismiss: () -> Void
+    var profileZoomNamespace: Namespace.ID? = nil
     let onAvatarTap: (String, Bool) -> Void
     let onLocationTap: ((String, CLLocationCoordinate2D?) -> Void)?
 
@@ -48,6 +49,7 @@ struct ModernExploreDetailHeader: View {
                             showBaseStroke: true,
                             baseStrokeColor: .white.opacity(0.15),
                             baseStrokeWidth: 0.5,
+                            profileZoomNamespace: profileZoomNamespace,
                             onTap: { hasStory in
                                 guard !authorId.isEmpty else { return }
                                 onAvatarTap(authorId, hasStory)
@@ -55,14 +57,20 @@ struct ModernExploreDetailHeader: View {
                         )
 
                         VStack(alignment: .leading, spacing: 1) {
-                            HStack(spacing: 4) {
-                                Text(displayUsername(for: moment))
-                                    .font(.custom("Poppins-SemiBold", size: 16))
-                                    .foregroundColor(.primary)
-                                    .lineLimit(1)
+                            Button {
+                                guard !authorId.isEmpty else { return }
+                                onAvatarTap(authorId, false)
+                            } label: {
+                                HStack(spacing: 4) {
+                                    Text(displayUsername(for: moment))
+                                        .font(.custom("Poppins-SemiBold", size: 16))
+                                        .foregroundColor(.primary)
+                                        .lineLimit(1)
 
-                                VerifiedBadgeView(userId: authorId, size: 13)
+                                    VerifiedBadgeView(userId: authorId, size: 13)
+                                }
                             }
+                            .buttonStyle(.plain)
 
                             if let location = moment.location?.trimmingCharacters(in: .whitespacesAndNewlines),
                                !location.isEmpty,

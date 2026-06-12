@@ -865,6 +865,7 @@ struct GlassmorphicConversationRow: View {
 
     // ✅ NUEVO: Estados para navegación
     @State private var showingUserProfile = false
+    @Namespace private var profileZoomNamespace
     @State private var storyRoute: MessagingStoryRoute?
     @State private var liveOtherParticipantUsername: String = ""
     @State private var isOtherParticipantUnavailable: Bool = false
@@ -897,8 +898,12 @@ struct GlassmorphicConversationRow: View {
             StoriesView(startWithUserId: .constant(route.id))
                 .ignoresSafeArea(.keyboard)
         }
-        .sheet(isPresented: $showingUserProfile) {
+        .fullScreenCover(isPresented: $showingUserProfile) {
             UserProfileView(userId: conversation.otherParticipantId)
+                .userProfileZoomDestination(
+                    userId: conversation.otherParticipantId,
+                    namespace: profileZoomNamespace
+                )
         }
     }
 
@@ -907,6 +912,11 @@ struct GlassmorphicConversationRow: View {
         if isOtherParticipantUnavailable && !isOtherParticipantBlockedByCurrentUser {
             Button(action: { showingUserProfile = true }) {
                 ProfileUnavailableAvatar(size: 56)
+                    .userProfileZoomSource(
+                        userId: conversation.otherParticipantId,
+                        namespace: profileZoomNamespace,
+                        cornerRadius: 28
+                    )
             }
             .buttonStyle(PlainButtonStyle())
         } else {
@@ -915,7 +925,8 @@ struct GlassmorphicConversationRow: View {
                 size: 56,
                 lineWidth: 2.5,
                 isOwnStory: false,
-                hapticsEnabled: true
+                hapticsEnabled: true,
+                profileZoomNamespace: profileZoomNamespace
             ) { hasStory in
                 guard !isOtherParticipantBlockedByCurrentUser else {
                     showingUserProfile = true

@@ -126,6 +126,9 @@ struct UserModernPublicProfileView: View {
                                                                 feedKind: .userProfileMoments
                                                             )
                                                         },
+                                                        onLongPress: {
+                                                            openVisitorGridMenu(moment: moment, index: index)
+                                                        },
                                                         gridIndex: index,
                                                         descriptor: descriptor
                                                     )
@@ -170,6 +173,9 @@ struct UserModernPublicProfileView: View {
                                                             initialIndex: index,
                                                             feedKind: .userProfileTagged
                                                         )
+                                                    },
+                                                    onLongPress: {
+                                                        openVisitorGridMenu(moment: moment, index: index)
                                                     },
                                                     gridIndex: index,
                                                     descriptor: descriptor
@@ -217,6 +223,7 @@ struct UserModernPublicProfileView: View {
             .onPreferenceChange(ProfileGridThumbnailFramePreferenceKey.self) { frames in
                 heroCoordinator.ingestThumbnailFrames(frames)
             }
+            .scrollDisabled(heroCoordinator.isInteractive)
             .profileGridNavigationChrome(colorScheme: colorScheme)
             }
             .coordinateSpace(name: "profileGridOverlay")
@@ -234,6 +241,10 @@ struct UserModernPublicProfileView: View {
             }
         }
         .profileNavigationSurface(colorScheme: colorScheme)
+    }
+
+    private func openVisitorGridMenu(moment: Moment, index: Int) {
+        heroCoordinator.openMenu(moment: moment, index: index, kind: .visitor)
     }
 
     private func momentsForZoomDestination(_ destination: ProfileMomentZoomDestination) -> [Moment] {

@@ -1,12 +1,18 @@
 import SwiftUI
 import Kingfisher
 import AVFoundation
+import FirebaseAuth
 
 // MARK: - Selection
 
 struct ProfileGridMomentMenuSelection: Equatable {
     let moment: Moment
     let index: Int
+}
+
+enum ProfileGridHeroMenuKind: Equatable {
+    case owner
+    case visitor
 }
 
 // MARK: - Tap / long-press (UIKit — tap.require(toFail: longPress))
@@ -114,12 +120,8 @@ struct ProfileMomentThumbnailGestureOverlay: UIViewRepresentable {
 
 // MARK: - Hero sizing
 
-private let profileGridHeroTopBleed: CGFloat = 22
-private let profileGridHeroCapsuleHeight: CGFloat = 60
-private let profileGridHeroCapsuleLeadingPadding: CGFloat = 6
-private let profileGridHeroCapsuleTrailingPadding: CGFloat = 12
-private let profileGridHeroAvatarSize: CGFloat = 34
-private let profileGridHeroCapsuleContentYOffset: CGFloat = 4
+private let profileGridHeroFooterAvatarSize: CGFloat = 36
+private let profileGridHeroFooterHorizontalPadding: CGFloat = 12
 
 // MARK: - Hero card
 
@@ -130,9 +132,15 @@ struct ProfileGridHeroCard: View {
 
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.profileHeroShowsChrome) private var showsChrome
+    @Environment(\.profileHeroChromeOpacity) private var profileHeroChromeOpacity
+    @Environment(\.profileHeroShowsAudience) private var showsAudience
 
     private var mediaHeight: CGFloat {
         ProfileGridHeroLayout.mediaHeight(width: width, aspectRatio: moment.aspectRatio)
+    }
+
+    private var totalCardHeight: CGFloat {
+        mediaHeight + (showsChrome ? ProfileGridHeroLayout.peekFooterHeight : 0)
     }
 
     private var primaryTextColor: Color {
@@ -158,105 +166,101 @@ struct ProfileGridHeroCard: View {
     }
 
     var body: some View {
-        ZStack(alignment: .top) {
-            heroMedia
-                .frame(width: width, height: mediaHeight + profileGridHeroTopBleed)
-                .offset(y: -profileGridHeroTopBleed * 0.72)
-
+        VStack(spacing: 0) {
+            heroMediaSection
             if showsChrome {
-                LinearGradient(
-                    colors: [
-                        .black.opacity(colorScheme == .dark ? 0.38 : 0.24),
-                        .black.opacity(0.1),
-                        .clear
-                    ],
-                    startPoint: .top,
-                    endPoint: UnitPoint(x: 0.5, y: 0.42)
-                )
-
-                heroTopGlassExtension
+                heroFooterBar
+                    .opacity(profileHeroChromeOpacity)
             }
         }
-        .frame(width: width, height: mediaHeight)
+        .frame(width: width, height: totalCardHeight)
         .clipShape(RoundedRectangle(cornerRadius: ProfileGridHeroLayout.peekCornerRadius, style: .continuous))
         .contentShape(RoundedRectangle(cornerRadius: ProfileGridHeroLayout.peekCornerRadius, style: .continuous))
         .onTapGesture(perform: onOpenMoment)
-        .overlay(alignment: .topTrailing) {
-            if moment.primaryVisibleMediaItem?.type == .video {
-                HStack(spacing: 4) {
-                    Image(systemName: "play.fill")
-                        .font(.system(size: 8, weight: .bold))
-                    LiveVideoTimeLabel(
-                        consumerId: GlobalVideoManager.profileVideoConsumerId(for: moment),
-                        totalDuration: moment.primaryVisibleMediaItem?.videoDuration ?? moment.videoDuration,
-                        displayMode: .inline
-                    )
-                }
-                .foregroundColor(.white)
-                .padding(.horizontal, 8)
-                .padding(.vertical, 5)
-                .background(.black.opacity(0.45), in: Capsule())
-                .padding(.top, profileGridHeroCapsuleHeight + 6)
-                .padding(.trailing, profileGridHeroCapsuleTrailingPadding)
-            }
-        }
         .shadow(color: .black.opacity(colorScheme == .dark ? 0.32 : 0.14), radius: 16, x: 0, y: 8)
     }
 
-    private var heroCapsuleShape: UnevenRoundedRectangle {
-        UnevenRoundedRectangle(
-            topLeadingRadius: ProfileGridHeroLayout.peekCornerRadius,
-            bottomLeadingRadius: 0,
-            bottomTrailingRadius: 0,
-            topTrailingRadius: ProfileGridHeroLayout.peekCornerRadius,
-            style: .continuous
-        )
+    private var heroMediaSection: some View {
+        heroMedia
+            .frame(width: width, height: mediaHeight)
+            .clipped()
+            .overlay(alignment: .bottom) {
+                LinearGradient(
+                    colors: [.clear, .black.opacity(colorScheme == .dark ? 0.18 : 0.08)],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+                .frame(height: min(mediaHeight * 0.12, 36))
+            }
+            .overlay(alignment: .topTrailing) {
+                videoDurationBadge
+            }
     }
 
-    private var heroTopGlassExtension: some View {
+    @ViewBuilder
+    private var videoDurationBadge: some View {
+        if moment.primaryVisibleMediaItem?.type == .video {
+            HStack(spacing: 4) {
+                Image(systemName: "play.fill")
+                    .font(.system(size: 8, weight: .bold))
+                LiveVideoTimeLabel(
+                    consumerId: GlobalVideoManager.profileVideoConsumerId(for: moment),
+                    totalDuration: moment.primaryVisibleMediaItem?.videoDuration ?? moment.videoDuration,
+                    displayMode: .inline
+                )
+            }
+            .foregroundColor(.white)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 5)
+            .background(.black.opacity(0.45), in: Capsule())
+            .padding(.top, 10)
+            .padding(.trailing, 10)
+        }
+    }
+
+    private var heroFooterBar: some View {
         HStack(alignment: .center, spacing: 10) {
             AsyncProfileImageView(userId: moment.authorId)
-                .frame(width: profileGridHeroAvatarSize, height: profileGridHeroAvatarSize)
+                .frame(width: profileGridHeroFooterAvatarSize, height: profileGridHeroFooterAvatarSize)
                 .clipShape(Circle())
-                .overlay(Circle().strokeBorder(Color.white.opacity(0.28), lineWidth: 0.5))
 
             VStack(alignment: .leading, spacing: 2) {
-                    Text(moment.username)
-                        .font(.custom("Poppins-SemiBold", size: 13))
-                        .foregroundColor(.white)
-                        .shadow(color: .black.opacity(0.45), radius: 2, x: 0, y: 1)
-                        .lineLimit(1)
+                Text(moment.username)
+                    .font(.custom("Poppins-SemiBold", size: 13))
+                    .foregroundColor(primaryTextColor)
+                    .lineLimit(1)
 
                 if let locationText {
                     Text(locationText)
                         .font(.custom("Poppins-Regular", size: 11))
-                        .foregroundColor(.white.opacity(0.82))
-                        .shadow(color: .black.opacity(0.4), radius: 2, x: 0, y: 1)
+                        .foregroundColor(secondaryTextColor)
                         .lineLimit(1)
                 }
             }
 
             Spacer(minLength: 0)
 
-            ActivityGridAudienceIcon(audience: resolvedAudience)
-                .scaleEffect(1.14)
+            if showsAudience {
+                AudienceIconView(
+                    audience: resolvedAudience,
+                    size: AudienceIconMetrics.activityGridThumbnail,
+                    colorScheme: colorScheme
+                )
                 .accessibilityLabel(resolvedAudience.title)
+            }
         }
-        .padding(.leading, profileGridHeroCapsuleLeadingPadding)
-        .padding(.trailing, profileGridHeroCapsuleTrailingPadding)
-        .offset(y: profileGridHeroCapsuleContentYOffset)
-        .frame(height: profileGridHeroCapsuleHeight, alignment: .center)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background {
-            heroCapsuleShape
-                .fill(Color.black.opacity(0.22))
-        }
-        .liquidGlass(in: heroCapsuleShape)
+        .padding(.horizontal, profileGridHeroFooterHorizontalPadding)
+        .frame(height: ProfileGridHeroLayout.peekFooterHeight)
+        .frame(maxWidth: .infinity)
+        .background(heroFooterBackground)
+    }
+
+    private var heroFooterBackground: Color {
+        colorScheme == .dark ? Color(hex: "0B1215") : Color(hex: "FAF9F6")
     }
 
     private var heroVideoAspectRatio: CGFloat {
-        let ratio = ProfileGridHeroLayout.parsedAspectRatio(moment.aspectRatio)
-        return max(ratio, 0.55)
+        ProfileGridHeroLayout.clampedPeekWidthOverHeight(moment.aspectRatio)
     }
 
     @ViewBuilder
@@ -329,6 +333,120 @@ struct ProfileGridHeroCard: View {
         let base = "https://firebasestorage.googleapis.com/v0/b/glowsy-6a40e/o/"
         let encoded = path.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? path
         return URL(string: "\(base)\(encoded)?alt=media")
+    }
+}
+
+// MARK: - Visitor action bar (perfil ajeno)
+
+struct ProfileGridVisitorActionBar: View {
+    let moment: Moment
+    let canShare: Bool
+    let onComment: () -> Void
+    let onShare: () -> Void
+
+    @Environment(\.colorScheme) private var colorScheme
+    @EnvironmentObject private var firestoreService: FirestoreService
+    @StateObject private var usageTracker: UserReactionUsageTracker
+
+    init(
+        moment: Moment,
+        canShare: Bool,
+        onComment: @escaping () -> Void,
+        onShare: @escaping () -> Void
+    ) {
+        self.moment = moment
+        self.canShare = canShare
+        self.onComment = onComment
+        self.onShare = onShare
+        let userId = Auth.auth().currentUser?.uid ?? ""
+        _usageTracker = StateObject(wrappedValue: UserReactionUsageTracker(userId: userId))
+    }
+
+    private var primaryColor: Color {
+        colorScheme == .dark ? .white : .black
+    }
+
+    private var mutedColor: Color {
+        colorScheme == .dark ? Color.white.opacity(0.35) : Color.black.opacity(0.28)
+    }
+
+    var body: some View {
+        HStack(spacing: 10) {
+            reactionRail
+
+            if !moment.disableComments {
+                visitorIconButton(
+                    systemName: "bubble.left",
+                    tint: primaryColor,
+                    accessibilityLabel: NSLocalizedString("comments.title", comment: "Comments"),
+                    action: onComment
+                )
+            }
+
+            visitorIconButton(
+                systemName: "paperplane",
+                tint: canShare ? primaryColor : mutedColor,
+                accessibilityLabel: NSLocalizedString("contextMenu.shareMoment", comment: "Share moment"),
+                isEnabled: canShare,
+                action: onShare
+            )
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .frame(maxWidth: .infinity)
+        .liquidGlass(in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+    }
+
+    private var reactionRail: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 12) {
+                ForEach(usageTracker.getReactionsOrderedByUsage(), id: \.rawValue) { reaction in
+                    Button {
+                        HapticManager.shared.lightImpact()
+                        usageTracker.incrementUsage(for: reaction)
+                        submitReaction(reaction)
+                    } label: {
+                        Text(reaction.icon)
+                            .font(.system(size: 22))
+                            .frame(width: 32, height: 32)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(.horizontal, 4)
+        }
+        .frame(maxWidth: .infinity)
+    }
+
+    private func visitorIconButton(
+        systemName: String,
+        tint: Color,
+        accessibilityLabel: String,
+        isEnabled: Bool = true,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            Image(systemName: systemName)
+                .font(.system(size: 17, weight: .semibold))
+                .foregroundStyle(tint)
+                .frame(width: 36, height: 36)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.momentsPress(scale: 0.9, haptic: .light))
+        .disabled(!isEnabled)
+        .accessibilityLabel(accessibilityLabel)
+    }
+
+    private func submitReaction(_ reaction: ReactionType) {
+        guard let currentUserId = Auth.auth().currentUser?.uid,
+              let momentId = moment.id else { return }
+
+        firestoreService.addReaction(
+            to: momentId,
+            reaction: reaction.rawValue,
+            userId: currentUserId,
+            authorId: moment.authorId
+        ) { _ in }
     }
 }
 

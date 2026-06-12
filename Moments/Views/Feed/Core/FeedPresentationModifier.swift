@@ -26,6 +26,7 @@ struct FeedPresentationModifier: ViewModifier {
     @Binding var showEchoHistory: Bool
     @Binding var targetConversationId: String?
 
+    let profileZoomNamespace: Namespace.ID
     let messagingViewModel: MessagingViewModel
     let firestoreService: FirestoreService
     let updateMoment: (Moment, EditMomentPayload) -> Void
@@ -126,12 +127,13 @@ struct FeedPresentationModifier: ViewModifier {
             } message: {
                 Text("feed.delete.confirm")
             }
-            .sheet(item: $selectedProfileRoute, onDismiss: {
+            .fullScreenCover(item: $selectedProfileRoute, onDismiss: {
                 selectedUserId = ""
                 selectedProfileRoute = nil
-            }) {
-                UserProfileView(userId: $0.userId)
-                    .id($0.userId)
+            }) { route in
+                UserProfileView(userId: route.userId)
+                    .id(route.userId)
+                    .userProfileZoomDestination(userId: route.userId, namespace: profileZoomNamespace)
             }
             .sheet(isPresented: $showEchoHistory) {
                 EchoHistoryView()
@@ -165,6 +167,7 @@ extension View {
         selectedUserId: Binding<String>,
         showEchoHistory: Binding<Bool>,
         targetConversationId: Binding<String?>,
+        profileZoomNamespace: Namespace.ID,
         messagingViewModel: MessagingViewModel,
         firestoreService: FirestoreService,
         updateMoment: @escaping (Moment, EditMomentPayload) -> Void,
@@ -195,6 +198,7 @@ extension View {
                 selectedUserId: selectedUserId,
                 showEchoHistory: showEchoHistory,
                 targetConversationId: targetConversationId,
+                profileZoomNamespace: profileZoomNamespace,
                 messagingViewModel: messagingViewModel,
                 firestoreService: firestoreService,
                 updateMoment: updateMoment,

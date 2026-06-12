@@ -13,6 +13,7 @@ struct ModernMomentDetailView: View {
     let initialMomentId: String?
     let topContentInset: CGFloat
     let restrictPlaybackToInitialIndex: Bool
+    let openCommentsOnAppear: Bool
     let onDismiss: () -> Void
     private let resolvedInitialIndex: Int
     
@@ -50,6 +51,7 @@ struct ModernMomentDetailView: View {
     // ✅ NUEVOS: Navegación de perfil desde tags
     @State private var showUserProfile = false
     @State private var selectedUserId: String = ""
+    @Namespace private var profileZoomNamespace
     @State private var showSpecificUserStories = false
     @State private var selectedStoryUserId: String = ""
     @State private var selectedLocationMoment: Moment? // ✅ Usar Item Binding para evitar race conditions en SwiftUI
@@ -67,6 +69,7 @@ struct ModernMomentDetailView: View {
         initialMomentId: String? = nil,
         topContentInset: CGFloat = 64,
         restrictPlaybackToInitialIndex: Bool = false,
+        openCommentsOnAppear: Bool = false,
         onDismiss: @escaping () -> Void
     ) {
         self.moments = moments
@@ -74,6 +77,7 @@ struct ModernMomentDetailView: View {
         self.initialMomentId = initialMomentId
         self.topContentInset = topContentInset
         self.restrictPlaybackToInitialIndex = restrictPlaybackToInitialIndex
+        self.openCommentsOnAppear = openCommentsOnAppear
         self.onDismiss = onDismiss
         
         let resolved: Int
@@ -112,6 +116,7 @@ struct ModernMomentDetailView: View {
                         moment: moments[safe: currentIndex],
                         topInset: 8,
                         onDismiss: onDismiss,
+                        profileZoomNamespace: profileZoomNamespace,
                         onAvatarTap: { userId, hasStory in
                             let normalizedUserId = userId.trimmingCharacters(in: .whitespacesAndNewlines)
                             guard !normalizedUserId.isEmpty else { return }
@@ -237,12 +242,12 @@ struct ModernMomentDetailView: View {
         .sheet(isPresented: $showExploreWithHashtag) {
             ExploreView(initialSearchQuery: selectedHashtag)
         }
-        // ✅ Sheet de perfil para navegación de tags
-        .sheet(isPresented: $showUserProfile, onDismiss: {
+        .fullScreenCover(isPresented: $showUserProfile, onDismiss: {
             selectedUserId = ""
         }) {
             if !selectedUserId.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                 UserProfileView(userId: selectedUserId)
+                    .userProfileZoomDestination(userId: selectedUserId, namespace: profileZoomNamespace)
             }
         }
         .fullScreenCover(isPresented: $showSpecificUserStories, onDismiss: {
@@ -272,6 +277,12 @@ struct ModernMomentDetailView: View {
             scrollPosition = target
             currentIndex = target
             VideoMomentsIndex.shared.rebuild(from: moments)
+
+            if openCommentsOnAppear, let moment = moments[safe: target] {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.38) {
+                    selectedMoment = moment
+                }
+            }
 
             // Hero → detalle: no pausar; el handoff mantiene el mismo player en marcha.
             let initialMoment = moments[safe: target]
@@ -599,6 +610,7 @@ struct ModernDetailHeader: View {
     let moment: Moment?
     let topInset: CGFloat
     let onDismiss: () -> Void
+    var profileZoomNamespace: Namespace.ID? = nil
     let onAvatarTap: (String, Bool) -> Void
     @Environment(\.colorScheme) var colorScheme
     @State private var liveUsername: String = ""
@@ -634,6 +646,7 @@ struct ModernDetailHeader: View {
                             showBaseStroke: true,
                             baseStrokeColor: .white.opacity(0.15),
                             baseStrokeWidth: 0.5,
+                            profileZoomNamespace: profileZoomNamespace,
                             onTap: { hasStory in
                                 guard !authorId.isEmpty else { return }
                                 onAvatarTap(authorId, hasStory)
@@ -641,13 +654,19 @@ struct ModernDetailHeader: View {
                         )
                         
                         VStack(alignment: .leading, spacing: 0) {
-                            HStack(spacing: 4) {
-                                Text(displayUsername(for: moment))
-                                    .font(.custom("Poppins-SemiBold", size: 16))
-                                    .foregroundColor(.primary)
-                                
-                                VerifiedBadgeView(userId: authorId, size: 13)
+                            Button {
+                                guard !authorId.isEmpty else { return }
+                                onAvatarTap(authorId, false)
+                            } label: {
+                                HStack(spacing: 4) {
+                                    Text(displayUsername(for: moment))
+                                        .font(.custom("Poppins-SemiBold", size: 16))
+                                        .foregroundColor(.primary)
+
+                                    VerifiedBadgeView(userId: authorId, size: 13)
+                                }
                             }
+                            .buttonStyle(.plain)
                             
                             Text(moment.timestamp.timeAgoDisplay())
                                 .font(.custom("Poppins-Regular", size: 10))

@@ -45,6 +45,7 @@ struct FeedView: View {
     @State private var selectedLocationCoordinate: CLLocationCoordinate2D?
     @State private var selectedUserId: String = ""
     @State private var selectedProfileRoute: FeedProfileSheetRoute?
+    @Namespace private var profileZoomNamespace
     // 🔗 STORY CHAINS: Variables para navegación
     @State private var showStoryChain = false
     @State private var selectedChainId: String = ""
@@ -269,6 +270,7 @@ struct FeedView: View {
             selectedUserId: $selectedUserId,
             showEchoHistory: $showEchoHistory,
             targetConversationId: $targetConversationId,
+            profileZoomNamespace: profileZoomNamespace,
             messagingViewModel: messagingViewModel,
             firestoreService: firestoreService,
             updateMoment: updateMoment,
@@ -407,7 +409,8 @@ struct FeedView: View {
                 feedSelectorHeight: feedSelectorHeight,
                 onForceRefresh: forceRefresh,
                 onManualRefresh: performManualRefresh,
-                onOpenUserProfile: openUserProfile
+                onOpenUserProfile: openUserProfile,
+                profileZoomNamespace: profileZoomNamespace
             )
                 .ignoresSafeArea(edges: .top)
             

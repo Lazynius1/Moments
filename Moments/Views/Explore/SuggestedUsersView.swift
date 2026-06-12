@@ -2,12 +2,18 @@ import SwiftUI
 import FirebaseAuth
 import FirebaseFirestore
 
+private struct SuggestedUserProfileRoute: Identifiable, Equatable {
+    let userId: String
+
+    var id: String { userId }
+}
+
 struct SuggestedUsersView: View {
     @StateObject private var viewModel = SuggestedUsersViewModel()
     @Environment(\.dismiss) var dismiss
     @Environment(\.colorScheme) var colorScheme
-    @State private var navigateToProfile: Bool = false
-    @State private var selectedUserId: String = ""
+    @State private var selectedProfileRoute: SuggestedUserProfileRoute?
+    @Namespace private var profileZoomNamespace
     
     var body: some View {
         VStack(spacing: 0) {
@@ -20,13 +26,9 @@ struct SuggestedUsersView: View {
         .onAppear {
             viewModel.loadInitialUsers()
         }
-        .sheet(isPresented: $navigateToProfile) {
-            if !selectedUserId.isEmpty {
-                UserProfileView(userId: selectedUserId)
-            } else {
-                Text("Error: Usuario no válido")
-                    .foregroundColor(.red)
-            }
+        .fullScreenCover(item: $selectedProfileRoute) { route in
+            UserProfileView(userId: route.userId)
+                .userProfileZoomDestination(userId: route.userId, namespace: profileZoomNamespace)
         }
     }
     
@@ -78,12 +80,12 @@ struct SuggestedUsersView: View {
                                 user: user,
                                 commonInterests: Set(user.interests).intersection(Set(viewModel.currentUserInterests)).count,
                                 buttonState: viewModel.userButtonStates[user.id] ?? .canFollow,
+                                profileZoomNamespace: profileZoomNamespace,
                                 onFollow: { viewModel.followUser(user.id) },
-                                onTap: { 
-                                    if !user.id.isEmpty {
-                                        selectedUserId = user.id
-                                        navigateToProfile = true
-                                    }
+                                onTap: {
+                                    let trimmedUserId = user.id.trimmingCharacters(in: .whitespacesAndNewlines)
+                                    guard !trimmedUserId.isEmpty else { return }
+                                    selectedProfileRoute = SuggestedUserProfileRoute(userId: trimmedUserId)
                                 }
                             )
                             .onAppear {
@@ -107,7 +109,6 @@ struct SuggestedUsersView: View {
                             .padding(.vertical, 20)
                         }
                     }
-                    .padding(.horizontal, 12)
                     .padding(.bottom, 20)
                 }
                 .refreshable {
@@ -124,6 +125,7 @@ struct SuggestedUserRow: View {
     let user: AppUser
     let commonInterests: Int
     let buttonState: FollowButtonState
+    var profileZoomNamespace: Namespace.ID? = nil
     let onFollow: () -> Void
     let onTap: () -> Void
     
@@ -147,6 +149,11 @@ struct SuggestedUserRow: View {
                 }
                 .frame(width: 50, height: 50)
                 .clipShape(Circle())
+                .userProfileZoomSource(
+                    userId: user.id,
+                    namespace: profileZoomNamespace,
+                    cornerRadius: 25
+                )
             }
             
             // Información del usuario
@@ -201,8 +208,8 @@ struct SuggestedUserRow: View {
                 onFollow: onFollow
             )
         }
-        .padding(.vertical, 8)
-        .padding(.horizontal, 16)
+        .padding(.vertical, 10)
+        .padding(.horizontal, 12)
         .contentShape(Rectangle())
     }
 }

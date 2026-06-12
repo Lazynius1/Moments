@@ -265,6 +265,7 @@ struct ProfileView: View {
     @State private var isShowingIncognito = false
     @State private var selectedExternalProfileUserId: String? = nil
     @State private var showExternalProfile = false
+    @Namespace private var profileZoomNamespace
     @State private var editingMoment: Moment? = nil
     @State private var pendingDeleteMoment: Moment? = nil
     enum UserListType: Identifiable {
@@ -399,7 +400,8 @@ struct ProfileView: View {
                             rowAction: rowAction(for: listType),
                             onUserTap: { user in
                                 openUserProfileFromList(userId: user.id)
-                            }
+                            },
+                            profileZoomNamespace: profileZoomNamespace
                         )
                         .presentationDetents([.medium, .large])
                         .presentationDragIndicator(.visible)
@@ -413,6 +415,7 @@ struct ProfileView: View {
                 }) {
                     if let userId = selectedExternalProfileUserId {
                         UserProfileView(userId: userId)
+                            .userProfileZoomDestination(userId: userId, namespace: profileZoomNamespace)
                     }
                 }
                 .alert(

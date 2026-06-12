@@ -65,6 +65,7 @@ struct LocationMapView: View {
     @State private var showingBottomSheet = false
     @State private var mapSheetDetent: PresentationDetent = .medium
     @Namespace private var zoomNamespace
+    @Namespace private var profileZoomNamespace
     @State private var zoomDestination: MomentZoomDestination?
     @State private var zoomMapMomentsPool: [Moment] = []
     @State private var isMapDetailPresented = false
@@ -287,9 +288,10 @@ struct LocationMapView: View {
                 isPresented: $showingGallery
             )
         }
-        .sheet(isPresented: $showingProfile) {
+        .fullScreenCover(isPresented: $showingProfile) {
             if let moment = selectedMoment {
                 UserProfileView(userId: moment.authorId)
+                    .userProfileZoomDestination(userId: moment.authorId, namespace: profileZoomNamespace)
             }
         }
         .onChange(of: zoomDestination) { _, newValue in

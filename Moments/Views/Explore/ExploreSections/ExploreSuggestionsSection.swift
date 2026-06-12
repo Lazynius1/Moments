@@ -1,6 +1,5 @@
 import SwiftUI
 import Kingfisher
-import AVFoundation
 
 struct SearchBarView: View {
     @Binding var searchText: String
@@ -203,6 +202,7 @@ struct SuggestedUsersSection: View {
     let onFollowUser: (String) -> Void
     let onUserTap: (AppUser) -> Void
     let onShowMore: () -> Void
+    var profileZoomNamespace: Namespace.ID? = nil
 
     var body: some View {
         if !users.isEmpty {
@@ -240,6 +240,7 @@ struct SuggestedUsersSection: View {
                                 backgroundMoment: latestMoment,
                                 commonInterests: Set(user.interests).intersection(Set(currentUserInterests)).count,
                                 buttonState: userButtonStates[user.id] ?? .canFollow,
+                                profileZoomNamespace: profileZoomNamespace,
                                 onFollow: { onFollowUser(user.id) },
                                 onTap: { onUserTap(user) }
                             )
@@ -258,9 +259,9 @@ struct SuggestedUserCard: View {
     let backgroundMoment: Moment? // ✅ Momento para el fondo
     let commonInterests: Int
     let buttonState: FollowButtonState
+    var profileZoomNamespace: Namespace.ID? = nil
     let onFollow: () -> Void
     let onTap: () -> Void
-    @State private var isPressed = false
 
     var body: some View {
         ZStack {
@@ -307,6 +308,11 @@ struct SuggestedUserCard: View {
                         .overlay(
                             Circle()
                                 .stroke(Color.white, lineWidth: 1.5)
+                        )
+                        .userProfileZoomSource(
+                            userId: user.id,
+                            namespace: profileZoomNamespace,
+                            cornerRadius: 21
                         )
                 }
 
@@ -355,12 +361,8 @@ struct SuggestedUserCard: View {
                 .stroke(Color.white.opacity(0.24), lineWidth: 0.8)
         )
         .shadow(color: .black.opacity(0.10), radius: 6, x: 0, y: 3)
-        .scaleEffect(isPressed ? 0.96 : 1.0)
-        .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isPressed)
+        .contentShape(RoundedRectangle(cornerRadius: 18))
         .onTapGesture { onTap() }
-        .onLongPressGesture(minimumDuration: 0, pressing: { isPressing in
-            isPressed = isPressing
-        }, perform: {})
     }
 
     private var defaultBackground: some View {
@@ -406,9 +408,9 @@ struct SearchResultCard: View {
     let user: AppUser
     let buttonState: FollowButtonState
     let commonInterests: Int
+    var profileZoomNamespace: Namespace.ID? = nil
     let onFollow: () -> Void
     let onTap: () -> Void
-    @State private var isPressed = false
 
     var body: some View {
         ZStack {
@@ -432,6 +434,11 @@ struct SearchResultCard: View {
                     .overlay(
                         Circle()
                             .stroke(Color.white.opacity(0.3), lineWidth: 2)
+                    )
+                    .userProfileZoomSource(
+                        userId: user.id,
+                        namespace: profileZoomNamespace,
+                        cornerRadius: 32
                     )
 
                 VStack(alignment: .leading, spacing: 6) {
@@ -483,12 +490,8 @@ struct SearchResultCard: View {
             }
             .padding(20)
         }
-        .scaleEffect(isPressed ? 0.98 : 1.0)
-        .animation(.spring(response: 0.3, dampingFraction: 0.8), value: isPressed)
+        .contentShape(RoundedRectangle(cornerRadius: 20))
         .onTapGesture { onTap() }
-        .onLongPressGesture(minimumDuration: 0, maximumDistance: 50) { isPressing in
-            isPressed = isPressing
-        } perform: {}
     }
 }
 
@@ -555,330 +558,6 @@ struct FollowButton: View {
             return true
         }
         return false
-    }
-}
-
-// MARK: - Grid Dinámico (Quilt Pattern)
-struct DynamicMomentsGrid: View {
-    let moments: [Moment]
-    var zoomNamespace: Namespace.ID? = nil
-    let onMomentTap: (Moment, Int, [Moment]) -> Void
-
-    private func handleTap(_ moment: Moment) {
-        let index = moments.firstIndex(where: { $0.id == moment.id }) ?? 0
-        onMomentTap(moment, index, moments)
-    }
-
-    // El patrón se repite cada 12 items: 3, 3, 3(1L+2S), 3, 3(2S+1R) NO, CORRECCIÓN:
-    // Mejor ciclo: Row(3) -> BigLeft(3 consumidos) -> Row(3) -> BigRight(3 consumidos). Total 12 items.
-
-    var body: some View {
-        VStack(spacing: 4) {
-            let chunked = moments.chunked(into: 12)
-
-            ForEach(0..<chunked.count, id: \.self) { index in
-                let chunk = chunked[index]
-                let items = Array(chunk)
-
-                // Renderizar el bloque de 12 (o menos si es el final)
-                DynamicGridBlock(
-                    items: items,
-                    allMoments: moments,
-                    zoomNamespace: zoomNamespace,
-                    onMomentTap: handleTap
-                )
-            }
-        }
-    }
-}
-
-struct DynamicGridBlock: View {
-    let items: [Moment] // Up to 12 items
-    let allMoments: [Moment]
-    var zoomNamespace: Namespace.ID? = nil
-    let onMomentTap: (Moment) -> Void
-
-    var body: some View {
-        // Calcular filas basados en disponibilidad
-        // Fila 1: 0,1,2 (3 items)
-        if items.count >= 3 {
-             MomentsRowView(moments: Array(items[0..<3]), allMoments: allMoments, zoomNamespace: zoomNamespace, onTap: onMomentTap)
-        } else {
-             MomentsRowView(moments: items, allMoments: allMoments, zoomNamespace: zoomNamespace, onTap: onMomentTap)
-        }
-
-        // Bloque Big Left: 3,4,5 (3 items) -> Index 3 es Big
-        if items.count >= 6 {
-            BigLeftRowView(moments: Array(items[3..<6]), allMoments: allMoments, zoomNamespace: zoomNamespace, onTap: onMomentTap)
-        } else if items.count > 3 {
-            // Remainder row
-            MomentsRowView(moments: Array(items[3..<items.count]), allMoments: allMoments, zoomNamespace: zoomNamespace, onTap: onMomentTap)
-        }
-
-        // Fila 3: 6,7,8 (3 items)
-        if items.count >= 9 {
-             MomentsRowView(moments: Array(items[6..<9]), allMoments: allMoments, zoomNamespace: zoomNamespace, onTap: onMomentTap)
-        } else if items.count > 6 {
-             MomentsRowView(moments: Array(items[6..<items.count]), allMoments: allMoments, zoomNamespace: zoomNamespace, onTap: onMomentTap)
-        }
-
-        // Bloque Big Right: 9,10,11 (3 items) -> Index 11 es Big
-        if items.count >= 12 {
-            BigRightRowView(moments: Array(items[9..<12]), allMoments: allMoments, zoomNamespace: zoomNamespace, onTap: onMomentTap)
-        } else if items.count > 9 {
-            // Remainder row
-            MomentsRowView(moments: Array(items[9..<items.count]), allMoments: allMoments, zoomNamespace: zoomNamespace, onTap: onMomentTap)
-        }
-    }
-}
-
-// Fila Standard de 3 items
-struct MomentsRowView: View {
-    let moments: [Moment]
-    let allMoments: [Moment]
-    var zoomNamespace: Namespace.ID? = nil
-    let onTap: (Moment) -> Void
-
-    var body: some View {
-        GeometryReader { geo in
-            let spacing: CGFloat = 4
-            let width = (geo.size.width - (spacing * 2)) / 3
-            HStack(spacing: spacing) {
-                ForEach(moments) { moment in
-                    let index = allMoments.firstIndex(where: { $0.id == moment.id }) ?? 0
-                    MomentCard(
-                        moment: moment,
-                        zoomNamespace: zoomNamespace,
-                        zoomSourceID: ProfileMomentZoomNavigation.sourceID(moment: moment, index: index, prefix: "explore"),
-                        onTap: { onTap(moment) }
-                    )
-                        .frame(width: width, height: width)
-                        .clipped()
-                }
-                // Spacer si hay menos de 3 para alinear a la izquierda
-                if moments.count < 3 {
-                    Spacer()
-                }
-            }
-        }
-        .aspectRatio(3.0/1.0, contentMode: .fit) // Si son 3 cuadrados, ratio 3:1. Si menos, se ajusta el HStack
-        .frame(height: UIScreen.main.bounds.width / 3) // Altura aproximada para layout
-    }
-}
-
-// Bloque Grande Izquierda: [ Big(2x2) ] [ Small / Small ]
-struct BigLeftRowView: View {
-    let moments: [Moment] // Expects 3 items: [Big, Small, Small]
-    let allMoments: [Moment]
-    var zoomNamespace: Namespace.ID? = nil
-    let onTap: (Moment) -> Void
-
-    var body: some View {
-        GeometryReader { geo in
-            let spacing: CGFloat = 4
-            let oneUnit = (geo.size.width - (spacing * 2)) / 3
-            let twoUnits = oneUnit * 2 + spacing
-
-            HStack(alignment: .top, spacing: spacing) {
-                // Item 0: Grande
-                if moments.indices.contains(0) {
-                    exploreMomentCard(moments[0], width: twoUnits, height: twoUnits)
-                }
-
-                VStack(spacing: spacing) {
-                    if moments.indices.contains(1) {
-                        exploreMomentCard(moments[1], width: oneUnit, height: oneUnit)
-                    }
-                    if moments.indices.contains(2) {
-                        exploreMomentCard(moments[2], width: oneUnit, height: oneUnit)
-                    }
-                }
-            }
-        }
-        .frame(height: (UIScreen.main.bounds.width / 3) * 2 + 4)
-    }
-
-    @ViewBuilder
-    private func exploreMomentCard(_ moment: Moment, width: CGFloat, height: CGFloat) -> some View {
-        let index = allMoments.firstIndex(where: { $0.id == moment.id }) ?? 0
-        MomentCard(
-            moment: moment,
-            zoomNamespace: zoomNamespace,
-            zoomSourceID: ProfileMomentZoomNavigation.sourceID(moment: moment, index: index, prefix: "explore"),
-            onTap: { onTap(moment) }
-        )
-        .frame(width: width, height: height)
-        .clipped()
-    }
-}
-
-// Bloque Grande Derecha: [ Small / Small ] [ Big(2x2) ]
-struct BigRightRowView: View {
-    let moments: [Moment] // Expects 3 items: [Small, Small, Big]
-    let allMoments: [Moment]
-    var zoomNamespace: Namespace.ID? = nil
-    let onTap: (Moment) -> Void
-
-    var body: some View {
-        GeometryReader { geo in
-            let spacing: CGFloat = 4
-            let oneUnit = (geo.size.width - (spacing * 2)) / 3
-            let twoUnits = oneUnit * 2 + spacing
-
-            HStack(alignment: .top, spacing: spacing) {
-                // Stack Izquierda: Items 0, 1
-                VStack(spacing: spacing) {
-                    if moments.indices.contains(0) {
-                        exploreMomentCard(moments[0], width: oneUnit, height: oneUnit)
-                    }
-                    if moments.indices.contains(1) {
-                        exploreMomentCard(moments[1], width: oneUnit, height: oneUnit)
-                    }
-                }
-
-                // Item 2: Grande
-                if moments.indices.contains(2) {
-                    exploreMomentCard(moments[2], width: twoUnits, height: twoUnits)
-                }
-            }
-        }
-        .frame(height: (UIScreen.main.bounds.width / 3) * 2 + 4)
-    }
-
-    @ViewBuilder
-    private func exploreMomentCard(_ moment: Moment, width: CGFloat, height: CGFloat) -> some View {
-        let index = allMoments.firstIndex(where: { $0.id == moment.id }) ?? 0
-        MomentCard(
-            moment: moment,
-            zoomNamespace: zoomNamespace,
-            zoomSourceID: ProfileMomentZoomNavigation.sourceID(moment: moment, index: index, prefix: "explore"),
-            onTap: { onTap(moment) }
-        )
-        .frame(width: width, height: height)
-        .clipped()
-    }
-}
-
-// MARK: - Tarjeta de Moment
-struct MomentCard: View {
-    let moment: Moment
-    var zoomNamespace: Namespace.ID? = nil
-    var zoomSourceID: String? = nil
-    let onTap: () -> Void
-
-    var body: some View {
-        ScreenshotProtectedView(
-            isProtected: (moment.audience?.lowercased() ?? "") != "everyone"
-        ) {
-            Button(action: onTap) {
-                GeometryReader { geometry in
-                    ZStack {
-                        RoundedRectangle(cornerRadius: 14, style: .continuous)
-                            .fill(Color.gray.opacity(0.08))
-
-                        if let mediaItem = moment.primaryVisibleMediaItem, mediaItem.type == .video {
-                            ExploreVideoThumbnailView(videoUrl: mediaItem.url, thumbnailUrl: mediaItem.thumbnailUrl ?? moment.thumbnailUrl)
-                                .aspectRatio(contentMode: .fill)
-                                .frame(width: geometry.size.width, height: geometry.size.width)
-                                .clipped()
-                                .overlay(
-                                    ZStack {
-                                        Circle()
-                                            .fill(.ultraThinMaterial)
-                                            .frame(width: 22, height: 22)
-
-                                        Image(systemName: "play.fill")
-                                            .font(.system(size: 10))
-                                            .foregroundColor(.white)
-                                    }
-                                    .padding(7),
-                                    alignment: .bottomTrailing
-                                )
-                        } else if let imagePath = moment.previewImageURLString, let url = getImageURL(from: imagePath) {
-                            KFImage(url)
-                                .placeholder {
-                                    Color.gray.opacity(0.2)
-                                }
-                                .resizable()
-                                .aspectRatio(contentMode: .fill)
-                                .frame(width: geometry.size.width, height: geometry.size.width)
-                                .clipped()
-                        }
-                    }
-                    .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-                }
-                .aspectRatio(1, contentMode: .fit)
-            }
-            .buttonStyle(PlainButtonStyle())
-        }
-        .modifier(ProfileMomentZoomSourceModifier(namespace: zoomNamespace, sourceID: zoomSourceID, cornerRadius: 14))
-    }
-
-    @ViewBuilder
-    private var momentContent: some View {
-        EmptyView() // Not used in this simplified version
-    }
-}
-
-
-// MARK: - Video Thumbnail View
-struct ExploreVideoThumbnailView: View {
-    let videoUrl: String
-    let thumbnailUrl: String? // ✅ Nuevo
-    @State private var thumbnailImage: UIImage?
-    @State private var isLoading = true
-
-    var body: some View {
-        Group {
-            if let thumbUrl = thumbnailUrl, let url = URL(string: thumbUrl) {
-                // ✅ NUEVO: Usar miniatura pre-generada
-                KFImage(url)
-                    .resizable()
-                    .scaledToFill()
-            } else if let thumbnail = thumbnailImage {
-                Image(uiImage: thumbnail)
-                    .resizable()
-                    .scaledToFill()
-            } else {
-                Color.gray.opacity(0.1)
-                    .overlay(
-                        Group {
-                            if isLoading {
-                                ProgressView()
-                                    .progressViewStyle(CircularProgressViewStyle(tint: Color(hex: "667eea")))
-                            } else {
-                                Image(systemName: "video.fill")
-                                    .font(.system(size: 28))
-                                    .foregroundColor(.white.opacity(0.8))
-                            }
-                        }
-                    )
-            }
-        }
-        .onAppear {
-            generateThumbnail()
-        }
-    }
-
-    private func generateThumbnail() {
-        guard let url = URL(string: videoUrl) else {
-            isLoading = false
-            return
-        }
-
-        let asset = AVURLAsset(url: url)
-        let imageGenerator = AVAssetImageGenerator(asset: asset)
-        imageGenerator.appliesPreferredTrackTransform = true
-        imageGenerator.maximumSize = CGSize(width: 240, height: 240) // 2x para retina
-
-        imageGenerator.generateCGImagesAsynchronously(forTimes: [NSValue(time: CMTime(seconds: 1, preferredTimescale: 1))]) { _, cgImage, _, _, error in
-            DispatchQueue.main.async {
-                isLoading = false
-                if let cgImage = cgImage {
-                    self.thumbnailImage = UIImage(cgImage: cgImage)
-                }
-            }
-        }
     }
 }
 

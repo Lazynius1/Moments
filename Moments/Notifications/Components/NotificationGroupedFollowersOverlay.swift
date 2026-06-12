@@ -26,6 +26,7 @@ struct NotificationGroupedFollowersOverlay: View {
     @State private var loadingStates: [String: Bool] = [:]
     @State private var profileUserId: String?
     @State private var showProfile = false
+    @Namespace private var profileZoomNamespace
     @State private var storyRoute: GroupedFollowerStoryRoute?
     @State private var unfollowTargetId: String?
 
@@ -89,9 +90,10 @@ struct NotificationGroupedFollowersOverlay: View {
                   let state = notification.userInfo?["state"] as? FollowButtonState else { return }
             followStates[userId] = state
         }
-        .sheet(isPresented: $showProfile) {
+        .fullScreenCover(isPresented: $showProfile) {
             if let profileUserId, !profileUserId.isEmpty {
                 UserProfileView(userId: profileUserId)
+                    .userProfileZoomDestination(userId: profileUserId, namespace: profileZoomNamespace)
             }
         }
         .fullScreenCover(item: $storyRoute) { route in
@@ -174,7 +176,8 @@ struct NotificationGroupedFollowersOverlay: View {
                 lineWidth: 2.2,
                 showBaseStroke: true,
                 baseStrokeColor: colorScheme == .dark ? Color.white.opacity(0.18) : Color.black.opacity(0.14),
-                baseStrokeWidth: 0.9
+                baseStrokeWidth: 0.9,
+                profileZoomNamespace: profileZoomNamespace
             ) { hasStory in
                 if hasStory {
                     storyRoute = GroupedFollowerStoryRoute(id: item.id)

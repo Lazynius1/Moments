@@ -104,6 +104,7 @@ struct StoryViewerScreen: View {
     @State private var lastPreparedStoryId: String? = nil
     @State private var showUserProfile = false
     @State private var selectedUserId: String = ""
+    @Namespace private var profileZoomNamespace
     @State private var floatingHearts: [FloatingHeart] = [] // ✅ FLOATING HEARTS ANIMATION
     @State private var smileyButtonCenter: CGPoint? = nil // ✅ Smiley button position for burst origin
     @State private var isUIHidden: Bool = false // ✅ IMMERSIVE MODE STATE
@@ -706,13 +707,14 @@ struct StoryViewerScreen: View {
                         pauseStory()
                     }
                 }
-                .sheet(isPresented: $showUserProfile, onDismiss: {
+                .fullScreenCover(isPresented: $showUserProfile, onDismiss: {
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
                         resumeStory()
                     }
                 }) {
                     if !selectedUserId.isEmpty {
                         UserProfileView(userId: selectedUserId)
+                            .userProfileZoomDestination(userId: selectedUserId, namespace: profileZoomNamespace)
                     }
                 }
                 .sheet(isPresented: $showChainView, onDismiss: {
@@ -765,6 +767,11 @@ struct StoryViewerScreen: View {
                                 .scaledToFill()
                                 .frame(width: 38, height: 38)
                                 .clipShape(Circle())
+                                .userProfileZoomSource(
+                                    userId: story.authorId,
+                                    namespace: profileZoomNamespace,
+                                    cornerRadius: 19
+                                )
                                 .overlay(
                                     Circle()
                                         .stroke(Color.white.opacity(0.44), lineWidth: 1)

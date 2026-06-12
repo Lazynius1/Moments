@@ -17,11 +17,31 @@ private struct ProfileHeroShowsChromeKey: EnvironmentKey {
     static let defaultValue = true
 }
 
+private struct ProfileHeroChromeOpacityKey: EnvironmentKey {
+    static let defaultValue: CGFloat = 1
+}
+
+private struct ProfileHeroShowsAudienceKey: EnvironmentKey {
+    static let defaultValue = true
+}
+
 extension EnvironmentValues {
     /// Avatar/cápsula del hero: ocultar durante el crossfade al detalle.
     var profileHeroShowsChrome: Bool {
         get { self[ProfileHeroShowsChromeKey.self] }
         set { self[ProfileHeroShowsChromeKey.self] = newValue }
+    }
+
+    /// Footer del peek: se desvanece antes que el media al cerrar.
+    var profileHeroChromeOpacity: CGFloat {
+        get { self[ProfileHeroChromeOpacityKey.self] }
+        set { self[ProfileHeroChromeOpacityKey.self] = newValue }
+    }
+
+    /// Icono de audiencia en el footer: solo perfil propio (privado en perfil ajeno).
+    var profileHeroShowsAudience: Bool {
+        get { self[ProfileHeroShowsAudienceKey.self] }
+        set { self[ProfileHeroShowsAudienceKey.self] = newValue }
     }
 }
 
@@ -76,6 +96,38 @@ extension View {
             }
         }
     }
+
+    /// Efecto Instagram: la celda origen queda vacía mientras el hero sale y vuelve al cerrar.
+    func profileGridLiftedSource(moment: Moment, gridIndex: Int) -> some View {
+        modifier(ProfileGridLiftedSourceModifier(moment: moment, gridIndex: gridIndex))
+    }
+}
+
+private struct ProfileGridLiftedSourceModifier: ViewModifier {
+    @EnvironmentObject private var coordinator: ProfileGridHeroTransitionCoordinator
+    @Environment(\.colorScheme) private var colorScheme
+
+    let moment: Moment
+    let gridIndex: Int
+
+    private var contentOpacity: CGFloat {
+        coordinator.liftedGridSourceContentOpacity(moment: moment, gridIndex: gridIndex)
+    }
+
+    private var holeBackground: Color {
+        colorScheme == .dark ? Color(hex: "0B1215") : Color(hex: "FAF9F6")
+    }
+
+    func body(content: Content) -> some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: 4, style: .continuous)
+                .fill(holeBackground)
+                .opacity(1 - contentOpacity)
+
+            content
+                .opacity(contentOpacity)
+        }
+    }
 }
 
 // MARK: - Layout
@@ -116,17 +168,60 @@ enum ProfileGridHeroLayout {
     static let horizontalPadding: CGFloat = 16
     static let detailHeaderBlockHeight: CGFloat = 80
     static let menuSpacing: CGFloat = 14
+    static let peekFooterHeight: CGFloat = 56
+    /// Mínimo width/height → retrato más alto (3:4 → altura = width × 4/3)
+    static let peekMinWidthOverHeight: CGFloat = 3.0 / 4.0
+    /// Máximo width/height → landscape (16:9)
+    static let peekMaxWidthOverHeight: CGFloat = 16.0 / 9.0
 
-    // Springs afinados: lift con ligero bounce, expand/retract sin rebote final.
-    static let peekSpring = Animation.spring(response: 0.44, dampingFraction: 0.82)
+    // Lift IG (vídeo ref. ~0.52s abrir / ~0.36s cerrar): smooth, sin rebote.
+    static let peekLiftAnimation = Animation.smooth(duration: 0.46, extraBounce: 0)
+    static let peekDismissAnimation = Animation.smooth(duration: 0.31, extraBounce: 0)
+    static let peekSpring = peekLiftAnimation
     static let expandSpring = Animation.spring(response: 0.48, dampingFraction: 0.9)
     static let retractSpring = Animation.spring(response: 0.5, dampingFraction: 0.96)
-    static let dismissSpring = Animation.spring(response: 0.4, dampingFraction: 0.9)
+    static let dismissSpring = peekDismissAnimation
     static let revealSmooth = Animation.smooth(duration: 0.34, extraBounce: 0)
     static let hideSmooth = Animation.smooth(duration: 0.26, extraBounce: 0)
 
     static let retractPeekSplit: CGFloat = 0.34
     static let retractFadeStart: CGFloat = 0.74
+
+    /// IG: el hueco aparece en los primeros ~14% del lift; al cerrar vuelve en el tramo final.
+    static func liftedSourceThumbnailOpacity(peekProgress: CGFloat) -> CGFloat {
+        ProfileGridHeroMotion.smoothstep(1 - min(1, peekProgress / 0.14))
+    }
+
+    /// IG: crece anclado en la celda, luego flota al centro (no lerp lineal único).
+    static func peekHeroFrame(origin: CGRect, destination: CGRect, progress: CGFloat) -> CGRect {
+        let growT = ProfileGridHeroMotion.smoothstep(min(1, progress / 0.50))
+        let moveT = ProfileGridHeroMotion.smoothstep(
+            ProfileGridHeroMotion.remap(progress, start: 0.20, end: 0.92)
+        )
+
+        let grownWidth = origin.width + (destination.width - origin.width) * growT
+        let grownHeight = origin.height + (destination.height - origin.height) * growT
+        let grownX = origin.midX - grownWidth / 2
+        let grownY = origin.midY - grownHeight / 2
+
+        return CGRect(
+            x: grownX + (destination.origin.x - grownX) * moveT,
+            y: grownY + (destination.origin.y - grownY) * moveT,
+            width: grownWidth + (destination.width - grownWidth) * moveT,
+            height: grownHeight + (destination.height - grownHeight) * moveT
+        )
+    }
+
+    static func peekHeroCornerRadius(progress: CGFloat) -> CGFloat {
+        let t = ProfileGridHeroMotion.smoothstep(
+            ProfileGridHeroMotion.remap(progress, start: 0.08, end: 0.62)
+        )
+        return lerp(thumbnailCornerRadius, peekCornerRadius, t: t)
+    }
+
+    static func gridSourceKey(moment: Moment, index: Int) -> String {
+        moment.id ?? "profile-grid-\(index)"
+    }
 
     static func parsedAspectRatio(_ value: String?) -> CGFloat {
         guard let value,
@@ -139,9 +234,17 @@ enum ProfileGridHeroLayout {
         return CGFloat(lhs / rhs)
     }
 
-    static func mediaHeight(width: CGFloat, aspectRatio: String?) -> CGFloat {
+    static func clampedPeekWidthOverHeight(_ aspectRatio: String?) -> CGFloat {
         let ratio = parsedAspectRatio(aspectRatio)
-        return min(width * 1.05, max(width * 0.72, width / max(ratio, 0.55)))
+        return min(max(ratio, peekMinWidthOverHeight), peekMaxWidthOverHeight)
+    }
+
+    static func mediaHeight(width: CGFloat, aspectRatio: String?) -> CGFloat {
+        width / clampedPeekWidthOverHeight(aspectRatio)
+    }
+
+    static func peekCardHeight(width: CGFloat, aspectRatio: String?) -> CGFloat {
+        mediaHeight(width: width, aspectRatio: aspectRatio) + peekFooterHeight
     }
 
     static func cardWidth(for containerWidth: CGFloat) -> CGFloat {
@@ -152,14 +255,14 @@ enum ProfileGridHeroLayout {
         containerSize: CGSize,
         safeAreaInsets: EdgeInsets,
         moment: Moment,
-        showPinConfirm: Bool
+        showPinConfirm: Bool,
+        menuBlockHeight: CGFloat
     ) -> CGRect {
         let width = cardWidth(for: containerSize.width)
-        let height = mediaHeight(width: width, aspectRatio: moment.aspectRatio)
+        let height = peekCardHeight(width: width, aspectRatio: moment.aspectRatio)
         let x = (containerSize.width - width) / 2
 
-        let menuRowCount = moment.canAdjustGridPreview ? 5 : 4
-        let menuHeight: CGFloat = showPinConfirm ? 220 : CGFloat(46 * menuRowCount)
+        let menuHeight: CGFloat = showPinConfirm ? 220 : menuBlockHeight
         let stackHeight = height + menuSpacing + menuHeight
         let minCenter = safeAreaInsets.top + 20 + (stackHeight / 2)
         let maxCenter = containerSize.height - safeAreaInsets.bottom - 20 - (stackHeight / 2)
@@ -238,6 +341,7 @@ final class ProfileGridHeroTransitionCoordinator: ObservableObject {
     @Published var showPinConfirm = false
     @Published var toastMessage: String?
     @Published var isDismissingInteractively = false
+    @Published private(set) var menuKind: ProfileGridHeroMenuKind = .owner
 
     // Context menu callbacks (configured by the profile view owner)
     var onEdit: ((Moment) -> Void)? = nil
@@ -312,6 +416,20 @@ final class ProfileGridHeroTransitionCoordinator: ObservableObject {
         }
     }
 
+    /// Footer/info: entra tarde, cuando el media ya creció (IG muestra foto antes que chrome).
+    var heroChromeRevealOpacity: CGFloat {
+        switch phase {
+        case .menuPeek:
+            return ProfileGridHeroMotion.smoothstep(
+                ProfileGridHeroMotion.remap(peekProgress, start: 0.50, end: 0.88)
+            )
+        case .expanding:
+            return detailContentOpacity < 0.08 ? 1 : 0
+        default:
+            return 1
+        }
+    }
+
     var menuSelection: ProfileGridMomentMenuSelection? {
         if case .menuPeek(let selection) = phase { return selection }
         return nil
@@ -322,12 +440,35 @@ final class ProfileGridHeroTransitionCoordinator: ObservableObject {
     }
 
     private func momentFrameKey(_ moment: Moment, index: Int) -> String {
-        moment.id ?? "profile-grid-\(index)"
+        ProfileGridHeroLayout.gridSourceKey(moment: moment, index: index)
     }
 
-    func openMenu(moment: Moment, index: Int) {
+    func isLiftedGridSource(moment: Moment, gridIndex: Int) -> Bool {
+        guard case .menuPeek(let selection) = phase else { return false }
+        return momentFrameKey(moment, index: gridIndex) == momentFrameKey(selection.moment, index: selection.index)
+    }
+
+    /// Opacidad del contenido de la miniatura origen (0 = hueco vacío, 1 = visible).
+    func liftedGridSourceContentOpacity(moment: Moment, gridIndex: Int) -> CGFloat {
+        guard isLiftedGridSource(moment: moment, gridIndex: gridIndex) else { return 1 }
+        return ProfileGridHeroLayout.liftedSourceThumbnailOpacity(peekProgress: peekProgress)
+    }
+
+    func menuBlockHeight(for moment: Moment) -> CGFloat {
+        if showPinConfirm { return 220 }
+        switch menuKind {
+        case .visitor:
+            return 52
+        case .owner:
+            let menuRowCount = moment.canAdjustGridPreview ? 5 : 4
+            return CGFloat(46 * menuRowCount)
+        }
+    }
+
+    func openMenu(moment: Moment, index: Int, kind: ProfileGridHeroMenuKind = .owner) {
         showPinConfirm = false
         toastMessage = nil
+        menuKind = kind
         let key = momentFrameKey(moment, index: index)
         sourceFrame = thumbnailFrames[key] ?? .zero
         expandProgress = 0
@@ -338,7 +479,7 @@ final class ProfileGridHeroTransitionCoordinator: ObservableObject {
         GlobalVideoManager.shared.pauseAllVideos()
         GlobalVideoManager.shared.clearProfilePlaybackHandoffState()
 
-        withAnimation(ProfileGridHeroLayout.peekSpring) {
+        withAnimation(ProfileGridHeroLayout.peekLiftAnimation) {
             peekProgress = 1
             scrimOpacity = 1
             menuOpacity = 1
@@ -351,13 +492,13 @@ final class ProfileGridHeroTransitionCoordinator: ObservableObject {
 
         pauseProfileHeroVideo(for: selection.moment)
 
-        withAnimation(ProfileGridHeroLayout.dismissSpring) {
+        withAnimation(ProfileGridHeroLayout.peekDismissAnimation) {
             peekProgress = 0
             scrimOpacity = 0
             menuOpacity = 0
         }
 
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.34) { [weak self] in
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) { [weak self] in
             guard let self, case .menuPeek = self.phase else { return }
             self.phase = .idle
             GlobalVideoManager.shared.clearProfilePlaybackHandoffState()
@@ -394,20 +535,23 @@ final class ProfileGridHeroTransitionCoordinator: ObservableObject {
     func expandToDetail(
         moments: [Moment],
         initialIndex: Int,
-        feedKind: ProfileMomentZoomFeedKind
+        feedKind: ProfileMomentZoomFeedKind,
+        openCommentsOnAppear: Bool = false
     ) {
         guard case .menuPeek(let selection) = phase else { return }
         openZoomDetailFromMenu(
             moments: moments,
             selection: selection,
-            feedKind: feedKind
+            feedKind: feedKind,
+            openCommentsOnAppear: openCommentsOnAppear
         )
     }
 
     func openZoomDetailFromMenu(
         moments: [Moment],
         selection: ProfileGridMomentMenuSelection,
-        feedKind: ProfileMomentZoomFeedKind
+        feedKind: ProfileMomentZoomFeedKind,
+        openCommentsOnAppear: Bool = false
     ) {
         guard case .menuPeek = phase else { return }
 
@@ -423,7 +567,7 @@ final class ProfileGridHeroTransitionCoordinator: ObservableObject {
 
         HapticManager.shared.lightImpact()
 
-        withAnimation(ProfileGridHeroLayout.dismissSpring) {
+        withAnimation(ProfileGridHeroLayout.peekDismissAnimation) {
             peekProgress = 0
             scrimOpacity = 0
             menuOpacity = 0
@@ -435,7 +579,8 @@ final class ProfileGridHeroTransitionCoordinator: ObservableObject {
             initialIndex: resolvedIndex,
             initialMomentId: moment.id,
             feedKind: feedKind,
-            restrictPlaybackToInitialIndex: true
+            restrictPlaybackToInitialIndex: true,
+            openCommentsOnAppear: openCommentsOnAppear
         ))
     }
 
@@ -474,6 +619,7 @@ final class ProfileGridHeroTransitionCoordinator: ObservableObject {
         scrimOpacity = 0
         showPinConfirm = false
         isDismissingInteractively = false
+        menuKind = .owner
         GlobalVideoManager.shared.clearProfilePlaybackHandoffState()
     }
 
@@ -511,15 +657,28 @@ final class ProfileGridHeroTransitionCoordinator: ObservableObject {
     }
 
     var menuPresentationOffset: CGFloat {
-        (1 - menuOpacity) * 16
+        let reveal = ProfileGridHeroMotion.smoothstep(
+            ProfileGridHeroMotion.remap(menuOpacity, start: 0.38, end: 1)
+        )
+        return (1 - reveal) * 12
     }
 
     var menuPresentationScale: CGFloat {
-        0.94 + menuOpacity * 0.06
+        let reveal = ProfileGridHeroMotion.smoothstep(
+            ProfileGridHeroMotion.remap(menuOpacity, start: 0.38, end: 1)
+        )
+        return 0.97 + reveal * 0.03
     }
 
     var scrimPresentationOpacity: CGFloat {
-        0.28 * ProfileGridHeroMotion.easeOut(scrimOpacity)
+        switch phase {
+        case .menuPeek:
+            return 0.30 * ProfileGridHeroMotion.smoothstep(
+                ProfileGridHeroMotion.remap(peekProgress, start: 0.05, end: 0.70)
+            )
+        default:
+            return 0.28 * ProfileGridHeroMotion.smoothstep(scrimOpacity)
+        }
     }
 
     func menuRowRevealProgress(index: Int) -> CGFloat {
@@ -551,7 +710,8 @@ final class ProfileGridHeroTransitionCoordinator: ObservableObject {
             containerSize: containerSize,
             safeAreaInsets: safeAreaInsets,
             moment: moment,
-            showPinConfirm: showPinConfirm
+            showPinConfirm: showPinConfirm,
+            menuBlockHeight: menuBlockHeight(for: moment)
         )
         let detailFrame = ProfileGridHeroLayout.detailMediaFrame(
             screenSize: containerSize,
@@ -572,15 +732,18 @@ final class ProfileGridHeroTransitionCoordinator: ObservableObject {
 
         switch phase {
         case .menuPeek:
-            frame = ProfileGridHeroLayout.lerp(origin, peekFrame, t: peekProgress)
-            cornerRadius = ProfileGridHeroLayout.lerp(
-                ProfileGridHeroLayout.thumbnailCornerRadius,
-                ProfileGridHeroLayout.peekCornerRadius,
-                t: peekProgress
+            frame = ProfileGridHeroLayout.peekHeroFrame(
+                origin: origin,
+                destination: peekFrame,
+                progress: peekProgress
             )
-            scale = 0.94 + peekProgress * 0.06
-            shadowRadius = ProfileGridHeroLayout.lerp(6, 18, t: peekProgress)
-            shadowOpacity = ProfileGridHeroLayout.lerp(0.12, 0.24, t: peekProgress)
+            cornerRadius = ProfileGridHeroLayout.peekHeroCornerRadius(progress: peekProgress)
+            scale = 1
+            let shadowT = ProfileGridHeroMotion.smoothstep(
+                ProfileGridHeroMotion.remap(peekProgress, start: 0.18, end: 0.85)
+            )
+            shadowRadius = ProfileGridHeroLayout.lerp(6, 18, t: shadowT)
+            shadowOpacity = ProfileGridHeroLayout.lerp(0.12, 0.24, t: shadowT)
 
         case .expanding, .detail:
             frame = ProfileGridHeroLayout.lerp(peekFrame, detailFrame, t: expandProgress)
@@ -694,6 +857,12 @@ struct ProfileGridHeroDetailLayer: View {
     private let menuWidth: CGFloat = 240
     private let horizontalMargin: CGFloat = 16
 
+    @State private var showShareSheet = false
+    @State private var shareMoment: Moment?
+    @StateObject private var firestoreService = FirestoreService()
+
+    private let privacyService = PrivacyService()
+
     var body: some View {
         ZStack {
             // 1. Scrim backdrop for menu peek
@@ -756,18 +925,28 @@ struct ProfileGridHeroDetailLayer: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .allowsHitTesting(coordinator.isInteractive)
-        .animation(ProfileGridHeroLayout.peekSpring, value: coordinator.menuSelection?.moment.id)
-        .animation(ProfileGridHeroLayout.peekSpring, value: coordinator.showPinConfirm)
-        .animation(ProfileGridHeroLayout.peekSpring, value: coordinator.menuOpacity)
-        .animation(ProfileGridHeroLayout.peekSpring, value: coordinator.peekProgress)
-        .animation(ProfileGridHeroLayout.peekSpring, value: coordinator.scrimOpacity)
+        .animation(ProfileGridHeroLayout.peekLiftAnimation, value: coordinator.menuSelection?.moment.id)
+        .animation(ProfileGridHeroLayout.peekLiftAnimation, value: coordinator.showPinConfirm)
+        .animation(ProfileGridHeroLayout.peekLiftAnimation, value: coordinator.menuOpacity)
+        .animation(ProfileGridHeroLayout.peekLiftAnimation, value: coordinator.peekProgress)
+        .animation(ProfileGridHeroLayout.peekLiftAnimation, value: coordinator.scrimOpacity)
         .environment(\.profileHeroShowsChrome, coordinator.showsFlyingHeroChrome)
+        .environment(\.profileHeroChromeOpacity, coordinator.heroChromeRevealOpacity)
+        .environment(\.profileHeroShowsAudience, coordinator.menuKind == .owner)
+        .environmentObject(firestoreService)
         .onChange(of: coordinator.toastMessage) { _, newValue in
             guard newValue != nil else { return }
             DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
                 if coordinator.toastMessage == newValue {
                     coordinator.toastMessage = nil
                 }
+            }
+        }
+        .overlay {
+            if showShareSheet, let moment = shareMoment {
+                ModernShareBottomSheet(moment: moment, isPresented: $showShareSheet)
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+                    .zIndex(200)
             }
         }
     }
@@ -792,6 +971,8 @@ struct ProfileGridHeroDetailLayer: View {
         VStack(alignment: menuAlignment, spacing: ProfileGridHeroLayout.menuSpacing) {
             if coordinator.showPinConfirm {
                 pinConfirmPanel
+            } else if coordinator.menuKind == .visitor {
+                visitorActionBar(for: selection)
             } else {
                 actionsMenu(for: selection.moment)
             }
@@ -799,14 +980,29 @@ struct ProfileGridHeroDetailLayer: View {
         .frame(width: cardWidth)
         .position(
             x: containerSize.width / 2,
-            y: heroFrame.maxY + ProfileGridHeroLayout.menuSpacing + menuBlockHeight(for: selection.moment) / 2
+            y: heroFrame.maxY + ProfileGridHeroLayout.menuSpacing + coordinator.menuBlockHeight(for: selection.moment) / 2
         )
     }
 
-    private func menuBlockHeight(for moment: Moment) -> CGFloat {
-        if coordinator.showPinConfirm { return 220 }
-        let menuRowCount = moment.canAdjustGridPreview ? 5 : 4
-        return CGFloat(46 * menuRowCount)
+    private func visitorActionBar(for selection: ProfileGridMomentMenuSelection) -> some View {
+        ProfileGridVisitorActionBar(
+            moment: selection.moment,
+            canShare: privacyService.canShareMoment(selection.moment),
+            onComment: {
+                coordinator.expandToDetail(
+                    moments: moments,
+                    initialIndex: selection.index,
+                    feedKind: zoomFeedKind,
+                    openCommentsOnAppear: true
+                )
+            },
+            onShare: {
+                shareMoment = selection.moment
+                showShareSheet = true
+            }
+        )
+        .opacity(coordinator.menuRowRevealProgress(index: 0))
+        .offset(y: (1 - coordinator.menuRowRevealProgress(index: 0)) * 10)
     }
 
     private struct MenuRowDefinition {

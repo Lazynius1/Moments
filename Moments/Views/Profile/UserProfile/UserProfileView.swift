@@ -249,6 +249,7 @@ struct UserProfileView: View {
     @State private var selectedTab: UserProfileTabType = .moments // ✅ NUEVO: Tab seleccionado
     @State private var selectedNestedProfileUserId: String? = nil
     @State private var showNestedProfile = false
+    @Namespace private var profileZoomNamespace
 
     // ✅ NUEVOS: Estados para navegación al explorer
     @State private var selectedHashtag: String = ""
@@ -350,7 +351,8 @@ struct UserProfileView: View {
                 rowAction: rowAction(for: listType),
                 onUserTap: { user in
                     openNestedUserProfile(userId: user.id)
-                }
+                },
+                profileZoomNamespace: profileZoomNamespace
             )
             .presentationDetents([.medium, .large])
             .presentationDragIndicator(.visible)
@@ -363,6 +365,7 @@ struct UserProfileView: View {
         }) {
             if let userId = selectedNestedProfileUserId {
                 UserProfileView(userId: userId)
+                    .userProfileZoomDestination(userId: userId, namespace: profileZoomNamespace)
             }
         }
         .sheet(isPresented: $showExploreWithHashtag) {

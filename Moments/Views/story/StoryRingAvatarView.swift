@@ -11,6 +11,7 @@ struct StoryRingAvatarView: View {
     var showBaseStroke: Bool = false
     var baseStrokeColor: Color = Color.white.opacity(0.2)
     var baseStrokeWidth: CGFloat = 1
+    var profileZoomNamespace: Namespace.ID? = nil
     var onTap: ((Bool) -> Void)? = nil
 
     @Environment(\.colorScheme) private var colorScheme
@@ -66,6 +67,11 @@ struct StoryRingAvatarView: View {
                 avatarContent
             }
         }
+        .userProfileZoomSource(
+            userId: userId,
+            namespace: profileZoomNamespace,
+            cornerRadius: size / 2
+        )
         .onAppear {
             resolveSnapshot()
         }

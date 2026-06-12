@@ -12,6 +12,7 @@ struct ExploreView: View {
     @State private var searchText: String = ""
     @State private var showPrivateProfileAlert: Bool = false
     @Namespace private var zoomNamespace
+    @Namespace private var profileZoomNamespace
     @State private var zoomDestination: MomentZoomDestination?
     @State private var selectedUser: AppUser?
     @State private var showTrendingView = false
@@ -52,6 +53,7 @@ struct ExploreView: View {
             }
             .fullScreenCover(item: $selectedUser) { user in
                 UserProfileView(userId: user.id)
+                    .userProfileZoomDestination(userId: user.id, namespace: profileZoomNamespace)
             }
             .navigationDestination(item: $zoomDestination) { destination in
                 MomentZoomDetailDestination(
@@ -252,17 +254,17 @@ struct ExploreView: View {
 
     private var contentScrollView: some View {
         ScrollView(.vertical, showsIndicators: false) {
-            LazyVStack(spacing: 24) {
+            VStack(spacing: 24) {
                 if searchText.isEmpty {
                     suggestedUsersSection
 
                     if !viewModel.moments.isEmpty {
-                        DynamicMomentsGrid(
+                        ExploreMomentsBentoGrid(
                             moments: viewModel.moments,
                             zoomNamespace: zoomNamespace,
                             onMomentTap: handleMomentTap
                         )
-                            .padding(.bottom, 80)
+                        .padding(.bottom, 80)
                     }
                 } else {
                     searchResultsSection
@@ -284,7 +286,8 @@ struct ExploreView: View {
                 },
                 onShowMore: {
                     showSuggestedUsersView = true
-                }
+                },
+                profileZoomNamespace: profileZoomNamespace
             )
             .padding(.horizontal, 12)
             .onAppear {
@@ -367,8 +370,8 @@ struct ExploreView: View {
                     // ✅ Guardar en historial
                     viewModel.saveSearchRecord(query: user.username, type: "user", targetId: user.id)
                 },
-
                 zoomNamespace: zoomNamespace,
+                profileZoomNamespace: profileZoomNamespace,
                 onMomentTap: { moment, index, sourceMoments in
                     viewModel.checkCanViewContent(for: moment.authorId) { canView in
                         if canView {

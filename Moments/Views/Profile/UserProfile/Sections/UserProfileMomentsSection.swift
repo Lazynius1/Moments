@@ -12,6 +12,7 @@ struct UserModernMomentThumbnail: View {
     var zoomNamespace: Namespace.ID? = nil
     var zoomSourceID: String? = nil
     let onTap: () -> Void
+    var onLongPress: (() -> Void)? = nil
     var gridIndex: Int = 0
     let descriptor: ProfileGridTileDescriptor
     @State private var isPressed = false
@@ -25,6 +26,7 @@ struct UserModernMomentThumbnail: View {
         zoomNamespace: Namespace.ID? = nil,
         zoomSourceID: String? = nil,
         onTap: @escaping () -> Void,
+        onLongPress: (() -> Void)? = nil,
         gridIndex: Int = 0,
         descriptor: ProfileGridTileDescriptor? = nil
     ) {
@@ -33,6 +35,7 @@ struct UserModernMomentThumbnail: View {
         self.zoomNamespace = zoomNamespace
         self.zoomSourceID = zoomSourceID
         self.onTap = onTap
+        self.onLongPress = onLongPress
         self.gridIndex = gridIndex
         self.descriptor = descriptor ?? ProfileGridTileDescriptor.standard(for: moment)
     }
@@ -46,25 +49,29 @@ struct UserModernMomentThumbnail: View {
     }
 
     var body: some View {
-        Button(action: onTap) {
-            ZStack(alignment: .bottomLeading) {
-                mediaBody
-                cinematicOverlay
-                topChrome
-                bottomChrome
-            }
+        ZStack(alignment: .bottomLeading) {
+            mediaBody
+            cinematicOverlay
+            topChrome
+            bottomChrome
+        }
+        .profileGridLiftedSource(moment: moment, gridIndex: gridIndex)
         .frame(width: cellWidth, height: cellHeight)
         .clipped()
         .modifier(ProfileMomentZoomSourceModifier(namespace: zoomNamespace, sourceID: zoomSourceID))
         .scaleEffect(isPressed ? 0.97 : 1.0)
-        .animation(.easeInOut(duration: 0.1), value: isPressed)
+        .animation(.easeInOut(duration: 0.12), value: isPressed)
         .profileGridThumbnailFrameReporter(
             momentId: moment.id ?? "profile-grid-\(gridIndex)",
             coordinateSpace: .named("profileGridOverlay")
         )
-    }
-        .buttonStyle(.plain)
-        .onLongPressGesture(minimumDuration: 0, maximumDistance: .infinity, pressing: { isPressed = $0 }, perform: {})
+        .overlay {
+            ProfileMomentThumbnailGestureOverlay(
+                onTap: onTap,
+                onLongPress: onLongPress,
+                onPressingChanged: { isPressed = $0 }
+            )
+        }
     }
 
     @ViewBuilder

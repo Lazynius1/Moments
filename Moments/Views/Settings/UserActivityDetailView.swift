@@ -16,6 +16,7 @@ struct ActivityInteractionDetailView: View {
     @State private var selectedAuthorId: String?
     @State private var showingAuthorFilterSheet = false
     @Namespace private var zoomNamespace
+    @Namespace private var profileZoomNamespace
     @State private var zoomDestination: MomentZoomDestination?
     @State private var zoomActivityMomentsPool: [Moment] = []
     @State private var reelsPresentation: ActivityReelsPresentation?
@@ -233,7 +234,7 @@ struct ActivityInteractionDetailView: View {
         .fullScreenCover(item: $storyRoute) { route in
             StoriesView(startWithUserId: .constant(route.id))
         }
-        .sheet(isPresented: Binding(
+        .fullScreenCover(isPresented: Binding(
             get: { selectedProfileUserIdForSheet != nil },
             set: { isPresented in
                 if !isPresented {
@@ -243,6 +244,7 @@ struct ActivityInteractionDetailView: View {
         )) {
             if let userId = selectedProfileUserIdForSheet {
                 UserProfileView(userId: userId)
+                    .userProfileZoomDestination(userId: userId, namespace: profileZoomNamespace)
             }
         }
         .fullScreenCover(item: Binding(

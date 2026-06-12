@@ -123,6 +123,7 @@ struct ReelVideoView: View {
     @State private var showReportSheet = false
     @State private var showDeleteAlert = false
     @State private var navigateToProfile = false
+    @Namespace private var profileZoomNamespace
     @State private var hasStory = false
     @State private var hasUnseenStory = false
     @State private var storyCount: Int = 0
@@ -388,6 +389,11 @@ struct ReelVideoView: View {
                                         AsyncProfileImageView(userId: video.moment.authorId)
                                             .frame(width: 42, height: 42)
                                             .clipShape(Circle())
+                                            .userProfileZoomSource(
+                                                userId: video.moment.authorId,
+                                                namespace: profileZoomNamespace,
+                                                cornerRadius: 21
+                                            )
                                             .overlay(
                                                 StorySegmentedRing(
                                                     storyCount: storyCount,
@@ -405,18 +411,25 @@ struct ReelVideoView: View {
                                     .buttonStyle(.momentsPress(scale: 0.94, haptic: .none))
 
                                     VStack(alignment: .leading, spacing: 3) {
+                                        Button(action: {
+                                            if !video.moment.authorId.isEmpty {
+                                                navigateToProfile = true
+                                            }
+                                        }) {
                                             HStack(spacing: 6) {
                                                 Text(displayAuthorUsername)
                                                     .font(.custom("Poppins-SemiBold", size: 15))
                                                     .foregroundColor(chromePrimaryColor)
                                                     .lineLimit(1)
 
-                                            if video.moment.authorId == Auth.auth().currentUser?.uid {
-                                                CurrentUserVerifiedBadge(size: 14)
-                                            } else {
-                                                VerifiedBadgeView(userId: video.moment.authorId, size: 14)
+                                                if video.moment.authorId == Auth.auth().currentUser?.uid {
+                                                    CurrentUserVerifiedBadge(size: 14)
+                                                } else {
+                                                    VerifiedBadgeView(userId: video.moment.authorId, size: 14)
+                                                }
                                             }
                                         }
+                                        .buttonStyle(.plain)
 
                                         HStack(spacing: 8) {
                                             Text(formatTimeAgo(video.moment.timestamp))
@@ -630,8 +643,9 @@ struct ReelVideoView: View {
         /*.sheet(isPresented: $showReportSheet) {
             ReportBottomSheet(moment: video.moment)
         }*/
-        .sheet(isPresented: $navigateToProfile) {
+        .fullScreenCover(isPresented: $navigateToProfile) {
             UserProfileView(userId: video.moment.authorId)
+                .userProfileZoomDestination(userId: video.moment.authorId, namespace: profileZoomNamespace)
         }
         .fullScreenCover(item: $storyRoute) { route in
             StoriesView(startWithUserId: .constant(route.id))

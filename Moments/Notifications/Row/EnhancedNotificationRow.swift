@@ -13,6 +13,7 @@ struct EnhancedNotificationRow: View {
     let onModerationReviewTap: ((Notification) -> Void)?
     @State var showProfile = false
     @State var profileUserId: String?
+    @Namespace private var profileZoomNamespace
     @State var showStories = false
     @State var momentImagePath: String?
     @State var storyImagePath: String?
@@ -100,9 +101,10 @@ struct EnhancedNotificationRow: View {
             },
             perform: {}
         )
-        .sheet(isPresented: $showProfile) {
+        .fullScreenCover(isPresented: $showProfile) {
             if let profileUserId, !profileUserId.isEmpty {
                 UserProfileView(userId: profileUserId)
+                    .userProfileZoomDestination(userId: profileUserId, namespace: profileZoomNamespace)
             }
         }
         .fullScreenCover(isPresented: $showStories) {
@@ -193,6 +195,11 @@ struct EnhancedNotificationRow: View {
                     onSecondaryTap: displaySenderIds.count > 1
                         ? { openProfile(userId: displaySenderIds[1]) }
                         : nil
+                )
+                .userProfileZoomSource(
+                    userId: displaySenderIds.first ?? "",
+                    namespace: profileZoomNamespace,
+                    cornerRadius: NotificationRowMetrics.avatarSize / 2
                 )
             } else {
                 Circle()

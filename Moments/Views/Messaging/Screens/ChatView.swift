@@ -68,6 +68,7 @@ struct GlassmorphicChatView: View {
     
     // ✅ NUEVO: Estados para navegación al perfil
     @State private var showingUserProfile = false
+    @Namespace private var profileZoomNamespace
     @State private var navigateToProfile = false
     
     // ✅ NUEVO: Estados para navegación al momento
@@ -177,8 +178,12 @@ struct GlassmorphicChatView: View {
     
     var body: some View {
         chatViewWithSettingsAndStories
-        .navigationDestination(isPresented: $showingUserProfile) {
+        .fullScreenCover(isPresented: $showingUserProfile) {
             UserProfileView(userId: viewModel.conversation.otherParticipantId)
+                .userProfileZoomDestination(
+                    userId: viewModel.conversation.otherParticipantId,
+                    namespace: profileZoomNamespace
+                )
         }
         // ✅ NUEVO: Pantalla de selección de medios para respuestas a clusters
         .sheet(item: Binding(
@@ -322,11 +327,21 @@ struct GlassmorphicChatView: View {
                 }) {
                     if isOtherParticipantUnavailable && !isOtherParticipantBlockedByCurrentUser {
                         ProfileUnavailableAvatar(size: 40)
+                            .userProfileZoomSource(
+                                userId: viewModel.conversation.otherParticipantId,
+                                namespace: profileZoomNamespace,
+                                cornerRadius: 20
+                            )
                     } else {
                         // ✅ ACTUALIZADO: Usar el componente asíncrono centralizado para tiempo real
                         AsyncProfileImageView(userId: viewModel.conversation.otherParticipantId)
                             .frame(width: 40, height: 40)
                             .clipShape(Circle())
+                            .userProfileZoomSource(
+                                userId: viewModel.conversation.otherParticipantId,
+                                namespace: profileZoomNamespace,
+                                cornerRadius: 20
+                            )
                             .overlay(
                                 StorySegmentedRing(
                                     storyCount: storyCount,

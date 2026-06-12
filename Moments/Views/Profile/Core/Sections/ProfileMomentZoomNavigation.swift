@@ -17,6 +17,7 @@ struct ProfileMomentZoomDestination: Hashable {
     let initialMomentId: String?
     let feedKind: ProfileMomentZoomFeedKind
     var restrictPlaybackToInitialIndex: Bool = false
+    var openCommentsOnAppear: Bool = false
 }
 
 /// Destino genérico para zoom fuera del perfil (explore, actividad, mapa, etc.).
@@ -157,6 +158,7 @@ struct ProfileMomentZoomDetailDestination: View {
                     initialMomentId: destination.initialMomentId,
                     topContentInset: 0,
                     restrictPlaybackToInitialIndex: destination.restrictPlaybackToInitialIndex,
+                    openCommentsOnAppear: destination.openCommentsOnAppear,
                     onDismiss: { dismiss() }
                 )
             }

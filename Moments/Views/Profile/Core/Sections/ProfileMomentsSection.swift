@@ -116,6 +116,7 @@ struct ModernMomentThumbnail: View {
             topChrome
             bottomChrome
         }
+        .profileGridLiftedSource(moment: moment, gridIndex: gridIndex)
         .frame(width: cellWidth, height: cellHeight)
         .clipped()
         .modifier(ProfileMomentZoomSourceModifier(namespace: zoomNamespace, sourceID: zoomSourceID))

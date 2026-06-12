@@ -730,13 +730,18 @@ struct LocationMomentCard: View {
             )
 
             VStack(alignment: .leading, spacing: 1) {
-                HStack(spacing: 3) {
-                    LiveUsernameText(userId: moment.authorId, fallbackUsername: moment.username)
-                        .font(.custom("Poppins-SemiBold", size: 14))
-                        .foregroundColor(adaptiveColors.primary)
+                Button {
+                    onAvatarTap(moment.authorId, false)
+                } label: {
+                    HStack(spacing: 3) {
+                        LiveUsernameText(userId: moment.authorId, fallbackUsername: moment.username)
+                            .font(.custom("Poppins-SemiBold", size: 14))
+                            .foregroundColor(adaptiveColors.primary)
 
-                    VerifiedBadgeView(userId: moment.authorId, size: 12)
+                        VerifiedBadgeView(userId: moment.authorId, size: 12)
+                    }
                 }
+                .buttonStyle(.plain)
 
                 Text(moment.timestamp.timeAgoDisplay())
                     .font(.custom("Poppins-Regular", size: 11))

@@ -31,6 +31,7 @@ struct MomentDetailView: View {
     
     // ✅ NUEVO: Estado para navegación al perfil
     @State private var navigateToProfile: Bool = false
+    @Namespace private var profileZoomNamespace
     @State private var showTags: Bool = false // ✅ NUEVO: Control de etiquetas
     @State private var isImmersive: Bool = false // ✅ NUEVO: Soporte para modo inmersivo
     @State private var showingStories = false
@@ -91,8 +92,9 @@ struct MomentDetailView: View {
             keyboardHeight = 0
         }
         .momentDetailSwipeDismiss(swipeToDismissGesture, enabled: true)
-        .sheet(isPresented: $navigateToProfile) {
+        .fullScreenCover(isPresented: $navigateToProfile) {
             UserProfileView(userId: moment.authorId)
+                .userProfileZoomDestination(userId: moment.authorId, namespace: profileZoomNamespace)
         }
         .fullScreenCover(isPresented: $showingStories) {
             StoriesView(startWithUserId: .constant(moment.authorId))
@@ -126,6 +128,7 @@ struct MomentDetailView: View {
                         moment: moment,
                         topInset: 8,
                         onDismiss: closeDetail,
+                        profileZoomNamespace: profileZoomNamespace,
                         onAvatarTap: handleExploreHeaderAvatarTap,
                         onLocationTap: { _, _ in
                             openLocationMap(for: moment)

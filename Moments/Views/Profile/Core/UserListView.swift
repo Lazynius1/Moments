@@ -20,6 +20,7 @@ struct UserListView<ViewModel: UserListViewModel>: View {
     let onDismiss: () -> Void
     let rowAction: UserListRowAction
     let onUserTap: ((AppUser) -> Void)?
+    var profileZoomNamespace: Namespace.ID? = nil
     @State private var searchText = ""
     @Environment(\.colorScheme) var colorScheme
     
@@ -191,7 +192,8 @@ struct UserListView<ViewModel: UserListViewModel>: View {
                             rowAction: rowAction,
                             viewModel: viewModel,
                             onDismiss: onDismiss,
-                            onUserTap: onUserTap
+                            onUserTap: onUserTap,
+                            profileZoomNamespace: profileZoomNamespace
                         )
 
                         if index < filteredUsers.count - 1 {
@@ -235,6 +237,7 @@ struct ModernProfileUserRowView<ViewModel: UserListViewModel>: View {
     let viewModel: ViewModel
     let onDismiss: () -> Void
     let onUserTap: ((AppUser) -> Void)?
+    var profileZoomNamespace: Namespace.ID? = nil
     
     @State private var isPressed: Bool = false
     @State private var showingUnfollowConfirmation = false
@@ -322,7 +325,8 @@ struct ModernProfileUserRowView<ViewModel: UserListViewModel>: View {
                 lineWidth: 2.1,
                 showBaseStroke: true,
                 baseStrokeColor: colorScheme == .dark ? Color.white.opacity(0.18) : Color.black.opacity(0.14),
-                baseStrokeWidth: 0.9
+                baseStrokeWidth: 0.9,
+                profileZoomNamespace: profileZoomNamespace
             )
         }
     }

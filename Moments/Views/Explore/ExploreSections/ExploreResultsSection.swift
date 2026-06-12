@@ -10,6 +10,7 @@ struct SmartSearchResultsView: View {
     let onFollowUser: (String) -> Void
     let onUserTap: (AppUser) -> Void
     var zoomNamespace: Namespace.ID? = nil
+    var profileZoomNamespace: Namespace.ID? = nil
     let onMomentTap: (Moment, Int, [Moment]) -> Void
 
     var searchType: SearchDisplayType {
@@ -113,6 +114,7 @@ struct SmartSearchResultsView: View {
                         user: user,
                         buttonState: userButtonStates[user.id] ?? .canFollow,
                         commonInterests: Set(user.interests).intersection(Set(currentUserInterests)).count,
+                        profileZoomNamespace: profileZoomNamespace,
                         onFollow: { onFollowUser(user.id) },
                         onTap: { onUserTap(user) }
                     )
@@ -258,24 +260,13 @@ struct MomentsSearchGrid: View {
     var zoomNamespace: Namespace.ID? = nil
     let onMomentTap: (Moment, Int, [Moment]) -> Void
 
-    private let columns = [
-        GridItem(.flexible(), spacing: 2),
-        GridItem(.flexible(), spacing: 2),
-        GridItem(.flexible(), spacing: 2)
-    ]
-
     var body: some View {
-        LazyVGrid(columns: columns, spacing: 2) {
-            ForEach(Array(moments.prefix(12).enumerated()), id: \.element.id) { index, moment in
-                MomentCard(
-                    moment: moment,
-                    zoomNamespace: zoomNamespace,
-                    zoomSourceID: ProfileMomentZoomNavigation.sourceID(moment: moment, index: index, prefix: "explore-search"),
-                    onTap: { onMomentTap(moment, index, Array(moments.prefix(12))) }
-                )
-            }
-        }
-        .padding(.horizontal, 0)
+        ExploreMomentsBentoGrid(
+            moments: moments,
+            zoomNamespace: zoomNamespace,
+            zoomIDPrefix: "explore-search",
+            onMomentTap: onMomentTap
+        )
     }
 }
 

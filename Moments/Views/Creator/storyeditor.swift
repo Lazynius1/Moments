@@ -87,6 +87,7 @@ struct StoryEditingView: View {
     @State private var showingUserProfile = false
     @State private var selectedUserId: String = ""
     @State private var navigationPath = NavigationPath()
+    @Namespace private var profileZoomNamespace
 
 
 
@@ -280,6 +281,7 @@ struct StoryEditingView: View {
             }
             .navigationDestination(for: String.self) { userId in
                 UserProfileView(userId: userId)
+                    .userProfileZoomDestination(userId: userId, namespace: profileZoomNamespace)
             }
             .toolbar(.hidden, for: .navigationBar)
         .onAppear {

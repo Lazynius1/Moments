@@ -38,6 +38,7 @@ struct FeedListSection: View {
     let onForceRefresh: () -> Void
     let onManualRefresh: (String) async -> Void
     let onOpenUserProfile: (String) -> Void
+    let profileZoomNamespace: Namespace.ID
 
     var body: some View {
         ScrollViewReader { proxy in
@@ -160,6 +161,8 @@ struct FeedListSection: View {
                 onLocationTap: handleFeedLocationTap,
                 onContextMenu: handleFeedContextMenu,
                 onTagTap: onOpenUserProfile,
+                onOpenUserProfile: onOpenUserProfile,
+                profileZoomNamespace: profileZoomNamespace,
                 onPeek: { imageURL, ratio, isPressing in
                     handleFeedPeek(imageURL: imageURL, ratio: ratio, isPressing: isPressing, moment: moment)
                 }

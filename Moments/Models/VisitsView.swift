@@ -244,6 +244,7 @@ struct GroupedVisitRow: View {
     let colorScheme: ColorScheme
     @State private var showProfile = false
     @State private var showExpandedVisits = false
+    @Namespace private var profileZoomNamespace
 
     var body: some View {
         VStack(spacing: 0) {
@@ -258,7 +259,8 @@ struct GroupedVisitRow: View {
                             lineWidth: 2.1,
                             showBaseStroke: true,
                             baseStrokeColor: colorScheme == .dark ? Color.white.opacity(0.18) : Color.black.opacity(0.14),
-                            baseStrokeWidth: 0.9
+                            baseStrokeWidth: 0.9,
+                            profileZoomNamespace: profileZoomNamespace
                         )
                         
                         // Badge de stalker
@@ -395,8 +397,9 @@ struct GroupedVisitRow: View {
             (colorScheme == .dark ? Color.white : Color.black)
                 .opacity(showExpandedVisits ? 0.04 : 0)
         )
-        .sheet(isPresented: $showProfile) {
+        .fullScreenCover(isPresented: $showProfile) {
             UserProfileView(userId: groupedVisit.user.id)
+                .userProfileZoomDestination(userId: groupedVisit.user.id, namespace: profileZoomNamespace)
         }
     }
     
@@ -610,6 +613,7 @@ struct StalkerCard: View {
     let analysis: VisitorAnalysis
     let colorScheme: ColorScheme
     @State private var showProfile = false
+    @Namespace private var profileZoomNamespace
     
     var body: some View {
         Button(action: { showProfile = true }) {
@@ -621,6 +625,11 @@ struct StalkerCard: View {
                             .scaledToFill()
                             .frame(width: 60, height: 60)
                             .clipShape(Circle())
+                            .userProfileZoomSource(
+                                userId: analysis.userId,
+                                namespace: profileZoomNamespace,
+                                cornerRadius: 30
+                            )
                             .overlay(
                                 Circle()
                                     .stroke(analysis.frequencyType.color, lineWidth: 3)
@@ -673,8 +682,9 @@ struct StalkerCard: View {
             .shadow(color: analysis.frequencyType.color.opacity(0.3), radius: 4, x: 0, y: 2)
         }
         .buttonStyle(PlainButtonStyle())
-        .sheet(isPresented: $showProfile) {
+        .fullScreenCover(isPresented: $showProfile) {
             UserProfileView(userId: analysis.userId)
+                .userProfileZoomDestination(userId: analysis.userId, namespace: profileZoomNamespace)
         }
     }
 }

@@ -353,12 +353,18 @@ private struct QuestionResponseRow: View {
 
     @State private var responderUsername: String = ""
     @State private var showingResponderProfile = false
+    @Namespace private var profileZoomNamespace
 
     var body: some View {
         Button(action: onShare) {
             HStack(alignment: .top, spacing: 12) {
                 AsyncProfileImageView(userId: response.userId)
                     .frame(width: 38, height: 38)
+                    .userProfileZoomSource(
+                        userId: response.userId,
+                        namespace: profileZoomNamespace,
+                        cornerRadius: 19
+                    )
                     .onTapGesture {
                         showingResponderProfile = true
                     }
@@ -396,8 +402,9 @@ private struct QuestionResponseRow: View {
             .frame(maxWidth: .infinity, alignment: .leading)
         }
         .buttonStyle(.plain)
-        .sheet(isPresented: $showingResponderProfile) {
+        .fullScreenCover(isPresented: $showingResponderProfile) {
             UserProfileView(userId: response.userId)
+                .userProfileZoomDestination(userId: response.userId, namespace: profileZoomNamespace)
         }
         .onAppear {
             loadResponderUsername()
