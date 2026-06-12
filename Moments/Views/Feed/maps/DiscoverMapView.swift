@@ -24,7 +24,7 @@ struct DiscoverMapView: View {
     @State private var mapSheetDetent: PresentationDetent = .medium
     @Namespace private var zoomNamespace
     @State private var zoomDestination: MomentZoomDestination?
-    @State private var zoomMoments: [Moment] = []
+    @State private var zoomMapMomentsPool: [Moment] = []
     @State private var isMapDetailPresented = false
     @State private var pendingStoryPresentation: MapStoryViewerPresentation?
     @State private var resumeBottomSheetAfterDetail = false
@@ -188,7 +188,7 @@ struct DiscoverMapView: View {
             .navigationDestination(item: $zoomDestination) { destination in
                 MomentZoomDetailDestination(
                     destination: destination,
-                    moments: zoomMoments,
+                    moments: momentsForZoomDestination(destination),
                     namespace: zoomNamespace,
                     mapDetailPresented: $isMapDetailPresented
                 )
@@ -249,6 +249,7 @@ struct DiscoverMapView: View {
         }
         .onChange(of: zoomDestination) { _, newValue in
             if newValue == nil {
+                zoomMapMomentsPool = []
                 restoreBottomSheetIfNeeded()
             }
         }
@@ -740,14 +741,19 @@ struct DiscoverMapView: View {
         if showingBottomSheet {
             resumeBottomSheetAfterDetail = true
         }
+        zoomMapMomentsPool = moments
         MomentZoomOpener.open(
             moment: moment,
             moments: moments,
             initialIndex: index,
             presentation: .map(locationName: title),
             destination: &zoomDestination,
-            snapshot: &zoomMoments
+            zoomIDPrefix: "discover-map"
         )
+    }
+
+    private func momentsForZoomDestination(_ destination: MomentZoomDestination) -> [Moment] {
+        MomentZoomOpener.resolvedMoments(for: destination, in: zoomMapMomentsPool)
     }
 
     private func presentDeferredMapContent() {

@@ -12,7 +12,7 @@ struct NotificationsView: View {
     @Environment(\.colorScheme) var colorScheme // ✅ AGREGADO
     @Namespace private var momentZoomNamespace
     @State private var zoomDestination: MomentZoomDestination?
-    @State private var zoomMoments: [Moment] = []
+    @State private var zoomResolvedMoment: Moment?
     @State private var moderationReviewNotification: Notification?
     @State private var storyViewerPresentation: StoryViewerPresentation?
     @State private var selectedConversation: Conversation?
@@ -54,9 +54,14 @@ struct NotificationsView: View {
                 .navigationDestination(item: $zoomDestination) { destination in
                     MomentZoomDetailDestination(
                         destination: destination,
-                        moments: zoomMoments,
+                        moments: momentsForZoomDestination(destination),
                         namespace: momentZoomNamespace
                     )
+                }
+                .onChange(of: zoomDestination) { _, newValue in
+                    if newValue == nil {
+                        zoomResolvedMoment = nil
+                    }
                 }
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
@@ -451,6 +456,17 @@ struct NotificationsView: View {
         notification.targetAuthorId
     }
 
+    private func momentsForZoomDestination(_ destination: MomentZoomDestination) -> [Moment] {
+        guard let moment = zoomResolvedMoment else { return [] }
+
+        if let initialMomentId = destination.initialMomentId,
+           moment.id != initialMomentId {
+            return []
+        }
+
+        return [moment]
+    }
+
     private func fetchMoment(momentId: String, authorId: String? = nil) {
         guard let userId = Auth.auth().currentUser?.uid else { return }
         let ownerId = authorId?.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -459,14 +475,18 @@ struct NotificationsView: View {
             switch result {
             case .success(let moment):
                 DispatchQueue.main.async {
-                    MomentZoomOpener.open(
-                        moment: moment,
-                        moments: [moment],
+                    self.zoomResolvedMoment = moment
+                    self.zoomDestination = MomentZoomDestination(
+                        zoomSourceID: ProfileMomentZoomNavigation.sourceID(
+                            moment: moment,
+                            index: 0,
+                            prefix: "notification"
+                        ),
                         initialIndex: 0,
-                        presentation: .single,
-                        destination: &self.zoomDestination,
-                        snapshot: &self.zoomMoments
+                        initialMomentId: moment.id,
+                        presentation: .single
                     )
+                    HapticManager.shared.lightImpact()
                 }
             case .failure(_):
                 break

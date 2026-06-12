@@ -22,7 +22,6 @@ struct SavedMomentsView: View {
 
     @Namespace private var zoomNamespace
     @State private var zoomDestination: MomentZoomDestination?
-    @State private var zoomMoments: [Moment] = []
 
     @State private var showRemoveSelectionAlert = false
     @State private var restrictedMomentToRemove: Moment?
@@ -104,7 +103,7 @@ struct SavedMomentsView: View {
             .navigationDestination(item: $zoomDestination) { destination in
                 MomentZoomDetailDestination(
                     destination: destination,
-                    moments: zoomMoments,
+                    moments: momentsForZoomDestination(destination),
                     namespace: zoomNamespace,
                     onRemoveSavedMoment: { moment in
                         if let momentId = moment.id {
@@ -568,8 +567,19 @@ struct SavedMomentsView: View {
             initialIndex: resolvedIndex,
             presentation: .saved,
             destination: &zoomDestination,
-            snapshot: &zoomMoments
+            zoomIDPrefix: "saved"
         )
+    }
+
+    private func accessibleMomentsPool() -> [Moment] {
+        filteredMoments.filter { candidate in
+            guard let candidateId = candidate.id else { return false }
+            return viewModel.visibilityByMomentId[candidateId] ?? true
+        }
+    }
+
+    private func momentsForZoomDestination(_ destination: MomentZoomDestination) -> [Moment] {
+        MomentZoomOpener.resolvedMoments(for: destination, in: accessibleMomentsPool())
     }
 
     private func removeSelected() {

@@ -11,7 +11,7 @@ struct UserActivityView: View {
     @StateObject private var summaryVM = ActivitySummaryViewModel()
 
     var body: some View {
-        NavigationView {
+        NavigationStack {
             ZStack {
                 (colorScheme == .dark ? Color(hex: "0B1215") : Color(hex: "FAF9F6"))
                     .ignoresSafeArea()
@@ -84,6 +84,7 @@ struct UserActivityView: View {
                 summaryVM.autoRefresh()
             }
         }
+        .momentZoomNavigationSurface(colorScheme: colorScheme)
     }
 
     private func activitySection(title: String, categories: [ActivityInteractionCategory]) -> some View {

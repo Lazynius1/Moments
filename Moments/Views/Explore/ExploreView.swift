@@ -13,7 +13,6 @@ struct ExploreView: View {
     @State private var showPrivateProfileAlert: Bool = false
     @Namespace private var zoomNamespace
     @State private var zoomDestination: MomentZoomDestination?
-    @State private var zoomMoments: [Moment] = []
     @State private var selectedUser: AppUser?
     @State private var showTrendingView = false
     @State private var showDiscoverMap = false
@@ -28,165 +27,26 @@ struct ExploreView: View {
     }
 
     var body: some View {
+        exploreNavigationStack
+            .momentZoomNavigationSurface(colorScheme: colorScheme)
+    }
+
+    private var exploreNavigationStack: some View {
         NavigationStack {
-            mainContent
-                .background(backgroundGradient.ignoresSafeArea())
-            .navigationTitle(NSLocalizedString("explore.title", comment: ""))
-            .navigationBarTitleDisplayMode(.large)
-            .toolbar {
-                if isDismissable {
-                    ToolbarItem(placement: .topBarLeading) {
-                        Button {
-                            ExploreHapticFeedback.impact(.light)
-                            dismiss()
-                        } label: {
-                            Image(systemName: "chevron.left")
-                                .font(.system(size: 16, weight: .bold))
-                                .foregroundColor(.primary)
-                                .frame(width: 32, height: 32)
-                                .background(Color.clear.liquidGlass(in: Circle(), interactive: true))
-                        }
-                    }
-                }
+            exploreNavigationRoot
+        }
+    }
 
-                ToolbarItemGroup(placement: .topBarTrailing) {
-                    Button {
-                        ExploreHapticFeedback.impact(.medium)
-                        showDiscoverMap = true
-                    } label: {
-                        Image(systemName: "map.fill")
-                            .foregroundColor(Color(hex: "0A84FF"))
-                    }
-
-                    Button {
-                        ExploreHapticFeedback.impact(.medium)
-                        showTrendingView = true
-                    } label: {
-                        Image(systemName: "flame.fill")
-                            .foregroundColor(.orange)
-                    }
-
-                    Button {
-                        ExploreHapticFeedback.impact(.medium)
-                        viewModel.refreshContent()
-                    } label: {
-                        Image(systemName: "arrow.clockwise")
-                            .rotationEffect(.degrees(viewModel.isLoadingTrending ? 360 : 0))
-                            .animation(
-                                viewModel.isLoadingTrending
-                                ? .linear(duration: 1).repeatForever(autoreverses: false)
-                                : .default,
-                                value: viewModel.isLoadingTrending
-                            )
-                    }
-                }
-            }
-            .searchable(
-                text: $searchText,
-                placement: .navigationBarDrawer(displayMode: .automatic),
-                prompt: NSLocalizedString("explore.search.placeholder", comment: "")
-            )
-            .searchSuggestions {
-                if searchText.isEmpty && !viewModel.recentSearches.isEmpty {
-                    Section {
-                        ForEach(viewModel.recentSearches) { search in
-                            HStack(spacing: 12) {
-                                HStack(spacing: 12) {
-                                    if search.type == "user", let targetId = search.targetId {
-                                        StoryRingAvatarView(
-                                            userId: targetId,
-                                            size: 32,
-                                            lineWidth: 2.0
-                                        )
-                                        .onTapGesture {
-                                            guard !targetId.isEmpty else { return }
-                                            LegacyNavigationBridge.profile(userId: targetId)
-                                        }
-                                    } else {
-                                        Image(systemName: searchTypeIcon(for: search.type))
-                                            .font(.system(size: 14))
-                                            .foregroundStyle(.secondary)
-                                            .frame(width: 32, height: 32)
-                                            .background(.ultraThinMaterial)
-                                            .clipShape(Circle())
-                                    }
-
-                                    VStack(alignment: .leading, spacing: 0) {
-                                        Text(search.query)
-                                            .font(.custom("Poppins-SemiBold", size: 16))
-                                            .foregroundStyle(.primary)
-
-                                        if let targetId = search.targetId,
-                                           let status = viewModel.getSocialStatus(userId: targetId) {
-                                            Text(status)
-                                                .font(.custom("Poppins-Medium", size: 12))
-                                                .foregroundStyle(.secondary)
-                                        }
-                                    }
-                                }
-                                .contentShape(Rectangle())
-                                .onTapGesture {
-                                    searchText = search.query
-                                    viewModel.saveSearchRecord(query: search.query, type: search.type, targetId: search.targetId)
-                                    viewModel.smartSearch(query: search.query)
-                                }
-
-                                Spacer()
-
-                                Button {
-                                    viewModel.deleteSearch(search)
-                                } label: {
-                                    Image(systemName: "xmark")
-                                        .font(.system(size: 15, weight: .bold))
-                                        .foregroundStyle(.primary)
-                                        .padding(6)
-                                }
-                                .buttonStyle(.plain)
-                            }
-                            .searchCompletion(search.query)
-                        }
-                    } header: {
-                        HStack {
-                            Text(NSLocalizedString("explore.recentSearches.title", comment: ""))
-                                .font(.custom("Poppins-Bold", size: 28))
-                                .foregroundColor(.primary)
-                            Spacer()
-                            Button(NSLocalizedString("explore.recentSearches.clearAll", comment: "")) {
-                                viewModel.clearAllSearches()
-                            }
-                            .font(.custom("Poppins-Bold", size: 14))
-                            .foregroundColor(.primary)
-                        }
-                        .textCase(nil)
-                        .padding(.vertical, 8)
-                    }
-                }
-            }
+    private var exploreNavigationRoot: some View {
+        exploreSearchableContent
             .tint(.primary)
             .onSubmit(of: .search) {
                 viewModel.saveSearchRecord(query: searchText, type: "text")
-                // El tipo se detectará automáticamente en saveSearchRecord si es necesario,
-                // o podemos ser más específicos aquí.
             }
             .onChange(of: searchText) { _, newValue in
                 viewModel.smartSearch(query: newValue)
             }
-            .onAppear {
-                if let query = initialSearchQuery, !query.isEmpty {
-                    searchText = query
-                    if !viewModel.moments.isEmpty {
-                        viewModel.smartSearch(query: query)
-                    } else {
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                            viewModel.smartSearch(query: query)
-                        }
-                    }
-                }
-
-                if viewModel.moments.isEmpty {
-                    viewModel.fetchMomentsByInterests()
-                }
-            }
+            .onAppear(perform: handleExploreAppear)
             .alert(isPresented: $showPrivateProfileAlert) {
                 privateProfileAlert
             }
@@ -196,7 +56,7 @@ struct ExploreView: View {
             .navigationDestination(item: $zoomDestination) { destination in
                 MomentZoomDetailDestination(
                     destination: destination,
-                    moments: zoomMoments,
+                    moments: momentsForZoomDestination(destination),
                     namespace: zoomNamespace
                 )
             }
@@ -212,8 +72,135 @@ struct ExploreView: View {
                     .presentationDragIndicator(.visible)
                     .interactiveDismissDisabled(false)
             }
+    }
+
+    private var exploreSearchableContent: some View {
+        mainContent
+            .background(backgroundGradient.ignoresSafeArea())
+            .navigationTitle(NSLocalizedString("explore.title", comment: ""))
+            .navigationBarTitleDisplayMode(.large)
+            .toolbar { exploreToolbarContent }
+            .searchable(
+                text: $searchText,
+                placement: .navigationBarDrawer(displayMode: .automatic),
+                prompt: NSLocalizedString("explore.search.placeholder", comment: "")
+            )
+            .searchSuggestions {
+                exploreRecentSearchSuggestions
+            }
+    }
+
+    @ToolbarContentBuilder
+    private var exploreToolbarContent: some ToolbarContent {
+        if isDismissable {
+            ToolbarItem(placement: .topBarLeading) {
+                Button {
+                    ExploreHapticFeedback.impact(.light)
+                    dismiss()
+                } label: {
+                    Image(systemName: "chevron.left")
+                        .font(.system(size: 16, weight: .bold))
+                        .foregroundColor(.primary)
+                        .frame(width: 32, height: 32)
+                        .background(Color.clear.liquidGlass(in: Circle(), interactive: true))
+                }
+            }
         }
-        .momentZoomNavigationSurface(colorScheme: colorScheme)
+
+        ToolbarItemGroup(placement: .topBarTrailing) {
+            Button {
+                ExploreHapticFeedback.impact(.medium)
+                showDiscoverMap = true
+            } label: {
+                Image(systemName: "map.fill")
+                    .foregroundColor(Color(hex: "0A84FF"))
+            }
+
+            Button {
+                ExploreHapticFeedback.impact(.medium)
+                showTrendingView = true
+            } label: {
+                Image(systemName: "flame.fill")
+                    .foregroundColor(.orange)
+            }
+
+            Button {
+                ExploreHapticFeedback.impact(.medium)
+                viewModel.refreshContent()
+            } label: {
+                Image(systemName: "arrow.clockwise")
+                    .rotationEffect(.degrees(viewModel.isLoadingTrending ? 360 : 0))
+                    .animation(
+                        viewModel.isLoadingTrending
+                        ? .linear(duration: 1).repeatForever(autoreverses: false)
+                        : .default,
+                        value: viewModel.isLoadingTrending
+                    )
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var exploreRecentSearchSuggestions: some View {
+        if searchText.isEmpty && !viewModel.recentSearches.isEmpty {
+            Section {
+                ForEach(viewModel.recentSearches) { search in
+                    ExploreRecentSearchRow(
+                        search: search,
+                        socialStatus: search.targetId.flatMap { viewModel.getSocialStatus(userId: $0) },
+                        typeIcon: searchTypeIcon(for: search.type),
+                        onSelect: {
+                            searchText = search.query
+                            viewModel.saveSearchRecord(
+                                query: search.query,
+                                type: search.type,
+                                targetId: search.targetId
+                            )
+                            viewModel.smartSearch(query: search.query)
+                        },
+                        onDelete: {
+                            viewModel.deleteSearch(search)
+                        }
+                    )
+                    .searchCompletion(search.query)
+                }
+            } header: {
+                exploreRecentSearchesHeader
+            }
+        }
+    }
+
+    private var exploreRecentSearchesHeader: some View {
+        HStack {
+            Text(NSLocalizedString("explore.recentSearches.title", comment: ""))
+                .font(.custom("Poppins-Bold", size: 28))
+                .foregroundColor(.primary)
+            Spacer()
+            Button(NSLocalizedString("explore.recentSearches.clearAll", comment: "")) {
+                viewModel.clearAllSearches()
+            }
+            .font(.custom("Poppins-Bold", size: 14))
+            .foregroundColor(.primary)
+        }
+        .textCase(nil)
+        .padding(.vertical, 8)
+    }
+
+    private func handleExploreAppear() {
+        if let query = initialSearchQuery, !query.isEmpty {
+            searchText = query
+            if !viewModel.moments.isEmpty {
+                viewModel.smartSearch(query: query)
+            } else {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                    viewModel.smartSearch(query: query)
+                }
+            }
+        }
+
+        if viewModel.moments.isEmpty {
+            viewModel.fetchMomentsByInterests()
+        }
     }
 
     private func searchTypeIcon(for type: String) -> String {
@@ -317,7 +304,8 @@ struct ExploreView: View {
                         moment: moment,
                         index: index,
                         moments: sourceMoments,
-                        presentation: .single
+                        presentation: .single,
+                        zoomIDPrefix: "explore"
                     )
                 } else {
                     showPrivateProfileAlert = true
@@ -325,16 +313,42 @@ struct ExploreView: View {
             }
         }
 
-        private func openMomentZoom(moment: Moment, index: Int, moments: [Moment], presentation: MomentZoomPresentationKind) {
+        private func openMomentZoom(
+            moment: Moment,
+            index: Int,
+            moments: [Moment],
+            presentation: MomentZoomPresentationKind,
+            zoomIDPrefix: String
+        ) {
             let resolvedIndex = moments.firstIndex(where: { $0.id == moment.id }) ?? index
-            MomentZoomOpener.open(
-                moment: moment,
-                moments: moments,
+            zoomDestination = MomentZoomDestination(
+                zoomSourceID: ProfileMomentZoomNavigation.sourceID(
+                    moment: moment,
+                    index: resolvedIndex,
+                    prefix: zoomIDPrefix
+                ),
                 initialIndex: resolvedIndex,
-                presentation: presentation,
-                destination: &zoomDestination,
-                snapshot: &zoomMoments
+                initialMomentId: moment.id,
+                presentation: presentation
             )
+            HapticManager.shared.lightImpact()
+        }
+
+        /// Igual que en perfil: el destino guarda el `initialMomentId` y los momentos
+        /// se resuelven al montar la vista, no desde un snapshot que puede llegar vacío.
+        private func momentsForZoomDestination(_ destination: MomentZoomDestination) -> [Moment] {
+            let pool = searchText.isEmpty ? viewModel.moments : viewModel.filteredMoments
+
+            if let initialMomentId = destination.initialMomentId,
+               let moment = pool.first(where: { $0.id == initialMomentId }) {
+                return [moment]
+            }
+
+            if pool.indices.contains(destination.initialIndex) {
+                return [pool[destination.initialIndex]]
+            }
+
+            return pool
         }
 
         // Removed redundant momentsSection property
@@ -358,7 +372,13 @@ struct ExploreView: View {
                 onMomentTap: { moment, index, sourceMoments in
                     viewModel.checkCanViewContent(for: moment.authorId) { canView in
                         if canView {
-                            openMomentZoom(moment: moment, index: index, moments: sourceMoments, presentation: .single)
+                            openMomentZoom(
+                                moment: moment,
+                                index: index,
+                                moments: sourceMoments,
+                                presentation: .single,
+                                zoomIDPrefix: "explore-search"
+                            )
                         } else {
                             showPrivateProfileAlert = true
                         }
@@ -386,6 +406,69 @@ struct ExploreView: View {
             )
         }
     }
+
+// MARK: - Fila de búsqueda reciente (extraída para aligerar type-check de ExploreView)
+private struct ExploreRecentSearchRow: View {
+    let search: CachedSearch
+    let socialStatus: String?
+    let typeIcon: String
+    let onSelect: () -> Void
+    let onDelete: () -> Void
+
+    var body: some View {
+        HStack(spacing: 12) {
+            HStack(spacing: 12) {
+                recentSearchLeadingIcon
+
+                VStack(alignment: .leading, spacing: 0) {
+                    Text(search.query)
+                        .font(.custom("Poppins-SemiBold", size: 16))
+                        .foregroundStyle(.primary)
+
+                    if let socialStatus {
+                        Text(socialStatus)
+                            .font(.custom("Poppins-Medium", size: 12))
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+            .contentShape(Rectangle())
+            .onTapGesture(perform: onSelect)
+
+            Spacer()
+
+            Button(action: onDelete) {
+                Image(systemName: "xmark")
+                    .font(.system(size: 15, weight: .bold))
+                    .foregroundStyle(.primary)
+                    .padding(6)
+            }
+            .buttonStyle(.plain)
+        }
+    }
+
+    @ViewBuilder
+    private var recentSearchLeadingIcon: some View {
+        if search.type == "user", let targetId = search.targetId {
+            StoryRingAvatarView(
+                userId: targetId,
+                size: 32,
+                lineWidth: 2.0
+            )
+            .onTapGesture {
+                guard !targetId.isEmpty else { return }
+                LegacyNavigationBridge.profile(userId: targetId)
+            }
+        } else {
+            Image(systemName: typeIcon)
+                .font(.system(size: 14))
+                .foregroundStyle(.secondary)
+                .frame(width: 32, height: 32)
+                .background(.ultraThinMaterial)
+                .clipShape(Circle())
+        }
+    }
+}
 
 // MARK: - Previews
 struct ExploreView_Previews: PreviewProvider {

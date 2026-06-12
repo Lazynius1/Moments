@@ -66,7 +66,7 @@ struct LocationMapView: View {
     @State private var mapSheetDetent: PresentationDetent = .medium
     @Namespace private var zoomNamespace
     @State private var zoomDestination: MomentZoomDestination?
-    @State private var zoomMoments: [Moment] = []
+    @State private var zoomMapMomentsPool: [Moment] = []
     @State private var isMapDetailPresented = false
     @State private var pendingStoryPresentation: LocationMapStoryViewerPresentation?
     @State private var resumeBottomSheetAfterDetail = false
@@ -198,7 +198,7 @@ struct LocationMapView: View {
             .navigationDestination(item: $zoomDestination) { destination in
                 MomentZoomDetailDestination(
                     destination: destination,
-                    moments: zoomMoments,
+                    moments: momentsForZoomDestination(destination),
                     namespace: zoomNamespace,
                     mapDetailPresented: $isMapDetailPresented
                 )
@@ -294,6 +294,7 @@ struct LocationMapView: View {
         }
         .onChange(of: zoomDestination) { _, newValue in
             if newValue == nil {
+                zoomMapMomentsPool = []
                 restoreBottomSheetIfNeeded()
             }
         }
@@ -1269,14 +1270,19 @@ extension LocationMapView {
         if showingBottomSheet {
             resumeBottomSheetAfterDetail = true
         }
+        zoomMapMomentsPool = locationMoments
         MomentZoomOpener.open(
             moment: moment,
             moments: locationMoments,
             initialIndex: index,
             presentation: .map(locationName: effectiveHeaderLocationName),
             destination: &zoomDestination,
-            snapshot: &zoomMoments
+            zoomIDPrefix: "location-map"
         )
+    }
+
+    private func momentsForZoomDestination(_ destination: MomentZoomDestination) -> [Moment] {
+        MomentZoomOpener.resolvedMoments(for: destination, in: zoomMapMomentsPool)
     }
 
     private func presentDeferredMapContent() {

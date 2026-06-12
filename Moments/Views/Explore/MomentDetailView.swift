@@ -45,10 +45,9 @@ struct MomentDetailView: View {
     }
 
     var body: some View {
-        GeometryReader { geometry in
-            standaloneDetailBody(safeAreaBottom: geometry.safeAreaInsets.bottom)
-        }
-        .navigationBarHidden(true)
+        standaloneDetailBody
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .navigationBarHidden(true)
         .onAppear {
             setupView()
             if !hasTrackedMomentView, !moment.authorId.isEmpty {
@@ -114,13 +113,13 @@ struct MomentDetailView: View {
         .environmentObject(firestoreService)
     }
     
-    private func standaloneDetailBody(safeAreaBottom: CGFloat) -> some View {
+    private var standaloneDetailBody: some View {
         ZStack(alignment: .top) {
             modernBackgroundView
                 .ignoresSafeArea(.all)
                 .opacity(backgroundOpacity)
 
-            detailMainContent(safeAreaBottom: safeAreaBottom)
+            detailMainContent
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .safeAreaInset(edge: .top, spacing: 0) {
                     ModernExploreDetailHeader(
@@ -172,8 +171,8 @@ struct MomentDetailView: View {
     }
 
     @ViewBuilder
-    private func detailMainContent(safeAreaBottom: CGFloat) -> some View {
-        contentScrollView(safeAreaBottom: safeAreaBottom)
+    private var detailMainContent: some View {
+        contentScrollView
     }
 
     private func resolvedLocationName(_ rawValue: String) -> String {
@@ -234,7 +233,7 @@ struct MomentDetailView: View {
     }
 
     @ViewBuilder
-    private func contentScrollView(safeAreaBottom: CGFloat) -> some View {
+    private var contentScrollView: some View {
         let content = VStack(spacing: 0) {
             ScreenshotProtectedView(
                 isProtected: (moment.audience?.lowercased() ?? "") != "everyone"
@@ -247,12 +246,13 @@ struct MomentDetailView: View {
             }
 
             Color.clear
-                .frame(height: safeAreaBottom + 40)
+                .frame(height: 40)
         }
 
         ScrollView(.vertical, showsIndicators: false) {
             content
         }
+        .safeAreaPadding(.bottom, 16)
         .coordinateSpace(name: "scroll")
     }
     

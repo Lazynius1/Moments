@@ -17,7 +17,8 @@ struct ActivityInteractionDetailView: View {
     @State private var showingAuthorFilterSheet = false
     @Namespace private var zoomNamespace
     @State private var zoomDestination: MomentZoomDestination?
-    @State private var zoomMoments: [Moment] = []
+    @State private var zoomActivityMomentsPool: [Moment] = []
+    @State private var reelsPresentation: ActivityReelsPresentation?
     @State private var recentlyDeletedStoryPresentation: RecentlyDeletedStoriesPresentation?
     @State private var storyRoute: IdentifiableString?
     @State private var selectedProfileUserIdForSheet: String?
@@ -32,7 +33,6 @@ struct ActivityInteractionDetailView: View {
     @State private var isDeletingSelectedComments = false
     @State private var isDeletingSelectedEvents = false
     @State private var gridSelectionDragMode: SelectionDragMode?
-    @State private var gridSelectionDragTouchedIds: Set<String> = []
     @State private var pendingActivitySelectionConfirmation: ActivitySelectionConfirmationAction?
     @State private var recentlyDeletedInFlightAction: RecentlyDeletedConfirmationAction?
     @State private var isRestoringArchivedSelection = false
@@ -128,6 +128,7 @@ struct ActivityInteractionDetailView: View {
                 .ignoresSafeArea()
 
             mainContent
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         }
         .modifier(InlineNavigationTitleModifier(
             titleKey: detailNavigationTitleKey,
@@ -207,9 +208,21 @@ struct ActivityInteractionDetailView: View {
         .navigationDestination(item: $zoomDestination) { destination in
             MomentZoomDetailDestination(
                 destination: destination,
-                moments: zoomMoments,
+                moments: momentsForZoomDestination(destination),
                 namespace: zoomNamespace
             )
+        }
+        .onChange(of: zoomDestination) { _, newValue in
+            if newValue == nil {
+                zoomActivityMomentsPool = []
+            }
+        }
+        .fullScreenCover(item: $reelsPresentation) { presentation in
+            ReelsViewer(
+                videos: presentation.videos,
+                startIndex: presentation.startIndex
+            )
+            .environmentObject(FirestoreService.shared)
         }
         .fullScreenCover(item: $recentlyDeletedStoryPresentation) { presentation in
             ArchiveDayStoriesViewer(
@@ -343,18 +356,35 @@ struct ActivityInteractionDetailView: View {
         let initialIndex: Int
     }
 
-    private func openActivityMomentZoom(moment: Moment, moments: [Moment]) {
-        let sourceMoments = moments.isEmpty ? [moment] : moments
-        let resolvedIndex = sourceMoments.firstIndex(where: { $0.id == moment.id }) ?? 0
-        let presentation: MomentZoomPresentationKind = sourceMoments.count > 1 ? .carousel : .single
+    private struct ActivityReelsPresentation: Identifiable {
+        let id = UUID()
+        let videos: [VideoMoment]
+        let startIndex: Int
+    }
+
+    private func openActivityReels(moment: Moment, moments: [Moment]) {
+        let videos = moments.videoMoments
+        guard !videos.isEmpty else { return }
+        let startIndex = videos.firstIndex(where: { $0.moment.id == moment.id }) ?? 0
+        reelsPresentation = ActivityReelsPresentation(videos: videos, startIndex: startIndex)
+        HapticManager.shared.lightImpact()
+    }
+
+    /// Tu actividad abre siempre el detalle single del momento tocado.
+    private func openActivityMomentZoom(moment: Moment) {
+        zoomActivityMomentsPool = [moment]
         MomentZoomOpener.open(
             moment: moment,
-            moments: sourceMoments,
-            initialIndex: resolvedIndex,
-            presentation: presentation,
+            moments: [moment],
+            initialIndex: 0,
+            presentation: .single,
             destination: &zoomDestination,
-            snapshot: &zoomMoments
+            zoomIDPrefix: "activity"
         )
+    }
+
+    private func momentsForZoomDestination(_ destination: MomentZoomDestination) -> [Moment] {
+        MomentZoomOpener.resolvedMoments(for: destination, in: zoomActivityMomentsPool)
     }
 
     private func openRecentlyDeletedStory(_ item: ActivityDeletedStoryItem) {
@@ -376,6 +406,7 @@ struct ActivityInteractionDetailView: View {
 
             reactionsGrid
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
     }
 
     private var recentlyDeletedStoriesContent: some View {
@@ -388,6 +419,7 @@ struct ActivityInteractionDetailView: View {
 
             recentlyDeletedStoriesGrid
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
     }
 
     private var commentsContent: some View {
@@ -400,6 +432,7 @@ struct ActivityInteractionDetailView: View {
 
             commentsList
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
     }
 
     private var momentsContent: some View {
@@ -413,6 +446,7 @@ struct ActivityInteractionDetailView: View {
 
             momentsGrid
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
     }
 
     private var reactionsGrid: some View {
@@ -456,10 +490,7 @@ struct ActivityInteractionDetailView: View {
                                         return
                                     }
                                     guard item.canView, let moment = item.moment else { return }
-                                    openActivityMomentZoom(
-                                        moment: moment,
-                                        moments: filteredReactionItems.compactMap(\.moment)
-                                    )
+                                    openActivityMomentZoom(moment: moment)
                                 }
                                 .onLongPressGesture(minimumDuration: 0.3) {
                                     guard category == .archived || category == .recentlyDeleted else { return }
@@ -475,8 +506,9 @@ struct ActivityInteractionDetailView: View {
                         }
                         .padding(.top, 8)
                         .padding(.bottom, isSelectionMode ? 88 : 12)
-                        .simultaneousGesture(
-                            recentlyDeletedDragSelectionGesture(
+                        .modifier(ActivityGridDragSelectionModifier(
+                            isEnabled: category == .recentlyDeleted && isSelectionMode,
+                            gesture: recentlyDeletedDragSelectionGesture(
                                 items: filteredReactionItems.map(\.id),
                                 side: side,
                                 spacing: spacing,
@@ -484,7 +516,7 @@ struct ActivityInteractionDetailView: View {
                                 scrollProxy: proxy,
                                 horizontalInset: 0
                             )
-                        )
+                        ))
                     }
                 }
             }
@@ -537,8 +569,9 @@ struct ActivityInteractionDetailView: View {
                         }
                         .padding(.top, 8)
                         .padding(.bottom, isSelectionMode ? 88 : 12)
-                        .simultaneousGesture(
-                            recentlyDeletedDragSelectionGesture(
+                        .modifier(ActivityGridDragSelectionModifier(
+                            isEnabled: isSelectionMode,
+                            gesture: recentlyDeletedDragSelectionGesture(
                                 items: filteredDeletedStoryItems.map(\.id),
                                 side: side,
                                 spacing: spacing,
@@ -547,7 +580,7 @@ struct ActivityInteractionDetailView: View {
                                 horizontalInset: 0,
                                 usesPortraitStoryCells: true
                             )
-                        )
+                        ))
                     }
                 }
             }
@@ -572,12 +605,8 @@ struct ActivityInteractionDetailView: View {
                             if isReelsCategory {
                                 ActivityPortraitMomentCard(moment: moment)
                                     .contentShape(Rectangle())
-                                    .modifier(ProfileMomentZoomSourceModifier(
-                                        namespace: zoomNamespace,
-                                        sourceID: ProfileMomentZoomNavigation.sourceID(moment: moment, index: index, prefix: "activity-reels")
-                                    ))
                                     .onTapGesture {
-                                        openActivityMomentZoom(moment: moment, moments: filteredMoments)
+                                        openActivityReels(moment: moment, moments: filteredMoments)
                                     }
                             } else {
                                 ScreenshotProtectedView(isProtected: (moment.audience?.lowercased() ?? "") != "everyone") {
@@ -588,7 +617,7 @@ struct ActivityInteractionDetailView: View {
                                         zoomNamespace: zoomNamespace,
                                         zoomSourceID: ProfileMomentZoomNavigation.sourceID(moment: moment, index: index, prefix: "activity"),
                                         onTap: {
-                                            openActivityMomentZoom(moment: moment, moments: filteredMoments)
+                                            openActivityMomentZoom(moment: moment)
                                         },
                                         usesDiscreetAudienceIcon: true
                                     )
@@ -618,10 +647,7 @@ struct ActivityInteractionDetailView: View {
                                 isSelected: selectedCommentIds.contains(item.id),
                                 onOpenMoment: {
                                     guard item.canView, let moment = item.moment else { return }
-                                    openActivityMomentZoom(
-                                        moment: moment,
-                                        moments: filteredCommentItems.compactMap(\.moment)
-                                    )
+                                    openActivityMomentZoom(moment: moment)
                                 },
                                 onOpenAuthorAvatar: { hasStory in
                                     openAuthor(authorId: item.authorId, hasStory: hasStory)
@@ -641,6 +667,7 @@ struct ActivityInteractionDetailView: View {
                 }
             }
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
     }
 
     private var filteredReactionItems: [ActivityReactionItem] {
@@ -1570,15 +1597,17 @@ struct ActivityInteractionDetailView: View {
     ) -> some Gesture {
         let resolvedHorizontalInset = horizontalInset ?? sectionHorizontalPadding
 
-        return DragGesture(minimumDistance: 8, coordinateSpace: .local)
+        return DragGesture(minimumDistance: 0, coordinateSpace: .local)
             .onChanged { value in
                 guard category == .recentlyDeleted, isSelectionMode else { return }
+
                 updateRecentlyDeletedAutoScroll(
                     for: value.location.y,
                     viewportHeight: viewportHeight,
                     items: items,
                     scrollProxy: scrollProxy
                 )
+
                 guard let id = recentlyDeletedItemId(
                     at: value.location,
                     items: items,
@@ -1586,13 +1615,63 @@ struct ActivityInteractionDetailView: View {
                     spacing: spacing,
                     horizontalInset: resolvedHorizontalInset,
                     usesPortraitStoryCells: usesPortraitStoryCells
-                ) else { return }
+                ),
+                let currentIndex = items.firstIndex(of: id) else { return }
+
+                if gridSelectionDragMode == nil {
+                    gridSelectionDragMode = selectedReactionIds.contains(id) ? .deselecting : .selecting
+                    applyRecentlyDeletedDragSelection(to: id)
+                    recentlyDeletedDragCurrentId = id
+                    return
+                }
+
+                if let lastId = recentlyDeletedDragCurrentId,
+                   let lastIndex = items.firstIndex(of: lastId),
+                   lastIndex != currentIndex {
+                    let indices = recentlyDeletedGridIndicesBetween(
+                        from: lastIndex,
+                        to: currentIndex,
+                        itemCount: items.count
+                    )
+                    for index in indices {
+                        applyRecentlyDeletedDragSelection(to: items[index])
+                    }
+                } else {
+                    applyRecentlyDeletedDragSelection(to: id)
+                }
+
                 recentlyDeletedDragCurrentId = id
-                applyRecentlyDeletedDragSelection(to: id)
             }
             .onEnded { _ in
                 stopRecentlyDeletedAutoScroll()
             }
+    }
+
+    private func recentlyDeletedGridIndicesBetween(
+        from startIndex: Int,
+        to endIndex: Int,
+        itemCount: Int,
+        columns: Int = 3
+    ) -> [Int] {
+        let startRow = startIndex / columns
+        let startCol = startIndex % columns
+        let endRow = endIndex / columns
+        let endCol = endIndex % columns
+        let minRow = min(startRow, endRow)
+        let maxRow = max(startRow, endRow)
+        let minCol = min(startCol, endCol)
+        let maxCol = max(startCol, endCol)
+
+        var indices: [Int] = []
+        for row in minRow...maxRow {
+            for col in minCol...maxCol {
+                let index = row * columns + col
+                if index < itemCount {
+                    indices.append(index)
+                }
+            }
+        }
+        return indices
     }
 
     private func recentlyDeletedItemId(
@@ -1626,13 +1705,6 @@ struct ActivityInteractionDetailView: View {
     }
 
     private func applyRecentlyDeletedDragSelection(to id: String) {
-        if gridSelectionDragMode == nil {
-            gridSelectionDragMode = selectedReactionIds.contains(id) ? .deselecting : .selecting
-        }
-
-        guard !gridSelectionDragTouchedIds.contains(id) else { return }
-        gridSelectionDragTouchedIds.insert(id)
-
         switch gridSelectionDragMode {
         case .selecting:
             selectedReactionIds.insert(id)
@@ -1649,7 +1721,7 @@ struct ActivityInteractionDetailView: View {
         items: [String],
         scrollProxy: ScrollViewProxy
     ) {
-        let edgeThreshold: CGFloat = 72
+        let edgeThreshold: CGFloat = 96
         let direction: RecentlyDeletedAutoScrollDirection?
         if locationY <= edgeThreshold {
             direction = .up
@@ -1677,7 +1749,7 @@ struct ActivityInteractionDetailView: View {
 
         recentlyDeletedAutoScrollTask = Task {
             while !Task.isCancelled {
-                try? await Task.sleep(nanoseconds: 140_000_000)
+                try? await Task.sleep(nanoseconds: 90_000_000)
                 await MainActor.run {
                     advanceRecentlyDeletedAutoScroll(direction: direction, items: items, scrollProxy: scrollProxy)
                 }
@@ -1698,23 +1770,22 @@ struct ActivityInteractionDetailView: View {
         guard let currentId = recentlyDeletedDragCurrentId,
               let currentIndex = items.firstIndex(of: currentId) else { return }
 
-        let rowStep = 3
-        let proposedIndex = direction == .down ? currentIndex + rowStep : currentIndex - rowStep
+        let proposedIndex = direction == .down ? currentIndex + 1 : currentIndex - 1
         let targetIndex = min(max(proposedIndex, 0), items.count - 1)
         guard targetIndex != currentIndex else { return }
 
-        let lowerBound = min(currentIndex, targetIndex)
-        let upperBound = max(currentIndex, targetIndex)
-        for index in lowerBound...upperBound {
+        let indices = recentlyDeletedGridIndicesBetween(
+            from: currentIndex,
+            to: targetIndex,
+            itemCount: items.count
+        )
+        for index in indices {
             applyRecentlyDeletedDragSelection(to: items[index])
         }
 
         recentlyDeletedDragCurrentId = items[targetIndex]
-        withAnimation(.linear(duration: 0.12)) {
-            scrollProxy.scrollTo(
-                items[targetIndex],
-                anchor: direction == .down ? .bottom : .top
-            )
+        withAnimation(.linear(duration: 0.08)) {
+            scrollProxy.scrollTo(items[targetIndex], anchor: .center)
         }
     }
 
@@ -1724,7 +1795,6 @@ struct ActivityInteractionDetailView: View {
         recentlyDeletedAutoScrollDirection = nil
         if resetSelectionState {
             gridSelectionDragMode = nil
-            gridSelectionDragTouchedIds.removeAll()
             recentlyDeletedDragCurrentId = nil
         }
     }
@@ -2093,6 +2163,19 @@ struct ActivityInteractionDetailView: View {
             case .failure(let error):
                 viewModel.errorMessage = error.localizedDescription
             }
+        }
+    }
+}
+
+private struct ActivityGridDragSelectionModifier<G: Gesture>: ViewModifier {
+    let isEnabled: Bool
+    let gesture: G
+
+    func body(content: Content) -> some View {
+        if isEnabled {
+            content.highPriorityGesture(gesture)
+        } else {
+            content
         }
     }
 }

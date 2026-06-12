@@ -212,13 +212,15 @@ struct MomentZoomDetailDestination: View {
                     onRemoveMoment: onRemoveSavedMoment
                 )
             case .single:
-                if let moment = moments.indices.contains(destination.initialIndex) ? moments[destination.initialIndex] : moments.first {
+                if let moment = resolvedSingleMoment(from: moments, destination: destination) {
                     MomentDetailContainerView(context: .single(moment))
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                         .background(
                             ProfileMomentZoomNavigation.canvasBackground(for: colorScheme)
                                 .ignoresSafeArea()
                         )
+                } else {
+                    MomentZoomSingleFallbackView()
                 }
             case .map(let locationName):
                 LocationMomentDetailView(
@@ -247,6 +249,32 @@ struct MomentZoomDetailDestination: View {
     private func dismissMapIfNeeded() {
         if case .map = destination.presentation {
             mapDetailPresented = false
+        }
+    }
+
+    private func resolvedSingleMoment(
+        from moments: [Moment],
+        destination: MomentZoomDestination
+    ) -> Moment? {
+        if let initialMomentId = destination.initialMomentId,
+           let matched = moments.first(where: { $0.id == initialMomentId }) {
+            return matched
+        }
+        if moments.indices.contains(destination.initialIndex) {
+            return moments[destination.initialIndex]
+        }
+        return moments.first
+    }
+}
+
+private struct MomentZoomSingleFallbackView: View {
+    @Environment(\.colorScheme) private var colorScheme
+
+    var body: some View {
+        ZStack {
+            ProfileMomentZoomNavigation.canvasBackground(for: colorScheme)
+                .ignoresSafeArea()
+            ProgressView()
         }
     }
 }
@@ -302,17 +330,41 @@ struct HighlightZoomSourceModifier: ViewModifier {
 // MARK: - Zoom helpers
 
 enum MomentZoomOpener {
+    /// Resuelve los momentos al montar el destino desde un pool vivo (viewModel, grid, mapa…),
+    /// no desde un snapshot en `@State` que puede llegar vacío en el primer frame.
+    static func resolvedMoments(
+        for destination: MomentZoomDestination,
+        in pool: [Moment]
+    ) -> [Moment] {
+        switch destination.presentation {
+        case .single:
+            if let initialMomentId = destination.initialMomentId,
+               let moment = pool.first(where: { $0.id == initialMomentId }) {
+                return [moment]
+            }
+            if pool.indices.contains(destination.initialIndex) {
+                return [pool[destination.initialIndex]]
+            }
+            if let first = pool.first {
+                return [first]
+            }
+            return []
+        case .carousel, .saved, .map:
+            return pool
+        }
+    }
+
     static func open(
         moment: Moment,
         moments: [Moment],
         initialIndex: Int,
         presentation: MomentZoomPresentationKind,
         destination: inout MomentZoomDestination?,
-        snapshot: inout [Moment]
+        zoomIDPrefix: String? = nil
     ) {
-        snapshot = moments
+        let prefix = zoomIDPrefix ?? presentationPrefix(presentation)
         destination = MomentZoomDestination(
-            zoomSourceID: ProfileMomentZoomNavigation.sourceID(moment: moment, index: initialIndex, prefix: presentationPrefix(presentation)),
+            zoomSourceID: ProfileMomentZoomNavigation.sourceID(moment: moment, index: initialIndex, prefix: prefix),
             initialIndex: initialIndex,
             initialMomentId: moment.id,
             presentation: presentation

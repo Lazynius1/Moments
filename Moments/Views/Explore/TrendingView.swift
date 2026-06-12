@@ -11,7 +11,7 @@ struct TrendingView: View {
     @State private var errorMessage: String?
     @Namespace private var zoomNamespace
     @State private var zoomDestination: MomentZoomDestination?
-    @State private var zoomMoments: [Moment] = []
+    @State private var zoomTrendingMoment: Moment?
     @State private var scrollOffset: CGFloat = 0
     @State private var selectedHashtag: String = ""
     @State private var showExploreWithHashtag = false
@@ -47,9 +47,14 @@ struct TrendingView: View {
             .navigationDestination(item: $zoomDestination) { destination in
                 MomentZoomDetailDestination(
                     destination: destination,
-                    moments: zoomMoments,
+                    moments: momentsForZoomDestination(destination),
                     namespace: zoomNamespace
                 )
+            }
+            .onChange(of: zoomDestination) { _, newValue in
+                if newValue == nil {
+                    zoomTrendingMoment = nil
+                }
             }
             .toolbar(.hidden, for: .navigationBar)
         }
@@ -72,17 +77,21 @@ struct TrendingView: View {
         }
     }
 
-    private func openTrendingMomentZoom(_ moment: Moment, in trendingMoments: [TrendingService.TrendingMoment]) {
-        let moments = trendingMoments.map(\.moment)
-        guard let index = moments.firstIndex(where: { $0.id == moment.id }) else { return }
+    private func openTrendingMomentZoom(_ moment: Moment) {
+        zoomTrendingMoment = moment
         MomentZoomOpener.open(
             moment: moment,
-            moments: moments,
-            initialIndex: index,
-            presentation: .carousel,
+            moments: [moment],
+            initialIndex: 0,
+            presentation: .single,
             destination: &zoomDestination,
-            snapshot: &zoomMoments
+            zoomIDPrefix: "trending"
         )
+    }
+
+    private func momentsForZoomDestination(_ destination: MomentZoomDestination) -> [Moment] {
+        guard let moment = zoomTrendingMoment else { return [] }
+        return MomentZoomOpener.resolvedMoments(for: destination, in: [moment])
     }
     
     // MARK: - Fondo moderno
@@ -157,7 +166,7 @@ struct TrendingView: View {
                         zoomNamespace: zoomNamespace,
                         onMomentTap: { moment in
                             ExploreHapticFeedback.impact(.light)
-                            openTrendingMomentZoom(moment, in: content.moments)
+                            openTrendingMomentZoom(moment)
                         },
                         onHashtagTap: { hashtag in
                             ExploreHapticFeedback.impact(.light)
@@ -178,7 +187,7 @@ struct TrendingView: View {
                         zoomNamespace: zoomNamespace,
                         onMomentTap: { moment in
                             ExploreHapticFeedback.impact(.light)
-                            openTrendingMomentZoom(moment, in: content.moments)
+                            openTrendingMomentZoom(moment)
                         }
                     )
                     
