@@ -22,6 +22,7 @@ struct UserProfileOverviewSection: View {
                     showingUserList: $showingUserList,
                     embeddedStyle: true
                 )
+                .frame(maxWidth: .infinity)
             }
 
             if !interests.isEmpty {
@@ -72,6 +73,7 @@ struct UserProfileOverviewSection: View {
                 }
             }
         }
+        .frame(maxWidth: .infinity)
         .padding(.horizontal, 4)
         .padding(.vertical, 6)
     }

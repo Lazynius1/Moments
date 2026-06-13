@@ -3,6 +3,96 @@ import Kingfisher
 import CoreMotion
 import FirebaseAuth
 
+struct ProfileOwnPinnedTopChrome: View {
+    let username: String
+    let isVerified: Bool
+    let collapseProgress: CGFloat
+    @Binding var isShowingSettings: Bool
+    @Binding var showingQRCode: Bool
+    @Binding var isShowingIncognito: Bool
+    let isIncognitoActive: Bool
+    let profileZoomNamespace: Namespace.ID
+
+    @Environment(\.colorScheme) private var colorScheme
+
+    var body: some View {
+        ZStack {
+            HStack(spacing: 8) {
+                Color.clear
+                    .frame(width: 36, height: 36)
+
+                Spacer()
+
+                Button {
+                    NotificationCenter.default.post(name: NSNotification.Name("ShowNotifications"), object: nil)
+                } label: {
+                    Image(systemName: "bell")
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundColor(ProfileColors.textPrimary)
+                        .frame(width: 36, height: 36)
+                        .liquidGlass(in: Circle(), interactive: true)
+                }
+
+                ownHeaderMenu
+            }
+
+            HStack(spacing: 5) {
+                Text(username)
+                    .font(.custom("Poppins-SemiBold", size: 17))
+                    .foregroundColor(ProfileColors.textPrimary)
+                    .lineLimit(1)
+
+                if isVerified {
+                    VerifiedBadge(size: 14)
+                }
+            }
+            .opacity(collapseProgress)
+            .scaleEffect(0.96 + (collapseProgress * 0.04))
+            .animation(.easeOut(duration: 0.18), value: collapseProgress)
+            .allowsHitTesting(false)
+        }
+        .frame(height: ProfileHeaderCollapseMetrics.chromeHeight)
+        .background {
+            Rectangle()
+                .fill(.regularMaterial)
+                .opacity(collapseProgress)
+                .ignoresSafeArea(edges: .top)
+        }
+    }
+
+    private var ownHeaderMenu: some View {
+        Menu {
+            Button {
+                showingQRCode = true
+            } label: {
+                Label("QR", systemImage: "qrcode")
+            }
+
+            Button {
+                isShowingIncognito = true
+            } label: {
+                Label(
+                    NSLocalizedString("incognito.title", comment: "Incognito mode"),
+                    systemImage: isIncognitoActive ? "eye.slash.fill" : "eye"
+                )
+            }
+
+            Button {
+                isShowingSettings = true
+            } label: {
+                Label(NSLocalizedString("settings.title", comment: "Settings"), systemImage: "gearshape")
+            }
+        } label: {
+            Image(systemName: "ellipsis")
+                .font(.system(size: 18, weight: .semibold))
+                .foregroundColor(ProfileColors.textPrimary)
+                .frame(width: 36, height: 36)
+                .liquidGlass(in: Circle(), interactive: true)
+                .matchedTransitionSource(id: "settings-view", in: profileZoomNamespace)
+        }
+    }
+}
+
 struct ModernProfileHeader: View {
     @ObservedObject var viewModel: ProfileViewModel
     @ObservedObject var storyViewModel: StoryViewModel
@@ -18,6 +108,7 @@ struct ModernProfileHeader: View {
     @Binding var isShowingIncognito: Bool
     let isIncognitoActive: Bool
     let profileZoomNamespace: Namespace.ID
+    let usernameCollapseProgress: CGFloat
 
     @Environment(\.colorScheme) var colorScheme
 
@@ -47,9 +138,7 @@ struct ModernProfileHeader: View {
 
     var body: some View {
         VStack(spacing: 10) {
-            topBar
-
-            HStack(alignment: .center, spacing: 14) {
+            HStack(alignment: .top, spacing: 14) {
                 compactAvatar
                     .onTapGesture {
                         if storyViewModel.hasActiveStory, Auth.auth().currentUser?.uid != nil {
@@ -92,6 +181,15 @@ struct ModernProfileHeader: View {
                             .animation(.easeInOut(duration: 0.3), value: currentUser.primaryBadge?.id)
                         }
                     }
+                    .opacity(1 - usernameCollapseProgress)
+                    .background(
+                        GeometryReader { geometry in
+                            Color.clear.preference(
+                                key: ProfileIdentityMinYPreferenceKey.self,
+                                value: geometry.frame(in: .named("scroll")).minY
+                            )
+                        }
+                    )
 
                     ExpandableBioView(bio: viewModel.userProfile?.bio ?? "Añade una biografía")
 
@@ -114,7 +212,6 @@ struct ModernProfileHeader: View {
 
                 Spacer(minLength: 0)
             }
-            .padding(.top, 18)
 
             // Fila de acción: botón Editar Perfil
             ownProfileActionRow
@@ -145,81 +242,8 @@ struct ModernProfileHeader: View {
         }
     }
 
-    private var topBar: some View {
-        ZStack {
-            Text("")
-                .font(.custom("Poppins-SemiBold", size: 18))
-                .foregroundColor(ProfileColors.textPrimary)
-
-            HStack(spacing: 8) {
-                Color.clear
-                    .frame(width: 36, height: 36)
-
-                Spacer()
-
-                // Botón de notificaciones
-                Button {
-                    NotificationCenter.default.post(name: NSNotification.Name("ShowNotifications"), object: nil)
-                } label: {
-                    Image(systemName: "bell")
-                        .font(.system(size: 16, weight: .semibold))
-                        .foregroundColor(ProfileColors.textPrimary)
-                        .frame(width: 36, height: 36)
-                        .liquidGlass(in: Circle(), interactive: true)
-                }
-
-                headerMenu
-            }
-        }
-    }
-
-    private var headerMenu: some View {
-        Menu {
-            Button {
-                showingQRCode = true
-            } label: {
-                Label("QR", systemImage: "qrcode")
-            }
-
-            Button {
-                isShowingIncognito = true
-            } label: {
-                Label(NSLocalizedString("incognito.title", comment: "Incognito mode"), systemImage: isIncognitoActive ? "eye.slash.fill" : "eye")
-            }
-
-            Button {
-                isShowingSettings = true
-            } label: {
-                Label(NSLocalizedString("settings.title", comment: "Settings"), systemImage: "gearshape")
-            }
-        } label: {
-            Image(systemName: "ellipsis")
-                .font(.system(size: 18, weight: .semibold))
-                .foregroundColor(ProfileColors.textPrimary)
-                .frame(width: 36, height: 36)
-                .liquidGlass(in: Circle(), interactive: true)
-                .matchedTransitionSource(id: "settings-view", in: profileZoomNamespace)
-        }
-    }
-
     private var compactAvatar: some View {
         ZStack {
-            Circle()
-                .fill(
-                    RadialGradient(
-                        gradient: Gradient(colors: [
-                            ProfileColors.accent.opacity(colorScheme == .dark ? 0.16 : 0.12),
-                            ProfileColors.purple.opacity(colorScheme == .dark ? 0.08 : 0.05),
-                            Color.clear
-                        ]),
-                        center: .center,
-                        startRadius: 36,
-                        endRadius: 66
-                    )
-                )
-                .frame(width: 118, height: 118)
-                .blur(radius: 10)
-
             Group {
                 if let profileImagePath = viewModel.userProfile?.profileImagePath, let url = URL(string: profileImagePath) {
                     KFImage(url)
@@ -288,6 +312,25 @@ struct ModernProfileHeader: View {
                 .offset(x: -37, y: -36)
                 .shadow(color: ProfileColors.shadowColor, radius: 5, x: 0, y: 2)
             }
+        }
+        .frame(width: 96, height: 96)
+        .background {
+            Circle()
+                .fill(
+                    RadialGradient(
+                        gradient: Gradient(colors: [
+                            ProfileColors.accent.opacity(colorScheme == .dark ? 0.16 : 0.12),
+                            ProfileColors.purple.opacity(colorScheme == .dark ? 0.08 : 0.05),
+                            Color.clear
+                        ]),
+                        center: .center,
+                        startRadius: 36,
+                        endRadius: 66
+                    )
+                )
+                .frame(width: 118, height: 118)
+                .blur(radius: 10)
+                .allowsHitTesting(false)
         }
     }
     // Border inteligente del avatar adaptativo (SIN BORDE VERDE)
@@ -389,7 +432,7 @@ struct ProfileOverviewCard: View {
                 showingUserList: $showingUserList,
                 embeddedStyle: true
             )
-            .frame(maxWidth: 360)
+            .frame(maxWidth: .infinity)
 
             if !interests.isEmpty {
                 Button(action: {
@@ -424,7 +467,6 @@ struct ProfileOverviewCard: View {
                     .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
-                .frame(maxWidth: 360)
 
                 if showingInterests {
                     ModernInterestsView(
@@ -433,7 +475,7 @@ struct ProfileOverviewCard: View {
                         embeddedStyle: true
                     )
                     .padding(.top, 10)
-                    .frame(maxWidth: 360)
+                    .frame(maxWidth: .infinity)
                     .transition(.asymmetric(
                         insertion: .opacity.combined(with: .move(edge: .top)),
                         removal: .opacity.combined(with: .move(edge: .top))

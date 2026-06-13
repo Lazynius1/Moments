@@ -32,18 +32,26 @@ struct UserModernPublicProfileView: View {
     @Binding var selectedTab: UserProfileTabType // ✅ NUEVO: Tab seleccionado (Binding)
     @Namespace private var profileZoomNamespace
     @State private var zoomDestination: ProfileMomentZoomDestination?
+    @State private var identityMinY: CGFloat = .greatestFiniteMagnitude
+    @State private var showingQRCode = false
     @Environment(\.colorScheme) private var colorScheme
+
+    private var usernameCollapseProgress: CGFloat {
+        ProfileHeaderCollapseMetrics.progress(for: identityMinY, scrollContentMinY: scrollOffset)
+    }
 
     var body: some View {
         NavigationStack {
-            ZStack(alignment: .topLeading) {
+            ZStack(alignment: .top) {
             ProfileMomentZoomNavigation.canvasBackground(for: colorScheme)
                 .ignoresSafeArea()
                 .allowsHitTesting(false)
 
             ScrollView {
                 VStack(spacing: 0) {
-                    // Header del perfil
+                    Color.clear
+                        .frame(height: ProfileHeaderCollapseMetrics.topContentInset)
+
                     UserModernProfileHeader(
                         viewModel: viewModel,
                         storyViewModel: storyViewModel,
@@ -59,9 +67,11 @@ struct UserModernPublicProfileView: View {
                         showingSuccessMessage: $showingSuccessMessage,
                         showProfileImageFullscreen: $showProfileImageFullscreen,
                         onFollowAction: onFollowAction,
-                        onDismiss: onDismiss
+                        onDismiss: onDismiss,
+                        usernameCollapseProgress: usernameCollapseProgress,
+                        showingQRCode: $showingQRCode
                     )
-                    .padding(.top, 4)
+                    .padding(.top, ProfileHeaderCollapseMetrics.headerTopPadding)
                     .padding(.bottom, 4)
 
                     UserProfileOverviewSection(
@@ -220,11 +230,25 @@ struct UserModernPublicProfileView: View {
             .onPreferenceChange(UserScrollOffsetPreferenceKey.self) { value in
                 scrollOffset = value
             }
+            .onPreferenceChange(ProfileIdentityMinYPreferenceKey.self) { value in
+                identityMinY = value
+            }
             .onPreferenceChange(ProfileGridThumbnailFramePreferenceKey.self) { frames in
                 heroCoordinator.ingestThumbnailFrames(frames)
             }
             .scrollDisabled(heroCoordinator.isInteractive)
             .profileGridNavigationChrome(colorScheme: colorScheme)
+            .scrollClipDisabled()
+
+            ProfileVisitorPinnedTopChrome(
+                viewModel: viewModel,
+                collapseProgress: usernameCollapseProgress,
+                onDismiss: onDismiss,
+                showingQRCode: $showingQRCode
+            )
+            .padding(.top, ProfileHeaderCollapseMetrics.topChromePadding)
+            .padding(.horizontal, 20)
+            .zIndex(10)
             }
             .coordinateSpace(name: "profileGridOverlay")
             .navigationDestination(item: $zoomDestination) { destination in
@@ -241,6 +265,9 @@ struct UserModernPublicProfileView: View {
             }
         }
         .profileNavigationSurface(colorScheme: colorScheme)
+        .sheet(isPresented: $showingQRCode) {
+            QRCodeView(targetUser: viewModel.userProfile)
+        }
     }
 
     private func openVisitorGridMenu(moment: Moment, index: Int) {

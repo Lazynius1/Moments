@@ -6,6 +6,110 @@ import CoreMotion
 import FirebaseFirestore
 import AVKit
 
+struct ProfileVisitorPinnedTopChrome: View {
+    @ObservedObject var viewModel: UserProfileViewModel
+    let collapseProgress: CGFloat
+    let onDismiss: () -> Void
+    @Binding var showingQRCode: Bool
+
+    @Environment(\.colorScheme) private var colorScheme
+
+    var body: some View {
+        HStack(spacing: 10) {
+            Button(action: onDismiss) {
+                ZStack {
+                    Circle()
+                        .fill(UserProfileColors.cardBackground.opacity(0.9))
+                        .frame(width: 34, height: 34)
+                        .shadow(color: UserProfileColors.shadowColor, radius: 6, x: 0, y: 3)
+
+                    Image(systemName: "chevron.left")
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundColor(UserProfileColors.textPrimary)
+                }
+            }
+
+            HStack(spacing: 5) {
+                Text(viewModel.userProfile?.username ?? NSLocalizedString("userProfile.user", comment: "User"))
+                    .font(.custom("Poppins-SemiBold", size: 17))
+                    .foregroundColor(UserProfileColors.textPrimary)
+                    .lineLimit(1)
+
+                if viewModel.userProfile?.isVerified == true {
+                    VerifiedBadge(size: 14)
+                }
+            }
+            .opacity(collapseProgress)
+            .offset(x: -6 * (1 - collapseProgress))
+            .animation(.easeOut(duration: 0.18), value: collapseProgress)
+
+            Spacer(minLength: 0)
+
+            visitorHeaderMenu
+        }
+        .frame(height: ProfileHeaderCollapseMetrics.chromeHeight)
+        .background {
+            Rectangle()
+                .fill(.regularMaterial)
+                .opacity(collapseProgress)
+                .ignoresSafeArea(edges: .top)
+        }
+    }
+
+    private var visitorHeaderMenu: some View {
+        Menu {
+            Button(action: {
+                viewModel.toggleMute()
+            }) {
+                Label(
+                    viewModel.isMutedByCurrentUser
+                        ? NSLocalizedString("userProfile.relationship.mute.disable", comment: "Unmute")
+                        : NSLocalizedString("userProfile.relationship.mute.enable", comment: "Mute"),
+                    systemImage: viewModel.isMutedByCurrentUser ? "speaker.wave.2" : "speaker.slash"
+                )
+            }
+
+            Button(action: {
+                if viewModel.isBlockedByCurrentUser {
+                    viewModel.unblockUser(userId: viewModel.userId)
+                } else {
+                    viewModel.blockUser(userId: viewModel.userId)
+                }
+            }) {
+                Label(
+                    viewModel.isBlockedByCurrentUser
+                        ? NSLocalizedString("userProfile.unblockUser", comment: "Unblock user")
+                        : NSLocalizedString("storyContextMenu.block", comment: "Block"),
+                    systemImage: "person.slash"
+                )
+            }
+
+            if let user = viewModel.userProfile {
+                ShareLink(item: URL(string: "https://glowsy.app/\(user.username)")!) {
+                    Label(NSLocalizedString("qrCode.share", comment: "Share"), systemImage: "square.and.arrow.up")
+                }
+            }
+
+            Button(action: {
+                showingQRCode = true
+            }) {
+                Label("QR", systemImage: "qrcode")
+            }
+        } label: {
+            ZStack {
+                Circle()
+                    .fill(UserProfileColors.cardBackground.opacity(0.9))
+                    .frame(width: 34, height: 34)
+                    .shadow(color: UserProfileColors.shadowColor, radius: 6, x: 0, y: 3)
+
+                Image(systemName: "ellipsis")
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundColor(UserProfileColors.textPrimary)
+            }
+        }
+    }
+}
+
 struct UserModernProfileHeader: View {
     @ObservedObject var viewModel: UserProfileViewModel
     @ObservedObject var storyViewModel: StoryViewModel
@@ -23,15 +127,14 @@ struct UserModernProfileHeader: View {
     @Binding var showingSuccessMessage: Bool
     @Binding var showProfileImageFullscreen: Bool
     let onFollowAction: () -> Void
-    let onDismiss: () -> Void // ✅ NUEVO: Para el botón de atrás
+    let onDismiss: () -> Void
+    let usernameCollapseProgress: CGFloat
+    @Binding var showingQRCode: Bool
     @Environment(\.colorScheme) var colorScheme
-    @State private var showingQRCode = false
 
     var body: some View {
         VStack(spacing: 10) {
-            topBar
-
-            HStack(alignment: .center, spacing: 14) {
+            HStack(alignment: .top, spacing: 14) {
                 UserModernAvatarWithBadges(
                     userProfile: viewModel.userProfile,
                     storyViewModel: storyViewModel,
@@ -43,6 +146,7 @@ struct UserModernProfileHeader: View {
                     ),
                     size: 96
                 )
+                .frame(width: 96, height: 96)
 
                 VStack(alignment: .leading, spacing: 5) {
                     VStack(alignment: .leading, spacing: 3) {
@@ -63,6 +167,15 @@ struct UserModernProfileHeader: View {
                             UserProfileBadgesView(userProfile: userProfile)
                         }
                     }
+                    .opacity(1 - usernameCollapseProgress)
+                    .background(
+                        GeometryReader { geometry in
+                            Color.clear.preference(
+                                key: ProfileIdentityMinYPreferenceKey.self,
+                                value: geometry.frame(in: .named("scroll")).minY
+                            )
+                        }
+                    )
 
                     ExpandableBioView(bio: viewModel.userProfile?.bio ?? NSLocalizedString("userProfile.noBio", comment: "No bio"))
 
@@ -90,7 +203,6 @@ struct UserModernProfileHeader: View {
 
                 Spacer(minLength: 0)
             }
-            .padding(.top, 18)
 
             HStack(spacing: 10) {
                 Button(action: onFollowAction) {
@@ -142,86 +254,6 @@ struct UserModernProfileHeader: View {
             }
         }
         .padding(.horizontal, 20)
-        .sheet(isPresented: $showingQRCode) {
-            QRCodeView(targetUser: viewModel.userProfile)
-        }
-    }
-
-    private var topBar: some View {
-        ZStack {
-            Text(viewModel.userProfile?.username ?? NSLocalizedString("userProfile.user", comment: "User"))
-                .font(.custom("Poppins-SemiBold", size: 18))
-                .foregroundColor(UserProfileColors.textPrimary)
-                .lineLimit(1)
-
-            HStack {
-                Button(action: onDismiss) {
-                    ZStack {
-                        Circle()
-                            .fill(UserProfileColors.cardBackground.opacity(0.9))
-                            .frame(width: 34, height: 34)
-                            .shadow(color: UserProfileColors.shadowColor, radius: 6, x: 0, y: 3)
-
-                        Image(systemName: "chevron.left")
-                            .font(.system(size: 15, weight: .semibold))
-                            .foregroundColor(UserProfileColors.textPrimary)
-                    }
-                }
-
-                Spacer()
-
-                Menu {
-                    Button(action: {
-                        viewModel.toggleMute()
-                    }) {
-                        Label(
-                            viewModel.isMutedByCurrentUser
-                                ? NSLocalizedString("userProfile.relationship.mute.disable", comment: "Unmute")
-                                : NSLocalizedString("userProfile.relationship.mute.enable", comment: "Mute"),
-                            systemImage: viewModel.isMutedByCurrentUser ? "speaker.wave.2" : "speaker.slash"
-                        )
-                    }
-
-                    Button(action: {
-                        if viewModel.isBlockedByCurrentUser {
-                            viewModel.unblockUser(userId: viewModel.userId)
-                        } else {
-                            viewModel.blockUser(userId: viewModel.userId)
-                        }
-                    }) {
-                        Label(
-                            viewModel.isBlockedByCurrentUser
-                                ? NSLocalizedString("userProfile.unblockUser", comment: "Unblock user")
-                                : NSLocalizedString("storyContextMenu.block", comment: "Block"),
-                            systemImage: "person.slash"
-                        )
-                    }
-
-                    if let user = viewModel.userProfile {
-                        ShareLink(item: URL(string: "https://glowsy.app/\(user.username)")!) {
-                            Label(NSLocalizedString("qrCode.share", comment: "Share"), systemImage: "square.and.arrow.up")
-                        }
-                    }
-
-                    Button(action: {
-                        showingQRCode = true
-                    }) {
-                        Label("QR", systemImage: "qrcode")
-                    }
-                } label: {
-                    ZStack {
-                        Circle()
-                            .fill(UserProfileColors.cardBackground.opacity(0.9))
-                            .frame(width: 34, height: 34)
-                            .shadow(color: UserProfileColors.shadowColor, radius: 6, x: 0, y: 3)
-
-                        Image(systemName: "ellipsis")
-                            .font(.system(size: 16, weight: .semibold))
-                            .foregroundColor(UserProfileColors.textPrimary)
-                    }
-                }
-            }
-        }
     }
 
     private var followButtonText: String {

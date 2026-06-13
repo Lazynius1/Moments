@@ -92,7 +92,12 @@ struct ModernProfileContentView: View {
     @EnvironmentObject private var heroCoordinator: ProfileGridHeroTransitionCoordinator
     @State private var gridPreviewMoment: Moment?
     @State private var zoomDestination: ProfileMomentZoomDestination?
+    @State private var identityMinY: CGFloat = .greatestFiniteMagnitude
     @Environment(\.colorScheme) private var colorScheme
+
+    private var usernameCollapseProgress: CGFloat {
+        ProfileHeaderCollapseMetrics.progress(for: identityMinY, scrollContentMinY: scrollOffset)
+    }
 
     var body: some View {
         if viewModel.isLoading {
@@ -105,13 +110,16 @@ struct ModernProfileContentView: View {
             })
         } else {
             NavigationStack {
-                ZStack(alignment: .topLeading) {
+                ZStack(alignment: .top) {
                 ProfileMomentZoomNavigation.canvasBackground(for: colorScheme)
                     .ignoresSafeArea()
                     .allowsHitTesting(false)
 
                 ScrollView {
                     VStack(spacing: 0) {
+                        Color.clear
+                            .frame(height: ProfileHeaderCollapseMetrics.topContentInset)
+
                         ModernProfileHeader(
                             viewModel: viewModel,
                             storyViewModel: storyViewModel,
@@ -125,9 +133,10 @@ struct ModernProfileContentView: View {
                             showProfileImageFullscreen: $showProfileImageFullscreen,
                             isShowingIncognito: $isShowingIncognito,
                             isIncognitoActive: isIncognitoActive,
-                            profileZoomNamespace: profileZoomNamespace
+                            profileZoomNamespace: profileZoomNamespace,
+                            usernameCollapseProgress: usernameCollapseProgress
                         )
-                        .padding(.top, 4)
+                        .padding(.top, ProfileHeaderCollapseMetrics.headerTopPadding)
                         .padding(.bottom, 4)
 
                         ProfileOverviewCard(
@@ -310,10 +319,27 @@ struct ModernProfileContentView: View {
                 .onPreferenceChange(ScrollOffsetPreferenceKey.self) { value in
                     scrollOffset = value
                 }
+                .onPreferenceChange(ProfileIdentityMinYPreferenceKey.self) { value in
+                    identityMinY = value
+                }
                 .onPreferenceChange(ProfileGridThumbnailFramePreferenceKey.self) { frames in
                     heroCoordinator.ingestThumbnailFrames(frames)
                 }
+                .scrollClipDisabled()
 
+                ProfileOwnPinnedTopChrome(
+                    username: viewModel.userProfile?.username ?? "Usuario",
+                    isVerified: viewModel.userProfile?.isVerified ?? false,
+                    collapseProgress: usernameCollapseProgress,
+                    isShowingSettings: $isShowingSettings,
+                    showingQRCode: $showingQRCode,
+                    isShowingIncognito: $isShowingIncognito,
+                    isIncognitoActive: isIncognitoActive,
+                    profileZoomNamespace: profileZoomNamespace
+                )
+                .padding(.top, ProfileHeaderCollapseMetrics.topChromePadding)
+                .padding(.horizontal, 20)
+                .zIndex(10)
                 }
                 .coordinateSpace(name: "profileGridOverlay")
                 .navigationDestination(item: $zoomDestination) { destination in

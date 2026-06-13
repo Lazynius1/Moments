@@ -200,3 +200,38 @@ struct ScrollOffsetPreferenceKey: PreferenceKey {
         value = nextValue()
     }
 }
+
+struct ProfileIdentityMinYPreferenceKey: PreferenceKey {
+    static var defaultValue: CGFloat = .greatestFiniteMagnitude
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = nextValue()
+    }
+}
+
+enum ProfileHeaderCollapseMetrics {
+    /// Altura de la fila de botones (topBar original en git: iconos 36pt).
+    static let chromeHeight: CGFloat = 36
+    /// Padding superior del chrome flotante sobre el safe area.
+    static let topChromePadding: CGFloat = 4
+    /// Espacio entre topBar y avatar en git: VStack(10) + padding(.top, 18).
+    static let identitySectionGap: CGFloat = 28
+    /// Padding del bloque header en el scroll (ProfileShellComponents).
+    static let headerTopPadding: CGFloat = 4
+    static var topContentInset: CGFloat { chromeHeight + identitySectionGap }
+    static let collapseDistance: CGFloat = 52
+
+    static func progress(for identityMinY: CGFloat, scrollContentMinY: CGFloat) -> CGFloat {
+        let collapseStartY = topContentInset + headerTopPadding
+
+        let fromIdentity: CGFloat = {
+            guard identityMinY.isFinite, identityMinY < 10_000 else { return 0 }
+            guard identityMinY < collapseStartY else { return 0 }
+            return min(max((collapseStartY - identityMinY) / collapseDistance, 0), 1)
+        }()
+
+        let scrolled = max(-scrollContentMinY, 0)
+        let scrollTrigger = max(topContentInset * 0.55, 20)
+        let fromScroll = min(max((scrolled - scrollTrigger) / collapseDistance, 0), 1)
+        return max(fromIdentity, fromScroll)
+    }
+}
