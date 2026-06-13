@@ -97,11 +97,11 @@ struct ExpandableBioView: View {
     @Environment(\.colorScheme) var colorScheme
 
     var body: some View {
-        VStack(spacing: 8) {
+        VStack(alignment: .leading, spacing: 6) {
             Text(bio)
-                .font(.custom("Poppins-Regular", size: 15))
+                .font(.custom("Poppins-Regular", size: 14))
                 .foregroundColor(ProfileColors.textSecondary)
-                .multilineTextAlignment(.center)
+                .multilineTextAlignment(.leading)
                 .lineLimit(isExpanded ? nil : 3)
                 .background(
                     Text(bio)
@@ -117,7 +117,6 @@ struct ExpandableBioView: View {
                         })
                         .hidden()
                 )
-                .padding(.horizontal, 40)
                 .animation(.easeInOut(duration: 0.3), value: isExpanded)
 
             if needsExpansion {
@@ -133,6 +132,7 @@ struct ExpandableBioView: View {
                 }
             }
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 

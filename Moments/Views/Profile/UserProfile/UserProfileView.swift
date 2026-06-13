@@ -90,7 +90,7 @@ struct UserProfilePillTabs: View {
 
                 Capsule()
                     .fill(Color.white.opacity(colorScheme == .dark ? 0.055 : 0.035))
-                    .frame(width: segmentWidth(for: proxy.size.width), height: 34)
+                    .frame(width: segmentWidth(for: proxy.size.width), height: 31)
                     .liquidGlass(in: Capsule(), interactive: true)
                     .shadow(color: .black.opacity(colorScheme == .dark ? 0.24 : 0.08), radius: 7, x: 0, y: 2)
                     .offset(x: pillOffset(for: proxy.size.width))
@@ -108,10 +108,10 @@ struct UserProfilePillTabs: View {
                         }) {
                             HStack(spacing: 6) {
                                 Image(systemName: tab.icon)
-                                    .font(.system(size: 13, weight: .medium))
+                                    .font(.system(size: 12, weight: .medium))
 
                                 Text(tab.localizedTitle)
-                                    .font(.custom("Poppins-Medium", size: 13))
+                                    .font(.custom("Poppins-Medium", size: 12))
                             }
                             .foregroundColor(labelColor(for: index, width: proxy.size.width))
                             .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -141,7 +141,7 @@ struct UserProfilePillTabs: View {
                     )
             }
         }
-        .frame(height: 42)
+        .frame(height: 38)
     }
 
     private var currentIndex: Int {

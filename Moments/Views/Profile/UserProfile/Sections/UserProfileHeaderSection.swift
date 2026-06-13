@@ -25,69 +25,46 @@ struct UserModernProfileHeader: View {
     let onFollowAction: () -> Void
     let onDismiss: () -> Void // ✅ NUEVO: Para el botón de atrás
     @Environment(\.colorScheme) var colorScheme
+    @State private var showingQRCode = false
 
     var body: some View {
-        VStack(spacing: 20) {
-            // ✅ NUEVO: Botón de atrás en la esquina superior izquierda
-            HStack {
-                Button(action: onDismiss) {
-                    ZStack {
-                        Circle()
-                            .fill(UserProfileColors.cardBackground.opacity(0.9))
-                            .frame(width: 40, height: 40)
-                            .shadow(color: UserProfileColors.shadowColor, radius: 8, x: 0, y: 4)
+        VStack(spacing: 10) {
+            topBar
 
-                        Image(systemName: "chevron.left")
-                            .font(.system(size: 17, weight: .semibold))
-                            .foregroundColor(UserProfileColors.textPrimary)
-                    }
-                }
-                .scaleEffect(0.9)
-                .animation(.spring(response: 0.3, dampingFraction: 0.6), value: true)
+            HStack(alignment: .center, spacing: 14) {
+                UserModernAvatarWithBadges(
+                    userProfile: viewModel.userProfile,
+                    storyViewModel: storyViewModel,
+                    showStoryViewer: $showStoryViewer,
+                    selectedStoryIndex: $selectedStoryIndex,
+                    showProfileImageFullscreen: Binding<Bool>(
+                        get: { self.showProfileImageFullscreen },
+                        set: { self.showProfileImageFullscreen = $0 }
+                    ),
+                    size: 96
+                )
 
-                Spacer()
-            }
-            .padding(.horizontal, 20)
-            .padding(.top, 6)
-
-            // Avatar principal con badges (sin círculo de fondo)
-            UserModernAvatarWithBadges(
-                userProfile: viewModel.userProfile,
-                storyViewModel: storyViewModel,
-                showStoryViewer: $showStoryViewer,
-                selectedStoryIndex: $selectedStoryIndex,
-                showProfileImageFullscreen: Binding<Bool>(
-                    get: { self.showProfileImageFullscreen },
-                    set: { self.showProfileImageFullscreen = $0 }
-                ),
-                size: 100
-            )
-
-            // Información del usuario con badges
-            VStack(spacing: 10) {
-                VStack(spacing: 6) {
-                    VerifiedUsernameGradientView(
-                        username: viewModel.userProfile?.username ?? NSLocalizedString("userProfile.user", comment: "User"),
-                        isVerified: viewModel.userProfile?.isVerified ?? false,
-                        badgeSize: 20,
-                        spacing: 6,
-                        gradient: LinearGradient(
-                            colors: [Color(hex: "007AFF"), Color(hex: "6B73FF")],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
+                VStack(alignment: .leading, spacing: 5) {
+                    VStack(alignment: .leading, spacing: 3) {
+                        VerifiedUsernameGradientView(
+                            username: viewModel.userProfile?.username ?? NSLocalizedString("userProfile.user", comment: "User"),
+                            isVerified: viewModel.userProfile?.isVerified ?? false,
+                            badgeSize: 18,
+                            spacing: 5,
+                            gradient: LinearGradient(
+                                colors: [Color(hex: "007AFF"), Color(hex: "6B73FF")],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
                         )
-                    )
-                    .font(.custom("Poppins-Bold", size: 24))
+                        .font(.custom("Poppins-Bold", size: 20))
 
-                    // ✅ NUEVO: Badges horizontales del usuario visitado
-                    if let userProfile = viewModel.userProfile {
-                        UserProfileBadgesView(userProfile: userProfile)
+                        if let userProfile = viewModel.userProfile {
+                            UserProfileBadgesView(userProfile: userProfile)
+                        }
                     }
-                }
 
-                // Bio expandible adaptativa
-                VStack(spacing: 6) {
-                    UserExpandableBioView(bio: viewModel.userProfile?.bio ?? NSLocalizedString("userProfile.noBio", comment: "No bio"))
+                    ExpandableBioView(bio: viewModel.userProfile?.bio ?? NSLocalizedString("userProfile.noBio", comment: "No bio"))
 
                     if let websiteUrl = viewModel.userProfile?.websiteUrl,
                        !websiteUrl.isEmpty,
@@ -95,43 +72,43 @@ struct UserModernProfileHeader: View {
                         Link(destination: url) {
                             HStack(spacing: 6) {
                                 Image(systemName: "link")
-                                    .font(.system(size: 12, weight: .semibold))
+                                    .font(.system(size: 11, weight: .semibold))
 
                                 Text(
                                     websiteUrl
                                         .replacingOccurrences(of: "https://", with: "")
                                         .replacingOccurrences(of: "http://", with: "")
                                 )
-                                .font(.custom("Poppins-Medium", size: 13))
+                                .font(.custom("Poppins-Medium", size: 12))
                                 .lineLimit(1)
                                 .truncationMode(.tail)
                             }
                             .foregroundColor(UserProfileColors.accent)
-                            .padding(.vertical, 4)
                         }
-                        .padding(.top, 2)
                     }
-
                 }
-            }
 
-            // Botones de acción adaptativos
-            HStack(spacing: 12) {
+                Spacer(minLength: 0)
+            }
+            .padding(.top, 18)
+
+            HStack(spacing: 10) {
                 Button(action: onFollowAction) {
                     HStack(spacing: 7) {
                         Text(followButtonText)
-                            .font(.custom("Poppins-SemiBold", size: 14))
+                            .font(.custom("Poppins-SemiBold", size: 13))
 
                         if viewModel.followButtonState == .following {
                             Image(systemName: "chevron.down")
-                                .font(.system(size: 11, weight: .bold))
+                                .font(.system(size: 10, weight: .bold))
                         }
                     }
                     .foregroundColor(colorScheme == .dark ? .white : .black)
-                    .padding(.horizontal, 24)
-                    .padding(.vertical, 12)
+                    .padding(.horizontal, 18)
+                    .padding(.vertical, 10)
                     .liquidGlass(in: Capsule(), interactive: viewModel.followButtonState.isActionable)
                 }
+                .frame(maxWidth: .infinity)
                 .disabled(!viewModel.followButtonState.isActionable)
                 .scaleEffect(viewModel.followButtonState.isActionable ? 1.0 : 0.95)
                 .animation(.spring(response: 0.3, dampingFraction: 0.6), value: viewModel.followButtonState)
@@ -157,28 +134,94 @@ struct UserModernProfileHeader: View {
                     }
                 }) {
                     Image(systemName: "paperplane.fill")
-                        .font(.system(size: 18, weight: .medium))
+                        .font(.system(size: 16, weight: .medium))
                         .foregroundColor(colorScheme == .dark ? .white : .black)
-                        .frame(width: 44, height: 44)
-                        .liquidGlass(in: Circle(), interactive: true)
-                }
-
-                Button(action: {
-                    if viewModel.isBlockedByCurrentUser {
-                        viewModel.unblockUser(userId: viewModel.userId)
-                    } else {
-                        viewModel.blockUser(userId: viewModel.userId)
-                    }
-                }) {
-                    Image(systemName: viewModel.isBlockedByCurrentUser ? "person.fill.checkmark" : "person.slash")
-                        .font(.system(size: 16, weight: .semibold))
-                        .foregroundColor(colorScheme == .dark ? .white.opacity(0.82) : .black.opacity(0.72))
-                        .frame(width: 44, height: 44)
+                        .frame(width: 38, height: 38)
                         .liquidGlass(in: Circle(), interactive: true)
                 }
             }
         }
-        .padding(.horizontal, 24)
+        .padding(.horizontal, 20)
+        .sheet(isPresented: $showingQRCode) {
+            QRCodeView(targetUser: viewModel.userProfile)
+        }
+    }
+
+    private var topBar: some View {
+        ZStack {
+            Text(viewModel.userProfile?.username ?? NSLocalizedString("userProfile.user", comment: "User"))
+                .font(.custom("Poppins-SemiBold", size: 18))
+                .foregroundColor(UserProfileColors.textPrimary)
+                .lineLimit(1)
+
+            HStack {
+                Button(action: onDismiss) {
+                    ZStack {
+                        Circle()
+                            .fill(UserProfileColors.cardBackground.opacity(0.9))
+                            .frame(width: 34, height: 34)
+                            .shadow(color: UserProfileColors.shadowColor, radius: 6, x: 0, y: 3)
+
+                        Image(systemName: "chevron.left")
+                            .font(.system(size: 15, weight: .semibold))
+                            .foregroundColor(UserProfileColors.textPrimary)
+                    }
+                }
+
+                Spacer()
+
+                Menu {
+                    Button(action: {
+                        viewModel.toggleMute()
+                    }) {
+                        Label(
+                            viewModel.isMutedByCurrentUser
+                                ? NSLocalizedString("userProfile.relationship.mute.disable", comment: "Unmute")
+                                : NSLocalizedString("userProfile.relationship.mute.enable", comment: "Mute"),
+                            systemImage: viewModel.isMutedByCurrentUser ? "speaker.wave.2" : "speaker.slash"
+                        )
+                    }
+
+                    Button(action: {
+                        if viewModel.isBlockedByCurrentUser {
+                            viewModel.unblockUser(userId: viewModel.userId)
+                        } else {
+                            viewModel.blockUser(userId: viewModel.userId)
+                        }
+                    }) {
+                        Label(
+                            viewModel.isBlockedByCurrentUser
+                                ? NSLocalizedString("userProfile.unblockUser", comment: "Unblock user")
+                                : NSLocalizedString("storyContextMenu.block", comment: "Block"),
+                            systemImage: "person.slash"
+                        )
+                    }
+
+                    if let user = viewModel.userProfile {
+                        ShareLink(item: URL(string: "https://glowsy.app/\(user.username)")!) {
+                            Label(NSLocalizedString("qrCode.share", comment: "Share"), systemImage: "square.and.arrow.up")
+                        }
+                    }
+
+                    Button(action: {
+                        showingQRCode = true
+                    }) {
+                        Label("QR", systemImage: "qrcode")
+                    }
+                } label: {
+                    ZStack {
+                        Circle()
+                            .fill(UserProfileColors.cardBackground.opacity(0.9))
+                            .frame(width: 34, height: 34)
+                            .shadow(color: UserProfileColors.shadowColor, radius: 6, x: 0, y: 3)
+
+                        Image(systemName: "ellipsis")
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundColor(UserProfileColors.textPrimary)
+                    }
+                }
+            }
+        }
     }
 
     private var followButtonText: String {

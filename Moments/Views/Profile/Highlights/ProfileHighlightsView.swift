@@ -14,13 +14,13 @@ struct ProfileHighlightsView: View {
     @State private var highlightZoomDestination: HighlightZoomDestination?
     @Environment(\.colorScheme) var colorScheme
 
-    private var circleSize: CGFloat { isCompact ? 58 : 64 }
-    private var horizontalSpacing: CGFloat { isCompact ? 12 : 16 }
+    private var circleSize: CGFloat { isCompact ? 56 : 74 }
+    private var horizontalSpacing: CGFloat { isCompact ? 10 : 16 }
 
     var body: some View {
         @Bindable var presentation = presentation
 
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: isCompact ? 6 : 8) {
             if let errorMessage = viewModel.errorMessage {
                 AppErrorBanner(message: errorMessage) {
                     viewModel.loadHighlights(userId: userId)
@@ -103,7 +103,7 @@ struct ProfileHighlightsView: View {
                         Button {
                             presentation.presentCreate()
                         } label: {
-                            VStack(spacing: 6) {
+                            VStack(spacing: isCompact ? 4 : 6) {
                                 ZStack {
                                     Circle()
                                         .fill(colorScheme == .dark ? Color(hex: "0B1215") : Color(hex: "FAF9F6"))
@@ -114,7 +114,7 @@ struct ProfileHighlightsView: View {
                                         )
 
                                     Image(systemName: "plus")
-                                        .font(.system(size: isCompact ? 18 : 20, weight: .semibold))
+                                        .font(.system(size: isCompact ? 16 : 20, weight: .semibold))
                                         .foregroundColor(ProfileColors.accent)
                                 }
 
@@ -137,7 +137,7 @@ struct ProfileHighlightsView: View {
                                 highlightId: highlight.id ?? "highlight-\(index)"
                             )
                         } label: {
-                            VStack(spacing: 6) {
+                            VStack(spacing: isCompact ? 4 : 6) {
                                 HighlightIconView(highlight: highlight, size: circleSize)
                                     .modifier(HighlightZoomSourceModifier(
                                         namespace: highlightZoomNamespace,
@@ -146,10 +146,10 @@ struct ProfileHighlightsView: View {
                                     ))
 
                                 Text(highlight.title)
-                                    .font(.custom("Poppins-Medium", size: isCompact ? 10 : 11))
+                                    .font(.custom("Poppins-Medium", size: isCompact ? 9 : 11))
                                     .foregroundColor(ProfileColors.textPrimary)
                                     .lineLimit(1)
-                                    .frame(width: isCompact ? 60 : 70)
+                                    .frame(width: isCompact ? 60 : 80)
                             }
                         }
                         .buttonStyle(.momentsPress(scale: 0.94, haptic: .light))

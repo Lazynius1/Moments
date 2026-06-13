@@ -3349,6 +3349,8 @@
 "privacyPolicy.section.contact.body" = "We may update this policy when our features, providers, or legal requirements change. If a change is important, we will communicate it in the app or through other reasonable means.\n\nFor privacy questions or requests, contact us at soporte@moments.app or visit moments.app/privacy.";
 "userProfile.unavailable.title" = "Profil indisponible";
 "userProfile.unavailable.description" = "You can't view this profile right now.";
+"userProfile.unavailable.username" = "Utilisateur";
+"userProfile.unavailable.bio" = "Ce profil n'est pas disponible";
 "chat.profileUnavailable" = "Profil indisponible";
 "chat.input.unavailable" = "Vous ne pouvez pas envoyer de messages à ce profil.";
 "messaging.profileUnavailable.preview" = "Profil indisponible";

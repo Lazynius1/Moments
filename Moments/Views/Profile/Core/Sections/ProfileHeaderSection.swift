@@ -14,9 +14,10 @@ struct ModernProfileHeader: View {
     @Binding var selectedStoryIndex: Int
     @Binding var showingThemeSelector: Bool
     @Binding var showingQRCode: Bool
-    @Binding var showProfileImageFullscreen: Bool // ✅ NUEVO
+    @Binding var showProfileImageFullscreen: Bool
     @Binding var isShowingIncognito: Bool
     let isIncognitoActive: Bool
+    let profileZoomNamespace: Namespace.ID
 
     @Environment(\.colorScheme) var colorScheme
 
@@ -45,245 +46,249 @@ struct ModernProfileHeader: View {
     }
 
     var body: some View {
-        VStack(spacing: 18) {
-            // Avatar hero con efectos adaptativos
-            ZStack {
-                // Círculo de fondo con gradiente adaptativo
-                Circle()
-                    .fill(
-                        RadialGradient(
-                            gradient: Gradient(colors: [
-                                ProfileColors.accent.opacity(colorScheme == .dark ? 0.2 : 0.15),
-                                ProfileColors.purple.opacity(colorScheme == .dark ? 0.1 : 0.08),
-                                Color.clear
-                            ]),
-                            center: .center,
-                            startRadius: 40,
-                            endRadius: 70
-                        )
-                    )
-                    .frame(width: 124, height: 124)
-                    .blur(radius: 12)
+        VStack(spacing: 10) {
+            topBar
 
-                // Avatar principal
-                Group {
-                    if let profileImagePath = viewModel.userProfile?.profileImagePath, let url = URL(string: profileImagePath) {
-                        KFImage(url)
-                            .placeholder {
-                                Circle()
-                                    .fill(ProfileColors.materialBackground)
-                                    .frame(width: 96, height: 96)
-                                    .overlay(
-                                        ProgressView()
-                                            .tint(ProfileColors.accent)
-                                            .scaleEffect(1.2)
-                                    )
-                            }
-                            .resizable()
-                            .aspectRatio(contentMode: .fill)
-                            .frame(width: 96, height: 96)
-                            .clipShape(Circle())
-                            .contentShape(Circle())
-                    } else {
-                        // Placeholder cuando no hay imagen
-                        Circle()
-                            .fill(ProfileColors.materialBackground)
-                            .frame(width: 96, height: 96)
-                            .overlay(
-                                Image(systemName: "person.circle.fill")
-                                    .font(.system(size: 60))
-                                    .foregroundColor(ProfileColors.textTertiary)
-                            )
-                    }
-                }
-                .overlay(avatarBorderOverlay())
-                .shadow(color: ProfileColors.shadowColor, radius: 15, x: 0, y: 8)
-
-                // Badges adaptativos
-                if let currentUser = authService.currentUser,
-                   let primaryBadge = currentUser.primaryBadge {
-                    ZStack {
-                        Circle()
-                            .fill(
-                                LinearGradient(
-                                    colors: primaryBadge.swiftUIColors,
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                )
-                            )
-                            .frame(width: 32, height: 32)
-
-                        Text(primaryBadge.emoji)
-                            .font(.system(size: 16))
-                    }
-                    .offset(x: 38, y: -38)
-                    .shadow(color: ProfileColors.shadowColor, radius: 6, x: 0, y: 3)
-                }
-
-                // Corona Plus adaptativa (se oculta si hay tema activo o si está desactivado)
-                if let currentUser = authService.currentUser,
-                   currentUser.isPlusSubscriber,
-                   currentUser.showPlusBadge,
-                   currentUser.selectedProfileTheme == nil || currentUser.selectedProfileTheme == "default" {
-                    ZStack {
-                        Circle()
-                            .fill(ProfileColors.cardBackground)
-                            .frame(width: 28, height: 28)
-
-                        Image(systemName: "crown.fill")
-                            .font(.system(size: 14, weight: .bold))
-                            .foregroundColor(Color(hex: "FFD700"))
-                    }
-                    .offset(x: -38, y: -38)
-                    .shadow(color: ProfileColors.shadowColor, radius: 6, x: 0, y: 3)
-                }
-
-                // Indicador de nivel supporter - OCULTO
-                // if let currentUser = authService.currentUser,
-                //    currentUser.isSupporter && currentUser.supporterLevel != .none {
-                //     SupporterLevelIndicator(level: currentUser.supporterLevel)
-                //         .offset(x: 0, y: 65)
-                //         .shadow(color: ProfileColors.shadowColor, radius: 4, x: 0, y: 2)
-                // }
-            }
-            .onTapGesture {
-                if storyViewModel.hasActiveStory, Auth.auth().currentUser?.uid != nil {
-                    showStoryViewer = true
-                    selectedStoryIndex = 0
-                } else {
-                    // ✅ Si no hay historia, mostrar foto en grande
-                    showProfileImageFullscreen = true
-                }
-            }
-
-            // Información del usuario adaptativa
-            VStack(spacing: 8) {
-                VStack(spacing: 6) {
-                    VerifiedUsernameGradientView(
-                        username: viewModel.userProfile?.username ?? "Usuario",
-                        isVerified: viewModel.userProfile?.isVerified ?? false,
-                        badgeSize: 20,
-                        spacing: 6,
-                        gradient: LinearGradient(
-                            colors: [Color(hex: "007AFF"), Color(hex: "6B73FF")], // ✅ MISMO GRADIENTE QUE USERPROFILEVIEW
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
-                    .font(.custom("Poppins-Bold", size: 24))
-
-                    // Badges horizontales adaptativos
-                    if let currentUser = authService.currentUser,
-                       (currentUser.isPlusSubscriber || currentUser.isSupporter) {
-                        HStack(spacing: 6) {
-                            if currentUser.isPlusSubscriber,
-                               currentUser.showPlusBadge,
-                               currentUser.selectedProfileTheme == nil || currentUser.selectedProfileTheme == "default" {
-                                PlusBadgeInline()
-                            }
-
-                            if let primaryBadge = currentUser.primaryBadge {
-                                SupportBadgeInline(badge: primaryBadge)
-                            }
+            HStack(alignment: .center, spacing: 14) {
+                compactAvatar
+                    .onTapGesture {
+                        if storyViewModel.hasActiveStory, Auth.auth().currentUser?.uid != nil {
+                            showStoryViewer = true
+                            selectedStoryIndex = 0
+                        } else {
+                            showProfileImageFullscreen = true
                         }
-                        .animation(.easeInOut(duration: 0.3), value: currentUser.isPlusSubscriber)
-                        .animation(.easeInOut(duration: 0.3), value: currentUser.primaryBadge?.id)
                     }
-                }
 
-                // Bio expandible adaptativa
-                VStack(spacing: 6) {
+                VStack(alignment: .leading, spacing: 5) {
+                    VStack(alignment: .leading, spacing: 3) {
+                        VerifiedUsernameGradientView(
+                            username: viewModel.userProfile?.username ?? "Usuario",
+                            isVerified: viewModel.userProfile?.isVerified ?? false,
+                            badgeSize: 18,
+                            spacing: 5,
+                            gradient: LinearGradient(
+                                colors: [Color(hex: "007AFF"), Color(hex: "6B73FF")],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+                        .font(.custom("Poppins-Bold", size: 20))
+
+                        if let currentUser = authService.currentUser,
+                           (currentUser.isPlusSubscriber || currentUser.isSupporter) {
+                            HStack(spacing: 6) {
+                                if currentUser.isPlusSubscriber,
+                                   currentUser.showPlusBadge,
+                                   currentUser.selectedProfileTheme == nil || currentUser.selectedProfileTheme == "default" {
+                                    PlusBadgeInline()
+                                }
+
+                                if let primaryBadge = currentUser.primaryBadge {
+                                    SupportBadgeInline(badge: primaryBadge)
+                                }
+                            }
+                            .animation(.easeInOut(duration: 0.3), value: currentUser.isPlusSubscriber)
+                            .animation(.easeInOut(duration: 0.3), value: currentUser.primaryBadge?.id)
+                        }
+                    }
+
                     ExpandableBioView(bio: viewModel.userProfile?.bio ?? "Añade una biografía")
 
-                    // ✅ NUEVO: Link in Bio
                     if let websiteUrl = viewModel.userProfile?.websiteUrl, !websiteUrl.isEmpty,
                        let url = URL(string: websiteUrl.hasPrefix("http") ? websiteUrl : "https://\(websiteUrl)") {
                         Link(destination: url) {
                             HStack(spacing: 6) {
                                 Image(systemName: "link")
-                                    .font(.system(size: 12, weight: .semibold))
+                                    .font(.system(size: 11, weight: .semibold))
 
                                 Text(websiteUrl.replacingOccurrences(of: "https://", with: "").replacingOccurrences(of: "http://", with: ""))
-                                    .font(.custom("Poppins-Medium", size: 13))
+                                    .font(.custom("Poppins-Medium", size: 12))
                                     .lineLimit(1)
                                     .truncationMode(.tail)
                             }
-                            .foregroundColor(Color(hex: "007AFF")) // Color acento
-                            .padding(.vertical, 4)
+                            .foregroundColor(Color(hex: "007AFF"))
                         }
-                        .padding(.top, 2)
                     }
                 }
+
+                Spacer(minLength: 0)
             }
+            .padding(.top, 18)
 
-            // Botones de acción adaptativos
-            HStack(spacing: 14) {
-                Button(action: {
-                    newBio = viewModel.userProfile?.bio ?? ""
-                    isShowingEditProfile = true
-                }) {
-                    HStack(spacing: 7) {
-                        Image(systemName: "pencil.circle")
-                            .font(.system(size: 15))
-                        Text("profile.editButton")
-                            .font(.custom("Poppins-SemiBold", size: 13))
-                    }
-                    .foregroundColor(colorScheme == .dark ? .white : .black)
-                    .padding(.horizontal, 20)
-                    .padding(.vertical, 11)
-                    .liquidGlass(in: Capsule(), interactive: true)
+            // Fila de acción: botón Editar Perfil
+            ownProfileActionRow
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.horizontal, 20)
+    }
+
+    private var ownProfileActionRow: some View {
+        HStack(spacing: 10) {
+            Button {
+                newBio = viewModel.userProfile?.bio ?? ""
+                isShowingEditProfile = true
+            } label: {
+                HStack(spacing: 7) {
+                    Image(systemName: "pencil")
+                        .font(.system(size: 13, weight: .semibold))
+                    Text(NSLocalizedString("profile.editButton", comment: "Edit profile"))
+                        .font(.custom("Poppins-SemiBold", size: 13))
                 }
+                .foregroundColor(colorScheme == .dark ? .white : .black)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 10)
+                .liquidGlass(in: Capsule(), interactive: true)
+            }
+            .buttonStyle(.plain)
+            .matchedTransitionSource(id: "edit-profile-view", in: profileZoomNamespace)
+        }
+    }
 
-                // ✅ NUEVO: Botón de compartir perfil (QR)
-                Button(action: {
-                    showingQRCode = true
-                }) {
-                    Image(systemName: "qrcode")
+    private var topBar: some View {
+        ZStack {
+            Text("")
+                .font(.custom("Poppins-SemiBold", size: 18))
+                .foregroundColor(ProfileColors.textPrimary)
+
+            HStack(spacing: 8) {
+                Color.clear
+                    .frame(width: 36, height: 36)
+
+                Spacer()
+
+                // Botón de notificaciones
+                Button {
+                    NotificationCenter.default.post(name: NSNotification.Name("ShowNotifications"), object: nil)
+                } label: {
+                    Image(systemName: "bell")
                         .font(.system(size: 16, weight: .semibold))
                         .foregroundColor(ProfileColors.textPrimary)
-                        .frame(width: 40, height: 40)
+                        .frame(width: 36, height: 36)
                         .liquidGlass(in: Circle(), interactive: true)
                 }
 
-                Button(action: {
-                    isShowingIncognito = true
-                }) {
-                    Image(systemName: isIncognitoActive ? "eye.slash.fill" : "eye")
-                        .font(.system(size: 16, weight: .semibold))
-                        .foregroundColor(ProfileColors.textPrimary)
-                        .frame(width: 40, height: 40)
-                        .liquidGlass(in: Circle(), interactive: true)
-                }
-
-                // ✅ TEMPORALMENTE OCULTO: Botón de tema del perfil (solo si tiene badges)
-                // if let currentUser = authService.currentUser, currentUser.canChangeProfileTheme {
-                //     Button(action: {
-                //         showingThemeSelector = true
-                //     }) {
-                //         Image(systemName: "paintbrush.fill")
-                //         .font(.system(size: 18))
-                //         .foregroundColor(ProfileColors.textPrimary)
-                //         .frame(width: 44, height: 44)
-                //         .background(ProfileColors.materialBackground)
-                //         .clipShape(Circle())
-                //         .overlay(
-                //         Circle()
-                //         .stroke(ProfileColors.borderColor, lineWidth: 1)
-                //         )
-                //         .shadow(color: ProfileColors.shadowColor, radius: 4, x: 0, y: 2)
-                //     }
-                // }
-
-                Button(action: { isShowingSettings = true }) {
-                    Image(systemName: "gearshape.fill")
-                        .font(.system(size: 18))
-                        .foregroundColor(ProfileColors.textPrimary)
-                        .frame(width: 40, height: 40)
-                        .liquidGlass(in: Circle(), interactive: true)
-                }
+                headerMenu
             }
         }
-        .padding(.horizontal, 24)
+    }
+
+    private var headerMenu: some View {
+        Menu {
+            Button {
+                showingQRCode = true
+            } label: {
+                Label("QR", systemImage: "qrcode")
+            }
+
+            Button {
+                isShowingIncognito = true
+            } label: {
+                Label(NSLocalizedString("incognito.title", comment: "Incognito mode"), systemImage: isIncognitoActive ? "eye.slash.fill" : "eye")
+            }
+
+            Button {
+                isShowingSettings = true
+            } label: {
+                Label(NSLocalizedString("settings.title", comment: "Settings"), systemImage: "gearshape")
+            }
+        } label: {
+            Image(systemName: "ellipsis")
+                .font(.system(size: 18, weight: .semibold))
+                .foregroundColor(ProfileColors.textPrimary)
+                .frame(width: 36, height: 36)
+                .liquidGlass(in: Circle(), interactive: true)
+                .matchedTransitionSource(id: "settings-view", in: profileZoomNamespace)
+        }
+    }
+
+    private var compactAvatar: some View {
+        ZStack {
+            Circle()
+                .fill(
+                    RadialGradient(
+                        gradient: Gradient(colors: [
+                            ProfileColors.accent.opacity(colorScheme == .dark ? 0.16 : 0.12),
+                            ProfileColors.purple.opacity(colorScheme == .dark ? 0.08 : 0.05),
+                            Color.clear
+                        ]),
+                        center: .center,
+                        startRadius: 36,
+                        endRadius: 66
+                    )
+                )
+                .frame(width: 118, height: 118)
+                .blur(radius: 10)
+
+            Group {
+                if let profileImagePath = viewModel.userProfile?.profileImagePath, let url = URL(string: profileImagePath) {
+                    KFImage(url)
+                        .placeholder {
+                            Circle()
+                                .fill(ProfileColors.materialBackground)
+                                .frame(width: 96, height: 96)
+                                .overlay(
+                                    ProgressView()
+                                        .tint(ProfileColors.accent)
+                                        .scaleEffect(1.1)
+                                )
+                        }
+                        .resizable()
+                        .aspectRatio(contentMode: .fill)
+                        .frame(width: 96, height: 96)
+                        .clipShape(Circle())
+                        .contentShape(Circle())
+                } else {
+                    Circle()
+                        .fill(ProfileColors.materialBackground)
+                        .frame(width: 96, height: 96)
+                        .overlay(
+                            Image(systemName: "person.circle.fill")
+                                .font(.system(size: 56))
+                                .foregroundColor(ProfileColors.textTertiary)
+                        )
+                }
+            }
+            .overlay(avatarBorderOverlay())
+            .shadow(color: ProfileColors.shadowColor, radius: 12, x: 0, y: 6)
+
+            if let currentUser = authService.currentUser,
+               let primaryBadge = currentUser.primaryBadge {
+                ZStack {
+                    Circle()
+                        .fill(
+                            LinearGradient(
+                                colors: primaryBadge.swiftUIColors,
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+                        .frame(width: 29, height: 29)
+
+                    Text(primaryBadge.emoji)
+                        .font(.system(size: 14))
+                }
+                .offset(x: 37, y: -36)
+                .shadow(color: ProfileColors.shadowColor, radius: 5, x: 0, y: 2)
+            }
+
+            if let currentUser = authService.currentUser,
+               currentUser.isPlusSubscriber,
+               currentUser.showPlusBadge,
+               currentUser.selectedProfileTheme == nil || currentUser.selectedProfileTheme == "default" {
+                ZStack {
+                    Circle()
+                        .fill(ProfileColors.cardBackground)
+                        .frame(width: 26, height: 26)
+
+                    Image(systemName: "crown.fill")
+                        .font(.system(size: 12, weight: .bold))
+                        .foregroundColor(Color(hex: "FFD700"))
+                }
+                .offset(x: -37, y: -36)
+                .shadow(color: ProfileColors.shadowColor, radius: 5, x: 0, y: 2)
+            }
+        }
     }
     // Border inteligente del avatar adaptativo (SIN BORDE VERDE)
     @ViewBuilder
@@ -378,46 +383,48 @@ struct ProfileOverviewCard: View {
     @Environment(\.colorScheme) var colorScheme
 
     var body: some View {
-        VStack(spacing: 0) {
+        VStack(alignment: .leading, spacing: 0) {
             ModernStatsSection(
                 viewModel: viewModel,
                 showingUserList: $showingUserList,
                 embeddedStyle: true
             )
+            .frame(maxWidth: 360)
 
             if !interests.isEmpty {
-                Divider()
-                    .overlay(ProfileColors.borderColor.opacity(colorScheme == .dark ? 0.22 : 0.4))
-                    .padding(.top, 14)
-                    .padding(.bottom, 10)
-
                 Button(action: {
                     withAnimation(.spring(response: 0.3, dampingFraction: 0.78)) {
                         showingInterests.toggle()
                     }
                 }) {
-                    HStack(spacing: 8) {
+                    HStack(spacing: 10) {
                         Text("profile.interests.title")
-                            .font(.custom("Poppins-SemiBold", size: 14))
+                            .font(.custom("Poppins-SemiBold", size: 13))
                             .foregroundColor(ProfileColors.textPrimary)
 
-                        Text("\(interests.count)")
-                            .font(.custom("Poppins-Medium", size: 11))
+                        Text("· \(interests.count)")
+                            .font(.custom("Poppins-Medium", size: 12))
                             .foregroundColor(ProfileColors.textSecondary)
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 4)
-                            .background(ProfileColors.materialBackground.opacity(0.7))
-                            .clipShape(Capsule())
+
+                        if !showingInterests, let firstInterest = interests.first {
+                            Text(firstInterest)
+                                .font(.custom("Poppins-Medium", size: 11))
+                                .foregroundColor(ProfileColors.textSecondary)
+                                .lineLimit(1)
+                        }
 
                         Spacer()
 
                         Image(systemName: "chevron.down")
-                            .font(.system(size: 12, weight: .bold))
+                            .font(.system(size: 11, weight: .bold))
                             .foregroundColor(ProfileColors.textSecondary)
                             .rotationEffect(.degrees(showingInterests ? 180 : 0))
                     }
+                    .padding(.top, 12)
                     .contentShape(Rectangle())
                 }
+                .buttonStyle(.plain)
+                .frame(maxWidth: 360)
 
                 if showingInterests {
                     ModernInterestsView(
@@ -425,7 +432,8 @@ struct ProfileOverviewCard: View {
                         showsTitle: false,
                         embeddedStyle: true
                     )
-                    .padding(.top, 12)
+                    .padding(.top, 10)
+                    .frame(maxWidth: 360)
                     .transition(.asymmetric(
                         insertion: .opacity.combined(with: .move(edge: .top)),
                         removal: .opacity.combined(with: .move(edge: .top))
@@ -433,7 +441,9 @@ struct ProfileOverviewCard: View {
                 }
             }
         }
-        .padding(.vertical, 4)
+        .frame(maxWidth: .infinity)
+        .padding(.horizontal, 4)
+        .padding(.vertical, 6)
     }
 }
 
@@ -459,17 +469,17 @@ struct ModernStatsSection: View {
                 Button(action: {
                     showingUserList = stat.2
                 }) {
-                    VStack(spacing: 6) {
+                    VStack(spacing: 4) {
                         Text("\(stat.1)")
-                            .font(.custom("Poppins-Bold", size: 18))
+                            .font(.custom("Poppins-Bold", size: embeddedStyle ? 17 : 18))
                             .foregroundColor(ProfileColors.textPrimary)
 
                         Text(stat.0)
-                            .font(.custom("Poppins-Medium", size: 11))
+                            .font(.custom("Poppins-Medium", size: embeddedStyle ? 10 : 11))
                             .foregroundColor(ProfileColors.textSecondary)
                     }
                     .frame(maxWidth: .infinity)
-                    .padding(.vertical, embeddedStyle ? 10 : 14)
+                    .padding(.vertical, embeddedStyle ? 8 : 14)
                     .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
@@ -477,7 +487,7 @@ struct ModernStatsSection: View {
                 if embeddedStyle && index < computedStats.count - 1 {
                     Rectangle()
                         .fill(ProfileColors.borderColor.opacity(colorScheme == .dark ? 0.24 : 0.4))
-                        .frame(width: 1, height: 30)
+                        .frame(width: 1, height: 26)
                 }
             }
         }

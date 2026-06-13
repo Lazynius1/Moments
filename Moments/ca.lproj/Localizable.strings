@@ -3369,6 +3369,8 @@
 "privacyPolicy.section.contact.body" = "Podem actualitzar aquesta política quan canviïn les nostres funcions, proveïdors o requisits legals. Si el canvi és important, ho comunicarem a l'app o per altres mitjans raonables.\n\nPer a preguntes o sol·licituds de privacitat, contacta amb nosaltres a soporte@moments.app o visita moments.app/privacy.";
 "userProfile.unavailable.title" = "Perfil no disponible";
 "userProfile.unavailable.description" = "No pots veure aquest perfil en aquest moment.";
+"userProfile.unavailable.username" = "Usuari";
+"userProfile.unavailable.bio" = "Aquest perfil no està disponible";
 "chat.profileUnavailable" = "Perfil no disponible";
 "chat.input.unavailable" = "No es poden enviar missatges a aquest perfil.";
 "messaging.profileUnavailable.preview" = "Perfil no disponible";

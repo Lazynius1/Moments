@@ -68,6 +68,7 @@ struct ModernBackgroundView: View {
 struct ModernProfileContentView: View {
     @ObservedObject var viewModel: ProfileViewModel
     @ObservedObject var storyViewModel: StoryViewModel
+    let profileZoomNamespace: Namespace.ID
     let safeAreaTop: CGFloat
     let safeAreaBottom: CGFloat
     @Binding var isShowingSettings: Bool
@@ -90,7 +91,6 @@ struct ModernProfileContentView: View {
     @State private var showingFullInfo = false // ✅ NUEVO: Para expandir intereses dentro del bloque social
     @EnvironmentObject private var heroCoordinator: ProfileGridHeroTransitionCoordinator
     @State private var gridPreviewMoment: Moment?
-    @Namespace private var profileZoomNamespace
     @State private var zoomDestination: ProfileMomentZoomDestination?
     @Environment(\.colorScheme) private var colorScheme
 
@@ -124,11 +124,11 @@ struct ModernProfileContentView: View {
                             showingQRCode: $showingQRCode,
                             showProfileImageFullscreen: $showProfileImageFullscreen,
                             isShowingIncognito: $isShowingIncognito,
-                            isIncognitoActive: isIncognitoActive
-
+                            isIncognitoActive: isIncognitoActive,
+                            profileZoomNamespace: profileZoomNamespace
                         )
-                        .padding(.top, safeAreaTop + 6)
-                        .padding(.bottom, 8)
+                        .padding(.top, 4)
+                        .padding(.bottom, 4)
 
                         ProfileOverviewCard(
                             viewModel: viewModel,
@@ -137,7 +137,7 @@ struct ModernProfileContentView: View {
                             interests: viewModel.userProfile?.interests ?? []
                         )
                         .padding(.horizontal, 20)
-                        .padding(.bottom, 10)
+                        .padding(.bottom, 4)
 
                         // ✅ NUEVO: Destacadas Compactas (Después del bloque social)
                         ProfileHighlightsView(
@@ -145,7 +145,7 @@ struct ModernProfileContentView: View {
                             isOwnProfile: viewModel.userProfile?.id == Auth.auth().currentUser?.uid,
                             isCompact: true
                         )
-                        .padding(.bottom, 14)
+                        .padding(.bottom, 6)
 
                         if viewModel.isRefreshing {
                             ModernRefreshIndicator()
@@ -157,7 +157,7 @@ struct ModernProfileContentView: View {
                             // ✅ NUEVO: Pill Tabs para cambiar entre Moments y Guardados
                             ProfilePillTabs(selectedTab: $selectedProfileTab)
                             .padding(.horizontal, 20)
-                            .padding(.bottom, 8)
+                            .padding(.bottom, 4)
                             .frame(maxWidth: UIScreen.main.bounds.width)
 
                             // ✅ NUEVO: Contenido basado en el tab seleccionado

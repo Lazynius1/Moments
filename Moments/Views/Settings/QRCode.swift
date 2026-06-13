@@ -8,6 +8,7 @@ struct QRCodeView: View {
     @StateObject private var viewModel = QRCodeViewModel()
     @State private var showShareSheet = false
     @State private var qrImage: UIImage?
+    var targetUser: AppUser? = nil
     
 // MARK: - Modern Sheet View
     var body: some View {
@@ -35,7 +36,7 @@ struct QRCodeView: View {
                         .frame(width: 200, height: 200)
                 }
                 
-                Text("@\(viewModel.user?.username ?? "")")
+                Text("@\(targetUser?.username ?? viewModel.user?.username ?? "")")
                     .font(.custom("Poppins-SemiBold", size: 18))
                     .foregroundColor(ProfileColors.accent)
             }
@@ -48,43 +49,48 @@ struct QRCodeView: View {
             .padding(.bottom, 30)
             
             // Botones de acción
-            HStack(spacing: 16) {
-                Button(action: {
-                    showShareSheet = true
-                }) {
-                    HStack {
-                        Image(systemName: "square.and.arrow.up")
-                        Text(NSLocalizedString("qrCode.share", comment: "Share"))
+            if targetUser == nil {
+                HStack(spacing: 16) {
+                    Button(action: {
+                        showShareSheet = true
+                    }) {
+                        HStack {
+                            Image(systemName: "square.and.arrow.up")
+                            Text(NSLocalizedString("qrCode.share", comment: "Share"))
+                        }
+                        .font(.custom("Poppins-SemiBold", size: 16))
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 14)
+                        .background(ProfileColors.accent)
+                        .clipShape(Capsule())
                     }
-                    .font(.custom("Poppins-SemiBold", size: 16))
-                    .foregroundColor(.white)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 14)
-                    .background(ProfileColors.accent)
-                    .clipShape(Capsule())
-                }
-                
-                Button(action: {
-                    if let qrImage = qrImage {
-                        UIImageWriteToSavedPhotosAlbum(qrImage, nil, nil, nil)
-                        let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
-                        impactFeedback.impactOccurred()
+
+                    Button(action: {
+                        if let qrImage = qrImage {
+                            UIImageWriteToSavedPhotosAlbum(qrImage, nil, nil, nil)
+                            let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
+                            impactFeedback.impactOccurred()
+                        }
+                    }) {
+                        Image(systemName: "arrow.down.to.line")
+                            .font(.system(size: 20))
+                            .foregroundColor(ProfileColors.textPrimary)
+                            .frame(width: 50, height: 50)
+                            .background(ProfileColors.materialBackground)
+                            .clipShape(Circle())
+                            .overlay(
+                                Circle()
+                                    .stroke(ProfileColors.borderColor, lineWidth: 1)
+                            )
                     }
-                }) {
-                    Image(systemName: "arrow.down.to.line")
-                        .font(.system(size: 20))
-                        .foregroundColor(ProfileColors.textPrimary)
-                        .frame(width: 50, height: 50)
-                        .background(ProfileColors.materialBackground)
-                        .clipShape(Circle())
-                        .overlay(
-                            Circle()
-                                .stroke(ProfileColors.borderColor, lineWidth: 1)
-                        )
                 }
+                .padding(.horizontal, 20)
+                .padding(.bottom, 40)
+            } else {
+                Spacer()
+                    .frame(height: 20)
             }
-            .padding(.horizontal, 20)
-            .padding(.bottom, 40)
         }
         .presentationDetents([.medium])
         .presentationDragIndicator(.visible)
@@ -97,13 +103,13 @@ struct QRCodeView: View {
         }
         .sheet(isPresented: $showShareSheet) {
             if let qrImage = qrImage {
-                QRShareSheet(activityItems: [qrImage, URL(string: "https://glowsy.app/\(viewModel.user?.username ?? "")")!])
+                QRShareSheet(activityItems: [qrImage, URL(string: "https://glowsy.app/\(targetUser?.username ?? viewModel.user?.username ?? "")")!])
             }
         }
     }
     
     private func generateQRCode() {
-        guard let username = viewModel.user?.username else { return }
+        guard let username = targetUser?.username ?? viewModel.user?.username else { return }
         
         let context = CIContext()
         let filter = CIFilter.qrCodeGenerator()

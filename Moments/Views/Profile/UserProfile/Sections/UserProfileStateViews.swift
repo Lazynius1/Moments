@@ -106,13 +106,13 @@ struct UserModernBlockedView: View {
     }
 }
 
-// MARK: - UserModernPrivateProfileView (mejorada con stats reales y card)
+// MARK: - UserModernPrivateProfileView — shell unificado
 struct UserModernPrivateProfileView: View {
     let userProfile: AppUser?
     let userId: String
     @ObservedObject var storyViewModel: StoryViewModel
     @ObservedObject var messagingViewModel: MessagingViewModel
-    @ObservedObject var viewModel: UserProfileViewModel // ✅ NUEVO: Para acceder a los datos reales
+    @ObservedObject var viewModel: UserProfileViewModel
     let followButtonState: FollowButtonState
     let safeAreaTop: CGFloat
     let safeAreaBottom: CGFloat
@@ -129,62 +129,64 @@ struct UserModernPrivateProfileView: View {
     @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
-        VStack(spacing: 0) {
-            VStack(spacing: 24) {
-                Spacer()
-                    .frame(height: safeAreaTop + 20)
+        ScrollView(showsIndicators: false) {
+            VStack(spacing: 10) {
+                // ── Top bar ──────────────────────────────────────────────
+                privateTopBar
+                    .padding(.top, 4)
 
-                UserModernAvatar(
-                    profileImagePath: userProfile?.profileImagePath,
-                    userId: self.userId,
-                    storyViewModel: storyViewModel,
-                    showStoryViewer: $showStoryViewer,
-                    selectedStoryIndex: $selectedStoryIndex,
-                    size: 100
-                )
-                .frame(maxWidth: .infinity, alignment: .center)
+                // ── Avatar + Info (mismo shell que público) ───────────────
+                HStack(alignment: .center, spacing: 14) {
+                    UserModernAvatar(
+                        profileImagePath: userProfile?.profileImagePath,
+                        userId: self.userId,
+                        storyViewModel: storyViewModel,
+                        showStoryViewer: $showStoryViewer,
+                        selectedStoryIndex: $selectedStoryIndex,
+                        size: 96
+                    )
 
-                VStack(spacing: 12) {
-                    HStack(spacing: 8) {
-                        Text(userProfile?.username ?? NSLocalizedString("userProfile.user", comment: "User"))
-                            .font(.custom("Poppins-Bold", size: 26))
-                            .foregroundColor(colorScheme == .dark ? .white : .black)
+                    VStack(alignment: .leading, spacing: 5) {
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text(userProfile?.username ?? NSLocalizedString("userProfile.user", comment: "User"))
+                                .font(.custom("Poppins-Bold", size: 20))
+                                .foregroundColor(colorScheme == .dark ? .white : .black)
 
-                        VerifiedBadgeView(userId: self.userId, size: 22)
+                            VerifiedBadgeView(userId: self.userId, size: 18)
+                        }
+
+                        if let bio = userProfile?.bio, !bio.isEmpty {
+                            Text(bio)
+                                .font(.custom("Poppins-Regular", size: 14))
+                                .foregroundColor(colorScheme == .dark ? .white.opacity(0.62) : .black.opacity(0.54))
+                                .lineLimit(3)
+                        }
                     }
-                    .frame(maxWidth: .infinity, alignment: .center)
 
-                    if let bio = userProfile?.bio, !bio.isEmpty {
-                        Text(bio)
-                            .font(.custom("Poppins-Regular", size: 15))
-                            .foregroundColor(colorScheme == .dark ? .white.opacity(0.68) : .black.opacity(0.58))
-                            .multilineTextAlignment(.center)
-                            .lineLimit(3)
-                            .padding(.horizontal, 32)
-                            .frame(maxWidth: .infinity, alignment: .center)
-                    }
+                    Spacer(minLength: 0)
                 }
-                .frame(maxWidth: .infinity, alignment: .center)
+                .padding(.horizontal, 20)
+                .padding(.top, 18)
 
-                HStack(spacing: 12) {
+                // ── Botones de acción ──────────────────────────────────────
+                HStack(spacing: 10) {
                     Button(action: {
                         HapticManager.shared.mediumImpact()
                         onFollowAction()
                     }) {
-                        HStack(spacing: 8) {
+                        HStack(spacing: 7) {
                             Image(systemName: followButtonIcon)
-                                .font(.system(size: 15, weight: .medium))
+                                .font(.system(size: 13, weight: .medium))
                             Text(followButtonText)
-                                .font(.custom("Poppins-SemiBold", size: 14))
-
+                                .font(.custom("Poppins-SemiBold", size: 13))
                             if followButtonState == .following {
                                 Image(systemName: "chevron.down")
-                                    .font(.system(size: 11, weight: .bold))
+                                    .font(.system(size: 10, weight: .bold))
                             }
                         }
                         .foregroundColor(colorScheme == .dark ? .white : .black)
-                        .padding(.horizontal, 24)
-                        .padding(.vertical, 12)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 10)
                         .liquidGlass(in: Capsule(), interactive: followButtonState.isActionable)
                     }
                     .disabled(!followButtonState.isActionable)
@@ -206,91 +208,117 @@ struct UserModernPrivateProfileView: View {
                         }
                     }) {
                         Image(systemName: "paperplane.fill")
-                            .font(.system(size: 18, weight: .medium))
+                            .font(.system(size: 16, weight: .medium))
                             .foregroundColor(colorScheme == .dark ? .white : .black)
-                            .frame(width: 44, height: 44)
+                            .frame(width: 40, height: 40)
                             .liquidGlass(in: Circle(), interactive: true)
                     }
                 }
-                .frame(maxWidth: .infinity, alignment: .center)
-            }
-            .frame(maxWidth: .infinity, alignment: .center)
+                .padding(.horizontal, 20)
 
-            Spacer()
+                // ── Stats con "--" ──────────────────────────────────────────
+                HStack(spacing: 0) {
+                    ForEach(Array(privateStats.enumerated()), id: \.offset) { index, stat in
+                        VStack(spacing: 3) {
+                            Text("--")
+                                .font(.custom("Poppins-Bold", size: 17))
+                                .foregroundColor(colorScheme == .dark ? .white.opacity(0.38) : .black.opacity(0.32))
+                            Text(stat)
+                                .font(.custom("Poppins-Medium", size: 10))
+                                .foregroundColor(colorScheme == .dark ? .white.opacity(0.38) : .black.opacity(0.32))
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 8)
 
-            VStack(spacing: 16) {
-                Image(systemName: "lock")
-                    .font(.system(size: 34, weight: .semibold))
-                    .foregroundColor(colorScheme == .dark ? .white.opacity(0.54) : .black.opacity(0.48))
-
-                VStack(spacing: 8) {
-                    Text("userProfile.private.title")
-                        .font(.custom("Poppins-Bold", size: 22))
-                        .foregroundColor(colorScheme == .dark ? .white : .black)
-
-                    Text("userProfile.private.description")
-                        .font(.custom("Poppins-Regular", size: 15))
-                        .foregroundColor(colorScheme == .dark ? .white.opacity(0.62) : .black.opacity(0.56))
-                        .multilineTextAlignment(.center)
-                        .padding(.horizontal, 42)
+                        if index < privateStats.count - 1 {
+                            Rectangle()
+                                .fill((colorScheme == .dark ? Color.white : Color.black).opacity(0.12))
+                                .frame(width: 1, height: 26)
+                        }
+                    }
                 }
-            }
-            .frame(maxWidth: .infinity)
+                .padding(.horizontal, 20)
 
-            Spacer()
-            Spacer()
+                // ── Contenido de estado: candado ──────────────────────────
+                VStack(spacing: 16) {
+                    Image(systemName: "lock.fill")
+                        .font(.system(size: 32, weight: .semibold))
+                        .foregroundColor(colorScheme == .dark ? .white.opacity(0.48) : .black.opacity(0.42))
+
+                    VStack(spacing: 6) {
+                        Text(NSLocalizedString("userProfile.private.title", comment: "Private profile title"))
+                            .font(.custom("Poppins-Bold", size: 18))
+                            .foregroundColor(colorScheme == .dark ? .white : .black)
+
+                        Text(NSLocalizedString("userProfile.private.description", comment: "Private profile description"))
+                            .font(.custom("Poppins-Regular", size: 14))
+                            .foregroundColor(colorScheme == .dark ? .white.opacity(0.56) : .black.opacity(0.50))
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal, 40)
+                    }
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 40)
+                .padding(.bottom, safeAreaBottom + 60)
+            }
         }
+    }
+
+    private var privateStats: [String] {
+        [
+            NSLocalizedString("profile.ui.followers", comment: "Followers"),
+            NSLocalizedString("profile.ui.following", comment: "Following"),
+            NSLocalizedString("profile.ui.mutuals", comment: "Mutuals")
+        ]
+    }
+
+    private var privateTopBar: some View {
+        ZStack {
+            Text(userProfile?.username ?? NSLocalizedString("userProfile.user", comment: "User"))
+                .font(.custom("Poppins-SemiBold", size: 18))
+                .foregroundColor(colorScheme == .dark ? .white : .black)
+                .lineLimit(1)
+                .truncationMode(.tail)
+
+            HStack {
+                Button(action: onDismiss) {
+                    Image(systemName: "chevron.left")
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundColor(colorScheme == .dark ? .white : .black)
+                        .frame(width: 36, height: 36)
+                        .liquidGlass(in: Circle(), interactive: true)
+                }
+                .buttonStyle(.plain)
+
+                Spacer()
+
+                Color.clear.frame(width: 36, height: 36)
+            }
+        }
+        .padding(.horizontal, 20)
     }
 
     private var followButtonText: String {
         switch followButtonState {
-        case .ownProfile:
-            return NSLocalizedString("userProfile.followButton.ownProfile", comment: "Own profile")
-        case .blocked:
-            return NSLocalizedString("userProfile.followButton.blocked", comment: "Blocked")
-        case .following:
-            return NSLocalizedString("userProfile.followButton.following", comment: "Following")
-        case .canFollow:
-            return NSLocalizedString("userProfile.followButton.canFollow", comment: "Follow")
-        case .canRequestFollow:
-            return NSLocalizedString("userProfile.followButton.canRequestFollow", comment: "Request follow")
-        case .requestPending:
-            return NSLocalizedString("userProfile.followButton.requestPending", comment: "Request sent")
-        case .requestPendingCancellable:
-            return NSLocalizedString("userProfile.followButton.cancelRequest", comment: "Cancel request")
+        case .ownProfile: return NSLocalizedString("userProfile.followButton.ownProfile", comment: "Own profile")
+        case .blocked: return NSLocalizedString("userProfile.followButton.blocked", comment: "Blocked")
+        case .following: return NSLocalizedString("userProfile.followButton.following", comment: "Following")
+        case .canFollow: return NSLocalizedString("userProfile.followButton.canFollow", comment: "Follow")
+        case .canRequestFollow: return NSLocalizedString("userProfile.followButton.canRequestFollow", comment: "Request follow")
+        case .requestPending: return NSLocalizedString("userProfile.followButton.requestPending", comment: "Request sent")
+        case .requestPendingCancellable: return NSLocalizedString("userProfile.followButton.cancelRequest", comment: "Cancel request")
         }
     }
 
-    private var followButtonColor: Color {
-        switch followButtonState {
-        case .following, .requestPending:
-            return Color.gray.opacity(0.6)
-        case .requestPendingCancellable:
-            return Color.orange.opacity(0.8)
-        case .canFollow, .canRequestFollow:
-            return Color(hex: "00A896")
-        case .ownProfile, .blocked:
-            return Color.gray.opacity(0.4)
-        }
-    }
-
-    // ✅ NUEVO: Icono para el botón según el estado
     private var followButtonIcon: String {
         switch followButtonState {
-        case .ownProfile:
-            return "person.circle.fill"
-        case .blocked:
-            return "slash.circle"
-        case .following:
-            return "checkmark.circle.fill"
-        case .canFollow:
-            return "person.badge.plus"
-        case .canRequestFollow:
-            return "envelope.circle"
-        case .requestPending:
-            return "clock.circle"
-        case .requestPendingCancellable:
-            return "xmark.circle"
+        case .ownProfile: return "person.circle.fill"
+        case .blocked: return "slash.circle"
+        case .following: return "checkmark.circle.fill"
+        case .canFollow: return "person.badge.plus"
+        case .canRequestFollow: return "envelope.circle"
+        case .requestPending: return "clock.circle"
+        case .requestPendingCancellable: return "xmark.circle"
         }
     }
 }
@@ -317,6 +345,7 @@ struct ProfileUnavailableAvatar: View {
     }
 }
 
+// MARK: - Usuario no disponible — shell unificado
 struct UserModernUnavailableProfileView: View {
     let safeAreaTop: CGFloat
     let safeAreaBottom: CGFloat
@@ -324,38 +353,68 @@ struct UserModernUnavailableProfileView: View {
     @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
-        VStack(spacing: 0) {
-            HStack {
-                Button(action: onDismiss) {
-                    Image(systemName: "chevron.left")
-                        .font(.system(size: 18, weight: .semibold))
-                        .foregroundColor(colorScheme == .dark ? .white : .black)
-                        .frame(width: 42, height: 42)
-                        .liquidGlass(in: Circle(), interactive: true)
-                }
-                .buttonStyle(.plain)
+        VStack(spacing: 10) {
+            // ── Top bar ──────────────────────────────────────────────
+            ZStack {
+                Text("")
+                    .font(.custom("Poppins-SemiBold", size: 18))
+                    .foregroundColor(colorScheme == .dark ? .white : .black)
 
-                Spacer()
+                HStack {
+                    Button(action: onDismiss) {
+                        Image(systemName: "chevron.left")
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundColor(colorScheme == .dark ? .white : .black)
+                            .frame(width: 36, height: 36)
+                            .liquidGlass(in: Circle(), interactive: true)
+                    }
+                    .buttonStyle(.plain)
+                    Spacer()
+                    Color.clear.frame(width: 36, height: 36)
+                }
             }
-            .padding(.horizontal, 18)
-            .padding(.top, safeAreaTop + 8)
+            .padding(.horizontal, 20)
+            .padding(.top, 4)
+
+            // ── Avatar genérico + info placeholder (mismo HStack que el shell) ───
+            HStack(alignment: .center, spacing: 14) {
+                ProfileUnavailableAvatar(size: 96)
+
+                VStack(alignment: .leading, spacing: 5) {
+                    Text(NSLocalizedString("userProfile.unavailable.username", comment: "Unavailable username placeholder"))
+                        .font(.custom("Poppins-Bold", size: 20))
+                        .foregroundColor(colorScheme == .dark ? .white.opacity(0.38) : .black.opacity(0.32))
+
+                    Text(NSLocalizedString("userProfile.unavailable.bio", comment: "Unavailable bio placeholder"))
+                        .font(.custom("Poppins-Regular", size: 14))
+                        .foregroundColor(colorScheme == .dark ? .white.opacity(0.28) : .black.opacity(0.22))
+                        .lineLimit(2)
+                }
+
+                Spacer(minLength: 0)
+            }
+            .padding(.horizontal, 20)
+            .padding(.top, 18)
 
             Spacer()
 
-            VStack(spacing: 20) {
-                ProfileUnavailableAvatar(size: 92)
+            // ── Contenido de estado ───────────────────────────────────────
+            VStack(spacing: 14) {
+                Image(systemName: "person.slash")
+                    .font(.system(size: 36, weight: .semibold))
+                    .foregroundColor(colorScheme == .dark ? .white.opacity(0.44) : .black.opacity(0.36))
 
-                VStack(spacing: 10) {
-                    Text("userProfile.unavailable.title")
-                        .font(.custom("Poppins-Bold", size: 24))
+                VStack(spacing: 6) {
+                    Text(NSLocalizedString("userProfile.unavailable.title", comment: "Unavailable title"))
+                        .font(.custom("Poppins-Bold", size: 20))
                         .foregroundColor(colorScheme == .dark ? .white : .black)
                         .multilineTextAlignment(.center)
 
-                    Text("userProfile.unavailable.description")
-                        .font(.custom("Poppins-Regular", size: 15))
-                        .foregroundColor(colorScheme == .dark ? .white.opacity(0.62) : .black.opacity(0.56))
+                    Text(NSLocalizedString("userProfile.unavailable.description", comment: "Unavailable description"))
+                        .font(.custom("Poppins-Regular", size: 14))
+                        .foregroundColor(colorScheme == .dark ? .white.opacity(0.56) : .black.opacity(0.50))
                         .multilineTextAlignment(.center)
-                        .padding(.horizontal, 42)
+                        .padding(.horizontal, 40)
                 }
             }
             .frame(maxWidth: .infinity)
@@ -365,10 +424,10 @@ struct UserModernUnavailableProfileView: View {
                 .frame(height: safeAreaBottom + 24)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(colorScheme == .dark ? Color(hex: "0B1215") : Color(hex: "FAF9F6"))
     }
 }
 
+// MARK: - Bloqueado por mí — shell unificado
 struct UserModernBlockedByMeProfileView: View {
     let userProfile: AppUser?
     let safeAreaTop: CGFloat
@@ -384,80 +443,118 @@ struct UserModernBlockedByMeProfileView: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            HStack {
-                Button(action: onDismiss) {
-                    Image(systemName: "chevron.left")
-                        .font(.system(size: 18, weight: .semibold))
-                        .foregroundColor(colorScheme == .dark ? .white : .black)
-                        .frame(width: 42, height: 42)
-                        .liquidGlass(in: Circle(), interactive: true)
-                }
-                .buttonStyle(.plain)
-
-                Spacer()
-            }
-            .padding(.horizontal, 18)
-            .padding(.top, safeAreaTop + 8)
-
-            VStack(spacing: 18) {
-                blockedAvatar
-
-                VStack(spacing: 8) {
+        ScrollView(showsIndicators: false) {
+            VStack(spacing: 10) {
+                // ── Top bar ──────────────────────────────────────────────
+                ZStack {
                     Text(username)
-                        .font(.custom("Poppins-Bold", size: 28))
+                        .font(.custom("Poppins-SemiBold", size: 18))
                         .foregroundColor(colorScheme == .dark ? .white : .black)
+                        .lineLimit(1)
+                        .truncationMode(.tail)
 
-                    if let bio = userProfile?.bio, !bio.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                        Text(bio)
-                            .font(.custom("Poppins-Regular", size: 14))
-                            .foregroundColor(colorScheme == .dark ? .white.opacity(0.58) : .black.opacity(0.52))
-                            .multilineTextAlignment(.center)
-                            .lineLimit(2)
-                            .padding(.horizontal, 34)
+                    HStack {
+                        Button(action: onDismiss) {
+                            Image(systemName: "chevron.left")
+                                .font(.system(size: 16, weight: .semibold))
+                                .foregroundColor(colorScheme == .dark ? .white : .black)
+                                .frame(width: 36, height: 36)
+                                .liquidGlass(in: Circle(), interactive: true)
+                        }
+                        .buttonStyle(.plain)
+                        Spacer()
+                        Color.clear.frame(width: 36, height: 36)
                     }
                 }
+                .padding(.horizontal, 20)
+                .padding(.top, 4)
 
-                HStack(spacing: 22) {
-                    blockedStat(label: NSLocalizedString("profile.ui.posts", comment: "Posts"))
-                    blockedStat(label: NSLocalizedString("profile.ui.followers", comment: "Followers"))
-                    blockedStat(label: NSLocalizedString("profile.ui.following", comment: "Following"))
+                // ── Avatar + Info (mismo shell) ───────────────────────────
+                HStack(alignment: .center, spacing: 14) {
+                    blockedAvatar
+
+                    VStack(alignment: .leading, spacing: 5) {
+                        Text(username)
+                            .font(.custom("Poppins-Bold", size: 20))
+                            .foregroundColor(colorScheme == .dark ? .white : .black)
+
+                        if let bio = userProfile?.bio, !bio.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                            Text(bio)
+                                .font(.custom("Poppins-Regular", size: 14))
+                                .foregroundColor(colorScheme == .dark ? .white.opacity(0.54) : .black.opacity(0.48))
+                                .lineLimit(2)
+                        }
+                    }
+
+                    Spacer(minLength: 0)
                 }
-                .padding(.top, 2)
+                .padding(.horizontal, 20)
+                .padding(.top, 18)
+
+                // ── Stats con "--" ──────────────────────────────────────────
+                HStack(spacing: 0) {
+                    ForEach(Array(blockedStats.enumerated()), id: \.offset) { index, stat in
+                        VStack(spacing: 3) {
+                            Text("--")
+                                .font(.custom("Poppins-Bold", size: 17))
+                                .foregroundColor(colorScheme == .dark ? .white.opacity(0.38) : .black.opacity(0.32))
+                            Text(stat)
+                                .font(.custom("Poppins-Medium", size: 10))
+                                .foregroundColor(colorScheme == .dark ? .white.opacity(0.38) : .black.opacity(0.32))
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 8)
+
+                        if index < blockedStats.count - 1 {
+                            Rectangle()
+                                .fill((colorScheme == .dark ? Color.white : Color.black).opacity(0.12))
+                                .frame(width: 1, height: 26)
+                        }
+                    }
+                }
+                .padding(.horizontal, 20)
+
+                // ── Contenido de estado: bloqueado ────────────────────────
+                VStack(spacing: 14) {
+                    Image(systemName: "person.slash")
+                        .font(.system(size: 32, weight: .semibold))
+                        .foregroundColor(colorScheme == .dark ? .white.opacity(0.44) : .black.opacity(0.36))
+
+                    VStack(spacing: 6) {
+                        Text(NSLocalizedString("userProfile.blockedByMe.title", comment: "Blocked by me title"))
+                            .font(.custom("Poppins-Bold", size: 18))
+                            .foregroundColor(colorScheme == .dark ? .white : .black)
+
+                        Text(NSLocalizedString("userProfile.blockedByMe.description", comment: "Blocked by me description"))
+                            .font(.custom("Poppins-Regular", size: 14))
+                            .foregroundColor(colorScheme == .dark ? .white.opacity(0.56) : .black.opacity(0.50))
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal, 34)
+                    }
+
+                    Button(action: onUnblock) {
+                        Text(NSLocalizedString("userProfile.unblockUser", comment: "Unblock user"))
+                            .font(.custom("Poppins-SemiBold", size: 14))
+                            .foregroundColor(colorScheme == .dark ? .white : .black)
+                            .padding(.horizontal, 24)
+                            .padding(.vertical, 12)
+                            .liquidGlass(in: Capsule(), interactive: true)
+                    }
+                    .buttonStyle(.plain)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 32)
+                .padding(.bottom, safeAreaBottom + 40)
             }
-            .padding(.top, 18)
-
-            Spacer()
-
-            VStack(spacing: 16) {
-                VStack(spacing: 8) {
-                    Text("userProfile.blockedByMe.title")
-                        .font(.custom("Poppins-Bold", size: 22))
-                        .foregroundColor(colorScheme == .dark ? .white : .black)
-
-                    Text("userProfile.blockedByMe.description")
-                        .font(.custom("Poppins-Regular", size: 15))
-                        .foregroundColor(colorScheme == .dark ? .white.opacity(0.62) : .black.opacity(0.56))
-                        .multilineTextAlignment(.center)
-                        .padding(.horizontal, 34)
-                }
-
-                Button(action: onUnblock) {
-                    Text("userProfile.unblockUser")
-                        .font(.custom("Poppins-SemiBold", size: 15))
-                        .foregroundColor(colorScheme == .dark ? .white : .black)
-                        .padding(.horizontal, 24)
-                        .padding(.vertical, 13)
-                        .liquidGlass(in: Capsule(), interactive: true)
-                }
-                .buttonStyle(.plain)
-            }
-
-            Spacer()
-                .frame(height: safeAreaBottom + 28)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(colorScheme == .dark ? Color(hex: "0B1215") : Color(hex: "FAF9F6"))
+    }
+
+    private var blockedStats: [String] {
+        [
+            NSLocalizedString("profile.ui.followers", comment: "Followers"),
+            NSLocalizedString("profile.ui.following", comment: "Following"),
+            NSLocalizedString("profile.ui.mutuals", comment: "Mutuals")
+        ]
     }
 
     @ViewBuilder
@@ -466,28 +563,15 @@ struct UserModernBlockedByMeProfileView: View {
             KFImage(url)
                 .resizable()
                 .scaledToFill()
-                .frame(width: 104, height: 104)
+                .frame(width: 96, height: 96)
                 .clipShape(Circle())
-                .opacity(0.72)
+                .opacity(0.62)
                 .overlay(
                     Circle()
-                        .stroke(colorScheme == .dark ? Color.white.opacity(0.14) : Color.black.opacity(0.10), lineWidth: 1)
+                        .stroke(colorScheme == .dark ? Color.white.opacity(0.12) : Color.black.opacity(0.08), lineWidth: 1)
                 )
         } else {
-            ProfileUnavailableAvatar(size: 104)
+            ProfileUnavailableAvatar(size: 96)
         }
-    }
-
-    private func blockedStat(label: String) -> some View {
-        VStack(spacing: 4) {
-            Text("--")
-                .font(.custom("Poppins-Bold", size: 18))
-                .foregroundColor(colorScheme == .dark ? .white.opacity(0.72) : .black.opacity(0.66))
-
-            Text(label)
-                .font(.custom("Poppins-Regular", size: 12))
-                .foregroundColor(colorScheme == .dark ? .white.opacity(0.42) : .black.opacity(0.38))
-        }
-        .frame(minWidth: 72)
     }
 }

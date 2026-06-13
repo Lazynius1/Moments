@@ -15,7 +15,7 @@ struct UserProfileOverviewSection: View {
     @Environment(\.colorScheme) var colorScheme
 
     var body: some View {
-        VStack(spacing: 0) {
+        VStack(alignment: .leading, spacing: 0) {
             if viewModel.canViewConnections {
                 UserModernStatsSection(
                     viewModel: viewModel,
@@ -25,40 +25,38 @@ struct UserProfileOverviewSection: View {
             }
 
             if !interests.isEmpty {
-                if viewModel.canViewConnections {
-                    Divider()
-                        .overlay(UserProfileColors.borderColor.opacity(colorScheme == .dark ? 0.22 : 0.4))
-                        .padding(.top, 14)
-                        .padding(.bottom, 10)
-                }
-
                 Button(action: {
                     withAnimation(.spring(response: 0.3, dampingFraction: 0.78)) {
                         showingInterests.toggle()
                     }
                 }) {
-                    HStack(spacing: 8) {
+                    HStack(spacing: 10) {
                         Text("profile.interests.title")
-                            .font(.custom("Poppins-SemiBold", size: 14))
+                            .font(.custom("Poppins-SemiBold", size: 13))
                             .foregroundColor(UserProfileColors.textPrimary)
 
-                        Text("\(interests.count)")
-                            .font(.custom("Poppins-Medium", size: 11))
+                        Text("· \(interests.count)")
+                            .font(.custom("Poppins-Medium", size: 12))
                             .foregroundColor(UserProfileColors.textSecondary)
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 4)
-                            .background(UserProfileColors.materialBackground.opacity(0.7))
-                            .clipShape(Capsule())
+
+                        if !showingInterests, let firstInterest = interests.first {
+                            Text(firstInterest)
+                                .font(.custom("Poppins-Medium", size: 11))
+                                .foregroundColor(UserProfileColors.textSecondary)
+                                .lineLimit(1)
+                        }
 
                         Spacer()
 
                         Image(systemName: "chevron.down")
-                            .font(.system(size: 12, weight: .bold))
+                            .font(.system(size: 11, weight: .bold))
                             .foregroundColor(UserProfileColors.textSecondary)
                             .rotationEffect(.degrees(showingInterests ? 180 : 0))
                     }
+                    .padding(.top, viewModel.canViewConnections ? 12 : 0)
                     .contentShape(Rectangle())
                 }
+                .buttonStyle(.plain)
 
                 if showingInterests {
                     UserModernInterestsView(
@@ -66,7 +64,7 @@ struct UserProfileOverviewSection: View {
                         showsTitle: false,
                         embeddedStyle: true
                     )
-                    .padding(.top, 12)
+                    .padding(.top, 10)
                     .transition(.asymmetric(
                         insertion: .opacity.combined(with: .move(edge: .top)),
                         removal: .opacity.combined(with: .move(edge: .top))
@@ -74,7 +72,8 @@ struct UserProfileOverviewSection: View {
                 }
             }
         }
-        .padding(.vertical, 4)
+        .padding(.horizontal, 4)
+        .padding(.vertical, 6)
     }
 }
 
@@ -98,17 +97,17 @@ struct UserModernStatsSection: View {
                 Button(action: {
                     showingUserList = stat.2
                 }) {
-                    VStack(spacing: 6) {
+                    VStack(spacing: 4) {
                         Text("\(stat.1)")
-                            .font(.custom("Poppins-Bold", size: 18))
+                            .font(.custom("Poppins-Bold", size: embeddedStyle ? 17 : 18))
                             .foregroundColor(UserProfileColors.textPrimary)
 
                         Text(stat.0)
-                            .font(.custom("Poppins-Medium", size: 11))
+                            .font(.custom("Poppins-Medium", size: embeddedStyle ? 10 : 11))
                             .foregroundColor(UserProfileColors.textSecondary)
                     }
                     .frame(maxWidth: .infinity)
-                    .padding(.vertical, embeddedStyle ? 10 : 14)
+                    .padding(.vertical, embeddedStyle ? 8 : 14)
                     .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
@@ -116,7 +115,7 @@ struct UserModernStatsSection: View {
                 if embeddedStyle && index < computedStats.count - 1 {
                     Rectangle()
                         .fill(UserProfileColors.borderColor.opacity(colorScheme == .dark ? 0.24 : 0.4))
-                        .frame(width: 1, height: 30)
+                        .frame(width: 1, height: 26)
                 }
             }
         }
@@ -133,11 +132,11 @@ struct UserExpandableBioView: View {
     @Environment(\.colorScheme) var colorScheme
 
     var body: some View {
-        VStack(spacing: 8) {
+        VStack(alignment: .leading, spacing: 6) {
             Text(bio)
-                .font(.custom("Poppins-Regular", size: 15))
+                .font(.custom("Poppins-Regular", size: 14))
                 .foregroundColor(UserProfileColors.textSecondary)
-                .multilineTextAlignment(.center)
+                .multilineTextAlignment(.leading)
                 .lineLimit(isExpanded ? nil : 3)
                 .background(
                     Text(bio)
@@ -152,7 +151,6 @@ struct UserExpandableBioView: View {
                         })
                         .hidden()
                 )
-                .padding(.horizontal, 40)
                 .animation(.easeInOut(duration: 0.3), value: isExpanded)
 
             if needsExpansion {
@@ -171,6 +169,7 @@ struct UserExpandableBioView: View {
                 }
             }
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 

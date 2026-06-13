@@ -61,8 +61,8 @@ struct UserModernPublicProfileView: View {
                         onFollowAction: onFollowAction,
                         onDismiss: onDismiss
                     )
-                    .padding(.top, 10)
-                    .padding(.bottom, 20)
+                    .padding(.top, 4)
+                    .padding(.bottom, 4)
 
                     UserProfileOverviewSection(
                         viewModel: viewModel,
@@ -71,7 +71,7 @@ struct UserModernPublicProfileView: View {
                         interests: viewModel.userProfile?.interests ?? []
                     )
                     .padding(.horizontal, 20)
-                    .padding(.bottom, 12)
+                    .padding(.bottom, 4)
 
                     // ✅ NUEVO: Destacadas Compactas (Después del bloque social)
                     if let userId = viewModel.userProfile?.id {
@@ -80,7 +80,7 @@ struct UserModernPublicProfileView: View {
                             isOwnProfile: false,
                             isCompact: true
                         )
-                        .padding(.bottom, 12)
+                        .padding(.bottom, 8)
                     }
 
                     // Indicador de refresh
@@ -95,7 +95,7 @@ struct UserModernPublicProfileView: View {
                         // Pills Tabs
                         UserProfilePillTabs(selectedTab: $selectedTab)
                             .frame(maxWidth: 240)
-                            .padding(.bottom, 12)
+                            .padding(.bottom, 4)
 
                         // Contenido según tab seleccionado
                         switch selectedTab {
