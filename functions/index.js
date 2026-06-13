@@ -7358,6 +7358,31 @@ function serializeMoment(docId, data) {
   };
 }
 
+function serializeHighlightedStory(docId, data, overrides = {}) {
+  return {
+    id: docId,
+    title: data.title || '',
+    coverImageUrl: overrides.coverImageUrl ?? data.coverImageUrl ?? null,
+    storiesCount: overrides.storiesCount ?? data.storiesCount ?? 0,
+    createdAt: tsToMillis(data.createdAt),
+    storyIds: Array.isArray(overrides.storyIds) ? overrides.storyIds : (Array.isArray(data.storyIds) ? data.storyIds : []),
+    authorId: overrides.authorId || data.authorId || ''
+  };
+}
+
+function storyPrimaryMediaUrl(data) {
+  if (data?.mediaItem && typeof data.mediaItem.url === 'string' && data.mediaItem.url.trim()) {
+    return data.mediaItem.url.trim();
+  }
+  if (typeof data?.imagePath === 'string' && data.imagePath.trim()) {
+    return data.imagePath.trim();
+  }
+  if (typeof data?.videoUrl === 'string' && data.videoUrl.trim()) {
+    return data.videoUrl.trim();
+  }
+  return null;
+}
+
 /**
  * Serialize a restricted moment without exposing media/content.
  */
@@ -9431,6 +9456,255 @@ exports.getTaggedMomentsPage = onRequest(
 );
 
 /**
+ * 👤 getProfileMomentsPage — Returns moments for a target profile with backend privacy filtering.
+ *
+ * POST body: { targetUserId?: string, cursor?: { timestamp: number, momentId?: string }, limit?: number }
+ * Response: { moments: [...], nextCursor: {...}|null, source: "backend", totalCandidates: N }
+ */
+exports.getProfileMomentsPage = onRequest(
+  {
+    timeoutSeconds: 30,
+    memory: '512MiB',
+    concurrency: 40
+  },
+  async (req, res) => {
+    setProxyCors(res);
+    if (req.method === 'OPTIONS') {
+      res.status(204).send('');
+      return;
+    }
+    if (req.method !== 'POST') {
+      res.status(405).json({ error: 'Method not allowed' });
+      return;
+    }
+
+    const uid = await verifyFirebaseAuth(req, res);
+    if (!uid) return;
+
+    const body = parseJsonBody(req);
+    const rawLimit = Number(body.limit);
+    const limit = Number.isFinite(rawLimit) ? Math.max(1, Math.min(rawLimit, 60)) : 50;
+    const cursorTimestamp = Number(body?.cursor?.timestamp || 0);
+    const cursorMomentId = typeof body?.cursor?.momentId === 'string' ? body.cursor.momentId.trim() : '';
+    const requestedTargetUserId = typeof body?.targetUserId === 'string' ? body.targetUserId.trim() : '';
+    const targetUserId = requestedTargetUserId || uid;
+    const db = admin.firestore();
+
+    try {
+      const [viewerCtx, authorMap] = await Promise.all([
+        buildViewerContext(uid),
+        batchLoadAuthorDocs([targetUserId])
+      ]);
+      const authorData = authorMap.get(targetUserId);
+
+      if (!authorData) {
+        res.status(200).json({ moments: [], nextCursor: null, source: 'backend', totalCandidates: 0 });
+        return;
+      }
+
+      let query = db.collection(`users/${targetUserId}/moments`)
+        .orderBy('timestamp', 'desc');
+
+      if (Number.isFinite(cursorTimestamp) && cursorTimestamp > 0) {
+        query = query.startAfter(admin.firestore.Timestamp.fromMillis(cursorTimestamp));
+      }
+
+      const snap = await query.limit(limit).get();
+      if (snap.empty) {
+        res.status(200).json({ moments: [], nextCursor: null, source: 'backend', totalCandidates: 0 });
+        return;
+      }
+
+      const now = Date.now();
+      const filteredByCursor = snap.docs.filter((doc) => !cursorMomentId || doc.id !== cursorMomentId);
+      const candidates = filteredByCursor.filter((doc) => {
+        const data = doc.data() || {};
+        if (data.isArchived === true) return false;
+        if (!isMomentPathAuthorConsistent(doc, data)) return false;
+        if (data.authorId === uid) return true;
+        const schedMs = tsToMillis(data.scheduledDate);
+        return !(schedMs && schedMs > now);
+      });
+
+      const privacyResults = await Promise.all(
+        candidates.map(async (doc) => {
+          const data = doc.data() || {};
+          const canView = await canViewerSeeMoment(
+            {
+              id: doc.id,
+              authorId: data.authorId,
+              audience: data.audience,
+              taggedUsers: data.taggedUsers,
+              customListId: data.customListId,
+              isArchived: data.isArchived === true
+            },
+            uid,
+            viewerCtx,
+            authorData
+          );
+          return { doc, data, canView };
+        })
+      );
+
+      const visibleDocs = privacyResults.filter((entry) => entry.canView);
+      const moments = visibleDocs.map(({ doc, data }) => serializeMoment(doc.id, data));
+
+      let nextCursor = null;
+      if (snap.size >= limit && snap.docs.length > 0) {
+        const lastDoc = snap.docs[snap.docs.length - 1];
+        nextCursor = {
+          timestamp: tsToMillis(lastDoc.data().timestamp),
+          momentId: lastDoc.id,
+          authorId: targetUserId
+        };
+      }
+
+      console.log(`✅ getProfileMomentsPage: viewer=${uid}, target=${targetUserId}, scanned=${snap.size}, returned=${moments.length}`);
+      res.status(200).json({
+        moments,
+        nextCursor,
+        source: 'backend',
+        totalCandidates: candidates.length
+      });
+    } catch (error) {
+      console.error('❌ getProfileMomentsPage error:', error);
+      res.status(500).json({ error: 'Profile moments fetch failed', details: error.message });
+    }
+  }
+);
+
+/**
+ * ✨ getVisibleHighlightsPage — Returns highlights already filtered for the authenticated viewer.
+ *
+ * POST body: { targetUserId?: string, limit?: number }
+ * Response: { highlights: [...], source: "backend", totalCandidates: N }
+ */
+exports.getVisibleHighlightsPage = onRequest(
+  {
+    timeoutSeconds: 30,
+    memory: '512MiB',
+    concurrency: 40
+  },
+  async (req, res) => {
+    setProxyCors(res);
+    if (req.method === 'OPTIONS') {
+      res.status(204).send('');
+      return;
+    }
+    if (req.method !== 'POST') {
+      res.status(405).json({ error: 'Method not allowed' });
+      return;
+    }
+
+    const uid = await verifyFirebaseAuth(req, res);
+    if (!uid) return;
+
+    const body = parseJsonBody(req);
+    const rawLimit = Number(body.limit);
+    const limit = Number.isFinite(rawLimit) ? Math.max(1, Math.min(rawLimit, 50)) : 30;
+    const requestedTargetUserId = typeof body?.targetUserId === 'string' ? body.targetUserId.trim() : '';
+    const targetUserId = requestedTargetUserId || uid;
+    const db = admin.firestore();
+
+    try {
+      const [viewerCtx, authorMap, highlightsSnap] = await Promise.all([
+        buildViewerContext(uid),
+        batchLoadAuthorDocs([targetUserId]),
+        db.collection(`users/${targetUserId}/highlights`)
+          .orderBy('createdAt', 'desc')
+          .limit(limit)
+          .get()
+      ]);
+
+      const authorData = authorMap.get(targetUserId);
+      if (!authorData || highlightsSnap.empty) {
+        res.status(200).json({ highlights: [], source: 'backend', totalCandidates: 0 });
+        return;
+      }
+
+      const highlights = highlightsSnap.docs.map((doc) => ({ id: doc.id, data: doc.data() || {} }));
+      const uniqueStoryIds = [...new Set(
+        highlights.flatMap(({ data }) => Array.isArray(data.storyIds) ? data.storyIds.filter((id) => typeof id === 'string' && id.trim()) : [])
+      )];
+
+      const storyRefs = uniqueStoryIds.map((storyId) => db.doc(`users/${targetUserId}/stories/${storyId}`));
+      const storyDocs = [];
+      for (let i = 0; i < storyRefs.length; i += 100) {
+        const chunkDocs = await db.getAll(...storyRefs.slice(i, i + 100));
+        storyDocs.push(...chunkDocs);
+      }
+
+      const storyMap = new Map();
+      storyDocs.forEach((doc) => {
+        if (!doc.exists) return;
+        storyMap.set(doc.id, doc.data() || {});
+      });
+
+      const customStories = storyDocs
+        .filter((doc) => doc.exists)
+        .map((doc) => ({ id: doc.id, ...(doc.data() || {}) }))
+        .filter((story) => story.audience === 'custom');
+      const customAllowanceMap = await preloadCustomStoryAllowanceMap(customStories, uid, db);
+
+      const resolvedHighlights = [];
+      for (const highlight of highlights) {
+        const orderedStoryIds = Array.isArray(highlight.data.storyIds) ? highlight.data.storyIds : [];
+        const visibleStoryIds = [];
+        const visibleStoryData = [];
+
+        for (const storyId of orderedStoryIds) {
+          const storyData = storyMap.get(storyId);
+          if (!storyData) continue;
+
+          const canView = await canViewerSeeStoryOptimized(
+            {
+              id: storyId,
+              authorId: targetUserId,
+              audience: storyData.audience,
+              customListId: storyData.customListId
+            },
+            uid,
+            viewerCtx,
+            authorData,
+            customAllowanceMap
+          );
+
+          if (!canView) continue;
+          visibleStoryIds.push(storyId);
+          visibleStoryData.push(storyData);
+        }
+
+        if (!visibleStoryIds.length) continue;
+
+        const originalCover = typeof highlight.data.coverImageUrl === 'string' ? highlight.data.coverImageUrl : null;
+        const resolvedCoverUrl = originalCover && visibleStoryData.some((story) => storyPrimaryMediaUrl(story) === originalCover)
+          ? originalCover
+          : storyPrimaryMediaUrl(visibleStoryData[0]);
+
+        resolvedHighlights.push(
+          serializeHighlightedStory(highlight.id, highlight.data, {
+            authorId: targetUserId,
+            storyIds: visibleStoryIds,
+            storiesCount: visibleStoryIds.length,
+            coverImageUrl: resolvedCoverUrl
+          })
+        );
+      }
+
+      console.log(`✅ getVisibleHighlightsPage: viewer=${uid}, target=${targetUserId}, scanned=${highlights.length}, returned=${resolvedHighlights.length}`);
+      res.status(200).json({
+        highlights: resolvedHighlights,
+        source: 'backend',
+        totalCandidates: highlights.length
+      });
+    } catch (error) {
+      console.error('❌ getVisibleHighlightsPage error:', error);
+      res.status(500).json({ error: 'Visible highlights fetch failed', details: error.message });
+    }
+  }
+);
+
+/**
  * 💬 getCommentedMomentsPage — Returns moments where viewer has commented.
  *
  * POST body: { cursor?: { timestamp: number }, limit?: number }
@@ -10228,7 +10502,7 @@ exports.cleanupIncompleteAuthAccounts = onSchedule(
   {
     schedule: '0 4 * * 0',
     timeZone: 'Europe/Madrid',
-    region: 'europe-southwest1',
+    region: 'us-central1',
     timeoutSeconds: 540,
     memory: '512MiB',
     concurrency: 1

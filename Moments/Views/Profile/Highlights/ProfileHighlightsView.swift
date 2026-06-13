@@ -250,24 +250,36 @@ class ProfileHighlightsViewModel: ObservableObject {
 
         isLoading = true
         errorMessage = nil
-        firestoreService.fetchHighlights(userId: userId) { [weak self] result in
+
+        Task { @MainActor [weak self] in
             guard let self else { return }
 
-            switch result {
-            case .success(let allHighlights):
-                if userId == currentUserId {
-                    DispatchQueue.main.async {
-                        self.highlights = allHighlights
-                        self.isLoading = false
+            if let result = await BackendFeedService.shared.fetchVisibleHighlights(targetUserId: userId, limit: 30) {
+                self.highlights = result.highlights
+                self.isLoading = false
+                self.errorMessage = nil
+                return
+            }
+
+            firestoreService.fetchHighlights(userId: userId) { [weak self] result in
+                guard let self else { return }
+
+                switch result {
+                case .success(let allHighlights):
+                    if userId == currentUserId {
+                        DispatchQueue.main.async {
+                            self.highlights = allHighlights
+                            self.isLoading = false
+                        }
+                    } else {
+                        self.filterAndResolveHighlights(highlights: allHighlights, viewerId: currentUserId, userId: userId)
                     }
-                } else {
-                    self.filterAndResolveHighlights(highlights: allHighlights, viewerId: currentUserId, userId: userId)
-                }
-            case .failure(let error):
-                DispatchQueue.main.async {
-                    self.highlights = []
-                    self.isLoading = false
-                    self.errorMessage = self.isPermissionDeniedError(error) ? nil : error.localizedDescription
+                case .failure(let error):
+                    DispatchQueue.main.async {
+                        self.highlights = []
+                        self.isLoading = false
+                        self.errorMessage = self.isPermissionDeniedError(error) ? nil : error.localizedDescription
+                    }
                 }
             }
         }

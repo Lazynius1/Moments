@@ -206,25 +206,8 @@ class UserProfileViewModel: ObservableObject, UserListViewModel {
 
         // 4. Refresh momentos
         refreshGroup.enter()
-        firestoreService.fetchMoments(for: userId) { [weak self] result in
-            guard let self = self else {
-                refreshGroup.leave()
-                return
-            }
-
-            switch result {
-            case .success(let allMoments):
-                // ✅ Aplicar filtrado de audiencia
-                self.filterMomentsForAudience(moments: allMoments, viewerId: currentUserId) { filteredMoments in
-                    DispatchQueue.main.async {
-                        self.moments = filteredMoments
-                    }
-                    refreshGroup.leave()
-                }
-            case .failure:
-                hasErrors = true
-                refreshGroup.leave()
-            }
+        self.fetchMoments {
+            refreshGroup.leave()
         }
 
         // 5. Refresh momentos etiquetados
@@ -476,25 +459,43 @@ class UserProfileViewModel: ObservableObject, UserListViewModel {
         }
     }
 
-    func fetchMoments() {
+    func fetchMoments(completion: (() -> Void)? = nil) {
         guard let currentUserId = Auth.auth().currentUser?.uid else {
+            completion?()
             return
         }
 
-        firestoreService.fetchMoments(for: userId) { [weak self] result in
-            guard let self = self else { return }
+        Task { @MainActor [weak self] in
+            guard let self else {
+                completion?()
+                return
+            }
 
-            switch result {
-            case .success(let allMoments):
-                // ✅ FILTRAR momentos por audiencia usando PrivacyService
-                self.filterMomentsForAudience(moments: allMoments, viewerId: currentUserId) { filteredMoments in
-                    DispatchQueue.main.async {
-                        self.moments = filteredMoments
-                    }
+            if let result = await BackendFeedService.shared.fetchProfileMoments(targetUserId: self.userId, limit: 50) {
+                self.moments = result.moments
+                completion?()
+                return
+            }
+
+            self.firestoreService.fetchMoments(for: self.userId) { [weak self] result in
+                guard let self = self else {
+                    completion?()
+                    return
                 }
-            case .failure:
-                DispatchQueue.main.async {
-                    self.moments = []
+
+                switch result {
+                case .success(let allMoments):
+                    self.filterMomentsForAudience(moments: allMoments, viewerId: currentUserId) { filteredMoments in
+                        DispatchQueue.main.async {
+                            self.moments = filteredMoments
+                            completion?()
+                        }
+                    }
+                case .failure:
+                    DispatchQueue.main.async {
+                        self.moments = []
+                        completion?()
+                    }
                 }
             }
         }

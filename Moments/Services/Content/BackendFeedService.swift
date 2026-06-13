@@ -10,6 +10,34 @@ struct BackendFeedResponse: Codable {
     let totalCandidates: Int
 }
 
+struct BackendHighlightsResponse: Codable {
+    let highlights: [BackendHighlight]
+    let source: String
+    let totalCandidates: Int
+}
+
+struct BackendHighlight: Codable {
+    let id: String
+    let title: String
+    let coverImageUrl: String?
+    let storiesCount: Int
+    let createdAt: Double?
+    let storyIds: [String]
+    let authorId: String
+
+    func toHighlightedStory() -> HighlightedStory {
+        HighlightedStory(
+            id: id,
+            title: title,
+            coverImageUrl: coverImageUrl,
+            storiesCount: storiesCount,
+            createdAt: Date(timeIntervalSince1970: (createdAt ?? 0) / 1000),
+            storyIds: storyIds,
+            authorId: authorId
+        )
+    }
+}
+
 struct BackendStoryTrayResponse: Codable {
     let items: [BackendStoryTrayItem]
     let nextCursor: StoryRingCursor?
@@ -353,6 +381,123 @@ class BackendFeedService {
             return (moments: moments, nextCursor: decoded.nextCursor, source: decoded.source)
         } catch {
             LogConfig.log("❌ BackendFeed tagged error: \(error.localizedDescription)", category: "BackendFeed")
+            recordFailure()
+            return nil
+        }
+    }
+
+    func fetchProfileMoments(
+        targetUserId: String? = nil,
+        cursor: FeedCursor? = nil,
+        limit: Int = 50
+    ) async -> (moments: [Moment], nextCursor: FeedCursor?, source: String)? {
+        guard !isCircuitOpen else {
+            LogConfig.log("⚡ BackendFeed profile: Circuit breaker OPEN", category: "BackendFeed")
+            return nil
+        }
+
+        guard let user = Auth.auth().currentUser else {
+            LogConfig.log("⚡ BackendFeed profile: No authenticated user", category: "BackendFeed")
+            return nil
+        }
+
+        do {
+            let idToken = try await user.getIDToken()
+
+            var body: [String: Any] = ["limit": limit]
+            if let cursor {
+                body["cursor"] = [
+                    "timestamp": cursor.timestamp,
+                    "momentId": cursor.momentId,
+                    "authorId": cursor.authorId as Any
+                ]
+            }
+            if let targetUserId, !targetUserId.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                body["targetUserId"] = targetUserId
+            }
+
+            let projectId = FirebaseApp.app()?.options.projectID ?? ""
+            let region = "europe-southwest1"
+            let urlString = "https://\(region)-\(projectId).cloudfunctions.net/getProfileMomentsPage"
+
+            guard let url = URL(string: urlString) else {
+                recordFailure()
+                return nil
+            }
+
+            var request = URLRequest(url: url)
+            request.httpMethod = "POST"
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            request.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
+            request.httpBody = try JSONSerialization.data(withJSONObject: body)
+            request.timeoutInterval = 15
+
+            let (data, response) = try await URLSession.shared.data(for: request)
+            guard let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 else {
+                recordFailure()
+                return nil
+            }
+
+            let decoded = try JSONDecoder().decode(BackendFeedResponse.self, from: data)
+            let moments = decoded.moments.map { $0.toMoment() }
+            recordSuccess()
+            LogConfig.log("✅ BackendFeed profile: \(moments.count) moments (source: \(decoded.source), candidates: \(decoded.totalCandidates))", category: "BackendFeed")
+            return (moments: moments, nextCursor: decoded.nextCursor, source: decoded.source)
+        } catch {
+            LogConfig.log("❌ BackendFeed profile error: \(error.localizedDescription)", category: "BackendFeed")
+            recordFailure()
+            return nil
+        }
+    }
+
+    func fetchVisibleHighlights(
+        targetUserId: String? = nil,
+        limit: Int = 30
+    ) async -> (highlights: [HighlightedStory], source: String)? {
+        guard !isCircuitOpen else {
+            LogConfig.log("⚡ BackendFeed highlights: Circuit breaker OPEN", category: "BackendFeed")
+            return nil
+        }
+
+        guard let user = Auth.auth().currentUser else {
+            LogConfig.log("⚡ BackendFeed highlights: No authenticated user", category: "BackendFeed")
+            return nil
+        }
+
+        do {
+            let idToken = try await user.getIDToken()
+            var body: [String: Any] = ["limit": limit]
+            if let targetUserId, !targetUserId.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                body["targetUserId"] = targetUserId
+            }
+
+            let projectId = FirebaseApp.app()?.options.projectID ?? ""
+            let region = "europe-southwest1"
+            let urlString = "https://\(region)-\(projectId).cloudfunctions.net/getVisibleHighlightsPage"
+
+            guard let url = URL(string: urlString) else {
+                recordFailure()
+                return nil
+            }
+
+            var request = URLRequest(url: url)
+            request.httpMethod = "POST"
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            request.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
+            request.httpBody = try JSONSerialization.data(withJSONObject: body)
+            request.timeoutInterval = 15
+
+            let (data, response) = try await URLSession.shared.data(for: request)
+            guard let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 else {
+                recordFailure()
+                return nil
+            }
+
+            let decoded = try JSONDecoder().decode(BackendHighlightsResponse.self, from: data)
+            recordSuccess()
+            return (highlights: decoded.highlights.map { $0.toHighlightedStory() }, source: decoded.source)
+        } catch {
+            LogConfig.log("❌ BackendFeed highlights error: \(error.localizedDescription)", category: "BackendFeed")
             recordFailure()
             return nil
         }
