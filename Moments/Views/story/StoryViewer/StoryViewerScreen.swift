@@ -330,7 +330,7 @@ struct StoryViewerScreen: View {
             // MARK: - 1. CONTENIDO MULTIMEDIA (Fijo en el centro - NUNCA SE MUEVE)
             contentView(canvasRect: captureRect)
                 .frame(width: captureRect.width, height: captureRect.height)
-                .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
+                .clipShape(FeedMomentCardLayout.continuousRoundedRect)
                 .position(x: captureRect.midX, y: captureRect.midY)
 
             // MARK: - 1.5 LIVE TEXT OVERLAY (metadata — animación en reproducción)
@@ -1236,7 +1236,7 @@ struct StoryViewerScreen: View {
             width: max(canvasRect.width, 1),
             height: max(canvasRect.height, 1)
         )
-        let canvasShape = RoundedRectangle(cornerRadius: 28, style: .continuous)
+        let canvasShape = FeedMomentCardLayout.continuousRoundedRect
         let mediaAspectRatio = StoryViewerScreen.parseAspectRatio(story.aspectRatio)
             ?? (resolvedScreenSize.width / resolvedScreenSize.height)
         let presentationMode = StoryMediaLayoutRules.presentationMode(
@@ -1247,7 +1247,7 @@ struct StoryViewerScreen: View {
         return ScreenshotProtectedView(
             isProtected: (story.audience?.lowercased() ?? "") != "everyone",
             fillsContainer: true,
-            cornerRadius: 28
+            cornerRadius: storyViewerCanvasCornerRadius
         ) {
             ZStack {
                 // ✅ CONTENIDO PRINCIPAL (imagen/video)
@@ -1279,7 +1279,7 @@ struct StoryViewerScreen: View {
                                 posterURLString: story.mediaItem.thumbnailUrl,
                                 isReadyToPlay: isStoryVideoReady,
                                 contentMode: presentationMode.swiftUIContentMode,
-                                cornerRadius: 28
+                                cornerRadius: storyViewerCanvasCornerRadius
                             )
                         }
                         .frame(width: canvasRect.width, height: canvasRect.height)

@@ -302,10 +302,10 @@ struct HiddenLayersEditorView: View {
             )
 
             ZStack {
-                RoundedRectangle(cornerRadius: 28, style: .continuous)
+                RoundedRectangle(cornerRadius: storyViewerCanvasCornerRadius, style: .continuous)
                     .fill(subtleSurfaceFill)
-                    .liquidGlass(in: RoundedRectangle(cornerRadius: 28, style: .continuous))
-                    .contentShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
+                    .liquidGlass(in: RoundedRectangle(cornerRadius: storyViewerCanvasCornerRadius, style: .continuous))
+                    .contentShape(RoundedRectangle(cornerRadius: storyViewerCanvasCornerRadius, style: .continuous))
                     .onTapGesture {
                         selectedLayerId = nil
                     }
@@ -370,7 +370,7 @@ struct HiddenLayersEditorView: View {
         guard availableWidth > 0 else { return 340 }
 
         let ratio = (displayedPostAspectRatio > 0 && displayedPostAspectRatio.isFinite) ? displayedPostAspectRatio : 1.0
-        let canonicalFeedWidth = max(0, UIScreen.main.bounds.width - 16)
+        let canonicalFeedWidth = FeedMomentCardLayout.mediaContentWidth
         let canonicalFeedHeight = feedCardHeight(for: canonicalFeedWidth, ratio: ratio)
         let scaledWidth = availableWidth
 

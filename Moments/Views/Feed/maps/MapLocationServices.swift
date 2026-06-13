@@ -542,3 +542,81 @@ enum MapRegionStore {
             }
     }
 }
+
+/// Título de lugar con ciudad: «Ciutat Vella, Barcelona».
+enum MapLocationDisplayFormatter {
+    private static var cityCache: [String: String] = [:]
+
+    static func formattedTitle(place: String, city: String?) -> String {
+        let trimmedPlace = place.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedPlace.isEmpty else { return city ?? "" }
+        if trimmedPlace.contains(",") { return trimmedPlace }
+
+        guard let city = city?.trimmingCharacters(in: .whitespacesAndNewlines), !city.isEmpty else {
+            return trimmedPlace
+        }
+        if trimmedPlace.localizedCaseInsensitiveContains(city) {
+            return trimmedPlace
+        }
+        return "\(trimmedPlace), \(city)"
+    }
+
+    static func city(from placemark: CLPlacemark) -> String? {
+        if let locality = placemark.locality?.trimmingCharacters(in: .whitespacesAndNewlines), !locality.isEmpty {
+            return locality
+        }
+        if let area = placemark.administrativeArea?.trimmingCharacters(in: .whitespacesAndNewlines), !area.isEmpty {
+            return area
+        }
+        return nil
+    }
+
+    static func cacheKey(for coordinate: CLLocationCoordinate2D) -> String {
+        String(format: "%.2f|%.2f", coordinate.latitude, coordinate.longitude)
+    }
+
+    static func resolveTitle(
+        place: String,
+        coordinate: CLLocationCoordinate2D?,
+        completion: @escaping (String) -> Void
+    ) {
+        let trimmedPlace = place.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmedPlace.contains(",") {
+            completion(trimmedPlace)
+            return
+        }
+        guard let coordinate else {
+            completion(trimmedPlace)
+            return
+        }
+
+        let key = cacheKey(for: coordinate)
+        if let cachedCity = cityCache[key] {
+            completion(formattedTitle(place: trimmedPlace, city: cachedCity))
+            return
+        }
+
+        let geocoder = CLGeocoder()
+        let location = CLLocation(latitude: coordinate.latitude, longitude: coordinate.longitude)
+
+        Task {
+            let placemarks: [CLPlacemark]
+            do {
+                placemarks = try await geocoder.reverseGeocodeLocation(location)
+            } catch {
+                await MainActor.run {
+                    completion(trimmedPlace)
+                }
+                return
+            }
+
+            await MainActor.run {
+                let resolvedCity = placemarks.first.flatMap { Self.city(from: $0) }
+                if let resolvedCity, !resolvedCity.isEmpty {
+                    cityCache[key] = resolvedCity
+                }
+                completion(formattedTitle(place: trimmedPlace, city: resolvedCity))
+            }
+        }
+    }
+}

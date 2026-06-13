@@ -38,7 +38,7 @@ struct FeedOverlaysSection: View {
                                     width: UIScreen.main.bounds.width - 32,
                                     height: (UIScreen.main.bounds.width - 32) / peekAspectRatio
                                 )
-                                .clipShape(RoundedRectangle(cornerRadius: 20))
+                                .clipShape(FeedMomentCardLayout.continuousRoundedRect)
                                 .shadow(color: .black.opacity(0.4), radius: 20, y: 10)
                         }
                     }

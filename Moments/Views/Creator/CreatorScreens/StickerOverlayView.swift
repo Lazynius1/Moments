@@ -213,7 +213,7 @@ struct StickerOverlayView: View {
                             }
                         }
                     }
-                    .clipShape(RoundedRectangle(cornerRadius: 28))
+                    .clipShape(RoundedRectangle(cornerRadius: storyViewerCanvasCornerRadius))
                     .frame(width: sticker.image.size.width, height: sticker.image.size.height)
                 }
                 else if sticker.gifURL != nil {
@@ -513,7 +513,7 @@ struct StickerOverlayView: View {
                     }
                     .frame(width: sticker.image.size.width, height: sticker.image.size.height)
                 }
-                .clipShape(RoundedRectangle(cornerRadius: 28))
+                .clipShape(RoundedRectangle(cornerRadius: storyViewerCanvasCornerRadius))
                 .allowsHitTesting(false)
 
             } else if sticker.type == .weather, let weatherSymbol = sticker.interactionData?.weatherSymbol {
@@ -605,7 +605,7 @@ struct StickerOverlayView: View {
                         .resizable()
                         .aspectRatio(contentMode: .fit) // Asegurar aspecto correcto
                         .frame(width: sticker.image.size.width, height: sticker.image.size.height)
-                        .clipShape(RoundedRectangle(cornerRadius: 28))
+                        .clipShape(RoundedRectangle(cornerRadius: storyViewerCanvasCornerRadius))
                         .allowsHitTesting(false)
                 }
             }

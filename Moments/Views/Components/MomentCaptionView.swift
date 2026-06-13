@@ -118,7 +118,7 @@ struct MomentCaptionView: View {
                 .buttonStyle(.plain)
             }
         }
-        .padding(.horizontal, style == .detail ? 4 : 12)
+        .padding(.horizontal, FeedMomentCardLayout.captionHorizontalPadding)
         .padding(.top, style == .detail ? 0 : 2)
         .sheet(isPresented: $showFullCaption) {
             MomentCaptionReaderSheet(
@@ -401,7 +401,7 @@ private struct MomentCaptionMediaPreview: View {
                 .padding(12)
             }
             .frame(height: 230)
-            .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
+            .clipShape(FeedMomentCardLayout.continuousRoundedRect)
             .shadow(color: .black.opacity(colorScheme == .dark ? 0.28 : 0.14), radius: 18, y: 10)
         }
     }

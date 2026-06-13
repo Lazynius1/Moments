@@ -973,7 +973,7 @@ struct StoryStickerView: View {
                     }
                 }
                 .frame(width: sticker.image.size.width * sticker.scale, height: sticker.image.size.height * sticker.scale)
-                .clipShape(RoundedRectangle(cornerRadius: 28 * sticker.scale))
+                .clipShape(RoundedRectangle(cornerRadius: FeedMomentCardLayout.scaledMediaCornerRadius(sticker.scale)))
             }
             .buttonStyle(PlainButtonStyle())
             .rotationEffect(sticker.rotation)
@@ -1037,7 +1037,7 @@ struct StoryStickerView: View {
                             }
                         }
                     }
-                    .clipShape(RoundedRectangle(cornerRadius: 28 * sticker.scale))
+                    .clipShape(RoundedRectangle(cornerRadius: FeedMomentCardLayout.scaledMediaCornerRadius(sticker.scale)))
                     .frame(width: sticker.image.size.width * sticker.scale, height: sticker.image.size.height * sticker.scale)
                 } else if sticker.gifURL != nil {
                     AnimatedStickerView(
@@ -1239,10 +1239,10 @@ struct StoryStickerView: View {
                     .resizable()
                     .aspectRatio(contentMode: .fit)
                     .frame(width: sticker.image.size.width * sticker.scale, height: sticker.image.size.height * sticker.scale)
-                    .clipShape(RoundedRectangle(cornerRadius: 28 * sticker.scale))
+                    .clipShape(RoundedRectangle(cornerRadius: FeedMomentCardLayout.scaledMediaCornerRadius(sticker.scale)))
             }
             .buttonStyle(PlainButtonStyle())
-            .clipShape(RoundedRectangle(cornerRadius: 28 * sticker.scale))
+            .clipShape(RoundedRectangle(cornerRadius: FeedMomentCardLayout.scaledMediaCornerRadius(sticker.scale)))
             .rotationEffect(sticker.rotation)
         }
     }

@@ -1407,6 +1407,7 @@
 "locationMomentDetail.delete.cancel" = "Abbrechen";
 "locationMomentDetail.delete.confirm" = "Löschen";
 "locationMomentDetail.delete.message" = "Möchtest du diesen Moment wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.";
+"locationMomentDetail.position" = "%d von %d";
 "locationMomentDetail.photoCount" = "%d Foto";
 "locationMomentDetail.comments" = "Kommentare";
 "locationMomentDetail.noComments.title" = "Noch keine Kommentare";

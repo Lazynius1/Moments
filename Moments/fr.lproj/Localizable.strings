@@ -1407,6 +1407,7 @@
 "locationMomentDetail.delete.cancel" = "Annuler";
 "locationMomentDetail.delete.confirm" = "Supprimer";
 "locationMomentDetail.delete.message" = "Voulez-vous vraiment supprimer ce moment ? Cette action est irréversible.";
+"locationMomentDetail.position" = "%d sur %d";
 "locationMomentDetail.photoCount" = "%d photo";
 "locationMomentDetail.comments" = "Commentaires";
 "locationMomentDetail.noComments.title" = "Pas encore de commentaires";

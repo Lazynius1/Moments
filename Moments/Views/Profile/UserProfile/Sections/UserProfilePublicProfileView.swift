@@ -258,27 +258,20 @@ struct UserModernPublicProfileView: View {
             .profileGridNavigationChrome(colorScheme: colorScheme)
             .scrollClipDisabled()
 
-            VStack(spacing: 8) {
+            ProfileStickyChromeContainer(
+                blurProgress: usernameCollapseProgress,
+                tabsArePinned: tabsArePinned
+            ) {
                 ProfileVisitorPinnedTopChrome(
                     viewModel: viewModel,
                     collapseProgress: usernameCollapseProgress,
                     onDismiss: onDismiss,
                     showingQRCode: $showingQRCode
                 )
-
-                if tabsArePinned {
-                    UserProfilePillTabs(selectedTab: $selectedTab)
-                        .frame(maxWidth: 240)
-                        .transition(.opacity)
-                }
+            } pinnedTabs: {
+                UserProfilePillTabs(selectedTab: $selectedTab)
+                    .frame(maxWidth: 240)
             }
-            .padding(.top, ProfileHeaderCollapseMetrics.topChromePadding)
-            .padding(.horizontal, 20)
-            .padding(.bottom, tabsArePinned ? 8 : 0)
-            .background {
-                ProfileProgressiveBlurBackground(progress: usernameCollapseProgress)
-            }
-            .frame(maxWidth: .infinity)
             .animation(.easeOut(duration: 0.18), value: tabsArePinned)
             .zIndex(10)
             }

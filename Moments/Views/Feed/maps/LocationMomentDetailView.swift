@@ -1,4 +1,5 @@
 import SwiftUI
+import CoreLocation
 import FirebaseAuth
 import FirebaseFirestore
 import Kingfisher
@@ -13,11 +14,11 @@ struct LocationMomentDetailView: View {
     @Binding var momentAvailability: [String: Bool]
     @Binding var isPresented: Bool
     @Environment(\.colorScheme) var colorScheme
+    @Environment(\.dismiss) private var dismiss
 
-    @StateObject private var firestoreService = FirestoreService()
+    @StateObject private var firestoreService = FirestoreService.shared
     @State private var currentIndex: Int
     @State private var selectedMoment: Moment?
-    @State private var scrollOffset: CGFloat = 0
     @State private var trackedMomentViewIds: Set<String> = []
 
     // ✅ NUEVOS: Estados para drag transition
@@ -25,10 +26,7 @@ struct LocationMomentDetailView: View {
     @State private var isDragging: Bool = false
     @State private var backgroundOpacity: Double = 1.0
 
-    // ✅ Estados para interacciones
-    @State private var commentCounts: [String: Int] = [:]
-    @State private var savedStates: [String: Bool] = [:]
-    @State private var loadingStates: [String: Bool] = [:]
+    // ✅ Estados para interacciones (ModernPostCardView gestiona save/comments internamente)
 
     // ✅ NUEVOS: Estados para menú contextual
     @State private var showContextMenu = false
@@ -43,12 +41,23 @@ struct LocationMomentDetailView: View {
     @State private var selectedStoryUserId: String = ""
     @State private var selectedHashtag: String = ""
     @State private var showExploreWithHashtag = false
+    @State private var feedViewModel = FeedViewModel()
+    @State private var locationDisplayTitle: String = ""
+    @State private var peekImageURL: String?
+    @State private var peekAspectRatio: CGFloat = 1.0
+    @State private var isPeeking = false
+    @State private var peekIsProtected = false
+    @Namespace private var profileZoomNamespace
+    @State private var showUserProfile = false
+    @State private var selectedUserId = ""
 
     private var adaptiveColors: AdaptiveColors {
         AdaptiveColors(colorScheme: colorScheme)
     }
 
-    private var currentHeaderLocationName: String {
+    private var basePlaceName: String {
+        let trimmed = locationName.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !trimmed.isEmpty { return trimmed }
         guard let moment = moments[safe: currentIndex],
               let location = moment.location?.trimmingCharacters(in: .whitespacesAndNewlines),
               !location.isEmpty else {
@@ -70,48 +79,81 @@ struct LocationMomentDetailView: View {
         self._momentAvailability = momentAvailability
         self._isPresented = isPresented
         self._currentIndex = State(initialValue: initialIndex)
+        self._locationDisplayTitle = State(initialValue: locationName)
     }
 
     var body: some View {
-        return GeometryReader { geometry in
-            let safeAreaTop = geometry.safeAreaInsets.top
-            let headerReservedHeight: CGFloat = moments.count > 1 ? 72 : 52
-
+        ZStack {
             ZStack(alignment: .top) {
-                // ✅ Fondo moderno como el feed
-                modernBackgroundView
-                    .ignoresSafeArea(.all)
+                ProfileMomentZoomNavigation.canvasBackground(for: colorScheme)
+                    .ignoresSafeArea()
                     .opacity(backgroundOpacity)
 
-                // ✅ Header flotante más ligero y contextual
-                locationDetailHeader(safeAreaTop: safeAreaTop)
-                    .zIndex(10)
-                    .offset(x: dragOffset * 0.3)
-                    .opacity(backgroundOpacity)
-
-                locationMomentsCarousel(geometry: geometry)
-                    .padding(.top, headerReservedHeight)
+                locationMomentsScrollView()
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .offset(x: dragOffset)
                     .scaleEffect(isDragging ? max(0.85, 1 - abs(dragOffset) / 1000) : 1.0)
+                    .gesture(locationDismissDragGesture)
 
-                // ✅ NUEVO: Overlay del menú contextual
-                if showContextMenu, let moment = contextMenuMoment {
-                    ModernContextMenuOverlay(
-                        moment: moment,
-                        isPresented: $showContextMenu,
-                        onEdit: {
-                            editedContent = moment.content
-                            showEditSheet = true
-                        },
-                        onDelete: {
-                            showDeleteAlert = true
-                        },
-                        onReport: {
-                            // showReportSheet = true // ❌ Ya no se usa sheet
-                        }
+                ProfileStickyChromeContainer(
+                    blurProgress: ProfileHeaderCollapseMetrics.fixedLocationChromeBlurProgress,
+                    blurFadeTail: ProfileHeaderCollapseMetrics.locationChromeBlurFadeTail,
+                    tabsArePinned: false
+                ) {
+                    FeedPinnedTopChrome(
+                        title: locationDisplayTitle,
+                        onDismiss: dismissLocationDetail
                     )
-                    .zIndex(1000)
                 }
+                .zIndex(10)
+                .allowsHitTesting(true)
+            }
+            .coordinateSpace(name: "locationDetailOverlay")
+
+            if showContextMenu, let moment = contextMenuMoment {
+                ModernContextMenuOverlay(
+                    moment: moment,
+                    isPresented: $showContextMenu,
+                    onEdit: {
+                        editedContent = moment.content
+                        showEditSheet = true
+                    },
+                    onDelete: {
+                        showDeleteAlert = true
+                    },
+                    onReport: {
+                        // showReportSheet = true // ❌ Ya no se usa sheet
+                    }
+                )
+                .zIndex(1000)
+            }
+
+            if isPeeking, let imageURL = peekImageURL {
+                ZStack {
+                    ScreenshotProtectedView(isProtected: peekIsProtected, fillsContainer: true) {
+                        ZStack {
+                            Rectangle()
+                                .fill(.ultraThinMaterial)
+                                .ignoresSafeArea()
+
+                            KFImage(URL(string: imageURL))
+                                .resizable()
+                                .scaledToFill()
+                                .frame(
+                                    width: UIScreen.main.bounds.width - 32,
+                                    height: (UIScreen.main.bounds.width - 32) / max(peekAspectRatio, 0.1)
+                                )
+                                .clipShape(FeedMomentCardLayout.continuousRoundedRect)
+                                .shadow(color: .black.opacity(0.4), radius: 20, y: 10)
+                        }
+                    }
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .ignoresSafeArea()
+                .transition(.opacity)
+                .animation(.spring(response: 0.35, dampingFraction: 0.85), value: isPeeking)
+                .allowsHitTesting(false)
+                .zIndex(999)
             }
         }
         .navigationBarHidden(true)
@@ -157,6 +199,14 @@ struct LocationMomentDetailView: View {
         .sheet(isPresented: $showExploreWithHashtag) {
             ExploreView(initialSearchQuery: selectedHashtag)
         }
+        .fullScreenCover(isPresented: $showUserProfile, onDismiss: {
+            selectedUserId = ""
+        }) {
+            if !selectedUserId.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                UserProfileView(userId: selectedUserId)
+                    .userProfileZoomDestination(userId: selectedUserId, namespace: profileZoomNamespace)
+            }
+        }
         .alert(NSLocalizedString("locationMomentDetail.delete.title", comment: "Delete moment"), isPresented: $showDeleteAlert) {
             Button(NSLocalizedString("locationMomentDetail.delete.cancel", comment: "Cancel"), role: .cancel) { }
             Button(NSLocalizedString("locationMomentDetail.delete.confirm", comment: "Delete"), role: .destructive) {
@@ -171,47 +221,68 @@ struct LocationMomentDetailView: View {
             }
         }*/
         .onAppear {
-            currentIndex = initialIndex
-            loadAllMomentsData()
-            trackMomentViewIfNeeded(for: moments[safe: initialIndex])
+            let target = min(max(initialIndex, 0), max(0, moments.count - 1))
+            currentIndex = target
+            trackMomentViewIfNeeded(for: moments[safe: target])
+            refreshLocationDisplayTitle()
+            VideoMomentsIndex.shared.rebuild(from: moments)
+            if let userId = Auth.auth().currentUser?.uid {
+                firestoreService.loadSavedMoments(userId: userId)
+            }
+            GlobalVideoManager.shared.pauseAllVideos()
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+                activateVideoForIndex(target)
+            }
+        }
+        .onDisappear {
+            GlobalVideoManager.shared.pauseAllVideos()
+            FeedVisibilityCoordinator.shared.update(all: [:])
         }
         .onChange(of: currentIndex) { _, newIndex in
             trackMomentViewIfNeeded(for: moments[safe: newIndex])
+            activateVideoForIndex(newIndex)
         }
-        .gesture(
-            // ✅ Drag gesture suave como MomentDetailView
-            DragGesture(coordinateSpace: .global)
-                .onChanged { value in
-                    if value.translation.width > 0 {
-                        withAnimation(.interactiveSpring(response: 0.3, dampingFraction: 0.8)) {
-                            dragOffset = value.translation.width
-                            isDragging = true
-                            let progress = min(value.translation.width / 200, 1.0)
-                            backgroundOpacity = 1.0 - (progress * 0.4)
-                        }
-                    }
-                }
-                .onEnded { value in
-                    let dismissThreshold: CGFloat = 120
-                    let velocity = value.predictedEndTranslation.width
+        .onChange(of: moments.count) { _, _ in
+            VideoMomentsIndex.shared.rebuild(from: moments)
+        }
+        .onChange(of: locationName) { _, _ in
+            refreshLocationDisplayTitle()
+        }
+        .momentZoomNavigationSurface(colorScheme: colorScheme)
+    }
 
-                    if value.translation.width > dismissThreshold || velocity > 300 {
-                        withAnimation(.easeOut(duration: 0.3)) {
-                            dragOffset = UIScreen.main.bounds.width
-                            backgroundOpacity = 0.0
-                        }
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
-                            isPresented = false
-                        }
-                    } else {
-                        withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
-                            dragOffset = 0
-                            isDragging = false
-                            backgroundOpacity = 1.0
-                        }
+    private var locationDismissDragGesture: some Gesture {
+        DragGesture(coordinateSpace: .global)
+            .onChanged { value in
+                if value.translation.width > 0 {
+                    withAnimation(.interactiveSpring(response: 0.3, dampingFraction: 0.8)) {
+                        dragOffset = value.translation.width
+                        isDragging = true
+                        let progress = min(value.translation.width / 200, 1.0)
+                        backgroundOpacity = 1.0 - (progress * 0.4)
                     }
                 }
-        )
+            }
+            .onEnded { value in
+                let dismissThreshold: CGFloat = 120
+                let velocity = value.predictedEndTranslation.width
+
+                if value.translation.width > dismissThreshold || velocity > 300 {
+                    withAnimation(.easeOut(duration: 0.3)) {
+                        dragOffset = UIScreen.main.bounds.width
+                        backgroundOpacity = 0.0
+                    }
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                        dismissLocationDetail()
+                    }
+                } else {
+                    withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                        dragOffset = 0
+                        isDragging = false
+                        backgroundOpacity = 1.0
+                    }
+                }
+            }
     }
 
     private func trackMomentViewIfNeeded(for moment: Moment?) {
@@ -233,122 +304,164 @@ struct LocationMomentDetailView: View {
             selectedStoryUserId = normalizedUserId
             showSpecificUserStories = true
         } else {
-            LegacyNavigationBridge.profile(userId: normalizedUserId)
+            selectedUserId = normalizedUserId
+            showUserProfile = true
         }
     }
 
-    // ✅ Fondo moderno como el feed
-    private var modernBackgroundView: some View {
-        ZStack {
-            if colorScheme == .dark {
-                Color(hex: "0B1215")
+    private func handlePeek(imageURL: String, ratio: CGFloat, isPressing: Bool, moment: Moment) {
+        if isPressing, let url = URL(string: imageURL) {
+            KingfisherManager.shared.retrieveImage(with: url) { _ in }
+        }
+
+        withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
+            if isPressing {
+                peekImageURL = imageURL
+                peekAspectRatio = ratio
+                peekIsProtected = (moment.audience?.lowercased() ?? "") != "everyone"
+                isPeeking = true
             } else {
-                Color(hex: "FAF9F6")
+                isPeeking = false
+                peekIsProtected = false
             }
-
-            Rectangle()
-                .fill(.ultraThinMaterial)
-                .opacity(colorScheme == .dark ? 0.05 : 0.02)
         }
     }
 
-    // ✅ Header centrado rediseñado (Estilo ZStack para equilibrio perfecto)
-    private func locationDetailHeader(safeAreaTop: CGFloat) -> some View {
-        VStack(spacing: 8) {
-            HStack(spacing: 10) {
-                Button(action: {
-                    withAnimation(.easeOut(duration: 0.3)) {
-                        isPresented = false
-                    }
-                }) {
-                    Image(systemName: "chevron.left")
-                        .font(.system(size: 17, weight: .bold))
-                        .foregroundColor(colorScheme == .dark ? .white : .black)
-                        .frame(width: 40, height: 40)
-                        .background(
-                            Color.clear
-                                .liquidGlass(in: Circle())
-                        )
-                        .overlay(
-                            Circle()
-                                .stroke(Color.white.opacity(0.14), lineWidth: 0.5)
-                        )
-                }
+    private func prefetchUpcomingMoments(from index: Int) {
+        let nextIndex = index + 1
+        guard nextIndex < moments.count else { return }
 
-                HStack(spacing: 10) {
-                    ZStack {
-                        Circle()
-                            .fill(.ultraThinMaterial)
-                            .frame(width: 34, height: 34)
-                            .overlay(
-                                Circle()
-                                    .stroke(Color(hex: "007AFF").opacity(0.45), lineWidth: 1)
-                            )
+        let endIndex = min(nextIndex + 8, moments.count)
+        let upcoming = Array(moments[nextIndex..<endIndex])
 
-                        Image(systemName: "mappin.and.ellipse")
-                            .font(.system(size: 14, weight: .semibold))
-                            .foregroundStyle(
-                                LinearGradient(
-                                    colors: [Color(hex: "007AFF"), Color(hex: "4CC9F0")],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                )
-                            )
-                    }
+        let imageURLs = upcoming.compactMap { moment -> URL? in
+            guard let urlString = moment.previewImageURLString else { return nil }
+            return URL(string: urlString)
+        }
+        if !imageURLs.isEmpty {
+            ImagePrefetchManager.shared.prefetch(urls: imageURLs)
+        }
 
-                    VStack(alignment: .leading, spacing: 1) {
-                        Text(currentHeaderLocationName)
-                            .font(.custom("Poppins-SemiBold", size: 15))
-                            .foregroundColor(colorScheme == .dark ? .white : .black)
-                            .lineLimit(1)
+        let videoURLs = VideoPlaybackSelector.shared.preloadURLStrings(from: upcoming, maxMoments: 4)
+        if !videoURLs.isEmpty {
+            VideoPreloader.shared.preloadAssets(urls: videoURLs)
+        }
+    }
 
-                        Text("\(currentIndex + 1) de \(moments.count)")
-                            .font(.custom("Poppins-Medium", size: 11))
-                            .foregroundColor(.gray.opacity(0.9))
-                    }
-                }
-                .padding(.leading, 6)
-                .padding(.trailing, 14)
-                .padding(.vertical, 6)
-                .background(
+    private func dismissLocationDetail() {
+        withAnimation(.easeOut(duration: 0.3)) {
+            isPresented = false
+        }
+        dismiss()
+    }
+
+    private func refreshLocationDisplayTitle() {
+        let place = basePlaceName
+        locationDisplayTitle = place
+        MapLocationDisplayFormatter.resolveTitle(
+            place: place,
+            coordinate: coordinateForLocationTitle()
+        ) { title in
+            locationDisplayTitle = title
+        }
+    }
+
+    private func coordinateForLocationTitle() -> CLLocationCoordinate2D? {
+        if let moment = moments[safe: currentIndex],
+           let coordinate = moment.locationCoordinate {
+            return coordinate.toCLLocationCoordinate2D
+        }
+        return moments.compactMap(\.locationCoordinate).first?.toCLLocationCoordinate2D
+    }
+
+    private func activateVideoForIndex(_ index: Int) {
+        guard let moment = moments[safe: index], moment.hasVideoMedia else { return }
+        let consumerId = GlobalVideoManager.profileVideoConsumerId(for: moment)
+        FeedVisibilityCoordinator.shared.pinActiveVideo(momentId: consumerId)
+        GlobalVideoManager.shared.playVideo(consumerId)
+    }
+
+    private func locationMomentsScrollView() -> some View {
+        let screenHeight = UIScreen.main.bounds.height
+        let feedCardHeight = screenHeight * 0.58
+
+        return ScrollViewReader { proxy in
+            ScrollView(.vertical, showsIndicators: false) {
+                LazyVStack(spacing: max(15, screenHeight * 0.02)) {
                     Color.clear
-                        .liquidGlass(in: Capsule())
-                )
-                .overlay(
-                    Capsule()
-                        .stroke(Color.white.opacity(0.12), lineWidth: 0.5)
-                )
+                        .frame(height: ProfileHeaderCollapseMetrics.feedStyleDetailTopInset)
 
-                Spacer()
-            }
-            .padding(.horizontal, 16)
-            .padding(.top, 6)
+                    ForEach(Array(moments.enumerated()), id: \.offset) { index, moment in
+                        let isAvailable = momentAvailability[moment.mapAvailabilityKey] ?? true
 
-            if moments.count > 1 {
-                HStack(spacing: 4) {
-                    ForEach(0..<moments.count, id: \.self) { index in
-                        Capsule()
-                            .fill(
-                                currentIndex == index ?
-                                LinearGradient(
-                                    colors: [Color(hex: "007AFF"), Color(hex: "007AFF").opacity(0.8)],
-                                    startPoint: .leading,
-                                    endPoint: .trailing
-                                ) :
-                                LinearGradient(
-                                    colors: [Color.gray.opacity(0.3), Color.gray.opacity(0.2)],
-                                    startPoint: .leading,
-                                    endPoint: .trailing
-                                )
+                        ScreenshotProtectedView(
+                            isProtected: (moment.audience?.lowercased() ?? "") != "everyone"
+                        ) {
+                            ModernPostCardView(
+                                moment: moment,
+                                availableHeight: feedCardHeight,
+                                colorScheme: colorScheme,
+                                onComment: { selectedMoment = moment },
+                                onNearEnd: {},
+                                onHashtagTap: { hashtag in
+                                    selectedHashtag = "#\(hashtag)"
+                                    showExploreWithHashtag = true
+                                },
+                                onLocationTap: { _, _ in },
+                                onContextMenu: { tappedMoment in
+                                    contextMenuMoment = tappedMoment
+                                    showContextMenu = true
+                                },
+                                onTagTap: { userId in
+                                    handleAvatarTap(userId: userId, hasStory: false)
+                                },
+                                onOpenUserProfile: { userId in
+                                    handleAvatarTap(userId: userId, hasStory: false)
+                                },
+                                profileZoomNamespace: profileZoomNamespace,
+                                onPeek: { imageURL, ratio, isPressing in
+                                    handlePeek(
+                                        imageURL: imageURL,
+                                        ratio: ratio,
+                                        isPressing: isPressing,
+                                        moment: moment
+                                    )
+                                }
                             )
-                            .frame(height: 2.5) // Más sutil
-                            .frame(maxWidth: .infinity)
-                            .animation(.easeInOut(duration: 0.3), value: currentIndex)
+                            .equatable()
+                            .environmentObject(firestoreService)
+                            .environment(feedViewModel)
+                        }
+                        .blur(radius: isAvailable ? 0 : 14)
+                        .overlay {
+                            if !isAvailable {
+                                MomentUnavailableOverlay(compact: false, cornerRadius: 20)
+                                    .allowsHitTesting(false)
+                            }
+                        }
+                        .id(index)
+                        .onAppear {
+                            currentIndex = index
+                            prefetchUpcomingMoments(from: index)
+                        }
                     }
                 }
-                .padding(.horizontal, 76)
-                .padding(.top, 4)
-                .padding(.bottom, 8)
+                .padding(.horizontal, FeedMomentCardLayout.listHorizontalPadding)
+                .padding(.bottom, 24)
+                .onPreferenceChange(MomentVisibilityPreference.self) { values in
+                    FeedVisibilityCoordinator.shared.update(all: values)
+                }
+            }
+            .profileGridNavigationChrome(colorScheme: colorScheme)
+            .scrollClipDisabled()
+            .environment(feedViewModel)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .onAppear {
+                let target = min(max(initialIndex, 0), max(0, moments.count - 1))
+                guard target > 0 else { return }
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+                    proxy.scrollTo(target, anchor: .top)
+                }
             }
         }
     }
@@ -437,125 +550,15 @@ struct LocationMomentDetailView: View {
                     if let index = moments.firstIndex(where: { $0.id == moment.id }) {
                         moments.remove(at: index)
                         if moments.isEmpty {
-                            withAnimation(.easeOut(duration: 0.3)) {
-                                isPresented = false
-                            }
+                            dismissLocationDetail()
                             return
                         }
                         if index <= currentIndex {
                             currentIndex = min(currentIndex, max(0, moments.count - 1))
                         }
                         if index == currentIndex && currentIndex >= moments.count {
-                            withAnimation(.easeOut(duration: 0.3)) {
-                                isPresented = false
-                            }
+                            dismissLocationDetail()
                         }
-                    }
-                }
-            }
-        }
-    }
-
-    private func locationMomentsCarousel(geometry: GeometryProxy) -> some View {
-        TabView(selection: $currentIndex) {
-            ForEach(Array(moments.enumerated()), id: \.offset) { index, moment in
-                let isAvailable = momentAvailability[moment.mapAvailabilityKey] ?? true
-                ScreenshotProtectedView(
-                    isProtected: (moment.audience?.lowercased() ?? "") != "everyone"
-                ) {
-                    LocationMomentCard(
-                        moment: moment,
-                        isAvailable: isAvailable,
-                        availableHeight: geometry.size.height - 160,
-                        colorScheme: colorScheme,
-                        commentCount: commentCounts[moment.id ?? ""] ?? 0,
-                        isSaved: savedStates[moment.id ?? ""] ?? false,
-                        isSaveLoading: loadingStates[moment.id ?? ""] ?? false,
-                        onComment: {
-                            selectedMoment = moment
-                        },
-                        onSave: {
-                            toggleSave(for: moment)
-                        },
-                        onContextMenu: {
-                            contextMenuMoment = moment
-                            showContextMenu = true
-                        },
-                        onHashtagTap: { hashtag in
-                            selectedHashtag = "#\(hashtag)"
-                            showExploreWithHashtag = true
-                        },
-                        onAvatarTap: { userId, hasStory in
-                            handleAvatarTap(userId: userId, hasStory: hasStory)
-                        }
-                    )
-                }
-                .tag(index)
-                .environmentObject(firestoreService)
-            }
-        }
-        .tabViewStyle(PageTabViewStyle(indexDisplayMode: .never))
-        .background(Color.clear)
-        .ignoresSafeArea(.container, edges: [.top, .bottom])
-        .onChange(of: currentIndex) { _, newIndex in
-        }
-    }
-
-    private func loadAllMomentsData() {
-        guard let currentUserId = Auth.auth().currentUser?.uid else { return }
-
-        for moment in moments {
-            guard let momentId = moment.id else { continue }
-
-            loadCommentCount(for: moment)
-
-            firestoreService.checkIfSaved(userId: currentUserId, momentId: momentId) { result in
-                switch result {
-                case .success(let saved):
-                    DispatchQueue.main.async {
-                        self.savedStates[momentId] = saved
-                    }
-                case .failure(_):
-                    break
-                }
-            }
-        }
-    }
-
-    private func loadCommentCount(for moment: Moment) {
-        guard let momentId = moment.id else { return }
-
-        firestoreService.db.collection("users").document(moment.authorId)
-            .collection("moments").document(momentId)
-            .collection("comments")
-            .getDocuments { snapshot, error in
-                if error != nil {
-                    return
-                }
-
-                DispatchQueue.main.async {
-                    let count = snapshot?.documents.count ?? 0
-                    self.commentCounts[momentId] = count
-                }
-            }
-    }
-
-    private func toggleSave(for moment: Moment) {
-        guard let currentUserId = Auth.auth().currentUser?.uid,
-              let momentId = moment.id else { return }
-
-        loadingStates[momentId] = true
-
-        withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
-            savedStates[momentId] = !(savedStates[momentId] ?? false)
-        }
-
-        firestoreService.toggleSaveMoment(userId: currentUserId, momentId: momentId) { error in
-            DispatchQueue.main.async {
-                self.loadingStates[momentId] = false
-                if error != nil {
-                    withAnimation {
-                        self.savedStates[momentId] = !(self.savedStates[momentId] ?? false)
                     }
                 }
             }
@@ -564,11 +567,17 @@ struct LocationMomentDetailView: View {
 }
 
 // MARK: - ✅ Tarjeta de momento de ubicación REFACTORIZADA
+enum LocationMomentCardLayout {
+    case standalone
+    case feed
+}
+
 struct LocationMomentCard: View {
     let moment: Moment
     let isAvailable: Bool
     let availableHeight: CGFloat
     let colorScheme: ColorScheme
+    var layoutMode: LocationMomentCardLayout = .standalone
     let commentCount: Int
     let isSaved: Bool
     let isSaveLoading: Bool
@@ -602,7 +611,7 @@ struct LocationMomentCard: View {
     }
 
     private var cardHeight: CGFloat {
-        let maxWidth = UIScreen.main.bounds.width - 32
+        let maxWidth = FeedMomentCardLayout.mediaContentWidth
 
         guard maxWidth > 0 else {
             return 400 // Fallback seguro
@@ -639,68 +648,17 @@ struct LocationMomentCard: View {
     }
 
     var body: some View {
-        ScrollView(.vertical, showsIndicators: false) {
-            VStack(spacing: 0) {
-                // ✅ El contenido ahora se agrupa en un "card" visual único
-                VStack(spacing: 0) {
-                    // ✅ Imagen principal con aspect ratio dinámico
-                    ZStack(alignment: .bottom) {
-                        locationMomentImageView
-
-                        // ✅ Header de autor dentro del multimedia (arriba izquierda)
-                        VStack {
-                            HStack {
-                                authorCompactHeader
-                                Spacer()
-                            }
-                            .padding(.top, 12)
-                            .padding(.leading, 12)
-                            Spacer()
-                        }
-                        .zIndex(120)
-
-                        // ✅ Glow Rail (Mismo que en Feed)
-                        ModernActionButtons(
-                            moment: moment,
-                            isSaved: .constant(isSaved),
-                            isSaveLoading: .constant(isSaveLoading),
-                            commentCount: .constant(commentCount),
-                            onComment: onComment,
-                            onSave: onSave,
-                            onContextMenu: onContextMenu,
-                            isImmersive: $isImmersive
-                        )
-                        .environmentObject(firestoreService)
-                    }
+        Group {
+            if layoutMode == .feed {
+                cardContent
+                    .padding(.horizontal, 15)
+            } else {
+                ScrollView(.vertical, showsIndicators: false) {
+                    cardContent
+                        .padding(.horizontal, 15)
+                        .frame(maxWidth: .infinity, minHeight: availableHeight, alignment: .top)
                 }
-                .background(
-                    RoundedRectangle(cornerRadius: 24)
-                        .fill(.ultraThinMaterial.opacity(0.3))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 24)
-                                .stroke(Color.white.opacity(0.1), lineWidth: 1)
-                        )
-                )
-                .clipShape(RoundedRectangle(cornerRadius: 24))
-                .shadow(color: .black.opacity(0.15), radius: 10, x: 0, y: 5)
-
-                MomentCaptionView(
-                    moment: moment,
-                    style: .detail,
-                    colorScheme: colorScheme,
-                    onHashtagTap: onHashtagTap
-                )
-                .padding(.horizontal, 4)
-
-                // ✅ Comentarios inline (como MomentDetailView)
-                if !moment.disableComments {
-                    locationInlineCommentsSection
-                }
-
-                // Espacio inferior eliminado
             }
-            .padding(.horizontal, 15)
-            .frame(maxWidth: .infinity, minHeight: availableHeight, alignment: .top)
         }
         .disabled(!isAvailable)
         .blur(radius: isAvailable ? 0 : 20)
@@ -711,10 +669,64 @@ struct LocationMomentCard: View {
             }
         }
         .background(Color.clear)
-        .ignoresSafeArea(.container, edges: .top)
+        .ignoresSafeArea(.container, edges: layoutMode == .feed ? [] : .top)
     }
 
-    // ✅ Header compacto de autor dentro de la card
+    private var cardContent: some View {
+        VStack(spacing: 0) {
+            VStack(spacing: 0) {
+                ZStack(alignment: .bottom) {
+                    locationMomentImageView
+
+                    VStack {
+                        HStack {
+                            authorCompactHeader
+                            Spacer()
+                        }
+                        .padding(.top, 12)
+                        .padding(.leading, 12)
+                        Spacer()
+                    }
+                    .zIndex(120)
+
+                    ModernActionButtons(
+                        moment: moment,
+                        isSaved: .constant(isSaved),
+                        isSaveLoading: .constant(isSaveLoading),
+                        commentCount: .constant(commentCount),
+                        onComment: onComment,
+                        onSave: onSave,
+                        onContextMenu: onContextMenu,
+                        isImmersive: $isImmersive
+                    )
+                    .environmentObject(firestoreService)
+                }
+            }
+            .background(
+                RoundedRectangle(cornerRadius: 24)
+                    .fill(.ultraThinMaterial.opacity(0.3))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 24)
+                            .stroke(Color.white.opacity(0.1), lineWidth: 1)
+                    )
+            )
+            .clipShape(RoundedRectangle(cornerRadius: 24))
+            .shadow(color: .black.opacity(0.15), radius: 10, x: 0, y: 5)
+
+            MomentCaptionView(
+                moment: moment,
+                style: .detail,
+                colorScheme: colorScheme,
+                onHashtagTap: onHashtagTap
+            )
+            .padding(.horizontal, FeedMomentCardLayout.captionHorizontalPadding)
+
+            if !moment.disableComments {
+                locationInlineCommentsSection
+            }
+        }
+    }
+
     private var authorCompactHeader: some View {
         HStack(spacing: 12) {
             StoryRingAvatarView(

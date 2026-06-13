@@ -147,7 +147,7 @@ struct StoryEditingView: View {
 
                     backgroundMediaView(canvasSize: mediaCanvasSize)
                         .frame(width: mediaCanvasRect.width, height: mediaCanvasRect.height)
-                        .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
+                        .clipShape(RoundedRectangle(cornerRadius: storyViewerCanvasCornerRadius, style: .continuous))
                         .position(x: mediaCanvasRect.midX, y: mediaCanvasRect.midY)
 
                     // Drawing overlay preview when text editor is open
@@ -156,7 +156,7 @@ struct StoryEditingView: View {
                             .resizable()
                             .aspectRatio(contentMode: .fill)
                             .frame(width: mediaCanvasRect.width, height: mediaCanvasRect.height)
-                            .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
+                            .clipShape(RoundedRectangle(cornerRadius: storyViewerCanvasCornerRadius, style: .continuous))
                             .position(x: mediaCanvasRect.midX, y: mediaCanvasRect.midY)
                             .allowsHitTesting(false)
                     }
@@ -589,7 +589,7 @@ struct StoryEditingView: View {
             canvasAutoSplitNotice()
         }
         .frame(width: canvasSize.width, height: canvasSize.height)
-        .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: storyViewerCanvasCornerRadius, style: .continuous))
     }
 
     @ViewBuilder
@@ -864,7 +864,7 @@ struct StoryEditingView: View {
             }
         }
         .frame(maxWidth: 320)
-        .liquidGlass(in: RoundedRectangle(cornerRadius: 28, style: .continuous))
+        .liquidGlass(in: RoundedRectangle(cornerRadius: storyViewerCanvasCornerRadius, style: .continuous))
         .shadow(color: .black.opacity(colorScheme == .dark ? 0.24 : 0.12), radius: 24, x: 0, y: 12)
         .padding(.horizontal, 24)
         .transition(.scale(scale: 0.94).combined(with: .opacity))

@@ -349,10 +349,14 @@ final class IntensityBlurUIView: UIVisualEffectView {
 
 struct ProfileBackdropBlur: UIViewRepresentable {
     var intensity: CGFloat
-    var maxFraction: CGFloat = 0.07
+    var maxFraction: CGFloat = 0.14
 
     func makeUIView(context: Context) -> IntensityBlurUIView {
-        IntensityBlurUIView()
+        let view = IntensityBlurUIView()
+        view.backgroundColor = .clear
+        view.isOpaque = false
+        view.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+        return view
     }
 
     func updateUIView(_ view: IntensityBlurUIView, context: Context) {
@@ -360,23 +364,17 @@ struct ProfileBackdropBlur: UIViewRepresentable {
     }
 }
 
-
 struct ProfileProgressiveBlurBackground: View {
     let progress: CGFloat
     var fadeTail: CGFloat = 48
+    var maxBlurFraction: CGFloat = 0.14
 
     var body: some View {
-        ProfileBackdropBlur(intensity: progress)
+        ProfileBackdropBlur(intensity: progress, maxFraction: maxBlurFraction)
             .padding(.bottom, -fadeTail)
             .mask(
                 LinearGradient(
-                    stops: [
-                        .init(color: .black, location: 0),
-                        .init(color: .black, location: 0.25),
-                        .init(color: .black.opacity(0.55), location: 0.6),
-                        .init(color: .black.opacity(0.2), location: 0.85),
-                        .init(color: .black.opacity(0), location: 1)
-                    ],
+                    stops: Self.gradientStops,
                     startPoint: .top,
                     endPoint: .bottom
                 )
@@ -385,6 +383,87 @@ struct ProfileProgressiveBlurBackground: View {
             .ignoresSafeArea(edges: .top)
             .allowsHitTesting(false)
     }
+
+    private static let gradientStops: [Gradient.Stop] = [
+        .init(color: .black, location: 0),
+        .init(color: .black, location: 0.25),
+        .init(color: .black.opacity(0.55), location: 0.6),
+        .init(color: .black.opacity(0.2), location: 0.85),
+        .init(color: .black.opacity(0), location: 1)
+    ]
+}
+
+/// Mismo contenedor del chrome sticky del perfil: padding + blur de 2 capas.
+struct ProfileStickyChromeContainer<Chrome: View, Tabs: View>: View {
+    let blurProgress: CGFloat
+    var blurFadeTail: CGFloat = 48
+    var maxBlurFraction: CGFloat = 0.14
+    var tintOpacity: CGFloat = 0
+    let tabsArePinned: Bool
+    @ViewBuilder let chrome: () -> Chrome
+    @ViewBuilder let pinnedTabs: () -> Tabs
+
+    init(
+        blurProgress: CGFloat,
+        blurFadeTail: CGFloat = 48,
+        maxBlurFraction: CGFloat = 0.14,
+        tintOpacity: CGFloat = 0,
+        tabsArePinned: Bool = false,
+        @ViewBuilder chrome: @escaping () -> Chrome,
+        @ViewBuilder pinnedTabs: @escaping () -> Tabs = { EmptyView() }
+    ) {
+        self.blurProgress = blurProgress
+        self.blurFadeTail = blurFadeTail
+        self.maxBlurFraction = maxBlurFraction
+        self.tintOpacity = tintOpacity
+        self.tabsArePinned = tabsArePinned
+        self.chrome = chrome
+        self.pinnedTabs = pinnedTabs
+    }
+
+    var body: some View {
+        VStack(spacing: 8) {
+            chrome()
+            if tabsArePinned {
+                pinnedTabs()
+                    .transition(.opacity)
+            }
+        }
+        .padding(.top, ProfileHeaderCollapseMetrics.topChromePadding)
+        .padding(.horizontal, 20)
+        .padding(.bottom, tabsArePinned ? 8 : 0)
+        .background {
+            ZStack {
+                ProfileProgressiveBlurBackground(
+                    progress: blurProgress,
+                    fadeTail: blurFadeTail,
+                    maxBlurFraction: maxBlurFraction
+                )
+
+                if tintOpacity > 0 {
+                    Rectangle()
+                        .fill(.white.opacity(tintOpacity))
+                        .padding(.bottom, -blurFadeTail)
+                        .mask(
+                            LinearGradient(
+                                stops: [
+                                    .init(color: .black, location: 0),
+                                    .init(color: .black, location: 0.28),
+                                    .init(color: .black.opacity(0.45), location: 0.68),
+                                    .init(color: .black.opacity(0), location: 1)
+                                ],
+                                startPoint: .top,
+                                endPoint: .bottom
+                            )
+                            .padding(.bottom, -blurFadeTail)
+                        )
+                        .ignoresSafeArea(edges: .top)
+                        .allowsHitTesting(false)
+                }
+            }
+        }
+        .frame(maxWidth: .infinity)
+    }
 }
 
 enum ProfileHeaderCollapseMetrics {
@@ -392,7 +471,23 @@ enum ProfileHeaderCollapseMetrics {
     static let topChromePadding: CGFloat = 4
     static let identitySectionGap: CGFloat = 28
     static let headerTopPadding: CGFloat = 4
+    static let pinnedTabsHeight: CGFloat = 40
+    /// Blur fijo en ubicación: intensidad típica del perfil al hacer scroll (no al máximo).
+    static let fixedLocationChromeBlurProgress: CGFloat = 0.68
+    /// Cola más corta que con tabs pegadas — el del mapa no debe llegar tan abajo.
+    static let locationChromeBlurFadeTail: CGFloat = 28
     static var topContentInset: CGFloat { chromeHeight + identitySectionGap }
+    /// Altura del chrome sticky con slot de tabs (como perfil con tabs pegadas).
+    static var stickyChromeBlurRegionHeight: CGFloat {
+        topChromePadding + chromeHeight + 8 + pinnedTabsHeight + 8
+    }
+    static var stickyChromeContentInset: CGFloat { stickyChromeBlurRegionHeight }
+    /// Espacio superior del feed en detalle estilo feed (ubicación, explorer…).
+    static var feedStyleDetailTopInset: CGFloat {
+        topChromePadding + chromeHeight + 12
+    }
+    /// Alias histórico — ubicación y explorer comparten inset.
+    static var locationFeedTopInset: CGFloat { feedStyleDetailTopInset }
     static var tabsPinY: CGFloat { topChromePadding + chromeHeight + 8 }
     static let tabsFadeLead: CGFloat = 96
     static func progress(forTabsMinY tabsMinY: CGFloat) -> CGFloat {
@@ -404,5 +499,44 @@ enum ProfileHeaderCollapseMetrics {
 
     static func tabsArePinned(tabsMinY: CGFloat) -> Bool {
         tabsMinY.isFinite && tabsMinY <= tabsPinY + 0.5
+    }
+}
+
+/// Chrome fijo con título centrado y chevron (detalle feed: ubicación, explorer…).
+struct FeedPinnedTopChrome: View {
+    let title: String
+    let onDismiss: () -> Void
+    @Environment(\.colorScheme) private var colorScheme
+
+    private var adaptiveColors: AdaptiveColors {
+        AdaptiveColors(colorScheme: colorScheme)
+    }
+
+    var body: some View {
+        ZStack {
+            HStack {
+                Button(action: onDismiss) {
+                    Image(systemName: "chevron.left")
+                        .font(.system(size: 18, weight: .semibold))
+                        .foregroundColor(adaptiveColors.primary)
+                        .frame(width: 40, height: 40)
+                        .liquidGlass(in: Circle(), interactive: true)
+                        .contentShape(Circle())
+                }
+                .buttonStyle(.plain)
+
+                Spacer(minLength: 0)
+            }
+
+            Text(title)
+                .font(.custom("Poppins-Bold", size: 18))
+                .foregroundColor(adaptiveColors.primary)
+                .lineLimit(2)
+                .minimumScaleFactor(0.85)
+                .multilineTextAlignment(.center)
+                .frame(maxWidth: .infinity)
+                .padding(.horizontal, 52)
+        }
+        .frame(height: ProfileHeaderCollapseMetrics.chromeHeight)
     }
 }

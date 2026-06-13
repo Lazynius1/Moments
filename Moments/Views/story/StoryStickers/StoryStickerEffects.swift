@@ -59,10 +59,10 @@ struct AnimatedWeatherSticker: View {
 
     // MARK: - Background del sticker
     private var weatherBackground: some View {
-        RoundedRectangle(cornerRadius: 28)
+        RoundedRectangle(cornerRadius: storyViewerCanvasCornerRadius)
             .fill(getWeatherGradientColors(for: weatherSymbol)[0].opacity(0.3))
             .overlay(
-                RoundedRectangle(cornerRadius: 28)
+                RoundedRectangle(cornerRadius: storyViewerCanvasCornerRadius)
                     .stroke(Color.white.opacity(0.2), lineWidth: 0.5)
             )
     }

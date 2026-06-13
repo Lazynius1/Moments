@@ -77,6 +77,38 @@ enum MomentCarouselIndicatorStyle {
     }
 }
 
+/// Métricas compartidas para cards estilo feed (edge-to-edge).
+enum FeedMomentCardLayout {
+    /// Padding lateral del scroll que envuelve las cards.
+    static let listHorizontalPadding: CGFloat = 4
+    /// Padding interno del header (avatar + username).
+    static let headerHorizontalPadding: CGFloat = 8
+    /// Padding de la rail de acciones sobre el media.
+    static let actionRowHorizontalPadding: CGFloat = 4
+    /// Padding del caption bajo el media.
+    static let captionHorizontalPadding: CGFloat = 8
+    /// Radio suave compartido: feed, reels, canvas de stories y editor.
+    static let mediaCornerRadius: CGFloat = 12
+
+    static var continuousRoundedRect: RoundedRectangle {
+        RoundedRectangle(cornerRadius: mediaCornerRadius, style: .continuous)
+    }
+
+    static func scaledMediaCornerRadius(_ scale: CGFloat) -> CGFloat {
+        mediaCornerRadius * scale
+    }
+
+    /// Alias semántico para el canvas de stories (mismo radio que el feed).
+    static var storyCanvasCornerRadius: CGFloat { mediaCornerRadius }
+
+    /// Long-press peek y hero del grid de perfil.
+    static var peekCornerRadius: CGFloat { mediaCornerRadius }
+
+    static var mediaContentWidth: CGFloat {
+        max(UIScreen.main.bounds.width - (listHorizontalPadding * 2), 1)
+    }
+}
+
 struct MomentCarouselPageIndicators: View {
     let count: Int
     let currentIndex: Int

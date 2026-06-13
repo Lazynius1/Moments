@@ -7,6 +7,7 @@ import FirebaseFirestore
 struct DiscoverMapView: View {
     @Binding var isPresented: Bool
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.dismiss) private var dismiss
 
     @StateObject private var locationManager = LocationUtilities.shared
     @State private var mapPosition = MapCameraPosition.region(MapRegionStore.initialRegion())
@@ -184,6 +185,8 @@ struct DiscoverMapView: View {
             }
             .padding(.horizontal, 16)
             .padding(.top, 12)
+            .zIndex(20)
+            .allowsHitTesting(true)
             }
             .navigationDestination(item: $zoomDestination) { destination in
                 MomentZoomDetailDestination(
@@ -278,8 +281,9 @@ struct DiscoverMapView: View {
                             .font(.system(size: 16, weight: .bold))
                             .foregroundStyle(adaptiveColors.primary)
                             .frame(width: 32, height: 32)
+                            .contentShape(Circle())
                     }
-                    .buttonStyle(.momentsPressIcon)
+                    .buttonStyle(.plain)
 
                     VStack(alignment: .leading, spacing: 0) {
                         Text(zoneName ?? NSLocalizedString("maps.discover.title", comment: "Discover map title"))
@@ -447,25 +451,15 @@ struct DiscoverMapView: View {
     }
 
     private func closeDiscoverMap() {
-        guard isViewActive else { return }
-        isViewActive = false
         regionSearchTask?.cancel()
         regionSearchTask = nil
         searchFieldFocused = false
-
-        let hadSheet = showingBottomSheet
         showingBottomSheet = false
         zoomDestination = nil
         storyViewerPresentation = nil
         pendingStoryPresentation = nil
-
-        if hadSheet {
-            DispatchQueue.main.asyncAfter(deadline: .now() + MapSheetPresentationDelay.dismissBeforeNextPresentation) {
-                isPresented = false
-            }
-        } else {
-            isPresented = false
-        }
+        isPresented = false
+        dismiss()
     }
 
     private func clusterAccessibilityLabel(for cluster: MapPlaceCluster) -> String {
@@ -740,6 +734,7 @@ struct DiscoverMapView: View {
         isMapDetailPresented = true
         if showingBottomSheet {
             resumeBottomSheetAfterDetail = true
+            showingBottomSheet = false
         }
         zoomMapMomentsPool = moments
         MomentZoomOpener.open(

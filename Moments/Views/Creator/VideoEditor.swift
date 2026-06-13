@@ -849,10 +849,10 @@ struct SocialVideoEditorView: View {
         }
         .background {
             Color.clear
-                .liquidGlass(in: RoundedRectangle(cornerRadius: 28, style: .continuous), interactive: false)
+                .liquidGlass(in: RoundedRectangle(cornerRadius: storyViewerCanvasCornerRadius, style: .continuous), interactive: false)
         }
         .overlay(
-            RoundedRectangle(cornerRadius: 28, style: .continuous)
+            RoundedRectangle(cornerRadius: storyViewerCanvasCornerRadius, style: .continuous)
                 .stroke(colorScheme == .dark ? Color.white.opacity(0.12) : Color.black.opacity(0.08), lineWidth: 1.5)
         )
         .padding(.horizontal, 10)
@@ -946,10 +946,10 @@ struct SocialVideoEditorView: View {
         }
         .background {
             Color.clear
-                .liquidGlass(in: RoundedRectangle(cornerRadius: 28, style: .continuous), interactive: false)
+                .liquidGlass(in: RoundedRectangle(cornerRadius: storyViewerCanvasCornerRadius, style: .continuous), interactive: false)
         }
         .overlay(
-            RoundedRectangle(cornerRadius: 28, style: .continuous)
+            RoundedRectangle(cornerRadius: storyViewerCanvasCornerRadius, style: .continuous)
                 .stroke(colorScheme == .dark ? Color.white.opacity(0.12) : Color.black.opacity(0.08), lineWidth: 1.5)
         )
         .padding(.horizontal, 10)

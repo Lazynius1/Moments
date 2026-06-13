@@ -129,10 +129,10 @@ struct StoryVideoTrimEditorView: View {
                 )
                 .frame(width: videoWidth, height: videoHeight)
                 .background(Color.black)
-                .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous)) // 28 cornerRadius
+                .clipShape(RoundedRectangle(cornerRadius: storyViewerCanvasCornerRadius, style: .continuous))
                 .shadow(color: shadowColor.opacity(colorScheme == .dark ? 0.4 : 0.15), radius: 12, x: 0, y: 6)
                 .overlay(
-                    RoundedRectangle(cornerRadius: 28, style: .continuous)
+                    RoundedRectangle(cornerRadius: storyViewerCanvasCornerRadius, style: .continuous)
                         .stroke(colorScheme == .dark ? Color.white.opacity(0.12) : Color.black.opacity(0.08), lineWidth: 1)
                 )
                 .overlay(

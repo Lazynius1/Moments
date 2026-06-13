@@ -123,17 +123,17 @@ struct ShareMomentSticker: View {
         .background(
             ZStack {
                 // Base solid for better clipping
-                RoundedRectangle(cornerRadius: 28, style: .continuous)
+                RoundedRectangle(cornerRadius: FeedMomentCardLayout.mediaCornerRadius, style: .continuous)
                     .fill(Color(white: 0.1))
                 
                 // Deep glass material
-                RoundedRectangle(cornerRadius: 28, style: .continuous)
+                RoundedRectangle(cornerRadius: FeedMomentCardLayout.mediaCornerRadius, style: .continuous)
                     .fill(.ultraThinMaterial)
             }
         )
-        .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: FeedMomentCardLayout.mediaCornerRadius, style: .continuous))
         .overlay(
-            RoundedRectangle(cornerRadius: 28, style: .continuous)
+            RoundedRectangle(cornerRadius: FeedMomentCardLayout.mediaCornerRadius, style: .continuous)
                 .stroke(
                     LinearGradient(
                         colors: [.white.opacity(0.4), .white.opacity(0.05), .white.opacity(0.2)],

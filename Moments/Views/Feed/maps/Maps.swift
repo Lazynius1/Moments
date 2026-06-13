@@ -16,6 +16,7 @@ struct LocationMapView: View {
     let echoHistoryOnly: Bool
     @Binding var isPresented: Bool
     @Environment(\.colorScheme) var colorScheme
+    @Environment(\.dismiss) private var dismiss
 
     init(
         locationName: String,
@@ -190,6 +191,8 @@ struct LocationMapView: View {
                 .ignoresSafeArea()
                 .overlay(alignment: .top) {
                     topControlsOverlay
+                        .zIndex(20)
+                        .allowsHitTesting(true)
                 }
 
             // ✅ BARRA DE ESTADÍSTICAS (SI EXISTE) - La movimos dentro de modernHeaderView en el paso anterior,
@@ -401,7 +404,9 @@ struct LocationMapView: View {
                             .font(.system(size: 18, weight: .bold))
                             .foregroundStyle(adaptiveColors.primary)
                             .frame(width: 32, height: 32)
+                            .contentShape(Circle())
                     }
+                    .buttonStyle(.plain)
 
                     VStack(alignment: .leading, spacing: 0) {
                         Text(effectiveHeaderLocationName)
@@ -1196,22 +1201,12 @@ extension LocationMapView {
     }
 
     private func closeLocationMap() {
-        guard isViewActive else { return }
-        isViewActive = false
-
-        let hadSheet = showingBottomSheet
         showingBottomSheet = false
         zoomDestination = nil
         storyViewerPresentation = nil
         pendingStoryPresentation = nil
-
-        if hadSheet {
-            DispatchQueue.main.asyncAfter(deadline: .now() + MapSheetPresentationDelay.dismissBeforeNextPresentation) {
-                isPresented = false
-            }
-        } else {
-            isPresented = false
-        }
+        isPresented = false
+        dismiss()
     }
 
     private func selectPlaceFromIndex(_ place: MapPlaceCluster) {
@@ -1271,6 +1266,7 @@ extension LocationMapView {
         isMapDetailPresented = true
         if showingBottomSheet {
             resumeBottomSheetAfterDetail = true
+            showingBottomSheet = false
         }
         zoomMapMomentsPool = locationMoments
         MomentZoomOpener.open(

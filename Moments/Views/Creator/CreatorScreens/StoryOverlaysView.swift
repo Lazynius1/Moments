@@ -37,7 +37,7 @@ struct StoryOverlaysView: View {
         ZStack {
             // 📸 FONDO OSCURO DE EDICIÓN INLINE DE STICKERS
             if activeEditingStickerId != nil {
-                RoundedRectangle(cornerRadius: 28, style: .continuous)
+                RoundedRectangle(cornerRadius: storyViewerCanvasCornerRadius, style: .continuous)
                     .fill(Color.black.opacity(0.65))
                     .frame(width: canvasSize.width, height: canvasSize.height)
                     .zIndex(2500)
@@ -329,10 +329,10 @@ struct StoryOverlaysView: View {
 
             // 📸 FONDO OSCURO DE EDICIÓN (Dentro del ZStack para controlar el zIndex)
             if editingPolaroidId != nil {
-                RoundedRectangle(cornerRadius: 28, style: .continuous)
+                RoundedRectangle(cornerRadius: storyViewerCanvasCornerRadius, style: .continuous)
                     .fill(Color.black.opacity(0.82))
                     .overlay(
-                        RoundedRectangle(cornerRadius: 28, style: .continuous)
+                        RoundedRectangle(cornerRadius: storyViewerCanvasCornerRadius, style: .continuous)
                             .stroke(Color.white.opacity(0.05), lineWidth: 1)
                     )
                     .frame(width: canvasSize.width, height: canvasSize.height)

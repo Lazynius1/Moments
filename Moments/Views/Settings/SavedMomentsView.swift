@@ -919,7 +919,7 @@ struct ModernSavedMomentsDetailView: View {
                                         width: UIScreen.main.bounds.width - 32,
                                         height: (UIScreen.main.bounds.width - 32) / max(peekAspectRatio, 0.1)
                                     )
-                                    .clipShape(RoundedRectangle(cornerRadius: 20))
+                                    .clipShape(FeedMomentCardLayout.continuousRoundedRect)
                                     .shadow(color: .black.opacity(0.4), radius: 20, y: 10)
                             }
                         }
@@ -1210,7 +1210,7 @@ struct ModernSavedDetailMomentCard: View {
     }
 
     private var cardHeight: CGFloat {
-        let maxWidth = UIScreen.main.bounds.width - 32
+        let maxWidth = FeedMomentCardLayout.mediaContentWidth
         guard maxWidth > 0 else { return 350 }
 
         let aspectRatio = detectedAspectRatio > 0 ? detectedAspectRatio : aspectRatioType.exactRatio
@@ -1248,8 +1248,8 @@ struct ModernSavedDetailMomentCard: View {
                         onPeek: onPeek
                     )
                     .frame(height: max(cardHeight, 200))
-                    .clipShape(RoundedRectangle(cornerRadius: isImmersive ? 12 : 28, style: .continuous))
-                    .contentShape(RoundedRectangle(cornerRadius: isImmersive ? 12 : 28, style: .continuous))
+                    .clipShape(RoundedRectangle(cornerRadius: FeedMomentCardLayout.mediaCornerRadius, style: .continuous))
+                    .contentShape(RoundedRectangle(cornerRadius: FeedMomentCardLayout.mediaCornerRadius, style: .continuous))
                     .animation(.spring(response: 0.4, dampingFraction: 0.8), value: isImmersive)
                     .onAppear {
                         detectAspectRatio()
@@ -1262,7 +1262,7 @@ struct ModernSavedDetailMomentCard: View {
                        currentImageIndex == 0 {
                         HiddenLayersOverlayView(moment: moment, isImmersive: isImmersive)
                             .frame(height: max(cardHeight, 200))
-                            .clipShape(RoundedRectangle(cornerRadius: isImmersive ? 12 : 28, style: .continuous))
+                            .clipShape(RoundedRectangle(cornerRadius: FeedMomentCardLayout.mediaCornerRadius, style: .continuous))
                             .zIndex(3)
                     }
 
@@ -1321,9 +1321,9 @@ struct ModernSavedDetailMomentCard: View {
                 colorScheme: colorScheme,
                 onHashtagTap: onHashtagTap
             )
-            .padding(.horizontal, 4)
+            .padding(.horizontal, FeedMomentCardLayout.captionHorizontalPadding)
         }
-        .padding(.horizontal, 14)
+        .padding(.horizontal, FeedMomentCardLayout.listHorizontalPadding)
         .padding(.vertical, 4)
         .onAppear {
             if !hasLoadedInitialData {

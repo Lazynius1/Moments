@@ -361,12 +361,8 @@ struct MapLocationSystemSheetModifier: ViewModifier {
 
     func body(content: Content) -> some View {
         content
-            .presentationDetents(
-                [.fraction(0.38), .medium, .large],
-                selection: $selectedDetent
-            )
+            .presentationDetents([.medium, .large], selection: $selectedDetent)
             .presentationDragIndicator(.visible)
-            .presentationCornerRadius(24)
             .presentationBackgroundInteraction(.enabled(upThrough: .medium))
             .presentationBackground(.clear)
     }

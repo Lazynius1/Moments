@@ -184,7 +184,7 @@ struct ModernMomentDetailView: View {
                                 width: UIScreen.main.bounds.width - 32,
                                 height: (UIScreen.main.bounds.width - 32) / peekAspectRatio
                             )
-                            .clipShape(RoundedRectangle(cornerRadius: 20))
+                            .clipShape(FeedMomentCardLayout.continuousRoundedRect)
                             .shadow(color: .black.opacity(0.4), radius: 20, y: 10)
                     }
                 }
@@ -792,7 +792,7 @@ struct ModernDetailMomentCard: View {
     }
     
     private var cardHeight: CGFloat {
-        let maxWidth = UIScreen.main.bounds.width - 32
+        let maxWidth = FeedMomentCardLayout.mediaContentWidth
         
         guard maxWidth > 0 else { return 350 }
         
@@ -842,8 +842,8 @@ struct ModernDetailMomentCard: View {
                         onPeek: onPeek
                     )
                     .frame(height: max(cardHeight, 200))
-                    .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
-                    .contentShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
+                    .clipShape(FeedMomentCardLayout.continuousRoundedRect)
+                    .contentShape(FeedMomentCardLayout.continuousRoundedRect)
                     .onAppear {
                         detectAspectRatio()
                     }
@@ -855,7 +855,7 @@ struct ModernDetailMomentCard: View {
                        currentImageIndex == 0 {
                         HiddenLayersOverlayView(moment: moment, isImmersive: isImmersive)
                             .frame(height: max(cardHeight, 200))
-                            .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
+                            .clipShape(FeedMomentCardLayout.continuousRoundedRect)
                             .zIndex(3)
                     }
 
@@ -899,9 +899,9 @@ struct ModernDetailMomentCard: View {
                 colorScheme: colorScheme,
                 onHashtagTap: onHashtagTap
             )
-            .padding(.horizontal, 4)
+            .padding(.horizontal, FeedMomentCardLayout.captionHorizontalPadding)
         }
-        .padding(.horizontal, 14)
+        .padding(.horizontal, FeedMomentCardLayout.listHorizontalPadding)
         .onAppear {
             if !hasLoadedInitialData {
                 loadMomentData()

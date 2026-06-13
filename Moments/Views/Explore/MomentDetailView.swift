@@ -289,9 +289,9 @@ struct MomentDetailView: View {
                     showExploreWithHashtag = true
                 }
             )
-            .padding(.horizontal, 4)
+            .padding(.horizontal, FeedMomentCardLayout.captionHorizontalPadding)
         }
-        .padding(.horizontal, 15)
+        .padding(.horizontal, FeedMomentCardLayout.listHorizontalPadding)
         .padding(.top, 20)
     }
     

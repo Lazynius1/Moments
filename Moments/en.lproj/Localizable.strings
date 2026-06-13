@@ -1434,6 +1434,7 @@
 "locationMomentDetail.delete.cancel" = "Cancel";
 "locationMomentDetail.delete.confirm" = "Delete";
 "locationMomentDetail.delete.message" = "Are you sure you want to delete this moment? This action cannot be undone.";
+"locationMomentDetail.position" = "%d of %d";
 "locationMomentDetail.photoCount" = "%d photo";
 "locationMomentDetail.comments" = "Comments";
 "locationMomentDetail.noComments.title" = "No comments yet";

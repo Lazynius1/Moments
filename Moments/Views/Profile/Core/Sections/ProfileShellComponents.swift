@@ -343,7 +343,10 @@ struct ModernProfileContentView: View {
                 }
                 .scrollClipDisabled()
 
-                VStack(spacing: 8) {
+                ProfileStickyChromeContainer(
+                    blurProgress: usernameCollapseProgress,
+                    tabsArePinned: tabsArePinned
+                ) {
                     ProfileOwnPinnedTopChrome(
                         username: viewModel.userProfile?.username ?? "Usuario",
                         isVerified: viewModel.userProfile?.isVerified ?? false,
@@ -354,19 +357,10 @@ struct ModernProfileContentView: View {
                         isIncognitoActive: isIncognitoActive,
                         profileZoomNamespace: profileZoomNamespace
                     )
-
-                    if tabsArePinned {
-                        ProfilePillTabs(selectedTab: $selectedProfileTab)
-                            .transition(.opacity)
-                    }
+                } pinnedTabs: {
+                    ProfilePillTabs(selectedTab: $selectedProfileTab)
+                        .frame(maxWidth: 240)
                 }
-                .padding(.top, ProfileHeaderCollapseMetrics.topChromePadding)
-                .padding(.horizontal, 20)
-                .padding(.bottom, tabsArePinned ? 8 : 0)
-                .background {
-                    ProfileProgressiveBlurBackground(progress: usernameCollapseProgress)
-                }
-                .frame(maxWidth: .infinity)
                 .animation(.easeOut(duration: 0.18), value: tabsArePinned)
                 .zIndex(10)
                 }

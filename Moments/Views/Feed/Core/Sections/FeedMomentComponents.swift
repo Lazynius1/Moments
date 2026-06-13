@@ -356,7 +356,7 @@ struct ModernPostCardView: View {
 
     private func refreshCardHeight() {
         let containerSize = CGSize(
-            width: UIScreen.main.bounds.width - 16,
+            width: FeedMomentCardLayout.mediaContentWidth,
             height: availableHeight
         )
         resolvedCardHeight = calculateCardHeight(for: containerSize)
@@ -393,13 +393,13 @@ struct ModernPostCardView: View {
                         isImmersive: $isImmersive
                     )
                     .frame(height: cardHeight)
-                    .clipShape(RoundedRectangle(cornerRadius: isImmersive ? 12 : 20))
+                    .clipShape(FeedMomentCardLayout.continuousRoundedRect)
                     .animation(MotionPolicy.animation(.spring(response: 0.4, dampingFraction: 0.8), value: isImmersive), value: isImmersive)
                     .shadow(
-                        color: colorScheme == .dark ? .black.opacity(0.35) : .black.opacity(0.1),
-                        radius: 12,
+                        color: colorScheme == .dark ? .black.opacity(0.22) : .black.opacity(0.08),
+                        radius: 8,
                         x: 0,
-                        y: 8
+                        y: 4
                     )
                     .onAppear {
                         detectAspectRatio()
@@ -424,7 +424,7 @@ struct ModernPostCardView: View {
                        currentImageIndex == 0 {
                         HiddenLayersOverlayView(moment: moment, isImmersive: isImmersive, requiresFocusForIntro: true)
                             .frame(height: cardHeight)
-                            .clipShape(RoundedRectangle(cornerRadius: isImmersive ? 12 : 20))
+                            .clipShape(FeedMomentCardLayout.continuousRoundedRect)
                             .zIndex(3)
                     }
 
@@ -511,7 +511,7 @@ struct ModernPostCardView: View {
                 )
                 .environmentObject(firestoreService)
             }
-            .padding(.horizontal, 8)
+            .padding(.horizontal, FeedMomentCardLayout.actionRowHorizontalPadding)
 
             MomentCaptionView(
                 moment: moment,
@@ -678,7 +678,7 @@ struct ModernPostCardView: View {
                 )
             }
         }
-        .padding(.horizontal, 12)
+        .padding(.horizontal, FeedMomentCardLayout.headerHorizontalPadding)
         .padding(.vertical, 9)
         .onAppear {
             checkUserStories()

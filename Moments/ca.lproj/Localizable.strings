@@ -1391,6 +1391,7 @@
 "locationMomentDetail.delete.cancel" = "Cancel·lar";
 "locationMomentDetail.delete.confirm" = "Eliminar";
 "locationMomentDetail.delete.message" = "Estàs segur que vols eliminar aquest moment? Aquesta acció no es pot desfer.";
+"locationMomentDetail.position" = "%d de %d";
 "locationMomentDetail.photoCount" = "%d foto";
 "locationMomentDetail.comments" = "Comentaris";
 "locationMomentDetail.noComments.title" = "Encara no hi ha comentaris";

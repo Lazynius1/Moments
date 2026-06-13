@@ -162,9 +162,9 @@ struct ProfileGridHeroPresentation {
 
 enum ProfileGridHeroLayout {
     static let maxCardWidth: CGFloat = 350
-    static let peekCornerRadius: CGFloat = 18
-    static let detailCornerRadius: CGFloat = 28
-    static let thumbnailCornerRadius: CGFloat = 12
+    static let peekCornerRadius: CGFloat = FeedMomentCardLayout.mediaCornerRadius
+    static let detailCornerRadius: CGFloat = FeedMomentCardLayout.mediaCornerRadius
+    static let thumbnailCornerRadius: CGFloat = FeedMomentCardLayout.mediaCornerRadius
     static let horizontalPadding: CGFloat = 16
     static let detailHeaderBlockHeight: CGFloat = 80
     static let menuSpacing: CGFloat = 14

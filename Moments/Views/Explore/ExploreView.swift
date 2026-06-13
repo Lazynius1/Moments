@@ -307,7 +307,7 @@ struct ExploreView: View {
                         moment: moment,
                         index: index,
                         moments: sourceMoments,
-                        presentation: .single,
+                        presentation: .explorer,
                         zoomIDPrefix: "explore"
                     )
                 } else {
@@ -337,21 +337,9 @@ struct ExploreView: View {
             HapticManager.shared.lightImpact()
         }
 
-        /// Igual que en perfil: el destino guarda el `initialMomentId` y los momentos
-        /// se resuelven al montar la vista, no desde un snapshot que puede llegar vacío.
         private func momentsForZoomDestination(_ destination: MomentZoomDestination) -> [Moment] {
             let pool = searchText.isEmpty ? viewModel.moments : viewModel.filteredMoments
-
-            if let initialMomentId = destination.initialMomentId,
-               let moment = pool.first(where: { $0.id == initialMomentId }) {
-                return [moment]
-            }
-
-            if pool.indices.contains(destination.initialIndex) {
-                return [pool[destination.initialIndex]]
-            }
-
-            return pool
+            return MomentZoomOpener.resolvedMoments(for: destination, in: pool)
         }
 
         // Removed redundant momentsSection property

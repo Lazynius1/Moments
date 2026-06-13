@@ -35,7 +35,9 @@ func creatorMomentsCaptureRect(in size: CGSize, topInset: CGFloat, bottomInset: 
     )
 }
 
-let storyViewerCanvasCornerRadius: CGFloat = 28
+var storyViewerCanvasCornerRadius: CGFloat {
+    FeedMomentCardLayout.storyCanvasCornerRadius
+}
 
 func keyWindowSafeAreaInsets() -> UIEdgeInsets {
     let scenes = UIApplication.shared.connectedScenes

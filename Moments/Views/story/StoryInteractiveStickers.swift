@@ -388,7 +388,7 @@ struct InteractiveRevealSticker: View {
                 )
             }
         }
-        .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: storyViewerCanvasCornerRadius, style: .continuous))
         .zIndex(0.5)
         .storyDeckInteractionExclusion(
             id: deckExclusionZoneId,

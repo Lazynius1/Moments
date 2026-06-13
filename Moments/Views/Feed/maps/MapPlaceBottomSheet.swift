@@ -30,6 +30,7 @@ struct MapPlaceBottomSheet: View {
     var onTimeFilterChange: (() -> Void)?
 
     @State private var viewMode: MapPlaceSheetViewMode = .gallery
+    @State private var displayTitle: String = ""
 
     private var adaptiveColors: AdaptiveColors {
         AdaptiveColors(colorScheme: colorScheme)
@@ -70,96 +71,90 @@ struct MapPlaceBottomSheet: View {
             content
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-        .background(Color.clear)
         .onAppear {
             if showsPlaceIndex {
                 viewMode = .list
             }
+            refreshDisplayTitle()
         }
         .onChange(of: cluster.id) { _, _ in
             viewMode = showsPlaceIndex ? .list : .gallery
+            refreshDisplayTitle()
+        }
+    }
+
+    private func refreshDisplayTitle() {
+        displayTitle = cluster.displayName
+        MapLocationDisplayFormatter.resolveTitle(
+            place: cluster.displayName,
+            coordinate: cluster.coordinate
+        ) { title in
+            displayTitle = title
         }
     }
 
     private var header: some View {
         VStack(spacing: 0) {
-            VStack(spacing: 10) {
-                HStack(alignment: .center, spacing: 12) {
-                    // Si el lugar tiene story activa, el icono del header es el
-                    // avatar con anillo (estilo página de lugar), tappable.
-                    if cluster.primaryStory != nil {
-                        Button {
-                            onPlaceStoriesTap(cluster)
-                        } label: {
-                            ZStack(alignment: .bottomTrailing) {
-                                StoryRingAvatarView(
-                                    userId: cluster.primaryStory!.authorId,
-                                    size: 40,
-                                    lineWidth: 2.5
-                                )
+            VStack(alignment: .center, spacing: 4) {
+                if cluster.primaryStory != nil {
+                    Button {
+                        onPlaceStoriesTap(cluster)
+                    } label: {
+                        ZStack(alignment: .bottomTrailing) {
+                            StoryRingAvatarView(
+                                userId: cluster.primaryStory!.authorId,
+                                size: 44,
+                                lineWidth: 2.5
+                            )
 
-                                if cluster.storyCount > 1 {
-                                    Text("\(cluster.storyCount)")
-                                        .font(.system(size: 9, weight: .bold))
-                                        .foregroundColor(.white)
-                                        .padding(.horizontal, 5)
-                                        .padding(.vertical, 2)
-                                        .background(Capsule().fill(adaptiveColors.accent))
-                                        .offset(x: 4, y: 4)
-                                }
+                            if cluster.storyCount > 1 {
+                                Text("\(cluster.storyCount)")
+                                    .font(.system(size: 9, weight: .bold))
+                                    .foregroundColor(.white)
+                                    .padding(.horizontal, 5)
+                                    .padding(.vertical, 2)
+                                    .background(Capsule().fill(adaptiveColors.accent))
+                                    .offset(x: 4, y: 4)
                             }
                         }
-                        .buttonStyle(.plain)
-                    } else {
-                        ZStack {
-                            Circle()
-                                .fill(Color.clear)
-                                .frame(width: 40, height: 40)
-                                .liquidGlass(in: Circle(), interactive: false)
-
-                            Image(systemName: "mappin.circle.fill")
-                                .font(.system(size: 22, weight: .semibold))
-                                .foregroundStyle(
-                                    LinearGradient(
-                                        colors: [adaptiveColors.accent, adaptiveColors.accent.opacity(0.75)],
-                                        startPoint: .topLeading,
-                                        endPoint: .bottomTrailing
-                                    )
-                                )
-                        }
                     }
-
-                    Text(cluster.displayName)
-                        .font(.custom("Poppins-Bold", size: 18))
-                        .foregroundColor(adaptiveColors.primary)
-                        .lineLimit(1)
-
-                    if let weather {
-                        weatherChip(weather)
-                    }
-
-                    Spacer()
-
-                    if !cluster.moments.isEmpty {
-                        viewModeToggle
-                    }
+                    .buttonStyle(.plain)
+                    .padding(.bottom, 4)
                 }
 
-                HStack(spacing: 10) {
-                    Text(statsText)
-                        .font(.custom("Poppins-Regular", size: 13))
-                        .foregroundColor(adaptiveColors.secondary)
-                        .lineLimit(1)
+                Text(displayTitle.isEmpty ? cluster.displayName : displayTitle)
+                    .font(.custom("Poppins-Bold", size: 22))
+                    .foregroundColor(adaptiveColors.primary)
+                    .lineLimit(2)
+                    .multilineTextAlignment(.center)
 
-                    Spacer()
+                Text(statsText)
+                    .font(.custom("Poppins-Regular", size: 13))
+                    .foregroundColor(adaptiveColors.secondary)
+                    .lineLimit(2)
+                    .multilineTextAlignment(.center)
+            }
+            .frame(maxWidth: .infinity, alignment: .center)
+            .padding(.horizontal, 20)
+            .padding(.top, 12)
+            .padding(.bottom, 12)
 
-                    if !cluster.friends.isEmpty {
-                        friendAvatarStack
-                    }
+            HStack(spacing: 10) {
+                if let weather {
+                    weatherChip(weather)
+                }
+
+                if !cluster.friends.isEmpty {
+                    friendAvatarStack
+                }
+
+                Spacer()
+
+                if !cluster.moments.isEmpty {
+                    viewModeToggle
                 }
             }
             .padding(.horizontal, 20)
-            .padding(.top, 8)
             .padding(.bottom, 10)
         }
     }

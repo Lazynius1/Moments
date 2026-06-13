@@ -2217,6 +2217,7 @@
 "locationMomentDetail.delete.cancel" = "Cancelar";
 "locationMomentDetail.delete.confirm" = "Eliminar";
 "locationMomentDetail.delete.message" = "Tens a certeza de que queres eliminar este moment? Esta ação não pode ser anulada.";
+"locationMomentDetail.position" = "%d de %d";
 "locationMomentDetail.photoCount" = "%d foto";
 "locationMomentDetail.comments" = "Comentários";
 "locationMomentDetail.noComments.title" = "Ainda não há comentários";

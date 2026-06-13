@@ -33,6 +33,7 @@ enum MomentZoomPresentationKind: Hashable {
     case carousel
     case saved
     case single
+    case explorer
     case map(locationName: String)
 }
 
@@ -240,6 +241,12 @@ struct MomentZoomDetailDestination: View {
                         }
                     )
                 )
+            case .explorer:
+                ExploreMomentDetailView(
+                    moments: moments,
+                    initialIndex: destination.initialIndex,
+                    initialMomentId: destination.initialMomentId
+                )
             }
         }
         .navigationBarBackButtonHidden(true)
@@ -351,7 +358,7 @@ enum MomentZoomOpener {
                 return [first]
             }
             return []
-        case .carousel, .saved, .map:
+        case .carousel, .saved, .map, .explorer:
             return pool
         }
     }
@@ -379,6 +386,7 @@ enum MomentZoomOpener {
         case .carousel: return "carousel"
         case .saved: return "saved"
         case .single: return "single"
+        case .explorer: return "explore"
         case .map: return "map"
         }
     }

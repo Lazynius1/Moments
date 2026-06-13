@@ -165,7 +165,7 @@ struct EnhancedCameraPickerView: View {
                     cameraViewController: $cameraViewController
                 )
                 .frame(width: captureRect.width, height: captureRect.height)
-                .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
+                .clipShape(FeedMomentCardLayout.continuousRoundedRect)
                 .position(x: captureRect.midX, y: captureRect.midY)
 
                 topBar
@@ -773,7 +773,7 @@ private struct CameraMediaPreviewOverlay: View {
                         }
                     }
                 }
-                .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
+                .clipShape(FeedMomentCardLayout.continuousRoundedRect)
                 .position(x: guideRect.midX, y: guideRect.midY)
 
                 VStack(spacing: 0) {

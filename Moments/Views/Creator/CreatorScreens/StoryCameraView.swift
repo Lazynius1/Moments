@@ -72,7 +72,7 @@ struct StoryCameraView: View {
                     }
                 )
                 .frame(width: captureRect.width, height: captureRect.height)
-                .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
+                .clipShape(RoundedRectangle(cornerRadius: storyViewerCanvasCornerRadius, style: .continuous))
                 .position(x: captureRect.midX, y: captureRect.midY)
                 .gesture(
                     MagnificationGesture()

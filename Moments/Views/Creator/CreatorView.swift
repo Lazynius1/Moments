@@ -657,7 +657,7 @@ struct RevealStickerEditorView: View {
         stickers.firstIndex(where: { $0.id == editingId })
     }
 
-    private let canvasCornerRadius: CGFloat = 28
+    private var canvasCornerRadius: CGFloat { storyViewerCanvasCornerRadius }
 
     var body: some View {
         ZStack {
