@@ -59,6 +59,7 @@ struct AppUser: Identifiable, Codable {
     let notificationPreferences: [String: Bool]?
     let bestFriends: [String]
     let websiteUrl: String? // ✅ NUEVO: Campo para website en bio
+    let profileNote: String? // Nota corta bajo el avatar (vibe / emojis)
     
     // ✅ NUEVO: Contadores para perfil (para carga instantánea)
     let followersCount: Int
@@ -116,6 +117,7 @@ struct AppUser: Identifiable, Codable {
         case notificationPreferences
         case bestFriends
         case websiteUrl // ✅ NUEVO
+        case profileNote
 
         case followersCount
         case followingCount
@@ -158,6 +160,7 @@ struct AppUser: Identifiable, Codable {
         self.notificationPreferences = try container.decodeIfPresent([String: Bool].self, forKey: .notificationPreferences)
         self.bestFriends = (try container.decodeIfPresent([String].self, forKey: .bestFriends)) ?? []
         self.websiteUrl = try container.decodeIfPresent(String.self, forKey: .websiteUrl) // ✅ NUEVO
+        self.profileNote = try container.decodeIfPresent(String.self, forKey: .profileNote)
         
         self.followersCount = (try container.decodeIfPresent(Int.self, forKey: .followersCount)) ?? 0
         self.followingCount = (try container.decodeIfPresent(Int.self, forKey: .followingCount)) ?? 0
@@ -231,6 +234,7 @@ struct AppUser: Identifiable, Codable {
         notificationPreferences: [String: Bool]?,
         bestFriends: [String],
         websiteUrl: String? = nil, // ✅ NUEVO
+        profileNote: String? = nil,
         
         followersCount: Int = 0,
         followingCount: Int = 0,
@@ -270,6 +274,7 @@ struct AppUser: Identifiable, Codable {
         self.notificationPreferences = notificationPreferences
         self.bestFriends = bestFriends
         self.websiteUrl = websiteUrl // ✅ NUEVO
+        self.profileNote = profileNote
 
         self.followersCount = followersCount
         self.followingCount = followingCount

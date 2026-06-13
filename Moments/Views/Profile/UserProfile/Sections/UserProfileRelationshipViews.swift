@@ -109,8 +109,8 @@ struct UserRelationshipManagementSheet: View {
                     subtitle: isBestFriend
                         ? NSLocalizedString("userProfile.relationship.bestFriends.remove.subtitle", comment: "")
                         : NSLocalizedString("userProfile.relationship.bestFriends.add.subtitle", comment: ""),
-                    icon: isBestFriend ? "star.fill" : "star",
-                    iconColor: isBestFriend ? .green : nil,
+                    audienceIcon: .bestFriends,
+                    iconColor: isBestFriend ? Color(hex: "34C759") : nil,
                     isLoading: isUpdatingBestFriend,
                 action: onToggleBestFriend
             )
@@ -122,7 +122,7 @@ struct UserRelationshipManagementSheet: View {
                 subtitle: isMuted
                     ? NSLocalizedString("userProfile.relationship.mute.disabled.subtitle", comment: "")
                     : NSLocalizedString("userProfile.relationship.mute.enabled.subtitle", comment: ""),
-                icon: isMuted ? "speaker.wave.2" : "speaker.slash",
+                systemIcon: isMuted ? "speaker.wave.2" : "speaker.slash",
                 iconColor: nil,
                 isLoading: isUpdatingMute,
                 action: onToggleMute
@@ -145,8 +145,12 @@ struct UserRelationshipManagementSheet: View {
                     Spacer()
 
                     HStack(spacing: 8) {
-                        Image(systemName: "list.bullet")
-                            .font(.system(size: 17, weight: .semibold))
+                        AudienceIconView(
+                            audience: .customList,
+                            size: AudienceIconMetrics.row,
+                            tintColor: colorScheme == .dark ? .white : .black
+                        )
+                        .frame(width: 24)
 
                         if customListCount > 0 {
                             Image(systemName: "chevron.right")
@@ -207,9 +211,11 @@ struct UserRelationshipManagementSheet: View {
 
             if customLists.isEmpty {
                 VStack(spacing: 10) {
-                    Image(systemName: "list.bullet.rectangle")
-                        .font(.system(size: 34, weight: .medium))
-                        .foregroundColor(colorScheme == .dark ? .white.opacity(0.44) : .black.opacity(0.38))
+                    AudienceIconView(
+                        audience: .customList,
+                        size: 34,
+                        tintColor: colorScheme == .dark ? .white.opacity(0.44) : .black.opacity(0.38)
+                    )
 
                     Text(NSLocalizedString("userProfile.relationship.lists.empty", comment: ""))
                         .font(.custom("Poppins-Medium", size: 14))
@@ -312,8 +318,9 @@ struct UserRelationshipManagementSheet: View {
     private func relationshipActionRow(
         title: String,
         subtitle: String,
-        icon: String,
-        iconColor: Color?,
+        systemIcon: String? = nil,
+        audienceIcon: ContentAudience? = nil,
+        iconColor: Color? = nil,
         isLoading: Bool,
         action: @escaping () -> Void
     ) -> some View {
@@ -333,8 +340,15 @@ struct UserRelationshipManagementSheet: View {
                 if isLoading {
                     ProgressView()
                         .scaleEffect(0.82)
-                } else {
-                    Image(systemName: icon)
+                } else if let audienceIcon {
+                    AudienceIconView(
+                        audience: audienceIcon,
+                        size: AudienceIconMetrics.row,
+                        tintColor: iconColor ?? (colorScheme == .dark ? .white : .black)
+                    )
+                    .frame(width: 24)
+                } else if let systemIcon {
+                    Image(systemName: systemIcon)
                         .font(.system(size: 17, weight: .semibold))
                         .foregroundColor(iconColor ?? (colorScheme == .dark ? .white : .black))
                         .frame(width: 24)

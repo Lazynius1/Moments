@@ -93,10 +93,15 @@ struct ModernProfileContentView: View {
     @State private var gridPreviewMoment: Moment?
     @State private var zoomDestination: ProfileMomentZoomDestination?
     @State private var identityMinY: CGFloat = .greatestFiniteMagnitude
+    @State private var tabsMinY: CGFloat = .greatestFiniteMagnitude
     @Environment(\.colorScheme) private var colorScheme
 
     private var usernameCollapseProgress: CGFloat {
-        ProfileHeaderCollapseMetrics.progress(for: identityMinY, scrollContentMinY: scrollOffset)
+        ProfileHeaderCollapseMetrics.progress(forTabsMinY: tabsMinY)
+    }
+
+    private var tabsArePinned: Bool {
+        ProfileHeaderCollapseMetrics.tabsArePinned(tabsMinY: tabsMinY)
     }
 
     var body: some View {
@@ -145,7 +150,6 @@ struct ModernProfileContentView: View {
                             showingInterests: $showingFullInfo,
                             interests: viewModel.userProfile?.interests ?? []
                         )
-                        .padding(.horizontal, 20)
                         .padding(.bottom, 4)
 
                         // ✅ NUEVO: Destacadas Compactas (Después del bloque social)
@@ -168,6 +172,15 @@ struct ModernProfileContentView: View {
                             .padding(.horizontal, 20)
                             .padding(.bottom, 4)
                             .frame(maxWidth: UIScreen.main.bounds.width)
+                            .background(
+                                GeometryReader { geometry in
+                                    Color.clear.preference(
+                                        key: ProfileTabsMinYPreferenceKey.self,
+                                        value: geometry.frame(in: .named("profileGridOverlay")).minY
+                                    )
+                                }
+                            )
+                            .opacity(tabsArePinned ? 0 : 1)
 
                             // ✅ NUEVO: Contenido basado en el tab seleccionado
                             switch selectedProfileTab {
@@ -322,23 +335,39 @@ struct ModernProfileContentView: View {
                 .onPreferenceChange(ProfileIdentityMinYPreferenceKey.self) { value in
                     identityMinY = value
                 }
+                .onPreferenceChange(ProfileTabsMinYPreferenceKey.self) { value in
+                    tabsMinY = value
+                }
                 .onPreferenceChange(ProfileGridThumbnailFramePreferenceKey.self) { frames in
                     heroCoordinator.ingestThumbnailFrames(frames)
                 }
                 .scrollClipDisabled()
 
-                ProfileOwnPinnedTopChrome(
-                    username: viewModel.userProfile?.username ?? "Usuario",
-                    isVerified: viewModel.userProfile?.isVerified ?? false,
-                    collapseProgress: usernameCollapseProgress,
-                    isShowingSettings: $isShowingSettings,
-                    showingQRCode: $showingQRCode,
-                    isShowingIncognito: $isShowingIncognito,
-                    isIncognitoActive: isIncognitoActive,
-                    profileZoomNamespace: profileZoomNamespace
-                )
+                VStack(spacing: 8) {
+                    ProfileOwnPinnedTopChrome(
+                        username: viewModel.userProfile?.username ?? "Usuario",
+                        isVerified: viewModel.userProfile?.isVerified ?? false,
+                        collapseProgress: usernameCollapseProgress,
+                        isShowingSettings: $isShowingSettings,
+                        showingQRCode: $showingQRCode,
+                        isShowingIncognito: $isShowingIncognito,
+                        isIncognitoActive: isIncognitoActive,
+                        profileZoomNamespace: profileZoomNamespace
+                    )
+
+                    if tabsArePinned {
+                        ProfilePillTabs(selectedTab: $selectedProfileTab)
+                            .transition(.opacity)
+                    }
+                }
                 .padding(.top, ProfileHeaderCollapseMetrics.topChromePadding)
                 .padding(.horizontal, 20)
+                .padding(.bottom, tabsArePinned ? 8 : 0)
+                .background {
+                    ProfileProgressiveBlurBackground(progress: usernameCollapseProgress)
+                }
+                .frame(maxWidth: .infinity)
+                .animation(.easeOut(duration: 0.18), value: tabsArePinned)
                 .zIndex(10)
                 }
                 .coordinateSpace(name: "profileGridOverlay")

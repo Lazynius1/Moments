@@ -179,13 +179,15 @@ struct UserModernPrivateProfileView: View {
                                 .font(.system(size: 13, weight: .medium))
                             Text(followButtonText)
                                 .font(.custom("Poppins-SemiBold", size: 13))
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.85)
                             if followButtonState == .following {
                                 Image(systemName: "chevron.down")
                                     .font(.system(size: 10, weight: .bold))
                             }
                         }
                         .foregroundColor(colorScheme == .dark ? .white : .black)
-                        .frame(maxWidth: .infinity)
+                        .padding(.horizontal, 18)
                         .padding(.vertical, 10)
                         .liquidGlass(in: Capsule(), interactive: followButtonState.isActionable)
                     }
@@ -207,11 +209,19 @@ struct UserModernPrivateProfileView: View {
                             }
                         }
                     }) {
-                        Image(systemName: "paperplane.fill")
-                            .font(.system(size: 16, weight: .medium))
-                            .foregroundColor(colorScheme == .dark ? .white : .black)
-                            .frame(width: 40, height: 40)
-                            .liquidGlass(in: Circle(), interactive: true)
+                        HStack(spacing: 6) {
+                            Image(systemName: "paperplane.fill")
+                                .font(.system(size: 13, weight: .semibold))
+
+                            Text(NSLocalizedString("userProfile.sendMessage", comment: "Send message"))
+                                .font(.custom("Poppins-SemiBold", size: 13))
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.85)
+                        }
+                        .foregroundColor(colorScheme == .dark ? .white : .black)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 10)
+                        .liquidGlass(in: Capsule(), interactive: true)
                     }
                 }
                 .padding(.horizontal, 20)

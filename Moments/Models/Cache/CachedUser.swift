@@ -16,6 +16,7 @@ final class CachedUser {
     var bio: String?
     var profileImagePath: String?
     var websiteUrl: String?
+    var profileNote: String?
     
     // MARK: - Contadores
     var followersCount: Int?
@@ -59,6 +60,7 @@ final class CachedUser {
         bio: String? = nil,
         profileImagePath: String? = nil,
         websiteUrl: String? = nil,
+        profileNote: String? = nil,
         isPlusSubscriber: Bool? = false,
         isVerified: Bool? = false,
         isPrivate: Bool? = false,
@@ -88,6 +90,7 @@ final class CachedUser {
         self.bio = bio
         self.profileImagePath = profileImagePath
         self.websiteUrl = websiteUrl
+        self.profileNote = profileNote
         self.isPlusSubscriber = isPlusSubscriber
         self.isVerified = isVerified
         self.isPrivate = isPrivate
@@ -128,6 +131,7 @@ extension CachedUser {
             bio: user.bio,
             profileImagePath: user.profileImagePath,
             websiteUrl: user.websiteUrl,
+            profileNote: user.profileNote,
             isPlusSubscriber: user.isPlusSubscriber,
             isVerified: user.isVerified,
             isPrivate: user.isPrivate,
@@ -195,6 +199,7 @@ extension CachedUser {
             notificationPreferences: nil,
             bestFriends: bestFriends,
             websiteUrl: websiteUrl,
+            profileNote: profileNote,
             followersCount: followersCount ?? 0,
             followingCount: followingCount ?? 0,
             momentsCount: momentsCount ?? 0,

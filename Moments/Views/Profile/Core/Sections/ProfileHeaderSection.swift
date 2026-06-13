@@ -38,12 +38,12 @@ struct ProfileOwnPinnedTopChrome: View {
 
             HStack(spacing: 5) {
                 Text(username)
-                    .font(.custom("Poppins-SemiBold", size: 17))
+                    .font(.custom("Poppins-Bold", size: 20))
                     .foregroundColor(ProfileColors.textPrimary)
                     .lineLimit(1)
 
                 if isVerified {
-                    VerifiedBadge(size: 14)
+                    VerifiedBadge(size: 16)
                 }
             }
             .opacity(collapseProgress)
@@ -52,12 +52,6 @@ struct ProfileOwnPinnedTopChrome: View {
             .allowsHitTesting(false)
         }
         .frame(height: ProfileHeaderCollapseMetrics.chromeHeight)
-        .background {
-            Rectangle()
-                .fill(.regularMaterial)
-                .opacity(collapseProgress)
-                .ignoresSafeArea(edges: .top)
-        }
     }
 
     private var ownHeaderMenu: some View {
@@ -139,15 +133,26 @@ struct ModernProfileHeader: View {
     var body: some View {
         VStack(spacing: 10) {
             HStack(alignment: .top, spacing: 14) {
-                compactAvatar
-                    .onTapGesture {
-                        if storyViewModel.hasActiveStory, Auth.auth().currentUser?.uid != nil {
-                            showStoryViewer = true
-                            selectedStoryIndex = 0
-                        } else {
-                            showProfileImageFullscreen = true
+                VStack(spacing: 8) {
+                    compactAvatar
+                        .onTapGesture {
+                            if storyViewModel.hasActiveStory, Auth.auth().currentUser?.uid != nil {
+                                showStoryViewer = true
+                                selectedStoryIndex = 0
+                            } else {
+                                showProfileImageFullscreen = true
+                            }
                         }
-                    }
+
+                    ProfileAvatarNoteView(
+                        note: viewModel.userProfile?.profileNote,
+                        isEditable: true,
+                        onSave: { note in
+                            viewModel.updateProfileNote(note)
+                        }
+                    )
+                }
+                .frame(width: ProfileAvatarNoteMetrics.columnWidth)
 
                 VStack(alignment: .leading, spacing: 5) {
                     VStack(alignment: .leading, spacing: 3) {
@@ -433,6 +438,7 @@ struct ProfileOverviewCard: View {
                 embeddedStyle: true
             )
             .frame(maxWidth: .infinity)
+            .padding(.horizontal, 20)
 
             if !interests.isEmpty {
                 Button(action: {
@@ -463,10 +469,11 @@ struct ProfileOverviewCard: View {
                             .foregroundColor(ProfileColors.textSecondary)
                             .rotationEffect(.degrees(showingInterests ? 180 : 0))
                     }
-                    .padding(.top, 12)
                     .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
+                .padding(.horizontal, 20)
+                .padding(.top, 12)
 
                 if showingInterests {
                     ModernInterestsView(
@@ -484,7 +491,6 @@ struct ProfileOverviewCard: View {
             }
         }
         .frame(maxWidth: .infinity)
-        .padding(.horizontal, 4)
         .padding(.vertical, 6)
     }
 }
@@ -576,7 +582,9 @@ struct ModernInterestsView: View {
                         .shadow(color: ProfileColors.shadowColor, radius: embeddedStyle ? 0 : 4, x: 0, y: embeddedStyle ? 0 : 2)
                     }
                 }
+                .padding(.horizontal, embeddedStyle ? 20 : 0)
             }
+            .scrollClipDisabled(embeddedStyle)
             .frame(maxWidth: .infinity, alignment: .leading)
         }
         .frame(maxWidth: .infinity, alignment: .leading)

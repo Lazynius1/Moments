@@ -120,6 +120,7 @@
 "profile.defaultUsername" = "Usuari";
 "profile.bio.placeholder" = "Afegeix una bio per explicar a la gent sobre tu.";
 "profile.editButton" = "Editar Perfil";
+"profile.avatarNote.placeholder" = "En què estàs pensant?";
 "profile.userList.visits" = "Visites";
 "profile.userList.admirers" = "Seguidors";
 "profile.userList.connections" = "Seguits";
@@ -1694,6 +1695,7 @@
 "userProfile.followButton.canRequestFollow" = "Sol·licitar seguiment";
 "userProfile.followButton.requestPending" = "Sol·licitud enviada";
 "userProfile.followButton.cancelRequest" = "Cancela la sol·licitud";
+"userProfile.sendMessage" = "Enviar missatge";
 "userProfile.unfollow.confirm.title" = "Deixar de seguir?";
 "userProfile.unfollow.confirm.message" = "Pots tornar a seguir aquest perfil quan vulguis.";
 "userProfile.unfollow.confirm.action" = "Deixar de seguir";

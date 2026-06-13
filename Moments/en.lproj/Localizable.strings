@@ -125,6 +125,7 @@
 "profile.defaultUsername" = "User";
 "profile.bio.placeholder" = "Add a bio to tell people about yourself.";
 "profile.editButton" = "Edit Profile";
+"profile.avatarNote.placeholder" = "What are you thinking?";
 "profile.userList.visits" = "Visits";
 "profile.userList.admirers" = "Followers";
 "profile.userList.connections" = "Following";
@@ -1729,6 +1730,7 @@
 "userProfile.followButton.canRequestFollow" = "Request Follow";
 "userProfile.followButton.requestPending" = "Request Sent";
 "userProfile.followButton.cancelRequest" = "Cancel Request";
+"userProfile.sendMessage" = "Send message";
 "userProfile.unfollow.confirm.title" = "Unfollow?";
 "userProfile.unfollow.confirm.message" = "You can follow this profile again whenever you want.";
 "userProfile.unfollow.confirm.action" = "Unfollow";

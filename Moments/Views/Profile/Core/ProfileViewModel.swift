@@ -748,4 +748,60 @@ class ProfileViewModel: ObservableObject, UserListViewModel {
     func updateBio(newBio: String) {
         updateProfileDetails(bio: newBio, websiteUrl: nil)
     }
+
+    func updateProfileNote(_ note: String) {
+        guard let userId = Auth.auth().currentUser?.uid else { return }
+
+        let trimmed = String(note.prefix(ProfileAvatarNoteMetrics.maxLength))
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+
+        userProfile = userProfile.map { profile in
+            AppUser(
+                id: profile.id,
+                username: profile.username,
+                email: profile.email,
+                interests: profile.interests,
+                isPlusSubscriber: profile.isPlusSubscriber,
+                profileImagePath: profile.profileImagePath,
+                bio: profile.bio,
+                blockedUsers: profile.blockedUsers,
+                isPrivate: profile.isPrivate,
+                showMutualConnections: profile.showMutualConnections,
+                showFollowing: profile.showFollowing,
+                showAdmirers: profile.showAdmirers,
+                activeHoursStart: profile.activeHoursStart,
+                activeHoursEnd: profile.activeHoursEnd,
+                notificationPreferences: profile.notificationPreferences,
+                bestFriends: profile.bestFriends,
+                websiteUrl: profile.websiteUrl,
+                profileNote: trimmed.isEmpty ? nil : trimmed,
+                followersCount: profile.followersCount,
+                followingCount: profile.followingCount,
+                momentsCount: profile.momentsCount,
+                isActive: profile.isActive,
+                deactivatedAt: profile.deactivatedAt,
+                deactivatedBy: profile.deactivatedBy,
+                ownedBadges: profile.ownedBadges,
+                plusSubscription: profile.plusSubscription,
+                primaryBadgeId: profile.primaryBadgeId,
+                showBadge: profile.showBadge,
+                showPlusBadge: profile.showPlusBadge,
+                selectedProfileTheme: profile.selectedProfileTheme,
+                isVerified: profile.isVerified,
+                onlineStatus: profile.onlineStatus,
+                lastSeen: profile.lastSeen,
+                isOnline: profile.isOnline,
+                showReadReceipts: profile.showReadReceipts,
+                lastUsernameChange: profile.lastUsernameChange
+            )
+        }
+
+        firestoreService.updateProfileNote(userId: userId, note: trimmed) { [weak self] error in
+            Task { @MainActor in
+                if error != nil {
+                    self?.fetchProfile(userId: userId)
+                }
+            }
+        }
+    }
 }

@@ -1100,6 +1100,12 @@ class FirestoreService: ObservableObject {
         }
     }
 
+    func updateProfileNote(userId: String, note: String, completion: @escaping (Error?) -> Void) {
+        self.db.collection("users").document(userId).updateData([
+            "profileNote": note
+        ], completion: completion)
+    }
+
     // ✅ NUEVO: Actualizar bio y link
     func updateProfileDetails(userId: String, oldBio: String? = nil, newBio: String?, oldWebsite: String? = nil, newWebsite: String?, completion: @escaping (Error?) -> Void) {
         var data: [String: Any] = [:]

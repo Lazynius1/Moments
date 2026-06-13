@@ -242,6 +242,10 @@ service cloud.firestore {
                 && (!("plusSubscription" in request.resource.data) || request.resource.data.plusSubscription is map)
                 && (!("profileImagePath" in request.resource.data) || request.resource.data.profileImagePath is string)
                 && (!("bio" in request.resource.data) || request.resource.data.bio is string)
+                && (!("profileNote" in request.resource.data) || (
+                    request.resource.data.profileNote is string
+                    && request.resource.data.profileNote.size() <= 28
+                ))
                 && (!("activeHoursStart" in request.resource.data) || request.resource.data.activeHoursStart is string)
                 && (!("activeHoursEnd" in request.resource.data) || request.resource.data.activeHoursEnd is string)
                 && (!("notificationPreferences" in request.resource.data) || request.resource.data.notificationPreferences is map)
@@ -259,6 +263,13 @@ service cloud.firestore {
           allow update: if request.auth != null
             && request.auth.uid == userId
             && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['incognito'])
+            && (
+              !request.resource.data.diff(resource.data).affectedKeys().hasAny(['profileNote'])
+              || (
+                request.resource.data.profileNote is string
+                && request.resource.data.profileNote.size() <= 28
+              )
+            )
             && (
             // Actualizaciones normales (cualquier campo excepto los de gestión de cuenta)
             !request.resource.data.diff(resource.data).affectedKeys().hasAny(['isActive', 'deactivatedAt', 'deactivatedBy', 'reactivatedAt']) ||

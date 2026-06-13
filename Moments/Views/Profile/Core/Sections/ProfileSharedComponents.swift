@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 // MARK: - Vista de carga
 struct ModernLoadingView: View {
@@ -193,6 +194,119 @@ struct ProfileFlowLayout: Layout {
     }
 }
 
+enum ProfileAvatarNoteMetrics {
+    static let maxLength = 28
+    static let columnWidth: CGFloat = 96
+}
+
+/// Nota corta bajo el avatar: vibe, emojis o frase breve.
+struct ProfileAvatarNoteView: View {
+    let note: String?
+    let isEditable: Bool
+    var onSave: ((String) -> Void)?
+
+    @Environment(\.colorScheme) private var colorScheme
+    @State private var isEditing = false
+    @State private var draft = ""
+    @FocusState private var isFocused: Bool
+
+    private var displayText: String? {
+        let trimmed = note?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        return trimmed.isEmpty ? nil : trimmed
+    }
+
+    private var shouldShow: Bool {
+        isEditable || displayText != nil
+    }
+
+    var body: some View {
+        Group {
+            if shouldShow {
+                content
+                    .frame(width: ProfileAvatarNoteMetrics.columnWidth)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var content: some View {
+        if isEditing {
+            TextField(
+                NSLocalizedString("profile.avatarNote.placeholder", comment: "Avatar note placeholder"),
+                text: $draft
+            )
+            .font(.custom("Poppins-Medium", size: 12))
+            .multilineTextAlignment(.center)
+            .lineLimit(1)
+            .focused($isFocused)
+            .submitLabel(.done)
+            .onSubmit { commitEdit() }
+            .onChange(of: draft) { _, newValue in
+                if newValue.contains("\n") {
+                    draft = newValue
+                        .replacingOccurrences(of: "\n", with: " ")
+                        .trimmingCharacters(in: .whitespacesAndNewlines)
+                    commitEdit()
+                    return
+                }
+                if newValue.count > ProfileAvatarNoteMetrics.maxLength {
+                    draft = String(newValue.prefix(ProfileAvatarNoteMetrics.maxLength))
+                }
+            }
+            .onChange(of: isFocused) { _, focused in
+                if !focused && isEditing {
+                    commitEdit()
+                }
+            }
+            .toolbar {
+                ToolbarItemGroup(placement: .keyboard) {
+                    Spacer()
+                    Button(NSLocalizedString("common.done", comment: "Done")) {
+                        commitEdit()
+                    }
+                    .font(.custom("Poppins-SemiBold", size: 15))
+                }
+            }
+            .onAppear {
+                draft = displayText ?? ""
+                isFocused = true
+            }
+        } else if let displayText {
+            Text(displayText)
+                .font(.custom("Poppins-Medium", size: 12))
+                .foregroundColor(colorScheme == .dark ? .white.opacity(0.82) : .black.opacity(0.72))
+                .multilineTextAlignment(.center)
+                .lineLimit(2)
+                .frame(maxWidth: .infinity)
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    guard isEditable else { return }
+                    draft = displayText
+                    isEditing = true
+                }
+        } else if isEditable {
+            Text(NSLocalizedString("profile.avatarNote.placeholder", comment: "Avatar note placeholder"))
+                .font(.custom("Poppins-Medium", size: 12))
+                .foregroundColor(colorScheme == .dark ? .white.opacity(0.38) : .black.opacity(0.32))
+                .multilineTextAlignment(.center)
+                .lineLimit(2)
+                .frame(maxWidth: .infinity)
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    draft = ""
+                    isEditing = true
+                }
+        }
+    }
+
+    private func commitEdit() {
+        let trimmed = draft.trimmingCharacters(in: .whitespacesAndNewlines)
+        onSave?(trimmed)
+        isEditing = false
+        isFocused = false
+    }
+}
+
 // MARK: - Preference Key para scroll offset
 struct ScrollOffsetPreferenceKey: PreferenceKey {
     static var defaultValue: CGFloat = 0
@@ -208,30 +322,87 @@ struct ProfileIdentityMinYPreferenceKey: PreferenceKey {
     }
 }
 
+struct ProfileTabsMinYPreferenceKey: PreferenceKey {
+    static var defaultValue: CGFloat = .greatestFiniteMagnitude
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = min(value, nextValue())
+    }
+}
+
+final class IntensityBlurUIView: UIVisualEffectView {
+    private var animator: UIViewPropertyAnimator?
+
+    deinit {
+        animator?.stopAnimation(true)
+    }
+
+    func setIntensity(_ intensity: CGFloat) {
+        animator?.stopAnimation(true)
+        effect = nil
+        animator = UIViewPropertyAnimator(duration: 1, curve: .linear) { [weak self] in
+            self?.effect = UIBlurEffect(style: .regular)
+        }
+        animator?.pausesOnCompletion = true
+        animator?.fractionComplete = min(max(intensity, 0.0001), 1)
+    }
+}
+
+struct ProfileBackdropBlur: UIViewRepresentable {
+    var intensity: CGFloat
+    var maxFraction: CGFloat = 0.07
+
+    func makeUIView(context: Context) -> IntensityBlurUIView {
+        IntensityBlurUIView()
+    }
+
+    func updateUIView(_ view: IntensityBlurUIView, context: Context) {
+        view.setIntensity(intensity * maxFraction)
+    }
+}
+
+
+struct ProfileProgressiveBlurBackground: View {
+    let progress: CGFloat
+    var fadeTail: CGFloat = 48
+
+    var body: some View {
+        ProfileBackdropBlur(intensity: progress)
+            .padding(.bottom, -fadeTail)
+            .mask(
+                LinearGradient(
+                    stops: [
+                        .init(color: .black, location: 0),
+                        .init(color: .black, location: 0.25),
+                        .init(color: .black.opacity(0.55), location: 0.6),
+                        .init(color: .black.opacity(0.2), location: 0.85),
+                        .init(color: .black.opacity(0), location: 1)
+                    ],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+                .padding(.bottom, -fadeTail)
+            )
+            .ignoresSafeArea(edges: .top)
+            .allowsHitTesting(false)
+    }
+}
+
 enum ProfileHeaderCollapseMetrics {
-    /// Altura de la fila de botones (topBar original en git: iconos 36pt).
     static let chromeHeight: CGFloat = 36
-    /// Padding superior del chrome flotante sobre el safe area.
     static let topChromePadding: CGFloat = 4
-    /// Espacio entre topBar y avatar en git: VStack(10) + padding(.top, 18).
     static let identitySectionGap: CGFloat = 28
-    /// Padding del bloque header en el scroll (ProfileShellComponents).
     static let headerTopPadding: CGFloat = 4
     static var topContentInset: CGFloat { chromeHeight + identitySectionGap }
-    static let collapseDistance: CGFloat = 52
+    static var tabsPinY: CGFloat { topChromePadding + chromeHeight + 8 }
+    static let tabsFadeLead: CGFloat = 96
+    static func progress(forTabsMinY tabsMinY: CGFloat) -> CGFloat {
+        guard tabsMinY.isFinite, tabsMinY < 10_000 else { return 0 }
+        let start = tabsPinY + tabsFadeLead
+        guard tabsMinY < start else { return 0 }
+        return min(max((start - tabsMinY) / tabsFadeLead, 0), 1)
+    }
 
-    static func progress(for identityMinY: CGFloat, scrollContentMinY: CGFloat) -> CGFloat {
-        let collapseStartY = topContentInset + headerTopPadding
-
-        let fromIdentity: CGFloat = {
-            guard identityMinY.isFinite, identityMinY < 10_000 else { return 0 }
-            guard identityMinY < collapseStartY else { return 0 }
-            return min(max((collapseStartY - identityMinY) / collapseDistance, 0), 1)
-        }()
-
-        let scrolled = max(-scrollContentMinY, 0)
-        let scrollTrigger = max(topContentInset * 0.55, 20)
-        let fromScroll = min(max((scrolled - scrollTrigger) / collapseDistance, 0), 1)
-        return max(fromIdentity, fromScroll)
+    static func tabsArePinned(tabsMinY: CGFloat) -> Bool {
+        tabsMinY.isFinite && tabsMinY <= tabsPinY + 0.5
     }
 }

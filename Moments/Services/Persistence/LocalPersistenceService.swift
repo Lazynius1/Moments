@@ -1029,6 +1029,7 @@ final class LocalPersistenceService: ObservableObject {
         existing.bio = new.bio
         existing.profileImagePath = new.profileImagePath
         existing.websiteUrl = new.websiteUrl
+        existing.profileNote = new.profileNote
         existing.isPlusSubscriber = new.isPlusSubscriber
         existing.isVerified = new.isVerified
         existing.isPrivate = new.isPrivate

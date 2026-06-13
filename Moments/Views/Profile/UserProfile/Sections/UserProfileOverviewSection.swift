@@ -23,6 +23,7 @@ struct UserProfileOverviewSection: View {
                     embeddedStyle: true
                 )
                 .frame(maxWidth: .infinity)
+                .padding(.horizontal, 20)
             }
 
             if !interests.isEmpty {
@@ -54,10 +55,11 @@ struct UserProfileOverviewSection: View {
                             .foregroundColor(UserProfileColors.textSecondary)
                             .rotationEffect(.degrees(showingInterests ? 180 : 0))
                     }
-                    .padding(.top, viewModel.canViewConnections ? 12 : 0)
                     .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
+                .padding(.horizontal, 20)
+                .padding(.top, viewModel.canViewConnections ? 12 : 0)
 
                 if showingInterests {
                     UserModernInterestsView(
@@ -66,6 +68,7 @@ struct UserProfileOverviewSection: View {
                         embeddedStyle: true
                     )
                     .padding(.top, 10)
+                    .frame(maxWidth: .infinity)
                     .transition(.asymmetric(
                         insertion: .opacity.combined(with: .move(edge: .top)),
                         removal: .opacity.combined(with: .move(edge: .top))
@@ -74,7 +77,6 @@ struct UserProfileOverviewSection: View {
             }
         }
         .frame(maxWidth: .infinity)
-        .padding(.horizontal, 4)
         .padding(.vertical, 6)
     }
 }
@@ -340,8 +342,9 @@ struct UserModernInterestsView: View {
                         .animation(.easeInOut(duration: 0.2), value: isShared)
                     }
                 }
-                .padding(.horizontal, 20)
+                .padding(.horizontal, embeddedStyle ? 20 : 0)
             }
+            .scrollClipDisabled(embeddedStyle)
         }
         .onAppear {
             loadCurrentUserInterests()

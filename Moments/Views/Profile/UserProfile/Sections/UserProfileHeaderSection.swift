@@ -31,12 +31,12 @@ struct ProfileVisitorPinnedTopChrome: View {
 
             HStack(spacing: 5) {
                 Text(viewModel.userProfile?.username ?? NSLocalizedString("userProfile.user", comment: "User"))
-                    .font(.custom("Poppins-SemiBold", size: 17))
+                    .font(.custom("Poppins-Bold", size: 20))
                     .foregroundColor(UserProfileColors.textPrimary)
                     .lineLimit(1)
 
                 if viewModel.userProfile?.isVerified == true {
-                    VerifiedBadge(size: 14)
+                    VerifiedBadge(size: 16)
                 }
             }
             .opacity(collapseProgress)
@@ -48,12 +48,6 @@ struct ProfileVisitorPinnedTopChrome: View {
             visitorHeaderMenu
         }
         .frame(height: ProfileHeaderCollapseMetrics.chromeHeight)
-        .background {
-            Rectangle()
-                .fill(.regularMaterial)
-                .opacity(collapseProgress)
-                .ignoresSafeArea(edges: .top)
-        }
     }
 
     private var visitorHeaderMenu: some View {
@@ -135,18 +129,26 @@ struct UserModernProfileHeader: View {
     var body: some View {
         VStack(spacing: 10) {
             HStack(alignment: .top, spacing: 14) {
-                UserModernAvatarWithBadges(
-                    userProfile: viewModel.userProfile,
-                    storyViewModel: storyViewModel,
-                    showStoryViewer: $showStoryViewer,
-                    selectedStoryIndex: $selectedStoryIndex,
-                    showProfileImageFullscreen: Binding<Bool>(
-                        get: { self.showProfileImageFullscreen },
-                        set: { self.showProfileImageFullscreen = $0 }
-                    ),
-                    size: 96
-                )
-                .frame(width: 96, height: 96)
+                VStack(spacing: 8) {
+                    UserModernAvatarWithBadges(
+                        userProfile: viewModel.userProfile,
+                        storyViewModel: storyViewModel,
+                        showStoryViewer: $showStoryViewer,
+                        selectedStoryIndex: $selectedStoryIndex,
+                        showProfileImageFullscreen: Binding<Bool>(
+                            get: { self.showProfileImageFullscreen },
+                            set: { self.showProfileImageFullscreen = $0 }
+                        ),
+                        size: 96
+                    )
+                    .frame(width: 96, height: 96)
+
+                    ProfileAvatarNoteView(
+                        note: viewModel.userProfile?.profileNote,
+                        isEditable: false
+                    )
+                }
+                .frame(width: ProfileAvatarNoteMetrics.columnWidth)
 
                 VStack(alignment: .leading, spacing: 5) {
                     VStack(alignment: .leading, spacing: 3) {
@@ -209,6 +211,8 @@ struct UserModernProfileHeader: View {
                     HStack(spacing: 7) {
                         Text(followButtonText)
                             .font(.custom("Poppins-SemiBold", size: 13))
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.85)
 
                         if viewModel.followButtonState == .following {
                             Image(systemName: "chevron.down")
@@ -220,40 +224,45 @@ struct UserModernProfileHeader: View {
                     .padding(.vertical, 10)
                     .liquidGlass(in: Capsule(), interactive: viewModel.followButtonState.isActionable)
                 }
-                .frame(maxWidth: .infinity)
                 .disabled(!viewModel.followButtonState.isActionable)
                 .scaleEffect(viewModel.followButtonState.isActionable ? 1.0 : 0.95)
                 .animation(.spring(response: 0.3, dampingFraction: 0.6), value: viewModel.followButtonState)
 
-                Button(action: {
-                    guard let currentUserId = Auth.auth().currentUser?.uid,
-                          let targetUser = viewModel.userProfile else { return }
+                Button(action: openMessageFlow) {
+                    HStack(spacing: 6) {
+                        Image(systemName: "paperplane.fill")
+                            .font(.system(size: 13, weight: .semibold))
 
-                    // ✅ Intentar crear conversación directa primero
-                    messagingViewModel.startConversation(with: targetUser, from: currentUserId) { conversation in
-                        if let conversation {
-                            // ✅ Conversación creada exitosamente
-                            targetConversation = conversation
-                            navigateToChat = true
-                        } else {
-                            // ❌ Verificar si es error de seguimiento mutuo
-                            let errorMessage = messagingViewModel.errorMessage ?? ""
-                            if errorMessage.contains("no siguen mutuamente") || errorMessage.contains("Se requiere una solicitud") {
-                                // 📤 Mostrar alerta para crear MessageRequest
-                                showingMessageRequestAlert = true
-                            }
-                        }
+                        Text(NSLocalizedString("userProfile.sendMessage", comment: "Send message"))
+                            .font(.custom("Poppins-SemiBold", size: 13))
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.85)
                     }
-                }) {
-                    Image(systemName: "paperplane.fill")
-                        .font(.system(size: 16, weight: .medium))
-                        .foregroundColor(colorScheme == .dark ? .white : .black)
-                        .frame(width: 38, height: 38)
-                        .liquidGlass(in: Circle(), interactive: true)
+                    .foregroundColor(colorScheme == .dark ? .white : .black)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 10)
+                    .liquidGlass(in: Capsule(), interactive: true)
                 }
             }
         }
         .padding(.horizontal, 20)
+    }
+
+    private func openMessageFlow() {
+        guard let currentUserId = Auth.auth().currentUser?.uid,
+              let targetUser = viewModel.userProfile else { return }
+
+        messagingViewModel.startConversation(with: targetUser, from: currentUserId) { conversation in
+            if let conversation {
+                targetConversation = conversation
+                navigateToChat = true
+            } else {
+                let errorMessage = messagingViewModel.errorMessage ?? ""
+                if errorMessage.contains("no siguen mutuamente") || errorMessage.contains("Se requiere una solicitud") {
+                    showingMessageRequestAlert = true
+                }
+            }
+        }
     }
 
     private var followButtonText: String {
