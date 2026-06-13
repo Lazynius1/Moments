@@ -1725,6 +1725,7 @@
 "userProfile.sendMessage" = "Enviar mensaje";
 "userProfile.unfollow.confirm.title" = "¿Dejar de seguir?";
 "userProfile.unfollow.confirm.message" = "Puedes volver a seguir este perfil cuando quieras.";
+"userProfile.unfollow.confirm.private.message" = "Este perfil es privado. Si dejas de seguirlo, no podrás ver sus momentos, historias ni destacados a menos que vuelva a aceptarte.";
 "userProfile.unfollow.confirm.action" = "Dejar de seguir";
 "userProfile.relationship.sheet.title" = "Siguiendo a %@";
 "userProfile.relationship.sheet.subtitle" = "Controla cómo aparecen sus momentos para ti.";

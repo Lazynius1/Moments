@@ -110,7 +110,6 @@ struct UserModernBlockedView: View {
 struct UserModernPrivateProfileView: View {
     let userProfile: AppUser?
     let userId: String
-    @ObservedObject var storyViewModel: StoryViewModel
     @ObservedObject var messagingViewModel: MessagingViewModel
     @ObservedObject var viewModel: UserProfileViewModel
     let followButtonState: FollowButtonState
@@ -124,8 +123,7 @@ struct UserModernPrivateProfileView: View {
     @Binding var showingSuccessMessage: Bool
     let onFollowAction: () -> Void
     let onDismiss: () -> Void
-    @Binding var showStoryViewer: Bool
-    @Binding var selectedStoryIndex: Int
+    let onOpenStories: () -> Void
     @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
@@ -140,10 +138,9 @@ struct UserModernPrivateProfileView: View {
                     UserModernAvatar(
                         profileImagePath: userProfile?.profileImagePath,
                         userId: self.userId,
-                        storyViewModel: storyViewModel,
-                        showStoryViewer: $showStoryViewer,
-                        selectedStoryIndex: $selectedStoryIndex,
-                        size: 96
+                        onOpenStories: onOpenStories,
+                        size: 96,
+                        showStoryRing: false
                     )
 
                     VStack(alignment: .leading, spacing: 5) {

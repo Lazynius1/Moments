@@ -8,6 +8,11 @@ import AVKit
 
 // ✅ USAR: Sistema de colores adaptativos existente (definido en FeedView.swift)
 
+private struct UserProfileStoryRoute: Identifiable {
+    let userId: String
+    var id: String { userId }
+}
+
 struct UserProfileColors {
     static var background: Color {
         Color(UIColor.systemBackground)
@@ -234,18 +239,13 @@ struct UserProfileView: View {
     @State private var showingUnfollowConfirmation = false
     @State private var showingRelationshipSheet = false
 
-    @StateObject private var storyViewModel = StoryViewModel()
-    @State private var showStoryViewer: Bool = false
-    @State private var selectedStoryIndex: Int = 0
+    @State private var storyRoute: UserProfileStoryRoute?
     @State private var scrollOffset: CGFloat = 0
     @StateObject private var heroCoordinator = ProfileGridHeroTransitionCoordinator()
     // NUEVO: Estado para el gesto de arrastre
     @State private var dragAmount = CGSize.zero
     @State private var isDragging = false
     @State private var hasRegisteredVisit = false
-    @State private var showingReportSheet = false
-    @State private var showingBlockConfirmation = false
-    @State private var currentStory: Story?
     @State private var selectedTab: UserProfileTabType = .moments // ✅ NUEVO: Tab seleccionado
     @State private var selectedNestedProfileUserId: String? = nil
     @State private var showNestedProfile = false
@@ -413,54 +413,8 @@ struct UserProfileView: View {
         } message: {
             Text(NSLocalizedString("messageRequestModal.success.message", comment: "Success message"))
         }
-        // ✅ CORREGIDO: Eliminar el sheet duplicado y usar solo fullScreenCover
-        .fullScreenCover(isPresented: $showStoryViewer) {
-            if let stories = storyViewModel.stories[userId], !stories.isEmpty {
-                let safeStoryIndex = min(max(selectedStoryIndex, 0), stories.count - 1)
-
-                StoryViewerScreen(
-                    story: stories[safeStoryIndex],
-                    storyCount: stories.count,
-                    storyIndex: safeStoryIndex,
-                    screenSize: UIScreen.main.bounds.size,
-                    storyViewModel: storyViewModel,
-                    // ✅ AGREGAR: Pasar los bindings
-                    showingReportSheet: $showingReportSheet,
-                    showingBlockConfirmation: $showingBlockConfirmation,
-                    onReportStory: {
-                        // ✅ NUEVO: Implementar reporte para historias de otros
-                        currentStory = stories[safeStoryIndex]
-                        showingReportSheet = true
-                    },
-                    onBlockUser: {
-                        // ✅ NUEVO: Implementar bloqueo para historias de otros
-                        currentStory = stories[safeStoryIndex]
-                        showingBlockConfirmation = true
-                    },
-                    onNext: {
-                        if safeStoryIndex + 1 < stories.count {
-                            selectedStoryIndex = safeStoryIndex + 1
-                        } else {
-                            showStoryViewer = false
-                        }
-                    },
-                    onStoryDeleted: {
-                        let liveStoryCount = storyViewModel.stories[userId]?.count ?? 0
-                        if liveStoryCount > 0 {
-                            selectedStoryIndex = min(safeStoryIndex, liveStoryCount - 1)
-                        } else {
-                            showStoryViewer = false
-                        }
-                    },
-                    onPrevious: {
-                        if safeStoryIndex > 0 {
-                            selectedStoryIndex = safeStoryIndex - 1
-                        }
-                    },
-                    onClose: { showStoryViewer = false },
-                    onProfileTap: { }
-                )
-            }
+        .fullScreenCover(item: $storyRoute) { route in
+            StoriesView(startWithUserId: .constant(route.userId))
         }
         .animation(.easeInOut(duration: 0.3), value: showingUserList)
         .confirmationDialog(
@@ -470,11 +424,12 @@ struct UserProfileView: View {
         ) {
             Button(NSLocalizedString("userProfile.unfollow.confirm.action", comment: "Unfollow action"), role: .destructive) {
                 viewModel.unfollowUser(userId: userId)
+                viewModel.refreshProfile()
             }
 
             Button(NSLocalizedString("common.cancel", comment: "Cancel"), role: .cancel) { }
         } message: {
-            Text(NSLocalizedString("userProfile.unfollow.confirm.message", comment: "Unfollow confirmation message"))
+            Text(unfollowConfirmationMessage)
         }
         .sheet(isPresented: $showingRelationshipSheet) {
             UserRelationshipManagementSheet(
@@ -522,21 +477,12 @@ struct UserProfileView: View {
                 viewModel.fetchProfile()
                 viewModel.checkFollowButtonState()
 
-                // ✅ USAR NUEVA FUNCIÓN con filtrado automático
-                storyViewModel.fetchStoriesForUserProfile(userId: userId, viewerId: currentUserId)
-
                 // Cargar conversaciones
                 messagingViewModel.fetchConversations(for: currentUserId)
 
             } else {
-
-            }
-
-            // ✅ Cargar datos del perfil
-            viewModel.fetchProfile()
-            viewModel.checkFollowButtonState()
-            if let currentUserId = Auth.auth().currentUser?.uid {
-                messagingViewModel.fetchConversations(for: currentUserId)
+                viewModel.fetchProfile()
+                viewModel.checkFollowButtonState()
             }
         }
         .onDisappear {
@@ -602,7 +548,6 @@ struct UserProfileView: View {
                 UserModernPrivateProfileView(
                     userProfile: viewModel.userProfile,
                     userId: userId,
-                    storyViewModel: storyViewModel,
                     messagingViewModel: messagingViewModel,
                     viewModel: viewModel,
                     followButtonState: viewModel.followButtonState,
@@ -620,20 +565,18 @@ struct UserProfileView: View {
                     onDismiss: {
                         dismiss()
                     },
-                    showStoryViewer: $showStoryViewer,
-                    selectedStoryIndex: $selectedStoryIndex
+                    onOpenStories: {
+                        storyRoute = UserProfileStoryRoute(userId: userId)
+                    }
                 )
             } else {
                 // ✅ CORREGIDO: Vista pública con parámetros correctos
                 UserModernPublicProfileView(
                     viewModel: viewModel,
-                    storyViewModel: storyViewModel,
                     messagingViewModel: messagingViewModel,
                     safeAreaTop: safeAreaTop,
                     safeAreaBottom: safeAreaBottom,
                     showingUserList: $showingUserList,
-                    showStoryViewer: $showStoryViewer,
-                    selectedStoryIndex: $selectedStoryIndex,
                     navigateToChat: $navigateToChat,
                     targetConversation: $targetConversation,
                     scrollOffset: $scrollOffset,
@@ -647,6 +590,9 @@ struct UserProfileView: View {
                     },
                     onDismiss: {
                         dismiss()
+                    },
+                    onOpenStories: {
+                        storyRoute = UserProfileStoryRoute(userId: userId)
                     },
                     selectedTab: $selectedTab // ✅ NUEVO
                 )
@@ -666,6 +612,13 @@ struct UserProfileView: View {
         default:
             break
         }
+    }
+
+    private var unfollowConfirmationMessage: String {
+        if viewModel.userProfile?.isPrivate == true {
+            return NSLocalizedString("userProfile.unfollow.confirm.private.message", comment: "Private profile unfollow confirmation message")
+        }
+        return NSLocalizedString("userProfile.unfollow.confirm.message", comment: "Unfollow confirmation message")
     }
 
     private func usersForListType(_ listType: UserListType) -> [AppUser] {

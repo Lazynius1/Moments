@@ -7,6 +7,7 @@ struct ProfileHighlightsView: View {
     let userId: String
     let isOwnProfile: Bool
     var isCompact: Bool = false
+    var refreshTrigger: Int = 0
 
     @StateObject private var viewModel = ProfileHighlightsViewModel()
     @State private var presentation = HighlightPresentationCoordinator()
@@ -38,6 +39,11 @@ struct ProfileHighlightsView: View {
         .onChange(of: userId) { _, newId in
             if !newId.isEmpty {
                 viewModel.loadHighlights(userId: newId)
+            }
+        }
+        .onChange(of: refreshTrigger) { _, _ in
+            if !userId.isEmpty {
+                viewModel.loadHighlights(userId: userId)
             }
         }
         .fullScreenCover(item: $presentation.sheet) { sheet in
@@ -231,6 +237,14 @@ class ProfileHighlightsViewModel: ObservableObject {
     private let firestoreService = FirestoreService.shared
     private let privacyService = PrivacyService()
 
+    private func isPermissionDeniedError(_ error: Error) -> Bool {
+        let nsError = error as NSError
+        let message = nsError.localizedDescription.lowercased()
+        return message.contains("missing or insufficient permissions")
+            || message.contains("permission denied")
+            || message.contains("insufficient permissions")
+    }
+
     func loadHighlights(userId: String) {
         guard let currentUserId = Auth.auth().currentUser?.uid else { return }
 
@@ -253,7 +267,7 @@ class ProfileHighlightsViewModel: ObservableObject {
                 DispatchQueue.main.async {
                     self.highlights = []
                     self.isLoading = false
-                    self.errorMessage = error.localizedDescription
+                    self.errorMessage = self.isPermissionDeniedError(error) ? nil : error.localizedDescription
                 }
             }
         }

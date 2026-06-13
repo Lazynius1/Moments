@@ -106,12 +106,9 @@ struct ProfileVisitorPinnedTopChrome: View {
 
 struct UserModernProfileHeader: View {
     @ObservedObject var viewModel: UserProfileViewModel
-    @ObservedObject var storyViewModel: StoryViewModel
     @ObservedObject var messagingViewModel: MessagingViewModel
     @StateObject private var messageRequestService = MessageRequestService()
     @EnvironmentObject var authService: AuthService // ✅ NUEVO: Para acceder a badges del usuario visitado
-    @Binding var showStoryViewer: Bool
-    @Binding var selectedStoryIndex: Int
     @Binding var navigateToChat: Bool
     @Binding var targetConversation: Conversation?
     @Binding var showingUserList: UserProfileView.UserListType?
@@ -122,6 +119,8 @@ struct UserModernProfileHeader: View {
     @Binding var showProfileImageFullscreen: Bool
     let onFollowAction: () -> Void
     let onDismiss: () -> Void
+    let onOpenStories: () -> Void
+    let storyRingRefreshTrigger: Int
     let usernameCollapseProgress: CGFloat
     @Binding var showingQRCode: Bool
     @Environment(\.colorScheme) var colorScheme
@@ -132,9 +131,8 @@ struct UserModernProfileHeader: View {
                 VStack(spacing: 8) {
                     UserModernAvatarWithBadges(
                         userProfile: viewModel.userProfile,
-                        storyViewModel: storyViewModel,
-                        showStoryViewer: $showStoryViewer,
-                        selectedStoryIndex: $selectedStoryIndex,
+                        onOpenStories: onOpenStories,
+                        storyRingRefreshTrigger: storyRingRefreshTrigger,
                         showProfileImageFullscreen: Binding<Bool>(
                             get: { self.showProfileImageFullscreen },
                             set: { self.showProfileImageFullscreen = $0 }

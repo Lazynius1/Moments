@@ -5,6 +5,7 @@ struct StoryRingAvatarView: View {
     let userId: String
     let size: CGFloat
     var lineWidth: CGFloat = 2.5
+    var refreshTrigger: Int = 0
     var isOwnStory: Bool? = nil
     var allowOwnStories: Bool = true
     var hapticsEnabled: Bool = false
@@ -78,9 +79,12 @@ struct StoryRingAvatarView: View {
         .onChange(of: userId) { _, _ in
             resolveSnapshot()
         }
+        .onChange(of: refreshTrigger) { _, _ in
+            resolveSnapshot(forceRefresh: true)
+        }
     }
 
-    private func resolveSnapshot() {
+    private func resolveSnapshot(forceRefresh: Bool = false) {
         guard !userId.isEmpty else {
             snapshot = StoryRingSnapshot(
                 hasStory: false,
@@ -114,12 +118,27 @@ struct StoryRingAvatarView: View {
             return
         }
 
-        StoryRingResolverService.shared.resolve(
-            viewerId: viewerId,
-            authorId: userId,
-            privacyService: privacyService
-        ) { resolvedSnapshot in
-            self.snapshot = resolvedSnapshot
+        let resolve = {
+            StoryRingResolverService.shared.resolve(
+                viewerId: viewerId,
+                authorId: userId,
+                privacyService: privacyService,
+                useCache: !forceRefresh
+            ) { resolvedSnapshot in
+                self.snapshot = resolvedSnapshot
+            }
+        }
+
+        guard forceRefresh else {
+            resolve()
+            return
+        }
+
+        Task {
+            await StoryRingCacheService.shared.invalidate(viewerId: viewerId, authorId: userId)
+            await MainActor.run {
+                resolve()
+            }
         }
     }
 }

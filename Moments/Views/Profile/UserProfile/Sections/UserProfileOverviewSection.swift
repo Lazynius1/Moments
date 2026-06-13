@@ -181,103 +181,30 @@ struct UserExpandableBioView: View {
 struct UserModernAvatar: View {
     let profileImagePath: String?
     let userId: String // ✅ NUEVO: Agregar userId como parámetro
-    @ObservedObject var storyViewModel: StoryViewModel
-    @Binding var showStoryViewer: Bool
-    @Binding var selectedStoryIndex: Int
+    let onOpenStories: () -> Void
     let size: CGFloat
-    @Environment(\.colorScheme) var colorScheme
-
-    private var hasStory: Bool {
-        // ✅ CORREGIDO: Usar userId en lugar de profileImagePath
-        return !(storyViewModel.stories[userId]?.isEmpty ?? true)
-    }
-
-    private var storyCount: Int {
-        return storyViewModel.stories[userId]?.count ?? 0
-    }
-
-    private var storyViewedStatus: [Bool] {
-        guard let currentUserId = Auth.auth().currentUser?.uid,
-              let userStories = storyViewModel.stories[userId] else {
-            return []
-        }
-
-        return userStories.map { story in
-            guard let storyId = story.id else { return false }
-            let viewers = storyViewModel.storyViewers[storyId] ?? []
-            return viewers.contains { $0.userId == currentUserId }
-        }
-    }
-
-    private var storyAudiences: [String?] {
-        return storyViewModel.stories[userId]?.map { $0.audience } ?? []
-    }
-
-    private var isOwnStory: Bool {
-        return userId == Auth.auth().currentUser?.uid
-    }
+    var showStoryRing: Bool = true
+    var refreshTrigger: Int = 0
 
     var body: some View {
-        ZStack {
-            if let profileImagePath = profileImagePath, let url = URL(string: profileImagePath) {
-                KFImage(url)
-                    .placeholder {
-                        Circle()
-                            .fill(.ultraThinMaterial)
-                            .frame(width: size, height: size)
-                            .overlay(
-                                Image(systemName: "person.circle.fill")
-                                    .font(.system(size: size * 0.45))
-                                    .foregroundColor(.gray.opacity(0.6))
-                            )
-                            .overlay(ProgressView().tint(Color(hex: "007AFF")))
+        Group {
+            if showStoryRing {
+                StoryRingAvatarView(
+                    userId: userId,
+                    size: size,
+                    lineWidth: 3,
+                    refreshTrigger: refreshTrigger,
+                    isOwnStory: userId == Auth.auth().currentUser?.uid,
+                    onTap: { hasStory in
+                        if hasStory {
+                            onOpenStories()
+                        }
                     }
-                    .resizable()
-                    .aspectRatio(contentMode: .fill) // ✅ CLAVE: aspectRatio en lugar de scaledToFill
-                    .frame(width: size, height: size) // ✅ CLAVE: Frame fijo
-                    .clipShape(Circle()) // ✅ CLAVE: Clip después del frame
-                    .contentShape(Circle()) // ✅ CLAVE: ContentShape para touch
-                    .overlay(
-                        StorySegmentedRing(
-                            storyCount: storyCount,
-                            hasStory: hasStory,
-                            hasUnseenStory: !storyViewedStatus.allSatisfy { $0 },
-                            storyViewedStatus: storyViewedStatus,
-                            storyAudiences: storyAudiences,
-                            isOwnStory: isOwnStory,
-                            colorScheme: colorScheme,
-                            ringSize: size,
-                            lineWidth: 3
-                        )
-                    )
-                    .shadow(color: Color(hex: "007AFF").opacity(0.2), radius: 15, x: 0, y: 8)
+                )
             } else {
-                Circle()
-                    .fill(.ultraThinMaterial)
+                AsyncProfileImageView(userId: userId)
                     .frame(width: size, height: size)
-                    .overlay(
-                        Image(systemName: "person.circle.fill")
-                            .font(.system(size: size * 0.6))
-                            .foregroundColor(.gray.opacity(0.6))
-                    )
-                    .overlay(
-                        Circle()
-                            .stroke(
-                                LinearGradient(
-                                    colors: [Color.clear, Color.clear], // ✅ QUITADO: Borde verde
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                ),
-                                lineWidth: 0 // ✅ QUITADO: Borde
-                            )
-                    )
-                    .shadow(color: Color(hex: "007AFF").opacity(0.15), radius: 12, x: 0, y: 6)
-            }
-        }
-        .onTapGesture {
-            if hasStory {
-                showStoryViewer = true
-                selectedStoryIndex = 0
+                    .clipShape(Circle())
             }
         }
     }

@@ -805,9 +805,14 @@ class UserProfileViewModel: ObservableObject, UserListViewModel {
             }
 
             DispatchQueue.main.async {
-                self.followButtonState = .canFollow
+                let nextState: FollowButtonState = self.userProfile?.isPrivate == true ? .canRequestFollow : .canFollow
+                self.followButtonState = nextState
                 self.isFollowing = false
-                FollowStateStore.shared.setState(.canFollow, for: userId)
+                FollowStateStore.shared.setState(nextState, for: userId)
+
+                if self.userProfile?.isPrivate == true {
+                    self.canViewContent = false
+                }
 
                 // Actualizar UI inmediatamente respetando permisos de privacidad
                 if self.visibleConnectionTypes.canViewMutualConnections,

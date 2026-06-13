@@ -9,14 +9,11 @@ import AVKit
 // MARK: - ✅ CORREGIDA: Vista pública moderna
 struct UserModernPublicProfileView: View {
     @ObservedObject var viewModel: UserProfileViewModel
-    @ObservedObject var storyViewModel: StoryViewModel
     @ObservedObject var messagingViewModel: MessagingViewModel
     let safeAreaTop: CGFloat
     let safeAreaBottom: CGFloat
     @Binding var showingUserList: UserProfileView.UserListType?
     @EnvironmentObject private var heroCoordinator: ProfileGridHeroTransitionCoordinator
-    @Binding var showStoryViewer: Bool
-    @Binding var selectedStoryIndex: Int
     @Binding var navigateToChat: Bool
     @Binding var targetConversation: Conversation?
     @Binding var scrollOffset: CGFloat
@@ -27,6 +24,7 @@ struct UserModernPublicProfileView: View {
     @Binding var showProfileImageFullscreen: Bool
     let onFollowAction: () -> Void
     let onDismiss: () -> Void
+    let onOpenStories: () -> Void
 
     @State private var showingFullInfo = false // ✅ NUEVO: Colapsable
     @Binding var selectedTab: UserProfileTabType // ✅ NUEVO: Tab seleccionado (Binding)
@@ -35,6 +33,8 @@ struct UserModernPublicProfileView: View {
     @State private var identityMinY: CGFloat = .greatestFiniteMagnitude
     @State private var tabsMinY: CGFloat = .greatestFiniteMagnitude
     @State private var showingQRCode = false
+    @State private var highlightsRefreshToken: Int = 0
+    @State private var storyRingRefreshToken: Int = 0
     @Environment(\.colorScheme) private var colorScheme
 
     private var usernameCollapseProgress: CGFloat {
@@ -59,10 +59,7 @@ struct UserModernPublicProfileView: View {
 
                     UserModernProfileHeader(
                         viewModel: viewModel,
-                        storyViewModel: storyViewModel,
                         messagingViewModel: messagingViewModel,
-                        showStoryViewer: $showStoryViewer,
-                        selectedStoryIndex: $selectedStoryIndex,
                         navigateToChat: $navigateToChat,
                         targetConversation: $targetConversation,
                         showingUserList: $showingUserList,
@@ -73,6 +70,8 @@ struct UserModernPublicProfileView: View {
                         showProfileImageFullscreen: $showProfileImageFullscreen,
                         onFollowAction: onFollowAction,
                         onDismiss: onDismiss,
+                        onOpenStories: onOpenStories,
+                        storyRingRefreshTrigger: storyRingRefreshToken,
                         usernameCollapseProgress: usernameCollapseProgress,
                         showingQRCode: $showingQRCode
                     )
@@ -92,7 +91,8 @@ struct UserModernPublicProfileView: View {
                         ProfileHighlightsView(
                             userId: userId,
                             isOwnProfile: false,
-                            isCompact: true
+                            isCompact: true,
+                            refreshTrigger: highlightsRefreshToken
                         )
                         .padding(.bottom, 8)
                     }
@@ -228,6 +228,8 @@ struct UserModernPublicProfileView: View {
             .coordinateSpace(name: "scroll")
             .refreshable {
                 await withCheckedContinuation { continuation in
+                    highlightsRefreshToken += 1
+                    storyRingRefreshToken += 1
                     viewModel.refreshProfile()
 
                     _ = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { timer in
