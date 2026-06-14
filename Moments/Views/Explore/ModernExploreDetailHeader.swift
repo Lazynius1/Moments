@@ -23,95 +23,19 @@ struct ModernExploreDetailHeader: View {
             Color.clear
                 .frame(height: topInset)
 
-            HStack(spacing: 12) {
-                Button {
-                    withAnimation(.easeOut(duration: 0.18)) {
-                        onDismiss()
-                    }
-                } label: {
-                    Image(systemName: "chevron.left")
-                        .font(.system(size: 16, weight: .bold))
-                        .foregroundColor(.primary)
-                        .frame(width: 38, height: 38)
-                        .liquidGlass(in: Circle(), interactive: true)
-                }
-                .buttonStyle(.plain)
-                .contentShape(Circle())
-
-                if let moment {
-                    let authorId = moment.authorId.trimmingCharacters(in: .whitespacesAndNewlines)
-
-                    HStack(spacing: 10) {
-                        StoryRingAvatarView(
-                            userId: authorId,
-                            size: 38,
-                            lineWidth: 2.2,
-                            showBaseStroke: true,
-                            baseStrokeColor: .white.opacity(0.15),
-                            baseStrokeWidth: 0.5,
-                            profileZoomNamespace: profileZoomNamespace,
-                            onTap: { hasStory in
-                                guard !authorId.isEmpty else { return }
-                                onAvatarTap(authorId, hasStory)
-                            }
-                        )
-
-                        VStack(alignment: .leading, spacing: 1) {
-                            Button {
-                                guard !authorId.isEmpty else { return }
-                                onAvatarTap(authorId, false)
-                            } label: {
-                                HStack(spacing: 4) {
-                                    Text(displayUsername(for: moment))
-                                        .font(.custom("Poppins-SemiBold", size: 16))
-                                        .foregroundColor(.primary)
-                                        .lineLimit(1)
-
-                                    VerifiedBadgeView(userId: authorId, size: 13)
-                                }
-                            }
-                            .buttonStyle(.plain)
-
-                            if let location = moment.location?.trimmingCharacters(in: .whitespacesAndNewlines),
-                               !location.isEmpty,
-                               let onLocationTap {
-                                Button {
-                                    onLocationTap(location, moment.locationCoordinate?.toCLLocationCoordinate2D)
-                                } label: {
-                                    HStack(spacing: 3) {
-                                        Image(systemName: "location.fill")
-                                            .font(.system(size: 9, weight: .semibold))
-                                        Text(location)
-                                            .font(.custom("Poppins-Regular", size: 10))
-                                            .lineLimit(1)
-                                    }
-                                    .foregroundColor(.secondary.opacity(0.85))
-                                }
-                                .buttonStyle(.plain)
-                            } else {
-                                Text(moment.timestamp.timeAgoDisplay())
-                                    .font(.custom("Poppins-Regular", size: 10))
-                                    .foregroundColor(.secondary.opacity(0.7))
-                            }
+            ProfileGlassPillTrack {
+                Group {
+                    if #available(iOS 26.0, *) {
+                        GlassEffectContainer(spacing: 0) {
+                            headerRow
                         }
+                    } else {
+                        headerRow
                     }
                 }
-
-                Spacer(minLength: 8)
-
-                if let moment,
-                   moment.authorId != Auth.auth().currentUser?.uid {
-                    ModernFollowButton(
-                        state: followButtonState,
-                        isLoading: isFollowLoading,
-                        colorScheme: colorScheme,
-                        action: toggleFollow
-                    )
-                }
+                .padding(.horizontal, 8)
+                .padding(.vertical, 6)
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 8)
-            .liquidGlass(in: Capsule(), interactive: false)
             .padding(.horizontal, 14)
         }
         .onAppear {
@@ -133,6 +57,93 @@ struct ModernExploreDetailHeader: View {
             Button(NSLocalizedString("common.cancel", comment: ""), role: .cancel) { }
         } message: {
             Text(NSLocalizedString("userProfile.unfollow.confirm.message", comment: ""))
+        }
+    }
+
+    private var headerRow: some View {
+        HStack(spacing: 12) {
+            ProfileChromeIconButton(
+                systemName: "chevron.left",
+                foregroundColor: .primary,
+                iconSize: 16,
+                standaloneGlass: false,
+                action: {
+                    withAnimation(.easeOut(duration: 0.18)) {
+                        onDismiss()
+                    }
+                }
+            )
+
+            if let moment {
+                let authorId = moment.authorId.trimmingCharacters(in: .whitespacesAndNewlines)
+
+                HStack(spacing: 10) {
+                    StoryRingAvatarView(
+                        userId: authorId,
+                        size: 36,
+                        lineWidth: 2.2,
+                        showBaseStroke: true,
+                        baseStrokeColor: .white.opacity(0.15),
+                        baseStrokeWidth: 0.5,
+                        profileZoomNamespace: profileZoomNamespace,
+                        onTap: { hasStory in
+                            guard !authorId.isEmpty else { return }
+                            onAvatarTap(authorId, hasStory)
+                        }
+                    )
+
+                    VStack(alignment: .leading, spacing: 1) {
+                        Button {
+                            guard !authorId.isEmpty else { return }
+                            onAvatarTap(authorId, false)
+                        } label: {
+                            HStack(spacing: 4) {
+                                Text(displayUsername(for: moment))
+                                    .font(.custom("Poppins-SemiBold", size: 15))
+                                    .foregroundColor(.primary)
+                                    .lineLimit(1)
+
+                                VerifiedBadgeView(userId: authorId, size: 13)
+                            }
+                        }
+                        .buttonStyle(.plain)
+
+                        if let location = moment.location?.trimmingCharacters(in: .whitespacesAndNewlines),
+                           !location.isEmpty,
+                           let onLocationTap {
+                            Button {
+                                onLocationTap(location, moment.locationCoordinate?.toCLLocationCoordinate2D)
+                            } label: {
+                                HStack(spacing: 3) {
+                                    Image(systemName: "location.fill")
+                                        .font(.system(size: 9, weight: .semibold))
+                                    Text(location)
+                                        .font(.custom("Poppins-Regular", size: 10))
+                                        .lineLimit(1)
+                                }
+                                .foregroundColor(.secondary.opacity(0.85))
+                            }
+                            .buttonStyle(.plain)
+                        } else {
+                            Text(moment.timestamp.timeAgoDisplay())
+                                .font(.custom("Poppins-Regular", size: 10))
+                                .foregroundColor(.secondary.opacity(0.7))
+                        }
+                    }
+                }
+            }
+
+            Spacer(minLength: 8)
+
+            if let moment,
+               moment.authorId != Auth.auth().currentUser?.uid {
+                ModernFollowButton(
+                    state: followButtonState,
+                    isLoading: isFollowLoading,
+                    colorScheme: colorScheme,
+                    action: toggleFollow
+                )
+            }
         }
     }
 

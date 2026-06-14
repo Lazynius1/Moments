@@ -1014,8 +1014,6 @@ final class LocalPersistenceService: ObservableObject {
         existing.gridPreviewBackground = new.gridPreviewBackground
         existing.hasHiddenLayers = new.hasHiddenLayers
         existing.hiddenLayerCount = new.hiddenLayerCount
-        existing.trendingScore = new.trendingScore
-        existing.engagementRate = new.engagementRate
         existing.reactionsData = new.reactionsData
         existing.mediaItemsData = new.mediaItemsData
         existing.taggedUsersData = new.taggedUsersData

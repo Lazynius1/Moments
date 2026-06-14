@@ -15,7 +15,6 @@ struct ExploreView: View {
     @Namespace private var profileZoomNamespace
     @State private var zoomDestination: MomentZoomDestination?
     @State private var selectedUser: AppUser?
-    @State private var showTrendingView = false
     @State private var showDiscoverMap = false
 
     @State private var showSuggestedUsersView = false
@@ -62,9 +61,6 @@ struct ExploreView: View {
                     namespace: zoomNamespace
                 )
             }
-            .fullScreenCover(isPresented: $showTrendingView) {
-                TrendingView()
-            }
             .fullScreenCover(isPresented: $showDiscoverMap) {
                 DiscoverMapView(isPresented: $showDiscoverMap)
             }
@@ -104,7 +100,7 @@ struct ExploreView: View {
                         .font(.system(size: 16, weight: .bold))
                         .foregroundColor(.primary)
                         .frame(width: 32, height: 32)
-                        .background(Color.clear.liquidGlass(in: Circle(), interactive: true))
+                        .modifier(ExploreToolbarIconGlassModifier())
                 }
             }
         }
@@ -120,23 +116,15 @@ struct ExploreView: View {
 
             Button {
                 ExploreHapticFeedback.impact(.medium)
-                showTrendingView = true
-            } label: {
-                Image(systemName: "flame.fill")
-                    .foregroundColor(.orange)
-            }
-
-            Button {
-                ExploreHapticFeedback.impact(.medium)
-                viewModel.refreshContent()
+                viewModel.refreshAllContent()
             } label: {
                 Image(systemName: "arrow.clockwise")
-                    .rotationEffect(.degrees(viewModel.isLoadingTrending ? 360 : 0))
+                    .rotationEffect(.degrees(viewModel.isLoading ? 360 : 0))
                     .animation(
-                        viewModel.isLoadingTrending
-                        ? .linear(duration: 1).repeatForever(autoreverses: false)
-                        : .default,
-                        value: viewModel.isLoadingTrending
+                        viewModel.isLoading
+                            ? .linear(duration: 1).repeatForever(autoreverses: false)
+                            : .default,
+                        value: viewModel.isLoading
                     )
             }
         }
@@ -457,6 +445,17 @@ private struct ExploreRecentSearchRow: View {
                 .frame(width: 32, height: 32)
                 .background(.ultraThinMaterial)
                 .clipShape(Circle())
+        }
+    }
+}
+
+/// En iOS 26 el toolbar nativo ya aplica Liquid Glass; añadir glass manual duplica capas.
+private struct ExploreToolbarIconGlassModifier: ViewModifier {
+    func body(content: Content) -> some View {
+        if #available(iOS 26.0, *) {
+            content
+        } else {
+            content.background(Color.clear.liquidGlass(in: Circle(), interactive: true))
         }
     }
 }

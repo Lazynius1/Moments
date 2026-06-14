@@ -16,9 +16,6 @@ class ExploreViewModel: ObservableObject {
     @Published var isLoading: Bool = false
     @Published var errorMessage: String?
     @Published var userButtonStates: [String: FollowButtonState] = [:]
-    @Published var trendingContent: TrendingService.PersonalizedTrendingContent?
-    @Published var isLoadingTrending: Bool = false
-    @Published var trendingError: String?
 
     // ✅ HISTORIAL DE BÚSQUEDA
     @Published var recentSearches: [CachedSearch] = []
@@ -30,7 +27,6 @@ class ExploreViewModel: ObservableObject {
     var currentUserInterests: [String] = []
     private var currentUserId: String?
     private var blockedUsers: Set<String> = []
-    private let trendingService = TrendingService.shared
     private var followStateObserver: NSObjectProtocol?
 
     init() {
@@ -669,49 +665,6 @@ extension ExploreViewModel {
 }
 
 extension ExploreViewModel {
-
-    // ✅ NUEVA FUNCIÓN: Cargar contenido trending
-    func fetchTrendingContent() {
-        guard let currentUserId = Auth.auth().currentUser?.uid else { return }
-
-        isLoadingTrending = true
-        trendingError = nil
-
-
-
-        trendingService.fetchPersonalizedTrendingContent(for: currentUserId) { [weak self] result in
-            DispatchQueue.main.async {
-                self?.isLoadingTrending = false
-
-                switch result {
-                case .success(let content):
-                    self?.trendingContent = content
-
-
-                case .failure(let error):
-                    self?.trendingError = String(
-                        format: NSLocalizedString("errors.trendingLoadFailed", comment: "Trending load failed"),
-                        error.localizedDescription
-                    )
-                }
-            }
-        }
-    }
-
-    // ✅ ACTUALIZAR la función principal para incluir trending
-    func fetchMomentsByInterestsWithTrending(completion: (() -> Void)? = nil) {
-        // Cargar contenido normal
-        fetchMomentsByInterests()
-
-        // Cargar trending en paralelo
-        fetchTrendingContent()
-
-        // ✅ NUEVO: Llamar completion cuando termine
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-            completion?()
-        }
-    }
-
     // ✅ FUNCIÓN para buscar por hashtag
     func searchByHashtag(_ hashtag: String) {
 
@@ -745,7 +698,7 @@ extension ExploreViewModel {
     // ✅ FUNCIÓN para refrescar todo
     func refreshAllContent() {
         clearData()
-        fetchMomentsByInterestsWithTrending()
+        fetchMomentsByInterests()
     }
 }
 

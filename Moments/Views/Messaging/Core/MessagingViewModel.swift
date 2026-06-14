@@ -364,13 +364,7 @@ class MessagingViewModel: ObservableObject {
         userSearchWorkItem?.cancel()
 
         if trimmedQuery.isEmpty {
-            FirestoreService().fetchSuggestedUsers { [weak self] result in
-                DispatchQueue.main.async {
-                    if case .success(let users) = result {
-                        self?.suggestedUsers = users
-                    }
-                }
-            }
+            loadNewConversationSuggestions()
             return
         }
 
@@ -396,6 +390,28 @@ class MessagingViewModel: ObservableObject {
 
         userSearchWorkItem = workItem
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.25, execute: workItem)
+    }
+
+    private func loadNewConversationSuggestions() {
+        let recentPartnerIds = conversations.map(\.otherParticipantId)
+
+        FirestoreService().fetchNewConversationSuggestions(recentPartnerIds: recentPartnerIds) { [weak self] result in
+            DispatchQueue.main.async {
+                guard let self else { return }
+                guard self.activeUserSearchQuery.isEmpty else { return }
+
+                switch result {
+                case .success(let users):
+                    self.suggestedUsers = users
+                    self.errorMessage = nil
+                case .failure(let error):
+                    self.errorMessage = String(
+                        format: NSLocalizedString("messaging.error.searchUsers", comment: "Failed to search users"),
+                        error.localizedDescription
+                    )
+                }
+            }
+        }
     }
 
     func startConversation(with user: AppUser, from userId: String, initialMessage: String? = nil, completion: @escaping (Conversation?) -> Void) {

@@ -102,56 +102,116 @@ extension FirestoreService {
     }
 
     func fetchSuggestedUsers(completion: @escaping (Result<[AppUser], Error>) -> Void) {
+        fetchNewConversationSuggestions(recentPartnerIds: [], completion: completion)
+    }
+
+    /// Sugerencias para «Nuevo mensaje»: chats recientes, mutuas y gente que sigues.
+    func fetchNewConversationSuggestions(
+        recentPartnerIds: [String],
+        limit: Int = 40,
+        completion: @escaping (Result<[AppUser], Error>) -> Void
+    ) {
         guard let currentUserId = Auth.auth().currentUser?.uid else {
             completion(.success([]))
             return
         }
 
-        fetchMutualConnections(userId: currentUserId) { result in
-            switch result {
-            case .success(let mutuals):
-                if mutuals.count >= 5 {
-                    self.db.collection("users")
-                        .limit(to: 20)
-                        .getDocuments { snapshot, _ in
-                            var allUsers = mutuals
-                            if let documents = snapshot?.documents {
-                                let randomUsers = documents.compactMap { try? $0.data(as: AppUser.self) }
-                                    .filter { user in
-                                        !mutuals.contains(where: { $0.id == user.id }) &&
-                                        user.id != currentUserId
-                                    }
-                                allUsers.append(contentsOf: randomUsers)
-                            }
-                            completion(.success(Array(allUsers.prefix(20))))
-                        }
-                } else {
-                    self.db.collection("users")
-                        .limit(to: 30)
-                        .getDocuments { snapshot, error in
-                            if let error = error {
-                                completion(.failure(error))
-                                return
-                            }
-                            let users = snapshot?.documents.compactMap { try? $0.data(as: AppUser.self) }
-                                .filter { $0.id != currentUserId }
-                            completion(.success(users ?? []))
-                        }
+        let orderedRecentIds = Self.uniquePreservingOrder(
+            recentPartnerIds
+                .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+                .filter { !$0.isEmpty && $0 != currentUserId }
+        )
+
+        let group = DispatchGroup()
+        var recentUsers: [AppUser] = []
+        var mutualUsers: [AppUser] = []
+        var followingUsers: [AppUser] = []
+        var capturedError: Error?
+
+        if !orderedRecentIds.isEmpty {
+            group.enter()
+            fetchUsersByIdsClean(userIds: orderedRecentIds) { result in
+                defer { group.leave() }
+                switch result {
+                case .success(let users):
+                    recentUsers = users
+                case .failure(let error):
+                    capturedError = capturedError ?? error
                 }
-            case .failure:
-                self.db.collection("users")
-                    .limit(to: 30)
-                    .getDocuments { snapshot, error in
-                        if let error = error {
-                            completion(.failure(error))
-                            return
-                        }
-                        let users = snapshot?.documents.compactMap { try? $0.data(as: AppUser.self) }
-                            .filter { $0.id != currentUserId }
-                        completion(.success(users ?? []))
-                    }
             }
         }
+
+        group.enter()
+        fetchMutualConnections(userId: currentUserId) { result in
+            defer { group.leave() }
+            switch result {
+            case .success(let users):
+                mutualUsers = users
+            case .failure(let error):
+                capturedError = capturedError ?? error
+            }
+        }
+
+        group.enter()
+        fetchFollowing(userId: currentUserId) { result in
+            defer { group.leave() }
+            switch result {
+            case .success(let users):
+                followingUsers = users
+            case .failure(let error):
+                capturedError = capturedError ?? error
+            }
+        }
+
+        group.notify(queue: .main) {
+            let merged = Self.mergeNewConversationSuggestions(
+                orderedRecentIds: orderedRecentIds,
+                recentUsers: recentUsers,
+                mutualUsers: mutualUsers,
+                followingUsers: followingUsers,
+                currentUserId: currentUserId,
+                limit: limit
+            )
+
+            if merged.isEmpty, let capturedError {
+                completion(.failure(capturedError))
+                return
+            }
+
+            self.applySearchMuteFilterIfNeeded(users: merged) { filteredUsers in
+                completion(.success(filteredUsers))
+            }
+        }
+    }
+
+    private static func uniquePreservingOrder(_ values: [String]) -> [String] {
+        var seen = Set<String>()
+        return values.filter { seen.insert($0).inserted }
+    }
+
+    private static func mergeNewConversationSuggestions(
+        orderedRecentIds: [String],
+        recentUsers: [AppUser],
+        mutualUsers: [AppUser],
+        followingUsers: [AppUser],
+        currentUserId: String,
+        limit: Int
+    ) -> [AppUser] {
+        var seen = Set<String>()
+        var merged: [AppUser] = []
+
+        func appendUnique(_ users: [AppUser]) {
+            for user in users where user.id != currentUserId && seen.insert(user.id).inserted {
+                merged.append(user)
+            }
+        }
+
+        let recentById = Dictionary(uniqueKeysWithValues: recentUsers.map { ($0.id, $0) })
+        appendUnique(orderedRecentIds.compactMap { recentById[$0] })
+        appendUnique(mutualUsers)
+        appendUnique(followingUsers)
+
+        return Array(merged.prefix(limit))
     }
 
     func searchUsers(query: String, completion: @escaping (Result<[AppUser], Error>) -> Void) {

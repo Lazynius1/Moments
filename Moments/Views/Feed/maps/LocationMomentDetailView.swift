@@ -237,6 +237,7 @@ struct LocationMomentDetailView: View {
         .onDisappear {
             GlobalVideoManager.shared.pauseAllVideos()
             FeedVisibilityCoordinator.shared.update(all: [:])
+            feedViewModel.shutdown()
         }
         .onChange(of: currentIndex) { _, newIndex in
             trackMomentViewIfNeeded(for: moments[safe: newIndex])

@@ -46,16 +46,6 @@ class FeedViewModel {
     // ✅ NUEVO: Queue para sincronización segura de arrays
     private let momentsQueue = DispatchQueue(label: "moments.sync", attributes: .concurrent)
 
-    deinit {
-        // FeedViewModel solo vive en el hilo principal (@State en FeedView).
-        MainActor.assumeIsolated {
-            momentListeners.values.forEach { $0.remove() }
-            commentListeners.values.forEach { $0.remove() }
-            userListener?.remove()
-            pendingUpdates.values.forEach { $0.cancel() }
-        }
-    }
-
     @MainActor
     func refreshMoments(userId: String) async {
         lastDocument = nil
@@ -66,8 +56,6 @@ class FeedViewModel {
         mutedUserIdsCacheTimestamp = .distantPast
         clearListeners()
 
-        // ✅ OFFLINE: Al refrescar, mantenemos lo que hay hasta que llegue lo nuevo
-        // No borramos las listas inmediatamente para evitar parpadeos
 
         fetchMoments(userId: userId, feedType: currentFeedType)
 
@@ -983,6 +971,13 @@ class FeedViewModel {
     }
 
     // MARK: - Listeners
+    /// Limpia listeners y trabajo pendiente. Llamar desde `onDisappear` en vistas que crean un `FeedViewModel` efímero.
+    func shutdown() {
+        clearListeners()
+        userListener?.remove()
+        userListener = nil
+    }
+
     private func clearListeners() {
         // Cancelar todos los updates pendientes
         self.pendingUpdates.values.forEach { $0.cancel() }

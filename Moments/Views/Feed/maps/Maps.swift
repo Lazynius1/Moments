@@ -1699,8 +1699,6 @@ extension LocationMapView {
             hideLikeCounts: liveMoment.hideLikeCounts,
             allowSharing: liveMoment.allowSharing,
             scheduledDate: liveMoment.scheduledDate,
-            trendingScore: liveMoment.trendingScore,
-            engagementRate: liveMoment.engagementRate,
             isArchived: liveMoment.isArchived,
             archivedAt: liveMoment.archivedAt,
             hasHiddenLayers: liveMoment.hasHiddenLayers,

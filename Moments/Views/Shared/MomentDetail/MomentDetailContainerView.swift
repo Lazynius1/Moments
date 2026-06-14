@@ -7,8 +7,7 @@ struct MomentDetailContainerView: View {
     var body: some View {
         switch context {
         case .single(let moment):
-            MomentDetailView(moment: moment)
-                .id(moment.id ?? "\(moment.authorId)-\(moment.timestamp.timeIntervalSince1970)")
+            SingleMomentDetailView(moment: moment)
 
         case .profileCarousel(let moments, let initialIndex, let initialMomentId, let topContentInset, let restrictPlaybackToInitialIndex, let onDismiss):
             ModernMomentDetailView(

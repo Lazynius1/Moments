@@ -1740,8 +1740,10 @@
 
 /* New Conversation (Liquid Glass) */
 "messaging.new.cancel" = "Cancelar";
-"messaging.new.title" = "Nova conversa";
-"messaging.new.searchPlaceholder" = "Pesquisar utilizador...";
+"messaging.new.title" = "Nova mensagem";
+"messaging.new.to" = "Para:";
+"messaging.new.suggestions" = "Sugestões";
+"messaging.new.searchPlaceholder" = "Pesquisar...";
 
 
 /* Message Requests */
@@ -1946,14 +1948,6 @@
 /* Stories */
 "stories.blockUser.confirm" = "Tens a certeza de que queres bloquear este utilizador? Deixarás de conseguir ver as stories ou o conteúdo dele.";
 "stories.error.notAuthenticated" = "Utilizador não autenticado";
-
-/* Trending Components */
-"trending.hashtags.title" = "🔥 Tendências";
-"trending.hashtags.subtitle" = "Hashtags populares agora";
-"trending.locations.title" = "📍 Lugares populares";
-"trending.locations.subtitle" = "Onde tudo está a acontecer";
-"trending.locations.moments" = "momentos";
-"trending.locations.users" = "utilizadores";
 
 /* Register */
 "register.actions.createAccount" = "Criar conta";
@@ -2581,35 +2575,6 @@
 "modernComments.sort.newest" = "Mais recentes";
 "modernComments.sort.oldest" = "Mais antigos";
 "modernComments.sort.mostLiked" = "Mais gostados";
-
-/* Trending */
-"trending.title" = "Tendências";
-"trending.subtitle" = "O mais popular agora";
-"trending.live" = "AO VIVO";
-"trending.description" = "Descobre o que está a acontecer agora na tua comunidade";
-"trending.error.title" = "Ups, alguma coisa correu mal";
-"trending.error.retry" = "Tentar novamente";
-
-/* Trending Components */
-"trendingComponents.hot" = "QUENTE";
-"trendingComponents.seeMore" = "Ver mais";
-"trendingComponents.forYou" = "PARA TI";
-"trendingComponents.stats" = "📊 Estatísticas";
-"trendingComponents.lastUpdated" = "Atualizado %@";
-"trendingComponents.trending" = "TENDÊNCIAS";
-"trendingComponents.empty.title" = "Sem conteúdo em tendência";
-"trendingComponents.empty.description" = "Sê a primeira pessoa a criar conteúdo viral";
-"trendingComponents.refresh" = "Atualizar";
-"trendingComponents.analyzing" = "A analisar tendências...";
-"trendingComponents.discovering" = "A descobrir o que é mais popular";
-
-/* Trending Stats */
-"trendingStats.hashtags" = "Hashtags";
-"trendingStats.trending" = "em tendência";
-"trendingStats.locations" = "Localizações";
-"trendingStats.popular" = "Mais populares";
-"trendingStats.moments" = "Momentos";
-"trendingStats.featured" = "em destaque";
 
 /* ContextMenu */
 "contextMenu.editMoment" = "Editar moment";
@@ -4426,7 +4391,6 @@
 "explore.error.requestFollow" = "Não foi possível enviar o pedido: %@";
 "explore.error.followUser" = "Não foi possível seguir o utilizador: %@";
 "explore.error.fetchProfile" = "Não foi possível carregar o perfil: %@";
-"explore.error.trending" = "Não foi possível carregar as tendências: %@";
 "explore.error.searchUsers" = "Não foi possível procurar utilizadores: %@";
 "settings.error.unknown" = "Ocorreu um erro desconhecido";
 "settings.error.notAuthenticated" = "Utilizador não autenticado";
@@ -4607,7 +4571,6 @@
 "errors.sendRequestFailed" = "Could not send follow request: %@";
 "errors.followUserFailed" = "Could not follow user: %@";
 "errors.fetchProfileFailed" = "Could not load profile: %@";
-"errors.trendingLoadFailed" = "Could not load trending: %@";
 "errors.searchUsersFailed" = "Could not search users: %@";
 "errors.momentImageUnavailable" = "Could not load the moment image.";
 "errors.stickerGenerationFailed" = "Could not generate the sticker.";

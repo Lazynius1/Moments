@@ -1,20 +1,207 @@
 import SwiftUI
 
+// MARK: - Liquid Glass variants
+enum LiquidGlassVariant {
+    case clear
+    case identity
+    case regular
+}
+
+enum ProfileChromeGlassMetrics {
+    static let controlSize: CGFloat = 34
+    static let controlIconSize: CGFloat = 16
+    static let controlsClusterSpacing: CGFloat = 2
+    static let controlsClusterPadding: CGFloat = 4
+    static let pillBarHeight: CGFloat = 36
+    static let pillSegmentHeight: CGFloat = 28
+    static let pillInnerPadding: CGFloat = 4
+    static let pillLabelSize: CGFloat = 11
+    static let pillIconSize: CGFloat = 11
+    static let chromeBackdropFadeTail: CGFloat = 44
+    static let chromeBackdropMaxBlurFraction: CGFloat = 0.1
+    static let feedDetailBlurFadeTail: CGFloat = 28
+    static let chatChromeBlurFadeTail: CGFloat = 22
+    static let chatChromeBlurFadeTailExpanded: CGFloat = 30
+}
+
+/// Tint de botones glass alineado al canvas de la app.
+enum MomentsGlassButtonTint {
+    static let dark = Color(hex: "0B1215")
+    static let light = Color(hex: "FAF9F6")
+
+    static func canvas(for colorScheme: ColorScheme) -> Color {
+        colorScheme == .dark ? dark : light
+    }
+}
+
 // MARK: - Liquid Glass helper
 // Aplica .glassEffect() nativo en iOS 26+ y .ultraThinMaterial como fallback en iOS 17.6+
 extension View {
     @ViewBuilder
-    func liquidGlass<S: Shape>(in shape: S, interactive: Bool = false) -> some View {
+    func liquidGlass<S: Shape>(
+        in shape: S,
+        variant: LiquidGlassVariant = .regular,
+        interactive: Bool = false,
+        tint: Color? = nil
+    ) -> some View {
         if #available(iOS 26.0, *) {
-            if interactive {
-                self.glassEffect(.regular.interactive(), in: shape)
-            } else {
-                self.glassEffect(in: shape)
+            switch variant {
+            case .clear:
+                if interactive {
+                    self.glassEffect(glassStyle(.clear, interactive: true, tint: tint), in: shape)
+                } else {
+                    self.glassEffect(glassStyle(.clear, interactive: false, tint: tint), in: shape)
+                }
+            case .identity:
+                if interactive {
+                    self.glassEffect(glassStyle(.identity, interactive: true, tint: tint), in: shape)
+                } else {
+                    self.glassEffect(glassStyle(.identity, interactive: false, tint: tint), in: shape)
+                }
+            case .regular:
+                if interactive {
+                    self.glassEffect(glassStyle(.regular, interactive: true, tint: tint), in: shape)
+                } else {
+                    self.glassEffect(glassStyle(.regular, interactive: false, tint: tint), in: shape)
+                }
             }
         } else {
             self
+                .background {
+                    if let tint {
+                        shape.fill(tint.opacity(0.92))
+                    }
+                }
                 .background(.ultraThinMaterial)
                 .clipShape(shape)
         }
+    }
+
+    @available(iOS 26.0, *)
+    private func glassStyle(_ variant: LiquidGlassVariant, interactive: Bool, tint: Color?) -> Glass {
+        var glass: Glass = switch variant {
+        case .clear: .clear
+        case .identity: .identity
+        case .regular: .regular
+        }
+        if let tint {
+            glass = glass.tint(tint)
+        }
+        if interactive {
+            glass = glass.interactive()
+        }
+        return glass
+    }
+}
+
+// MARK: - Profile chrome controls
+
+struct ProfileChromeIconGlassModifier: ViewModifier {
+    let standalone: Bool
+    var variant: LiquidGlassVariant = .regular
+    var interactive: Bool = true
+
+    func body(content: Content) -> some View {
+        if standalone {
+            content.liquidGlass(in: Circle(), variant: variant, interactive: interactive)
+        } else {
+            content
+        }
+    }
+}
+
+struct ProfileChromeControlsCluster<Content: View>: View {
+    var spacing: CGFloat = ProfileChromeGlassMetrics.controlsClusterSpacing
+    @ViewBuilder let content: () -> Content
+
+    var body: some View {
+        Group {
+            if #available(iOS 26.0, *) {
+                GlassEffectContainer(spacing: spacing) {
+                    HStack(spacing: spacing) {
+                        content()
+                    }
+                }
+                .padding(ProfileChromeGlassMetrics.controlsClusterPadding)
+                .background {
+                    Capsule()
+                        .glassEffect(.regular.interactive(), in: Capsule())
+                }
+            } else {
+                HStack(spacing: 8) {
+                    content()
+                }
+            }
+        }
+    }
+}
+
+struct ProfileChromeIconButton: View {
+    let systemName: String
+    let foregroundColor: Color
+    var size: CGFloat = ProfileChromeGlassMetrics.controlSize
+    var iconSize: CGFloat = ProfileChromeGlassMetrics.controlIconSize
+    var standaloneGlass: Bool = true
+    var glassVariant: LiquidGlassVariant = .regular
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: systemName)
+                .font(.system(size: iconSize, weight: .semibold))
+                .foregroundColor(foregroundColor)
+                .frame(width: size, height: size)
+                .modifier(
+                    ProfileChromeIconGlassModifier(
+                        standalone: standaloneGlass,
+                        variant: glassVariant,
+                        interactive: true
+                    )
+                )
+                .contentShape(Circle())
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+struct ProfileGlassPillTrack<Content: View>: View {
+    @ViewBuilder let content: () -> Content
+
+    var body: some View {
+        Group {
+            if #available(iOS 26.0, *) {
+                content()
+                    .padding(ProfileChromeGlassMetrics.pillInnerPadding)
+                    .background {
+                        Capsule()
+                            .glassEffect(.regular, in: Capsule())
+                    }
+            } else {
+                ZStack {
+                    Capsule()
+                        .fill(Color.clear)
+                        .liquidGlass(in: Capsule(), variant: .regular)
+                        .overlay(
+                            Capsule()
+                                .stroke(Color.primary.opacity(0.07), lineWidth: 0.75)
+                        )
+                    content()
+                        .padding(ProfileChromeGlassMetrics.pillInnerPadding)
+                }
+            }
+        }
+    }
+}
+
+struct ProfileGlassPillThumb: View {
+    let width: CGFloat
+    @Environment(\.colorScheme) private var colorScheme
+
+    var body: some View {
+        Capsule()
+            .fill(Color.white.opacity(colorScheme == .dark ? 0.05 : 0.035))
+            .frame(width: width, height: ProfileChromeGlassMetrics.pillSegmentHeight)
+            .liquidGlass(in: Capsule(), variant: .regular, interactive: true)
+            .shadow(color: .black.opacity(colorScheme == .dark ? 0.2 : 0.07), radius: 5, x: 0, y: 2)
     }
 }

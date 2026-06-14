@@ -111,18 +111,18 @@ struct GlassmorphicChatView: View {
         let current = min(max(currentSearchMatchIndex + 1, 1), searchMatchIds.count)
         return "\(current)/\(searchMatchIds.count)"
     }
-    
+
     init(conversation: Conversation) {
         _viewModel = StateObject(wrappedValue: MomentsChatViewModel(conversation: conversation))
     }
     
     // ✅ REFACTOR: Dividido en variables separadas para evitar el error del compilador (timeout AST)
     private var baseChatView: some View {
-        GeometryReader { geometry in
-            chatRootContent(safeAreaTop: geometry.safeAreaInsets.top)
-        }
-        .navigationBarHidden(true)
-        .photosPicker(isPresented: $showMediaPicker, selection: $selectedItems, maxSelectionCount: 10)
+        chatRootContent
+            .navigationBarTitleDisplayMode(.inline)
+            .navigationBarBackButtonHidden(true)
+            .toolbar { chatToolbarContent }
+            .photosPicker(isPresented: $showMediaPicker, selection: $selectedItems, maxSelectionCount: 10)
         .fullScreenCover(isPresented: $showEnhancedCamera) {
             EnhancedCameraPickerView { data, mediaType, isEphemeral in
                 handleCameraCapture(data: data, mediaType: mediaType, isEphemeral: isEphemeral)
@@ -299,158 +299,191 @@ struct GlassmorphicChatView: View {
         )
     }
     
-    // ✅ ACTUALIZADO: Navigation bar con navegación al perfil
-    private var glassmorphicNavigationBar: some View {
-        HStack(spacing: 16) {
-            // Back button
-            Button(action: { dismiss() }) {
-                Image(systemName: "chevron.left")
-                    .font(.system(size: 20, weight: .medium))
-                    .foregroundColor(adaptiveColors.primary)
-                    .frame(width: 40, height: 40)
-                    .liquidGlass(in: Circle(), interactive: true)
-            }
-            
-            // ✅ ACTUALIZADO: User info con navegación al perfil
-            HStack(spacing: 10) {
-                // ✅ SEPARADO: Botón solo para la foto (historias o perfil)
-                Button(action: {
-                    if isOtherParticipantUnavailable && !isOtherParticipantBlockedByCurrentUser {
-                        showingUserProfile = true
-                    } else if hasStory && !isOtherParticipantBlockedByCurrentUser {
-                        // ✅ SI TIENE HISTORIAS: Presentar la ruta con userId en un único estado
-                        storyRoute = ChatStoryRoute(userId: viewModel.conversation.otherParticipantId)
-                    } else {
-                        // ✅ SI NO TIENE HISTORIAS: Ir al perfil
-                        showingUserProfile = true
-                    }
-                }) {
-                    if isOtherParticipantUnavailable && !isOtherParticipantBlockedByCurrentUser {
-                        ProfileUnavailableAvatar(size: 40)
-                            .userProfileZoomSource(
-                                userId: viewModel.conversation.otherParticipantId,
-                                namespace: profileZoomNamespace,
-                                cornerRadius: 20
-                            )
-                    } else {
-                        // ✅ ACTUALIZADO: Usar el componente asíncrono centralizado para tiempo real
-                        AsyncProfileImageView(userId: viewModel.conversation.otherParticipantId)
-                            .frame(width: 40, height: 40)
-                            .clipShape(Circle())
-                            .userProfileZoomSource(
-                                userId: viewModel.conversation.otherParticipantId,
-                                namespace: profileZoomNamespace,
-                                cornerRadius: 20
-                            )
-                            .overlay(
-                                StorySegmentedRing(
-                                    storyCount: storyCount,
-                                    hasStory: hasStory,
-                                    hasUnseenStory: hasUnseenStory,
-                                    storyViewedStatus: storyViewedStatus,
-                                    storyAudiences: storyAudiences,
-                                    isOwnStory: false,
-                                    colorScheme: colorScheme,
-                                    ringSize: 40,
-                                    lineWidth: 2.5
-                                )
-                            )
-                    }
-                }
-                .buttonStyle(PlainButtonStyle())
-                
-                // ✅ SEPARADO: Botón solo para el nombre (siempre al perfil)
-                Button(action: {
-                    showingUserProfile = true
-                }) {
-                    VStack(alignment: .leading, spacing: 2) {
-                        HStack(spacing: 4) {
-                            Text(otherParticipantDisplayName)
-                                .font(.custom("Poppins-SemiBold", size: 16))
-                                .strikethrough(isOtherParticipantUnavailable && !isOtherParticipantBlockedByCurrentUser, color: adaptiveColors.secondary)
-                                .foregroundColor((colorScheme == .dark ? Color.white : Color.black).opacity(isOtherParticipantUnavailable ? 0.72 : 1.0))
-                            
-                            // ✅ INSIGNIA DE VERIFICADO
-                            if !isOtherParticipantUnavailable {
-                                VerifiedBadgeView(userId: viewModel.conversation.otherParticipantId, size: 14)
-                            }
-                        }
-                        
-                        if isOtherParticipantBlockedByCurrentUser {
-                            Text("chat.blockedByMe.subtitle")
-                                .font(.custom("Poppins-Regular", size: 12))
-                                .foregroundColor(adaptiveColors.secondary)
-                        } else if isOtherParticipantUnavailable {
-                            Text("chat.profileUnavailable")
-                                .font(.custom("Poppins-Regular", size: 12))
-                                .foregroundColor(adaptiveColors.secondary)
-                        } else if !viewModel.typingUsers.isEmpty {
-                            Text("chat.typing")
-                                .font(.custom("Poppins-Regular", size: 12))
-                                .foregroundColor(adaptiveColors.secondary)
-                        } else if otherUserStatus != .invisible {
-                            HStack(spacing: 4) {
-                                Image(systemName: otherUserStatus.icon)
-                                    .foregroundColor(otherUserStatus.color)
-                                    .font(.system(size: 8))
-                                
-                                Text(otherUserStatus.displayName)
-                                    .font(.custom("Poppins-Regular", size: 12))
-                                    .foregroundColor(adaptiveColors.secondary)
-                                
-                                if otherUserStatus != .online, let lastSeen = otherUserLastSeen {
-                                    Text("• \(onlineStatusService.formatLastSeen(lastSeen))")
-                                        .font(.custom("Poppins-Regular", size: 10))
-                                        .foregroundColor(adaptiveColors.secondary.opacity(0.7))
-                                }
-                            }
-                        }
-                    }
-                }
-                .buttonStyle(PlainButtonStyle())
-            }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
-            .liquidGlass(in: Capsule(), interactive: true)
-            
-            Spacer()
-            
-            Button(action: {
-                withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-                    isSearchVisible.toggle()
-                }
-                if isSearchVisible {
-                    searchQuery = ""
-                    searchMatchIds = []
-                    currentSearchMatchIndex = 0
-                    pendingSearchTargetId = nil
-                }
-            }) {
-                Image(systemName: isSearchVisible ? "xmark.circle.fill" : "magnifyingglass")
-                    .font(.system(size: 18))
-                    .foregroundColor(adaptiveColors.primary)
-                    .frame(width: 40, height: 40)
-                    .liquidGlass(in: Circle(), interactive: true)
-            }
-            
-            // Settings button
-            Button(action: {
-                showingConversationSettings = true
-            }) {
-                Image(systemName: "info.circle.fill")
-                    .font(.system(size: 18))
-                    .foregroundColor(adaptiveColors.primary)
-                    .frame(width: 40, height: 40)
-                    .liquidGlass(in: Circle(), interactive: true)
-            }
+    // MARK: - Toolbar nativo (scroll edge blur del sistema en iOS 26)
+
+    @ToolbarContentBuilder
+    private var chatToolbarContent: some ToolbarContent {
+        ToolbarItem(placement: .topBarLeading) {
+            chatToolbarBackButton
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 10)
-        .onAppear {
-            checkUserStories()
+        .chatHideSharedBackgroundIfAvailable()
+
+        ToolbarItem(placement: .topBarLeading) {
+            Button(action: openProfileOrStoryFromHeader) {
+                chatToolbarAvatar
+            }
+            .buttonStyle(.plain)
+        }
+        .chatHideSharedBackgroundIfAvailable()
+
+        ToolbarItem(placement: .principal) {
+            chatToolbarTitleStack
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    showingUserProfile = true
+                }
+        }
+
+        ToolbarItem(placement: .topBarTrailing) {
+            chatToolbarSearchButton
+        }
+        .chatHideSharedBackgroundIfAvailable()
+
+        ToolbarItem(placement: .topBarTrailing) {
+            chatToolbarInfoButton
+        }
+        .chatHideSharedBackgroundIfAvailable()
+    }
+
+    private var chatToolbarBackButton: some View {
+        Button(action: { dismiss() }) {
+            Image(systemName: "chevron.left")
+                .font(.system(size: 18, weight: .semibold))
+                .foregroundColor(adaptiveColors.primary)
+                .frame(width: 40, height: 40)
+                .modifier(ChatToolbarIconGlassModifier())
+        }
+        .buttonStyle(.plain)
+    }
+
+    @ViewBuilder
+    private var chatToolbarAvatar: some View {
+        if isOtherParticipantUnavailable && !isOtherParticipantBlockedByCurrentUser {
+            ProfileUnavailableAvatar(size: 36)
+                .userProfileZoomSource(
+                    userId: viewModel.conversation.otherParticipantId,
+                    namespace: profileZoomNamespace,
+                    cornerRadius: 18
+                )
+        } else {
+            AsyncProfileImageView(userId: viewModel.conversation.otherParticipantId)
+                .frame(width: 36, height: 36)
+                .clipShape(Circle())
+                .userProfileZoomSource(
+                    userId: viewModel.conversation.otherParticipantId,
+                    namespace: profileZoomNamespace,
+                    cornerRadius: 18
+                )
+                .overlay(
+                    StorySegmentedRing(
+                        storyCount: storyCount,
+                        hasStory: hasStory,
+                        hasUnseenStory: hasUnseenStory,
+                        storyViewedStatus: storyViewedStatus,
+                        storyAudiences: storyAudiences,
+                        isOwnStory: false,
+                        colorScheme: colorScheme,
+                        ringSize: 36,
+                        lineWidth: 2.5
+                    )
+                )
         }
     }
-    
+
+    private var chatToolbarTitleStack: some View {
+        VStack(alignment: .leading, spacing: 1) {
+            HStack(spacing: 4) {
+                Text(otherParticipantDisplayName)
+                    .font(.system(size: 15, weight: .semibold))
+                    .strikethrough(isOtherParticipantUnavailable && !isOtherParticipantBlockedByCurrentUser, color: adaptiveColors.secondary)
+                    .foregroundStyle(adaptiveColors.primary)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+                    .layoutPriority(1)
+
+                if !isOtherParticipantUnavailable {
+                    VerifiedBadgeView(userId: viewModel.conversation.otherParticipantId, size: 13)
+                }
+            }
+
+            chatToolbarSubtitle
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .fixedSize(horizontal: false, vertical: true)
+    }
+
+    @ViewBuilder
+    private var chatToolbarSubtitle: some View {
+        if isOtherParticipantBlockedByCurrentUser {
+            Text("chat.blockedByMe.subtitle")
+                .font(.system(size: 11, weight: .regular))
+                .foregroundStyle(adaptiveColors.secondary)
+                .lineLimit(1)
+        } else if isOtherParticipantUnavailable {
+            Text("chat.profileUnavailable")
+                .font(.system(size: 11, weight: .regular))
+                .foregroundStyle(adaptiveColors.secondary)
+                .lineLimit(1)
+        } else if !viewModel.typingUsers.isEmpty {
+            Text("chat.typing")
+                .font(.system(size: 11, weight: .regular))
+                .foregroundStyle(adaptiveColors.secondary)
+                .lineLimit(1)
+        } else if otherUserStatus != .invisible {
+            HStack(spacing: 4) {
+                Image(systemName: otherUserStatus.icon)
+                    .foregroundStyle(otherUserStatus.color)
+                    .font(.system(size: 7))
+
+                Text(otherUserStatus.displayName)
+                    .font(.system(size: 11, weight: .regular))
+                    .foregroundStyle(adaptiveColors.secondary)
+                    .lineLimit(1)
+
+                if otherUserStatus != .online, let lastSeen = otherUserLastSeen {
+                    Text("• \(onlineStatusService.formatLastSeen(lastSeen))")
+                        .font(.system(size: 10, weight: .regular))
+                        .foregroundStyle(adaptiveColors.secondary.opacity(0.7))
+                        .lineLimit(1)
+                }
+            }
+        }
+    }
+
+    private var chatToolbarSearchButton: some View {
+        Button(action: toggleChatSearch) {
+            Image(systemName: isSearchVisible ? "xmark.circle.fill" : "magnifyingglass")
+                .font(.system(size: 17, weight: .medium))
+                .foregroundColor(adaptiveColors.primary)
+                .frame(width: 40, height: 40)
+                .modifier(ChatToolbarIconGlassModifier())
+        }
+        .buttonStyle(.plain)
+    }
+
+    private var chatToolbarInfoButton: some View {
+        Button(action: { showingConversationSettings = true }) {
+            Image(systemName: "info.circle.fill")
+                .font(.system(size: 17, weight: .medium))
+                .foregroundColor(adaptiveColors.primary)
+                .frame(width: 40, height: 40)
+                .modifier(ChatToolbarIconGlassModifier())
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func openProfileOrStoryFromHeader() {
+        if isOtherParticipantUnavailable && !isOtherParticipantBlockedByCurrentUser {
+            showingUserProfile = true
+        } else if hasStory && !isOtherParticipantBlockedByCurrentUser {
+            storyRoute = ChatStoryRoute(userId: viewModel.conversation.otherParticipantId)
+        } else {
+            showingUserProfile = true
+        }
+    }
+
+    private func toggleChatSearch() {
+        withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+            isSearchVisible.toggle()
+        }
+        if isSearchVisible {
+            searchQuery = ""
+            searchMatchIds = []
+            currentSearchMatchIndex = 0
+            pendingSearchTargetId = nil
+        }
+    }
+
     private var chatSearchBarSection: some View {
         HStack(spacing: 10) {
             HStack(spacing: 8) {
@@ -522,10 +555,9 @@ struct GlassmorphicChatView: View {
     
     // ✅ REFACTORIZADO: Sección de lista de mensajes
     private var messagesListSection: some View {
-        ScrollViewReader { proxy in
+            ScrollViewReader { proxy in
             ScrollView {
                 LazyVStack(spacing: 8) {
-                    
                     // ✅ TRIGGER DE PAGINACIÓN
                     if viewModel.canLoadMore {
                         Color.clear
@@ -574,8 +606,9 @@ struct GlassmorphicChatView: View {
                         }
                 }
                 .padding(.vertical, 10)
-                .padding(.top, headerOverlayHeight)
             }
+            .scrollContentBackground(.hidden)
+            .chatScrollEdgeEffect()
             .scrollDismissesKeyboard(.interactively)
             .simultaneousGesture(
                 DragGesture(minimumDistance: 8)
@@ -710,19 +743,15 @@ struct GlassmorphicChatView: View {
         }
     }
 
-    private var headerOverlayHeight: CGFloat {
-        isSearchVisible ? 132 : 76
-    }
-
-    @ViewBuilder
-    private func chatRootContent(safeAreaTop: CGFloat) -> some View {
-        let fadeBase = Color(hex: colorScheme == .dark ? "0B1215" : "FAF9F6")
-
-        ZStack(alignment: .top) {
+    private var chatRootContent: some View {
+        ZStack {
             ChatGlassmorphicBackground(adaptiveColors: adaptiveColors)
             mainChatStack
-            topChromeSection
-            topFadeOverlay(safeAreaTop: safeAreaTop, fadeBase: fadeBase)
+        }
+        .safeAreaInset(edge: .top, spacing: 0) {
+            if isSearchVisible {
+                chatSearchBarSection
+            }
         }
     }
 
@@ -731,36 +760,6 @@ struct GlassmorphicChatView: View {
             messagesListSection
             replyBarSection
             inputBarSection
-        }
-    }
-
-    private var topChromeSection: some View {
-        VStack(spacing: 0) {
-            glassmorphicNavigationBar
-
-            if isSearchVisible {
-                chatSearchBarSection
-            }
-        }
-    }
-
-    @ViewBuilder
-    private func topFadeOverlay(safeAreaTop: CGFloat, fadeBase: Color) -> some View {
-        VStack {
-            LinearGradient(
-                stops: [
-                    .init(color: fadeBase.opacity(0.98), location: 0.0),
-                    .init(color: fadeBase.opacity(0.88), location: 0.28),
-                    .init(color: fadeBase.opacity(0.4), location: 0.64),
-                    .init(color: fadeBase.opacity(0.08), location: 0.88),
-                    .init(color: .clear, location: 1.0)
-                ],
-                startPoint: .top,
-                endPoint: .bottom
-            )
-            .frame(height: safeAreaTop + 42)
-            .ignoresSafeArea(edges: .top)
-            .allowsHitTesting(false)
         }
     }
 
@@ -1019,6 +1018,7 @@ struct GlassmorphicChatView: View {
         setupOnlineStatusObserver()
         refreshOtherParticipantUsername()
         refreshOtherParticipantAvailability()
+        checkUserStories()
     }
     
     // ✅ REFACTORIZADO: Acciones al desaparecer

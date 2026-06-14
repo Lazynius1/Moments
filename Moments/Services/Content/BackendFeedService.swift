@@ -152,8 +152,6 @@ struct BackendMoment: Codable {
     let hideLikeCounts: Bool?
     let allowSharing: Bool?
     let scheduledDate: Double? // epoch millis
-    let trendingScore: Double?
-    let engagementRate: Double?
     let hasHiddenLayers: Bool?
     let hiddenLayerCount: Int?
     
@@ -186,8 +184,6 @@ struct BackendMoment: Codable {
             hideLikeCounts: hideLikeCounts ?? false,
             allowSharing: allowSharing ?? true,
             scheduledDate: scheduledDate.map { Date(timeIntervalSince1970: $0 / 1000) },
-            trendingScore: trendingScore,
-            engagementRate: engagementRate,
             hasHiddenLayers: hasHiddenLayers ?? false,
             hiddenLayerCount: hiddenLayerCount ?? 0
         )

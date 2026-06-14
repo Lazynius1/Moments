@@ -1,22 +1,20 @@
 import SwiftUI
 import FirebaseAuth
-import FirebaseFirestore
 import Kingfisher
 import CoreLocation
 
-/// Detalle de momentos del explorer: scroll vertical estilo feed + chrome con blur.
-struct ExploreMomentDetailView: View {
-    @State private var moments: [Moment]
-    let initialIndex: Int
-    let initialMomentId: String?
+/// Detalle de un solo momento con card estilo feed (actividad, notificaciones, chat…).
+struct SingleMomentDetailView: View {
+    let chromeTitle: String?
 
+    @State private var moment: Moment
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.dismiss) private var dismiss
 
     @StateObject private var firestoreService = FirestoreService.shared
-    @State private var currentIndex: Int
+    @State private var feedViewModel = FeedViewModel()
     @State private var selectedMoment: Moment?
-    @State private var trackedMomentViewIds: Set<String> = []
+    @State private var trackedMomentView = false
 
     @State private var dragOffset: CGFloat = 0
     @State private var isDragging = false
@@ -24,7 +22,6 @@ struct ExploreMomentDetailView: View {
     @State private var headerTriggerMinY: CGFloat = .greatestFiniteMagnitude
 
     @State private var showContextMenu = false
-    @State private var contextMenuMoment: Moment?
     @State private var showEditSheet = false
     @State private var showDeleteAlert = false
     @State private var editedContent = ""
@@ -32,22 +29,31 @@ struct ExploreMomentDetailView: View {
     @State private var selectedStoryUserId = ""
     @State private var selectedHashtag = ""
     @State private var showExploreWithHashtag = false
-    @State private var feedViewModel = FeedViewModel()
+    @State private var showingLocationMap = false
+    @State private var selectedLocationName = ""
+    @State private var selectedLocationCoordinate: CLLocationCoordinate2D?
 
-    // Peek + mapa (paridad con feed)
     @State private var peekImageURL: String?
     @State private var peekAspectRatio: CGFloat = 1.0
     @State private var isPeeking = false
     @State private var peekIsProtected = false
-    @State private var showingLocationMap = false
-    @State private var selectedLocationName = ""
-    @State private var selectedLocationCoordinate: CLLocationCoordinate2D?
     @Namespace private var profileZoomNamespace
     @State private var showUserProfile = false
     @State private var selectedUserId = ""
 
-    private var chromeTitle: String {
-        NSLocalizedString("explore.title", comment: "Explore")
+    init(moment: Moment, chromeTitle: String? = nil) {
+        self._moment = State(initialValue: moment)
+        self.chromeTitle = chromeTitle
+    }
+
+    private var resolvedChromeTitle: String {
+        if let chromeTitle {
+            let trimmed = chromeTitle.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !trimmed.isEmpty { return trimmed }
+        }
+        let username = moment.username.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !username.isEmpty { return username }
+        return NSLocalizedString("explore.title", comment: "Explore")
     }
 
     private var chromeBlurProgress: CGFloat {
@@ -58,22 +64,6 @@ struct ExploreMomentDetailView: View {
         return min(max((start - headerTriggerMinY) / fadeLead, 0), 1)
     }
 
-    init(moments: [Moment], initialIndex: Int, initialMomentId: String? = nil) {
-        self._moments = State(initialValue: moments)
-        self.initialIndex = initialIndex
-        self.initialMomentId = initialMomentId
-
-        let resolvedIndex: Int
-        if let initialMomentId,
-           let matched = moments.firstIndex(where: { $0.id == initialMomentId }) {
-            resolvedIndex = matched
-        } else {
-            resolvedIndex = initialIndex
-        }
-        let clamped = moments.isEmpty ? 0 : min(max(resolvedIndex, 0), moments.count - 1)
-        self._currentIndex = State(initialValue: clamped)
-    }
-
     var body: some View {
         ZStack {
             ZStack(alignment: .top) {
@@ -81,11 +71,11 @@ struct ExploreMomentDetailView: View {
                     .ignoresSafeArea()
                     .opacity(backgroundOpacity)
 
-                exploreMomentsScrollView()
+                singleMomentScrollView()
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .offset(x: dragOffset)
                     .scaleEffect(isDragging ? max(0.85, 1 - abs(dragOffset) / 1000) : 1.0)
-                    .gesture(exploreDismissDragGesture)
+                    .gesture(singleDismissDragGesture)
 
                 ProfileStickyChromeContainer(
                     blurProgress: chromeBlurProgress,
@@ -93,15 +83,15 @@ struct ExploreMomentDetailView: View {
                     tabsArePinned: false
                 ) {
                     FeedPinnedTopChrome(
-                        title: chromeTitle,
-                        onDismiss: dismissExploreDetail
+                        title: resolvedChromeTitle,
+                        onDismiss: dismissDetail
                     )
                 }
                 .zIndex(10)
                 .allowsHitTesting(true)
             }
 
-            if showContextMenu, let moment = contextMenuMoment {
+            if showContextMenu {
                 ModernContextMenuOverlay(
                     moment: moment,
                     isPresented: $showContextMenu,
@@ -156,22 +146,20 @@ struct ExploreMomentDetailView: View {
                 }
             )
         ) {
-            if let moment = selectedMoment {
-                ModernCommentsView(moment: moment)
+            if let selectedMoment {
+                ModernCommentsView(moment: selectedMoment)
                     .environmentObject(firestoreService)
                     .presentationDetents([.medium, .large])
                     .presentationDragIndicator(.visible)
             }
         }
         .sheet(isPresented: $showEditSheet) {
-            if let moment = contextMenuMoment {
-                EditMomentView(
-                    moment: moment,
-                    onSave: { payload in
-                        updateMoment(payload: payload)
-                    }
-                )
-            }
+            EditMomentView(
+                moment: moment,
+                onSave: { payload in
+                    updateMoment(payload: payload)
+                }
+            )
         }
         .fullScreenCover(isPresented: $showSpecificUserStories, onDismiss: {
             selectedStoryUserId = ""
@@ -212,16 +200,14 @@ struct ExploreMomentDetailView: View {
             Text("modernMomentDetail.delete.message")
         }
         .onAppear {
-            let target = resolvedInitialIndex
-            currentIndex = target
-            trackMomentViewIfNeeded(for: moments[safe: target])
-            VideoMomentsIndex.shared.rebuild(from: moments)
+            trackMomentViewIfNeeded()
+            VideoMomentsIndex.shared.rebuild(from: [moment])
             if let userId = Auth.auth().currentUser?.uid {
                 firestoreService.loadSavedMoments(userId: userId)
             }
             GlobalVideoManager.shared.pauseAllVideos()
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
-                activateVideoForIndex(target)
+                activateVideoIfNeeded()
             }
         }
         .onDisappear {
@@ -229,26 +215,80 @@ struct ExploreMomentDetailView: View {
             FeedVisibilityCoordinator.shared.update(all: [:])
             feedViewModel.shutdown()
         }
-        .onChange(of: currentIndex) { _, newIndex in
-            trackMomentViewIfNeeded(for: moments[safe: newIndex])
-            activateVideoForIndex(newIndex)
-        }
-        .onChange(of: moments.count) { _, _ in
-            VideoMomentsIndex.shared.rebuild(from: moments)
-        }
         .momentZoomNavigationSurface(colorScheme: colorScheme)
     }
 
-    private var resolvedInitialIndex: Int {
-        if let initialMomentId,
-           let matched = moments.firstIndex(where: { $0.id == initialMomentId }) {
-            return matched
+    private func singleMomentScrollView() -> some View {
+        let screenHeight = UIScreen.main.bounds.height
+        let feedCardHeight = screenHeight * 0.58
+
+        return ScrollView(.vertical, showsIndicators: false) {
+            LazyVStack(spacing: max(15, screenHeight * 0.02)) {
+                Color.clear
+                    .frame(height: ProfileHeaderCollapseMetrics.feedStyleDetailTopInset)
+                    .background(
+                        GeometryReader { geometry in
+                            Color.clear.preference(
+                                key: ScrollOffsetPreferenceKey.self,
+                                value: geometry.frame(in: .named("singleMomentScroll")).minY
+                            )
+                        }
+                    )
+
+                ScreenshotProtectedView(
+                    isProtected: (moment.audience?.lowercased() ?? "") != "everyone"
+                ) {
+                    ModernPostCardView(
+                        moment: moment,
+                        availableHeight: feedCardHeight,
+                        colorScheme: colorScheme,
+                        onComment: { selectedMoment = moment },
+                        onNearEnd: {},
+                        onHashtagTap: { hashtag in
+                            selectedHashtag = "#\(hashtag)"
+                            showExploreWithHashtag = true
+                        },
+                        onLocationTap: { locationName, coordinate in
+                            selectedLocationName = locationName
+                            selectedLocationCoordinate = coordinate
+                            showingLocationMap = true
+                        },
+                        onContextMenu: { _ in
+                            showContextMenu = true
+                        },
+                        onTagTap: { userId in
+                            handleAvatarTap(userId: userId, hasStory: false)
+                        },
+                        onOpenUserProfile: { userId in
+                            handleAvatarTap(userId: userId, hasStory: false)
+                        },
+                        profileZoomNamespace: profileZoomNamespace,
+                        onPeek: { imageURL, ratio, isPressing in
+                            handlePeek(imageURL: imageURL, ratio: ratio, isPressing: isPressing)
+                        }
+                    )
+                    .equatable()
+                    .environmentObject(firestoreService)
+                    .environment(feedViewModel)
+                }
+            }
+            .padding(.horizontal, FeedMomentCardLayout.listHorizontalPadding)
+            .padding(.bottom, 24)
+            .onPreferenceChange(MomentVisibilityPreference.self) { values in
+                FeedVisibilityCoordinator.shared.update(all: values)
+            }
         }
-        guard moments.indices.contains(initialIndex) else { return 0 }
-        return initialIndex
+        .profileGridNavigationChrome(colorScheme: colorScheme)
+        .scrollClipDisabled()
+        .coordinateSpace(name: "singleMomentScroll")
+        .onPreferenceChange(ScrollOffsetPreferenceKey.self) { value in
+            headerTriggerMinY = value
+        }
+        .environment(feedViewModel)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
-    private var exploreDismissDragGesture: some Gesture {
+    private var singleDismissDragGesture: some Gesture {
         DragGesture(coordinateSpace: .global)
             .onChanged { value in
                 if value.translation.width > 0 {
@@ -270,7 +310,7 @@ struct ExploreMomentDetailView: View {
                         backgroundOpacity = 0.0
                     }
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
-                        dismissExploreDetail()
+                        dismissDetail()
                     }
                 } else {
                     withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
@@ -282,115 +322,20 @@ struct ExploreMomentDetailView: View {
             }
     }
 
-    private func dismissExploreDetail() {
+    private func dismissDetail() {
         dismiss()
     }
 
-    private func activateVideoForIndex(_ index: Int) {
-        guard let moment = moments[safe: index], moment.hasVideoMedia else { return }
+    private func activateVideoIfNeeded() {
+        guard moment.hasVideoMedia else { return }
         let consumerId = GlobalVideoManager.profileVideoConsumerId(for: moment)
         FeedVisibilityCoordinator.shared.pinActiveVideo(momentId: consumerId)
         GlobalVideoManager.shared.playVideo(consumerId)
     }
 
-    private func exploreMomentsScrollView() -> some View {
-        let screenHeight = UIScreen.main.bounds.height
-        let feedCardHeight = screenHeight * 0.58
-
-        return ScrollViewReader { proxy in
-            ScrollView(.vertical, showsIndicators: false) {
-                LazyVStack(spacing: max(15, screenHeight * 0.02)) {
-                    Color.clear
-                        .frame(height: ProfileHeaderCollapseMetrics.feedStyleDetailTopInset)
-                        .background(
-                            GeometryReader { geometry in
-                                Color.clear.preference(
-                                    key: ScrollOffsetPreferenceKey.self,
-                                    value: geometry.frame(in: .named("exploreScroll")).minY
-                                )
-                            }
-                        )
-
-                    ForEach(Array(moments.enumerated()), id: \.offset) { index, moment in
-                        ScreenshotProtectedView(
-                            isProtected: (moment.audience?.lowercased() ?? "") != "everyone"
-                        ) {
-                            ModernPostCardView(
-                                moment: moment,
-                                availableHeight: feedCardHeight,
-                                colorScheme: colorScheme,
-                                onComment: { selectedMoment = moment },
-                                onNearEnd: {},
-                                onHashtagTap: { hashtag in
-                                    selectedHashtag = "#\(hashtag)"
-                                    showExploreWithHashtag = true
-                                },
-                                onLocationTap: { locationName, coordinate in
-                                    selectedLocationName = locationName
-                                    selectedLocationCoordinate = coordinate
-                                    showingLocationMap = true
-                                },
-                                onContextMenu: { tappedMoment in
-                                    contextMenuMoment = tappedMoment
-                                    showContextMenu = true
-                                },
-                                onTagTap: { userId in
-                                    handleAvatarTap(userId: userId, hasStory: false)
-                                },
-                                onOpenUserProfile: { userId in
-                                    handleAvatarTap(userId: userId, hasStory: false)
-                                },
-                                profileZoomNamespace: profileZoomNamespace,
-                                onPeek: { imageURL, ratio, isPressing in
-                                    handlePeek(
-                                        imageURL: imageURL,
-                                        ratio: ratio,
-                                        isPressing: isPressing,
-                                        moment: moment
-                                    )
-                                }
-                            )
-                            .equatable()
-                            .environmentObject(firestoreService)
-                            .environment(feedViewModel)
-                        }
-                        .id(index)
-                        .onAppear {
-                            currentIndex = index
-                            prefetchUpcomingMoments(from: index)
-                        }
-                    }
-                }
-                .padding(.horizontal, FeedMomentCardLayout.listHorizontalPadding)
-                .padding(.bottom, 24)
-                .onPreferenceChange(MomentVisibilityPreference.self) { values in
-                    FeedVisibilityCoordinator.shared.update(all: values)
-                }
-            }
-            .profileGridNavigationChrome(colorScheme: colorScheme)
-            .scrollClipDisabled()
-            .coordinateSpace(name: "exploreScroll")
-            .onPreferenceChange(ScrollOffsetPreferenceKey.self) { value in
-                headerTriggerMinY = value
-            }
-            .environment(feedViewModel)
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .onAppear {
-                let target = resolvedInitialIndex
-                guard target > 0 else { return }
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
-                    proxy.scrollTo(target, anchor: .top)
-                }
-            }
-        }
-    }
-
-    private func trackMomentViewIfNeeded(for moment: Moment?) {
-        guard let moment, let momentId = moment.id else { return }
-        guard !moment.authorId.isEmpty else { return }
-        guard !trackedMomentViewIds.contains(momentId) else { return }
-
-        trackedMomentViewIds.insert(momentId)
+    private func trackMomentViewIfNeeded() {
+        guard !trackedMomentView, moment.id != nil, !moment.authorId.isEmpty else { return }
+        trackedMomentView = true
         Task { @MainActor in
             AffinityTracker.shared.trackInteraction(type: .momentView, with: moment.authorId)
         }
@@ -409,7 +354,7 @@ struct ExploreMomentDetailView: View {
         }
     }
 
-    private func handlePeek(imageURL: String, ratio: CGFloat, isPressing: Bool, moment: Moment) {
+    private func handlePeek(imageURL: String, ratio: CGFloat, isPressing: Bool) {
         if isPressing, let url = URL(string: imageURL) {
             KingfisherManager.shared.retrieveImage(with: url) { _ in }
         }
@@ -427,30 +372,8 @@ struct ExploreMomentDetailView: View {
         }
     }
 
-    private func prefetchUpcomingMoments(from index: Int) {
-        let nextIndex = index + 1
-        guard nextIndex < moments.count else { return }
-
-        let endIndex = min(nextIndex + 8, moments.count)
-        let upcoming = Array(moments[nextIndex..<endIndex])
-
-        let imageURLs = upcoming.compactMap { moment -> URL? in
-            guard let urlString = moment.previewImageURLString else { return nil }
-            return URL(string: urlString)
-        }
-        if !imageURLs.isEmpty {
-            ImagePrefetchManager.shared.prefetch(urls: imageURLs)
-        }
-
-        let videoURLs = VideoPlaybackSelector.shared.preloadURLStrings(from: upcoming, maxMoments: 4)
-        if !videoURLs.isEmpty {
-            VideoPreloader.shared.preloadAssets(urls: videoURLs)
-        }
-    }
-
     private func updateMoment(payload: EditMomentPayload) {
-        guard let moment = contextMenuMoment,
-              let momentId = moment.id else { return }
+        guard let momentId = moment.id else { return }
 
         firestoreService.updateMomentDetails(
             userId: moment.authorId,
@@ -471,9 +394,8 @@ struct ExploreMomentDetailView: View {
             DispatchQueue.main.async {
                 firestoreService.fetchMoment(momentId: momentId, userId: moment.authorId) { result in
                     DispatchQueue.main.async {
-                        guard case .success(let updated) = result,
-                              let index = moments.firstIndex(where: { $0.id == momentId }) else { return }
-                        moments[index] = updated
+                        guard case .success(let updated) = result else { return }
+                        moment = updated
                     }
                 }
             }
@@ -481,23 +403,15 @@ struct ExploreMomentDetailView: View {
     }
 
     private func deleteMoment() {
-        guard let moment = contextMenuMoment,
-              let momentId = moment.id else { return }
+        guard let momentId = moment.id else { return }
 
         firestoreService.deleteMoment(
             userId: moment.authorId,
             momentId: momentId
         ) { error in
             DispatchQueue.main.async {
-                guard error == nil,
-                      let index = moments.firstIndex(where: { $0.id == moment.id }) else { return }
-
-                moments.remove(at: index)
-                if moments.isEmpty {
-                    dismissExploreDetail()
-                    return
-                }
-                currentIndex = min(currentIndex, max(0, moments.count - 1))
+                guard error == nil else { return }
+                dismissDetail()
             }
         }
     }

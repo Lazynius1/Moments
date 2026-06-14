@@ -622,7 +622,7 @@ extension View {
                 if (Auth.auth().currentUser?.uid) != nil {
                     DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
                         if !hasPreloadedExplore.wrappedValue {
-                            exploreViewModel.fetchMomentsByInterestsWithTrending()
+                            exploreViewModel.fetchMomentsByInterests()
                             hasPreloadedExplore.wrappedValue = true
                         }
                     }
@@ -632,7 +632,7 @@ extension View {
             }
             .onChange(of: selectedTab.wrappedValue) { _, newSelection in
                 if newSelection == 3 && !hasPreloadedExplore.wrappedValue {
-                    exploreViewModel.fetchMomentsByInterestsWithTrending()
+                    exploreViewModel.fetchMomentsByInterests()
                     hasPreloadedExplore.wrappedValue = true
                 }
                 

@@ -27,6 +27,7 @@ struct MomentZoomDestination: Hashable {
     let initialMomentId: String?
     let presentation: MomentZoomPresentationKind
     var restrictPlaybackToInitialIndex: Bool = false
+    var chromeTitle: String? = nil
 }
 
 enum MomentZoomPresentationKind: Hashable {
@@ -216,12 +217,10 @@ struct MomentZoomDetailDestination: View {
                 )
             case .single:
                 if let moment = resolvedSingleMoment(from: moments, destination: destination) {
-                    MomentDetailContainerView(context: .single(moment))
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        .background(
-                            ProfileMomentZoomNavigation.canvasBackground(for: colorScheme)
-                                .ignoresSafeArea()
-                        )
+                    SingleMomentDetailView(
+                        moment: moment,
+                        chromeTitle: destination.chromeTitle
+                    )
                 } else {
                     MomentZoomSingleFallbackView()
                 }
@@ -369,14 +368,16 @@ enum MomentZoomOpener {
         initialIndex: Int,
         presentation: MomentZoomPresentationKind,
         destination: inout MomentZoomDestination?,
-        zoomIDPrefix: String? = nil
+        zoomIDPrefix: String? = nil,
+        chromeTitle: String? = nil
     ) {
         let prefix = zoomIDPrefix ?? presentationPrefix(presentation)
         destination = MomentZoomDestination(
             zoomSourceID: ProfileMomentZoomNavigation.sourceID(moment: moment, index: initialIndex, prefix: prefix),
             initialIndex: initialIndex,
             initialMomentId: moment.id,
-            presentation: presentation
+            presentation: presentation,
+            chromeTitle: chromeTitle
         )
         HapticManager.shared.lightImpact()
     }

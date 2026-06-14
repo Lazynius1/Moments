@@ -1,5 +1,104 @@
 import SwiftUI
 
+// MARK: - Chat toolbar + scroll edge (API nativa iOS 26)
+
+/// Círculo glass por botón (con `sharedBackgroundVisibility(.hidden)` en el toolbar).
+struct ChatToolbarIconGlassModifier: ViewModifier {
+    func body(content: Content) -> some View {
+        content.liquidGlass(in: Circle(), interactive: true)
+    }
+}
+
+struct ChatToolbarScrollEdgeModifier: ViewModifier {
+    func body(content: Content) -> some View {
+        if #available(iOS 26.0, *) {
+            content.scrollEdgeEffectStyle(.soft, for: .top)
+        } else {
+            content
+        }
+    }
+}
+
+extension View {
+    func chatScrollEdgeEffect() -> some View {
+        modifier(ChatToolbarScrollEdgeModifier())
+    }
+
+    func messagingListEdgeToEdge() -> some View {
+        modifier(MessagingListSectionMarginsModifier())
+    }
+}
+
+private struct MessagingListSectionMarginsModifier: ViewModifier {
+    func body(content: Content) -> some View {
+        if #available(iOS 26.0, *) {
+            content.listSectionMargins(.horizontal, 0)
+        } else {
+            content
+        }
+    }
+}
+
+extension ToolbarContent {
+    @ToolbarContentBuilder
+    func chatHideSharedBackgroundIfAvailable() -> some ToolbarContent {
+        if #available(iOS 26.0, *) {
+            sharedBackgroundVisibility(.hidden)
+        } else {
+            self
+        }
+    }
+}
+
+/// Encabezado de sección en listas de mensajes (misma fuente que el toolbar).
+struct MessagingSectionHeader: View {
+    let title: LocalizedStringKey
+    let adaptiveColors: AdaptiveColors
+
+    var body: some View {
+        Text(title)
+            .font(.system(size: 17, weight: .bold))
+            .foregroundStyle(adaptiveColors.primary)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, 16)
+            .padding(.top, 10)
+            .padding(.bottom, 4)
+    }
+}
+
+struct ChatTintedGlassCircleButton: View {
+    let systemName: String
+    let tint: Color
+    let foregroundColor: Color
+    var size: CGFloat = 40
+    var iconSize: CGFloat = 20
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: systemName)
+                .font(.system(size: iconSize, weight: .medium))
+                .foregroundColor(foregroundColor)
+                .frame(width: size, height: size)
+                .modifier(ChatTintedGlassCircleModifier(tint: tint))
+                .contentShape(Circle())
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+private struct ChatTintedGlassCircleModifier: ViewModifier {
+    let tint: Color
+
+    func body(content: Content) -> some View {
+        if #available(iOS 26.0, *) {
+            content.glassEffect(.regular.tint(tint).interactive(), in: Circle())
+        } else {
+            content.liquidGlass(in: Circle(), interactive: true, tint: tint)
+        }
+    }
+}
+
 // MARK: - Chat Background
 struct ChatGlassmorphicBackground: View {
     let adaptiveColors: AdaptiveColors

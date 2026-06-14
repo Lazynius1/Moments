@@ -381,7 +381,8 @@ struct ActivityInteractionDetailView: View {
             initialIndex: 0,
             presentation: .single,
             destination: &zoomDestination,
-            zoomIDPrefix: "activity"
+            zoomIDPrefix: "activity",
+            chromeTitle: NSLocalizedString(detailNavigationTitleKey, comment: "Interaction detail title")
         )
     }
 

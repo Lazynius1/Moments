@@ -79,74 +79,90 @@ enum UserProfileTabType: String, CaseIterable {
 // ✅ NUEVO: Pills Tabs Component para UserProfile
 struct UserProfilePillTabs: View {
     @Binding var selectedTab: UserProfileTabType
-    @Environment(\.colorScheme) var colorScheme
     @State private var transientOffset: CGFloat = 0
 
     var body: some View {
         GeometryReader { proxy in
-            ZStack {
-                Capsule()
-                    .fill(Color.clear)
-                    .liquidGlass(in: Capsule())
-                    .overlay(
-                        Capsule()
-                            .stroke(colorScheme == .dark ? Color.white.opacity(0.08) : Color.black.opacity(0.06), lineWidth: 0.75)
-                    )
-
-                Capsule()
-                    .fill(Color.white.opacity(colorScheme == .dark ? 0.055 : 0.035))
-                    .frame(width: segmentWidth(for: proxy.size.width), height: 31)
-                    .liquidGlass(in: Capsule(), interactive: true)
-                    .shadow(color: .black.opacity(colorScheme == .dark ? 0.24 : 0.08), radius: 7, x: 0, y: 2)
-                    .offset(x: pillOffset(for: proxy.size.width))
-
-                HStack(spacing: 0) {
-                    ForEach(Array(UserProfileTabType.allCases.enumerated()), id: \.element) { index, tab in
-                        Button(action: {
-                            if tab != selectedTab {
-                                HapticManager.shared.selection()
-                            }
-                            withAnimation(.smooth(duration: 0.18, extraBounce: 0.01)) {
-                                selectedTab = tab
-                                transientOffset = 0
-                            }
-                        }) {
-                            HStack(spacing: 6) {
-                                Image(systemName: tab.icon)
-                                    .font(.system(size: 12, weight: .medium))
-
-                                Text(tab.localizedTitle)
-                                    .font(.custom("Poppins-Medium", size: 12))
-                            }
-                            .foregroundColor(labelColor(for: index, width: proxy.size.width))
-                            .frame(maxWidth: .infinity, maxHeight: .infinity)
-                            .contentShape(Rectangle())
+            ProfileGlassPillTrack {
+                ZStack {
+                    if #available(iOS 26.0, *) {
+                        GlassEffectContainer(spacing: 0) {
+                            ProfileGlassPillThumb(width: segmentWidth(for: proxy.size.width))
+                                .offset(x: pillOffset(for: proxy.size.width))
                         }
-                        .buttonStyle(.plain)
+                    } else {
+                        ProfileGlassPillThumb(width: segmentWidth(for: proxy.size.width))
+                            .offset(x: pillOffset(for: proxy.size.width))
                     }
-                }
-                .padding(.horizontal, 3)
-                .animation(.smooth(duration: 0.18, extraBounce: 0.01), value: visualIndex(for: proxy.size.width))
 
-                Capsule()
-                    .fill(Color.black.opacity(0.001))
-                    .contentShape(Capsule())
-                    .highPriorityGesture(
-                        DragGesture(minimumDistance: 0, coordinateSpace: .local)
-                            .onChanged { value in
-                                var transaction = Transaction()
-                                transaction.animation = nil
-                                withTransaction(transaction) {
-                                    transientOffset = constrainedTranslation(value.translation.width, width: proxy.size.width)
+                    pillButtons(width: proxy.size.width)
+                        .animation(.smooth(duration: 0.18, extraBounce: 0.01), value: visualIndex(for: proxy.size.width))
+
+                    Capsule()
+                        .fill(Color.black.opacity(0.001))
+                        .contentShape(Capsule())
+                        .highPriorityGesture(
+                            DragGesture(minimumDistance: 0, coordinateSpace: .local)
+                                .onChanged { value in
+                                    var transaction = Transaction()
+                                    transaction.animation = nil
+                                    withTransaction(transaction) {
+                                        transientOffset = constrainedTranslation(value.translation.width, width: proxy.size.width)
+                                    }
                                 }
-                            }
-                            .onEnded { value in
-                                settleSelection(translation: value.translation.width, locationX: value.location.x, width: proxy.size.width)
-                            }
-                    )
+                                .onEnded { value in
+                                    settleSelection(translation: value.translation.width, locationX: value.location.x, width: proxy.size.width)
+                                }
+                        )
+                }
             }
         }
-        .frame(height: 38)
+        .frame(height: ProfileChromeGlassMetrics.pillBarHeight)
+    }
+
+    @ViewBuilder
+    private func pillButtons(width: CGFloat) -> some View {
+        Group {
+            if #available(iOS 26.0, *) {
+                GlassEffectContainer(spacing: 0) {
+                    HStack(spacing: 0) {
+                        ForEach(Array(UserProfileTabType.allCases.enumerated()), id: \.element) { index, tab in
+                            pillButton(tab: tab, index: index, width: width)
+                        }
+                    }
+                }
+            } else {
+                HStack(spacing: 0) {
+                    ForEach(Array(UserProfileTabType.allCases.enumerated()), id: \.element) { index, tab in
+                        pillButton(tab: tab, index: index, width: width)
+                    }
+                }
+            }
+        }
+    }
+
+    private func pillButton(tab: UserProfileTabType, index: Int, width: CGFloat) -> some View {
+        Button(action: {
+            if tab != selectedTab {
+                HapticManager.shared.selection()
+            }
+            withAnimation(.smooth(duration: 0.18, extraBounce: 0.01)) {
+                selectedTab = tab
+                transientOffset = 0
+            }
+        }) {
+            HStack(spacing: 5) {
+                Image(systemName: tab.icon)
+                    .font(.system(size: ProfileChromeGlassMetrics.pillIconSize, weight: .medium))
+
+                Text(tab.localizedTitle)
+                    .font(.custom("Poppins-Medium", size: ProfileChromeGlassMetrics.pillLabelSize))
+            }
+            .foregroundColor(labelColor(for: index, width: width))
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
     }
 
     private var currentIndex: Int {
@@ -154,7 +170,7 @@ struct UserProfilePillTabs: View {
     }
 
     private func segmentWidth(for totalWidth: CGFloat) -> CGFloat {
-        let innerWidth = totalWidth - 6
+        let innerWidth = totalWidth - (ProfileChromeGlassMetrics.pillInnerPadding * 2)
         return innerWidth / CGFloat(UserProfileTabType.allCases.count)
     }
 

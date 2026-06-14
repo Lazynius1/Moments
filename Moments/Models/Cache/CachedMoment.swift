@@ -42,10 +42,6 @@ final class CachedMoment {
     var hasHiddenLayers: Bool?
     var hiddenLayerCount: Int?
     
-    // MARK: - Trending
-    var trendingScore: Double?
-    var engagementRate: Double?
-    
     // MARK: - Ubicación (serializada como JSON)
     var locationLatitude: Double?
     var locationLongitude: Double?
@@ -92,8 +88,6 @@ final class CachedMoment {
         gridPreviewBackground: String? = nil,
         hasHiddenLayers: Bool? = false,
         hiddenLayerCount: Int? = 0,
-        trendingScore: Double? = nil,
-        engagementRate: Double? = nil,
         locationLatitude: Double? = nil,
         locationLongitude: Double? = nil,
         reactionsData: Data? = nil,
@@ -133,8 +127,6 @@ final class CachedMoment {
         self.gridPreviewBackground = gridPreviewBackground
         self.hasHiddenLayers = hasHiddenLayers
         self.hiddenLayerCount = hiddenLayerCount
-        self.trendingScore = trendingScore
-        self.engagementRate = engagementRate
         self.locationLatitude = locationLatitude
         self.locationLongitude = locationLongitude
         self.reactionsData = reactionsData
@@ -195,8 +187,6 @@ extension CachedMoment {
             gridPreviewBackground: moment.gridPreviewBackground,
             hasHiddenLayers: moment.hasHiddenLayers,
             hiddenLayerCount: moment.hiddenLayerCount,
-            trendingScore: moment.trendingScore,
-            engagementRate: moment.engagementRate,
             locationLatitude: moment.locationCoordinate?.latitude,
             locationLongitude: moment.locationCoordinate?.longitude,
             reactionsData: reactionsData,
@@ -267,8 +257,6 @@ extension CachedMoment {
             hideLikeCounts: hideLikeCounts ?? false,
             allowSharing: allowSharing ?? true,
             scheduledDate: scheduledDate,
-            trendingScore: trendingScore,
-            engagementRate: engagementRate,
             isPinned: isPinned,
             pinnedAt: pinnedAt,
             gridPreviewScale: gridPreviewScale,

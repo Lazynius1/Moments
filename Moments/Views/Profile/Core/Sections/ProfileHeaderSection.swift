@@ -19,26 +19,27 @@ struct ProfileOwnPinnedTopChrome: View {
         ZStack {
             HStack(spacing: 8) {
                 Color.clear
-                    .frame(width: 36, height: 36)
+                    .frame(width: ProfileChromeGlassMetrics.controlSize, height: ProfileChromeGlassMetrics.controlSize)
 
                 Spacer()
 
-                Button {
-                    NotificationCenter.default.post(name: NSNotification.Name("ShowNotifications"), object: nil)
-                } label: {
-                    Image(systemName: "bell")
-                        .font(.system(size: 16, weight: .semibold))
-                        .foregroundColor(ProfileColors.textPrimary)
-                        .frame(width: 36, height: 36)
-                        .liquidGlass(in: Circle(), interactive: true)
-                }
+                ProfileChromeControlsCluster {
+                    ProfileChromeIconButton(
+                        systemName: "bell",
+                        foregroundColor: ProfileColors.textPrimary,
+                        standaloneGlass: false,
+                        action: {
+                            NotificationCenter.default.post(name: NSNotification.Name("ShowNotifications"), object: nil)
+                        }
+                    )
 
-                ownHeaderMenu
+                    ownHeaderMenu
+                }
             }
 
             HStack(spacing: 5) {
                 Text(username)
-                    .font(.custom("Poppins-Bold", size: 20))
+                    .font(StickyChromeTitleTypography.font)
                     .foregroundColor(ProfileColors.textPrimary)
                     .lineLimit(1)
 
@@ -80,8 +81,8 @@ struct ProfileOwnPinnedTopChrome: View {
             Image(systemName: "ellipsis")
                 .font(.system(size: 18, weight: .semibold))
                 .foregroundColor(ProfileColors.textPrimary)
-                .frame(width: 36, height: 36)
-                .liquidGlass(in: Circle(), interactive: true)
+                .frame(width: ProfileChromeGlassMetrics.controlSize, height: ProfileChromeGlassMetrics.controlSize)
+                .contentShape(Circle())
                 .matchedTransitionSource(id: "settings-view", in: profileZoomNamespace)
         }
     }
@@ -167,7 +168,7 @@ struct ModernProfileHeader: View {
                                 endPoint: .bottomTrailing
                             )
                         )
-                        .font(.custom("Poppins-Bold", size: 20))
+                        .font(StickyChromeTitleTypography.font)
 
                         if let currentUser = authService.currentUser,
                            (currentUser.isPlusSubscriber || currentUser.isSupporter) {
@@ -240,7 +241,7 @@ struct ModernProfileHeader: View {
                 .foregroundColor(colorScheme == .dark ? .white : .black)
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 10)
-                .liquidGlass(in: Capsule(), interactive: true)
+                .liquidGlass(in: Capsule(), variant: .regular, interactive: true)
             }
             .buttonStyle(.plain)
             .matchedTransitionSource(id: "edit-profile-view", in: profileZoomNamespace)

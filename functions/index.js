@@ -7351,8 +7351,6 @@ function serializeMoment(docId, data) {
     hideLikeCounts: data.hideLikeCounts || false,
     allowSharing: data.allowSharing !== false,
     scheduledDate: tsToMillis(data.scheduledDate),
-    trendingScore: data.trendingScore || null,
-    engagementRate: data.engagementRate || null,
     hasHiddenLayers: data.hasHiddenLayers === true,
     hiddenLayerCount: Number.isInteger(data.hiddenLayerCount) ? data.hiddenLayerCount : 0
   };
@@ -7414,8 +7412,6 @@ function serializeRestrictedMoment(docId, data) {
     hideLikeCounts: true,
     allowSharing: false,
     scheduledDate: tsToMillis(data.scheduledDate),
-    trendingScore: null,
-    engagementRate: null
   };
 }
 

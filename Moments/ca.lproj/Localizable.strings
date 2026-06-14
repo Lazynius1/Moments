@@ -931,8 +931,10 @@
 
 /* New Conversation (Liquid Glass) */
 "messaging.new.cancel" = "Cancel·lar";
-"messaging.new.title" = "Nova conversa";
-"messaging.new.searchPlaceholder" = "Cercar usuari...";
+"messaging.new.title" = "Nou missatge";
+"messaging.new.to" = "Per a:";
+"messaging.new.suggestions" = "Suggeriments";
+"messaging.new.searchPlaceholder" = "Cercar...";
 
 
 /* Message Requests */
@@ -1122,14 +1124,6 @@
 /* Stories */
 "stories.blockUser.confirm" = "Estàs segur que vols bloquejar aquest usuari? No podràs veure les seves històries ni contingut.";
 "stories.error.notAuthenticated" = "Usuari no autenticat";
-
-/* Trending Components */
-"trending.hashtags.title" = "🔥 Trending";
-"trending.hashtags.subtitle" = "Hashtags populars ara";
-"trending.locations.title" = "📍 Llocs populars";
-"trending.locations.subtitle" = "On està passant tot";
-"trending.locations.moments" = "moments";
-"trending.locations.users" = "usuaris";
 
 /* Register */
 "register.actions.createAccount" = "Crear compte";
@@ -1763,35 +1757,6 @@
 "modernComments.sort.newest" = "Més recents";
 "modernComments.sort.oldest" = "Més antics";
 "modernComments.sort.mostLiked" = "Més populars";
-
-/* Trending */
-"trending.title" = "Trending";
-"trending.subtitle" = "El més popular ara";
-"trending.live" = "EN VIU";
-"trending.description" = "Descobreix què està passant ara mateix a la teva comunitat";
-"trending.error.title" = "Ups, alguna cosa ha anat malament";
-"trending.error.retry" = "Tornar a provar";
-
-/* Trending Components */
-"trendingComponents.hot" = "HOT";
-"trendingComponents.seeMore" = "Veure més";
-"trendingComponents.forYou" = "PER A TU";
-"trendingComponents.stats" = "📊 Estadístiques";
-"trendingComponents.lastUpdated" = "Actualitzat %@";
-"trendingComponents.trending" = "TRENDING";
-"trendingComponents.empty.title" = "No hi ha contingut trending";
-"trendingComponents.empty.description" = "Sagues el primer a crear contingut viral";
-"trendingComponents.refresh" = "Actualitzar";
-"trendingComponents.analyzing" = "Analitzant tendències...";
-"trendingComponents.discovering" = "Descobrint el més popular";
-
-/* Trending Stats */
-"trendingStats.hashtags" = "Hashtags";
-"trendingStats.trending" = "trending";
-"trendingStats.locations" = "Llocs";
-"trendingStats.popular" = "populars";
-"trendingStats.moments" = "Moments";
-"trendingStats.featured" = "destacats";
 
 /* ContextMenu */
 "contextMenu.editMoment" = "Editar moment";
@@ -3635,7 +3600,6 @@
 "explore.error.requestFollow" = "No s'ha pogut enviar la sol·licitud: %@";
 "explore.error.followUser" = "No s'ha pogut seguir l'usuari: %@";
 "explore.error.fetchProfile" = "No s'ha pogut obtenir el perfil: %@";
-"explore.error.trending" = "No s'han pogut carregar les tendències: %@";
 "explore.error.searchUsers" = "No s'han pogut cercar usuaris: %@";
 "settings.error.unknown" = "S'ha produït un error desconegut";
 "settings.error.notAuthenticated" = "Usuari no autenticat";
@@ -3817,7 +3781,6 @@
 "errors.sendRequestFailed" = "Could not send follow request: %@";
 "errors.followUserFailed" = "Could not follow user: %@";
 "errors.fetchProfileFailed" = "Could not load profile: %@";
-"errors.trendingLoadFailed" = "Could not load trending: %@";
 "errors.searchUsersFailed" = "Could not search users: %@";
 "errors.momentImageUnavailable" = "Could not load the moment image.";
 "errors.stickerGenerationFailed" = "Could not generate the sticker.";

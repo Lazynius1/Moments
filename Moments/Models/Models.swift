@@ -845,10 +845,6 @@ struct Moment: Identifiable, Codable, Equatable {
     let hideLikeCounts: Bool
     let allowSharing: Bool
 
-    // ✅ NUEVOS CAMPOS DE TRENDING (opcionales para compatibilidad)
-    let trendingScore: Double?
-    let engagementRate: Double?
-
     // ✅ NUEVO: Estructura para coordenadas de ubicación
     struct LocationCoordinate: Codable, Equatable {
         let latitude: Double
@@ -873,7 +869,6 @@ struct Moment: Identifiable, Codable, Equatable {
         case isPinned, pinnedAt
         case gridPreviewScale, gridPreviewOffsetX, gridPreviewOffsetY, gridPreviewFitMode, gridPreviewBackground
         case thumbnailUrl, videoDuration, videoFileSize, videoResolution
-        case trendingScore, engagementRate
         case hasHiddenLayers, hiddenLayerCount
         case isModerationHidden, originalAudience, reviewRequired, canRestore
     }
@@ -948,8 +943,6 @@ struct Moment: Identifiable, Codable, Equatable {
         self.disableComments = (try? container.decodeIfPresent(Bool.self, forKey: .disableComments)) ?? false
         self.hideLikeCounts = (try? container.decodeIfPresent(Bool.self, forKey: .hideLikeCounts)) ?? false
         self.allowSharing = (try? container.decodeIfPresent(Bool.self, forKey: .allowSharing)) ?? true
-        self.trendingScore = try container.decodeIfPresent(Double.self, forKey: .trendingScore)
-        self.engagementRate = try container.decodeIfPresent(Double.self, forKey: .engagementRate)
         self.hasHiddenLayers = (try? container.decodeIfPresent(Bool.self, forKey: .hasHiddenLayers)) ?? false
         self.hiddenLayerCount = (try? container.decodeIfPresent(Int.self, forKey: .hiddenLayerCount)) ?? 0
         self.isModerationHidden = try container.decodeIfPresent(Bool.self, forKey: .isModerationHidden)
@@ -1009,8 +1002,6 @@ struct Moment: Identifiable, Codable, Equatable {
         try container.encode(disableComments, forKey: .disableComments)
         try container.encode(hideLikeCounts, forKey: .hideLikeCounts)
         try container.encode(allowSharing, forKey: .allowSharing)
-        try container.encodeIfPresent(trendingScore, forKey: .trendingScore)
-        try container.encodeIfPresent(engagementRate, forKey: .engagementRate)
         try container.encode(hasHiddenLayers, forKey: .hasHiddenLayers)
         try container.encode(hiddenLayerCount, forKey: .hiddenLayerCount)
         try container.encodeIfPresent(isModerationHidden, forKey: .isModerationHidden)
@@ -1023,7 +1014,7 @@ struct Moment: Identifiable, Codable, Equatable {
         return lhs.id == rhs.id
     }
 
-    // ✅ NUEVO: Inicializador personalizado con campos de trending
+    // ✅ NUEVO: Inicializador personalizado con campos multimedia avanzados
     init(
         id: String?,
         authorId: String,
@@ -1051,8 +1042,6 @@ struct Moment: Identifiable, Codable, Equatable {
         hideLikeCounts: Bool,
         allowSharing: Bool,
         scheduledDate: Date? = nil,
-        trendingScore: Double? = nil,
-        engagementRate: Double? = nil,
         isArchived: Bool? = nil,
         archivedAt: Date? = nil,
         isPinned: Bool? = nil,
@@ -1095,8 +1084,6 @@ struct Moment: Identifiable, Codable, Equatable {
         self.hideLikeCounts = hideLikeCounts
         self.allowSharing = allowSharing
         self.scheduledDate = scheduledDate // ✅ FIXED: Asignar fecha programada
-        self.trendingScore = trendingScore
-        self.engagementRate = engagementRate
         self.isArchived = isArchived
         self.archivedAt = archivedAt
         self.isPinned = isPinned

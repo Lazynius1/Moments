@@ -85,19 +85,11 @@ struct MessagingView: View {
 
     var body: some View {
         ChatRecoveryGateView(onCancel: onDismiss) {
-            NavigationStack { // ✅ CAMBIO 1: NavigationStack en lugar de NavigationView
+            NavigationStack {
                 ZStack {
                     GlassmorphicBackground(adaptiveColors: adaptiveColors)
 
-                    VStack(spacing: 0) {
-                        glassmorphicTopBar
-
-                        if !viewModel.conversations.isEmpty {
-                            searchBar
-                        }
-
-                        conversationList
-                    }
+                    conversationList
 
                     GeometryReader { proxy in
                         ConversationContextMenuOverlay(
@@ -115,15 +107,29 @@ struct MessagingView: View {
                     .allowsHitTesting(conversationMenuSelection != nil)
                 }
                 .coordinateSpace(name: "messagingRoot")
-                .navigationBarHidden(true)
-                .sheet(isPresented: $isShowingNewConversation) {
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar { messagingToolbarContent }
+                .safeAreaInset(edge: .top, spacing: 0) {
+                    if !viewModel.conversations.isEmpty {
+                        searchBar
+                    }
+                }
+                .sheet(isPresented: $showingStatusSelector) {
+                    OnlineStatusSelectorView(
+                        currentStatus: onlineStatusService.currentUserStatus,
+                        onStatusSelected: { newStatus in
+                            onlineStatusService.setGlobalStatus(newStatus)
+                            showingStatusSelector = false
+                        }
+                    )
+                }
+                .navigationDestination(isPresented: $isShowingNewConversation) {
                     GlassmorphicNewConversationView(viewModel: viewModel) { conversation in
-                        if let conversation = conversation {
-                            selectedConversation = conversation // ✅ Navegar automáticamente
+                        isShowingNewConversation = false
+                        if let conversation {
+                            selectedConversation = conversation
                         }
                     }
-                    .presentationDetents([.medium, .large])
-                    .presentationDragIndicator(.visible)
                 }
                 .sheet(isPresented: $showingMessageRequests) {
                     MessageRequestsView()
@@ -265,126 +271,113 @@ struct MessagingView: View {
         }
     }
 
-    private var glassmorphicTopBar: some View {
-        VStack(spacing: 8) {
-            HStack {
-                if let onDismiss = onDismiss {
-                    // Close button if presented fullscreen
-                    Button(action: { onDismiss() }) {
-                        Image(systemName: "chevron.left")
-                            .font(.system(size: 20, weight: .bold))
-                            .foregroundColor(adaptiveColors.primary)
-                            .frame(width: 44, height: 44)
-                            .liquidGlass(in: Circle())
-                    }
-                } else {
-                    // New conversation button (izquierda)
-                    Button(action: {
-                        isShowingNewConversation = true
-                    }) {
-                        Image(systemName: "square.and.pencil")
-                            .font(.system(size: 22))
-                            .foregroundColor(adaptiveColors.primary)
-                            .frame(width: 44, height: 44)
-                            .liquidGlass(in: Circle())
-                    }
-                }
+    // MARK: - Toolbar nativo (scroll edge blur del sistema en iOS 26)
 
-                Spacer()
-
-                // Title centered con selector de estados
-                VStack(spacing: 4) {
-                    Text("messaging.title")
-                        .font(.custom("Poppins-Bold", size: 26))
-                        .foregroundColor(adaptiveColors.primary)
-
-                    // ✅ NUEVO: Selector de estados online
-                    Button(action: {
-                        showingStatusSelector = true
-                    }) {
-                        HStack(spacing: 6) {
-                            Image(systemName: onlineStatusService.currentUserStatus.icon)
-                                .font(.system(size: 12))
-                                .foregroundColor(onlineStatusService.currentUserStatus.color)
-
-                            Text(onlineStatusService.currentUserStatus.displayName)
-                                .font(.custom("Poppins-Regular", size: 12))
-                                .foregroundColor(adaptiveColors.secondary)
-
-                            Image(systemName: "chevron.down")
-                                .font(.system(size: 10))
-                                .foregroundColor(adaptiveColors.secondary)
-                        }
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 6)
-                        .liquidGlass(in: Capsule())
-                    }
-                    .scaleEffect(showingStatusSelector ? 0.95 : 1.0)
-                    .animation(.easeInOut(duration: 0.1), value: showingStatusSelector)
-                }
-
-                Spacer()
-
-                HStack(spacing: 12) {
-                    if onDismiss != nil {
-                        // New conversation button moved here if presented fullscreen
-                        Button(action: {
-                            isShowingNewConversation = true
-                        }) {
-                            Image(systemName: "square.and.pencil")
-                                .font(.system(size: 20))
-                                .foregroundColor(adaptiveColors.primary)
-                                .frame(width: 44, height: 44)
-                                .liquidGlass(in: Circle())
-                        }
-                    }
-
-                    // Message requests button (derecha)
-                    Button(action: {
-                        showingMessageRequests = true
-                    }) {
-                        ZStack {
-                            Image(systemName: "message.circle")
-                                .font(.system(size: 22))
-                                .foregroundColor(adaptiveColors.primary)
-                                .frame(width: 44, height: 44)
-                                .liquidGlass(in: Circle())
-
-                            // Badge for pending requests
-                            if pendingRequestCount > 0 {
-                                Text("\(pendingRequestCount)")
-                                    .font(.caption2)
-                                    .fontWeight(.bold)
-                                    .foregroundColor(.white)
-                                    .frame(width: 18, height: 18)
-                                    .background(
-                                        Circle()
-                                            .fill(Color(hex: "FF3B30"))
-                                    )
-                                    .offset(x: 12, y: -12)
-                            }
-                        }
-                    }
-                }
+    @ToolbarContentBuilder
+    private var messagingToolbarContent: some ToolbarContent {
+        if onDismiss != nil {
+            ToolbarItem(placement: .topBarLeading) {
+                messagingToolbarBackButton
             }
-
-            // ✅ NUEVO: Sheet para seleccionar estado
-            .sheet(isPresented: $showingStatusSelector) {
-                OnlineStatusSelectorView(
-                    currentStatus: onlineStatusService.currentUserStatus,
-                    onStatusSelected: { newStatus in
-                        onlineStatusService.setGlobalStatus(newStatus)
-                        showingStatusSelector = false
-                    }
-                )
+            .chatHideSharedBackgroundIfAvailable()
+        } else {
+            ToolbarItem(placement: .topBarLeading) {
+                messagingToolbarComposeButton
             }
+            .chatHideSharedBackgroundIfAvailable()
         }
-        .padding(.horizontal, 16)
-        .padding(.top, 10)
-        .padding(.bottom, 10)
+
+        ToolbarItem(placement: .principal) {
+            messagingToolbarTitleStack
+        }
+
+        if onDismiss != nil {
+            ToolbarItem(placement: .topBarTrailing) {
+                messagingToolbarComposeButton
+            }
+            .chatHideSharedBackgroundIfAvailable()
+        }
+
+        ToolbarItem(placement: .topBarTrailing) {
+            messagingToolbarRequestsButton
+        }
+        .chatHideSharedBackgroundIfAvailable()
     }
 
-    // ✅ NUEVO: Barra de búsqueda
+    private var messagingToolbarBackButton: some View {
+        Button(action: { onDismiss?() }) {
+            Image(systemName: "chevron.left")
+                .font(.system(size: 18, weight: .semibold))
+                .foregroundColor(adaptiveColors.primary)
+                .frame(width: 40, height: 40)
+                .modifier(ChatToolbarIconGlassModifier())
+        }
+        .buttonStyle(.plain)
+    }
+
+    private var messagingToolbarComposeButton: some View {
+        Button(action: { isShowingNewConversation = true }) {
+            Image(systemName: "square.and.pencil")
+                .font(.system(size: 17, weight: .medium))
+                .foregroundColor(adaptiveColors.primary)
+                .frame(width: 40, height: 40)
+                .modifier(ChatToolbarIconGlassModifier())
+        }
+        .buttonStyle(.plain)
+    }
+
+    private var messagingToolbarRequestsButton: some View {
+        Button(action: { showingMessageRequests = true }) {
+            ZStack {
+                Image(systemName: "message.circle")
+                    .font(.system(size: 17, weight: .medium))
+                    .foregroundColor(adaptiveColors.primary)
+                    .frame(width: 40, height: 40)
+                    .modifier(ChatToolbarIconGlassModifier())
+
+                if pendingRequestCount > 0 {
+                    Text("\(pendingRequestCount)")
+                        .font(.caption2)
+                        .fontWeight(.bold)
+                        .foregroundColor(.white)
+                        .frame(width: 18, height: 18)
+                        .background(Circle().fill(Color(hex: "FF3B30")))
+                        .offset(x: 12, y: -12)
+                }
+            }
+        }
+        .buttonStyle(.plain)
+    }
+
+    private var messagingToolbarTitleStack: some View {
+        VStack(spacing: 2) {
+            Text("messaging.title")
+                .font(.system(size: 17, weight: .semibold))
+                .foregroundStyle(adaptiveColors.primary)
+                .lineLimit(1)
+
+            Button(action: { showingStatusSelector = true }) {
+                HStack(spacing: 4) {
+                    Image(systemName: onlineStatusService.currentUserStatus.icon)
+                        .font(.system(size: 9, weight: .medium))
+                        .foregroundStyle(onlineStatusService.currentUserStatus.color)
+
+                    Text(onlineStatusService.currentUserStatus.displayName)
+                        .font(.system(size: 11, weight: .regular))
+                        .foregroundStyle(adaptiveColors.secondary)
+                        .lineLimit(1)
+
+                    Image(systemName: "chevron.down")
+                        .font(.system(size: 8, weight: .semibold))
+                        .foregroundStyle(adaptiveColors.secondary)
+                }
+            }
+            .buttonStyle(.plain)
+        }
+        .fixedSize(horizontal: false, vertical: true)
+    }
+
+    // ✅ Barra de búsqueda
     private var searchBar: some View {
         HStack(spacing: 12) {
             HStack(spacing: 10) {
@@ -516,88 +509,96 @@ struct MessagingView: View {
                  Spacer()
              }
          } else if isSearching {
-             ScrollView(showsIndicators: false) {
-                 VStack(spacing: 0) {
-                     searchResultsSection
-                 }
+             List {
+                 searchResultsListContent
              }
+             .listStyle(.plain)
+             .scrollContentBackground(.hidden)
+             .messagingListEdgeToEdge()
+             .chatScrollEdgeEffect()
          } else {
              List {
                  conversationsSection
              }
              .listStyle(.plain)
              .scrollContentBackground(.hidden)
+             .chatScrollEdgeEffect()
              .scrollDisabled(conversationMenuSelection != nil)
              .onPreferenceChange(ConversationRowFrameKey.self) { conversationRowFrames = $0 }
          }
      }
 
-    // ✅ NUEVO: Sección de resultados de búsqueda
     @ViewBuilder
-    private var searchResultsSection: some View {
-        // Conversaciones existentes que coinciden
+    private var searchResultsListContent: some View {
         if !viewModel.filteredConversations.isEmpty {
-            VStack(alignment: .leading, spacing: 8) {
-                Text("messaging.conversations")
-                    .font(.custom("Poppins-SemiBold", size: 16))
-                    .foregroundColor(.white.opacity(0.8))
-                    .padding(.horizontal, 4)
-
+            Section {
                 ForEach(viewModel.filteredConversations) { conversation in
-                    // ✅ CAMBIO 3: Button en lugar de NavigationLink
-                    Button(action: {
-                        selectedConversation = conversation
-                    }) {
-                        SearchConversationRow(conversation: conversation)
-                    }
-                    .buttonStyle(PlainButtonStyle())
+                    GlassmorphicConversationRow(
+                        conversation: conversation,
+                        onTap: { selectedConversation = conversation }
+                    )
+                    .listRowInsets(EdgeInsets())
+                    .listRowSeparator(.hidden)
+                    .listRowBackground(Color.clear)
                 }
+            } header: {
+                messagingSearchSectionHeader("messaging.conversations")
             }
         }
 
-        // Usuarios encontrados
         if !viewModel.searchedUsers.isEmpty {
-            VStack(alignment: .leading, spacing: 8) {
-                Text("messaging.users")
-                    .font(.custom("Poppins-SemiBold", size: 16))
-                    .foregroundColor(.white.opacity(0.8))
-                    .padding(.horizontal, 4)
-                    .padding(.top, viewModel.filteredConversations.isEmpty ? 0 : 16)
-
+            Section {
                 ForEach(viewModel.searchedUsers) { user in
                     SearchUserRow(user: user) { conversation in
                         if let conversation = conversation {
-                            selectedConversation = conversation // ✅ Navegar automáticamente
+                            selectedConversation = conversation
                             searchText = ""
                             isSearching = false
                             isSearchFocused = false
                             viewModel.clearSearch()
                         }
                     }
+                    .listRowInsets(EdgeInsets())
+                    .listRowSeparator(.hidden)
+                    .listRowBackground(Color.clear)
                 }
+            } header: {
+                messagingSearchSectionHeader("messaging.users")
             }
         }
 
-        // Sin resultados
         if viewModel.filteredConversations.isEmpty && viewModel.searchedUsers.isEmpty && !searchText.isEmpty {
-            VStack(spacing: 12) {
-                Image(systemName: "magnifyingglass")
-                    .font(.system(size: 40))
-                    .foregroundColor(.white.opacity(0.6))
-
-                Text("messaging.noResults")
-                    .font(.custom("Poppins-SemiBold", size: 16))
-                    .foregroundColor(.white)
-
-                Text("messaging.noResults.description")
-                    .font(.custom("Poppins-Regular", size: 14))
-                    .foregroundColor(.white.opacity(0.7))
-                    .multilineTextAlignment(.center)
+            Section {
+                messagingSearchEmptyState
+                    .listRowInsets(EdgeInsets())
+                    .listRowSeparator(.hidden)
+                    .listRowBackground(Color.clear)
             }
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 40)
-            .glassmorphic()
         }
+    }
+
+    private func messagingSearchSectionHeader(_ title: LocalizedStringKey) -> some View {
+        MessagingSectionHeader(title: title, adaptiveColors: adaptiveColors)
+    }
+
+    private var messagingSearchEmptyState: some View {
+        VStack(spacing: 12) {
+            Image(systemName: "magnifyingglass")
+                .font(.system(size: 40))
+                .foregroundStyle(adaptiveColors.secondary.opacity(0.6))
+
+            Text("messaging.noResults")
+                .font(.custom("Poppins-SemiBold", size: 16))
+                .foregroundStyle(adaptiveColors.primary)
+
+            Text("messaging.noResults.description")
+                .font(.custom("Poppins-Regular", size: 14))
+                .foregroundStyle(adaptiveColors.secondary)
+                .multilineTextAlignment(.center)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 40)
+        .padding(.horizontal, 16)
     }
 
     // ✅ NUEVAS FUNCIONES: Acciones de swipe
@@ -732,71 +733,11 @@ private struct ConversationPressableRow: View {
     }
 }
 
-// ✅ COMPONENTE para resultados de conversaciones en búsqueda
-struct SearchConversationRow: View {
-    let conversation: Conversation
-    @State private var liveOtherParticipantUsername: String = ""
-
-    private var displayUsername: String {
-        let fallback = conversation.otherParticipantUsername ?? NSLocalizedString("messaging.user.default", comment: "Default user name")
-        let live = liveOtherParticipantUsername.trimmingCharacters(in: .whitespacesAndNewlines)
-        return live.isEmpty ? fallback : live
-    }
-
-    var body: some View {
-        HStack(spacing: 14) {
-            AsyncProfileImageView(userId: conversation.otherParticipantId)
-                .frame(width: 48, height: 48)
-
-            VStack(alignment: .leading, spacing: 4) {
-                Text(displayUsername)
-                    .font(.custom("Poppins-SemiBold", size: 15))
-                    .foregroundColor(.white)
-
-                Text(conversation.messagePreview)
-                    .font(.custom("Poppins-Regular", size: 13))
-                    .foregroundColor(.white.opacity(0.7))
-                    .lineLimit(1)
-            }
-
-            Spacer()
-
-            Image(systemName: "bubble.left.and.bubble.right")
-                .font(.system(size: 16))
-                .foregroundColor(.white.opacity(0.5))
-        }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 12)
-        .glassmorphic()
-        .onAppear {
-            refreshOtherParticipantUsername()
-        }
-        .onChange(of: conversation.otherParticipantId) { _, _ in
-            refreshOtherParticipantUsername()
-        }
-    }
-
-    private func refreshOtherParticipantUsername() {
-        let otherUserId = conversation.otherParticipantId.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !otherUserId.isEmpty else {
-            liveOtherParticipantUsername = ""
-            return
-        }
-
-        UserCacheService.shared.refreshUser(userId: otherUserId) { user in
-            let fetchedUsername = user?.username.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-            DispatchQueue.main.async {
-                guard self.conversation.otherParticipantId.trimmingCharacters(in: .whitespacesAndNewlines) == otherUserId else { return }
-                self.liveOtherParticipantUsername = fetchedUsername
-            }
-        }
-    }
-}
-
-// ✅ COMPONENTE ACTUALIZADO para usuarios en búsqueda
+// ✅ COMPONENTE para usuarios encontrados en búsqueda
 struct SearchUserRow: View {
     let user: AppUser
     let onTap: (Conversation?) -> Void
+    @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
         Button(action: {
@@ -830,29 +771,29 @@ struct SearchUserRow: View {
         }) {
             HStack(spacing: 14) {
                 AsyncProfileImageView(userId: user.id)
-                    .frame(width: 48, height: 48)
+                    .frame(width: 56, height: 56)
 
                 VStack(alignment: .leading, spacing: 4) {
                     Text(user.username)
-                        .font(.custom("Poppins-SemiBold", size: 15))
-                        .foregroundColor(.white)
+                        .font(.custom("Poppins-SemiBold", size: 16))
+                        .foregroundColor(colorScheme == .dark ? .white : .black)
 
                     Text("messaging.tapToStartConversation")
-                        .font(.custom("Poppins-Regular", size: 13))
-                        .foregroundColor(.white.opacity(0.7))
+                        .font(.custom("Poppins-Regular", size: 14))
+                        .foregroundColor(colorScheme == .dark ? .white.opacity(0.8) : .black.opacity(0.7))
+                        .lineLimit(1)
                 }
-
-                Spacer()
+                .frame(maxWidth: .infinity, alignment: .leading)
 
                 Image(systemName: "plus.circle")
                     .font(.system(size: 20))
                     .foregroundColor(Color(hex: "007AFF"))
             }
             .padding(.horizontal, 16)
-            .padding(.vertical, 12)
-            .glassmorphic()
+            .padding(.vertical, 10)
+            .contentShape(Rectangle())
         }
-        .buttonStyle(PlainButtonStyle())
+        .buttonStyle(.plain)
     }
 }
 
@@ -1124,266 +1065,209 @@ struct GlassmorphicConversationRow: View {
     }
 }
 
-// ✅ ACTUALIZADA: Glassmorphic New Conversation View CON CALLBACK
+// ✅ Nueva conversación — pantalla completa estilo Instagram
 struct GlassmorphicNewConversationView: View {
-    @Environment(\.dismiss) var dismiss
+    @Environment(\.dismiss) private var dismiss
+    @Environment(\.colorScheme) private var colorScheme
     @ObservedObject var viewModel: MessagingViewModel
-    @EnvironmentObject var messageRequestService: MessageRequestService
-    @Environment(\.colorScheme) var colorScheme
-    @State private var searchText: String = ""
-    @State private var selectedUser: AppUser?
-    @State private var showingMessageComposer = false
-    @State private var messageText = ""
+    @FocusState private var isSearchFocused: Bool
+    @Namespace private var profileZoomNamespace
+    @State private var searchText = ""
+    @State private var showingUserProfile: AppUser?
     let onConversationCreated: (Conversation?) -> Void
 
+    private var adaptiveColors: AdaptiveColors {
+        AdaptiveColors(colorScheme: colorScheme)
+    }
+
     var body: some View {
+        ZStack {
+            GlassmorphicBackground(adaptiveColors: adaptiveColors)
+
+            VStack(spacing: 0) {
+                newConversationToField
+                newConversationUserList
+            }
+        }
+        .navigationBarTitleDisplayMode(.inline)
+        .navigationBarBackButtonHidden(true)
+        .toolbar { newConversationToolbarContent }
+        .fullScreenCover(item: $showingUserProfile) { user in
+            UserProfileView(userId: user.id)
+                .userProfileZoomDestination(userId: user.id, namespace: profileZoomNamespace)
+        }
+        .onAppear {
+            viewModel.searchUsers(query: "")
+        }
+        .onChange(of: searchText) { _, newValue in
+            viewModel.searchUsers(query: newValue)
+        }
+    }
+
+    @ToolbarContentBuilder
+    private var newConversationToolbarContent: some ToolbarContent {
+        ToolbarItem(placement: .topBarLeading) {
+            Button(action: { dismiss() }) {
+                Image(systemName: "chevron.left")
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundColor(adaptiveColors.primary)
+                    .frame(width: 40, height: 40)
+                    .modifier(ChatToolbarIconGlassModifier())
+            }
+            .buttonStyle(.plain)
+        }
+        .chatHideSharedBackgroundIfAvailable()
+
+        ToolbarItem(placement: .principal) {
+            Text("messaging.new.title")
+                .font(.system(size: 17, weight: .semibold))
+                .foregroundStyle(adaptiveColors.primary)
+        }
+    }
+
+    private var newConversationToField: some View {
         VStack(spacing: 0) {
-            HStack {
-                Button(action: { dismiss() }) {
-                    Image(systemName: "chevron.down")
-                        .font(.system(size: 16, weight: .semibold))
-                        .foregroundColor(.primary)
-                        .frame(width: 38, height: 38)
-                        .background(Color.clear.liquidGlass(in: Circle(), interactive: true))
-                }
+            HStack(spacing: 10) {
+                Text("messaging.new.to")
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundStyle(adaptiveColors.primary)
 
-                Spacer()
+                TextField("messaging.new.searchPlaceholder", text: $searchText)
+                    .font(.system(size: 16))
+                    .foregroundStyle(adaptiveColors.primary)
+                    .focused($isSearchFocused)
+                    .textInputAutocapitalization(.never)
+                    .disableAutocorrection(true)
 
-                Text(NSLocalizedString("messaging.new.title", comment: "New conversation title"))
-                    .font(.custom("Poppins-SemiBold", size: 22))
-                    .foregroundColor(.primary)
-
-                Spacer()
-
-                Color.clear.frame(width: 38, height: 38)
-            }
-            .padding(.horizontal, 14)
-            .padding(.top, 8)
-            .padding(.bottom, 20)
-
-            VStack(spacing: 24) {
-                    // ✅ LIQUID GLASS SEARCH BAR (CÁPSULA)
-                    HStack(spacing: 12) {
-                        Image(systemName: "magnifyingglass")
-                            .font(.system(size: 18, weight: .medium))
-                            .foregroundColor(.primary.opacity(searchText.isEmpty ? 0.3 : 0.7))
-                            .scaleEffect(searchText.isEmpty ? 1.0 : 1.1)
-                            .animation(.spring(response: 0.3, dampingFraction: 0.6), value: searchText.isEmpty)
-
-                        TextField("", text: $searchText, prompt:
-                            Text(NSLocalizedString("messaging.new.searchPlaceholder", comment: "Search user placeholder"))
-                                .foregroundColor(colorScheme == .dark ? .white.opacity(0.3) : .black.opacity(0.3))
-                                .font(.system(size: 17))
-                        )
-                        .font(.system(size: 17, weight: .regular))
-                        .foregroundColor(colorScheme == .dark ? .white : .black)
-                        .accentColor(colorScheme == .dark ? .white : .black)
-                        .onChange(of: searchText) { _, newValue in
-                            viewModel.searchUsers(query: newValue)
-                        }
-
-                        if !searchText.isEmpty {
-                            Button(action: { searchText = "" }) {
-                                Image(systemName: "xmark.circle.fill")
-                                    .foregroundColor(.primary.opacity(0.4))
-                            }
-                            .transition(.opacity.combined(with: .scale))
-                        }
+                if !searchText.isEmpty {
+                    Button {
+                        searchText = ""
+                        viewModel.searchUsers(query: "")
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .foregroundStyle(adaptiveColors.secondary)
                     }
-                    .padding(.horizontal, 20)
-                    .frame(height: 56)
-                    .liquidGlass(in: Capsule())
-                    .padding(.horizontal, 14)
-
-                    if let errorMessage = viewModel.errorMessage {
-                        Text(errorMessage)
-                            .font(.system(size: 14))
-                            .foregroundColor(.red.opacity(0.9))
-                            .padding(.horizontal, 16)
-                            .padding(.vertical, 10)
-                            .background(
-                                RoundedRectangle(cornerRadius: 16)
-                                    .fill(.red.opacity(0.1))
-                                    .overlay(
-                                        RoundedRectangle(cornerRadius: 16)
-                                            .stroke(.red.opacity(0.3), lineWidth: 0.5)
-                                    )
-                            )
-                            .padding(.horizontal, 14)
-                    }
-
-                    ScrollView(showsIndicators: false) {
-                        VStack(spacing: 16) {
-                            ForEach(viewModel.suggestedUsers) { user in
-                                GlassmorphicUserRow(
-                                    user: user,
-                                    isSelected: selectedUser?.id == user.id,
-                                    onTap: { selectedUser = user }
-                                )
-                            }
-                        }
-                        .padding(.horizontal, 14)
-                        .padding(.top, 8)
-                    }
-
-                    if selectedUser != nil {
-                        Button(action: {
-                            showingMessageComposer = true
-                        }) {
-                            HStack {
-                                Image(systemName: "bubble.left.fill")
-                                Text("messaging.startConversation")
-                            }
-                            .font(.system(size: 17, weight: .semibold))
-                            .foregroundColor(colorScheme == .dark ? .black : .white)
-                            .frame(maxWidth: .infinity)
-                            .frame(height: 58)
-                            .background(
-                                Capsule()
-                                    .fill(colorScheme == .dark ? Color.white : Color.black)
-                            )
-                            .shadow(color: (colorScheme == .dark ? Color.white : Color.black).opacity(0.25), radius: 20, x: 0, y: 10)
-                        }
-                        .padding(.horizontal, 20)
-                        .padding(.bottom, 24)
-                        .transition(.move(edge: .bottom).combined(with: .opacity))
-                    }
-            }
-        }
-        //.preferredColorScheme(.dark) // ❌ ELIMINADO: Respetar tema del sistema/app
-        .navigationBarHidden(true)
-        .sheet(isPresented: $showingMessageComposer) {
-            MessageComposerView(
-                selectedUser: selectedUser,
-                messageText: $messageText,
-                onSend: sendMessageOrRequest
-            )
-        }
-    }
-
-    // ✅ NUEVA: Función para enviar mensaje o solicitud
-    private func sendMessageOrRequest() {
-        guard let selectedUser = selectedUser,
-              let userId = Auth.auth().currentUser?.uid,
-              !messageText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-            return
-        }
-
-        let userMessage = messageText.trimmingCharacters(in: .whitespacesAndNewlines)
-
-        // Intentar crear conversación directa primero
-        viewModel.startConversation(with: selectedUser, from: userId, initialMessage: userMessage) { conversation in
-            DispatchQueue.main.async {
-                if let conversation {
-                    // Conversación creada/recuperada con envío inicial exitoso
-                    showingMessageComposer = false
-                    dismiss()
-                    onConversationCreated(conversation)
-                } else {
-                    // Verificar el tipo de error
-                    let errorMessage = viewModel.errorMessage ?? ""
-
-                    if viewModel.requiresMessageRequest {
-                        // No se pudo crear conversación directa, enviar solicitud
-                        sendMessageRequest()
-                    } else {
-                        viewModel.errorMessage = errorMessage.isEmpty
-                            ? NSLocalizedString("messaging.error.startConversationFailed", comment: "Failed to start conversation")
-                            : errorMessage
-                    }
-                }
-            }
-        }
-    }
-
-    // ✅ NUEVA: Función para enviar solicitud de mensaje
-    private func sendMessageRequest() {
-        guard let selectedUser = selectedUser,
-              Auth.auth().currentUser?.uid != nil else {
-            return
-        }
-
-
-        messageRequestService.sendMessageRequest(
-            to: selectedUser.id,
-            message: messageText.trimmingCharacters(in: .whitespacesAndNewlines)
-        ) { result in
-            DispatchQueue.main.async {
-                switch result {
-                case .success:
-                    dismiss()
-                    // Mostrar mensaje de éxito
-                    viewModel.requiresMessageRequest = false
-                    viewModel.errorMessage = NSLocalizedString("messaging.request.sent", comment: "Message request sent successfully")
-                case .failure(let error):
-                    viewModel.errorMessage = String(
-                        format: NSLocalizedString("messaging.error.sendRequest", comment: "Failed to send message request"),
-                        error.localizedDescription
-                    )
-                }
-            }
-        }
-    }
-}
-
-struct GlassmorphicUserRow: View {
-    let user: AppUser
-    let isSelected: Bool
-    let onTap: () -> Void
-    @Environment(\.colorScheme) var colorScheme
-
-    var body: some View {
-        Button(action: onTap) {
-            HStack(spacing: 14) {
-                // ✅ Usar AsyncProfileImageView
-                ZStack {
-                    Circle()
-                        .fill(
-                            LinearGradient(
-                                gradient: Gradient(colors: [
-                                    colorScheme == .dark ? Color.white.opacity(0.3) : Color.black.opacity(0.1),
-                                    colorScheme == .dark ? Color.white.opacity(0.1) : Color.black.opacity(0.05)
-                                ]),
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            )
-                        )
-                        .frame(width: 50, height: 50)
-
-                    AsyncProfileImageView(userId: user.id)
-                        .frame(width: 46, height: 46)
-                }
-
-                Text(user.username)
-                    .font(.custom("Poppins-Regular", size: 16))
-                    .foregroundColor(colorScheme == .dark ? .white : .black)
-
-                Spacer()
-
-                if isSelected {
-                    Image(systemName: "checkmark.circle.fill")
-                        .foregroundColor(SettingsProfileColors.accent(colorScheme))
-                        .font(.system(size: 20))
+                    .buttonStyle(.plain)
                 }
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 12)
-            .background(
-                ZStack {
-                    if isSelected {
-                        RoundedRectangle(cornerRadius: 16)
-                            .fill(SettingsProfileColors.accentBackground(colorScheme, opacity: 0.15))
-                    }
-                    RoundedRectangle(cornerRadius: 16)
-                        .fill(colorScheme == .dark ? Color.white.opacity(0.1) : Color.black.opacity(0.05))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 16)
-                                .stroke(colorScheme == .dark ? Color.white.opacity(0.2) : Color.black.opacity(0.1), lineWidth: 1)
-                        )
-                }
-            )
+
+            Divider()
+                .overlay(adaptiveColors.secondary.opacity(0.2))
         }
-        .buttonStyle(PlainButtonStyle())
+    }
+
+    @ViewBuilder
+    private var newConversationUserList: some View {
+        if let errorMessage = viewModel.errorMessage {
+            Text(errorMessage)
+                .font(.system(size: 14))
+                .foregroundStyle(.red.opacity(0.9))
+                .padding(.horizontal, 16)
+                .padding(.top, 12)
+        }
+
+        if searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            MessagingSectionHeader(title: "messaging.new.suggestions", adaptiveColors: adaptiveColors)
+        }
+
+        List {
+            Section {
+                if viewModel.suggestedUsers.isEmpty && searchText.isEmpty {
+                    HStack {
+                        Spacer()
+                        ProgressView()
+                            .padding(.vertical, 24)
+                        Spacer()
+                    }
+                    .listRowInsets(EdgeInsets())
+                    .listRowSeparator(.hidden)
+                    .listRowBackground(Color.clear)
+                } else if viewModel.suggestedUsers.isEmpty && !searchText.isEmpty {
+                    newConversationEmptyResults
+                        .listRowInsets(EdgeInsets())
+                        .listRowSeparator(.hidden)
+                        .listRowBackground(Color.clear)
+                } else {
+                    ForEach(viewModel.suggestedUsers) { user in
+                        NewConversationUserRow(
+                            user: user,
+                            profileZoomNamespace: profileZoomNamespace,
+                            onOpenProfile: { showingUserProfile = user },
+                            onSelect: { openConversation(with: user) }
+                        )
+                        .listRowInsets(EdgeInsets())
+                        .listRowSeparator(.hidden)
+                        .listRowBackground(Color.clear)
+                    }
+                }
+            }
+        }
+        .listStyle(.plain)
+        .scrollContentBackground(.hidden)
+        .messagingListEdgeToEdge()
+        .chatScrollEdgeEffect()
+        .scrollDismissesKeyboard(.interactively)
+    }
+
+    private var newConversationEmptyResults: some View {
+        VStack(spacing: 10) {
+            Image(systemName: "person.slash")
+                .font(.system(size: 32))
+                .foregroundStyle(adaptiveColors.secondary.opacity(0.5))
+
+            Text("messaging.noResults")
+                .font(.custom("Poppins-SemiBold", size: 15))
+                .foregroundStyle(adaptiveColors.primary)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 32)
+    }
+
+    private func openConversation(with user: AppUser) {
+        guard let userId = Auth.auth().currentUser?.uid else { return }
+
+        viewModel.startConversation(with: user, from: userId, initialMessage: nil) { conversation in
+            guard let conversation else { return }
+            onConversationCreated(conversation)
+        }
+    }
+}
+
+private struct NewConversationUserRow: View {
+    let user: AppUser
+    let profileZoomNamespace: Namespace.ID
+    let onOpenProfile: () -> Void
+    let onSelect: () -> Void
+    @Environment(\.colorScheme) private var colorScheme
+
+    var body: some View {
+        HStack(spacing: 14) {
+            Button(action: onOpenProfile) {
+                AsyncProfileImageView(userId: user.id)
+                    .frame(width: 56, height: 56)
+                    .clipShape(Circle())
+                    .userProfileZoomSource(
+                        userId: user.id,
+                        namespace: profileZoomNamespace,
+                        cornerRadius: 28
+                    )
+            }
+            .buttonStyle(.plain)
+
+            Button(action: onSelect) {
+                Text(user.username)
+                    .font(.custom("Poppins-SemiBold", size: 16))
+                    .foregroundColor(colorScheme == .dark ? .white : .black)
+                    .lineLimit(1)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 10)
     }
 }
 

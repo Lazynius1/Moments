@@ -16,22 +16,16 @@ struct ProfileVisitorPinnedTopChrome: View {
 
     var body: some View {
         HStack(spacing: 10) {
-            Button(action: onDismiss) {
-                ZStack {
-                    Circle()
-                        .fill(UserProfileColors.cardBackground.opacity(0.9))
-                        .frame(width: 34, height: 34)
-                        .shadow(color: UserProfileColors.shadowColor, radius: 6, x: 0, y: 3)
-
-                    Image(systemName: "chevron.left")
-                        .font(.system(size: 15, weight: .semibold))
-                        .foregroundColor(UserProfileColors.textPrimary)
-                }
-            }
+            ProfileChromeIconButton(
+                systemName: "chevron.left",
+                foregroundColor: UserProfileColors.textPrimary,
+                iconSize: 15,
+                action: onDismiss
+            )
 
             HStack(spacing: 5) {
                 Text(viewModel.userProfile?.username ?? NSLocalizedString("userProfile.user", comment: "User"))
-                    .font(.custom("Poppins-Bold", size: 20))
+                    .font(StickyChromeTitleTypography.font)
                     .foregroundColor(UserProfileColors.textPrimary)
                     .lineLimit(1)
 
@@ -90,16 +84,12 @@ struct ProfileVisitorPinnedTopChrome: View {
                 Label("QR", systemImage: "qrcode")
             }
         } label: {
-            ZStack {
-                Circle()
-                    .fill(UserProfileColors.cardBackground.opacity(0.9))
-                    .frame(width: 34, height: 34)
-                    .shadow(color: UserProfileColors.shadowColor, radius: 6, x: 0, y: 3)
-
-                Image(systemName: "ellipsis")
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundColor(UserProfileColors.textPrimary)
-            }
+            Image(systemName: "ellipsis")
+                .font(.system(size: 16, weight: .semibold))
+                .foregroundColor(UserProfileColors.textPrimary)
+                .frame(width: ProfileChromeGlassMetrics.controlSize, height: ProfileChromeGlassMetrics.controlSize)
+                .liquidGlass(in: Circle(), variant: .regular, interactive: true)
+                .contentShape(Circle())
         }
     }
 }
@@ -161,7 +151,7 @@ struct UserModernProfileHeader: View {
                                 endPoint: .bottomTrailing
                             )
                         )
-                        .font(.custom("Poppins-Bold", size: 20))
+                        .font(StickyChromeTitleTypography.font)
 
                         if let userProfile = viewModel.userProfile {
                             UserProfileBadgesView(userProfile: userProfile)
@@ -220,7 +210,7 @@ struct UserModernProfileHeader: View {
                     .foregroundColor(colorScheme == .dark ? .white : .black)
                     .padding(.horizontal, 18)
                     .padding(.vertical, 10)
-                    .liquidGlass(in: Capsule(), interactive: viewModel.followButtonState.isActionable)
+                    .liquidGlass(in: Capsule(), variant: .regular, interactive: viewModel.followButtonState.isActionable)
                 }
                 .disabled(!viewModel.followButtonState.isActionable)
                 .scaleEffect(viewModel.followButtonState.isActionable ? 1.0 : 0.95)
@@ -239,7 +229,7 @@ struct UserModernProfileHeader: View {
                     .foregroundColor(colorScheme == .dark ? .white : .black)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 10)
-                    .liquidGlass(in: Capsule(), interactive: true)
+                    .liquidGlass(in: Capsule(), variant: .regular, interactive: true)
                 }
             }
         }
