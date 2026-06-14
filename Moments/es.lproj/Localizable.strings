@@ -3795,6 +3795,11 @@
 "share.storyDenied.private" = "Sigue a esta persona para ver sus historias.";
 "share.storyDenied.restricted" = "No tienes permiso para ver esta historia.";
 "chat.preview.sharedStory" = "Historia compartida";
+"chat.menu.details" = "Ajustes de la conversacion";
+"report.action.user" = "Reportar usuario";
+"report.contentType.moment" = "momento";
+"report.contentType.story" = "historia";
+"report.contentType.user" = "usuario";
 "share.story" = "Historia";
 
 "userActivity.event.visit.clean" = "Visitó tu perfil";
@@ -3813,3 +3818,17 @@
 "errors.momentImageUnavailable" = "No se pudo obtener la imagen del momento.";
 "errors.stickerGenerationFailed" = "No se pudo generar el sticker.";
 "errors.momentLoadFailed" = "No se pudo cargar el momento.";
+"report.user.title" = "Reportar cuenta";
+"report.user.title.username" = "Reportar @%@";
+"report.user.subtitle" = "Por que reportas esta cuenta?";
+"report.user.additionalDetails" = "Detalles adicionales (opcional)";
+"report.user.reason.inappropriate.title" = "Publica contenido que no deberia estar en Moments";
+"report.user.reason.inappropriate.subtitle" = "Publicaciones, historias o contenido inapropiado de forma repetida";
+"report.user.reason.impersonation.title" = "Se hace pasar por otra persona";
+"report.user.reason.impersonation.subtitle" = "Esta cuenta podria estar suplantando a una persona, marca u organizacion";
+"report.user.reason.underage.title" = "Puede ser menor de la edad minima";
+"report.user.reason.underage.subtitle" = "Esta cuenta podria pertenecer a alguien demasiado joven para usar la app";
+"report.user.reason.bullying.title" = "Acoso o contacto no deseado";
+"report.user.reason.bullying.subtitle" = "Acoso, amenazas o contacto insistente no deseado";
+"report.user.reason.scam.title" = "Estafa, fraude o spam";
+"report.user.reason.scam.subtitle" = "Mensajes sospechosos, intentos de fraude o comportamiento de spam";

@@ -350,11 +350,13 @@ struct ModernContextMenuOverlay: View {
                             }
                         })
                         .transition(.opacity)
-                        
+
                     case .reporting:
                         ModernReportContent(
                             moment: moment,
                             story: nil,
+                            reportedUserId: nil,
+                            reportedUsername: nil,
                             onBack: {
                                 withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
                                     viewState = .main
@@ -370,6 +372,7 @@ struct ModernContextMenuOverlay: View {
                             insertion: .move(edge: .trailing).combined(with: .opacity),
                             removal: .move(edge: .trailing).combined(with: .opacity)
                         ))
+                        
                     }
                 }
                 .background(

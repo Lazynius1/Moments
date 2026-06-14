@@ -11,6 +11,7 @@ struct ProfileVisitorPinnedTopChrome: View {
     let collapseProgress: CGFloat
     let onDismiss: () -> Void
     @Binding var showingQRCode: Bool
+    @Binding var showingReportSheet: Bool
 
     @Environment(\.colorScheme) private var colorScheme
 
@@ -69,6 +70,15 @@ struct ProfileVisitorPinnedTopChrome: View {
                         ? NSLocalizedString("userProfile.unblockUser", comment: "Unblock user")
                         : NSLocalizedString("storyContextMenu.block", comment: "Block"),
                     systemImage: "person.slash"
+                )
+            }
+
+            Button(action: {
+                showingReportSheet = true
+            }) {
+                Label(
+                    NSLocalizedString("report.action.user", comment: "Report user"),
+                    systemImage: "flag"
                 )
             }
 

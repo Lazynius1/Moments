@@ -4,70 +4,56 @@ import FirebaseFirestore
 
 // MARK: - ✅ Vista de reporte universal para momentos Y historias
 struct ReportBottomSheet: View {
-    // ✅ CAMBIAR: Propiedades opcionales para ambos tipos
     let moment: Moment?
     let story: Story?
+    let reportedUserId: String?
+    let reportedUsername: String?
     
     @Environment(\.dismiss) private var dismiss
-    @Environment(\.colorScheme) var colorScheme
-    @State private var selectedCategory: ReportCategory?
-    @State private var additionalDetails: String = ""
-    @State private var isSubmitting: Bool = false
-    @State private var showSuccessMessage: Bool = false
     
-    private let firestoreService = FirestoreService()
-    
-    // ✅ NUEVOS INICIALIZADORES
     init(moment: Moment) {
         self.moment = moment
         self.story = nil
+        self.reportedUserId = nil
+        self.reportedUsername = nil
     }
     
     init(story: Story) {
         self.moment = nil
         self.story = story
+        self.reportedUserId = nil
+        self.reportedUsername = nil
     }
-    
-    private var adaptiveColors: AdaptiveColors {
-        AdaptiveColors(colorScheme: colorScheme)
-    }
-    
-    // ✅ NUEVAS PROPIEDADES COMPUTADAS
-    private var contentType: String {
-        return moment != nil ? "momento" : "historia"
-    }
-    
-    private var contentId: String {
-        return moment?.id ?? story?.id ?? ""
-    }
-    
-    private var authorId: String {
-        return moment?.authorId ?? story?.authorId ?? ""
+
+    init(userId: String, username: String? = nil) {
+        self.moment = nil
+        self.story = nil
+        self.reportedUserId = userId
+        self.reportedUsername = username
     }
     
     var body: some View {
-        ZStack {
-            // ✅ Fondo moderno adaptativo (Liquid Glass)
-            if colorScheme == .dark {
-                Color.black.ignoresSafeArea()
+        Group {
+            if let reportedUserId {
+                UserReportContent(
+                    reportedUserId: reportedUserId,
+                    reportedUsername: reportedUsername,
+                    onBack: { dismiss() },
+                    onDismiss: { dismiss() }
+                )
             } else {
-                Color.white.ignoresSafeArea()
+                ModernReportContent(
+                    moment: moment,
+                    story: story,
+                    reportedUserId: reportedUserId,
+                    reportedUsername: reportedUsername,
+                    onBack: { dismiss() },
+                    onDismiss: { dismiss() }
+                )
             }
-            
-            ModernReportContent(
-                moment: moment,
-                story: story,
-                onBack: {
-                    dismiss()
-                },
-                onDismiss: {
-                    dismiss()
-                }
-            )
         }
         .presentationDetents([.medium, .large])
         .presentationDragIndicator(.visible)
-        .presentationCornerRadius(30) // Match Liquid Glass standard
     }
 }
 

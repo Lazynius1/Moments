@@ -3775,6 +3775,11 @@
 "share.storyDenied.private" = "Follow this person to see their stories.";
 "share.storyDenied.restricted" = "You don't have permission to view this story.";
 "chat.preview.sharedStory" = "Shared story";
+"chat.menu.details" = "Conversation settings";
+"report.action.user" = "Report user";
+"report.contentType.moment" = "moment";
+"report.contentType.story" = "story";
+"report.contentType.user" = "user";
 "share.story" = "Story";
 
 "userActivity.event.visit.clean" = "Visited your profile";
@@ -3793,3 +3798,17 @@
 "errors.momentImageUnavailable" = "Could not load the moment image.";
 "errors.stickerGenerationFailed" = "Could not generate the sticker.";
 "errors.momentLoadFailed" = "Could not load the moment.";
+"report.user.title" = "Report account";
+"report.user.title.username" = "Report @%@";
+"report.user.subtitle" = "Why are you reporting this account?";
+"report.user.additionalDetails" = "Additional details (optional)";
+"report.user.reason.inappropriate.title" = "It's posting content that shouldn't be on Moments";
+"report.user.reason.inappropriate.subtitle" = "Inappropriate posts, stories or repeated harmful content";
+"report.user.reason.impersonation.title" = "It's pretending to be someone else";
+"report.user.reason.impersonation.subtitle" = "This account may be impersonating a person, brand or organization";
+"report.user.reason.underage.title" = "It may be under the minimum age";
+"report.user.reason.underage.subtitle" = "This account may belong to someone who is too young to use the app";
+"report.user.reason.bullying.title" = "Bullying or unwanted contact";
+"report.user.reason.bullying.subtitle" = "Harassment, threats or repeated unwanted contact";
+"report.user.reason.scam.title" = "Scam, fraud or spam";
+"report.user.reason.scam.subtitle" = "Suspicious messages, fraud attempts or spammy behavior";

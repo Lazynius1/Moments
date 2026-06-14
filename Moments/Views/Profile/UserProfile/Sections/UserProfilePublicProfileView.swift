@@ -33,6 +33,7 @@ struct UserModernPublicProfileView: View {
     @State private var identityMinY: CGFloat = .greatestFiniteMagnitude
     @State private var tabsMinY: CGFloat = .greatestFiniteMagnitude
     @State private var showingQRCode = false
+    @State private var showingReportSheet = false
     @State private var highlightsRefreshToken: Int = 0
     @State private var storyRingRefreshToken: Int = 0
     @Environment(\.colorScheme) private var colorScheme
@@ -266,7 +267,8 @@ struct UserModernPublicProfileView: View {
                     viewModel: viewModel,
                     collapseProgress: usernameCollapseProgress,
                     onDismiss: onDismiss,
-                    showingQRCode: $showingQRCode
+                    showingQRCode: $showingQRCode,
+                    showingReportSheet: $showingReportSheet
                 )
             } pinnedTabs: {
                 UserProfilePillTabs(selectedTab: $selectedTab)
@@ -281,6 +283,12 @@ struct UserModernPublicProfileView: View {
                     destination: destination,
                     moments: momentsForZoomDestination(destination),
                     namespace: profileZoomNamespace
+                )
+            }
+            .sheet(isPresented: $showingReportSheet) {
+                ReportBottomSheet(
+                    userId: viewModel.userId,
+                    username: viewModel.userProfile?.username
                 )
             }
             .toolbar(.hidden, for: .navigationBar)

@@ -47,6 +47,7 @@ struct GlassmorphicChatView: View {
     @State private var recordingTime: TimeInterval = 0
     @State private var recordingTimer: Timer?
     @State private var showingConversationSettings = false
+    @State private var showingReportSheet = false
     @State private var highlightedMessageId: String? = nil // ✅ New: Jump to message highlight
     @State private var isDetachedFromBottom = false
     @State private var pendingIncomingMessages = 0
@@ -143,6 +144,12 @@ struct GlassmorphicChatView: View {
                 viewModel.refreshTypingIndicatorPreference()
             }) {
                 ConversationSettingsView(conversation: viewModel.conversation)
+            }
+            .sheet(isPresented: $showingReportSheet) {
+                ReportBottomSheet(
+                    userId: viewModel.conversation.otherParticipantId,
+                    username: otherParticipantDisplayName
+                )
             }
             // ✅ NUEVO: Sheet para mostrar historias del usuario
             .fullScreenCover(item: $storyRoute) { route in
@@ -330,7 +337,7 @@ struct GlassmorphicChatView: View {
         .chatHideSharedBackgroundIfAvailable()
 
         ToolbarItem(placement: .topBarTrailing) {
-            chatToolbarInfoButton
+            chatToolbarMenu
         }
         .chatHideSharedBackgroundIfAvailable()
     }
@@ -451,9 +458,23 @@ struct GlassmorphicChatView: View {
         .buttonStyle(.plain)
     }
 
-    private var chatToolbarInfoButton: some View {
-        Button(action: { showingConversationSettings = true }) {
-            Image(systemName: "info.circle.fill")
+    private var chatToolbarMenu: some View {
+        Menu {
+            Button(action: { showingConversationSettings = true }) {
+                Label(
+                    NSLocalizedString("chat.menu.details", comment: "Conversation details"),
+                    systemImage: "info.circle"
+                )
+            }
+
+            Button(role: .destructive, action: { showingReportSheet = true }) {
+                Label(
+                    NSLocalizedString("report.action.user", comment: "Report user"),
+                    systemImage: "flag"
+                )
+            }
+        } label: {
+            Image(systemName: "ellipsis")
                 .font(.system(size: 17, weight: .medium))
                 .foregroundColor(adaptiveColors.primary)
                 .frame(width: 40, height: 40)

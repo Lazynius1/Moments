@@ -89,90 +89,79 @@ struct ProfileMomentDetailRoute: Identifiable, Equatable {
 // MARK: - ✅ NUEVO: Pill Tabs Component
 struct ProfilePillTabs: View {
     @Binding var selectedTab: ProfileTabType
+    @Environment(\.colorScheme) var colorScheme
     @State private var transientOffset: CGFloat = 0
 
     var body: some View {
         GeometryReader { proxy in
-            ProfileGlassPillTrack {
-                ZStack {
-                    if #available(iOS 26.0, *) {
-                        GlassEffectContainer(spacing: 0) {
-                            ProfileGlassPillThumb(width: segmentWidth(for: proxy.size.width))
-                                .offset(x: pillOffset(for: proxy.size.width))
-                        }
-                    } else {
-                        ProfileGlassPillThumb(width: segmentWidth(for: proxy.size.width))
-                            .offset(x: pillOffset(for: proxy.size.width))
-                    }
+            ZStack {
+                Capsule()
+                    .fill(Color.clear)
+                    .liquidGlass(in: Capsule())
+                    .overlay(
+                        Capsule()
+                            .stroke(colorScheme == .dark ? Color.white.opacity(0.08) : Color.black.opacity(0.06), lineWidth: 0.75)
+                    )
 
-                    pillButtons(width: proxy.size.width)
-                        .animation(.smooth(duration: 0.18, extraBounce: 0.01), value: visualIndex(for: proxy.size.width))
+                Capsule()
+                    .fill(ProfilePillTabPalette.selectedThumbFill(for: colorScheme))
+                    .frame(width: segmentWidth(for: proxy.size.width), height: 31)
+                    .liquidGlass(
+                        in: Capsule(),
+                        variant: .regular,
+                        interactive: true,
+                        tint: ProfilePillTabPalette.selectedThumbTint(for: colorScheme)
+                    )
+                    .shadow(color: ProfilePillTabPalette.selectedShadowColor(for: colorScheme), radius: 7, x: 0, y: 2)
+                    .offset(x: pillOffset(for: proxy.size.width))
 
-                    Capsule()
-                        .fill(Color.black.opacity(0.001))
-                        .contentShape(Capsule())
-                        .highPriorityGesture(
-                            DragGesture(minimumDistance: 0, coordinateSpace: .local)
-                                .onChanged { value in
-                                    var transaction = Transaction()
-                                    transaction.animation = nil
-                                    withTransaction(transaction) {
-                                        transientOffset = constrainedTranslation(value.translation.width, width: proxy.size.width)
-                                    }
-                                }
-                                .onEnded { value in
-                                    settleSelection(translation: value.translation.width, locationX: value.location.x, width: proxy.size.width)
-                                }
-                        )
-                }
-            }
-        }
-        .frame(height: ProfileChromeGlassMetrics.pillBarHeight)
-    }
-
-    @ViewBuilder
-    private func pillButtons(width: CGFloat) -> some View {
-        Group {
-            if #available(iOS 26.0, *) {
-                GlassEffectContainer(spacing: 0) {
-                    HStack(spacing: 0) {
-                        ForEach(Array(ProfileTabType.allCases.enumerated()), id: \.element) { index, tab in
-                            pillButton(tab: tab, index: index, width: width)
-                        }
-                    }
-                }
-            } else {
                 HStack(spacing: 0) {
                     ForEach(Array(ProfileTabType.allCases.enumerated()), id: \.element) { index, tab in
-                        pillButton(tab: tab, index: index, width: width)
+                        Button(action: {
+                            if tab != selectedTab {
+                                HapticManager.shared.selection()
+                            }
+                            withAnimation(.smooth(duration: 0.18, extraBounce: 0.01)) {
+                                selectedTab = tab
+                                transientOffset = 0
+                            }
+                        }) {
+                            HStack(spacing: 6) {
+                                Image(systemName: tab.icon)
+                                    .font(.system(size: 12, weight: labelWeight(for: index, width: proxy.size.width)))
+
+                                Text(tab.localizedTitle)
+                                    .font(.custom(labelFontName(for: index, width: proxy.size.width), size: 12))
+                            }
+                            .foregroundColor(labelColor(for: index, width: proxy.size.width))
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                            .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
                     }
                 }
+                .padding(.horizontal, 3)
+                .animation(.smooth(duration: 0.18, extraBounce: 0.01), value: visualIndex(for: proxy.size.width))
+
+                Capsule()
+                    .fill(Color.black.opacity(0.001))
+                    .contentShape(Capsule())
+                    .highPriorityGesture(
+                        DragGesture(minimumDistance: 0, coordinateSpace: .local)
+                            .onChanged { value in
+                                var transaction = Transaction()
+                                transaction.animation = nil
+                                withTransaction(transaction) {
+                                    transientOffset = constrainedTranslation(value.translation.width, width: proxy.size.width)
+                                }
+                            }
+                            .onEnded { value in
+                                settleSelection(translation: value.translation.width, locationX: value.location.x, width: proxy.size.width)
+                            }
+                    )
             }
         }
-    }
-
-    private func pillButton(tab: ProfileTabType, index: Int, width: CGFloat) -> some View {
-        Button(action: {
-            if tab != selectedTab {
-                HapticManager.shared.selection()
-            }
-            withAnimation(.smooth(duration: 0.18, extraBounce: 0.01)) {
-                selectedTab = tab
-                transientOffset = 0
-            }
-        }) {
-            HStack(spacing: 5) {
-                Image(systemName: tab.icon)
-                    .font(.system(size: ProfileChromeGlassMetrics.pillIconSize, weight: .medium))
-
-                Text(tab.localizedTitle)
-                    .font(.custom("Poppins-Medium", size: ProfileChromeGlassMetrics.pillLabelSize))
-            }
-            .foregroundColor(labelColor(for: index, width: width))
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
+        .frame(height: 38)
     }
 
     private var currentIndex: Int {
@@ -180,7 +169,7 @@ struct ProfilePillTabs: View {
     }
 
     private func segmentWidth(for totalWidth: CGFloat) -> CGFloat {
-        let innerWidth = totalWidth - (ProfileChromeGlassMetrics.pillInnerPadding * 2)
+        let innerWidth = totalWidth - 6
         return innerWidth / CGFloat(ProfileTabType.allCases.count)
     }
 
@@ -202,7 +191,18 @@ struct ProfilePillTabs: View {
     }
 
     private func labelColor(for index: Int, width: CGFloat) -> Color {
-        visualIndex(for: width) == index ? ProfileColors.textPrimary : ProfileColors.textSecondary
+        if visualIndex(for: width) == index {
+            return ProfilePillTabPalette.selectedLabelColor(for: colorScheme)
+        }
+        return ProfilePillTabPalette.unselectedLabelColor(for: colorScheme)
+    }
+
+    private func labelWeight(for index: Int, width: CGFloat) -> Font.Weight {
+        visualIndex(for: width) == index ? .semibold : .medium
+    }
+
+    private func labelFontName(for index: Int, width: CGFloat) -> String {
+        visualIndex(for: width) == index ? "Poppins-SemiBold" : "Poppins-Medium"
     }
 
     private func constrainedTranslation(_ translation: CGFloat, width: CGFloat) -> CGFloat {

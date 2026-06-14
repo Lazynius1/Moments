@@ -3747,6 +3747,11 @@
 "share.storyDenied.private" = "Siga esta pessoa para ver as stories dela.";
 "share.storyDenied.restricted" = "Você não tem permissão para ver esta story.";
 "chat.preview.sharedStory" = "Story compartilhada";
+"chat.menu.details" = "Configuracoes da conversa";
+"report.action.user" = "Denunciar usuario";
+"report.contentType.moment" = "momento";
+"report.contentType.story" = "story";
+"report.contentType.user" = "usuario";
 "share.story" = "Story";
 
 "userActivity.event.visit.clean" = "Visitou seu perfil";
@@ -3765,3 +3770,17 @@
 "errors.momentImageUnavailable" = "Could not load the moment image.";
 "errors.stickerGenerationFailed" = "Could not generate the sticker.";
 "errors.momentLoadFailed" = "Could not load the moment.";
+"report.user.title" = "Denunciar conta";
+"report.user.title.username" = "Denunciar @%@";
+"report.user.subtitle" = "Por que voce esta denunciando esta conta?";
+"report.user.additionalDetails" = "Detalhes adicionais (opcional)";
+"report.user.reason.inappropriate.title" = "Ela publica conteudo que nao deveria estar no Moments";
+"report.user.reason.inappropriate.subtitle" = "Posts, stories ou conteudo prejudicial repetido";
+"report.user.reason.impersonation.title" = "Ela esta fingindo ser outra pessoa";
+"report.user.reason.impersonation.subtitle" = "Esta conta pode estar se passando por uma pessoa, marca ou organizacao";
+"report.user.reason.underage.title" = "Pode estar abaixo da idade minima";
+"report.user.reason.underage.subtitle" = "Esta conta pode pertencer a alguem jovem demais para usar o app";
+"report.user.reason.bullying.title" = "Bullying ou contato indesejado";
+"report.user.reason.bullying.subtitle" = "Assedio, ameacas ou contato repetido indesejado";
+"report.user.reason.scam.title" = "Golpe, fraude ou spam";
+"report.user.reason.scam.subtitle" = "Mensagens suspeitas, tentativas de fraude ou comportamento de spam";

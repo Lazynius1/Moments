@@ -12,7 +12,7 @@ enum ProfileChromeGlassMetrics {
     static let controlIconSize: CGFloat = 16
     static let controlsClusterSpacing: CGFloat = 2
     static let controlsClusterPadding: CGFloat = 4
-    static let pillBarHeight: CGFloat = 36
+    static let pillBarHeight: CGFloat = 38
     static let pillSegmentHeight: CGFloat = 28
     static let pillInnerPadding: CGFloat = 4
     static let pillLabelSize: CGFloat = 11
@@ -31,6 +31,34 @@ enum MomentsGlassButtonTint {
 
     static func canvas(for colorScheme: ColorScheme) -> Color {
         colorScheme == .dark ? dark : light
+    }
+}
+
+enum ProfilePillTabPalette {
+    /// Instagram: en light el thumb seleccionado es #0B1215; en dark es crema #FAF9F6.
+    static func selectedThumbFill(for colorScheme: ColorScheme) -> Color {
+        invertedCanvas(for: colorScheme).opacity(colorScheme == .dark ? 0.84 : 0.97)
+    }
+
+    static func selectedThumbTint(for colorScheme: ColorScheme) -> Color {
+        invertedCanvas(for: colorScheme).opacity(colorScheme == .dark ? 0.58 : 0.82)
+    }
+
+    /// Texto sobre el thumb (invertido respecto al thumb, no al fondo de app).
+    static func selectedLabelColor(for colorScheme: ColorScheme) -> Color {
+        colorScheme == .dark ? MomentsGlassButtonTint.dark : MomentsGlassButtonTint.light
+    }
+
+    static func unselectedLabelColor(for colorScheme: ColorScheme) -> Color {
+        colorScheme == .dark ? Color.white.opacity(0.5) : Color.black.opacity(0.45)
+    }
+
+    static func selectedShadowColor(for colorScheme: ColorScheme) -> Color {
+        colorScheme == .dark ? Color.black.opacity(0.18) : Color.black.opacity(0.12)
+    }
+
+    private static func invertedCanvas(for colorScheme: ColorScheme) -> Color {
+        colorScheme == .dark ? MomentsGlassButtonTint.light : MomentsGlassButtonTint.dark
     }
 }
 
