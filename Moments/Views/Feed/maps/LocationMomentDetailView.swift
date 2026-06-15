@@ -25,6 +25,8 @@ struct LocationMomentDetailView: View {
     @State private var dragOffset: CGFloat = 0
     @State private var isDragging: Bool = false
     @State private var backgroundOpacity: Double = 1.0
+    @State private var contentMinY: CGFloat = .greatestFiniteMagnitude
+    @State private var initialContentMinY: CGFloat = .greatestFiniteMagnitude
 
     // ✅ Estados para interacciones (ModernPostCardView gestiona save/comments internamente)
 
@@ -53,6 +55,13 @@ struct LocationMomentDetailView: View {
 
     private var adaptiveColors: AdaptiveColors {
         AdaptiveColors(colorScheme: colorScheme)
+    }
+
+    private var chromeBlurProgress: CGFloat {
+        ProfileHeaderCollapseMetrics.detailScrollChromeBlurProgress(
+            contentMinY: contentMinY,
+            initialContentMinY: initialContentMinY
+        )
     }
 
     private var basePlaceName: String {
@@ -96,7 +105,7 @@ struct LocationMomentDetailView: View {
                     .gesture(locationDismissDragGesture)
 
                 ProfileStickyChromeContainer(
-                    blurProgress: ProfileHeaderCollapseMetrics.fixedLocationChromeBlurProgress,
+                    blurProgress: chromeBlurProgress,
                     blurFadeTail: ProfileHeaderCollapseMetrics.locationChromeBlurFadeTail,
                     tabsArePinned: false
                 ) {
@@ -449,12 +458,27 @@ struct LocationMomentDetailView: View {
                 }
                 .padding(.horizontal, FeedMomentCardLayout.listHorizontalPadding)
                 .padding(.bottom, 24)
+                .background(
+                    GeometryReader { geometry in
+                        Color.clear.preference(
+                            key: LocationDetailScrollOffsetPreferenceKey.self,
+                            value: geometry.frame(in: .named("locationDetailScroll")).minY
+                        )
+                    }
+                )
                 .onPreferenceChange(MomentVisibilityPreference.self) { values in
                     FeedVisibilityCoordinator.shared.update(all: values)
                 }
             }
             .profileGridNavigationChrome(colorScheme: colorScheme)
             .scrollClipDisabled()
+            .coordinateSpace(name: "locationDetailScroll")
+            .onPreferenceChange(LocationDetailScrollOffsetPreferenceKey.self) { value in
+                contentMinY = value
+                if !initialContentMinY.isFinite || initialContentMinY > 10_000 {
+                    initialContentMinY = value
+                }
+            }
             .environment(feedViewModel)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .onAppear {
@@ -564,6 +588,14 @@ struct LocationMomentDetailView: View {
                 }
             }
         }
+    }
+}
+
+private struct LocationDetailScrollOffsetPreferenceKey: PreferenceKey {
+    static var defaultValue: CGFloat = .greatestFiniteMagnitude
+
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = nextValue()
     }
 }
 

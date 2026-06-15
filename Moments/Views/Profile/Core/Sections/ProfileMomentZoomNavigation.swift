@@ -249,7 +249,7 @@ struct MomentZoomDetailDestination: View {
             }
         }
         .navigationBarBackButtonHidden(true)
-        .toolbar(.hidden, for: .navigationBar)
+        .modifier(MomentZoomNavigationBarVisibilityModifier(hidesNavigationBar: destination.presentation != .explorer))
         .toolbar(.hidden, for: .tabBar)
         .navigationTransition(.zoom(sourceID: destination.zoomSourceID, in: namespace))
     }
@@ -272,6 +272,18 @@ struct MomentZoomDetailDestination: View {
             return moments[destination.initialIndex]
         }
         return moments.first
+    }
+}
+
+private struct MomentZoomNavigationBarVisibilityModifier: ViewModifier {
+    let hidesNavigationBar: Bool
+
+    func body(content: Content) -> some View {
+        if hidesNavigationBar {
+            content.toolbar(.hidden, for: .navigationBar)
+        } else {
+            content.toolbar(.visible, for: .navigationBar)
+        }
     }
 }
 

@@ -343,33 +343,32 @@ struct GlassmorphicChatView: View {
     }
 
     private var chatToolbarBackButton: some View {
-        Button(action: { dismiss() }) {
-            Image(systemName: "chevron.left")
-                .font(.system(size: 18, weight: .semibold))
-                .foregroundColor(adaptiveColors.primary)
-                .frame(width: 40, height: 40)
-                .modifier(ChatToolbarIconGlassModifier())
-        }
-        .buttonStyle(.plain)
+        ProfileChromeIconButton(
+            systemName: "chevron.left",
+            foregroundColor: adaptiveColors.primary,
+            size: 38,
+            iconSize: 18,
+            action: { dismiss() }
+        )
     }
 
     @ViewBuilder
     private var chatToolbarAvatar: some View {
         if isOtherParticipantUnavailable && !isOtherParticipantBlockedByCurrentUser {
-            ProfileUnavailableAvatar(size: 36)
+            ProfileUnavailableAvatar(size: 40)
                 .userProfileZoomSource(
                     userId: viewModel.conversation.otherParticipantId,
                     namespace: profileZoomNamespace,
-                    cornerRadius: 18
+                    cornerRadius: 20
                 )
         } else {
             AsyncProfileImageView(userId: viewModel.conversation.otherParticipantId)
-                .frame(width: 36, height: 36)
+                .frame(width: 40, height: 40)
                 .clipShape(Circle())
                 .userProfileZoomSource(
                     userId: viewModel.conversation.otherParticipantId,
                     namespace: profileZoomNamespace,
-                    cornerRadius: 18
+                    cornerRadius: 20
                 )
                 .overlay(
                     StorySegmentedRing(
@@ -380,8 +379,8 @@ struct GlassmorphicChatView: View {
                         storyAudiences: storyAudiences,
                         isOwnStory: false,
                         colorScheme: colorScheme,
-                        ringSize: 36,
-                        lineWidth: 2.5
+                        ringSize: 40,
+                        lineWidth: 2.7
                     )
                 )
         }
@@ -391,7 +390,7 @@ struct GlassmorphicChatView: View {
         VStack(alignment: .leading, spacing: 1) {
             HStack(spacing: 4) {
                 Text(otherParticipantDisplayName)
-                    .font(.system(size: 15, weight: .semibold))
+                    .font(.system(size: 17, weight: .semibold))
                     .strikethrough(isOtherParticipantUnavailable && !isOtherParticipantBlockedByCurrentUser, color: adaptiveColors.secondary)
                     .foregroundStyle(adaptiveColors.primary)
                     .lineLimit(1)
@@ -399,7 +398,7 @@ struct GlassmorphicChatView: View {
                     .layoutPriority(1)
 
                 if !isOtherParticipantUnavailable {
-                    VerifiedBadgeView(userId: viewModel.conversation.otherParticipantId, size: 13)
+                    VerifiedBadgeView(userId: viewModel.conversation.otherParticipantId, size: 14)
                 }
             }
 
@@ -448,14 +447,13 @@ struct GlassmorphicChatView: View {
     }
 
     private var chatToolbarSearchButton: some View {
-        Button(action: toggleChatSearch) {
-            Image(systemName: isSearchVisible ? "xmark.circle.fill" : "magnifyingglass")
-                .font(.system(size: 17, weight: .medium))
-                .foregroundColor(adaptiveColors.primary)
-                .frame(width: 40, height: 40)
-                .modifier(ChatToolbarIconGlassModifier())
-        }
-        .buttonStyle(.plain)
+        ProfileChromeIconButton(
+            systemName: isSearchVisible ? "xmark.circle.fill" : "magnifyingglass",
+            foregroundColor: adaptiveColors.primary,
+            size: 38,
+            iconSize: 17,
+            action: toggleChatSearch
+        )
     }
 
     private var chatToolbarMenu: some View {
@@ -475,10 +473,10 @@ struct GlassmorphicChatView: View {
             }
         } label: {
             Image(systemName: "ellipsis")
-                .font(.system(size: 17, weight: .medium))
+                .font(.system(size: 16, weight: .semibold))
                 .foregroundColor(adaptiveColors.primary)
-                .frame(width: 40, height: 40)
-                .modifier(ChatToolbarIconGlassModifier())
+                .frame(width: 38, height: 38)
+                .liquidGlass(in: Circle(), interactive: true)
         }
         .buttonStyle(.plain)
     }

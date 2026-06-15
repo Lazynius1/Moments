@@ -337,13 +337,22 @@ final class IntensityBlurUIView: UIVisualEffectView {
     }
 
     func setIntensity(_ intensity: CGFloat) {
+        let clampedIntensity = min(max(intensity, 0), 1)
+
+        guard clampedIntensity > 0 else {
+            animator?.stopAnimation(true)
+            animator = nil
+            effect = nil
+            return
+        }
+
         animator?.stopAnimation(true)
         effect = nil
         animator = UIViewPropertyAnimator(duration: 1, curve: .linear) { [weak self] in
             self?.effect = UIBlurEffect(style: .regular)
         }
         animator?.pausesOnCompletion = true
-        animator?.fractionComplete = min(max(intensity, 0.0001), 1)
+        animator?.fractionComplete = clampedIntensity
     }
 }
 
@@ -401,6 +410,7 @@ struct ProfileProgressiveChromeBackdrop: View {
     var fadeTail: CGFloat = ProfileChromeGlassMetrics.chromeBackdropFadeTail
     var maxBlurFraction: CGFloat = ProfileChromeGlassMetrics.chromeBackdropMaxBlurFraction
     var glassOnly: Bool = false
+    var blurOnly: Bool = false
 
     private var clampedProgress: CGFloat {
         min(max(progress, 0), 1)
@@ -409,13 +419,21 @@ struct ProfileProgressiveChromeBackdrop: View {
     var body: some View {
         Group {
             if #available(iOS 26.0, *) {
-                if glassOnly {
+                if blurOnly {
+                    blurOnlyBackdrop
+                } else if glassOnly {
                     glassOnlyBackdrop
                 } else {
                     hybridGlassBackdrop
                 }
             } else {
-                if glassOnly {
+                if blurOnly {
+                    ProfileProgressiveBlurBackground(
+                        progress: progress,
+                        fadeTail: fadeTail,
+                        maxBlurFraction: maxBlurFraction
+                    )
+                } else if glassOnly {
                     Rectangle()
                         .fill(.ultraThinMaterial)
                         .opacity(clampedProgress)
@@ -432,6 +450,16 @@ struct ProfileProgressiveChromeBackdrop: View {
                 }
             }
         }
+    }
+
+    @available(iOS 26.0, *)
+    @ViewBuilder
+    private var blurOnlyBackdrop: some View {
+        ProfileProgressiveBlurBackground(
+            progress: progress,
+            fadeTail: fadeTail,
+            maxBlurFraction: maxBlurFraction
+        )
     }
 
     @available(iOS 26.0, *)
@@ -477,6 +505,7 @@ struct ProfileStickyChromeContainer<Chrome: View, Tabs: View>: View {
     var blurFadeTail: CGFloat = ProfileChromeGlassMetrics.chromeBackdropFadeTail
     var maxBlurFraction: CGFloat = ProfileChromeGlassMetrics.chromeBackdropMaxBlurFraction
     var glassOnly: Bool = false
+    var blurOnly: Bool = false
     var tintOpacity: CGFloat = 0
     var horizontalPadding: CGFloat = 20
     let tabsArePinned: Bool
@@ -488,6 +517,7 @@ struct ProfileStickyChromeContainer<Chrome: View, Tabs: View>: View {
         blurFadeTail: CGFloat = ProfileChromeGlassMetrics.chromeBackdropFadeTail,
         maxBlurFraction: CGFloat = ProfileChromeGlassMetrics.chromeBackdropMaxBlurFraction,
         glassOnly: Bool = false,
+        blurOnly: Bool = false,
         tintOpacity: CGFloat = 0,
         horizontalPadding: CGFloat = 20,
         tabsArePinned: Bool = false,
@@ -498,6 +528,7 @@ struct ProfileStickyChromeContainer<Chrome: View, Tabs: View>: View {
         self.blurFadeTail = blurFadeTail
         self.maxBlurFraction = maxBlurFraction
         self.glassOnly = glassOnly
+        self.blurOnly = blurOnly
         self.tintOpacity = tintOpacity
         self.horizontalPadding = horizontalPadding
         self.tabsArePinned = tabsArePinned
@@ -522,7 +553,8 @@ struct ProfileStickyChromeContainer<Chrome: View, Tabs: View>: View {
                     progress: blurProgress,
                     fadeTail: blurFadeTail,
                     maxBlurFraction: maxBlurFraction,
-                    glassOnly: glassOnly
+                    glassOnly: glassOnly,
+                    blurOnly: blurOnly
                 )
 
                 if tintOpacity > 0 {
@@ -586,6 +618,19 @@ enum ProfileHeaderCollapseMetrics {
         return min(max((start - contentMinY) / tabsFadeLead, 0), 1)
     }
 
+    /// Para detalles tipo explorer/map: sin blur al inicio; empieza solo cuando el contenido
+    /// ya se ha desplazado hacia arriba respecto a su posicion inicial.
+    static func detailScrollChromeBlurProgress(
+        contentMinY: CGFloat,
+        initialContentMinY: CGFloat,
+        fadeLead: CGFloat = 64
+    ) -> CGFloat {
+        guard contentMinY.isFinite, initialContentMinY.isFinite else { return 0 }
+        let upwardTravel = initialContentMinY - contentMinY
+        guard upwardTravel > 0 else { return 0 }
+        return min(max(upwardTravel / fadeLead, 0), 1)
+    }
+
     static var tabsPinY: CGFloat { topChromePadding + chromeHeight + 8 }
     static let tabsFadeLead: CGFloat = 96
     static func progress(forTabsMinY tabsMinY: CGFloat) -> CGFloat {
@@ -605,6 +650,28 @@ enum StickyChromeTitleTypography {
     static let font: Font = .system(size: 17, weight: .semibold)
 }
 
+struct StickyChromeBarLayout<Leading: View, Center: View, Trailing: View>: View {
+    @ViewBuilder let leading: () -> Leading
+    @ViewBuilder let center: () -> Center
+    @ViewBuilder let trailing: () -> Trailing
+
+    var body: some View {
+        ZStack {
+            HStack(spacing: 10) {
+                leading()
+
+                Spacer(minLength: 0)
+
+                trailing()
+            }
+
+            center()
+                .padding(.horizontal, 56)
+        }
+        .frame(height: ProfileHeaderCollapseMetrics.chromeHeight)
+    }
+}
+
 /// Chrome fijo con título centrado y chevron (detalle feed: ubicación, explorer…).
 struct FeedPinnedTopChrome: View {
     let title: String
@@ -616,18 +683,14 @@ struct FeedPinnedTopChrome: View {
     }
 
     var body: some View {
-        ZStack {
-            HStack {
-                ProfileChromeIconButton(
-                    systemName: "chevron.left",
-                    foregroundColor: adaptiveColors.primary,
-                    iconSize: 18,
-                    action: onDismiss
-                )
-
-                Spacer(minLength: 0)
-            }
-
+        StickyChromeBarLayout {
+            ProfileChromeIconButton(
+                systemName: "chevron.left",
+                foregroundColor: adaptiveColors.primary,
+                iconSize: 18,
+                action: onDismiss
+            )
+        } center: {
             Text(title)
                 .font(StickyChromeTitleTypography.font)
                 .foregroundColor(adaptiveColors.primary)
@@ -635,8 +698,9 @@ struct FeedPinnedTopChrome: View {
                 .minimumScaleFactor(0.85)
                 .multilineTextAlignment(.center)
                 .frame(maxWidth: .infinity)
-                .padding(.horizontal, 52)
+        } trailing: {
+            Color.clear
+                .frame(width: ProfileChromeGlassMetrics.controlSize, height: ProfileChromeGlassMetrics.controlSize)
         }
-        .frame(height: ProfileHeaderCollapseMetrics.chromeHeight)
     }
 }

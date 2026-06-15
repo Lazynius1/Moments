@@ -16,14 +16,14 @@ struct ProfileVisitorPinnedTopChrome: View {
     @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
-        HStack(spacing: 10) {
+        StickyChromeBarLayout {
             ProfileChromeIconButton(
                 systemName: "chevron.left",
                 foregroundColor: UserProfileColors.textPrimary,
                 iconSize: 15,
                 action: onDismiss
             )
-
+        } center: {
             HStack(spacing: 5) {
                 Text(viewModel.userProfile?.username ?? NSLocalizedString("userProfile.user", comment: "User"))
                     .font(StickyChromeTitleTypography.font)
@@ -37,12 +37,9 @@ struct ProfileVisitorPinnedTopChrome: View {
             .opacity(collapseProgress)
             .offset(x: -6 * (1 - collapseProgress))
             .animation(.easeOut(duration: 0.18), value: collapseProgress)
-
-            Spacer(minLength: 0)
-
+        } trailing: {
             visitorHeaderMenu
         }
-        .frame(height: ProfileHeaderCollapseMetrics.chromeHeight)
     }
 
     private var visitorHeaderMenu: some View {

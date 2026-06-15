@@ -21,7 +21,6 @@ struct ExploreMomentDetailView: View {
     @State private var dragOffset: CGFloat = 0
     @State private var isDragging = false
     @State private var backgroundOpacity: Double = 1.0
-    @State private var headerTriggerMinY: CGFloat = .greatestFiniteMagnitude
 
     @State private var showContextMenu = false
     @State private var contextMenuMoment: Moment?
@@ -50,14 +49,6 @@ struct ExploreMomentDetailView: View {
         NSLocalizedString("explore.title", comment: "Explore")
     }
 
-    private var chromeBlurProgress: CGFloat {
-        guard headerTriggerMinY.isFinite, headerTriggerMinY < 10_000 else { return 0 }
-        let start = ProfileHeaderCollapseMetrics.feedStyleDetailTopInset
-        let fadeLead: CGFloat = 64
-        guard headerTriggerMinY < start else { return 0 }
-        return min(max((start - headerTriggerMinY) / fadeLead, 0), 1)
-    }
-
     init(moments: [Moment], initialIndex: Int, initialMomentId: String? = nil) {
         self._moments = State(initialValue: moments)
         self.initialIndex = initialIndex
@@ -76,7 +67,7 @@ struct ExploreMomentDetailView: View {
 
     var body: some View {
         ZStack {
-            ZStack(alignment: .top) {
+            ZStack {
                 ProfileMomentZoomNavigation.canvasBackground(for: colorScheme)
                     .ignoresSafeArea()
                     .opacity(backgroundOpacity)
@@ -86,19 +77,6 @@ struct ExploreMomentDetailView: View {
                     .offset(x: dragOffset)
                     .scaleEffect(isDragging ? max(0.85, 1 - abs(dragOffset) / 1000) : 1.0)
                     .gesture(exploreDismissDragGesture)
-
-                ProfileStickyChromeContainer(
-                    blurProgress: chromeBlurProgress,
-                    blurFadeTail: ProfileHeaderCollapseMetrics.feedDetailChromeBlurFadeTail,
-                    tabsArePinned: false
-                ) {
-                    FeedPinnedTopChrome(
-                        title: chromeTitle,
-                        onDismiss: dismissExploreDetail
-                    )
-                }
-                .zIndex(10)
-                .allowsHitTesting(true)
             }
 
             if showContextMenu, let moment = contextMenuMoment {
@@ -145,7 +123,9 @@ struct ExploreMomentDetailView: View {
                 .zIndex(999)
             }
         }
-        .navigationBarHidden(true)
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar { exploreDetailToolbarContent }
+        .chatScrollEdgeEffect()
         .sheet(
             isPresented: Binding(
                 get: { selectedMoment != nil },
@@ -300,17 +280,6 @@ struct ExploreMomentDetailView: View {
         return ScrollViewReader { proxy in
             ScrollView(.vertical, showsIndicators: false) {
                 LazyVStack(spacing: max(15, screenHeight * 0.02)) {
-                    Color.clear
-                        .frame(height: ProfileHeaderCollapseMetrics.feedStyleDetailTopInset)
-                        .background(
-                            GeometryReader { geometry in
-                                Color.clear.preference(
-                                    key: ScrollOffsetPreferenceKey.self,
-                                    value: geometry.frame(in: .named("exploreScroll")).minY
-                                )
-                            }
-                        )
-
                     ForEach(Array(moments.enumerated()), id: \.offset) { index, moment in
                         ScreenshotProtectedView(
                             isProtected: (moment.audience?.lowercased() ?? "") != "everyone"
@@ -367,12 +336,7 @@ struct ExploreMomentDetailView: View {
                     FeedVisibilityCoordinator.shared.update(all: values)
                 }
             }
-            .profileGridNavigationChrome(colorScheme: colorScheme)
             .scrollClipDisabled()
-            .coordinateSpace(name: "exploreScroll")
-            .onPreferenceChange(ScrollOffsetPreferenceKey.self) { value in
-                headerTriggerMinY = value
-            }
             .environment(feedViewModel)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .onAppear {
@@ -382,6 +346,27 @@ struct ExploreMomentDetailView: View {
                     proxy.scrollTo(target, anchor: .top)
                 }
             }
+        }
+    }
+
+    @ToolbarContentBuilder
+    private var exploreDetailToolbarContent: some ToolbarContent {
+        ToolbarItem(placement: .topBarLeading) {
+            ProfileChromeIconButton(
+                systemName: "chevron.left",
+                foregroundColor: AdaptiveColors(colorScheme: colorScheme).primary,
+                size: 38,
+                iconSize: 18,
+                action: dismissExploreDetail
+            )
+        }
+        .chatHideSharedBackgroundIfAvailable()
+
+        ToolbarItem(placement: .principal) {
+            Text(chromeTitle)
+                .font(.system(size: 17, weight: .semibold))
+                .foregroundStyle(AdaptiveColors(colorScheme: colorScheme).primary)
+                .lineLimit(1)
         }
     }
 

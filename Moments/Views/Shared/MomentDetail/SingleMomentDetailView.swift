@@ -19,7 +19,8 @@ struct SingleMomentDetailView: View {
     @State private var dragOffset: CGFloat = 0
     @State private var isDragging = false
     @State private var backgroundOpacity: Double = 1.0
-    @State private var headerTriggerMinY: CGFloat = .greatestFiniteMagnitude
+    @State private var contentMinY: CGFloat = .greatestFiniteMagnitude
+    @State private var initialContentMinY: CGFloat = .greatestFiniteMagnitude
 
     @State private var showContextMenu = false
     @State private var showEditSheet = false
@@ -57,11 +58,10 @@ struct SingleMomentDetailView: View {
     }
 
     private var chromeBlurProgress: CGFloat {
-        guard headerTriggerMinY.isFinite, headerTriggerMinY < 10_000 else { return 0 }
-        let start = ProfileHeaderCollapseMetrics.feedStyleDetailTopInset
-        let fadeLead: CGFloat = 64
-        guard headerTriggerMinY < start else { return 0 }
-        return min(max((start - headerTriggerMinY) / fadeLead, 0), 1)
+        ProfileHeaderCollapseMetrics.detailScrollChromeBlurProgress(
+            contentMinY: contentMinY,
+            initialContentMinY: initialContentMinY
+        )
     }
 
     var body: some View {
@@ -226,14 +226,6 @@ struct SingleMomentDetailView: View {
             LazyVStack(spacing: max(15, screenHeight * 0.02)) {
                 Color.clear
                     .frame(height: ProfileHeaderCollapseMetrics.feedStyleDetailTopInset)
-                    .background(
-                        GeometryReader { geometry in
-                            Color.clear.preference(
-                                key: ScrollOffsetPreferenceKey.self,
-                                value: geometry.frame(in: .named("singleMomentScroll")).minY
-                            )
-                        }
-                    )
 
                 ScreenshotProtectedView(
                     isProtected: (moment.audience?.lowercased() ?? "") != "everyone"
@@ -274,6 +266,14 @@ struct SingleMomentDetailView: View {
             }
             .padding(.horizontal, FeedMomentCardLayout.listHorizontalPadding)
             .padding(.bottom, 24)
+            .background(
+                GeometryReader { geometry in
+                    Color.clear.preference(
+                        key: ScrollOffsetPreferenceKey.self,
+                        value: geometry.frame(in: .named("singleMomentScroll")).minY
+                    )
+                }
+            )
             .onPreferenceChange(MomentVisibilityPreference.self) { values in
                 FeedVisibilityCoordinator.shared.update(all: values)
             }
@@ -282,7 +282,10 @@ struct SingleMomentDetailView: View {
         .scrollClipDisabled()
         .coordinateSpace(name: "singleMomentScroll")
         .onPreferenceChange(ScrollOffsetPreferenceKey.self) { value in
-            headerTriggerMinY = value
+            contentMinY = value
+            if !initialContentMinY.isFinite || initialContentMinY > 10_000 {
+                initialContentMinY = value
+            }
         }
         .environment(feedViewModel)
         .frame(maxWidth: .infinity, maxHeight: .infinity)

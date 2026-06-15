@@ -16,27 +16,10 @@ struct ProfileOwnPinnedTopChrome: View {
     @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
-        ZStack {
-            HStack(spacing: 8) {
-                Color.clear
-                    .frame(width: ProfileChromeGlassMetrics.controlSize, height: ProfileChromeGlassMetrics.controlSize)
-
-                Spacer()
-
-                ProfileChromeControlsCluster {
-                    ProfileChromeIconButton(
-                        systemName: "bell",
-                        foregroundColor: ProfileColors.textPrimary,
-                        standaloneGlass: false,
-                        action: {
-                            NotificationCenter.default.post(name: NSNotification.Name("ShowNotifications"), object: nil)
-                        }
-                    )
-
-                    ownHeaderMenu
-                }
-            }
-
+        StickyChromeBarLayout {
+            Color.clear
+                .frame(width: ProfileChromeGlassMetrics.controlSize, height: ProfileChromeGlassMetrics.controlSize)
+        } center: {
             HStack(spacing: 5) {
                 Text(username)
                     .font(StickyChromeTitleTypography.font)
@@ -51,8 +34,20 @@ struct ProfileOwnPinnedTopChrome: View {
             .scaleEffect(0.96 + (collapseProgress * 0.04))
             .animation(.easeOut(duration: 0.18), value: collapseProgress)
             .allowsHitTesting(false)
+        } trailing: {
+            ProfileChromeControlsCluster {
+                ProfileChromeIconButton(
+                    systemName: "bell",
+                    foregroundColor: ProfileColors.textPrimary,
+                    standaloneGlass: false,
+                    action: {
+                        NotificationCenter.default.post(name: NSNotification.Name("ShowNotifications"), object: nil)
+                    }
+                )
+
+                ownHeaderMenu
+            }
         }
-        .frame(height: ProfileHeaderCollapseMetrics.chromeHeight)
     }
 
     private var ownHeaderMenu: some View {
