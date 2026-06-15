@@ -159,14 +159,16 @@ struct SettingsView: View {
             .navigationTitle(NSLocalizedString("settings.title", comment: "Settings"))
             .navigationBarTitleDisplayMode(.large)
             .navigationBarBackButtonHidden(true)
+            .toolbarBackground(.hidden, for: .navigationBar)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
-                    Button(action: { dismiss() }) {
-                        Image(systemName: "xmark")
-                            .font(.system(size: 14, weight: .semibold))
-                            .foregroundColor(colorScheme == .dark ? .white : .black)
-                            .frame(width: 44, height: 44)
-                    }
+                    ProfileChromeIconButton(
+                        systemName: "xmark",
+                        foregroundColor: colorScheme == .dark ? .white : .black,
+                        preset: .toolbarAction,
+                        standaloneGlass: false,
+                        action: { dismiss() }
+                    )
                 }
             }
             .onAppear {

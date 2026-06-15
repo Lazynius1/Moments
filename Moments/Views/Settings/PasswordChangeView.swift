@@ -244,14 +244,10 @@ struct PasswordChangeView: View {
             }
             .navigationBarTitleDisplayMode(.inline)
             .navigationBarBackButtonHidden(true)
+            .toolbarBackground(.hidden, for: .navigationBar)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
-                    Button(action: { dismiss() }) {
-                        Image(systemName: "chevron.left")
-                            .font(.system(size: 17, weight: .semibold))
-                            .foregroundColor(colorScheme == .dark ? .white : .black)
-                            .frame(width: 44, height: 44)
-                    }
+                    SettingsToolbarBackButton(action: { dismiss() })
                 }
             }
             .alert("common.error", isPresented: $viewModel.showError) {

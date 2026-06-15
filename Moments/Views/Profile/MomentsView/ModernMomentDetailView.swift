@@ -26,9 +26,9 @@ struct ModernMomentDetailView: View {
     @State private var isPeeking = false
     @State private var peekIsProtected = false
     @State private var selectedMoment: Moment?
-    @State private var scrollOffset: CGFloat = 0
-    @State private var scrollPosition: Int?
     @State private var trackedMomentViewIds: Set<String> = []
+    @State private var feedViewModel = FeedViewModel()
+    @Environment(\.colorScheme) private var colorScheme
     
     // ✅ Estados para el menú contextual
     @State private var showContextMenu = false
@@ -56,7 +56,6 @@ struct ModernMomentDetailView: View {
     @State private var selectedStoryUserId: String = ""
     @State private var selectedLocationMoment: Moment? // ✅ Usar Item Binding para evitar race conditions en SwiftUI
     @State private var hasAppliedInitialScroll = false
-    @State private var hasSettledAtInitialIndex = false
     @Environment(\.profileDetailVideoPlaybackEnabled) private var profileDetailVideoPlaybackEnabled
     @Environment(\.profileGridHeroTransitionCoordinator) private var heroCoordinator
     
@@ -91,54 +90,27 @@ struct ModernMomentDetailView: View {
         
         let clamped = moments.isEmpty ? 0 : min(max(resolved, 0), moments.count - 1)
         self._currentIndex = State(initialValue: clamped)
-        self._scrollPosition = State(initialValue: clamped)
+    }
+
+    private var adaptiveColors: AdaptiveColors {
+        AdaptiveColors(colorScheme: colorScheme)
     }
     
     var body: some View {
-        ZStack { // ✅ Root ZStack para overlays globales
-            GeometryReader { geometry in
-                let safeAreaBottom = geometry.safeAreaInsets.bottom
-            
-            ZStack(alignment: .top) {
-                // ✅ Fondo que se desvanece durante el drag
-                ModernDetailBackground(scrollOffset: scrollOffset)
-                    .ignoresSafeArea(.all)
+        ZStack {
+            ZStack {
+                ProfileMomentZoomNavigation.canvasBackground(for: colorScheme)
+                    .ignoresSafeArea()
                     .opacity(backgroundOpacity)
-                
-                // ✅ Scroll a pantalla completa; el contenido pasa por debajo del header al desplazarse
-                modernMomentsScrollView(
-                    geometry: geometry,
-                    safeAreaBottom: safeAreaBottom
-                )
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .safeAreaInset(edge: .top, spacing: 0) {
-                    ModernDetailHeader(
-                        moment: moments[safe: currentIndex],
-                        topInset: 8,
-                        onDismiss: onDismiss,
-                        profileZoomNamespace: profileZoomNamespace,
-                        onAvatarTap: { userId, hasStory in
-                            let normalizedUserId = userId.trimmingCharacters(in: .whitespacesAndNewlines)
-                            guard !normalizedUserId.isEmpty else { return }
-                            if hasStory {
-                                selectedStoryUserId = normalizedUserId
-                                showSpecificUserStories = true
-                            } else {
-                                selectedUserId = normalizedUserId
-                                showUserProfile = true
-                            }
-                        }
-                    )
-                    .padding(.bottom, 8)
-                }
-                .offset(x: dragOffset)
-                .scaleEffect(isDragging ? max(0.85, 1 - abs(dragOffset) / 1000) : 1.0)
+
+                modernMomentsScrollView()
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .offset(x: dragOffset)
+                    .scaleEffect(isDragging ? max(0.85, 1 - abs(dragOffset) / 1000) : 1.0)
+                    .gesture(profileDetailDismissDragGesture)
             }
-        }
         
-        // ✅ Overlays Globales (Root ZStack)
-        
-        // 1. Context Menu Overlay
+        // Overlays globales
         if showContextMenu, let moment = contextMenuMoment {
             ModernContextMenuOverlay(
                 moment: moment,
@@ -197,7 +169,6 @@ struct ModernMomentDetailView: View {
             .zIndex(999)
         }
     }
-    .navigationBarHidden(true)
         .sheet(
             isPresented: Binding(
                 get: { selectedMoment != nil },
@@ -274,7 +245,6 @@ struct ModernMomentDetailView: View {
         }
         .onAppear {
             let target = clampedInitialIndex
-            scrollPosition = target
             currentIndex = target
             VideoMomentsIndex.shared.rebuild(from: moments)
 
@@ -312,62 +282,89 @@ struct ModernMomentDetailView: View {
         .onDisappear {
             GlobalVideoManager.shared.pauseAllVideos()
             FeedVisibilityCoordinator.shared.update(all: [:])
-        }
-        .onChange(of: scrollPosition) { _, newPosition in
-            guard let newPosition, newPosition != currentIndex else { return }
-            currentIndex = newPosition
+            feedViewModel.shutdown()
         }
         .onChange(of: currentIndex) { _, newIndex in
             trackMomentViewIfNeeded(for: moments[safe: newIndex])
             // Activar el video del nuevo índice al paginar en el detalle.
             activateVideoForIndex(newIndex)
         }
-        .background {
-            ModernDetailBackground(scrollOffset: scrollOffset)
-                .ignoresSafeArea()
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar(.visible, for: .navigationBar)
+        .toolbar { profileDetailToolbarContent }
+        .momentsScrollEdgeChrome()
+    }
+
+    @ToolbarContentBuilder
+    private var profileDetailToolbarContent: some ToolbarContent {
+        ToolbarItem(placement: .topBarLeading) {
+            ProfileChromeIconButton(
+                systemName: "chevron.left",
+                foregroundColor: adaptiveColors.primary,
+                preset: .navigationBack,
+                action: {
+                    withAnimation(.easeOut(duration: 0.18)) {
+                        onDismiss()
+                    }
+                }
+            )
         }
-        .gesture(
-            // ✅ NUEVO: Drag gesture suave e interactivo
-            DragGesture(coordinateSpace: .global)
-                .onChanged { value in
-                    // ✅ Solo drag horizontal hacia la derecha
-                    if value.translation.width > 0 {
-                        withAnimation(.interactiveSpring(response: 0.3, dampingFraction: 0.8)) {
-                            dragOffset = value.translation.width
-                            isDragging = true
-                            
-                            // ✅ Calcular opacity basado en el drag (más drag = más transparente)
-                            let progress = min(value.translation.width / 200, 1.0)
-                            backgroundOpacity = 1.0 - (progress * 0.4) // ✅ Máximo 40% transparencia
-                        }
+        .chatHideSharedBackgroundIfAvailable()
+
+        ToolbarItem(placement: .principal) {
+            if let moment = moments[safe: currentIndex] {
+                LiveUsernameContent(userId: moment.authorId, fallbackUsername: moment.username) { username in
+                    VStack(spacing: 1) {
+                        Text(username)
+                            .font(.system(size: 17, weight: .semibold))
+                            .foregroundStyle(adaptiveColors.primary)
+                            .lineLimit(1)
+
+                        Text(NSLocalizedString("profile.tab.moments", comment: "Moments tab title"))
+                            .font(.system(size: 11, weight: .medium))
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                    }
+                    .frame(maxWidth: 200)
+                }
+            }
+        }
+    }
+
+    private var profileDetailDismissDragGesture: some Gesture {
+        DragGesture(coordinateSpace: .global)
+            .onChanged { value in
+                if value.translation.width > 0 {
+                    withAnimation(.interactiveSpring(response: 0.3, dampingFraction: 0.8)) {
+                        dragOffset = value.translation.width
+                        isDragging = true
+                        let progress = min(value.translation.width / 200, 1.0)
+                        backgroundOpacity = 1.0 - (progress * 0.4)
                     }
                 }
-                .onEnded { value in
-                    let dismissThreshold: CGFloat = 120
-                    let velocity = value.predictedEndTranslation.width
-                    
-                    if value.translation.width > dismissThreshold || velocity > 300 {
-                        // ✅ Dismiss con animación suave
-                        withAnimation(.easeOut(duration: 0.3)) {
-                            dragOffset = UIScreen.main.bounds.width
-                            backgroundOpacity = 0.0
-                        }
-                        
-                        // ✅ Ejecutar dismiss después de la animación
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
-                            heroCoordinator?.isDismissingInteractively = true
-                            onDismiss()
-                        }
-                    } else {
-                        // ✅ Volver a la posición original
-                        withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
-                            dragOffset = 0
-                            isDragging = false
-                            backgroundOpacity = 1.0
-                        }
+            }
+            .onEnded { value in
+                let dismissThreshold: CGFloat = 120
+                let velocity = value.predictedEndTranslation.width
+
+                if value.translation.width > dismissThreshold || velocity > 300 {
+                    withAnimation(.easeOut(duration: 0.3)) {
+                        dragOffset = UIScreen.main.bounds.width
+                        backgroundOpacity = 0.0
+                    }
+
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                        heroCoordinator?.isDismissingInteractively = true
+                        onDismiss()
+                    }
+                } else {
+                    withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                        dragOffset = 0
+                        isDragging = false
+                        backgroundOpacity = 1.0
                     }
                 }
-        )
+            }
     }
     
     private func trackMomentViewIfNeeded(for moment: Moment?) {
@@ -399,6 +396,25 @@ struct ModernMomentDetailView: View {
     private func openLocationMap(for moment: Moment) {
         self.selectedLocationMoment = moment
     }
+
+    private func openUserProfile(userId: String) {
+        let normalizedUserId = userId.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !normalizedUserId.isEmpty else { return }
+        selectedUserId = normalizedUserId
+        showUserProfile = true
+    }
+
+    private func handleAuthorAvatarTap(userId: String, hasStory: Bool) {
+        let normalizedUserId = userId.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !normalizedUserId.isEmpty else { return }
+
+        if hasStory {
+            selectedStoryUserId = normalizedUserId
+            showSpecificUserStories = true
+        } else {
+            openUserProfile(userId: normalizedUserId)
+        }
+    }
     
     private func handleDetailPeek(moment: Moment, imageURL: String, ratio: CGFloat, isPressing: Bool) {
         withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
@@ -418,55 +434,52 @@ struct ModernMomentDetailView: View {
     private func detailMomentRow(
         index: Int,
         moment: Moment,
-        geometry: GeometryProxy,
-        profileVideoMoments: [VideoMoment]
+        feedCardHeight: CGFloat
     ) -> some View {
-        let momentId = GlobalVideoManager.profileVideoConsumerId(for: moment)
         let isProtected = (moment.audience?.lowercased() ?? "") != "everyone"
-        let cardHeight = geometry.size.height - 200
-        let allowsVideoPlayback = rowAllowsVideoPlayback(index)
 
         ScreenshotProtectedView(isProtected: isProtected) {
-            ModernDetailMomentCard(
+            ModernPostCardView(
                 moment: moment,
-                availableHeight: cardHeight,
+                availableHeight: feedCardHeight,
+                colorScheme: colorScheme,
                 onComment: { selectedMoment = moment },
-                onContextMenu: {
-                    contextMenuMoment = moment
-                    withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
-                        showContextMenu = true
-                    }
-                },
+                onNearEnd: {},
                 onHashtagTap: { hashtag in
                     selectedHashtag = "#\(hashtag)"
                     showExploreWithHashtag = true
                 },
-                onTagTap: { userId in
-                    selectedUserId = userId
-                    showUserProfile = true
+                onLocationTap: { _, _ in
+                    openLocationMap(for: moment)
                 },
-                onLocationTap: { openLocationMap(for: moment) },
+                onContextMenu: { tappedMoment in
+                    contextMenuMoment = tappedMoment
+                    withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                        showContextMenu = true
+                    }
+                },
+                onTagTap: { userId in
+                    openUserProfile(userId: userId)
+                },
+                onOpenUserProfile: { userId in
+                    openUserProfile(userId: userId)
+                },
+                onAuthorAvatarTap: { userId, hasStory in
+                    handleAuthorAvatarTap(userId: userId, hasStory: hasStory)
+                },
+                profileZoomNamespace: profileZoomNamespace,
                 onPeek: { imageURL, ratio, isPressing in
                     handleDetailPeek(moment: moment, imageURL: imageURL, ratio: ratio, isPressing: isPressing)
-                },
-                reelsVideos: profileVideoMoments,
-                allowsVideoPlayback: allowsVideoPlayback
+                }
             )
+            .equatable()
+            .environmentObject(firestoreService)
+            .environment(feedViewModel)
         }
         .id(index)
-        .environmentObject(firestoreService)
-        .modifier(DetailMomentVisibilityReporter(
-            momentId: momentId,
-            isEnabled: allowsVideoPlayback
-        ))
-    }
-
-    private func rowAllowsVideoPlayback(_ index: Int) -> Bool {
-        guard profileDetailVideoPlaybackEnabled else { return false }
-        guard restrictPlaybackToInitialIndex else { return true }
-        // La fila inicial puede reproducir en cuanto el coordinator lo permite (handoff del hero).
-        if index == clampedInitialIndex { return true }
-        return hasSettledAtInitialIndex
+        .onAppear {
+            currentIndex = index
+        }
     }
 
     private func activateInitialProfileVideoIfNeeded() {
@@ -496,35 +509,31 @@ struct ModernMomentDetailView: View {
     }
 
     // ✅ ScrollView principal MODIFICADO para conectar con el menú contextual
-    private func modernMomentsScrollView(
-        geometry: GeometryProxy,
-        safeAreaBottom: CGFloat
-    ) -> some View {
-        let profileVideoMoments = moments.videoMoments
- 
+    private func modernMomentsScrollView() -> some View {
+        let screenHeight = UIScreen.main.bounds.height
+        let feedCardHeight = screenHeight * 0.58
+
         return ScrollViewReader { proxy in
             ScrollView(.vertical, showsIndicators: false) {
-                // ✅ LazyVStack: solo monta filas visibles → carga instantánea al abrir desde el grid
-                LazyVStack(spacing: 16) {
+                LazyVStack(spacing: max(15, screenHeight * 0.02)) {
                     ForEach(Array(moments.enumerated()), id: \.offset) { index, moment in
                         detailMomentRow(
                             index: index,
                             moment: moment,
-                            geometry: geometry,
-                            profileVideoMoments: profileVideoMoments
+                            feedCardHeight: feedCardHeight
                         )
                     }
                 }
-                .scrollTargetLayout()
-                .padding(.bottom, safeAreaBottom + 24)
+                .padding(.horizontal, FeedMomentCardLayout.listHorizontalPadding)
+                .padding(.bottom, 24)
                 .onPreferenceChange(MomentVisibilityPreference.self) { values in
                     FeedVisibilityCoordinator.shared.update(all: mergedVisibilityValues(values))
                 }
             }
-            .scrollPosition(id: $scrollPosition, anchor: .top)
+            .scrollClipDisabled()
             .environment(\.profileDetailDirectVideoPlayback, restrictPlaybackToInitialIndex)
+            .environment(feedViewModel)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .coordinateSpace(name: "scroll")
             .onAppear {
                 applyInitialScrollIfNeeded(using: proxy)
             }
@@ -566,656 +575,14 @@ struct ModernMomentDetailView: View {
         }
     }
     
-    private func scrollToMoment(at index: Int) {
-        currentIndex = index
-        scrollPosition = clampedIndex(index)
-    }
- 
     private func applyInitialScrollIfNeeded(using proxy: ScrollViewProxy) {
         guard !hasAppliedInitialScroll else { return }
         hasAppliedInitialScroll = true
 
         let target = clampedInitialIndex
-        scrollPosition = target
-        hasSettledAtInitialIndex = !restrictPlaybackToInitialIndex
-
-        // LazyVStack monta la celda objetivo de forma diferida: reintentar el scroll brevemente.
-        for attempt in 0..<4 {
-            DispatchQueue.main.asyncAfter(deadline: .now() + Double(attempt) * 0.05) {
-                scrollPosition = target
-                proxy.scrollTo(target, anchor: .top)
-                if attempt == 3, restrictPlaybackToInitialIndex {
-                    hasSettledAtInitialIndex = true
-                }
-            }
-        }
-    }
-}
-
-private struct DetailMomentVisibilityReporter: ViewModifier {
-    let momentId: String
-    let isEnabled: Bool
-
-    func body(content: Content) -> some View {
-        if isEnabled {
-            content.feedMomentVisibility(momentId: momentId)
-        } else {
-            content
-        }
-    }
-}
-
-// MARK: - ✅ Header centrado y limpio
-struct ModernDetailHeader: View {
-    let moment: Moment?
-    let topInset: CGFloat
-    let onDismiss: () -> Void
-    var profileZoomNamespace: Namespace.ID? = nil
-    let onAvatarTap: (String, Bool) -> Void
-    @Environment(\.colorScheme) var colorScheme
-    @State private var liveUsername: String = ""
-
-    var body: some View {
-        VStack(spacing: 0) {
-            Color.clear
-                .frame(height: topInset)
-
-            HStack(spacing: 12) {
-                Button {
-                    withAnimation(.easeOut(duration: 0.18)) {
-                        onDismiss()
-                    }
-                } label: {
-                    Image(systemName: "chevron.left")
-                        .font(.system(size: 16, weight: .bold))
-                        .foregroundColor(.primary)
-                        .frame(width: 38, height: 38)
-                        .liquidGlass(in: Circle(), interactive: true)
-                }
-                .buttonStyle(.plain)
-                .contentShape(Circle())
-
-                if let moment = moment {
-                    let authorId = moment.authorId.trimmingCharacters(in: .whitespacesAndNewlines)
-
-                    HStack(spacing: 10) {
-                            StoryRingAvatarView(
-                                userId: authorId,
-                                size: 38,
-                            lineWidth: 2.2,
-                            showBaseStroke: true,
-                            baseStrokeColor: .white.opacity(0.15),
-                            baseStrokeWidth: 0.5,
-                            profileZoomNamespace: profileZoomNamespace,
-                            onTap: { hasStory in
-                                guard !authorId.isEmpty else { return }
-                                onAvatarTap(authorId, hasStory)
-                            }
-                        )
-                        
-                        VStack(alignment: .leading, spacing: 0) {
-                            Button {
-                                guard !authorId.isEmpty else { return }
-                                onAvatarTap(authorId, false)
-                            } label: {
-                                HStack(spacing: 4) {
-                                    Text(displayUsername(for: moment))
-                                        .font(.custom("Poppins-SemiBold", size: 16))
-                                        .foregroundColor(.primary)
-
-                                    VerifiedBadgeView(userId: authorId, size: 13)
-                                }
-                            }
-                            .buttonStyle(.plain)
-                            
-                            Text(moment.timestamp.timeAgoDisplay())
-                                .font(.custom("Poppins-Regular", size: 10))
-                                .foregroundColor(.secondary.opacity(0.7))
-                            
-                        }
-                    }
-                }
-
-                Spacer()
-            }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 8)
-            .liquidGlass(in: Capsule(), interactive: false)
-            .padding(.horizontal, 14)
-        }
-        .onAppear {
-            resolveAuthorUsername()
-        }
-        .onChange(of: moment?.authorId) { _, _ in
-            resolveAuthorUsername()
-        }
-        .onChange(of: moment?.username) { _, _ in
-            if liveUsername.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                resolveAuthorUsername()
-            }
-        }
-    }
-
-    private func displayUsername(for moment: Moment) -> String {
-        let fresh = liveUsername.trimmingCharacters(in: .whitespacesAndNewlines)
-        return fresh.isEmpty ? moment.username : fresh
-    }
-
-    private func resolveAuthorUsername() {
-        guard let moment = moment else { return }
-        let authorId = moment.authorId.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !authorId.isEmpty else {
-            liveUsername = ""
-            return
-        }
-
-        UserCacheService.shared.refreshUser(userId: authorId) { user in
-            let fetchedUsername = user?.username.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-            DispatchQueue.main.async {
-                let currentAuthorId = self.moment?.authorId.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-                guard currentAuthorId == authorId else { return }
-                self.liveUsername = fetchedUsername
-            }
-        }
-    }
-}
-
-// MARK: - ✅ Tarjeta de momento detallada con aspect ratios dinámicos CORREGIDA
-struct ModernDetailMomentCard: View {
-    let moment: Moment
-    let availableHeight: CGFloat
-    let onComment: () -> Void
-    let onContextMenu: () -> Void
-    let onHashtagTap: (String) -> Void
-    var onTagTap: ((String) -> Void)? = nil // ✅ Tag Navigation
-    var onLocationTap: (() -> Void)? = nil
-    var onPeek: ((String, CGFloat, Bool) -> Void)? = nil // ✅ PEEK callback
-    var reelsVideos: [VideoMoment]? = nil
-    var allowsVideoPlayback: Bool = true
-
-    @EnvironmentObject private var firestoreService: FirestoreService
-    @Environment(\.colorScheme) var colorScheme
-    @State private var currentImageIndex = 0
-    
-    @State private var detectedAspectRatio: CGFloat = 1.0
-    @State private var realAspectRatio: CGFloat = 1.0 // ✅ Ratio real sin cap
-    @State private var isSaved: Bool = false
-    @State private var isSaveLoading: Bool = false
-    @State private var commentCount: Int = 0
-    @State private var hasLoadedInitialData: Bool = false
-    @State private var showTags: Bool = false // ✅ NUEVO: Control de etiquetas
-    @State private var isImmersive: Bool = false // ✅ NUEVO: Soporte para modo inmersivo
-    @State private var aspectRatioType: AspectRatioType = .square
-    
-    enum AspectRatioType {
-        case square, portrait, landscape, reels
-        
-        var maxHeight: CGFloat {
-            switch self {
-            case .square: return 450
-            case .portrait: return 550
-            case .landscape: return 300
-            case .reels: return 1000 // Inmersivo, sin límite estricto corto
-            }
-        }
-        
-        var exactRatio: CGFloat {
-            switch self {
-            case .square: return 1.0
-            case .portrait: return 0.8
-            case .landscape: return 16.0/9.0
-            case .reels: return 9.0/16.0
-            }
-        }
-    }
-
-    private var mediaItems: [MediaItem] {
-        // ✅ MODERACIÓN: Usar visibleMediaItems para excluir archivos moderados del carrusel
-        let visible = moment.visibleMediaItems
-        if !visible.isEmpty {
-            return visible
-        }
-
-        guard moment.shouldUseLegacyMediaFallback else {
-            return [MediaItem(type: .image, url: "")]
-        }
-        
-        // ✅ FALLBACK: Para momentos legacy que solo tienen imagePath/videoUrl
-        var items: [MediaItem] = []
-        if let imagePath = moment.imagePath, !imagePath.isEmpty {
-            items.append(MediaItem(type: .image, url: imagePath))
-        }
-        if let videoUrl = moment.videoUrl, !videoUrl.isEmpty {
-            items.append(MediaItem(type: .video, url: videoUrl))
-        }
-        return items.isEmpty ? [MediaItem(type: .image, url: "")] : items
-    }
-    
-    private var cardHeight: CGFloat {
-        let maxWidth = FeedMomentCardLayout.mediaContentWidth
-        
-        guard maxWidth > 0 else { return 350 }
-        
-        let aspectRatio: CGFloat
-        if detectedAspectRatio > 0 && detectedAspectRatio.isFinite {
-            aspectRatio = detectedAspectRatio
-        } else {
-            aspectRatio = aspectRatioType.exactRatio
-        }
-        
-        let calculatedHeight = maxWidth / aspectRatio
-        
-        // Para Reels, dejamos que crezca más libremente
-        if aspectRatioType == .reels {
-            let maxReelsHeight = availableHeight + 100 // Permitir que sea inmersivo
-            return min(calculatedHeight, maxReelsHeight)
-        }
-        
-        return min(calculatedHeight, aspectRatioType.maxHeight)
-    }
-
-    private var activeMediaItem: MediaItem? {
-        mediaItems.indices.contains(currentImageIndex) ? mediaItems[currentImageIndex] : mediaItems.first
-    }
-    
-    var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            ZStack(alignment: .bottom) {
-                ZStack(alignment: .topLeading) {
-                    EnhancedCarouselView(
-                        mediaItems: mediaItems,
-                        currentIndex: $currentImageIndex,
-                        showTags: $showTags,
-                        aspectRatio: detectedAspectRatio > 0 && detectedAspectRatio.isFinite ? detectedAspectRatio : 1.0,
-                        currentMoment: moment,
-                        onTagTap: onTagTap,
-                        reelsVideos: reelsVideos,
-                        allowsVideoPlayback: allowsVideoPlayback,
-                        isImmersive: $isImmersive
-                    )
-                    .carouselImmersivePeekGesture(
-                        isImmersive: $isImmersive,
-                        mediaItems: mediaItems,
-                        currentImageIndex: currentImageIndex,
-                        detectedAspectRatio: detectedAspectRatio,
-                        realAspectRatio: realAspectRatio,
-                        onPeek: onPeek
-                    )
-                    .frame(height: max(cardHeight, 200))
-                    .clipShape(FeedMomentCardLayout.continuousRoundedRect)
-                    .contentShape(FeedMomentCardLayout.continuousRoundedRect)
-                    .onAppear {
-                        detectAspectRatio()
-                    }
-
-                    if moment.hasHiddenLayers,
-                       moment.hiddenLayerCount > 0,
-                       mediaItems.count == 1,
-                       mediaItems.first?.type == .image,
-                       currentImageIndex == 0 {
-                        HiddenLayersOverlayView(moment: moment, isImmersive: isImmersive)
-                            .frame(height: max(cardHeight, 200))
-                            .clipShape(FeedMomentCardLayout.continuousRoundedRect)
-                            .zIndex(3)
-                    }
-
-                    profileMediaBadges
-                        .padding(.top, 14)
-                        .padding(.leading, 14)
-                        .opacity(isImmersive ? 0 : 1)
-                        .animation(.easeInOut(duration: 0.3), value: isImmersive)
-
-                    if mediaItems.count > 1 {
-                        MomentCarouselPageIndicators(
-                            count: mediaItems.count,
-                            currentIndex: currentImageIndex
-                        )
-                        .frame(maxWidth: .infinity, alignment: .center)
-                        .padding(.top, aspectRatioType == .reels ? 80 : 18)
-                        .opacity(isImmersive ? 0 : 1)
-                    }
-                }
-
-                ModernActionButtons(
-                    moment: moment,
-                    isSaved: $isSaved,
-                    isSaveLoading: $isSaveLoading,
-                    commentCount: $commentCount,
-                    onComment: onComment,
-                    onSave: toggleSave,
-                    onContextMenu: onContextMenu,
-                    isImmersive: $isImmersive
-                )
-                .environmentObject(firestoreService)
-                .padding(.bottom, 6)
-                .opacity(isImmersive ? 0 : 1)
-                .animation(.easeInOut(duration: 0.3), value: isImmersive)
-            }
-            .shadow(color: .black.opacity(colorScheme == .dark ? 0.22 : 0.10), radius: 18, x: 0, y: 12)
-
-            MomentCaptionView(
-                moment: moment,
-                style: .detail,
-                colorScheme: colorScheme,
-                onHashtagTap: onHashtagTap
-            )
-            .padding(.horizontal, FeedMomentCardLayout.captionHorizontalPadding)
-        }
-        .padding(.horizontal, FeedMomentCardLayout.listHorizontalPadding)
-        .onAppear {
-            if !hasLoadedInitialData {
-                loadMomentData()
-                hasLoadedInitialData = true
-            }
-        }
-    }
-
-    @ViewBuilder
-    private var profileMediaBadges: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            if let location = moment.location?.trimmingCharacters(in: .whitespacesAndNewlines),
-               !location.isEmpty {
-                Button(action: {
-                    onLocationTap?()
-                }) {
-                    HStack(spacing: 6) {
-                        Image(systemName: "location.fill")
-                            .font(.system(size: 11, weight: .bold))
-
-                        Text(location)
-                            .font(.custom("Poppins-SemiBold", size: 11))
-                            .lineLimit(1)
-                    }
-                    .foregroundColor(.white)
-                    .padding(.horizontal, 11)
-                    .padding(.vertical, 8)
-                    .liquidGlass(in: Capsule(), interactive: true)
-                    .shadow(color: .black.opacity(0.25), radius: 8, y: 4)
-                }
-                .buttonStyle(.plain)
-            }
-
-            if let currentMediaItem = activeMediaItem,
-               !currentMediaItem.isHiddenByModeration,
-               let tags = currentMediaItem.tags,
-               !tags.isEmpty {
-                Button(action: {
-                    withAnimation(.spring(response: 0.32, dampingFraction: 0.78)) {
-                        showTags.toggle()
-                    }
-                }) {
-                    HStack(spacing: 6) {
-                        Image(systemName: showTags ? "person.fill" : "person.crop.circle")
-                            .font(.system(size: 11, weight: .bold))
-
-                        Text("\(tags.count)")
-                            .font(.custom("Poppins-SemiBold", size: 11))
-                    }
-                    .foregroundColor(.white)
-                    .padding(.horizontal, 11)
-                    .padding(.vertical, 8)
-                    .liquidGlass(in: Capsule(), interactive: true)
-                    .overlay(
-                        Capsule()
-                            .stroke(showTags ? Color.white.opacity(0.75) : Color.white.opacity(0.14), lineWidth: 1)
-                    )
-                    .shadow(color: .black.opacity(0.25), radius: 8, y: 4)
-                }
-                .buttonStyle(.plain)
-            }
-        }
-    }
-
-    // ✅ CORREGIDO: Detectar aspect ratio con mejor manejo de videos y validaciones
-    private func detectAspectRatio() {
-        // ✅ PRIMERO: Intentar usar aspect ratio guardado en el momento
-        if let savedAspectRatio = moment.aspectRatio {
-            let aspectRatioFromDB = ProcessedMedia.AspectRatio(from: savedAspectRatio)
-            
-            DispatchQueue.main.async {
-                let ratioValue = aspectRatioFromDB.value
-                
-                // ✅ Guardar ratio REAL para long press reveal
-                if ratioValue > 0 && ratioValue.isFinite {
-                    self.realAspectRatio = ratioValue
-                }
-                
-                // ✅ REGLA INSTAGRAM: Todo contenido más vertical que 4:5 se cropea
-                let displayRatio: CGFloat
-                if ratioValue < 0.8 && ratioValue > 0 {
-                    displayRatio = 0.8
-                } else if ratioValue > 0 && ratioValue.isFinite {
-                    displayRatio = ratioValue
-                } else {
-                    displayRatio = 1.0
-                }
-                
-                self.detectedAspectRatio = displayRatio
-                
-                // Clasificar el tipo
-                if displayRatio < 0.7 { self.aspectRatioType = .reels }
-                else if displayRatio < 0.9 { self.aspectRatioType = .portrait }
-                else if displayRatio < 1.3 { self.aspectRatioType = .square }
-                else { self.aspectRatioType = .landscape }
-            }
-            return
-        }
-        
-        // ✅ FALLBACK: Si no hay aspect ratio guardado, detectar de la imagen
-        guard let firstItem = mediaItems.first, !firstItem.url.isEmpty else {
-            DispatchQueue.main.async {
-                self.detectedAspectRatio = 0.8 // Fallback a 4:5
-                self.aspectRatioType = .portrait
-            }
-            return
-        }
-        
-        if firstItem.type == .image {
-            _ = KFImage(URL(string: firstItem.url))
-                .onSuccess { result in
-                    let imageSize = result.image.size
-                    let ratio = imageSize.width / imageSize.height
-                    
-                    DispatchQueue.main.async {
-                        // ✅ Validar ratio calculado
-                        if ratio > 0 && ratio.isFinite {
-                            self.detectedAspectRatio = ratio
-                            self.classifyAspectRatio(ratio)
-                        } else {
-                            self.detectedAspectRatio = 1.0
-                            self.aspectRatioType = .square
-                        }
-                    }
-                }
-                .onFailure { _ in
-                    DispatchQueue.main.async {
-                        self.detectedAspectRatio = 0.8 // Fallback a 4:5
-                        self.aspectRatioType = .portrait
-                    }
-                }
-        } else {
-            DispatchQueue.main.async {
-                self.detectedAspectRatio = 0.5625 // 9÷16 = 0.5625
-                self.aspectRatioType = .reels
-            }
-            
-            if let url = URL(string: firstItem.url) {
-                let asset = AVURLAsset(url: url)
-                Task {
-                    do {
-                        let track = try await asset.loadTracks(withMediaType: .video).first
-                        if let track = track {
-                            let size = try await track.load(.naturalSize)
-                            let videoRatio = size.width / size.height
-                            
-                            DispatchQueue.main.async {
-                                self.detectedAspectRatio = videoRatio
-                                self.classifyAspectRatio(videoRatio)
-                            }
-                        }
-                    } catch {
-                    }
-                }
-            }
-        }
-    }
-    
-    // ✅ NUEVA: Función helper para clasificar aspect ratios
-    private func classifyAspectRatio(_ ratio: CGFloat) {
-        let tolerance: CGFloat = 0.05
-        
-        if abs(ratio - 1.0) < tolerance {
-            // Square: ~1.0 (como 1080x1080)
-            self.aspectRatioType = .square
-        } else if abs(ratio - 0.8) < tolerance {
-            // Portrait 4:5: ~0.8 (como 1080x1350)
-            self.aspectRatioType = .portrait
-        } else if abs(ratio - 0.5625) < tolerance {
-            // Reels 9:16: ~0.5625 (como 1080x1920)
-            self.aspectRatioType = .reels
-        } else if ratio > 1.4 {
-            // Landscape: > 1.4 (16:9 = 1.778)
-            self.aspectRatioType = .landscape
-        } else if ratio < 0.7 {
-            // Muy vertical: usar como reels
-            self.aspectRatioType = .reels
-        } else {
-            // Default entre ratios: usar square
-            self.aspectRatioType = .square
-        }
-    }
-    
-    // ✅ Cargar datos del momento
-    private func loadMomentData() {
-        guard let currentUserId = Auth.auth().currentUser?.uid,
-              let momentId = moment.id else { return }
-        
-        // Cargar conteo de comentarios
-        firestoreService.db.collection("users").document(moment.authorId)
-            .collection("moments").document(momentId)
-            .collection("comments")
-            .getDocuments { snapshot, error in
-                if let _ = error {
-                    return
-                }
-                
-                DispatchQueue.main.async {
-                    let newCount = snapshot?.documents.count ?? 0
-                    withAnimation(.easeInOut(duration: 0.3)) {
-                        self.commentCount = newCount
-                    }
-                }
-            }
-        
-        // Verificar si está guardado
-        firestoreService.checkIfSaved(userId: currentUserId, momentId: momentId) { result in
-            switch result {
-            case .success(let saved):
-                DispatchQueue.main.async {
-                    self.isSaved = saved
-                }
-            case .failure(_):
-                break
-            }
-        }
-    }
-    
-    // ✅ Toggle save
-    private func toggleSave() {
-        guard let currentUserId = Auth.auth().currentUser?.uid,
-              let momentId = moment.id else { return }
-        
-        isSaveLoading = true
-        
-        withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
-            isSaved.toggle()
-        }
-        
-        firestoreService.toggleSaveMoment(userId: currentUserId, momentId: momentId) { error in
-            DispatchQueue.main.async {
-                self.isSaveLoading = false
-                if let _ = error {
-                    withAnimation {
-                        self.isSaved.toggle()
-                    }
-                }
-            }
-        }
-    }
-}
-
-// MARK: - ✅ Vista expandible mejorada para detalle
-struct DetailExpandableContentView: View {
-    let content: String
-    let colorScheme: ColorScheme
-    let onHashtagTap: (String) -> Void
-    @State private var isExpanded: Bool = false
-    @State private var needsExpansion: Bool = false
-    
-    private let maxLines = 2
-    private let maxCharacters = 140
-
-    private var baseTextColor: Color {
-        colorScheme == .dark ? .white.opacity(0.94) : .black.opacity(0.86)
-    }
-
-    private var hashtagTextColor: Color {
-        colorScheme == .dark ? .white : Color(hex: "007AFF")
-    }
-
-    private var textShadowColor: Color {
-        colorScheme == .dark ? .black.opacity(0.45) : .clear
-    }
-    
-    var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            MomentHashtagText(
-                content: isExpanded ? content : String(content.prefix(maxCharacters)) + (content.count > maxCharacters ? "..." : ""),
-                textFont: .custom("Poppins-Regular", size: 15),
-                hashtagFont: .custom("Poppins-SemiBold", size: 15),
-                baseColor: baseTextColor,
-                hashtagColor: hashtagTextColor,
-                mentionColor: Color(hex: "007AFF"),
-                textAlignment: .leading,
-                shadowColor: textShadowColor,
-                shadowRadius: colorScheme == .dark ? 3 : 0,
-                shadowX: 0,
-                shadowY: 2,
-                onHashtagTap: onHashtagTap,
-                onMentionTap: MomentMentionNavigation.openProfile(forUsername:)
-            )
-            
-            if needsExpansion {
-                Button(action: {
-                    withAnimation(.easeInOut(duration: 0.3)) {
-                        isExpanded.toggle()
-                    }
-                }) {
-                    HStack(spacing: 4) {
-                        Text(NSLocalizedString(isExpanded ? "feed.seeLess" : "feed.seeMore", comment: "See more/less"))
-                            .font(.custom("Poppins-SemiBold", size: 12))
-                            .foregroundColor(baseTextColor)
-                        
-                        Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
-                            .font(.system(size: 10, weight: .semibold))
-                            .foregroundColor(baseTextColor)
-                    }
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 6)
-                    .background(
-                        Capsule()
-                            .fill(.ultraThinMaterial)
-                    )
-                    .shadow(color: .black.opacity(0.3), radius: 4, x: 0, y: 2)
-                }
-                .scaleEffect(isExpanded ? 1.0 : 0.95)
-                .animation(.spring(response: 0.3, dampingFraction: 0.6), value: isExpanded)
-            }
-        }
-        .padding(.horizontal, 2)
-        .padding(.vertical, 4)
-        .onAppear {
-            needsExpansion = content.count > maxCharacters
+        guard target > 0 else { return }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+            proxy.scrollTo(target, anchor: .top)
         }
     }
 }

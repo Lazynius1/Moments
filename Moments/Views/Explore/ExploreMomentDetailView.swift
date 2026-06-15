@@ -125,7 +125,7 @@ struct ExploreMomentDetailView: View {
         }
         .navigationBarTitleDisplayMode(.inline)
         .toolbar { exploreDetailToolbarContent }
-        .chatScrollEdgeEffect()
+        .momentsScrollEdgeChrome()
         .sheet(
             isPresented: Binding(
                 get: { selectedMoment != nil },
@@ -304,10 +304,13 @@ struct ExploreMomentDetailView: View {
                                     showContextMenu = true
                                 },
                                 onTagTap: { userId in
-                                    handleAvatarTap(userId: userId, hasStory: false)
+                                    openUserProfile(userId: userId)
                                 },
                                 onOpenUserProfile: { userId in
-                                    handleAvatarTap(userId: userId, hasStory: false)
+                                    openUserProfile(userId: userId)
+                                },
+                                onAuthorAvatarTap: { userId, hasStory in
+                                    handleAuthorAvatarTap(userId: userId, hasStory: hasStory)
                                 },
                                 profileZoomNamespace: profileZoomNamespace,
                                 onPeek: { imageURL, ratio, isPressing in
@@ -355,8 +358,7 @@ struct ExploreMomentDetailView: View {
             ProfileChromeIconButton(
                 systemName: "chevron.left",
                 foregroundColor: AdaptiveColors(colorScheme: colorScheme).primary,
-                size: 38,
-                iconSize: 18,
+                preset: .navigationBack,
                 action: dismissExploreDetail
             )
         }
@@ -381,7 +383,7 @@ struct ExploreMomentDetailView: View {
         }
     }
 
-    private func handleAvatarTap(userId: String, hasStory: Bool) {
+    private func handleAuthorAvatarTap(userId: String, hasStory: Bool) {
         let normalizedUserId = userId.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !normalizedUserId.isEmpty else { return }
 
@@ -389,9 +391,15 @@ struct ExploreMomentDetailView: View {
             selectedStoryUserId = normalizedUserId
             showSpecificUserStories = true
         } else {
-            selectedUserId = normalizedUserId
-            showUserProfile = true
+            openUserProfile(userId: normalizedUserId)
         }
+    }
+
+    private func openUserProfile(userId: String) {
+        let normalizedUserId = userId.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !normalizedUserId.isEmpty else { return }
+        selectedUserId = normalizedUserId
+        showUserProfile = true
     }
 
     private func handlePeek(imageURL: String, ratio: CGFloat, isPressing: Bool, moment: Moment) {

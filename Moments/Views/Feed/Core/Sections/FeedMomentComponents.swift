@@ -193,6 +193,7 @@ struct ModernPostCardView: View {
     let onContextMenu: (Moment) -> Void
     var onTagTap: ((String) -> Void)? = nil // ✅ Tag Navigation Callback
     var onOpenUserProfile: ((String) -> Void)? = nil
+    var onAuthorAvatarTap: ((String, Bool) -> Void)? = nil
     var profileZoomNamespace: Namespace.ID? = nil
     var onPeek: ((String, CGFloat, Bool) -> Void)? = nil // ✅ PEEK: (imageURL, realRatio, isPressing)
     @EnvironmentObject private var firestoreService: FirestoreService
@@ -229,6 +230,7 @@ struct ModernPostCardView: View {
          onContextMenu: @escaping (Moment) -> Void,
          onTagTap: ((String) -> Void)? = nil,
          onOpenUserProfile: ((String) -> Void)? = nil,
+         onAuthorAvatarTap: ((String, Bool) -> Void)? = nil,
          profileZoomNamespace: Namespace.ID? = nil,
          onPeek: ((String, CGFloat, Bool) -> Void)? = nil) {
 
@@ -242,6 +244,7 @@ struct ModernPostCardView: View {
         self.onContextMenu = onContextMenu
         self.onTagTap = onTagTap
         self.onOpenUserProfile = onOpenUserProfile
+        self.onAuthorAvatarTap = onAuthorAvatarTap
         self.profileZoomNamespace = profileZoomNamespace
         self.onPeek = onPeek
         _commentCount = State(initialValue: moment.commentCount)
@@ -277,15 +280,7 @@ struct ModernPostCardView: View {
         }
     }
 
-    // ✅ Estados para el círculo de historia en el header
-    @State private var hasStory: Bool = false
-    @State private var hasUnseenStory: Bool = false
-    @State private var storyCount: Int = 0
-    @State private var storyViewedStatus: [Bool] = []
-    @State private var storyAudiences: [String?] = []
-    @State private var isLoadingStory: Bool = false
     @State private var liveAuthorUsername: String = ""
-    @State private var showStories = false
     @State private var showSpecificUserStories = false
     private let privacyService = PrivacyService()
 
@@ -584,39 +579,12 @@ struct ModernPostCardView: View {
     // Header del post con círculo de historia
     private var postHeaderView: some View {
         HStack(spacing: 12) {
-            Button(action: {
-                if hasStory {
-                    showSpecificUserStories = true
-                } else {
-                    openAuthorProfile()
-                }
-            }) {
-                ZStack {
-                    AsyncProfileImageView(userId: moment.authorId)
-                        .frame(width: 44, height: 44)
-                        .clipShape(Circle())
-                        .overlay(
-                            StorySegmentedRing(
-                                storyCount: storyCount,
-                                hasStory: hasStory,
-                                hasUnseenStory: hasUnseenStory,
-                                storyViewedStatus: storyViewedStatus,
-                                storyAudiences: storyAudiences,
-                                isOwnStory: false,
-                                colorScheme: colorScheme,
-                                ringSize: 44,
-                                lineWidth: 2.5,
-                                hapticsEnabled: false
-                            )
-                        )
-                }
-                .userProfileZoomSource(
-                    userId: moment.authorId,
-                    namespace: profileZoomNamespace,
-                    cornerRadius: 22
-                )
-            }
-            .buttonStyle(PlainButtonStyle())
+            StoryRingAvatarView(
+                userId: moment.authorId,
+                size: 44,
+                profileZoomNamespace: profileZoomNamespace,
+                onTap: handleAuthorAvatarTap
+            )
 
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 6) {
@@ -680,38 +648,18 @@ struct ModernPostCardView: View {
         }
         .padding(.horizontal, FeedMomentCardLayout.headerHorizontalPadding)
         .padding(.vertical, 9)
-        .onAppear {
-            checkUserStories()
-        }
     }
 
-    private func checkUserStories() {
-        guard let currentUserId = Auth.auth().currentUser?.uid else { return }
+    private func handleAuthorAvatarTap(hasStory: Bool) {
+        let authorId = moment.authorId.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !authorId.isEmpty else { return }
 
-        if moment.authorId == currentUserId {
-            hasStory = false
-            hasUnseenStory = false
-            storyCount = 0
-            storyViewedStatus = []
-            storyAudiences = []
-            isLoadingStory = false
-            return
-        }
-
-        isLoadingStory = true
-
-        StoryRingResolverService.shared.resolve(
-            viewerId: currentUserId,
-            authorId: moment.authorId,
-            privacyService: privacyService,
-            db: firestoreService.db
-        ) { snapshot in
-            self.hasStory = snapshot.hasStory
-            self.hasUnseenStory = snapshot.hasUnseenStory
-            self.storyCount = snapshot.storyCount
-            self.storyViewedStatus = snapshot.storyViewedStatus
-            self.storyAudiences = snapshot.storyAudiences
-            self.isLoadingStory = false
+        if let onAuthorAvatarTap {
+            onAuthorAvatarTap(authorId, hasStory)
+        } else if hasStory {
+            showSpecificUserStories = true
+        } else {
+            openAuthorProfile()
         }
     }
 

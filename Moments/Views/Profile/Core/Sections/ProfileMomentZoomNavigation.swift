@@ -166,7 +166,6 @@ struct ProfileMomentZoomDetailDestination: View {
             }
         }
         .navigationBarBackButtonHidden(true)
-        .toolbar(.hidden, for: .navigationBar)
         .toolbar(.hidden, for: .tabBar)
         .navigationTransition(.zoom(sourceID: destination.zoomSourceID, in: namespace))
     }
@@ -249,7 +248,9 @@ struct MomentZoomDetailDestination: View {
             }
         }
         .navigationBarBackButtonHidden(true)
-        .modifier(MomentZoomNavigationBarVisibilityModifier(hidesNavigationBar: destination.presentation != .explorer))
+        .modifier(MomentZoomNavigationBarVisibilityModifier(
+            hidesNavigationBar: !showsNativeFeedDetailChrome(for: destination.presentation)
+        ))
         .toolbar(.hidden, for: .tabBar)
         .navigationTransition(.zoom(sourceID: destination.zoomSourceID, in: namespace))
     }
@@ -257,6 +258,15 @@ struct MomentZoomDetailDestination: View {
     private func dismissMapIfNeeded() {
         if case .map = destination.presentation {
             mapDetailPresented = false
+        }
+    }
+
+    private func showsNativeFeedDetailChrome(for presentation: MomentZoomPresentationKind) -> Bool {
+        switch presentation {
+        case .explorer, .carousel:
+            return true
+        case .saved, .single, .map:
+            return false
         }
     }
 

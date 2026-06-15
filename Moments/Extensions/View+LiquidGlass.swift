@@ -7,9 +7,13 @@ enum LiquidGlassVariant {
     case regular
 }
 
-enum ProfileChromeGlassMetrics {
-    static let controlSize: CGFloat = 34
-    static let controlIconSize: CGFloat = 16
+enum MomentsGlassControlMetrics {
+    static let navigationControlSize: CGFloat = 40
+    static let navigationChevronIconSize: CGFloat = 19
+    static let toolbarControlSize: CGFloat = 38
+    static let toolbarIconSize: CGFloat = 18
+    static let compactControlSize: CGFloat = 36
+    static let compactIconSize: CGFloat = 17
     static let controlsClusterSpacing: CGFloat = 2
     static let controlsClusterPadding: CGFloat = 4
     static let pillBarHeight: CGFloat = 38
@@ -22,6 +26,51 @@ enum ProfileChromeGlassMetrics {
     static let feedDetailBlurFadeTail: CGFloat = 28
     static let chatChromeBlurFadeTail: CGFloat = 22
     static let chatChromeBlurFadeTailExpanded: CGFloat = 30
+}
+
+enum MomentsGlassButtonPreset {
+    case navigationBack
+    case toolbarAction
+    case compactChrome
+
+    var controlSize: CGFloat {
+        switch self {
+        case .navigationBack:
+            MomentsGlassControlMetrics.navigationControlSize
+        case .toolbarAction:
+            MomentsGlassControlMetrics.toolbarControlSize
+        case .compactChrome:
+            MomentsGlassControlMetrics.compactControlSize
+        }
+    }
+
+    var iconSize: CGFloat {
+        switch self {
+        case .navigationBack:
+            MomentsGlassControlMetrics.navigationChevronIconSize
+        case .toolbarAction:
+            MomentsGlassControlMetrics.toolbarIconSize
+        case .compactChrome:
+            MomentsGlassControlMetrics.compactIconSize
+        }
+    }
+}
+
+enum ProfileChromeGlassMetrics {
+    static let controlSize: CGFloat = MomentsGlassControlMetrics.compactControlSize
+    static let controlIconSize: CGFloat = MomentsGlassControlMetrics.compactIconSize
+    static let controlsClusterSpacing: CGFloat = MomentsGlassControlMetrics.controlsClusterSpacing
+    static let controlsClusterPadding: CGFloat = MomentsGlassControlMetrics.controlsClusterPadding
+    static let pillBarHeight: CGFloat = MomentsGlassControlMetrics.pillBarHeight
+    static let pillSegmentHeight: CGFloat = MomentsGlassControlMetrics.pillSegmentHeight
+    static let pillInnerPadding: CGFloat = MomentsGlassControlMetrics.pillInnerPadding
+    static let pillLabelSize: CGFloat = MomentsGlassControlMetrics.pillLabelSize
+    static let pillIconSize: CGFloat = MomentsGlassControlMetrics.pillIconSize
+    static let chromeBackdropFadeTail: CGFloat = MomentsGlassControlMetrics.chromeBackdropFadeTail
+    static let chromeBackdropMaxBlurFraction: CGFloat = MomentsGlassControlMetrics.chromeBackdropMaxBlurFraction
+    static let feedDetailBlurFadeTail: CGFloat = MomentsGlassControlMetrics.feedDetailBlurFadeTail
+    static let chatChromeBlurFadeTail: CGFloat = MomentsGlassControlMetrics.chatChromeBlurFadeTail
+    static let chatChromeBlurFadeTailExpanded: CGFloat = MomentsGlassControlMetrics.chatChromeBlurFadeTailExpanded
 }
 
 /// Tint de botones glass alineado al canvas de la app.
@@ -164,21 +213,32 @@ struct ProfileChromeControlsCluster<Content: View>: View {
     }
 }
 
+typealias MomentsGlassCluster = ProfileChromeControlsCluster
+
 struct ProfileChromeIconButton: View {
     let systemName: String
     let foregroundColor: Color
+    var preset: MomentsGlassButtonPreset? = nil
     var size: CGFloat = ProfileChromeGlassMetrics.controlSize
     var iconSize: CGFloat = ProfileChromeGlassMetrics.controlIconSize
     var standaloneGlass: Bool = true
     var glassVariant: LiquidGlassVariant = .regular
     let action: () -> Void
 
+    private var resolvedSize: CGFloat {
+        preset?.controlSize ?? size
+    }
+
+    private var resolvedIconSize: CGFloat {
+        preset?.iconSize ?? iconSize
+    }
+
     var body: some View {
         Button(action: action) {
             Image(systemName: systemName)
-                .font(.system(size: iconSize, weight: .semibold))
+                .font(.system(size: resolvedIconSize, weight: .semibold))
                 .foregroundColor(foregroundColor)
-                .frame(width: size, height: size)
+                .frame(width: resolvedSize, height: resolvedSize)
                 .modifier(
                     ProfileChromeIconGlassModifier(
                         standalone: standaloneGlass,
@@ -191,6 +251,8 @@ struct ProfileChromeIconButton: View {
         .buttonStyle(.plain)
     }
 }
+
+typealias MomentsGlassIconButton = ProfileChromeIconButton
 
 struct ProfileGlassPillTrack<Content: View>: View {
     @ViewBuilder let content: () -> Content
@@ -220,6 +282,8 @@ struct ProfileGlassPillTrack<Content: View>: View {
         }
     }
 }
+
+typealias MomentsGlassPillBar = ProfileGlassPillTrack
 
 struct ProfileGlassPillThumb: View {
     let width: CGFloat

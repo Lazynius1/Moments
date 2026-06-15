@@ -126,8 +126,8 @@ struct StorySegmentedRing: View {
     private var viewedGrayGradient: LinearGradient {
         LinearGradient(
             colors: colorScheme == .dark ?
-            [Color.gray.opacity(0.5), Color.gray.opacity(0.7)] :
-            [Color.gray.opacity(0.7), Color.gray.opacity(0.9)],
+            [Color.gray.opacity(0.58), Color.gray.opacity(0.82)] :
+            [Color.gray.opacity(0.76), Color.gray.opacity(0.94)],
             startPoint: .topLeading,
             endPoint: .bottomTrailing
         )

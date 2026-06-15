@@ -69,14 +69,11 @@ struct PersonalInfoView: View {
             .toolbar {
                 if viewState == .username {
                     ToolbarItem(placement: .navigationBarLeading) {
-                        Button(action: {
+                        SettingsToolbarBackButton(action: {
                             withAnimation(.spring(response: 0.4, dampingFraction: 0.85)) {
                                 viewState = .main
                             }
-                        }) {
-                            Image(systemName: "chevron.left")
-                                .font(.system(size: 17, weight: .semibold))
-                        }
+                        })
                     }
                 }
             }

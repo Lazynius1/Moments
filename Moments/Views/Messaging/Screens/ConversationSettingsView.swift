@@ -93,16 +93,15 @@ struct ConversationSettingsView: View {
 
     private var sheetHeader: some View {
         HStack {
-            Button(action: {
-                HapticManager.shared.lightImpact()
-                dismiss()
-            }) {
-                Image(systemName: "chevron.left")
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundColor(adaptiveColors.primary)
-                    .frame(width: 38, height: 38)
-                    .background(Color.clear.liquidGlass(in: Circle(), interactive: true))
-            }
+            ProfileChromeIconButton(
+                systemName: "chevron.left",
+                foregroundColor: adaptiveColors.primary,
+                preset: .navigationBack,
+                action: {
+                    HapticManager.shared.lightImpact()
+                    dismiss()
+                }
+            )
 
             Spacer()
 
@@ -113,7 +112,10 @@ struct ConversationSettingsView: View {
             Spacer()
 
             Color.clear
-                .frame(width: 38, height: 38)
+                .frame(
+                    width: MomentsGlassButtonPreset.navigationBack.controlSize,
+                    height: MomentsGlassButtonPreset.navigationBack.controlSize
+                )
         }
         .padding(.horizontal, 14)
         .padding(.top, 8)

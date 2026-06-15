@@ -1,5 +1,20 @@
 import SwiftUI
 
+struct SettingsToolbarBackButton: View {
+    @Environment(\.colorScheme) private var colorScheme
+    let action: () -> Void
+
+    var body: some View {
+        ProfileChromeIconButton(
+            systemName: "chevron.left",
+            foregroundColor: colorScheme == .dark ? .white : .black,
+            preset: .navigationBack,
+            standaloneGlass: false,
+            action: action
+        )
+    }
+}
+
 // ✅ Componente de navegación reutilizable para subsecciones
 struct SettingsNavigationBar: View {
     @Environment(\.colorScheme) var colorScheme
@@ -8,12 +23,7 @@ struct SettingsNavigationBar: View {
     
     var body: some View {
         HStack {
-            Button(action: { dismiss() }) {
-                Image(systemName: "chevron.left")
-                    .font(.system(size: 17, weight: .semibold))
-                    .foregroundColor(colorScheme == .dark ? .white : .black)
-                    .frame(width: 44, height: 44)
-            }
+            SettingsToolbarBackButton(action: { dismiss() })
             
             Spacer()
             
@@ -26,7 +36,10 @@ struct SettingsNavigationBar: View {
             // Espacio para mantener el título centrado
             Rectangle()
                 .fill(.clear)
-                .frame(width: 44, height: 44)
+                .frame(
+                    width: MomentsGlassButtonPreset.navigationBack.controlSize,
+                    height: MomentsGlassButtonPreset.navigationBack.controlSize
+                )
         }
         .padding(.horizontal, 4)
         .padding(.top, 4)
@@ -72,13 +85,11 @@ struct SettingsSubsectionWrapper<Content: View>: View {
         .navigationTitle(title)
         .navigationBarTitleDisplayMode(.inline)
         .navigationBarBackButtonHidden(true)
+        .toolbarBackground(.hidden, for: .navigationBar)
         .toolbar {
             ToolbarItem(placement: .navigationBarLeading) {
-                Button(action: { dismiss() }) {
-                    Image(systemName: "chevron.left")
-                        .font(.system(size: 17, weight: .semibold))
-                }
+                SettingsToolbarBackButton(action: { dismiss() })
             }
         }
     }
-} 
+}

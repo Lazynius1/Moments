@@ -20,8 +20,12 @@ struct ChatToolbarScrollEdgeModifier: ViewModifier {
 }
 
 extension View {
-    func chatScrollEdgeEffect() -> some View {
+    func momentsScrollEdgeChrome() -> some View {
         modifier(ChatToolbarScrollEdgeModifier())
+    }
+
+    func chatScrollEdgeEffect() -> some View {
+        momentsScrollEdgeChrome()
     }
 
     func messagingListEdgeToEdge() -> some View {

@@ -92,16 +92,15 @@ struct ExploreView: View {
     private var exploreToolbarContent: some ToolbarContent {
         if isDismissable {
             ToolbarItem(placement: .topBarLeading) {
-                Button {
-                    ExploreHapticFeedback.impact(.light)
-                    dismiss()
-                } label: {
-                    Image(systemName: "chevron.left")
-                        .font(.system(size: 16, weight: .bold))
-                        .foregroundColor(.primary)
-                        .frame(width: 32, height: 32)
-                        .modifier(ExploreToolbarIconGlassModifier())
-                }
+                ProfileChromeIconButton(
+                    systemName: "chevron.left",
+                    foregroundColor: .primary,
+                    preset: .navigationBack,
+                    action: {
+                        ExploreHapticFeedback.impact(.light)
+                        dismiss()
+                    }
+                )
             }
         }
 

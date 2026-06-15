@@ -65,7 +65,7 @@ struct ModernExploreDetailHeader: View {
             ProfileChromeIconButton(
                 systemName: "chevron.left",
                 foregroundColor: .primary,
-                iconSize: 16,
+                preset: .navigationBack,
                 standaloneGlass: false,
                 action: {
                     withAnimation(.easeOut(duration: 0.18)) {

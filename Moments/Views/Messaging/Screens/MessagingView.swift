@@ -305,14 +305,12 @@ struct MessagingView: View {
     }
 
     private var messagingToolbarBackButton: some View {
-        Button(action: { onDismiss?() }) {
-            Image(systemName: "chevron.left")
-                .font(.system(size: 18, weight: .semibold))
-                .foregroundColor(adaptiveColors.primary)
-                .frame(width: 40, height: 40)
-                .modifier(ChatToolbarIconGlassModifier())
-        }
-        .buttonStyle(.plain)
+        ProfileChromeIconButton(
+            systemName: "chevron.left",
+            foregroundColor: adaptiveColors.primary,
+            preset: .navigationBack,
+            action: { onDismiss?() }
+        )
     }
 
     private var messagingToolbarComposeButton: some View {
@@ -1107,14 +1105,12 @@ struct GlassmorphicNewConversationView: View {
     @ToolbarContentBuilder
     private var newConversationToolbarContent: some ToolbarContent {
         ToolbarItem(placement: .topBarLeading) {
-            Button(action: { dismiss() }) {
-                Image(systemName: "chevron.left")
-                    .font(.system(size: 18, weight: .semibold))
-                    .foregroundColor(adaptiveColors.primary)
-                    .frame(width: 40, height: 40)
-                    .modifier(ChatToolbarIconGlassModifier())
-            }
-            .buttonStyle(.plain)
+            ProfileChromeIconButton(
+                systemName: "chevron.left",
+                foregroundColor: adaptiveColors.primary,
+                preset: .navigationBack,
+                action: { dismiss() }
+            )
         }
         .chatHideSharedBackgroundIfAvailable()
 

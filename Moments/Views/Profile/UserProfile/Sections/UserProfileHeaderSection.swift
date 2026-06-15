@@ -20,7 +20,7 @@ struct ProfileVisitorPinnedTopChrome: View {
             ProfileChromeIconButton(
                 systemName: "chevron.left",
                 foregroundColor: UserProfileColors.textPrimary,
-                iconSize: 15,
+                preset: .navigationBack,
                 action: onDismiss
             )
         } center: {
@@ -94,7 +94,10 @@ struct ProfileVisitorPinnedTopChrome: View {
             Image(systemName: "ellipsis")
                 .font(.system(size: 16, weight: .semibold))
                 .foregroundColor(UserProfileColors.textPrimary)
-                .frame(width: ProfileChromeGlassMetrics.controlSize, height: ProfileChromeGlassMetrics.controlSize)
+                .frame(
+                    width: MomentsGlassButtonPreset.toolbarAction.controlSize,
+                    height: MomentsGlassButtonPreset.toolbarAction.controlSize
+                )
                 .liquidGlass(in: Circle(), variant: .regular, interactive: true)
                 .contentShape(Circle())
         }

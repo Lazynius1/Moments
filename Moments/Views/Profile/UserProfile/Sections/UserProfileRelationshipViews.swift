@@ -186,16 +186,14 @@ struct UserRelationshipManagementSheet: View {
     private var listsContent: some View {
         VStack(spacing: 18) {
             HStack(spacing: 12) {
-                Button(action: {
-                    showingLists = false
-                }) {
-                    Image(systemName: "chevron.left")
-                        .font(.system(size: 17, weight: .semibold))
-                        .foregroundColor(colorScheme == .dark ? .white : .black)
-                        .frame(width: 34, height: 34)
-                        .liquidGlass(in: Circle(), interactive: true)
-                }
-                .buttonStyle(.plain)
+                ProfileChromeIconButton(
+                    systemName: "chevron.left",
+                    foregroundColor: colorScheme == .dark ? .white : .black,
+                    preset: .navigationBack,
+                    action: {
+                        showingLists = false
+                    }
+                )
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(NSLocalizedString("userProfile.relationship.lists.title", comment: ""))

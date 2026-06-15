@@ -174,13 +174,7 @@ struct SavedMomentsView: View {
 
     private var header: some View {
         HStack(spacing: 12) {
-            Button(action: { dismiss() }) {
-                Image(systemName: "chevron.left")
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundColor(colorScheme == .dark ? .white : .black)
-                    .frame(width: 38, height: 38)
-                    .background(Circle().fill(.ultraThinMaterial))
-            }
+            SettingsToolbarBackButton(action: { dismiss() })
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(NSLocalizedString("profile.tab.saved", comment: "Saved tab title"))
@@ -1077,15 +1071,12 @@ struct ModernSavedDetailHeader: View {
                 .frame(height: max(24, safeAreaTop - 6))
 
             HStack(spacing: 12) {
-                Button(action: onDismiss) {
-                    Image(systemName: "chevron.left")
-                        .font(.system(size: 16, weight: .bold))
-                        .foregroundColor(iconColor)
-                        .frame(width: 38, height: 38)
-                        .liquidGlass(in: Circle(), interactive: true)
-                }
-                .buttonStyle(.plain)
-                .contentShape(Circle())
+                ProfileChromeIconButton(
+                    systemName: "chevron.left",
+                    foregroundColor: iconColor,
+                    preset: .navigationBack,
+                    action: onDismiss
+                )
 
                 if let moment = moment {
                     HStack(spacing: 10) {

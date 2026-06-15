@@ -1290,16 +1290,12 @@ private struct ContextSubheaderView: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            Button(action: onBack) {
-                Image(systemName: "chevron.left")
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundColor(colorScheme == .dark ? .white : .black)
-                    .frame(width: 34, height: 34)
-                    .background(
-                        Color.clear
-                            .liquidGlass(in: Circle())
-                    )
-            }
+            ProfileChromeIconButton(
+                systemName: "chevron.left",
+                foregroundColor: colorScheme == .dark ? .white : .black,
+                preset: .navigationBack,
+                action: onBack
+            )
 
             Text(title)
                 .font(.custom("Poppins-SemiBold", size: 17))

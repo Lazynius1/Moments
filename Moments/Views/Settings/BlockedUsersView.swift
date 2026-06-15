@@ -83,13 +83,7 @@ struct BlockedUsersView: View {
     
     private var header: some View {
         HStack(spacing: 12) {
-            Button(action: { dismiss() }) {
-                Image(systemName: "chevron.left")
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundColor(colorScheme == .dark ? .white : .black)
-                    .frame(width: 38, height: 38)
-                    .background(Color.clear.liquidGlass(in: Circle(), interactive: true))
-            }
+            SettingsToolbarBackButton(action: { dismiss() })
             
             Spacer()
             
@@ -105,7 +99,10 @@ struct BlockedUsersView: View {
             Spacer()
             
             Color.clear
-                .frame(width: 38, height: 38)
+                .frame(
+                    width: MomentsGlassButtonPreset.navigationBack.controlSize,
+                    height: MomentsGlassButtonPreset.navigationBack.controlSize
+                )
         }
         .padding(.horizontal, 14)
     }

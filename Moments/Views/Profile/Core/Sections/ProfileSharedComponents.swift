@@ -687,7 +687,7 @@ struct FeedPinnedTopChrome: View {
             ProfileChromeIconButton(
                 systemName: "chevron.left",
                 foregroundColor: adaptiveColors.primary,
-                iconSize: 18,
+                preset: .navigationBack,
                 action: onDismiss
             )
         } center: {
@@ -700,7 +700,10 @@ struct FeedPinnedTopChrome: View {
                 .frame(maxWidth: .infinity)
         } trailing: {
             Color.clear
-                .frame(width: ProfileChromeGlassMetrics.controlSize, height: ProfileChromeGlassMetrics.controlSize)
+                .frame(
+                    width: MomentsGlassButtonPreset.navigationBack.controlSize,
+                    height: MomentsGlassButtonPreset.navigationBack.controlSize
+                )
         }
     }
 }

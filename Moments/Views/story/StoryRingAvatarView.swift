@@ -1,10 +1,25 @@
 import SwiftUI
 import FirebaseAuth
 
+private enum StoryRingAvatarMetrics {
+    /// Referencia visual del carrusel de historias del feed.
+    static let feedHeaderAvatarSize: CGFloat = 50
+    static let feedHeaderLineWidth: CGFloat = 3.0
+
+    static func defaultLineWidth(for size: CGFloat) -> CGFloat {
+        max(2.8, size * (feedHeaderLineWidth / feedHeaderAvatarSize))
+    }
+
+    static func outerFrameSize(avatarSize: CGFloat, lineWidth: CGFloat) -> CGFloat {
+        avatarSize + lineWidth + 4
+    }
+}
+
 struct StoryRingAvatarView: View {
     let userId: String
     let size: CGFloat
-    var lineWidth: CGFloat = 2.5
+    /// `nil` → grosor proporcional al header del feed (50pt / 3pt).
+    var lineWidth: CGFloat? = nil
     var refreshTrigger: Int = 0
     var isOwnStory: Bool? = nil
     var allowOwnStories: Bool = true
@@ -33,6 +48,10 @@ struct StoryRingAvatarView: View {
         return userId == Auth.auth().currentUser?.uid
     }
 
+    private var resolvedLineWidth: CGFloat {
+        lineWidth ?? StoryRingAvatarMetrics.defaultLineWidth(for: size)
+    }
+
     private var avatarContent: some View {
         AsyncProfileImageView(userId: userId)
             .frame(width: size, height: size)
@@ -47,7 +66,7 @@ struct StoryRingAvatarView: View {
                     isOwnStory: resolvedIsOwnStory,
                     colorScheme: colorScheme,
                     ringSize: size,
-                    lineWidth: lineWidth,
+                    lineWidth: resolvedLineWidth,
                     hapticsEnabled: hapticsEnabled
                 )
             )
@@ -68,6 +87,10 @@ struct StoryRingAvatarView: View {
                 avatarContent
             }
         }
+        .frame(
+            width: StoryRingAvatarMetrics.outerFrameSize(avatarSize: size, lineWidth: resolvedLineWidth),
+            height: StoryRingAvatarMetrics.outerFrameSize(avatarSize: size, lineWidth: resolvedLineWidth)
+        )
         .userProfileZoomSource(
             userId: userId,
             namespace: profileZoomNamespace,

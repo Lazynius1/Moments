@@ -346,8 +346,7 @@ struct GlassmorphicChatView: View {
         ProfileChromeIconButton(
             systemName: "chevron.left",
             foregroundColor: adaptiveColors.primary,
-            size: 38,
-            iconSize: 18,
+            preset: .navigationBack,
             action: { dismiss() }
         )
     }
@@ -450,8 +449,7 @@ struct GlassmorphicChatView: View {
         ProfileChromeIconButton(
             systemName: isSearchVisible ? "xmark.circle.fill" : "magnifyingglass",
             foregroundColor: adaptiveColors.primary,
-            size: 38,
-            iconSize: 17,
+            preset: .toolbarAction,
             action: toggleChatSearch
         )
     }

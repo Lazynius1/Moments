@@ -15,7 +15,8 @@ struct ModerationReviewStatusView: View {
     var body: some View {
         NavigationView {
             ZStack {
-                Color.clear.ignoresSafeArea()
+                (colorScheme == .dark ? Color(hex: "0B1215") : Color(hex: "FAF9F6"))
+                    .ignoresSafeArea()
 
                 VStack(spacing: 0) {
                     AppealStatusHeader(

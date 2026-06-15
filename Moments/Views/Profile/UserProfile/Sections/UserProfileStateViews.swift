@@ -288,18 +288,19 @@ struct UserModernPrivateProfileView: View {
                 .truncationMode(.tail)
 
             HStack {
-                Button(action: onDismiss) {
-                    Image(systemName: "chevron.left")
-                        .font(.system(size: 16, weight: .semibold))
-                        .foregroundColor(colorScheme == .dark ? .white : .black)
-                        .frame(width: 36, height: 36)
-                        .liquidGlass(in: Circle(), interactive: true)
-                }
-                .buttonStyle(.plain)
+                ProfileChromeIconButton(
+                    systemName: "chevron.left",
+                    foregroundColor: colorScheme == .dark ? .white : .black,
+                    preset: .navigationBack,
+                    action: onDismiss
+                )
 
                 Spacer()
 
-                Color.clear.frame(width: 36, height: 36)
+                Color.clear.frame(
+                    width: MomentsGlassButtonPreset.navigationBack.controlSize,
+                    height: MomentsGlassButtonPreset.navigationBack.controlSize
+                )
             }
         }
         .padding(.horizontal, 20)
@@ -368,16 +369,17 @@ struct UserModernUnavailableProfileView: View {
                     .foregroundColor(colorScheme == .dark ? .white : .black)
 
                 HStack {
-                    Button(action: onDismiss) {
-                        Image(systemName: "chevron.left")
-                            .font(.system(size: 16, weight: .semibold))
-                            .foregroundColor(colorScheme == .dark ? .white : .black)
-                            .frame(width: 36, height: 36)
-                            .liquidGlass(in: Circle(), interactive: true)
-                    }
-                    .buttonStyle(.plain)
+                    ProfileChromeIconButton(
+                        systemName: "chevron.left",
+                        foregroundColor: colorScheme == .dark ? .white : .black,
+                        preset: .navigationBack,
+                        action: onDismiss
+                    )
                     Spacer()
-                    Color.clear.frame(width: 36, height: 36)
+                    Color.clear.frame(
+                        width: MomentsGlassButtonPreset.navigationBack.controlSize,
+                        height: MomentsGlassButtonPreset.navigationBack.controlSize
+                    )
                 }
             }
             .padding(.horizontal, 20)
@@ -461,16 +463,17 @@ struct UserModernBlockedByMeProfileView: View {
                         .truncationMode(.tail)
 
                     HStack {
-                        Button(action: onDismiss) {
-                            Image(systemName: "chevron.left")
-                                .font(.system(size: 16, weight: .semibold))
-                                .foregroundColor(colorScheme == .dark ? .white : .black)
-                                .frame(width: 36, height: 36)
-                                .liquidGlass(in: Circle(), interactive: true)
-                        }
-                        .buttonStyle(.plain)
+                        ProfileChromeIconButton(
+                            systemName: "chevron.left",
+                            foregroundColor: colorScheme == .dark ? .white : .black,
+                            preset: .navigationBack,
+                            action: onDismiss
+                        )
                         Spacer()
-                        Color.clear.frame(width: 36, height: 36)
+                        Color.clear.frame(
+                            width: MomentsGlassButtonPreset.navigationBack.controlSize,
+                            height: MomentsGlassButtonPreset.navigationBack.controlSize
+                        )
                     }
                 }
                 .padding(.horizontal, 20)
