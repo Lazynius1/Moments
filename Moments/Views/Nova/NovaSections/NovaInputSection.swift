@@ -1,13 +1,39 @@
 import SwiftUI
+import UIKit
 import FirebaseAuth
-import PhotosUI
+
+enum NovaInputBarLayout {
+    static let bottomPaddingWithoutKeyboard: CGFloat = 8
+    /// Aire visible entre sheet y tab bar.
+    static let sheetAboveTabBarGap: CGFloat = 12
+    /// Tab bar sobre home indicator (pill flotante iOS 26 incluye margen extra).
+    static var tabBarClearance: CGFloat {
+        if #available(iOS 26.0, *) {
+            74
+        } else {
+            52
+        }
+    }
+
+    static func bottomPadding(keyboardHeight: CGFloat, safeAreaBottom: CGFloat) -> CGFloat {
+        keyboardHeight > 0
+            ? keyboardHeight - safeAreaBottom + bottomPaddingWithoutKeyboard
+            : bottomPaddingWithoutKeyboard
+    }
+
+    /// Borde inferior del sheet, por encima de la tab bar.
+    static func attachmentSheetBottomInset(safeAreaBottom: CGFloat) -> CGFloat {
+        safeAreaBottom + tabBarClearance + sheetAboveTabBarGap
+    }
+}
 
 // MARK: - EnhancedInputBar
 struct EnhancedInputBar: View {
     @ObservedObject var viewModel: NovaAgent
     @Binding var showSuggestedOptions: Bool
+    @Binding var activeAttachmentSheet: NovaAttachmentSheetKind?
+    @Binding var attachmentMenuPresentationTrigger: Int
     @FocusState private var isTextFieldFocused: Bool
-    @State private var selectedItem: PhotosPickerItem? = nil
     @Environment(\.colorScheme) var colorScheme
 
     // ✅ CALLBACK PARA NOTIFICAR CUANDO EL TEXTOFIELD OBTIENE FOCUS
@@ -29,7 +55,6 @@ struct EnhancedInputBar: View {
 
                             Button(action: {
                                 viewModel.selectedImage = nil
-                                selectedItem = nil
                             }) {
                                 Image(systemName: "xmark.circle.fill")
                                     .foregroundColor(.white)
@@ -49,24 +74,22 @@ struct EnhancedInputBar: View {
 
                 HStack(alignment: .center, spacing: 10) {
                     HStack(alignment: .center, spacing: 8) {
-                        // ✅ Botón + alineado al centro
-                        PhotosPicker(selection: $selectedItem, matching: .images) {
-                            Image(systemName: "plus")
-                                .font(.system(size: 18, weight: .semibold))
-                                .foregroundColor(NovaColors.textPrimary)
-                                .frame(width: 34, height: 34)
-                        }
-                        .accessibilityLabel(Text("nova.input.addPhoto.accessibility"))
-                        .onChange(of: selectedItem) { _, newItem in
-                            Task {
-                                if let data = try? await newItem?.loadTransferable(type: Data.self),
-                                   let image = UIImage(data: data) {
-                                    await MainActor.run {
-                                        viewModel.selectedImage = image
-                                    }
+                        NovaAttachmentMenuButton(
+                            presentationTrigger: attachmentMenuPresentationTrigger,
+                            tint: UIColor(NovaColors.textPrimary),
+                            onCamera: {
+                                withAnimation(.spring(response: 0.38, dampingFraction: 0.86)) {
+                                    activeAttachmentSheet = .camera
+                                }
+                            },
+                            onPhotos: {
+                                withAnimation(.spring(response: 0.38, dampingFraction: 0.86)) {
+                                    activeAttachmentSheet = .photos
                                 }
                             }
-                        }
+                        )
+                        .frame(width: 34, height: 34)
+                        .accessibilityLabel(Text("nova.input.attach.accessibility"))
 
                         // ✅ TextField: crece hacia arriba, alineado al centro
                         TextField(NSLocalizedString("nova.input.placeholder", comment: "Ask Nova something placeholder"), text: $viewModel.inputText, axis: .vertical)
@@ -250,6 +273,83 @@ struct SmartSuggestionChip: View {
                         .stroke(NovaColors.borderColor, lineWidth: 1)
                 }
             }
+        }
+    }
+}
+
+// MARK: - Native + menu (reapertura programática al volver desde cámara/fotos)
+
+private struct NovaAttachmentMenuButton: UIViewRepresentable {
+    let presentationTrigger: Int
+    let tint: UIColor
+    let onCamera: () -> Void
+    let onPhotos: () -> Void
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(onCamera: onCamera, onPhotos: onPhotos)
+    }
+
+    func makeUIView(context: Context) -> UIButton {
+        let button = UIButton(type: .system)
+        var config = UIButton.Configuration.plain()
+        config.image = UIImage(
+            systemName: "plus",
+            withConfiguration: UIImage.SymbolConfiguration(pointSize: 18, weight: .semibold)
+        )
+        config.contentInsets = .zero
+        button.configuration = config
+        button.tintColor = tint
+        button.showsMenuAsPrimaryAction = true
+        button.menu = context.coordinator.makeMenu()
+        button.accessibilityLabel = NSLocalizedString(
+            "nova.input.attach.accessibility",
+            comment: "Attach media to Nova"
+        )
+        context.coordinator.button = button
+        return button
+    }
+
+    func updateUIView(_ button: UIButton, context: Context) {
+        button.tintColor = tint
+        button.menu = context.coordinator.makeMenu()
+        context.coordinator.button = button
+        context.coordinator.presentMenuIfNeeded(trigger: presentationTrigger)
+    }
+
+    final class Coordinator: NSObject {
+        var button: UIButton?
+        private var lastPresentationTrigger = 0
+        private let onCamera: () -> Void
+        private let onPhotos: () -> Void
+
+        init(onCamera: @escaping () -> Void, onPhotos: @escaping () -> Void) {
+            self.onCamera = onCamera
+            self.onPhotos = onPhotos
+        }
+
+        func makeMenu() -> UIMenu {
+            let camera = UIAction(
+                title: NSLocalizedString("nova.attach.camera", comment: "Camera"),
+                image: UIImage(systemName: "camera.fill")
+            ) { [weak self] _ in
+                self?.onCamera()
+            }
+
+            let photos = UIAction(
+                title: NSLocalizedString("nova.attach.photos", comment: "Photos"),
+                image: UIImage(systemName: "photo.on.rectangle.angled")
+            ) { [weak self] _ in
+                self?.onPhotos()
+            }
+
+            return UIMenu(children: [camera, photos])
+        }
+
+        func presentMenuIfNeeded(trigger: Int) {
+            guard trigger > lastPresentationTrigger else { return }
+            lastPresentationTrigger = trigger
+            guard let button else { return }
+            button.performPrimaryAction()
         }
     }
 }

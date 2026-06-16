@@ -196,6 +196,7 @@ struct StoryCameraView: View {
     private var captureButtonOverlay: some View {
         CaptureButton(
             isRecording: $isRecording,
+            glassVariant: .clear,
             onTap: {
                 takePhoto()
             },

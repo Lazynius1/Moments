@@ -2265,8 +2265,20 @@
 "feed.reaction.accessibility.selected" = "Your reaction %@, %lld reactions";
 "feed.reaction.accessibilityHint" = "Double tap to react. Long press for more reactions.";
 "nova.input.addPhoto.accessibility" = "Add photo";
+"nova.input.attach.accessibility" = "Add attachment";
 "nova.input.removePhoto.accessibility" = "Remove photo";
 "nova.input.send.accessibility" = "Send message";
+"nova.attach.camera" = "Camera";
+"nova.attach.photos" = "Photos";
+"nova.attach.allPhotos" = "All Photos";
+"nova.attach.addToNova" = "Add to Nova";
+"nova.attach.addOnePhoto" = "Add 1 photo";
+"nova.attach.capture.accessibility" = "Take photo";
+"nova.attach.more.accessibility" = "Camera options";
+"nova.attach.flash.accessibility" = "Flash";
+"nova.attach.flip.accessibility" = "Flip camera";
+"nova.attach.back.accessibility" = "Back";
+"nova.attach.photos.permission" = "Allow photo library access in Settings to pick images.";
 /* In-App Banners */
 "banner.verb.like" = "liked your moment";
 "banner.verb.comment" = "commented on your moment";

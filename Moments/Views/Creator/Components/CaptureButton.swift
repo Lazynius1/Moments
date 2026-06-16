@@ -3,6 +3,7 @@ import SwiftUI
 struct CaptureButton: View {
     @Environment(\.colorScheme) private var colorScheme
     @Binding var isRecording: Bool
+    var glassVariant: LiquidGlassVariant = .regular
     let onTap: () -> Void
     let onLongPressStart: () -> Void
     let onLongPressEnd: () -> Void
@@ -12,20 +13,10 @@ struct CaptureButton: View {
 
     var body: some View {
         ZStack {
-            Circle()
-                .fill(Color.white.opacity(0.14))
-                .frame(width: 88, height: 88)
-                .background {
-                    Color.clear
-                        .liquidGlass(in: Circle(), interactive: true)
-                }
-                .overlay(
-                    Circle()
-                        .stroke(Color.white.opacity(0.22), lineWidth: 1.5)
-                )
+            outerRing
 
             Circle()
-                .fill(isRecording ? Color.red : (colorScheme == .dark ? Color.white : Color.black))
+                .fill(isRecording ? Color.red : innerFillColor)
                 .frame(width: isPressed ? 58 : 68, height: isPressed ? 58 : 68)
                 .scaleEffect(isRecording ? 0.8 : 1.0)
                 .animation(.easeInOut(duration: 0.1), value: isPressed)
@@ -62,5 +53,36 @@ struct CaptureButton: View {
                     }
                 }
         )
+    }
+
+    private var innerFillColor: Color {
+        if isRecording { return .red }
+        if glassVariant == .clear { return .white }
+        return colorScheme == .dark ? .white : .black
+    }
+
+    @ViewBuilder
+    private var outerRing: some View {
+        if glassVariant == .clear {
+            Circle()
+                .frame(width: 88, height: 88)
+                .liquidGlass(in: Circle(), variant: .clear, interactive: true)
+                .overlay(
+                    Circle()
+                        .stroke(Color.white.opacity(0.22), lineWidth: 1.5)
+                )
+        } else {
+            Circle()
+                .fill(Color.white.opacity(0.14))
+                .frame(width: 88, height: 88)
+                .background {
+                    Color.clear
+                        .liquidGlass(in: Circle(), variant: glassVariant, interactive: true)
+                }
+                .overlay(
+                    Circle()
+                        .stroke(Color.white.opacity(0.22), lineWidth: 1.5)
+                )
+        }
     }
 }

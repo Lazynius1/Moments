@@ -2292,8 +2292,20 @@
 "feed.reaction.accessibility.selected" = "Tu reacción %@, %lld reacciones";
 "feed.reaction.accessibilityHint" = "Toca dos veces para reaccionar. Mantén pulsado para más reacciones.";
 "nova.input.addPhoto.accessibility" = "Añadir foto";
+"nova.input.attach.accessibility" = "Añadir adjunto";
 "nova.input.removePhoto.accessibility" = "Quitar foto";
 "nova.input.send.accessibility" = "Enviar mensaje";
+"nova.attach.camera" = "Cámara";
+"nova.attach.photos" = "Fotos";
+"nova.attach.allPhotos" = "Todas las fotos";
+"nova.attach.addToNova" = "Añadir a Nova";
+"nova.attach.addOnePhoto" = "Añadir 1 foto";
+"nova.attach.capture.accessibility" = "Hacer foto";
+"nova.attach.more.accessibility" = "Opciones de cámara";
+"nova.attach.flash.accessibility" = "Flash";
+"nova.attach.flip.accessibility" = "Rotar cámara";
+"nova.attach.back.accessibility" = "Atrás";
+"nova.attach.photos.permission" = "Permite el acceso a fotos en Ajustes para elegir imágenes.";
 /* In-App Banners */
 "banner.verb.like" = "le gustó tu momento";
 "banner.verb.comment" = "comentó tu momento";
