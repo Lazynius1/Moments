@@ -393,7 +393,7 @@ struct ModernVideoPlayer: View {
                         .font(.system(size: 50, weight: .light))
                         .foregroundColor(.white)
                         .frame(width: 80, height: 80)
-                        .liquidGlass(in: Circle())
+                        .momentsChromeGlass(in: Circle())
                         .shadow(color: .black.opacity(0.3), radius: 10, x: 0, y: 5)
                 }
                 .transition(.scale.combined(with: .opacity))
@@ -431,7 +431,7 @@ struct ModernVideoPlayer: View {
                 .font(.system(size: 18, weight: .medium))
                 .foregroundColor(.white)
                 .frame(width: 36, height: 36)
-                .liquidGlass(in: Circle())
+                .momentsChromeGlass(in: Circle())
                 .shadow(color: .black.opacity(0.3), radius: 5, x: 0, y: 2)
         }
         .opacity(showMuteButton ? 1.0 : 0.0)

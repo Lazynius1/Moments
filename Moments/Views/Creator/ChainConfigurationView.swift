@@ -202,7 +202,7 @@ struct ChainConfigurationView: View {
                                             .font(.system(size: 13, weight: .semibold))
                                             .foregroundColor(.primary)
                                             .frame(width: 28, height: 28)
-                                            .liquidGlass(in: Circle(), interactive: true)
+                                            .momentsChromeGlass(in: Circle(), interactive: true)
                                     }
                                 }
                                 .padding(.vertical, 4)

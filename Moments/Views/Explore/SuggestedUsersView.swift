@@ -185,7 +185,7 @@ struct SuggestedUserRow: View {
                                 .foregroundColor(colorScheme == .dark ? .white.opacity(0.82) : .black.opacity(0.72))
                                 .padding(.horizontal, 8)
                                 .padding(.vertical, 4)
-                                .liquidGlass(in: Capsule())
+                                .momentsChromeGlass(in: Capsule())
                         }
                         
                         if user.interests.count > 2 {
@@ -194,7 +194,7 @@ struct SuggestedUserRow: View {
                                 .foregroundColor(colorScheme == .dark ? .white.opacity(0.8) : .black.opacity(0.8))
                                 .padding(.horizontal, 8)
                                 .padding(.vertical, 4)
-                                .liquidGlass(in: Capsule())
+                                .momentsChromeGlass(in: Capsule())
                         }
                     }
                 }
@@ -232,7 +232,7 @@ struct SuggestedUserFollowButton: View {
             .foregroundColor(colorScheme == .dark ? .white : .black)
             .padding(.horizontal, 12)
             .padding(.vertical, 8)
-            .liquidGlass(in: RoundedRectangle(cornerRadius: 12), interactive: state.isActionable)
+            .momentsChromeGlass(in: RoundedRectangle(cornerRadius: 12), interactive: state.isActionable)
         }
         .disabled(!state.isActionable)
         .opacity(isPassiveState ? 0.78 : 1)

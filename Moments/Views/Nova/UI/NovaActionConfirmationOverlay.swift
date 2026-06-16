@@ -65,7 +65,7 @@ struct NovaActionConfirmationOverlay: View {
                             .frame(maxWidth: .infinity)
                             .frame(height: 46)
                             .background(Color.white.opacity(0.001))
-                            .liquidGlass(in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                            .momentsChromeGlass(in: RoundedRectangle(cornerRadius: 16, style: .continuous))
                             .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
                             .contentShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
                     }
@@ -78,7 +78,7 @@ struct NovaActionConfirmationOverlay: View {
                             .frame(maxWidth: .infinity)
                             .frame(height: 46)
                             .background(Color.white.opacity(0.001))
-                            .liquidGlass(in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                            .momentsChromeGlass(in: RoundedRectangle(cornerRadius: 16, style: .continuous))
                             .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
                             .contentShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
                     }
@@ -90,7 +90,7 @@ struct NovaActionConfirmationOverlay: View {
             .background(
                 RoundedRectangle(cornerRadius: 24, style: .continuous)
                     .fill(Color.white.opacity(0.08))
-                    .liquidGlass(in: RoundedRectangle(cornerRadius: 24, style: .continuous))
+                    .momentsChromeGlass(in: RoundedRectangle(cornerRadius: 24, style: .continuous))
                     .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
             )
             .padding(.horizontal, 24)

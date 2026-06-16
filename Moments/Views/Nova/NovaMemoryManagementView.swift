@@ -87,7 +87,7 @@ struct NovaMemoryManagementView: View {
                         .frame(width: 38, height: 38)
                         .background {
                             Color.clear
-                                .liquidGlass(in: Circle(), interactive: true)
+                                .momentsChromeGlass(in: Circle(), interactive: true)
                         }
                 }
 
@@ -118,7 +118,7 @@ struct NovaMemoryManagementView: View {
                 .frame(width: 72, height: 72)
                 .background {
                     Color.clear
-                        .liquidGlass(in: Circle())
+                        .momentsChromeGlass(in: Circle())
                 }
 
             VStack(spacing: 8) {
@@ -182,7 +182,7 @@ struct NovaMemoryManagementView: View {
             .padding(.vertical, 13)
             .background {
                 Color.clear
-                    .liquidGlass(in: Capsule(), interactive: true)
+                    .momentsChromeGlass(in: Capsule(), interactive: true)
             }
         }
     }
@@ -220,7 +220,7 @@ private struct MemoryCategorySection: View {
                     .frame(width: 28, height: 28)
                     .background {
                         Color.clear
-                            .liquidGlass(in: Circle())
+                            .momentsChromeGlass(in: Circle())
                     }
 
                 VStack(alignment: .leading, spacing: 1) {
@@ -330,7 +330,7 @@ private struct MemoryFactRow: View {
                     .frame(width: 34, height: 34)
                     .background {
                         Color.clear
-                            .liquidGlass(in: Circle(), interactive: true)
+                            .momentsChromeGlass(in: Circle(), interactive: true)
                     }
             }
             .buttonStyle(.plain)

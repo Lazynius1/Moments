@@ -68,7 +68,7 @@ struct StoryQuickActionsMenu: View {
         }
         .frame(minWidth: 200)
         .fixedSize(horizontal: true, vertical: false)
-        .liquidGlass(in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+        .momentsChromeGlass(in: RoundedRectangle(cornerRadius: 22, style: .continuous))
         .contentShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
         .onTapGesture {
         }

@@ -1690,7 +1690,7 @@ struct InteractiveAudioStickerView: View {
             // Background with Liquid Glass effect
             Circle()
                 .fill(Color.clear)
-                .liquidGlass(in: Circle())
+                .momentsChromeGlass(in: Circle())
 
             // Progress Ring
             Circle()

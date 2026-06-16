@@ -29,7 +29,7 @@ struct CustomAudienceSelector: View {
                                 .font(.system(size: 18, weight: .semibold))
                                 .foregroundColor(.primary)
                                 .frame(width: 40, height: 40)
-                                .liquidGlass(in: Circle(), interactive: true)
+                                .momentsChromeGlass(in: Circle(), interactive: true)
                         }
                         .buttonStyle(.plain)
                         
@@ -72,7 +72,7 @@ struct CustomAudienceSelector: View {
                 }
                 .padding(.horizontal, 16)
                 .padding(.vertical, 10)
-                .liquidGlass(in: Capsule(), interactive: true)
+                .momentsChromeGlass(in: Capsule(), interactive: true)
                 .padding(.horizontal, 16)
                 .padding(.vertical, 4)
                 
@@ -278,7 +278,7 @@ struct CustomAudienceListsView: View {
                                     .font(.system(size: 18, weight: .semibold))
                                     .foregroundColor(.primary)
                                     .frame(width: 40, height: 40)
-                                    .liquidGlass(in: Circle(), interactive: true)
+                                    .momentsChromeGlass(in: Circle(), interactive: true)
                             }
                             .buttonStyle(.plain)
                             
@@ -307,7 +307,7 @@ struct CustomAudienceListsView: View {
                                     .font(.system(size: 18, weight: .semibold))
                                     .foregroundColor(.primary)
                                     .frame(width: 40, height: 40)
-                                    .liquidGlass(in: Circle(), interactive: true)
+                                    .momentsChromeGlass(in: Circle(), interactive: true)
                             }
                             .buttonStyle(.plain)
                         }
@@ -321,7 +321,7 @@ struct CustomAudienceListsView: View {
                                     .font(.system(size: 18, weight: .semibold))
                                     .foregroundColor(.primary)
                                     .frame(width: 40, height: 40)
-                                    .liquidGlass(in: Circle(), interactive: true)
+                                    .momentsChromeGlass(in: Circle(), interactive: true)
                             }
                             .buttonStyle(.plain)
 
@@ -344,7 +344,7 @@ struct CustomAudienceListsView: View {
                                     .font(.system(size: 18, weight: .semibold))
                                     .foregroundColor(.primary)
                                     .frame(width: 40, height: 40)
-                                    .liquidGlass(in: Circle(), interactive: true)
+                                    .momentsChromeGlass(in: Circle(), interactive: true)
                             }
                             .buttonStyle(.plain)
                         }
@@ -398,7 +398,7 @@ struct CustomAudienceListsView: View {
                         .font(.system(size: 14, weight: .semibold))
                         .foregroundColor(.primary)
                         .frame(width: 30, height: 30)
-                        .liquidGlass(in: Circle(), interactive: true)
+                        .momentsChromeGlass(in: Circle(), interactive: true)
                     
                     Text(NSLocalizedString("audience.createFirstList", comment: ""))
                         .font(.custom("Poppins-SemiBold", size: 16))

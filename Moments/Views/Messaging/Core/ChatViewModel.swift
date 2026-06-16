@@ -1,7 +1,9 @@
 import Foundation
 import FirebaseAuth
 import Combine
+import Photos
 import PhotosUI
+import AVFoundation
 import SwiftUI
 import UIKit
 
@@ -484,8 +486,8 @@ class EnhancedChatViewModel: ObservableObject {
     func sendImageMessage(_ image: UIImage) {
         sendImageMessage(image, mediaBatchId: nil)
     }
-    
-    private func sendImageMessage(_ image: UIImage, mediaBatchId: String?) {
+
+    func sendImageMessage(_ image: UIImage, mediaBatchId: String?) {
         guard let conversationId = conversation.id, !conversationId.isEmpty else {
             error = "No se puede enviar la imagen: ID de conversación no válido"
             return
@@ -566,12 +568,94 @@ class EnhancedChatViewModel: ObservableObject {
             }
         }
     }
-    
-     func sendVideoMessage(data: Data) {
-        sendVideoMessage(data: data, mediaBatchId: nil)
+
+    func handlePhotoPickerItems(_ items: [PhotosPickerItem]) {
+        let mediaBatchId = items.count > 1 ? UUID().uuidString : nil
+        for item in items {
+            handlePhotoPickerItem(item, mediaBatchId: mediaBatchId)
+        }
+    }
+
+    func sendSelectedPHAssets(_ assets: [PHAsset], completion: (() -> Void)? = nil) {
+        let mediaBatchId = assets.count > 1 ? UUID().uuidString : nil
+        Task {
+            for asset in assets {
+                await sendPHAsset(asset, mediaBatchId: mediaBatchId)
+            }
+            await MainActor.run {
+                completion?()
+            }
+        }
+    }
+
+    private func sendPHAsset(_ asset: PHAsset, mediaBatchId: String?) async {
+        switch asset.mediaType {
+        case .image:
+            if let image = await loadFullImage(from: asset) {
+                sendImageMessage(image, mediaBatchId: mediaBatchId)
+            }
+        case .video:
+            if let data = await loadVideoData(from: asset) {
+                sendVideoMessage(data: data, mediaBatchId: mediaBatchId)
+            }
+        default:
+            break
+        }
+    }
+
+    private func loadFullImage(from asset: PHAsset) async -> UIImage? {
+        await withCheckedContinuation { continuation in
+            let options = PHImageRequestOptions()
+            options.deliveryMode = .highQualityFormat
+            options.isNetworkAccessAllowed = true
+            options.isSynchronous = false
+
+            PHImageManager.default().requestImage(
+                for: asset,
+                targetSize: PHImageManagerMaximumSize,
+                contentMode: .aspectFit,
+                options: options
+            ) { image, info in
+                if let isDegraded = info?[PHImageResultIsDegradedKey] as? Bool, isDegraded {
+                    return
+                }
+                continuation.resume(returning: image)
+            }
+        }
+    }
+
+    private func loadVideoData(from asset: PHAsset) async -> Data? {
+        await withCheckedContinuation { continuation in
+            let options = PHVideoRequestOptions()
+            options.isNetworkAccessAllowed = true
+            options.deliveryMode = .highQualityFormat
+            options.version = .current
+
+            PHImageManager.default().requestAVAsset(forVideo: asset, options: options) { avAsset, _, info in
+                if let isDegraded = info?[PHImageResultIsDegradedKey] as? Bool, isDegraded {
+                    return
+                }
+
+                guard let urlAsset = avAsset as? AVURLAsset else {
+                    continuation.resume(returning: nil)
+                    return
+                }
+
+                do {
+                    let data = try Data(contentsOf: urlAsset.url)
+                    continuation.resume(returning: data)
+                } catch {
+                    continuation.resume(returning: nil)
+                }
+            }
+        }
     }
     
-    private func sendVideoMessage(data: Data, mediaBatchId: String?) {
+    func sendVideoMessage(data: Data) {
+        sendVideoMessage(data: data, mediaBatchId: nil)
+    }
+
+    func sendVideoMessage(data: Data, mediaBatchId: String?) {
         guard let conversationId = conversation.id, !conversationId.isEmpty else {
             error = "No se puede enviar el video: ID de conversación no válido"
             return

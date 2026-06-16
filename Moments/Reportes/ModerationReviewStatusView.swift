@@ -180,7 +180,7 @@ private struct ModerationReviewCard: View {
             .padding(18)
             .background(
                 Color.clear
-                    .liquidGlass(in: RoundedRectangle(cornerRadius: 22, style: .continuous), interactive: true)
+                    .momentsChromeGlass(in: RoundedRectangle(cornerRadius: 22, style: .continuous), interactive: true)
                     .overlay {
                         RoundedRectangle(cornerRadius: 22, style: .continuous)
                             .stroke(AuthColors.primary(colorScheme).opacity(colorScheme == .dark ? 0.10 : 0.08), lineWidth: 0.8)
@@ -271,7 +271,7 @@ private struct ModerationReviewDetailView: View {
         .padding(18)
         .background(
             Color.clear
-                .liquidGlass(in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+                .momentsChromeGlass(in: RoundedRectangle(cornerRadius: 22, style: .continuous))
         )
     }
 }

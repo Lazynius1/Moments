@@ -87,18 +87,21 @@ struct UserProfilePillTabs: View {
             ZStack {
                 Capsule()
                     .fill(Color.clear)
-                    .liquidGlass(in: Capsule())
+                    .momentsChromeGlass(
+                        in: Capsule(),
+                        interactive: false,
+                        tint: ProfilePillTabPalette.trackTint(for: colorScheme)
+                    )
                     .overlay(
                         Capsule()
                             .stroke(colorScheme == .dark ? Color.white.opacity(0.08) : Color.black.opacity(0.06), lineWidth: 0.75)
                     )
 
                 Capsule()
-                    .fill(ProfilePillTabPalette.selectedThumbFill(for: colorScheme))
+                    .fill(Color.clear)
                     .frame(width: segmentWidth(for: proxy.size.width), height: 31)
-                    .liquidGlass(
+                    .momentsChromeGlass(
                         in: Capsule(),
-                        variant: .regular,
                         interactive: true,
                         tint: ProfilePillTabPalette.selectedThumbTint(for: colorScheme)
                     )

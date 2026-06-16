@@ -1311,7 +1311,7 @@ struct StoryStatsView: View {
                         .foregroundColor(primaryText)
                         .frame(width: 40, height: 40)
                         .background(Color.white.opacity(0.001))
-                        .liquidGlass(in: Circle(), interactive: true)
+                        .momentsChromeGlass(in: Circle(), interactive: true)
                 }
                 .buttonStyle(.plain)
 
@@ -1488,7 +1488,7 @@ struct StoryStatsView: View {
         .padding(.horizontal, 16)
         .padding(.vertical, 12)
         .background(Color.white.opacity(0.001))
-        .liquidGlass(in: Capsule())
+        .momentsChromeGlass(in: Capsule())
     }
 
     private var filteredViewers: [StoryViewer] {

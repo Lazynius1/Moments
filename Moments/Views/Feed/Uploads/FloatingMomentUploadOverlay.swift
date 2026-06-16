@@ -113,7 +113,7 @@ struct FloatingMomentUploadOverlay: View {
                 Circle()
                     .fill(Color.clear)
                     .frame(width: 58, height: 58)
-                    .liquidGlass(in: Circle(), interactive: true)
+                    .momentsChromeGlass(in: Circle(), interactive: true)
 
                 Circle()
                     .stroke(trackColor, lineWidth: 4)
@@ -172,7 +172,7 @@ struct FloatingMomentUploadOverlay: View {
             RoundedRectangle(cornerRadius: 26, style: .continuous)
                 .fill(Color.clear)
                 .frame(width: 238, height: 72)
-                .liquidGlass(in: RoundedRectangle(cornerRadius: 26, style: .continuous), interactive: true)
+                .momentsChromeGlass(in: RoundedRectangle(cornerRadius: 26, style: .continuous), interactive: true)
 
             HStack(spacing: 12) {
                 thumbnailView(for: moment)

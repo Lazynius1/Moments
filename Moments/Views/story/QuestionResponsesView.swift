@@ -163,7 +163,7 @@ struct QuestionResponsesView: View {
                     .frame(width: 40, height: 40)
                     .background {
                         Color.clear
-                            .liquidGlass(in: Circle(), interactive: true)
+                            .momentsChromeGlass(in: Circle(), interactive: true)
                     }
             }
             .buttonStyle(.plain)
@@ -277,7 +277,7 @@ struct QuestionResponsesView: View {
                     .padding(.vertical, 16)
                     .background {
                         Color.clear
-                            .liquidGlass(in: RoundedRectangle(cornerRadius: 18, style: .continuous), interactive: true)
+                            .momentsChromeGlass(in: RoundedRectangle(cornerRadius: 18, style: .continuous), interactive: true)
                     }
             }
             .buttonStyle(.plain)
@@ -301,7 +301,7 @@ struct QuestionResponsesView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .background {
             Color.clear
-                .liquidGlass(in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+                .momentsChromeGlass(in: RoundedRectangle(cornerRadius: 22, style: .continuous))
         }
     }
 
@@ -320,7 +320,7 @@ struct QuestionResponsesView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .background {
             Color.clear
-                .liquidGlass(in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+                .momentsChromeGlass(in: RoundedRectangle(cornerRadius: 22, style: .continuous))
         }
     }
 
@@ -395,7 +395,7 @@ private struct QuestionResponseRow: View {
                     .frame(width: 32, height: 32)
                     .background {
                         Color.clear
-                            .liquidGlass(in: Circle(), interactive: true)
+                            .momentsChromeGlass(in: Circle(), interactive: true)
                     }
                     .padding(.top, 2)
             }

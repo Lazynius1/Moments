@@ -114,7 +114,7 @@ struct IncognitoGlobalOverlay: View {
             .contentShape(Capsule())
         }
         .buttonStyle(.plain)
-        .background(Color.clear.liquidGlass(in: Capsule(), interactive: true))
+        .background(Color.clear.momentsChromeGlass(in: Capsule(), interactive: true))
         .shadow(
             color: .black.opacity(colorScheme == .dark ? 0.26 : 0.12),
             radius: 10,
@@ -129,7 +129,7 @@ struct IncognitoGlobalOverlay: View {
             RoundedRectangle(cornerRadius: 24, style: .continuous)
                 .fill(Color.clear)
                 .frame(width: 230, height: 106)
-                .liquidGlass(in: RoundedRectangle(cornerRadius: 24, style: .continuous), interactive: true)
+                .momentsChromeGlass(in: RoundedRectangle(cornerRadius: 24, style: .continuous), interactive: true)
 
             VStack(alignment: .leading, spacing: 10) {
                 Text("incognito.liveHint.active")
@@ -157,7 +157,7 @@ struct IncognitoGlobalOverlay: View {
                     .foregroundStyle(pillTitleColor)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 13)
-                    .background(Color.clear.liquidGlass(in: Capsule(), interactive: !service.isSyncing))
+                    .background(Color.clear.momentsChromeGlass(in: Capsule(), interactive: !service.isSyncing))
                 }
                 .buttonStyle(.plain)
                 .disabled(service.isSyncing)

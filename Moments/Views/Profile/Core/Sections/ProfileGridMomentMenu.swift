@@ -394,7 +394,7 @@ struct ProfileGridVisitorActionBar: View {
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
         .frame(maxWidth: .infinity)
-        .liquidGlass(in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .momentsChromeGlass(in: RoundedRectangle(cornerRadius: 16, style: .continuous))
     }
 
     private var reactionRail: some View {

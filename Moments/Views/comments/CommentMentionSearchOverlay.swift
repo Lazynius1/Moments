@@ -94,12 +94,12 @@ struct CommentMentionSearchOverlay: View {
                     .font(.system(size: 14, weight: .semibold))
                     .foregroundColor(.primary)
                     .frame(width: 30, height: 30)
-                    .liquidGlass(in: Circle(), interactive: true)
+                    .momentsChromeGlass(in: Circle(), interactive: true)
             }
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 12)
-        .liquidGlass(in: Capsule(), interactive: true)
+        .momentsChromeGlass(in: Capsule(), interactive: true)
     }
 
     private var inlineHeader: some View {
@@ -120,12 +120,12 @@ struct CommentMentionSearchOverlay: View {
                     .font(.system(size: 14, weight: .semibold))
                     .foregroundColor(.primary)
                     .frame(width: 30, height: 30)
-                    .liquidGlass(in: Circle(), interactive: true)
+                    .momentsChromeGlass(in: Circle(), interactive: true)
             }
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 12)
-        .liquidGlass(in: Capsule(), interactive: true)
+        .momentsChromeGlass(in: Capsule(), interactive: true)
     }
 
     private var resultsPanel: some View {
@@ -218,7 +218,7 @@ private struct CommentMentionSearchRow: View {
                 .font(.system(size: 14, weight: .bold))
                 .foregroundColor(.primary)
                 .frame(width: 28, height: 28)
-                .liquidGlass(in: Circle(), interactive: true)
+                .momentsChromeGlass(in: Circle(), interactive: true)
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 12)

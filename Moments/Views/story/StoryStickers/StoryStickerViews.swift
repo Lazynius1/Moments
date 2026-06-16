@@ -1636,7 +1636,7 @@ struct QuestionResponseInputView: View {
                         .frame(width: 40, height: 40)
                         .background {
                             Color.clear
-                                .liquidGlass(in: Circle(), interactive: true)
+                                .momentsChromeGlass(in: Circle(), interactive: true)
                         }
                 }
                 .buttonStyle(.plain)
@@ -1673,7 +1673,7 @@ struct QuestionResponseInputView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .background {
                     Color.clear
-                        .liquidGlass(in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+                        .momentsChromeGlass(in: RoundedRectangle(cornerRadius: 22, style: .continuous))
                 }
                 .padding(.horizontal, 20)
 
@@ -1693,7 +1693,7 @@ struct QuestionResponseInputView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .background {
                     Color.clear
-                        .liquidGlass(in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+                        .momentsChromeGlass(in: RoundedRectangle(cornerRadius: 22, style: .continuous))
                 }
                 .padding(.horizontal, 20)
 
@@ -1714,7 +1714,7 @@ struct QuestionResponseInputView: View {
                     .padding(.vertical, 16)
                     .background {
                         Color.clear
-                            .liquidGlass(in: RoundedRectangle(cornerRadius: 18, style: .continuous), interactive: true)
+                            .momentsChromeGlass(in: RoundedRectangle(cornerRadius: 18, style: .continuous), interactive: true)
                     }
                 }
                 .buttonStyle(.plain)

@@ -278,7 +278,7 @@ struct AudienceSelectionView: View {
                                     .font(.system(size: 20, weight: .semibold))
                                     .foregroundColor(Color(hex: "007AFF"))
                                     .frame(width: 48, height: 48)
-                                    .liquidGlass(in: Circle(), interactive: true)
+                                    .momentsChromeGlass(in: Circle(), interactive: true)
                                 Text("audience.create")
                                     .font(.custom("Poppins-Medium", size: 14))
                                     .foregroundColor(Color(hex: "007AFF"))
@@ -336,7 +336,7 @@ struct AudienceSelectionView: View {
                         .font(.system(size: 14, weight: .semibold))
                         .foregroundColor(.primary)
                         .frame(width: 30, height: 30)
-                        .liquidGlass(in: Circle(), interactive: true)
+                        .momentsChromeGlass(in: Circle(), interactive: true)
                     Text("audience.createFirstList")
                         .font(.custom("Poppins-Medium", size: 14))
                         .foregroundColor(.primary)
@@ -560,7 +560,7 @@ struct CreateCustomListView: View {
                                     .font(.system(size: 18, weight: .semibold))
                                     .foregroundColor(.primary)
                                     .frame(width: 40, height: 40)
-                                    .liquidGlass(in: Circle(), interactive: true)
+                                    .momentsChromeGlass(in: Circle(), interactive: true)
                             }
                             .buttonStyle(.plain)
                             
@@ -774,7 +774,7 @@ struct CreateCustomListView: View {
                                             .font(.system(size: 10, weight: .bold))
                                             .foregroundColor(.primary)
                                             .frame(width: 20, height: 20)
-                                            .liquidGlass(in: Circle(), interactive: true)
+                                            .momentsChromeGlass(in: Circle(), interactive: true)
                                     }
                                     .font(.custom("Poppins-Medium", size: 13))
                                     .foregroundColor(.primary)
@@ -1082,7 +1082,7 @@ struct EditCustomListView: View {
                                     .font(.system(size: 18, weight: .semibold))
                                     .foregroundColor(.primary)
                                     .frame(width: 40, height: 40)
-                                    .liquidGlass(in: Circle(), interactive: true)
+                                    .momentsChromeGlass(in: Circle(), interactive: true)
                             }
                             .buttonStyle(.plain)
                             
@@ -1367,7 +1367,7 @@ struct EditCustomListView: View {
                             .font(.system(size: 11, weight: .bold))
                             .foregroundColor(.primary)
                             .frame(width: 24, height: 24)
-                            .liquidGlass(in: Circle(), interactive: true)
+                            .momentsChromeGlass(in: Circle(), interactive: true)
                         Text(NSLocalizedString("audience.list.add", comment: ""))
                             .foregroundColor(.primary)
                     }
@@ -1420,7 +1420,7 @@ struct EditCustomListView: View {
                                 .font(.system(size: 11, weight: .bold))
                                 .foregroundColor(.primary)
                                 .frame(width: 24, height: 24)
-                                .liquidGlass(in: Circle(), interactive: true)
+                                .momentsChromeGlass(in: Circle(), interactive: true)
                             Text(
                                 String(
                                     format: NSLocalizedString("audience.list.loadMoreMembers", comment: "Load more members"),
@@ -1630,7 +1630,7 @@ struct MemberPickerView: View {
                                 .font(.system(size: 18, weight: .semibold))
                                 .foregroundColor(.primary)
                                 .frame(width: 40, height: 40)
-                                .liquidGlass(in: Circle(), interactive: true)
+                                .momentsChromeGlass(in: Circle(), interactive: true)
                         }
                         .buttonStyle(.plain)
                         
@@ -1655,7 +1655,7 @@ struct MemberPickerView: View {
                         .foregroundColor(.primary)
                         .padding(.horizontal, 14)
                         .padding(.vertical, 9)
-                        .liquidGlass(in: Capsule(), interactive: true)
+                        .momentsChromeGlass(in: Capsule(), interactive: true)
                         .opacity(selectedMembers.isEmpty ? 0.45 : 1.0)
                         .disabled(selectedMembers.isEmpty)
                     }
@@ -1786,7 +1786,7 @@ struct MemberPickerView: View {
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 10)
-        .liquidGlass(in: Capsule(), interactive: true)
+        .momentsChromeGlass(in: Capsule(), interactive: true)
         .padding(.horizontal, 16)
         .padding(.bottom, 8)
     }
@@ -1887,7 +1887,7 @@ struct MemberPickerView: View {
                 .foregroundColor(.red)
                 .padding(.horizontal, 14)
                 .padding(.vertical, 8)
-                .liquidGlass(in: Capsule(), interactive: true)
+                .momentsChromeGlass(in: Capsule(), interactive: true)
                 
                 Button(NSLocalizedString("common.confirm", comment: "")) {
                     confirmPicker()
@@ -1896,7 +1896,7 @@ struct MemberPickerView: View {
                 .foregroundColor(.primary)
                 .padding(.horizontal, 16)
                 .padding(.vertical, 8)
-                .liquidGlass(in: Capsule(), interactive: true)
+                .momentsChromeGlass(in: Capsule(), interactive: true)
                 .opacity(selectedMembers.isEmpty ? 0.45 : 1.0)
                 .disabled(selectedMembers.isEmpty)
             }
@@ -2017,7 +2017,7 @@ struct UserSelectionCard: View {
                         .font(.system(size: 12, weight: .bold))
                         .foregroundColor(isSelected ? Color(hex: "007AFF") : .primary)
                         .frame(width: 28, height: 28)
-                        .liquidGlass(in: Circle(), interactive: true)
+                        .momentsChromeGlass(in: Circle(), interactive: true)
                 }
             }
             .padding(.horizontal, 16)
@@ -2088,7 +2088,7 @@ struct UserSelectionRowEnhanced: View {
                     .font(.system(size: 12, weight: .bold))
                     .foregroundColor(isSelected ? Color(hex: "007AFF") : .primary)
                     .frame(width: 28, height: 28)
-                    .liquidGlass(in: Circle(), interactive: true)
+                    .momentsChromeGlass(in: Circle(), interactive: true)
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 14)

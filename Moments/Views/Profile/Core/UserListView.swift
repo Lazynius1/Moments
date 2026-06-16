@@ -80,7 +80,7 @@ struct UserListView<ViewModel: UserListViewModel>: View {
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 12)
-        .liquidGlass(in: Capsule())
+        .momentsChromeGlass(in: Capsule())
         .padding(.horizontal, 20)
         .padding(.bottom, 16)
     }
@@ -374,7 +374,7 @@ struct ModernProfileUserRowView<ViewModel: UserListViewModel>: View {
                     .foregroundColor(colorScheme == .dark ? .white : .black)
                     .padding(.horizontal, 12)
                     .padding(.vertical, 8)
-                    .liquidGlass(in: RoundedRectangle(cornerRadius: 12), interactive: true)
+                    .momentsChromeGlass(in: RoundedRectangle(cornerRadius: 12), interactive: true)
                 }
             } else if rowAction == .unfollow {
                 Button(action: {
@@ -389,7 +389,7 @@ struct ModernProfileUserRowView<ViewModel: UserListViewModel>: View {
                     .foregroundColor(colorScheme == .dark ? .white : .black)
                     .padding(.horizontal, 12)
                     .padding(.vertical, 8)
-                    .liquidGlass(in: RoundedRectangle(cornerRadius: 12), interactive: true)
+                    .momentsChromeGlass(in: RoundedRectangle(cornerRadius: 12), interactive: true)
                 }
             } else {
                 // ✅ Chevron para otros casos

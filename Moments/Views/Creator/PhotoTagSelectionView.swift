@@ -77,7 +77,7 @@ struct PhotoTagSelectionView: View {
                                 .font(.system(size: 18, weight: .bold))
                                 .foregroundColor(.primary)
                                 .frame(width: 40, height: 40)
-                                .liquidGlass(in: Circle(), interactive: true)
+                                .momentsChromeGlass(in: Circle(), interactive: true)
                         }
                         .buttonStyle(.plain)
 
@@ -95,7 +95,7 @@ struct PhotoTagSelectionView: View {
                                 .foregroundColor(.primary)
                                 .padding(.horizontal, 16)
                                 .padding(.vertical, 8)
-                                .liquidGlass(in: Capsule(), interactive: true)
+                                .momentsChromeGlass(in: Capsule(), interactive: true)
                         }
                         .buttonStyle(.plain)
                     }
@@ -313,12 +313,12 @@ struct TagUserSearchOverlay: View {
                         .font(.system(size: 14, weight: .semibold))
                         .foregroundColor(.primary)
                         .frame(width: 30, height: 30)
-                        .liquidGlass(in: Circle(), interactive: true)
+                        .momentsChromeGlass(in: Circle(), interactive: true)
                 }
             }
             .padding(.horizontal, 14)
             .padding(.vertical, 12)
-            .liquidGlass(in: Capsule(), interactive: true)
+            .momentsChromeGlass(in: Capsule(), interactive: true)
 
             if shouldShowResultsPanel {
                 Group {
@@ -363,7 +363,7 @@ struct TagUserSearchOverlay: View {
                                                 .font(.system(size: 14, weight: .bold))
                                                 .foregroundColor(.primary)
                                                 .frame(width: 28, height: 28)
-                                                .liquidGlass(in: Circle(), interactive: true)
+                                                .momentsChromeGlass(in: Circle(), interactive: true)
                                         }
                                         .padding(.horizontal, 14)
                                         .padding(.vertical, 12)

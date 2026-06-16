@@ -454,7 +454,7 @@ private struct ExploreToolbarIconGlassModifier: ViewModifier {
         if #available(iOS 26.0, *) {
             content
         } else {
-            content.background(Color.clear.liquidGlass(in: Circle(), interactive: true))
+            content.background(Color.clear.momentsChromeGlass(in: Circle(), interactive: true))
         }
     }
 }

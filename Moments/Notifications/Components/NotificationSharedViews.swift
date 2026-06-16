@@ -128,7 +128,7 @@ struct NotificationDeletionUndoToast: View {
         .padding(.horizontal, 18)
         .padding(.vertical, 17)
         .frame(maxWidth: .infinity)
-        .liquidGlass(in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .momentsChromeGlass(in: RoundedRectangle(cornerRadius: 14, style: .continuous))
         .padding(.horizontal, 16)
     }
 }

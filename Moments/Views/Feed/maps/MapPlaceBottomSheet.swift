@@ -178,7 +178,7 @@ struct MapPlaceBottomSheet: View {
                             if timeFilter?.wrappedValue == filter {
                                 Capsule().fill(adaptiveColors.accent)
                             } else {
-                                Color.clear.liquidGlass(in: Capsule(), interactive: true)
+                                Color.clear.momentsChromeGlass(in: Capsule(), interactive: true)
                             }
                         }
                 }
@@ -205,7 +205,7 @@ struct MapPlaceBottomSheet: View {
         }
         .padding(.horizontal, 8)
         .padding(.vertical, 4)
-        .background(Color.clear.liquidGlass(in: Capsule(), interactive: false))
+        .background(Color.clear.momentsChromeGlass(in: Capsule(), interactive: false))
     }
 
     private var viewModeToggle: some View {
@@ -238,7 +238,7 @@ struct MapPlaceBottomSheet: View {
         .padding(4)
         .background(
             Color.clear
-                .liquidGlass(in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                .momentsChromeGlass(in: RoundedRectangle(cornerRadius: 14, style: .continuous))
         )
     }
 
@@ -436,7 +436,7 @@ struct MapPlaceIndexRow: View {
         .padding(12)
         .background(
             Color.clear
-                .liquidGlass(in: RoundedRectangle(cornerRadius: 16, style: .continuous), interactive: true)
+                .momentsChromeGlass(in: RoundedRectangle(cornerRadius: 16, style: .continuous), interactive: true)
         )
     }
 

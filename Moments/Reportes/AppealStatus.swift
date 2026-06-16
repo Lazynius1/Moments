@@ -150,7 +150,7 @@ struct AppealStatusHeader: View {
         } label: {
             ZStack {
                 Color.clear
-                    .liquidGlass(in: Circle())
+                    .momentsChromeGlass(in: Circle())
 
                 Image(systemName: "arrow.clockwise")
                     .font(.system(size: 18, weight: .semibold))
@@ -171,7 +171,7 @@ struct AppealStatusHeader: View {
                 .frame(width: 42, height: 42)
                 .background {
                     Color.clear
-                        .liquidGlass(in: Circle(), interactive: true)
+                        .momentsChromeGlass(in: Circle(), interactive: true)
                 }
         }
         .buttonStyle(.plain)
@@ -247,7 +247,7 @@ struct AppealCard: View {
             .padding(18)
             .background(
                 Color.clear
-                    .liquidGlass(in: RoundedRectangle(cornerRadius: 22, style: .continuous), interactive: true)
+                    .momentsChromeGlass(in: RoundedRectangle(cornerRadius: 22, style: .continuous), interactive: true)
                     .overlay {
                         RoundedRectangle(cornerRadius: 22, style: .continuous)
                             .stroke(AuthColors.primary(colorScheme).opacity(colorScheme == .dark ? 0.10 : 0.08), lineWidth: 0.8)
@@ -278,7 +278,7 @@ struct AppealStatusBadge: View {
         .padding(.vertical, 7)
         .background(
             Color.clear
-                .liquidGlass(in: Capsule())
+                .momentsChromeGlass(in: Capsule())
                 .overlay {
                     Capsule()
                         .stroke(statusColor.opacity(colorScheme == .dark ? 0.28 : 0.18), lineWidth: 0.8)
@@ -397,7 +397,7 @@ struct AppealDetailFlowView: View {
                                         .frame(width: 24, height: 24)
                                         .background {
                                             Color.clear
-                                                .liquidGlass(in: Circle())
+                                                .momentsChromeGlass(in: Circle())
                                         }
 
                                     Text(step)

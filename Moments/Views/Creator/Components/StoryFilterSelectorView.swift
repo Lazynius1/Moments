@@ -31,7 +31,7 @@ struct FilterSelectorView: View {
                 .foregroundColor(StoryEditorChromeColor.icon(colorScheme))
                 .padding(.horizontal, 8)
                 .padding(.vertical, 4)
-                .liquidGlass(in: Capsule())
+                .momentsChromeGlass(in: Capsule())
         }
         .padding(.bottom, 8)
     }

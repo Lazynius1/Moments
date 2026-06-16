@@ -161,7 +161,7 @@ struct IncognitoModeSheet: View {
                 .foregroundStyle(titleColor)
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 15)
-                .background(Color.clear.liquidGlass(in: Capsule(), interactive: primaryActionEnabled))
+                .background(Color.clear.momentsChromeGlass(in: Capsule(), interactive: primaryActionEnabled))
             }
             .buttonStyle(.plain)
             .disabled(!primaryActionEnabled)
@@ -228,7 +228,7 @@ struct IncognitoModeSheet: View {
                         .foregroundStyle(titleColor)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 15)
-                        .background(Color.clear.liquidGlass(in: Capsule(), interactive: true))
+                        .background(Color.clear.momentsChromeGlass(in: Capsule(), interactive: true))
                 }
                 .buttonStyle(.plain)
             }

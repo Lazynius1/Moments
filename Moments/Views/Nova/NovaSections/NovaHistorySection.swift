@@ -37,7 +37,7 @@ struct ConversationHistoryOverlay: View {
                                 .frame(width: 36, height: 36)
                                 .background {
                                     Color.clear
-                                        .liquidGlass(in: Circle(), interactive: true)
+                                        .momentsChromeGlass(in: Circle(), interactive: true)
                                 }
                         }
                     }
@@ -77,7 +77,7 @@ struct ConversationHistoryOverlay: View {
                                             .frame(width: 28, height: 28)
                                             .background {
                                                 Color.clear
-                                                    .liquidGlass(in: Circle(), interactive: true)
+                                                    .momentsChromeGlass(in: Circle(), interactive: true)
                                             }
 
                                         Text("nova.newConversation")
@@ -94,7 +94,7 @@ struct ConversationHistoryOverlay: View {
                                     .padding(.vertical, 16)
                                     .background {
                                         Color.clear
-                                            .liquidGlass(in: Capsule(), interactive: true)
+                                            .momentsChromeGlass(in: Capsule(), interactive: true)
                                     }
                                 }
                                 .padding(.horizontal, 20)
@@ -130,7 +130,7 @@ struct ConversationHistoryOverlay: View {
                 .padding(.bottom, 8)
                 .background {
                     Color.clear
-                        .liquidGlass(in: RoundedRectangle(cornerRadius: 28, style: .continuous))
+                        .momentsChromeGlass(in: RoundedRectangle(cornerRadius: 28, style: .continuous))
                 }
                 .padding(.horizontal, 20)
                 .padding(.bottom, 40)
@@ -190,7 +190,7 @@ struct ConversationHistoryItem: View {
                         .frame(width: 34, height: 34)
                         .background {
                             Color.clear
-                                .liquidGlass(in: Circle(), interactive: true)
+                                .momentsChromeGlass(in: Circle(), interactive: true)
                         }
                 }
             }
@@ -198,7 +198,7 @@ struct ConversationHistoryItem: View {
             .padding(.vertical, 12)
             .background {
                 Color.clear
-                    .liquidGlass(in: RoundedRectangle(cornerRadius: 18, style: .continuous), interactive: true)
+                    .momentsChromeGlass(in: RoundedRectangle(cornerRadius: 18, style: .continuous), interactive: true)
             }
         }
         .alert(NSLocalizedString("nova.actions.deleteConversation.title", comment: "Delete conversation alert title"), isPresented: $showDeleteAlert) {

@@ -133,7 +133,7 @@ struct ConversationSettingsView: View {
             } else {
                 Color.clear
                     .frame(width: 92, height: 92)
-                    .background(Color.clear.liquidGlass(in: Circle()))
+                    .background(Color.clear.momentsChromeGlass(in: Circle()))
                     .overlay(
                         Image(systemName: "person.fill")
                             .font(.system(size: 34))
@@ -163,7 +163,7 @@ struct ConversationSettingsView: View {
                 }
                 .padding(.horizontal, 12)
                 .padding(.vertical, 6)
-                .background(Color.clear.liquidGlass(in: Capsule()))
+                .background(Color.clear.momentsChromeGlass(in: Capsule()))
             }
         }
         .padding(.horizontal, 20)
@@ -250,7 +250,7 @@ struct ConversationSettingsView: View {
                             .foregroundColor(adaptiveColors.primary)
                             .padding(.horizontal, 12)
                             .padding(.vertical, 6)
-                            .background(Color.clear.liquidGlass(in: Capsule()))
+                            .background(Color.clear.momentsChromeGlass(in: Capsule()))
                     }
                 }
             }
@@ -788,7 +788,7 @@ struct AllSharedMediaView: View {
                             .font(.system(size: 16, weight: .semibold))
                             .foregroundColor(adaptiveColors.primary)
                             .frame(width: 38, height: 38)
-                            .background(Color.clear.liquidGlass(in: Circle(), interactive: true))
+                            .background(Color.clear.momentsChromeGlass(in: Circle(), interactive: true))
                     }
 
                     Spacer()
@@ -1083,7 +1083,7 @@ struct FullScreenMediaView: View {
                     .font(.system(size: 18, weight: .semibold))
                     .foregroundColor(primaryOverlayColor)
                     .frame(width: 42, height: 42)
-                    .background(Color.clear.liquidGlass(in: Circle(), interactive: true))
+                    .background(Color.clear.momentsChromeGlass(in: Circle(), interactive: true))
             }
 
             HStack(spacing: 10) {
@@ -1113,7 +1113,7 @@ struct FullScreenMediaView: View {
                 .foregroundColor(primaryOverlayColor)
                 .frame(height: 42)
                 .padding(.horizontal, 14)
-                .background(Color.clear.liquidGlass(in: Capsule(), interactive: true))
+                .background(Color.clear.momentsChromeGlass(in: Capsule(), interactive: true))
             }
         }
     }
@@ -1146,7 +1146,7 @@ struct FullScreenMediaView: View {
         }
         .padding(.horizontal, 14)
         .frame(height: 52)
-        .background(Color.clear.liquidGlass(in: Capsule(), interactive: true))
+        .background(Color.clear.momentsChromeGlass(in: Capsule(), interactive: true))
     }
 
     private var videoControlsOverlay: some View {
@@ -1161,7 +1161,7 @@ struct FullScreenMediaView: View {
                     .font(.system(size: 24, weight: .semibold))
                     .foregroundColor(primaryOverlayColor)
                     .frame(width: 64, height: 64)
-                    .background(Color.clear.liquidGlass(in: Circle(), interactive: true))
+                    .background(Color.clear.momentsChromeGlass(in: Circle(), interactive: true))
                     .padding(60)
                     .contentShape(Rectangle())
             }
@@ -1204,7 +1204,7 @@ struct FullScreenMediaView: View {
                         }
                         .buttonStyle(.plain)
                     }
-                    .background(Color.clear.liquidGlass(in: Capsule(), interactive: true))
+                    .background(Color.clear.momentsChromeGlass(in: Capsule(), interactive: true))
                     .padding(12)
                 }
                 Spacer()

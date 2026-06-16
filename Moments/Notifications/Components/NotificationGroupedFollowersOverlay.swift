@@ -159,7 +159,7 @@ struct NotificationGroupedFollowersOverlay: View {
         }
         .frame(maxWidth: .infinity)
         .frame(maxWidth: 320)
-        .liquidGlass(in: RoundedRectangle(cornerRadius: 28, style: .continuous))
+        .momentsChromeGlass(in: RoundedRectangle(cornerRadius: 28, style: .continuous))
         .shadow(color: .black.opacity(colorScheme == .dark ? 0.24 : 0.12), radius: 24, x: 0, y: 12)
         .padding(.horizontal, 24)
     }
@@ -230,7 +230,7 @@ struct NotificationGroupedFollowersOverlay: View {
                     .minimumScaleFactor(0.85)
                     .padding(.horizontal, 10)
                     .padding(.vertical, 7)
-                    .liquidGlass(in: Capsule(), interactive: state.isActionable)
+                    .momentsChromeGlass(in: Capsule(), interactive: state.isActionable)
             }
         }
         .buttonStyle(.plain)

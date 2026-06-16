@@ -222,7 +222,7 @@ private struct StoryAdTopChrome: View {
                             Circle()
                                 .fill(Color.black.opacity(0.16))
                                 .frame(width: 38, height: 38)
-                                .liquidGlass(in: Circle())
+                                .momentsChromeGlass(in: Circle())
 
                             Image(systemName: "megaphone.fill")
                                 .foregroundColor(.white.opacity(0.82))

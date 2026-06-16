@@ -855,6 +855,10 @@
 /* Chat */
 "chat.moment.loadError" = "No s'ha pogut carregar el moment";
 "chat.input.placeholder" = "Missatge...";
+"chat.input.attach.accessibility" = "Adjuntar contingut";
+"chat.input.voice.accessibility" = "Gravar nota de veu";
+"chat.attach.sendMedia.one" = "Enviar 1";
+"chat.attach.sendMedia.many" = "Enviar %d";
 "chat.action.deleteForMe" = "Eliminar per a mi";
 "chat.action.deleteForEveryone" = "Eliminar per a tothom";
 "chat.action.edit" = "Editar";
@@ -2277,6 +2281,18 @@
 "nova.input.addPhoto.accessibility" = "Afegir foto";
 "nova.input.removePhoto.accessibility" = "Treure foto";
 "nova.input.send.accessibility" = "Enviar missatge";
+"nova.input.attach.accessibility" = "Afegir adjunt";
+"nova.attach.camera" = "Càmera";
+"nova.attach.photos" = "Fotos";
+"nova.attach.allPhotos" = "Totes les fotos";
+"nova.attach.addToNova" = "Afegir a Nova";
+"nova.attach.addOnePhoto" = "Afegir 1 foto";
+"nova.attach.capture.accessibility" = "Fer foto";
+"nova.attach.more.accessibility" = "Opcions de càmera";
+"nova.attach.flash.accessibility" = "Flaix";
+"nova.attach.flip.accessibility" = "Girar càmera";
+"nova.attach.back.accessibility" = "Enrere";
+"nova.attach.photos.permission" = "Permet l'accés a les fotos a Configuració per triar imatges.";
 /* In-App Banners */
 "banner.verb.like" = "li ha agradat el teu moment";
 "banner.verb.comment" = "ha comentat el teu moment";

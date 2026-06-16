@@ -335,7 +335,7 @@ struct ReelVideoView: View {
                                     .frame(width: 38, height: 38)
                                     .background(Color.white.opacity(0.001))
                                     .contentShape(Circle())
-                                    .liquidGlass(in: Circle(), interactive: true)
+                                    .momentsChromeGlass(in: Circle(), interactive: true)
                             }
                             .buttonStyle(.momentsPress(scale: 0.9, haptic: .none))
 
@@ -349,7 +349,7 @@ struct ReelVideoView: View {
                                     .frame(width: 38, height: 38)
                                     .background(Color.white.opacity(0.001))
                                     .contentShape(Circle())
-                                    .liquidGlass(in: Circle(), interactive: true)
+                                    .momentsChromeGlass(in: Circle(), interactive: true)
                             }
                             .buttonStyle(.momentsPress(scale: 0.9, haptic: .none))
                             .accessibilityLabel(
@@ -1101,7 +1101,7 @@ struct EnhancedReelActionButton: View {
                 ZStack {
                     Color.clear
                         .frame(width: 56, height: 56)
-                        .liquidGlass(in: Circle(), interactive: true)
+                        .momentsChromeGlass(in: Circle(), interactive: true)
                         .scaleEffect(isPressed ? 0.95 : 1.0)
                     
                     // Icon with better styling

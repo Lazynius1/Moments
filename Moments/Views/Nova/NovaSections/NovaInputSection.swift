@@ -1,5 +1,4 @@
 import SwiftUI
-import UIKit
 import FirebaseAuth
 
 enum NovaInputBarLayout {
@@ -27,22 +26,69 @@ enum NovaInputBarLayout {
     }
 }
 
+struct NovaPlusButtonAnchorKey: PreferenceKey {
+    static var defaultValue: CGRect = .zero
+
+    static func reduce(value: inout CGRect, nextValue: () -> CGRect) {
+        let next = nextValue()
+        if next != .zero {
+            value = next
+        }
+    }
+}
+
+struct NovaAttachmentPlusButton: View {
+    let isMenuOpen: Bool
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: "plus")
+                .font(.system(size: 18, weight: .semibold))
+                .foregroundColor(NovaColors.textPrimary)
+                .frame(width: 44, height: 44)
+                .background {
+                    Color.clear
+                        .momentsChromeGlass(in: Circle(), interactive: true)
+                }
+                .rotationEffect(.degrees(isMenuOpen ? 45 : 0))
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(Text("nova.input.attach.accessibility"))
+        .background {
+            GeometryReader { proxy in
+                Color.clear.preference(
+                    key: NovaPlusButtonAnchorKey.self,
+                    value: proxy.frame(in: .global)
+                )
+            }
+        }
+    }
+}
+
 // MARK: - EnhancedInputBar
 struct EnhancedInputBar: View {
     @ObservedObject var viewModel: NovaAgent
     @Binding var showSuggestedOptions: Bool
     @Binding var activeAttachmentSheet: NovaAttachmentSheetKind?
-    @Binding var attachmentMenuPresentationTrigger: Int
     @FocusState private var isTextFieldFocused: Bool
     @Environment(\.colorScheme) var colorScheme
 
-    // ✅ CALLBACK PARA NOTIFICAR CUANDO EL TEXTOFIELD OBTIENE FOCUS
     var onFocusChange: ((Bool) -> Void)?
+
+    private var isMenuOpen: Bool {
+        activeAttachmentSheet == .menu
+    }
+
+    private func toggleAttachmentMenu() {
+        withAnimation(.spring(response: 0.38, dampingFraction: 0.86)) {
+            activeAttachmentSheet = isMenuOpen ? nil : .menu
+        }
+    }
 
     var body: some View {
         VStack(spacing: 4) {
             VStack(spacing: 0) {
-                // ⭐ VISTA PREVIA DE IMAGEN SELECCIONADA
                 if let selectedImage = viewModel.selectedImage {
                     HStack {
                         ZStack(alignment: .topTrailing) {
@@ -73,47 +119,33 @@ struct EnhancedInputBar: View {
                 }
 
                 HStack(alignment: .center, spacing: 10) {
-                    HStack(alignment: .center, spacing: 8) {
-                        NovaAttachmentMenuButton(
-                            presentationTrigger: attachmentMenuPresentationTrigger,
-                            tint: UIColor(NovaColors.textPrimary),
-                            onCamera: {
-                                withAnimation(.spring(response: 0.38, dampingFraction: 0.86)) {
-                                    activeAttachmentSheet = .camera
-                                }
-                            },
-                            onPhotos: {
-                                withAnimation(.spring(response: 0.38, dampingFraction: 0.86)) {
-                                    activeAttachmentSheet = .photos
-                                }
-                            }
-                        )
-                        .frame(width: 34, height: 34)
-                        .accessibilityLabel(Text("nova.input.attach.accessibility"))
+                    NovaAttachmentPlusButton(isMenuOpen: isMenuOpen, action: toggleAttachmentMenu)
 
-                        // ✅ TextField: crece hacia arriba, alineado al centro
-                        TextField(NSLocalizedString("nova.input.placeholder", comment: "Ask Nova something placeholder"), text: $viewModel.inputText, axis: .vertical)
-                            .lineLimit(1...6)
-                            .font(.custom("Poppins-Regular", size: 16))
-                            .foregroundColor(NovaColors.textPrimary)
-                            .padding(.vertical, 10)
-                            .focused($isTextFieldFocused)
-                            .onChange(of: isTextFieldFocused) { _, focused in
-                                onFocusChange?(focused)
-                            }
-                            .onSubmit {
-                                if !viewModel.inputText.isEmpty {
-                                    viewModel.sendMessage()
-                                    showSuggestedOptions = false
-                                }
-                            }
-                    }
-                    .padding(.leading, 10)
+                    TextField(
+                        NSLocalizedString("nova.input.placeholder", comment: "Ask Nova something placeholder"),
+                        text: $viewModel.inputText,
+                        axis: .vertical
+                    )
+                    .lineLimit(1...6)
+                    .font(.custom("Poppins-Regular", size: 16))
+                    .foregroundColor(NovaColors.textPrimary)
+                    .padding(.leading, 14)
                     .padding(.trailing, 12)
-                    .padding(.vertical, 4)
+                    .padding(.vertical, 10)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .focused($isTextFieldFocused)
+                    .onChange(of: isTextFieldFocused) { _, focused in
+                        onFocusChange?(focused)
+                    }
+                    .onSubmit {
+                        if !viewModel.inputText.isEmpty {
+                            viewModel.sendMessage()
+                            showSuggestedOptions = false
+                        }
+                    }
                     .background {
                         Color.clear
-                            .liquidGlass(in: RoundedRectangle(cornerRadius: 22, style: .continuous), interactive: true)
+                            .momentsChromeGlass(in: RoundedRectangle(cornerRadius: 22, style: .continuous), interactive: true)
                             .overlay {
                                 RoundedRectangle(cornerRadius: 22, style: .continuous)
                                     .stroke(
@@ -123,7 +155,6 @@ struct EnhancedInputBar: View {
                             }
                     }
 
-                    // ✅ Botón enviar alineado al centro
                     if !viewModel.inputText.isEmpty {
                         Button(action: {
                             viewModel.sendMessage()
@@ -136,7 +167,7 @@ struct EnhancedInputBar: View {
                                 .frame(width: 44, height: 44)
                                 .background {
                                     Color.clear
-                                        .liquidGlass(in: Circle(), interactive: true)
+                                        .momentsChromeGlass(in: Circle(), interactive: true)
                                 }
                         }
                         .accessibilityLabel(Text("nova.input.send.accessibility"))
@@ -149,6 +180,7 @@ struct EnhancedInputBar: View {
         }
         .background(Color.clear)
         .animation(MotionPolicy.animation(.easeInOut(duration: 0.25), value: viewModel.inputText.isEmpty), value: viewModel.inputText.isEmpty)
+        .animation(.spring(response: 0.32, dampingFraction: 0.82), value: isMenuOpen)
     }
 }
 
@@ -264,7 +296,7 @@ struct SmartSuggestionChip: View {
                         .fill(NovaColors.materialBackground)
                 } else {
                     Color.clear
-                        .liquidGlass(in: Capsule(), interactive: true)
+                        .momentsChromeGlass(in: Capsule(), interactive: true)
                 }
             }
             .overlay {
@@ -273,83 +305,6 @@ struct SmartSuggestionChip: View {
                         .stroke(NovaColors.borderColor, lineWidth: 1)
                 }
             }
-        }
-    }
-}
-
-// MARK: - Native + menu (reapertura programática al volver desde cámara/fotos)
-
-private struct NovaAttachmentMenuButton: UIViewRepresentable {
-    let presentationTrigger: Int
-    let tint: UIColor
-    let onCamera: () -> Void
-    let onPhotos: () -> Void
-
-    func makeCoordinator() -> Coordinator {
-        Coordinator(onCamera: onCamera, onPhotos: onPhotos)
-    }
-
-    func makeUIView(context: Context) -> UIButton {
-        let button = UIButton(type: .system)
-        var config = UIButton.Configuration.plain()
-        config.image = UIImage(
-            systemName: "plus",
-            withConfiguration: UIImage.SymbolConfiguration(pointSize: 18, weight: .semibold)
-        )
-        config.contentInsets = .zero
-        button.configuration = config
-        button.tintColor = tint
-        button.showsMenuAsPrimaryAction = true
-        button.menu = context.coordinator.makeMenu()
-        button.accessibilityLabel = NSLocalizedString(
-            "nova.input.attach.accessibility",
-            comment: "Attach media to Nova"
-        )
-        context.coordinator.button = button
-        return button
-    }
-
-    func updateUIView(_ button: UIButton, context: Context) {
-        button.tintColor = tint
-        button.menu = context.coordinator.makeMenu()
-        context.coordinator.button = button
-        context.coordinator.presentMenuIfNeeded(trigger: presentationTrigger)
-    }
-
-    final class Coordinator: NSObject {
-        var button: UIButton?
-        private var lastPresentationTrigger = 0
-        private let onCamera: () -> Void
-        private let onPhotos: () -> Void
-
-        init(onCamera: @escaping () -> Void, onPhotos: @escaping () -> Void) {
-            self.onCamera = onCamera
-            self.onPhotos = onPhotos
-        }
-
-        func makeMenu() -> UIMenu {
-            let camera = UIAction(
-                title: NSLocalizedString("nova.attach.camera", comment: "Camera"),
-                image: UIImage(systemName: "camera.fill")
-            ) { [weak self] _ in
-                self?.onCamera()
-            }
-
-            let photos = UIAction(
-                title: NSLocalizedString("nova.attach.photos", comment: "Photos"),
-                image: UIImage(systemName: "photo.on.rectangle.angled")
-            ) { [weak self] _ in
-                self?.onPhotos()
-            }
-
-            return UIMenu(children: [camera, photos])
-        }
-
-        func presentMenuIfNeeded(trigger: Int) {
-            guard trigger > lastPresentationTrigger else { return }
-            lastPresentationTrigger = trigger
-            guard let button else { return }
-            button.performPrimaryAction()
         }
     }
 }

@@ -234,7 +234,7 @@ private struct AppealSheetHeader: View {
                         .frame(width: 38, height: 38)
                         .background {
                             Color.clear
-                                .liquidGlass(in: Circle(), interactive: true)
+                                .momentsChromeGlass(in: Circle(), interactive: true)
                         }
                 }
 
@@ -256,7 +256,7 @@ private struct AppealSheetHeader: View {
                 }
                 .background {
                     Color.clear
-                        .liquidGlass(in: Capsule(), interactive: canSubmit && !isLoading)
+                        .momentsChromeGlass(in: Capsule(), interactive: canSubmit && !isLoading)
                 }
                 .disabled(!canSubmit || isLoading)
             }
@@ -318,7 +318,7 @@ struct AppealEmailField: View {
                 .padding(16)
                 .background(
                     Color.clear
-                        .liquidGlass(in: RoundedRectangle(cornerRadius: 16, style: .continuous), interactive: true)
+                        .momentsChromeGlass(in: RoundedRectangle(cornerRadius: 16, style: .continuous), interactive: true)
                         .animation(.easeInOut(duration: 0.2), value: isFocused)
                 )
                 .overlay(
@@ -370,7 +370,7 @@ struct AppealMessageField: View {
                     .frame(minHeight: 150)
                     .background {
                         Color.clear
-                            .liquidGlass(in: RoundedRectangle(cornerRadius: 16, style: .continuous), interactive: true)
+                            .momentsChromeGlass(in: RoundedRectangle(cornerRadius: 16, style: .continuous), interactive: true)
                     }
                     .overlay(
                         RoundedRectangle(cornerRadius: 16, style: .continuous)
@@ -460,7 +460,7 @@ struct AppealOptionalField: View {
                     .frame(minHeight: 80)
                     .background {
                         Color.clear
-                            .liquidGlass(in: RoundedRectangle(cornerRadius: 16, style: .continuous), interactive: true)
+                            .momentsChromeGlass(in: RoundedRectangle(cornerRadius: 16, style: .continuous), interactive: true)
                     }
                     .overlay(
                         RoundedRectangle(cornerRadius: 16, style: .continuous)
@@ -518,7 +518,7 @@ struct AppealInfoCard: View {
         .padding(16)
         .background(
             Color.clear
-                .liquidGlass(in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                .momentsChromeGlass(in: RoundedRectangle(cornerRadius: 16, style: .continuous))
                 .overlay(
                     RoundedRectangle(cornerRadius: 16, style: .continuous)
                         .stroke(color.opacity(colorScheme == .dark ? 0.24 : 0.18), lineWidth: 0.8)
@@ -568,7 +568,7 @@ struct AppealRequirements: View {
         .padding(16)
         .background(
             Color.clear
-                .liquidGlass(in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                .momentsChromeGlass(in: RoundedRectangle(cornerRadius: 16, style: .continuous))
         )
     }
 }
@@ -686,7 +686,7 @@ struct AppealSuccessView: View {
                     .padding(20)
                     .background(
                         Color.clear
-                            .liquidGlass(in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+                            .momentsChromeGlass(in: RoundedRectangle(cornerRadius: 18, style: .continuous))
                     )
                 }
             }
@@ -799,7 +799,7 @@ struct ModerationReviewRequestSheet: View {
                         .frame(width: 38, height: 38)
                         .background {
                             Color.clear
-                                .liquidGlass(in: Circle(), interactive: true)
+                                .momentsChromeGlass(in: Circle(), interactive: true)
                         }
                 }
 
@@ -863,7 +863,7 @@ struct ModerationReviewRequestSheet: View {
         .padding(20)
         .background {
             Color.clear
-                .liquidGlass(in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+                .momentsChromeGlass(in: RoundedRectangle(cornerRadius: 22, style: .continuous))
         }
     }
 
@@ -964,7 +964,7 @@ struct ModerationReviewRequestSheet: View {
             .padding(24)
             .background {
                 Color.clear
-                    .liquidGlass(in: RoundedRectangle(cornerRadius: 26, style: .continuous))
+                    .momentsChromeGlass(in: RoundedRectangle(cornerRadius: 26, style: .continuous))
             }
 
             Button(action: { isPresented = false }) {
@@ -975,7 +975,7 @@ struct ModerationReviewRequestSheet: View {
                     .padding(.vertical, 16)
                     .background {
                         Color.clear
-                            .liquidGlass(in: Capsule(), interactive: true)
+                            .momentsChromeGlass(in: Capsule(), interactive: true)
                     }
             }
             .buttonStyle(.plain)

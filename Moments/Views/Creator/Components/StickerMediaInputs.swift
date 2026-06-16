@@ -182,7 +182,7 @@ struct AudioStickerRecordingView: View {
             .background(
                 RoundedRectangle(cornerRadius: 20)
                     .fill(Color.clear)
-                    .liquidGlass(in: RoundedRectangle(cornerRadius: 20))
+                    .momentsChromeGlass(in: RoundedRectangle(cornerRadius: 20))
             )
             .padding(.vertical, 6)
 
@@ -205,7 +205,7 @@ struct AudioStickerRecordingView: View {
                             Circle()
                                 .fill(Color.clear)
                                 .frame(width: 44, height: 44)
-                                .liquidGlass(in: Circle(), interactive: true)
+                                .momentsChromeGlass(in: Circle(), interactive: true)
 
                             Image(systemName: "trash.fill")
                                 .font(.system(size: 18, weight: .semibold))
@@ -219,7 +219,7 @@ struct AudioStickerRecordingView: View {
                         Circle()
                             .fill(Color.clear)
                             .frame(width: 72, height: 72)
-                            .liquidGlass(in: Circle(), interactive: true)
+                            .momentsChromeGlass(in: Circle(), interactive: true)
 
                         if isRecording {
                             RoundedRectangle(cornerRadius: 4)
@@ -241,7 +241,7 @@ struct AudioStickerRecordingView: View {
                             Circle()
                                 .fill(Color.clear)
                                 .frame(width: 44, height: 44)
-                                .liquidGlass(in: Circle(), interactive: true)
+                                .momentsChromeGlass(in: Circle(), interactive: true)
 
                             Image(systemName: isPlaying ? "pause.fill" : "play.fill")
                                 .font(.system(size: 18, weight: .semibold))
@@ -266,7 +266,7 @@ struct AudioStickerRecordingView: View {
                         .background(
                             Capsule()
                                 .fill(Color.clear)
-                                .liquidGlass(in: Capsule(), interactive: true)
+                                .momentsChromeGlass(in: Capsule(), interactive: true)
                         )
                 }
                 .padding(.horizontal, 20)

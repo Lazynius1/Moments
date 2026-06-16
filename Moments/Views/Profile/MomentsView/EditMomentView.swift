@@ -143,7 +143,7 @@ struct EditMomentView: View {
                     }
                     .padding(.horizontal, 18)
                     .padding(.vertical, 16)
-                    .liquidGlass(in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+                    .momentsChromeGlass(in: RoundedRectangle(cornerRadius: 20, style: .continuous))
                 }
             }
             .task {
@@ -200,7 +200,7 @@ struct EditMomentView: View {
                     .frame(minHeight: 130)
             }
             .padding(10)
-            .liquidGlass(in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+            .momentsChromeGlass(in: RoundedRectangle(cornerRadius: 22, style: .continuous))
         }
     }
 
@@ -258,7 +258,7 @@ struct EditMomentView: View {
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 12)
-        .liquidGlass(in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .momentsChromeGlass(in: RoundedRectangle(cornerRadius: 18, style: .continuous))
     }
 
     private func sectionHeader(title: String, subtitle: String) -> some View {
@@ -495,7 +495,7 @@ private struct EditMomentPhotoTagSheet: View {
                                     .foregroundColor(colorScheme == .dark ? .white : .black)
                                     .padding(.horizontal, 16)
                                     .padding(.vertical, 10)
-                                    .liquidGlass(in: Capsule(), interactive: true)
+                                    .momentsChromeGlass(in: Capsule(), interactive: true)
                             }
                             .buttonStyle(.plain)
                         }
@@ -617,6 +617,6 @@ private struct EditMomentPreviewCard: View {
             }
         }
         .padding(10)
-        .liquidGlass(in: RoundedRectangle(cornerRadius: 28, style: .continuous))
+        .momentsChromeGlass(in: RoundedRectangle(cornerRadius: 28, style: .continuous))
     }
 }

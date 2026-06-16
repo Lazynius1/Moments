@@ -306,7 +306,7 @@ struct DeleteAccountVerificationView: View {
                         .buttonStyle(.plain)
                         .background {
                             Color.clear
-                                .liquidGlass(in: Capsule(), interactive: true)
+                                .momentsChromeGlass(in: Capsule(), interactive: true)
                         }
 
                         Button(action: onCancel) {
@@ -317,7 +317,7 @@ struct DeleteAccountVerificationView: View {
                                 .frame(height: 52)
                                 .background {
                                     Color.clear
-                                        .liquidGlass(in: RoundedRectangle(cornerRadius: 18, style: .continuous), interactive: true)
+                                        .momentsChromeGlass(in: RoundedRectangle(cornerRadius: 18, style: .continuous), interactive: true)
                                 }
                         }
                         .buttonStyle(.plain)
@@ -427,7 +427,7 @@ struct DeleteAccountVerificationView: View {
                     .buttonStyle(.plain)
                     .background {
                         Color.clear
-                            .liquidGlass(in: Capsule(), interactive: isFormValid)
+                            .momentsChromeGlass(in: Capsule(), interactive: isFormValid)
                     }
                     .opacity(isFormValid ? 1.0 : 0.45)
                     .disabled(!isFormValid)
@@ -456,7 +456,7 @@ struct DeleteAccountVerificationView: View {
             .frame(height: 58)
             .background {
                 Color.clear
-                    .liquidGlass(in: Capsule())
+                    .momentsChromeGlass(in: Capsule())
             }
         }
     }
@@ -530,7 +530,7 @@ struct DeleteAccountVerificationView: View {
             .frame(height: 54)
             .background {
                 Color.clear
-                    .liquidGlass(in: Capsule(), interactive: true)
+                    .momentsChromeGlass(in: Capsule(), interactive: true)
             }
             .overlay {
                 Capsule()
@@ -564,7 +564,7 @@ struct DeleteAccountVerificationView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .background {
                     Color.clear
-                        .liquidGlass(in: RoundedRectangle(cornerRadius: 16, style: .continuous), interactive: false)
+                        .momentsChromeGlass(in: RoundedRectangle(cornerRadius: 16, style: .continuous), interactive: false)
                 }
             } else {
                 SignInWithAppleButton(.continue) { request in
@@ -683,7 +683,7 @@ private struct DeleteAccountHeader: View {
                         .frame(width: 40, height: 40)
                         .background {
                             Color.clear
-                                .liquidGlass(in: Circle(), interactive: true)
+                                .momentsChromeGlass(in: Circle(), interactive: true)
                         }
                 }
                 .buttonStyle(.plain)

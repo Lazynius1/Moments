@@ -6,6 +6,7 @@ import AVFoundation
 // MARK: - Presentation
 
 enum NovaAttachmentSheetKind: Identifiable, Equatable {
+    case menu
     case camera
     case photos
 
@@ -16,28 +17,162 @@ private enum NovaAttachmentSheetMetrics {
     /// Inset lateral como sheet medium nativo (~10pt).
     static let horizontalInset: CGFloat = 10
     static let cornerRadius: CGFloat = 24
-    /// Misma altura cámara/fotos (~58% pantalla, estilo ChatGPT medium/large).
+    /// Popover menú encima del +.
+    static let menuPopoverWidth: CGFloat = 280
+    static let menuPopoverHeight: CGFloat = 132
+    static let menuPopoverGap: CGFloat = 10
+    /// Cámara / fotos (~58% pantalla).
     static let heightFraction: CGFloat = 0.58
+
+    static func sheetHeight(for kind: NovaAttachmentSheetKind, containerHeight: CGFloat) -> CGFloat {
+        containerHeight * heightFraction
+    }
 }
 
-// MARK: - Custom medium overlay (no sheet nativo — glass compone mal ahí)
+// MARK: - Menú popover (anclado al +)
+
+struct NovaAttachmentMenuPopover: View {
+    @Binding var isPresented: NovaAttachmentSheetKind?
+    let anchorFrame: CGRect
+
+    @Environment(\.colorScheme) private var colorScheme
+
+    private var popoverX: CGFloat {
+        guard anchorFrame != .zero else { return 0 }
+        let halfWidth = NovaAttachmentSheetMetrics.menuPopoverWidth / 2
+        let margin: CGFloat = 16
+        let screenWidth = UIScreen.main.bounds.width
+        return min(max(anchorFrame.midX, halfWidth + margin), screenWidth - halfWidth - margin)
+    }
+
+    private var popoverY: CGFloat {
+        guard anchorFrame != .zero else { return 0 }
+        return anchorFrame.minY
+            - NovaAttachmentSheetMetrics.menuPopoverGap
+            - NovaAttachmentSheetMetrics.menuPopoverHeight / 2
+    }
+
+    var body: some View {
+        ZStack {
+            Color.black.opacity(colorScheme == .dark ? 0.12 : 0.08)
+                .ignoresSafeArea()
+                .onTapGesture {
+                    dismissMenu()
+                }
+
+            if anchorFrame != .zero {
+                NovaAttachmentMenuPopoverCard(isPresented: $isPresented)
+                    .frame(
+                        width: NovaAttachmentSheetMetrics.menuPopoverWidth,
+                        height: NovaAttachmentSheetMetrics.menuPopoverHeight
+                    )
+                    .position(x: popoverX, y: popoverY)
+                    .transition(
+                        .scale(scale: 0.88, anchor: .bottom)
+                            .combined(with: .opacity)
+                    )
+            }
+        }
+    }
+
+    private func dismissMenu() {
+        withAnimation(.spring(response: 0.38, dampingFraction: 0.86)) {
+            isPresented = nil
+        }
+    }
+}
+
+private struct NovaAttachmentMenuPopoverCard: View {
+    @Binding var isPresented: NovaAttachmentSheetKind?
+    @Environment(\.colorScheme) private var colorScheme
+
+    private var cardShape: RoundedRectangle {
+        RoundedRectangle(cornerRadius: NovaAttachmentSheetMetrics.cornerRadius, style: .continuous)
+    }
+
+    private var primaryTextColor: Color {
+        colorScheme == .dark ? .white : NovaColors.textPrimary
+    }
+
+    private var iconCircleFill: Color {
+        colorScheme == .dark ? Color.white.opacity(0.1) : Color.black.opacity(0.06)
+    }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            menuRow(
+                systemImage: "camera",
+                titleKey: "nova.attach.camera",
+                action: {
+                    withAnimation(.spring(response: 0.38, dampingFraction: 0.86)) {
+                        isPresented = .camera
+                    }
+                }
+            )
+            menuRow(
+                systemImage: "photo.on.rectangle",
+                titleKey: "nova.attach.photos",
+                action: {
+                    withAnimation(.spring(response: 0.38, dampingFraction: 0.86)) {
+                        isPresented = .photos
+                    }
+                }
+            )
+        }
+        .padding(.vertical, 10)
+        .padding(.horizontal, 12)
+        .momentsChromeGlass(in: cardShape, interactive: true)
+        .clipShape(cardShape)
+        .shadow(color: .black.opacity(colorScheme == .dark ? 0.24 : 0.12), radius: 24, x: 0, y: 12)
+    }
+
+    private func menuRow(systemImage: String, titleKey: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack(spacing: 14) {
+                ZStack {
+                    Circle()
+                        .fill(iconCircleFill)
+                        .frame(width: 40, height: 40)
+
+                    Image(systemName: systemImage)
+                        .font(.system(size: 18, weight: .regular))
+                        .foregroundColor(primaryTextColor)
+                }
+
+                Text(LocalizedStringKey(titleKey))
+                    .font(.custom("Poppins-Medium", size: 17))
+                    .foregroundColor(primaryTextColor)
+
+                Spacer(minLength: 0)
+            }
+            .padding(.horizontal, 6)
+            .padding(.vertical, 8)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+// MARK: - Custom medium overlay (cámara / fotos)
 
 struct NovaAttachmentSheetOverlay: View {
     @Binding var activeSheet: NovaAttachmentSheetKind?
     let onCaptured: (UIImage) -> Void
     let onAdd: (UIImage) -> Void
-    let onBackToMenu: () -> Void
 
     @Environment(\.colorScheme) private var colorScheme
     @State private var dragOffset: CGFloat = 0
 
     var body: some View {
-        if let kind = activeSheet {
+        if let kind = activeSheet, kind != .menu {
             GeometryReader { proxy in
                 let bottomPadding = NovaInputBarLayout.attachmentSheetBottomInset(
                     safeAreaBottom: proxy.safeAreaInsets.bottom
                 )
-                let sheetHeight = proxy.size.height * NovaAttachmentSheetMetrics.heightFraction
+                let sheetHeight = NovaAttachmentSheetMetrics.sheetHeight(
+                    for: kind,
+                    containerHeight: proxy.size.height
+                )
 
                 ZStack(alignment: .bottom) {
                     Color.black.opacity(colorScheme == .dark ? 0.28 : 0.16)
@@ -58,6 +193,8 @@ struct NovaAttachmentSheetOverlay: View {
                                 onAdd: onAdd,
                                 onBack: backToAttachmentMenu
                             )
+                        case .menu:
+                            EmptyView()
                         }
                     }
                     .padding(.horizontal, NovaAttachmentSheetMetrics.horizontalInset)
@@ -65,6 +202,7 @@ struct NovaAttachmentSheetOverlay: View {
                     .offset(y: dragOffset)
                     .gesture(dismissDragGesture(sheetHeight: sheetHeight))
                 }
+                .animation(.spring(response: 0.38, dampingFraction: 0.86), value: kind)
             }
             .ignoresSafeArea(edges: .bottom)
             .transition(.move(edge: .bottom).combined(with: .opacity))
@@ -101,9 +239,8 @@ struct NovaAttachmentSheetOverlay: View {
     private func backToAttachmentMenu() {
         withAnimation(.spring(response: 0.38, dampingFraction: 0.86)) {
             dragOffset = 0
-            activeSheet = nil
+            activeSheet = .menu
         }
-        onBackToMenu()
     }
 }
 
@@ -128,7 +265,7 @@ private struct NovaAttachmentSheetSurface<Content: View>: View {
                     switch kind {
                     case .camera:
                         Color.black
-                    case .photos:
+                    case .menu, .photos:
                         NovaAttachmentSheetCanvasBackground()
                     }
                 }
@@ -149,6 +286,10 @@ struct NovaAttachmentCameraSheet: View {
     @State private var cameraPosition: EnhancedCameraPickerView.CameraPosition = .back
     @State private var showsCameraTools = false
     @State private var cameraViewController: CameraViewController?
+    @State private var zoomLevel: CGFloat = 1.0
+    @State private var lensPresets: [CGFloat] = [1.0]
+    @State private var pinchAnchorZoom: CGFloat = 1.0
+    @State private var isPinchActive = false
     @StateObject private var orientationManager = OrientationManager.shared
 
     private var deviceOrientation: UIDeviceOrientation {
@@ -170,35 +311,155 @@ struct NovaAttachmentCameraSheet: View {
                     },
                     onVideoRecordingStateChange: { _ in },
                     deviceOrientation: deviceOrientation,
-                    cameraViewController: $cameraViewController
+                    cameraViewController: $cameraViewController,
+                    zoomFactor: $zoomLevel,
+                    lensPresets: $lensPresets,
+                    enablesPinchToZoom: false
                 )
                 .ignoresSafeArea()
+                .allowsHitTesting(false)
+                .zIndex(0)
+
+                Color.clear
+                    .contentShape(Rectangle())
+                    .gesture(cameraPinchGesture)
+                    .zIndex(1)
 
                 VStack {
                     Spacer()
+
+                    if cameraPosition == .back && lensPresets.count > 1 {
+                        cameraLensSelector
+                            .padding(.bottom, 10)
+                    }
+
                     cameraBottomBar
                         .padding(.horizontal, 32)
                         .padding(.bottom, 16)
                 }
+                .zIndex(20)
+                .allowsHitTesting(true)
             }
         }
         .background(Color.black)
         .onAppear {
             orientationManager.startTracking()
         }
+        .onChange(of: cameraViewController) { _, controller in
+            guard let controller else { return }
+            lensPresets = controller.lensPresetFactors
+            zoomLevel = controller.currentZoomFactor
+            pinchAnchorZoom = controller.currentZoomFactor
+        }
         .onDisappear {
             orientationManager.stopTracking()
             showsCameraTools = false
             flashMode = .off
             cameraPosition = .back
+            zoomLevel = 1.0
+            pinchAnchorZoom = 1.0
+            isPinchActive = false
+            lensPresets = [1.0]
         }
+    }
+
+    private var cameraPinchGesture: some Gesture {
+        MagnificationGesture()
+            .onChanged { magnification in
+                if !isPinchActive {
+                    pinchAnchorZoom = zoomLevel
+                    isPinchActive = true
+                }
+
+                let minZoom = cameraViewController?.minDisplayZoomFactor ?? 0.5
+                let maxZoom = cameraViewController?.maxDisplayZoomFactor ?? CameraViewController.photoModeMaxDisplayZoom
+                let target = CameraViewController.displayZoomFromPinch(
+                    base: pinchAnchorZoom,
+                    magnification: magnification
+                )
+                let clamped = min(max(target, minZoom), maxZoom)
+                zoomLevel = clamped
+                cameraViewController?.setZoomFactor(clamped, animated: false)
+            }
+            .onEnded { _ in
+                isPinchActive = false
+            }
+    }
+
+    private var cameraLensSelector: some View {
+        VStack(spacing: 8) {
+            if showsContinuousZoomLabel {
+                Text(cameraLensLabel(for: zoomLevel))
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 5)
+                    .background(Capsule().fill(Color.black.opacity(0.45)))
+                    .transition(.opacity.combined(with: .scale(scale: 0.92)))
+            }
+
+            HStack(spacing: 10) {
+                ForEach(lensPresets, id: \.self) { preset in
+                    let isSelected = isLensPresetSelected(preset)
+
+                    Button {
+                        isPinchActive = false
+                        pinchAnchorZoom = preset
+                        zoomLevel = preset
+                        cameraViewController?.setZoomFactor(preset, animated: true)
+                    } label: {
+                        Text(cameraLensLabel(for: preset))
+                            .font(.system(size: isSelected ? 15 : 13, weight: .semibold))
+                            .foregroundColor(isSelected ? Color(hex: "FFD60A") : .white.opacity(0.78))
+                            .frame(minWidth: 40, minHeight: 44)
+                            .background {
+                                if isSelected {
+                                    Circle()
+                                        .fill(Color.white.opacity(0.16))
+                                }
+                            }
+                            .contentShape(Circle())
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(.horizontal, 4)
+            .frame(maxWidth: .infinity)
+        }
+        .animation(.spring(response: 0.24, dampingFraction: 0.86), value: zoomLevel)
+    }
+
+    private var selectedLensPreset: CGFloat? {
+        lensPresets.min { abs($0 - zoomLevel) < abs($1 - zoomLevel) }
+    }
+
+    private var showsContinuousZoomLabel: Bool {
+        guard let selected = selectedLensPreset else { return false }
+        return abs(zoomLevel - selected) > 0.08
+    }
+
+    private func isLensPresetSelected(_ preset: CGFloat) -> Bool {
+        guard let selected = selectedLensPreset else { return false }
+        return selected == preset && !showsContinuousZoomLabel
+    }
+
+    private func cameraLensLabel(for factor: CGFloat) -> String {
+        if factor >= 10, abs(factor.rounded() - factor) < 0.05 {
+            return String(format: "%.0f×", factor)
+        }
+        if factor < 1 {
+            return String(format: "%.1f×", factor)
+        }
+        if abs(factor.rounded() - factor) < 0.05 {
+            return String(format: "%.0f×", factor)
+        }
+        return String(format: "%.1f×", factor)
     }
 
     private var cameraBottomBar: some View {
         HStack(alignment: .bottom, spacing: 0) {
             NovaStoryRoundButton(
                 systemImage: "chevron.left",
-                forceLightChrome: true,
                 accessibilityKey: "nova.attach.back.accessibility",
                 action: dismissSheet
             )
@@ -208,7 +469,6 @@ struct NovaAttachmentCameraSheet: View {
 
             CaptureButton(
                 isRecording: .constant(false),
-                glassVariant: .clear,
                 onTap: { cameraViewController?.capturePhoto() },
                 onLongPressStart: {},
                 onLongPressEnd: {}
@@ -231,7 +491,6 @@ struct NovaAttachmentCameraSheet: View {
 
             NovaStoryRoundButton(
                 systemImage: showsCameraTools ? "xmark" : "ellipsis",
-                forceLightChrome: true,
                 accessibilityKey: showsCameraTools ? "common.close" : "nova.attach.more.accessibility",
                 action: {
                     withAnimation(.spring(response: 0.3, dampingFraction: 0.82)) {
@@ -247,7 +506,6 @@ struct NovaAttachmentCameraSheet: View {
             if cameraPosition == .back {
                 NovaStoryRoundButton(
                     systemImage: flashMode.icon,
-                    forceLightChrome: true,
                     accessibilityKey: "nova.attach.flash.accessibility",
                     action: cycleFlash
                 )
@@ -255,7 +513,6 @@ struct NovaAttachmentCameraSheet: View {
 
             NovaStoryRoundButton(
                 systemImage: "arrow.triangle.2.circlepath.camera",
-                forceLightChrome: true,
                 accessibilityKey: "nova.attach.flip.accessibility",
                 action: flipCamera
             )
@@ -282,6 +539,9 @@ struct NovaAttachmentCameraSheet: View {
         cameraPosition = cameraPosition == .back ? .front : .back
         if cameraPosition == .front {
             flashMode = .off
+            isPinchActive = false
+            zoomLevel = 1.0
+            pinchAnchorZoom = 1.0
         }
     }
 }
@@ -602,34 +862,26 @@ private struct NovaStoryRoundButton: View {
 
     let systemImage: String
     var size: CGFloat = 42
-    var forceLightChrome: Bool = false
     let accessibilityKey: String
     let action: () -> Void
 
-    private var foregroundColor: Color {
-        forceLightChrome ? .white : StoryEditorChromeColor.icon(colorScheme)
-    }
-
     private var strokeColor: Color {
-        if forceLightChrome {
-            return Color.white.opacity(0.12)
-        }
-        return colorScheme == .dark ? Color.white.opacity(0.12) : Color.black.opacity(0.08)
+        colorScheme == .dark ? Color.white.opacity(0.12) : Color.black.opacity(0.08)
     }
 
     var body: some View {
         Button(action: action) {
             Image(systemName: systemImage)
                 .font(.system(size: 18, weight: .semibold))
-                .foregroundColor(foregroundColor)
+                .foregroundColor(StoryEditorChromeColor.icon(colorScheme))
                 .frame(width: size, height: size)
-                .liquidGlass(in: Circle(), variant: .clear, interactive: true)
+                .momentsChromeGlass(in: Circle(), interactive: true)
                 .overlay(
                     Circle()
                         .stroke(strokeColor, lineWidth: 1)
                 )
                 .shadow(
-                    color: .black.opacity(forceLightChrome ? 0 : (colorScheme == .dark ? 0.1 : 0.08)),
+                    color: .black.opacity(colorScheme == .dark ? 0.1 : 0.08),
                     radius: 4,
                     x: 0,
                     y: 2
@@ -641,7 +893,7 @@ private struct NovaStoryRoundButton: View {
     }
 }
 
-/// Pills con `.liquidGlass(..., variant: .clear, interactive: true)`.
+/// Pills con `.momentsChromeGlass(..., interactive: true)`.
 private struct NovaStoryPillButton: View {
     @Environment(\.colorScheme) private var colorScheme
 
@@ -661,10 +913,7 @@ private struct NovaStoryPillButton: View {
                 .foregroundColor(tint == nil ? StoryEditorChromeColor.icon(colorScheme) : .white)
                 .padding(.horizontal, 16)
                 .padding(.vertical, 10)
-                .liquidGlass(
-                    in: Capsule(),
-                    variant: .clear,
-                    interactive: !disabled,
+                .momentsChromeGlass(in: Capsule(), interactive: !disabled,
                     tint: tint.map { $0.opacity(disabled ? 0.35 : 0.92) }
                 )
                 .overlay(

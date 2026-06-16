@@ -194,7 +194,7 @@ struct GlassmorphicStoryConfirmationDialog: View {
                             .frame(maxWidth: .infinity)
                             .frame(height: 46)
                             .background(Color.white.opacity(0.001))
-                            .liquidGlass(in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                            .momentsChromeGlass(in: RoundedRectangle(cornerRadius: 16, style: .continuous))
                             .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
                             .contentShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
                     }
@@ -207,7 +207,7 @@ struct GlassmorphicStoryConfirmationDialog: View {
                             .frame(maxWidth: .infinity)
                             .frame(height: 46)
                             .background(Color.white.opacity(0.001))
-                            .liquidGlass(in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                            .momentsChromeGlass(in: RoundedRectangle(cornerRadius: 16, style: .continuous))
                             .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
                             .contentShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
                     }
@@ -219,7 +219,7 @@ struct GlassmorphicStoryConfirmationDialog: View {
             .background(
                 RoundedRectangle(cornerRadius: 24, style: .continuous)
                     .fill(Color.white.opacity(0.08))
-                    .liquidGlass(in: RoundedRectangle(cornerRadius: 24, style: .continuous))
+                    .momentsChromeGlass(in: RoundedRectangle(cornerRadius: 24, style: .continuous))
                     .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
             )
             .padding(.horizontal, 24)
@@ -440,7 +440,7 @@ struct GlassmorphicViewersSheet: View {
         .padding(.horizontal, 16)
         .padding(.vertical, 12)
         .background(Color.white.opacity(0.001))
-        .liquidGlass(in: Capsule())
+        .momentsChromeGlass(in: Capsule())
     }
 
     private var reactionsSearchBar: some View {
@@ -468,7 +468,7 @@ struct GlassmorphicViewersSheet: View {
         .padding(.horizontal, 16)
         .padding(.vertical, 12)
         .background(Color.white.opacity(0.001))
-        .liquidGlass(in: Capsule())
+        .momentsChromeGlass(in: Capsule())
     }
 
     private func loadReactionUsersIfNeeded() {
@@ -494,7 +494,7 @@ struct GlassmorphicViewersSheet: View {
                         .foregroundColor(activityPrimaryText)
                         .frame(width: 40, height: 40)
                         .background(Color.white.opacity(0.001))
-                        .liquidGlass(in: Circle(), interactive: true)
+                        .momentsChromeGlass(in: Circle(), interactive: true)
                 }
                 .buttonStyle(.plain)
 
@@ -735,7 +735,7 @@ private struct GlassmorphicAudienceMembersSheet: View {
                             .foregroundColor(primaryTextColor)
                             .frame(width: 40, height: 40)
                             .background(Color.white.opacity(0.001))
-                            .liquidGlass(in: Circle(), interactive: true)
+                            .momentsChromeGlass(in: Circle(), interactive: true)
                     }
                     .buttonStyle(.plain)
 
@@ -1059,7 +1059,7 @@ struct GlassmorphicEmptyState: View {
                         .padding(.horizontal, 24)
                         .padding(.vertical, 12)
                         .background(Color.white.opacity(0.001))
-                        .liquidGlass(in: Capsule(), interactive: true)
+                        .momentsChromeGlass(in: Capsule(), interactive: true)
                 }
             }
         }

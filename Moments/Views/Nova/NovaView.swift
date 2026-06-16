@@ -19,7 +19,7 @@ private struct NovaSecureContent: View {
     @State private var isShowingMemory = false
     @State private var memorySheetDetent: PresentationDetent = .medium
     @State private var activeAttachmentSheet: NovaAttachmentSheetKind?
-    @State private var attachmentMenuPresentationTrigger = 0
+    @State private var plusButtonAnchorFrame: CGRect = .zero
     @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
@@ -279,13 +279,15 @@ private struct NovaSecureContent: View {
             viewModel: viewModel,
             showSuggestedOptions: $viewModel.showSuggestedOptions,
             activeAttachmentSheet: $activeAttachmentSheet,
-            attachmentMenuPresentationTrigger: $attachmentMenuPresentationTrigger,
             onFocusChange: { focused in
                 if focused && !viewModel.conversationHistory.isEmpty {
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {}
                 }
             }
         )
+        .onPreferenceChange(NovaPlusButtonAnchorKey.self) { frame in
+            plusButtonAnchorFrame = frame
+        }
         .padding(.bottom, NovaInputBarLayout.bottomPadding(
             keyboardHeight: keyboardHeight,
             safeAreaBottom: safeAreaBottom
@@ -327,6 +329,15 @@ private struct NovaSecureContent: View {
             .zIndex(50)
         }
 
+        if activeAttachmentSheet == .menu {
+            NovaAttachmentMenuPopover(
+                isPresented: $activeAttachmentSheet,
+                anchorFrame: plusButtonAnchorFrame
+            )
+            .transition(.opacity)
+            .zIndex(44)
+        }
+
         NovaAttachmentSheetOverlay(
             activeSheet: $activeAttachmentSheet,
             onCaptured: { image in
@@ -336,12 +347,6 @@ private struct NovaSecureContent: View {
             onAdd: { image in
                 viewModel.selectedImage = image
                 activeAttachmentSheet = nil
-            },
-            onBackToMenu: {
-                Task { @MainActor in
-                    try? await Task.sleep(for: .milliseconds(420))
-                    attachmentMenuPresentationTrigger += 1
-                }
             }
         )
     }

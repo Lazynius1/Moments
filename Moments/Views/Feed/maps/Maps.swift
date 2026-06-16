@@ -386,7 +386,7 @@ struct LocationMapView: View {
             .padding(.vertical, 10)
             .background(
                 Color.clear
-                    .liquidGlass(in: Capsule())
+                    .momentsChromeGlass(in: Capsule())
             )
             .shadow(color: adaptiveColors.shadowColor.opacity(0.15), radius: 10, x: 0, y: 5)
         }
@@ -424,7 +424,7 @@ struct LocationMapView: View {
                 .padding(.leading, 8)
                 .padding(.trailing, 16)
                 .padding(.vertical, 8)
-                .background(Color.clear.liquidGlass(in: Capsule()))
+                .background(Color.clear.momentsChromeGlass(in: Capsule()))
                 .overlay(
                     Capsule()
                         .stroke(Color.white.opacity(0.15), lineWidth: 0.5)
@@ -464,7 +464,7 @@ struct LocationMapView: View {
                     .padding(.leading, 16)
                     .padding(.trailing, 8)
                     .padding(.vertical, 8)
-                    .background(Color.clear.liquidGlass(in: Capsule()))
+                    .background(Color.clear.momentsChromeGlass(in: Capsule()))
                     .overlay(
                         Capsule()
                             .stroke(Color.white.opacity(0.15), lineWidth: 0.5)
@@ -527,7 +527,7 @@ struct LocationMapView: View {
                 .padding(.vertical, 16)
                 .background(
                     Color.clear
-                        .liquidGlass(in: RoundedRectangle(cornerRadius: 30, style: .continuous))
+                        .momentsChromeGlass(in: RoundedRectangle(cornerRadius: 30, style: .continuous))
                 )
                 .overlay(
                     RoundedRectangle(cornerRadius: 30, style: .continuous)
@@ -593,7 +593,7 @@ struct LocationMapView: View {
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 10)
-        .background(Color.clear.liquidGlass(in: RoundedRectangle(cornerRadius: 16, style: .continuous)))
+        .background(Color.clear.momentsChromeGlass(in: RoundedRectangle(cornerRadius: 16, style: .continuous)))
     }
 
     // ✅ NUEVO: Formatear rango de fechas

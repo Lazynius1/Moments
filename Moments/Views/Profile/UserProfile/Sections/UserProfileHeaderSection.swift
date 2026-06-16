@@ -98,7 +98,7 @@ struct ProfileVisitorPinnedTopChrome: View {
                     width: MomentsGlassButtonPreset.toolbarAction.controlSize,
                     height: MomentsGlassButtonPreset.toolbarAction.controlSize
                 )
-                .liquidGlass(in: Circle(), variant: .regular, interactive: true)
+                .momentsChromeGlass(in: Circle(), interactive: true)
                 .contentShape(Circle())
         }
     }
@@ -220,7 +220,7 @@ struct UserModernProfileHeader: View {
                     .foregroundColor(colorScheme == .dark ? .white : .black)
                     .padding(.horizontal, 18)
                     .padding(.vertical, 10)
-                    .liquidGlass(in: Capsule(), variant: .regular, interactive: viewModel.followButtonState.isActionable)
+                    .momentsChromeGlass(in: Capsule(), interactive: viewModel.followButtonState.isActionable)
                 }
                 .disabled(!viewModel.followButtonState.isActionable)
                 .scaleEffect(viewModel.followButtonState.isActionable ? 1.0 : 0.95)
@@ -239,7 +239,7 @@ struct UserModernProfileHeader: View {
                     .foregroundColor(colorScheme == .dark ? .white : .black)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 10)
-                    .liquidGlass(in: Capsule(), variant: .regular, interactive: true)
+                    .momentsChromeGlass(in: Capsule(), interactive: true)
                 }
             }
         }

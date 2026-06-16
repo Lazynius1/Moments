@@ -51,7 +51,7 @@ struct BlockedUsersView: View {
                                             .foregroundColor(.primary)
                                             .padding(.horizontal, 12)
                                             .padding(.vertical, 8)
-                                            .background(Color.clear.liquidGlass(in: Capsule(), interactive: true))
+                                            .background(Color.clear.momentsChromeGlass(in: Capsule(), interactive: true))
                                     }
                                     .buttonStyle(.plain)
                                 }

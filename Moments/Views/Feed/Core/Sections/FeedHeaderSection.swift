@@ -16,7 +16,7 @@ struct FeedRefreshIndicator: View {
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
-        .liquidGlass(in: Capsule(), interactive: false)
+        .momentsChromeGlass(in: Capsule(), interactive: false)
     }
 }
 

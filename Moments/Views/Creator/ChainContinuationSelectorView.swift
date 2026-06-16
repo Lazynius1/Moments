@@ -124,7 +124,7 @@ struct ChainContinuationSelectorView: View {
                                     .font(.system(size: 18, weight: .semibold))
                                     .foregroundColor(.primary)
                                     .frame(width: 40, height: 40)
-                                    .liquidGlass(in: Circle(), interactive: true)
+                                    .momentsChromeGlass(in: Circle(), interactive: true)
                             }
                             .buttonStyle(.plain)
                             
@@ -320,7 +320,7 @@ struct ChainContinuationSelectorView: View {
                                     .font(.system(size: 20, weight: .semibold))
                                     .foregroundColor(Color(hex: "007AFF"))
                                     .frame(width: 48, height: 48)
-                                    .liquidGlass(in: Circle(), interactive: true)
+                                    .momentsChromeGlass(in: Circle(), interactive: true)
                                 Text(NSLocalizedString("audience.create", comment: ""))
                                     .font(.custom("Poppins-Medium", size: 14))
                                     .foregroundColor(Color(hex: "007AFF"))
@@ -446,7 +446,7 @@ struct ChainContinuationSelectorView: View {
                         .font(.system(size: 14, weight: .semibold))
                         .foregroundColor(.primary)
                         .frame(width: 30, height: 30)
-                        .liquidGlass(in: Circle(), interactive: true)
+                        .momentsChromeGlass(in: Circle(), interactive: true)
                     Text(NSLocalizedString("audience.createFirstList", comment: ""))
                         .font(.custom("Poppins-Medium", size: 14))
                         .foregroundColor(.primary)

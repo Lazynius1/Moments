@@ -880,6 +880,10 @@
 /* Chat */
 "chat.moment.loadError" = "Could not load moment";
 "chat.input.placeholder" = "Message...";
+"chat.input.attach.accessibility" = "Attach media";
+"chat.input.voice.accessibility" = "Record voice message";
+"chat.attach.sendMedia.one" = "Send 1 item";
+"chat.attach.sendMedia.many" = "Send %d items";
 "chat.action.deleteForMe" = "Delete for me";
 "chat.action.deleteForEveryone" = "Delete for everyone";
 "chat.action.edit" = "Edit";

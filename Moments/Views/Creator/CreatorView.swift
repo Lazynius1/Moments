@@ -688,7 +688,7 @@ struct RevealStickerEditorView: View {
                     .font(.title2)
                     .foregroundColor(.white)
                     .padding(12)
-                    .liquidGlass(in: Circle())
+                    .momentsChromeGlass(in: Circle())
             }
 
             Spacer()
@@ -706,7 +706,7 @@ struct RevealStickerEditorView: View {
                     .foregroundColor(.white)
                     .padding(.horizontal, 20)
                     .padding(.vertical, 10)
-                    .liquidGlass(in: Capsule())
+                    .momentsChromeGlass(in: Capsule())
             }
         }
         .padding(.horizontal, 20)
@@ -753,7 +753,7 @@ struct RevealStickerBottomControlsInset: View {
         .background(
             RoundedRectangle(cornerRadius: 26, style: .continuous)
                 .fill(Color.clear)
-                .liquidGlass(in: RoundedRectangle(cornerRadius: 26, style: .continuous), interactive: false)
+                .momentsChromeGlass(in: RoundedRectangle(cornerRadius: 26, style: .continuous), interactive: false)
                 .overlay(
                     RoundedRectangle(cornerRadius: 26, style: .continuous)
                         .stroke(Color.white.opacity(0.05), lineWidth: 0.75)
@@ -845,7 +845,7 @@ private struct RevealStickerControlsContent: View {
             ZStack {
                 Capsule()
                     .fill(Color.clear)
-                    .liquidGlass(in: Capsule())
+                    .momentsChromeGlass(in: Capsule())
                     .overlay(
                         Capsule()
                             .stroke(Color.white.opacity(0.08), lineWidth: 0.75)
@@ -854,7 +854,7 @@ private struct RevealStickerControlsContent: View {
                 Capsule()
                     .fill(Color.white.opacity(0.055))
                     .frame(width: tabSegmentWidth(for: proxy.size.width), height: 34)
-                    .liquidGlass(in: Capsule(), interactive: true)
+                    .momentsChromeGlass(in: Capsule(), interactive: true)
                     .shadow(color: .black.opacity(0.24), radius: 7, x: 0, y: 2)
                     .offset(x: tabPillOffset(for: proxy.size.width))
 

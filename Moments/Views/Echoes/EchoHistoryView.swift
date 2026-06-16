@@ -64,7 +64,7 @@ struct EchoHistoryView: View {
                         .font(.system(size: 16, weight: .semibold))
                         .foregroundColor(.primary)
                         .frame(width: 36, height: 36)
-                        .liquidGlass(in: Circle(), interactive: true)
+                        .momentsChromeGlass(in: Circle(), interactive: true)
                 }
 
                 Spacer()
@@ -76,7 +76,7 @@ struct EchoHistoryView: View {
                         .font(.system(size: 16, weight: .semibold))
                         .foregroundColor(.primary)
                         .frame(width: 36, height: 36)
-                        .liquidGlass(in: Circle(), interactive: true)
+                        .momentsChromeGlass(in: Circle(), interactive: true)
                 }
             }
 
@@ -146,7 +146,7 @@ struct EchoHistoryView: View {
         .foregroundColor(.primary)
         .padding(.horizontal, 10)
         .padding(.vertical, 6)
-        .liquidGlass(in: Capsule())
+        .momentsChromeGlass(in: Capsule())
     }
     
     // MARK: - Data
@@ -180,7 +180,7 @@ private struct EchoHistoryInfoSheetView: View {
                             .font(.system(size: 16, weight: .semibold))
                             .foregroundColor(.primary)
                             .frame(width: 36, height: 36)
-                            .liquidGlass(in: Circle(), interactive: true)
+                            .momentsChromeGlass(in: Circle(), interactive: true)
                     }
 
                     Spacer()
@@ -300,7 +300,7 @@ struct EchoHistoryCard: View {
                 }
                 .frame(width: 56, height: 56)
                 .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-                .liquidGlass(in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                .momentsChromeGlass(in: RoundedRectangle(cornerRadius: 12, style: .continuous))
                 
                 VStack(alignment: .leading, spacing: 4) {
                     // Ubicación

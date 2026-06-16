@@ -241,7 +241,7 @@ struct EnhancedCameraPickerView: View {
                         .frame(width: 42, height: 42)
                         .background {
                             Color.clear
-                                .liquidGlass(in: Circle(), interactive: true)
+                                .momentsChromeGlass(in: Circle(), interactive: true)
                         }
                         .overlay(
                             Circle()
@@ -276,7 +276,7 @@ struct EnhancedCameraPickerView: View {
                         Capsule().fill(ephemeralGradient)
                     } else {
                         Color.clear
-                            .liquidGlass(in: Capsule(), interactive: true)
+                            .momentsChromeGlass(in: Capsule(), interactive: true)
                     }
                 }
             }
@@ -295,7 +295,7 @@ struct EnhancedCameraPickerView: View {
                 .frame(width: 42, height: 42)
                 .background {
                     Color.clear
-                        .liquidGlass(in: Circle(), interactive: true)
+                        .momentsChromeGlass(in: Circle(), interactive: true)
                 }
                 .overlay(
                     Circle()
@@ -361,7 +361,7 @@ struct EnhancedCameraPickerView: View {
                 Capsule()
                     .fill(Color.white.opacity(0.055))
                     .frame(width: modePillWidth, height: modePillHeight)
-                    .liquidGlass(in: Capsule(), interactive: true)
+                    .momentsChromeGlass(in: Capsule(), interactive: true)
                     .shadow(color: .black.opacity(0.26), radius: 7, x: 0, y: 2)
                     .offset(x: modePillOffset)
 
@@ -420,7 +420,7 @@ struct EnhancedCameraPickerView: View {
                 .clipShape(Circle())
                 .background {
                     Color.clear
-                        .liquidGlass(in: Circle(), interactive: true)
+                        .momentsChromeGlass(in: Circle(), interactive: true)
                 }
                 .overlay(
                     Circle()
@@ -652,7 +652,7 @@ struct EnhancedCaptureButton: View {
                         .frame(width: 82, height: 82)
                         .background {
                             Color.clear
-                                .liquidGlass(in: Circle(), interactive: true)
+                                .momentsChromeGlass(in: Circle(), interactive: true)
                         }
                         .overlay(
                             Circle()
@@ -785,7 +785,7 @@ private struct CameraMediaPreviewOverlay: View {
                                 .frame(width: 42, height: 42)
                                 .background {
                                     Color.clear
-                                        .liquidGlass(in: Circle(), interactive: true)
+                                        .momentsChromeGlass(in: Circle(), interactive: true)
                                 }
                                 .overlay(
                                     Circle()
@@ -813,7 +813,7 @@ private struct CameraMediaPreviewOverlay: View {
                             .padding(.vertical, 8)
                             .background {
                                 Color.clear
-                                    .liquidGlass(in: Capsule(), interactive: false)
+                                    .momentsChromeGlass(in: Capsule(), interactive: false)
                             }
                             .overlay(
                                 Capsule()
@@ -835,7 +835,7 @@ private struct CameraMediaPreviewOverlay: View {
                                 .frame(height: 42)
                                 .background {
                                     Color.clear
-                                        .liquidGlass(in: Capsule(), interactive: true)
+                                        .momentsChromeGlass(in: Capsule(), interactive: true)
                                 }
                                 .overlay(
                                     Capsule()
@@ -862,7 +862,7 @@ private struct CameraMediaPreviewOverlay: View {
                                             Capsule().fill(ephemeralGradient)
                                         } else {
                                             Color.clear
-                                                .liquidGlass(in: Capsule(), interactive: true)
+                                                .momentsChromeGlass(in: Capsule(), interactive: true)
                                         }
                                     }
                                 }
@@ -938,10 +938,14 @@ struct CameraView: UIViewControllerRepresentable {
     let onVideoRecordingStateChange: (Bool) -> Void
     let deviceOrientation: UIDeviceOrientation // ✅ Propagar orientación
     @Binding var cameraViewController: CameraViewController?
+    var zoomFactor: Binding<CGFloat>?
+    var lensPresets: Binding<[CGFloat]>?
+    var enablesPinchToZoom: Bool = true
 
     func makeUIViewController(context: Context) -> CameraViewController {
         let controller = CameraViewController()
         controller.delegate = context.coordinator
+        controller.isPinchToZoomEnabled = enablesPinchToZoom
 
         DispatchQueue.main.async {
             self.cameraViewController = controller
@@ -961,6 +965,8 @@ struct CameraView: UIViewControllerRepresentable {
 
         context.coordinator.updateEphemeralMode(isEphemeralMode)
 
+        uiViewController.isPinchToZoomEnabled = enablesPinchToZoom
+
         // Update camera if position changed
         if uiViewController.currentCameraPosition != cameraPosition {
             uiViewController.switchCamera(to: cameraPosition)
@@ -968,6 +974,20 @@ struct CameraView: UIViewControllerRepresentable {
 
         // Update grid lines
         uiViewController.updateGridLines(showGridLines)
+
+        if let zoomFactor {
+            let targetZoom = zoomFactor.wrappedValue
+            if abs(uiViewController.currentZoomFactor - targetZoom) > 0.035 {
+                uiViewController.setZoomFactor(targetZoom, animated: true, notifyDelegate: false)
+            }
+        }
+
+        if let lensPresets {
+            let presets = uiViewController.lensPresetFactors
+            if presets != lensPresets.wrappedValue {
+                lensPresets.wrappedValue = presets
+            }
+        }
     }
 
     func makeCoordinator() -> Coordinator {
@@ -998,6 +1018,15 @@ struct CameraView: UIViewControllerRepresentable {
         func didChangeVideoRecordingState(_ isRecording: Bool) {
             parent.onVideoRecordingStateChange(isRecording)
         }
+
+        func didUpdateZoomState(zoomFactor: CGFloat, lensPresets: [CGFloat]) {
+            if let binding = parent.zoomFactor {
+                binding.wrappedValue = zoomFactor
+            }
+            if let binding = parent.lensPresets {
+                binding.wrappedValue = lensPresets
+            }
+        }
     }
 }
 
@@ -1006,6 +1035,11 @@ protocol CameraViewControllerDelegate: AnyObject {
     func didCapturePhoto(_ data: Data)
     func didCaptureVideo(_ data: Data)
     func didChangeVideoRecordingState(_ isRecording: Bool)
+    func didUpdateZoomState(zoomFactor: CGFloat, lensPresets: [CGFloat])
+}
+
+extension CameraViewControllerDelegate {
+    func didUpdateZoomState(zoomFactor: CGFloat, lensPresets: [CGFloat]) {}
 }
 
 class CameraViewController: UIViewController {
@@ -1017,6 +1051,90 @@ class CameraViewController: UIViewController {
     var currentCameraPosition: EnhancedCameraPickerView.CameraPosition = .back
     var showGridLines: Bool = false // ✅ Nuevo
     var currentDeviceOrientation: UIDeviceOrientation = .portrait // ✅ Track para captura
+    var isPinchToZoomEnabled = true {
+        didSet {
+            guard isViewLoaded else { return }
+            updatePinchToZoomEnabled()
+        }
+    }
+
+    private(set) var currentZoomFactor: CGFloat = 1.0
+    private(set) var lensPresetFactors: [CGFloat] = [1.0]
+    private var currentCaptureDevice: AVCaptureDevice?
+    private var pinchAnchorDisplayZoom: CGFloat = 1.0
+    private var isPinchGestureActive = false
+    private var pinchGestureRecognizer: UIPinchGestureRecognizer?
+
+    /// Zoom en espacio «display» (0,5×, 1×, 2×… como la app Cámara).
+    var currentDisplayZoomFactor: CGFloat { currentZoomFactor }
+
+    /// Tope visible como la app Cámara en foto en Pro (~40× display).
+    static let photoModeMaxDisplayZoom: CGFloat = 40.0
+
+    var minDisplayZoomFactor: CGFloat {
+        guard let device = currentCaptureDevice else { return 1.0 }
+        return Self.displayZoom(forVideoZoom: device.minAvailableVideoZoomFactor, device: device)
+    }
+
+    var maxDisplayZoomFactor: CGFloat {
+        guard let device = currentCaptureDevice else { return 1.0 }
+        let hardwareDisplayMax = Self.displayZoom(
+            forVideoZoom: device.maxAvailableVideoZoomFactor,
+            device: device
+        )
+        return min(hardwareDisplayMax, Self.photoModeMaxDisplayZoom)
+    }
+
+    /// `magnification` es acumulativo desde el inicio del gesto (1 = sin cambio).
+    /// `base` debe fijarse una sola vez al empezar el pinch — no actualizarlo en cada frame.
+    static func displayZoomFromPinch(
+        base: CGFloat,
+        magnification: CGFloat,
+        sensitivity: CGFloat = 0.32
+    ) -> CGFloat {
+        guard base > 0, magnification > 0 else { return base }
+        let dampedMagnification = 1 + (magnification - 1) * sensitivity
+        return base * dampedMagnification
+    }
+
+    static func displayZoomMultiplier(for device: AVCaptureDevice) -> CGFloat {
+        if #available(iOS 18.0, *) {
+            return device.displayVideoZoomFactorMultiplier
+        }
+        if device.position == .back, device.constituentDevices.count > 1 {
+            return 0.5
+        }
+        return 1.0
+    }
+
+    static func displayZoom(forVideoZoom videoZoom: CGFloat, device: AVCaptureDevice) -> CGFloat {
+        videoZoom * displayZoomMultiplier(for: device)
+    }
+
+    static func videoZoom(forDisplayZoom displayZoom: CGFloat, device: AVCaptureDevice) -> CGFloat {
+        let multiplier = displayZoomMultiplier(for: device)
+        guard multiplier > 0 else { return displayZoom }
+        return displayZoom / multiplier
+    }
+
+    private static func roundedPreset(_ value: CGFloat) -> CGFloat {
+        if value < 1 {
+            return CGFloat(round(value * 10) / 10)
+        }
+        if abs(value.rounded() - value) < 0.05 {
+            return value.rounded()
+        }
+        return CGFloat(round(value * 10) / 10)
+    }
+
+    private func notifyZoomStateChanged() {
+        let presets = lensPresetFactors
+        let zoom = currentZoomFactor
+        DispatchQueue.main.async { [weak self] in
+            guard let self else { return }
+            self.delegate?.didUpdateZoomState(zoomFactor: zoom, lensPresets: presets)
+        }
+    }
 
     private let captureSession = AVCaptureSession()
     private let photoOutput = AVCapturePhotoOutput()
@@ -1026,12 +1144,16 @@ class CameraViewController: UIViewController {
     private var currentAudioInput: AVCaptureDeviceInput?
     private var gridLinesView: UIView? // ✅ Grid lines overlay
     private var captureEventInteraction: AVCaptureEventInteraction?
+    private var systemZoomSlider: AVCaptureSystemZoomSlider?
+    private var isApplyingZoomInternally = false
+    private let cameraControlQueue = DispatchQueue(label: "com.moments.camera.controls", qos: .userInteractive)
 
     override func viewDidLoad() {
         super.viewDidLoad()
         setupCamera()
         setupGridLines() // ✅ Setup grid lines
         configureHardwareCaptureInteraction()
+        updatePinchToZoomEnabled()
     }
 
     override func viewDidLayoutSubviews() {
@@ -1067,6 +1189,157 @@ class CameraViewController: UIViewController {
         }
         view.addInteraction(interaction)
         captureEventInteraction = interaction
+    }
+
+    private func configurePinchToZoom() {
+        guard isPinchToZoomEnabled else { return }
+        let pinch = UIPinchGestureRecognizer(target: self, action: #selector(handlePinchToZoom(_:)))
+        pinch.cancelsTouchesInView = false
+        view.addGestureRecognizer(pinch)
+        pinchGestureRecognizer = pinch
+    }
+
+    private func updatePinchToZoomEnabled() {
+        if isPinchToZoomEnabled {
+            if pinchGestureRecognizer == nil {
+                configurePinchToZoom()
+            }
+        } else if let pinchGestureRecognizer {
+            view.removeGestureRecognizer(pinchGestureRecognizer)
+            self.pinchGestureRecognizer = nil
+        }
+    }
+
+    @objc private func handlePinchToZoom(_ recognizer: UIPinchGestureRecognizer) {
+        guard currentCaptureDevice != nil else { return }
+
+        switch recognizer.state {
+        case .began:
+            isPinchGestureActive = true
+            pinchAnchorDisplayZoom = currentZoomFactor
+        case .changed:
+            if !isPinchGestureActive {
+                isPinchGestureActive = true
+                pinchAnchorDisplayZoom = currentZoomFactor
+            }
+            let targetDisplay = Self.displayZoomFromPinch(
+                base: pinchAnchorDisplayZoom,
+                magnification: recognizer.scale
+            )
+            setZoomFactor(targetDisplay, animated: false, notifyDelegate: true)
+        case .ended, .cancelled:
+            isPinchGestureActive = false
+        default:
+            break
+        }
+    }
+
+    private func preferredCaptureDevice(for position: AVCaptureDevice.Position) -> AVCaptureDevice? {
+        if position == .back {
+            let typePriority: [AVCaptureDevice.DeviceType] = [
+                .builtInTripleCamera,
+                .builtInDualWideCamera,
+                .builtInDualCamera,
+                .builtInWideAngleCamera
+            ]
+
+            for deviceType in typePriority {
+                if let device = AVCaptureDevice.default(deviceType, for: .video, position: .back) {
+                    return device
+                }
+            }
+
+            let discovery = AVCaptureDevice.DiscoverySession(
+                deviceTypes: typePriority,
+                mediaType: .video,
+                position: .back
+            )
+            return discovery.devices.max { lhs, rhs in
+                let lhsRange = lhs.maxAvailableVideoZoomFactor - lhs.minAvailableVideoZoomFactor
+                let rhsRange = rhs.maxAvailableVideoZoomFactor - rhs.minAvailableVideoZoomFactor
+                return lhsRange < rhsRange
+            }
+        }
+
+        return AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: position)
+    }
+
+    private func refreshLensPresets() {
+        guard let device = currentCaptureDevice else {
+            lensPresetFactors = [1.0]
+            return
+        }
+
+        let maxDisplay = maxDisplayZoomFactor
+        let minDisplay = minDisplayZoomFactor
+
+        var presets: [CGFloat] = [Self.roundedPreset(minDisplay)]
+
+        if 1.0 >= minDisplay - 0.05 && 1.0 <= maxDisplay + 0.05 {
+            presets.append(1.0)
+        }
+
+        for factor in device.virtualDeviceSwitchOverVideoZoomFactors {
+            let display = Self.displayZoom(forVideoZoom: CGFloat(truncating: factor), device: device)
+            if display > minDisplay + 0.05 && display <= maxDisplay + 0.05 {
+                presets.append(Self.roundedPreset(display))
+            }
+        }
+
+        for step in [2.0, 4.0, 8.0] {
+            if step > minDisplay + 0.05 && step <= maxDisplay + 0.05 {
+                presets.append(step)
+            }
+        }
+
+        lensPresetFactors = Array(Set(presets)).sorted()
+
+        if lensPresetFactors.isEmpty {
+            lensPresetFactors = [1.0]
+        }
+    }
+
+    func setDisplayZoomFactor(_ displayFactor: CGFloat, animated: Bool = true, notifyDelegate: Bool = true) {
+        setZoomFactor(displayFactor, animated: animated, notifyDelegate: notifyDelegate)
+    }
+
+    func setZoomFactor(_ displayFactor: CGFloat, animated: Bool = true, notifyDelegate: Bool = true) {
+        guard let device = currentCaptureDevice else { return }
+        let clampedDisplay = min(
+            max(displayFactor, minDisplayZoomFactor),
+            maxDisplayZoomFactor
+        )
+        let videoFactor = Self.videoZoom(forDisplayZoom: clampedDisplay, device: device)
+        applyVideoZoomFactor(videoFactor, animated: animated, notifyDelegate: notifyDelegate)
+    }
+
+    private func applyVideoZoomFactor(_ videoFactor: CGFloat, animated: Bool = true, notifyDelegate: Bool = true) {
+        guard let device = currentCaptureDevice else { return }
+
+        let minVideo = device.minAvailableVideoZoomFactor
+        let maxVideo = Self.videoZoom(forDisplayZoom: maxDisplayZoomFactor, device: device)
+        let clampedVideo = min(max(videoFactor, minVideo), min(device.maxAvailableVideoZoomFactor, maxVideo))
+
+        isApplyingZoomInternally = true
+        defer { isApplyingZoomInternally = false }
+
+        do {
+            try device.lockForConfiguration()
+            if animated {
+                device.cancelVideoZoomRamp()
+                device.ramp(toVideoZoomFactor: clampedVideo, withRate: 6.0)
+            } else {
+                device.cancelVideoZoomRamp()
+                device.videoZoomFactor = clampedVideo
+            }
+            device.unlockForConfiguration()
+        } catch {
+        }
+
+        currentZoomFactor = Self.displayZoom(forVideoZoom: clampedVideo, device: device)
+        if notifyDelegate {
+            notifyZoomStateChanged()
+        }
     }
 
     // ✅ SETUP GRID LINES
@@ -1116,11 +1389,18 @@ class CameraViewController: UIViewController {
 
             AVCaptureDevice.requestAccess(for: .audio) { _ in
                 DispatchQueue.main.async {
-                    self.captureSession.sessionPreset = .high
+                    if self.captureSession.canSetSessionPreset(.photo) {
+                        self.captureSession.sessionPreset = .photo
+                    } else {
+                        self.captureSession.sessionPreset = .high
+                    }
                     self.setupCameraInput(position: .back)
                     self.setupAudioInputIfAvailable()
                     self.setupOutputs()
                     self.setupPreviewLayer()
+                    if self.captureSession.supportsControls {
+                        self.captureSession.setControlsDelegate(self, queue: self.cameraControlQueue)
+                    }
 
                     DispatchQueue.global(qos: .userInitiated).async {
                         self.captureSession.startRunning()
@@ -1131,12 +1411,14 @@ class CameraViewController: UIViewController {
     }
 
     private func setupCameraInput(position: AVCaptureDevice.Position) {
-        guard let camera = AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: position) else {
+        guard let camera = preferredCaptureDevice(for: position) else {
             return
         }
 
         do {
             let input = try AVCaptureDeviceInput(device: camera)
+
+            captureSession.beginConfiguration()
 
             if let currentInput = currentCameraInput {
                 captureSession.removeInput(currentInput)
@@ -1145,9 +1427,40 @@ class CameraViewController: UIViewController {
             if captureSession.canAddInput(input) {
                 captureSession.addInput(input)
                 currentCameraInput = input
+                currentCaptureDevice = camera
                 currentCameraPosition = position == .back ? .back : .front
+                configureSystemZoomControl(for: camera)
+                refreshLensPresets()
+                setZoomFactor(1.0, animated: false)
+                notifyZoomStateChanged()
             }
+
+            captureSession.commitConfiguration()
         } catch {
+        }
+    }
+
+    private func configureSystemZoomControl(for device: AVCaptureDevice) {
+        systemZoomSlider = nil
+
+        guard captureSession.supportsControls, device.position == .back else { return }
+
+        for control in captureSession.controls {
+            captureSession.removeControl(control)
+        }
+
+        let slider = AVCaptureSystemZoomSlider(device: device) { [weak self] videoZoom in
+            guard let self, !self.isApplyingZoomInternally, let device = self.currentCaptureDevice else { return }
+            let displayZoom = Self.displayZoom(forVideoZoom: videoZoom, device: device)
+            DispatchQueue.main.async {
+                self.currentZoomFactor = displayZoom
+                self.notifyZoomStateChanged()
+            }
+        }
+
+        if captureSession.canAddControl(slider) {
+            captureSession.addControl(slider)
+            systemZoomSlider = slider
         }
     }
 
@@ -1437,6 +1750,16 @@ extension CameraViewController: AVCaptureFileOutputRecordingDelegate {
         } catch {
         }
     }
+}
+
+extension CameraViewController: AVCaptureSessionControlsDelegate {
+    func sessionControlsDidBecomeActive(_ session: AVCaptureSession) {}
+
+    func sessionControlsWillEnterFullscreenAppearance(_ session: AVCaptureSession) {}
+
+    func sessionControlsWillExitFullscreenAppearance(_ session: AVCaptureSession) {}
+
+    func sessionControlsDidBecomeInactive(_ session: AVCaptureSession) {}
 }
 
 private extension UIImage {

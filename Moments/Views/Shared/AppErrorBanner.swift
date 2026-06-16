@@ -28,6 +28,6 @@ struct AppErrorBanner: View {
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 10)
-        .background(Color.clear.liquidGlass(in: RoundedRectangle(cornerRadius: 16, style: .continuous)))
+        .background(Color.clear.momentsChromeGlass(in: RoundedRectangle(cornerRadius: 16, style: .continuous)))
     }
 }

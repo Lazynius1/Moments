@@ -137,7 +137,7 @@ struct ModernActionButtons: View {
                 .buttonStyle(.momentsPress(scale: 0.9, haptic: .light))
             }
             .padding(6)
-            .liquidGlass(in: Capsule())
+            .momentsChromeGlass(in: Capsule())
             .shadow(color: .black.opacity(0.3), radius: 10, x: 0, y: 5)
             .opacity(isImmersive ? 0 : 1)
             .animation(MotionPolicy.animation(MotionPolicy.Spring.toggle, value: isImmersive), value: isImmersive)
@@ -217,7 +217,7 @@ struct ModernFollowButton: View {
             .foregroundColor(adaptiveColors.primary)
             .padding(.horizontal, 16)
             .padding(.vertical, 8)
-            .liquidGlass(in: Capsule(), interactive: state.isActionable)
+            .momentsChromeGlass(in: Capsule(), interactive: state.isActionable)
         }
         .disabled(isLoading || !state.isActionable)
         .opacity(isPassiveState ? 0.78 : 1)

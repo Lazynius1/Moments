@@ -30,7 +30,7 @@ struct NovaHeader: View {
                 .frame(width: 40, height: 40)
                 .background {
                     Color.clear
-                        .liquidGlass(in: Circle(), interactive: true)
+                        .momentsChromeGlass(in: Circle(), interactive: true)
                 }
             }
             .buttonStyle(.momentsPress(scale: 0.92, haptic: .none))
@@ -68,7 +68,7 @@ struct NovaHeader: View {
                         .frame(width: 36, height: 36)
                         .background {
                             Color.clear
-                                .liquidGlass(in: Circle(), interactive: true)
+                                .momentsChromeGlass(in: Circle(), interactive: true)
                         }
                 }
                 .buttonStyle(.momentsPressIcon)
@@ -84,7 +84,7 @@ struct NovaHeader: View {
                             .frame(width: 36, height: 36)
                             .background {
                                 Color.clear
-                                    .liquidGlass(in: Circle(), interactive: true)
+                                    .momentsChromeGlass(in: Circle(), interactive: true)
                             }
                     }
                     .buttonStyle(.momentsPressIcon)
@@ -99,7 +99,7 @@ struct NovaHeader: View {
                             .frame(width: 36, height: 36)
                             .background {
                                 Color.clear
-                                    .liquidGlass(in: Circle(), interactive: true)
+                                    .momentsChromeGlass(in: Circle(), interactive: true)
                             }
                 }
                 .buttonStyle(.momentsPressIcon)
@@ -109,7 +109,7 @@ struct NovaHeader: View {
         .padding(.vertical, 10)
         .background {
             Color.clear
-                .liquidGlass(in: Capsule())
+                .momentsChromeGlass(in: Capsule())
         }
         .padding(.horizontal, 16)
         .padding(.top, 8)
@@ -661,7 +661,7 @@ struct ModernLoadingAnimation: View {
                 .frame(width: 30, height: 30)
                 .background {
                     Color.clear
-                        .liquidGlass(in: Circle())
+                        .momentsChromeGlass(in: Circle())
                 }
 
                 VStack(alignment: .leading, spacing: 4) {
@@ -691,7 +691,7 @@ struct ModernLoadingAnimation: View {
             .padding(8)
             .background {
                 Color.clear
-                    .liquidGlass(in: Capsule(), interactive: false)
+                    .momentsChromeGlass(in: Capsule(), interactive: false)
             }
 
             Spacer()
@@ -720,7 +720,7 @@ struct NovaEncryptionBadge: View {
         .padding(.vertical, 6)
         .background {
             Color.clear
-                .liquidGlass(in: Capsule())
+                .momentsChromeGlass(in: Capsule())
         }
     }
 }

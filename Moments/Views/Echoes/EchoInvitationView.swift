@@ -73,7 +73,7 @@ struct EchoInvitationView: View {
                         .font(.system(size: 15, weight: .semibold))
                         .foregroundStyle(primaryTextColor)
                         .frame(width: 34, height: 34)
-                        .liquidGlass(in: Circle(), interactive: true)
+                        .momentsChromeGlass(in: Circle(), interactive: true)
                 }
             }
             
@@ -116,7 +116,7 @@ struct EchoInvitationView: View {
                         .foregroundStyle(primaryTextColor)
                         .frame(maxWidth: .infinity)
                         .frame(height: 54)
-                        .liquidGlass(in: RoundedRectangle(cornerRadius: 18, style: .continuous), interactive: true)
+                        .momentsChromeGlass(in: RoundedRectangle(cornerRadius: 18, style: .continuous), interactive: true)
                 }
                 
                 Button(action: acceptEcho) {
@@ -131,7 +131,7 @@ struct EchoInvitationView: View {
             }
         }
         .padding(24)
-        .liquidGlass(in: RoundedRectangle(cornerRadius: 30, style: .continuous))
+        .momentsChromeGlass(in: RoundedRectangle(cornerRadius: 30, style: .continuous))
     }
     
     private var primaryTextColor: Color {
@@ -155,7 +155,7 @@ struct EchoInvitationView: View {
         ProgressView()
             .tint(primaryTextColor)
             .padding(40)
-            .liquidGlass(in: RoundedRectangle(cornerRadius: 24, style: .continuous))
+            .momentsChromeGlass(in: RoundedRectangle(cornerRadius: 24, style: .continuous))
     }
 
     private func errorCard(_ error: String) -> some View {
@@ -164,7 +164,7 @@ struct EchoInvitationView: View {
             .foregroundStyle(primaryTextColor)
             .multilineTextAlignment(.center)
             .padding(24)
-            .liquidGlass(in: RoundedRectangle(cornerRadius: 24, style: .continuous))
+            .momentsChromeGlass(in: RoundedRectangle(cornerRadius: 24, style: .continuous))
     }
     
     private func fetchEcho() {

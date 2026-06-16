@@ -133,7 +133,7 @@ struct ConversationContextMenuOverlay: View {
         }
         .frame(minWidth: 230)
         .fixedSize(horizontal: true, vertical: true)
-        .liquidGlass(in: RoundedRectangle(cornerRadius: menuCornerRadius, style: .continuous))
+        .momentsChromeGlass(in: RoundedRectangle(cornerRadius: menuCornerRadius, style: .continuous))
     }
 
     private var menuDivider: some View {

@@ -281,7 +281,7 @@ struct GroupedVisitRow: View {
                                 .font(.custom("Poppins-Bold", size: 10))
                                 .foregroundColor(colorScheme == .dark ? .white : .black)
                                 .frame(width: 20, height: 20)
-                                .liquidGlass(in: Circle())
+                                .momentsChromeGlass(in: Circle())
                                 .offset(x: -20, y: 20)
                         }
                         

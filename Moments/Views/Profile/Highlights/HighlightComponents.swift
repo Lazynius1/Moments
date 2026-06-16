@@ -250,7 +250,7 @@ struct HighlightEditorHeader: View {
         .padding(.leading, 8)
         .padding(.trailing, 16)
         .padding(.vertical, 10)
-        .background(Color.clear.liquidGlass(in: Capsule()))
+        .background(Color.clear.momentsChromeGlass(in: Capsule()))
         .overlay(
             Capsule()
                 .stroke(Color.white.opacity(0.15), lineWidth: 0.5)
@@ -277,7 +277,7 @@ struct HighlightViewerTitlePill: View {
             .lineLimit(1)
             .padding(.horizontal, 16)
             .padding(.vertical, 10)
-            .background(Color.clear.liquidGlass(in: Capsule()))
+            .background(Color.clear.momentsChromeGlass(in: Capsule()))
             .overlay(
                 Capsule()
                     .stroke(strokeColor, lineWidth: 0.5)
@@ -334,7 +334,7 @@ struct HighlightEditorBottomBar: View {
                     .font(.custom("Poppins-Medium", size: 15))
                     .padding(.horizontal, 12)
                     .padding(.vertical, 10)
-                    .background(Color.clear.liquidGlass(in: RoundedRectangle(cornerRadius: 14, style: .continuous)))
+                    .background(Color.clear.momentsChromeGlass(in: RoundedRectangle(cornerRadius: 14, style: .continuous)))
                 }
             }
 
@@ -359,7 +359,7 @@ struct HighlightEditorBottomBar: View {
             .buttonStyle(.plain)
         }
         .padding(16)
-        .background(Color.clear.liquidGlass(in: RoundedRectangle(cornerRadius: 24, style: .continuous)))
+        .background(Color.clear.momentsChromeGlass(in: RoundedRectangle(cornerRadius: 24, style: .continuous)))
         .overlay(
             RoundedRectangle(cornerRadius: 24, style: .continuous)
                 .stroke(Color.white.opacity(0.12), lineWidth: 0.5)

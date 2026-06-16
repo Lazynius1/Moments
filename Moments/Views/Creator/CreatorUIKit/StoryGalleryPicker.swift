@@ -333,7 +333,7 @@ private struct StoryLongVideoDecisionOverlay: View {
             }
             .padding(.horizontal, 20)
             .padding(.vertical, 18)
-            .liquidGlass(in: RoundedRectangle(cornerRadius: 30, style: .continuous), interactive: false)
+            .momentsChromeGlass(in: RoundedRectangle(cornerRadius: 30, style: .continuous), interactive: false)
             .padding(.horizontal, 18)
         }
     }

@@ -890,6 +890,10 @@
 /* Chat */
 "chat.moment.loadError" = "No se pudo cargar el momento";
 "chat.input.placeholder" = "Mensaje...";
+"chat.input.attach.accessibility" = "Adjuntar contenido";
+"chat.input.voice.accessibility" = "Grabar nota de voz";
+"chat.attach.sendMedia.one" = "Enviar 1";
+"chat.attach.sendMedia.many" = "Enviar %d";
 "chat.action.deleteForMe" = "Eliminar para mí";
 "chat.action.deleteForEveryone" = "Eliminar para todos";
 "chat.action.edit" = "Editar";

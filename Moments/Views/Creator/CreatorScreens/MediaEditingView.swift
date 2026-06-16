@@ -72,7 +72,7 @@ struct MediaEditingView: View {
                                 .font(.title2)
                                 .foregroundColor(.white)
                                 .padding(10)
-                                .liquidGlass(in: Circle(), interactive: true)
+                                .momentsChromeGlass(in: Circle(), interactive: true)
                         }
 
                         Spacer()

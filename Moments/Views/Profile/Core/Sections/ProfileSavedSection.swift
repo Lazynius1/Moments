@@ -100,7 +100,7 @@ struct ProfileSavedContent: View {
                                     .padding(.horizontal, 12)
                                     .padding(.vertical, 8)
                                     .background(
-                                        Color.clear.liquidGlass(
+                                        Color.clear.momentsChromeGlass(
                                             in: Capsule(),
                                             interactive: true
                                         )
@@ -125,7 +125,7 @@ struct ProfileSavedContent: View {
                         .foregroundColor(ProfileColors.textPrimary)
                         .padding(.horizontal, 10)
                         .padding(.vertical, 8)
-                        .background(Color.clear.liquidGlass(in: Capsule(), interactive: true))
+                        .background(Color.clear.momentsChromeGlass(in: Capsule(), interactive: true))
                     }
                 }
                 .padding(.horizontal, 20)

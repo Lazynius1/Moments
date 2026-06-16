@@ -5,7 +5,7 @@ import SwiftUI
 /// Círculo glass por botón (con `sharedBackgroundVisibility(.hidden)` en el toolbar).
 struct ChatToolbarIconGlassModifier: ViewModifier {
     func body(content: Content) -> some View {
-        content.liquidGlass(in: Circle(), interactive: true)
+        content.momentsChromeGlass(in: Circle(), interactive: true)
     }
 }
 
@@ -95,11 +95,7 @@ private struct ChatTintedGlassCircleModifier: ViewModifier {
     let tint: Color
 
     func body(content: Content) -> some View {
-        if #available(iOS 26.0, *) {
-            content.glassEffect(.regular.tint(tint).interactive(), in: Circle())
-        } else {
-            content.liquidGlass(in: Circle(), interactive: true, tint: tint)
-        }
+        content.momentsChromeGlass(in: Circle(), interactive: true, tint: tint)
     }
 }
 

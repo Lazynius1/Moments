@@ -998,7 +998,7 @@ struct ModernEditProfileView: View {
             .foregroundColor(colorScheme == .dark ? .white : .black)
             .padding(.horizontal, 24)
             .padding(.vertical, 12)
-            .background(Color.clear.liquidGlass(in: Capsule(), interactive: true))
+            .background(Color.clear.momentsChromeGlass(in: Capsule(), interactive: true))
         }
     }
 
@@ -1068,7 +1068,7 @@ struct ModernEditProfileView: View {
                         .font(.system(size: 16, weight: .semibold))
                         .foregroundColor(colorScheme == .dark ? .white : .black)
                         .padding(10)
-                        .background(Color.clear.liquidGlass(in: Circle(), interactive: true))
+                        .background(Color.clear.momentsChromeGlass(in: Circle(), interactive: true))
                 }
                 
                 Spacer()
@@ -1085,7 +1085,7 @@ struct ModernEditProfileView: View {
                         .foregroundColor(characterCount <= 150 ? (colorScheme == .dark ? .white : .black) : .secondary)
                         .padding(.horizontal, 14)
                         .padding(.vertical, 10)
-                        .background(Color.clear.liquidGlass(in: Capsule(), interactive: characterCount <= 150))
+                        .background(Color.clear.momentsChromeGlass(in: Capsule(), interactive: characterCount <= 150))
                 }
                 .disabled(characterCount > 150)
             }
@@ -1130,7 +1130,7 @@ struct ModernEditProfileView: View {
                                     .font(.system(size: 14, weight: .bold))
                                     .foregroundColor(colorScheme == .dark ? .white : .black)
                                     .padding(8)
-                                    .background(Color.clear.liquidGlass(in: Circle(), interactive: true))
+                                    .background(Color.clear.momentsChromeGlass(in: Circle(), interactive: true))
                             }
                         }
                     }
@@ -1150,7 +1150,7 @@ struct ModernEditProfileView: View {
                     .foregroundColor(colorScheme == .dark ? .white : .black)
                     .padding(.horizontal, 16)
                     .padding(.vertical, 8)
-                    .background(Color.clear.liquidGlass(in: Capsule(), interactive: true))
+                    .background(Color.clear.momentsChromeGlass(in: Capsule(), interactive: true))
                 }
             }
             .padding(.bottom, 10)
@@ -1177,7 +1177,7 @@ struct ModernEditProfileView: View {
                     .padding(.vertical, 10)
                     .background(
                         activeSection == section
-                        ? AnyView(Color.clear.liquidGlass(in: Capsule(), interactive: true))
+                        ? AnyView(Color.clear.momentsChromeGlass(in: Capsule(), interactive: true))
                         : AnyView(Capsule().fill(colorScheme == .dark ? Color.white.opacity(0.05) : Color.black.opacity(0.04)))
                     )
                 }
@@ -1327,7 +1327,7 @@ struct ModernEditProfileView: View {
                             .foregroundColor(colorScheme == .dark ? .white : .black)
                             .padding(.horizontal, 12)
                             .padding(.vertical, 6)
-                            .background(Color.clear.liquidGlass(in: Capsule(), interactive: true))
+                            .background(Color.clear.momentsChromeGlass(in: Capsule(), interactive: true))
                     }
                 }
                 
@@ -1362,7 +1362,7 @@ struct ModernEditProfileView: View {
                         .foregroundColor(colorScheme == .dark ? .white : .black)
                         .padding(.horizontal, 24)
                         .padding(.vertical, 12)
-                        .background(Color.clear.liquidGlass(in: Capsule(), interactive: true))
+                        .background(Color.clear.momentsChromeGlass(in: Capsule(), interactive: true))
                     }
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 32)
@@ -1380,7 +1380,7 @@ struct ModernEditProfileView: View {
                             }
                             .padding(.horizontal, 14)
                             .padding(.vertical, 8)
-                            .background(Color.clear.liquidGlass(in: Capsule(), interactive: false))
+                            .background(Color.clear.momentsChromeGlass(in: Capsule(), interactive: false))
                         }
                     }
                 }
@@ -1430,7 +1430,7 @@ struct ModernEditProfileView: View {
                     .font(.system(size: 16, weight: .semibold))
                     .foregroundColor(colorScheme == .dark ? .white : .black)
                     .padding(10)
-                    .background(Color.clear.liquidGlass(in: Circle(), interactive: true))
+                    .background(Color.clear.momentsChromeGlass(in: Circle(), interactive: true))
             }
             
             Spacer()
@@ -1452,7 +1452,7 @@ struct ModernEditProfileView: View {
                 .foregroundColor(selectedInterests.count >= 5 ? .red : (colorScheme == .dark ? .white : .black))
                 .padding(.horizontal, 12)
                 .padding(.vertical, 8)
-                .background(Color.clear.liquidGlass(in: Capsule(), interactive: false))
+                .background(Color.clear.momentsChromeGlass(in: Capsule(), interactive: false))
         }
         .padding(.horizontal, 20)
         .padding(.bottom, 18)
@@ -1498,7 +1498,7 @@ struct ModernEditProfileView: View {
                         .font(.system(size: 16, weight: .semibold))
                         .foregroundColor(colorScheme == .dark ? .white : .black)
                         .padding(10)
-                        .background(Color.clear.liquidGlass(in: Circle(), interactive: true))
+                        .background(Color.clear.momentsChromeGlass(in: Circle(), interactive: true))
                 }
                 
                 Spacer()
@@ -1708,7 +1708,7 @@ private struct InterestPickerRow: View {
             .padding(.vertical, 14)
             .background {
                 if isSelected {
-                    Color.clear.liquidGlass(in: RoundedRectangle(cornerRadius: 12), interactive: false)
+                    Color.clear.momentsChromeGlass(in: RoundedRectangle(cornerRadius: 12), interactive: false)
                 } else {
                     RoundedRectangle(cornerRadius: 12)
                         .fill(colorScheme == .dark ? Color.white.opacity(0.06) : Color.black.opacity(0.04))

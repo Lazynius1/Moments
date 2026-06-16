@@ -65,7 +65,7 @@ struct EpicReactionButton: View {
                         .fill(Color.white.opacity(0.001))
                         .frame(width: size, height: size)
                         .contentShape(Circle())
-                        .liquidGlass(in: Circle())
+                        .momentsChromeGlass(in: Circle())
                         .shadow(
                             color: hasReacted ?
                             (currentReaction?.color.opacity(0.4) ?? .black.opacity(0.2)) :
@@ -923,7 +923,7 @@ struct ReactionsListSheet: View {
                     .foregroundColor(colorScheme == .dark ? .white : .black)
                     .padding(.horizontal, 12)
                     .padding(.vertical, 8)
-                    .liquidGlass(in: RoundedRectangle(cornerRadius: 12), interactive: state.isActionable)
+                    .momentsChromeGlass(in: RoundedRectangle(cornerRadius: 12), interactive: state.isActionable)
                 }
             }
             .disabled(isLoading || !state.isActionable)
@@ -1076,7 +1076,7 @@ struct ReactionsListSheet: View {
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 12)
-        .liquidGlass(in: Capsule())
+        .momentsChromeGlass(in: Capsule())
         .padding(.horizontal, 16)
         .padding(.bottom, 16)
     }

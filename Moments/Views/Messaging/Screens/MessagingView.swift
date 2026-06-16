@@ -28,7 +28,7 @@ struct GlasssmorphicCard: ViewModifier {
     func body(content: Content) -> some View {
         if #available(iOS 26.0, *) {
             content
-                .liquidGlass(in: RoundedRectangle(cornerRadius: 20))
+                .momentsChromeGlass(in: RoundedRectangle(cornerRadius: 20))
         } else {
             content
                 .background(
@@ -411,7 +411,7 @@ struct MessagingView: View {
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 12)
-            .liquidGlass(in: Capsule())
+            .momentsChromeGlass(in: Capsule())
 
             if isSearchFocused {
                 Button(NSLocalizedString("common.cancel", comment: "Cancel")) {

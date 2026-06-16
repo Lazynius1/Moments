@@ -813,7 +813,7 @@ struct ExploreModernFollowButton: View {
             .foregroundColor(colorScheme == .dark ? .white : .black)
             .padding(.horizontal, 14)
             .padding(.vertical, 8)
-            .liquidGlass(in: RoundedRectangle(cornerRadius: 16), interactive: !isFollowing)
+            .momentsChromeGlass(in: RoundedRectangle(cornerRadius: 16), interactive: !isFollowing)
         }
         .disabled(isFollowing)
         .scaleEffect(isFollowing ? 0.95 : 1.0)

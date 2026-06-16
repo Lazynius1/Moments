@@ -204,6 +204,10 @@ struct ModernTabView: View {
         .tabViewStyle(.automatic)
         .tint(.primary)
         .tabBarMinimizeBehavior(.onScrollDown)
+        // TabView nativo solo admite ShapeStyle en toolbarBackground (no View).
+        // Tinte canvas alineado al chrome; el glass completo está en legacy CustomTabBar.
+        .toolbarBackground(.visible, for: .tabBar)
+        .toolbarBackground(MomentsChromeGlass.canvasTint(for: colorScheme), for: .tabBar)
         .environmentObject(authService)
         .ignoresSafeArea(.keyboard, edges: .bottom)
         .fullScreenCover(isPresented: $showCreatorView) {
@@ -288,23 +292,9 @@ struct ModernTabView: View {
                 
                 CustomTabBar(selectedTab: $selectedTab, showCreatorView: $showCreatorView, previousSelectedTab: $previousSelectedTab)
                     .frame(height: 49) // Altura estándar según HIG
-                    .background(
-                        // Material translúcido según HIG
-                        Rectangle()
-                            .fill(.ultraThinMaterial)
-                            .edgesIgnoringSafeArea(.bottom)
-                            .overlay(
-                                // Borde superior sutil
-                                Rectangle()
-                                    .frame(height: 0.5)
-                                    .foregroundColor(
-                                        colorScheme == .dark ?
-                                        Color.white.opacity(0.1) :
-                                        Color.black.opacity(0.1)
-                                    ),
-                                alignment: .top
-                            )
-                    )
+                    .background {
+                        MomentsTabBarChromeBackground()
+                    }
             }
         }
         .environmentObject(authService)

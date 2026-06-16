@@ -495,7 +495,7 @@ private struct AdvancedSheetHeader: View {
                         .frame(width: 40, height: 40)
                         .background {
                             Color.clear
-                                .liquidGlass(in: Circle(), interactive: true)
+                                .momentsChromeGlass(in: Circle(), interactive: true)
                         }
                 }
                 .buttonStyle(.plain)

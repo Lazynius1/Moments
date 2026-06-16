@@ -719,7 +719,7 @@ extension View {
     func glassmorphic() -> some View {
         self
             .background(
-                Color.clear.liquidGlass(in: Rectangle())
+                Color.clear.momentsChromeGlass(in: Rectangle())
             )
             .overlay(
                 RoundedRectangle(cornerRadius: 0)
@@ -730,7 +730,7 @@ extension View {
     func storyGlassmorphic() -> some View {
         self
             .background(
-                Color.clear.liquidGlass(in: Rectangle())
+                Color.clear.momentsChromeGlass(in: Rectangle())
             )
             .overlay(
                 RoundedRectangle(cornerRadius: 0)

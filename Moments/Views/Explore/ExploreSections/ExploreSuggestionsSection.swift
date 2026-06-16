@@ -345,7 +345,7 @@ struct SuggestedUserCard: View {
                         .foregroundColor(.primary)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 6)
-                        .liquidGlass(in: Capsule(), interactive: buttonState.isActionable)
+                        .momentsChromeGlass(in: Capsule(), interactive: buttonState.isActionable)
                 }
                 .disabled(!buttonState.isActionable)
                 .opacity(isPassiveButtonState ? 0.78 : 1)
@@ -511,7 +511,7 @@ struct FollowButton: View {
             .foregroundColor(.primary)
             .padding(.horizontal, 20)
             .padding(.vertical, 10)
-            .liquidGlass(in: Capsule(), interactive: buttonState.isActionable)
+            .momentsChromeGlass(in: Capsule(), interactive: buttonState.isActionable)
         }
         .disabled(!buttonState.isActionable)
         .opacity(isPassiveState ? 0.78 : 1)

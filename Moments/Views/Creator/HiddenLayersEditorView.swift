@@ -265,7 +265,7 @@ struct HiddenLayersEditorView: View {
                     .font(.system(size: 16, weight: .bold))
                     .foregroundColor(primaryTextColor)
                     .padding(10)
-                    .liquidGlass(in: Circle(), interactive: true)
+                    .momentsChromeGlass(in: Circle(), interactive: true)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
 
@@ -288,7 +288,7 @@ struct HiddenLayersEditorView: View {
             .foregroundColor(primaryTextColor)
             .padding(.horizontal, 14)
             .padding(.vertical, 10)
-            .liquidGlass(in: Capsule(), interactive: true)
+            .momentsChromeGlass(in: Capsule(), interactive: true)
             .frame(maxWidth: .infinity, alignment: .trailing)
         }
     }
@@ -304,7 +304,7 @@ struct HiddenLayersEditorView: View {
             ZStack {
                 RoundedRectangle(cornerRadius: storyViewerCanvasCornerRadius, style: .continuous)
                     .fill(subtleSurfaceFill)
-                    .liquidGlass(in: RoundedRectangle(cornerRadius: storyViewerCanvasCornerRadius, style: .continuous))
+                    .momentsChromeGlass(in: RoundedRectangle(cornerRadius: storyViewerCanvasCornerRadius, style: .continuous))
                     .contentShape(RoundedRectangle(cornerRadius: storyViewerCanvasCornerRadius, style: .continuous))
                     .onTapGesture {
                         selectedLayerId = nil
@@ -477,7 +477,7 @@ struct HiddenLayersEditorView: View {
                             .textFieldStyle(.plain)
                             .foregroundColor(primaryTextColor)
                             .padding(14)
-                            .liquidGlass(in: RoundedRectangle(cornerRadius: 18, style: .continuous), interactive: true)
+                            .momentsChromeGlass(in: RoundedRectangle(cornerRadius: 18, style: .continuous), interactive: true)
 
                         HStack(spacing: 8) {
                             Menu {
@@ -529,7 +529,7 @@ struct HiddenLayersEditorView: View {
                             .foregroundColor(primaryTextColor)
                             .padding(.horizontal, 14)
                             .padding(.vertical, 12)
-                            .liquidGlass(in: RoundedRectangle(cornerRadius: 18, style: .continuous), interactive: true)
+                            .momentsChromeGlass(in: RoundedRectangle(cornerRadius: 18, style: .continuous), interactive: true)
 
                             HStack(spacing: 8) {
                                 Menu {
@@ -604,7 +604,7 @@ struct HiddenLayersEditorView: View {
                     .padding(.horizontal, 16)
                     .padding(.vertical, 12)
                     .frame(minWidth: 168)
-                    .liquidGlass(in: Capsule(), interactive: canCreateLayer(of: selectedDockType))
+                    .momentsChromeGlass(in: Capsule(), interactive: canCreateLayer(of: selectedDockType))
                     .opacity(canCreateLayer(of: selectedDockType) ? 1 : 0.48)
                 }
                 .buttonStyle(.plain)
@@ -653,7 +653,7 @@ struct HiddenLayersEditorView: View {
             ZStack {
                 Capsule()
                     .fill(Color.clear)
-                    .liquidGlass(in: Capsule())
+                    .momentsChromeGlass(in: Capsule())
                     .overlay(
                         Capsule()
                             .stroke(previewStrokeColor, lineWidth: 0.75)
@@ -662,7 +662,7 @@ struct HiddenLayersEditorView: View {
                 Capsule()
                     .fill(Color.white.opacity(isDark ? 0.055 : 0.035))
                     .frame(width: segmentWidth, height: 34)
-                    .liquidGlass(in: Capsule(), interactive: true)
+                    .momentsChromeGlass(in: Capsule(), interactive: true)
                     .shadow(color: .black.opacity(isDark ? 0.24 : 0.08), radius: 7, x: 0, y: 2)
                     .offset(x: switcherPillOffset(for: proxy.size.width, activeType: activeType))
 
@@ -942,7 +942,7 @@ struct HiddenLayersEditorView: View {
                             Circle()
                                 .fill(Color.clear)
                                 .frame(width: 58, height: 58)
-                                .liquidGlass(in: Circle(), interactive: true)
+                                .momentsChromeGlass(in: Circle(), interactive: true)
 
                             if audioRecorder.isRecording {
                                 RoundedRectangle(cornerRadius: 4)
@@ -982,7 +982,7 @@ struct HiddenLayersEditorView: View {
                 .font(.system(size: 17, weight: .semibold))
                 .foregroundColor(primaryTextColor)
                 .frame(width: 44, height: 44)
-                .liquidGlass(in: Circle(), interactive: true)
+                .momentsChromeGlass(in: Circle(), interactive: true)
         }
     }
 
@@ -1742,7 +1742,7 @@ private struct HiddenLayerScheduleSheet: View {
                 .foregroundColor(.primary)
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 12)
-                .liquidGlass(in: Capsule(), interactive: true)
+                .momentsChromeGlass(in: Capsule(), interactive: true)
 
                 Button(NSLocalizedString("common.done", value: "Listo", comment: "Done")) {
                     onApply()
@@ -1751,7 +1751,7 @@ private struct HiddenLayerScheduleSheet: View {
                 .foregroundColor(.primary)
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 12)
-                .liquidGlass(in: Capsule(), interactive: true)
+                .momentsChromeGlass(in: Capsule(), interactive: true)
             }
         }
         .padding(.horizontal, 20)
@@ -1815,7 +1815,7 @@ private struct HiddenLayerTextCardPreview: View {
                 .padding(.vertical, 12)
                 .frame(maxWidth: .infinity, minHeight: 74)
                 .background(Color.clear)
-                .liquidGlass(in: shape)
+                .momentsChromeGlass(in: shape)
         } else {
             Text(text)
                 .font(font)

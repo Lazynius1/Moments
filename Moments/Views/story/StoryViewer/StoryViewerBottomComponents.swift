@@ -344,7 +344,7 @@ struct StoryReactionsStrip: View {
                                 .font(.system(size: 32))
                                 .frame(width: 52, height: 52)
                                 .background(Color.white.opacity(0.001))
-                                .liquidGlass(in: Circle(), interactive: true)
+                                .momentsChromeGlass(in: Circle(), interactive: true)
                         }
                         .scaleEffect(showReactions ? 1.0 : 0.5)
                         .animation(

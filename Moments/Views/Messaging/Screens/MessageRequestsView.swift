@@ -73,7 +73,7 @@ struct MessageRequestsView: View {
                         .font(.system(size: 16, weight: .semibold))
                         .foregroundColor(adaptiveColors.primary)
                         .frame(width: 38, height: 38)
-                        .background(Color.clear.liquidGlass(in: Circle(), interactive: true))
+                        .background(Color.clear.momentsChromeGlass(in: Circle(), interactive: true))
                 }
                 
                 Spacer()
@@ -98,7 +98,7 @@ struct MessageRequestsView: View {
                         .foregroundColor(adaptiveColors.secondary)
                         .padding(.horizontal, 12)
                         .padding(.vertical, 6)
-                        .background(Color.clear.liquidGlass(in: Capsule()))
+                        .background(Color.clear.momentsChromeGlass(in: Capsule()))
                     Spacer()
                 }
                 .padding(.horizontal, 14)
@@ -255,7 +255,7 @@ struct RequestCardView: View {
                         .font(.system(size: 16, weight: .semibold))
                         .foregroundColor(adaptiveColors.secondary)
                         .frame(width: 34, height: 34)
-                        .background(Color.clear.liquidGlass(in: Circle(), interactive: true))
+                        .background(Color.clear.momentsChromeGlass(in: Circle(), interactive: true))
                 }
             }
             .padding(16)

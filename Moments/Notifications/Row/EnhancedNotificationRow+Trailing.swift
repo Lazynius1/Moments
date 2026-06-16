@@ -189,7 +189,7 @@ extension EnhancedNotificationRow {
                             .foregroundColor(colorScheme == .dark ? .white : .black)
                             .padding(.horizontal, 16)
                             .padding(.vertical, 8)
-                            .liquidGlass(in: Capsule(), interactive: true)
+                            .momentsChromeGlass(in: Capsule(), interactive: true)
                     }
                     .buttonStyle(PlainButtonStyle())
                 } else {
@@ -207,7 +207,7 @@ extension EnhancedNotificationRow {
                             .foregroundColor(colorScheme == .dark ? .white : .black)
                             .padding(.horizontal, 16)
                             .padding(.vertical, 8)
-                            .liquidGlass(in: Capsule(), interactive: followButtonState.isActionable)
+                            .momentsChromeGlass(in: Capsule(), interactive: followButtonState.isActionable)
                     }
                     .buttonStyle(PlainButtonStyle())
                     .disabled(!followButtonState.isActionable)

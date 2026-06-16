@@ -203,7 +203,7 @@ struct SavedMomentsView: View {
             .foregroundColor(isSelectionMode ? .red : .primary)
             .padding(.horizontal, 10)
             .padding(.vertical, 8)
-            .background(Color.clear.liquidGlass(in: Capsule(), interactive: true))
+            .background(Color.clear.momentsChromeGlass(in: Capsule(), interactive: true))
         }
         .padding(.horizontal, 14)
     }
@@ -226,7 +226,7 @@ struct SavedMomentsView: View {
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 12)
-        .background(Color.clear.liquidGlass(in: Capsule()))
+        .background(Color.clear.momentsChromeGlass(in: Capsule()))
         .padding(.horizontal, 14)
     }
 
@@ -250,7 +250,7 @@ struct SavedMomentsView: View {
                     .foregroundColor(.primary)
                     .padding(.horizontal, 12)
                     .padding(.vertical, 10)
-                    .background(Color.clear.liquidGlass(in: Capsule(), interactive: true))
+                    .background(Color.clear.momentsChromeGlass(in: Capsule(), interactive: true))
                 }
             }
 
@@ -271,7 +271,7 @@ struct SavedMomentsView: View {
                         .background(
                             Group {
                                 if mediaFilter == filter {
-                                    Color.clear.liquidGlass(in: Capsule(), interactive: true)
+                                    Color.clear.momentsChromeGlass(in: Capsule(), interactive: true)
                                 } else {
                                     Capsule()
                                         .fill(.ultraThinMaterial)
@@ -304,7 +304,7 @@ struct SavedMomentsView: View {
                             .background(
                                 Group {
                                     if collectionFilter == filter {
-                                        Color.clear.liquidGlass(in: Capsule(), interactive: true)
+                                        Color.clear.momentsChromeGlass(in: Capsule(), interactive: true)
                                     } else {
                                         Capsule()
                                             .fill(.ultraThinMaterial)
@@ -349,7 +349,7 @@ struct SavedMomentsView: View {
                     .foregroundColor(.primary)
                     .padding(.horizontal, 14)
                     .padding(.vertical, 10)
-                    .background(Color.clear.liquidGlass(in: Capsule(), interactive: true))
+                    .background(Color.clear.momentsChromeGlass(in: Capsule(), interactive: true))
                 }
                 .padding(.top, 80)
             } else {
@@ -409,7 +409,7 @@ struct SavedMomentsView: View {
             }
             .padding(.horizontal, 12)
             .padding(.vertical, 10)
-            .background(Color.clear.liquidGlass(in: Capsule(), interactive: true))
+            .background(Color.clear.momentsChromeGlass(in: Capsule(), interactive: true))
             .disabled(selectedMomentIds.isEmpty)
 
             Button(action: { showRemoveSelectionAlert = true }) {
@@ -419,7 +419,7 @@ struct SavedMomentsView: View {
             .foregroundColor(.red)
             .padding(.horizontal, 12)
             .padding(.vertical, 10)
-            .background(Color.clear.liquidGlass(in: Capsule(), interactive: true))
+            .background(Color.clear.momentsChromeGlass(in: Capsule(), interactive: true))
             .disabled(selectedMomentIds.isEmpty)
         }
         .padding(.horizontal, 14)
@@ -1110,14 +1110,14 @@ struct ModernSavedDetailHeader: View {
                         .font(.system(size: 15, weight: .bold))
                         .foregroundColor(iconColor)
                         .frame(width: 38, height: 38)
-                        .liquidGlass(in: Circle(), interactive: true)
+                        .momentsChromeGlass(in: Circle(), interactive: true)
                 }
                 .buttonStyle(.plain)
                 .contentShape(Circle())
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 8)
-            .liquidGlass(in: Capsule(), interactive: false)
+            .momentsChromeGlass(in: Capsule(), interactive: false)
             .padding(.horizontal, 14)
         }
     }
@@ -1505,7 +1505,7 @@ struct ModernSavedDetailMomentCard: View {
                 .foregroundColor(.white)
                 .padding(.horizontal, 11)
                 .padding(.vertical, 8)
-                .liquidGlass(in: Capsule(), interactive: false)
+                .momentsChromeGlass(in: Capsule(), interactive: false)
                 .shadow(color: .black.opacity(0.25), radius: 8, y: 4)
             }
 
@@ -1528,7 +1528,7 @@ struct ModernSavedDetailMomentCard: View {
                     .foregroundColor(.white)
                     .padding(.horizontal, 11)
                     .padding(.vertical, 8)
-                    .liquidGlass(in: Capsule(), interactive: true)
+                    .momentsChromeGlass(in: Capsule(), interactive: true)
                     .overlay(
                         Capsule()
                             .stroke(showTags ? Color.white.opacity(0.75) : Color.white.opacity(0.14), lineWidth: 1)

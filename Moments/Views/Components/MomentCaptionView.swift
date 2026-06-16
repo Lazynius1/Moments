@@ -113,7 +113,7 @@ struct MomentCaptionView: View {
                     .foregroundColor(secondaryTextColor)
                     .padding(.horizontal, 11)
                     .padding(.vertical, 6)
-                    .liquidGlass(in: Capsule(), interactive: true)
+                    .momentsChromeGlass(in: Capsule(), interactive: true)
                 }
                 .buttonStyle(.plain)
             }
@@ -397,7 +397,7 @@ private struct MomentCaptionMediaPreview: View {
                 .foregroundColor(.white)
                 .padding(.horizontal, 12)
                 .padding(.vertical, 9)
-                .liquidGlass(in: Capsule(), interactive: false)
+                .momentsChromeGlass(in: Capsule(), interactive: false)
                 .padding(12)
             }
             .frame(height: 230)

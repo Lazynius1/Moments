@@ -169,7 +169,7 @@ struct PhotoCropEditorView: View {
                         Circle()
                             .fill(isProcessing ? Color.gray.opacity(0.3) : Color.clear)
                     )
-                    .background(Color.clear.liquidGlass(in: Circle(), interactive: !isProcessing))
+                    .background(Color.clear.momentsChromeGlass(in: Circle(), interactive: !isProcessing))
             }
             .disabled(isProcessing)
         }
@@ -339,7 +339,7 @@ struct PhotoCropEditorView: View {
                 .foregroundColor(colorScheme == .dark ? .white : .black)
                 .padding(.horizontal, 14)
                 .padding(.vertical, 10)
-                .background(Color.clear.liquidGlass(in: Capsule(), interactive: true))
+                .background(Color.clear.momentsChromeGlass(in: Capsule(), interactive: true))
             }
             
             Spacer()

@@ -274,7 +274,7 @@ struct ModernCommentsView: View {
                     ZStack {
                         Color.clear
                             .frame(width: 32, height: 32)
-                            .liquidGlass(in: Circle())
+                            .momentsChromeGlass(in: Circle())
                             .overlay(
                                 Circle()
                                     .stroke(Color.white.opacity(colorScheme == .dark ? 0.14 : 0.08), lineWidth: 0.8)

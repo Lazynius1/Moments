@@ -211,7 +211,7 @@ struct ProfileLibraryCropEntryView: View {
                     .foregroundColor(colorScheme == .dark ? .white : .black)
                     .padding(.horizontal, 18)
                     .padding(.vertical, 10)
-                    .background(Color.clear.liquidGlass(in: Capsule(), interactive: true))
+                    .background(Color.clear.momentsChromeGlass(in: Capsule(), interactive: true))
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
@@ -227,7 +227,7 @@ struct ProfileLibraryCropEntryView: View {
                     .foregroundColor(colorScheme == .dark ? .white : .black)
                     .padding(.horizontal, 18)
                     .padding(.vertical, 10)
-                    .background(Color.clear.liquidGlass(in: Capsule(), interactive: true))
+                    .background(Color.clear.momentsChromeGlass(in: Capsule(), interactive: true))
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             }

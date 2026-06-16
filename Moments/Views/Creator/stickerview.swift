@@ -352,7 +352,7 @@ struct StickerPickerView: View {
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 12)
-        .liquidGlass(in: Capsule())
+        .momentsChromeGlass(in: Capsule())
         .padding(.horizontal, 18)
         .padding(.bottom, 16)
     }
@@ -395,7 +395,7 @@ struct StickerPickerView: View {
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 12)
-        .liquidGlass(in: Capsule())
+        .momentsChromeGlass(in: Capsule())
         .padding(.horizontal, 18)
         .padding(.bottom, 12)
     }

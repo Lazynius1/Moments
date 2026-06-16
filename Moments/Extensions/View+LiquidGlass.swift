@@ -83,14 +83,38 @@ enum MomentsGlassButtonTint {
     }
 }
 
-enum ProfilePillTabPalette {
-    /// Instagram: en light el thumb seleccionado es #0B1215; en dark es crema #FAF9F6.
-    static func selectedThumbFill(for colorScheme: ColorScheme) -> Color {
-        invertedCanvas(for: colorScheme).opacity(colorScheme == .dark ? 0.84 : 0.97)
+// MARK: - Chrome glass tokens (clear + canvas tint)
+
+enum MomentsChromeGlass {
+    static let defaultTintOpacity: CGFloat = 0.40
+
+    static func canvasTint(for colorScheme: ColorScheme, opacity: CGFloat = defaultTintOpacity) -> Color {
+        MomentsGlassButtonTint.canvas(for: colorScheme).opacity(opacity)
     }
 
+    static func contentColor(for colorScheme: ColorScheme) -> Color {
+        colorScheme == .dark ? .white : MomentsGlassButtonTint.dark
+    }
+
+    @available(iOS 26.0, *)
+    static func clearChromeGlass(interactive: Bool, tint: Color) -> Glass {
+        var glass = Glass.clear.tint(tint)
+        if interactive {
+            glass = glass.interactive()
+        }
+        return glass
+    }
+}
+
+enum ProfilePillTabPalette {
+    /// Pista exterior: canvas de la app (#FAF9F6 light / #0B1215 dark).
+    static func trackTint(for colorScheme: ColorScheme) -> Color {
+        MomentsChromeGlass.canvasTint(for: colorScheme)
+    }
+
+    /// Thumb seleccionado: canvas invertido para contrastar con la pista.
     static func selectedThumbTint(for colorScheme: ColorScheme) -> Color {
-        invertedCanvas(for: colorScheme).opacity(colorScheme == .dark ? 0.58 : 0.82)
+        invertedCanvas(for: colorScheme).opacity(MomentsChromeGlass.defaultTintOpacity)
     }
 
     /// Texto sobre el thumb (invertido respecto al thumb, no al fondo de app).
@@ -169,21 +193,82 @@ extension View {
         }
         return glass
     }
+
+    func momentsChromeGlass<S: Shape>(
+        in shape: S,
+        interactive: Bool = true,
+        tintOpacity: CGFloat = MomentsChromeGlass.defaultTintOpacity,
+        tint: Color? = nil
+    ) -> some View {
+        modifier(
+            MomentsChromeGlassModifier(
+                shape: shape,
+                interactive: interactive,
+                tintOpacity: tintOpacity,
+                tintOverride: tint
+            )
+        )
+    }
+}
+
+private struct MomentsChromeGlassModifier<S: Shape>: ViewModifier {
+    @Environment(\.colorScheme) private var colorScheme
+
+    let shape: S
+    var interactive: Bool
+    var tintOpacity: CGFloat
+    var tintOverride: Color?
+
+    private var resolvedTint: Color {
+        tintOverride ?? MomentsChromeGlass.canvasTint(for: colorScheme, opacity: tintOpacity)
+    }
+
+    func body(content: Content) -> some View {
+        if #available(iOS 26.0, *) {
+            // `.clear`: tint en Glass + capa canvas debajo (patrón Apple para clear glass).
+            content
+                .glassEffect(
+                    MomentsChromeGlass.clearChromeGlass(interactive: interactive, tint: resolvedTint),
+                    in: shape
+                )
+                .background(resolvedTint, in: shape)
+        } else {
+            content
+                .background {
+                    shape.fill(resolvedTint)
+                }
+                .background(.ultraThinMaterial)
+                .clipShape(shape)
+        }
+    }
 }
 
 // MARK: - Profile chrome controls
 
 struct ProfileChromeIconGlassModifier: ViewModifier {
     let standalone: Bool
-    var variant: LiquidGlassVariant = .regular
     var interactive: Bool = true
+    var tintOpacity: CGFloat = MomentsChromeGlass.defaultTintOpacity
+    var tint: Color? = nil
 
     func body(content: Content) -> some View {
         if standalone {
-            content.liquidGlass(in: Circle(), variant: variant, interactive: interactive)
+            content.momentsChromeGlass(
+                in: Circle(),
+                interactive: interactive,
+                tintOpacity: tintOpacity,
+                tint: tint
+            )
         } else {
             content
         }
+    }
+}
+
+private struct ProfileChromeClusterBackground: View {
+    var body: some View {
+        Color.clear
+            .momentsChromeGlass(in: Capsule(), interactive: true)
     }
 }
 
@@ -201,12 +286,15 @@ struct ProfileChromeControlsCluster<Content: View>: View {
                 }
                 .padding(ProfileChromeGlassMetrics.controlsClusterPadding)
                 .background {
-                    Capsule()
-                        .glassEffect(.regular.interactive(), in: Capsule())
+                    ProfileChromeClusterBackground()
                 }
             } else {
                 HStack(spacing: 8) {
                     content()
+                }
+                .padding(ProfileChromeGlassMetrics.controlsClusterPadding)
+                .background {
+                    ProfileChromeClusterBackground()
                 }
             }
         }
@@ -217,13 +305,19 @@ typealias MomentsGlassCluster = ProfileChromeControlsCluster
 
 struct ProfileChromeIconButton: View {
     let systemName: String
-    let foregroundColor: Color
+    var foregroundColor: Color?
     var preset: MomentsGlassButtonPreset? = nil
     var size: CGFloat = ProfileChromeGlassMetrics.controlSize
     var iconSize: CGFloat = ProfileChromeGlassMetrics.controlIconSize
     var standaloneGlass: Bool = true
-    var glassVariant: LiquidGlassVariant = .regular
+    var tint: Color? = nil
     let action: () -> Void
+
+    @Environment(\.colorScheme) private var colorScheme
+
+    private var resolvedForegroundColor: Color {
+        foregroundColor ?? MomentsChromeGlass.contentColor(for: colorScheme)
+    }
 
     private var resolvedSize: CGFloat {
         preset?.controlSize ?? size
@@ -237,13 +331,13 @@ struct ProfileChromeIconButton: View {
         Button(action: action) {
             Image(systemName: systemName)
                 .font(.system(size: resolvedIconSize, weight: .semibold))
-                .foregroundColor(foregroundColor)
+                .foregroundColor(resolvedForegroundColor)
                 .frame(width: resolvedSize, height: resolvedSize)
                 .modifier(
                     ProfileChromeIconGlassModifier(
                         standalone: standaloneGlass,
-                        variant: glassVariant,
-                        interactive: true
+                        interactive: true,
+                        tint: tint
                     )
                 )
                 .contentShape(Circle())
@@ -263,14 +357,14 @@ struct ProfileGlassPillTrack<Content: View>: View {
                 content()
                     .padding(ProfileChromeGlassMetrics.pillInnerPadding)
                     .background {
-                        Capsule()
-                            .glassEffect(.regular, in: Capsule())
+                        Color.clear
+                            .momentsChromeGlass(in: Capsule(), interactive: false)
                     }
             } else {
                 ZStack {
                     Capsule()
                         .fill(Color.clear)
-                        .liquidGlass(in: Capsule(), variant: .regular)
+                        .momentsChromeGlass(in: Capsule(), interactive: false)
                         .overlay(
                             Capsule()
                                 .stroke(Color.primary.opacity(0.07), lineWidth: 0.75)
@@ -293,7 +387,26 @@ struct ProfileGlassPillThumb: View {
         Capsule()
             .fill(Color.white.opacity(colorScheme == .dark ? 0.05 : 0.035))
             .frame(width: width, height: ProfileChromeGlassMetrics.pillSegmentHeight)
-            .liquidGlass(in: Capsule(), variant: .regular, interactive: true)
+            .momentsChromeGlass(in: Capsule(), interactive: true)
             .shadow(color: .black.opacity(colorScheme == .dark ? 0.2 : 0.07), radius: 5, x: 0, y: 2)
+    }
+}
+
+/// Fondo chrome unificado para la tab bar principal (legacy + iOS 26 toolbar).
+struct MomentsTabBarChromeBackground: View {
+    @Environment(\.colorScheme) private var colorScheme
+
+    var body: some View {
+        Rectangle()
+            .fill(.clear)
+            .momentsChromeGlass(in: Rectangle(), interactive: false)
+            .overlay(alignment: .top) {
+                Rectangle()
+                    .frame(height: 0.5)
+                    .foregroundColor(
+                        colorScheme == .dark ? Color.white.opacity(0.1) : Color.black.opacity(0.1)
+                    )
+            }
+            .ignoresSafeArea(edges: .bottom)
     }
 }

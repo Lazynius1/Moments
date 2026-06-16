@@ -262,7 +262,7 @@ struct EchoViewerUI: View {
                 }
             }
             .frame(maxWidth: 320)
-            .liquidGlass(in: RoundedRectangle(cornerRadius: 28, style: .continuous))
+            .momentsChromeGlass(in: RoundedRectangle(cornerRadius: 28, style: .continuous))
             .shadow(color: .black.opacity(0.24), radius: 24, x: 0, y: 12)
             .padding(.horizontal, 24)
             .transition(.scale(scale: 0.94).combined(with: .opacity))
@@ -383,7 +383,7 @@ struct EchoViewerUI: View {
                         .font(.system(size: 16, weight: .semibold))
                         .foregroundStyle(topPrimaryTextColor)
                         .frame(width: 36, height: 36)
-                        .liquidGlass(in: Circle(), interactive: true)
+                        .momentsChromeGlass(in: Circle(), interactive: true)
                 }
                 
                 Button { dismiss() } label: {
@@ -391,7 +391,7 @@ struct EchoViewerUI: View {
                         .font(.system(size: 16, weight: .bold))
                         .foregroundStyle(topPrimaryTextColor)
                         .frame(width: 36, height: 36)
-                        .liquidGlass(in: Circle(), interactive: true)
+                        .momentsChromeGlass(in: Circle(), interactive: true)
                 }
             }
             .padding(.horizontal, 16)
@@ -445,7 +445,7 @@ struct EchoViewerUI: View {
             }
             .padding(.horizontal, 14)
             .padding(.vertical, 10)
-            .liquidGlass(in: Capsule(), interactive: true)
+            .momentsChromeGlass(in: Capsule(), interactive: true)
         }
         .disabled(!viewModel.canOpenLocationMap)
         .opacity(viewModel.canOpenLocationMap ? 1.0 : 0.55)
@@ -576,7 +576,7 @@ struct EchoViewerUI: View {
                             Capsule()
                                 .fill(Color.black.opacity(0.22))
                         )
-                        .liquidGlass(in: Capsule(), interactive: true)
+                        .momentsChromeGlass(in: Capsule(), interactive: true)
                 }
             }
             .padding(22)
@@ -586,7 +586,7 @@ struct EchoViewerUI: View {
                     .fill(Color.black.opacity(0.24))
                     .overlay {
                         Color.clear
-                            .liquidGlass(in: RoundedRectangle(cornerRadius: 24, style: .continuous))
+                            .momentsChromeGlass(in: RoundedRectangle(cornerRadius: 24, style: .continuous))
                     }
             )
             .padding(.horizontal, 40)

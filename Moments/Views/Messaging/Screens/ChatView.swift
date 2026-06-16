@@ -2,7 +2,6 @@ import SwiftUI
 import FirebaseAuth
 import FirebaseFirestore
 import Kingfisher
-import PhotosUI
 import AVKit
 import AVFoundation
 import CoreLocation
@@ -34,9 +33,9 @@ struct GlassmorphicChatView: View {
     @StateObject private var viewModel: MomentsChatViewModel
     @StateObject private var onlineStatusService = OnlineStatusService()
     @State private var messageText: String = ""
-    @State private var showMediaPicker: Bool = false
     @State private var showEnhancedCamera = false
-    @State private var selectedItems: [PhotosPickerItem] = []
+    @State private var activeAttachmentSheet: ChatAttachmentSheetKind?
+    @State private var plusButtonAnchorFrame: CGRect = .zero
     @State private var replyingTo: EnhancedMessage?
     @State private var clusterForReply: [EnhancedMessage]? = nil // ✅ New: Selection grid for clusters
     @State private var editingMessage: EnhancedMessage?
@@ -123,18 +122,14 @@ struct GlassmorphicChatView: View {
             .navigationBarTitleDisplayMode(.inline)
             .navigationBarBackButtonHidden(true)
             .toolbar { chatToolbarContent }
-            .photosPicker(isPresented: $showMediaPicker, selection: $selectedItems, maxSelectionCount: 10)
         .fullScreenCover(isPresented: $showEnhancedCamera) {
             EnhancedCameraPickerView { data, mediaType, isEphemeral in
                 handleCameraCapture(data: data, mediaType: mediaType, isEphemeral: isEphemeral)
             }
         }
-        .onChange(of: selectedItems) { _, items in
-            let mediaBatchId = items.count > 1 ? UUID().uuidString : nil
-            for item in items {
-                viewModel.handlePhotoPickerItem(item, mediaBatchId: mediaBatchId)
-            }
-            selectedItems = []
+        .onChange(of: activeAttachmentSheet) { _, newValue in
+            guard newValue != nil else { return }
+            isTextFieldFocused = false
         }
     }
     
@@ -229,6 +224,34 @@ struct GlassmorphicChatView: View {
             if newValue == nil {
                 withAnimation { reactionMessageOverlay = nil }
             }
+        }
+        .animation(.spring(response: 0.38, dampingFraction: 0.86), value: activeAttachmentSheet)
+        .overlay {
+            if activeAttachmentSheet == .menu {
+                ChatAttachmentMenuPopover(
+                    isPresented: $activeAttachmentSheet,
+                    anchorFrame: plusButtonAnchorFrame,
+                    onOpenCamera: {
+                        showEnhancedCamera = true
+                    }
+                )
+                .transition(.opacity)
+                .zIndex(44)
+            }
+
+            ChatAttachmentMediaSheetOverlay(
+                activeSheet: $activeAttachmentSheet,
+                accentColor: adaptiveColors.userAccentColor,
+                onPickerItems: { items in
+                    viewModel.handlePhotoPickerItems(items)
+                    activeAttachmentSheet = nil
+                },
+                onConfirmAssets: { assets in
+                    viewModel.sendSelectedPHAssets(assets) {
+                        activeAttachmentSheet = nil
+                    }
+                }
+            )
         }
         .overlay(
             Group {
@@ -474,7 +497,7 @@ struct GlassmorphicChatView: View {
                 .font(.system(size: 16, weight: .semibold))
                 .foregroundColor(adaptiveColors.primary)
                 .frame(width: 38, height: 38)
-                .liquidGlass(in: Circle(), interactive: true)
+                .momentsChromeGlass(in: Circle(), interactive: true)
         }
         .buttonStyle(.plain)
     }
@@ -529,7 +552,7 @@ struct GlassmorphicChatView: View {
             }
             .padding(.horizontal, 12)
             .padding(.vertical, 10)
-            .liquidGlass(in: Capsule(), interactive: true)
+            .momentsChromeGlass(in: Capsule(), interactive: true)
             
             HStack(spacing: 6) {
                 Text(searchCounterText)
@@ -538,7 +561,7 @@ struct GlassmorphicChatView: View {
                     .frame(minWidth: 38)
                     .padding(.horizontal, 10)
                     .padding(.vertical, 8)
-                    .liquidGlass(in: Capsule(), interactive: true)
+                    .momentsChromeGlass(in: Capsule(), interactive: true)
                 
                 Button {
                     moveSearchSelection(by: -1)
@@ -547,7 +570,7 @@ struct GlassmorphicChatView: View {
                         .font(.system(size: 13, weight: .semibold))
                         .foregroundColor(searchMatchIds.isEmpty ? adaptiveColors.secondary.opacity(0.35) : adaptiveColors.primary)
                         .frame(width: 30, height: 30)
-                        .liquidGlass(in: Circle(), interactive: true)
+                        .momentsChromeGlass(in: Circle(), interactive: true)
                 }
                 .buttonStyle(PlainButtonStyle())
                 .disabled(searchMatchIds.isEmpty)
@@ -559,7 +582,7 @@ struct GlassmorphicChatView: View {
                         .font(.system(size: 13, weight: .semibold))
                         .foregroundColor(searchMatchIds.isEmpty ? adaptiveColors.secondary.opacity(0.35) : adaptiveColors.primary)
                         .frame(width: 30, height: 30)
-                        .liquidGlass(in: Circle(), interactive: true)
+                        .momentsChromeGlass(in: Circle(), interactive: true)
                 }
                 .buttonStyle(PlainButtonStyle())
                 .disabled(searchMatchIds.isEmpty)
@@ -827,6 +850,7 @@ struct GlassmorphicChatView: View {
                     text: $messageText,
                     isTyping: $viewModel.isTyping,
                     isRecordingVoice: $isRecordingVoice,
+                    activeAttachmentSheet: $activeAttachmentSheet,
                     recordingTime: recordingTime,
                     onSend: {
                         let messageToSend = messageText
@@ -848,12 +872,6 @@ struct GlassmorphicChatView: View {
 
                         messageText = ""
                     },
-                    onCamera: {
-                        showEnhancedCamera = true
-                    },
-                    onMedia: {
-                        showMediaPicker = true
-                    },
                     onStartVoiceRecording: {
                         startVoiceRecording()
                     },
@@ -862,6 +880,9 @@ struct GlassmorphicChatView: View {
                     }
                 )
                 .focused($isTextFieldFocused)
+                .onPreferenceChange(ChatPlusButtonAnchorKey.self) { frame in
+                    plusButtonAnchorFrame = frame
+                }
             }
         }
     }
@@ -883,7 +904,7 @@ struct GlassmorphicChatView: View {
             .foregroundColor(colorScheme == .dark ? .white.opacity(0.62) : .black.opacity(0.54))
             .padding(.horizontal, 18)
             .padding(.vertical, 14)
-            .liquidGlass(in: Capsule(), interactive: false)
+            .momentsChromeGlass(in: Capsule(), interactive: false)
             .padding(.horizontal, 14)
             .padding(.vertical, 10)
         }
@@ -908,13 +929,13 @@ struct GlassmorphicChatView: View {
                         .foregroundColor(colorScheme == .dark ? .white : .black)
                         .padding(.horizontal, 12)
                         .padding(.vertical, 8)
-                        .liquidGlass(in: Capsule(), interactive: true)
+                        .momentsChromeGlass(in: Capsule(), interactive: true)
                 }
                 .buttonStyle(.plain)
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 12)
-            .liquidGlass(in: Capsule(), interactive: false)
+            .momentsChromeGlass(in: Capsule(), interactive: false)
             .padding(.horizontal, 14)
             .padding(.vertical, 10)
         }

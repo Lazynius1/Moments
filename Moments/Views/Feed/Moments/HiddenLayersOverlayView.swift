@@ -40,7 +40,7 @@ struct HiddenLayersOverlayView: View {
                                     .foregroundColor(.white)
                                     .padding(.horizontal, 12)
                                     .padding(.vertical, 8)
-                                    .liquidGlass(in: Capsule())
+                                    .momentsChromeGlass(in: Capsule())
                                     .padding(.top, 14)
                             }
 
@@ -739,7 +739,7 @@ private struct HiddenLayerTextReveal: View {
         ZStack {
             if layer.presentationStyle == .glassCard {
                 Color.clear
-                    .liquidGlass(in: shape)
+                    .momentsChromeGlass(in: shape)
                     .frame(width: frameSize.width, height: frameSize.height)
             } else {
                 shape.fill(background)
@@ -888,7 +888,7 @@ private struct HiddenLayerAudioTagView: View {
         ZStack {
             Circle()
                 .fill(Color.clear)
-                .liquidGlass(in: Circle())
+                .momentsChromeGlass(in: Circle())
 
             Circle()
                 .trim(from: 0, to: progress)

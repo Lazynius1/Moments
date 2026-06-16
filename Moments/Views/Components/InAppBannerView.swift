@@ -152,7 +152,7 @@ struct InAppBannerView: View {
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 14)
-            .liquidGlass(in: Capsule())
+            .momentsChromeGlass(in: Capsule())
             .overlay(
                 Capsule()
                     .stroke(

@@ -25,7 +25,7 @@ struct UserRelationshipChip: View {
         .foregroundColor(colorScheme == .dark ? .white.opacity(0.78) : .black.opacity(0.68))
         .padding(.horizontal, 9)
         .padding(.vertical, 5)
-        .liquidGlass(in: Capsule(), interactive: false)
+        .momentsChromeGlass(in: Capsule(), interactive: false)
     }
 }
 

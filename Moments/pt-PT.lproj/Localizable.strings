@@ -1664,6 +1664,10 @@
 /* Chat */
 "chat.moment.loadError" = "Não foi possível carregar o moment";
 "chat.input.placeholder" = "Mensagem...";
+"chat.input.attach.accessibility" = "Anexar conteúdo";
+"chat.input.voice.accessibility" = "Gravar mensagem de voz";
+"chat.attach.sendMedia.one" = "Enviar 1 item";
+"chat.attach.sendMedia.many" = "Enviar %d itens";
 "chat.action.deleteForMe" = "Eliminar para mim";
 "chat.action.deleteForEveryone" = "Eliminar para todos";
 "chat.action.edit" = "Editar";
@@ -3055,6 +3059,18 @@
 "nova.input.addPhoto.accessibility" = "Adicionar foto";
 "nova.input.removePhoto.accessibility" = "Remover foto";
 "nova.input.send.accessibility" = "Enviar mensagem";
+"nova.input.attach.accessibility" = "Adicionar anexo";
+"nova.attach.camera" = "Câmara";
+"nova.attach.photos" = "Fotos";
+"nova.attach.allPhotos" = "Todas as fotos";
+"nova.attach.addToNova" = "Adicionar à Nova";
+"nova.attach.addOnePhoto" = "Adicionar 1 foto";
+"nova.attach.capture.accessibility" = "Tirar foto";
+"nova.attach.more.accessibility" = "Opções da câmara";
+"nova.attach.flash.accessibility" = "Flash";
+"nova.attach.flip.accessibility" = "Rodar câmara";
+"nova.attach.back.accessibility" = "Voltar";
+"nova.attach.photos.permission" = "Permite o acesso às fotos em Definições para escolher imagens.";
 /* In-App Banners */
 "banner.verb.like" = "gostou do teu moment";
 "banner.verb.comment" = "comentou o teu moment";

@@ -433,7 +433,7 @@ struct InteractiveRevealSticker: View {
             .padding(.horizontal, 14)
             .padding(.vertical, 10)
             .background(Color.white.opacity(0.001))
-            .liquidGlass(in: Capsule())
+            .momentsChromeGlass(in: Capsule())
             .scaleEffect(animateHint ? 1.03 : 0.985)
             .opacity(animateHint ? 1.0 : 0.82)
             .padding(.bottom, 140)

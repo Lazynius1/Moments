@@ -806,7 +806,7 @@ struct LocationMomentCard: View {
         .padding(.vertical, 8)
         .background(
             Color.clear
-                .liquidGlass(in: Capsule())
+                .momentsChromeGlass(in: Capsule())
                 .overlay(
                     Capsule()
                         .stroke(Color.white.opacity(0.15), lineWidth: 0.5)
@@ -1443,7 +1443,7 @@ struct FollowButtonForLocation: View {
             .foregroundColor(adaptiveColors.primary)
             .padding(.horizontal, 12)
             .padding(.vertical, 6)
-            .liquidGlass(in: RoundedRectangle(cornerRadius: 14), interactive: followButtonState.isActionable)
+            .momentsChromeGlass(in: RoundedRectangle(cornerRadius: 14), interactive: followButtonState.isActionable)
         }
         .disabled(isLoading || !followButtonState.isActionable)
         .opacity(isPassiveState ? 0.78 : 1)

@@ -120,7 +120,7 @@ struct WhatsNewView: View {
             .padding(.vertical, 16)
             .background {
                 Color.clear
-                    .liquidGlass(in: Capsule(), interactive: true)
+                    .momentsChromeGlass(in: Capsule(), interactive: true)
             }
         }
         .buttonStyle(.plain)
@@ -207,7 +207,7 @@ private struct WhatsNewFeatureRow: View {
         .frame(width: 38, height: 38)
         .background {
             Color.clear
-                .liquidGlass(in: Circle())
+                .momentsChromeGlass(in: Circle())
         }
     }
 }

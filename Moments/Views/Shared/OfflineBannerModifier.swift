@@ -81,7 +81,7 @@ struct CollapsibleOfflineBanner: View {
         .padding(.vertical, 10)
         .background {
             Color.clear
-                .liquidGlass(in: Capsule(), interactive: false)
+                .momentsChromeGlass(in: Capsule(), interactive: false)
         }
         .shadow(color: Color.red.opacity(0.22), radius: 18, x: 0, y: 10)
     }
@@ -92,7 +92,7 @@ struct CollapsibleOfflineBanner: View {
                 Circle()
                     .fill(Color.clear)
                     .frame(width: 44, height: 44)
-                    .liquidGlass(in: Circle(), interactive: false)
+                    .momentsChromeGlass(in: Circle(), interactive: false)
 
                 Image(systemName: "wifi.slash")
                     .font(.system(size: 16, weight: .bold))

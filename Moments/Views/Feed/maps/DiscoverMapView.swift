@@ -300,7 +300,7 @@ struct DiscoverMapView: View {
                 .padding(.leading, 8)
                 .padding(.trailing, 16)
                 .padding(.vertical, 8)
-                .background(Color.clear.liquidGlass(in: Capsule()))
+                .background(Color.clear.momentsChromeGlass(in: Capsule()))
                 .overlay(
                     Capsule()
                         .stroke(Color.white.opacity(0.15), lineWidth: 0.5)
@@ -367,7 +367,7 @@ struct DiscoverMapView: View {
                     .padding(.leading, 12)
                     .padding(.trailing, 8)
                     .padding(.vertical, 8)
-                    .background(Color.clear.liquidGlass(in: Capsule()))
+                    .background(Color.clear.momentsChromeGlass(in: Capsule()))
                     .overlay(
                         Capsule()
                             .stroke(Color.white.opacity(0.15), lineWidth: 0.5)
@@ -425,7 +425,7 @@ struct DiscoverMapView: View {
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 10)
-        .background(Color.clear.liquidGlass(in: Capsule(), interactive: true))
+        .background(Color.clear.momentsChromeGlass(in: Capsule(), interactive: true))
     }
 
     private var filterChips: some View {
@@ -442,7 +442,7 @@ struct DiscoverMapView: View {
                         .background(
                             Capsule()
                                 .fill(contentFilter == filter ? adaptiveColors.accent : Color.clear)
-                                .liquidGlass(in: Capsule(), interactive: contentFilter != filter)
+                                .momentsChromeGlass(in: Capsule(), interactive: contentFilter != filter)
                         )
                 }
                 .buttonStyle(.plain)

@@ -11,7 +11,7 @@ private struct StickerGlassFieldModifier: ViewModifier {
         content
             .background {
                 Color.clear
-                    .liquidGlass(in: RoundedRectangle(cornerRadius: cornerRadius, style: .continuous), interactive: true)
+                    .momentsChromeGlass(in: RoundedRectangle(cornerRadius: cornerRadius, style: .continuous), interactive: true)
                     .overlay {
                         RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
                             .stroke(
@@ -32,7 +32,7 @@ private struct StickerGlassActionBackground: ViewModifier {
         content
             .background {
                 Color.clear
-                    .liquidGlass(in: RoundedRectangle(cornerRadius: cornerRadius, style: .continuous), interactive: isEnabled)
+                    .momentsChromeGlass(in: RoundedRectangle(cornerRadius: cornerRadius, style: .continuous), interactive: isEnabled)
             }
             .opacity(isEnabled ? 1.0 : 0.62)
     }
@@ -118,7 +118,7 @@ struct ModernMentionInputView: View {
                 .padding(.vertical, 12)
                 .background {
                     Color.clear
-                        .liquidGlass(in: Capsule(), interactive: true)
+                        .momentsChromeGlass(in: Capsule(), interactive: true)
                 }
                 .overlay(
                     Capsule()
@@ -868,7 +868,7 @@ struct ModernEmojiSliderInputView: View {
                                     .frame(width: 48, height: 48)
                                     .background {
                                         Color.clear
-                                            .liquidGlass(in: Circle(), interactive: true)
+                                            .momentsChromeGlass(in: Circle(), interactive: true)
                                     }
                                     .overlay(
                                         Circle()
@@ -893,7 +893,7 @@ struct ModernEmojiSliderInputView: View {
                                 .frame(width: 48, height: 48)
                                 .background {
                                     Color.clear
-                                        .liquidGlass(in: Circle(), interactive: true)
+                                        .momentsChromeGlass(in: Circle(), interactive: true)
                                 }
                                 .overlay(
                                     Circle()
@@ -1015,7 +1015,7 @@ struct ModernQuizInputView: View {
                     }
                     .background {
                         Color.clear
-                            .liquidGlass(in: Capsule(), interactive: true)
+                            .momentsChromeGlass(in: Capsule(), interactive: true)
                     }
                     .padding(.top, 4)
                 }

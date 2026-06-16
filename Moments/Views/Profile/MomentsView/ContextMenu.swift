@@ -46,7 +46,7 @@ struct ModernMomentContextMenu: View {
                     .frame(width: 36, height: 36)
                     .background(
                         Color.clear
-                            .liquidGlass(in: Circle())
+                            .momentsChromeGlass(in: Circle())
                     )
                     .overlay(
                         Circle()
@@ -377,7 +377,7 @@ struct ModernContextMenuOverlay: View {
                 }
                 .background(
                     Color.clear
-                        .liquidGlass(in: RoundedRectangle(cornerRadius: 32, style: .continuous))
+                        .momentsChromeGlass(in: RoundedRectangle(cornerRadius: 32, style: .continuous))
                 )
                 .shadow(color: .black.opacity(0.3), radius: 20, x: 0, y: 10)
                 .padding(.horizontal, 12)
@@ -1238,7 +1238,7 @@ private struct HiddenLayerMetricLayerPreview: View {
             if layer.type == .image {
                 RoundedRectangle(cornerRadius: style == .detail ? 12 : 10, style: .continuous)
                     .fill(Color.clear)
-                    .liquidGlass(in: RoundedRectangle(cornerRadius: style == .detail ? 12 : 10, style: .continuous))
+                    .momentsChromeGlass(in: RoundedRectangle(cornerRadius: style == .detail ? 12 : 10, style: .continuous))
                     .frame(
                         width: style == .detail ? 28 : 22,
                         height: style == .detail ? 34 : 26
@@ -1246,7 +1246,7 @@ private struct HiddenLayerMetricLayerPreview: View {
             } else {
                 RoundedRectangle(cornerRadius: style == .detail ? 14 : 12, style: .continuous)
                     .fill(Color.clear)
-                    .liquidGlass(in: RoundedRectangle(cornerRadius: style == .detail ? 14 : 12, style: .continuous))
+                    .momentsChromeGlass(in: RoundedRectangle(cornerRadius: style == .detail ? 14 : 12, style: .continuous))
             }
 
             switch layer.type {

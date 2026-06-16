@@ -48,7 +48,7 @@ struct ModernEmptyFeedView: View {
             .buttonStyle(.plain)
             .background {
                 Color.clear
-                    .liquidGlass(in: Capsule(), interactive: true)
+                    .momentsChromeGlass(in: Capsule(), interactive: true)
             }
             .padding(.top, 4)
         }
@@ -69,7 +69,7 @@ struct ModernEmptyFeedView: View {
             .frame(width: 76, height: 76)
             .background {
                 Color.clear
-                    .liquidGlass(in: Circle())
+                    .momentsChromeGlass(in: Circle())
             }
     }
 

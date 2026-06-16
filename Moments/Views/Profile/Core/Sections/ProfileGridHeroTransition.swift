@@ -1086,7 +1086,7 @@ struct ProfileGridHeroDetailLayer: View {
         }
         .frame(width: menuWidth)
         .fixedSize(horizontal: true, vertical: true)
-        .liquidGlass(in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .momentsChromeGlass(in: RoundedRectangle(cornerRadius: 16, style: .continuous))
     }
 
     private var pinConfirmPanel: some View {
@@ -1137,7 +1137,7 @@ struct ProfileGridHeroDetailLayer: View {
         }
         .frame(width: panelWidth)
         .fixedSize(horizontal: true, vertical: true)
-        .liquidGlass(in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .momentsChromeGlass(in: RoundedRectangle(cornerRadius: 16, style: .continuous))
     }
 
     private func profileToast(message: String) -> some View {
@@ -1146,7 +1146,7 @@ struct ProfileGridHeroDetailLayer: View {
             .foregroundColor(colorScheme == .dark ? .white : .black)
             .padding(.horizontal, 18)
             .padding(.vertical, 14)
-            .liquidGlass(in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .momentsChromeGlass(in: RoundedRectangle(cornerRadius: 14, style: .continuous))
             .padding(.horizontal, 16)
     }
 

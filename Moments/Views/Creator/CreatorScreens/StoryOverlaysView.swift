@@ -291,7 +291,7 @@ struct StoryOverlaysView: View {
                         }
                         .padding(.horizontal, 12)
                         .padding(.vertical, 6)
-                        .liquidGlass(in: Capsule(), interactive: true)
+                        .momentsChromeGlass(in: Capsule(), interactive: true)
                         .shadow(color: .black.opacity(0.2), radius: 10, y: 5)
                         .onTapGesture {
                             if let revealSticker = stickers.first(where: { $0.type == .reveal }) {
@@ -353,7 +353,7 @@ struct StoryOverlaysView: View {
                         .multilineTextAlignment(.center)
                         .padding(.vertical, 12)
                         .padding(.horizontal, 25)
-                        .liquidGlass(in: Capsule(), interactive: true)
+                        .momentsChromeGlass(in: Capsule(), interactive: true)
                         .submitLabel(.done)
                         .onSubmit {
                             savePolaroidCaption()

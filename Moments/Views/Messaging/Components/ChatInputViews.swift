@@ -4,10 +4,9 @@ struct GlassmorphicInputBar: View {
     @Binding var text: String
     @Binding var isTyping: Bool
     @Binding var isRecordingVoice: Bool
+    @Binding var activeAttachmentSheet: ChatAttachmentSheetKind?
     let recordingTime: TimeInterval
     let onSend: () -> Void
-    let onCamera: () -> Void
-    let onMedia: () -> Void
     let onStartVoiceRecording: () -> Void
     let onStopVoiceRecording: (Bool) -> Void
     @Environment(\.colorScheme) var colorScheme
@@ -16,67 +15,46 @@ struct GlassmorphicInputBar: View {
         AdaptiveColors(colorScheme: colorScheme)
     }
 
-    var body: some View {
-        HStack(alignment: .center, spacing: 12) {
-            if !isRecordingVoice {
-                HStack(alignment: .center, spacing: 8) {
-                    // Cámara — alineada al centro
-                    Button(action: {
-                        onCamera()
-                    }) {
-                        Image(systemName: "camera.fill")
-                            .font(.system(size: 17, weight: .semibold))
-                            .foregroundColor(adaptiveColors.primary)
-                            .frame(width: 34, height: 34)
-                            .background(
-                                Circle()
-                                    .fill(
-                                        colorScheme == .dark ?
-                                        Color.white.opacity(0.12) :
-                                        Color.black.opacity(0.06)
-                                    )
-                            )
-                    }
-                    .buttonStyle(PlainButtonStyle())
+    private var isMenuOpen: Bool {
+        activeAttachmentSheet == .menu
+    }
 
-                    // TextField crece hacia arriba, alineado al centro
+    private func toggleAttachmentMenu() {
+        withAnimation(.spring(response: 0.38, dampingFraction: 0.86)) {
+            activeAttachmentSheet = isMenuOpen ? nil : .menu
+        }
+    }
+
+    var body: some View {
+        HStack(alignment: .center, spacing: 10) {
+            if !isRecordingVoice {
+                ChatAttachmentPlusButton(isMenuOpen: isMenuOpen, action: toggleAttachmentMenu)
+
+                HStack(alignment: .center, spacing: 8) {
                     TextField(LocalizedStringKey("chat.input.placeholder"), text: $text, axis: .vertical)
                         .lineLimit(1...6)
                         .font(.custom("Poppins-Regular", size: 15))
                         .foregroundColor(adaptiveColors.primary)
                         .accentColor(adaptiveColors.primary)
                         .textFieldStyle(PlainTextFieldStyle())
-                        .padding(.leading, 2)
+                        .padding(.leading, 14)
+                        .padding(.trailing, text.isEmpty ? 4 : 12)
                         .padding(.vertical, 10)
                         .onChange(of: text) { _, newValue in
                             isTyping = !newValue.isEmpty
                         }
 
                     if text.isEmpty {
-                        HStack(spacing: 12) {
-                            Button(action: {
-                                onMedia()
-                            }) {
-                                Image(systemName: "photo")
-                                    .font(.system(size: 17, weight: .medium))
-                                    .foregroundColor(adaptiveColors.mediaIconColor)
-                            }
-
-                            Button(action: {
-                                onStartVoiceRecording()
-                            }) {
-                                Image(systemName: "mic")
-                                    .font(.system(size: 17, weight: .medium))
-                                    .foregroundColor(adaptiveColors.mediaIconColor)
-                            }
+                        Button(action: onStartVoiceRecording) {
+                            Image(systemName: "waveform")
+                                .font(.system(size: 17, weight: .medium))
+                                .foregroundColor(adaptiveColors.mediaIconColor)
                         }
                         .padding(.trailing, 12)
+                        .accessibilityLabel(Text("chat.input.voice.accessibility"))
                     }
                 }
-                .padding(.leading, 10)
-                .padding(.trailing, 6)
-                .padding(.vertical, 4)
-                .liquidGlass(in: RoundedRectangle(cornerRadius: 22, style: .continuous), interactive: true)
+                .momentsChromeGlass(in: RoundedRectangle(cornerRadius: 22, style: .continuous), interactive: true)
                 .overlay(
                     RoundedRectangle(cornerRadius: 22, style: .continuous)
                         .stroke(
@@ -99,11 +77,8 @@ struct GlassmorphicInputBar: View {
                 )
             }
 
-            // Botón enviar — alineado al centro
             if !text.isEmpty && !isRecordingVoice {
-                Button(action: {
-                    onSend()
-                }) {
+                Button(action: onSend) {
                     Image(systemName: "paperplane.fill")
                         .font(.system(size: 18))
                         .foregroundColor(.white)

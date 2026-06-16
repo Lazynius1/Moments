@@ -127,7 +127,7 @@ struct StoryChainView: View {
                     .font(.system(size: 14, weight: .semibold))
                     .foregroundStyle(primaryForeground)
                     .frame(width: 38, height: 38)
-                    .background(Color.clear.liquidGlass(in: Circle(), interactive: true))
+                    .background(Color.clear.momentsChromeGlass(in: Circle(), interactive: true))
             }
             .buttonStyle(.plain)
 
@@ -177,7 +177,7 @@ struct StoryChainView: View {
                         .font(.system(size: 14, weight: .semibold))
                         .foregroundColor(primaryForeground)
                         .frame(width: 38, height: 38)
-                        .background(Color.clear.liquidGlass(in: Circle(), interactive: true))
+                        .background(Color.clear.momentsChromeGlass(in: Circle(), interactive: true))
                 }
                 .buttonStyle(.plain)
 
@@ -263,7 +263,7 @@ struct StoryChainView: View {
         .foregroundColor(tint)
         .padding(.horizontal, 10)
         .padding(.vertical, 6)
-        .background(Color.clear.liquidGlass(in: Capsule(), interactive: false))
+        .background(Color.clear.momentsChromeGlass(in: Capsule(), interactive: false))
     }
     
     // MARK: - Helper Functions

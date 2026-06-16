@@ -781,7 +781,7 @@ struct StoryViewerScreen: View {
                             Circle()
                                 .fill(Color.black.opacity(0.16))
                                 .frame(width: 38, height: 38)
-                                .liquidGlass(in: Circle())
+                                .momentsChromeGlass(in: Circle())
 
                             Image(systemName: "person.circle.fill")
                                 .foregroundColor(.white.opacity(0.7))
@@ -827,7 +827,7 @@ struct StoryViewerScreen: View {
                             .font(.system(size: 16, weight: .medium))
                             .frame(width: 40, height: 40)
                             .background(Color.white.opacity(0.001))
-                            .liquidGlass(in: Circle(), interactive: true)
+                            .momentsChromeGlass(in: Circle(), interactive: true)
                     }
                     .buttonStyle(PlainButtonStyle())
                     .overlay(alignment: .topTrailing) {
@@ -853,7 +853,7 @@ struct StoryViewerScreen: View {
                         .font(.system(size: 16, weight: .medium))
                         .frame(width: 40, height: 40)
                         .background(Color.white.opacity(0.001))
-                        .liquidGlass(in: Circle(), interactive: true)
+                        .momentsChromeGlass(in: Circle(), interactive: true)
                 }
                 .buttonStyle(PlainButtonStyle())
 
@@ -863,7 +863,7 @@ struct StoryViewerScreen: View {
                         .font(.system(size: 16, weight: .medium))
                         .frame(width: 40, height: 40)
                         .background(Color.white.opacity(0.001))
-                        .liquidGlass(in: Circle(), interactive: true)
+                        .momentsChromeGlass(in: Circle(), interactive: true)
                 }
             }
         }
@@ -908,7 +908,7 @@ struct StoryViewerScreen: View {
                     .padding(.vertical, 10)
                     .frame(maxWidth: .infinity)
                     .background(Color.white.opacity(0.001))
-                    .liquidGlass(in: Capsule(), interactive: true)
+                    .momentsChromeGlass(in: Capsule(), interactive: true)
                 }
                 .buttonStyle(PlainButtonStyle())
 
@@ -929,7 +929,7 @@ struct StoryViewerScreen: View {
                         .padding(.vertical, 10)
                         .frame(maxWidth: .infinity)
                         .background(Color.white.opacity(0.001))
-                        .liquidGlass(in: Capsule(), interactive: true)
+                        .momentsChromeGlass(in: Capsule(), interactive: true)
                     }
                     .buttonStyle(PlainButtonStyle())
                 }
@@ -952,7 +952,7 @@ struct StoryViewerScreen: View {
                         .padding(.vertical, 10)
                         .frame(maxWidth: .infinity)
                         .background(Color.white.opacity(0.001))
-                        .liquidGlass(in: Capsule(), interactive: currentChainIndex > 0)
+                        .momentsChromeGlass(in: Capsule(), interactive: currentChainIndex > 0)
                     }
                     .buttonStyle(PlainButtonStyle())
                     .disabled(currentChainIndex <= 0)
@@ -972,7 +972,7 @@ struct StoryViewerScreen: View {
                         .padding(.vertical, 10)
                         .frame(maxWidth: .infinity)
                         .background(Color.white.opacity(0.001))
-                        .liquidGlass(in: Capsule(), interactive: currentChainIndex < chainStories.count - 1)
+                        .momentsChromeGlass(in: Capsule(), interactive: currentChainIndex < chainStories.count - 1)
                     }
                     .buttonStyle(PlainButtonStyle())
                     .disabled(currentChainIndex >= chainStories.count - 1)
@@ -982,7 +982,7 @@ struct StoryViewerScreen: View {
         .padding(12)
         .frame(width: 270, alignment: .leading)
         .background(Color.white.opacity(0.001))
-        .liquidGlass(in: RoundedRectangle(cornerRadius: 18, style: .continuous), interactive: false)
+        .momentsChromeGlass(in: RoundedRectangle(cornerRadius: 18, style: .continuous), interactive: false)
     }
 
     private func storyQuickActionsOverlay(topInset: CGFloat) -> some View {
@@ -1118,7 +1118,7 @@ struct StoryViewerScreen: View {
                             .padding(.horizontal, 16)
                             .padding(.vertical, 14)
                             .background(Color.white.opacity(0.001))
-                            .liquidGlass(in: Capsule(), interactive: true)
+                            .momentsChromeGlass(in: Capsule(), interactive: true)
                         } else if isEveryoneStoryAudience {
                             Spacer(minLength: 0)
                         }

@@ -186,7 +186,7 @@ struct UserModernPrivateProfileView: View {
                         .foregroundColor(colorScheme == .dark ? .white : .black)
                         .padding(.horizontal, 18)
                         .padding(.vertical, 10)
-                        .liquidGlass(in: Capsule(), interactive: followButtonState.isActionable)
+                        .momentsChromeGlass(in: Capsule(), interactive: followButtonState.isActionable)
                     }
                     .disabled(!followButtonState.isActionable)
 
@@ -218,7 +218,7 @@ struct UserModernPrivateProfileView: View {
                         .foregroundColor(colorScheme == .dark ? .white : .black)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 10)
-                        .liquidGlass(in: Capsule(), interactive: true)
+                        .momentsChromeGlass(in: Capsule(), interactive: true)
                     }
                 }
                 .padding(.horizontal, 20)
@@ -548,7 +548,7 @@ struct UserModernBlockedByMeProfileView: View {
                             .foregroundColor(colorScheme == .dark ? .white : .black)
                             .padding(.horizontal, 24)
                             .padding(.vertical, 12)
-                            .liquidGlass(in: Capsule(), interactive: true)
+                            .momentsChromeGlass(in: Capsule(), interactive: true)
                     }
                     .buttonStyle(.plain)
                 }

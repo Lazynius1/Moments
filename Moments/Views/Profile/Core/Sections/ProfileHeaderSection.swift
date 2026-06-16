@@ -236,7 +236,7 @@ struct ModernProfileHeader: View {
                 .foregroundColor(colorScheme == .dark ? .white : .black)
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 10)
-                .liquidGlass(in: Capsule(), variant: .regular, interactive: true)
+                .momentsChromeGlass(in: Capsule(), interactive: true)
             }
             .buttonStyle(.plain)
             .matchedTransitionSource(id: "edit-profile-view", in: profileZoomNamespace)

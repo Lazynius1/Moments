@@ -87,7 +87,7 @@ struct PrivacyConsentView: View {
             .padding(.vertical, 30)
             .background {
                 Color.clear
-                    .liquidGlass(in: RoundedRectangle(cornerRadius: 24, style: .continuous))
+                    .momentsChromeGlass(in: RoundedRectangle(cornerRadius: 24, style: .continuous))
             }
             .shadow(color: .black.opacity(0.2), radius: 30, x: 0, y: 15)
             .padding(.horizontal, 30)

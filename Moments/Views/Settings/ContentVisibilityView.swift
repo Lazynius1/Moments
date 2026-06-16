@@ -321,7 +321,7 @@ struct StoryInteractionSettingsView: View {
                         .font(.system(size: 17, weight: .semibold))
                         .foregroundColor(colorScheme == .dark ? .white : .black)
                         .frame(width: 44, height: 44)
-                        .liquidGlass(in: Circle(), interactive: true)
+                        .momentsChromeGlass(in: Circle(), interactive: true)
                 }
 
                 Spacer()
@@ -334,7 +334,7 @@ struct StoryInteractionSettingsView: View {
                 .foregroundColor(colorScheme == .dark ? .white : .black)
                 .frame(height: 44)
                 .padding(.horizontal, 16)
-                .liquidGlass(in: Capsule(), interactive: true)
+                .momentsChromeGlass(in: Capsule(), interactive: true)
             }
             .padding(.horizontal, 12)
             .padding(.top, 10)
@@ -666,7 +666,7 @@ struct HiddenFromView: View {
                         .font(.system(size: 17, weight: .semibold))
                         .foregroundColor(colorScheme == .dark ? .white : .black)
                         .frame(width: 44, height: 44)
-                        .liquidGlass(in: Circle(), interactive: true)
+                        .momentsChromeGlass(in: Circle(), interactive: true)
                 }
 
                 Spacer()
@@ -705,7 +705,7 @@ struct HiddenFromView: View {
                     }
                     .padding(.horizontal, 14)
                     .padding(.vertical, 12)
-                    .liquidGlass(in: Capsule(), interactive: true)
+                    .momentsChromeGlass(in: Capsule(), interactive: true)
 
                     if isSearching {
                         ProgressView(NSLocalizedString("common.searching", comment: ""))

@@ -86,7 +86,7 @@ struct MediaSelectionView: View {
                     .font(.system(size: 18, weight: .semibold))
                     .foregroundColor(colorScheme == .dark ? .white : .black)
                     .frame(width: 40, height: 40)
-                    .liquidGlass(in: Circle(), interactive: true)
+                    .momentsChromeGlass(in: Circle(), interactive: true)
             }
 
             Spacer()

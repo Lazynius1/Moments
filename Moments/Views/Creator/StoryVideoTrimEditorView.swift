@@ -147,7 +147,7 @@ struct StoryVideoTrimEditorView: View {
                                     .frame(width: 42, height: 42)
                                     .background {
                                         Color.clear
-                                            .liquidGlass(in: Circle(), interactive: true)
+                                            .momentsChromeGlass(in: Circle(), interactive: true)
                                     }
                                     .overlay(
                                         Circle()
@@ -166,7 +166,7 @@ struct StoryVideoTrimEditorView: View {
                                     .frame(width: 42, height: 42)
                                     .background {
                                         Color.clear
-                                            .liquidGlass(in: Circle(), interactive: true)
+                                            .momentsChromeGlass(in: Circle(), interactive: true)
                                     }
                                     .overlay(
                                         Circle()
@@ -190,7 +190,7 @@ struct StoryVideoTrimEditorView: View {
                             .frame(width: 38, height: 38)
                             .background {
                                 Color.clear
-                                    .liquidGlass(in: Circle(), interactive: true)
+                                    .momentsChromeGlass(in: Circle(), interactive: true)
                             }
                             .overlay(
                                 Circle()
@@ -212,7 +212,7 @@ struct StoryVideoTrimEditorView: View {
                             .padding(.vertical, 6)
                             .background {
                                 Color.clear
-                                    .liquidGlass(in: Capsule(), interactive: false)
+                                    .momentsChromeGlass(in: Capsule(), interactive: false)
                             }
                             .overlay(
                                 Capsule()
@@ -367,7 +367,7 @@ struct StoryVideoTrimEditorView: View {
             }
             .padding(.horizontal, 28)
             .padding(.vertical, 22)
-            .liquidGlass(in: RoundedRectangle(cornerRadius: 24, style: .continuous), interactive: false)
+            .momentsChromeGlass(in: RoundedRectangle(cornerRadius: 24, style: .continuous), interactive: false)
         }
     }
 

@@ -2,7 +2,7 @@ import SwiftUI
 
 enum StoryEditorChromeColor {
     static func icon(_ colorScheme: ColorScheme) -> Color {
-        colorScheme == .dark ? .white : Color(hex: "0B1215")
+        MomentsChromeGlass.contentColor(for: colorScheme)
     }
 }
 
@@ -47,7 +47,7 @@ struct EditingToolIcon: View {
             }
                 .foregroundColor(StoryEditorChromeColor.icon(colorScheme))
                 .frame(width: 44, height: 44)
-                .liquidGlass(in: Circle())
+                .momentsChromeGlass(in: Circle(), interactive: true)
                 .shadow(color: .black.opacity(colorScheme == .dark ? 0.1 : 0.08), radius: 4, x: 0, y: 2)
         }
     }

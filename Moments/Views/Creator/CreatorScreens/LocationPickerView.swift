@@ -59,7 +59,7 @@ struct LocationPickerView: View {
                 }
                 .padding(.horizontal, 14)
                 .padding(.vertical, 12)
-                .liquidGlass(in: Capsule(), interactive: true)
+                .momentsChromeGlass(in: Capsule(), interactive: true)
                 .padding()
 
                 // Map

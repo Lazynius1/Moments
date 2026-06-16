@@ -65,7 +65,7 @@ struct LocationBottomSheet: View {
                         Circle()
                             .fill(Color.clear)
                             .frame(width: 40, height: 40)
-                            .liquidGlass(in: Circle(), interactive: false)
+                            .momentsChromeGlass(in: Circle(), interactive: false)
 
                         Image(systemName: "mappin.circle.fill")
                             .font(.system(size: 22, weight: .semibold))
@@ -158,7 +158,7 @@ struct LocationBottomSheet: View {
         .padding(4)
         .background(
             Color.clear
-                .liquidGlass(in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                .momentsChromeGlass(in: RoundedRectangle(cornerRadius: 14, style: .continuous))
                 .overlay(
                     RoundedRectangle(cornerRadius: 14, style: .continuous)
                         .stroke(
@@ -196,7 +196,7 @@ struct LocationBottomSheet: View {
                     .background(
                         Circle()
                             .fill(Color.clear)
-                            .liquidGlass(in: Circle(), interactive: false)
+                            .momentsChromeGlass(in: Circle(), interactive: false)
                     )
                     .overlay(
                         Circle()
@@ -276,7 +276,7 @@ struct LocationBottomSheet: View {
             ZStack {
                 Color.clear
                     .frame(width: 80, height: 80)
-                    .liquidGlass(in: Circle())
+                    .momentsChromeGlass(in: Circle())
                     .overlay(
                         Circle()
                             .stroke(
@@ -315,7 +315,7 @@ struct LocationBottomSheet: View {
             ZStack {
                 Color.clear
                     .frame(width: 100, height: 100)
-                    .liquidGlass(in: Circle())
+                    .momentsChromeGlass(in: Circle())
                     .overlay(
                         Circle()
                             .stroke(

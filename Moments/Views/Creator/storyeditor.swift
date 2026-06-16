@@ -695,7 +695,7 @@ struct StoryEditingView: View {
                             .foregroundColor(chromeIconColor)
                             .padding(.horizontal, 16)
                             .padding(.vertical, 8)
-                            .liquidGlass(in: Capsule())
+                            .momentsChromeGlass(in: Capsule())
                     }
                 }
                 .frame(maxWidth: .infinity)
@@ -717,7 +717,7 @@ struct StoryEditingView: View {
                         .foregroundColor(chromeIconColor)
                         .padding(.horizontal, 12)
                         .padding(.vertical, 9)
-                        .liquidGlass(in: Capsule(), interactive: true)
+                        .momentsChromeGlass(in: Capsule(), interactive: true)
                     }
                 }
             }
@@ -740,7 +740,7 @@ struct StoryEditingView: View {
                             .font(.title2)
                             .foregroundColor(chromeIconColor)
                             .padding(12)
-                            .liquidGlass(in: Circle())
+                            .momentsChromeGlass(in: Circle())
                     }
                     Spacer()
                     if isFilterMode {
@@ -754,7 +754,7 @@ struct StoryEditingView: View {
                                 .foregroundColor(chromeIconColor)
                                 .padding(.horizontal, 14)
                                 .padding(.vertical, 8)
-                                .liquidGlass(in: Capsule())
+                                .momentsChromeGlass(in: Capsule())
                         }
                     } else {
                         Button(action: { saveToGallery() }) {
@@ -762,7 +762,7 @@ struct StoryEditingView: View {
                                 .font(.title2)
                                 .foregroundColor(chromeIconColor)
                                 .padding(12)
-                                .liquidGlass(in: Circle())
+                                .momentsChromeGlass(in: Circle())
                         }
                     }
                 }
@@ -784,7 +784,7 @@ struct StoryEditingView: View {
                         .foregroundColor(chromeIconColor)
                         .padding(.horizontal, 12)
                         .padding(.vertical, 9)
-                        .liquidGlass(in: Capsule(), interactive: true)
+                        .momentsChromeGlass(in: Capsule(), interactive: true)
                     }
                 } else if showsBackgroundPaletteButton {
                     Button(action: cycleBackgroundPreset) {
@@ -803,7 +803,7 @@ struct StoryEditingView: View {
                         .foregroundColor(chromeIconColor)
                         .padding(.horizontal, 12)
                         .padding(.vertical, 9)
-                        .liquidGlass(in: Capsule(), interactive: true)
+                        .momentsChromeGlass(in: Capsule(), interactive: true)
                     }
                 }
             }
@@ -864,7 +864,7 @@ struct StoryEditingView: View {
             }
         }
         .frame(maxWidth: 320)
-        .liquidGlass(in: RoundedRectangle(cornerRadius: storyViewerCanvasCornerRadius, style: .continuous))
+        .momentsChromeGlass(in: RoundedRectangle(cornerRadius: storyViewerCanvasCornerRadius, style: .continuous))
         .shadow(color: .black.opacity(colorScheme == .dark ? 0.24 : 0.12), radius: 24, x: 0, y: 12)
         .padding(.horizontal, 24)
         .transition(.scale(scale: 0.94).combined(with: .opacity))
@@ -900,7 +900,7 @@ struct StoryEditingView: View {
                         .font(.system(size: 20))
                         .foregroundColor(isFilterMode ? .pink : chromeIconColor)
                         .frame(width: 44, height: 44)
-                        .liquidGlass(in: Circle())
+                        .momentsChromeGlass(in: Circle())
                         .overlay(Circle().stroke(isFilterMode ? Color.pink : Color.clear, lineWidth: 1))
                 }
 
@@ -912,7 +912,7 @@ struct StoryEditingView: View {
                             .font(.system(size: 18, weight: .semibold))
                             .foregroundColor(chromeIconColor)
                             .frame(width: 44, height: 44)
-                            .liquidGlass(in: Circle())
+                            .momentsChromeGlass(in: Circle())
                     }
                 }
 
@@ -924,7 +924,7 @@ struct StoryEditingView: View {
                             .font(.system(size: 20))
                             .foregroundColor(isCreatingChain ? .blue : chromeIconColor)
                             .frame(width: 44, height: 44)
-                            .liquidGlass(in: Circle())
+                            .momentsChromeGlass(in: Circle())
                             .overlay(Circle().stroke(isCreatingChain ? Color.blue : Color.clear, lineWidth: 1))
                     }
                 }
@@ -937,7 +937,7 @@ struct StoryEditingView: View {
                             .font(.system(size: 14, weight: .bold))
                             .foregroundColor(chromeIconColor)
                             .frame(width: 44, height: 44)
-                            .liquidGlass(in: Circle())
+                            .momentsChromeGlass(in: Circle())
                     }
                     .simultaneousGesture(
                         LongPressGesture(minimumDuration: 0.45).onEnded { _ in
@@ -1026,7 +1026,7 @@ struct StoryEditingView: View {
         .padding(.horizontal, 16)
         .padding(.vertical, 14)
         .frame(maxWidth: 260, alignment: .leading)
-        .liquidGlass(in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+        .momentsChromeGlass(in: RoundedRectangle(cornerRadius: 22, style: .continuous))
         .shadow(color: .black.opacity(colorScheme == .dark ? 0.24 : 0.12), radius: 20, x: 0, y: 10)
         .onTapGesture {
             // Consume taps inside the card so only outside taps dismiss it.
@@ -1070,7 +1070,7 @@ struct StoryEditingView: View {
                             .frame(maxWidth: .infinity)
                             .padding(.horizontal, 18)
                             .padding(.vertical, 14)
-                            .liquidGlass(in: Capsule(), interactive: true)
+                            .momentsChromeGlass(in: Capsule(), interactive: true)
                         } else if isContinuingChain {
                             HStack(spacing: 10) {
                                 Image(systemName: "link")
@@ -1094,7 +1094,7 @@ struct StoryEditingView: View {
                             .foregroundColor(colorScheme == .dark ? .white : .black)
                             .padding(.horizontal, 18)
                             .padding(.vertical, 14)
-                            .liquidGlass(in: Capsule(), interactive: false)
+                            .momentsChromeGlass(in: Capsule(), interactive: false)
                         } else if !isContinuingChain {
                             Button(action: {
                                 if !isLoadingUserSettings {
@@ -1124,7 +1124,7 @@ struct StoryEditingView: View {
                                 .foregroundColor(colorScheme == .dark ? .white : .black)
                                 .padding(.horizontal, 18)
                                 .padding(.vertical, 14)
-                                .liquidGlass(in: Capsule(), interactive: true)
+                                .momentsChromeGlass(in: Capsule(), interactive: true)
                             }
                             .frame(maxWidth: .infinity)
                         }
@@ -1153,7 +1153,7 @@ struct StoryEditingView: View {
                                 .foregroundColor(chromeIconColor)
                                 .padding(.horizontal, 8)
                                 .padding(.vertical, 2)
-                                .liquidGlass(in: Capsule())
+                                .momentsChromeGlass(in: Capsule())
 
                             Slider(value: $filterIntensity, in: 0...1.0)
                                 .tint(chromeIconColor)
@@ -1214,7 +1214,7 @@ struct StoryEditingView: View {
             .foregroundColor(chromeIconColor.opacity(0.86))
             .padding(.horizontal, 12)
             .padding(.vertical, 9)
-            .liquidGlass(in: RoundedRectangle(cornerRadius: 14, style: .continuous), interactive: false)
+            .momentsChromeGlass(in: RoundedRectangle(cornerRadius: 14, style: .continuous), interactive: false)
         }
     }
 
@@ -1314,7 +1314,7 @@ struct StoryEditingView: View {
                 .foregroundColor(colorScheme == .dark ? .white : .black)
                 .frame(width: 54, height: 48)
                 .opacity(isLoadingUserSettings ? 0.5 : 1.0)
-                .liquidGlass(in: Capsule(), interactive: true)
+                .momentsChromeGlass(in: Capsule(), interactive: true)
             }
             .disabled(isPublishing || isLoadingUserSettings)
         } else {

@@ -96,7 +96,7 @@ struct ModernShareBottomSheet: View {
                 }
                 .background(
                     Color.clear
-                        .liquidGlass(in: RoundedRectangle(cornerRadius: 32, style: .continuous))
+                        .momentsChromeGlass(in: RoundedRectangle(cornerRadius: 32, style: .continuous))
                 )
                 .shadow(color: .black.opacity(0.3), radius: 20, x: 0, y: 10)
                 .padding(.horizontal, 12)
@@ -484,7 +484,7 @@ struct ModernShareSheet: View {
             }
             .padding(.horizontal, 16)
             .frame(height: 56)
-            .liquidGlass(in: Capsule(), interactive: true)
+            .momentsChromeGlass(in: Capsule(), interactive: true)
             .padding(.horizontal, 20)
             .padding(.bottom, 16)
             

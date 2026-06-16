@@ -144,7 +144,7 @@ struct ContentTypeSelectionView: View {
                     .font(.system(size: 20, weight: .semibold))
                     .foregroundColor(.white)
                     .frame(width: 44, height: 44)
-                    .liquidGlass(in: Circle(), interactive: true)
+                    .momentsChromeGlass(in: Circle(), interactive: true)
             }
             .padding(.leading)
 
@@ -239,7 +239,7 @@ struct ContentTypeSelectionView: View {
                 Capsule()
                     .fill(Color.white.opacity(0.055))
                     .frame(width: dialPillWidth, height: dialPillHeight)
-                    .liquidGlass(in: Capsule(), interactive: true)
+                    .momentsChromeGlass(in: Capsule(), interactive: true)
                     .shadow(color: .black.opacity(0.26), radius: 7, x: 0, y: 2)
                     .offset(x: dialPillOffset)
 
