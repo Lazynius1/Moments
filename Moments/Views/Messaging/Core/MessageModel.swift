@@ -500,6 +500,15 @@ class EnhancedMessage: Codable, Identifiable, ObservableObject {
     let fileSize: Int64?
     let latitude: Double?
     let longitude: Double?
+    // ✅ NUEVO: Ubicación (fija + en vivo)
+    let locationName: String?
+    let locationAddress: String?
+    let isLiveLocation: Bool?
+    let liveLocationExpiresAt: Date?
+    let liveLocationDuration: String?
+    var liveLocationStoppedAt: Date?
+    let liveLocationSessionId: String?
+    let locationUpdatedAt: Date?
     let timestamp: Date
     @Published var status: MessageStatus
     @Published var isRead: Bool
@@ -526,6 +535,10 @@ class EnhancedMessage: Codable, Identifiable, ObservableObject {
         case replyTo, expirationDate, isViewed, storyReplyData, sharedMomentData, sharedStoryData
         case mediaBatchId
         case viewedBy // ✅ NUEVO
+        // ✅ NUEVO: Ubicación (fija + en vivo)
+        case locationName, locationAddress
+        case isLiveLocation, liveLocationExpiresAt, liveLocationDuration
+        case liveLocationStoppedAt, liveLocationSessionId, locationUpdatedAt
     }
     
     required init(from decoder: Decoder) throws {
@@ -554,6 +567,28 @@ class EnhancedMessage: Codable, Identifiable, ObservableObject {
         self.fileSize = try container.decodeIfPresent(Int64.self, forKey: .fileSize)
         self.latitude = try container.decodeIfPresent(Double.self, forKey: .latitude)
         self.longitude = try container.decodeIfPresent(Double.self, forKey: .longitude)
+
+        // ✅ NUEVO: Ubicación (fija + en vivo)
+        self.locationName = try container.decodeIfPresent(String.self, forKey: .locationName)
+        self.locationAddress = try container.decodeIfPresent(String.self, forKey: .locationAddress)
+        self.isLiveLocation = try container.decodeIfPresent(Bool.self, forKey: .isLiveLocation)
+        self.liveLocationDuration = try container.decodeIfPresent(String.self, forKey: .liveLocationDuration)
+        self.liveLocationSessionId = try container.decodeIfPresent(String.self, forKey: .liveLocationSessionId)
+        if let expiresAt = try container.decodeIfPresent(Timestamp.self, forKey: .liveLocationExpiresAt) {
+            self.liveLocationExpiresAt = expiresAt.dateValue()
+        } else {
+            self.liveLocationExpiresAt = nil
+        }
+        if let stoppedAt = try container.decodeIfPresent(Timestamp.self, forKey: .liveLocationStoppedAt) {
+            self.liveLocationStoppedAt = stoppedAt.dateValue()
+        } else {
+            self.liveLocationStoppedAt = nil
+        }
+        if let updatedAt = try container.decodeIfPresent(Timestamp.self, forKey: .locationUpdatedAt) {
+            self.locationUpdatedAt = updatedAt.dateValue()
+        } else {
+            self.locationUpdatedAt = nil
+        }
         
         if let timestamp = try container.decodeIfPresent(Timestamp.self, forKey: .timestamp) {
             self.timestamp = timestamp.dateValue()
@@ -623,6 +658,21 @@ class EnhancedMessage: Codable, Identifiable, ObservableObject {
         try container.encodeIfPresent(fileSize, forKey: .fileSize)
         try container.encodeIfPresent(latitude, forKey: .latitude)
         try container.encodeIfPresent(longitude, forKey: .longitude)
+        // ✅ NUEVO: Ubicación (fija + en vivo)
+        try container.encodeIfPresent(locationName, forKey: .locationName)
+        try container.encodeIfPresent(locationAddress, forKey: .locationAddress)
+        try container.encodeIfPresent(isLiveLocation, forKey: .isLiveLocation)
+        try container.encodeIfPresent(liveLocationDuration, forKey: .liveLocationDuration)
+        try container.encodeIfPresent(liveLocationSessionId, forKey: .liveLocationSessionId)
+        if let liveLocationExpiresAt {
+            try container.encode(Timestamp(date: liveLocationExpiresAt), forKey: .liveLocationExpiresAt)
+        }
+        if let liveLocationStoppedAt {
+            try container.encode(Timestamp(date: liveLocationStoppedAt), forKey: .liveLocationStoppedAt)
+        }
+        if let locationUpdatedAt {
+            try container.encode(Timestamp(date: locationUpdatedAt), forKey: .locationUpdatedAt)
+        }
         try container.encode(Timestamp(date: timestamp), forKey: .timestamp)
         try container.encode(status.rawValue, forKey: .status)
         try container.encode(isRead, forKey: .isRead)
@@ -669,6 +719,14 @@ class EnhancedMessage: Codable, Identifiable, ObservableObject {
          fileSize: Int64? = nil,
          latitude: Double? = nil,
          longitude: Double? = nil,
+         locationName: String? = nil,
+         locationAddress: String? = nil,
+         isLiveLocation: Bool? = nil,
+         liveLocationExpiresAt: Date? = nil,
+         liveLocationDuration: String? = nil,
+         liveLocationStoppedAt: Date? = nil,
+         liveLocationSessionId: String? = nil,
+         locationUpdatedAt: Date? = nil,
          timestamp: Date = Date(),
          status: MessageStatus = .sending,
          isRead: Bool = false,
@@ -701,6 +759,14 @@ class EnhancedMessage: Codable, Identifiable, ObservableObject {
         self.fileSize = fileSize
         self.latitude = latitude
         self.longitude = longitude
+        self.locationName = locationName
+        self.locationAddress = locationAddress
+        self.isLiveLocation = isLiveLocation
+        self.liveLocationExpiresAt = liveLocationExpiresAt
+        self.liveLocationDuration = liveLocationDuration
+        self.liveLocationStoppedAt = liveLocationStoppedAt
+        self.liveLocationSessionId = liveLocationSessionId
+        self.locationUpdatedAt = locationUpdatedAt
         self.timestamp = timestamp
         self.status = status
         self.isRead = isRead
@@ -721,6 +787,20 @@ class EnhancedMessage: Codable, Identifiable, ObservableObject {
     var isExpired: Bool {
         guard let expirationDate = expirationDate else { return false }
         return Date() > expirationDate
+    }
+
+    // ✅ NUEVO: Estado de ubicación en vivo
+    /// `true` si el mensaje es una sesión de ubicación en vivo (independiente de si sigue activa).
+    var isLiveLocationMessage: Bool {
+        return type == .location && (isLiveLocation ?? false)
+    }
+
+    /// `true` si la sesión live sigue activa (no parada manualmente y no expirada).
+    var isLiveLocationActive: Bool {
+        guard isLiveLocationMessage else { return false }
+        if liveLocationStoppedAt != nil { return false }
+        if let expiresAt = liveLocationExpiresAt, Date() >= expiresAt { return false }
+        return true
     }
     
     // ✅ ACTUALIZADA: Preview mejorado con support para view-once

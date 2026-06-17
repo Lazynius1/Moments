@@ -65,6 +65,10 @@ extension AdaptiveColors {
         colorScheme == .dark ? Color.purple : Color.blue
     }
 
+    var accentColorRed: Color {
+        Color(hex: "FF3B30")
+    }
+
     var receivedAccentColor: Color {
         colorScheme == .dark ? Color.white.opacity(0.4) : Color.black.opacity(0.2)
     }

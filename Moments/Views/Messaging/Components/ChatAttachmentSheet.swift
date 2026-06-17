@@ -40,14 +40,17 @@ private enum ChatDeviceCornerRadius {
 enum ChatAttachmentSheetKind: Identifiable, Equatable {
     case menu
     case photos
+    case gif
+    case sticker
+    case location
 
     var id: Self { self }
 }
 
-private enum ChatAttachmentSheetMetrics {
+enum ChatAttachmentSheetMetrics {
     static let horizontalInset: CGFloat = 10
     static let cornerRadius: CGFloat = 24
-    static let menuPopoverTitleKeys = ["nova.attach.camera", "nova.attach.photos"]
+    static let menuPopoverTitleKeys = ["nova.attach.camera", "nova.attach.photos", "chat.attach.gif", "chat.attach.sticker", "chat.attach.location"]
     static let menuPopoverTextExtraMargin: CGFloat = 20
     static let menuPopoverMinWidth: CGFloat = 168
     /// Clearance between popover bottom edge and the top of the + button.
@@ -66,7 +69,7 @@ private enum ChatAttachmentMenuPopoverLayout {
     static let cardHorizontalPadding: CGFloat = 24
     static let cardVerticalPadding: CGFloat = 20
     static let rowVerticalPadding: CGFloat = 16
-    static let rowCount: CGFloat = 2
+    static let rowCount: CGFloat = 5
 
     static var titleFont: UIFont {
         UIFont(name: "Poppins-Medium", size: 17)
@@ -291,11 +294,22 @@ private struct ChatAttachmentMenuPopoverCard: View {
             menuRow(
                 systemImage: "photo.on.rectangle",
                 titleKey: "nova.attach.photos",
-                action: {
-                    withAnimation(.spring(response: 0.38, dampingFraction: 0.86)) {
-                        isPresented = .photos
-                    }
-                }
+                action: { present(.photos) }
+            )
+            menuRow(
+                systemImage: "rectangle.stack.badge.play",
+                titleKey: "chat.attach.gif",
+                action: { present(.gif) }
+            )
+            menuRow(
+                assetImage: "MomentsStickerTool",
+                titleKey: "chat.attach.sticker",
+                action: { present(.sticker) }
+            )
+            menuRow(
+                systemImage: "location",
+                titleKey: "chat.attach.location",
+                action: { present(.location) }
             )
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -306,7 +320,13 @@ private struct ChatAttachmentMenuPopoverCard: View {
         .shadow(color: .black.opacity(colorScheme == .dark ? 0.24 : 0.12), radius: 24, x: 0, y: 12)
     }
 
-    private func menuRow(systemImage: String, titleKey: String, action: @escaping () -> Void) -> some View {
+    private func present(_ kind: ChatAttachmentSheetKind) {
+        withAnimation(.spring(response: 0.38, dampingFraction: 0.86)) {
+            isPresented = kind
+        }
+    }
+
+    private func menuRow(systemImage: String? = nil, assetImage: String? = nil, titleKey: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             HStack(alignment: .center, spacing: 14) {
                 ZStack {
@@ -314,9 +334,18 @@ private struct ChatAttachmentMenuPopoverCard: View {
                         .fill(iconCircleFill)
                         .frame(width: 40, height: 40)
 
-                    Image(systemName: systemImage)
-                        .font(.system(size: 18, weight: .regular))
-                        .foregroundColor(primaryTextColor)
+                    if let assetImage {
+                        Image(assetImage)
+                            .renderingMode(.template)
+                            .resizable()
+                            .scaledToFit()
+                            .frame(width: 22, height: 22)
+                            .foregroundColor(primaryTextColor)
+                    } else {
+                        Image(systemName: systemImage ?? "questionmark")
+                            .font(.system(size: 18, weight: .regular))
+                            .foregroundColor(primaryTextColor)
+                    }
                 }
                 .frame(width: 40, height: 40, alignment: .center)
 
@@ -418,7 +447,7 @@ struct ChatAttachmentMediaSheetOverlay: View {
     }
 }
 
-private struct ChatAttachmentSheetSurface<Content: View>: View {
+struct ChatAttachmentSheetSurface<Content: View>: View {
     let height: CGFloat
     @ViewBuilder let content: () -> Content
 
@@ -442,7 +471,7 @@ private struct ChatAttachmentSheetSurface<Content: View>: View {
     }
 }
 
-private struct ChatAttachmentSheetCanvasBackground: View {
+struct ChatAttachmentSheetCanvasBackground: View {
     @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
@@ -685,8 +714,9 @@ private struct ChatAttachmentMediaCell: View {
 
     var body: some View {
         Button(action: onTap) {
-            GeometryReader { geo in
-                ZStack(alignment: .bottomTrailing) {
+            Color.clear
+                .aspectRatio(1, contentMode: .fit)
+                .overlay {
                     Group {
                         if let thumbnail {
                             Image(uiImage: thumbnail)
@@ -695,19 +725,16 @@ private struct ChatAttachmentMediaCell: View {
                         } else {
                             Rectangle()
                                 .fill(colorScheme == .dark ? Color.white.opacity(0.08) : Color.black.opacity(0.06))
-                                .overlay {
-                                    ProgressView()
-                                }
+                                .overlay { ProgressView() }
                         }
                     }
-                    .frame(width: geo.size.width, height: geo.size.width)
-                    .clipped()
-
+                }
+                .overlay {
                     if selectionIndex != nil {
                         Color.black.opacity(colorScheme == .dark ? 0.42 : 0.28)
-                            .frame(width: geo.size.width, height: geo.size.width)
                     }
-
+                }
+                .overlay(alignment: .bottomLeading) {
                     if isVideo {
                         HStack(spacing: 4) {
                             Image(systemName: "play.fill")
@@ -720,10 +747,10 @@ private struct ChatAttachmentMediaCell: View {
                         .padding(.vertical, 4)
                         .background(Color.black.opacity(0.55))
                         .clipShape(Capsule())
-                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
                         .padding(6)
                     }
-
+                }
+                .overlay(alignment: .bottomTrailing) {
                     if let selectionIndex {
                         Circle()
                             .fill(Color(hex: "007AFF"))
@@ -736,8 +763,8 @@ private struct ChatAttachmentMediaCell: View {
                             .padding(8)
                     }
                 }
-            }
-            .aspectRatio(1, contentMode: .fit)
+                .clipped()
+                .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .onAppear(perform: onAppear)
@@ -751,7 +778,7 @@ private struct ChatAttachmentMediaCell: View {
     }
 }
 
-private struct ChatAttachmentPermissionPrompt: View {
+struct ChatAttachmentPermissionPrompt: View {
     let messageKey: String
     @Environment(\.colorScheme) private var colorScheme
 
@@ -767,7 +794,7 @@ private struct ChatAttachmentPermissionPrompt: View {
 
 // MARK: - Footer chrome
 
-private struct ChatAttachmentGlassStack<Content: View>: View {
+struct ChatAttachmentGlassStack<Content: View>: View {
     enum Axis {
         case horizontal
         case vertical
@@ -800,7 +827,7 @@ private struct ChatAttachmentGlassStack<Content: View>: View {
     }
 }
 
-private struct ChatAttachmentRoundButton: View {
+struct ChatAttachmentRoundButton: View {
     @Environment(\.colorScheme) private var colorScheme
 
     let systemImage: String
@@ -836,7 +863,7 @@ private struct ChatAttachmentRoundButton: View {
     }
 }
 
-private struct ChatAttachmentPillButton: View {
+struct ChatAttachmentPillButton: View {
     @Environment(\.colorScheme) private var colorScheme
 
     var titleKey: String? = nil

@@ -385,33 +385,172 @@ class ChatService: ObservableObject {
     }
     
     func sendLocationMessage(conversationId: String, senderId: String, latitude: Double, longitude: Double, messageId: String? = nil, completion: @escaping (Result<EnhancedMessage, Error>) -> Void) {
-        let finalMessageId = messageId ?? UUID().uuidString
-        let message = EnhancedMessage(
-            id: finalMessageId,
+        sendStaticLocationMessage(
             conversationId: conversationId,
             senderId: senderId,
-            type: .location,
-            content: nil, // No text content to encrypt
-            mediaUrl: nil,
-            thumbnailUrl: nil,
-            duration: nil,
-            fileName: nil,
-            fileSize: nil,
-            latitude: latitude, // Coordinates are not encrypted
+            latitude: latitude,
             longitude: longitude,
-            timestamp: Date(),
-            status: .sending,
-            isRead: false,
-            isDeleted: false,
-            deletedAt: nil,
-            editedAt: nil,
-            reactions: nil,
-            replyTo: nil,
-            expirationDate: nil,
-            isViewed: false
+            name: nil,
+            address: nil,
+            messageId: messageId,
+            completion: completion
         )
-        
-        sendMessage(message, useServerTimestamp: true, completion: completion)
+    }
+
+    // ✅ NUEVO: ubicación fija con nombre/dirección opcionales (coordenadas cifradas E2E en `content`)
+    func sendStaticLocationMessage(
+        conversationId: String,
+        senderId: String,
+        latitude: Double,
+        longitude: Double,
+        name: String?,
+        address: String?,
+        messageId: String? = nil,
+        completion: @escaping (Result<EnhancedMessage, Error>) -> Void
+    ) {
+        let finalMessageId = messageId ?? UUID().uuidString
+
+        // 🔐 Cifrar las coordenadas + lugar igual que el texto
+        Task {
+            let payload = ChatLocationPayload(lat: latitude, lng: longitude, name: name, address: address)
+            let encryptedContent = await encryptMessageContent(payload.encodedJSON() ?? "", for: conversationId)
+
+            let message = EnhancedMessage(
+                id: finalMessageId,
+                conversationId: conversationId,
+                senderId: senderId,
+                type: .location,
+                content: encryptedContent, // Coordenadas cifradas (no en texto plano)
+                isLiveLocation: false,
+                timestamp: Date(),
+                status: .sending,
+                isRead: false,
+                isDeleted: false,
+                isViewed: false
+            )
+
+            sendMessage(message, useServerTimestamp: true, completion: completion)
+        }
+    }
+
+    // ✅ NUEVO: crear mensaje de ubicación en vivo (coordenadas cifradas E2E en `content`)
+    func sendLiveLocationMessage(
+        conversationId: String,
+        senderId: String,
+        latitude: Double,
+        longitude: Double,
+        name: String?,
+        address: String?,
+        duration: LiveLocationDuration,
+        sessionId: String,
+        expiresAt: Date,
+        messageId: String? = nil,
+        completion: @escaping (Result<EnhancedMessage, Error>) -> Void
+    ) {
+        let finalMessageId = messageId ?? UUID().uuidString
+
+        Task {
+            let payload = ChatLocationPayload(lat: latitude, lng: longitude, name: name, address: address)
+            let encryptedContent = await encryptMessageContent(payload.encodedJSON() ?? "", for: conversationId)
+
+            let message = EnhancedMessage(
+                id: finalMessageId,
+                conversationId: conversationId,
+                senderId: senderId,
+                type: .location,
+                content: encryptedContent,
+                isLiveLocation: true,
+                liveLocationExpiresAt: expiresAt,
+                liveLocationDuration: duration.firestoreValue,
+                liveLocationSessionId: sessionId,
+                locationUpdatedAt: Date(),
+                timestamp: Date(),
+                status: .sending,
+                isRead: false,
+                isDeleted: false,
+                isViewed: false
+            )
+
+            sendMessage(message, useServerTimestamp: true, completion: completion)
+        }
+    }
+
+    // ✅ NUEVO: patch de posición para ubicación en vivo (coordenadas cifradas en `content`)
+    func updateLiveLocationMessage(
+        conversationId: String,
+        messageId: String,
+        latitude: Double,
+        longitude: Double,
+        completion: ((Error?) -> Void)? = nil
+    ) {
+        let ref = db.collection("conversations")
+            .document(conversationId)
+            .collection("messages")
+            .document(messageId)
+        Task {
+            let payload = ChatLocationPayload(lat: latitude, lng: longitude)
+            let encryptedContent = await encryptMessageContent(payload.encodedJSON() ?? "", for: conversationId)
+            ref.updateData([
+                "content": encryptedContent,
+                "locationUpdatedAt": FieldValue.serverTimestamp()
+            ]) { error in
+                completion?(error)
+            }
+        }
+    }
+
+    // ✅ NUEVO: detener sesión de ubicación en vivo
+    func stopLiveLocationMessage(
+        conversationId: String,
+        messageId: String,
+        completion: ((Error?) -> Void)? = nil
+    ) {
+        let ref = db.collection("conversations")
+            .document(conversationId)
+            .collection("messages")
+            .document(messageId)
+        ref.updateData([
+            "liveLocationStoppedAt": FieldValue.serverTimestamp()
+        ]) { error in
+            completion?(error)
+        }
+    }
+
+    /// Estado real (servidor) de un mensaje de ubicación en vivo.
+    struct LiveLocationStatus {
+        let exists: Bool
+        let senderId: String?
+        /// `true` si ya no debe seguir publicándose (detenida, caducada o ya no es live).
+        let isStopped: Bool
+        let expiresAt: Date?
+    }
+
+    /// Lee desde Firestore el estado actual de una sesión de ubicación en vivo,
+    /// para validar antes de reanudar tras reabrir la app.
+    func fetchLiveLocationStatus(conversationId: String, messageId: String) async -> LiveLocationStatus? {
+        let ref = db.collection("conversations")
+            .document(conversationId)
+            .collection("messages")
+            .document(messageId)
+        do {
+            let snapshot = try await ref.getDocument()
+            guard snapshot.exists, let data = snapshot.data() else {
+                return LiveLocationStatus(exists: false, senderId: nil, isStopped: true, expiresAt: nil)
+            }
+            let senderId = data["senderId"] as? String
+            let isLive = data["isLiveLocation"] as? Bool ?? false
+            let stopped = data["liveLocationStoppedAt"] != nil
+            let expiresAt = (data["liveLocationExpiresAt"] as? Timestamp)?.dateValue()
+            return LiveLocationStatus(
+                exists: true,
+                senderId: senderId,
+                isStopped: stopped || !isLive,
+                expiresAt: expiresAt
+            )
+        } catch {
+            // Error de red u otro: devolvemos nil para no decidir a ciegas.
+            return nil
+        }
     }
     
     func sendAudioMessage(conversationId: String, senderId: String, audioData: Data, duration: Double, messageId: String? = nil, completion: @escaping (Result<EnhancedMessage, Error>) -> Void) {
@@ -540,6 +679,28 @@ class ChatService: ObservableObject {
         }
         if let longitude = message.longitude {
             messageData["longitude"] = longitude
+        }
+        // ✅ NUEVO: Ubicación (fija + en vivo)
+        if let locationName = message.locationName {
+            messageData["locationName"] = locationName
+        }
+        if let locationAddress = message.locationAddress {
+            messageData["locationAddress"] = locationAddress
+        }
+        if let isLiveLocation = message.isLiveLocation {
+            messageData["isLiveLocation"] = isLiveLocation
+        }
+        if let liveLocationExpiresAt = message.liveLocationExpiresAt {
+            messageData["liveLocationExpiresAt"] = Timestamp(date: liveLocationExpiresAt)
+        }
+        if let liveLocationDuration = message.liveLocationDuration {
+            messageData["liveLocationDuration"] = liveLocationDuration
+        }
+        if let liveLocationSessionId = message.liveLocationSessionId {
+            messageData["liveLocationSessionId"] = liveLocationSessionId
+        }
+        if let locationUpdatedAt = message.locationUpdatedAt {
+            messageData["locationUpdatedAt"] = Timestamp(date: locationUpdatedAt)
         }
         if let replyTo = message.replyTo {
             messageData["replyTo"] = replyTo

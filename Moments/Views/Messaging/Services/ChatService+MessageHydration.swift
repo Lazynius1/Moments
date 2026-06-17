@@ -50,13 +50,32 @@ extension ChatService {
         let type = MessageType(rawValue: typeString) ?? .text
 
         let rawContent = data["content"] as? String
-        let content: String?
+        let decryptedContent: String?
         if let decryptedContentOverride {
-            content = decryptedContentOverride
+            decryptedContent = decryptedContentOverride
         } else if let rawContent {
-            content = await decryptMessageContent(rawContent, for: conversationId)
+            decryptedContent = await decryptMessageContent(rawContent, for: conversationId)
         } else {
-            content = rawContent
+            decryptedContent = rawContent
+        }
+
+        // ✅ Ubicación: las coordenadas viajan cifradas dentro de `content`.
+        // Decodificamos el payload y NO exponemos el JSON como texto del mensaje.
+        var locationLatitude = data["latitude"] as? Double
+        var locationLongitude = data["longitude"] as? Double
+        var locationName = data["locationName"] as? String
+        var locationAddress = data["locationAddress"] as? String
+        let content: String?
+        if type == .location {
+            if let decryptedContent, let payload = ChatLocationPayload.decode(decryptedContent) {
+                locationLatitude = payload.lat
+                locationLongitude = payload.lng
+                locationName = payload.name ?? locationName
+                locationAddress = payload.address ?? locationAddress
+            }
+            content = nil
+        } else {
+            content = decryptedContent
         }
 
         let mediaObjectPath = data["mediaObjectPath"] as? String
@@ -96,8 +115,16 @@ extension ChatService {
             duration: data["duration"] as? Double,
             fileName: data["fileName"] as? String,
             fileSize: data["fileSize"] as? Int64,
-            latitude: data["latitude"] as? Double,
-            longitude: data["longitude"] as? Double,
+            latitude: locationLatitude,
+            longitude: locationLongitude,
+            locationName: locationName,
+            locationAddress: locationAddress,
+            isLiveLocation: data["isLiveLocation"] as? Bool,
+            liveLocationExpiresAt: (data["liveLocationExpiresAt"] as? Timestamp)?.dateValue(),
+            liveLocationDuration: data["liveLocationDuration"] as? String,
+            liveLocationStoppedAt: (data["liveLocationStoppedAt"] as? Timestamp)?.dateValue(),
+            liveLocationSessionId: data["liveLocationSessionId"] as? String,
+            locationUpdatedAt: (data["locationUpdatedAt"] as? Timestamp)?.dateValue(),
             timestamp: (data["timestamp"] as? Timestamp)?.dateValue() ?? Date(),
             status: MessageStatus(rawValue: data["status"] as? String ?? MessageStatus.sent.rawValue) ?? .sent,
             isRead: data["isRead"] as? Bool ?? false,

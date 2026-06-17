@@ -36,6 +36,7 @@ struct GlassmorphicChatView: View {
     @State private var showEnhancedCamera = false
     @State private var activeAttachmentSheet: ChatAttachmentSheetKind?
     @State private var plusButtonAnchorFrame: CGRect = .zero
+    @ObservedObject private var liveLocationService = LiveLocationSharingService.shared
     @State private var replyingTo: EnhancedMessage?
     @State private var clusterForReply: [EnhancedMessage]? = nil // ✅ New: Selection grid for clusters
     @State private var editingMessage: EnhancedMessage?
@@ -252,6 +253,35 @@ struct GlassmorphicChatView: View {
                     }
                 }
             )
+
+            ChatGiphyPickerSheetOverlay(
+                activeSheet: $activeAttachmentSheet,
+                accentColor: adaptiveColors.userAccentColor,
+                onSelect: { asset in
+                    viewModel.sendGif(from: asset)
+                }
+            )
+
+            ChatStickerPickerSheetOverlay(
+                activeSheet: $activeAttachmentSheet,
+                accentColor: adaptiveColors.userAccentColor,
+                onSelect: { asset in
+                    viewModel.sendSticker(from: asset)
+                }
+            )
+
+            ChatLocationSheetOverlay(
+                activeSheet: $activeAttachmentSheet,
+                accentColor: adaptiveColors.userAccentColor,
+                onSendStatic: { coordinate, name, address in
+                    viewModel.sendStaticLocation(coordinate: coordinate, name: name, address: address)
+                },
+                onStartLive: { duration in
+                    viewModel.startLiveLocation(duration: duration)
+                }
+            )
+
+            liveLocationBanner
         }
         .overlay(
             Group {
@@ -329,6 +359,47 @@ struct GlassmorphicChatView: View {
         )
     }
     
+    // MARK: - Banner de ubicación en vivo activa
+
+    @ViewBuilder
+    private var liveLocationBanner: some View {
+        if let session = liveLocationService.activeSession,
+           session.conversationId == viewModel.conversation.id {
+            VStack {
+                HStack(spacing: 10) {
+                    Image(systemName: "dot.radiowaves.left.and.right")
+                        .foregroundColor(.green)
+                    Text("chat.location.liveSharing")
+                        .font(.custom("Poppins-Medium", size: 14))
+                        .foregroundColor(.white)
+                    Spacer()
+                    Button {
+                        viewModel.stopLiveLocation(messageId: session.messageId)
+                    } label: {
+                        Text("chat.location.stopSharing")
+                            .font(.custom("Poppins-SemiBold", size: 13))
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 6)
+                            .background(Color.red)
+                            .clipShape(Capsule())
+                    }
+                    .buttonStyle(.plain)
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 12)
+                .background(Color.black.opacity(0.7))
+                .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                .padding(.horizontal, 16)
+                .padding(.top, 8)
+
+                Spacer()
+            }
+            .transition(.move(edge: .top).combined(with: .opacity))
+            .zIndex(46)
+        }
+    }
+
     // MARK: - Toolbar nativo (scroll edge blur del sistema en iOS 26)
 
     @ToolbarContentBuilder
@@ -472,7 +543,8 @@ struct GlassmorphicChatView: View {
         ProfileChromeIconButton(
             systemName: isSearchVisible ? "xmark.circle.fill" : "magnifyingglass",
             foregroundColor: adaptiveColors.primary,
-            preset: .toolbarAction,
+            size: MomentsGlassControlMetrics.toolbarControlSize,
+            iconSize: 16,
             action: toggleChatSearch
         )
     }
@@ -648,6 +720,7 @@ struct GlassmorphicChatView: View {
                 .padding(.vertical, 10)
             }
             .scrollContentBackground(.hidden)
+            .defaultScrollAnchor(.bottom)
             .chatScrollEdgeEffect()
             .scrollDismissesKeyboard(.interactively)
             .simultaneousGesture(
@@ -685,26 +758,6 @@ struct GlassmorphicChatView: View {
                     .padding(.trailing, 14)
                     .padding(.bottom, 14)
                     .transition(.move(edge: .trailing).combined(with: .opacity))
-                }
-            }
-            .onAppear {
-                guard !viewModel.messages.isEmpty else { return }
-                // Si los mensajes ya están cargados (caché), scroll inmediato
-                proxy.scrollTo("chat-bottom-anchor", anchor: .bottom)
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
-                    withAnimation(.easeOut(duration: 0.2)) {
-                        proxy.scrollTo("chat-bottom-anchor", anchor: .bottom)
-                    }
-                }
-            }
-            .onChange(of: viewModel.messages.isEmpty) { _, isEmpty in
-                // Detecta cuando los mensajes cargan de Firestore por primera vez (vacío → poblado)
-                guard !isEmpty else { return }
-                proxy.scrollTo("chat-bottom-anchor", anchor: .bottom)
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
-                    withAnimation(.easeOut(duration: 0.2)) {
-                        proxy.scrollTo("chat-bottom-anchor", anchor: .bottom)
-                    }
                 }
             }
             .onChange(of: viewModel.messages.last?.id) { _, lastMessageId in
@@ -982,6 +1035,9 @@ struct GlassmorphicChatView: View {
                         selectedChatMediaItems = sharedMediaItemsForOverlay(selecting: resolved)
                         selectedChatMedia = sharedMedia(from: resolved)
                     }
+                },
+                onStopLiveLocation: { messageId in
+                    viewModel.stopLiveLocation(messageId: messageId)
                 },
                 progress: viewModel.uploadProgress[message.id]
             )
@@ -1671,5 +1727,242 @@ class MomentsChatViewModel: EnhancedChatViewModel {
         trackMediaMessageSent(type: "video")
         // Reutilizar flujo base para mantener estados locales (sending/pending/failed)
         super.sendVideoMessage(data: data)
+    }
+
+    // MARK: - GIF / Sticker
+
+    /// Descarga el GIF de Giphy y lo envía como mensaje `.gif` (cifrado vía pipeline).
+    func sendGif(from asset: ChatGiphyAsset) {
+        guard let conversationId = conversation.id, !conversationId.isEmpty else {
+            error = NSLocalizedString("chat.error.invalidConversation.image", comment: "")
+            return
+        }
+        guard let url = asset.downloadURL else { return }
+        let ext = inferredMediaExtension(from: url, fallback: "gif")
+        sendRemoteMedia(url: url, type: .gif, fileExtension: ext, conversationId: conversationId, trackType: "gif")
+    }
+
+    /// Descarga el sticker de Giphy y lo envía como mensaje `.sticker` (sin burbuja glass).
+    func sendSticker(from asset: ChatStickerAsset) {
+        guard let conversationId = conversation.id, !conversationId.isEmpty else {
+            error = NSLocalizedString("chat.error.invalidConversation.image", comment: "")
+            return
+        }
+        guard let url = asset.downloadURL else { return }
+        ChatRecentStickersStore.add(asset)
+        let ext = inferredMediaExtension(from: url, fallback: "webp")
+        sendRemoteMedia(url: url, type: .sticker, fileExtension: ext, conversationId: conversationId, trackType: "sticker")
+    }
+
+    private func inferredMediaExtension(from url: URL, fallback: String) -> String {
+        let ext = url.pathExtension.lowercased()
+        switch ext {
+        case "gif", "webp", "png", "jpg", "jpeg":
+            return ext == "jpeg" ? "jpg" : ext
+        default:
+            return fallback
+        }
+    }
+
+    private func sendRemoteMedia(
+        url: URL,
+        type: MessageType,
+        fileExtension: String,
+        conversationId: String,
+        trackType: String
+    ) {
+        trackMediaMessageSent(type: trackType)
+        let messageId = UUID().uuidString
+
+        let tempMessage = EnhancedMessage(
+            id: messageId,
+            conversationId: conversationId,
+            senderId: currentUserId,
+            type: type,
+            mediaUrl: url.absoluteString,
+            status: .sending
+        )
+        DispatchQueue.main.async {
+            self.messages.append(tempMessage)
+            self.updateGroupedMessages()
+            self.objectWillChange.send()
+        }
+
+        Task { [weak self] in
+            guard let self else { return }
+            do {
+                let (data, _) = try await URLSession.shared.data(from: url)
+                // Límite defensivo ~8 MB para GIFs/stickers pesados
+                guard data.count <= 8 * 1024 * 1024 else {
+                    await MainActor.run {
+                        self.error = NSLocalizedString("chat.giphy.error", comment: "")
+                        self.updateMessageInArray(messageId: messageId, newStatus: .failed)
+                    }
+                    return
+                }
+                ChatService.shared.sendMediaMessage(
+                    conversationId: conversationId,
+                    senderId: self.currentUserId,
+                    type: type,
+                    mediaData: data,
+                    fileName: "\(type.rawValue)_\(messageId).\(fileExtension)",
+                    messageId: messageId
+                ) { [weak self] result in
+                    DispatchQueue.main.async {
+                        switch result {
+                        case .success(let sentMessage):
+                            self?.applyOutgoingMessageUpdate(
+                                messageId: messageId,
+                                status: sentMessage.status,
+                                mediaUrl: sentMessage.mediaUrl ?? url.absoluteString,
+                                thumbnailUrl: sentMessage.thumbnailUrl
+                            )
+                        case .failure(let error):
+                            self?.error = error.localizedDescription
+                            self?.updateMessageInArray(messageId: messageId, newStatus: .failed)
+                        }
+                    }
+                }
+            } catch {
+                await MainActor.run {
+                    self.error = NSLocalizedString("chat.giphy.error", comment: "")
+                    self.updateMessageInArray(messageId: messageId, newStatus: .failed)
+                }
+            }
+        }
+    }
+
+    // MARK: - Ubicación fija
+
+    func sendStaticLocation(coordinate: CLLocationCoordinate2D, name: String?, address: String?) {
+        guard let conversationId = conversation.id, !conversationId.isEmpty else {
+            error = NSLocalizedString("chat.error.invalidConversation.text", comment: "")
+            return
+        }
+        trackMediaMessageSent(type: "location")
+
+        let messageId = UUID().uuidString
+        let tempMessage = EnhancedMessage(
+            id: messageId,
+            conversationId: conversationId,
+            senderId: currentUserId,
+            type: .location,
+            latitude: coordinate.latitude,
+            longitude: coordinate.longitude,
+            locationName: name,
+            locationAddress: address,
+            isLiveLocation: false,
+            status: .sending
+        )
+        DispatchQueue.main.async {
+            self.messages.append(tempMessage)
+            self.updateGroupedMessages()
+            self.objectWillChange.send()
+        }
+
+        ChatService.shared.sendStaticLocationMessage(
+            conversationId: conversationId,
+            senderId: currentUserId,
+            latitude: coordinate.latitude,
+            longitude: coordinate.longitude,
+            name: name,
+            address: address,
+            messageId: messageId
+        ) { [weak self] result in
+            DispatchQueue.main.async {
+                switch result {
+                case .success(let sentMessage):
+                    self?.updateMessageInArray(messageId: messageId, newStatus: sentMessage.status)
+                case .failure(let error):
+                    self?.error = error.localizedDescription
+                    self?.updateMessageInArray(messageId: messageId, newStatus: .failed)
+                }
+            }
+        }
+    }
+
+    // MARK: - Ubicación en vivo
+
+    func startLiveLocation(duration: LiveLocationDuration) {
+        guard let conversationId = conversation.id, !conversationId.isEmpty else {
+            error = NSLocalizedString("chat.error.invalidConversation.text", comment: "")
+            return
+        }
+        guard let location = LocationUtilities.shared.currentLocation else {
+            // Sin ubicación todavía: solicitar permiso y avisar.
+            LocationUtilities.shared.requestLocationPermission()
+            error = NSLocalizedString("chat.location.permissionNeeded", comment: "")
+            return
+        }
+
+        trackMediaMessageSent(type: "liveLocation")
+
+        let coordinate = location.coordinate
+        let messageId = UUID().uuidString
+        let sessionId = UUID().uuidString
+        let expiresAt = Date().addingTimeInterval(duration.timeInterval)
+
+        let tempMessage = EnhancedMessage(
+            id: messageId,
+            conversationId: conversationId,
+            senderId: currentUserId,
+            type: .location,
+            latitude: coordinate.latitude,
+            longitude: coordinate.longitude,
+            isLiveLocation: true,
+            liveLocationExpiresAt: expiresAt,
+            liveLocationDuration: duration.firestoreValue,
+            liveLocationSessionId: sessionId,
+            locationUpdatedAt: Date(),
+            status: .sending
+        )
+        DispatchQueue.main.async {
+            self.messages.append(tempMessage)
+            self.updateGroupedMessages()
+            self.objectWillChange.send()
+        }
+
+        ChatService.shared.sendLiveLocationMessage(
+            conversationId: conversationId,
+            senderId: currentUserId,
+            latitude: coordinate.latitude,
+            longitude: coordinate.longitude,
+            name: nil,
+            address: nil,
+            duration: duration,
+            sessionId: sessionId,
+            expiresAt: expiresAt,
+            messageId: messageId
+        ) { [weak self] result in
+            DispatchQueue.main.async {
+                switch result {
+                case .success(let sentMessage):
+                    self?.updateMessageInArray(messageId: messageId, newStatus: sentMessage.status)
+                    LiveLocationSharingService.shared.startSession(
+                        conversationId: conversationId,
+                        messageId: messageId,
+                        sessionId: sessionId,
+                        duration: duration,
+                        expiresAt: expiresAt
+                    )
+                case .failure(let error):
+                    self?.error = error.localizedDescription
+                    self?.updateMessageInArray(messageId: messageId, newStatus: .failed)
+                }
+            }
+        }
+    }
+
+    func stopLiveLocation(messageId: String) {
+        guard let conversationId = conversation.id, !conversationId.isEmpty else { return }
+        LiveLocationSharingService.shared.stopSharing(
+            messageId: messageId,
+            conversationId: conversationId
+        )
+        if let index = messages.firstIndex(where: { $0.id == messageId }) {
+            messages[index].liveLocationStoppedAt = Date()
+            updateGroupedMessages()
+            objectWillChange.send()
+        }
     }
 }

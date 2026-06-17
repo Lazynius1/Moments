@@ -1215,14 +1215,25 @@ service cloud.firestore {
              message.id is string &&
              message.conversationId is string &&
              message.senderId is string &&
-             message.type in ['text', 'image', 'video', 'audio', 'location', 'file', 'gif', 'ephemeral', 'sharedMoment', 'viewOnceImage', 'viewOnceVideo'] &&
+             message.type in ['text', 'image', 'video', 'audio', 'location', 'file', 'gif', 'sticker', 'ephemeral', 'sharedMoment', 'sharedStory', 'viewOnceImage', 'viewOnceVideo'] &&
              message.status in ['sending', 'sent', 'delivered', 'read'] &&
              message.isRead is bool &&
              message.isDeleted is bool &&
              message.isViewed is bool &&
              (!("isViewOnce" in message) || message.isViewOnce is bool) &&
              (!('viewedBy' in message) || message.viewedBy is list) &&
-             (!('statusUpdatedAt' in message) || message.statusUpdatedAt is timestamp);
+             (!('statusUpdatedAt' in message) || message.statusUpdatedAt is timestamp) &&
+             // ✅ NUEVO: campos opcionales de ubicación (fija + en vivo)
+             (!('latitude' in message) || message.latitude is number) &&
+             (!('longitude' in message) || message.longitude is number) &&
+             (!('locationName' in message) || message.locationName is string) &&
+             (!('locationAddress' in message) || message.locationAddress is string) &&
+             (!('isLiveLocation' in message) || message.isLiveLocation is bool) &&
+             (!('liveLocationExpiresAt' in message) || message.liveLocationExpiresAt is timestamp) &&
+             (!('liveLocationDuration' in message) || message.liveLocationDuration is string) &&
+             (!('liveLocationStoppedAt' in message) || message.liveLocationStoppedAt is timestamp) &&
+             (!('liveLocationSessionId' in message) || message.liveLocationSessionId is string) &&
+             (!('locationUpdatedAt' in message) || message.locationUpdatedAt is timestamp);
     }
 
     function onlyStatusFieldsUpdated() {
@@ -1230,6 +1241,15 @@ service cloud.firestore {
     }
     function onlyViewOnceFieldsUpdated() {
       return request.resource.data.diff(resource.data).affectedKeys().hasOnly(['isViewed','viewedBy']);
+    }
+    // ✅ NUEVO: actualización de ubicación en vivo por el remitente
+    // Las coordenadas viajan cifradas dentro de `content`.
+    function onlyLiveLocationFieldsUpdated() {
+      return resource.data.type == 'location'
+        && resource.data.get('isLiveLocation', false) == true
+        && resource.data.senderId == request.auth.uid
+        && request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(['content','latitude','longitude','locationUpdatedAt','liveLocationStoppedAt']);
     }
 
     function isAutomaticCleanup() {
@@ -1309,7 +1329,7 @@ service cloud.firestore {
 
         allow update: if request.auth != null
           && request.auth.uid in get(/databases/$(database)/documents/conversations/$(conversationId)).data.participants
-          && (onlyStatusFieldsUpdated() || onlyViewOnceFieldsUpdated() || isAutomaticCleanup() || isViewOnceCleanup())
+          && (onlyStatusFieldsUpdated() || onlyViewOnceFieldsUpdated() || onlyLiveLocationFieldsUpdated() || isAutomaticCleanup() || isViewOnceCleanup())
           && timestampUnchanged()
           && (!('statusUpdatedAt' in request.resource.data) || request.resource.data.statusUpdatedAt is timestamp);
 

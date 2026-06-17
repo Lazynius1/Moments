@@ -11,6 +11,11 @@ struct AnimatedGIFView: UIViewRepresentable {
         imageView.contentMode = .scaleAspectFit
         imageView.clipsToBounds = true
         imageView.backgroundColor = UIColor.clear
+        imageView.isUserInteractionEnabled = false
+        imageView.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+        imageView.setContentCompressionResistancePriority(.defaultLow, for: .vertical)
+        imageView.setContentHuggingPriority(.defaultLow, for: .horizontal)
+        imageView.setContentHuggingPriority(.defaultLow, for: .vertical)
 
         if let url = url {
             loadAnimatedGIF(url: url, into: imageView)
@@ -19,7 +24,9 @@ struct AnimatedGIFView: UIViewRepresentable {
         return imageView
     }
 
-    func updateUIView(_ uiView: UIImageView, context: Context) {}
+    func updateUIView(_ uiView: UIImageView, context: Context) {
+        uiView.contentMode = .scaleAspectFit
+    }
 
     private func loadAnimatedGIF(url: URL, into imageView: UIImageView) {
         URLSession.shared.dataTask(with: url) { data, _, error in
@@ -141,6 +148,13 @@ struct GiphyGif: Codable, Identifiable {
 
     var preferredStickerURL: URL? {
         URL(string: images.original?.url ?? images.fixed_height.url)
+    }
+
+    /// Relación ancho/alto del preview `fixed_height` (para masonry de GIFs).
+    var previewAspectRatio: CGFloat {
+        let w = max(CGFloat(Int(images.fixed_height.width) ?? 1), 1)
+        let h = max(CGFloat(Int(images.fixed_height.height) ?? 1), 1)
+        return w / h
     }
 }
 

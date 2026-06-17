@@ -18,6 +18,7 @@ struct GlassmorphicMessageRow: View {
     let onMomentNavigation: ((EnhancedMessage) -> Void)?
     let onStoryNavigation: ((EnhancedMessage) -> Void)?
     let onOpenMedia: (EnhancedMessage) -> Void
+    let onStopLiveLocation: ((String) -> Void)?
     let progress: Double?
 
     @Environment(\.colorScheme) var colorScheme
@@ -82,7 +83,8 @@ struct GlassmorphicMessageRow: View {
                         onMessageViewed: onMessageViewed,
                         onMomentNavigation: onMomentNavigation,
                         onStoryNavigation: onStoryNavigation,
-                        onOpenMedia: onOpenMedia
+                        onOpenMedia: onOpenMedia,
+                        onStopLiveLocation: onStopLiveLocation
                     )
 
                     if let reactions = message.reactions, !reactions.isEmpty {
@@ -219,6 +221,7 @@ struct GlassmorphicMessageBubble: View {
     let onMomentNavigation: ((EnhancedMessage) -> Void)?
     let onStoryNavigation: ((EnhancedMessage) -> Void)?
     let onOpenMedia: (EnhancedMessage) -> Void
+    let onStopLiveLocation: ((String) -> Void)?
     @State private var showEphemeralImage: Bool = false
     @Environment(\.colorScheme) var colorScheme
 
@@ -462,6 +465,31 @@ struct GlassmorphicMessageBubble: View {
                                 )
                             }
                         }
+
+                    case .gif:
+                        ChatGifMessageBubble(
+                            message: message,
+                            isSending: message.status == .sending,
+                            progress: progress
+                        )
+
+                    case .sticker:
+                        ChatStickerMessageBubble(
+                            message: message,
+                            isSending: message.status == .sending,
+                            progress: progress
+                        )
+
+                    case .location:
+                        ChatLocationMessageBubble(
+                            message: message,
+                            isCurrentUser: isCurrentUser,
+                            accentColor: adaptiveColors.userAccentColor,
+                            accentColorRed: adaptiveColors.accentColorRed,
+                            onStopLive: {
+                                onStopLiveLocation?(message.id)
+                            }
+                        )
 
                     default:
                         Text("chat.message.unsupported")

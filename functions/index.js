@@ -3015,6 +3015,63 @@ exports.proxyGiphyStickers = onRequest(
   }
 );
 
+// ✅ Proxy GIF de Giphy (trending/search) para el chat — paralelo a proxyGiphyStickers
+exports.proxyGiphyGifs = onRequest(
+  {
+    timeoutSeconds: 30,
+    secrets: [GIPHY_API_KEY]
+  },
+  async (req, res) => {
+    setProxyCors(res);
+    if (req.method === 'OPTIONS') {
+      res.status(204).send('');
+      return;
+    }
+    if (req.method !== 'POST' && req.method !== 'GET') {
+      res.status(405).json({ error: 'Method not allowed' });
+      return;
+    }
+
+    const uid = await verifyFirebaseAuth(req, res);
+    if (!uid) return;
+
+    const body = parseJsonBody(req);
+    const modeSource = req.method === 'GET' ? req.query : body;
+    const mode = modeSource.mode === 'search' ? 'search' : 'trending';
+    const rating = typeof modeSource.rating === 'string' ? modeSource.rating : 'pg';
+    const rawLimit = Number(modeSource.limit);
+    const limit = Number.isFinite(rawLimit) ? Math.max(1, Math.min(rawLimit, 50)) : 24;
+    const query = typeof modeSource.query === 'string' ? modeSource.query.trim() : '';
+
+    if (mode === 'search' && !query) {
+      res.status(400).json({ error: 'Missing query for search mode' });
+      return;
+    }
+
+    const params = new URLSearchParams({
+      api_key: GIPHY_API_KEY.value(),
+      limit: String(limit),
+      rating
+    });
+    if (mode === 'search') {
+      params.set('q', query);
+    }
+
+    const endpoint = mode === 'search'
+      ? 'https://api.giphy.com/v1/gifs/search'
+      : 'https://api.giphy.com/v1/gifs/trending';
+
+    try {
+      const upstream = await fetch(`${endpoint}?${params.toString()}`, { method: 'GET' });
+      const payload = await upstream.text();
+      res.status(upstream.status).set('Content-Type', 'application/json').send(payload);
+    } catch (error) {
+      console.error('proxyGiphyGifs error:', error);
+      res.status(500).json({ error: 'Giphy proxy failed' });
+    }
+  }
+);
+
 // ✅ FUNCIÓN auxiliar para validar datos de usuario
 function validateUserData(userData, requiredFields = ['username', 'isActive']) {
   return requiredFields.every(field => userData[field] !== undefined && userData[field] !== null);
@@ -3050,6 +3107,8 @@ function buildMessageRequestConversationPreview(messageType, messageText) {
       return '🎵';
     case 'gif':
       return '🎞';
+    case 'sticker':
+      return '😊';
     case 'location':
       return '📍';
     case 'file':

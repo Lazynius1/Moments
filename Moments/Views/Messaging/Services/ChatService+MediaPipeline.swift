@@ -47,6 +47,8 @@ extension ChatService {
                     type == .video ||
                     type == .audio ||
                     type == .file ||
+                    type == .gif ||
+                    type == .sticker ||
                     type == .viewOnceImage ||
                     type == .viewOnceVideo
 
@@ -375,7 +377,9 @@ extension ChatService {
     private func getFileExtension(for type: MessageType) -> String {
         print("📤 ChatService: getFileExtension requested for type: \(type)")
         switch type {
-        case .image, .gif, .viewOnceImage: return "jpg"
+        case .image, .viewOnceImage: return "jpg"
+        case .gif: return "gif"
+        case .sticker: return "webp"
         case .video, .viewOnceVideo: return "mp4"
         case .audio: return "m4a"
         case .file: return "pdf"
@@ -391,6 +395,7 @@ extension ChatService {
         case .video, .viewOnceVideo: return "video/mp4"
         case .audio: return "audio/mp4"
         case .gif: return "image/gif"
+        case .sticker: return "image/webp"
         case .file: return "application/pdf"
         default: return "text/plain"
         }

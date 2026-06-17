@@ -89,6 +89,9 @@ struct MomentsApp: App {
                             }
                         }
 
+                        // ✅ Reanudar sesión de ubicación en vivo si la app se reabrió con una activa
+                        LiveLocationSharingService.shared.restoreIfNeeded()
+
                         // ✅ Configurar listener de autenticación
                         authListenerHandle = Auth.auth().addStateDidChangeListener { auth, user in
                             if user != nil {
@@ -100,6 +103,7 @@ struct MomentsApp: App {
                                 // Usuario deslogueado - limpiar todo
                                 NotificationBadgeService.shared.cleanup()
                                 IncognitoModeService.shared.resetForSignedOutUser()
+                                LiveLocationSharingService.shared.handleUserSignedOut()
                             }
                         }
                     }
@@ -115,6 +119,10 @@ struct MomentsApp: App {
 
                         // ✅ WIDGET FIX: Forzar actualización del widget al abrir la app
                         NotificationBadgeService.shared.refreshAllCounts()
+
+                        // ✅ Reanudar ubicación en vivo tras volver del background/relaunch
+                        LiveLocationSharingService.shared.restoreIfNeeded()
+
                         syncLastAppOpenIfNeeded()
                         IncognitoModeService.shared.refresh()
                         IncognitoModeService.shared.handlePendingAppGroupActionIfNeeded()
