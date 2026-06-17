@@ -195,11 +195,34 @@ final class LiveLocationSharingService: NSObject, ObservableObject {
     /// para que la sesión no se reanude bajo otra cuenta del mismo dispositivo.
     func handleUserSignedOut() {
         if activeSession != nil {
-            stop(markStopped: true)
+            // En este punto Auth ya es nil, así que no intentamos escribir en
+            // servidor (fallaría por permisos). El stop en servidor se hace antes
+            // del signOut vía `endActiveSessionForSignOut()`.
+            stop(markStopped: false)
         } else {
             clearPersistedSession()
         }
         isRestoring = false
+    }
+
+    /// Marca la sesión activa como detenida en servidor mientras las credenciales
+    /// siguen siendo válidas y espera a que la escritura termine; después apaga el
+    /// GPS y limpia la persistencia. Debe llamarse ANTES de `Auth.signOut()`.
+    func endActiveSessionForSignOut() async {
+        guard let session = activeSession else {
+            clearPersistedSession()
+            return
+        }
+        await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
+            chatService.stopLiveLocationMessage(
+                conversationId: session.conversationId,
+                messageId: session.messageId
+            ) { _ in
+                continuation.resume()
+            }
+        }
+        // Teardown local sin volver a escribir en servidor (ya lo hicimos arriba).
+        stop(markStopped: false)
     }
 
     // MARK: - Persistencia

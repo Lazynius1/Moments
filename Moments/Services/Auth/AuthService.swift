@@ -2052,6 +2052,15 @@ class AuthService: ObservableObject {
             // ✅ Detener listener antes de cerrar sesión
             stopSuspensionListener()
 
+            // ✅ Marcar live location como detenida en servidor mientras las
+            // credenciales son válidas; luego completar el cierre de sesión.
+            Task { @MainActor in
+                await LiveLocationSharingService.shared.endActiveSessionForSignOut()
+                self.finalizeLogout()
+            }
+        }
+
+        private func finalizeLogout() {
             do {
                 try Auth.auth().signOut()
 
