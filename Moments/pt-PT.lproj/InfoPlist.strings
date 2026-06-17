@@ -1,6 +1,7 @@
 "NSCameraUsageDescription" = "Permite o acesso à câmara para captar fotografias e vídeos para as tuas histórias, momentos e perfil.";
 "NSMicrophoneUsageDescription" = "Permite o acesso ao microfone para gravar áudio para as tuas histórias e mensagens de voz.";
 "NSLocationWhenInUseUsageDescription" = "Permite o acesso à localização para etiquetar publicações, mostrar conteúdo relevante nas proximidades e melhorar as sugestões da Nova AI.";
+"NSLocationAlwaysAndWhenInUseUsageDescription" = "Permite partilhar a tua localização em tempo real nos chats, mesmo com a app em segundo plano, enquanto a sessão estiver ativa.";
 "NSUserTrackingUsageDescription" = "Este identificador será usado para te mostrar anúncios personalizados e melhorar a tua experiência na app.";
 "NSPhotoLibraryUsageDescription" = "Permite o acesso à fototeca para enviar fotografias para as tuas histórias, alterar a tua fotografia de perfil e permitir que a Nova AI analise as tuas imagens.";
 "NSPhotoLibraryAddUsageDescription" = "Permite guardar fotografias e vídeos (como o teu código QR ou histórias editadas) diretamente na tua galeria.";

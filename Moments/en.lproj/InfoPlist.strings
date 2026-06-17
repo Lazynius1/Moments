@@ -1,6 +1,7 @@
 "NSCameraUsageDescription" = "Allow camera to capture photos and videos for your stories, moments and profile.";
 "NSMicrophoneUsageDescription" = "Allow microphone to record audio for your stories and voice messages.";
 "NSLocationWhenInUseUsageDescription" = "Allow location to tag posts, show nearby relevant content and improve Nova AI suggestions.";
+"NSLocationAlwaysAndWhenInUseUsageDescription" = "Allow sharing your live location in chats, even when the app is in the background, while the session is active.";
 "NSUserTrackingUsageDescription" = "This identifier will be used to show you personalized ads and improve your experience in the app.";
 "NSPhotoLibraryUsageDescription" = "Allow photo library access to upload photos to your stories, change your profile picture and let Nova AI analyze your images.";
 "NSPhotoLibraryAddUsageDescription" = "Allow saving photos and videos (like your QR code or edited stories) directly to your gallery.";
