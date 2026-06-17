@@ -9605,11 +9605,11 @@ exports.getProfileMomentsPage = onRequest(
       const moments = visibleDocs.map(({ doc, data }) => serializeMoment(doc.id, data));
 
       let nextCursor = null;
-      if (snap.size >= limit && snap.docs.length > 0) {
-        const lastDoc = snap.docs[snap.docs.length - 1];
+      if (moments.length >= limit && visibleDocs.length > 0) {
+        const lastVisible = visibleDocs[visibleDocs.length - 1];
         nextCursor = {
-          timestamp: tsToMillis(lastDoc.data().timestamp),
-          momentId: lastDoc.id,
+          timestamp: tsToMillis(lastVisible.data.timestamp),
+          momentId: lastVisible.doc.id,
           authorId: targetUserId
         };
       }
@@ -9619,7 +9619,7 @@ exports.getProfileMomentsPage = onRequest(
         moments,
         nextCursor,
         source: 'backend',
-        totalCandidates: candidates.length
+        totalCandidates: moments.length
       });
     } catch (error) {
       console.error('❌ getProfileMomentsPage error:', error);
@@ -9750,7 +9750,7 @@ exports.getVisibleHighlightsPage = onRequest(
       res.status(200).json({
         highlights: resolvedHighlights,
         source: 'backend',
-        totalCandidates: highlights.length
+        totalCandidates: resolvedHighlights.length
       });
     } catch (error) {
       console.error('❌ getVisibleHighlightsPage error:', error);
