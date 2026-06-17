@@ -206,23 +206,23 @@ final class LiveLocationSharingService: NSObject, ObservableObject {
     }
 
     /// Marca la sesión activa como detenida en servidor mientras las credenciales
-    /// siguen siendo válidas y espera a que la escritura termine; después apaga el
-    /// GPS y limpia la persistencia. Debe llamarse ANTES de `Auth.signOut()`.
+    /// siguen siendo válidas, pero no bloquea el cierre de sesión esperando la
+    /// confirmación remota. El GPS y la persistencia local se limpian primero para
+    /// evitar que la ubicación siga activa si Firestore no responde.
     func endActiveSessionForSignOut() async {
         guard let session = activeSession else {
             clearPersistedSession()
             return
         }
-        await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
-            chatService.stopLiveLocationMessage(
-                conversationId: session.conversationId,
-                messageId: session.messageId
-            ) { _ in
-                continuation.resume()
-            }
-        }
-        // Teardown local sin volver a escribir en servidor (ya lo hicimos arriba).
+
+        // Teardown local inmediato sin volver a escribir en servidor. La escritura
+        // remota es best-effort y no debe impedir el signOut ni mantener el GPS activo.
         stop(markStopped: false)
+
+        chatService.stopLiveLocationMessage(
+            conversationId: session.conversationId,
+            messageId: session.messageId
+        )
     }
 
     // MARK: - Persistencia
