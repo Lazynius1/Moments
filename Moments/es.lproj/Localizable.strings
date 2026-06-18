@@ -828,6 +828,8 @@
 "conversationSettings.typingIndicator.desc" = "Si lo desactivas, tampoco verás cuándo la otra persona está escribiendo.";
 "conversationSettings.privacy.readReceipts.title" = "Confirmación de lectura";
 "conversationSettings.privacy.readReceipts.description" = "Si desactivas el 'visto' en este chat, no podrás ver cuándo la otra persona lee tus mensajes.";
+"conversationSettings.privacy.forwarding.title" = "Permitir reenvío";
+"conversationSettings.privacy.forwarding.description" = "Si lo desactivas, la otra persona no podrá reenviar ni copiar tus mensajes de texto en este chat.";
 "common.viewAll" = "Ver todo";
 "online" = "En línea";
 "offline" = "Desconectado";
@@ -930,6 +932,12 @@
 "chat.action.edit" = "Editar";
 "chat.action.copy" = "Copiar";
 "chat.action.reply" = "Responder";
+"chat.action.forward" = "Reenviar";
+"chat.action.star" = "Destacar";
+"chat.action.unstar" = "Quitar destacado";
+"chat.forward.title" = "Reenviar mensaje";
+"chat.forwarded" = "Reenviado";
+"chat.error.editWindowExpired" = "Solo puedes editar mensajes durante los primeros 10 minutos";
 "chat.editing.title" = "Editando mensaje";
 "chat.typing" = "escribiendo...";
 "chat.tapToView" = "Toca para ver";
@@ -994,6 +1002,7 @@
 "chat.status.sent" = "Enviado";
 "chat.status.delivered" = "Entregado";
 "chat.status.read" = "Leído";
+"chat.seen" = "Visto";
 "chat.status.failed" = "Falló";
 "chat.notification.viewOncePrompt" = "📸 Te envió un mensaje que se borrará al verlo";
 "chat.preview.newConversation" = "Nueva conversación";
@@ -1437,6 +1446,9 @@
 "conversationSettings.understood" = "Entendido";
 "conversationSettings.conversationInfo" = "Información de la conversación";
 "conversationSettings.sharedMedia" = "Contenido multimedia compartido";
+"conversationSettings.starredMessages" = "Mensajes destacados";
+"conversationSettings.starredMessages.none" = "Ninguno";
+"conversationSettings.starredMessages.empty" = "Los mensajes que destaques en este chat aparecerán aquí";
 "conversationSettings.noSharedMedia" = "No hay contenido multimedia compartido";
 "conversationSettings.privacy" = "Privacidad";
 "conversationSettings.clearConversation" = "Limpiar conversación";

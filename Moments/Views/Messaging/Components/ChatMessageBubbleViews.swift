@@ -3,7 +3,7 @@ import FirebaseAuth
 
 // MARK: - Glassmorphic Message Row
 struct GlassmorphicMessageRow: View {
-    let message: EnhancedMessage
+    @ObservedObject var message: EnhancedMessage
     let isCurrentUser: Bool
     let showAvatar: Bool
     let otherUserId: String?
@@ -19,7 +19,9 @@ struct GlassmorphicMessageRow: View {
     let onStoryNavigation: ((EnhancedMessage) -> Void)?
     let onOpenMedia: (EnhancedMessage) -> Void
     let onStopLiveLocation: ((String) -> Void)?
+    let onHydrateMedia: ((EnhancedMessage) -> Void)?
     let progress: Double?
+    var showSeenLabel: Bool = false
 
     @Environment(\.colorScheme) var colorScheme
     private var adaptiveColors: AdaptiveColors {
@@ -72,61 +74,49 @@ struct GlassmorphicMessageRow: View {
                         .zIndex(1)
                     }
 
-                    GlassmorphicMessageBubble(
-                        message: message,
-                        repliedMessage: repliedMessage,
-                        otherParticipantId: otherUserId,
-                        otherParticipantName: otherParticipantName,
-                        isCurrentUser: isCurrentUser,
-                        progress: progress,
-                        onReplyTap: onReplyTap,
-                        onMessageViewed: onMessageViewed,
-                        onMomentNavigation: onMomentNavigation,
-                        onStoryNavigation: onStoryNavigation,
-                        onOpenMedia: onOpenMedia,
-                        onStopLiveLocation: onStopLiveLocation
-                    )
+                    ZStack(alignment: isCurrentUser ? .bottomLeading : .bottomTrailing) {
+                        GlassmorphicMessageBubble(
+                            message: message,
+                            repliedMessage: repliedMessage,
+                            otherParticipantId: otherUserId,
+                            otherParticipantName: otherParticipantName,
+                            isCurrentUser: isCurrentUser,
+                            progress: progress,
+                            onReplyTap: onReplyTap,
+                            onMessageViewed: onMessageViewed,
+                            onMomentNavigation: onMomentNavigation,
+                            onStoryNavigation: onStoryNavigation,
+                            onOpenMedia: onOpenMedia,
+                            onStopLiveLocation: onStopLiveLocation,
+                            onHydrateMedia: onHydrateMedia
+                        )
 
-                    if let reactions = message.reactions, !reactions.isEmpty {
-                        GlassmorphicReactionsView(reactions: reactions, onTap: onReaction)
+                        if let reactions = message.reactions, !reactions.isEmpty {
+                            GlassmorphicReactionsView(
+                                reactions: reactions,
+                                onTap: onReaction
+                            )
+                            .offset(x: isCurrentUser ? -6 : 6, y: 10)
+                            .zIndex(2)
+                        }
                     }
+                    .padding(.bottom, (message.reactions?.isEmpty == false) ? 6 : 0)
 
-                    MessageTimestamp(message: message, status: message.status, isCurrentUser: isCurrentUser)
+                    MessageTimestamp(
+                        message: message,
+                        isCurrentUser: isCurrentUser,
+                        showSeenLabel: showSeenLabel
+                    )
                 }
 
                 if !isCurrentUser { Spacer(minLength: 50) }
             }
             .offset(x: dragOffset)
-            .contentShape(Rectangle()) // Asegurar que todo el área es gesture-able
-            .gesture(
-                DragGesture(minimumDistance: 20, coordinateSpace: .local)
-                    .onChanged { value in
-                        let horizontalMove = value.translation.width
-                        let verticalMove = value.translation.height
-
-                        if horizontalMove > 0 && abs(horizontalMove) > abs(verticalMove) {
-                            dragOffset = horizontalMove
-
-                            // Haptic Feedback
-                            if dragOffset > 60 && !hasTriggeredHaptic {
-                                let generator = UIImpactFeedbackGenerator(style: .medium)
-                                generator.impactOccurred()
-                                hasTriggeredHaptic = true
-                            } else if dragOffset < 60 && hasTriggeredHaptic {
-                                hasTriggeredHaptic = false
-                            }
-                        }
-                    }
-                    .onEnded { _ in
-                        if dragOffset > 70 {
-                            onReply()
-                        }
-
-                        withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                            dragOffset = 0
-                            hasTriggeredHaptic = false
-                        }
-                    }
+            .contentShape(Rectangle())
+            .chatReplySwipeGesture(
+                dragOffset: $dragOffset,
+                hasTriggeredHaptic: $hasTriggeredHaptic,
+                onReply: onReply
             )
         }
         .padding(.horizontal, 12)
@@ -210,7 +200,7 @@ struct DeletedMessageBubble: View {
 
 // MARK: - Updated Glassmorphic Message Bubble
 struct GlassmorphicMessageBubble: View {
-    let message: EnhancedMessage
+    @ObservedObject var message: EnhancedMessage
     let repliedMessage: EnhancedMessage?
     let otherParticipantId: String?
     let otherParticipantName: String
@@ -222,6 +212,7 @@ struct GlassmorphicMessageBubble: View {
     let onStoryNavigation: ((EnhancedMessage) -> Void)?
     let onOpenMedia: (EnhancedMessage) -> Void
     let onStopLiveLocation: ((String) -> Void)?
+    let onHydrateMedia: ((EnhancedMessage) -> Void)?
     @State private var showEphemeralImage: Bool = false
     @Environment(\.colorScheme) var colorScheme
 
@@ -256,37 +247,57 @@ struct GlassmorphicMessageBubble: View {
                                 otherParticipantId: otherParticipantId
                             )
                         } else if let content = message.content {
-                            HStack(alignment: .bottom, spacing: 12) {
-                                if isCurrentUser {
-                                    Text(content)
-                                        .font(.custom("Poppins-Regular", size: 15))
-                                        .padding(.horizontal, 12)
-                                        .padding(.vertical, 8)
-                                        .foregroundColor(adaptiveColors.messageTextColor)
-                                        .background(
-                                            RoundedRectangle(cornerRadius: 12)
-                                                .fill(.ultraThinMaterial.opacity(0.3))
-                                        )
+                            VStack(alignment: isCurrentUser ? .trailing : .leading, spacing: 4) {
+                                if message.isForwarded == true {
+                                    HStack(spacing: 4) {
+                                        Image(systemName: "arrowshape.turn.up.right")
+                                            .font(.system(size: 10, weight: .semibold))
+                                        Text("chat.forwarded")
+                                    }
+                                    .font(.custom("Poppins-Regular", size: 11))
+                                    .foregroundColor(adaptiveColors.messageTextColor.opacity(0.55))
+                                }
 
-                                    Capsule()
-                                        .fill(adaptiveColors.userAccentColor)
-                                        .frame(width: 3, height: 20)
-                                        .padding(.bottom, 6)
-                                } else {
-                                    Capsule()
-                                        .fill(adaptiveColors.receivedAccentColor)
-                                        .frame(width: 3, height: 20)
-                                        .padding(.bottom, 6)
+                                HStack(alignment: .bottom, spacing: 12) {
+                                    if isCurrentUser {
+                                        Text(content)
+                                            .font(.custom("Poppins-Regular", size: 15))
+                                            .padding(.horizontal, 12)
+                                            .padding(.vertical, 8)
+                                            .foregroundColor(adaptiveColors.messageTextColor)
+                                            .background(
+                                                RoundedRectangle(cornerRadius: 12)
+                                                    .fill(.ultraThinMaterial.opacity(0.3))
+                                            )
 
-                                    Text(content)
-                                        .font(.custom("Poppins-Regular", size: 15))
-                                        .padding(.horizontal, 12)
-                                        .padding(.vertical, 8)
-                                        .foregroundColor(adaptiveColors.messageTextColor)
-                                        .background(
-                                            RoundedRectangle(cornerRadius: 12)
-                                                .fill(.ultraThinMaterial.opacity(0.3))
-                                        )
+                                        Capsule()
+                                            .fill(adaptiveColors.userAccentColor)
+                                            .frame(width: 3, height: 20)
+                                            .padding(.bottom, 6)
+                                    } else {
+                                        Capsule()
+                                            .fill(adaptiveColors.receivedAccentColor)
+                                            .frame(width: 3, height: 20)
+                                            .padding(.bottom, 6)
+
+                                        Text(content)
+                                            .font(.custom("Poppins-Regular", size: 15))
+                                            .padding(.horizontal, 12)
+                                            .padding(.vertical, 8)
+                                            .foregroundColor(adaptiveColors.messageTextColor)
+                                            .background(
+                                                RoundedRectangle(cornerRadius: 12)
+                                                    .fill(.ultraThinMaterial.opacity(0.3))
+                                            )
+                                    }
+                                }
+                            }
+                            .overlay(alignment: isCurrentUser ? .topLeading : .topTrailing) {
+                                if let userId = Auth.auth().currentUser?.uid, message.isStarred(by: userId) {
+                                    Image(systemName: "star.fill")
+                                        .font(.system(size: 10))
+                                        .foregroundColor(Color(hex: "FFD60A"))
+                                        .offset(x: isCurrentUser ? -6 : 6, y: -6)
                                 }
                             }
                         }
@@ -295,6 +306,8 @@ struct GlassmorphicMessageBubble: View {
                         GlassmorphicImageMessage(
                             imageUrl: message.mediaUrl,
                             isSending: message.status == .sending,
+                            isResolvingMedia: message.isMediaPendingResolution,
+                            downsamplingSize: CGSize(width: 208, height: 272),
                             progress: progress,
                             onTap: {
                                 onOpenMedia(message)
@@ -302,6 +315,7 @@ struct GlassmorphicMessageBubble: View {
                         )
                         .frame(width: 208, height: 272)
                         .onAppear {
+                            onHydrateMedia?(message)
                         }
 
                     case .audio:
@@ -321,6 +335,8 @@ struct GlassmorphicMessageBubble: View {
                             videoUrl: message.mediaUrl,
                             thumbnailUrl: message.thumbnailUrl,
                             isSending: message.status == .sending,
+                            isResolvingMedia: message.isMediaPendingResolution,
+                            downsamplingSize: CGSize(width: 208, height: 272),
                             progress: progress,
                             onTap: {
                                 onOpenMedia(message)
@@ -328,6 +344,7 @@ struct GlassmorphicMessageBubble: View {
                         )
                         .frame(width: 208, height: 272)
                         .onAppear {
+                            onHydrateMedia?(message)
                         }
 
                     case .ephemeral:
@@ -467,9 +484,11 @@ struct GlassmorphicMessageBubble: View {
                     case .gif:
                         ChatGifMessageBubble(
                             message: message,
-                            isSending: message.status == .sending,
                             progress: progress
                         )
+                        .onAppear {
+                            onHydrateMedia?(message)
+                        }
 
                     case .sticker:
                         ChatStickerMessageBubble(
@@ -477,6 +496,9 @@ struct GlassmorphicMessageBubble: View {
                             isSending: message.status == .sending,
                             progress: progress
                         )
+                        .onAppear {
+                            onHydrateMedia?(message)
+                        }
 
                     case .location:
                         ChatLocationMessageBubble(

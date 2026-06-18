@@ -17,7 +17,7 @@ struct ChatStickerMessageBubble: View {
 
     var body: some View {
         ZStack {
-            if let stickerURL {
+            if let stickerURL, !message.isMediaPendingResolution {
                 AnimatedGIFView(url: stickerURL)
                     .id(stickerURL.absoluteString)
                     .frame(width: stickerSize, height: stickerSize)

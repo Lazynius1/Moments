@@ -139,7 +139,9 @@ extension ChatService {
             sharedMomentData: data["sharedMomentData"] as? [String: String],
             sharedStoryData: data["sharedStoryData"] as? [String: String],
             mediaBatchId: data["mediaBatchId"] as? String,
-            viewedBy: data["viewedBy"] as? [String]
+            viewedBy: data["viewedBy"] as? [String],
+            starredBy: data["starredBy"] as? [String],
+            isForwarded: data["isForwarded"] as? Bool
         )
     }
 

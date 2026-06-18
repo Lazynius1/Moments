@@ -795,6 +795,8 @@
 
 "conversationSettings.privacy.readReceipts.title" = "Confirmações de leitura";
 "conversationSettings.privacy.readReceipts.description" = "Se você desativar as confirmações de leitura neste chat, também não poderá ver quando a outra pessoa ler suas mensagens.";
+"conversationSettings.privacy.forwarding.title" = "Permitir encaminhamento";
+"conversationSettings.privacy.forwarding.description" = "Se você desativar isso, a outra pessoa não poderá encaminhar nem copiar suas mensagens de texto neste chat.";
 
 /* Register */
 "register.back" = "Voltar";
@@ -894,6 +896,12 @@
 "chat.action.edit" = "Editar";
 "chat.action.copy" = "Copiar";
 "chat.action.reply" = "Responder";
+"chat.action.forward" = "Encaminhar";
+"chat.action.star" = "Destacar";
+"chat.action.unstar" = "Remover destaque";
+"chat.forward.title" = "Encaminhar mensagem";
+"chat.forwarded" = "Encaminhado";
+"chat.error.editWindowExpired" = "Só podes editar mensagens nos primeiros 10 minutos";
 "chat.editing.title" = "Editando mensagem";
 "chat.typing" = "digitando...";
 "chat.tapToView" = "Toque para ver";
@@ -957,6 +965,7 @@
 "chat.status.sent" = "Enviado";
 "chat.status.delivered" = "Entregue";
 "chat.status.read" = "Lida";
+"chat.seen" = "Visto";
 "chat.status.failed" = "Falhou";
 "chat.notification.viewOncePrompt" = "📸 Enviou uma mensagem que será excluída após a visualização";
 "chat.preview.newConversation" = "Nova conversa";
@@ -1400,6 +1409,9 @@
 "conversationSettings.understood" = "Entendi";
 "conversationSettings.conversationInfo" = "Informações da conversa";
 "conversationSettings.sharedMedia" = "Mídia compartilhada";
+"conversationSettings.starredMessages" = "Mensagens favoritas";
+"conversationSettings.starredMessages.none" = "Nenhuma";
+"conversationSettings.starredMessages.empty" = "As mensagens que você destacar neste chat aparecerão aqui";
 "conversationSettings.noSharedMedia" = "Nenhuma mídia compartilhada";
 "conversationSettings.privacy" = "Privacidade";
 "conversationSettings.clearConversation" = "Limpar conversa";

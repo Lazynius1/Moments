@@ -795,6 +795,8 @@
 "conversationSettings.typingIndicator.desc" = "Si ho desactives, tampoc veuràs quan l'altra persona està escrivint.";
 "conversationSettings.privacy.readReceipts.title" = "Confirmació de lectura";
 "conversationSettings.privacy.readReceipts.description" = "Si desactives el 'vist' en aquest xat, no podràs veure quan l'altra persona llegeix els teus missatges.";
+"conversationSettings.privacy.forwarding.title" = "Permetre reenviament";
+"conversationSettings.privacy.forwarding.description" = "Si ho desactives, l'altra persona no podrà reenviar ni copiar els teus missatges de text en aquest xat.";
 "common.viewAll" = "Veure-ho tot";
 "online" = "En línia";
 "offline" = "Desconnectat";
@@ -895,6 +897,12 @@
 "chat.action.edit" = "Editar";
 "chat.action.copy" = "Copiar";
 "chat.action.reply" = "Respondre";
+"chat.action.forward" = "Reenviar";
+"chat.action.star" = "Destacar";
+"chat.action.unstar" = "Treure destacat";
+"chat.forward.title" = "Reenviar missatge";
+"chat.forwarded" = "Reenviat";
+"chat.error.editWindowExpired" = "Només pots editar missatges durant els primers 10 minuts";
 "chat.editing.title" = "Editant missatge";
 "chat.typing" = "escrivint...";
 "chat.tapToView" = "Toca per veure";
@@ -958,6 +966,7 @@
 "chat.status.sent" = "Enviat";
 "chat.status.delivered" = "Lliurat";
 "chat.status.read" = "Llegit";
+"chat.seen" = "Vist";
 "chat.status.failed" = "Ha fallat";
 "chat.notification.viewOncePrompt" = "📸 T'ha enviat un missatge que s'esborrarà en veure'l";
 "chat.preview.newConversation" = "Nova conversa";
@@ -1384,6 +1393,9 @@
 "conversationSettings.understood" = "Entès";
 "conversationSettings.conversationInfo" = "Informació de la conversa";
 "conversationSettings.sharedMedia" = "Contingut multimèdia compartit";
+"conversationSettings.starredMessages" = "Missatges destacats";
+"conversationSettings.starredMessages.none" = "Cap";
+"conversationSettings.starredMessages.empty" = "Els missatges que destaquis en aquest xat apareixeran aquí";
 "conversationSettings.noSharedMedia" = "No hi ha contingut multimèdia compartit";
 "conversationSettings.privacy" = "Privadesa";
 "conversationSettings.clearConversation" = "Netejar conversa";

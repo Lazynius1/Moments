@@ -2,6 +2,85 @@ import ImageIO
 import SwiftUI
 import UIKit
 
+// MARK: - GIF/Sticker image cache (sobrevive al reciclado de celdas en LazyVStack)
+final class ChatGIFImageCache {
+    static let shared = ChatGIFImageCache()
+
+    private let lock = NSLock()
+    private var memory: [String: UIImage] = [:]
+    private var inFlight: [String: [UUID: (UIImage?) -> Void]] = [:]
+
+    func cachedImage(for url: URL) -> UIImage? {
+        lock.lock()
+        defer { lock.unlock() }
+        return memory[url.absoluteString]
+    }
+
+    func load(url: URL, completion: @escaping (UIImage?) -> Void) {
+        let key = url.absoluteString
+
+        if let cached = cachedImage(for: url) {
+            DispatchQueue.main.async { completion(cached) }
+            return
+        }
+
+        let token = UUID()
+        lock.lock()
+        if var handlers = inFlight[key] {
+            handlers[token] = completion
+            inFlight[key] = handlers
+            lock.unlock()
+            return
+        }
+        inFlight[key] = [token: completion]
+        lock.unlock()
+
+        let finish: (UIImage?) -> Void = { image in
+            self.lock.lock()
+            if let image {
+                self.memory[key] = image
+            }
+            let pending = self.inFlight.removeValue(forKey: key) ?? [:]
+            let handlers = Array(pending.values)
+            self.lock.unlock()
+            DispatchQueue.main.async {
+                handlers.forEach { $0(image) }
+            }
+        }
+
+        if url.isFileURL {
+            DispatchQueue.global(qos: .userInitiated).async {
+                guard FileManager.default.fileExists(atPath: url.path),
+                      let data = try? Data(contentsOf: url) else {
+                    finish(nil)
+                    return
+                }
+                finish(Self.decodeImage(from: data))
+            }
+            return
+        }
+
+        URLSession.shared.dataTask(with: url) { data, _, error in
+            guard let data, error == nil else {
+                finish(nil)
+                return
+            }
+            finish(Self.decodeImage(from: data))
+        }.resume()
+    }
+
+    func prefetch(url: URL) {
+        load(url: url) { _ in }
+    }
+
+    private static func decodeImage(from data: Data) -> UIImage? {
+        if let animatedImage = UIImage.animatedImageWithData(data) {
+            return animatedImage
+        }
+        return UIImage(data: data)
+    }
+}
+
 // MARK: - Animated GIF View
 struct AnimatedGIFView: UIViewRepresentable {
     let url: URL?
@@ -31,42 +110,33 @@ struct AnimatedGIFView: UIViewRepresentable {
 
     final class Coordinator {
         private var currentURL: URL?
-        private var task: URLSessionDataTask?
+        private var requestToken = UUID()
 
         func load(url: URL?, into imageView: UIImageView) {
-            guard url != currentURL else { return }
-            task?.cancel()
-            currentURL = url
-            imageView.image = nil
-
-            guard let url else { return }
-
-            if url.isFileURL {
-                DispatchQueue.global(qos: .userInitiated).async {
-                    guard let data = try? Data(contentsOf: url) else { return }
-                    DispatchQueue.main.async {
-                        if let animatedImage = UIImage.animatedImageWithData(data) {
-                            imageView.image = animatedImage
-                        } else if let staticImage = UIImage(data: data) {
-                            imageView.image = staticImage
-                        }
-                    }
-                }
+            guard let url else {
+                currentURL = nil
+                imageView.image = nil
                 return
             }
 
-            task = URLSession.shared.dataTask(with: url) { data, _, error in
-                guard let data, error == nil else { return }
-
-                DispatchQueue.main.async {
-                    if let animatedImage = UIImage.animatedImageWithData(data) {
-                        imageView.image = animatedImage
-                    } else if let staticImage = UIImage(data: data) {
-                        imageView.image = staticImage
-                    }
-                }
+            if let cached = ChatGIFImageCache.shared.cachedImage(for: url) {
+                currentURL = url
+                imageView.image = cached
+                return
             }
-            task?.resume()
+
+            let needsReload = currentURL != url || imageView.image == nil
+            guard needsReload else { return }
+
+            currentURL = url
+            imageView.image = nil
+            let token = UUID()
+            requestToken = token
+
+            ChatGIFImageCache.shared.load(url: url) { image in
+                guard token == self.requestToken, self.currentURL == url else { return }
+                imageView.image = image
+            }
         }
     }
 }

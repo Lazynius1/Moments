@@ -1054,6 +1054,7 @@ final class LocalPersistenceService: ObservableObject {
         existing.isPinned = new.isPinned
         existing.isMuted = new.isMuted
         existing.readReceiptPreferencesData = new.readReceiptPreferencesData
+        existing.forwardingPreferencesData = new.forwardingPreferencesData
         existing.lastSyncedAt = Date()
     }
     
@@ -1157,21 +1158,9 @@ final class LocalPersistenceService: ObservableObject {
             if let data = message.reactionsData {
                 reactions = (try? JSONDecoder().decode([String: [String]].self, from: data)) ?? [:]
             }
-            
-            var userIds = reactions[emoji] ?? []
-            if let index = userIds.firstIndex(of: userId) {
-                userIds.remove(at: index)
-            } else {
-                userIds.append(userId)
-            }
-            
-            if userIds.isEmpty {
-                reactions.removeValue(forKey: emoji)
-            } else {
-                reactions[emoji] = userIds
-            }
-            
-            message.reactionsData = try? JSONEncoder().encode(reactions)
+
+            let updated = MessageReactionMutation.apply(to: reactions, emoji: emoji, userId: userId)
+            message.reactionsData = updated.flatMap { try? JSONEncoder().encode($0) }
             message.lastSyncedAt = Date()
             saveContext()
         }

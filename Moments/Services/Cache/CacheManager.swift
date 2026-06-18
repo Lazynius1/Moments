@@ -188,11 +188,13 @@ class CacheManager: ObservableObject {
     private func getCurrentCacheSize() -> Int {
         let urlCacheSize = URLCache.shared.currentDiskUsage
         let kingfisherSize = Int((try? KingfisherManager.shared.cache.diskStorage.totalSize()) ?? 0)
+        let kingfisherMemoryCost = KingfisherManager.shared.cache.memoryStorage.totalCacheCost()
         
         // ✅ NUEVO: Incluir tamaño de los videos cacheados
         let videoCacheSize = getVideoCacheSize()
         let audioCacheSize = PersistentAudioCache.shared.cacheSizeInBytes()
 
+        _ = kingfisherMemoryCost // reservado para tuning futuro de RAM (Kingfisher 8.10+)
         return urlCacheSize + kingfisherSize + videoCacheSize + audioCacheSize
     }
     

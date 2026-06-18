@@ -1128,6 +1128,7 @@ struct MediaItemView: View {
                         if usesBlurredFitLayout {
                             KFImage(URL(string: item.url))
                                 .placeholder { Color.clear }
+                                .cancelOnDisappear(true)
                                 .onSuccess { result in
                                     let ratio = result.image.size.width / max(result.image.size.height, 1)
                                     if ratio.isFinite, ratio > 0 {
@@ -1145,6 +1146,7 @@ struct MediaItemView: View {
                         } else {
                             KFImage(URL(string: item.url))
                                 .placeholder { Color.clear }
+                                .cancelOnDisappear(true)
                                 .onSuccess { result in
                                     let ratio = result.image.size.width / max(result.image.size.height, 1)
                                     if ratio.isFinite, ratio > 0 {

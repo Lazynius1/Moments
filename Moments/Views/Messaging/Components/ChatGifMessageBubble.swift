@@ -3,10 +3,11 @@ import SwiftUI
 /// Burbuja para mensajes GIF: animación en bucle con chrome mínimo (estilo IG DM).
 struct ChatGifMessageBubble: View {
     @ObservedObject var message: EnhancedMessage
-    let isSending: Bool
     let progress: Double?
 
     @Environment(\.colorScheme) private var colorScheme
+
+    private var isSending: Bool { message.status == .sending }
 
     private var gifURL: URL? {
         guard let urlString = message.mediaUrl, !urlString.isEmpty else { return nil }
@@ -20,7 +21,7 @@ struct ChatGifMessageBubble: View {
 
     var body: some View {
         ZStack {
-            if let gifURL {
+            if let gifURL, !message.isMediaPendingResolution {
                 AnimatedGIFView(url: gifURL)
                     .id(gifURL.absoluteString)
                     .aspectRatio(aspectRatio, contentMode: .fit)

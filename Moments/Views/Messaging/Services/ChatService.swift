@@ -50,6 +50,10 @@ class ChatService: ObservableObject {
     func removeListener(for conversationId: String) {
         activeListeners[conversationId]?.remove()
         activeListeners.removeValue(forKey: conversationId)
+
+        let reactionsKey = "reactions_\(conversationId)"
+        activeListeners[reactionsKey]?.remove()
+        activeListeners.removeValue(forKey: reactionsKey)
         
         let typingKey = "typing_\(conversationId)"
         activeListeners[typingKey]?.remove()
@@ -197,6 +201,19 @@ class ChatService: ObservableObject {
                 conversationId: conversationId
             )
             messages.append(message)
+        }
+
+        let fetchedReactions = await fetchReactionMap(
+            conversationId: conversationId,
+            messageIds: messages.map(\.id)
+        )
+        messages = messages.map { message in
+            var updated = message
+            updated.reactions = mergeLegacyAndLiveReactions(
+                legacy: message.reactions,
+                live: fetchedReactions[message.id]
+            )
+            return updated
         }
         
         
@@ -763,6 +780,12 @@ class ChatService: ObservableObject {
         if let mediaBatchId = message.mediaBatchId {
             messageData["mediaBatchId"] = mediaBatchId
         }
+        if message.isForwarded == true {
+            messageData["isForwarded"] = true
+        }
+        if let starredBy = message.starredBy, !starredBy.isEmpty {
+            messageData["starredBy"] = starredBy
+        }
         
         // Set timestamp
         if useServerTimestamp {
@@ -946,46 +969,33 @@ class ChatService: ObservableObject {
         Task(priority: .background) { @MainActor in
             LocalPersistenceService.shared.toggleMessageReactionLocally(messageId: messageId, emoji: emoji, userId: userId)
         }
-        
-        let messageRef = db.collection("conversations")
+
+        let reactionRef = db.collection("conversations")
             .document(conversationId)
             .collection("messages")
             .document(messageId)
-        
-        db.runTransaction({ (transaction, errorPointer) -> Any? in
-            let messageDocument: DocumentSnapshot
-            do {
-                try messageDocument = transaction.getDocument(messageRef)
-            } catch let fetchError as NSError {
-                errorPointer?.pointee = fetchError
-                return nil
+            .collection("messageReactions")
+            .document(userId)
+
+        reactionRef.getDocument { snapshot, error in
+            if let error {
+                completion(error)
+                return
             }
-            
-            guard var reactions = messageDocument.data()?["reactions"] as? [String: [String]] else {
-                transaction.updateData(["reactions": [emoji: [userId]]], forDocument: messageRef)
-                return nil
+
+            let existingEmoji = snapshot?.data()?["emoji"] as? String
+            if existingEmoji == emoji {
+                reactionRef.delete(completion: completion)
+                return
             }
-            
-            if var userIds = reactions[emoji] {
-                if userIds.contains(userId) {
-                    userIds.removeAll { $0 == userId }
-                    if userIds.isEmpty {
-                        reactions.removeValue(forKey: emoji)
-                    } else {
-                        reactions[emoji] = userIds
-                    }
-                } else {
-                    userIds.append(userId)
-                    reactions[emoji] = userIds
-                }
-            } else {
-                reactions[emoji] = [userId]
-            }
-            
-            transaction.updateData(["reactions": reactions], forDocument: messageRef)
-            return nil
-        }) { (_, error) in
-            completion(error)
+
+            reactionRef.setData([
+                "conversationId": conversationId,
+                "messageId": messageId,
+                "userId": userId,
+                "emoji": emoji,
+                "timestamp": FieldValue.serverTimestamp()
+            ], merge: true, completion: completion)
         }
     }
     

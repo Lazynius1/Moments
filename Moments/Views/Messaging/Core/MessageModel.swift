@@ -21,9 +21,11 @@ struct Conversation: Identifiable, Codable, Hashable {
     let encryptionVersion: String?
     let conversationKeyVersion: Int?
     let wrappedKeys: [String: WrappedConversationKey]?
-    
+
     // ✅ Privacy: Preferencias explícitas de lectura por usuario en este chat
     var readReceiptPreferences: [String: Bool]?
+    /// Si `false`, los demás no pueden reenviar los mensajes de texto de ese usuario en este chat.
+    var forwardingPreferences: [String: Bool]?
 
     func hash(into hasher: inout Hasher) {
         hasher.combine(id)
@@ -52,6 +54,7 @@ struct Conversation: Identifiable, Codable, Hashable {
         case conversationKeyVersion
         case wrappedKeys
         case readReceiptPreferences
+        case forwardingPreferences
     }
 
     init(
@@ -91,6 +94,7 @@ struct Conversation: Identifiable, Codable, Hashable {
         self.conversationKeyVersion = conversationKeyVersion
         self.wrappedKeys = wrappedKeys
         self.readReceiptPreferences = [:]
+        self.forwardingPreferences = [:]
     }
 
     init(from decoder: Decoder) throws {
@@ -114,6 +118,7 @@ struct Conversation: Identifiable, Codable, Hashable {
         self.conversationKeyVersion = try container.decodeIfPresent(Int.self, forKey: .conversationKeyVersion)
         self.wrappedKeys = try container.decodeIfPresent([String: WrappedConversationKey].self, forKey: .wrappedKeys)
         self.readReceiptPreferences = try container.decodeIfPresent([String: Bool].self, forKey: .readReceiptPreferences) ?? [:]
+        self.forwardingPreferences = try container.decodeIfPresent([String: Bool].self, forKey: .forwardingPreferences) ?? [:]
     }
 
     func encode(to encoder: Encoder) throws {
@@ -136,6 +141,11 @@ struct Conversation: Identifiable, Codable, Hashable {
         try container.encodeIfPresent(conversationKeyVersion, forKey: .conversationKeyVersion)
         try container.encodeIfPresent(wrappedKeys, forKey: .wrappedKeys)
         try container.encodeIfPresent(readReceiptPreferences, forKey: .readReceiptPreferences)
+        try container.encodeIfPresent(forwardingPreferences, forKey: .forwardingPreferences)
+    }
+
+    func allowsForwarding(ofMessagesFrom senderId: String) -> Bool {
+        forwardingPreferences?[senderId] ?? true
     }
 
     func isMuted(for userId: String?) -> Bool {
@@ -169,20 +179,20 @@ struct Conversation: Identifiable, Codable, Hashable {
 
         return false
     }
-    
+
     // Propiedad calculada para obtener el número de mensajes no leídos
     var unreadCount: Int {
         guard let currentUserId = Auth.auth().currentUser?.uid,
               let isRead = readStatus[currentUserId] else { return 0 }
         return isRead ? 0 : 1 // Simplificado, en producción sería más complejo
     }
-    
+
     // Verificar si la conversación está activa
     var isActive: Bool {
         // Aquí podrías verificar que ningún participante haya bloqueado al otro
         return true // Por ahora retornamos true
     }
-    
+
     // Obtener preview del último mensaje para notificaciones
     var messagePreview: String {
         if let lastMessage {
@@ -285,7 +295,7 @@ enum MessageType: String, CaseIterable, Codable {
     // ✅ NUEVOS: Tipos para view-once
     case viewOnceImage = "viewOnceImage"
     case viewOnceVideo = "viewOnceVideo"
-    
+
     var displayName: String {
         switch self {
         case .text: return NSLocalizedString("common.text", comment: "")
@@ -303,7 +313,7 @@ enum MessageType: String, CaseIterable, Codable {
         case .viewOnceVideo: return NSLocalizedString("chat.viewOnce.video", comment: "") + " (" + NSLocalizedString("chat.viewOnce.viewOnce", comment: "") + ")"
         }
     }
-    
+
     var iconName: String {
         switch self {
         case .text: return "text.bubble"
@@ -321,12 +331,12 @@ enum MessageType: String, CaseIterable, Codable {
         case .viewOnceVideo: return "video.circle"
         }
     }
-    
+
     // ✅ NUEVA: Propiedad para identificar view-once
     var isViewOnce: Bool {
         return self == .viewOnceImage || self == .viewOnceVideo
     }
-    
+
     // ✅ NUEVA: Preview para lista de conversaciones
     var conversationPreview: String {
         switch self {
@@ -375,7 +385,7 @@ enum MessageStatus: String, Codable {
     case delivered = "delivered"
     case read = "read"
     case failed = "failed"
-    
+
     var displayName: String {
         switch self {
         case .pending: return NSLocalizedString("chat.status.pending", comment: "")
@@ -386,7 +396,7 @@ enum MessageStatus: String, Codable {
         case .failed: return NSLocalizedString("chat.status.failed", comment: "")
         }
     }
-    
+
     var iconName: String {
         switch self {
         case .pending, .sending: return "clock"
@@ -523,10 +533,12 @@ class EnhancedMessage: Codable, Identifiable, ObservableObject {
     let sharedMomentData: [String: String]?
     let sharedStoryData: [String: String]?
     let mediaBatchId: String?
-    
+
     // ✅ NUEVOS: Campos para view-once
     var viewedBy: [String]? // IDs de usuarios que han visto el mensaje view-once
-    
+    var starredBy: [String]?
+    var isForwarded: Bool?
+
     enum CodingKeys: String, CodingKey {
         case id, conversationId, senderId, type, content, mediaUrl, thumbnailUrl
         case mediaObjectPath, thumbnailObjectPath, mediaEncryption, thumbnailEncryption
@@ -534,27 +546,28 @@ class EnhancedMessage: Codable, Identifiable, ObservableObject {
         case status, isRead, isDeleted, deletedAt, editedAt, reactions
         case replyTo, expirationDate, isViewed, storyReplyData, sharedMomentData, sharedStoryData
         case mediaBatchId
-        case viewedBy // ✅ NUEVO
+        case viewedBy
+        case starredBy, isForwarded
         // ✅ NUEVO: Ubicación (fija + en vivo)
         case locationName, locationAddress
         case isLiveLocation, liveLocationExpiresAt, liveLocationDuration
         case liveLocationStoppedAt, liveLocationSessionId, locationUpdatedAt
     }
-    
+
     required init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
-        
+
         self.id = try container.decode(String.self, forKey: .id)
         self.conversationId = try container.decode(String.self, forKey: .conversationId)
         self.senderId = try container.decode(String.self, forKey: .senderId)
-        
+
         if let typeString = try container.decodeIfPresent(String.self, forKey: .type),
            let type = MessageType(rawValue: typeString) {
             self.type = type
         } else {
             self.type = .text
         }
-        
+
         self.content = try container.decodeIfPresent(String.self, forKey: .content)
         self.mediaUrl = try container.decodeIfPresent(String.self, forKey: .mediaUrl)
         self.thumbnailUrl = try container.decodeIfPresent(String.self, forKey: .thumbnailUrl)
@@ -589,59 +602,61 @@ class EnhancedMessage: Codable, Identifiable, ObservableObject {
         } else {
             self.locationUpdatedAt = nil
         }
-        
+
         if let timestamp = try container.decodeIfPresent(Timestamp.self, forKey: .timestamp) {
             self.timestamp = timestamp.dateValue()
         } else {
             self.timestamp = Date()
         }
-        
+
         let statusString = try container.decodeIfPresent(String.self, forKey: .status) ?? MessageStatus.sent.rawValue
         let status = MessageStatus(rawValue: statusString) ?? .sent
         self.status = status
-        
+
         let isRead = try container.decodeIfPresent(Bool.self, forKey: .isRead) ?? false
         self.isRead = isRead
-        
+
         let isDeleted = try container.decodeIfPresent(Bool.self, forKey: .isDeleted) ?? false
         self.isDeleted = isDeleted
-        
+
         if let deletedAt = try container.decodeIfPresent(Timestamp.self, forKey: .deletedAt) {
             self.deletedAt = deletedAt.dateValue()
         } else {
             self.deletedAt = nil
         }
-        
+
         if let editedAt = try container.decodeIfPresent(Timestamp.self, forKey: .editedAt) {
             self.editedAt = editedAt.dateValue()
         } else {
             self.editedAt = nil
         }
-        
+
         self.reactions = try container.decodeIfPresent([String: [String]].self, forKey: .reactions)
         self.replyTo = try container.decodeIfPresent(String.self, forKey: .replyTo)
-        
+
         if let expirationDate = try container.decodeIfPresent(Timestamp.self, forKey: .expirationDate) {
             self.expirationDate = expirationDate.dateValue()
         } else {
             self.expirationDate = nil
         }
-        
+
         let isViewed = try container.decodeIfPresent(Bool.self, forKey: .isViewed) ?? false
         self.isViewed = isViewed
-        
+
         self.storyReplyData = try container.decodeIfPresent([String: String].self, forKey: .storyReplyData)
         self.sharedMomentData = try container.decodeIfPresent([String: String].self, forKey: .sharedMomentData)
         self.sharedStoryData = try container.decodeIfPresent([String: String].self, forKey: .sharedStoryData)
         self.mediaBatchId = try container.decodeIfPresent(String.self, forKey: .mediaBatchId)
-        
+
         // ✅ NUEVO: Decodificar viewedBy
         self.viewedBy = try container.decodeIfPresent([String].self, forKey: .viewedBy)
+        self.starredBy = try container.decodeIfPresent([String].self, forKey: .starredBy)
+        self.isForwarded = try container.decodeIfPresent(Bool.self, forKey: .isForwarded)
     }
-    
+
     func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
-        
+
         try container.encode(id, forKey: .id)
         try container.encode(conversationId, forKey: .conversationId)
         try container.encode(senderId, forKey: .senderId)
@@ -677,32 +692,34 @@ class EnhancedMessage: Codable, Identifiable, ObservableObject {
         try container.encode(status.rawValue, forKey: .status)
         try container.encode(isRead, forKey: .isRead)
         try container.encode(isDeleted, forKey: .isDeleted)
-        
+
         if let deletedAt = deletedAt {
             try container.encode(Timestamp(date: deletedAt), forKey: .deletedAt)
         }
-        
+
         if let editedAt = editedAt {
             try container.encode(Timestamp(date: editedAt), forKey: .editedAt)
         }
-        
+
         try container.encodeIfPresent(reactions, forKey: .reactions)
         try container.encodeIfPresent(replyTo, forKey: .replyTo)
-        
+
         if let expirationDate = expirationDate {
             try container.encode(Timestamp(date: expirationDate), forKey: .expirationDate)
         }
-        
+
         try container.encode(isViewed, forKey: .isViewed)
         try container.encodeIfPresent(storyReplyData, forKey: .storyReplyData)
         try container.encodeIfPresent(sharedMomentData, forKey: .sharedMomentData)
         try container.encodeIfPresent(sharedStoryData, forKey: .sharedStoryData)
         try container.encodeIfPresent(mediaBatchId, forKey: .mediaBatchId)
-        
+
         // ✅ NUEVO: Codificar viewedBy
         try container.encodeIfPresent(viewedBy, forKey: .viewedBy)
+        try container.encodeIfPresent(starredBy, forKey: .starredBy)
+        try container.encodeIfPresent(isForwarded, forKey: .isForwarded)
     }
-    
+
     required init(id: String? = nil,
          conversationId: String,
          senderId: String,
@@ -741,8 +758,10 @@ class EnhancedMessage: Codable, Identifiable, ObservableObject {
          sharedMomentData: [String: String]? = nil,
          sharedStoryData: [String: String]? = nil,
          mediaBatchId: String? = nil,
-         viewedBy: [String]? = nil) { // ✅ NUEVO parámetro
-        
+         viewedBy: [String]? = nil,
+         starredBy: [String]? = nil,
+         isForwarded: Bool? = nil) {
+
         self.id = id ?? UUID().uuidString
         self.conversationId = conversationId
         self.senderId = senderId
@@ -782,17 +801,22 @@ class EnhancedMessage: Codable, Identifiable, ObservableObject {
         self.sharedStoryData = sharedStoryData
         self.mediaBatchId = mediaBatchId
         self.viewedBy = viewedBy
+        self.starredBy = starredBy
+        self.isForwarded = isForwarded
     }
-    
+
+    func isStarred(by userId: String) -> Bool {
+        starredBy?.contains(userId) ?? false
+    }
+
     var isExpired: Bool {
         guard let expirationDate = expirationDate else { return false }
         return Date() > expirationDate
     }
 
-    // ✅ NUEVO: Estado de ubicación en vivo
     /// `true` si el mensaje es una sesión de ubicación en vivo (independiente de si sigue activa).
     var isLiveLocationMessage: Bool {
-        return type == .location && (isLiveLocation ?? false)
+        type == .location && (isLiveLocation ?? false)
     }
 
     /// `true` si la sesión live sigue activa (no parada manualmente y no expirada).
@@ -802,7 +826,7 @@ class EnhancedMessage: Codable, Identifiable, ObservableObject {
         if let expiresAt = liveLocationExpiresAt, Date() >= expiresAt { return false }
         return true
     }
-    
+
     // ✅ ACTUALIZADA: Preview mejorado con support para view-once
     var preview: String {
         switch type {
@@ -834,24 +858,24 @@ class EnhancedMessage: Codable, Identifiable, ObservableObject {
             return NSLocalizedString("chat.preview.viewOnceVideo", comment: "")
         }
     }
-    
+
     // ✅ NUEVAS: Propiedades y funciones para view-once
-    
+
     /// Determina si este mensaje es view-once
     var isViewOnce: Bool {
         return type.isViewOnce
     }
-    
+
     /// Determina si el usuario actual ya vio este mensaje view-once
     func hasBeenViewedBy(userId: String) -> Bool {
         guard isViewOnce else { return false }
         return viewedBy?.contains(userId) ?? false
     }
-    
+
     /// Obtiene el estado del view-once para un usuario específico
     func viewOnceStatus(for currentUserId: String) -> String {
         guard isViewOnce else { return "" }
-        
+
         if senderId == currentUserId {
             // Usuario que envió el mensaje
             return isViewed ? NSLocalizedString("chat.viewOnce.viewed", comment: "") : NSLocalizedString("chat.viewOnce.sent", comment: "")
@@ -861,11 +885,11 @@ class EnhancedMessage: Codable, Identifiable, ObservableObject {
             return hasViewed ? NSLocalizedString("chat.viewOnce.viewed", comment: "") : NSLocalizedString("chat.viewOnce.tapToView", comment: "")
         }
     }
-    
+
     /// Determina si debe mostrar el contenido del view-once
     func shouldShowViewOnceContent(for currentUserId: String) -> Bool {
         guard isViewOnce else { return true }
-        
+
         if senderId == currentUserId {
             // El remitente siempre puede ver un preview
             return true
@@ -874,17 +898,17 @@ class EnhancedMessage: Codable, Identifiable, ObservableObject {
             return !hasBeenViewedBy(userId: currentUserId)
         }
     }
-    
+
     /// Obtiene el ícono apropiado para el tipo de mensaje
     var typeIcon: String {
         return type.iconName
     }
-    
+
     /// Determina si el mensaje puede ser eliminado automáticamente (view-once visto)
     var canBeAutoDeleted: Bool {
         return isViewOnce && isViewed && !isDeleted
     }
-    
+
     /// Preview para mostrar en la lista de conversaciones
     var conversationPreview: String {
         if let content = content, type == .text {
@@ -909,7 +933,7 @@ extension EnhancedMessage: Hashable {
 
 // MARK: - ✅ NUEVA: Extension para crear mensajes view-once fácilmente
 extension EnhancedMessage {
-    
+
     /// Crea un mensaje view-once de imagen
     static func createViewOnceImage(
         conversationId: String,
@@ -926,7 +950,7 @@ extension EnhancedMessage {
             viewedBy: []
         )
     }
-    
+
     /// Crea un mensaje view-once de video
     static func createViewOnceVideo(
         conversationId: String,
@@ -953,21 +977,21 @@ extension EnhancedMessage {
 enum ViewOnceMediaType {
     case image
     case video
-    
+
     var messageType: MessageType {
         switch self {
         case .image: return .viewOnceImage
         case .video: return .viewOnceVideo
         }
     }
-    
+
     var preview: String {
         switch self {
         case .image: return NSLocalizedString("chat.preview.viewOncePhoto", comment: "")
         case .video: return NSLocalizedString("chat.preview.viewOnceVideo", comment: "")
         }
     }
-    
+
     var iconName: String {
         switch self {
         case .image: return "camera.circle"
@@ -993,17 +1017,17 @@ struct TypingIndicator: Codable {
     let userId: String
     let conversationId: String
     let timestamp: Date
-    
+
     init(userId: String, conversationId: String, timestamp: Date = Date()) {
         self.userId = userId
         self.conversationId = conversationId
         self.timestamp = timestamp
     }
-    
+
     enum CodingKeys: String, CodingKey {
         case userId, conversationId, timestamp
     }
-    
+
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         self.userId = try container.decode(String.self, forKey: .userId)
@@ -1011,7 +1035,7 @@ struct TypingIndicator: Codable {
         let timestamp = try container.decode(Timestamp.self, forKey: .timestamp)
         self.timestamp = timestamp.dateValue()
     }
-    
+
     func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(userId, forKey: .userId)
@@ -1029,15 +1053,15 @@ struct MessageNotification {
     let messagePreview: String
     let timestamp: Date
     let isViewOnce: Bool // ✅ NUEVO: Indicar si es view-once
-    
+
     var title: String {
         return senderName
     }
-    
+
     var body: String {
         return isViewOnce ? NSLocalizedString("chat.notification.viewOncePrompt", comment: "") : messagePreview
     }
-    
+
     init(conversationId: String, messageId: String, senderId: String, senderName: String, messagePreview: String, timestamp: Date = Date(), isViewOnce: Bool = false) {
         self.conversationId = conversationId
         self.messageId = messageId
@@ -1057,7 +1081,7 @@ struct ViewOnceMetadata: Codable {
     let createdAt: Date
     var viewedBy: [String]
     var isExpired: Bool
-    
+
     init(messageId: String, conversationId: String, senderId: String, createdAt: Date = Date()) {
         self.messageId = messageId
         self.conversationId = conversationId
@@ -1066,13 +1090,13 @@ struct ViewOnceMetadata: Codable {
         self.viewedBy = []
         self.isExpired = false
     }
-    
+
     mutating func markAsViewedBy(userId: String) {
         if !viewedBy.contains(userId) {
             viewedBy.append(userId)
         }
     }
-    
+
     var canBeDeleted: Bool {
         return !viewedBy.isEmpty && !isExpired
     }
@@ -1092,7 +1116,7 @@ extension EnhancedMessage: MessageProtocol {}
 
 // MARK: - ✅ NUEVA: Extension para analytics y tracking
 extension EnhancedMessage {
-    
+
     /// Propiedades para analytics
     var analyticsData: [String: Any] {
         var data: [String: Any] = [
@@ -1101,24 +1125,24 @@ extension EnhancedMessage {
             "isViewOnce": isViewOnce,
             "messageLength": content?.count ?? 0
         ]
-        
+
         if isViewOnce {
             data["viewOnceType"] = type.rawValue
             data["hasBeenViewed"] = isViewed
             data["viewerCount"] = viewedBy?.count ?? 0
         }
-        
+
         if let duration = duration {
             data["mediaDuration"] = duration
         }
-        
+
         if let fileSize = fileSize {
             data["fileSize"] = fileSize
         }
-        
+
         return data
     }
-    
+
     /// Evento de analytics para tracking
     var analyticsEvent: String {
         if isViewOnce {
@@ -1127,31 +1151,56 @@ extension EnhancedMessage {
             return "message_sent"
         }
     }
+
+    /// Media cifrada pendiente de resolver a URL local/remota.
+    var isMediaPendingResolution: Bool {
+        guard status != .sending else { return false }
+        switch type {
+        case .image:
+            guard mediaUrl == nil else { return false }
+            return mediaObjectPath != nil && mediaEncryption != nil
+        case .video:
+            guard thumbnailUrl == nil && mediaUrl == nil else { return false }
+            return mediaObjectPath != nil && mediaEncryption != nil
+        case .gif, .sticker:
+            if mediaUrl == nil {
+                return mediaObjectPath != nil && mediaEncryption != nil
+            }
+            if let urlString = mediaUrl,
+               let url = URL(string: urlString),
+               url.isFileURL {
+                return !FileManager.default.fileExists(atPath: url.path)
+            }
+            return false
+        default:
+            return false
+        }
+    }
 }
 
 // MARK: - ✅ NUEVA: Utility para manejo de estados de view-once
 struct ViewOnceStateManager {
-    
+
     /// Determina si un mensaje view-once debe ser eliminado
     static func shouldDeleteViewOnceMessage(_ message: EnhancedMessage, for userId: String) -> Bool {
         guard message.isViewOnce else { return false }
-        
+
         // Si el usuario no es el remitente y ya vio el mensaje
         if message.senderId != userId && message.hasBeenViewedBy(userId: userId) {
             return true
         }
-        
+
         return false
     }
-    
+
     /// Obtiene el texto apropiado para el estado del view-once
     static func getViewOnceStatusText(_ message: EnhancedMessage, for userId: String) -> String {
         guard message.isViewOnce else { return "" }
-        
+
         if message.isDeleted {
             return "Mensaje eliminado"
         }
-        
+
         if message.senderId == userId {
             // Remitente
             return message.isViewed ? "Visto" : "Enviado"
@@ -1160,15 +1209,15 @@ struct ViewOnceStateManager {
             return message.hasBeenViewedBy(userId: userId) ? "Visto" : "Toca para ver"
         }
     }
-    
+
     /// Obtiene el color apropiado para el estado del view-once
     static func getViewOnceStatusColor(_ message: EnhancedMessage, for userId: String) -> String {
         guard message.isViewOnce else { return "primary" }
-        
+
         if message.isDeleted {
             return "secondary"
         }
-        
+
         if message.senderId == userId {
             return message.isViewed ? "success" : "warning"
         } else {
@@ -1179,7 +1228,7 @@ struct ViewOnceStateManager {
 
 // MARK: - ✅ NUEVA: Extension para formateo y display
 extension EnhancedMessage {
-    
+
     /// Formato de tiempo relativo
     var relativeTimeString: String {
         let formatter = RelativeDateTimeFormatter()
@@ -1187,11 +1236,11 @@ extension EnhancedMessage {
         formatter.locale = Locale(identifier: "es_ES")
         return formatter.localizedString(for: timestamp, relativeTo: Date())
     }
-    
+
     /// Formato de tiempo absoluto
     var absoluteTimeString: String {
         let formatter = DateFormatter()
-        
+
         if Calendar.current.isDateInToday(timestamp) {
             formatter.timeStyle = .short
         } else if Calendar.current.isDate(timestamp, equalTo: Date(), toGranularity: .weekOfYear) {
@@ -1199,28 +1248,28 @@ extension EnhancedMessage {
         } else {
             formatter.dateFormat = "dd/MM/yyyy HH:mm"
         }
-        
+
         formatter.locale = Locale(identifier: "es_ES")
         return formatter.string(from: timestamp)
     }
-    
+
     /// Tamaño del archivo formateado
     var formattedFileSize: String? {
         guard let fileSize = fileSize else { return nil }
-        
+
         let formatter = ByteCountFormatter()
         formatter.allowedUnits = [.useKB, .useMB, .useGB]
         formatter.countStyle = .file
         return formatter.string(fromByteCount: fileSize)
     }
-    
+
     /// Duración formateada para audio/video
     var formattedDuration: String? {
         guard let duration = duration else { return nil }
-        
+
         let minutes = Int(duration) / 60
         let seconds = Int(duration) % 60
-        
+
         if minutes > 0 {
             return String(format: "%d:%02d", minutes, seconds)
         } else {
@@ -1236,7 +1285,7 @@ struct ViewOnceConstants {
     static let maxFileSize: Int64 = 50 * 1024 * 1024 // 50MB máximo
     static let supportedImageTypes = ["image/jpeg", "image/png", "image/heic"]
     static let supportedVideoTypes = ["video/mp4", "video/mov", "video/quicktime"]
-    
+
     struct Analytics {
         static let viewOnceCreated = "view_once_created"
         static let viewOnceOpened = "view_once_opened"
@@ -1244,14 +1293,14 @@ struct ViewOnceConstants {
         static let viewOnceDeleted = "view_once_deleted" // ✅ Se triggea después de cerrar
         static let viewOnceExpired = "view_once_expired" // ✅ Por si acaso, pero no se usa
     }
-    
+
     struct Notifications {
         static let viewOnceViewed = "ViewOnceMessageViewed"
         static let viewOnceDeleted = "ViewOnceMessageDeleted"
         static let viewOnceReceived = "ViewOnceMessageReceived"
         static let viewOnceClosed = "ViewOnceMessageClosed" // ✅ NUEVO: Cuando se cierra la vista
     }
-    
+
     // ✅ NUEVAS: Constantes específicas para Moments-style
     struct MomentsStyle {
         static let deleteOnViewClose = true // Se borra al cerrar vista
@@ -1271,7 +1320,7 @@ enum ViewOnceError: Error, LocalizedError {
     case invalidMediaType
     case fileTooLarge
     case networkError
-    
+
     var errorDescription: String? {
         switch self {
         case .messageNotFound:
@@ -1307,13 +1356,13 @@ struct MessageRequest: Identifiable, Codable, Hashable {
     let messageType: MessageType
     let mediaUrl: String?
     let thumbnailUrl: String?
-    
+
     enum RequestStatus: String, Codable, CaseIterable {
         case pending = "pending"
         case accepted = "accepted"
         case rejected = "rejected"
         case blocked = "blocked"
-        
+
         var displayName: String {
             switch self {
             case .pending: return "Pendiente"
@@ -1322,7 +1371,7 @@ struct MessageRequest: Identifiable, Codable, Hashable {
             case .blocked: return "Bloqueada"
             }
         }
-        
+
         var color: String {
             switch self {
             case .pending: return "FF9500" // Naranja
@@ -1332,7 +1381,7 @@ struct MessageRequest: Identifiable, Codable, Hashable {
             }
         }
     }
-    
+
     init(id: String?, senderId: String, senderUsername: String?, senderProfileImagePath: String?, receiverId: String, message: String, timestamp: Date, status: RequestStatus, messageType: MessageType, mediaUrl: String?, thumbnailUrl: String?) {
         self.id = id
         self.senderId = senderId
@@ -1346,7 +1395,7 @@ struct MessageRequest: Identifiable, Codable, Hashable {
         self.mediaUrl = mediaUrl
         self.thumbnailUrl = thumbnailUrl
     }
-    
+
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         self.id = try container.decodeIfPresent(String.self, forKey: .id)
@@ -1355,7 +1404,7 @@ struct MessageRequest: Identifiable, Codable, Hashable {
         self.senderProfileImagePath = try container.decodeIfPresent(String.self, forKey: .senderProfileImagePath)
         self.receiverId = try container.decode(String.self, forKey: .receiverId)
         self.message = try container.decode(String.self, forKey: .message)
-        
+
         // Manejar timestamp de Firestore
         do {
             let timestamp = try container.decode(Timestamp.self, forKey: .timestamp)
@@ -1364,13 +1413,13 @@ struct MessageRequest: Identifiable, Codable, Hashable {
             // Si falla la decodificación de Timestamp, usar fecha actual como fallback
             self.timestamp = Date()
         }
-        
+
         self.status = try container.decode(RequestStatus.self, forKey: .status)
         self.messageType = try container.decode(MessageType.self, forKey: .messageType)
         self.mediaUrl = try container.decodeIfPresent(String.self, forKey: .mediaUrl)
         self.thumbnailUrl = try container.decodeIfPresent(String.self, forKey: .thumbnailUrl)
     }
-    
+
     func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encodeIfPresent(id, forKey: .id)
@@ -1385,7 +1434,7 @@ struct MessageRequest: Identifiable, Codable, Hashable {
         try container.encodeIfPresent(mediaUrl, forKey: .mediaUrl)
         try container.encodeIfPresent(thumbnailUrl, forKey: .thumbnailUrl)
     }
-    
+
     enum CodingKeys: String, CodingKey {
         case id
         case senderId
@@ -1399,7 +1448,7 @@ struct MessageRequest: Identifiable, Codable, Hashable {
         case mediaUrl
         case thumbnailUrl
     }
-    
+
     // Propiedad calculada para mostrar preview del mensaje
     var messagePreview: String {
         switch messageType {
@@ -1434,14 +1483,85 @@ struct MessageRequest: Identifiable, Codable, Hashable {
             return "🎥 Video (ver una vez)"
         }
     }
-    
+
     // Verificar si la solicitud está pendiente
     var isPending: Bool {
         return status == .pending
     }
-    
+
     // Verificar si el usuario puede enviar más solicitudes
     var canSendMoreRequests: Bool {
         return status != .blocked
+    }
+}
+
+// MARK: - Reacciones (una por usuario, estilo IG)
+
+enum MessageReactionMutation {
+    /// Sustituye la reacción previa del usuario o la quita si repite el mismo emoji.
+    static func apply(
+        to reactions: [String: [String]]?,
+        emoji: String,
+        userId: String
+    ) -> [String: [String]]? {
+        var reactions = reactions ?? [:]
+        let alreadyHasThisEmoji = reactions[emoji]?.contains(userId) ?? false
+
+        if alreadyHasThisEmoji {
+            var userIds = reactions[emoji] ?? []
+            userIds.removeAll { $0 == userId }
+            if userIds.isEmpty {
+                reactions.removeValue(forKey: emoji)
+            } else {
+                reactions[emoji] = userIds
+            }
+        } else {
+            for key in Array(reactions.keys) {
+                var userIds = reactions[key] ?? []
+                userIds.removeAll { $0 == userId }
+                if userIds.isEmpty {
+                    reactions.removeValue(forKey: key)
+                } else {
+                    reactions[key] = userIds
+                }
+            }
+            var userIds = reactions[emoji] ?? []
+            userIds.append(userId)
+            reactions[emoji] = userIds
+        }
+
+        return reactions.isEmpty ? nil : reactions
+    }
+}
+
+// MARK: - Políticas de mensaje (edición, reenvío)
+
+enum ChatMessagePolicy {
+    static let editWindow: TimeInterval = 10 * 60
+
+    static func canEdit(_ message: EnhancedMessage, userId: String) -> Bool {
+        guard message.senderId == userId, message.type == .text, !message.isDeleted else { return false }
+        return Date().timeIntervalSince(message.timestamp) < editWindow
+    }
+
+    /// Solo texto plano; el cifrado E2E obliga a descifrar y recifrar por destino.
+    static func canForward(
+        _ message: EnhancedMessage,
+        currentUserId: String,
+        forwardingPreferences: [String: Bool]? = nil
+    ) -> Bool {
+        guard message.type == .text, !message.isDeleted else { return false }
+        let trimmed = message.content?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        guard !trimmed.isEmpty else { return false }
+        if message.senderId == currentUserId { return true }
+        return forwardingPreferences?[message.senderId] ?? true
+    }
+
+    static func canCopy(
+        _ message: EnhancedMessage,
+        currentUserId: String,
+        forwardingPreferences: [String: Bool]? = nil
+    ) -> Bool {
+        canForward(message, currentUserId: currentUserId, forwardingPreferences: forwardingPreferences)
     }
 }

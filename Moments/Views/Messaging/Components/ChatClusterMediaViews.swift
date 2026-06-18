@@ -1,6 +1,78 @@
 import SwiftUI
 import Kingfisher
 
+enum ClusterMessageStatusAggregator {
+    private static let priority: [MessageStatus: Int] = [
+        .failed: -2,
+        .pending: -1,
+        .sending: 0,
+        .sent: 1,
+        .delivered: 2,
+        .read: 3
+    ]
+
+    /// Estado agregado del álbum: el menos avanzado gana (p. ej. 1 de 4 enviando → sending).
+    static func aggregate(_ messages: [EnhancedMessage]) -> MessageStatus {
+        guard !messages.isEmpty else { return .sent }
+        return messages.map(\.status).min {
+            (priority[$0] ?? 0) < (priority[$1] ?? 0)
+        } ?? .sent
+    }
+}
+
+enum ClusterMessageGrouper {
+    /// Ventana de ráfaga: fotos/videos consecutivos del mismo remitente sin batch explícito.
+    private static let burstWindow: TimeInterval = 60
+
+    static func shouldAppendToCluster(_ message: EnhancedMessage, cluster: [EnhancedMessage]) -> Bool {
+        guard let last = cluster.last else { return true }
+        guard message.senderId == last.senderId else { return false }
+
+        let messageBatch = message.mediaBatchId?.isEmpty == false ? message.mediaBatchId : nil
+        let lastBatch = last.mediaBatchId?.isEmpty == false ? last.mediaBatchId : nil
+
+        if let messageBatch, let lastBatch {
+            return messageBatch == lastBatch
+        }
+        if messageBatch != nil, lastBatch != nil, messageBatch != lastBatch {
+            return false
+        }
+
+        let delta = message.timestamp.timeIntervalSince(last.timestamp)
+        return delta >= 0 && delta <= burstWindow
+    }
+
+    static func group(_ input: [EnhancedMessage]) -> [MessageItem] {
+        var result: [MessageItem] = []
+        var currentCluster: [EnhancedMessage] = []
+
+        func flushCluster() {
+            guard !currentCluster.isEmpty else { return }
+            result.append(currentCluster.count > 1 ? .mediaCluster(currentCluster) : .single(currentCluster[0]))
+            currentCluster = []
+        }
+
+        for message in input {
+            let isClusterable = message.type == .image || message.type == .video
+
+            if isClusterable {
+                if currentCluster.isEmpty || shouldAppendToCluster(message, cluster: currentCluster) {
+                    currentCluster.append(message)
+                } else {
+                    flushCluster()
+                    currentCluster.append(message)
+                }
+            } else {
+                flushCluster()
+                result.append(.single(message))
+            }
+        }
+
+        flushCluster()
+        return result
+    }
+}
+
 // MARK: - Clustering UI Components
 struct GlassmorphicClusterRow: View {
     let messages: [EnhancedMessage]
@@ -13,9 +85,11 @@ struct GlassmorphicClusterRow: View {
     let onMomentNavigation: ((EnhancedMessage) -> Void)?
     let onOpenMedia: (EnhancedMessage) -> Void
     let onLongPress: (EnhancedMessage) -> Void
+    let onHydrateMedia: ((EnhancedMessage) -> Void)?
     let onReply: ([EnhancedMessage]) -> Void
     let onReplyTap: ((String) -> Void)?
     let uploadProgress: [String: Double]
+    let showSeenLabel: Bool
 
     @State private var dragOffset: CGFloat = 0
     @State private var hasTriggeredHaptic = false
@@ -63,47 +137,61 @@ struct GlassmorphicClusterRow: View {
                         uploadProgress: uploadProgress,
                         onMomentNavigation: onMomentNavigation,
                         onOpenMedia: onOpenMedia,
-                        onLongPress: onLongPress
+                        onLongPress: onLongPress,
+                        onHydrateMedia: onHydrateMedia
                     )
+
+                    if let anchorMessage = messages.last {
+                        ClusterMessageFooter(
+                            messages: messages,
+                            anchorMessage: anchorMessage,
+                            isCurrentUser: isCurrentUser,
+                            showSeenLabel: showSeenLabel
+                        )
+                    }
                 }
 
                 if !isCurrentUser { Spacer(minLength: 50) }
             }
             .offset(x: dragOffset)
-            .contentShape(Rectangle()) // Asegurar que todo el área es gesture-able
-            .highPriorityGesture(
-                DragGesture(minimumDistance: 14, coordinateSpace: .local)
-                    .onChanged { value in
-                        let horizontalMove = value.translation.width
-                        let verticalMove = value.translation.height
-
-                        if horizontalMove > 0 && abs(horizontalMove) > abs(verticalMove) {
-                            dragOffset = horizontalMove
-
-                            // Haptic Feedback
-                            if dragOffset > 60 && !hasTriggeredHaptic {
-                                let generator = UIImpactFeedbackGenerator(style: .medium)
-                                generator.impactOccurred()
-                                hasTriggeredHaptic = true
-                            } else if dragOffset < 60 && hasTriggeredHaptic {
-                                hasTriggeredHaptic = false
-                            }
-                        }
-                    }
-                    .onEnded { _ in
-                        if dragOffset > 70 {
-                            onReply(messages)
-                        }
-
-                        withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                            dragOffset = 0
-                            hasTriggeredHaptic = false
-                        }
-                    }
+            .contentShape(Rectangle())
+            .chatReplySwipeGesture(
+                dragOffset: $dragOffset,
+                hasTriggeredHaptic: $hasTriggeredHaptic,
+                onReply: { onReply(messages) }
             )
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 5)
+    }
+}
+
+private struct ClusterMessageFooter: View {
+    let messages: [EnhancedMessage]
+    @ObservedObject var anchorMessage: EnhancedMessage
+    let isCurrentUser: Bool
+    let showSeenLabel: Bool
+
+    var body: some View {
+        Group {
+            ForEach(messages) { message in
+                ClusterMessageStatusObserver(message: message)
+            }
+            MessageTimestamp(
+                message: anchorMessage,
+                isCurrentUser: isCurrentUser,
+                showSeenLabel: showSeenLabel,
+                overrideStatus: ClusterMessageStatusAggregator.aggregate(messages)
+            )
+            .id(messages.map { "\($0.id)-\($0.status.rawValue)" }.joined(separator: "|"))
+        }
+    }
+}
+
+private struct ClusterMessageStatusObserver: View {
+    @ObservedObject var message: EnhancedMessage
+    var body: some View {
+        EmptyView()
     }
 }
 
@@ -114,6 +202,7 @@ struct MediaGridBubble: View {
     let onMomentNavigation: ((EnhancedMessage) -> Void)?
     let onOpenMedia: (EnhancedMessage) -> Void
     let onLongPress: (EnhancedMessage) -> Void
+    let onHydrateMedia: ((EnhancedMessage) -> Void)?
 
     var body: some View {
         let count = messages.count
@@ -131,8 +220,12 @@ struct MediaGridBubble: View {
             ForEach(displayedMessages, id: \.element.id) { index, message in
                 MediaGridTileView(
                     message: message,
-                    progress: uploadProgress[message.id]
+                    progress: uploadProgress[message.id],
+                    downsamplingSize: CGSize(width: cellWidth * UIScreen.main.scale, height: cellHeight * UIScreen.main.scale)
                 )
+                .onAppear {
+                    onHydrateMedia?(message)
+                }
                 .frame(width: cellWidth, height: cellHeight)
                 .clipShape(RoundedRectangle(cornerRadius: 12))
                 .overlay(
@@ -153,41 +246,48 @@ struct MediaGridBubble: View {
                 .onTapGesture {
                     onOpenMedia(message)
                 }
-                .onLongPressGesture(minimumDuration: 0.3) {
+                .chatMessageLongPress {
                     onLongPress(message)
                 }
             }
         }
         .frame(width: gridWidth)
         .padding(horizontalInset)
+        .chatMessageLongPress {
+            if let anchor = messages.last {
+                onLongPress(anchor)
+            }
+        }
         .background(
             RoundedRectangle(cornerRadius: 18)
                 .fill(.ultraThinMaterial.opacity(0.3))
         )
         .clipShape(RoundedRectangle(cornerRadius: 18))
+        .id(messages.map(\.id).joined(separator: "-"))
     }
 }
 
 struct MediaGridTileView: View {
-    let message: EnhancedMessage
+    @ObservedObject var message: EnhancedMessage
     let progress: Double?
+    let downsamplingSize: CGSize
     @Environment(\.colorScheme) var colorScheme
 
     var body: some View {
         ZStack {
             if message.type == .image {
-                if let mediaUrl = message.mediaUrl, let url = URL(string: mediaUrl) {
-                    KFImage(url)
-                        .resizable()
-                        .scaledToFill()
+                if message.isMediaPendingResolution {
+                    ChatMediaResolvingPlaceholder()
+                } else if let mediaUrl = message.mediaUrl, let url = URL(string: mediaUrl) {
+                    ChatKFImage(url: url, downsamplingSize: downsamplingSize)
                 } else {
                     placeholder(icon: "photo.fill")
                 }
             } else if message.type == .video {
-                if let thumbnailUrl = message.thumbnailUrl, let url = URL(string: thumbnailUrl) {
-                    KFImage(url)
-                        .resizable()
-                        .scaledToFill()
+                if message.isMediaPendingResolution {
+                    ChatMediaResolvingPlaceholder()
+                } else if let thumbnailUrl = message.thumbnailUrl, let url = URL(string: thumbnailUrl) {
+                    ChatKFImage(url: url, downsamplingSize: downsamplingSize)
                 } else {
                     placeholder(icon: "video.fill")
                 }

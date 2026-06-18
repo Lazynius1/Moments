@@ -7,6 +7,7 @@ import Photos
 
 struct ConversationSettingsView: View {
     let conversation: Conversation
+    var onJumpToMessage: ((String) -> Void)? = nil
     @Environment(\.dismiss) var dismiss
     @Environment(\.colorScheme) var colorScheme
     @StateObject private var viewModel = ConversationSettingsViewModel()
@@ -39,6 +40,7 @@ struct ConversationSettingsView: View {
                     VStack(spacing: 24) {
                         conversationInfoSection
                         sharedMediaSection
+                        starredMessagesSection
                         privacySettingsSection
                         actionsSection
                     }
@@ -54,6 +56,22 @@ struct ConversationSettingsView: View {
         }
         .onDisappear {
             statusListener?.remove()
+        }
+        .sheet(isPresented: $viewModel.showStarredMessages) {
+            ConversationStarredMessagesView(
+                messages: viewModel.starredMessages,
+                currentUserId: viewModel.currentUserId,
+                otherParticipantName: otherParticipantDisplayName,
+                onSelect: { messageId in
+                    viewModel.showStarredMessages = false
+                    dismiss()
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+                        onJumpToMessage?(messageId)
+                    }
+                }
+            )
+            .presentationDetents([.medium, .large])
+            .presentationDragIndicator(.visible)
         }
         .sheet(isPresented: $viewModel.showAllMedia) {
             AllSharedMediaView(
@@ -286,6 +304,48 @@ struct ConversationSettingsView: View {
         .padding(.vertical, 4)
     }
 
+    // MARK: - Starred Messages Section
+    private var starredMessagesSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Button {
+                HapticManager.shared.lightImpact()
+                viewModel.showStarredMessages = true
+            } label: {
+                HStack(spacing: 12) {
+                    Image(systemName: "star.fill")
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundColor(Color(hex: "FFD60A"))
+
+                    Text(NSLocalizedString("conversationSettings.starredMessages", comment: ""))
+                        .font(.custom("Poppins-Medium", size: 15))
+                        .foregroundColor(adaptiveColors.primary)
+
+                    Spacer()
+
+                    Text(starredMessagesCountLabel)
+                        .font(.custom("Poppins-Regular", size: 14))
+                        .foregroundColor(adaptiveColors.tertiary)
+
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundColor(adaptiveColors.tertiary)
+                }
+                .padding(.vertical, 10)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(.vertical, 4)
+    }
+
+    private var starredMessagesCountLabel: String {
+        let count = viewModel.starredMessages.count
+        if count == 0 {
+            return NSLocalizedString("conversationSettings.starredMessages.none", comment: "")
+        }
+        return "\(count)"
+    }
+
 
 
     // MARK: - Privacy Settings Section
@@ -330,6 +390,24 @@ struct ConversationSettingsView: View {
                 .onChange(of: viewModel.readReceiptsEnabled) { _, _ in
                     HapticManager.shared.lightImpact()
                     viewModel.toggleReadReceipts()
+                }
+
+                dividerLine
+
+                Toggle(isOn: $viewModel.forwardingEnabled) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(NSLocalizedString("conversationSettings.privacy.forwarding.title", comment: ""))
+                            .font(.custom("Poppins-Medium", size: 15))
+                            .foregroundColor(adaptiveColors.primary)
+                        Text(NSLocalizedString("conversationSettings.privacy.forwarding.description", comment: ""))
+                            .font(.custom("Poppins-Regular", size: 12))
+                            .foregroundColor(adaptiveColors.tertiary)
+                    }
+                }
+                .tint(SettingsProfileColors.toggleTint)
+                .onChange(of: viewModel.forwardingEnabled) { _, _ in
+                    HapticManager.shared.lightImpact()
+                    viewModel.toggleForwarding()
                 }
 
                 dividerLine
@@ -494,12 +572,15 @@ class ConversationSettingsViewModel: ObservableObject {
     @Published var sharedPhotos = 0
     @Published var sharedVideos = 0
     @Published var sharedMedia: [SharedMedia] = []
+    @Published var starredMessages: [EnhancedMessage] = []
     @Published var showAllMedia = false
+    @Published var showStarredMessages = false
     @Published var selectedMedia: SharedMedia?
     @Published var showFullScreenMedia = false
 
     @Published var notificationsEnabled = true
     @Published var readReceiptsEnabled = true
+    @Published var forwardingEnabled = true
     @Published var typingIndicatorEnabled = true
     @Published var showNotificationAlert = false
     @Published var notificationAlertMessage = ""
@@ -520,8 +601,13 @@ class ConversationSettingsViewModel: ObservableObject {
         "chat_typing_indicator_enabled_\(conversationId)"
     }
 
+    private func forwardingPreferenceKey(for conversationId: String) -> String {
+        "chat_forwarding_enabled_\(conversationId)"
+    }
+
     func loadConversationData(conversation: Conversation) {
         currentConversation = conversation
+        forwardingEnabled = conversation.forwardingPreferences?[currentUserId] ?? true
         loadPrivacySettings()
         guard let conversationId = conversation.id else { return }
 
@@ -574,6 +660,10 @@ class ConversationSettingsViewModel: ObservableObject {
             )
         }
         .sorted { $0.timestamp > $1.timestamp }
+
+        starredMessages = messages
+            .filter { !$0.isDeleted && $0.isStarred(by: currentUserId) }
+            .sorted { $0.timestamp > $1.timestamp }
     }
 
     func sendReplyToMedia(_ media: SharedMedia, text: String, completion: @escaping (Result<Void, Error>) -> Void) {
@@ -654,6 +744,28 @@ class ConversationSettingsViewModel: ObservableObject {
         UserDefaults.standard.set(readReceiptsEnabled, forKey: "chat_read_receipts_enabled_\(conversationId)")
     }
 
+    func toggleForwarding() {
+        guard let currentUserId = Auth.auth().currentUser?.uid,
+              let conversationId = currentConversation?.id else { return }
+
+        let db = Firestore.firestore()
+        db.collection("conversations").document(conversationId).updateData([
+            "forwardingPreferences.\(currentUserId)": forwardingEnabled
+        ])
+
+        UserDefaults.standard.set(forwardingEnabled, forKey: forwardingPreferenceKey(for: conversationId))
+
+        NotificationCenter.default.post(
+            name: NSNotification.Name("ConversationForwardingPreferenceChanged"),
+            object: nil,
+            userInfo: [
+                "conversationId": conversationId,
+                "userId": currentUserId,
+                "allowsForwarding": forwardingEnabled
+            ]
+        )
+    }
+
     func toggleTypingIndicator() {
         guard let conversationId = currentConversation?.id else { return }
 
@@ -667,6 +779,7 @@ class ConversationSettingsViewModel: ObservableObject {
 
         // Cargar desde UserDefaults como fallback instantáneo
         readReceiptsEnabled = boolFromDefaults(key: "chat_read_receipts_enabled_\(conversationId)", defaultValue: true)
+        forwardingEnabled = boolFromDefaults(key: forwardingPreferenceKey(for: conversationId), defaultValue: true)
 
         let typingKey = typingIndicatorKey(for: conversationId)
         if let perChatTyping = UserDefaults.standard.object(forKey: typingKey) as? Bool {
@@ -705,6 +818,12 @@ class ConversationSettingsViewModel: ObservableObject {
                         } else {
                             // Prioridad 2: Ajuste global
                             self.readReceiptsEnabled = globalEnabled
+                        }
+
+                        if let forwardingPrefs = convData["forwardingPreferences"] as? [String: Bool],
+                           let myForwardingPreference = forwardingPrefs[currentUserId] {
+                            self.forwardingEnabled = myForwardingPreference
+                            UserDefaults.standard.set(myForwardingPreference, forKey: self.forwardingPreferenceKey(for: conversationId))
                         }
                     } else {
                         self.notificationsEnabled = true
@@ -759,6 +878,223 @@ struct SharedMedia: Identifiable {
 extension AdaptiveColors {
     var border: Color {
         colorScheme == .dark ? Color.white.opacity(0.2) : Color.black.opacity(0.15)
+    }
+}
+
+// MARK: - Starred Messages List
+struct ConversationStarredMessagesView: View {
+    let messages: [EnhancedMessage]
+    let currentUserId: String
+    let otherParticipantName: String
+    let onSelect: (String) -> Void
+
+    @Environment(\.dismiss) private var dismiss
+    @Environment(\.colorScheme) private var colorScheme
+
+    private var adaptiveColors: AdaptiveColors {
+        AdaptiveColors(colorScheme: colorScheme)
+    }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            HStack {
+                Button(action: {
+                    HapticManager.shared.lightImpact()
+                    dismiss()
+                }) {
+                    Image(systemName: "chevron.down")
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundColor(adaptiveColors.primary)
+                        .frame(width: 38, height: 38)
+                        .background(Color.clear.momentsChromeGlass(in: Circle(), interactive: true))
+                }
+
+                Spacer()
+
+                Text(NSLocalizedString("conversationSettings.starredMessages", comment: ""))
+                    .font(.custom("Poppins-SemiBold", size: 22))
+                    .foregroundColor(adaptiveColors.primary)
+
+                Spacer()
+
+                Color.clear.frame(width: 38, height: 38)
+            }
+            .padding(.horizontal, 14)
+            .padding(.top, 8)
+            .padding(.bottom, 16)
+
+            if messages.isEmpty {
+                Spacer()
+                VStack(spacing: 10) {
+                    Image(systemName: "star.slash")
+                        .font(.system(size: 36))
+                        .foregroundColor(adaptiveColors.tertiary)
+                    Text(NSLocalizedString("conversationSettings.starredMessages.empty", comment: ""))
+                        .font(.custom("Poppins-Regular", size: 15))
+                        .foregroundColor(adaptiveColors.tertiary)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 32)
+                }
+                Spacer()
+            } else {
+                ScrollView {
+                    LazyVStack(spacing: 0) {
+                        ForEach(messages, id: \.id) { message in
+                            StarredMessageRow(
+                                message: message,
+                                currentUserId: currentUserId,
+                                otherParticipantName: otherParticipantName,
+                                adaptiveColors: adaptiveColors,
+                                colorScheme: colorScheme
+                            ) {
+                                HapticManager.shared.lightImpact()
+                                onSelect(message.id)
+                            }
+
+                            if message.id != messages.last?.id {
+                                Rectangle()
+                                    .fill(adaptiveColors.tertiary.opacity(colorScheme == .dark ? 0.16 : 0.12))
+                                    .frame(height: 0.5)
+                                    .padding(.leading, 56)
+                            }
+                        }
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.bottom, 24)
+                }
+            }
+        }
+    }
+}
+
+private struct StarredMessageRow: View {
+    let message: EnhancedMessage
+    let currentUserId: String
+    let otherParticipantName: String
+    let adaptiveColors: AdaptiveColors
+    let colorScheme: ColorScheme
+    let onTap: () -> Void
+
+    private var senderLabel: String {
+        message.senderId == currentUserId
+            ? NSLocalizedString("chat.reply.you", comment: "")
+            : otherParticipantName
+    }
+
+    private var previewText: String {
+        StarredMessagePreview.text(for: message)
+    }
+
+    private var relativeDate: String {
+        let formatter = RelativeDateTimeFormatter()
+        formatter.unitsStyle = .abbreviated
+        return formatter.localizedString(for: message.timestamp, relativeTo: Date())
+    }
+
+    var body: some View {
+        Button(action: onTap) {
+            HStack(alignment: .top, spacing: 12) {
+                StarredMessagePreview.iconView(for: message, adaptiveColors: adaptiveColors)
+                    .frame(width: 40, height: 40)
+
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack {
+                        Text(senderLabel)
+                            .font(.custom("Poppins-SemiBold", size: 14))
+                            .foregroundColor(adaptiveColors.primary)
+                        Spacer()
+                        Text(relativeDate)
+                            .font(.custom("Poppins-Regular", size: 12))
+                            .foregroundColor(adaptiveColors.tertiary)
+                    }
+
+                    Text(previewText)
+                        .font(.custom("Poppins-Regular", size: 14))
+                        .foregroundColor(adaptiveColors.secondary)
+                        .lineLimit(2)
+                        .multilineTextAlignment(.leading)
+                }
+            }
+            .padding(.vertical, 12)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+@MainActor
+private enum StarredMessagePreview {
+    static func text(for message: EnhancedMessage) -> String {
+        if message.isDeleted {
+            return NSLocalizedString("chat.message.deleted", comment: "")
+        }
+
+        if message.type == .text {
+            let content = message.content?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            return content.isEmpty ? message.type.displayName : content
+        }
+
+        return message.type.displayName
+    }
+
+    @ViewBuilder
+    static func iconView(for message: EnhancedMessage, adaptiveColors: AdaptiveColors) -> some View {
+        switch message.type {
+        case .image, .viewOnceImage:
+            if let url = message.thumbnailUrl ?? message.mediaUrl, let imageURL = URL(string: url) {
+                KFImage(imageURL)
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
+                    .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+            } else {
+                iconBadge(systemName: "photo.fill", color: .blue, adaptiveColors: adaptiveColors)
+            }
+        case .video, .viewOnceVideo:
+            if let url = message.thumbnailUrl ?? message.mediaUrl, let imageURL = URL(string: url) {
+                ZStack {
+                    KFImage(imageURL)
+                        .resizable()
+                        .aspectRatio(contentMode: .fill)
+                    Image(systemName: "play.fill")
+                        .font(.system(size: 12, weight: .bold))
+                        .foregroundColor(.white)
+                        .padding(8)
+                        .background(Color.black.opacity(0.45))
+                        .clipShape(Circle())
+                }
+                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+            } else {
+                iconBadge(systemName: "video.fill", color: .purple, adaptiveColors: adaptiveColors)
+            }
+        default:
+            let (icon, color) = iconSpec(for: message.type)
+            iconBadge(systemName: icon, color: color, adaptiveColors: adaptiveColors)
+        }
+    }
+
+    private static func iconSpec(for type: MessageType) -> (String, Color) {
+        switch type {
+        case .audio: return ("mic.fill", .orange)
+        case .location: return ("location.fill", .green)
+        case .file: return ("doc.fill", .gray)
+        case .ephemeral: return ("sparkles", .pink)
+        case .text: return ("text.quote", .secondary)
+        case .sharedMoment: return ("sparkles.rectangle.stack", .pink)
+        case .sharedStory: return ("circle.dashed", .purple)
+        case .gif: return ("photo.on.rectangle.angled", .blue)
+        case .sticker: return ("face.smiling", .yellow)
+        default: return ("ellipsis.bubble.fill", .secondary)
+        }
+    }
+
+    private static func iconBadge(systemName: String, color: Color, adaptiveColors: AdaptiveColors) -> some View {
+        RoundedRectangle(cornerRadius: 10, style: .continuous)
+            .fill(color.opacity(0.15))
+            .overlay(
+                Image(systemName: systemName)
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundColor(color)
+            )
     }
 }
 

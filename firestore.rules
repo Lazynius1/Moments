@@ -1233,11 +1233,93 @@ service cloud.firestore {
              (!('liveLocationDuration' in message) || message.liveLocationDuration is string) &&
              (!('liveLocationStoppedAt' in message) || message.liveLocationStoppedAt is timestamp) &&
              (!('liveLocationSessionId' in message) || message.liveLocationSessionId is string) &&
-             (!('locationUpdatedAt' in message) || message.locationUpdatedAt is timestamp);
+             (!('locationUpdatedAt' in message) || message.locationUpdatedAt is timestamp) &&
+             (!('isForwarded' in message) || message.isForwarded is bool) &&
+             (!('starredBy' in message) || message.starredBy is list);
+    }
+
+    function onlyStarredByFieldsUpdated() {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(['starredBy'])
+        && request.resource.data.starredBy is list
+        && (
+          (
+            !(request.auth.uid in resource.data.get('starredBy', [])) &&
+            request.auth.uid in request.resource.data.starredBy &&
+            request.resource.data.starredBy.size() == resource.data.get('starredBy', []).size() + 1 &&
+            request.resource.data.starredBy.hasAll(resource.data.get('starredBy', []))
+          ) ||
+          (
+            request.auth.uid in resource.data.get('starredBy', []) &&
+            !(request.auth.uid in request.resource.data.starredBy) &&
+            request.resource.data.starredBy.size() + 1 == resource.data.get('starredBy', []).size() &&
+            resource.data.get('starredBy', []).hasAll(request.resource.data.starredBy)
+          )
+        );
+    }
+
+    function onlyEditFieldsUpdated() {
+      return resource.data.senderId == request.auth.uid
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['content', 'editedAt'])
+        && request.resource.data.editedAt is timestamp;
+    }
+
+    function onlyDeletedForMeUpdated() {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(['deletedFor'])
+        && request.resource.data.deletedFor is list
+        && (
+          (
+            !(request.auth.uid in resource.data.get('deletedFor', [])) &&
+            request.auth.uid in request.resource.data.deletedFor &&
+            request.resource.data.deletedFor.size() == resource.data.get('deletedFor', []).size() + 1 &&
+            request.resource.data.deletedFor.hasAll(resource.data.get('deletedFor', []))
+          ) ||
+          (
+            request.auth.uid in resource.data.get('deletedFor', []) &&
+            !(request.auth.uid in request.resource.data.deletedFor) &&
+            request.resource.data.deletedFor.size() + 1 == resource.data.get('deletedFor', []).size() &&
+            resource.data.get('deletedFor', []).hasAll(request.resource.data.deletedFor)
+          )
+        );
+    }
+
+    function onlyDeleteForEveryoneUpdated() {
+      return resource.data.senderId == request.auth.uid
+        && request.resource.data.isDeleted == true
+        && request.resource.data.deletedAt is timestamp
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'isDeleted',
+          'deletedAt',
+          'content',
+          'mediaUrl',
+          'thumbnailUrl',
+          'mediaObjectPath',
+          'thumbnailObjectPath',
+          'mediaEncryption',
+          'thumbnailEncryption'
+        ]);
+    }
+
+    function isValidMessageReaction(reaction, conversationId, messageId, userId) {
+      return reaction.keys().hasOnly(['conversationId', 'messageId', 'userId', 'emoji', 'timestamp']) &&
+             reaction.conversationId == conversationId &&
+             reaction.messageId == messageId &&
+             reaction.userId == userId &&
+             reaction.emoji is string &&
+             reaction.emoji.size() > 0 &&
+             reaction.emoji.size() <= 16 &&
+             reaction.timestamp is timestamp;
+    }
+
+    function canReadMessageReactionDoc() {
+      return request.auth != null
+        && resource.data.conversationId is string
+        && resource.data.conversationId != ''
+        && request.auth.uid in get(/databases/$(database)/documents/conversations/$(resource.data.conversationId)).data.participants
+        && canParticipateInConversations(request.auth.uid);
     }
 
     function onlyStatusFieldsUpdated() {
-      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(['isRead','status','isViewed','statusUpdatedAt']);
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(['isRead','status','isViewed','statusUpdatedAt','readBy']);
     }
     function onlyViewOnceFieldsUpdated() {
       return request.resource.data.diff(resource.data).affectedKeys().hasOnly(['isViewed','viewedBy']);
@@ -1311,11 +1393,22 @@ service cloud.firestore {
              )
            )
           )
+          &&
+          (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['forwardingPreferences'])
+           || (request.resource.data.forwardingPreferences is map
+               && (!('forwardingPreferences' in resource.data)
+                   || request.resource.data.forwardingPreferences.diff(resource.data.forwardingPreferences).affectedKeys().hasOnly([request.auth.uid]))
+               && (!(request.auth.uid in request.resource.data.forwardingPreferences)
+                   || request.resource.data.forwardingPreferences[request.auth.uid] is bool)))
         );
 
       // Conversations are shared records; clients may hide them per user via
       // `deletedFor`, but only trusted backend code may hard-delete the document.
       allow delete: if false;
+
+      match /{path=**}/messageReactions/{userId} {
+        allow read: if canReadMessageReactionDoc();
+      }
 
       // messages
       match /messages/{messageId} {
@@ -1329,12 +1422,37 @@ service cloud.firestore {
 
         allow update: if request.auth != null
           && request.auth.uid in get(/databases/$(database)/documents/conversations/$(conversationId)).data.participants
-          && (onlyStatusFieldsUpdated() || onlyViewOnceFieldsUpdated() || onlyLiveLocationFieldsUpdated() || isAutomaticCleanup() || isViewOnceCleanup())
+          && (
+            onlyStatusFieldsUpdated()
+            || onlyViewOnceFieldsUpdated()
+            || onlyLiveLocationFieldsUpdated()
+            || onlyStarredByFieldsUpdated()
+            || onlyEditFieldsUpdated()
+            || onlyDeletedForMeUpdated()
+            || onlyDeleteForEveryoneUpdated()
+            || isAutomaticCleanup()
+            || isViewOnceCleanup()
+          )
           && timestampUnchanged()
           && (!('statusUpdatedAt' in request.resource.data) || request.resource.data.statusUpdatedAt is timestamp);
 
         allow delete: if request.auth != null
           && request.auth.uid in get(/databases/$(database)/documents/conversations/$(conversationId)).data.participants;
+
+        match /messageReactions/{userId} {
+          allow read: if canReadMessageReactionDoc();
+
+          allow create, update: if request.auth != null
+            && request.auth.uid == userId
+            && request.auth.uid in get(/databases/$(database)/documents/conversations/$(conversationId)).data.participants
+            && canParticipateInConversations(request.auth.uid)
+            && isValidMessageReaction(request.resource.data, conversationId, messageId, userId);
+
+          allow delete: if request.auth != null
+            && request.auth.uid == userId
+            && request.auth.uid in get(/databases/$(database)/documents/conversations/$(conversationId)).data.participants
+            && canParticipateInConversations(request.auth.uid);
+        }
       }
 
       // typing

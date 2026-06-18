@@ -52,6 +52,7 @@ class MessagingViewModel: ObservableObject {
             wrappedKeys: conversation.wrappedKeys
         )
         updated.readReceiptPreferences = conversation.readReceiptPreferences
+        updated.forwardingPreferences = conversation.forwardingPreferences
         return updated
     }
 
@@ -163,6 +164,7 @@ class MessagingViewModel: ObservableObject {
                             isMuted: existing.isMuted
                         )
                         self.conversations[i].readReceiptPreferences = existing.readReceiptPreferences
+                        self.conversations[i].forwardingPreferences = existing.forwardingPreferences
                     }
                 }
 
@@ -193,6 +195,7 @@ class MessagingViewModel: ObservableObject {
                             isMuted: existing.isMuted
                         )
                         self.filteredConversations[i].readReceiptPreferences = existing.readReceiptPreferences
+                        self.filteredConversations[i].forwardingPreferences = existing.forwardingPreferences
                     }
                 }
             }

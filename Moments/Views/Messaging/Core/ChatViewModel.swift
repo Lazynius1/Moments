@@ -15,6 +15,53 @@ class EnhancedChatViewModel: ObservableObject {
     @Published var isLoading = false
     @Published var error: String?
     @Published var uploadProgress: [String: Double] = [:] // ✅ Media upload progress (0.0 - 1.0)
+
+    private func setUploadProgress(_ progress: Double, for messageId: String) {
+        var updated = uploadProgress
+        updated[messageId] = progress
+        uploadProgress = updated
+    }
+
+    private func clearUploadProgress(for messageId: String) {
+        guard uploadProgress[messageId] != nil else { return }
+        var updated = uploadProgress
+        updated.removeValue(forKey: messageId)
+        uploadProgress = updated
+    }
+
+    private func pruneUploadProgress(for messages: [EnhancedMessage]) {
+        let activeSendingIds = Set(messages.filter { $0.status == .sending }.map(\.id))
+        var updated = uploadProgress
+        for messageId in updated.keys where !activeSendingIds.contains(messageId) {
+            updated.removeValue(forKey: messageId)
+        }
+        if updated != uploadProgress {
+            uploadProgress = updated
+        }
+    }
+
+    private func pruneLocalMessageStates(for messages: [EnhancedMessage]) {
+        let statusPriority: [MessageStatus: Int] = [
+            .sending: 0, .sent: 1, .delivered: 2, .read: 3, .failed: -1, .pending: -1
+        ]
+        for (messageId, localStatus) in localMessageStates {
+            guard let remoteStatus = messages.first(where: { $0.id == messageId })?.status else { continue }
+            let localPriority = statusPriority[localStatus] ?? 0
+            let remotePriority = statusPriority[remoteStatus] ?? 0
+            if remotePriority >= localPriority && localStatus != .failed {
+                localMessageStates.removeValue(forKey: messageId)
+            }
+        }
+    }
+
+    private func commitMessagesPresentation(_ messages: [EnhancedMessage]) {
+        self.messages = Array(messages)
+        pruneUploadProgress(for: messages)
+        pruneLocalMessageStates(for: messages)
+        if let momentsViewModel = self as? MomentsChatViewModel {
+            momentsViewModel.syncMessagePresentation()
+        }
+    }
     @Published var isTyping = false {
         didSet {
             handleTypingIndicator()
@@ -23,6 +70,9 @@ class EnhancedChatViewModel: ObservableObject {
     
     // ✅ NUEVO: Diccionario para estados locales con prioridad
     private var localMessageStates: [String: MessageStatus] = [:]
+    /// Mensajes salientes aún no reflejados en Firestore; sobreviven a `rebuildMessagesList`.
+    private var outgoingTempMessages: [String: EnhancedMessage] = [:]
+    private var hydratingMediaIds = Set<String>()
     
     // ✅ NUEVO: Flag para bloquear listener temporalmente
     private var isUpdatingLocalMessage = false
@@ -33,6 +83,7 @@ class EnhancedChatViewModel: ObservableObject {
     // ✅ PAGINACIÓN
     @Published var isLoadingMore = false
     @Published var canLoadMore = true
+    @Published private(set) var forwardingPreferences: [String: Bool] = [:]
     private var historicalMessages: [EnhancedMessage] = []
     private var realTimeMessages: [EnhancedMessage] = []
     
@@ -52,9 +103,11 @@ class EnhancedChatViewModel: ObservableObject {
     init(conversation: Conversation) {
         self.conversation = conversation
         self.currentUserId = Auth.auth().currentUser?.uid ?? ""
+        self.forwardingPreferences = conversation.forwardingPreferences ?? [:]
         
         // ✅ Configurar listener para actualizaciones de estado locales
         setupLocalStatusListener()
+        setupForwardingPreferenceListener()
         refreshTypingIndicatorPreference()
     }
     
@@ -94,8 +147,40 @@ class EnhancedChatViewModel: ObservableObject {
             }
             
             DispatchQueue.main.async {
-                self?.uploadProgress[messageId] = progress
+                self?.setUploadProgress(progress, for: messageId)
             }
+        }
+    }
+
+    private func setupForwardingPreferenceListener() {
+        NotificationCenter.default.addObserver(
+            forName: NSNotification.Name("ConversationForwardingPreferenceChanged"),
+            object: nil,
+            queue: .main
+        ) { [weak self] notification in
+            guard let self,
+                  let userInfo = notification.userInfo,
+                  let conversationId = userInfo["conversationId"] as? String,
+                  conversationId == self.conversation.id else { return }
+
+            if let userId = userInfo["userId"] as? String,
+               let allowsForwarding = userInfo["allowsForwarding"] as? Bool {
+                var updated = self.forwardingPreferences
+                updated[userId] = allowsForwarding
+                self.forwardingPreferences = updated
+            } else if let preferences = userInfo["forwardingPreferences"] as? [String: Bool] {
+                self.forwardingPreferences = preferences
+            }
+        }
+    }
+
+    func refreshForwardingPreference() {
+        guard let conversationId = conversation.id, !conversationId.isEmpty else { return }
+        let key = "chat_forwarding_enabled_\(conversationId)"
+        if let stored = UserDefaults.standard.object(forKey: key) as? Bool {
+            var updated = forwardingPreferences
+            updated[currentUserId] = stored
+            forwardingPreferences = updated
         }
     }
     
@@ -166,6 +251,19 @@ class EnhancedChatViewModel: ObservableObject {
                 mergedMessages.append(tempMessage)
             }
         }
+
+        for (_, tempMessage) in outgoingTempMessages {
+            if let index = mergedMessages.firstIndex(where: { $0.id == tempMessage.id }) {
+                if let localUrl = tempMessage.mediaUrl,
+                   let url = URL(string: localUrl),
+                   url.isFileURL,
+                   mergedMessages[index].mediaUrl == nil {
+                    mergedMessages[index].mediaUrl = localUrl
+                }
+            } else {
+                mergedMessages.append(tempMessage)
+            }
+        }
         
         // ✅ CORREGIDO: Solo aplicar estado local si es MÁS AVANZADO que el de Firestore
         // Orden de prioridad: sending < sent < delivered < read
@@ -190,6 +288,17 @@ class EnhancedChatViewModel: ObservableObject {
                 }
             }
         }
+
+        // Conservar preview local file:// mientras Firestore aún no expone URL visible.
+        for existing in messages where existing.senderId == currentUserId {
+            guard let index = mergedMessages.firstIndex(where: { $0.id == existing.id }),
+                  let localUrl = existing.mediaUrl,
+                  let url = URL(string: localUrl),
+                  url.isFileURL else { continue }
+            if mergedMessages[index].mediaUrl == nil {
+                mergedMessages[index].mediaUrl = localUrl
+            }
+        }
         
         return mergedMessages.sorted { $0.timestamp < $1.timestamp }
     }
@@ -206,21 +315,33 @@ class EnhancedChatViewModel: ObservableObject {
         thumbnailUrl: String?
     ) {
         localMessageStates[messageId] = status
+        clearUploadProgress(for: messageId)
+        outgoingTempMessages.removeValue(forKey: messageId)
 
-        guard let index = messages.firstIndex(where: { $0.id == messageId }) else { return }
+        guard let index = messages.firstIndex(where: { $0.id == messageId }) else {
+            if let momentsViewModel = self as? MomentsChatViewModel {
+                momentsViewModel.syncMessagePresentation()
+            }
+            return
+        }
 
-        DispatchQueue.main.async {
-            self.messages[index].status = status
+        let apply = {
+            let message = self.messages[index]
+            message.status = status
             if let mediaUrl {
-                self.messages[index].mediaUrl = mediaUrl
+                message.mediaUrl = mediaUrl
             }
             if let thumbnailUrl {
-                self.messages[index].thumbnailUrl = thumbnailUrl
+                message.thumbnailUrl = thumbnailUrl
             }
-            self.objectWillChange.send()
-            if let momentsViewModel = self as? MomentsChatViewModel {
-                momentsViewModel.updateGroupedMessages()
-            }
+            // Reasignar el array para que @Published notifique a SwiftUI (clases dentro del array).
+            self.commitMessagesPresentation(self.messages)
+        }
+
+        if Thread.isMainThread {
+            apply()
+        } else {
+            DispatchQueue.main.async(execute: apply)
         }
     }
 
@@ -235,13 +356,39 @@ class EnhancedChatViewModel: ObservableObject {
         }
     }
 
-    /// GIF/stickers cifrados legacy (antes de referencia Giphy): hidrata solo si aún usan `.enc`.
+    func appendOutgoingMessage(_ message: EnhancedMessage) {
+        outgoingTempMessages[message.id] = message
+        messages.append(message)
+        messages = Array(messages)
+        objectWillChange.send()
+        if let momentsViewModel = self as? MomentsChatViewModel {
+            momentsViewModel.syncMessagePresentation()
+        }
+    }
+
+    private func messageNeedsMediaHydration(_ message: EnhancedMessage) -> Bool {
+        message.isMediaPendingResolution
+    }
+
+    func hydrateMediaIfNeeded(for message: EnhancedMessage) {
+        guard messageNeedsMediaHydration(message) else { return }
+        guard !hydratingMediaIds.contains(message.id) else { return }
+        hydratingMediaIds.insert(message.id)
+        prepareMediaForViewing(message) { [weak self] _ in
+            self?.hydratingMediaIds.remove(message.id)
+        }
+    }
+
+    /// Hidrata media cifrada o pendiente de resolver (imagen, video, GIF/sticker legacy).
     func prefetchUnresolvedMediaIfNeeded() {
+        for message in messages where messageNeedsMediaHydration(message) {
+            hydrateMediaIfNeeded(for: message)
+        }
         for message in messages where message.type == .gif || message.type == .sticker {
-            guard message.mediaUrl == nil,
-                  message.mediaObjectPath != nil,
-                  message.mediaEncryption != nil else { continue }
-            prepareMediaForViewing(message) { _ in }
+            guard let urlString = message.mediaUrl,
+                  let url = URL(string: urlString),
+                  !url.isFileURL else { continue }
+            ChatGIFImageCache.shared.prefetch(url: url)
         }
     }
 
@@ -266,9 +413,10 @@ class EnhancedChatViewModel: ObservableObject {
                     messages[index].mediaUrl = mediaUrl
                     messages[index].thumbnailUrl = thumbnailUrl
                 }
+                messages = Array(messages)
                 objectWillChange.send()
                 if let momentsViewModel = self as? MomentsChatViewModel {
-                    momentsViewModel.updateGroupedMessages()
+                    momentsViewModel.syncMessagePresentation()
                 }
                 let updated = messages.first(where: { $0.id == message.id }) ?? message
                 completion(updated)
@@ -280,7 +428,7 @@ class EnhancedChatViewModel: ObservableObject {
     private func cleanupLocalStates() {
         DispatchQueue.main.asyncAfter(deadline: .now() + 10.0) {
             self.localMessageStates.removeAll()
-            self.uploadProgress.removeAll() // ✅ Clean up progress too
+            self.uploadProgress = [:]
         }
     }
     
@@ -297,13 +445,47 @@ class EnhancedChatViewModel: ObservableObject {
         
         // 4. Preservar temporales y estados locales
         let finalMessages = preserveTemporaryMessages(sortedMessages)
-        
-        self.messages = finalMessages
-        
-        // ✅ Forzar actualización de groupedMessages
-        if let momentsViewModel = self as? MomentsChatViewModel {
-            momentsViewModel.updateGroupedMessages()
+        commitMessagesPresentation(finalMessages)
+
+        for id in Array(outgoingTempMessages.keys) {
+            if let msg = finalMessages.first(where: { $0.id == id }), msg.status != .sending {
+                outgoingTempMessages.removeValue(forKey: id)
+            }
         }
+    }
+
+    private func mutateReactionState(
+        for messageId: String,
+        _ transform: (EnhancedMessage) -> Void
+    ) {
+        for message in realTimeMessages where message.id == messageId {
+            transform(message)
+        }
+        for message in historicalMessages where message.id == messageId {
+            transform(message)
+        }
+        if let outgoingMessage = outgoingTempMessages[messageId] {
+            transform(outgoingMessage)
+            outgoingTempMessages[messageId] = outgoingMessage
+        }
+        for message in messages where message.id == messageId {
+            transform(message)
+        }
+    }
+
+    private func applyReactionUpdate(_ update: MessageReactionUpdate, conversationId: String) {
+        let affectedIds = update.changedMessageIds.union(update.reactionsByMessage.keys)
+        guard !affectedIds.isEmpty else { return }
+
+        for messageId in affectedIds {
+            let liveReactions = update.reactionsByMessage[messageId]
+            mutateReactionState(for: messageId) { message in
+                message.reactions = liveReactions
+            }
+        }
+
+        rebuildMessagesList()
+        LocalPersistenceService.shared.saveMessages(messages, conversationId: conversationId)
     }
     
     // ✅ FUNCIÓN: Cargar más mensajes (Pull to refresh)
@@ -410,6 +592,19 @@ class EnhancedChatViewModel: ObservableObject {
                 }
             }
         }
+
+        chatService.listenToMessageReactions(conversationId: conversationId) { [weak self] result in
+            DispatchQueue.main.async {
+                guard let self else { return }
+
+                switch result {
+                case .success(let update):
+                    self.applyReactionUpdate(update, conversationId: conversationId)
+                case .failure(let error):
+                    self.error = error.localizedDescription
+                }
+            }
+        }
         typingIndicatorEnabled = resolvedTypingIndicatorPreference(for: conversationId)
         applyTypingPreference(conversationId: conversationId)
     }
@@ -459,17 +654,7 @@ class EnhancedChatViewModel: ObservableObject {
         )
         
         // Agregar mensaje temporal a la lista local
-        DispatchQueue.main.async {
-            self.messages.append(tempMessage)
-            
-            // ✅ FORZAR actualización de SwiftUI
-            self.objectWillChange.send()
-            
-            // ✅ FORZAR actualización de groupedMessages si es MomentsChatViewModel
-            if let momentsViewModel = self as? MomentsChatViewModel {
-                momentsViewModel.updateGroupedMessages()
-            }
-        }
+        appendOutgoingMessage(tempMessage)
         
         chatService.sendTextMessage(
             conversationId: conversationId,
@@ -521,17 +706,7 @@ class EnhancedChatViewModel: ObservableObject {
         )
         
         // Agregar mensaje temporal a la lista local
-        DispatchQueue.main.async {
-            self.messages.append(tempMessage)
-            
-            // ✅ FORZAR actualización de SwiftUI
-            self.objectWillChange.send()
-            
-            // ✅ FORZAR actualización de groupedMessages si es MomentsChatViewModel
-            if let momentsViewModel = self as? MomentsChatViewModel {
-                momentsViewModel.updateGroupedMessages()
-            }
-        }
+        appendOutgoingMessage(tempMessage)
         
         chatService.sendMediaMessage(
             conversationId: conversationId,
@@ -685,15 +860,7 @@ class EnhancedChatViewModel: ObservableObject {
         )
         
         // Agregar mensaje temporal a la lista local
-        DispatchQueue.main.async {
-            self.messages.append(tempMessage)
-            
-            // ✅ FORZAR actualización
-            self.objectWillChange.send()
-            if let momentsVM = self as? MomentsChatViewModel {
-                momentsVM.updateGroupedMessages()
-            }
-        }
+        appendOutgoingMessage(tempMessage)
         
         chatService.sendMediaMessage(
             conversationId: conversationId,
@@ -741,9 +908,7 @@ class EnhancedChatViewModel: ObservableObject {
         )
         
         // Agregar mensaje temporal a la lista local
-        DispatchQueue.main.async {
-            self.messages.append(tempMessage)
-        }
+        appendOutgoingMessage(tempMessage)
         
         chatService.sendLocationMessage(
             conversationId: conversationId,
@@ -790,9 +955,7 @@ class EnhancedChatViewModel: ObservableObject {
         )
         
         // Agregar mensaje temporal a la lista local
-        DispatchQueue.main.async {
-            self.messages.append(tempMessage)
-        }
+        appendOutgoingMessage(tempMessage)
         
         chatService.sendAudioMessage(
             conversationId: conversationId,
@@ -865,7 +1028,7 @@ class EnhancedChatViewModel: ObservableObject {
                 DispatchQueue.main.async {
                     self?.messages.removeAll { $0.id == message.id }
                     if let momentsVM = self as? MomentsChatViewModel {
-                        momentsVM.updateGroupedMessages()
+                        momentsVM.syncMessagePresentation()
                     }
                     self?.objectWillChange.send()
                 }
@@ -875,6 +1038,10 @@ class EnhancedChatViewModel: ObservableObject {
     
     func editMessage(_ message: EnhancedMessage, newContent: String) {
         guard let conversationId = conversation.id, !conversationId.isEmpty else {
+            return
+        }
+        guard ChatMessagePolicy.canEdit(message, userId: currentUserId) else {
+            error = NSLocalizedString("chat.error.editWindowExpired", comment: "")
             return
         }
         
@@ -895,6 +1062,15 @@ class EnhancedChatViewModel: ObservableObject {
         guard let conversationId = conversation.id, !conversationId.isEmpty else {
             return
         }
+
+        mutateReactionState(for: message.id) { currentMessage in
+            currentMessage.reactions = MessageReactionMutation.apply(
+                to: currentMessage.reactions,
+                emoji: emoji,
+                userId: currentUserId
+            )
+        }
+        rebuildMessagesList()
         
         chatService.addReaction(
             conversationId: conversationId,
@@ -903,6 +1079,59 @@ class EnhancedChatViewModel: ObservableObject {
             userId: currentUserId
         ) { [weak self] error in
             if let error = error {
+                DispatchQueue.main.async {
+                    self?.error = error.localizedDescription
+                }
+            }
+        }
+    }
+
+    func forwardTextMessage(_ message: EnhancedMessage, toUserIds: Set<String>) {
+        guard let sourceConversationId = conversation.id, !sourceConversationId.isEmpty else { return }
+        guard ChatMessagePolicy.canForward(
+            message,
+            currentUserId: currentUserId,
+            forwardingPreferences: forwardingPreferences
+        ), let rawContent = message.content else { return }
+
+        Task {
+            let plaintext = await chatService.decryptMessageContent(rawContent, for: sourceConversationId)
+            chatService.forwardTextMessage(
+                plaintext: plaintext,
+                toUserIds: toUserIds,
+                senderId: currentUserId
+            ) { [weak self] result in
+                DispatchQueue.main.async {
+                    if case .failure(let error) = result {
+                        self?.error = error.localizedDescription
+                    }
+                }
+            }
+        }
+    }
+
+    func toggleStar(for message: EnhancedMessage) {
+        guard let conversationId = conversation.id, !conversationId.isEmpty else { return }
+        let isStarred = message.isStarred(by: currentUserId)
+        let newStarred = !isStarred
+
+        if let index = messages.firstIndex(where: { $0.id == message.id }) {
+            var starredBy = messages[index].starredBy ?? []
+            if newStarred {
+                if !starredBy.contains(currentUserId) { starredBy.append(currentUserId) }
+            } else {
+                starredBy.removeAll { $0 == currentUserId }
+            }
+            messages[index].starredBy = starredBy.isEmpty ? nil : starredBy
+        }
+
+        chatService.toggleMessageStar(
+            conversationId: conversationId,
+            messageId: message.id,
+            userId: currentUserId,
+            isStarred: newStarred
+        ) { [weak self] error in
+            if let error {
                 DispatchQueue.main.async {
                     self?.error = error.localizedDescription
                 }

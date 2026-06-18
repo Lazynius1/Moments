@@ -1605,6 +1605,8 @@
 
 "conversationSettings.privacy.readReceipts.title" = "Recibos de leitura";
 "conversationSettings.privacy.readReceipts.description" = "Se desativares os recibos de leitura neste chat, deixarás de conseguir ver quando a outra pessoa lê as tuas mensagens.";
+"conversationSettings.privacy.forwarding.title" = "Permitir reencaminhamento";
+"conversationSettings.privacy.forwarding.description" = "Se desativares isto, a outra pessoa não poderá reencaminhar nem copiar as tuas mensagens de texto neste chat.";
 
 /* Register */
 "register.back" = "Voltar";
@@ -1704,6 +1706,12 @@
 "chat.action.edit" = "Editar";
 "chat.action.copy" = "Copiar";
 "chat.action.reply" = "Responder";
+"chat.action.forward" = "Reencaminhar";
+"chat.action.star" = "Destacar";
+"chat.action.unstar" = "Remover destaque";
+"chat.forward.title" = "Reencaminhar mensagem";
+"chat.forwarded" = "Reencaminhado";
+"chat.error.editWindowExpired" = "Só pode editar mensagens nos primeiros 10 minutos";
 "chat.editing.title" = "A editar mensagem";
 "chat.typing" = "a escrever...";
 "chat.tapToView" = "Toca para ver";
@@ -1767,6 +1775,7 @@
 "chat.status.sent" = "Enviado";
 "chat.status.delivered" = "Entregue";
 "chat.status.read" = "Lida";
+"chat.seen" = "Visto";
 "chat.status.failed" = "Falhou";
 "chat.notification.viewOncePrompt" = "📸 Enviou-te uma mensagem que será eliminada após ser vista";
 "chat.preview.newConversation" = "Nova conversa";
@@ -2210,6 +2219,9 @@
 "conversationSettings.understood" = "Percebi";
 "conversationSettings.conversationInfo" = "Informações da conversa";
 "conversationSettings.sharedMedia" = "Multimédia partilhada";
+"conversationSettings.starredMessages" = "Mensagens destacadas";
+"conversationSettings.starredMessages.none" = "Nenhuma";
+"conversationSettings.starredMessages.empty" = "As mensagens que destacar neste chat aparecerão aqui";
 "conversationSettings.noSharedMedia" = "Sem multimédia partilhada";
 "conversationSettings.privacy" = "Privacidade";
 "conversationSettings.clearConversation" = "Limpar conversa";

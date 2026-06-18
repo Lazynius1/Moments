@@ -74,6 +74,7 @@ struct MomentsApp: App {
                                 kingfisherCache.memoryStorage.config.totalCostLimit = 20 * 1024 * 1024
                                 kingfisherCache.diskStorage.config.sizeLimit = 500 * 1024 * 1024  // ✅ AJUSTADO: 500MB (Estándar moderno)
                                 kingfisherCache.diskStorage.config.expiration = StorageExpiration.days(7)  // ✅ ALINEADO CON SWIFTDATA: 7 días de persistencia
+                                KingfisherManager.shared.defaultOptions += [.asyncCacheTypeCheck]
 
                                 // ✅ SwiftData: Limpiar datos locales antiguos (>7 días)
                                 Task { @MainActor in

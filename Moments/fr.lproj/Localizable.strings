@@ -795,6 +795,8 @@
 
 "conversationSettings.privacy.readReceipts.title" = "Accusés de lecture";
 "conversationSettings.privacy.readReceipts.description" = "Si vous désactivez les accusés de lecture dans ce chat, vous ne pourrez pas voir quand l’autre personne lit vos messages.";
+"conversationSettings.privacy.forwarding.title" = "Autoriser le transfert";
+"conversationSettings.privacy.forwarding.description" = "Si vous désactivez cette option, l'autre personne ne pourra pas transférer ni copier vos messages texte dans ce chat.";
 
 /* Register */
 "register.back" = "Retour";
@@ -894,6 +896,12 @@
 "chat.action.edit" = "Modifier";
 "chat.action.copy" = "Copier";
 "chat.action.reply" = "Répondre";
+"chat.action.forward" = "Transférer";
+"chat.action.star" = "Mettre en favori";
+"chat.action.unstar" = "Retirer des favoris";
+"chat.forward.title" = "Transférer le message";
+"chat.forwarded" = "Transféré";
+"chat.error.editWindowExpired" = "Vous ne pouvez modifier un message que dans les 10 premières minutes";
 "chat.editing.title" = "Modification du message";
 "chat.typing" = "écrit...";
 "chat.tapToView" = "Touchez pour voir";
@@ -957,6 +965,7 @@
 "chat.status.sent" = "Envoyé";
 "chat.status.delivered" = "Distribué";
 "chat.status.read" = "Lu";
+"chat.seen" = "Vu";
 "chat.status.failed" = "Échec";
 "chat.notification.viewOncePrompt" = "📸 Vous a envoyé un message qui sera supprimé après affichage";
 "chat.preview.newConversation" = "Nouvelle conversation";
@@ -1400,6 +1409,9 @@
 "conversationSettings.understood" = "Compris";
 "conversationSettings.conversationInfo" = "Informations sur la conversation";
 "conversationSettings.sharedMedia" = "Médias partagés";
+"conversationSettings.starredMessages" = "Messages favoris";
+"conversationSettings.starredMessages.none" = "Aucun";
+"conversationSettings.starredMessages.empty" = "Les messages que vous mettez en favori dans cette conversation apparaîtront ici";
 "conversationSettings.noSharedMedia" = "Aucun média partagé";
 "conversationSettings.privacy" = "Confidentialité";
 "conversationSettings.clearConversation" = "Vider la conversation";

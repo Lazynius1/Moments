@@ -144,18 +144,19 @@ struct AsyncProfileImageView: View {
             } else if let path = profileImagePath, let url = URL(string: path), !path.isEmpty {
                 // ✅ MEJORADO: Usar Kingfisher para caché persistente
                 KFImage(url)
+                    .placeholder {
+                        ProgressView()
+                            .tint(.white)
+                            .scaleEffect(0.7)
+                    }
+                    .cancelOnDisappear(true)
+                    .loadTransition(.opacity, animation: .easeOut(duration: 0.3))
                     .onSuccess { _ in
                         withAnimation(.easeInOut(duration: 0.3)) {
                             isLoading = false
                         }
                     }
                     .resizable()
-                    .placeholder {
-                        ProgressView()
-                            .tint(.white)
-                            .scaleEffect(0.7)
-                    }
-                    .fade(duration: 0.3)
                     .scaledToFill()
                     .clipShape(Circle())
             } else {

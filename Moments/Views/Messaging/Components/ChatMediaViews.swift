@@ -2,19 +2,19 @@ import SwiftUI
 import UIKit
 import Kingfisher
 
-/// Preview local (`file://`) sin pasar por red — evita `cancelFetcher` HTTP 400 de Kingfisher.
-private struct ChatLocalFileImage: View {
-    let url: URL
+/// Placeholder blur mientras se descifra media o Kingfisher carga la miniatura.
+struct ChatMediaResolvingPlaceholder: View {
+    @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
-        Group {
-            if let uiImage = UIImage(contentsOfFile: url.path) {
-                Image(uiImage: uiImage)
-                    .resizable()
-                    .scaledToFill()
-            } else {
-                Color.white.opacity(0.1)
-            }
+        ZStack {
+            RoundedRectangle(cornerRadius: 12)
+                .fill(colorScheme == .dark ? Color(hex: "FAF9F6").opacity(0.08) : Color(hex: "0B1215").opacity(0.06))
+            BlurView(style: .systemThinMaterial)
+                .opacity(0.85)
+            ProgressView()
+                .scaleEffect(0.7)
+                .tint(.white.opacity(0.85))
         }
     }
 }
@@ -22,21 +22,18 @@ private struct ChatLocalFileImage: View {
 struct GlassmorphicImageMessage: View {
     let imageUrl: String?
     let isSending: Bool
+    var isResolvingMedia: Bool = false
+    var downsamplingSize: CGSize? = nil
     let progress: Double?
     let onTap: () -> Void
 
     var body: some View {
         ZStack {
-            if let url = imageUrl, let imageURL = URL(string: url) {
-                if imageURL.isFileURL {
-                    ChatLocalFileImage(url: imageURL)
-                        .onTapGesture(perform: onTap)
-                } else {
-                    KFImage(imageURL)
-                        .resizable()
-                        .scaledToFill()
-                        .onTapGesture(perform: onTap)
-                }
+            if isResolvingMedia {
+                ChatMediaResolvingPlaceholder()
+            } else if let imageUrl, let imageURL = URL(string: imageUrl) {
+                ChatKFImage(url: imageURL, downsamplingSize: downsamplingSize)
+                    .onTapGesture(perform: onTap)
             } else {
                 RoundedRectangle(cornerRadius: 16)
                     .fill(Color.white.opacity(0.1))
@@ -71,21 +68,19 @@ struct GlassmorphicVideoMessage: View {
     let videoUrl: String?
     let thumbnailUrl: String?
     let isSending: Bool
+    var isResolvingMedia: Bool = false
+    var downsamplingSize: CGSize? = nil
     let progress: Double?
     let onTap: () -> Void
 
     var body: some View {
         ZStack {
-            if let thumbnailUrl = thumbnailUrl, let url = URL(string: thumbnailUrl) {
-                if url.isFileURL {
-                    ChatLocalFileImage(url: url)
-                        .frame(minWidth: 0, maxWidth: .infinity, minHeight: 0, maxHeight: .infinity)
-                } else {
-                    KFImage(url)
-                        .resizable()
-                        .scaledToFill()
-                        .frame(minWidth: 0, maxWidth: .infinity, minHeight: 0, maxHeight: .infinity)
-                }
+            if isResolvingMedia {
+                ChatMediaResolvingPlaceholder()
+                    .frame(minWidth: 0, maxWidth: .infinity, minHeight: 0, maxHeight: .infinity)
+            } else if let thumbnailUrl, let url = URL(string: thumbnailUrl) {
+                ChatKFImage(url: url, downsamplingSize: downsamplingSize)
+                    .frame(minWidth: 0, maxWidth: .infinity, minHeight: 0, maxHeight: .infinity)
             } else {
                 RoundedRectangle(cornerRadius: 16)
                     .fill(Color.white.opacity(0.1))

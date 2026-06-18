@@ -795,6 +795,8 @@
 
 "conversationSettings.privacy.readReceipts.title" = "Conferme di lettura";
 "conversationSettings.privacy.readReceipts.description" = "Se disattivi le conferme di lettura in questa chat, non potrai vedere quando l'altra persona legge i tuoi messaggi.";
+"conversationSettings.privacy.forwarding.title" = "Consenti inoltro";
+"conversationSettings.privacy.forwarding.description" = "Se disattivi questa opzione, l'altra persona non potrà inoltrare né copiare i tuoi messaggi di testo in questa chat.";
 
 /* Register */
 "register.back" = "Indietro";
@@ -894,6 +896,12 @@
 "chat.action.edit" = "Modifica";
 "chat.action.copy" = "Copia";
 "chat.action.reply" = "Rispondi";
+"chat.action.forward" = "Inoltra";
+"chat.action.star" = "Metti in evidenza";
+"chat.action.unstar" = "Rimuovi evidenziazione";
+"chat.forward.title" = "Inoltra messaggio";
+"chat.forwarded" = "Inoltrato";
+"chat.error.editWindowExpired" = "Puoi modificare i messaggi solo nei primi 10 minuti";
 "chat.editing.title" = "Modifica messaggio";
 "chat.typing" = "sta scrivendo...";
 "chat.tapToView" = "Tocca per vedere";
@@ -957,6 +965,7 @@
 "chat.status.sent" = "Inviato";
 "chat.status.delivered" = "Consegnato";
 "chat.status.read" = "Letto";
+"chat.seen" = "Visto";
 "chat.status.failed" = "Non riuscito";
 "chat.notification.viewOncePrompt" = "📸 Ti ha inviato un messaggio che verrà eliminato dopo la visualizzazione";
 "chat.preview.newConversation" = "Nuova conversazione";
@@ -1400,6 +1409,9 @@
 "conversationSettings.understood" = "Capito";
 "conversationSettings.conversationInfo" = "Informazioni sulla conversazione";
 "conversationSettings.sharedMedia" = "Media condivisi";
+"conversationSettings.starredMessages" = "Messaggi contrassegnati";
+"conversationSettings.starredMessages.none" = "Nessuno";
+"conversationSettings.starredMessages.empty" = "I messaggi che contrassegni in questa chat appariranno qui";
 "conversationSettings.noSharedMedia" = "Nessun media condiviso";
 "conversationSettings.privacy" = "Privacy";
 "conversationSettings.clearConversation" = "Cancella conversazione";

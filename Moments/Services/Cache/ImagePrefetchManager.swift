@@ -34,7 +34,11 @@ class ImagePrefetchManager {
         if urlsToProcess.isEmpty { return }
         
         // Comenzar la precarga de las nuevas URLs
-        let prefetcher = ImagePrefetcher(urls: urlsToProcess, completionHandler: { [self] skipped, failed, completed in
+        let retryStrategy = DelayRetryStrategy(maxRetryCount: 2, retryInterval: .seconds(2))
+        let prefetcher = ImagePrefetcher(
+            urls: urlsToProcess,
+            options: [.retryStrategy(retryStrategy)],
+            completionHandler: { [self] skipped, failed, completed in
             // Cuando termine (independientemente si falla, se salta porque ya estaba en caché, o termina bien),
             // limpiamos las URLs del Set para liberar memoria y permitir futuros prefetchs si se borra el caché.
             

@@ -135,46 +135,53 @@ struct GlassmorphicReactionsView: View {
     let onTap: (String) -> Void
     @Environment(\.colorScheme) var colorScheme
 
-    private var adaptiveColors: AdaptiveColors {
-        AdaptiveColors(colorScheme: colorScheme)
+    private var sortedEntries: [(emoji: String, count: Int)] {
+        reactions
+            .map { (emoji: $0.key, count: $0.value.count) }
+            .sorted {
+                if $0.count == $1.count { return $0.emoji < $1.emoji }
+                return $0.count > $1.count
+            }
     }
 
     var body: some View {
-        HStack(spacing: 4) {
-            ForEach(Array(reactions.keys), id: \.self) { emoji in
-                Button(action: { onTap(emoji) }) {
-                    HStack(spacing: 2) {
-                        Text(emoji)
-                            .font(.caption)
-                        if let count = reactions[emoji]?.count, count > 1 {
-                            Text("\(count)")
-                                .font(.caption2)
-                                .foregroundColor(adaptiveColors.messageTextColor.opacity(0.8))
+        HStack(spacing: 2) {
+            ForEach(sortedEntries, id: \.emoji) { entry in
+                Button(action: { onTap(entry.emoji) }) {
+                    HStack(spacing: 1) {
+                        Text(entry.emoji)
+                            .font(.system(size: 13))
+                        if entry.count > 1 {
+                            Text("\(entry.count)")
+                                .font(.system(size: 10, weight: .semibold))
+                                .foregroundColor(MomentsChromeGlass.contentColor(for: colorScheme).opacity(0.75))
                         }
                     }
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
-                    .background(adaptiveColors.messageBubbleBackground)
-                    .cornerRadius(12)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 12)
-                            .stroke(adaptiveColors.messageBubbleStroke, lineWidth: 0.5)
-                    )
                 }
-                .buttonStyle(PlainButtonStyle())
+                .buttonStyle(.plain)
             }
         }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 4)
+        .momentsChromeGlass(in: Capsule(), interactive: true)
+        .clipShape(Capsule())
+        .shadow(color: .black.opacity(colorScheme == .dark ? 0.18 : 0.08), radius: 4, y: 2)
     }
 }
 
 struct MessageTimestamp: View {
-    let message: EnhancedMessage
-    let status: MessageStatus
+    @ObservedObject var message: EnhancedMessage
     let isCurrentUser: Bool
+    var showSeenLabel: Bool = false
+    var overrideStatus: MessageStatus? = nil
     @Environment(\.colorScheme) var colorScheme
 
     private var adaptiveColors: AdaptiveColors {
         AdaptiveColors(colorScheme: colorScheme)
+    }
+
+    private var displayStatus: MessageStatus {
+        overrideStatus ?? message.status
     }
 
     var body: some View {
@@ -190,9 +197,16 @@ struct MessageTimestamp: View {
             }
 
             if isCurrentUser {
-                MessageStatusIcon(status: status)
+                if showSeenLabel && displayStatus == .read {
+                    Text("chat.seen")
+                        .font(.custom("Poppins-Medium", size: 11))
+                        .foregroundColor(adaptiveColors.timestampColor.opacity(0.9))
+                } else {
+                    MessageStatusIcon(status: displayStatus)
+                }
             }
         }
+        .id("\(message.id)-\(displayStatus.rawValue)")
     }
 
     private func formatTime(_ date: Date) -> String {
@@ -217,15 +231,9 @@ struct MessageStatusIcon: View {
                 .font(.system(size: 10))
                 .foregroundColor(adaptiveColors.timestampColor.opacity(0.8))
         case .sending:
-            HStack(spacing: 2) {
-                ProgressView()
-                    .scaleEffect(0.5)
-                    .tint(adaptiveColors.timestampColor)
-
-                Text("chat.sending")
-                    .font(.system(size: 10, weight: .medium))
-                    .foregroundColor(adaptiveColors.timestampColor.opacity(0.8))
-            }
+            ProgressView()
+                .scaleEffect(0.45)
+                .tint(adaptiveColors.timestampColor)
         case .sent:
             Image(systemName: "checkmark")
                 .font(.system(size: 10, weight: .medium))

@@ -399,82 +399,54 @@ private struct StoryAddGlyphSegment: View {
     }
 }
 
-// MARK: - ✅ Modern Share Sheet (Overlay Style)
-struct ModernShareSheet: View {
-    let moment: Moment
-    let onBack: () -> Void
+// MARK: - Picker de destinatarios reutilizable (share / reenviar)
+
+struct ShareRecipientsPickerSheet: View {
+    let titleKey: String
+    var subtitle: String? = nil
+    var showsBackButton: Bool = true
+    var onBack: (() -> Void)? = nil
+    var flexibleListHeight: Bool = false
     let onDismiss: () -> Void
-    
+    let onSend: (Set<String>, [Conversation]) -> Void
+
     @State private var searchText = ""
     @State private var selectedUsers: Set<String> = []
     @State private var conversations: [Conversation] = []
     @State private var globalSearchResults: [AppUser] = []
     @State private var isLoading = true
     @State private var isSearchingGlobal = false
-    @State private var activeFilter: FilterType = .none
-    
-    enum FilterType {
+    @State private var activeFilter: ShareRecipientsFilter = .none
+
+    @StateObject private var chatService = ChatService.shared
+
+    enum ShareRecipientsFilter {
         case none, favorites, recents
     }
-    
-    @StateObject private var chatService = ChatService.shared
-    
-    var filteredConversations: [Conversation] {
+
+    private var filteredConversations: [Conversation] {
         var base = conversations
-        
         switch activeFilter {
         case .favorites:
             base = conversations.filter { $0.isPinned == true }
-        case .recents:
-            base = conversations // Show all, but the UI might prioritize them
-        case .none:
+        case .recents, .none:
             break
         }
-        
-        if searchText.isEmpty {
-            return base
-        }
-        return base.filter { 
-            $0.otherParticipantUsername?.localizedCaseInsensitiveContains(searchText) ?? false 
+        if searchText.isEmpty { return base }
+        return base.filter {
+            $0.otherParticipantUsername?.localizedCaseInsensitiveContains(searchText) ?? false
         }
     }
-    
+
     var body: some View {
         VStack(spacing: 0) {
-            // Header
-            HStack(spacing: 12) {
-                Button(action: onBack) {
-                    Image(systemName: "chevron.left")
-                        .font(.system(size: 18, weight: .bold))
-                        .foregroundColor(.primary)
-                        .frame(width: 44, height: 44)
-                        .background(Circle().fill(Color.white.opacity(0.1)))
-                }
-                
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("share.sendTo")
-                        .font(.custom("Poppins-SemiBold", size: 18))
-                        .foregroundColor(.primary)
-                    
-                    LiveUsernameContent(userId: moment.authorId, fallbackUsername: moment.username) { username in
-                        Text(String(format: NSLocalizedString("share.moment.by", comment: ""), username))
-                    }
-                        .font(.custom("Poppins-Regular", size: 14))
-                        .foregroundColor(.secondary)
-                }
-                
-                Spacer()
-            }
-            .padding(.horizontal, 20)
-            .padding(.top, 20)
-            .padding(.bottom, 20)
-            
-            // Search bar
+            header
+
             HStack(spacing: 12) {
                 Image(systemName: "magnifyingglass")
                     .foregroundColor(.secondary)
                     .font(.system(size: 16))
-                
+
                 TextField(NSLocalizedString("share.search.placeholder", comment: ""), text: $searchText)
                     .foregroundColor(.primary)
                     .font(.custom("Poppins-Regular", size: 16))
@@ -489,8 +461,7 @@ struct ModernShareSheet: View {
             .momentsChromeGlass(in: Capsule(), interactive: true)
             .padding(.horizontal, 20)
             .padding(.bottom, 16)
-            
-            // Quick actions
+
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 16) {
                     FilterChip(
@@ -503,7 +474,7 @@ struct ModernShareSheet: View {
                             activeFilter = activeFilter == .favorites ? .none : .favorites
                         }
                     }
-                    
+
                     FilterChip(
                         icon: "clock.fill",
                         title: NSLocalizedString("share.recents", comment: ""),
@@ -518,80 +489,126 @@ struct ModernShareSheet: View {
                 .padding(.horizontal, 20)
             }
             .padding(.bottom, 16)
-            
-            // Content
+
             ScrollView {
-                VStack(alignment: .leading, spacing: 20) {
-                    if isLoading {
-                        PeopleSkeletonGrid()
-                    } else {
-                        // Local results
-                        if !filteredConversations.isEmpty {
-                            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 12), count: 4), spacing: 16) {
-                                ForEach(filteredConversations.indices, id: \.self) { index in
-                                    let conversation = filteredConversations[index]
-                                    PersonCell(
-                                        conversation: conversation,
-                                        isSelected: selectedUsers.contains(conversation.otherParticipantId),
-                                        animationDelay: Double(index) * 0.05,
-                                        onTap: { toggleUserSelection(conversation.otherParticipantId) }
-                                    )
-                                }
-                            }
-                        }
-                        
-                        // Global results
-                        if !globalSearchResults.isEmpty {
-                            VStack(alignment: .leading, spacing: 12) {
-                                Text("share.search.globalResults")
-                                    .font(.custom("Poppins-SemiBold", size: 14))
-                                    .foregroundColor(.secondary)
-                                    .padding(.top, 8)
-                                
-                                LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 12), count: 4), spacing: 16) {
-                                    ForEach(globalSearchResults) { user in
-                                        GlobalUserCell(
-                                            user: user,
-                                            isSelected: selectedUsers.contains(user.id),
-                                            onTap: { toggleUserSelection(user.id) }
-                                        )
-                                    }
-                                }
-                            }
-                        }
-                        
-                        if filteredConversations.isEmpty && globalSearchResults.isEmpty && !searchText.isEmpty {
-                            EmptySearchState()
-                        }
-                        
-                        if filteredConversations.isEmpty && searchText.isEmpty && activeFilter == .favorites {
-                            VStack(spacing: 12) {
-                                Image(systemName: "star.slash")
-                                    .font(.system(size: 40))
-                                    .foregroundColor(.secondary)
-                                Text("share.favorites.empty")
-                                    .font(.custom("Poppins-Medium", size: 16))
-                                    .foregroundColor(.secondary)
-                            }
-                            .frame(maxWidth: .infinity)
-                            .padding(.top, 40)
+                recipientsListContent
+            }
+            .applyRecipientsListHeight(flexible: flexibleListHeight)
+
+            SendActionBottomBar(
+                selectedCount: selectedUsers.count,
+                onSend: {
+                    onSend(selectedUsers, conversations)
+                }
+            )
+        }
+        .frame(maxWidth: .infinity, maxHeight: flexibleListHeight ? .infinity : nil, alignment: .top)
+        .onAppear(perform: loadConversations)
+    }
+
+    @ViewBuilder
+    private var recipientsListContent: some View {
+        VStack(alignment: .leading, spacing: 20) {
+            if isLoading {
+                PeopleSkeletonGrid()
+            } else {
+                if !filteredConversations.isEmpty {
+                    LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 12), count: 4), spacing: 16) {
+                        ForEach(filteredConversations.indices, id: \.self) { index in
+                            let conversation = filteredConversations[index]
+                            PersonCell(
+                                conversation: conversation,
+                                isSelected: selectedUsers.contains(conversation.otherParticipantId),
+                                animationDelay: Double(index) * 0.05,
+                                onTap: { toggleUserSelection(conversation.otherParticipantId) }
+                            )
                         }
                     }
                 }
-                .padding(.horizontal, 20)
-                .padding(.top, 10)
+
+                if !globalSearchResults.isEmpty {
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("share.search.globalResults")
+                            .font(.custom("Poppins-SemiBold", size: 14))
+                            .foregroundColor(.secondary)
+                            .padding(.top, 8)
+
+                        LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 12), count: 4), spacing: 16) {
+                            ForEach(globalSearchResults) { user in
+                                GlobalUserCell(
+                                    user: user,
+                                    isSelected: selectedUsers.contains(user.id),
+                                    onTap: { toggleUserSelection(user.id) }
+                                )
+                            }
+                        }
+                    }
+                }
+
+                if filteredConversations.isEmpty && globalSearchResults.isEmpty && !searchText.isEmpty {
+                    EmptySearchState()
+                }
+
+                if filteredConversations.isEmpty && searchText.isEmpty && activeFilter == .favorites {
+                    VStack(spacing: 12) {
+                        Image(systemName: "star.slash")
+                            .font(.system(size: 40))
+                            .foregroundColor(.secondary)
+                        Text("share.favorites.empty")
+                            .font(.custom("Poppins-Medium", size: 16))
+                            .foregroundColor(.secondary)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.top, 40)
+                }
             }
-            .frame(maxHeight: 350)
-            
-            // Bottom Send
-            SendActionBottomBar(
-                selectedCount: selectedUsers.count,
-                onSend: sendToSelectedUsers
-            )
         }
-        .onAppear(perform: loadConversations)
+        .padding(.horizontal, 20)
+        .padding(.top, 10)
+        .padding(.bottom, 8)
     }
-    
+
+    @ViewBuilder
+    private var header: some View {
+        HStack(spacing: 12) {
+            if showsBackButton, let onBack {
+                Button(action: onBack) {
+                    Image(systemName: "chevron.left")
+                        .font(.system(size: 18, weight: .bold))
+                        .foregroundColor(.primary)
+                        .frame(width: 44, height: 44)
+                        .background(Circle().fill(Color.white.opacity(0.1)))
+                }
+            } else {
+                Button(action: onDismiss) {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 16, weight: .bold))
+                        .foregroundColor(.primary)
+                        .frame(width: 44, height: 44)
+                        .background(Circle().fill(Color.white.opacity(0.1)))
+                }
+            }
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(LocalizedStringKey(titleKey))
+                    .font(.custom("Poppins-SemiBold", size: 18))
+                    .foregroundColor(.primary)
+
+                if let subtitle, !subtitle.isEmpty {
+                    Text(subtitle)
+                        .font(.custom("Poppins-Regular", size: 14))
+                        .foregroundColor(.secondary)
+                        .lineLimit(2)
+                }
+            }
+
+            Spacer()
+        }
+        .padding(.horizontal, 20)
+        .padding(.top, 20)
+        .padding(.bottom, 20)
+    }
+
     private func loadConversations() {
         guard let currentUserId = Auth.auth().currentUser?.uid else { return }
         chatService.fetchConversations(for: currentUserId) { result in
@@ -605,26 +622,25 @@ struct ModernShareSheet: View {
             }
         }
     }
-    
+
     private func performGlobalSearch(query: String) {
         guard query.count >= 3 else {
-            self.globalSearchResults = []
+            globalSearchResults = []
             return
         }
-        
+
         isSearchingGlobal = true
         FirestoreService.shared.searchUsers(query: query) { result in
             DispatchQueue.main.async {
-                self.isSearchingGlobal = false
+                isSearchingGlobal = false
                 if case .success(let users) = result {
-                    // Filter out already shown in conversations
-                    let localIds = Set(conversations.map { $0.otherParticipantId })
-                    self.globalSearchResults = users.filter { !localIds.contains($0.id) }
+                    let localIds = Set(conversations.map(\.otherParticipantId))
+                    globalSearchResults = users.filter { !localIds.contains($0.id) }
                 }
             }
         }
     }
-    
+
     private func toggleUserSelection(_ userId: String) {
         withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
             if selectedUsers.contains(userId) {
@@ -633,30 +649,64 @@ struct ModernShareSheet: View {
                 selectedUsers.insert(userId)
             }
         }
-        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        HapticManager.shared.lightImpact()
     }
-    
-    private func sendToSelectedUsers() {
+}
+
+private extension View {
+    @ViewBuilder
+    func applyRecipientsListHeight(flexible: Bool) -> some View {
+        if flexible {
+            frame(maxHeight: .infinity)
+        } else {
+            frame(maxHeight: 350)
+        }
+    }
+}
+
+// MARK: - ✅ Modern Share Sheet (Overlay Style)
+struct ModernShareSheet: View {
+    let moment: Moment
+    let onBack: () -> Void
+    let onDismiss: () -> Void
+
+    @StateObject private var chatService = ChatService.shared
+
+    var body: some View {
+        ShareRecipientsPickerSheet(
+            titleKey: "share.sendTo",
+            subtitle: String(
+                format: NSLocalizedString("share.moment.by", comment: ""),
+                UserCacheService.shared.getCachedUser(userId: moment.authorId)?.username ?? moment.username
+            ),
+            showsBackButton: true,
+            onBack: onBack,
+            onDismiss: onDismiss,
+            onSend: sendToSelectedUsers
+        )
+    }
+
+    private func sendToSelectedUsers(selectedUsers: Set<String>, conversations: [Conversation]) {
         guard let currentUserId = Auth.auth().currentUser?.uid,
               moment.id != nil else { return }
-        
+
         let freshUsername = UserCacheService.shared.getCachedUser(userId: moment.authorId)?.username ?? moment.username
         let shareText = String(format: NSLocalizedString("share.moment.by", comment: ""), freshUsername)
         let momentUrl = buildMomentShareURLString(moment)
-        
+
         for userId in selectedUsers {
             let existingConv = conversations.first(where: { $0.otherParticipantId == userId })
-            
+
             chatService.sendSharedMomentMessage(
-                conversationId: existingConv?.id ?? "", 
+                conversationId: existingConv?.id ?? "",
                 senderId: currentUserId,
                 moment: moment,
                 shareText: shareText,
                 momentUrl: momentUrl
             ) { _ in }
         }
-        
-        UINotificationFeedbackGenerator().notificationOccurred(.success)
+
+        HapticManager.shared.success()
         onDismiss()
     }
 }

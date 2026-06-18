@@ -14,8 +14,9 @@ final class CachedConversation {
     var isPinned: Bool
     var isMuted: Bool
     var readReceiptPreferencesData: Data? // [String: Bool] encoded
+    var forwardingPreferencesData: Data? // [String: Bool] encoded
     var lastSyncedAt: Date
-    
+
     init(id: String,
          participants: [String],
          lastMessage: String?,
@@ -27,6 +28,7 @@ final class CachedConversation {
          isPinned: Bool = false,
          isMuted: Bool = false,
          readReceiptPreferencesData: Data? = nil,
+         forwardingPreferencesData: Data? = nil,
          lastSyncedAt: Date = Date()) {
         self.id = id
         self.participants = participants
@@ -39,6 +41,7 @@ final class CachedConversation {
         self.isPinned = isPinned
         self.isMuted = isMuted
         self.readReceiptPreferencesData = readReceiptPreferencesData
+        self.forwardingPreferencesData = forwardingPreferencesData
         self.lastSyncedAt = lastSyncedAt
     }
 }
@@ -48,7 +51,8 @@ extension CachedConversation {
         let encoder = JSONEncoder()
         let readStatusData = try? encoder.encode(conversation.readStatus)
         let readReceiptPreferencesData = try? encoder.encode(conversation.readReceiptPreferences)
-        
+        let forwardingPreferencesData = try? encoder.encode(conversation.forwardingPreferences)
+
         return CachedConversation(
             id: conversation.id ?? UUID().uuidString,
             participants: conversation.participants,
@@ -61,22 +65,28 @@ extension CachedConversation {
             isPinned: conversation.isPinned ?? false,
             isMuted: conversation.isMuted ?? false,
             readReceiptPreferencesData: readReceiptPreferencesData,
+            forwardingPreferencesData: forwardingPreferencesData,
             lastSyncedAt: Date()
         )
     }
-    
+
     func toConversation() -> Conversation {
         let decoder = JSONDecoder()
         let readStatus: [String: Bool] = {
             guard let data = readStatusData else { return [:] }
             return (try? decoder.decode([String: Bool].self, from: data)) ?? [:]
         }()
-        
+
         let readReceiptPreferences: [String: Bool]? = {
             guard let data = readReceiptPreferencesData else { return [:] }
             return try? decoder.decode([String: Bool].self, from: data)
         }()
-        
+
+        let forwardingPreferences: [String: Bool]? = {
+            guard let data = forwardingPreferencesData else { return [:] }
+            return try? decoder.decode([String: Bool].self, from: data)
+        }()
+
         var conversation = Conversation(
             id: id,
             participants: participants,
@@ -90,6 +100,7 @@ extension CachedConversation {
             isMuted: isMuted
         )
         conversation.readReceiptPreferences = readReceiptPreferences
+        conversation.forwardingPreferences = forwardingPreferences
         return conversation
     }
 }

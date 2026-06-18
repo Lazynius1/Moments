@@ -795,6 +795,8 @@
 
 "conversationSettings.privacy.readReceipts.title" = "Lesebestätigungen";
 "conversationSettings.privacy.readReceipts.description" = "Wenn du Lesebestätigungen in diesem Chat deaktivierst, kannst du nicht mehr sehen, wann die andere Person deine Nachrichten liest.";
+"conversationSettings.privacy.forwarding.title" = "Weiterleitung erlauben";
+"conversationSettings.privacy.forwarding.description" = "Wenn du dies deaktivierst, kann die andere Person deine Textnachrichten in diesem Chat nicht weiterleiten oder kopieren.";
 
 /* Register */
 "register.back" = "Zurück";
@@ -894,6 +896,12 @@
 "chat.action.edit" = "Bearbeiten";
 "chat.action.copy" = "Kopieren";
 "chat.action.reply" = "Antworten";
+"chat.action.forward" = "Weiterleiten";
+"chat.action.star" = "Markieren";
+"chat.action.unstar" = "Markierung entfernen";
+"chat.forward.title" = "Nachricht weiterleiten";
+"chat.forwarded" = "Weitergeleitet";
+"chat.error.editWindowExpired" = "Nachrichten können nur in den ersten 10 Minuten bearbeitet werden";
 "chat.editing.title" = "Nachricht bearbeiten";
 "chat.typing" = "schreibt...";
 "chat.tapToView" = "Tippen zum Ansehen";
@@ -957,6 +965,7 @@
 "chat.status.sent" = "Gesendet";
 "chat.status.delivered" = "Zugestellt";
 "chat.status.read" = "Gelesen";
+"chat.seen" = "Gesehen";
 "chat.status.failed" = "Fehlgeschlagen";
 "chat.notification.viewOncePrompt" = "📸 Hat dir eine Nachricht gesendet, die nach dem Ansehen gelöscht wird";
 "chat.preview.newConversation" = "Neue Unterhaltung";
@@ -1400,6 +1409,9 @@
 "conversationSettings.understood" = "Verstanden";
 "conversationSettings.conversationInfo" = "Informationen zur Unterhaltung";
 "conversationSettings.sharedMedia" = "Geteilte Medien";
+"conversationSettings.starredMessages" = "Markierte Nachrichten";
+"conversationSettings.starredMessages.none" = "Keine";
+"conversationSettings.starredMessages.empty" = "Nachrichten, die du in diesem Chat markierst, erscheinen hier";
 "conversationSettings.noSharedMedia" = "Keine geteilten Medien";
 "conversationSettings.privacy" = "Privatsphäre";
 "conversationSettings.clearConversation" = "Unterhaltung leeren";

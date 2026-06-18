@@ -821,6 +821,8 @@
 
 "conversationSettings.privacy.readReceipts.title" = "Read Receipts";
 "conversationSettings.privacy.readReceipts.description" = "If you turn off read receipts in this chat, you won't be able to see when the other person reads your messages.";
+"conversationSettings.privacy.forwarding.title" = "Allow forwarding";
+"conversationSettings.privacy.forwarding.description" = "If you turn this off, the other person won't be able to forward or copy your text messages in this chat.";
 
 /* Register */
 "register.back" = "Back";
@@ -920,6 +922,12 @@
 "chat.action.edit" = "Edit";
 "chat.action.copy" = "Copy";
 "chat.action.reply" = "Reply";
+"chat.action.forward" = "Forward";
+"chat.action.star" = "Star";
+"chat.action.unstar" = "Unstar";
+"chat.forward.title" = "Forward message";
+"chat.forwarded" = "Forwarded";
+"chat.error.editWindowExpired" = "You can only edit messages within the first 10 minutes";
 "chat.editing.title" = "Editing message";
 "chat.typing" = "typing...";
 "chat.tapToView" = "Tap to view";
@@ -984,6 +992,7 @@
 "chat.status.sent" = "Sent";
 "chat.status.delivered" = "Delivered";
 "chat.status.read" = "Read";
+"chat.seen" = "Seen";
 "chat.status.failed" = "Failed";
 "chat.notification.viewOncePrompt" = "📸 Sent you a message that will be deleted after viewing";
 "chat.preview.newConversation" = "New conversation";
@@ -1427,6 +1436,9 @@
 "conversationSettings.understood" = "Understood";
 "conversationSettings.conversationInfo" = "Conversation Information";
 "conversationSettings.sharedMedia" = "Shared Media";
+"conversationSettings.starredMessages" = "Starred messages";
+"conversationSettings.starredMessages.none" = "None";
+"conversationSettings.starredMessages.empty" = "Messages you star in this chat will appear here";
 "conversationSettings.noSharedMedia" = "No shared media";
 "conversationSettings.privacy" = "Privacy";
 "conversationSettings.clearConversation" = "Clear conversation";
