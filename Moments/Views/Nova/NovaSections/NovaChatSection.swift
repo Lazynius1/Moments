@@ -123,9 +123,7 @@ struct EnhancedChatBubble: View {
                                     }
 
                                     ShareLink(item: message.text) {
-                                        Image(systemName: "square.and.arrow.up")
-                                            .font(.system(size: 12))
-                                            .foregroundColor(NovaColors.textSecondary)
+                                        AttachmentIconView(icon: .share, preset: .novaShareInline, tintColor: NovaColors.textSecondary)
                                     }
                                 }
                                 .transition(.opacity.combined(with: .scale))

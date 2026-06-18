@@ -235,6 +235,16 @@ class EnhancedChatViewModel: ObservableObject {
         }
     }
 
+    /// GIF/stickers cifrados legacy (antes de referencia Giphy): hidrata solo si aún usan `.enc`.
+    func prefetchUnresolvedMediaIfNeeded() {
+        for message in messages where message.type == .gif || message.type == .sticker {
+            guard message.mediaUrl == nil,
+                  message.mediaObjectPath != nil,
+                  message.mediaEncryption != nil else { continue }
+            prepareMediaForViewing(message) { _ in }
+        }
+    }
+
     /// Tras reinstalar o sin caché local: descarga el `.enc`, descifra y actualiza el mensaje en la lista.
     func prepareMediaForViewing(_ message: EnhancedMessage, completion: @escaping (EnhancedMessage) -> Void) {
         if message.mediaUrl != nil {
@@ -356,13 +366,12 @@ class EnhancedChatViewModel: ObservableObject {
         typingUsersCancellable?.cancel()
         typingUsersCancellable = nil
         
-        // ✅ SwiftData: Carga historial local para apertura instantánea
+        // ✅ SwiftData: carga síncrona en MainActor para que el primer frame ya tenga historial y scroll al fondo.
         let cachedMessages = LocalPersistenceService.shared.loadMessages(conversationId: conversationId)
         if !cachedMessages.isEmpty {
-            DispatchQueue.main.async {
-                self.historicalMessages = cachedMessages
-                self.rebuildMessagesList()
-            }
+            historicalMessages = cachedMessages
+            rebuildMessagesList()
+            prefetchUnresolvedMediaIfNeeded()
         }
         
         // Re-registrar siempre el listener de mensajes para que el callback pertenezca
@@ -386,6 +395,7 @@ class EnhancedChatViewModel: ObservableObject {
                     // ✅ Actualizar solo la parte de tiempo real
                     self.realTimeMessages = messages
                     self.rebuildMessagesList()
+                    self.prefetchUnresolvedMediaIfNeeded()
                     
                     // ✅ SwiftData: Persistir historial actualizado
                     LocalPersistenceService.shared.saveMessages(messages, conversationId: conversationId, sync: self.isFirstFetch)

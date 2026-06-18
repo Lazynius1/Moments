@@ -144,10 +144,16 @@ struct InAppBannerView: View {
                                 .stroke(accentColor.opacity(0.3), lineWidth: 1)
                         )
                 } else {
-                    Image(systemName: isSystemTimeLimitBanner(notification) ? "clock.fill" : (isSystemModerationBanner(notification) ? "exclamationmark.shield.fill" : notification.type.systemIconName))
-                        .font(.system(size: 16, weight: .semibold))
-                        .foregroundColor(isSystemModerationBanner(notification) ? .primary.opacity(0.85) : accentColor)
-                        .frame(width: 32, height: 32)
+                    Group {
+                        if !isSystemTimeLimitBanner(notification) && !isSystemModerationBanner(notification) && notification.type == .photoTag {
+                            AttachmentIconView(icon: .tagged, preset: .inAppBanner, tintColor: accentColor)
+                        } else {
+                            Image(systemName: isSystemTimeLimitBanner(notification) ? "clock.fill" : (isSystemModerationBanner(notification) ? "exclamationmark.shield.fill" : notification.type.systemIconName))
+                                .font(.system(size: 16, weight: .semibold))
+                        }
+                    }
+                    .foregroundColor(isSystemModerationBanner(notification) ? .primary.opacity(0.85) : accentColor)
+                    .frame(width: 32, height: 32)
                 }
             }
             .padding(.horizontal, 16)

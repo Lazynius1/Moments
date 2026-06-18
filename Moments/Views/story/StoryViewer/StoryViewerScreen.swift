@@ -1159,7 +1159,7 @@ struct StoryViewerScreen: View {
 
                             if authorAllowsEphemeralPhotos {
                                 storyViewerReplyActionButton(
-                                    systemImage: "camera",
+                                    attachmentIcon: .camera,
                                     accessibilityLabel: NSLocalizedString("chat.ephemeral.title", comment: "")
                                 ) {
                                     showEphemeralPicker = true
@@ -1215,13 +1215,20 @@ struct StoryViewerScreen: View {
     }
 
     private func storyViewerReplyActionButton(
-        systemImage: String,
+        systemImage: String? = nil,
+        attachmentIcon: AttachmentIcon? = nil,
         accessibilityLabel: String,
         action: @escaping () -> Void
     ) -> some View {
         Button(action: action) {
-            Image(systemName: systemImage)
-                .font(.system(size: 22, weight: .regular))
+            Group {
+                if let attachmentIcon {
+                    AttachmentIconView(icon: attachmentIcon, preset: .storyReplyAction, tintColor: .white)
+                } else {
+                    Image(systemName: systemImage ?? "questionmark")
+                        .font(.system(size: 22, weight: .regular))
+                }
+            }
                 .symbolRenderingMode(.monochrome)
                 .foregroundStyle(storyViewerChromeColors.messageTextColor)
                 .frame(width: 34, height: 40)

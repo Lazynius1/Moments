@@ -81,7 +81,11 @@ struct ProfileVisitorPinnedTopChrome: View {
 
             if let user = viewModel.userProfile {
                 ShareLink(item: URL(string: "https://glowsy.app/\(user.username)")!) {
-                    Label(NSLocalizedString("qrCode.share", comment: "Share"), systemImage: "square.and.arrow.up")
+                    Label {
+                        Text(NSLocalizedString("qrCode.share", comment: "Share"))
+                    } icon: {
+                        AttachmentIconView(icon: .share, preset: .shareInline)
+                    }
                 }
             }
 

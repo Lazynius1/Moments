@@ -43,18 +43,22 @@ struct NovaAttachmentPlusButton: View {
 
     var body: some View {
         Button(action: action) {
-            Image(systemName: "plus")
-                .font(.system(size: 18, weight: .semibold))
-                .foregroundColor(NovaColors.textPrimary)
-                .frame(width: 44, height: 44)
-                .background {
-                    Color.clear
-                        .momentsChromeGlass(in: Circle(), interactive: true)
-                }
-                .rotationEffect(.degrees(isMenuOpen ? 45 : 0))
+            ZStack {
+                Color.clear
+                    .momentsChromeGlass(in: Circle(), interactive: true)
+
+                Image(systemName: "plus")
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundColor(NovaColors.textPrimary)
+                    .rotationEffect(.degrees(isMenuOpen ? 45 : 0))
+            }
+            .frame(width: 44, height: 44)
+            .contentShape(Circle())
         }
         .buttonStyle(.plain)
+        .frame(width: 44, height: 44)
         .accessibilityLabel(Text("nova.input.attach.accessibility"))
+        .animation(.spring(response: 0.38, dampingFraction: 0.86), value: isMenuOpen)
         .background {
             GeometryReader { proxy in
                 Color.clear.preference(

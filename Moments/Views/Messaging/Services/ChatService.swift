@@ -72,30 +72,33 @@ class ChatService: ObservableObject {
     
     // MARK: - Real-time Messages with Decryption
     func listenToMessages(conversationId: String, limit: Int = 50, completion: @escaping (Result<[EnhancedMessage], Error>) -> Void) {
+        activeListeners[conversationId]?.remove()
+        activeListeners[conversationId] = nil
+
+        // Clave lista antes del primer snapshot: evita GIF/stickers sin mediaUrl al abrir el chat.
         Task {
             await preloadConversationKey(for: conversationId)
-        }
-        
-        activeListeners[conversationId]?.remove()
-        
-        let listener = db.collection("conversations")
-            .document(conversationId)
-            .collection("messages")
-            .order(by: "timestamp", descending: false)
-            .limit(toLast: limit) // ✅ LIMITAR a los últimos mensajes
-            .addSnapshotListener { [weak self] snapshot, error in
-                // ✅ Envolver todo en Task para poder usar await
-                Task {
-                    await self?.handleMessagesSnapshot(
-                        snapshot: snapshot,
-                        error: error,
-                        conversationId: conversationId,
-                        completion: completion
-                    )
+
+            let listener = db.collection("conversations")
+                .document(conversationId)
+                .collection("messages")
+                .order(by: "timestamp", descending: false)
+                .limit(toLast: limit)
+                .addSnapshotListener { [weak self] snapshot, error in
+                    Task {
+                        await self?.handleMessagesSnapshot(
+                            snapshot: snapshot,
+                            error: error,
+                            conversationId: conversationId,
+                            completion: completion
+                        )
+                    }
                 }
+
+            await MainActor.run {
+                self.activeListeners[conversationId] = listener
             }
-        
-        activeListeners[conversationId] = listener
+        }
     }
     
     // ✅ ONE-SHOT FETCH: útil para pantallas de stats donde no necesitamos listener vivo
@@ -280,6 +283,46 @@ class ChatService: ObservableObject {
             
             sendMessage(message, useServerTimestamp: true, completion: completion)
         }
+    }
+
+    /// GIF/sticker de Giphy: referencia pública (sin re-subida ni cifrado de bytes).
+    func sendGiphyReferenceMessage(
+        conversationId: String,
+        senderId: String,
+        type: MessageType,
+        giphyId: String,
+        mediaUrl: String,
+        width: Int = 0,
+        height: Int = 0,
+        messageId: String? = nil,
+        completion: @escaping (Result<EnhancedMessage, Error>) -> Void
+    ) {
+        let finalMessageId = messageId ?? UUID().uuidString
+        let message = EnhancedMessage(
+            id: finalMessageId,
+            conversationId: conversationId,
+            senderId: senderId,
+            type: type,
+            content: nil,
+            mediaUrl: mediaUrl,
+            thumbnailUrl: nil,
+            duration: nil,
+            fileName: "giphy_\(giphyId)",
+            fileSize: nil,
+            latitude: nil,
+            longitude: nil,
+            timestamp: Date(),
+            status: .sending,
+            isRead: false,
+            isDeleted: false,
+            deletedAt: nil,
+            editedAt: nil,
+            reactions: nil,
+            replyTo: nil,
+            expirationDate: nil,
+            isViewed: false
+        )
+        sendMessage(message, useServerTimestamp: true, completion: completion)
     }
     
     func sendEphemeralMessage(

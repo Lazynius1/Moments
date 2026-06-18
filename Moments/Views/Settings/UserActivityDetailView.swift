@@ -1250,6 +1250,12 @@ struct ActivityInteractionDetailView: View {
                     } else if category == .comments {
                         AnimatedCommentIcon()
                             .scaleEffect(1.25)
+                    } else if category == .tags {
+                        AttachmentIconView(
+                            icon: .tagged,
+                            preset: .activityEmptyState,
+                            tintColor: category.accentColor
+                        )
                     } else {
                         Image(systemName: category.icon)
                             .font(.system(size: 30, weight: .light))

@@ -98,9 +98,7 @@ struct ModernCommentsView: View {
                     Spacer()
                     
                     VStack(spacing: 16) {
-                        Image(systemName: "bubble.left.and.bubble.right.fill")
-                            .font(.system(size: 48))
-                            .foregroundColor(.gray.opacity(0.6))
+                        AttachmentIconView(icon: .comments, preset: .emptyStateHero, tintColor: .gray.opacity(0.6))
                         
                         Text("modernComments.disabled.title")
                             .font(.custom("Poppins-SemiBold", size: 18))

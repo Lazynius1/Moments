@@ -42,7 +42,7 @@ struct ChatLocationMessageBubble: View {
         isCurrentUser && isLive && isLiveActive && onStopLive != nil
     }
 
-    private let bubbleWidth: CGFloat = 240
+    private let bubbleWidth: CGFloat = 276
     private let mapHeight: CGFloat = 150
 
     private var coordinate: CLLocationCoordinate2D? {
@@ -145,15 +145,20 @@ struct ChatLocationMessageBubble: View {
 
     private var infoBar: some View {
         HStack(spacing: 8) {
-            Image(systemName: isLive ? "location.fill" : "mappin.and.ellipse")
-                .font(.system(size: 14))
-                .foregroundColor(isLive && isLiveActive ? .green : (colorScheme == .dark ? .white.opacity(0.7) : .black.opacity(0.6)))
+            AttachmentIconView(
+                icon: isLive ? .liveLocation : .location,
+                preset: .locationBubbleInfo,
+                tintColor: isLive && isLiveActive
+                    ? .green
+                    : (colorScheme == .dark ? .white.opacity(0.7) : .black.opacity(0.6))
+            )
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(titleText)
                     .font(.custom("Poppins-Medium", size: 14))
                     .foregroundColor(colorScheme == .dark ? .white : .black)
-                    .lineLimit(1)
+                    .lineLimit(isLive ? 2 : 1)
+                    .fixedSize(horizontal: false, vertical: true)
                 if let subtitle = subtitleText {
                     Text(subtitle)
                         .font(.custom("Poppins-Regular", size: 12))
@@ -194,7 +199,10 @@ struct ChatLocationMessageBubble: View {
 
     private var titleText: String {
         if isLive {
-            return NSLocalizedString(isLiveActive ? "chat.location.liveActive" : "chat.location.liveEnded", comment: "")
+            return NSLocalizedString(
+                isLiveActive ? "chat.location.liveSharing" : "chat.location.liveEnded",
+                comment: ""
+            )
         }
         if let name = message.locationName, !name.isEmpty {
             return name
@@ -413,14 +421,17 @@ struct ChatLocationDetailView: View {
     private var bottomCard: some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack(spacing: 12) {
-                Image(systemName: isLive ? "location.fill" : "mappin.and.ellipse")
-                    .font(.system(size: 18, weight: .semibold))
-                    .foregroundColor(markerTint)
+                AttachmentIconView(
+                    icon: isLive ? .liveLocation : .location,
+                    preset: .locationDetailCard,
+                    tintColor: markerTint
+                )
                 VStack(alignment: .leading, spacing: 3) {
                     Text(titleText)
                         .font(.custom("Poppins-SemiBold", size: 16))
                         .foregroundColor(colorScheme == .dark ? .white : .black)
-                        .lineLimit(1)
+                        .lineLimit(isLive ? 2 : 1)
+                        .fixedSize(horizontal: false, vertical: true)
                     if let subtitle = subtitleText {
                         Text(subtitle)
                             .font(.custom("Poppins-Regular", size: 13))
@@ -498,7 +509,10 @@ struct ChatLocationDetailView: View {
 
     private var titleText: String {
         if isLive {
-            return NSLocalizedString(isLiveActive ? "chat.location.liveActive" : "chat.location.liveEnded", comment: "")
+            return NSLocalizedString(
+                isLiveActive ? "chat.location.liveSharing" : "chat.location.liveEnded",
+                comment: ""
+            )
         }
         if let name = locationName, !name.isEmpty { return name }
         return NSLocalizedString("common.location", comment: "")

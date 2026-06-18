@@ -401,9 +401,7 @@ struct MomentDetailView: View {
                                     .frame(width: 36, height: 36)
                                 
                                 // Icon tinted if active
-                                Image(systemName: showTags ? "person.fill" : "person.circle.fill")
-                                    .font(.system(size: 15, weight: .bold))
-                                    .foregroundColor(showTags ? Color(hex: "007AFF") : .white)
+                                AttachmentIconView(icon: .tagged, preset: .overlayTaggedGlass, tintColor: showTags ? Color(hex: "007AFF") : .white)
                             }
                             .shadow(color: .black.opacity(0.3), radius: 6, x: 0, y: 3)
                         }
@@ -516,9 +514,7 @@ struct MomentDetailView: View {
         VStack(alignment: .leading, spacing: 20) {
             // Header de comentarios mejorado
             HStack {
-                Image(systemName: "bubble.left.and.bubble.right.fill")
-                    .font(.system(size: 18))
-                    .foregroundColor(Color(hex: "007AFF"))
+                AttachmentIconView(icon: .comments, preset: .inlineCommentsHeader, tintColor: Color(hex: "007AFF"))
                 
                 Text("momentDetail.comments")
                     .font(.custom("Poppins-SemiBold", size: 20))
@@ -571,9 +567,7 @@ struct MomentDetailView: View {
                             .frame(width: 60, height: 60)
                             .frame(width: 60, height: 60)
                         
-                        Image(systemName: "bubble.left")
-                            .font(.system(size: 24))
-                            .foregroundColor(colorScheme == .dark ? .white : .black)
+                        AttachmentIconView(icon: .comments, preset: .commentsEmptyState, tintColor: colorScheme == .dark ? .white : .black)
                     }
                     
                     VStack(spacing: 8) {

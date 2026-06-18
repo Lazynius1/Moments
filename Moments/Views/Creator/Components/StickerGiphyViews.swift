@@ -6,6 +6,10 @@ import UIKit
 struct AnimatedGIFView: UIViewRepresentable {
     let url: URL?
 
+    func makeCoordinator() -> Coordinator {
+        Coordinator()
+    }
+
     func makeUIView(context: Context) -> UIImageView {
         let imageView = UIImageView()
         imageView.contentMode = .scaleAspectFit
@@ -16,30 +20,54 @@ struct AnimatedGIFView: UIViewRepresentable {
         imageView.setContentCompressionResistancePriority(.defaultLow, for: .vertical)
         imageView.setContentHuggingPriority(.defaultLow, for: .horizontal)
         imageView.setContentHuggingPriority(.defaultLow, for: .vertical)
-
-        if let url = url {
-            loadAnimatedGIF(url: url, into: imageView)
-        }
-
+        context.coordinator.load(url: url, into: imageView)
         return imageView
     }
 
     func updateUIView(_ uiView: UIImageView, context: Context) {
         uiView.contentMode = .scaleAspectFit
+        context.coordinator.load(url: url, into: uiView)
     }
 
-    private func loadAnimatedGIF(url: URL, into imageView: UIImageView) {
-        URLSession.shared.dataTask(with: url) { data, _, error in
-            guard let data = data, error == nil else { return }
+    final class Coordinator {
+        private var currentURL: URL?
+        private var task: URLSessionDataTask?
 
-            DispatchQueue.main.async {
-                if let animatedImage = UIImage.animatedImageWithData(data) {
-                    imageView.image = animatedImage
-                } else if let staticImage = UIImage(data: data) {
-                    imageView.image = staticImage
+        func load(url: URL?, into imageView: UIImageView) {
+            guard url != currentURL else { return }
+            task?.cancel()
+            currentURL = url
+            imageView.image = nil
+
+            guard let url else { return }
+
+            if url.isFileURL {
+                DispatchQueue.global(qos: .userInitiated).async {
+                    guard let data = try? Data(contentsOf: url) else { return }
+                    DispatchQueue.main.async {
+                        if let animatedImage = UIImage.animatedImageWithData(data) {
+                            imageView.image = animatedImage
+                        } else if let staticImage = UIImage(data: data) {
+                            imageView.image = staticImage
+                        }
+                    }
+                }
+                return
+            }
+
+            task = URLSession.shared.dataTask(with: url) { data, _, error in
+                guard let data, error == nil else { return }
+
+                DispatchQueue.main.async {
+                    if let animatedImage = UIImage.animatedImageWithData(data) {
+                        imageView.image = animatedImage
+                    } else if let staticImage = UIImage(data: data) {
+                        imageView.image = staticImage
+                    }
                 }
             }
-        }.resume()
+            task?.resume()
+        }
     }
 }
 

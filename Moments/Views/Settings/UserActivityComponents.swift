@@ -21,6 +21,13 @@ struct ActivityInteractionCategoryRow: View {
                             tintColor: colorScheme == .dark ? .white : .black
                         )
                         .frame(width: 36, height: 36)
+                    } else if category == .tags {
+                        AttachmentIconView(
+                            icon: .tagged,
+                            preset: .activityCategoryRow,
+                            tintColor: colorScheme == .dark ? .white : .black
+                        )
+                        .frame(width: 36, height: 36)
                     } else {
                         Image(systemName: category.icon)
                             .font(.system(size: 20, weight: .regular))

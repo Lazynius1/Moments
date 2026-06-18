@@ -457,9 +457,7 @@ struct ModernPostCardView: View {
                                             .frame(width: 38, height: 38)
 
                                         // Icon tinted if active
-                                        Image(systemName: showTags ? "person.fill" : "person.circle.fill")
-                                            .font(.system(size: 16, weight: .bold))
-                                            .foregroundColor(showTags ? Color(hex: "007AFF") : .white)
+                                        AttachmentIconView(icon: .tagged, preset: .overlayTaggedGlass, tintColor: showTags ? Color(hex: "007AFF") : .white)
                                     }
                                     .shadow(color: .black.opacity(0.3), radius: 6, x: 0, y: 3)
                                 }

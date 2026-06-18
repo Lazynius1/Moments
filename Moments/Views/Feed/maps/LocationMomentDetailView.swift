@@ -906,9 +906,7 @@ struct LocationMomentCard: View {
                                     .fill(showTags ? Color(hex: "007AFF") : Color.black.opacity(0.6))
                                     .frame(width: 32, height: 32)
                                     .overlay(Circle().stroke(Color.white.opacity(0.4), lineWidth: 1))
-                                Image(systemName: "tag.fill")
-                                    .font(.system(size: 13, weight: .bold))
-                                    .foregroundColor(.white)
+                                AttachmentIconView(icon: .tagged, preset: .overlayTaggedCompact, tintColor: .white)
                             }
                             .shadow(color: .black.opacity(0.4), radius: 6, x: 0, y: 3)
                         }
@@ -969,9 +967,7 @@ struct LocationMomentCard: View {
         VStack(alignment: .leading, spacing: 16) {
             // Header de comentarios
             HStack {
-                Image(systemName: "bubble.left.and.bubble.right.fill")
-                    .font(.system(size: 15))
-                    .foregroundColor(Color(hex: "007AFF").opacity(0.9))
+                AttachmentIconView(icon: .comments, preset: .inlineCommentsHeader, tintColor: Color(hex: "007AFF").opacity(0.9))
 
                 Text("locationMomentDetail.comments")
                     .font(.custom("Poppins-SemiBold", size: 17))
@@ -1020,9 +1016,7 @@ struct LocationMomentCard: View {
                                     .stroke(Color(hex: "007AFF").opacity(0.25), lineWidth: 1.2)
                             )
 
-                        Image(systemName: "bubble.left")
-                            .font(.system(size: 22))
-                            .foregroundColor(Color(hex: "007AFF"))
+                        AttachmentIconView(icon: .comments, preset: .commentsEmptyState, tintColor: Color(hex: "007AFF"))
                     }
 
                     VStack(spacing: 8) {
@@ -1223,8 +1217,7 @@ struct LocationActionButtons: View {
         HStack(spacing: 12) {
             Button(action: onComment) {
                 HStack(spacing: 4) {
-                    Image(systemName: commentCount > 0 ? "bubble.left.fill" : "bubble.left")
-                        .font(.system(size: 18, weight: .medium))
+                    AttachmentIconView(icon: .comments, preset: .actionChip)
                         .foregroundStyle(
                             LinearGradient(
                                 colors: commentCount > 0 ?
@@ -1272,8 +1265,7 @@ struct LocationActionButtons: View {
                             .scaleEffect(0.8)
                             .tint(adaptiveColors.accent)
                     } else {
-                        Image(systemName: isSaved ? "bookmark.fill" : "bookmark")
-                            .font(.system(size: 18, weight: .medium))
+                        AttachmentIconView(icon: .bookmark, preset: .actionChip)
                             .foregroundStyle(
                                 LinearGradient(
                                     colors: isSaved ?

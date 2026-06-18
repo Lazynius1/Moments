@@ -262,8 +262,12 @@ struct EnhancedCameraPickerView: View {
     private var ephemeralHeaderToggle: some View {
         Button(action: { toggleEphemeralMode() }) {
             HStack(spacing: 6) {
-                Image(systemName: isEphemeralMode ? "sparkles" : "eye")
-                    .font(.system(size: 12, weight: .semibold))
+                if isEphemeralMode {
+                    AttachmentIconView(icon: .ephemeral, preset: .cameraEphemeral)
+                } else {
+                    Image(systemName: "eye")
+                        .font(.system(size: 12, weight: .semibold))
+                }
                 Text(isEphemeralMode ? NSLocalizedString("camera.mode.ephemeral", comment: "Ephemeral mode") : NSLocalizedString("camera.mode.normal", comment: "Normal mode"))
                     .font(.custom("Poppins-SemiBold", size: 11))
             }
@@ -803,8 +807,7 @@ private struct CameraMediaPreviewOverlay: View {
                     VStack(spacing: 10) {
                         if preview.isEphemeral {
                             HStack(spacing: 8) {
-                                Image(systemName: "sparkles")
-                                    .font(.system(size: 11, weight: .semibold))
+                                AttachmentIconView(icon: .ephemeral, preset: .cameraEphemeralBadge, tintColor: Color(hex: "FFCC33"))
                                 Text(NSLocalizedString("camera.preview.ephemeralBadge", comment: "Ephemeral preview badge"))
                                     .font(.custom("Poppins-SemiBold", size: 11))
                             }
@@ -847,8 +850,12 @@ private struct CameraMediaPreviewOverlay: View {
 
                             Button(action: onSend) {
                                 HStack(spacing: 6) {
-                                    Image(systemName: preview.isEphemeral ? "sparkles" : "paperplane.fill")
-                                        .font(.system(size: 12, weight: .semibold))
+                                    if preview.isEphemeral {
+                                        AttachmentIconView(icon: .ephemeral, preset: .cameraEphemeral)
+                                    } else {
+                                        Image(systemName: "paperplane.fill")
+                                            .font(.system(size: 12, weight: .semibold))
+                                    }
                                     Text(NSLocalizedString("camera.preview.send", comment: "Send media"))
                                         .font(.custom("Poppins-SemiBold", size: 13))
                                 }

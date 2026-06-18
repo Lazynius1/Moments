@@ -48,8 +48,7 @@ struct ChatLocationSheetOverlay: View {
                             onStartLive: { duration in
                                 onStartLive(duration)
                                 dismiss()
-                            },
-                            onBack: dismiss
+                            }
                         )
                     }
                     .padding(.horizontal, ChatAttachmentSheetMetrics.horizontalInset)
@@ -76,7 +75,6 @@ struct ChatLocationSheetContent: View {
     let accentColor: Color
     let onSendStatic: (CLLocationCoordinate2D, String?, String?) -> Void
     let onStartLive: (LiveLocationDuration) -> Void
-    let onBack: () -> Void
 
     @Environment(\.colorScheme) private var colorScheme
     @StateObject private var locationManager = LocationUtilities.shared
@@ -109,8 +107,11 @@ struct ChatLocationSheetContent: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            header
             searchField
+                .padding(.top, 14)
+                .onChange(of: searchText) { _, newValue in
+                    scheduleSearch(query: newValue)
+                }
 
             ScrollView {
                 VStack(spacing: 0) {
@@ -169,59 +170,18 @@ struct ChatLocationSheetContent: View {
         .onChange(of: locationManager.currentLocation) { _, _ in
             centerOnUserIfPossible()
         }
-        .onChange(of: searchText) { _, newValue in
-            scheduleSearch(query: newValue)
-        }
     }
 
-    // MARK: - Header / search
-
-    private var header: some View {
-        HStack {
-            ChatAttachmentRoundButton(
-                systemImage: "chevron.left",
-                accessibilityKey: "nova.attach.back.accessibility",
-                action: onBack
-            )
-            Spacer()
-            Text(LocalizedStringKey("chat.attach.location"))
-                .font(.custom("Poppins-SemiBold", size: 16))
-                .foregroundColor(primaryText)
-            Spacer()
-            Color.clear.frame(width: 42, height: 42)
-        }
-        .padding(.horizontal, 16)
-        .padding(.top, 14)
-        .padding(.bottom, 8)
-    }
+    // MARK: - Search
 
     private var searchField: some View {
-        HStack(spacing: 8) {
-            Image(systemName: "magnifyingglass")
-                .foregroundColor(secondaryText)
-            TextField(
-                LocalizedStringKey("chat.location.searchPlaces"),
-                text: $searchText
-            )
-            .textFieldStyle(.plain)
-            .foregroundColor(primaryText)
-            .submitLabel(.search)
-            if !searchText.isEmpty {
-                Button {
-                    searchText = ""
-                    searchResults = []
-                } label: {
-                    Image(systemName: "xmark.circle.fill")
-                        .foregroundColor(secondaryText)
-                }
-                .buttonStyle(.plain)
+        ChatAttachmentSearchField(
+            placeholderKey: "chat.location.searchPlaces",
+            text: $searchText,
+            onClear: {
+                searchResults = []
             }
-        }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 10)
-        .momentsChromeGlass(in: Capsule(), interactive: true)
-        .padding(.horizontal, 16)
-        .padding(.bottom, 10)
+        )
     }
 
     // MARK: - Map preview
@@ -249,7 +209,7 @@ struct ChatLocationSheetContent: View {
             onSendStatic(currentCoordinate, currentPlaceName, currentPlaceAddress)
         } label: {
             HStack(spacing: 14) {
-                rowIcon(systemImage: "location.fill", tint: accentColor)
+                rowIcon(icon: .location, tint: accentColor)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(LocalizedStringKey("chat.location.sendCurrent"))
                         .font(.custom("Poppins-Medium", size: 15))
@@ -273,7 +233,7 @@ struct ChatLocationSheetContent: View {
             showLiveDurationDialog = true
         } label: {
             HStack(spacing: 14) {
-                rowIcon(systemImage: "location.north.line.fill", tint: .green)
+                rowIcon(icon: .liveLocation, tint: .green)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(LocalizedStringKey("chat.location.shareLive"))
                         .font(.custom("Poppins-Medium", size: 15))
@@ -297,7 +257,7 @@ struct ChatLocationSheetContent: View {
             onSendStatic(place.coordinate, place.name, place.address)
         } label: {
             HStack(spacing: 14) {
-                rowIcon(systemImage: "mappin", tint: .red)
+                rowIcon(icon: .location, tint: .red)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(place.name)
                         .font(.custom("Poppins-Medium", size: 15))
@@ -330,6 +290,11 @@ struct ChatLocationSheetContent: View {
         .padding(.horizontal, 16)
         .padding(.top, 14)
         .padding(.bottom, 6)
+    }
+
+    private func rowIcon(icon: AttachmentIcon, tint: Color) -> some View {
+        AttachmentIconView(icon: icon, preset: .locationSheetRow, tintColor: tint)
+            .frame(width: 30, alignment: .center)
     }
 
     private func rowIcon(systemImage: String, tint: Color) -> some View {

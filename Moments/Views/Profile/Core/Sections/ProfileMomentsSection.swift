@@ -458,9 +458,15 @@ struct ProfileSectionEmptyState: View {
                     .fill(ProfileColors.textPrimary.opacity(0.05))
                     .frame(width: 54, height: 54)
 
-                Image(systemName: icon)
-                    .font(.system(size: 22, weight: .medium))
-                    .foregroundColor(ProfileColors.textSecondary.opacity(0.7))
+                if icon == "bookmark" {
+                    AttachmentIconView(icon: .bookmark, preset: .profileEmptyState, tintColor: ProfileColors.textSecondary.opacity(0.7))
+                } else if icon == "person.crop.rectangle" {
+                    AttachmentIconView(icon: .tagged, preset: .profileEmptyState, tintColor: ProfileColors.textSecondary.opacity(0.7))
+                } else {
+                    Image(systemName: icon)
+                        .font(.system(size: 22, weight: .medium))
+                        .foregroundColor(ProfileColors.textSecondary.opacity(0.7))
+                }
             }
 
             VStack(spacing: 6) {

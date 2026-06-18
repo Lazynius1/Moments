@@ -35,7 +35,6 @@ struct ChatStickerPickerSheetOverlay: View {
                                 }
                                 dismiss()
                             },
-                            onBack: dismiss,
                             recents: recents,
                             onSelectRecent: { sticker in
                                 onSelect(sticker)

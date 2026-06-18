@@ -404,8 +404,12 @@ struct SavedMomentsView: View {
             Spacer()
 
             Button(action: shareSelectedLinks) {
-                Label(NSLocalizedString("savedMoments.share", comment: "Share action"), systemImage: "square.and.arrow.up")
-                    .font(.custom("Poppins-SemiBold", size: 13))
+                Label {
+                    Text(NSLocalizedString("savedMoments.share", comment: "Share action"))
+                        .font(.custom("Poppins-SemiBold", size: 13))
+                } icon: {
+                    AttachmentIconView(icon: .share, preset: .shareInline)
+                }
             }
             .padding(.horizontal, 12)
             .padding(.vertical, 10)
@@ -1519,8 +1523,7 @@ struct ModernSavedDetailMomentCard: View {
                     }
                 }) {
                     HStack(spacing: 6) {
-                        Image(systemName: showTags ? "person.fill" : "person.crop.circle")
-                            .font(.system(size: 11, weight: .bold))
+                        AttachmentIconView(icon: .tagged, preset: .tagCountChip, tintColor: .white)
 
                         Text("\(tags.count)")
                             .font(.custom("Poppins-SemiBold", size: 11))

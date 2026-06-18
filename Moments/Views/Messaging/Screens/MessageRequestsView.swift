@@ -413,8 +413,7 @@ struct RequestDetailView: View {
                     
                 default:
                     HStack {
-                        Image(systemName: iconForMessageType(request.messageType))
-                            .foregroundColor(adaptiveColors.primary)
+                        MessageTypeIconView(type: request.messageType, tintColor: adaptiveColors.primary)
                         Text(request.messagePreview)
                             .font(.body)
                             .foregroundColor(adaptiveColors.primary)
@@ -483,24 +482,7 @@ struct RequestDetailView: View {
         .padding(.bottom, 20)
     }
     
-    private func iconForMessageType(_ type: MessageType) -> String {
-        switch type {
-        case .text: return "text.bubble"
-        case .image: return "photo"
-        case .video: return "video"
-        case .audio: return "waveform"
-        case .gif: return "photo.on.rectangle.angled"
-        case .file: return "doc"
-        case .location: return "location"
-        case .sticker: return "face.smiling"
-        case .ephemeral: return "timer"
-        case .sharedMoment: return "square.and.arrow.up"
-        case .sharedStory: return "paperplane.fill"
-        case .viewOnceImage: return "camera.circle"
-        case .viewOnceVideo: return "video.circle"
-        }
-    }
-    
+
     private func timeAgoString(from date: Date) -> String {
         let formatter = RelativeDateTimeFormatter()
         formatter.unitsStyle = .full

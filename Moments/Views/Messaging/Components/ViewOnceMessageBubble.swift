@@ -98,11 +98,10 @@ struct ViewOnceUnreadBubble: View {
                         .fill(adaptiveColors.messageBubbleBackground)
                         .frame(width: 50, height: 50)
                     
-                    Image(systemName: getIconName())
-                        .font(.system(size: 26, weight: .semibold))
+                    AttachmentIconView(icon: .ephemeral, preset: .viewOnceBubble, tintColor: .white)
                         .overlay(
                             signatureGradient
-                                .mask(Image(systemName: getIconName()).font(.system(size: 26, weight: .semibold)))
+                                .mask(AttachmentIconView(icon: .ephemeral, preset: .viewOnceBubble, tintColor: .white))
                         )
                 }
                 
@@ -291,11 +290,10 @@ struct ViewOnceSentBubble: View {
                     .fill(adaptiveColors.messageBubbleBackground.opacity(0.5))
                     .frame(width: 36, height: 36)
                 
-                Image(systemName: getIconName())
-                    .font(.system(size: 18, weight: .semibold))
+                AttachmentIconView(icon: .ephemeral, preset: .viewOnceBadge, tintColor: .white)
                     .overlay(
                         signatureGradient
-                            .mask(Image(systemName: getIconName()).font(.system(size: 18, weight: .semibold)))
+                            .mask(AttachmentIconView(icon: .ephemeral, preset: .viewOnceBadge, tintColor: .white))
                     )
                 
                 // ✅ Progress Overlay (Smaller)

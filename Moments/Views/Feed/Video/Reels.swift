@@ -487,7 +487,7 @@ struct ReelVideoView: View {
                                 let isEveryone = aud.isEmpty || aud == "everyone"
                                 if video.moment.allowSharing && isEveryone {
                                     EnhancedReelActionButton(
-                                        icon: "arrowshape.turn.up.right.fill",
+                                        icon: AttachmentIcon.share.rawValue,
                                         count: nil,
                                         isActive: false,
                                         activeColor: .green,
@@ -1105,11 +1105,17 @@ struct EnhancedReelActionButton: View {
                         .scaleEffect(isPressed ? 0.95 : 1.0)
                     
                     // Icon with better styling
-                    Image(systemName: icon)
-                        .font(.system(size: 24, weight: .medium))
-                        .foregroundColor(isActive ? activeColor : .white)
-                        .scaleEffect(isActive ? 1.1 : 1.0)
-                        .animation(.spring(response: 0.3, dampingFraction: 0.6), value: isActive)
+                    if let customIcon = AttachmentIcon(rawValue: icon) {
+                        AttachmentIconView(icon: customIcon, preset: .reelsSidebar, tintColor: isActive ? activeColor : .white)
+                            .scaleEffect(isActive ? 1.1 : 1.0)
+                            .animation(.spring(response: 0.3, dampingFraction: 0.6), value: isActive)
+                    } else {
+                        Image(systemName: icon)
+                            .font(.system(size: 24, weight: .medium))
+                            .foregroundColor(isActive ? activeColor : .white)
+                            .scaleEffect(isActive ? 1.1 : 1.0)
+                            .animation(.spring(response: 0.3, dampingFraction: 0.6), value: isActive)
+                    }
 
                     if isActive {
                         Circle()

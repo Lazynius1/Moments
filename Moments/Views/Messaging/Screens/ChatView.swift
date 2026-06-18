@@ -53,6 +53,7 @@ struct GlassmorphicChatView: View {
     @State private var pendingIncomingMessages = 0
     @State private var unreadDividerMessageId: String? = nil
     @State private var unreadDividerInitialized = false
+    @State private var hasScrolledToInitialBottom = false
     @State private var isSearchVisible = false
     @State private var searchQuery: String = ""
     @State private var searchMatchIds: [String] = []
@@ -722,6 +723,11 @@ struct GlassmorphicChatView: View {
             .scrollContentBackground(.hidden)
             .defaultScrollAnchor(.bottom)
             .chatScrollEdgeEffect()
+            .onAppear {
+                guard !viewModel.messages.isEmpty, !hasScrolledToInitialBottom, !isDetachedFromBottom else { return }
+                hasScrolledToInitialBottom = true
+                scrollToBottomAfterLayout(proxy: proxy)
+            }
             .scrollDismissesKeyboard(.interactively)
             .simultaneousGesture(
                 DragGesture(minimumDistance: 8)
@@ -759,6 +765,11 @@ struct GlassmorphicChatView: View {
                     .padding(.bottom, 14)
                     .transition(.move(edge: .trailing).combined(with: .opacity))
                 }
+            }
+            .onChange(of: viewModel.messages.isEmpty) { _, isEmpty in
+                guard !isEmpty, !hasScrolledToInitialBottom, !isDetachedFromBottom else { return }
+                hasScrolledToInitialBottom = true
+                scrollToBottomAfterLayout(proxy: proxy)
             }
             .onChange(of: viewModel.messages.last?.id) { _, lastMessageId in
                 guard let lastMessageId else { return }
@@ -1102,17 +1113,27 @@ struct GlassmorphicChatView: View {
     }
 
     private func onAppearActions() {
-        if let conversationId = viewModel.conversation.id {
-            Task {
+        hasScrolledToInitialBottom = false
+        viewModel.isChatVisible = true
+        Task {
+            if let conversationId = viewModel.conversation.id {
                 await EncryptionService.shared.preloadConversationKeys(for: [conversationId])
             }
+            viewModel.startListening()
         }
-        viewModel.isChatVisible = true  // ✅ Marcar chat como visible
-        viewModel.startListening()
         setupOnlineStatusObserver()
         refreshOtherParticipantUsername()
         refreshOtherParticipantAvailability()
         checkUserStories()
+    }
+
+    private func scrollToBottomAfterLayout(proxy: ScrollViewProxy) {
+        Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 50_000_000)
+            proxy.scrollTo("chat-bottom-anchor", anchor: .bottom)
+            try? await Task.sleep(nanoseconds: 100_000_000)
+            proxy.scrollTo("chat-bottom-anchor", anchor: .bottom)
+        }
     }
     
     // ✅ REFACTORIZADO: Acciones al desaparecer
@@ -1731,55 +1752,21 @@ class MomentsChatViewModel: EnhancedChatViewModel {
 
     // MARK: - GIF / Sticker
 
-    /// Descarga el GIF de Giphy y lo envía como mensaje `.gif` (cifrado vía pipeline).
+    /// Envía un GIF de Giphy por referencia (URL pública, sin cifrado ni re-subida).
     func sendGif(from asset: ChatGiphyAsset) {
         guard let conversationId = conversation.id, !conversationId.isEmpty else {
             error = NSLocalizedString("chat.error.invalidConversation.image", comment: "")
             return
         }
-        guard let url = asset.downloadURL else { return }
-        let ext = inferredMediaExtension(from: url, fallback: "gif")
-        sendRemoteMedia(url: url, type: .gif, fileExtension: ext, conversationId: conversationId, trackType: "gif")
-    }
 
-    /// Descarga el sticker de Giphy y lo envía como mensaje `.sticker` (sin burbuja glass).
-    func sendSticker(from asset: ChatStickerAsset) {
-        guard let conversationId = conversation.id, !conversationId.isEmpty else {
-            error = NSLocalizedString("chat.error.invalidConversation.image", comment: "")
-            return
-        }
-        guard let url = asset.downloadURL else { return }
-        ChatRecentStickersStore.add(asset)
-        let ext = inferredMediaExtension(from: url, fallback: "webp")
-        sendRemoteMedia(url: url, type: .sticker, fileExtension: ext, conversationId: conversationId, trackType: "sticker")
-    }
-
-    private func inferredMediaExtension(from url: URL, fallback: String) -> String {
-        let ext = url.pathExtension.lowercased()
-        switch ext {
-        case "gif", "webp", "png", "jpg", "jpeg":
-            return ext == "jpeg" ? "jpg" : ext
-        default:
-            return fallback
-        }
-    }
-
-    private func sendRemoteMedia(
-        url: URL,
-        type: MessageType,
-        fileExtension: String,
-        conversationId: String,
-        trackType: String
-    ) {
-        trackMediaMessageSent(type: trackType)
+        trackMediaMessageSent(type: "gif")
         let messageId = UUID().uuidString
-
         let tempMessage = EnhancedMessage(
             id: messageId,
             conversationId: conversationId,
             senderId: currentUserId,
-            type: type,
-            mediaUrl: url.absoluteString,
+            type: .gif,
+            mediaUrl: asset.url,
             status: .sending
         )
         DispatchQueue.main.async {
@@ -1788,45 +1775,79 @@ class MomentsChatViewModel: EnhancedChatViewModel {
             self.objectWillChange.send()
         }
 
-        Task { [weak self] in
-            guard let self else { return }
-            do {
-                let (data, _) = try await URLSession.shared.data(from: url)
-                // Límite defensivo ~8 MB para GIFs/stickers pesados
-                guard data.count <= 8 * 1024 * 1024 else {
-                    await MainActor.run {
-                        self.error = NSLocalizedString("chat.giphy.error", comment: "")
-                        self.updateMessageInArray(messageId: messageId, newStatus: .failed)
-                    }
-                    return
+        chatService.sendGiphyReferenceMessage(
+            conversationId: conversationId,
+            senderId: currentUserId,
+            type: .gif,
+            giphyId: asset.id,
+            mediaUrl: asset.url,
+            width: asset.width,
+            height: asset.height,
+            messageId: messageId
+        ) { [weak self] result in
+            DispatchQueue.main.async {
+                switch result {
+                case .success(let sentMessage):
+                    self?.applyOutgoingMessageUpdate(
+                        messageId: messageId,
+                        status: sentMessage.status,
+                        mediaUrl: sentMessage.mediaUrl ?? asset.url,
+                        thumbnailUrl: nil
+                    )
+                case .failure(let error):
+                    self?.error = error.localizedDescription
+                    self?.updateMessageInArray(messageId: messageId, newStatus: .failed)
                 }
-                ChatService.shared.sendMediaMessage(
-                    conversationId: conversationId,
-                    senderId: self.currentUserId,
-                    type: type,
-                    mediaData: data,
-                    fileName: "\(type.rawValue)_\(messageId).\(fileExtension)",
-                    messageId: messageId
-                ) { [weak self] result in
-                    DispatchQueue.main.async {
-                        switch result {
-                        case .success(let sentMessage):
-                            self?.applyOutgoingMessageUpdate(
-                                messageId: messageId,
-                                status: sentMessage.status,
-                                mediaUrl: sentMessage.mediaUrl ?? url.absoluteString,
-                                thumbnailUrl: sentMessage.thumbnailUrl
-                            )
-                        case .failure(let error):
-                            self?.error = error.localizedDescription
-                            self?.updateMessageInArray(messageId: messageId, newStatus: .failed)
-                        }
-                    }
-                }
-            } catch {
-                await MainActor.run {
-                    self.error = NSLocalizedString("chat.giphy.error", comment: "")
-                    self.updateMessageInArray(messageId: messageId, newStatus: .failed)
+            }
+        }
+    }
+
+    /// Envía un sticker de Giphy por referencia (URL pública, sin cifrado ni re-subida).
+    func sendSticker(from asset: ChatStickerAsset) {
+        guard let conversationId = conversation.id, !conversationId.isEmpty else {
+            error = NSLocalizedString("chat.error.invalidConversation.image", comment: "")
+            return
+        }
+
+        ChatRecentStickersStore.add(asset)
+        trackMediaMessageSent(type: "sticker")
+        let messageId = UUID().uuidString
+        let tempMessage = EnhancedMessage(
+            id: messageId,
+            conversationId: conversationId,
+            senderId: currentUserId,
+            type: .sticker,
+            mediaUrl: asset.url,
+            status: .sending
+        )
+        DispatchQueue.main.async {
+            self.messages.append(tempMessage)
+            self.updateGroupedMessages()
+            self.objectWillChange.send()
+        }
+
+        chatService.sendGiphyReferenceMessage(
+            conversationId: conversationId,
+            senderId: currentUserId,
+            type: .sticker,
+            giphyId: asset.id,
+            mediaUrl: asset.url,
+            width: asset.width,
+            height: asset.height,
+            messageId: messageId
+        ) { [weak self] result in
+            DispatchQueue.main.async {
+                switch result {
+                case .success(let sentMessage):
+                    self?.applyOutgoingMessageUpdate(
+                        messageId: messageId,
+                        status: sentMessage.status,
+                        mediaUrl: sentMessage.mediaUrl ?? asset.url,
+                        thumbnailUrl: nil
+                    )
+                case .failure(let error):
+                    self?.error = error.localizedDescription
+                    self?.updateMessageInArray(messageId: messageId, newStatus: .failed)
                 }
             }
         }

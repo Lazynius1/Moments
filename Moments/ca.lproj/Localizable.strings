@@ -864,6 +864,7 @@
 "chat.giphy.searchGif" = "Cerca GIFs";
 "chat.giphy.searchSticker" = "Cerca adhesius";
 "chat.giphy.recents" = "Recents";
+"chat.giphy.brand" = "GIPHY";
 "chat.giphy.empty" = "Sense resultats";
 "chat.giphy.error" = "Error de xarxa. Torna-ho a provar.";
 "chat.location.sendCurrent" = "Envia aquesta ubicació";
@@ -872,9 +873,9 @@
 "chat.location.live1h" = "1 hora";
 "chat.location.live8h" = "8 hores";
 "chat.location.liveActive" = "En directe";
-"chat.location.liveEnded" = "Finalitzada";
+"chat.location.liveSharing" = "Compartint la ubicació en temps real";
+"chat.location.liveEnded" = "Ubicació en temps real finalitzada";
 "chat.location.stopSharing" = "Deixa de compartir";
-"chat.location.liveSharing" = "Compartint ubicació en directe";
 "chat.location.liveRemaining" = "Queden %@";
 "chat.location.openInMaps" = "Obre a Mapes";
 "chat.location.directions" = "Com arribar";

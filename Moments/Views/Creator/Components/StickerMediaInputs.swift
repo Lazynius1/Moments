@@ -170,9 +170,7 @@ struct AudioStickerRecordingView: View {
                     .contentShape(Rectangle())
                     .onTapGesture { togglePlayback() }
                 } else {
-                    Image(systemName: "mic.fill")
-                        .font(.system(size: 30))
-                        .foregroundColor(.secondary)
+                    AttachmentIconView(icon: .voice, preset: .voiceStickerPrompt, tintColor: .secondary)
                         .opacity(0.5)
                         .frame(height: 44)
                 }
@@ -226,9 +224,7 @@ struct AudioStickerRecordingView: View {
                                 .fill(.red)
                                 .frame(width: 22, height: 22)
                         } else {
-                            Image(systemName: "mic.fill")
-                                .font(.system(size: 28))
-                                .foregroundColor(.red)
+                            AttachmentIconView(icon: .voice, preset: .voiceRecording, tintColor: .red)
                         }
                     }
                 }

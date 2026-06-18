@@ -46,9 +46,7 @@ struct GlassmorphicInputBar: View {
 
                     if text.isEmpty {
                         Button(action: onStartVoiceRecording) {
-                            Image(systemName: "waveform")
-                                .font(.system(size: 17, weight: .medium))
-                                .foregroundColor(adaptiveColors.mediaIconColor)
+                            AttachmentIconView(icon: .voice, preset: .chatVoiceInput, tintColor: adaptiveColors.mediaIconColor)
                         }
                         .padding(.trailing, 12)
                         .accessibilityLabel(Text("chat.input.voice.accessibility"))

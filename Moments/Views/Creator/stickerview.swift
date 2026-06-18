@@ -100,6 +100,16 @@ struct StickerPickerView: View {
             }
         }
 
+        var attachmentIcon: AttachmentIcon? {
+            switch self {
+            case .trending: return .gif
+            case .location: return .location
+            case .selfie: return .camera
+            case .frame: return .photos
+            default: return nil
+            }
+        }
+
         var accentColor: Color {
             switch self {
             case .trending: return Color(red: 0.33, green: 0.84, blue: 0.44)
@@ -116,7 +126,7 @@ struct StickerPickerView: View {
             case .time: return Color(red: 1.00, green: 0.62, blue: 0.20)
             case .selfie: return Color(red: 1.00, green: 0.25, blue: 0.55)
             case .quiz: return .orange
-            case .frame: return .blue
+            case .frame: return Color(red: 0.42, green: 0.45, blue: 1.00)
             case .reveal: return .purple
             case .audio: return Color(red: 1.0, green: 0.4, blue: 0.3) // Coral/Orange
             }
@@ -474,6 +484,10 @@ struct StickerPickerView: View {
         if category == .emojiSlider {
             StickerEmojiSliderPillGlyph()
                 .frame(width: 122, height: 28)
+        } else if let attachmentIcon = category.attachmentIcon {
+            AttachmentIconView(icon: attachmentIcon, preset: .stickerCatalogPill, tintColor: category.accentColor)
+                .shadow(color: category.accentColor.opacity(0.22), radius: 1.5, x: 0, y: 0)
+                .frame(width: 18, height: 18)
         } else {
             Image(systemName: category.symbolName)
                 .font(.system(size: 16, weight: .bold))
@@ -649,13 +663,16 @@ struct StickerPickerView: View {
                     .foregroundColor(.secondary)
 
                 PhotosPicker(selection: $photoPickerItem, matching: .images) {
-                    Label(NSLocalizedString("polaroid.selectPhoto", comment: ""), systemImage: "photo.on.rectangle.angled")
-                        .font(.system(size: 18, weight: .bold))
-                        .foregroundColor(.white)
-                        .padding()
-                        .frame(maxWidth: .infinity)
-                        .background(Color.blue)
-                        .cornerRadius(16)
+                    HStack(spacing: 8) {
+                        AttachmentIconView(icon: .photos, preset: .stickerPolaroidButton, tintColor: .white)
+                        Text(NSLocalizedString("polaroid.selectPhoto", comment: ""))
+                            .font(.system(size: 18, weight: .bold))
+                    }
+                    .foregroundColor(.white)
+                    .padding()
+                    .frame(maxWidth: .infinity)
+                    .background(selectedCategory.accentColor)
+                    .cornerRadius(16)
                 }
                 .onChange(of: photoPickerItem) { _, newItem in
                     Task {
@@ -1129,21 +1146,26 @@ struct StickerPickerView: View {
         rect: CGRect,
         fillColor: UIColor,
         iconSystemName: String? = nil,
+        iconAsset: AttachmentIcon? = nil,
         iconTint: UIColor = .white
     ) {
         let path = UIBezierPath(roundedRect: rect, cornerRadius: rect.height / 2)
         fillColor.setFill()
         path.fill()
 
-        if let iconSystemName,
-           let icon = UIImage(systemName: iconSystemName)?.withTintColor(iconTint, renderingMode: .alwaysOriginal) {
-            let side = min(rect.width, rect.height) * 0.48
-            let iconRect = CGRect(
-                x: rect.midX - side / 2,
-                y: rect.midY - side / 2,
-                width: side,
-                height: side
-            )
+        let side = min(rect.width, rect.height) * AttachmentIconMetrics.stickerAccentPillFill
+        let iconRect = CGRect(
+            x: rect.midX - side / 2,
+            y: rect.midY - side / 2,
+            width: side,
+            height: side
+        )
+
+        if let iconAsset,
+           let icon = iconAsset.uiImage(size: side, tint: iconTint) {
+            icon.draw(in: iconRect)
+        } else if let iconSystemName,
+                  let icon = UIImage(systemName: iconSystemName)?.withTintColor(iconTint, renderingMode: .alwaysOriginal) {
             icon.draw(in: iconRect)
         }
     }
@@ -1188,7 +1210,7 @@ struct StickerPickerView: View {
                 in: context,
                 rect: CGRect(x: 12, y: 12, width: 32, height: 32),
                 fillColor: UIColor(red: 0.98, green: 0.42, blue: 0.26, alpha: 1),
-                iconSystemName: "mappin.and.ellipse"
+                iconAsset: .location
             )
 
             let displayText = location.count > 22 ? String(location.prefix(22)) + "..." : location
@@ -1262,15 +1284,14 @@ struct StickerPickerView: View {
             circlePath.lineWidth = 1.5
             circlePath.stroke()
 
-            let symbolConfig = UIImage.SymbolConfiguration(pointSize: size * 0.38, weight: .bold)
-            let icon = UIImage(systemName: "camera.fill", withConfiguration: symbolConfig)?
-                .withTintColor(UIColor.black.withAlphaComponent(0.78), renderingMode: .alwaysOriginal)
-            icon?.draw(in: CGRect(
-                x: size * 0.31,
-                y: size * 0.31,
-                width: size * 0.38,
-                height: size * 0.38
-            ))
+            let side = size * AttachmentIconMetrics.selfiePlaceholderFill
+            if let icon = AttachmentIcon.camera.uiImage(
+                size: side,
+                tint: UIColor.black.withAlphaComponent(0.78)
+            ) {
+                let origin = (size - side) / 2
+                icon.draw(in: CGRect(x: origin, y: origin, width: side, height: side))
+            }
         }
     }
 

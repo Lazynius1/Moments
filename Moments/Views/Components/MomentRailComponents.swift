@@ -96,7 +96,7 @@ struct ModernActionButtons: View {
                 if !moment.disableComments {
                     Button(action: onComment) {
                         iconButton(
-                            systemName: commentCount > 0 ? "bubble.left.fill" : "bubble.left",
+                            attachmentIcon: .comments,
                             color: commentCount > 0 ? .blue : .white,
                             secondaryColor: commentCount > 0 ? .purple : .white,
                             isActive: commentCount > 0,
@@ -115,7 +115,7 @@ struct ModernActionButtons: View {
                                 .tint(.white)
                         } else {
                             iconButton(
-                                systemName: isSaved ? "bookmark.fill" : "bookmark",
+                                attachmentIcon: .bookmark,
                                 color: isSaved ? .yellow : .white,
                                 secondaryColor: isSaved ? .orange : .white,
                                 isActive: isSaved
@@ -148,22 +148,34 @@ struct ModernActionButtons: View {
     
     // ✅ Función auxiliar para botones de icono compactos con soporte para contador
     @ViewBuilder
-    private func iconButton(systemName: String, color: Color, secondaryColor: Color, isActive: Bool, count: Int? = nil) -> some View {
+    private func iconButton(
+        attachmentIcon: AttachmentIcon? = nil,
+        systemName: String? = nil,
+        color: Color,
+        secondaryColor: Color,
+        isActive: Bool,
+        count: Int? = nil
+    ) -> some View {
+        let gradient = LinearGradient(
+            colors: [color, secondaryColor],
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
+        )
+
         ZStack(alignment: .topTrailing) {
             ZStack {
                 Circle()
                     .fill(.white.opacity(0.05))
                     .frame(width: 44, height: 44)
-                
-                Image(systemName: systemName)
-                    .font(.system(size: 20, weight: .medium))
-                    .foregroundStyle(
-                        LinearGradient(
-                            colors: [color, secondaryColor],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
+
+                if let attachmentIcon {
+                    AttachmentIconView(icon: attachmentIcon, preset: .rail)
+                        .foregroundStyle(gradient)
+                } else if let systemName {
+                    Image(systemName: systemName)
+                        .font(.system(size: 20, weight: .medium))
+                        .foregroundStyle(gradient)
+                }
             }
             .scaleEffect(isActive ? 1.05 : 1.0)
             

@@ -345,9 +345,7 @@ struct GlassmorphicMessageBubble: View {
                                         .frame(maxWidth: 250, maxHeight: 300)
                                         .overlay(
                                             VStack(spacing: 8) {
-                                                Image(systemName: "camera.circle.fill")
-                                                    .font(.system(size: 40))
-                                                    .foregroundColor(adaptiveColors.messageTextColor.opacity(0.7))
+                                                AttachmentIconView(icon: .ephemeral, preset: .chatEphemeralPlaceholder, tintColor: adaptiveColors.messageTextColor.opacity(0.7))
 
                                                 Text("chat.tapToView")
                                                     .font(.custom("Poppins-Medium", size: 14))

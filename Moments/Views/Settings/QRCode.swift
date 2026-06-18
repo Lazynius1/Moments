@@ -54,8 +54,8 @@ struct QRCodeView: View {
                     Button(action: {
                         showShareSheet = true
                     }) {
-                        HStack {
-                            Image(systemName: "square.and.arrow.up")
+                        HStack(spacing: 8) {
+                            AttachmentIconView(icon: .share, preset: .shareInline, tintColor: .white)
                             Text(NSLocalizedString("qrCode.share", comment: "Share"))
                         }
                         .font(.custom("Poppins-SemiBold", size: 16))

@@ -899,6 +899,7 @@
 "chat.giphy.searchGif" = "Buscar GIFs";
 "chat.giphy.searchSticker" = "Buscar stickers";
 "chat.giphy.recents" = "Recientes";
+"chat.giphy.brand" = "GIPHY";
 "chat.giphy.empty" = "Sin resultados";
 "chat.giphy.error" = "Error de red. Inténtalo de nuevo.";
 "chat.location.sendCurrent" = "Enviar esta ubicación";
@@ -907,9 +908,9 @@
 "chat.location.live1h" = "1 hora";
 "chat.location.live8h" = "8 horas";
 "chat.location.liveActive" = "En vivo";
-"chat.location.liveEnded" = "Finalizada";
+"chat.location.liveSharing" = "Compartiendo la ubicación en tiempo real";
+"chat.location.liveEnded" = "Ubicación en tiempo real finalizada";
 "chat.location.stopSharing" = "Dejar de compartir";
-"chat.location.liveSharing" = "Compartiendo ubicación en vivo";
 "chat.location.liveRemaining" = "Quedan %@";
 "chat.location.openInMaps" = "Abrir en Mapas";
 "chat.location.directions" = "Cómo llegar";

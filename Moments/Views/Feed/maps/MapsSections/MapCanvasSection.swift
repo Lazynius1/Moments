@@ -467,9 +467,7 @@ struct ModernLocationGalleryView: View {
                         .fill(.ultraThinMaterial)
                         .frame(width: 40, height: 40)
 
-                    Image(systemName: "square.and.arrow.up")
-                        .font(.system(size: 16, weight: .semibold))
-                        .foregroundColor(adaptiveColors.primary)
+                    AttachmentIconView(icon: .share, preset: .shareInline, tintColor: adaptiveColors.primary)
                 }
             }
         }

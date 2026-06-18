@@ -219,7 +219,7 @@ struct MainActionsView: View {
                 )
                 
                 ShareActionButton(
-                    icon: "square.and.arrow.up",
+                    icon: AttachmentIcon.share.rawValue,
                     title: NSLocalizedString("contextMenu.copyLink", comment: ""),
                     subtitle: NSLocalizedString("contextMenu.copyLink.subtitle", comment: ""),
                     iconColor: .purple,
@@ -252,6 +252,8 @@ struct ShareActionButton: View {
                 Group {
                     if usesStoryRingIcon {
                         StoryAddGlyph(size: 24)
+                    } else if let customIcon = AttachmentIcon(rawValue: icon) {
+                        AttachmentIconView(icon: customIcon, preset: .shareSheetRow, tintColor: .primary)
                     } else {
                         Image(systemName: icon)
                             .font(.system(size: 20, weight: .medium))

@@ -228,7 +228,7 @@ struct CaptionAndDetailsView: View {
                             VStack(spacing: 0) {
                                 // Tag people
                                 MinimalOptionRow(
-                                    icon: "person.crop.circle.badge.plus",
+                                    icon: AttachmentIcon.tagged.rawValue,
                                     title: NSLocalizedString("creator.tagPeople", comment: "Tag people"),
                                     value: totalTagsCount == 0 ? nil : String.localizedStringWithFormat(NSLocalizedString("audience.people.count", comment: ""), totalTagsCount)
                                 ) {
@@ -254,7 +254,7 @@ struct CaptionAndDetailsView: View {
                                 Divider().background(Color.white.opacity(0.1)).padding(.leading, 50)
 
                                 MinimalOptionRow(
-                                    icon: "sparkles.rectangle.stack",
+                                    icon: AttachmentIcon.hiddenLayer.rawValue,
                                     title: NSLocalizedString("hiddenLayers.editor.title", value: "Capas ocultas", comment: "Hidden layers editor title"),
                                     value: hiddenLayerOptionValue
                                 ) {
@@ -292,7 +292,7 @@ struct CaptionAndDetailsView: View {
                                     .padding(.bottom, 8)
 
                                 MinimalToggleRow(
-                                    icon: "bubble.left.and.bubble.right",
+                                    icon: AttachmentIcon.comments.rawValue,
                                     title: NSLocalizedString("creator.interactions.disableComments", comment: ""),
                                     isOn: $disableComments
                                 )
@@ -308,7 +308,7 @@ struct CaptionAndDetailsView: View {
                                 Divider().background(Color.white.opacity(0.1)).padding(.leading, 50)
 
                                 MinimalToggleRow(
-                                    icon: "bookmark",
+                                    icon: AttachmentIcon.bookmark.rawValue,
                                     title: NSLocalizedString("creator.interactions.allowSharing", comment: ""),
                                     isOn: $allowSharing
                                 )
@@ -773,11 +773,16 @@ struct CaptionAndDetailsView: View {
 
         var body: some View {
             HStack(spacing: 16) {
-                // Icon
-                Image(systemName: icon)
-                    .font(.system(size: 20))
-                    .foregroundColor(.white)
-                    .frame(width: 32)
+                Group {
+                    if let attachmentIcon = AttachmentIcon(rawValue: icon) {
+                        AttachmentIconView(icon: attachmentIcon, preset: .creatorMetaRow, tintColor: .white)
+                    } else {
+                        Image(systemName: icon)
+                            .font(.system(size: 20))
+                            .foregroundColor(.white)
+                    }
+                }
+                .frame(width: 32)
 
                 Text(title)
                     .font(.system(size: 16, weight: .medium))
@@ -811,9 +816,13 @@ struct CaptionAndDetailsView: View {
                             tintColor: .white
                         )
                     } else if let icon {
-                        Image(systemName: icon)
-                            .font(.system(size: 20))
-                            .foregroundColor(.white)
+                        if let attachmentIcon = AttachmentIcon(rawValue: icon) {
+                            AttachmentIconView(icon: attachmentIcon, preset: .creatorMetaRow, tintColor: .white)
+                        } else {
+                            Image(systemName: icon)
+                                .font(.system(size: 20))
+                                .foregroundColor(.white)
+                        }
                     }
                 }
                 .frame(width: 32)

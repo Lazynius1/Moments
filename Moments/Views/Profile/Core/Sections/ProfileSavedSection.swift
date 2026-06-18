@@ -367,9 +367,7 @@ struct ProfileSavedMomentThumbnail: View {
                     VStack {
                         HStack {
                             Spacer()
-                            Image(systemName: "bookmark.fill")
-                                .font(.system(size: 10, weight: .bold))
-                                .foregroundColor(.white)
+                            AttachmentIconView(icon: .bookmark, preset: .gridSavedBadge, tintColor: .white)
                                 .padding(4)
                                 .background(Circle().fill(ProfileColors.blue.opacity(0.8)))
                         }

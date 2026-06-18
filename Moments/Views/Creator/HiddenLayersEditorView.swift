@@ -949,9 +949,7 @@ struct HiddenLayersEditorView: View {
                                     .fill(.red)
                                     .frame(width: 18, height: 18)
                             } else {
-                                Image(systemName: "mic.fill")
-                                    .font(.system(size: 24, weight: .bold))
-                                    .foregroundColor(.red)
+                                AttachmentIconView(icon: .voice, preset: .voiceEditor, tintColor: .red)
                             }
                         }
                     }

@@ -457,8 +457,23 @@ struct SkeletonUserRow: View {
 struct SectionHeader: View {
     @Environment(\.colorScheme) private var colorScheme
     let title: String
-    let icon: String
+    let systemIcon: String?
+    let attachmentIcon: AttachmentIcon?
     let color: Color
+
+    init(title: String, icon: String, color: Color) {
+        self.title = title
+        self.systemIcon = icon
+        self.attachmentIcon = nil
+        self.color = color
+    }
+
+    init(title: String, attachmentIcon: AttachmentIcon, color: Color) {
+        self.title = title
+        self.systemIcon = nil
+        self.attachmentIcon = attachmentIcon
+        self.color = color
+    }
 
     private var palette: StickerDetailPalette {
         StickerDetailPalette(colorScheme: colorScheme)
@@ -466,9 +481,13 @@ struct SectionHeader: View {
 
     var body: some View {
         HStack(spacing: 8) {
-            Image(systemName: icon)
-                .font(.system(size: 14, weight: .medium))
-                .foregroundColor(color)
+            if let attachmentIcon {
+                AttachmentIconView(icon: attachmentIcon, preset: .stickerSectionHeader, tintColor: color)
+            } else {
+                Image(systemName: systemIcon ?? "questionmark")
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundColor(color)
+            }
 
             Text(title)
                 .font(.system(size: 14, weight: .bold))

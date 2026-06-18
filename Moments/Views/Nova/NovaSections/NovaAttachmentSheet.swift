@@ -17,15 +17,67 @@ private enum NovaAttachmentSheetMetrics {
     /// Inset lateral como sheet medium nativo (~10pt).
     static let horizontalInset: CGFloat = 10
     static let cornerRadius: CGFloat = 24
-    /// Popover menú encima del +.
-    static let menuPopoverWidth: CGFloat = 280
-    static let menuPopoverHeight: CGFloat = 132
-    static let menuPopoverGap: CGFloat = 10
+    static let menuPopoverTitleKeys = ["nova.attach.camera", "nova.attach.photos"]
+    static let menuPopoverTextExtraMargin: CGFloat = 20
+    static let menuPopoverMinWidth: CGFloat = 168
+    /// Separación entre el borde inferior del popover y el botón +.
+    static let menuPopoverGap: CGFloat = 16
     /// Cámara / fotos (~58% pantalla).
     static let heightFraction: CGFloat = 0.58
 
     static func sheetHeight(for kind: NovaAttachmentSheetKind, containerHeight: CGFloat) -> CGFloat {
         containerHeight * heightFraction
+    }
+}
+
+private enum NovaAttachmentMenuPopoverLayout {
+    static let rowIconWidth: CGFloat = 40
+    static let rowSpacing: CGFloat = 14
+    static let rowHorizontalPadding: CGFloat = 12
+    static let cardHorizontalPadding: CGFloat = 24
+    static let cardVerticalPadding: CGFloat = 20
+    static let rowVerticalPadding: CGFloat = 16
+    static let rowCount: CGFloat = 2
+
+    static var titleFont: UIFont {
+        UIFont(name: "Poppins-Medium", size: 17)
+            ?? .systemFont(ofSize: 17, weight: .medium)
+    }
+
+    static var estimatedWidth: CGFloat {
+        max(
+            measuredWidth(for: NovaAttachmentSheetMetrics.menuPopoverTitleKeys),
+            NovaAttachmentSheetMetrics.menuPopoverMinWidth
+        )
+    }
+
+    static var estimatedHeight: CGFloat {
+        rowCount * (rowIconWidth + rowVerticalPadding) + cardVerticalPadding
+    }
+
+    static func measuredWidth(for titleKeys: [String]) -> CGFloat {
+        let maxTextWidth = titleKeys
+            .map { NSLocalizedString($0, comment: "") }
+            .map { ($0 as NSString).size(withAttributes: [.font: titleFont]).width }
+            .max() ?? 0
+
+        return rowHorizontalPadding
+            + rowIconWidth
+            + rowSpacing
+            + maxTextWidth
+            + NovaAttachmentSheetMetrics.menuPopoverTextExtraMargin
+            + cardHorizontalPadding
+    }
+}
+
+private struct NovaAttachmentMenuPopoverSizeKey: PreferenceKey {
+    static var defaultValue: CGSize = .zero
+
+    static func reduce(value: inout CGSize, nextValue: () -> CGSize) {
+        let next = nextValue()
+        if next != .zero {
+            value = next
+        }
     }
 }
 
@@ -36,43 +88,82 @@ struct NovaAttachmentMenuPopover: View {
     let anchorFrame: CGRect
 
     @Environment(\.colorScheme) private var colorScheme
-
-    private var popoverX: CGFloat {
-        guard anchorFrame != .zero else { return 0 }
-        let halfWidth = NovaAttachmentSheetMetrics.menuPopoverWidth / 2
-        let margin: CGFloat = 16
-        let screenWidth = UIScreen.main.bounds.width
-        return min(max(anchorFrame.midX, halfWidth + margin), screenWidth - halfWidth - margin)
-    }
-
-    private var popoverY: CGFloat {
-        guard anchorFrame != .zero else { return 0 }
-        return anchorFrame.minY
-            - NovaAttachmentSheetMetrics.menuPopoverGap
-            - NovaAttachmentSheetMetrics.menuPopoverHeight / 2
-    }
+    @State private var popoverSize = CGSize(
+        width: NovaAttachmentMenuPopoverLayout.estimatedWidth,
+        height: NovaAttachmentMenuPopoverLayout.estimatedHeight
+    )
 
     var body: some View {
-        ZStack {
-            Color.black.opacity(colorScheme == .dark ? 0.12 : 0.08)
-                .ignoresSafeArea()
-                .onTapGesture {
-                    dismissMenu()
-                }
+        GeometryReader { proxy in
+            let overlayOrigin = proxy.frame(in: .global).origin
+            let localAnchor = CGRect(
+                x: anchorFrame.minX - overlayOrigin.x,
+                y: anchorFrame.minY - overlayOrigin.y,
+                width: anchorFrame.width,
+                height: anchorFrame.height
+            )
 
-            if anchorFrame != .zero {
-                NovaAttachmentMenuPopoverCard(isPresented: $isPresented)
-                    .frame(
-                        width: NovaAttachmentSheetMetrics.menuPopoverWidth,
-                        height: NovaAttachmentSheetMetrics.menuPopoverHeight
-                    )
-                    .position(x: popoverX, y: popoverY)
-                    .transition(
-                        .scale(scale: 0.88, anchor: .bottom)
-                            .combined(with: .opacity)
-                    )
+            let popoverX = resolvedPopoverX(
+                localAnchor: localAnchor,
+                popoverWidth: popoverSize.width,
+                containerWidth: proxy.size.width
+            )
+            let popoverCenterY = resolvedPopoverCenterY(
+                localAnchor: localAnchor,
+                popoverHeight: popoverSize.height
+            )
+
+            ZStack {
+                Color.black.opacity(colorScheme == .dark ? 0.12 : 0.08)
+                    .ignoresSafeArea()
+                    .onTapGesture {
+                        dismissMenu()
+                    }
+
+                if anchorFrame != .zero {
+                    NovaAttachmentMenuPopoverCard(isPresented: $isPresented)
+                        .fixedSize(horizontal: true, vertical: true)
+                        .background {
+                            GeometryReader { geo in
+                                Color.clear.preference(
+                                    key: NovaAttachmentMenuPopoverSizeKey.self,
+                                    value: geo.size
+                                )
+                            }
+                        }
+                        .position(x: popoverX, y: popoverCenterY)
+                        .transition(
+                            .scale(scale: 0.88, anchor: UnitPoint(x: 0.5, y: 1))
+                                .combined(with: .opacity)
+                        )
+                }
+            }
+            .onPreferenceChange(NovaAttachmentMenuPopoverSizeKey.self) { size in
+                guard size != .zero else { return }
+                popoverSize = size
             }
         }
+        .ignoresSafeArea()
+    }
+
+    private func resolvedPopoverX(
+        localAnchor: CGRect,
+        popoverWidth: CGFloat,
+        containerWidth: CGFloat
+    ) -> CGFloat {
+        guard anchorFrame != .zero else { return containerWidth / 2 }
+
+        let margin: CGFloat = 16
+        let maxLeading = containerWidth - margin - popoverWidth
+        let leadingX = min(max(localAnchor.minX, margin), max(0, maxLeading))
+        return leadingX + popoverWidth / 2
+    }
+
+    private func resolvedPopoverCenterY(localAnchor: CGRect, popoverHeight: CGFloat) -> CGFloat {
+        guard anchorFrame != .zero else { return popoverHeight / 2 }
+
+        let popoverBottom = localAnchor.minY - NovaAttachmentSheetMetrics.menuPopoverGap
+        return popoverBottom - popoverHeight / 2
     }
 
     private func dismissMenu() {
@@ -99,9 +190,9 @@ private struct NovaAttachmentMenuPopoverCard: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
+        VStack(alignment: .leading, spacing: 0) {
             menuRow(
-                systemImage: "camera",
+                assetImage: AttachmentIcon.camera.rawValue,
                 titleKey: "nova.attach.camera",
                 action: {
                     withAnimation(.spring(response: 0.38, dampingFraction: 0.86)) {
@@ -110,7 +201,7 @@ private struct NovaAttachmentMenuPopoverCard: View {
                 }
             )
             menuRow(
-                systemImage: "photo.on.rectangle",
+                assetImage: AttachmentIcon.photos.rawValue,
                 titleKey: "nova.attach.photos",
                 action: {
                     withAnimation(.spring(response: 0.38, dampingFraction: 0.86)) {
@@ -119,6 +210,7 @@ private struct NovaAttachmentMenuPopoverCard: View {
                 }
             )
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.vertical, 10)
         .padding(.horizontal, 12)
         .momentsChromeGlass(in: cardShape, interactive: true)
@@ -126,30 +218,44 @@ private struct NovaAttachmentMenuPopoverCard: View {
         .shadow(color: .black.opacity(colorScheme == .dark ? 0.24 : 0.12), radius: 24, x: 0, y: 12)
     }
 
-    private func menuRow(systemImage: String, titleKey: String, action: @escaping () -> Void) -> some View {
+    private func menuRow(assetImage: String? = nil, systemImage: String? = nil, titleKey: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            HStack(spacing: 14) {
+            HStack(alignment: .center, spacing: 14) {
                 ZStack {
                     Circle()
                         .fill(iconCircleFill)
                         .frame(width: 40, height: 40)
 
-                    Image(systemName: systemImage)
-                        .font(.system(size: 18, weight: .regular))
-                        .foregroundColor(primaryTextColor)
+                    if let assetImage {
+                        Image(assetImage)
+                            .renderingMode(.template)
+                            .resizable()
+                            .scaledToFit()
+                            .frame(width: AttachmentIconMetrics.attachmentMenu, height: AttachmentIconMetrics.attachmentMenu)
+                            .foregroundColor(primaryTextColor)
+                    } else {
+                        Image(systemName: systemImage ?? "questionmark")
+                            .font(.system(size: 18, weight: .regular))
+                            .foregroundColor(primaryTextColor)
+                    }
                 }
+                .frame(width: 40, height: 40, alignment: .center)
 
                 Text(LocalizedStringKey(titleKey))
                     .font(.custom("Poppins-Medium", size: 17))
                     .foregroundColor(primaryTextColor)
+                    .lineLimit(1)
+                    .fixedSize(horizontal: true, vertical: false)
 
                 Spacer(minLength: 0)
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, 6)
             .padding(.vertical, 8)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 
@@ -797,9 +903,7 @@ private struct NovaAttachmentPermissionPrompt: View {
 
     var body: some View {
         VStack(spacing: 12) {
-            Image(systemName: "photo.on.rectangle.angled")
-                .font(.system(size: 32))
-                .foregroundColor(NovaColors.textSecondary)
+            AttachmentIconView(icon: .photos, preset: .permissionPromptMedium, tintColor: NovaColors.textSecondary)
 
             Text(LocalizedStringKey(messageKey))
                 .font(.custom("Poppins-Regular", size: 14))

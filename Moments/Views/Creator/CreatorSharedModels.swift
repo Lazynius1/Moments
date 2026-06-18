@@ -246,8 +246,12 @@ struct GlowSharePill: View {
                     HStack(spacing: 6) {
                         Text(NSLocalizedString(title, comment: ""))
                             .font(.system(size: isSmall ? 13 : 15, weight: .bold, design: .rounded))
-                        Image(systemName: icon)
-                            .font(.system(size: isSmall ? 10 : 12))
+                        if let customIcon = AttachmentIcon(rawValue: icon) {
+                            AttachmentIconView(icon: customIcon, size: isSmall ? 10 : 12, tintColor: .white)
+                        } else {
+                            Image(systemName: icon)
+                                .font(.system(size: isSmall ? 10 : 12))
+                        }
                     }
                 }
             }

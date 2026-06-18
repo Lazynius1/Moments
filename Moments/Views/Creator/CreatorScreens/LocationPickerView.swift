@@ -87,7 +87,7 @@ struct LocationPickerView: View {
                                     .scaleEffect(0.8)
                                     .tint(adaptiveColors.primary)
                             } else {
-                                Image(systemName: "location.fill")
+                                AttachmentIconView(icon: .location, preset: .locationPickerInline, tintColor: adaptiveColors.primary)
                             }
                             Text("creator.location.useCurrent")
                         }

@@ -49,9 +49,7 @@ struct ConversationHistoryOverlay: View {
                         LazyVStack(spacing: 12) {
                             if viewModel.conversationTitles.isEmpty {
                                 VStack(spacing: 16) {
-                                    Image(systemName: "bubble.left.and.bubble.right")
-                                        .font(.system(size: 48))
-                                        .foregroundColor(NovaColors.textSecondary)
+                                    AttachmentIconView(icon: .comments, preset: .emptyStateHero, tintColor: NovaColors.textSecondary)
 
                                     Text("nova.noConversations")
                                         .font(.custom("Poppins-Medium", size: 16))

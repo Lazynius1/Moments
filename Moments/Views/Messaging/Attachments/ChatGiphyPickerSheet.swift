@@ -33,8 +33,7 @@ struct ChatGiphyPickerSheetOverlay: View {
                                     onSelect(asset)
                                 }
                                 dismiss()
-                            },
-                            onBack: dismiss
+                            }
                         )
                     }
                     .padding(.horizontal, ChatAttachmentSheetMetrics.horizontalInset)
@@ -69,13 +68,6 @@ struct ChatGiphyPickerContent: View {
             }
         }
 
-        var titleKey: String {
-            switch self {
-            case .gif: return "chat.attach.gif"
-            case .sticker: return "chat.attach.sticker"
-            }
-        }
-
         var searchPlaceholderKey: String {
             switch self {
             case .gif: return "chat.giphy.searchGif"
@@ -87,7 +79,6 @@ struct ChatGiphyPickerContent: View {
     let kind: Kind
     let accentColor: Color
     let onSelect: (GiphyGif) -> Void
-    let onBack: () -> Void
     /// Stickers recientes opcionales (solo para `.sticker`).
     var recents: [ChatStickerAsset] = []
     var onSelectRecent: ((ChatStickerAsset) -> Void)? = nil
@@ -99,14 +90,30 @@ struct ChatGiphyPickerContent: View {
     @State private var loadError = false
     @State private var searchTask: Task<Void, Never>?
 
+    private let maxRecentCount = 8
+
     private var gridColumns: [GridItem] {
         Array(repeating: GridItem(.flexible(), spacing: 6), count: 4)
     }
 
     private var gridSpacing: CGFloat { 6 }
     private var stickerCellInset: CGFloat { 8 }
-    private var recentStickerSide: CGFloat { 68 }
     private var gifColumnSpacing: CGFloat { 6 }
+
+    private var displayedRecents: [ChatStickerAsset] {
+        Array(recents.prefix(maxRecentCount))
+    }
+
+    private var showsPinnedRecents: Bool {
+        kind == .sticker
+            && !displayedRecents.isEmpty
+            && onSelectRecent != nil
+            && searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
+    private var secondaryText: Color {
+        colorScheme == .dark ? .white.opacity(0.6) : .black.opacity(0.5)
+    }
 
     /// Reparte ítems en dos columnas (estilo masonry IG: flujo alterno).
     private var gifColumns: ([GiphyGif], [GiphyGif]) {
@@ -176,27 +183,36 @@ struct ChatGiphyPickerContent: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            header
             searchField
-
-            ScrollView {
-                if !recents.isEmpty, let onSelectRecent, searchText.isEmpty {
-                    recentsSection(onSelectRecent: onSelectRecent)
+                .padding(.top, 14)
+                .onChange(of: searchText) { _, newValue in
+                    scheduleSearch(query: newValue)
                 }
 
-                if isLoading {
-                    ProgressView()
-                        .tint(accentColor)
-                        .frame(maxWidth: .infinity)
-                        .padding(.top, 40)
-                } else if loadError {
-                    stateMessage(key: "chat.giphy.error")
-                } else if results.isEmpty {
-                    stateMessage(key: "chat.giphy.empty")
-                } else if kind == .sticker {
-                    stickerGrid
-                } else {
-                    gifMasonryGrid
+            if showsPinnedRecents, let onSelectRecent {
+                pinnedRecentsSection(onSelectRecent: onSelectRecent)
+            }
+
+            ScrollView {
+                VStack(alignment: .leading, spacing: 0) {
+                    if !loadError {
+                        giphySectionHeader
+                    }
+
+                    if isLoading {
+                        ProgressView()
+                            .tint(accentColor)
+                            .frame(maxWidth: .infinity)
+                            .padding(.top, 40)
+                    } else if loadError {
+                        stateMessage(key: "chat.giphy.error")
+                    } else if results.isEmpty {
+                        stateMessage(key: "chat.giphy.empty")
+                    } else if kind == .sticker {
+                        stickerGrid
+                    } else {
+                        gifMasonryGrid
+                    }
                 }
             }
         }
@@ -206,85 +222,76 @@ struct ChatGiphyPickerContent: View {
         .onDisappear { searchTask?.cancel() }
     }
 
-    private var header: some View {
+    private var giphySectionHeader: some View {
         HStack {
-            ChatAttachmentRoundButton(
-                systemImage: "chevron.left",
-                accessibilityKey: "nova.attach.back.accessibility",
-                action: onBack
-            )
+            Text(LocalizedStringKey("chat.giphy.brand"))
+                .font(.custom("Poppins-SemiBold", size: 12))
+                .foregroundColor(secondaryText)
+                .textCase(.uppercase)
             Spacer()
-            Text(LocalizedStringKey(kind.titleKey))
-                .font(.custom("Poppins-SemiBold", size: 16))
-                .foregroundColor(colorScheme == .dark ? .white : .black)
-            Spacer()
-            Color.clear.frame(width: 42, height: 42)
         }
         .padding(.horizontal, 16)
-        .padding(.top, 14)
+        .padding(.top, showsPinnedRecents ? 4 : 8)
+        .padding(.bottom, 6)
+    }
+
+    @ViewBuilder
+    private func pinnedRecentsSection(onSelectRecent: @escaping (ChatStickerAsset) -> Void) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(LocalizedStringKey("chat.giphy.recents"))
+                .font(.custom("Poppins-Medium", size: 13))
+                .foregroundColor(secondaryText)
+                .padding(.horizontal, 16)
+
+            LazyVGrid(columns: gridColumns, spacing: gridSpacing) {
+                ForEach(displayedRecents) { sticker in
+                    Button {
+                        HapticManager.shared.lightImpact()
+                        onSelectRecent(sticker)
+                    } label: {
+                        recentStickerGridCell(url: sticker.downloadURL)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(.horizontal, 12)
+        }
         .padding(.bottom, 8)
     }
 
     private var searchField: some View {
-        HStack(spacing: 8) {
-            Image(systemName: "magnifyingglass")
-                .foregroundColor(colorScheme == .dark ? .white.opacity(0.6) : .black.opacity(0.5))
-            TextField(
-                LocalizedStringKey(kind.searchPlaceholderKey),
-                text: $searchText
-            )
-            .textFieldStyle(.plain)
-            .foregroundColor(colorScheme == .dark ? .white : .black)
-            .submitLabel(.search)
-            .onChange(of: searchText) { _, newValue in
-                scheduleSearch(query: newValue)
-            }
-            if !searchText.isEmpty {
-                Button {
-                    searchText = ""
-                    loadTrending()
-                } label: {
-                    Image(systemName: "xmark.circle.fill")
-                        .foregroundColor(colorScheme == .dark ? .white.opacity(0.5) : .black.opacity(0.4))
-                }
-                .buttonStyle(.plain)
-            }
-        }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 10)
-        .momentsChromeGlass(in: Capsule(), interactive: true)
-        .padding(.horizontal, 16)
-        .padding(.bottom, 10)
+        ChatAttachmentSearchField(
+            placeholderKey: kind.searchPlaceholderKey,
+            text: $searchText,
+            onClear: { loadTrending() }
+        )
     }
 
     @ViewBuilder
-    private func recentsSection(onSelectRecent: @escaping (ChatStickerAsset) -> Void) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text(LocalizedStringKey("chat.giphy.recents"))
-                .font(.custom("Poppins-Medium", size: 13))
-                .foregroundColor(colorScheme == .dark ? .white.opacity(0.6) : .black.opacity(0.5))
-                .padding(.horizontal, 16)
-
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 10) {
-                    ForEach(recents) { sticker in
-                        Button {
-                            HapticManager.shared.lightImpact()
-                            onSelectRecent(sticker)
-                        } label: {
-                            recentStickerCell(url: sticker.downloadURL)
-                                .contentShape(Rectangle())
-                        }
-                        .buttonStyle(.plain)
-                    }
-                }
-                .padding(.horizontal, 16)
-            }
+    private func recentStickerGridCell(url: URL?) -> some View {
+        GeometryReader { proxy in
+            let side = proxy.size.width
+            let inner = side - stickerCellInset * 2
+            AnimatedGIFView(url: url)
+                .frame(width: inner, height: inner)
+                .frame(width: side, height: side)
+                .allowsHitTesting(false)
+                .clipped()
         }
-        .padding(.bottom, 12)
+        .aspectRatio(1, contentMode: .fit)
     }
 
-    /// Stickers: celda cuadrada fija, asset centrado (contain) — estilo GIPHY / IG.
+    private func stateMessage(key: String) -> some View {
+        Text(LocalizedStringKey(key))
+            .font(.custom("Poppins-Regular", size: 14))
+            .foregroundColor(secondaryText)
+            .multilineTextAlignment(.center)
+            .frame(maxWidth: .infinity)
+            .padding(.top, 40)
+            .padding(.horizontal, 24)
+    }
+
     @ViewBuilder
     private func stickerPickerCell(for gif: GiphyGif) -> some View {
         let url = URL(string: gif.images.fixed_height.url)
@@ -312,27 +319,6 @@ struct ChatGiphyPickerContent: View {
             .frame(maxWidth: .infinity)
             .allowsHitTesting(false)
             .clipShape(shape)
-    }
-
-    @ViewBuilder
-    private func recentStickerCell(url: URL?) -> some View {
-        let inner = recentStickerSide - stickerCellInset * 2
-
-        AnimatedGIFView(url: url)
-            .frame(width: inner, height: inner)
-            .frame(width: recentStickerSide, height: recentStickerSide)
-            .allowsHitTesting(false)
-            .clipped()
-    }
-
-    private func stateMessage(key: String) -> some View {
-        Text(LocalizedStringKey(key))
-            .font(.custom("Poppins-Regular", size: 14))
-            .foregroundColor(colorScheme == .dark ? .white.opacity(0.6) : .black.opacity(0.5))
-            .multilineTextAlignment(.center)
-            .frame(maxWidth: .infinity)
-            .padding(.top, 40)
-            .padding(.horizontal, 24)
     }
 
     private func loadTrending() {

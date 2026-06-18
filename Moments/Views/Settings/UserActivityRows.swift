@@ -761,11 +761,17 @@ struct ActivityReactionMomentCard: View {
     private var discreetReactionBadge: some View {
         let style = reactionStyle(from: item.reactionType)
 
-        return Text(style.icon)
-            .font(.system(size: 14))
-            .shadow(color: .black.opacity(0.55), radius: 2, y: 1)
-            .padding(6)
-            .allowsHitTesting(false)
+        return Group {
+            if item.reactionType.lowercased() == "tagged" {
+                AttachmentIconView(icon: .tagged, preset: .activityReactionBadge, tintColor: .white)
+            } else {
+                Text(style.icon)
+                    .font(.system(size: 14))
+            }
+        }
+        .shadow(color: .black.opacity(0.55), radius: 2, y: 1)
+        .padding(6)
+        .allowsHitTesting(false)
     }
 
     private var isVideoMoment: Bool {

@@ -314,9 +314,7 @@ struct ActionSubCardView: View {
             
             Button(action: {}) {
                 HStack(spacing: 6) {
-                    Image(systemName: "square.and.arrow.up")
-                        .font(.system(size: 18, weight: .medium))
-                        .foregroundColor(.white)
+                    AttachmentIconView(icon: .share, preset: .momentActionBar, tintColor: .white)
                     Text("0")
                         .font(.system(size: 14, weight: .medium))
                         .foregroundColor(.white)
@@ -328,9 +326,7 @@ struct ActionSubCardView: View {
             Button(action: {
                 toggleSave()
             }) {
-                Image(systemName: isSaved ? "bookmark.fill" : "bookmark")
-                    .font(.system(size: 20, weight: .medium))
-                    .foregroundColor(.white)
+                AttachmentIconView(icon: .bookmark, preset: .momentActionBar, tintColor: isSaved ? .yellow : .white)
             }
         }
         .padding(.horizontal, 16)

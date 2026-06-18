@@ -130,8 +130,14 @@ struct ProfilePillTabs: View {
                             }
                         }) {
                             HStack(spacing: 6) {
-                                Image(systemName: tab.icon)
-                                    .font(.system(size: 12, weight: labelWeight(for: index, width: proxy.size.width)))
+                                if tab == .saved {
+                                    AttachmentIconView(icon: .bookmark, preset: .profilePillTab)
+                                } else if tab == .tagged {
+                                    AttachmentIconView(icon: .tagged, preset: .profilePillTab)
+                                } else {
+                                    Image(systemName: tab.icon)
+                                        .font(.system(size: 12, weight: labelWeight(for: index, width: proxy.size.width)))
+                                }
 
                                 Text(tab.localizedTitle)
                                     .font(.custom(labelFontName(for: index, width: proxy.size.width), size: 12))

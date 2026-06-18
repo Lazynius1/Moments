@@ -2,7 +2,7 @@ import SwiftUI
 
 /// Burbuja para stickers: flota sobre el fondo del chat, SIN burbuja glass (estilo IG DM).
 struct ChatStickerMessageBubble: View {
-    let message: EnhancedMessage
+    @ObservedObject var message: EnhancedMessage
     let isSending: Bool
     let progress: Double?
 
@@ -19,6 +19,7 @@ struct ChatStickerMessageBubble: View {
         ZStack {
             if let stickerURL {
                 AnimatedGIFView(url: stickerURL)
+                    .id(stickerURL.absoluteString)
                     .frame(width: stickerSize, height: stickerSize)
                     .clipped()
             } else {

@@ -47,8 +47,6 @@ extension ChatService {
                     type == .video ||
                     type == .audio ||
                     type == .file ||
-                    type == .gif ||
-                    type == .sticker ||
                     type == .viewOnceImage ||
                     type == .viewOnceVideo
 

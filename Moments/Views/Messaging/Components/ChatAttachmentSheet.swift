@@ -56,6 +56,9 @@ enum ChatAttachmentSheetMetrics {
     /// Clearance between popover bottom edge and the top of the + button.
     static let menuPopoverGap: CGFloat = 16
     static let heightFraction: CGFloat = 0.58
+    /// Inset extra del buscador para que no roce las esquinas redondeadas del sheet.
+    static let searchFieldHorizontalInset: CGFloat = 28
+    static let searchFieldCornerRadius: CGFloat = 16
 
     static func sheetHeight(containerHeight: CGFloat) -> CGFloat {
         containerHeight * heightFraction
@@ -243,12 +246,10 @@ struct ChatAttachmentMenuPopover: View {
     ) -> CGFloat {
         guard anchorFrame != .zero else { return containerWidth / 2 }
 
-        let halfWidth = popoverWidth / 2
         let margin: CGFloat = 16
-        return min(
-            max(localAnchor.midX, halfWidth + margin),
-            containerWidth - halfWidth - margin
-        )
+        let maxLeading = containerWidth - margin - popoverWidth
+        let leadingX = min(max(localAnchor.minX, margin), max(0, maxLeading))
+        return leadingX + popoverWidth / 2
     }
 
     /// Places the entire popover above the + button with a small gap.
@@ -287,17 +288,17 @@ private struct ChatAttachmentMenuPopoverCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             menuRow(
-                systemImage: "camera",
+                assetImage: AttachmentIcon.camera.rawValue,
                 titleKey: "nova.attach.camera",
                 action: onOpenCamera
             )
             menuRow(
-                systemImage: "photo.on.rectangle",
+                assetImage: AttachmentIcon.photos.rawValue,
                 titleKey: "nova.attach.photos",
                 action: { present(.photos) }
             )
             menuRow(
-                systemImage: "rectangle.stack.badge.play",
+                assetImage: AttachmentIcon.gif.rawValue,
                 titleKey: "chat.attach.gif",
                 action: { present(.gif) }
             )
@@ -307,7 +308,7 @@ private struct ChatAttachmentMenuPopoverCard: View {
                 action: { present(.sticker) }
             )
             menuRow(
-                systemImage: "location",
+                assetImage: AttachmentIcon.location.rawValue,
                 titleKey: "chat.attach.location",
                 action: { present(.location) }
             )
@@ -339,7 +340,7 @@ private struct ChatAttachmentMenuPopoverCard: View {
                             .renderingMode(.template)
                             .resizable()
                             .scaledToFit()
-                            .frame(width: 22, height: 22)
+                            .frame(width: AttachmentIconMetrics.attachmentMenu, height: AttachmentIconMetrics.attachmentMenu)
                             .foregroundColor(primaryTextColor)
                     } else {
                         Image(systemName: systemImage ?? "questionmark")
@@ -444,6 +445,60 @@ struct ChatAttachmentMediaSheetOverlay: View {
             dragOffset = 0
             activeSheet = nil
         }
+    }
+}
+
+// MARK: - Search field (GIF / sticker / ubicación)
+
+struct ChatAttachmentSearchField: View {
+    let placeholderKey: String
+    @Binding var text: String
+    var onClear: (() -> Void)? = nil
+
+    @Environment(\.colorScheme) private var colorScheme
+
+    private var secondaryText: Color {
+        colorScheme == .dark ? .white.opacity(0.6) : .black.opacity(0.5)
+    }
+
+    private var primaryText: Color {
+        colorScheme == .dark ? .white : .black
+    }
+
+    private var fieldShape: RoundedRectangle {
+        RoundedRectangle(
+            cornerRadius: ChatAttachmentSheetMetrics.searchFieldCornerRadius,
+            style: .continuous
+        )
+    }
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "magnifyingglass")
+                .foregroundColor(secondaryText)
+
+            TextField(LocalizedStringKey(placeholderKey), text: $text)
+                .textFieldStyle(.plain)
+                .foregroundColor(primaryText)
+                .submitLabel(.search)
+
+            if !text.isEmpty {
+                Button {
+                    text = ""
+                    onClear?()
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .foregroundColor(secondaryText.opacity(0.85))
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
+        .momentsChromeGlass(in: fieldShape, interactive: true)
+        .clipShape(fieldShape)
+        .padding(.horizontal, ChatAttachmentSheetMetrics.searchFieldHorizontalInset)
+        .padding(.bottom, 10)
     }
 }
 

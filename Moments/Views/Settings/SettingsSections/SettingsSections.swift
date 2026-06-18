@@ -203,6 +203,8 @@ struct SettingsRow: View {
                             tintColor: audienceIcon == .bestFriends ? Color(hex: "34C759") : nil,
                             colorScheme: colorScheme
                         )
+                    } else if let attachmentIcon = AttachmentIcon(rawValue: icon) {
+                        AttachmentIconView(icon: attachmentIcon, preset: .settingsRow, tintColor: iconForegroundColor)
                     } else {
                         Image(systemName: icon)
                             .font(.system(size: 19, weight: .regular))
@@ -1357,7 +1359,7 @@ struct ActivitySection: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            SettingsRow(icon: "bookmark",
+            SettingsRow(icon: AttachmentIcon.bookmark.rawValue,
                 title: NSLocalizedString("settings.sections.saved", comment: "Saved"),
                 subtitle: NSLocalizedString("settings.sections.saved.subtitle", comment: "Moments you've saved"),
                 action: { isShowingSavedMoments = true })

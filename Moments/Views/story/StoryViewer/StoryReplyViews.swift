@@ -424,9 +424,7 @@ struct StoryReplyEphemeralTapCard: View {
             VStack(spacing: 0) {
                 Spacer()
 
-                Image(systemName: "camera.fill")
-                    .font(.system(size: 22, weight: .medium))
-                    .foregroundColor(.white.opacity(0.95))
+                AttachmentIconView(icon: .ephemeral, preset: .storyEphemeral, tintColor: .white.opacity(0.95))
                     .shadow(color: .black.opacity(0.4), radius: 4, y: 2)
 
                 Spacer()

@@ -1786,8 +1786,7 @@ struct InteractiveLocationSticker: View {
             showingLocationMap = true
         }) {
             HStack(spacing: 8) {
-                Image(systemName: "mappin.and.ellipse")
-                    .font(.system(size: 16, weight: .bold))
+                AttachmentIconView(icon: .location, preset: .storyLocationSticker, tintColor: .white)
                 Text(locationName.uppercased())
                     .font(.system(size: 15, weight: .black, design: .rounded))
                     .tracking(0.5)

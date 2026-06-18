@@ -19,7 +19,7 @@ struct ChatGiphyAsset: Identifiable, Hashable {
     }
 
     init?(gif: GiphyGif) {
-        let preferred = gif.images.original?.url ?? gif.images.fixed_height.url
+        let preferred = gif.images.fixed_height.url
         guard !preferred.isEmpty else { return nil }
         self.id = gif.id
         self.url = preferred
@@ -47,7 +47,7 @@ struct ChatStickerAsset: Identifiable, Hashable, Codable {
     }
 
     init?(gif: GiphyGif) {
-        let preferred = gif.images.original?.url ?? gif.images.fixed_height.url
+        let preferred = gif.images.fixed_height.url
         guard !preferred.isEmpty else { return nil }
         self.id = gif.id
         self.url = preferred
@@ -63,7 +63,7 @@ struct ChatStickerAsset: Identifiable, Hashable, Codable {
 /// Guarda/recupera los últimos stickers usados en `UserDefaults` (estilo IG recientes).
 enum ChatRecentStickersStore {
     private static let key = "chat.recentStickers.v1"
-    private static let maxCount = 30
+    private static let maxCount = 8
 
     static func load() -> [ChatStickerAsset] {
         guard let data = UserDefaults.standard.data(forKey: key) else { return [] }

@@ -188,9 +188,11 @@ struct StoryGalleryPicker: View {
                 .ignoresSafeArea()
 
             VStack(spacing: 24) {
-                Image(systemName: "photo.on.rectangle")
-                    .font(.system(size: 60))
-                    .foregroundColor(colorScheme == .dark ? .gray : .gray.opacity(0.6))
+                AttachmentIconView(
+                    icon: .photos,
+                    preset: .permissionPromptLarge,
+                    tintColor: colorScheme == .dark ? .gray : .gray.opacity(0.6)
+                )
 
                 Text("creator.gallery.permission")
                     .font(.custom("Poppins-Medium", size: 16))

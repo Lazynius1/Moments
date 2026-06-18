@@ -117,7 +117,7 @@ enum ActivityInteractionCategory: String, CaseIterable, Identifiable {
         switch self {
         case .reactions: return "sparkles"
         case .comments: return "bubble.right.fill"
-        case .tags: return "at"
+        case .tags: return AttachmentIcon.tagged.rawValue
         case .stickerReplies: return "face.smiling"
         case .archived: return "archivebox.fill"
         case .storiesArchive: return "clock.arrow.trianglehead.counterclockwise.rotate.90"

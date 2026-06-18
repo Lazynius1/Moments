@@ -174,7 +174,11 @@ struct SmartLocationInputView: View {
                         } else if nearbyPlaces.isEmpty {
                             EmptyNearbyView()
                         } else {
-                            SectionHeader(title: NSLocalizedString("stickerview.location.nearby", comment: "Nearby places"), icon: "location.fill", color: .red)
+                            SectionHeader(
+                                title: NSLocalizedString("stickerview.location.nearby", comment: "Nearby places"),
+                                attachmentIcon: .location,
+                                color: .red
+                            )
 
                             ForEach(nearbyPlaces, id: \.id) { place in
                                 LocationRowView(location: place) {
@@ -201,7 +205,7 @@ struct SmartLocationInputView: View {
                                 title: searchResults.count == 1
                                     ? String(format: NSLocalizedString("stickerview.location.results.one", comment: "One location result"), searchResults.count)
                                     : String(format: NSLocalizedString("stickerview.location.results.other", comment: "Multiple location results"), searchResults.count),
-                                icon: "mappin.and.ellipse",
+                                attachmentIcon: .location,
                                 color: .green
                             )
 
