@@ -26,9 +26,15 @@ struct StickerPickerView: View {
     @State private var giphyResults: [GiphyGif] = []
     @State private var photoPickerItem: PhotosPickerItem? = nil
     @State private var isLoadingGiphy = false
+    @State private var isLoadingMoreGiphy = false
+    @State private var hasMoreGiphyPages = true
+    @State private var giphyNextOffset = 0
+    @State private var giphyActiveMode: ChatGiphyService.Mode = .trending
+    @State private var giphyActiveQuery = ""
+    @State private var giphyFetchTask: Task<Void, Never>?
     @State private var mode: PickerMode = .catalog
-    private let functionsRegion = "europe-southwest1"
-    private let giphyFunctionName = "proxyGiphyStickers"
+
+    private let giphyPageSize = 24
 
     private enum PickerMode: Equatable {
         case catalog
@@ -589,7 +595,7 @@ struct StickerPickerView: View {
     private var stickerContent: some View {
         switch selectedCategory {
         case .trending:
-            if isLoadingGiphy {
+            if isLoadingGiphy && giphyResults.isEmpty {
                 MomentsLoadingView()
             } else if giphyResults.isEmpty {
                 StickerEmptyState(
@@ -598,7 +604,13 @@ struct StickerPickerView: View {
                     subtitle: NSLocalizedString("stickerview.trending.emptySubtitle", comment: "No trending stickers subtitle")
                 )
             } else {
-                MomentsTrendingGrid(stickers: giphyResults)
+                VStack(spacing: 0) {
+                    MomentsTrendingGrid(stickers: giphyResults, onReachEnd: loadMoreGiphyIfNeeded)
+                    if isLoadingMoreGiphy {
+                        ProgressView()
+                            .padding(.vertical, 20)
+                    }
+                }
             }
 
         case .emoji:
@@ -720,7 +732,7 @@ struct StickerPickerView: View {
     }
 
     @ViewBuilder
-    private func MomentsTrendingGrid(stickers: [GiphyGif]) -> some View {
+    private func MomentsTrendingGrid(stickers: [GiphyGif], onReachEnd: (() -> Void)? = nil) -> some View {
         let columns = Array(repeating: GridItem(.flexible(), spacing: 8), count: 4)
 
         LazyVGrid(columns: columns, spacing: 8) {
@@ -746,6 +758,11 @@ struct StickerPickerView: View {
                 }
                 .buttonStyle(.plain)
                 .pressAnimation()
+                .onAppear {
+                    if sticker.id == stickers.last?.id {
+                        onReachEnd?()
+                    }
+                }
             }
         }
     }
@@ -948,87 +965,79 @@ struct StickerPickerView: View {
 
     // MARK: - Giphy API Methods (proxy por Cloud Functions)
 
-    private func giphyProxyURL() -> URL? {
-        guard let projectID = FirebaseApp.app()?.options.projectID else { return nil }
-        return URL(string: "https://\(functionsRegion)-\(projectID).cloudfunctions.net/\(giphyFunctionName)")
-    }
-
-    private func fetchGiphyStickers(mode: String, query: String? = nil) {
-        guard let url = giphyProxyURL() else {
-            isLoadingGiphy = false
-            return
-        }
-
-        guard let user = Auth.auth().currentUser else {
-            isLoadingGiphy = false
-            return
-        }
-
-        user.getIDTokenForcingRefresh(false) { token, _ in
-            guard let token = token else {
-                DispatchQueue.main.async {
-                    self.isLoadingGiphy = false
-                }
-                return
-            }
-
-            var body: [String: Any] = [
-                "mode": mode,
-                "limit": 24,
-                "rating": "pg"
-            ]
-            if let query = query, !query.isEmpty {
-                body["query"] = query
-            }
-
-            guard let jsonData = try? JSONSerialization.data(withJSONObject: body) else {
-                DispatchQueue.main.async {
-                    self.isLoadingGiphy = false
-                }
-                return
-            }
-
-            var request = URLRequest(url: url)
-            request.httpMethod = "POST"
-            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-            request.httpBody = jsonData
-            request.timeoutInterval = 20.0
-
-            URLSession.shared.dataTask(with: request) { data, _, error in
-                guard let data = data, error == nil else {
-                    DispatchQueue.main.async {
-                        self.isLoadingGiphy = false
-                    }
-                    return
-                }
-
-                do {
-                    let response = try JSONDecoder().decode(GiphyResponse.self, from: data)
-                    DispatchQueue.main.async {
-                        self.giphyResults = response.data
-                        self.isLoadingGiphy = false
-                    }
-                } catch {
-                    DispatchQueue.main.async {
-                        self.isLoadingGiphy = false
-                    }
-                }
-            }.resume()
-        }
+    private func resetGiphyPagination() {
+        giphyFetchTask?.cancel()
+        giphyNextOffset = 0
+        hasMoreGiphyPages = true
+        isLoadingMoreGiphy = false
     }
 
     private func loadTrendingStickers() {
-        isLoadingGiphy = true
-        fetchGiphyStickers(mode: "trending")
+        resetGiphyPagination()
+        giphyActiveMode = .trending
+        giphyActiveQuery = ""
+        fetchGiphyPage(offset: 0, append: false)
     }
 
     private func searchTrendingStickers() {
         let query = gifSearchText.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !query.isEmpty else { return }
+        guard !query.isEmpty else {
+            loadTrendingStickers()
+            return
+        }
 
-        isLoadingGiphy = true
-        fetchGiphyStickers(mode: "search", query: query)
+        resetGiphyPagination()
+        giphyActiveMode = .search
+        giphyActiveQuery = query
+        fetchGiphyPage(offset: 0, append: false)
+    }
+
+    private func loadMoreGiphyIfNeeded() {
+        guard hasMoreGiphyPages, !isLoadingGiphy, !isLoadingMoreGiphy else { return }
+        fetchGiphyPage(offset: giphyNextOffset, append: true)
+    }
+
+    private func fetchGiphyPage(offset: Int, append: Bool) {
+        if append {
+            guard !isLoadingMoreGiphy else { return }
+            isLoadingMoreGiphy = true
+        } else {
+            giphyFetchTask?.cancel()
+            isLoadingGiphy = true
+            giphyResults = []
+        }
+
+        giphyFetchTask = Task {
+            do {
+                let page = try await ChatGiphyService.shared.fetch(
+                    function: .stickers,
+                    mode: giphyActiveMode,
+                    query: giphyActiveMode == .search ? giphyActiveQuery : nil,
+                    offset: offset,
+                    limit: giphyPageSize
+                )
+                if Task.isCancelled { return }
+
+                if append {
+                    let existingIDs = Set(giphyResults.map(\.id))
+                    giphyResults.append(contentsOf: page.items.filter { !existingIDs.contains($0.id) })
+                    isLoadingMoreGiphy = false
+                } else {
+                    giphyResults = page.items
+                    isLoadingGiphy = false
+                }
+
+                giphyNextOffset = page.nextOffset
+                hasMoreGiphyPages = page.hasMore
+            } catch {
+                if Task.isCancelled { return }
+                if append {
+                    isLoadingMoreGiphy = false
+                } else {
+                    isLoadingGiphy = false
+                }
+            }
+        }
     }
 
     // MARK: - Sticker Creation Methods (exactamente iguales)

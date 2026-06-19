@@ -70,6 +70,7 @@ struct StoryViewerScreen: View {
     @State private var targetMomentUserId: String? = nil
     @State private var messageText: String = ""
     @State private var showReactions: Bool = false
+    @State private var showStoryReactionEmojiPicker = false
     @State private var showEphemeralPicker: Bool = false
     @State private var selectedPhoto: PhotosPickerItem?
     @State private var showQuickActions: Bool = false
@@ -128,8 +129,11 @@ struct StoryViewerScreen: View {
     @StateObject private var playbackCoordinator = StoryPlaybackCoordinator()
     @State private var isStoryVideoReady = false
     @State private var textMotionReplayToken = 0
+    @StateObject private var emojiUsageTracker = EmojiUsageTracker()
 
-    private let reactions: [String] = ["✌🏻", "🔥", "✅", "😊", "✨", "❤️", "💕", "😮", "😂", "😢", "🙏🏻", "⚡", "🧠", "🎨", "😌", "🎉"]
+    private var reactions: [String] {
+        emojiUsageTracker.orderedEmojis(from: EmojiReactionDefaults.story)
+    }
 
     private var isOwnStory: Bool {
         story.authorId == Auth.auth().currentUser?.uid
@@ -623,6 +627,13 @@ struct StoryViewerScreen: View {
                         pauseStory()
                     }
                 }
+                .sheet(isPresented: $showStoryReactionEmojiPicker) {
+                    EmojiPickerView(isPresented: $showStoryReactionEmojiPicker, onSelect: { emoji in
+                        sendReaction(emoji, sourcePoint: smileyButtonCenter)
+                        showStoryReactionEmojiPicker = false
+                    })
+                    .chatPickerSheetPresentation()
+                }
 
             if showStoryShareSheet {
                 StoryShareBottomSheet(story: story, isPresented: $showStoryShareSheet)
@@ -670,6 +681,9 @@ struct StoryViewerScreen: View {
                 pauseOrResumeStory(forOverlay: isOpen)
             }
             .onChange(of: showStoryShareSheet) { _, isOpen in
+                pauseOrResumeStory(forOverlay: isOpen)
+            }
+            .onChange(of: showStoryReactionEmojiPicker) { _, isOpen in
                 pauseOrResumeStory(forOverlay: isOpen)
             }
     }
@@ -1048,6 +1062,9 @@ struct StoryViewerScreen: View {
                     showReactions: showReactions,
                     onReaction: { reaction in
                         sendReaction(reaction, sourcePoint: smileyButtonCenter)
+                    },
+                    onMoreReactions: {
+                        showStoryReactionEmojiPicker = true
                     }
                 )
             }
@@ -1760,6 +1777,8 @@ struct StoryViewerScreen: View {
 
     private func sendReaction(_ reaction: String, sourcePoint: CGPoint? = nil) {
         guard let storyId = story.id else { return }
+
+        emojiUsageTracker.increment(reaction)
 
         storyViewModel.sendReaction(
             to: story.authorId,

@@ -31,6 +31,9 @@ enum AttachmentIconMetrics {
     /// Tarjeta inferior detalle fullscreen. SF Symbol ref: 18pt semibold
     static let locationDetailCard: CGFloat = 23
 
+    /// WhatsNew feature row. SF Symbol ref: 17pt semibold
+    static let whatsNew: CGFloat = 22
+
     /// Píldora catálogo stickers. SF Symbol ref: 16pt bold
     static let stickerCatalogPill: CGFloat = 20
 
@@ -245,6 +248,7 @@ enum AttachmentIconPreset {
     case voiceEditor
     case voiceRecording
     case voiceStickerPrompt
+    case whatsNew
 
     var size: CGFloat {
         switch self {
@@ -294,6 +298,7 @@ enum AttachmentIconPreset {
         case .voiceEditor: AttachmentIconMetrics.voiceEditor
         case .voiceRecording: AttachmentIconMetrics.voiceRecording
         case .voiceStickerPrompt: AttachmentIconMetrics.voiceStickerPrompt
+        case .whatsNew: AttachmentIconMetrics.whatsNew
         }
     }
 

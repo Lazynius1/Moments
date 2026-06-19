@@ -256,6 +256,13 @@ struct ModernGiphyGridView: View {
 // MARK: - Giphy Models
 struct GiphyResponse: Codable {
     let data: [GiphyGif]
+    let pagination: GiphyPagination?
+}
+
+struct GiphyPagination: Codable {
+    let total_count: Int
+    let count: Int
+    let offset: Int
 }
 
 struct GiphyGif: Codable, Identifiable {

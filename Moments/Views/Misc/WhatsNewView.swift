@@ -8,44 +8,74 @@ struct WhatsNewView: View {
     private var features: [WhatsNewFeature] {
         [
             WhatsNewFeature(
-                icon: .system("textformat.alt"),
-                title: NSLocalizedString("whatsNew.stories.title", comment: ""),
-                description: NSLocalizedString("whatsNew.stories.description", comment: "")
+                icon: .attachment(.comments),
+                title: NSLocalizedString("whatsNew.messaging.title", comment: ""),
+                description: NSLocalizedString("whatsNew.messaging.description", comment: "")
             ),
             WhatsNewFeature(
-                icon: .system("timer"),
-                title: NSLocalizedString("whatsNew.sharing.title", comment: ""),
-                description: NSLocalizedString("whatsNew.sharing.description", comment: "")
+                icon: .attachment(.gif),
+                title: NSLocalizedString("whatsNew.gif.title", comment: ""),
+                description: NSLocalizedString("whatsNew.gif.description", comment: "")
             ),
             WhatsNewFeature(
-                icon: .storyRing,
-                title: NSLocalizedString("whatsNew.viewer.title", comment: ""),
-                description: NSLocalizedString("whatsNew.viewer.description", comment: "")
+                icon: .asset("MomentsStickerTool"),
+                title: NSLocalizedString("whatsNew.stickers.title", comment: ""),
+                description: NSLocalizedString("whatsNew.stickers.description", comment: "")
             ),
             WhatsNewFeature(
-                icon: .system("eye.fill"),
-                title: NSLocalizedString("whatsNew.activity.title", comment: ""),
-                description: NSLocalizedString("whatsNew.activity.description", comment: "")
+                icon: .attachment(.location),
+                title: NSLocalizedString("whatsNew.location.title", comment: ""),
+                description: NSLocalizedString("whatsNew.location.description", comment: "")
             ),
             WhatsNewFeature(
-                icon: .system("archivebox.fill"),
-                title: NSLocalizedString("whatsNew.archive.title", comment: ""),
-                description: NSLocalizedString("whatsNew.archive.description", comment: "")
+                icon: .attachment(.liveLocation),
+                title: NSLocalizedString("whatsNew.liveLocation.title", comment: ""),
+                description: NSLocalizedString("whatsNew.liveLocation.description", comment: "")
             ),
             WhatsNewFeature(
-                icon: .system("pin.fill"),
+                icon: .attachment(.photos),
+                title: NSLocalizedString("whatsNew.media.title", comment: ""),
+                description: NSLocalizedString("whatsNew.media.description", comment: "")
+            ),
+            WhatsNewFeature(
+                icon: .system("heart.text.square.fill"),
+                title: NSLocalizedString("whatsNew.reactions.title", comment: ""),
+                description: NSLocalizedString("whatsNew.reactions.description", comment: "")
+            ),
+            WhatsNewFeature(
+                icon: .system("map.fill"),
+                title: NSLocalizedString("whatsNew.map.title", comment: ""),
+                description: NSLocalizedString("whatsNew.map.description", comment: "")
+            ),
+            WhatsNewFeature(
+                icon: .asset("CarouselPostIcon"),
+                title: NSLocalizedString("whatsNew.feed.title", comment: ""),
+                description: NSLocalizedString("whatsNew.feed.description", comment: "")
+            ),
+            WhatsNewFeature(
+                icon: .attachment(.bookmark),
                 title: NSLocalizedString("whatsNew.profile.title", comment: ""),
                 description: NSLocalizedString("whatsNew.profile.description", comment: "")
             ),
             WhatsNewFeature(
-                icon: .system("bell.badge.fill"),
-                title: NSLocalizedString("whatsNew.notifications.title", comment: ""),
-                description: NSLocalizedString("whatsNew.notifications.description", comment: "")
+                icon: .storyRing,
+                title: NSLocalizedString("whatsNew.highlights.title", comment: ""),
+                description: NSLocalizedString("whatsNew.highlights.description", comment: "")
             ),
             WhatsNewFeature(
-                icon: .system("play.square.stack.fill"),
-                title: NSLocalizedString("whatsNew.media.title", comment: ""),
-                description: NSLocalizedString("whatsNew.media.description", comment: "")
+                icon: .system("sparkle.magnifyingglass"),
+                title: NSLocalizedString("whatsNew.explore.title", comment: ""),
+                description: NSLocalizedString("whatsNew.explore.description", comment: "")
+            ),
+            WhatsNewFeature(
+                icon: .system("person.crop.circle.badge.checkmark"),
+                title: NSLocalizedString("whatsNew.onboarding.title", comment: ""),
+                description: NSLocalizedString("whatsNew.onboarding.description", comment: "")
+            ),
+            WhatsNewFeature(
+                icon: .system("wand.and.stars"),
+                title: NSLocalizedString("whatsNew.polish.title", comment: ""),
+                description: NSLocalizedString("whatsNew.polish.description", comment: "")
             )
         ]
     }
@@ -58,12 +88,12 @@ struct WhatsNewView: View {
                         header
                             .padding(.top, 22)
 
-                        VStack(spacing: 12) {
+                        VStack(spacing: 10) {
                             ForEach(Array(features.enumerated()), id: \.offset) { index, feature in
-                                WhatsNewFeatureRow(feature: feature, delay: Double(index) * 0.06)
+                                WhatsNewFeatureRow(feature: feature, delay: Double(index) * 0.04)
                             }
                         }
-                        
+
                         footerButton
                             .padding(.top, 6)
                     }
@@ -96,6 +126,7 @@ struct WhatsNewView: View {
                     Text(NSLocalizedString("whatsNew.subtitle", comment: ""))
                         .font(.custom("Poppins-Medium", size: 14))
                         .foregroundColor(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
 
                 Spacer(minLength: 0)
@@ -138,6 +169,7 @@ private struct WhatsNewFeature {
 private enum WhatsNewFeatureIcon {
     case system(String)
     case asset(String)
+    case attachment(AttachmentIcon)
     case storyRing
 }
 
@@ -164,7 +196,7 @@ private struct WhatsNewFeatureRow: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, 4)
-        .padding(.vertical, 7)
+        .padding(.vertical, 6)
         .offset(y: appear ? 0 : 18)
         .opacity(appear ? 1 : 0)
         .onAppear {
@@ -186,7 +218,9 @@ private struct WhatsNewFeatureRow: View {
                     .renderingMode(.template)
                     .resizable()
                     .scaledToFit()
-                    .frame(width: 30, height: 30)
+                    .frame(width: 24, height: 24)
+            case .attachment(let icon):
+                AttachmentIconView(icon: icon, preset: .whatsNew, tintColor: .primary)
             case .storyRing:
                 StorySegmentedRing(
                     storyCount: 3,
@@ -200,7 +234,7 @@ private struct WhatsNewFeatureRow: View {
                     lineWidth: 2.4,
                     hapticsEnabled: false
                 )
-                .frame(width: 30, height: 30)
+                .frame(width: 26, height: 26)
             }
         }
         .foregroundColor(.primary)

@@ -1,59 +1,5 @@
 import SwiftUI
 
-// MARK: - GIF picker overlay (bottom sheet)
-
-struct ChatGiphyPickerSheetOverlay: View {
-    @Binding var activeSheet: ChatAttachmentSheetKind?
-    let accentColor: Color
-    let onSelect: (ChatGiphyAsset) -> Void
-
-    @Environment(\.colorScheme) private var colorScheme
-
-    var body: some View {
-        if activeSheet == .gif {
-            GeometryReader { proxy in
-                let bottomPadding = ChatInputBarLayout.attachmentSheetBottomInset(
-                    safeAreaBottom: proxy.safeAreaInsets.bottom
-                )
-                let sheetHeight = ChatAttachmentSheetMetrics.sheetHeight(
-                    containerHeight: proxy.size.height
-                )
-
-                ZStack(alignment: .bottom) {
-                    Color.black.opacity(colorScheme == .dark ? 0.28 : 0.16)
-                        .ignoresSafeArea()
-                        .onTapGesture { dismiss() }
-
-                    ChatAttachmentSheetSurface(height: sheetHeight) {
-                        ChatGiphyPickerContent(
-                            kind: .gif,
-                            accentColor: accentColor,
-                            onSelect: { gif in
-                                if let asset = ChatGiphyAsset(gif: gif) {
-                                    onSelect(asset)
-                                }
-                                dismiss()
-                            }
-                        )
-                    }
-                    .padding(.horizontal, ChatAttachmentSheetMetrics.horizontalInset)
-                    .padding(.bottom, bottomPadding)
-                }
-                .animation(.spring(response: 0.38, dampingFraction: 0.86), value: activeSheet)
-            }
-            .ignoresSafeArea(edges: .bottom)
-            .transition(.move(edge: .bottom).combined(with: .opacity))
-            .zIndex(45)
-        }
-    }
-
-    private func dismiss() {
-        withAnimation(.spring(response: 0.38, dampingFraction: 0.86)) {
-            activeSheet = nil
-        }
-    }
-}
-
 // MARK: - Shared Giphy picker content (GIF or sticker)
 
 struct ChatGiphyPickerContent: View {
@@ -87,8 +33,16 @@ struct ChatGiphyPickerContent: View {
     @State private var results: [GiphyGif] = []
     @State private var searchText = ""
     @State private var isLoading = false
+    @State private var isLoadingMore = false
     @State private var loadError = false
+    @State private var hasMorePages = true
+    @State private var nextOffset = 0
+    @State private var activeMode: ChatGiphyService.Mode = .trending
+    @State private var activeQuery = ""
     @State private var searchTask: Task<Void, Never>?
+    @State private var loadMoreTask: Task<Void, Never>?
+
+    private let pageSize = 24
 
     private let maxRecentCount = 8
 
@@ -140,10 +94,13 @@ struct ChatGiphyPickerContent: View {
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
+                .onAppear {
+                    triggerLoadMoreIfNeeded(for: gif)
+                }
             }
         }
         .padding(.horizontal, 12)
-        .padding(.bottom, 24)
+        .padding(.bottom, 12)
     }
 
     private var gifMasonryGrid: some View {
@@ -159,6 +116,9 @@ struct ChatGiphyPickerContent: View {
                             .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
+                    .onAppear {
+                        triggerLoadMoreIfNeeded(for: gif)
+                    }
                 }
             }
             .frame(maxWidth: .infinity)
@@ -173,53 +133,67 @@ struct ChatGiphyPickerContent: View {
                             .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
+                    .onAppear {
+                        triggerLoadMoreIfNeeded(for: gif)
+                    }
                 }
             }
             .frame(maxWidth: .infinity)
         }
         .padding(.horizontal, 12)
-        .padding(.bottom, 24)
+        .padding(.bottom, 12)
+    }
+
+    @ViewBuilder
+    private var paginationFooter: some View {
+        if isLoadingMore {
+            ProgressView()
+                .tint(accentColor)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 20)
+        }
     }
 
     var body: some View {
-        VStack(spacing: 0) {
+        ChatAttachmentScrollUnderSearchLayout {
             searchField
-                .padding(.top, 14)
                 .onChange(of: searchText) { _, newValue in
                     scheduleSearch(query: newValue)
                 }
+        } content: {
+            VStack(alignment: .leading, spacing: 0) {
+                if showsPinnedRecents, let onSelectRecent {
+                    pinnedRecentsSection(onSelectRecent: onSelectRecent)
+                }
 
-            if showsPinnedRecents, let onSelectRecent {
-                pinnedRecentsSection(onSelectRecent: onSelectRecent)
-            }
+                if !loadError {
+                    giphySectionHeader
+                }
 
-            ScrollView {
-                VStack(alignment: .leading, spacing: 0) {
-                    if !loadError {
-                        giphySectionHeader
-                    }
-
-                    if isLoading {
-                        ProgressView()
-                            .tint(accentColor)
-                            .frame(maxWidth: .infinity)
-                            .padding(.top, 40)
-                    } else if loadError {
-                        stateMessage(key: "chat.giphy.error")
-                    } else if results.isEmpty {
-                        stateMessage(key: "chat.giphy.empty")
-                    } else if kind == .sticker {
-                        stickerGrid
-                    } else {
-                        gifMasonryGrid
-                    }
+                if isLoading {
+                    ProgressView()
+                        .tint(accentColor)
+                        .frame(maxWidth: .infinity)
+                        .padding(.top, 40)
+                } else if loadError {
+                    stateMessage(key: "chat.giphy.error")
+                } else if results.isEmpty {
+                    stateMessage(key: "chat.giphy.empty")
+                } else if kind == .sticker {
+                    stickerGrid
+                    paginationFooter
+                } else {
+                    gifMasonryGrid
+                    paginationFooter
                 }
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background { ChatAttachmentSheetCanvasBackground() }
         .onAppear { loadTrending() }
-        .onDisappear { searchTask?.cancel() }
+        .onDisappear {
+            searchTask?.cancel()
+            loadMoreTask?.cancel()
+        }
     }
 
     private var giphySectionHeader: some View {
@@ -231,7 +205,7 @@ struct ChatGiphyPickerContent: View {
             Spacer()
         }
         .padding(.horizontal, 16)
-        .padding(.top, showsPinnedRecents ? 4 : 8)
+        .padding(.top, 8)
         .padding(.bottom, 6)
     }
 
@@ -322,21 +296,10 @@ struct ChatGiphyPickerContent: View {
     }
 
     private func loadTrending() {
-        searchTask?.cancel()
-        isLoading = true
-        loadError = false
-        searchTask = Task {
-            do {
-                let gifs = try await ChatGiphyService.shared.fetch(function: kind.function, mode: .trending)
-                if Task.isCancelled { return }
-                results = gifs
-                isLoading = false
-            } catch {
-                if Task.isCancelled { return }
-                loadError = true
-                isLoading = false
-            }
-        }
+        resetPagination()
+        activeMode = .trending
+        activeQuery = ""
+        fetchPage(offset: 0, append: false)
     }
 
     private func scheduleSearch(query: String) {
@@ -346,22 +309,84 @@ struct ChatGiphyPickerContent: View {
             loadTrending()
             return
         }
-        isLoading = true
-        loadError = false
+
         searchTask = Task {
             try? await Task.sleep(nanoseconds: 350_000_000)
             if Task.isCancelled { return }
-            do {
-                let gifs = try await ChatGiphyService.shared.fetch(
-                    function: kind.function,
-                    mode: .search,
-                    query: trimmed
-                )
-                if Task.isCancelled { return }
-                results = gifs
+            resetPagination()
+            activeMode = .search
+            activeQuery = trimmed
+            fetchPage(offset: 0, append: false)
+        }
+    }
+
+    private func resetPagination() {
+        loadMoreTask?.cancel()
+        nextOffset = 0
+        hasMorePages = true
+        isLoadingMore = false
+    }
+
+    private func triggerLoadMoreIfNeeded(for gif: GiphyGif) {
+        guard gif.id == results.last?.id else { return }
+        loadMoreIfNeeded()
+    }
+
+    private func loadMoreIfNeeded() {
+        guard hasMorePages, !isLoading, !isLoadingMore else { return }
+        fetchPage(offset: nextOffset, append: true)
+    }
+
+    private func fetchPage(offset: Int, append: Bool) {
+        if append {
+            guard !isLoadingMore else { return }
+            isLoadingMore = true
+            loadMoreTask?.cancel()
+            loadMoreTask = Task {
+                await performFetch(offset: offset, append: true)
+            }
+        } else {
+            searchTask?.cancel()
+            loadMoreTask?.cancel()
+            isLoading = true
+            loadError = false
+            results = []
+            searchTask = Task {
+                await performFetch(offset: offset, append: false)
+            }
+        }
+    }
+
+    @MainActor
+    private func performFetch(offset: Int, append: Bool) async {
+        do {
+            let page = try await ChatGiphyService.shared.fetch(
+                function: kind.function,
+                mode: activeMode,
+                query: activeMode == .search ? activeQuery : nil,
+                offset: offset,
+                limit: pageSize
+            )
+            if Task.isCancelled { return }
+
+            if append {
+                let existingIDs = Set(results.map(\.id))
+                let newItems = page.items.filter { !existingIDs.contains($0.id) }
+                results.append(contentsOf: newItems)
+                isLoadingMore = false
+            } else {
+                results = page.items
                 isLoading = false
-            } catch {
-                if Task.isCancelled { return }
+            }
+
+            nextOffset = page.nextOffset
+            hasMorePages = page.hasMore
+            loadError = false
+        } catch {
+            if Task.isCancelled { return }
+            if append {
+                isLoadingMore = false
+            } else {
                 loadError = true
                 isLoading = false
             }

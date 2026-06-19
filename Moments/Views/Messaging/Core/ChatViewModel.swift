@@ -1134,6 +1134,8 @@ class EnhancedChatViewModel: ObservableObject {
             return
         }
 
+        EmojiUsageStore.increment(emoji, userId: currentUserId)
+
         let updated = MessageReactionMutation.apply(
             to: message.reactions,
             emoji: emoji,

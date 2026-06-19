@@ -2,6 +2,7 @@ import SwiftUI
 import PhotosUI
 import Photos
 import AVFoundation
+import CoreLocation
 
 // MARK: - Layout
 
@@ -59,9 +60,121 @@ enum ChatAttachmentSheetMetrics {
     /// Inset extra del buscador para que no roce las esquinas redondeadas del sheet.
     static let searchFieldHorizontalInset: CGFloat = 28
     static let searchFieldCornerRadius: CGFloat = 16
+    static let searchOverlayTopPadding: CGFloat = 8
+    /// Altura reservada bajo el buscador flotante (padding + campo).
+    static let searchOverlayHeight: CGFloat = 60
 
     static func sheetHeight(containerHeight: CGFloat) -> CGFloat {
         containerHeight * heightFraction
+    }
+}
+
+// MARK: - Scroll con buscador flotante (contenido pasa por debajo)
+
+struct ChatAttachmentScrollUnderSearchLayout<Search: View, Content: View>: View {
+    @ViewBuilder let search: () -> Search
+    @ViewBuilder let content: () -> Content
+
+    var body: some View {
+        ZStack(alignment: .top) {
+            ScrollView {
+                content()
+                    .padding(.top, ChatAttachmentSheetMetrics.searchOverlayHeight)
+            }
+            .scrollContentBackground(.hidden)
+
+            search()
+                .padding(.top, ChatAttachmentSheetMetrics.searchOverlayTopPadding)
+                .zIndex(1)
+        }
+    }
+}
+
+extension ChatAttachmentSheetKind {
+    var isPickerSheet: Bool {
+        switch self {
+        case .gif, .sticker, .location: return true
+        default: return false
+        }
+    }
+}
+
+extension View {
+    /// Detents + drag indicator. Sin `presentationBackground`: el sheet usa el glass nativo del sistema.
+    func chatPickerSheetPresentation() -> some View {
+        presentationDetents([.medium, .large])
+            .presentationDragIndicator(.visible)
+    }
+}
+
+// MARK: - Picker sheets nativos (GIF / sticker / ubicación)
+
+struct ChatAttachmentPickerSheet: View {
+    let kind: ChatAttachmentSheetKind
+    let accentColor: Color
+    let onDismiss: () -> Void
+    let onSelectGif: (ChatGiphyAsset) -> Void
+    let onSelectSticker: (ChatStickerAsset) -> Void
+    let onSendStaticLocation: (CLLocationCoordinate2D, String?, String?) -> Void
+    let onStartLive: (LiveLocationDuration) -> Void
+
+    @State private var stickerRecents: [ChatStickerAsset] = []
+
+    var body: some View {
+        pickerBody
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .onAppear {
+                if kind == .sticker {
+                    stickerRecents = ChatRecentStickersStore.load()
+                }
+            }
+    }
+
+    @ViewBuilder
+    private var pickerBody: some View {
+        switch kind {
+        case .gif:
+            ChatGiphyPickerContent(
+                kind: .gif,
+                accentColor: accentColor,
+                onSelect: { gif in
+                    if let asset = ChatGiphyAsset(gif: gif) {
+                        onSelectGif(asset)
+                    }
+                    onDismiss()
+                }
+            )
+        case .sticker:
+            ChatGiphyPickerContent(
+                kind: .sticker,
+                accentColor: accentColor,
+                onSelect: { gif in
+                    if let asset = ChatStickerAsset(gif: gif) {
+                        onSelectSticker(asset)
+                    }
+                    onDismiss()
+                },
+                recents: stickerRecents,
+                onSelectRecent: { sticker in
+                    onSelectSticker(sticker)
+                    onDismiss()
+                }
+            )
+        case .location:
+            ChatLocationSheetContent(
+                accentColor: accentColor,
+                onSendStatic: { coordinate, name, address in
+                    onSendStaticLocation(coordinate, name, address)
+                    onDismiss()
+                },
+                onStartLive: { duration in
+                    onStartLive(duration)
+                    onDismiss()
+                }
+            )
+        default:
+            EmptyView()
+        }
     }
 }
 

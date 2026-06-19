@@ -480,7 +480,7 @@ struct EpicReactionPickerView: View {
     
     var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 16) {
+            HStack(spacing: 14) {
                 ForEach(Array(usageTracker.getReactionsOrderedByUsage().enumerated()), id: \.offset) { index, reaction in
                     FloatingReactionItemView(reaction: reaction, index: index) {
                         usageTracker.incrementUsage(for: reaction)
@@ -491,25 +491,18 @@ struct EpicReactionPickerView: View {
                 }
             }
             .padding(.horizontal, 18)
-            .padding(.vertical, 14)
+            .padding(.vertical, 12)
         }
-        .background(
-            Capsule()
-                .fill(.ultraThinMaterial)
-                .overlay(
-                    Capsule()
-                        .stroke(
-                            LinearGradient(
-                                colors: [.white.opacity(0.24), .white.opacity(0.12)],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            ),
-                            lineWidth: 1
-                        )
-                )
+        .scrollClipDisabled()
+        .momentsChromeGlass(in: Capsule(), interactive: true)
+        .clipShape(Capsule())
+        .frame(width: 280)
+        .shadow(
+            color: .black.opacity(colorScheme == .dark ? 0.24 : 0.12),
+            radius: 24,
+            x: 0,
+            y: 12
         )
-        .frame(width: 280) // ✅ Ancho explícito para que no se deforme
-        .shadow(color: .black.opacity(0.25), radius: 15, x: 0, y: 8)
         .offset(y: -90)
         .onAppear {
             for index in 0..<appearScale.count {

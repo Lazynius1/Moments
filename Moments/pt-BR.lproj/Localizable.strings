@@ -2623,32 +2623,50 @@
 
 /* Whats New v2.14 */
 "whatsNew.title" = "Novidades no Moments!";
-"whatsNew.subtitle" = "Mais criatividade nas Stories, mais controle ao compartilhar e mais polimento em todo o app.";
-"whatsNew.button" = "Explorar o Moments 2.14";
+"whatsNew.subtitle" = "Mensagens renovadas com GIFs, stickers e localizacao ao vivo, descoberta no mapa, perfil redesenhado e muito polimento em todo o app.";
+"whatsNew.button" = "Explorar o Moments 2.15";
 
-"whatsNew.stories.title" = "Stories muito mais criativas";
-"whatsNew.stories.description" = "Renovamos a experiencia de Stories com mais opcoes de texto, novos estilos e um editor mais confortavel e visual.";
+"whatsNew.messaging.title" = "Chat redesenhado";
+"whatsNew.messaging.description" = "Baloes mais limpos, mensagens agrupadas em rajadas, avatar do remetente na ultima mensagem de cada grupo e um chat mais moderno e fluido.";
 
-"whatsNew.sharing.title" = "Mais controle ao compartilhar";
-"whatsNew.sharing.description" = "Agora voce pode escolher se a sua story dura 24 ou 48h.";
+"whatsNew.gif.title" = "GIFs no chat";
+"whatsNew.gif.description" = "Busque e envie GIFs do Giphy sem sair da conversa.";
 
-"whatsNew.viewer.title" = "Ver stories esta melhor";
-"whatsNew.viewer.description" = "Navegar pelas stories agora esta mais fluido e natural, com melhor carregamento e um viewer mais estavel.";
+"whatsNew.stickers.title" = "Stickers";
+"whatsNew.stickers.description" = "Envie stickers com acesso rapido aos recentes para respostas mais pessoais.";
 
-"whatsNew.activity.title" = "Atividade mais clara";
-"whatsNew.activity.description" = "Agora ficou mais facil entender quem viu a sua story, como reagiu e que atividade ela teve.";
+"whatsNew.location.title" = "Compartilhar localizacao";
+"whatsNew.location.description" = "Envie um lugar especifico com visualizacao de mapa integrada na mensagem.";
 
-"whatsNew.archive.title" = "Stories arquivadas mais uteis";
-"whatsNew.archive.description" = "Tambem melhoramos stories arquivadas e varias visualizacoes relacionadas.";
+"whatsNew.liveLocation.title" = "Localizacao ao vivo";
+"whatsNew.liveLocation.description" = "Compartilhe sua localizacao em tempo real por 15 minutos, 1 hora ou 8 horas.";
 
-"whatsNew.profile.title" = "Perfis mais caprichados";
-"whatsNew.profile.description" = "Agora voce pode fixar seus moments favoritos e ajustar melhor como eles aparecem no perfil.";
+"whatsNew.media.title" = "Fotos e midia";
+"whatsNew.media.description" = "Varias fotos se agrupam em um grid compacto e o visualizador em tela cheia fica mais imersivo.";
 
-"whatsNew.notifications.title" = "Notificacoes e revisoes mais claras";
-"whatsNew.notifications.description" = "Melhoramos algumas notificacoes importantes e o acompanhamento quando um conteudo precisa de revisao.";
+"whatsNew.reactions.title" = "Reacoes e encaminhamento";
+"whatsNew.reactions.description" = "Reaja com emojis de forma mais visivel e encaminhe mensagens com um fluxo mais claro.";
 
-"whatsNew.media.title" = "Video, mensagens e polimento geral";
-"whatsNew.media.description" = "Tambem melhoramos a reproducao de video nos chats e muitos detalhes visuais e de estabilidade.";
+"whatsNew.map.title" = "Descubra no mapa";
+"whatsNew.map.description" = "Explore lugares, moments e stories em uma nova visualizacao de mapa mais imersiva.";
+
+"whatsNew.feed.title" = "Feed mais fluido";
+"whatsNew.feed.description" = "Navegacao renovada, aneis de stories no feed e melhor reproducao de video.";
+
+"whatsNew.profile.title" = "Perfil redesenhado";
+"whatsNew.profile.description" = "Renovamos a experiencia de perfil com um design mais limpo, grade personalizavel, nota de perfil e moments em destaque.";
+
+"whatsNew.highlights.title" = "Highlights renovados";
+"whatsNew.highlights.description" = "Crie e gerencie highlights com um fluxo mais confortavel e visual.";
+
+"whatsNew.explore.title" = "Explorar mais claro";
+"whatsNew.explore.description" = "Visualizacoes de detalhe refinadas e uma experiencia de exploracao mais direta.";
+
+"whatsNew.onboarding.title" = "Onboarding mais robusto";
+"whatsNew.onboarding.description" = "Cadastro retomavel, recuperacao de conta aprimorada e mais seguranca ao criar seu perfil.";
+
+"whatsNew.polish.title" = "Polimento geral";
+"whatsNew.polish.description" = "Novo glass chrome, textos mais claros e correcoes de estabilidade em todo o app.";
 
 /* Best Friends */
 "bestFriends.title" = "Melhores amigos";

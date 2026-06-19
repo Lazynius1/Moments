@@ -15,60 +15,6 @@ struct ChatLocationPlace: Identifiable, Equatable {
     }
 }
 
-// MARK: - Location sheet overlay (bottom sheet)
-
-struct ChatLocationSheetOverlay: View {
-    @Binding var activeSheet: ChatAttachmentSheetKind?
-    let accentColor: Color
-    let onSendStatic: (CLLocationCoordinate2D, String?, String?) -> Void
-    let onStartLive: (LiveLocationDuration) -> Void
-
-    @Environment(\.colorScheme) private var colorScheme
-
-    var body: some View {
-        if activeSheet == .location {
-            GeometryReader { proxy in
-                let bottomPadding = ChatInputBarLayout.attachmentSheetBottomInset(
-                    safeAreaBottom: proxy.safeAreaInsets.bottom
-                )
-                let sheetHeight = proxy.size.height * 0.88
-
-                ZStack(alignment: .bottom) {
-                    Color.black.opacity(colorScheme == .dark ? 0.28 : 0.16)
-                        .ignoresSafeArea()
-                        .onTapGesture { dismiss() }
-
-                    ChatAttachmentSheetSurface(height: sheetHeight) {
-                        ChatLocationSheetContent(
-                            accentColor: accentColor,
-                            onSendStatic: { coordinate, name, address in
-                                onSendStatic(coordinate, name, address)
-                                dismiss()
-                            },
-                            onStartLive: { duration in
-                                onStartLive(duration)
-                                dismiss()
-                            }
-                        )
-                    }
-                    .padding(.horizontal, ChatAttachmentSheetMetrics.horizontalInset)
-                    .padding(.bottom, bottomPadding)
-                }
-                .animation(.spring(response: 0.38, dampingFraction: 0.86), value: activeSheet)
-            }
-            .ignoresSafeArea(edges: .bottom)
-            .transition(.move(edge: .bottom).combined(with: .opacity))
-            .zIndex(45)
-        }
-    }
-
-    private func dismiss() {
-        withAnimation(.spring(response: 0.38, dampingFraction: 0.86)) {
-            activeSheet = nil
-        }
-    }
-}
-
 // MARK: - Sheet content (layout estilo WhatsApp)
 
 struct ChatLocationSheetContent: View {
@@ -106,49 +52,45 @@ struct ChatLocationSheetContent: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
+        ChatAttachmentScrollUnderSearchLayout {
             searchField
-                .padding(.top, 14)
                 .onChange(of: searchText) { _, newValue in
                     scheduleSearch(query: newValue)
                 }
+        } content: {
+            VStack(spacing: 0) {
+                if !isShowingSearch {
+                    mapPreview
+                    sendCurrentRow
+                    shareLiveRow
+                    sectionHeader("chat.location.nearby")
+                } else {
+                    sectionHeader("chat.location.searchResults")
+                }
 
-            ScrollView {
-                VStack(spacing: 0) {
-                    if !isShowingSearch {
-                        mapPreview
-                        sendCurrentRow
-                        shareLiveRow
-                        sectionHeader("chat.location.nearby")
-                    } else {
-                        sectionHeader("chat.location.searchResults")
-                    }
-
-                    if isSearching {
-                        ProgressView()
-                            .tint(accentColor)
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 24)
-                    } else if listedPlaces.isEmpty {
-                        Text(LocalizedStringKey(isShowingSearch ? "chat.location.noResults" : "chat.location.noNearby"))
-                            .font(.custom("Poppins-Regular", size: 13))
-                            .foregroundColor(secondaryText)
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 20)
-                    } else {
-                        ForEach(listedPlaces) { place in
-                            placeRow(place)
-                            if place.id != listedPlaces.last?.id {
-                                Divider().padding(.leading, 60)
-                            }
+                if isSearching {
+                    ProgressView()
+                        .tint(accentColor)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 24)
+                } else if listedPlaces.isEmpty {
+                    Text(LocalizedStringKey(isShowingSearch ? "chat.location.noResults" : "chat.location.noNearby"))
+                        .font(.custom("Poppins-Regular", size: 13))
+                        .foregroundColor(secondaryText)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 20)
+                } else {
+                    ForEach(listedPlaces) { place in
+                        placeRow(place)
+                        if place.id != listedPlaces.last?.id {
+                            Divider().padding(.leading, 60)
                         }
                     }
                 }
-                .padding(.bottom, 24)
             }
+            .padding(.bottom, 24)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background { ChatAttachmentSheetCanvasBackground() }
         .confirmationDialog(
             Text(LocalizedStringKey("chat.location.shareLive")),
             isPresented: $showLiveDurationDialog,

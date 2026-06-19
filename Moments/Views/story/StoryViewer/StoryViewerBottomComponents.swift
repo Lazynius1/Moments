@@ -323,6 +323,13 @@ struct StoryReactionsStrip: View {
     let reactions: [String]
     let showReactions: Bool
     let onReaction: (String) -> Void
+    let onMoreReactions: () -> Void
+
+    @Environment(\.colorScheme) private var colorScheme
+
+    private var primaryTextColor: Color {
+        colorScheme == .dark ? .white : .black
+    }
 
     var body: some View {
         VStack(spacing: 8) {
@@ -335,17 +342,15 @@ struct StoryReactionsStrip: View {
             }
 
             ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 16) {
+                HStack(spacing: 14) {
                     ForEach(reactions, id: \.self) { reaction in
                         Button(action: {
                             onReaction(reaction)
                         }) {
                             Text(reaction)
-                                .font(.system(size: 32))
-                                .frame(width: 52, height: 52)
-                                .background(Color.white.opacity(0.001))
-                                .momentsChromeGlass(in: Circle(), interactive: true)
+                                .font(.system(size: 30))
                         }
+                        .buttonStyle(.plain)
                         .scaleEffect(showReactions ? 1.0 : 0.5)
                         .animation(
                             .spring(response: 0.3)
@@ -353,12 +358,39 @@ struct StoryReactionsStrip: View {
                             value: showReactions
                         )
                     }
+
+                    Button {
+                        HapticManager.shared.lightImpact()
+                        onMoreReactions()
+                    } label: {
+                        Image(systemName: "plus")
+                            .font(.system(size: 18, weight: .bold))
+                            .foregroundColor(primaryTextColor)
+                            .frame(width: 36, height: 36)
+                            .background {
+                                Color.clear
+                                    .momentsChromeGlass(in: Circle(), interactive: true)
+                            }
+                            .overlay(
+                                Circle()
+                                    .stroke(Color.primary.opacity(colorScheme == .dark ? 0.12 : 0.08), lineWidth: 1)
+                            )
+                    }
+                    .buttonStyle(.plain)
                 }
-                .padding(.horizontal, 20)
-                .padding(.vertical, 8)
+                .padding(.horizontal, 18)
+                .padding(.vertical, 12)
             }
             .scrollClipDisabled()
-            .frame(height: 70)
+            .momentsChromeGlass(in: Capsule(), interactive: true)
+            .clipShape(Capsule())
+            .shadow(
+                color: .black.opacity(colorScheme == .dark ? 0.24 : 0.12),
+                radius: 24,
+                x: 0,
+                y: 12
+            )
+            .padding(.horizontal, 20)
         }
         .transition(.asymmetric(
             insertion: .move(edge: .bottom).combined(with: .opacity),

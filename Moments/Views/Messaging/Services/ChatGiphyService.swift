@@ -2,8 +2,14 @@ import Foundation
 import FirebaseAuth
 import FirebaseCore
 
+struct ChatGiphyPage {
+    let items: [GiphyGif]
+    let hasMore: Bool
+    let nextOffset: Int
+}
+
 /// Servicio compartido para consultar GIFs/stickers de Giphy vía Cloud Functions proxy.
-/// Reutilizado por `ChatGiphyPickerSheet` (GIFs) y `ChatStickerPickerSheet` (stickers).
+/// Reutilizado por `ChatGiphyPickerContent` (GIFs y stickers).
 @MainActor
 final class ChatGiphyService {
     static let shared = ChatGiphyService()
@@ -31,8 +37,9 @@ final class ChatGiphyService {
         function: FunctionName,
         mode: Mode,
         query: String? = nil,
+        offset: Int = 0,
         limit: Int = 24
-    ) async throws -> [GiphyGif] {
+    ) async throws -> ChatGiphyPage {
         guard let url = proxyURL(for: function) else {
             throw NSError(domain: "ChatGiphyService", code: -1,
                           userInfo: [NSLocalizedDescriptionKey: "Invalid proxy URL"])
@@ -47,6 +54,7 @@ final class ChatGiphyService {
         var body: [String: Any] = [
             "mode": mode.rawValue,
             "limit": limit,
+            "offset": max(0, offset),
             "rating": "pg"
         ]
         if let query, !query.isEmpty {
@@ -62,6 +70,21 @@ final class ChatGiphyService {
 
         let (data, _) = try await URLSession.shared.data(for: request)
         let decoded = try JSONDecoder().decode(GiphyResponse.self, from: data)
-        return decoded.data
+
+        let pageOffset = decoded.pagination?.offset ?? offset
+        let pageCount = decoded.pagination?.count ?? decoded.data.count
+        let totalCount = decoded.pagination?.total_count
+        let hasMore: Bool
+        if let totalCount {
+            hasMore = pageOffset + pageCount < totalCount
+        } else {
+            hasMore = decoded.data.count >= limit
+        }
+
+        return ChatGiphyPage(
+            items: decoded.data,
+            hasMore: hasMore,
+            nextOffset: pageOffset + pageCount
+        )
     }
 }

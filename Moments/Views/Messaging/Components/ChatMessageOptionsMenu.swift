@@ -49,7 +49,7 @@ struct ChatMessageContextMenuOverlay: View {
     private let reactionsBarHeight: CGFloat = 54
     private let horizontalInset: CGFloat = 16
 
-    private let reactionEmojis = ["❤️", "😂", "😮", "😢", "😡", "👍"]
+    @StateObject private var emojiUsageTracker = EmojiUsageTracker()
 
     private var primaryTextColor: Color {
         MomentsChromeGlass.contentColor(for: colorScheme)
@@ -100,7 +100,7 @@ struct ChatMessageContextMenuOverlay: View {
     @ViewBuilder
     private func reactionsBar(for message: EnhancedMessage) -> some View {
         HStack(spacing: 14) {
-            ForEach(reactionEmojis, id: \.self) { emoji in
+            ForEach(emojiUsageTracker.orderedEmojis(from: EmojiReactionDefaults.chat), id: \.self) { emoji in
                 Button {
                     HapticManager.shared.mediumImpact()
                     dismissMenu()

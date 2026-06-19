@@ -2644,32 +2644,50 @@
 
 /* Whats New v2.14 */
 "whatsNew.title" = "Novetats a Moments!";
-"whatsNew.subtitle" = "Mes creativitat a Histories, mes control en compartir i mes polit a tota l'app.";
-"whatsNew.button" = "Explorar Moments 2.14";
+"whatsNew.subtitle" = "Missatgeria renovada amb GIFs, stickers i ubicacio en directe, descobriment al mapa, perfil redissenyat i molt polit a tota l'app.";
+"whatsNew.button" = "Explorar Moments 2.15";
 
-"whatsNew.stories.title" = "Histories molt mes creatives";
-"whatsNew.stories.description" = "Hem renovat l'experiencia d'Histories amb mes opcions de text, nous estils i una edicio mes comoda i visual.";
+"whatsNew.messaging.title" = "Xat redissenyat";
+"whatsNew.messaging.description" = "Noves bombelles mes netes, missatges agrupats en rafegues, avatar del remitent al final de cada grup i un xat mes modern i fluid.";
 
-"whatsNew.sharing.title" = "Mes control en compartir";
-"whatsNew.sharing.description" = "Ara pots escollir si la teva historia dura 24 o 48h, per decidir millor quant temps vols que segueixi visible.";
+"whatsNew.gif.title" = "GIFs al xat";
+"whatsNew.gif.description" = "Cerca i envia GIFs de Giphy sense sortir de la conversa.";
 
-"whatsNew.viewer.title" = "Veure histories se sent millor";
-"whatsNew.viewer.description" = "Navegar per histories ara es mes fluid i natural, amb millor carrega i un visor mes estable.";
+"whatsNew.stickers.title" = "Stickers";
+"whatsNew.stickers.description" = "Envia stickers amb acces rapid als recents per respondre amb mes personalitat.";
 
-"whatsNew.activity.title" = "Activitat mes clara";
-"whatsNew.activity.description" = "Ara es mes facil entendre qui ha vist la teva historia, com ha reaccionat i quina activitat ha tingut.";
+"whatsNew.location.title" = "Compartir ubicacio";
+"whatsNew.location.description" = "Envia un lloc concret amb vista de mapa integrada al missatge.";
 
-"whatsNew.archive.title" = "Histories arxivades mes utils";
-"whatsNew.archive.description" = "Tambe hem millorat les histories arxivades i diverses vistes relacionades.";
+"whatsNew.liveLocation.title" = "Ubicacio en directe";
+"whatsNew.liveLocation.description" = "Comparteix la teva ubicacio en temps real durant 15 minuts, 1 hora o 8 hores.";
 
-"whatsNew.profile.title" = "Perfils mes cuidats";
-"whatsNew.profile.description" = "Ara pots fixar els teus moments preferits i ajustar millor com es veuen al teu perfil.";
+"whatsNew.media.title" = "Fotos i media";
+"whatsNew.media.description" = "Diverses fotos s'agrupen en una graella compacta i el visor a pantalla completa es mes immersiu.";
 
-"whatsNew.notifications.title" = "Notificacions i revisions mes clares";
-"whatsNew.notifications.description" = "Hem millorat algunes notificacions importants i el seguiment quan un contingut necessita revisio.";
+"whatsNew.reactions.title" = "Reaccions i reenviament";
+"whatsNew.reactions.description" = "Reacciona amb emojis de forma mes visible i reenvia missatges amb un flux mes clar.";
 
-"whatsNew.media.title" = "Video, missatges i polit general";
-"whatsNew.media.description" = "Tambe hem millorat la reproduccio de video als xats i molts detalls visuals i d'estabilitat.";
+"whatsNew.map.title" = "Descobreix al mapa";
+"whatsNew.map.description" = "Explora llocs, moments i histories des d'una nova vista de mapa mes immersiva.";
+
+"whatsNew.feed.title" = "Feed mes fluid";
+"whatsNew.feed.description" = "Navegacio renovada, anells d'histories al feed i millor reproduccio de video.";
+
+"whatsNew.profile.title" = "Perfil redissenyat";
+"whatsNew.profile.description" = "Hem renovat l'experiencia de perfil amb un disseny mes net, graella personalitzable, nota de perfil i moments destacats.";
+
+"whatsNew.highlights.title" = "Highlights renovats";
+"whatsNew.highlights.description" = "Crea i gestiona highlights amb un flux mes comode i visual.";
+
+"whatsNew.explore.title" = "Explorar mes clar";
+"whatsNew.explore.description" = "Vistes de detall refinades i una experiencia d'exploracio mes directa.";
+
+"whatsNew.onboarding.title" = "Onboarding mes robust";
+"whatsNew.onboarding.description" = "Registre reanudable, recuperacio de compte millorada i mes seguretat en crear el teu perfil.";
+
+"whatsNew.polish.title" = "Polit general";
+"whatsNew.polish.description" = "Nou glass chrome, textos mes clars i correccions d'estabilitat a tota l'app.";
 
 /* Best Friends */
 "bestFriends.title" = "Millors Amics";

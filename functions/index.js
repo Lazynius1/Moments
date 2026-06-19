@@ -2984,6 +2984,8 @@ exports.proxyGiphyStickers = onRequest(
     const rating = typeof modeSource.rating === 'string' ? modeSource.rating : 'pg';
     const rawLimit = Number(modeSource.limit);
     const limit = Number.isFinite(rawLimit) ? Math.max(1, Math.min(rawLimit, 50)) : 24;
+    const rawOffset = Number(modeSource.offset);
+    const offset = Number.isFinite(rawOffset) ? Math.max(0, Math.min(rawOffset, 4999)) : 0;
     const query = typeof modeSource.query === 'string' ? modeSource.query.trim() : '';
 
     if (mode === 'search' && !query) {
@@ -2994,6 +2996,7 @@ exports.proxyGiphyStickers = onRequest(
     const params = new URLSearchParams({
       api_key: GIPHY_API_KEY.value(),
       limit: String(limit),
+      offset: String(offset),
       rating
     });
     if (mode === 'search') {
@@ -3041,6 +3044,8 @@ exports.proxyGiphyGifs = onRequest(
     const rating = typeof modeSource.rating === 'string' ? modeSource.rating : 'pg';
     const rawLimit = Number(modeSource.limit);
     const limit = Number.isFinite(rawLimit) ? Math.max(1, Math.min(rawLimit, 50)) : 24;
+    const rawOffset = Number(modeSource.offset);
+    const offset = Number.isFinite(rawOffset) ? Math.max(0, Math.min(rawOffset, 4999)) : 0;
     const query = typeof modeSource.query === 'string' ? modeSource.query.trim() : '';
 
     if (mode === 'search' && !query) {
@@ -3051,6 +3056,7 @@ exports.proxyGiphyGifs = onRequest(
     const params = new URLSearchParams({
       api_key: GIPHY_API_KEY.value(),
       limit: String(limit),
+      offset: String(offset),
       rating
     });
     if (mode === 'search') {

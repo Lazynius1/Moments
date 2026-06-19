@@ -134,11 +134,11 @@ struct ChatQuickReactionsBar: View {
     let onReaction: (String) -> Void
     let onMore: () -> Void
 
-    private let reactionEmojis = ["❤️", "😂", "😮", "😢", "😡", "👍"]
+    @StateObject private var emojiUsageTracker = EmojiUsageTracker()
 
     var body: some View {
         HStack(spacing: 14) {
-            ForEach(reactionEmojis, id: \.self) { emoji in
+            ForEach(emojiUsageTracker.orderedEmojis(from: EmojiReactionDefaults.chat), id: \.self) { emoji in
                 Button {
                     HapticManager.shared.mediumImpact()
                     onReaction(emoji)

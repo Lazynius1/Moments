@@ -2645,32 +2645,50 @@
 
 /* Whats New v2.14 */
 "whatsNew.title" = "New in Moments!";
-"whatsNew.subtitle" = "More creativity in Stories, more control when sharing, and more polish across the app.";
-"whatsNew.button" = "Explore Moments 2.14";
+"whatsNew.subtitle" = "A refreshed chat with GIFs, stickers, and live location, map discovery, a redesigned profile, and lots of polish across the app.";
+"whatsNew.button" = "Explore Moments 2.15";
 
-"whatsNew.stories.title" = "Much more creative stories";
-"whatsNew.stories.description" = "We've refreshed the Stories experience with more text options, new styles, and a more comfortable visual editor.";
+"whatsNew.messaging.title" = "Redesigned chat";
+"whatsNew.messaging.description" = "Cleaner bubbles, messages grouped in bursts, sender avatar on the last message of each group, and a more modern, fluid chat.";
 
-"whatsNew.sharing.title" = "More control when sharing";
-"whatsNew.sharing.description" = "You can now choose whether your story lasts 24 or 48h, so it is easier to decide how long it stays visible.";
+"whatsNew.gif.title" = "GIFs in chat";
+"whatsNew.gif.description" = "Search and send Giphy GIFs without leaving the conversation.";
 
-"whatsNew.viewer.title" = "Watching stories feels better";
-"whatsNew.viewer.description" = "Browsing stories now feels smoother and more natural, with better loading and a more stable viewer.";
+"whatsNew.stickers.title" = "Stickers";
+"whatsNew.stickers.description" = "Send stickers with quick access to your recents for more personal replies.";
 
-"whatsNew.activity.title" = "Clearer activity";
-"whatsNew.activity.description" = "It is now easier to understand who viewed your story, how they reacted, and what activity it had.";
+"whatsNew.location.title" = "Share location";
+"whatsNew.location.description" = "Send a specific place with an integrated map preview inside the message.";
 
-"whatsNew.archive.title" = "More useful archived stories";
-"whatsNew.archive.description" = "We also improved archived stories and several related views around them.";
+"whatsNew.liveLocation.title" = "Live location";
+"whatsNew.liveLocation.description" = "Share your real-time location for 15 minutes, 1 hour, or 8 hours.";
 
-"whatsNew.profile.title" = "More polished profiles";
-"whatsNew.profile.description" = "You can now pin your favorite moments and better adjust how they look on your profile.";
+"whatsNew.media.title" = "Photos and media";
+"whatsNew.media.description" = "Multiple photos group into a compact grid and the fullscreen viewer feels more immersive.";
 
-"whatsNew.notifications.title" = "Clearer notifications and reviews";
-"whatsNew.notifications.description" = "We improved important notifications and the follow-up when content needs review.";
+"whatsNew.reactions.title" = "Reactions and forwarding";
+"whatsNew.reactions.description" = "React with emojis more visibly and forward messages with a clearer flow.";
 
-"whatsNew.media.title" = "Video, messages, and general polish";
-"whatsNew.media.description" = "We also improved video playback in chats and many visual and stability details across the app.";
+"whatsNew.map.title" = "Discover on the map";
+"whatsNew.map.description" = "Explore places, moments, and stories from a new, more immersive map view.";
+
+"whatsNew.feed.title" = "A smoother feed";
+"whatsNew.feed.description" = "Refreshed navigation, story rings in the feed, and better video playback.";
+
+"whatsNew.profile.title" = "Redesigned profile";
+"whatsNew.profile.description" = "We refreshed the profile experience with a cleaner design, a customizable grid, a profile note, and highlighted moments.";
+
+"whatsNew.highlights.title" = "Refreshed highlights";
+"whatsNew.highlights.description" = "Create and manage highlights with a more comfortable, more visual flow.";
+
+"whatsNew.explore.title" = "Clearer Explore";
+"whatsNew.explore.description" = "Refined detail views and a more direct exploration experience.";
+
+"whatsNew.onboarding.title" = "More robust onboarding";
+"whatsNew.onboarding.description" = "Resumable sign-up, improved account recovery, and stronger safety when creating your profile.";
+
+"whatsNew.polish.title" = "General polish";
+"whatsNew.polish.description" = "New glass chrome, clearer copy, and stability fixes across the app.";
 
 /* Best Friends */
 "bestFriends.title" = "Best Friends";

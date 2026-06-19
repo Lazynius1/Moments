@@ -828,6 +828,8 @@ service cloud.firestore {
                         && request.resource.data.keys().hasAll(['userId', 'reaction', 'timestamp'])
                         && request.resource.data.userId is string
                         && request.resource.data.reaction is string
+                        && request.resource.data.reaction.size() > 0
+                        && request.resource.data.reaction.size() <= 32
                         && request.resource.data.timestamp is timestamp;
 
           allow update: if request.auth != null && request.auth.uid == resource.data.userId;

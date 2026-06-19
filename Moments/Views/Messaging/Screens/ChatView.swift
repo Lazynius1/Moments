@@ -129,6 +129,16 @@ struct GlassmorphicChatView: View {
         return "\(current)/\(searchMatchIds.count)"
     }
 
+    private var attachmentPickerSheetBinding: Binding<ChatAttachmentSheetKind?> {
+        Binding(
+            get: {
+                guard let sheet = activeAttachmentSheet, sheet.isPickerSheet else { return nil }
+                return sheet
+            },
+            set: { activeAttachmentSheet = $0 }
+        )
+    }
+
     init(conversation: Conversation) {
         _viewModel = StateObject(wrappedValue: MomentsChatViewModel(conversation: conversation))
     }
@@ -236,8 +246,27 @@ struct GlassmorphicChatView: View {
                 }
                 showingReactionEmojiPicker = false
             })
-            .presentationDetents([.medium, .large])
-            .presentationDragIndicator(.visible)
+            .chatPickerSheetPresentation()
+        }
+        .sheet(item: attachmentPickerSheetBinding) { kind in
+            ChatAttachmentPickerSheet(
+                kind: kind,
+                accentColor: adaptiveColors.userAccentColor,
+                onDismiss: { activeAttachmentSheet = nil },
+                onSelectGif: { asset in
+                    viewModel.sendGif(from: asset)
+                },
+                onSelectSticker: { asset in
+                    viewModel.sendSticker(from: asset)
+                },
+                onSendStaticLocation: { coordinate, name, address in
+                    viewModel.sendStaticLocation(coordinate: coordinate, name: name, address: address)
+                },
+                onStartLive: { duration in
+                    viewModel.startLiveLocation(duration: duration)
+                }
+            )
+            .chatPickerSheetPresentation()
         }
         .sheet(item: Binding(
             get: { forwardingMessage.map { ForwardMessageWrapper(message: $0) } },
@@ -329,33 +358,6 @@ struct GlassmorphicChatView: View {
                     viewModel.sendSelectedPHAssets(assets) {
                         activeAttachmentSheet = nil
                     }
-                }
-            )
-
-            ChatGiphyPickerSheetOverlay(
-                activeSheet: $activeAttachmentSheet,
-                accentColor: adaptiveColors.userAccentColor,
-                onSelect: { asset in
-                    viewModel.sendGif(from: asset)
-                }
-            )
-
-            ChatStickerPickerSheetOverlay(
-                activeSheet: $activeAttachmentSheet,
-                accentColor: adaptiveColors.userAccentColor,
-                onSelect: { asset in
-                    viewModel.sendSticker(from: asset)
-                }
-            )
-
-            ChatLocationSheetOverlay(
-                activeSheet: $activeAttachmentSheet,
-                accentColor: adaptiveColors.userAccentColor,
-                onSendStatic: { coordinate, name, address in
-                    viewModel.sendStaticLocation(coordinate: coordinate, name: name, address: address)
-                },
-                onStartLive: { duration in
-                    viewModel.startLiveLocation(duration: duration)
                 }
             )
 
