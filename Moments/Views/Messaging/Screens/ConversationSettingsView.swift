@@ -1198,6 +1198,9 @@ struct FullScreenMediaView: View {
     let mediaItems: [SharedMedia]
     let currentUserId: String
     let otherParticipantName: String
+    var displayReactions: ((String) -> [String: [String]]?)? = nil
+    var onReaction: ((String, String) -> Void)? = nil
+    var onMoreReactions: ((String) -> Void)? = nil
     let onClose: () -> Void
     let onSendReply: (SharedMedia, String, @escaping (Result<Void, Error>) -> Void) -> Void
     @Environment(\.colorScheme) var colorScheme
@@ -1216,12 +1219,16 @@ struct FullScreenMediaView: View {
     @State private var showExpandedVideo = false
     @State private var dragOffset: CGFloat = 0
     @State private var selectedIndex: Int
+    @State private var showingReactionBarForMessageId: String? = nil
 
     init(
         media: SharedMedia,
         mediaItems: [SharedMedia] = [],
         currentUserId: String,
         otherParticipantName: String,
+        displayReactions: ((String) -> [String: [String]]?)? = nil,
+        onReaction: ((String, String) -> Void)? = nil,
+        onMoreReactions: ((String) -> Void)? = nil,
         onClose: @escaping () -> Void,
         onSendReply: @escaping (SharedMedia, String, @escaping (Result<Void, Error>) -> Void) -> Void
     ) {
@@ -1229,6 +1236,9 @@ struct FullScreenMediaView: View {
         self.mediaItems = mediaItems
         self.currentUserId = currentUserId
         self.otherParticipantName = otherParticipantName
+        self.displayReactions = displayReactions
+        self.onReaction = onReaction
+        self.onMoreReactions = onMoreReactions
         self.onClose = onClose
         self.onSendReply = onSendReply
 
@@ -1276,41 +1286,69 @@ struct FullScreenMediaView: View {
         primaryOverlayColor.opacity(0.58)
     }
 
-    private func mediaMaxWidth(in geometry: GeometryProxy) -> CGFloat {
-        max(geometry.size.width - 44, 0)
+    private var mediaClipShape: RoundedRectangle {
+        FeedMomentCardLayout.continuousRoundedRect
     }
 
-    private func mediaMaxHeight(in geometry: GeometryProxy) -> CGFloat {
-        max(geometry.size.height * 0.82, 0)
+    private func fullscreenReactionToken(for messageId: String) -> String {
+        guard let reactions = displayReactions?(messageId), !reactions.isEmpty else { return "" }
+        return reactions
+            .map { "\($0.key):\($0.value.count)" }
+            .sorted()
+            .joined(separator: ",")
     }
 
     var body: some View {
-        GeometryReader { geometry in
-            ZStack {
-                backgroundView
+        ZStack {
+            backgroundView
 
-                VStack(spacing: 0) {
-                    headerView
-                        .padding(.horizontal, 22)
-                        .padding(.top, 18)
+            mediaContentLayer
 
-                    Spacer(minLength: 6)
+            if let activeReactionMessageId = showingReactionBarForMessageId,
+               activeReactionMessageId == currentMedia.id,
+               onReaction != nil {
+                Color.black.opacity(0.001)
+                    .ignoresSafeArea()
+                    .onTapGesture {
+                        withAnimation(.easeOut(duration: 0.18)) {
+                            showingReactionBarForMessageId = nil
+                        }
+                    }
 
-                    mediaContent(in: geometry)
-
-                    Spacer(minLength: 4)
-
-                    replyComposer
-                        .padding(.horizontal, 22)
-                        .padding(.bottom, 18)
+                GeometryReader { geometry in
+                    ChatQuickReactionsBar(
+                        onReaction: { emoji in
+                            onReaction?(currentMedia.id, emoji)
+                            withAnimation(.easeOut(duration: 0.18)) {
+                                showingReactionBarForMessageId = nil
+                            }
+                        },
+                        onMore: {
+                            onMoreReactions?(currentMedia.id)
+                            withAnimation(.easeOut(duration: 0.18)) {
+                                showingReactionBarForMessageId = nil
+                            }
+                        }
+                    )
+                    .transition(.opacity.combined(with: .scale(scale: 0.96)))
+                    .position(x: geometry.size.width / 2, y: geometry.size.height * 0.5)
                 }
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .contentShape(Rectangle())
-            .offset(y: dragOffset)
-            .animation(.interactiveSpring(response: 0.28, dampingFraction: 0.84), value: dragOffset)
-            .simultaneousGesture(dismissDragGesture)
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .safeAreaInset(edge: .top, spacing: 0) {
+            headerView
+                .padding(.horizontal, 16)
+        }
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            replyComposer
+                .padding(.horizontal, 16)
+                .padding(.vertical, 8)
+        }
+        .contentShape(Rectangle())
+        .offset(y: dragOffset)
+        .animation(.interactiveSpring(response: 0.28, dampingFraction: 0.84), value: dragOffset)
+        .simultaneousGesture(dismissDragGesture)
         .alert(isPresented: $showSaveResult) {
             Alert(
                 title: Text("conversationSettings.mediaSave.title"),
@@ -1322,6 +1360,7 @@ struct FullScreenMediaView: View {
             videoCurrentTime = 0
             videoDuration = 0
             isVideoPaused = false
+            showingReactionBarForMessageId = nil
         }
         .onChange(of: showExpandedVideo) { _, isShown in
             if !isShown {
@@ -1341,148 +1380,176 @@ struct FullScreenMediaView: View {
     }
 
     @ViewBuilder
-    private func mediaContent(in geometry: GeometryProxy) -> some View {
+    private var mediaContentLayer: some View {
         if pagedMedia.count > 1 {
             TabView(selection: $selectedIndex) {
                 ForEach(Array(pagedMedia.enumerated()), id: \.element.id) { index, item in
                     mediaRenderer(for: item, isActive: index == selectedIndex)
-                        .frame(maxWidth: mediaMaxWidth(in: geometry))
-                        .frame(maxHeight: mediaMaxHeight(in: geometry))
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .padding(.horizontal, FeedMomentCardLayout.listHorizontalPadding)
+                        .id("\(item.id)-\(fullscreenReactionToken(for: item.id))")
                         .tag(index)
                 }
             }
             .tabViewStyle(.page(indexDisplayMode: .never))
         } else {
             mediaRenderer(for: currentMedia, isActive: true)
-                .frame(maxWidth: mediaMaxWidth(in: geometry))
-                .frame(maxHeight: mediaMaxHeight(in: geometry))
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .padding(.horizontal, FeedMomentCardLayout.listHorizontalPadding)
         }
     }
 
     @ViewBuilder
     private func mediaRenderer(for item: SharedMedia, isActive: Bool) -> some View {
-        switch item.type {
-        case .image:
-            KFImage(URL(string: item.originalUrl))
-                .resizable()
-                .aspectRatio(contentMode: .fit)
-                .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
+        let isOutgoing = item.senderId == currentUserId
+        let reactions = displayReactions?(item.id)
 
-        case .video:
-            if let url = URL(string: item.originalUrl) {
-                ZStack {
-                    MomentsVideoPlayer(
-                        url: url,
-                        isLooping: true,
-                        isPaused: !isActive || isVideoPaused,
-                        isMuted: isMuted,
-                        prioritizeSmoothPlayback: true,
-                        showsPlaybackControls: false,
-                        respectsExternalPauseState: true,
-                        shouldAutoplay: isActive,
-                        videoGravity: .resizeAspect,
-                        onDurationReceived: { value in
-                            if isActive {
-                                videoDuration = value
-                            }
-                        },
-                        onProgressUpdate: { value in
-                            if isActive {
-                                videoCurrentTime = value
-                            }
-                        },
-                        onVideoFinished: {},
-                        externalSeekTime: $seekTarget,
-                        sharedPlayer: $sharedPlayer
-                    )
-                    .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
+        Group {
+            switch item.type {
+            case .image:
+                KFImage(URL(string: item.originalUrl))
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .clipShape(mediaClipShape)
 
-                    if isActive {
-                        videoControlsOverlay
-                            .frame(maxWidth: .infinity, maxHeight: .infinity)
-                            .zIndex(2)
+            case .video:
+                if let url = URL(string: item.originalUrl) {
+                    ZStack {
+                        MomentsVideoPlayer(
+                            url: url,
+                            isLooping: true,
+                            isPaused: !isActive || isVideoPaused,
+                            isMuted: isMuted,
+                            prioritizeSmoothPlayback: true,
+                            showsPlaybackControls: false,
+                            respectsExternalPauseState: true,
+                            shouldAutoplay: isActive,
+                            videoGravity: .resizeAspect,
+                            onDurationReceived: { value in
+                                if isActive {
+                                    videoDuration = value
+                                }
+                            },
+                            onProgressUpdate: { value in
+                                if isActive {
+                                    videoCurrentTime = value
+                                }
+                            },
+                            onVideoFinished: {},
+                            externalSeekTime: $seekTarget,
+                            sharedPlayer: $sharedPlayer
+                        )
+                        .clipShape(mediaClipShape)
+
+                        if isActive {
+                            videoControlsOverlay
+                                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                                .zIndex(2)
+                        }
                     }
+                    .contentShape(Rectangle())
+                } else {
+                    Text("conversationSettings.videoLoadError")
+                        .foregroundColor(primaryOverlayColor)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
-                .contentShape(Rectangle())
-            } else {
-                Text("conversationSettings.videoLoadError")
-                    .foregroundColor(primaryOverlayColor)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+        }
+        .messageReactionOverlay(
+            isOutgoing: isOutgoing,
+            reactions: reactions,
+            onTap: { emoji in onReaction?(item.id, emoji) }
+        )
+        .chatMessageLongPress {
+            guard onReaction != nil else { return }
+            withAnimation(.easeOut(duration: 0.18)) {
+                showingReactionBarForMessageId = item.id
             }
         }
     }
 
     private var headerView: some View {
-        HStack {
-            Button(action: onClose) {
-                Image(systemName: "xmark")
-                    .font(.system(size: 18, weight: .semibold))
+        HStack(spacing: 8) {
+            ProfileChromeIconButton(
+                systemName: "chevron.left",
+                foregroundColor: primaryOverlayColor,
+                preset: .navigationBack,
+                action: onClose
+            )
+
+            avatarView
+
+            VStack(alignment: .leading, spacing: 1) {
+                Text(authorName)
+                    .font(.system(size: 17, weight: .semibold))
                     .foregroundColor(primaryOverlayColor)
-                    .frame(width: 42, height: 42)
-                    .background(Color.clear.momentsChromeGlass(in: Circle(), interactive: true))
+                    .lineLimit(1)
+
+                Text(relativeTime)
+                    .font(.system(size: 11, weight: .regular))
+                    .foregroundColor(secondaryOverlayColor)
+                    .lineLimit(1)
             }
 
-            HStack(spacing: 10) {
-                avatarView
+            Spacer(minLength: 0)
 
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(authorName)
-                        .font(.custom("Poppins-SemiBold", size: 16))
-                        .foregroundColor(primaryOverlayColor)
-
-                    Text(relativeTime)
-                        .font(.custom("Poppins-Regular", size: 13))
-                        .foregroundColor(secondaryOverlayColor)
-                }
-            }
-            .padding(.leading, 6)
-
-            Spacer()
-
-            Button(action: saveMedia) {
-                HStack(spacing: 8) {
-                    Image(systemName: "arrow.down")
-                        .font(.system(size: 17, weight: .semibold))
-                    Text("conversationSettings.mediaSave.action")
-                        .font(.custom("Poppins-SemiBold", size: 16))
-                }
-                .foregroundColor(primaryOverlayColor)
-                .frame(height: 42)
-                .padding(.horizontal, 14)
-                .background(Color.clear.momentsChromeGlass(in: Capsule(), interactive: true))
-            }
+            ProfileChromeIconButton(
+                systemName: "arrow.down",
+                foregroundColor: primaryOverlayColor,
+                preset: .toolbarAction,
+                action: saveMedia
+            )
+            .accessibilityLabel(Text("conversationSettings.mediaSave.action"))
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private var replyComposer: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: 10) {
             TextField(NSLocalizedString("conversationSettings.replyPlaceholder", comment: "Reply placeholder"), text: $replyText)
-                .font(.custom("Poppins-Regular", size: 16))
+                .font(.custom("Poppins-Regular", size: 15))
                 .foregroundColor(primaryOverlayColor)
                 .focused($isReplyFocused)
                 .submitLabel(.send)
                 .onSubmit {
                     sendReply()
                 }
+                .padding(.leading, 14)
+                .padding(.trailing, 4)
+                .padding(.vertical, 10)
 
             Button(action: sendReply) {
                 if isSendingReply {
                     ProgressView()
                         .controlSize(.small)
                         .tint(primaryOverlayColor)
-                        .frame(width: 30, height: 30)
+                        .frame(width: 28, height: 28)
                 } else {
                     Image(systemName: "paperplane.fill")
                         .font(.system(size: 16, weight: .semibold))
                         .foregroundColor(canSendReply ? primaryOverlayColor : primaryOverlayColor.opacity(0.32))
-                        .frame(width: 30, height: 30)
+                        .frame(width: 28, height: 28)
                 }
             }
+            .padding(.trailing, 10)
             .disabled(!canSendReply)
         }
-        .padding(.horizontal, 14)
-        .frame(height: 52)
-        .background(Color.clear.momentsChromeGlass(in: Capsule(), interactive: true))
+        .frame(maxWidth: .infinity)
+        .background(
+            Color.clear.momentsChromeGlass(
+                in: RoundedRectangle(cornerRadius: 22, style: .continuous),
+                interactive: true
+            )
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 22, style: .continuous)
+                .stroke(
+                    colorScheme == .dark
+                        ? Color.white.opacity(0.08)
+                        : Color.black.opacity(0.05),
+                    lineWidth: 0.8
+                )
+        )
     }
 
     private var videoControlsOverlay: some View {
@@ -1583,8 +1650,8 @@ struct FullScreenMediaView: View {
         if !media.senderId.isEmpty {
             StoryRingAvatarView(
                 userId: currentMedia.senderId,
-                size: 42,
-                lineWidth: 2.1,
+                size: 40,
+                lineWidth: 2,
                 showBaseStroke: true,
                 baseStrokeColor: colorScheme == .dark ? Color.white.opacity(0.16) : Color.black.opacity(0.12),
                 baseStrokeWidth: 1
@@ -1592,10 +1659,10 @@ struct FullScreenMediaView: View {
         } else {
             Circle()
                 .fill((colorScheme == .dark ? Color.white : Color.black).opacity(0.1))
-                .frame(width: 42, height: 42)
+                .frame(width: 40, height: 40)
                 .overlay(
                     Image(systemName: "person.fill")
-                        .font(.system(size: 17, weight: .semibold))
+                        .font(.system(size: 16, weight: .semibold))
                         .foregroundColor(colorScheme == .dark ? .white.opacity(0.72) : .black.opacity(0.62))
                 )
         }

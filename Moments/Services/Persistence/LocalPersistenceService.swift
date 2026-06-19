@@ -1066,6 +1066,8 @@ final class LocalPersistenceService: ObservableObject {
         existing.duration = new.duration
         existing.fileName = new.fileName
         existing.fileSize = new.fileSize
+        existing.mediaWidth = new.mediaWidth
+        existing.mediaHeight = new.mediaHeight
         existing.latitude = new.latitude
         existing.longitude = new.longitude
         existing.statusString = new.statusString

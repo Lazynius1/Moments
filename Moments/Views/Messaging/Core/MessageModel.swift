@@ -525,7 +525,9 @@ class EnhancedMessage: Codable, Identifiable, ObservableObject {
     @Published var isDeleted: Bool
     var deletedAt: Date?
     var editedAt: Date?
-    var reactions: [String: [String]]?
+    var reactions: [String: [String]]? {
+        didSet { objectWillChange.send() }
+    }
     var replyTo: String?
     var expirationDate: Date?
     @Published var isViewed: Bool
@@ -538,11 +540,14 @@ class EnhancedMessage: Codable, Identifiable, ObservableObject {
     var viewedBy: [String]? // IDs de usuarios que han visto el mensaje view-once
     var starredBy: [String]?
     var isForwarded: Bool?
+    /// Dimensiones originales de GIF/sticker (p. ej. Giphy `fixed_height`).
+    let mediaWidth: Int?
+    let mediaHeight: Int?
 
     enum CodingKeys: String, CodingKey {
         case id, conversationId, senderId, type, content, mediaUrl, thumbnailUrl
         case mediaObjectPath, thumbnailObjectPath, mediaEncryption, thumbnailEncryption
-        case duration, fileName, fileSize, latitude, longitude, timestamp
+        case duration, fileName, fileSize, mediaWidth, mediaHeight, latitude, longitude, timestamp
         case status, isRead, isDeleted, deletedAt, editedAt, reactions
         case replyTo, expirationDate, isViewed, storyReplyData, sharedMomentData, sharedStoryData
         case mediaBatchId
@@ -578,6 +583,8 @@ class EnhancedMessage: Codable, Identifiable, ObservableObject {
         self.duration = try container.decodeIfPresent(Double.self, forKey: .duration)
         self.fileName = try container.decodeIfPresent(String.self, forKey: .fileName)
         self.fileSize = try container.decodeIfPresent(Int64.self, forKey: .fileSize)
+        self.mediaWidth = try container.decodeIfPresent(Int.self, forKey: .mediaWidth)
+        self.mediaHeight = try container.decodeIfPresent(Int.self, forKey: .mediaHeight)
         self.latitude = try container.decodeIfPresent(Double.self, forKey: .latitude)
         self.longitude = try container.decodeIfPresent(Double.self, forKey: .longitude)
 
@@ -671,6 +678,8 @@ class EnhancedMessage: Codable, Identifiable, ObservableObject {
         try container.encodeIfPresent(duration, forKey: .duration)
         try container.encodeIfPresent(fileName, forKey: .fileName)
         try container.encodeIfPresent(fileSize, forKey: .fileSize)
+        try container.encodeIfPresent(mediaWidth, forKey: .mediaWidth)
+        try container.encodeIfPresent(mediaHeight, forKey: .mediaHeight)
         try container.encodeIfPresent(latitude, forKey: .latitude)
         try container.encodeIfPresent(longitude, forKey: .longitude)
         // ✅ NUEVO: Ubicación (fija + en vivo)
@@ -734,6 +743,8 @@ class EnhancedMessage: Codable, Identifiable, ObservableObject {
          duration: Double? = nil,
          fileName: String? = nil,
          fileSize: Int64? = nil,
+         mediaWidth: Int? = nil,
+         mediaHeight: Int? = nil,
          latitude: Double? = nil,
          longitude: Double? = nil,
          locationName: String? = nil,
@@ -776,6 +787,8 @@ class EnhancedMessage: Codable, Identifiable, ObservableObject {
         self.duration = duration
         self.fileName = fileName
         self.fileSize = fileSize
+        self.mediaWidth = mediaWidth
+        self.mediaHeight = mediaHeight
         self.latitude = latitude
         self.longitude = longitude
         self.locationName = locationName

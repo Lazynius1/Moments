@@ -54,6 +54,10 @@ class ChatService: ObservableObject {
         let reactionsKey = "reactions_\(conversationId)"
         activeListeners[reactionsKey]?.remove()
         activeListeners.removeValue(forKey: reactionsKey)
+
+        let prefsKey = "conversation_prefs_\(conversationId)"
+        activeListeners[prefsKey]?.remove()
+        activeListeners.removeValue(forKey: prefsKey)
         
         let typingKey = "typing_\(conversationId)"
         activeListeners[typingKey]?.remove()
@@ -326,6 +330,8 @@ class ChatService: ObservableObject {
             duration: nil,
             fileName: "giphy_\(giphyId)",
             fileSize: nil,
+            mediaWidth: width > 0 ? width : nil,
+            mediaHeight: height > 0 ? height : nil,
             latitude: nil,
             longitude: nil,
             timestamp: Date(),
@@ -733,6 +739,12 @@ class ChatService: ObservableObject {
         }
         if let fileSize = message.fileSize {
             messageData["fileSize"] = fileSize
+        }
+        if let mediaWidth = message.mediaWidth {
+            messageData["mediaWidth"] = mediaWidth
+        }
+        if let mediaHeight = message.mediaHeight {
+            messageData["mediaHeight"] = mediaHeight
         }
         if let latitude = message.latitude {
             messageData["latitude"] = latitude // Coordinates are not encrypted
@@ -1296,7 +1308,7 @@ class ChatService: ObservableObject {
                     let legacyIsMuted = data["isMuted"] as? Bool ?? false
                     let isMuted = mutedByUserIds.contains(userId) || (legacyIsMuted && legacyMutedBy == userId)
                     
-                    let conversation = Conversation(
+                    var conversation = Conversation(
                         id: doc.documentID,
                         participants: participants,
                         lastMessage: lastMessage,
@@ -1314,6 +1326,12 @@ class ChatService: ObservableObject {
                         encryptionVersion: encryptionVersion,
                         conversationKeyVersion: data["conversationKeyVersion"] as? Int
                     )
+                    if let readReceiptPreferences = data["readReceiptPreferences"] as? [String: Bool] {
+                        conversation.readReceiptPreferences = readReceiptPreferences
+                    }
+                    if let forwardingPreferences = data["forwardingPreferences"] as? [String: Bool] {
+                        conversation.forwardingPreferences = forwardingPreferences
+                    }
                     
                     conversations.append(conversation)
                 }
@@ -1333,6 +1351,25 @@ class ChatService: ObservableObject {
         
         activeListeners[listenerKey] = listener
     }
+
+    /// Escucha cambios en `forwardingPreferences` para que el otro participante respete el toggle en tiempo real.
+    func listenToConversationForwardingPreferences(
+        conversationId: String,
+        onChange: @escaping ([String: Bool]) -> Void
+    ) {
+        let listenerKey = "conversation_prefs_\(conversationId)"
+        activeListeners[listenerKey]?.remove()
+
+        let listener = db.collection("conversations").document(conversationId)
+            .addSnapshotListener { snapshot, error in
+                guard error == nil, let data = snapshot?.data() else { return }
+                let prefs = data["forwardingPreferences"] as? [String: Bool] ?? [:]
+                onChange(prefs)
+            }
+
+        activeListeners[listenerKey] = listener
+    }
+
     // MARK: - Message Status
     func markMessagesAsRead(conversationId: String, messageIds: [String], readerId: String, completion: @escaping (Error?) -> Void) {
         guard !IncognitoModeService.isActiveSnapshot else {
@@ -1847,27 +1884,28 @@ class ChatService: ObservableObject {
 
         for conversation in conversations {
             let hydratedPreview = await resolveLatestConversationPreview(for: conversation)
-            hydratedConversations.append(
-                Conversation(
-                    id: conversation.id,
-                    participants: conversation.participants,
-                    lastMessage: hydratedPreview,
-                    timestamp: conversation.timestamp,
-                    readStatus: conversation.readStatus,
-                    otherParticipantId: conversation.otherParticipantId,
-                    otherParticipantUsername: conversation.otherParticipantUsername,
-                    otherParticipantProfileImagePath: conversation.otherParticipantProfileImagePath,
-                    isPinned: conversation.isPinned,
-                    pinnedByUserIds: conversation.pinnedByUserIds,
-                    pinnedBy: conversation.pinnedBy,
-                    isMuted: conversation.isMuted,
-                    mutedByUserIds: conversation.mutedByUserIds,
-                    mutedBy: conversation.mutedBy,
-                    encryptionVersion: conversation.encryptionVersion,
-                    conversationKeyVersion: conversation.conversationKeyVersion,
-                    wrappedKeys: conversation.wrappedKeys
-                )
+            var hydrated = Conversation(
+                id: conversation.id,
+                participants: conversation.participants,
+                lastMessage: hydratedPreview,
+                timestamp: conversation.timestamp,
+                readStatus: conversation.readStatus,
+                otherParticipantId: conversation.otherParticipantId,
+                otherParticipantUsername: conversation.otherParticipantUsername,
+                otherParticipantProfileImagePath: conversation.otherParticipantProfileImagePath,
+                isPinned: conversation.isPinned,
+                pinnedByUserIds: conversation.pinnedByUserIds,
+                pinnedBy: conversation.pinnedBy,
+                isMuted: conversation.isMuted,
+                mutedByUserIds: conversation.mutedByUserIds,
+                mutedBy: conversation.mutedBy,
+                encryptionVersion: conversation.encryptionVersion,
+                conversationKeyVersion: conversation.conversationKeyVersion,
+                wrappedKeys: conversation.wrappedKeys
             )
+            hydrated.readReceiptPreferences = conversation.readReceiptPreferences
+            hydrated.forwardingPreferences = conversation.forwardingPreferences
+            hydratedConversations.append(hydrated)
         }
 
         return hydratedConversations

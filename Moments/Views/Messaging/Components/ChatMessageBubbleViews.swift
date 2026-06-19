@@ -4,8 +4,10 @@ import FirebaseAuth
 // MARK: - Glassmorphic Message Row
 struct GlassmorphicMessageRow: View {
     @ObservedObject var message: EnhancedMessage
+    let displayReactions: [String: [String]]?
     let isCurrentUser: Bool
     let showAvatar: Bool
+    var groupPosition: ChatMessageGroupPosition = .single
     let otherUserId: String?
     let isOtherParticipantUnavailable: Bool
     let otherParticipantName: String
@@ -28,8 +30,32 @@ struct GlassmorphicMessageRow: View {
         AdaptiveColors(colorScheme: colorScheme)
     }
 
+    private var resolvedReactions: [String: [String]]? {
+        displayReactions ?? message.reactions
+    }
+
+    private var hasReactions: Bool {
+        resolvedReactions.map { !$0.isEmpty } ?? false
+    }
+
+    private var reactionTimestampSpacing: CGFloat {
+        hasReactions ? 2 : 4
+    }
+
     @State private var dragOffset: CGFloat = 0
     @State private var hasTriggeredHaptic = false
+
+    private var isGroupTail: Bool {
+        groupPosition == .last || groupPosition == .single
+    }
+
+    private var isGroupHead: Bool {
+        groupPosition == .first || groupPosition == .single
+    }
+
+    private var timestampLeadingInset: CGFloat {
+        isCurrentUser ? 0 : ChatIncomingMessageLayout.gutterInset
+    }
 
     var body: some View {
         ZStack(alignment: .leading) {
@@ -43,73 +69,50 @@ struct GlassmorphicMessageRow: View {
                     .padding(.leading, 12)
             }
 
-            HStack(alignment: .bottom, spacing: 8) {
-                if !isCurrentUser {
-                    if showAvatar {
-                        Button(action: onAvatarTap) {
-                            if isOtherParticipantUnavailable {
-                                ProfileUnavailableAvatar(size: 32)
-                            } else {
-                                GlassmorphicAvatar(userId: otherUserId ?? "")
-                                    .frame(width: 32, height: 32)
-                            }
-                        }
-                        .buttonStyle(PlainButtonStyle())
-                    } else {
-                        Color.clear.frame(width: 32, height: 32)
-                    }
-                }
+            VStack(alignment: isCurrentUser ? .trailing : .leading, spacing: 2) {
+                HStack(alignment: .bottom, spacing: 0) {
+                    if isCurrentUser { Spacer(minLength: 50) }
 
-                if isCurrentUser { Spacer(minLength: 50) }
-
-                VStack(alignment: isCurrentUser ? .trailing : .leading, spacing: 4) {
-                    if let originalMessage = repliedMessage {
-                        GlassmorphicReplyPreview(
-                            message: originalMessage,
-                            isParentMessageFromCurrentUser: isCurrentUser,
-                            otherParticipantName: otherParticipantName,
-                            onTap: { onReplyTap?(originalMessage.id) }
+                    if !isCurrentUser {
+                        ChatIncomingAvatarGutter(
+                            showAvatar: showAvatar,
+                            otherUserId: otherUserId,
+                            isUnavailable: isOtherParticipantUnavailable,
+                            onTap: onAvatarTap
                         )
-                        .padding(.bottom, -8)
-                        .zIndex(1)
                     }
 
-                    ZStack(alignment: isCurrentUser ? .bottomLeading : .bottomTrailing) {
-                        GlassmorphicMessageBubble(
-                            message: message,
+                    VStack(alignment: isCurrentUser ? .trailing : .leading, spacing: reactionTimestampSpacing) {
+                        if let originalMessage = repliedMessage {
+                            GlassmorphicReplyPreview(
+                                message: originalMessage,
+                                isParentMessageFromCurrentUser: isCurrentUser,
+                                otherParticipantName: otherParticipantName,
+                                onTap: { onReplyTap?(originalMessage.id) }
+                            )
+                            .padding(.bottom, -8)
+                            .zIndex(1)
+                        }
+
+                        messageBubbleWithReactions(
                             repliedMessage: repliedMessage,
                             otherParticipantId: otherUserId,
-                            otherParticipantName: otherParticipantName,
-                            isCurrentUser: isCurrentUser,
-                            progress: progress,
-                            onReplyTap: onReplyTap,
-                            onMessageViewed: onMessageViewed,
-                            onMomentNavigation: onMomentNavigation,
-                            onStoryNavigation: onStoryNavigation,
-                            onOpenMedia: onOpenMedia,
-                            onStopLiveLocation: onStopLiveLocation,
-                            onHydrateMedia: onHydrateMedia
+                            otherParticipantName: otherParticipantName
                         )
-
-                        if let reactions = message.reactions, !reactions.isEmpty {
-                            GlassmorphicReactionsView(
-                                reactions: reactions,
-                                onTap: onReaction
-                            )
-                            .offset(x: isCurrentUser ? -6 : 6, y: 10)
-                            .zIndex(2)
-                        }
                     }
-                    .padding(.bottom, (message.reactions?.isEmpty == false) ? 6 : 0)
+                    .fixedSize(horizontal: true, vertical: false)
 
+                    if !isCurrentUser { Spacer(minLength: 50) }
+                }
+
+                if isGroupTail {
                     MessageTimestamp(
                         message: message,
                         isCurrentUser: isCurrentUser,
                         showSeenLabel: showSeenLabel
                     )
+                    .padding(.leading, timestampLeadingInset)
                 }
-
-                if !isCurrentUser { Spacer(minLength: 50) }
             }
             .offset(x: dragOffset)
             .contentShape(Rectangle())
@@ -119,8 +122,37 @@ struct GlassmorphicMessageRow: View {
                 onReply: onReply
             )
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 5)
+        .padding(.horizontal, 8)
+        .padding(.top, isGroupHead ? 5 : 1)
+        .padding(.bottom, isGroupTail ? 5 : 1)
+    }
+
+    @ViewBuilder
+    private func messageBubbleWithReactions(
+        repliedMessage: EnhancedMessage?,
+        otherParticipantId: String?,
+        otherParticipantName: String
+    ) -> some View {
+        let bubble = GlassmorphicMessageBubble(
+            message: message,
+            reactions: resolvedReactions,
+            onReaction: onReaction,
+            repliedMessage: repliedMessage,
+            otherParticipantId: otherParticipantId,
+            otherParticipantName: otherParticipantName,
+            isCurrentUser: isCurrentUser,
+            groupPosition: groupPosition,
+            progress: progress,
+            onReplyTap: onReplyTap,
+            onMessageViewed: onMessageViewed,
+            onMomentNavigation: onMomentNavigation,
+            onStoryNavigation: onStoryNavigation,
+            onOpenMedia: onOpenMedia,
+            onStopLiveLocation: onStopLiveLocation,
+            onHydrateMedia: onHydrateMedia
+        )
+
+        bubble
     }
 }
 
@@ -201,10 +233,13 @@ struct DeletedMessageBubble: View {
 // MARK: - Updated Glassmorphic Message Bubble
 struct GlassmorphicMessageBubble: View {
     @ObservedObject var message: EnhancedMessage
+    let reactions: [String: [String]]?
+    let onReaction: (String) -> Void
     let repliedMessage: EnhancedMessage?
     let otherParticipantId: String?
     let otherParticipantName: String
     let isCurrentUser: Bool
+    var groupPosition: ChatMessageGroupPosition = .single
     let progress: Double?
     let onReplyTap: ((String) -> Void)?
     let onMessageViewed: ((String) -> Void)?
@@ -218,6 +253,17 @@ struct GlassmorphicMessageBubble: View {
 
     private var adaptiveColors: AdaptiveColors {
         AdaptiveColors(colorScheme: colorScheme)
+    }
+
+    @ViewBuilder
+    private func textMessageBody(_ content: String) -> some View {
+        ChatTextBubbleView(
+            text: content,
+            isOutgoing: isCurrentUser,
+            groupPosition: groupPosition,
+            reactions: reactions,
+            onReaction: onReaction
+        )
     }
 
     var body: some View {
@@ -258,39 +304,7 @@ struct GlassmorphicMessageBubble: View {
                                     .foregroundColor(adaptiveColors.messageTextColor.opacity(0.55))
                                 }
 
-                                HStack(alignment: .bottom, spacing: 12) {
-                                    if isCurrentUser {
-                                        Text(content)
-                                            .font(.custom("Poppins-Regular", size: 15))
-                                            .padding(.horizontal, 12)
-                                            .padding(.vertical, 8)
-                                            .foregroundColor(adaptiveColors.messageTextColor)
-                                            .background(
-                                                RoundedRectangle(cornerRadius: 12)
-                                                    .fill(.ultraThinMaterial.opacity(0.3))
-                                            )
-
-                                        Capsule()
-                                            .fill(adaptiveColors.userAccentColor)
-                                            .frame(width: 3, height: 20)
-                                            .padding(.bottom, 6)
-                                    } else {
-                                        Capsule()
-                                            .fill(adaptiveColors.receivedAccentColor)
-                                            .frame(width: 3, height: 20)
-                                            .padding(.bottom, 6)
-
-                                        Text(content)
-                                            .font(.custom("Poppins-Regular", size: 15))
-                                            .padding(.horizontal, 12)
-                                            .padding(.vertical, 8)
-                                            .foregroundColor(adaptiveColors.messageTextColor)
-                                            .background(
-                                                RoundedRectangle(cornerRadius: 12)
-                                                    .fill(.ultraThinMaterial.opacity(0.3))
-                                            )
-                                    }
-                                }
+                                textMessageBody(content)
                             }
                             .overlay(alignment: isCurrentUser ? .topLeading : .topTrailing) {
                                 if let userId = Auth.auth().currentUser?.uid, message.isStarred(by: userId) {
@@ -314,6 +328,12 @@ struct GlassmorphicMessageBubble: View {
                             }
                         )
                         .frame(width: 208, height: 272)
+                        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                        .messageReactionOverlay(
+                            isOutgoing: isCurrentUser,
+                            reactions: reactions,
+                            onTap: onReaction
+                        )
                         .onAppear {
                             onHydrateMedia?(message)
                         }
@@ -343,6 +363,12 @@ struct GlassmorphicMessageBubble: View {
                             }
                         )
                         .frame(width: 208, height: 272)
+                        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                        .messageReactionOverlay(
+                            isOutgoing: isCurrentUser,
+                            reactions: reactions,
+                            onTap: onReaction
+                        )
                         .onAppear {
                             onHydrateMedia?(message)
                         }
@@ -418,73 +444,34 @@ struct GlassmorphicMessageBubble: View {
                             }
                         }
                     case .sharedMoment:
-                        HStack(alignment: .bottom, spacing: 12) {
-                            if isCurrentUser {
-                                SharedMomentMessageBubble(
-                                    message: message,
-                                    isCurrentUser: isCurrentUser,
-                                    onTap: {
-                                        onMomentNavigation?(message)
-                                    }
-                                )
-
-                                Capsule()
-                                    .fill(adaptiveColors.userAccentColor)
-                                    .frame(width: 3, height: 20)
-                                    .padding(.bottom, 6)
-                            } else {
-                                Capsule()
-                                    .fill(adaptiveColors.receivedAccentColor)
-                                    .frame(width: 3, height: 20)
-                                    .padding(.bottom, 6)
-
-                                SharedMomentMessageBubble(
-                                    message: message,
-                                    isCurrentUser: isCurrentUser,
-                                    onTap: {
-                                        onMomentNavigation?(message)
-                                    }
-                                )
+                        SharedMomentMessageBubble(
+                            message: message,
+                            isCurrentUser: isCurrentUser,
+                            onTap: {
+                                onMomentNavigation?(message)
                             }
-                        }
+                        )
                         .onAppear {
                         }
 
                     case .sharedStory:
-                        HStack(alignment: .bottom, spacing: 12) {
-                            if isCurrentUser {
-                                SharedStoryMessageBubble(
-                                    message: message,
-                                    isCurrentUser: isCurrentUser,
-                                    onTap: {
-                                        onStoryNavigation?(message)
-                                    }
-                                )
-
-                                Capsule()
-                                    .fill(adaptiveColors.userAccentColor)
-                                    .frame(width: 3, height: 20)
-                                    .padding(.bottom, 6)
-                            } else {
-                                Capsule()
-                                    .fill(adaptiveColors.receivedAccentColor)
-                                    .frame(width: 3, height: 20)
-                                    .padding(.bottom, 6)
-
-                                SharedStoryMessageBubble(
-                                    message: message,
-                                    isCurrentUser: isCurrentUser,
-                                    onTap: {
-                                        onStoryNavigation?(message)
-                                    }
-                                )
+                        SharedStoryMessageBubble(
+                            message: message,
+                            isCurrentUser: isCurrentUser,
+                            onTap: {
+                                onStoryNavigation?(message)
                             }
-                        }
+                        )
 
                     case .gif:
                         ChatGifMessageBubble(
                             message: message,
                             progress: progress
+                        )
+                        .messageReactionOverlay(
+                            isOutgoing: isCurrentUser,
+                            reactions: reactions,
+                            onTap: onReaction
                         )
                         .onAppear {
                             onHydrateMedia?(message)
@@ -509,6 +496,11 @@ struct GlassmorphicMessageBubble: View {
                             onStopLive: {
                                 onStopLiveLocation?(message.id)
                             }
+                        )
+                        .messageReactionOverlay(
+                            isOutgoing: isCurrentUser,
+                            reactions: reactions,
+                            onTap: onReaction
                         )
 
                     default:

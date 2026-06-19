@@ -88,6 +88,8 @@ struct GlassmorphicClusterRow: View {
     let onHydrateMedia: ((EnhancedMessage) -> Void)?
     let onReply: ([EnhancedMessage]) -> Void
     let onReplyTap: ((String) -> Void)?
+    let displayReactions: (String) -> [String: [String]]?
+    let onReaction: (EnhancedMessage, String) -> Void
     let uploadProgress: [String: Double]
     let showSeenLabel: Bool
 
@@ -111,30 +113,25 @@ struct GlassmorphicClusterRow: View {
                     .padding(.leading, 12)
             }
 
-            HStack(alignment: .bottom, spacing: 8) {
-                if !isCurrentUser {
-                    if showAvatar {
-                        Button(action: onAvatarTap) {
-                            if isOtherParticipantUnavailable {
-                                ProfileUnavailableAvatar(size: 32)
-                            } else {
-                                GlassmorphicAvatar(userId: otherUserId ?? "")
-                                    .frame(width: 32, height: 32)
-                            }
-                        }
-                        .buttonStyle(PlainButtonStyle())
-                    } else {
-                        Color.clear.frame(width: 32, height: 32)
-                    }
-                }
-
+            HStack(alignment: .bottom, spacing: 0) {
                 if isCurrentUser { Spacer(minLength: 50) }
+
+                if !isCurrentUser {
+                    ChatIncomingAvatarGutter(
+                        showAvatar: showAvatar,
+                        otherUserId: otherUserId,
+                        isUnavailable: isOtherParticipantUnavailable,
+                        onTap: onAvatarTap
+                    )
+                }
 
                 VStack(alignment: isCurrentUser ? .trailing : .leading, spacing: 4) {
                     MediaGridBubble(
                         messages: messages,
                         isCurrentUser: isCurrentUser,
                         uploadProgress: uploadProgress,
+                        displayReactions: displayReactions,
+                        onReaction: onReaction,
                         onMomentNavigation: onMomentNavigation,
                         onOpenMedia: onOpenMedia,
                         onLongPress: onLongPress,
@@ -161,7 +158,7 @@ struct GlassmorphicClusterRow: View {
                 onReply: { onReply(messages) }
             )
         }
-        .padding(.horizontal, 16)
+        .padding(.horizontal, 8)
         .padding(.vertical, 5)
     }
 }
@@ -195,10 +192,60 @@ private struct ClusterMessageStatusObserver: View {
     }
 }
 
+// MARK: - WhatsApp-style album layouts
+
+enum ClusterMediaLayout {
+    struct Spec {
+        let contentWidth: CGFloat
+        let spacing: CGFloat
+        let tileWidths: [CGFloat]
+        let tileHeights: [CGFloat]
+    }
+
+    static let gridWidth: CGFloat = 256
+    static let horizontalInset: CGFloat = 0
+    static let spacing: CGFloat = 2
+    static let cornerRadius: CGFloat = 8
+    static let bubbleCornerRadius: CGFloat = 12
+
+    static func spec(for count: Int) -> Spec {
+        let contentWidth = gridWidth - (horizontalInset * 2)
+        let cellWidth = (contentWidth - spacing) / 2
+        let cellHeight: CGFloat = count >= 3 ? 118 : cellWidth
+
+        switch min(count, 4) {
+        case 2:
+            return Spec(
+                contentWidth: contentWidth,
+                spacing: spacing,
+                tileWidths: [cellWidth, cellWidth],
+                tileHeights: [cellHeight, cellHeight]
+            )
+        case 3:
+            // WA / IG: banner arriba + dos celdas abajo.
+            return Spec(
+                contentWidth: contentWidth,
+                spacing: spacing,
+                tileWidths: [contentWidth, cellWidth, cellWidth],
+                tileHeights: [cellHeight, cellHeight, cellHeight]
+            )
+        default:
+            return Spec(
+                contentWidth: contentWidth,
+                spacing: spacing,
+                tileWidths: [cellWidth, cellWidth, cellWidth, cellWidth],
+                tileHeights: [cellHeight, cellHeight, cellHeight, cellHeight]
+            )
+        }
+    }
+}
+
 struct MediaGridBubble: View {
     let messages: [EnhancedMessage]
     let isCurrentUser: Bool
     let uploadProgress: [String: Double]
+    let displayReactions: (String) -> [String: [String]]?
+    let onReaction: (EnhancedMessage, String) -> Void
     let onMomentNavigation: ((EnhancedMessage) -> Void)?
     let onOpenMedia: (EnhancedMessage) -> Void
     let onLongPress: (EnhancedMessage) -> Void
@@ -206,64 +253,121 @@ struct MediaGridBubble: View {
 
     var body: some View {
         let count = messages.count
-        let columns = count >= 2 ? 2 : 1
-        let gridSpacing: CGFloat = 6
-        let gridWidth: CGFloat = 220
-        let horizontalInset: CGFloat = 6
-        let availableWidth = gridWidth - (horizontalInset * 2)
-        let cellWidth = columns == 2 ? (availableWidth - gridSpacing) / 2 : availableWidth
-        let cellHeight: CGFloat = count >= 3 ? 94 : cellWidth
-        let gridItems = Array(repeating: GridItem(.fixed(cellWidth), spacing: gridSpacing), count: columns)
-        let displayedMessages = Array(messages.prefix(4).enumerated())
+        let spec = ClusterMediaLayout.spec(for: count)
+        let displayed = Array(messages.prefix(4))
 
-        LazyVGrid(columns: gridItems, spacing: gridSpacing) {
-            ForEach(displayedMessages, id: \.element.id) { index, message in
-                MediaGridTileView(
-                    message: message,
-                    progress: uploadProgress[message.id],
-                    downsamplingSize: CGSize(width: cellWidth * UIScreen.main.scale, height: cellHeight * UIScreen.main.scale)
-                )
-                .onAppear {
-                    onHydrateMedia?(message)
+        VStack(spacing: spec.spacing) {
+            switch displayed.count {
+            case 2:
+                HStack(spacing: spec.spacing) {
+                    clusterTile(displayed[0], index: 0, spec: spec)
+                    clusterTile(displayed[1], index: 1, spec: spec)
                 }
-                .frame(width: cellWidth, height: cellHeight)
-                .clipShape(RoundedRectangle(cornerRadius: 12))
-                .overlay(
-                    Group {
-                        if index == 3 && count > 4 {
-                            RoundedRectangle(cornerRadius: 12)
-                                .fill(Color.black.opacity(0.5))
-                                .overlay(
-                                    Text("+\(count - 4)")
-                                        .font(.custom("Poppins-SemiBold", size: 20))
-                                        .foregroundColor(.white)
-                                )
-                                .allowsHitTesting(false)
+            case 3:
+                clusterTile(displayed[0], index: 0, spec: spec)
+                HStack(spacing: spec.spacing) {
+                    clusterTile(displayed[1], index: 1, spec: spec)
+                    clusterTile(displayed[2], index: 2, spec: spec)
+                }
+            default:
+                VStack(spacing: spec.spacing) {
+                    HStack(spacing: spec.spacing) {
+                        clusterTile(displayed[0], index: 0, spec: spec)
+                        if displayed.count > 1 {
+                            clusterTile(displayed[1], index: 1, spec: spec)
                         }
                     }
-                )
-                .contentShape(RoundedRectangle(cornerRadius: 12))
-                .onTapGesture {
-                    onOpenMedia(message)
-                }
-                .chatMessageLongPress {
-                    onLongPress(message)
+                    if displayed.count > 2 {
+                        HStack(spacing: spec.spacing) {
+                            clusterTile(displayed[2], index: 2, spec: spec)
+                            if displayed.count > 3 {
+                                clusterTile(displayed[3], index: 3, spec: spec, totalCount: count)
+                            }
+                        }
+                    }
                 }
             }
         }
-        .frame(width: gridWidth)
-        .padding(horizontalInset)
+        .frame(width: ClusterMediaLayout.gridWidth)
         .chatMessageLongPress {
             if let anchor = messages.last {
                 onLongPress(anchor)
             }
         }
         .background(
-            RoundedRectangle(cornerRadius: 18)
-                .fill(.ultraThinMaterial.opacity(0.3))
+            RoundedRectangle(cornerRadius: ClusterMediaLayout.bubbleCornerRadius, style: .continuous)
+                .fill(.ultraThinMaterial.opacity(0.12))
         )
-        .clipShape(RoundedRectangle(cornerRadius: 18))
-        .id(messages.map(\.id).joined(separator: "-"))
+        .clipShape(RoundedRectangle(cornerRadius: ClusterMediaLayout.bubbleCornerRadius, style: .continuous))
+        .id(clusterReactionIdentity)
+    }
+
+    private var clusterReactionIdentity: String {
+        messages
+            .map { "\($0.id)-\(reactionTileIdentity(for: $0.id))" }
+            .joined(separator: "|")
+    }
+
+    private func reactionTileIdentity(for messageId: String) -> String {
+        guard let reactions = displayReactions(messageId), !reactions.isEmpty else { return "" }
+        return reactions
+            .map { "\($0.key):\($0.value.count)" }
+            .sorted()
+            .joined(separator: ",")
+    }
+
+    @ViewBuilder
+    private func clusterTile(
+        _ message: EnhancedMessage,
+        index: Int,
+        spec: ClusterMediaLayout.Spec,
+        totalCount: Int? = nil
+    ) -> some View {
+        let width = spec.tileWidths[index]
+        let height = spec.tileHeights[index]
+        let overflowCount = totalCount ?? messages.count
+
+        MediaGridTileView(
+            message: message,
+            progress: uploadProgress[message.id],
+            downsamplingSize: CGSize(width: width * UIScreen.main.scale, height: height * UIScreen.main.scale)
+        )
+        .onAppear {
+            onHydrateMedia?(message)
+        }
+        .frame(width: width, height: height)
+        .clipShape(RoundedRectangle(cornerRadius: ClusterMediaLayout.cornerRadius, style: .continuous))
+        .id("\(message.id)-\(reactionTileIdentity(for: message.id))")
+        .overlay(alignment: isCurrentUser ? .bottomLeading : .bottomTrailing) {
+            if let reactions = displayReactions(message.id), !reactions.isEmpty {
+                MessageReactionChip(
+                    reactions: reactions,
+                    onTap: { emoji in onReaction(message, emoji) },
+                    cluster: true
+                )
+                .padding(5)
+                .zIndex(10)
+            }
+        }
+        .overlay {
+            if index == 3 && overflowCount > 4 {
+                RoundedRectangle(cornerRadius: ClusterMediaLayout.cornerRadius, style: .continuous)
+                    .fill(Color.black.opacity(0.52))
+                    .overlay {
+                        Text("+\(overflowCount - 4)")
+                            .font(.custom("Poppins-SemiBold", size: 20))
+                            .foregroundColor(.white)
+                    }
+                    .allowsHitTesting(false)
+            }
+        }
+        .contentShape(RoundedRectangle(cornerRadius: ClusterMediaLayout.cornerRadius, style: .continuous))
+        .onTapGesture {
+            onOpenMedia(message)
+        }
+        .chatMessageLongPress {
+            onLongPress(message)
+        }
     }
 }
 
@@ -274,6 +378,25 @@ struct MediaGridTileView: View {
     @Environment(\.colorScheme) var colorScheme
 
     var body: some View {
+        ZStack {
+            tileContent
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+
+            if message.status == .sending {
+                let uploadProgress = max(progress ?? 0.03, 0.03)
+                ZStack {
+                    Color(hex: "0B1215").opacity(0.38)
+                    BlurView(style: UIBlurEffect.Style.systemThinMaterialDark)
+                    MediaProgressRing(progress: uploadProgress, size: 42, lineWidth: 3)
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Color(hex: "FAF9F6").opacity(colorScheme == .dark ? 0.06 : 0.22))
+    }
+
+    @ViewBuilder
+    private var tileContent: some View {
         ZStack {
             if message.type == .image {
                 if message.isMediaPendingResolution {
@@ -304,23 +427,13 @@ struct MediaGridTileView: View {
             } else {
                 placeholder(icon: "doc.fill")
             }
-
-            if message.status == .sending {
-                let uploadProgress = max(progress ?? 0.03, 0.03)
-                ZStack {
-                    Color(hex: "0B1215").opacity(0.38)
-                    BlurView(style: UIBlurEffect.Style.systemThinMaterialDark)
-                    MediaProgressRing(progress: uploadProgress, size: 42, lineWidth: 3)
-                }
-            }
         }
-        .background(Color(hex: "FAF9F6").opacity(colorScheme == .dark ? 0.06 : 0.22))
-        .clipped()
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     @ViewBuilder
     private func placeholder(icon: String) -> some View {
-        RoundedRectangle(cornerRadius: 12)
+        RoundedRectangle(cornerRadius: ClusterMediaLayout.cornerRadius, style: .continuous)
             .fill(colorScheme == .dark ? Color(hex: "FAF9F6").opacity(0.1) : Color(hex: "0B1215").opacity(0.06))
             .overlay(
                 Image(systemName: icon)

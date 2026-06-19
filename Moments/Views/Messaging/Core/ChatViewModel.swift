@@ -84,6 +84,8 @@ class EnhancedChatViewModel: ObservableObject {
     @Published var isLoadingMore = false
     @Published var canLoadMore = true
     @Published private(set) var forwardingPreferences: [String: Bool] = [:]
+    /// Fuente de verdad para pintar reacciones al instante (SwiftUI no siempre detecta cambios en `message.reactions`).
+    @Published private(set) var liveReactionOverlays: [String: [String: [String]]] = [:]
     private var historicalMessages: [EnhancedMessage] = []
     private var realTimeMessages: [EnhancedMessage] = []
     
@@ -299,6 +301,16 @@ class EnhancedChatViewModel: ObservableObject {
                 mergedMessages[index].mediaUrl = localUrl
             }
         }
+
+        // Conservar reacciones en memoria si el snapshot de mensajes llega sin hidratar subcolección.
+        for existing in messages {
+            guard let index = mergedMessages.firstIndex(where: { $0.id == existing.id }),
+                  existing.reactions != nil else { continue }
+            mergedMessages[index].reactions = chatService.mergeLegacyAndLiveReactions(
+                legacy: existing.reactions,
+                live: mergedMessages[index].reactions
+            )
+        }
         
         return mergedMessages.sorted { $0.timestamp < $1.timestamp }
     }
@@ -446,12 +458,57 @@ class EnhancedChatViewModel: ObservableObject {
         // 4. Preservar temporales y estados locales
         let finalMessages = preserveTemporaryMessages(sortedMessages)
         commitMessagesPresentation(finalMessages)
+        syncLiveReactionOverlays(from: finalMessages)
 
         for id in Array(outgoingTempMessages.keys) {
             if let msg = finalMessages.first(where: { $0.id == id }), msg.status != .sending {
                 outgoingTempMessages.removeValue(forKey: id)
             }
         }
+    }
+
+    private func commitReactionPresentation(conversationId: String? = nil) {
+        messages = Array(messages)
+        if let momentsViewModel = self as? MomentsChatViewModel {
+            momentsViewModel.syncMessagePresentation()
+        }
+        if let conversationId = conversationId ?? conversation.id, !conversationId.isEmpty {
+            LocalPersistenceService.shared.saveMessages(messages, conversationId: conversationId)
+        }
+    }
+
+    func displayReactions(for messageId: String) -> [String: [String]]? {
+        if let overlay = liveReactionOverlays[messageId] {
+            return overlay
+        }
+        return messages.first(where: { $0.id == messageId })?.reactions
+    }
+
+    private func syncLiveReactionOverlays(from messages: [EnhancedMessage]) {
+        var overlays = liveReactionOverlays
+        for message in messages {
+            guard let reactions = message.reactions, !reactions.isEmpty else { continue }
+            overlays[message.id] = chatService.mergeLegacyAndLiveReactions(
+                legacy: overlays[message.id],
+                live: reactions
+            ) ?? reactions
+        }
+        liveReactionOverlays = overlays
+    }
+
+    private func setLiveReactions(_ reactions: [String: [String]]?, for messageId: String) {
+        var overlays = liveReactionOverlays
+        if let reactions, !reactions.isEmpty {
+            overlays[messageId] = reactions
+        } else {
+            overlays.removeValue(forKey: messageId)
+        }
+        liveReactionOverlays = overlays
+
+        mutateReactionState(for: messageId) { message in
+            message.reactions = reactions
+        }
+        commitReactionPresentation()
     }
 
     private func mutateReactionState(
@@ -477,15 +534,21 @@ class EnhancedChatViewModel: ObservableObject {
         let affectedIds = update.changedMessageIds.union(update.reactionsByMessage.keys)
         guard !affectedIds.isEmpty else { return }
 
+        var overlays = liveReactionOverlays
         for messageId in affectedIds {
             let liveReactions = update.reactionsByMessage[messageId]
             mutateReactionState(for: messageId) { message in
                 message.reactions = liveReactions
             }
+            if let liveReactions, !liveReactions.isEmpty {
+                overlays[messageId] = liveReactions
+            } else {
+                overlays.removeValue(forKey: messageId)
+            }
         }
+        liveReactionOverlays = overlays
 
-        rebuildMessagesList()
-        LocalPersistenceService.shared.saveMessages(messages, conversationId: conversationId)
+        commitReactionPresentation(conversationId: conversationId)
     }
     
     // ✅ FUNCIÓN: Cargar más mensajes (Pull to refresh)
@@ -553,6 +616,7 @@ class EnhancedChatViewModel: ObservableObject {
         if !cachedMessages.isEmpty {
             historicalMessages = cachedMessages
             rebuildMessagesList()
+            syncLiveReactionOverlays(from: messages)
             prefetchUnresolvedMediaIfNeeded()
         }
         
@@ -605,6 +669,13 @@ class EnhancedChatViewModel: ObservableObject {
                 }
             }
         }
+
+        chatService.listenToConversationForwardingPreferences(conversationId: conversationId) { [weak self] prefs in
+            DispatchQueue.main.async {
+                self?.forwardingPreferences = prefs
+            }
+        }
+
         typingIndicatorEnabled = resolvedTypingIndicatorPreference(for: conversationId)
         applyTypingPreference(conversationId: conversationId)
     }
@@ -1063,14 +1134,12 @@ class EnhancedChatViewModel: ObservableObject {
             return
         }
 
-        mutateReactionState(for: message.id) { currentMessage in
-            currentMessage.reactions = MessageReactionMutation.apply(
-                to: currentMessage.reactions,
-                emoji: emoji,
-                userId: currentUserId
-            )
-        }
-        rebuildMessagesList()
+        let updated = MessageReactionMutation.apply(
+            to: message.reactions,
+            emoji: emoji,
+            userId: currentUserId
+        )
+        setLiveReactions(updated, for: message.id)
         
         chatService.addReaction(
             conversationId: conversationId,

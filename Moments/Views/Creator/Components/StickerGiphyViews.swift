@@ -84,9 +84,10 @@ final class ChatGIFImageCache {
 // MARK: - Animated GIF View
 struct AnimatedGIFView: UIViewRepresentable {
     let url: URL?
+    var onIntrinsicSize: ((CGSize) -> Void)? = nil
 
     func makeCoordinator() -> Coordinator {
-        Coordinator()
+        Coordinator(onIntrinsicSize: onIntrinsicSize)
     }
 
     func makeUIView(context: Context) -> UIImageView {
@@ -105,12 +106,18 @@ struct AnimatedGIFView: UIViewRepresentable {
 
     func updateUIView(_ uiView: UIImageView, context: Context) {
         uiView.contentMode = .scaleAspectFit
+        context.coordinator.onIntrinsicSize = onIntrinsicSize
         context.coordinator.load(url: url, into: uiView)
     }
 
     final class Coordinator {
+        var onIntrinsicSize: ((CGSize) -> Void)?
         private var currentURL: URL?
         private var requestToken = UUID()
+
+        init(onIntrinsicSize: ((CGSize) -> Void)?) {
+            self.onIntrinsicSize = onIntrinsicSize
+        }
 
         func load(url: URL?, into imageView: UIImageView) {
             guard let url else {
@@ -122,6 +129,7 @@ struct AnimatedGIFView: UIViewRepresentable {
             if let cached = ChatGIFImageCache.shared.cachedImage(for: url) {
                 currentURL = url
                 imageView.image = cached
+                reportIntrinsicSize(cached.size)
                 return
             }
 
@@ -136,6 +144,16 @@ struct AnimatedGIFView: UIViewRepresentable {
             ChatGIFImageCache.shared.load(url: url) { image in
                 guard token == self.requestToken, self.currentURL == url else { return }
                 imageView.image = image
+                if let image {
+                    self.reportIntrinsicSize(image.size)
+                }
+            }
+        }
+
+        private func reportIntrinsicSize(_ size: CGSize) {
+            guard size.width > 0, size.height > 0 else { return }
+            DispatchQueue.main.async {
+                self.onIntrinsicSize?(size)
             }
         }
     }

@@ -277,6 +277,33 @@ struct GlassmorphicChatView: View {
                 highlightedMessageId = nil
             }
         }
+        .fullScreenCover(item: $selectedChatMedia) { media in
+            FullScreenMediaView(
+                media: media,
+                mediaItems: selectedChatMediaItems,
+                currentUserId: viewModel.currentUserId,
+                otherParticipantName: otherParticipantDisplayName,
+                displayReactions: { messageId in
+                    viewModel.displayReactions(for: messageId)
+                },
+                onReaction: { messageId, emoji in
+                    guard let message = viewModel.messages.first(where: { $0.id == messageId }) else { return }
+                    viewModel.addReaction(to: message, emoji: emoji)
+                },
+                onMoreReactions: { messageId in
+                    guard let message = viewModel.messages.first(where: { $0.id == messageId }) else { return }
+                    reactionPickerMessage = message
+                    showingReactionEmojiPicker = true
+                },
+                onClose: {
+                    selectedChatMedia = nil
+                    selectedChatMediaItems = []
+                },
+                onSendReply: { media, text, completion in
+                    sendReplyToSharedMedia(media, text: text, completion: completion)
+                }
+            )
+        }
         .animation(.spring(response: 0.38, dampingFraction: 0.86), value: activeAttachmentSheet)
         .overlay {
             if activeAttachmentSheet == .menu {
@@ -334,41 +361,6 @@ struct GlassmorphicChatView: View {
 
             liveLocationBanner
         }
-        .overlay(
-            Group {
-                if let selectedChatMedia {
-                    ZStack {
-                        Rectangle()
-                            .fill(Color.clear)
-                            .contentShape(Rectangle())
-                            .ignoresSafeArea()
-                            .onTapGesture {
-                                withAnimation(.easeInOut(duration: 0.18)) {
-                                    self.selectedChatMedia = nil
-                                }
-                            }
-
-                        FullScreenMediaView(
-                            media: selectedChatMedia,
-                            mediaItems: selectedChatMediaItems,
-                            currentUserId: viewModel.currentUserId,
-                            otherParticipantName: otherParticipantDisplayName,
-                            onClose: {
-                                withAnimation(.easeInOut(duration: 0.18)) {
-                                    self.selectedChatMedia = nil
-                                    self.selectedChatMediaItems = []
-                                }
-                            },
-                            onSendReply: { media, text, completion in
-                                sendReplyToSharedMedia(media, text: text, completion: completion)
-                            }
-                        )
-                    }
-                    .transition(.opacity)
-                    .zIndex(20)
-                }
-            }
-        )
     }
     
     // MARK: - Banner de ubicación en vivo activa
@@ -681,7 +673,7 @@ struct GlassmorphicChatView: View {
     private var messagesListSection: some View {
             ScrollViewReader { proxy in
             ScrollView {
-                LazyVStack(spacing: 8) {
+                LazyVStack(spacing: 2) {
                     // ✅ TRIGGER DE PAGINACIÓN
                     if viewModel.canLoadMore {
                         Color.clear
@@ -710,6 +702,7 @@ struct GlassmorphicChatView: View {
                                     .padding(.vertical, 6)
                             }
                             renderMessageItem(item, in: viewModel.messages, proxy: proxy)
+                                .id("\(item.id)-\(reactionIdentitySuffix(for: item))")
                         }
                     }
                     
@@ -1085,8 +1078,10 @@ struct GlassmorphicChatView: View {
                 let liveMessage = viewModel.messages.first(where: { $0.id == message.id }) ?? message
                 GlassmorphicMessageRow(
                 message: liveMessage,
+                displayReactions: viewModel.displayReactions(for: liveMessage.id),
                 isCurrentUser: liveMessage.senderId == viewModel.currentUserId,
                 showAvatar: shouldShowAvatar(for: liveMessage, in: messages),
+                groupPosition: messageGroupPosition(for: liveMessage, in: messages),
                 otherUserId: viewModel.conversation.otherParticipantId,
                 isOtherParticipantUnavailable: isOtherParticipantUnavailable,
                 otherParticipantName: otherParticipantDisplayName,
@@ -1174,6 +1169,12 @@ struct GlassmorphicChatView: View {
                 onReplyTap: { id in
                     jumpToMessage(id, proxy: proxy)
                 },
+                displayReactions: { messageId in
+                    viewModel.displayReactions(for: messageId)
+                },
+                onReaction: { message, emoji in
+                    viewModel.addReaction(to: message, emoji: emoji)
+                },
                 uploadProgress: viewModel.uploadProgress,
                 showSeenLabel: {
                     let status = ClusterMessageStatusAggregator.aggregate(liveCluster)
@@ -1226,6 +1227,23 @@ struct GlassmorphicChatView: View {
 
     private func shouldShowSeenLabel(for messageId: String, status: MessageStatus) -> Bool {
         status == .read && messageId == lastOutgoingMessageId
+    }
+
+    private func reactionIdentitySuffix(for item: MessageItem) -> String {
+        switch item {
+        case .single(let message):
+            return reactionToken(for: message.id)
+        case .mediaCluster(let clusterMessages):
+            return clusterMessages.map { reactionToken(for: $0.id) }.joined(separator: "|")
+        }
+    }
+
+    private func reactionToken(for messageId: String) -> String {
+        guard let reactions = viewModel.displayReactions(for: messageId), !reactions.isEmpty else { return "" }
+        return reactions
+            .map { "\($0.key):\($0.value.count)" }
+            .sorted()
+            .joined(separator: ",")
     }
 
     private func presentMessageOptions(_ message: EnhancedMessage, rowId: String, cluster: [EnhancedMessage]?) {
@@ -1421,6 +1439,20 @@ struct GlassmorphicChatView: View {
         if index == messages.count - 1 { return true }
         let nextMessage = messages[index + 1]
         return nextMessage.senderId != message.senderId
+    }
+
+    /// Posición del mensaje en una ráfaga del mismo remitente (estilo Instagram).
+    private func messageGroupPosition(for message: EnhancedMessage, in messages: [EnhancedMessage]) -> ChatMessageGroupPosition {
+        guard let index = messages.firstIndex(where: { $0.id == message.id }) else { return .single }
+        let prevSameSender = index > 0 && messages[index - 1].senderId == message.senderId
+        let nextSameSender = index < messages.count - 1 && messages[index + 1].senderId == message.senderId
+
+        switch (prevSameSender, nextSameSender) {
+        case (false, false): return .single
+        case (false, true): return .first
+        case (true, true): return .middle
+        case (true, false): return .last
+        }
     }
     
     // MARK: - Voice Recording Functions
@@ -1920,6 +1952,8 @@ class MomentsChatViewModel: EnhancedChatViewModel {
             senderId: currentUserId,
             type: .gif,
             mediaUrl: asset.url,
+            mediaWidth: asset.width > 0 ? asset.width : nil,
+            mediaHeight: asset.height > 0 ? asset.height : nil,
             status: .sending
         )
         appendOutgoingMessage(tempMessage)
@@ -1967,6 +2001,8 @@ class MomentsChatViewModel: EnhancedChatViewModel {
             senderId: currentUserId,
             type: .sticker,
             mediaUrl: asset.url,
+            mediaWidth: asset.width > 0 ? asset.width : nil,
+            mediaHeight: asset.height > 0 ? asset.height : nil,
             status: .sending
         )
         appendOutgoingMessage(tempMessage)

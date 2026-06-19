@@ -34,6 +34,12 @@ extension ChatService {
         if let fileSize = message.fileSize {
             data["fileSize"] = fileSize
         }
+        if let mediaWidth = message.mediaWidth {
+            data["mediaWidth"] = mediaWidth
+        }
+        if let mediaHeight = message.mediaHeight {
+            data["mediaHeight"] = mediaHeight
+        }
 
         return data
     }
@@ -115,6 +121,8 @@ extension ChatService {
             duration: data["duration"] as? Double,
             fileName: data["fileName"] as? String,
             fileSize: data["fileSize"] as? Int64,
+            mediaWidth: data["mediaWidth"] as? Int,
+            mediaHeight: data["mediaHeight"] as? Int,
             latitude: locationLatitude,
             longitude: locationLongitude,
             locationName: locationName,

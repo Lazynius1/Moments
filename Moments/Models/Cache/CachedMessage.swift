@@ -13,6 +13,8 @@ final class CachedMessage {
     var duration: Double?
     var fileName: String?
     var fileSize: Int64?
+    var mediaWidth: Int?
+    var mediaHeight: Int?
     var latitude: Double?
     var longitude: Double?
     var timestamp: Date
@@ -41,6 +43,8 @@ final class CachedMessage {
          duration: Double?,
          fileName: String?,
          fileSize: Int64?,
+         mediaWidth: Int? = nil,
+         mediaHeight: Int? = nil,
          latitude: Double?,
          longitude: Double?,
          timestamp: Date,
@@ -68,6 +72,8 @@ final class CachedMessage {
         self.duration = duration
         self.fileName = fileName
         self.fileSize = fileSize
+        self.mediaWidth = mediaWidth
+        self.mediaHeight = mediaHeight
         self.latitude = latitude
         self.longitude = longitude
         self.timestamp = timestamp
@@ -107,6 +113,8 @@ extension CachedMessage {
             duration: message.duration,
             fileName: message.fileName,
             fileSize: message.fileSize,
+            mediaWidth: message.mediaWidth,
+            mediaHeight: message.mediaHeight,
             latitude: message.latitude,
             longitude: message.longitude,
             timestamp: message.timestamp,
@@ -164,6 +172,8 @@ extension CachedMessage {
             duration: duration,
             fileName: fileName,
             fileSize: fileSize,
+            mediaWidth: mediaWidth,
+            mediaHeight: mediaHeight,
             latitude: latitude,
             longitude: longitude,
             timestamp: timestamp,

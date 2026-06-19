@@ -50,7 +50,7 @@ extension ChatService {
         guard !ids.isEmpty else { return [:] }
 
         var aggregated: [String: [String: [String]]] = [:]
-        for chunk in ids.chunked(into: 10) {
+        for chunk in chunkMessageIds(ids, size: 10) {
             do {
                 let snapshot = try await db.collectionGroup("messageReactions")
                     .whereField("conversationId", isEqualTo: conversationId)
@@ -137,17 +137,15 @@ extension ChatService {
     ) -> [String: [String]] {
         mergeLegacyAndLiveReactions(legacy: current, live: incoming) ?? incoming
     }
-}
 
-private extension Array {
-    func chunked(into size: Int) -> [[Element]] {
-        guard size > 0, !isEmpty else { return isEmpty ? [] : [self] }
+    private func chunkMessageIds(_ ids: [String], size: Int) -> [[String]] {
+        guard size > 0, !ids.isEmpty else { return ids.isEmpty ? [] : [ids] }
 
-        var chunks: [[Element]] = []
+        var chunks: [[String]] = []
         var index = 0
-        while index < count {
-            let end = Swift.min(index + size, count)
-            chunks.append(Array(self[index..<end]))
+        while index < ids.count {
+            let end = Swift.min(index + size, ids.count)
+            chunks.append(Array(ids[index..<end]))
             index += size
         }
         return chunks

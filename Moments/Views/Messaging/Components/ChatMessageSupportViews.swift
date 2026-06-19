@@ -130,10 +130,60 @@ struct GlassmorphicReplyPreview: View {
     }
 }
 
-struct GlassmorphicReactionsView: View {
+struct ChatQuickReactionsBar: View {
+    let onReaction: (String) -> Void
+    let onMore: () -> Void
+
+    private let reactionEmojis = ["❤️", "😂", "😮", "😢", "😡", "👍"]
+
+    var body: some View {
+        HStack(spacing: 14) {
+            ForEach(reactionEmojis, id: \.self) { emoji in
+                Button {
+                    HapticManager.shared.mediumImpact()
+                    onReaction(emoji)
+                } label: {
+                    Text(emoji)
+                        .font(.system(size: 28))
+                }
+                .buttonStyle(.plain)
+            }
+
+            Button {
+                HapticManager.shared.lightImpact()
+                onMore()
+            } label: {
+                Image(systemName: "plus")
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundColor(MomentsChromeGlass.contentColor(for: colorScheme))
+                    .frame(width: 36, height: 36)
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 10)
+        .background(
+            Capsule()
+                .fill(.ultraThinMaterial)
+        )
+        .shadow(color: .black.opacity(0.18), radius: 8, y: 4)
+    }
+
+    @Environment(\.colorScheme) private var colorScheme
+}
+
+struct MessageReactionChip: View {
     let reactions: [String: [String]]
     let onTap: (String) -> Void
-    @Environment(\.colorScheme) var colorScheme
+    var compact: Bool = false
+    var cluster: Bool = false
+
+    @Environment(\.colorScheme) private var colorScheme
+
+    /// Anillo del color de fondo del chat para separar el badge de la burbuja (estilo Instagram).
+    private var separatorColor: Color {
+        colorScheme == .dark ? Color(hex: "0B1215") : Color(hex: "FAF9F6")
+    }
 
     private var sortedEntries: [(emoji: String, count: Int)] {
         reactions
@@ -144,30 +194,94 @@ struct GlassmorphicReactionsView: View {
             }
     }
 
+    private var emojiSize: CGFloat {
+        if cluster { return 11 }
+        return compact ? 13 : 16
+    }
+    private var countSize: CGFloat {
+        if cluster { return 6 }
+        return compact ? 7 : 9
+    }
+    private var badgeDiameter: CGFloat {
+        if cluster { return 16 }
+        return compact ? 18 : 22
+    }
+    private var overlapSpacing: CGFloat {
+        if cluster { return -4 }
+        return compact ? -5 : -7
+    }
+
     var body: some View {
-        HStack(spacing: 2) {
-            ForEach(sortedEntries, id: \.emoji) { entry in
-                Button(action: { onTap(entry.emoji) }) {
-                    HStack(spacing: 1) {
-                        Text(entry.emoji)
-                            .font(.system(size: 13))
-                        if entry.count > 1 {
-                            Text("\(entry.count)")
-                                .font(.system(size: 10, weight: .semibold))
-                                .foregroundColor(MomentsChromeGlass.contentColor(for: colorScheme).opacity(0.75))
-                        }
+        Group {
+            if sortedEntries.count == 1, let entry = sortedEntries.first {
+                singleBadge(entry)
+            } else {
+                HStack(spacing: overlapSpacing) {
+                    ForEach(Array(sortedEntries.prefix(5)), id: \.emoji) { entry in
+                        singleBadge(entry)
                     }
                 }
-                .buttonStyle(.plain)
             }
         }
-        .padding(.horizontal, 8)
-        .padding(.vertical, 4)
-        .momentsChromeGlass(in: Capsule(), interactive: true)
-        .clipShape(Capsule())
-        .shadow(color: .black.opacity(colorScheme == .dark ? 0.18 : 0.08), radius: 4, y: 2)
+    }
+
+    private func singleBadge(_ entry: (emoji: String, count: Int)) -> some View {
+        Button(action: { onTap(entry.emoji) }) {
+            Group {
+                if entry.count > 1 {
+                    VStack(spacing: -1) {
+                        Text(entry.emoji)
+                            .font(.system(size: emojiSize))
+                        Text("\(entry.count)")
+                            .font(.system(size: countSize, weight: .bold))
+                            .foregroundColor(colorScheme == .dark ? .white.opacity(0.9) : .black.opacity(0.65))
+                    }
+                } else {
+                    Text(entry.emoji)
+                        .font(.system(size: emojiSize))
+                }
+            }
+            .frame(width: badgeDiameter, height: badgeDiameter)
+            .background(
+                Circle()
+                    .fill(separatorColor)
+            )
+            .shadow(color: .black.opacity(0.2), radius: 2, y: 1)
+        }
+        .buttonStyle(.plain)
     }
 }
+
+extension View {
+    /// Reacción estilo IG: emoji sobre anillo del color de fondo del chat, colgando del borde inferior.
+    func messageReactionOverlay(
+        isOutgoing: Bool,
+        reactions: [String: [String]]?,
+        compact: Bool = false,
+        anchoredInsideBounds: Bool = false,
+        onTap: @escaping (String) -> Void
+    ) -> some View {
+        let hasReactions = reactions.map { !$0.isEmpty } ?? false
+        let badgeDiameter: CGFloat = compact ? 18 : 22
+        // El chip cuelga del borde inferior; el anillo lo separa de la burbuja. Solapa ~5pt.
+        let hangOffset = badgeDiameter - 5
+
+        return overlay(alignment: isOutgoing ? .bottomLeading : .bottomTrailing) {
+            if let reactions, !reactions.isEmpty {
+                MessageReactionChip(reactions: reactions, onTap: onTap, compact: compact)
+                    .offset(
+                        x: isOutgoing ? (anchoredInsideBounds ? 3 : 10) : (anchoredInsideBounds ? -3 : -10),
+                        y: anchoredInsideBounds ? -3 : hangOffset
+                    )
+                    .zIndex(5)
+            }
+        }
+        .padding(.bottom, hasReactions && !anchoredInsideBounds ? hangOffset : 0)
+    }
+}
+
+/// Alias legacy — usar `MessageReactionChip`.
+typealias GlassmorphicReactionsView = MessageReactionChip
 
 struct MessageTimestamp: View {
     @ObservedObject var message: EnhancedMessage
