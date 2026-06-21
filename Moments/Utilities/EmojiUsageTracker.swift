@@ -39,6 +39,22 @@ enum EmojiUsageStore {
         saveCounts(counts, userId: resolvedUserId)
     }
 
+    static func recentlyUsed(
+        userId: String? = Auth.auth().currentUser?.uid,
+        limit: Int = 8
+    ) -> [String] {
+        let resolvedUserId = userId ?? ""
+        let counts = loadCounts(userId: resolvedUserId)
+        return counts
+            .filter { $0.value > 0 }
+            .sorted { lhs, rhs in
+                if lhs.value != rhs.value { return lhs.value > rhs.value }
+                return lhs.key < rhs.key
+            }
+            .prefix(limit)
+            .map(\.key)
+    }
+
     static func ordered(
         from defaults: [String],
         userId: String? = Auth.auth().currentUser?.uid,
@@ -84,6 +100,11 @@ final class EmojiUsageTracker: ObservableObject {
     func increment(_ emoji: String) {
         EmojiUsageStore.increment(emoji, userId: userId)
         revision += 1
+    }
+
+    func recentlyUsed(limit: Int = 8) -> [String] {
+        _ = revision
+        return EmojiUsageStore.recentlyUsed(userId: userId, limit: limit)
     }
 
     func orderedEmojis(from defaults: [String], limit: Int? = nil) -> [String] {

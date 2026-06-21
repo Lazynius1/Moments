@@ -24,6 +24,23 @@ final class ChatMapSnapshotCache {
     }
 }
 
+enum ChatLocationLiveCountdownFormatter {
+    static func text(until expiresAt: Date, now: Date = Date()) -> String {
+        let interval = max(0, expiresAt.timeIntervalSince(now))
+        let totalSeconds = Int(interval)
+        let hours = totalSeconds / 3600
+        let minutes = (totalSeconds % 3600) / 60
+        let seconds = totalSeconds % 60
+        let value: String
+        if hours > 0 {
+            value = String(format: "%d:%02d:%02d", hours, minutes, seconds)
+        } else {
+            value = String(format: "%d:%02d", minutes, seconds)
+        }
+        return String(format: NSLocalizedString("chat.location.liveRemaining", comment: ""), value)
+    }
+}
+
 // MARK: - Burbuja de ubicación
 
 struct ChatLocationMessageBubble: View {
@@ -212,27 +229,12 @@ struct ChatLocationMessageBubble: View {
 
     private var subtitleText: String? {
         if isLive, isLiveActive, let expiresAt = message.liveLocationExpiresAt {
-            let remaining = max(0, expiresAt.timeIntervalSince(now))
-            return formattedCountdown(remaining)
+            return ChatLocationLiveCountdownFormatter.text(until: expiresAt, now: now)
         }
         if let address = message.locationAddress, !address.isEmpty {
             return address
         }
         return nil
-    }
-
-    private func formattedCountdown(_ interval: TimeInterval) -> String {
-        let totalSeconds = Int(interval)
-        let hours = totalSeconds / 3600
-        let minutes = (totalSeconds % 3600) / 60
-        let seconds = totalSeconds % 60
-        let value: String
-        if hours > 0 {
-            value = String(format: "%d:%02d:%02d", hours, minutes, seconds)
-        } else {
-            value = String(format: "%d:%02d", minutes, seconds)
-        }
-        return String(format: NSLocalizedString("chat.location.liveRemaining", comment: ""), value)
     }
 
     private func loadSnapshot() {
@@ -520,25 +522,10 @@ struct ChatLocationDetailView: View {
 
     private var subtitleText: String? {
         if isLive, isLiveActive, let expiresAt {
-            let remaining = max(0, expiresAt.timeIntervalSince(now))
-            return formattedCountdown(remaining)
+            return ChatLocationLiveCountdownFormatter.text(until: expiresAt, now: now)
         }
         if let address = locationAddress, !address.isEmpty { return address }
         return nil
-    }
-
-    private func formattedCountdown(_ interval: TimeInterval) -> String {
-        let totalSeconds = Int(interval)
-        let hours = totalSeconds / 3600
-        let minutes = (totalSeconds % 3600) / 60
-        let seconds = totalSeconds % 60
-        let value: String
-        if hours > 0 {
-            value = String(format: "%d:%02d:%02d", hours, minutes, seconds)
-        } else {
-            value = String(format: "%d:%02d", minutes, seconds)
-        }
-        return String(format: NSLocalizedString("chat.location.liveRemaining", comment: ""), value)
     }
 
     // MARK: - Acciones

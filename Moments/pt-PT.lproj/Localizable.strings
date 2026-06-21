@@ -1123,7 +1123,7 @@
 "nova.memory.unmarkImportant" = "Remover importância";
 "feed.empty.following.description" = "Quando as pessoas que segues publicarem, os Moments delas vão aparecer aqui.";
 "feed.empty.foryou.title" = "Nada de novo por agora";
-"feed.empty.foryou.description" = "Volta em breve ou explora Moments recentes da comunidade.";
+"feed.empty.foryou.description" = "Aqui aparecerão momentos públicos de pessoas que ainda não segues.";
 "feed.empty.action.findPeople" = "Encontrar pessoas";
 "feed.empty.action.create" = "Criar o meu primeiro Moment";
 "feed.empty.action.explore" = "Explorar tendências";
@@ -1621,6 +1621,8 @@
 "register.profilePhoto.optional" = "Opcional: adicionar fotografia de perfil";
 "register.profilePhoto.add" = "Adicionar fotografia";
 "register.interests.title" = "Escolhe os teus interesses";
+"register.interests.description" = "Escolhe entre 3 e 5. Quanto mais escolheres, melhor te recomendamos conteúdo.";
+"register.interests.minimumHint" = "Seleciona pelo menos 3 para continuar.";
 "register.interests.count" = "%d/5";
 "register.interest.photography" = "Fotografia";
 "register.interest.travel" = "Viagens";
@@ -2053,7 +2055,7 @@
 "feed.following" = "A seguir";
 "feed.forYou" = "Para ti";
 "feed.following.description" = "Moments das pessoas que segues";
-"feed.forYou.description" = "Conteúdo recomendado para ti";
+"feed.forYou.description" = "Aqui aparecem momentos públicos de pessoas que ainda não segues";
 "feed.reels.tapToView" = "Toca para ver";
 "feed.reels.badge" = "Reels";
 

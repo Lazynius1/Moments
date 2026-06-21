@@ -7031,8 +7031,214 @@ async function buildViewerContext(uid) {
   const blockedUsers = new Set(Array.isArray(viewerData.blockedUsers) ? viewerData.blockedUsers : []);
   const muteSettings = viewerData.muteSettings && typeof viewerData.muteSettings === 'object' ? viewerData.muteSettings : {};
   const mutedUsers = new Set(Array.isArray(muteSettings.mutedUsers) ? muteSettings.mutedUsers : []);
+  const viewerInterests = Array.isArray(viewerData.interests)
+    ? viewerData.interests.filter((interest) => typeof interest === 'string' && interest.trim().length > 0)
+    : [];
 
-  return { following, followers, mutuals, bestFriends, blockedUsers, mutedUsers };
+  return { following, followers, mutuals, bestFriends, blockedUsers, mutedUsers, viewerInterests };
+}
+
+function isExcludedForYouAuthor(authorId, uid, viewerCtx) {
+  if (!authorId || authorId === uid) return true;
+  if (viewerCtx.following.has(authorId)) return true;
+  if (viewerCtx.blockedUsers.has(authorId)) return true;
+  return false;
+}
+
+async function fetchForYouInterestUserIds(db, uid, viewerCtx, cap = 40) {
+  const interests = viewerCtx.viewerInterests || [];
+  if (interests.length === 0) return new Set();
+
+  const result = new Set();
+  const batchSize = 30;
+  for (let i = 0; i < interests.length && result.size < cap; i += batchSize) {
+    const batch = interests.slice(i, i + batchSize);
+    const snap = await db.collection('users')
+      .where('interests', 'array-contains-any', batch)
+      .limit(50)
+      .get();
+    snap.docs.forEach((doc) => {
+      if (result.size >= cap) return;
+      if (!isExcludedForYouAuthor(doc.id, uid, viewerCtx)) {
+        result.add(doc.id);
+      }
+    });
+  }
+  return result;
+}
+
+async function fetchForYouSecondDegreeUserIds(db, uid, viewerCtx, cap = 30) {
+  const followingSample = [...viewerCtx.following].slice(0, 15);
+  if (followingSample.length === 0) return new Set();
+
+  const result = new Set();
+  await Promise.all(followingSample.map(async (followingId) => {
+    if (result.size >= cap) return;
+    const snap = await db.collection(`users/${followingId}/following`).limit(20).get();
+    snap.docs.forEach((doc) => {
+      if (result.size >= cap) return;
+      if (!isExcludedForYouAuthor(doc.id, uid, viewerCtx)) {
+        result.add(doc.id);
+      }
+    });
+  }));
+  return result;
+}
+
+async function fetchForYouFollowerPublicUserIds(db, uid, viewerCtx, cap = 20) {
+  const candidates = [...viewerCtx.followers].filter(
+    (id) => !viewerCtx.following.has(id) && !isExcludedForYouAuthor(id, uid, viewerCtx)
+  );
+  if (candidates.length === 0) return new Set();
+
+  const authorMap = await batchLoadAuthorDocs(candidates.slice(0, cap * 2));
+  const result = new Set();
+  for (const id of candidates) {
+    if (result.size >= cap) break;
+    const authorData = authorMap.get(id);
+    if (authorData && authorData.isPrivate !== true) {
+      result.add(id);
+    }
+  }
+  return result;
+}
+
+async function fetchForYouGlobalEveryoneDocs(db, globalStreamCursor, fetchLimit = 120) {
+  let query = db.collectionGroup('moments')
+    .where('audience', '==', 'everyone')
+    .orderBy('timestamp', 'desc')
+    .orderBy(admin.firestore.FieldPath.documentId(), 'desc');
+
+  if (globalStreamCursor && globalStreamCursor.timestamp && globalStreamCursor.momentId && globalStreamCursor.authorId) {
+    const streamRef = db.doc(`users/${globalStreamCursor.authorId}/moments/${globalStreamCursor.momentId}`);
+    query = query.startAfter(
+      admin.firestore.Timestamp.fromDate(new Date(globalStreamCursor.timestamp)),
+      streamRef
+    );
+  }
+
+  const snap = await query.limit(fetchLimit).get();
+  return { docs: snap.docs, fetchCount: snap.size };
+}
+
+function forYouMomentPath(authorId, momentId) {
+  return `users/${authorId}/moments/${momentId}`;
+}
+
+function filterVisibleEntriesAfterCursor(entries, cursor) {
+  if (!cursor || !cursor.momentId || !cursor.authorId) {
+    return entries;
+  }
+
+  const cursorPath = forYouMomentPath(cursor.authorId, cursor.momentId);
+  const cursorIndex = entries.findIndex((entry) => entry.doc.ref.path === cursorPath);
+  if (cursorIndex >= 0) {
+    return entries.slice(cursorIndex + 1);
+  }
+
+  const cursorTs = Number(cursor.timestamp) || 0;
+  return entries.filter((entry) => {
+    const entryPath = entry.doc.ref.path;
+    if (entryPath === cursorPath) return false;
+
+    const entryTs = tsToMillis(entry.data.timestamp) || 0;
+    if (entryTs !== cursorTs) {
+      return entryTs < cursorTs;
+    }
+
+    return entry.doc.id.localeCompare(cursor.momentId) < 0;
+  });
+}
+
+function oldestGlobalStreamCursor(globalDocs) {
+  if (!Array.isArray(globalDocs) || globalDocs.length === 0) return null;
+  const oldest = globalDocs[globalDocs.length - 1];
+  const data = oldest.data();
+  return {
+    timestamp: tsToMillis(data.timestamp),
+    momentId: oldest.id,
+    authorId: data.authorId
+  };
+}
+
+function countSharedInterests(viewerInterests, authorData) {
+  const authorInterests = Array.isArray(authorData?.interests) ? authorData.interests : [];
+  const viewerSet = new Set(viewerInterests || []);
+  return authorInterests.filter((interest) => viewerSet.has(interest)).length;
+}
+
+function forYouTierWeight(sourceTier) {
+  switch (sourceTier) {
+    case 'A': return 30000;
+    case 'B': return 20000;
+    case 'C': return 10000;
+    default: return 0;
+  }
+}
+
+function deterministicForYouJitter(momentId, viewerId) {
+  const key = `${momentId || ''}:${viewerId || ''}`;
+  let hash = 0;
+  for (let i = 0; i < key.length; i += 1) {
+    hash = ((hash << 5) - hash) + key.charCodeAt(i);
+    hash |= 0;
+  }
+  return Math.abs(hash % 2000);
+}
+
+function scoreForYouMoment({
+  data,
+  authorData,
+  viewerInterests,
+  sourceTier,
+  followerIds,
+  momentId,
+  viewerId
+}) {
+  const timestampMillis = tsToMillis(data.timestamp) || 0;
+  const shared = countSharedInterests(viewerInterests, authorData);
+  const tierWeight = forYouTierWeight(sourceTier);
+  const followerBoost = followerIds.has(data.authorId) ? 5000 : 0;
+  const jitter = deterministicForYouJitter(momentId, viewerId);
+  return timestampMillis + (shared * 5000) + tierWeight + followerBoost + jitter;
+}
+
+async function buildForYouDiscoveryContext(db, uid, viewerCtx, globalStreamCursor) {
+  const [tierA, tierB, tierC, globalResult] = await Promise.all([
+    fetchForYouInterestUserIds(db, uid, viewerCtx, 40),
+    fetchForYouSecondDegreeUserIds(db, uid, viewerCtx, 30),
+    fetchForYouFollowerPublicUserIds(db, uid, viewerCtx, 20),
+    fetchForYouGlobalEveryoneDocs(db, globalStreamCursor, 120)
+  ]);
+
+  const authorTierMap = new Map();
+  tierA.forEach((id) => authorTierMap.set(id, 'A'));
+  tierB.forEach((id) => {
+    if (!authorTierMap.has(id)) authorTierMap.set(id, 'B');
+  });
+  tierC.forEach((id) => {
+    if (!authorTierMap.has(id)) authorTierMap.set(id, 'C');
+  });
+
+  globalResult.docs.forEach((doc) => {
+    const authorId = doc.data()?.authorId;
+    if (authorId && !authorTierMap.has(authorId)) {
+      authorTierMap.set(authorId, 'D');
+    }
+  });
+
+  return {
+    candidateUserIds: [...authorTierMap.keys()],
+    authorTierMap,
+    globalDocs: globalResult.docs,
+    globalFetchCount: globalResult.fetchCount,
+    tierStats: {
+      interests: tierA.size,
+      secondDegree: tierB.size,
+      followersPublic: tierC.size,
+      globalEveryone: globalResult.docs.length
+    }
+  };
 }
 
 /**
@@ -7571,6 +7777,176 @@ async function fetchMapCandidatesByAuthorBatches(db, candidateUserIds, mode, fil
 }
 
 /**
+ * Build and paginate the Para Ti (forYou) feed — discovery outside the following graph.
+ */
+async function processForYouFeedPage({ db, uid, viewerCtx, cursor, globalStreamCursor, limit }) {
+  const discovery = await buildForYouDiscoveryContext(db, uid, viewerCtx, globalStreamCursor);
+  const { candidateUserIds, authorTierMap, globalDocs, globalFetchCount, tierStats } = discovery;
+
+  const fetchLimit = 120;
+  const allCandidateDocs = [];
+  const batchFetchCounts = [globalFetchCount];
+
+  globalDocs.forEach((doc) => {
+    const authorId = doc.data()?.authorId;
+    if (isExcludedForYouAuthor(authorId, uid, viewerCtx)) return;
+    allCandidateDocs.push({ doc, sourceTier: authorTierMap.get(authorId) || 'D' });
+  });
+
+  if (candidateUserIds.length > 0) {
+    const userBatches = [];
+    for (let i = 0; i < candidateUserIds.length; i += 10) {
+      userBatches.push(candidateUserIds.slice(i, i + 10));
+    }
+
+    await Promise.all(userBatches.map(async (batch) => {
+      const query = db.collectionGroup('moments')
+        .where('authorId', 'in', batch)
+        .orderBy('timestamp', 'desc')
+        .limit(fetchLimit);
+      const snap = await query.get();
+      batchFetchCounts.push(snap.size);
+      snap.docs.forEach((doc) => {
+        const authorId = doc.data()?.authorId;
+        if (isExcludedForYouAuthor(authorId, uid, viewerCtx)) return;
+        allCandidateDocs.push({
+          doc,
+          sourceTier: authorTierMap.get(authorId) || 'D'
+        });
+      });
+    }));
+  }
+
+  const seen = new Set();
+  const uniqueEntries = [];
+  for (const entry of allCandidateDocs) {
+    const refPath = entry.doc.ref.path;
+    if (seen.has(refPath)) continue;
+    seen.add(refPath);
+    uniqueEntries.push(entry);
+  }
+
+  const now = Date.now();
+  const nonScheduledEntries = uniqueEntries.filter(({ doc }) => {
+    const data = doc.data();
+    if (!isMomentPathAuthorConsistent(doc, data)) return false;
+    if (data.isArchived === true) return false;
+    if (isExcludedForYouAuthor(data.authorId, uid, viewerCtx)) return false;
+    const schedMs = tsToMillis(data.scheduledDate);
+    if (schedMs && schedMs > now) return false;
+    return true;
+  });
+
+  const authorIds = [...new Set(nonScheduledEntries.map(({ doc }) => doc.data().authorId))];
+  const authorMap = await batchLoadAuthorDocs(authorIds);
+
+  const privacyResults = await Promise.all(
+    nonScheduledEntries.map(async ({ doc, sourceTier }) => {
+      const data = doc.data();
+      if (!isMomentPathAuthorConsistent(doc, data)) {
+        return { doc, data, sourceTier, canView: false };
+      }
+      if (viewerCtx.following.has(data.authorId)) {
+        return { doc, data, sourceTier, canView: false };
+      }
+      const authorData = authorMap.get(data.authorId);
+      if (!authorData) return { doc, data, sourceTier, canView: false };
+      const momentForCheck = {
+        id: doc.id,
+        authorId: data.authorId,
+        audience: data.audience,
+        taggedUsers: data.taggedUsers,
+        customListId: data.customListId,
+        isArchived: data.isArchived === true
+      };
+      const canView = await canViewerSeeMoment(momentForCheck, uid, viewerCtx, authorData);
+      return { doc, data, sourceTier, canView, authorData };
+    })
+  );
+
+  const visibleEntries = privacyResults
+    .filter((entry) => entry.canView)
+    .map((entry) => {
+      const score = scoreForYouMoment({
+        data: entry.data,
+        authorData: entry.authorData,
+        viewerInterests: viewerCtx.viewerInterests,
+        sourceTier: entry.sourceTier,
+        followerIds: viewerCtx.followers,
+        momentId: entry.doc.id,
+        viewerId: uid
+      });
+      return { ...entry, score };
+    });
+
+  visibleEntries.sort((a, b) => {
+    if (b.score !== a.score) return b.score - a.score;
+    const tsA = tsToMillis(a.data.timestamp) || 0;
+    const tsB = tsToMillis(b.data.timestamp) || 0;
+    if (tsB !== tsA) return tsB - tsA;
+    return b.doc.id.localeCompare(a.doc.id);
+  });
+
+  const candidatesAfterCursor = filterVisibleEntriesAfterCursor(visibleEntries, cursor);
+  const totalCandidates = candidatesAfterCursor.length;
+
+  const perAuthorCount = {};
+  const perAuthorMax = 3;
+  const finalEntries = [];
+  for (const entry of candidatesAfterCursor) {
+    const authorId = entry.data.authorId;
+    const count = perAuthorCount[authorId] || 0;
+    if (count >= perAuthorMax) continue;
+    perAuthorCount[authorId] = count + 1;
+    finalEntries.push(entry);
+    if (finalEntries.length >= limit) break;
+  }
+
+  const moments = finalEntries.map(({ doc, data }) => serializeMoment(doc.id, data));
+
+  let nextCursor = null;
+  const hasMoreInFirestore = batchFetchCounts.some((count) => count >= fetchLimit);
+  const moreVisibleThanReturned = candidatesAfterCursor.length > finalEntries.length;
+
+  if (finalEntries.length > 0 && (moreVisibleThanReturned || hasMoreInFirestore)) {
+    const lastEntry = finalEntries[finalEntries.length - 1];
+    const streamCursor = oldestGlobalStreamCursor(globalDocs);
+    nextCursor = {
+      timestamp: tsToMillis(lastEntry.data.timestamp),
+      momentId: lastEntry.doc.id,
+      authorId: lastEntry.data.authorId,
+      globalStreamTimestamp: streamCursor?.timestamp ?? null,
+      globalStreamMomentId: streamCursor?.momentId ?? null,
+      globalStreamAuthorId: streamCursor?.authorId ?? null
+    };
+  } else if (finalEntries.length === 0 && nonScheduledEntries.length > 0 && hasMoreInFirestore) {
+    const lastEntry = nonScheduledEntries[nonScheduledEntries.length - 1];
+    const lastData = lastEntry.doc.data();
+    const streamCursor = oldestGlobalStreamCursor(globalDocs);
+    nextCursor = {
+      timestamp: tsToMillis(lastData.timestamp),
+      momentId: lastEntry.doc.id,
+      authorId: lastData.authorId,
+      globalStreamTimestamp: streamCursor?.timestamp ?? null,
+      globalStreamMomentId: streamCursor?.momentId ?? null,
+      globalStreamAuthorId: streamCursor?.authorId ?? null
+    };
+  }
+
+  if (cursor && nextCursor && isSameFeedCursor(cursor, nextCursor)) {
+    console.warn(`⚠️ getFeedPage forYou: no-op cursor detected for uid=${uid}`);
+    nextCursor = null;
+  }
+
+  console.log(
+    `✅ getFeedPage forYou: uid=${uid}, tiers=${JSON.stringify(tierStats)}, `
+    + `candidates=${totalCandidates}, visible=${visibleEntries.length}, returned=${moments.length}`
+  );
+
+  return { moments, nextCursor, totalCandidates };
+}
+
+/**
  * 🚀 getFeedPage — Backend-first feed endpoint.
  *
  * POST body: { feedType: "following"|"forYou", cursor?: { timestamp, momentId, authorId? }, limit?: number }
@@ -7600,7 +7976,14 @@ exports.getFeedPage = onRequest(
     const feedType = body.feedType === 'forYou' ? 'forYou' : 'following';
     const rawLimit = Number(body.limit);
     const limit = Number.isFinite(rawLimit) ? Math.max(1, Math.min(rawLimit, 40)) : 20;
-    const cursor = body.cursor || null; // { timestamp: number, momentId: string, authorId?: string }
+    const cursor = body.cursor || null; // { timestamp, momentId, authorId?, globalStream*? }
+    const globalStreamCursor = cursor && cursor.globalStreamTimestamp && cursor.globalStreamMomentId && cursor.globalStreamAuthorId
+      ? {
+        timestamp: cursor.globalStreamTimestamp,
+        momentId: cursor.globalStreamMomentId,
+        authorId: cursor.globalStreamAuthorId
+      }
+      : (body.globalStreamCursor || null);
 
     const db = admin.firestore();
 
@@ -7608,45 +7991,29 @@ exports.getFeedPage = onRequest(
       // ── 1. Build viewer context ──
       const viewerCtx = await buildViewerContext(uid);
 
-      // ── 2. Determine candidate user IDs ──
-      let candidateUserIds;
-
-      if (feedType === 'following') {
-        candidateUserIds = [...viewerCtx.following];
-        // Include own moments
-        if (!candidateUserIds.includes(uid)) {
-          candidateUserIds.push(uid);
-        }
-      } else {
-        // forYou: following + suggested + popular
-        const followingIds = [...viewerCtx.following];
-        const extraIds = new Set(followingIds);
-        extraIds.add(uid);
-
-        // Fetch some suggested/popular users
-        const [suggestedSnap, popularSnap] = await Promise.all([
-          db.collection('users')
-            .where('isActive', '==', true)
-            .limit(30)
-            .get(),
-          db.collection('users')
-            .where('isActive', '==', true)
-            .limit(20)
-            .get()
-        ]);
-
-        suggestedSnap.docs.forEach(d => {
-          if (d.id !== uid && !viewerCtx.blockedUsers.has(d.id)) {
-            extraIds.add(d.id);
-          }
-        });
-        popularSnap.docs.forEach(d => {
-          if (d.id !== uid && !viewerCtx.blockedUsers.has(d.id)) {
-            extraIds.add(d.id);
-          }
+      if (feedType === 'forYou') {
+        const forYouResult = await processForYouFeedPage({
+          db,
+          uid,
+          viewerCtx,
+          cursor,
+          globalStreamCursor,
+          limit
         });
 
-        candidateUserIds = [...extraIds];
+        res.status(200).json({
+          moments: forYouResult.moments,
+          nextCursor: forYouResult.nextCursor,
+          source: 'backend',
+          totalCandidates: forYouResult.totalCandidates
+        });
+        return;
+      }
+
+      // ── 2. Following: candidate user IDs ──
+      let candidateUserIds = [...viewerCtx.following];
+      if (!candidateUserIds.includes(uid)) {
+        candidateUserIds.push(uid);
       }
 
       if (candidateUserIds.length === 0) {
@@ -7655,8 +8022,8 @@ exports.getFeedPage = onRequest(
       }
 
       // ── 3. Fetch candidate moments (batched by 10 using collectionGroup) ──
-      const fetchLimit = feedType === 'forYou' ? 200 : 80;
-      const perAuthorLimit = feedType === 'forYou' ? 12 : 50;
+      const fetchLimit = 80;
+      const perAuthorLimit = 50;
 
       const userBatches = [];
       for (let i = 0; i < candidateUserIds.length; i += 10) {
@@ -7769,7 +8136,7 @@ exports.getFeedPage = onRequest(
 
       // ── 6. Per-author limit to avoid one user dominating feed ──
       const perAuthorCount = {};
-      const perAuthorMax = feedType === 'forYou' ? 5 : 50;
+      const perAuthorMax = 50;
       const finalDocs = [];
       for (const { doc, data } of visibleDocs) {
         const count = perAuthorCount[data.authorId] || 0;

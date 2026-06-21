@@ -2693,6 +2693,7 @@ struct EmojiPickerView: View {
     @Binding var isPresented: Bool
     let onSelect: (String) -> Void
     @Environment(\.colorScheme) var colorScheme
+    @StateObject private var emojiUsageTracker = EmojiUsageTracker()
 
     // Skin tone popover state
     @State private var selectedBaseEmoji: String? = nil
@@ -2701,6 +2702,19 @@ struct EmojiPickerView: View {
 
     // Skin tone modifiers: yellow, light, medium-light, medium, medium-dark, dark
     private let skinTones: [String] = ["", "🏻", "🏼", "🏽", "🏾", "🏿"]
+    private let maxRecentCount = 12
+
+    private var gridColumns: [GridItem] {
+        Array(repeating: GridItem(.flexible(), spacing: 12), count: 6)
+    }
+
+    private var secondaryText: Color {
+        colorScheme == .dark ? .white.opacity(0.6) : .black.opacity(0.5)
+    }
+
+    private var recentEmojis: [String] {
+        emojiUsageTracker.recentlyUsed(limit: maxRecentCount)
+    }
 
     static let emojiCategories: [(nameKey: String, emojis: [String])] = {
         let reactionEmojis = ["😍", "🔥", "😂", "🥹", "❤️", "👏", "🙌", "🎉", "🤔", "💯", "✨", "👀", "🚀", "💀", "😭", "🥳", "😎", "🥺", "🥰", "🧁", "🙄", "😴", "😮‍💨", "🫠", "🤐", "🤯", "💔", "🌟", "🎈"]
@@ -2797,12 +2811,65 @@ struct EmojiPickerView: View {
         return CGPoint(x: x, y: y)
     }
 
+    @ViewBuilder
+    private func emojiPickerCell(_ emoji: String) -> some View {
+        Text(emoji)
+            .font(.system(size: 36))
+            .frame(maxWidth: .infinity, minHeight: 48)
+            .contentShape(Rectangle())
+            .background(
+                GeometryReader { itemGeo in
+                    Color.clear.preference(
+                        key: EmojiFramePreferenceKey.self,
+                        value: [emoji: itemGeo.frame(in: .named("emojiPickerRoot"))]
+                    )
+                }
+            )
+            .onTapGesture {
+                if selectedBaseEmoji != nil {
+                    withAnimation(.spring(response: 0.2, dampingFraction: 0.8)) {
+                        selectedBaseEmoji = nil
+                    }
+                } else {
+                    onSelect(emoji)
+                    isPresented = false
+                }
+            }
+            .onLongPressGesture(minimumDuration: 0.3) {
+                if isSkinToneSupported(emoji: emoji) {
+                    withAnimation(.spring(response: 0.28, dampingFraction: 0.75)) {
+                        selectedBaseEmoji = emoji
+                    }
+                    HapticManager.shared.mediumImpact()
+                } else {
+                    onSelect(emoji)
+                    isPresented = false
+                }
+            }
+    }
+
     var body: some View {
         GeometryReader { outerGeo in
             ZStack {
                 NavigationView {
                     ScrollView {
                         VStack(alignment: .leading, spacing: 20) {
+                            if !recentEmojis.isEmpty {
+                                VStack(alignment: .leading, spacing: 10) {
+                                    Text(LocalizedStringKey("chat.giphy.recents"))
+                                        .font(.custom("Poppins-Medium", size: 13))
+                                        .foregroundColor(secondaryText)
+                                        .padding(.horizontal, 16)
+
+                                    LazyVGrid(columns: gridColumns, spacing: 12) {
+                                        ForEach(recentEmojis, id: \.self) { emoji in
+                                            emojiPickerCell(emoji)
+                                        }
+                                    }
+                                    .padding(.horizontal)
+                                }
+                            }
+
                             ForEach(Self.emojiCategories, id: \.nameKey) { category in
                                 if !category.emojis.isEmpty {
                                     VStack(alignment: .leading, spacing: 10) {
@@ -2811,45 +2878,9 @@ struct EmojiPickerView: View {
                                             .foregroundColor(.secondary)
                                             .padding(.horizontal)
 
-                                        LazyVGrid(
-                                            columns: Array(repeating: GridItem(.flexible(), spacing: 12), count: 6),
-                                            spacing: 12
-                                        ) {
+                                        LazyVGrid(columns: gridColumns, spacing: 12) {
                                             ForEach(category.emojis, id: \.self) { emoji in
-                                                Text(emoji)
-                                                    .font(.system(size: 36))
-                                                    .frame(maxWidth: .infinity, minHeight: 48)
-                                                    .contentShape(Rectangle())
-                                                    // Report this emoji's frame in the outerGeo coordinate space
-                                                    .background(
-                                                        GeometryReader { itemGeo in
-                                                            Color.clear.preference(
-                                                                key: EmojiFramePreferenceKey.self,
-                                                                value: [emoji: itemGeo.frame(in: .named("emojiPickerRoot"))]
-                                                            )
-                                                        }
-                                                    )
-                                                    .onTapGesture {
-                                                        if selectedBaseEmoji != nil {
-                                                            withAnimation(.spring(response: 0.2, dampingFraction: 0.8)) {
-                                                                selectedBaseEmoji = nil
-                                                            }
-                                                        } else {
-                                                            onSelect(emoji)
-                                                            isPresented = false
-                                                        }
-                                                    }
-                                                    .onLongPressGesture(minimumDuration: 0.3) {
-                                                        if isSkinToneSupported(emoji: emoji) {
-                                                            withAnimation(.spring(response: 0.28, dampingFraction: 0.75)) {
-                                                                selectedBaseEmoji = emoji
-                                                            }
-                                                            HapticManager.shared.mediumImpact()
-                                                        } else {
-                                                            onSelect(emoji)
-                                                            isPresented = false
-                                                        }
-                                                    }
+                                                emojiPickerCell(emoji)
                                             }
                                         }
                                         .padding(.horizontal)
@@ -2957,22 +2988,18 @@ private struct SkinToneBubble: View {
         }
         .padding(.horizontal, 10)
         .padding(.vertical, 8)
-        .background(
-            ZStack {
-                // Main pill
-                Capsule()
-                    .fill(colorScheme == .dark
-                          ? Color(UIColor.systemGray6).opacity(0.96)
-                          : Color(UIColor.systemBackground).opacity(0.98))
-                // Subtle border
-                Capsule()
-                    .strokeBorder(
-                        colorScheme == .dark ? Color.white.opacity(0.12) : Color.black.opacity(0.06),
-                        lineWidth: 0.5
-                    )
-            }
+        .momentsChromeGlass(in: Capsule(), interactive: true)
+        .clipShape(Capsule())
+        .overlay(
+            Capsule()
+                .stroke(Color.primary.opacity(colorScheme == .dark ? 0.12 : 0.08), lineWidth: 1)
         )
-        .shadow(color: Color.black.opacity(colorScheme == .dark ? 0.5 : 0.18), radius: 18, x: 0, y: 6)
+        .shadow(
+            color: .black.opacity(colorScheme == .dark ? 0.24 : 0.12),
+            radius: 24,
+            x: 0,
+            y: 12
+        )
     }
 }
 

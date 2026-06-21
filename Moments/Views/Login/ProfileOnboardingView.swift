@@ -302,7 +302,7 @@ struct ProfileOnboardingView: View {
         case (.email, 1):
             return !username.isEmpty && !email.isEmpty && password.count >= 8 && usernameError == nil
         case (.email, 2), (.apple, 2):
-            return !selectedInterests.isEmpty
+            return selectedInterests.count >= RegisterInterestsPolicy.minimum
         case (.apple, 1):
             return !username.isEmpty && usernameError == nil
         default:

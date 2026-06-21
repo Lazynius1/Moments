@@ -311,7 +311,7 @@
 "nova.memory.unmarkImportant" = "Treure d'importants";
 "feed.empty.following.description" = "Quan les persones que segueixes publiquin, els seus moments apareixeran aquí.";
 "feed.empty.foryou.title" = "Res de nou per ara";
-"feed.empty.foryou.description" = "Torna més tard o explora moments recents de la comunitat.";
+"feed.empty.foryou.description" = "Aquí apareixeran moments públics de gent que encara no segueixes.";
 "feed.empty.action.findPeople" = "Buscar persones";
 "feed.empty.action.create" = "Crear el meu primer Moment";
 "feed.empty.action.explore" = "Explorar Tendències";
@@ -815,6 +815,8 @@
 "register.profilePhoto.optional" = "Opcional: Afegeix una foto de perfil";
 "register.profilePhoto.add" = "Afegir foto";
 "register.interests.title" = "Tria els teus interessos";
+"register.interests.description" = "Tria entre 3 i 5. Com més en triïs, millor et recomanarem contingut.";
+"register.interests.minimumHint" = "Selecciona'n almenys 3 per continuar.";
 "register.interests.count" = "%d/5";
 "register.interest.photography" = "Fotografia";
 "register.interest.travel" = "Viatges";
@@ -1227,7 +1229,7 @@
 "feed.following" = "Seguint";
 "feed.forYou" = "Per a Tu";
 "feed.following.description" = "Moments de persones que segueixes";
-"feed.forYou.description" = "Contingut recomanat per a tu";
+"feed.forYou.description" = "Aquí apareixen moments públics de gent que encara no segueixes";
 "feed.reels.tapToView" = "Toca per veure";
 "feed.reels.badge" = "Reels";
 

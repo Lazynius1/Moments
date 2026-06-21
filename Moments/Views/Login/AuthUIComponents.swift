@@ -133,6 +133,11 @@ struct EnhancedProfilePhotoContent: View {
 }
 
 // MARK: - Enhanced Interests Selector
+enum RegisterInterestsPolicy {
+    static let minimum = 3
+    static let maximum = 5
+}
+
 struct EnhancedInterestsSelector: View {
     @Environment(\.colorScheme) private var colorScheme
     @Binding var availableInterests: [String]
@@ -161,13 +166,29 @@ struct EnhancedInterestsSelector: View {
                 
                 Text(String(format: NSLocalizedString("register.interests.count", comment: "Interests count"), selectedInterests.count))
                     .font(.system(size: 13, weight: .semibold))
-                    .foregroundColor(AuthColors.primary(colorScheme))
+                    .foregroundColor(
+                        selectedInterests.count >= RegisterInterestsPolicy.minimum
+                            ? AuthColors.primary(colorScheme)
+                            : .orange.opacity(0.92)
+                    )
                     .padding(.horizontal, 10)
                     .padding(.vertical, 5)
                     .background {
                         Color.clear
                             .liquidGlass(in: Capsule())
                     }
+            }
+
+            Text("register.interests.description")
+                .font(.system(size: 14, weight: .regular))
+                .foregroundColor(AuthColors.secondary(colorScheme, opacity: 0.62))
+                .fixedSize(horizontal: false, vertical: true)
+
+            if selectedInterests.count < RegisterInterestsPolicy.minimum {
+                Text("register.interests.minimumHint")
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundColor(.orange.opacity(0.88))
+                    .fixedSize(horizontal: false, vertical: true)
             }
             
             LazyVGrid(columns: [GridItem(.adaptive(minimum: 100))], spacing: 12) {
@@ -178,7 +199,7 @@ struct EnhancedInterestsSelector: View {
                         onTap: {
                             if selectedInterests.contains(interest) {
                                 selectedInterests.removeAll { $0 == interest }
-                            } else if selectedInterests.count < 5 {
+                            } else if selectedInterests.count < RegisterInterestsPolicy.maximum {
                                 selectedInterests.append(interest)
                             }
                         }

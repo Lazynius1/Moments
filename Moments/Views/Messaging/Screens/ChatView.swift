@@ -46,7 +46,6 @@ struct GlassmorphicChatView: View {
     @State private var showEnhancedCamera = false
     @State private var activeAttachmentSheet: ChatAttachmentSheetKind?
     @State private var plusButtonAnchorFrame: CGRect = .zero
-    @ObservedObject private var liveLocationService = LiveLocationSharingService.shared
     @State private var replyingTo: EnhancedMessage?
     @State private var clusterForReply: [EnhancedMessage]? = nil // ✅ New: Selection grid for clusters
     @State private var editingMessage: EnhancedMessage?
@@ -360,49 +359,6 @@ struct GlassmorphicChatView: View {
                     }
                 }
             )
-
-            liveLocationBanner
-        }
-    }
-    
-    // MARK: - Banner de ubicación en vivo activa
-
-    @ViewBuilder
-    private var liveLocationBanner: some View {
-        if let session = liveLocationService.activeSession,
-           session.conversationId == viewModel.conversation.id {
-            VStack {
-                HStack(spacing: 10) {
-                    Image(systemName: "dot.radiowaves.left.and.right")
-                        .foregroundColor(.green)
-                    Text("chat.location.liveSharing")
-                        .font(.custom("Poppins-Medium", size: 14))
-                        .foregroundColor(.white)
-                    Spacer()
-                    Button {
-                        viewModel.stopLiveLocation(messageId: session.messageId)
-                    } label: {
-                        Text("chat.location.stopSharing")
-                            .font(.custom("Poppins-SemiBold", size: 13))
-                            .foregroundColor(.white)
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 6)
-                            .background(Color.red)
-                            .clipShape(Capsule())
-                    }
-                    .buttonStyle(.plain)
-                }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 12)
-                .background(Color.black.opacity(0.7))
-                .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-                .padding(.horizontal, 16)
-                .padding(.top, 8)
-
-                Spacer()
-            }
-            .transition(.move(edge: .top).combined(with: .opacity))
-            .zIndex(46)
         }
     }
 

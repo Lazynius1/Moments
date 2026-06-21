@@ -42,6 +42,8 @@ class FeedViewModel {
     private var backendCursors: [FeedType: FeedCursor?] = [:]
     private var feedLoadedFromBackend: [FeedType: Bool] = [.following: false, .forYou: false]
     private var backendReachedEnd: [FeedType: Bool] = [.following: false, .forYou: false]
+    private var cachedFollowingIds: Set<String> = []
+    private var forYouLegacyGlobalStreamCursor: ForYouDiscoveryService.GlobalStreamCursor?
 
     // ✅ NUEVO: Queue para sincronización segura de arrays
     private let momentsQueue = DispatchQueue(label: "moments.sync", attributes: .concurrent)
@@ -52,6 +54,7 @@ class FeedViewModel {
         backendCursors.removeAll()
         feedLoadedFromBackend = [.following: false, .forYou: false]
         backendReachedEnd = [.following: false, .forYou: false]
+        forYouLegacyGlobalStreamCursor = nil
         mutedUserIdsCache.removeAll()
         mutedUserIdsCacheTimestamp = .distantPast
         clearListeners()
@@ -238,9 +241,21 @@ class FeedViewModel {
                     let newMoments = result.moments
                         .filter { $0.isArchived != true }
                         .filter { !mutedUserIds.contains($0.authorId) }
-                        .sorted { $0.timestamp > $1.timestamp }
+
+                    let tunedNew: [Moment]
+                    if feed == .forYou {
+                        tunedNew = self.applyForYouClientTuning(
+                            moments: newMoments,
+                            followingIds: self.cachedFollowingIds,
+                            viewerId: userId,
+                            preserveOrder: true
+                        )
+                    } else {
+                        tunedNew = newMoments.sorted { $0.timestamp > $1.timestamp }
+                    }
+
                     let existingIds = Set(self.moments.map { $0.id })
-                    let uniqueNew = newMoments.filter { !existingIds.contains($0.id) }
+                    let uniqueNew = tunedNew.filter { !existingIds.contains($0.id) }
 
                     await MainActor.run {
                         if let nextCursor = result.nextCursor {
@@ -336,19 +351,64 @@ class FeedViewModel {
 
     // MARK: - Private Functions
 
+    private func resolveFollowingIdsAsync(viewerId: String) async -> Set<String> {
+        await withCheckedContinuation { continuation in
+            firestoreService.fetchFollowing(userId: viewerId) { result in
+                if case .success(let users) = result {
+                    continuation.resume(returning: Set(users.map(\.id)))
+                } else {
+                    continuation.resume(returning: [])
+                }
+            }
+        }
+    }
+
+    private func sortMomentsChronologically(_ moments: [Moment], limit: Int? = nil) -> [Moment] {
+        let sorted = moments.sorted { $0.timestamp > $1.timestamp }
+        if let limit {
+            return Array(sorted.prefix(limit))
+        }
+        return sorted
+    }
+
+    /// Defensive Para Ti tuning: exclude followed authors; optional light local affinity when not preserving backend order.
+    private func applyForYouClientTuning(
+        moments: [Moment],
+        followingIds: Set<String>,
+        viewerId: String,
+        preserveOrder: Bool
+    ) -> [Moment] {
+        let filtered = moments.filter { moment in
+            moment.authorId != viewerId && !followingIds.contains(moment.authorId)
+        }
+
+        guard !preserveOrder, let container = AffinityTracker.shared.modelContainer else {
+            return filtered
+        }
+
+        let context = SwiftData.ModelContext(container)
+        let affinityScores = AffinityTracker.shared.getScores(for: filtered.map(\.authorId), in: context)
+
+        let scored = filtered.map { moment -> (moment: Moment, score: Double) in
+            let baseScore = moment.timestamp.timeIntervalSince1970
+            let affinityScore = affinityScores[moment.authorId] ?? 0.0
+            return (moment: moment, score: baseScore + (affinityScore * 500))
+        }
+
+        return scored.sorted { $0.score > $1.score }.map(\.moment)
+    }
+
     private func fetchFollowingMoments(userId: String) {
         // 🚀 Backend-first: try Cloud Function, fallback to legacy
         Task {
             let mutedUserIds = await self.resolveMutedUserIdsAsync(viewerId: userId)
+            self.cachedFollowingIds = await self.resolveFollowingIdsAsync(viewerId: userId)
             if let result = await BackendFeedService.shared.fetchFeedPage(feedType: "following", limit: 40) {
-                // ✅ Backend success — moments already privacy-filtered server-side
-                let moments = result.moments
-                    .filter { $0.isArchived != true }
-                    .filter { !mutedUserIds.contains($0.authorId) }
-                    .sorted { $0.timestamp > $1.timestamp }
-
-                // Apply affinity sorting (same as legacy)
-                let finalMoments = self.applyAffinitySorting(moments: moments, feedType: .following)
+                let finalMoments = self.sortMomentsChronologically(
+                    result.moments
+                        .filter { $0.isArchived != true }
+                        .filter { !mutedUserIds.contains($0.authorId) }
+                )
 
                 await MainActor.run {
                     self.isLoading = false
@@ -390,6 +450,7 @@ class FeedViewModel {
             switch result {
             case .success(let followingUsers):
                 let targetUserIds = followingUsers.map { $0.id }
+                self?.cachedFollowingIds = Set(targetUserIds)
 
                 if targetUserIds.isEmpty {
                     DispatchQueue.main.async {
@@ -417,12 +478,16 @@ class FeedViewModel {
         // 🚀 Backend-first: try Cloud Function, fallback to legacy
         Task {
             let mutedUserIds = await self.resolveMutedUserIdsAsync(viewerId: userId)
+            self.cachedFollowingIds = await self.resolveFollowingIdsAsync(viewerId: userId)
             if let result = await BackendFeedService.shared.fetchFeedPage(feedType: "forYou", limit: 60) {
-                let moments = result.moments
-                    .filter { $0.isArchived != true }
-                    .filter { !mutedUserIds.contains($0.authorId) }
-                    .sorted { $0.timestamp > $1.timestamp }
-                let finalMoments = self.applyAffinitySorting(moments: moments, feedType: .forYou)
+                let finalMoments = self.applyForYouClientTuning(
+                    moments: result.moments
+                        .filter { $0.isArchived != true }
+                        .filter { !mutedUserIds.contains($0.authorId) },
+                    followingIds: self.cachedFollowingIds,
+                    viewerId: userId,
+                    preserveOrder: true
+                )
 
                 await MainActor.run {
                     self.isLoading = false
@@ -457,126 +522,132 @@ class FeedViewModel {
         }
     }
 
-    /// Legacy forYou: fetch from multiple sources + client-side privacy filter
+    /// Legacy forYou: discovery outside following graph
     private func fetchForYouMomentsLegacy(userId: String) {
-        firestoreService.fetchUserProfile(userId: userId) { [weak self] result in
-            switch result {
-            case .success(let user):
-                let interests = user.interests
-                let group = DispatchGroup()
-                var allUserIds: Set<String> = []
-
-                // Incluir tus propios momentos
-                allUserIds.insert(userId)
-
-                // Usuarios que sigues
-                group.enter()
-                self?.firestoreService.fetchFollowing(userId: userId) { result in
-                    if case .success(let followingUsers) = result {
-                        let someFollowing = Set(followingUsers.prefix(10).map { $0.id })
-                        allUserIds.formUnion(someFollowing)
-                    }
-                    group.leave()
-                }
-
-                // Usuarios con intereses similares
-                group.enter()
-                self?.firestoreService.fetchUsersWithSharedInterests(
-                    interests: interests,
-                    excludingUserId: userId
-                ) { result in
-                    if case .success(let users) = result {
-                        let userIds = Set(users.prefix(15).map { $0.id })
-                        allUserIds.formUnion(userIds)
-                    }
-                    group.leave()
-                }
-
-                // Usuarios sugeridos
-                group.enter()
-                self?.firestoreService.fetchSuggestedUsers { result in
-                    if case .success(let suggestedUsers) = result {
-                        let suggestedIds = Set(suggestedUsers.prefix(20).map { $0.id })
-                        allUserIds.formUnion(suggestedIds)
-                    }
-                    group.leave()
-                }
-
-                // Usuarios populares
-                group.enter()
-                self?.fetchPopularUsers(excludingUserId: userId) { popularUsers in
-                    let popularIds = Set(popularUsers.prefix(25).map { $0.id })
-                    allUserIds.formUnion(popularIds)
-                    group.leave()
-                }
-
-                // Usuarios aleatorios
-                group.enter()
-                self?.fetchRandomUsers(excludingUserId: userId) { randomUsers in
-                    let randomIds = Set(randomUsers.prefix(15).map { $0.id })
-                    allUserIds.formUnion(randomIds)
-                    group.leave()
-                }
-
-                group.notify(queue: .main) {
-                    let finalUserIds = Array(allUserIds)
-
-                    if finalUserIds.isEmpty {
-                        DispatchQueue.main.async {
-                            self?.isLoading = false
-                            self?.forYouMoments = []
-                            self?.moments = []
-                        }
-                        return
-                    }
-
-                    self?.fetchMomentsFromUsers(userIds: finalUserIds, userId: userId, feedType: .forYou)
-                }
-
-            case .failure(let error):
-                DispatchQueue.main.async {
-                    self?.isLoading = false
-                    self?.errorMessage = error.localizedDescription
-                }
+        forYouLegacyGlobalStreamCursor = nil
+        loadLegacyForYouPage(userId: userId, existingMomentIds: [], isInitialLoad: true) { [weak self] finalMoments in
+            guard let self else { return }
+            DispatchQueue.main.async {
+                self.isLoading = false
+                self.forYouMoments = finalMoments
+                self.moments = finalMoments
+                VideoMomentsIndex.shared.rebuild(from: finalMoments)
+                self.saveFeedToCache(moments: finalMoments, type: .forYou, sync: true)
+                VideoPreloader.shared.preloadAssets(
+                    urls: VideoPlaybackSelector.shared.preloadURLStrings(from: finalMoments)
+                )
+            }
+        } onFailure: { [weak self] error in
+            DispatchQueue.main.async {
+                self?.isLoading = false
+                self?.errorMessage = error.localizedDescription
             }
         }
     }
 
-    /// Apply affinity-based sorting: bestFriends + mutuals boost + SwiftData scores + randomness
-    private func applyAffinitySorting(moments: [Moment], feedType: FeedType) -> [Moment] {
-        let affinityManager = AffinityTracker.shared
+    private func loadLegacyForYouPage(
+        userId: String,
+        existingMomentIds: Set<String>,
+        isInitialLoad: Bool,
+        onSuccess: @escaping ([Moment]) -> Void,
+        onFailure: @escaping (Error) -> Void
+    ) {
+        firestoreService.fetchUserProfile(userId: userId) { [weak self] result in
+            guard let self else { return }
 
-        guard let container = affinityManager.modelContainer else {
-            // Fallback: chronological + shuffled for forYou
-            return feedType == .forYou
-                ? Array(moments.shuffled().prefix(60))
-                : Array(moments.prefix(40))
-        }
+            switch result {
+            case .success(let user):
+                let group = DispatchGroup()
+                var followingIds = self.cachedFollowingIds
+                var followerIds = Set<String>()
 
-        let context = SwiftData.ModelContext(container)
-        let bestFriends = Set(UserDefaults.standard.stringArray(forKey: "bestFriends") ?? [])
-        let mutuals = Set(UserDefaults.standard.stringArray(forKey: "mutuals") ?? [])
-        let affinityScores = affinityManager.getScores(for: moments.map { $0.authorId }, in: context)
+                if followingIds.isEmpty {
+                    group.enter()
+                    self.firestoreService.fetchFollowing(userId: userId) { followingResult in
+                        if case .success(let followingUsers) = followingResult {
+                            followingIds = Set(followingUsers.map(\.id))
+                        }
+                        group.leave()
+                    }
+                }
 
-        let scoredMoments = moments.map { moment -> (moment: Moment, score: Double) in
-            let baseScore = moment.timestamp.timeIntervalSince1970
-            var additionalScore = 0.0
+                group.enter()
+                self.firestoreService.fetchFollowers(userId: userId) { followersResult in
+                    if case .success(let followers) = followersResult {
+                        followerIds = Set(followers.map(\.id))
+                    }
+                    group.leave()
+                }
 
-            let affinityScore = affinityScores[moment.authorId] ?? 0.0
-            additionalScore += (affinityScore * 1000)
-            additionalScore += Double.random(in: 0...5000)
+                group.notify(queue: .main) {
+                    self.cachedFollowingIds = followingIds
+                    let blockedUserIds = Set(user.blockedUsers)
+                    let excludingAuthors = followingIds.union([userId]).union(blockedUserIds)
+                    let streamCursor = isInitialLoad ? nil : self.forYouLegacyGlobalStreamCursor
 
-            if bestFriends.contains(moment.authorId) {
-                additionalScore += 50000
-            } else if mutuals.contains(moment.authorId) {
-                additionalScore += 20000
+                    ForYouDiscoveryService.loadDiscoveryAuthors(
+                        viewerId: userId,
+                        interests: user.interests,
+                        followingIds: followingIds,
+                        followerIds: followerIds,
+                        blockedUserIds: blockedUserIds
+                    ) { discovery in
+                        let fetchGroup = DispatchGroup()
+                        var authorMoments: [Moment] = []
+                        var globalMoments: [Moment] = []
+
+                        fetchGroup.enter()
+                        self.firestoreService.fetchMomentsFromUsers(
+                            userIds: discovery.authorIds,
+                            perUserLimit: 8,
+                            totalLimit: 120
+                        ) { fetchResult in
+                            if case .success(let moments) = fetchResult {
+                                authorMoments = moments
+                            }
+                            fetchGroup.leave()
+                        }
+
+                        fetchGroup.enter()
+                        ForYouDiscoveryService.fetchGlobalEveryoneMoments(
+                            excludingAuthorIds: excludingAuthors,
+                            excludingMomentIds: existingMomentIds,
+                            globalStreamCursor: streamCursor
+                        ) { moments, nextStreamCursor in
+                            globalMoments = moments
+                            self.forYouLegacyGlobalStreamCursor = nextStreamCursor ?? self.forYouLegacyGlobalStreamCursor
+                            fetchGroup.leave()
+                        }
+
+                        fetchGroup.notify(queue: .main) {
+                            var mergedById: [String: Moment] = [:]
+                            for moment in authorMoments + globalMoments {
+                                guard let momentId = moment.id else { continue }
+                                guard !existingMomentIds.contains(momentId) else { continue }
+                                mergedById[momentId] = moment
+                            }
+
+                            let merged = Array(mergedById.values)
+                            self.filterMomentsForPrivacy(viewerId: userId, moments: merged) { visibleMoments in
+                                let tuned = self.applyForYouClientTuning(
+                                    moments: visibleMoments,
+                                    followingIds: followingIds,
+                                    viewerId: userId,
+                                    preserveOrder: false
+                                )
+                                let finalMoments = isInitialLoad
+                                    ? Array(tuned.prefix(60))
+                                    : tuned
+                                onSuccess(finalMoments)
+                            }
+                        }
+                    }
+                }
+
+            case .failure(let error):
+                onFailure(error)
             }
-
-            return (moment: moment, score: baseScore + additionalScore)
         }
-
-        let sorted = scoredMoments.sorted { $0.score > $1.score }.map { $0.moment }
-        return feedType == .forYou ? Array(sorted.prefix(60)) : Array(sorted.prefix(40))
     }
 
     private func fetchMomentsFromUsers(userIds: [String], userId: String, feedType: FeedType) {
@@ -592,51 +663,18 @@ class FeedViewModel {
 
             switch result {
             case .success(let fetchedMoments):
-                let sortedMoments = fetchedMoments.sorted { $0.timestamp > $1.timestamp }
-
-            // ✅ EXPERIMENTAL AFFINITY SORTING
-            let affinityManager = AffinityTracker.shared
-            var finalMoments: [Moment]
-
-            // Try to get the model container so we can query local scores
-            if let container = affinityManager.modelContainer {
-                let context = SwiftData.ModelContext(container)
-                let bestFriends = Set(UserDefaults.standard.stringArray(forKey: "bestFriends") ?? [])
-                let mutuals = Set(UserDefaults.standard.stringArray(forKey: "mutuals") ?? [])
-                let affinityScores = affinityManager.getScores(for: sortedMoments.map { $0.authorId }, in: context)
-
-                let scoredMoments = sortedMoments.map { moment -> (moment: Moment, score: Double) in
-                    let baseScore = moment.timestamp.timeIntervalSince1970
-                    var additionalScore = 0.0
-
-                    let affinityScore = affinityScores[moment.authorId] ?? 0.0
-                    // Add a scaled version of the affinity score
-                    additionalScore += (affinityScore * 1000)
-
-                    // Mezcla para que no sea siempre el mismo feed
-                    let randomFactor = Double.random(in: 0...5000)
-                    additionalScore += randomFactor
-
-                    if bestFriends.contains(moment.authorId) {
-                        additionalScore += 50000 // Big boost for best friends
-                    } else if mutuals.contains(moment.authorId) {
-                        additionalScore += 20000 // Boost for mutuals
-                    }
-
-                    return (moment: moment, score: baseScore + additionalScore)
+                let finalMoments: [Moment]
+                switch feedType {
+                case .following:
+                    finalMoments = self.sortMomentsChronologically(fetchedMoments, limit: 40)
+                case .forYou:
+                    finalMoments = Array(self.applyForYouClientTuning(
+                        moments: fetchedMoments,
+                        followingIds: self.cachedFollowingIds,
+                        viewerId: userId,
+                        preserveOrder: false
+                    ).prefix(60))
                 }
-                // Sort by the new mixed score
-                let finalSortedMoments = scoredMoments.sorted { $0.score > $1.score }.map { $0.moment }
-
-                finalMoments = feedType == .forYou ?
-                    Array(finalSortedMoments.prefix(60)) :
-                    Array(finalSortedMoments.prefix(40))
-            } else {
-                // Fallback to chronological + randomized if SwiftData is not available
-                finalMoments = feedType == .forYou ?
-                    Array(sortedMoments.shuffled().prefix(60)) :
-                    Array(sortedMoments.prefix(40))
-            }
             // Aplicar filtros de privacidad y actualizar UI
                 self.filterMomentsForPrivacy(viewerId: userId, moments: finalMoments) { filteredMoments in
                 DispatchQueue.main.async {
@@ -691,41 +729,18 @@ class FeedViewModel {
                 }
                 let sortedNewMoments = filteredNewMoments.sorted { $0.timestamp > $1.timestamp }
 
-            // ✅ EXPERIMENTAL AFFINITY SORTING - load more
-            let affinityManager = AffinityTracker.shared
-            var finalSortedNewMoments: [Moment]
-
-            if let container = affinityManager.modelContainer {
-                let context = SwiftData.ModelContext(container)
-                let bestFriends = Set(UserDefaults.standard.stringArray(forKey: "bestFriends") ?? [])
-                let mutuals = Set(UserDefaults.standard.stringArray(forKey: "mutuals") ?? [])
-                let affinityScores = affinityManager.getScores(for: sortedNewMoments.map { $0.authorId }, in: context)
-
-                let scoredMoments = sortedNewMoments.map { moment -> (moment: Moment, score: Double) in
-                    let baseScore = moment.timestamp.timeIntervalSince1970
-                    var additionalScore = 0.0
-
-                    let affinityScore = affinityScores[moment.authorId] ?? 0.0
-                    additionalScore += (affinityScore * 1000)
-
-                    // Mezcla para contenido de scrolling infinito
-                    let randomFactor = Double.random(in: 0...5000)
-                    additionalScore += randomFactor
-
-                    if bestFriends.contains(moment.authorId) {
-                        additionalScore += 50000
-                    } else if mutuals.contains(moment.authorId) {
-                        additionalScore += 20000
-                    }
-
-                    return (moment: moment, score: baseScore + additionalScore)
+                let finalSortedNewMoments: [Moment]
+                switch feedType {
+                case .following:
+                    finalSortedNewMoments = sortedNewMoments
+                case .forYou:
+                    finalSortedNewMoments = self.applyForYouClientTuning(
+                        moments: sortedNewMoments,
+                        followingIds: self.cachedFollowingIds,
+                        viewerId: userId,
+                        preserveOrder: false
+                    )
                 }
-
-                finalSortedNewMoments = scoredMoments.sorted { $0.score > $1.score }.map { $0.moment }
-            } else {
-                // Fallback
-                finalSortedNewMoments = sortedNewMoments.shuffled()
-            }
                 self.filterMomentsForPrivacy(viewerId: userId, moments: finalSortedNewMoments) { filteredMoments in
                 DispatchQueue.main.async {
                         self.isLoadingMore = false
@@ -753,82 +768,28 @@ class FeedViewModel {
     }
 
     private func fetchMoreForYouMoments(userId: String) {
-        firestoreService.fetchUserProfile(userId: userId) { [weak self] result in
-            switch result {
-            case .success(let user):
-                let interests = user.interests
-                let group = DispatchGroup()
-                var allUserIds: Set<String> = []
-                allUserIds.insert(userId)
-
-                group.enter()
-                self?.firestoreService.fetchUsersWithSharedInterests(
-                    interests: interests,
-                    excludingUserId: userId
-                ) { result in
-                    if case .success(let users) = result {
-                        let userIds = Set(users.prefix(10).map { $0.id })
-                        allUserIds.formUnion(userIds)
-                    }
-                    group.leave()
-                }
-
-                group.notify(queue: .main) {
-                    let finalUserIds = Array(allUserIds)
-                    self?.fetchMoreMomentsFromUsers(userIds: finalUserIds, userId: userId, feedType: .forYou)
-                }
-
-            case .failure(_):
-                DispatchQueue.main.async {
-                    self?.isLoadingMore = false
-                }
+        let existingMomentIds = Set(moments.compactMap(\.id))
+        loadLegacyForYouPage(
+            userId: userId,
+            existingMomentIds: existingMomentIds,
+            isInitialLoad: false
+        ) { [weak self] newMoments in
+            guard let self else { return }
+            DispatchQueue.main.async {
+                self.isLoadingMore = false
+                guard !newMoments.isEmpty else { return }
+                self.forYouMoments.append(contentsOf: newMoments)
+                self.moments.append(contentsOf: newMoments)
+                self.saveFeedToCache(moments: self.forYouMoments, type: .forYou, sync: false)
+                VideoPreloader.shared.preloadAssets(
+                    urls: VideoPlaybackSelector.shared.preloadURLStrings(from: newMoments)
+                )
+            }
+        } onFailure: { [weak self] _ in
+            DispatchQueue.main.async {
+                self?.isLoadingMore = false
             }
         }
-    }
-
-    private func fetchRandomUsers(excludingUserId: String, completion: @escaping ([AppUser]) -> Void) {
-        firestoreService.db.collection("users")
-            .whereField("isActive", isEqualTo: true)
-            .limit(to: 30)
-            .getDocuments { snapshot, error in
-                guard error == nil, let documents = snapshot?.documents else {
-                    completion([])
-                    return
-                }
-
-                let users = documents.compactMap { doc -> AppUser? in
-                    do {
-                        let user = try doc.data(as: AppUser.self)
-                        return user.id != excludingUserId ? user : nil
-                    } catch {
-                        return nil
-                    }
-                }
-
-                completion(users.shuffled())
-            }
-    }
-
-    private func fetchPopularUsers(excludingUserId: String, completion: @escaping ([AppUser]) -> Void) {
-        firestoreService.db.collection("users")
-            .limit(to: 15)
-            .getDocuments { snapshot, error in
-                guard error == nil, let documents = snapshot?.documents else {
-                    completion([])
-                    return
-                }
-
-                let users = documents.compactMap { doc -> AppUser? in
-                    do {
-                        let user = try doc.data(as: AppUser.self)
-                        return user.id != excludingUserId ? user : nil
-                    } catch {
-                        return nil
-                    }
-                }
-
-                completion(users)
-            }
     }
 
     // MARK: - Privacy Filter

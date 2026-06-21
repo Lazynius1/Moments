@@ -122,6 +122,25 @@ struct FeedCursor: Codable {
     let timestamp: Double
     let momentId: String
     let authorId: String?
+    let globalStreamTimestamp: Double?
+    let globalStreamMomentId: String?
+    let globalStreamAuthorId: String?
+
+    init(
+        timestamp: Double,
+        momentId: String,
+        authorId: String? = nil,
+        globalStreamTimestamp: Double? = nil,
+        globalStreamMomentId: String? = nil,
+        globalStreamAuthorId: String? = nil
+    ) {
+        self.timestamp = timestamp
+        self.momentId = momentId
+        self.authorId = authorId
+        self.globalStreamTimestamp = globalStreamTimestamp
+        self.globalStreamMomentId = globalStreamMomentId
+        self.globalStreamAuthorId = globalStreamAuthorId
+    }
 }
 
 /// Lightweight moment from backend (timestamps as epoch millis)
@@ -257,6 +276,15 @@ class BackendFeedService {
                 ]
                 if let authorId = cursor.authorId, !authorId.isEmpty {
                     cursorPayload["authorId"] = authorId
+                }
+                if let globalStreamTimestamp = cursor.globalStreamTimestamp,
+                   let globalStreamMomentId = cursor.globalStreamMomentId,
+                   let globalStreamAuthorId = cursor.globalStreamAuthorId,
+                   !globalStreamMomentId.isEmpty,
+                   !globalStreamAuthorId.isEmpty {
+                    cursorPayload["globalStreamTimestamp"] = globalStreamTimestamp
+                    cursorPayload["globalStreamMomentId"] = globalStreamMomentId
+                    cursorPayload["globalStreamAuthorId"] = globalStreamAuthorId
                 }
                 body["cursor"] = cursorPayload
             }
