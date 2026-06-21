@@ -15,40 +15,67 @@ final class SharedVideoPlayerPool {
     private var slots: [Slot] = []
     private let lock = NSLock()
 
+    /// Callbacks de desalojo por consumerId. Permiten que un consumer (p. ej. un
+    /// VideoPlayerManager) sepa que su AVPlayer fue reasignado a otro contenido y
+    /// deje de apuntar a él, evitando reproducir contenido cruzado.
+    private var evictionHandlers: [String: () -> Void] = [:]
+
     private init() {
         slots = (0..<poolSize).map { _ in
             Slot(player: AVPlayer(), consumerId: nil, lastUsed: .distantPast)
         }
     }
 
+    /// Registra un callback que se invoca cuando el slot del consumer es desalojado.
+    func setEvictionHandler(for consumerId: String, _ handler: @escaping () -> Void) {
+        lock.lock()
+        evictionHandlers[consumerId] = handler
+        lock.unlock()
+    }
+
     func player(for consumerId: String) -> AVPlayer {
         lock.lock()
-        defer { lock.unlock() }
 
         if let index = slots.firstIndex(where: { $0.consumerId == consumerId }) {
             slots[index].lastUsed = Date()
-            return slots[index].player
+            let player = slots[index].player
+            lock.unlock()
+            return player
         }
 
         if let freeIndex = slots.firstIndex(where: { $0.consumerId == nil }) {
             slots[freeIndex].consumerId = consumerId
             slots[freeIndex].lastUsed = Date()
-            return slots[freeIndex].player
+            let player = slots[freeIndex].player
+            lock.unlock()
+            return player
         }
 
         let lruIndex = slots.enumerated().min(by: { $0.element.lastUsed < $1.element.lastUsed })?.offset ?? 0
+        let evictedConsumer = slots[lruIndex].consumerId
         evictSlot(at: lruIndex)
         slots[lruIndex].consumerId = consumerId
         slots[lruIndex].lastUsed = Date()
-        return slots[lruIndex].player
+        let player = slots[lruIndex].player
+        let handler = evictedConsumer.flatMap { evictionHandlers[$0] }
+        lock.unlock()
+
+        // Notificar fuera del lock para evitar reentradas/deadlocks.
+        handler?()
+        return player
     }
 
     func release(consumerId: String) {
         lock.lock()
-        defer { lock.unlock() }
 
-        guard let index = slots.firstIndex(where: { $0.consumerId == consumerId }) else { return }
+        guard let index = slots.firstIndex(where: { $0.consumerId == consumerId }) else {
+            evictionHandlers.removeValue(forKey: consumerId)
+            lock.unlock()
+            return
+        }
         evictSlot(at: index)
+        evictionHandlers.removeValue(forKey: consumerId)
+        lock.unlock()
     }
 
     func hasActiveItem(for consumerId: String) -> Bool {

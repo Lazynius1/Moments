@@ -259,6 +259,9 @@ struct ProfileImageView: View {
                             .fill(Color.gray.opacity(0.1))
                             .overlay(ProgressView().tint(.white))
                     }
+                    .downsampling(size: CGSize(width: 40, height: 40))
+                    .scaleFactor(UIScreen.main.scale)
+                    .cancelOnDisappear(true)
                     .resizable()
                     .scaledToFill()
                     .frame(width: 40, height: 40)

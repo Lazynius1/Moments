@@ -2,18 +2,31 @@ import ImageIO
 import SwiftUI
 import UIKit
 
+extension Foundation.Notification.Name {
+    /// Emitida cuando iOS avisa de presión de memoria. Las cachés no-singleton
+    /// (p. ej. StoryPlaybackCoordinator) pueden suscribirse para purgar memoria.
+    static let momentsDidReceiveMemoryWarning = Foundation.Notification.Name("momentsDidReceiveMemoryWarning")
+}
+
 // MARK: - GIF/Sticker image cache (sobrevive al reciclado de celdas en LazyVStack)
 final class ChatGIFImageCache {
     static let shared = ChatGIFImageCache()
 
     private let lock = NSLock()
-    private var memory: [String: UIImage] = [:]
+    private let memory = NSCache<NSString, UIImage>()
     private var inFlight: [String: [UUID: (UIImage?) -> Void]] = [:]
 
+    private init() {
+        memory.countLimit = 60
+        memory.totalCostLimit = 40 * 1024 * 1024 // 40MB en RAM para GIFs/stickers
+    }
+
     func cachedImage(for url: URL) -> UIImage? {
-        lock.lock()
-        defer { lock.unlock() }
-        return memory[url.absoluteString]
+        return memory.object(forKey: url.absoluteString as NSString)
+    }
+
+    func clearMemory() {
+        memory.removeAllObjects()
     }
 
     func load(url: URL, completion: @escaping (UIImage?) -> Void) {
@@ -36,10 +49,11 @@ final class ChatGIFImageCache {
         lock.unlock()
 
         let finish: (UIImage?) -> Void = { image in
-            self.lock.lock()
             if let image {
-                self.memory[key] = image
+                let cost = Self.estimatedCost(of: image)
+                self.memory.setObject(image, forKey: key as NSString, cost: cost)
             }
+            self.lock.lock()
             let pending = self.inFlight.removeValue(forKey: key) ?? [:]
             let handlers = Array(pending.values)
             self.lock.unlock()
@@ -78,6 +92,14 @@ final class ChatGIFImageCache {
             return animatedImage
         }
         return UIImage(data: data)
+    }
+
+    /// Coste aproximado en bytes (considera frames de GIFs animados).
+    private static func estimatedCost(of image: UIImage) -> Int {
+        guard let cg = image.cgImage else { return 1 }
+        let frameCost = cg.bytesPerRow * cg.height
+        let frameCount = max(image.images?.count ?? 1, 1)
+        return frameCost * frameCount
     }
 }
 

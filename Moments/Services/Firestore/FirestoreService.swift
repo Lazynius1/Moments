@@ -890,6 +890,7 @@ class FirestoreService: ObservableObject {
     // MARK: - FETCH METHODS CORREGIDOS
     func fetchFollowing(userId: String, completion: @escaping (Result<[AppUser], Error>) -> Void) {
         db.collection("users").document(userId).collection("following")
+            .limit(to: 1000) // Cota de seguridad para evitar lecturas masivas en cuentas grandes
             .getDocuments { snapshot, error in
                 if let error = error {
                     completion(.failure(error))
@@ -1035,6 +1036,7 @@ class FirestoreService: ObservableObject {
 
         db.collection("users").document(userId).collection("followers")
             .order(by: "timestamp", descending: true)
+            .limit(to: 1000) // Cota de seguridad para evitar lecturas masivas en cuentas grandes
             .getDocuments { [weak self] snapshot, error in
                 guard let self = self else { return }
 

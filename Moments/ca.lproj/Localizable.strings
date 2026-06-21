@@ -924,6 +924,10 @@
 "chat.recording" = "Enregistrant...";
 "chat.reply.you" = "Tu";
 "chat.reply.select_item" = "Respondre a un element";
+"chat.cluster.sentPhotos" = "Has enviat %d fotos";
+"chat.cluster.receivedPhotos" = "Has rebut %d fotos";
+"chat.cluster.sentItems" = "Has enviat %d elements";
+"chat.cluster.receivedItems" = "Has rebut %d elements";
 
 /* Messaging */
 "messaging.conversation.notFound" = "Conversa no trobada";

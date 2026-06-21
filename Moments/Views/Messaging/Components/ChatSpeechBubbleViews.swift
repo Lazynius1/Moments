@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 // MARK: - Group position
 
@@ -22,14 +23,13 @@ struct ChatBubbleShape: Shape {
 
     let side: Side
     var position: ChatMessageGroupPosition = .single
-    var cornerRadius: CGFloat = 20
-    var joinedRadius: CGFloat = 6
+    var cornerRadius: CGFloat = 17
+    var joinedRadius: CGFloat = 4
 
     func path(in rect: CGRect) -> Path {
         let r = cornerRadius
         let j = joinedRadius
 
-        // Radio de cada esquina del lado del emisor según posición en el grupo.
         let topPinned = !(position == .first || position == .single)
         let bottomPinned = !(position == .last || position == .single)
 
@@ -56,6 +56,30 @@ struct ChatBubbleShape: Shape {
     }
 }
 
+// MARK: - Text bubble metrics (Instagram Direct en iOS)
+
+/// Valores de referencia al tamaño de texto por defecto; escalan con Dynamic Type.
+enum ChatTextBubbleMetrics {
+    static let horizontalPadding: CGFloat = 12
+    static let verticalPadding: CGFloat = 8
+    static let lineSpacing: CGFloat = 2
+    static let cornerRadius: CGFloat = 17
+    static let joinedRadius: CGFloat = 4
+    /// Fracción del ancho de pantalla que puede ocupar una burbuja (IG ≈ 0.75).
+    static let maxWidthScreenFraction: CGFloat = 0.75
+}
+
+/// Fuente de mensaje: ~15pt por defecto (como IG), escalada con Ajustes → Tamaño del texto.
+enum ChatMessageFont {
+    static var bubble: Font {
+        Font(
+            UIFontMetrics(forTextStyle: .body).scaledFont(
+                for: UIFont.systemFont(ofSize: 15, weight: .regular)
+            )
+        )
+    }
+}
+
 // MARK: - Text bubble
 
 struct ChatTextBubbleView: View {
@@ -66,13 +90,28 @@ struct ChatTextBubbleView: View {
     let onReaction: (String) -> Void
 
     @Environment(\.colorScheme) private var colorScheme
+    @ScaledMetric(relativeTo: .body) private var horizontalPadding = ChatTextBubbleMetrics.horizontalPadding
+    @ScaledMetric(relativeTo: .body) private var verticalPadding = ChatTextBubbleMetrics.verticalPadding
+    @ScaledMetric(relativeTo: .body) private var lineSpacing = ChatTextBubbleMetrics.lineSpacing
+    @ScaledMetric(relativeTo: .body) private var cornerRadius = ChatTextBubbleMetrics.cornerRadius
+    @ScaledMetric(relativeTo: .body) private var joinedRadius = ChatTextBubbleMetrics.joinedRadius
 
     private var adaptiveColors: AdaptiveColors {
         AdaptiveColors(colorScheme: colorScheme)
     }
 
+    /// Como en Instagram: ~75% del ancho de pantalla, así se adapta al dispositivo.
+    private var maxBubbleWidth: CGFloat {
+        UIScreen.main.bounds.width * ChatTextBubbleMetrics.maxWidthScreenFraction
+    }
+
     private var bubbleShape: ChatBubbleShape {
-        ChatBubbleShape(side: isOutgoing ? .trailing : .leading, position: groupPosition)
+        ChatBubbleShape(
+            side: isOutgoing ? .trailing : .leading,
+            position: groupPosition,
+            cornerRadius: cornerRadius,
+            joinedRadius: joinedRadius
+        )
     }
 
     private var bubbleFill: Color {
@@ -85,13 +124,13 @@ struct ChatTextBubbleView: View {
 
     var body: some View {
         Text(text)
-            .font(.custom("Poppins-Regular", size: 15))
+            .font(ChatMessageFont.bubble)
+            .lineSpacing(lineSpacing)
             .foregroundColor(textColor)
             .multilineTextAlignment(isOutgoing ? .trailing : .leading)
             .fixedSize(horizontal: false, vertical: true)
-            .frame(maxWidth: 280, alignment: isOutgoing ? .trailing : .leading)
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
+            .padding(.horizontal, horizontalPadding)
+            .padding(.vertical, verticalPadding)
             .background(bubbleFill, in: bubbleShape)
             .overlay(
                 bubbleShape
@@ -100,7 +139,7 @@ struct ChatTextBubbleView: View {
                         lineWidth: 0.5
                     )
             )
-            .fixedSize(horizontal: true, vertical: false)
+            .frame(maxWidth: maxBubbleWidth, alignment: isOutgoing ? .trailing : .leading)
             .messageReactionOverlay(
                 isOutgoing: isOutgoing,
                 reactions: reactions,

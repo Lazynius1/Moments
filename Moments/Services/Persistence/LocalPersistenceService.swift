@@ -49,9 +49,9 @@ final class LocalPersistenceService: ObservableObject {
         do {
             modelContainer = try ModelContainer(for: schema, configurations: [config])
             modelContext = modelContainer?.mainContext
-            print("✅ LocalPersistence: SwiftData inicializado correctamente")
+            AppLog.debug("✅ LocalPersistence: SwiftData inicializado correctamente")
         } catch {
-            print("⚠️ LocalPersistence: Error de migración, reintentando con reset: \(error)")
+            AppLog.debug("⚠️ LocalPersistence: Error de migración, reintentando con reset: \(error)")
             // FALLBACK: Si hay un error de migración (NSCocoaErrorDomain 134110), borrar el cache y reintentar
             resetAndRetry(schema: schema, config: config)
         }
@@ -67,15 +67,15 @@ final class LocalPersistenceService: ObservableObject {
                 let walURL = storeURL.appendingPathExtension("wal")
                 try? FileManager.default.removeItem(at: shmURL)
                 try? FileManager.default.removeItem(at: walURL)
-                print("🧹 LocalPersistence: Archivos de cache borrados para recuperación")
+                AppLog.debug("🧹 LocalPersistence: Archivos de cache borrados para recuperación")
             }
             
             // 2. Reintentar inicializar
             modelContainer = try ModelContainer(for: schema, configurations: [config])
             modelContext = modelContainer?.mainContext
-            print("✅ LocalPersistence: SwiftData recuperado tras reset")
+            AppLog.debug("✅ LocalPersistence: SwiftData recuperado tras reset")
         } catch {
-            print("❌ LocalPersistence: Error fatal recreando SwiftData: \(error)")
+            AppLog.debug("❌ LocalPersistence: Error fatal recreando SwiftData: \(error)")
         }
     }
     
@@ -197,7 +197,7 @@ final class LocalPersistenceService: ObservableObject {
             let cached = try context.fetch(descriptor)
             return cached.compactMap { $0.toMoment() }
         } catch {
-            print("❌ LocalPersistence: Error al cargar feed: \(error)")
+            AppLog.debug("❌ LocalPersistence: Error al cargar feed: \(error)")
             return []
         }
     }
@@ -218,7 +218,7 @@ final class LocalPersistenceService: ObservableObject {
             let cached = try context.fetch(descriptor)
             return cached.compactMap { $0.toMoment() }
         } catch {
-            print("❌ LocalPersistence: Error al cargar explore: \(error)")
+            AppLog.debug("❌ LocalPersistence: Error al cargar explore: \(error)")
             return []
         }
     }
@@ -239,7 +239,7 @@ final class LocalPersistenceService: ObservableObject {
             let cached = try context.fetch(descriptor)
             return cached.compactMap { $0.toMoment() }
         } catch {
-            print("❌ LocalPersistence: Error al cargar perfil: \(error)")
+            AppLog.debug("❌ LocalPersistence: Error al cargar perfil: \(error)")
             return []
         }
     }
@@ -282,7 +282,7 @@ final class LocalPersistenceService: ObservableObject {
                 return cached.toAppUser()
             }
         } catch {
-            print("❌ LocalPersistence: Error al cargar usuario: \(error)")
+            AppLog.debug("❌ LocalPersistence: Error al cargar usuario: \(error)")
         }
         
         return nil
@@ -301,7 +301,7 @@ final class LocalPersistenceService: ObservableObject {
                 return cached.toAppUser()
             }
         } catch {
-            print("❌ LocalPersistence: Error al cargar usuario actual: \(error)")
+            AppLog.debug("❌ LocalPersistence: Error al cargar usuario actual: \(error)")
         }
         
         return nil
@@ -364,7 +364,7 @@ final class LocalPersistenceService: ObservableObject {
             let now = Date()
             return cachedStories.filter { $0.expirationDate > now }.map { $0.toStory() }
         } catch {
-            print("❌ LocalPersistence: Error al cargar historias: \(error)")
+            AppLog.debug("❌ LocalPersistence: Error al cargar historias: \(error)")
             return []
         }
     }
@@ -379,7 +379,7 @@ final class LocalPersistenceService: ObservableObject {
             try context.delete(model: CachedStory.self, where: predicate)
             saveContext()
         } catch {
-            print("❌ LocalPersistence: Error limpiando historias antiguas: \(error)")
+            AppLog.debug("❌ LocalPersistence: Error limpiando historias antiguas: \(error)")
         }
     }
 
@@ -432,7 +432,7 @@ final class LocalPersistenceService: ObservableObject {
                 .sorted { ($0.isPinned ? 1 : 0) > ($1.isPinned ? 1 : 0) }
                 .map { $0.toConversation() }
         } catch {
-            print("❌ LocalPersistence: Error al cargar conversaciones: \(error)")
+            AppLog.debug("❌ LocalPersistence: Error al cargar conversaciones: \(error)")
             return []
         }
     }
@@ -481,7 +481,7 @@ final class LocalPersistenceService: ObservableObject {
             let cached = try context.fetch(descriptor)
             return cached.map { $0.toEnhancedMessage() }
         } catch {
-            print("❌ LocalPersistence: Error al cargar mensajes: \(error)")
+            AppLog.debug("❌ LocalPersistence: Error al cargar mensajes: \(error)")
             return []
         }
     }
@@ -557,7 +557,7 @@ final class LocalPersistenceService: ObservableObject {
             let cached = try context.fetch(descriptor)
             return cached.map { $0.toNotification() }
         } catch {
-            print("❌ LocalPersistence: Error al cargar notificaciones: \(error)")
+            AppLog.debug("❌ LocalPersistence: Error al cargar notificaciones: \(error)")
             return []
         }
     }
@@ -636,7 +636,7 @@ final class LocalPersistenceService: ObservableObject {
             
             return (followers, following)
         } catch {
-            print("❌ LocalPersistence: Error al cargar conexiones: \(error)")
+            AppLog.debug("❌ LocalPersistence: Error al cargar conexiones: \(error)")
             return ([], [])
         }
     }
@@ -697,7 +697,7 @@ final class LocalPersistenceService: ObservableObject {
         do {
             return try context.fetch(descriptor)
         } catch {
-            print("❌ LocalPersistence: Error al cargar búsquedas: \(error)")
+            AppLog.debug("❌ LocalPersistence: Error al cargar búsquedas: \(error)")
             return []
         }
     }
@@ -858,10 +858,10 @@ final class LocalPersistenceService: ObservableObject {
             }
             
             if !oldMoments.isEmpty {
-                print("🧹 LocalPersistence: Limpiados \(oldMoments.count) moments antiguos")
+                AppLog.debug("🧹 LocalPersistence: Limpiados \(oldMoments.count) moments antiguos")
             }
         } catch {
-            print("❌ LocalPersistence: Error en cleanup: \(error)")
+            AppLog.debug("❌ LocalPersistence: Error en cleanup: \(error)")
         }
         
         // Limpiar usuarios antiguos (excepto currentUser)
@@ -877,10 +877,33 @@ final class LocalPersistenceService: ObservableObject {
                 context.delete(user)
             }
         } catch {
-            print("❌ LocalPersistence: Error en cleanup usuarios: \(error)")
+            AppLog.debug("❌ LocalPersistence: Error en cleanup usuarios: \(error)")
         }
+
+        // Aplicar tope por conteo: conservar solo los usuarios más recientes.
+        trimCachedUsersToLimit(context: context)
         
         saveContext()
+    }
+
+    /// Mantiene como máximo `maxCachedUsers` usuarios cacheados (excluyendo currentUser),
+    /// expulsando los menos recientemente sincronizados.
+    private func trimCachedUsersToLimit(context: ModelContext) {
+        let currentUserSection = "currentUser"
+        var descriptor = FetchDescriptor<CachedUser>(
+            predicate: #Predicate<CachedUser> { $0.cacheSection != currentUserSection },
+            sortBy: [SortDescriptor(\.lastSyncedAt, order: .reverse)]
+        )
+        descriptor.fetchLimit = nil
+        do {
+            let users = try context.fetch(descriptor)
+            guard users.count > maxCachedUsers else { return }
+            for user in users[maxCachedUsers...] {
+                context.delete(user)
+            }
+        } catch {
+            AppLog.debug("❌ LocalPersistence: Error aplicando tope de usuarios: \(error)")
+        }
     }
     
     func cleanupOldChats() {
@@ -893,7 +916,7 @@ final class LocalPersistenceService: ObservableObject {
         do {
             try context.delete(model: CachedMessage.self, where: messagePredicate)
         } catch {
-            print("❌ LocalPersistence: Error limpiando mensajes antiguos: \(error)")
+            AppLog.debug("❌ LocalPersistence: Error limpiando mensajes antiguos: \(error)")
         }
         
         // 2. Limpiar conversaciones que no han tenido actividad en X días
@@ -901,7 +924,7 @@ final class LocalPersistenceService: ObservableObject {
         do {
             try context.delete(model: CachedConversation.self, where: chatPredicate)
         } catch {
-            print("❌ LocalPersistence: Error limpiando chats antiguos: \(error)")
+            AppLog.debug("❌ LocalPersistence: Error limpiando chats antiguos: \(error)")
         }
         
         saveContext()
@@ -915,9 +938,9 @@ final class LocalPersistenceService: ObservableObject {
             try context.delete(model: CachedMoment.self)
             try context.delete(model: CachedUser.self)
             saveContext()
-            print("🧹 LocalPersistence: Todo el caché local borrado")
+            AppLog.debug("🧹 LocalPersistence: Todo el caché local borrado")
         } catch {
-            print("❌ LocalPersistence: Error al borrar caché: \(error)")
+            AppLog.debug("❌ LocalPersistence: Error al borrar caché: \(error)")
         }
     }
     
@@ -939,7 +962,7 @@ final class LocalPersistenceService: ObservableObject {
         do {
             try modelContext?.save()
         } catch {
-            print("❌ LocalPersistence: Error al guardar: \(error)")
+            AppLog.debug("❌ LocalPersistence: Error al guardar: \(error)")
         }
     }
     
@@ -1567,7 +1590,7 @@ final class StorySeenStateService {
             ], merge: true) { error in
                 #if DEBUG
                 if let error = error {
-                    print("⚠️ storySeen sync failed viewer:\(viewerId) author:\(authorId) -> \(error.localizedDescription)")
+                    AppLog.debug("⚠️ storySeen sync failed viewer:\(viewerId) author:\(authorId) -> \(error.localizedDescription)")
                 }
                 #endif
             }

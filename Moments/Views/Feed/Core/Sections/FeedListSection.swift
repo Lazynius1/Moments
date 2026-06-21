@@ -107,7 +107,8 @@ struct FeedListSection: View {
             }
             .refreshable {
                 if let userId = Auth.auth().currentUser?.uid {
-                    onForceRefresh()
+                    // Un solo pipeline de refresco (antes se llamaba también onForceRefresh()
+                    // que disparaba un segundo fetchMoments en paralelo).
                     await onManualRefresh(userId)
                 }
             }
@@ -116,7 +117,6 @@ struct FeedListSection: View {
                     proxy.scrollTo(0, anchor: .top)
                 }
                 if let userId = Auth.auth().currentUser?.uid {
-                    onForceRefresh()
                     Task {
                         await onManualRefresh(userId)
                     }

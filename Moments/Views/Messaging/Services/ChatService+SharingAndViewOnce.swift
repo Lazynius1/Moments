@@ -104,6 +104,7 @@ extension ChatService {
                 "momentAuthorId": moment.authorId,
                 "momentContent": moment.content,
                 "momentImageUrl": moment.thumbnailUrl ?? moment.imagePath ?? "",
+                "momentAspectRatio": moment.aspectRatio ?? "1:1",
                 "momentVideoUrl": moment.videoUrl ?? "",
                 "momentTimestamp": String(moment.timestamp.timeIntervalSince1970),
                 "shareUrl": momentUrl

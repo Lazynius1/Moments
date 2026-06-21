@@ -950,6 +950,10 @@
 "chat.recording" = "Recording...";
 "chat.reply.you" = "You";
 "chat.reply.select_item" = "Reply to an item";
+"chat.cluster.sentPhotos" = "You sent %d photos";
+"chat.cluster.receivedPhotos" = "You received %d photos";
+"chat.cluster.sentItems" = "You sent %d items";
+"chat.cluster.receivedItems" = "You received %d items";
 
 /* Messaging */
 "messaging.conversation.notFound" = "Conversation not found";

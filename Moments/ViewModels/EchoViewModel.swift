@@ -196,13 +196,25 @@ class EchoViewModel: ObservableObject {
     private func preloadMedia() {
         let moments = allMoments
         guard !moments.isEmpty else { return }
-        
-        let urls = moments.compactMap { URL(string: $0.mediaUrl) }
-        let thumbUrls = moments.compactMap { $0.thumbnailUrl.flatMap { URL(string: $0) } }
-        
-        ImagePrefetchManager.shared.prefetch(urls: urls + thumbUrls)
-        
-        let videoUrls = moments.filter { $0.mediaType == "video" }.map { $0.mediaUrl }
+
+        // Acotar a una ventana inicial para evitar descargas masivas full-res
+        // y llenado de disco/red cuando hay decenas/cientos de ecos.
+        let mediaWindow = 6
+        let thumbWindow = 12
+
+        let mediaSlice = Array(moments.prefix(mediaWindow))
+        let thumbSlice = Array(moments.prefix(thumbWindow))
+
+        // Thumbnails (ligeros) en una ventana más amplia.
+        let thumbUrls = thumbSlice.compactMap { $0.thumbnailUrl.flatMap { URL(string: $0) } }
+        // Media principal (pesada) en ventana estrecha, solo imágenes.
+        let imageUrls = mediaSlice
+            .filter { $0.mediaType != "video" }
+            .compactMap { URL(string: $0.mediaUrl) }
+
+        ImagePrefetchManager.shared.prefetch(urls: thumbUrls + imageUrls)
+
+        let videoUrls = mediaSlice.filter { $0.mediaType == "video" }.map { $0.mediaUrl }
         VideoPreloader.shared.preloadAssets(urls: videoUrls)
     }
     

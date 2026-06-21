@@ -2,7 +2,6 @@ import SwiftUI
 import FirebaseCore
 import FirebaseFirestore
 import FirebaseAuth // Añadir este import
-import Kingfisher
 import GoogleMobileAds
 
 private extension Foundation.Notification.Name {
@@ -16,6 +15,8 @@ struct MomentsApp: App {
     @StateObject private var cacheManager = CacheManager.shared
     @StateObject private var offlineSyncService = OfflineSyncService.shared
     @StateObject private var incognitoModeService = IncognitoModeService.shared
+    // Instancia estable: evita recrear el servicio (y su listener de Auth) en cada re-render.
+    @StateObject private var messageRequestService = MessageRequestService()
     @State private var showSplash = true
     @State private var showWhatsNew = false
     @AppStorage("lastVersionPrompted") private var lastVersionPrompted: String = "1.0.0"
@@ -27,10 +28,6 @@ struct MomentsApp: App {
 
     init() {
         FirebaseApp.configure()
-
-        // Bootstrap global time tracking so Time Spent and Daily Limit work
-        // without requiring the user to open the Time Spent screens first.
-        _ = TimeSpentManager.shared
 
         let settings = FirestoreSettings()
         // ✅ LÍMITE FIREBASE: 100MB máximo para cache persistente
@@ -48,7 +45,7 @@ struct MomentsApp: App {
                 TabBarView()
                     .environment(AppRouter.shared)
                     .environmentObject(ephemeralCleanupManager)
-                    .environmentObject(MessageRequestService())
+                    .environmentObject(messageRequestService)
                     .onAppear {
 
                         // Post-launch initializations (una sola vez)
@@ -59,22 +56,17 @@ struct MomentsApp: App {
                                 AdMobConfiguration.shared.initialize()
                                 OfflineSyncService.shared.enableAutomaticSync()
 
+                                // Bootstrap del seguimiento de tiempo (Time Spent / Daily Limit)
+                                // diferido tras el primer frame para no penalizar el arranque.
+                                _ = TimeSpentManager.shared
+
                                 Task {
                                     await BackgroundMomentUploadService.shared.cleanupStaleUploadActivities()
                                     await BackgroundStoryUploadService.shared.cleanupStaleUploadActivities()
                                 }
 
-                                // Configurar caches con tamaños más moderados
-                                let memoryCapacity = 20 * 1024 * 1024
-                                let diskCapacity = 500 * 1024 * 1024  // ✅ AJUSTADO: 500MB (Estándar moderno)
-                                let cache = URLCache(memoryCapacity: memoryCapacity, diskCapacity: diskCapacity, diskPath: "imageCache")
-                                URLCache.shared = cache
-
-                                let kingfisherCache = KingfisherManager.shared.cache
-                                kingfisherCache.memoryStorage.config.totalCostLimit = 20 * 1024 * 1024
-                                kingfisherCache.diskStorage.config.sizeLimit = 500 * 1024 * 1024  // ✅ AJUSTADO: 500MB (Estándar moderno)
-                                kingfisherCache.diskStorage.config.expiration = StorageExpiration.days(7)  // ✅ ALINEADO CON SWIFTDATA: 7 días de persistencia
-                                KingfisherManager.shared.defaultOptions += [.asyncCacheTypeCheck]
+                                // Nota: la configuración de cachés de imágenes (Kingfisher/URLCache)
+                                // se hace ahora en AppDelegate.didFinishLaunching, antes del primer frame.
 
                                 // ✅ SwiftData: Limpiar datos locales antiguos (>7 días)
                                 Task { @MainActor in

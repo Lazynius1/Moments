@@ -83,7 +83,7 @@ struct GlassmorphicClusterRow: View {
     let onAvatarTap: () -> Void
     let onMessageViewed: ((String) -> Void)?
     let onMomentNavigation: ((EnhancedMessage) -> Void)?
-    let onOpenMedia: (EnhancedMessage) -> Void
+    let onOpenCluster: ([EnhancedMessage]) -> Void
     let onLongPress: (EnhancedMessage) -> Void
     let onHydrateMedia: ((EnhancedMessage) -> Void)?
     let onReply: ([EnhancedMessage]) -> Void
@@ -133,7 +133,7 @@ struct GlassmorphicClusterRow: View {
                         displayReactions: displayReactions,
                         onReaction: onReaction,
                         onMomentNavigation: onMomentNavigation,
-                        onOpenMedia: onOpenMedia,
+                        onOpenCluster: onOpenCluster,
                         onLongPress: onLongPress,
                         onHydrateMedia: onHydrateMedia
                     )
@@ -192,54 +192,47 @@ private struct ClusterMessageStatusObserver: View {
     }
 }
 
-// MARK: - WhatsApp-style album layouts
+// MARK: - Instagram-style fanned photo pile
 
 enum ClusterMediaLayout {
-    struct Spec {
-        let contentWidth: CGFloat
-        let spacing: CGFloat
-        let tileWidths: [CGFloat]
-        let tileHeights: [CGFloat]
+    static let frontWidth: CGFloat = 196
+    static let frontHeight: CGFloat = 244
+    static let cornerRadius: CGFloat = 12
+    // El abanico sólo crece hacia arriba, así que el hueco inferior es mínimo.
+    static let fanBottomPadding: CGFloat = 10
+    static let maxVisible: Int = 5
+
+    /// Padding superior necesario según cuántas cartas se muestren (sólo el
+    /// desplazamiento real hacia arriba + margen para la rotación).
+    static func fanTopPadding(for visibleCount: Int) -> CGFloat {
+        let slice = offsets.prefix(max(visibleCount, 1))
+        let maxUp = slice.map { -$0.height }.max() ?? 0
+        return maxUp + 10
     }
 
-    static let gridWidth: CGFloat = 256
-    static let horizontalInset: CGFloat = 0
-    static let spacing: CGFloat = 2
-    static let cornerRadius: CGFloat = 8
-    static let bubbleCornerRadius: CGFloat = 12
-
-    static func spec(for count: Int) -> Spec {
-        let contentWidth = gridWidth - (horizontalInset * 2)
-        let cellWidth = (contentWidth - spacing) / 2
-        let cellHeight: CGFloat = count >= 3 ? 118 : cellWidth
-
-        switch min(count, 4) {
-        case 2:
-            return Spec(
-                contentWidth: contentWidth,
-                spacing: spacing,
-                tileWidths: [cellWidth, cellWidth],
-                tileHeights: [cellHeight, cellHeight]
-            )
-        case 3:
-            // WA / IG: banner arriba + dos celdas abajo.
-            return Spec(
-                contentWidth: contentWidth,
-                spacing: spacing,
-                tileWidths: [contentWidth, cellWidth, cellWidth],
-                tileHeights: [cellHeight, cellHeight, cellHeight]
-            )
-        default:
-            return Spec(
-                contentWidth: contentWidth,
-                spacing: spacing,
-                tileWidths: [cellWidth, cellWidth, cellWidth, cellWidth],
-                tileHeights: [cellHeight, cellHeight, cellHeight, cellHeight]
-            )
-        }
+    /// Padding lateral necesario según el desplazamiento real a los lados.
+    static func fanSidePadding(for visibleCount: Int) -> CGFloat {
+        let slice = offsets.prefix(max(visibleCount, 1))
+        let maxSide = slice.map { abs($0.width) }.max() ?? 0
+        return maxSide + 12
     }
+
+    /// Rotación y desplazamiento de cada carta visible (índice 0 = frontal). Stack
+    /// compacto estilo Instagram: las cartas de atrás asoman poco (sobre todo hacia
+    /// arriba) con rotaciones sutiles. La frontal va ligeramente inclinada.
+    static let rotations: [Double] = [-4, 3, -2.5, 4, -3]
+    static let offsets: [CGSize] = [
+        CGSize(width: 0, height: 0),
+        CGSize(width: 10, height: -10),
+        CGSize(width: -8, height: -19),
+        CGSize(width: 14, height: -27),
+        CGSize(width: -6, height: -34)
+    ]
 }
 
+/// Pila de fotos en abanico estilo Instagram: la primera media al frente y las
+/// siguientes asomando rotadas detrás (fotos reales), con una etiqueta de conteo
+/// encima. Al tocar abre la galería de selección.
 struct MediaGridBubble: View {
     let messages: [EnhancedMessage]
     let isCurrentUser: Bool
@@ -247,59 +240,91 @@ struct MediaGridBubble: View {
     let displayReactions: (String) -> [String: [String]]?
     let onReaction: (EnhancedMessage, String) -> Void
     let onMomentNavigation: ((EnhancedMessage) -> Void)?
-    let onOpenMedia: (EnhancedMessage) -> Void
+    let onOpenCluster: ([EnhancedMessage]) -> Void
     let onLongPress: (EnhancedMessage) -> Void
     let onHydrateMedia: ((EnhancedMessage) -> Void)?
 
+    @Environment(\.colorScheme) private var colorScheme
+
+    private var frontMessage: EnhancedMessage { messages[0] }
+
     var body: some View {
         let count = messages.count
-        let spec = ClusterMediaLayout.spec(for: count)
-        let displayed = Array(messages.prefix(4))
+        let visible = Array(messages.prefix(ClusterMediaLayout.maxVisible))
+        let topPad = ClusterMediaLayout.fanTopPadding(for: visible.count)
+        let sidePad = ClusterMediaLayout.fanSidePadding(for: visible.count)
 
-        VStack(spacing: spec.spacing) {
-            switch displayed.count {
-            case 2:
-                HStack(spacing: spec.spacing) {
-                    clusterTile(displayed[0], index: 0, spec: spec)
-                    clusterTile(displayed[1], index: 1, spec: spec)
-                }
-            case 3:
-                clusterTile(displayed[0], index: 0, spec: spec)
-                HStack(spacing: spec.spacing) {
-                    clusterTile(displayed[1], index: 1, spec: spec)
-                    clusterTile(displayed[2], index: 2, spec: spec)
-                }
-            default:
-                VStack(spacing: spec.spacing) {
-                    HStack(spacing: spec.spacing) {
-                        clusterTile(displayed[0], index: 0, spec: spec)
-                        if displayed.count > 1 {
-                            clusterTile(displayed[1], index: 1, spec: spec)
-                        }
-                    }
-                    if displayed.count > 2 {
-                        HStack(spacing: spec.spacing) {
-                            clusterTile(displayed[2], index: 2, spec: spec)
-                            if displayed.count > 3 {
-                                clusterTile(displayed[3], index: 3, spec: spec, totalCount: count)
-                            }
-                        }
-                    }
+        VStack(alignment: isCurrentUser ? .trailing : .leading, spacing: 6) {
+            countLabel(count: count)
+
+            ZStack {
+                ForEach(Array(visible.enumerated()).reversed(), id: \.element.id) { index, message in
+                    photoCard(message: message, isFront: index == 0)
+                        .rotationEffect(.degrees(ClusterMediaLayout.rotations[index]))
+                        .offset(ClusterMediaLayout.offsets[index])
+                        .zIndex(Double(10 - index))
                 }
             }
-        }
-        .frame(width: ClusterMediaLayout.gridWidth)
-        .chatMessageLongPress {
-            if let anchor = messages.last {
-                onLongPress(anchor)
+            .frame(width: ClusterMediaLayout.frontWidth, height: ClusterMediaLayout.frontHeight)
+            .padding(.top, topPad)
+            .padding(.horizontal, sidePad)
+            .padding(.bottom, ClusterMediaLayout.fanBottomPadding)
+            .contentShape(Rectangle())
+            .onAppear {
+                messages.forEach { onHydrateMedia?($0) }
+            }
+            .onTapGesture {
+                onOpenCluster(messages)
+            }
+            .chatMessageLongPress {
+                onLongPress(frontMessage)
             }
         }
-        .background(
-            RoundedRectangle(cornerRadius: ClusterMediaLayout.bubbleCornerRadius, style: .continuous)
-                .fill(.ultraThinMaterial.opacity(0.12))
-        )
-        .clipShape(RoundedRectangle(cornerRadius: ClusterMediaLayout.bubbleCornerRadius, style: .continuous))
         .id(clusterReactionIdentity)
+    }
+
+    private func countLabel(count: Int) -> some View {
+        let hasVideo = messages.contains { $0.type == .video }
+        let key: String
+        if isCurrentUser {
+            key = hasVideo ? "chat.cluster.sentItems" : "chat.cluster.sentPhotos"
+        } else {
+            key = hasVideo ? "chat.cluster.receivedItems" : "chat.cluster.receivedPhotos"
+        }
+        return Text(String(format: NSLocalizedString(key, comment: ""), count))
+            .font(.system(size: 12, weight: .medium))
+            .foregroundColor(.secondary)
+            .padding(.horizontal, 6)
+    }
+
+    private func photoCard(message: EnhancedMessage, isFront: Bool) -> some View {
+        MediaGridTileView(
+            message: message,
+            progress: uploadProgress[message.id],
+            downsamplingSize: CGSize(
+                width: ClusterMediaLayout.frontWidth * UIScreen.main.scale,
+                height: ClusterMediaLayout.frontHeight * UIScreen.main.scale
+            )
+        )
+        .frame(width: ClusterMediaLayout.frontWidth, height: ClusterMediaLayout.frontHeight)
+        .clipShape(RoundedRectangle(cornerRadius: ClusterMediaLayout.cornerRadius, style: .continuous))
+        .overlay(alignment: .topTrailing) {
+            if isFront {
+                ClusterCountBadge()
+                    .padding(8)
+            }
+        }
+        .overlay(alignment: isCurrentUser ? .bottomLeading : .bottomTrailing) {
+            if isFront, let reactions = displayReactions(message.id), !reactions.isEmpty {
+                MessageReactionChip(
+                    reactions: reactions,
+                    onTap: { emoji in onReaction(message, emoji) },
+                    cluster: true
+                )
+                .padding(6)
+                .zIndex(10)
+            }
+        }
     }
 
     private var clusterReactionIdentity: String {
@@ -315,59 +340,16 @@ struct MediaGridBubble: View {
             .sorted()
             .joined(separator: ",")
     }
+}
 
-    @ViewBuilder
-    private func clusterTile(
-        _ message: EnhancedMessage,
-        index: Int,
-        spec: ClusterMediaLayout.Spec,
-        totalCount: Int? = nil
-    ) -> some View {
-        let width = spec.tileWidths[index]
-        let height = spec.tileHeights[index]
-        let overflowCount = totalCount ?? messages.count
-
-        MediaGridTileView(
-            message: message,
-            progress: uploadProgress[message.id],
-            downsamplingSize: CGSize(width: width * UIScreen.main.scale, height: height * UIScreen.main.scale)
-        )
-        .onAppear {
-            onHydrateMedia?(message)
-        }
-        .frame(width: width, height: height)
-        .clipShape(RoundedRectangle(cornerRadius: ClusterMediaLayout.cornerRadius, style: .continuous))
-        .id("\(message.id)-\(reactionTileIdentity(for: message.id))")
-        .overlay(alignment: isCurrentUser ? .bottomLeading : .bottomTrailing) {
-            if let reactions = displayReactions(message.id), !reactions.isEmpty {
-                MessageReactionChip(
-                    reactions: reactions,
-                    onTap: { emoji in onReaction(message, emoji) },
-                    cluster: true
-                )
-                .padding(5)
-                .zIndex(10)
-            }
-        }
-        .overlay {
-            if index == 3 && overflowCount > 4 {
-                RoundedRectangle(cornerRadius: ClusterMediaLayout.cornerRadius, style: .continuous)
-                    .fill(Color.black.opacity(0.52))
-                    .overlay {
-                        Text("+\(overflowCount - 4)")
-                            .font(.custom("Poppins-SemiBold", size: 20))
-                            .foregroundColor(.white)
-                    }
-                    .allowsHitTesting(false)
-            }
-        }
-        .contentShape(RoundedRectangle(cornerRadius: ClusterMediaLayout.cornerRadius, style: .continuous))
-        .onTapGesture {
-            onOpenMedia(message)
-        }
-        .chatMessageLongPress {
-            onLongPress(message)
-        }
+private struct ClusterCountBadge: View {
+    var body: some View {
+        Image("CarouselPostIcon")
+            .resizable()
+            .renderingMode(.original)
+            .scaledToFit()
+            .frame(width: 20, height: 20)
+            .shadow(color: .black.opacity(0.45), radius: 3, x: 0, y: 1)
     }
 }
 
@@ -443,136 +425,138 @@ struct MediaGridTileView: View {
     }
 }
 
-struct ClusterMediaViewer: View {
-    let messages: [EnhancedMessage]
-    let startIndex: Int
-
-    @Environment(\.dismiss) private var dismiss
-    @State private var selectedIndex: Int
-
-    init(messages: [EnhancedMessage], startIndex: Int) {
-        self.messages = messages
-        self.startIndex = startIndex
-
-        let safeInitialIndex: Int
-        if messages.isEmpty {
-            safeInitialIndex = 0
-        } else {
-            safeInitialIndex = min(max(startIndex, 0), messages.count - 1)
-        }
-        _selectedIndex = State(initialValue: safeInitialIndex)
-    }
-
-    var body: some View {
-        ZStack(alignment: .top) {
-            Color.black.ignoresSafeArea()
-
-            TabView(selection: $selectedIndex) {
-                ForEach(Array(messages.enumerated()), id: \.element.id) { index, message in
-                    ClusterMediaViewerPage(message: message)
-                        .tag(index)
-                }
-            }
-            .tabViewStyle(PageTabViewStyle(indexDisplayMode: .always))
-
-            HStack {
-                Text("\(min(selectedIndex + 1, max(messages.count, 1)))/\(max(messages.count, 1))")
-                    .font(.custom("Poppins-SemiBold", size: 13))
-                    .foregroundColor(.white)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 6)
-                    .background(Color.black.opacity(0.5))
-                    .clipShape(Capsule())
-
-                Spacer()
-
-                Button(action: { dismiss() }) {
-                    Image(systemName: "xmark")
-                        .font(.system(size: 16, weight: .bold))
-                        .foregroundColor(.white)
-                        .frame(width: 34, height: 34)
-                        .background(Color.black.opacity(0.5))
-                        .clipShape(Circle())
-                }
-            }
-            .padding(.horizontal, 18)
-            .padding(.top, 14)
-        }
-        .statusBar(hidden: true)
-    }
-}
-
-struct ClusterMediaViewerPage: View {
-    let message: EnhancedMessage
-    @State private var currentTime: Double = 0
-    @State private var duration: Double = 0
-    @State private var seekTarget: Double? = nil
-    @State private var isPaused = false
-
-    var body: some View {
-        Group {
-            if message.type == .video, let mediaUrl = message.mediaUrl, let url = URL(string: mediaUrl) {
-                ZStack(alignment: .bottom) {
-                    MomentsVideoPlayer(
-                        url: url,
-                        isLooping: true,
-                        isPaused: isPaused,
-                        videoGravity: .resizeAspect,
-                        onDurationReceived: { value in
-                            duration = value
-                        },
-                        onProgressUpdate: { value in
-                            if !isPaused {
-                                currentTime = value
-                            }
-                        },
-                        onVideoFinished: {},
-                        externalSeekTime: $seekTarget
-                    )
-                    .ignoresSafeArea()
-                    .onTapGesture {
-                        isPaused.toggle()
-                    }
-
-                    MomentsVideoPlaybackTimeline(
-                        currentTime: currentTime,
-                        duration: duration,
-                        horizontalPadding: 18,
-                        onSeek: { targetTime in
-                            currentTime = targetTime
-                            seekTarget = targetTime
-                        }
-                    )
-                    .padding(.bottom, 22)
-                }
-            } else if let mediaUrl = message.mediaUrl, let url = URL(string: mediaUrl) {
-                KFImage(url)
-                    .resizable()
-                    .scaledToFit()
-                    .ignoresSafeArea()
-            } else if let thumbnailUrl = message.thumbnailUrl, let url = URL(string: thumbnailUrl) {
-                KFImage(url)
-                    .resizable()
-                    .scaledToFit()
-                    .ignoresSafeArea()
-            } else {
-                RoundedRectangle(cornerRadius: 20)
-                    .fill(Color.white.opacity(0.08))
-                    .overlay(
-                        Image(systemName: "photo")
-                            .font(.system(size: 34))
-                            .foregroundColor(.white.opacity(0.6))
-                    )
-                    .padding(28)
-            }
-        }
-    }
-}
-
 struct ClusterWrapper: Identifiable {
     let messages: [EnhancedMessage]
     var id: String {
         messages.first?.id ?? "empty-cluster"
+    }
+}
+
+// MARK: - Fullscreen cluster gallery (Instagram-style)
+
+struct ClusterGalleryDetailRoute: Identifiable, Hashable {
+    let index: Int
+    var id: Int { index }
+}
+
+/// Galería a pantalla completa estilo Instagram: rejilla de 2 columnas tipo
+/// masonry que respeta el aspect ratio real de cada media. Al tocar una, hace una
+/// transición de pantalla (push) al visor de detalle (inyectado) abriendo ese item.
+struct ClusterGalleryView<Detail: View>: View {
+    let messages: [EnhancedMessage]
+    let onClose: () -> Void
+    /// Visor de detalle inyectado: recibe la media tocada y un cierre para volver
+    /// (pop) a la galería.
+    @ViewBuilder let detail: (EnhancedMessage, @escaping () -> Void) -> Detail
+
+    @Environment(\.colorScheme) private var colorScheme
+    @State private var path: [ClusterGalleryDetailRoute] = []
+    private let spacing: CGFloat = 14
+
+    var body: some View {
+        NavigationStack(path: $path) {
+            grid
+                .navigationDestination(for: ClusterGalleryDetailRoute.self) { route in
+                    detail(messages[min(max(route.index, 0), messages.count - 1)]) {
+                        if !path.isEmpty { path.removeLast() }
+                    }
+                    .navigationBarBackButtonHidden(true)
+                    .toolbar(.hidden, for: .navigationBar)
+                }
+        }
+    }
+
+    private var grid: some View {
+        GeometryReader { geo in
+            let columnWidth = (geo.size.width - spacing * 3) / 2
+            let columns = distribute(messages)
+
+            ZStack(alignment: .topLeading) {
+                background
+
+                ScrollView(showsIndicators: false) {
+                    HStack(alignment: .top, spacing: spacing) {
+                        column(columns.0, width: columnWidth)
+                        column(columns.1, width: columnWidth)
+                    }
+                    .padding(.horizontal, spacing)
+                    .padding(.top, 72)
+                    .padding(.bottom, 40)
+                }
+
+                closeButton
+                    .padding(.horizontal, 16)
+                    .padding(.top, 6)
+            }
+        }
+    }
+
+    private var background: some View {
+        (colorScheme == .dark ? Color(hex: "0B1215") : Color(hex: "FAF9F6"))
+            .ignoresSafeArea()
+    }
+
+    private var closeButton: some View {
+        MomentsGlassIconButton(systemName: "xmark", size: 38, iconSize: 16) {
+            onClose()
+        }
+    }
+
+    private func column(_ items: [EnhancedMessage], width: CGFloat) -> some View {
+        VStack(spacing: spacing) {
+            ForEach(items) { message in
+                card(message, width: width)
+            }
+        }
+    }
+
+    private func card(_ message: EnhancedMessage, width: CGFloat) -> some View {
+        let ratio = aspectRatio(for: message)
+        let height = width / ratio
+        let index = messages.firstIndex(where: { $0.id == message.id }) ?? 0
+        return Button {
+            path.append(ClusterGalleryDetailRoute(index: index))
+        } label: {
+            MediaGridTileView(
+                message: message,
+                progress: nil,
+                downsamplingSize: CGSize(
+                    width: width * UIScreen.main.scale,
+                    height: height * UIScreen.main.scale
+                )
+            )
+            .frame(width: width, height: height)
+            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+            .shadow(color: .black.opacity(0.12), radius: 6, x: 0, y: 3)
+        }
+        .buttonStyle(ScaleButtonStyle())
+    }
+
+    private func aspectRatio(for message: EnhancedMessage) -> CGFloat {
+        if let w = message.mediaWidth, let h = message.mediaHeight, w > 0, h > 0 {
+            return min(max(CGFloat(w) / CGFloat(h), 0.5), 1.9)
+        }
+        return 0.8
+    }
+
+    /// Reparte las medias en dos columnas balanceando la altura acumulada.
+    private func distribute(_ items: [EnhancedMessage]) -> ([EnhancedMessage], [EnhancedMessage]) {
+        var left: [EnhancedMessage] = []
+        var right: [EnhancedMessage] = []
+        var leftHeight: CGFloat = 0
+        var rightHeight: CGFloat = 0
+
+        for message in items {
+            let relativeHeight = 1 / aspectRatio(for: message)
+            if leftHeight <= rightHeight {
+                left.append(message)
+                leftHeight += relativeHeight
+            } else {
+                right.append(message)
+                rightHeight += relativeHeight
+            }
+        }
+        return (left, right)
     }
 }
 

@@ -417,6 +417,9 @@ struct ExploreMomentThumbnail: View {
         if let url = getImageURL(from: urlString) {
             KFImage(url)
                 .placeholder { placeholder }
+                .downsampling(size: CGSize(width: cellWidth, height: cellHeight))
+                .scaleFactor(UIScreen.main.scale)
+                .cancelOnDisappear(true)
                 .resizable()
                 .scaledToFill()
                 .frame(width: cellWidth, height: cellHeight)

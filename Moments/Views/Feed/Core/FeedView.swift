@@ -88,6 +88,7 @@ struct FeedView: View {
     @State private var selectedPendingEchoId: String = ""
     @State private var pendingEchoInvitationRoute: FeedEchoInvitationRoute?
     @State private var pendingEchoesListener: ListenerRegistration?
+    @State private var timeUpdateTimer: Timer?
 
     private var adaptiveColors: AdaptiveColors {
         AdaptiveColors(colorScheme: colorScheme)
@@ -184,7 +185,12 @@ struct FeedView: View {
                 }
             }
         .onDisappear {
-            // cleanupListeners() // ❌ ELIMINAR
+            // Liberar recursos al salir del feed para evitar fugas y trabajo en background.
+            timeUpdateTimer?.invalidate()
+            timeUpdateTimer = nil
+            pendingEchoesListener?.remove()
+            pendingEchoesListener = nil
+            viewModel.shutdown()
         }
         .feedNotificationRouting(
             showMessages: $showMessages,
@@ -466,7 +472,9 @@ struct FeedView: View {
     }
     
     private func startTimeUpdate() {
-        Timer.scheduledTimer(withTimeInterval: 60, repeats: true) { _ in
+        // Evita acumular timers si onAppear se dispara más de una vez.
+        timeUpdateTimer?.invalidate()
+        timeUpdateTimer = Timer.scheduledTimer(withTimeInterval: 60, repeats: true) { _ in
             withAnimation {
                 currentTime = Date()
             }
@@ -480,7 +488,9 @@ struct FeedView: View {
         
         // ✅ NUEVO: Evitar recargas innecesarias
         if hasLoadedInitialData {
-
+            // Re-armar el listener del usuario que se liberó en onDisappear (shutdown).
+            // Los listeners de comentarios se re-arman solos vía cambios de visibilidad.
+            viewModel.fetchUserData(userId: userId)
             return
         }
         

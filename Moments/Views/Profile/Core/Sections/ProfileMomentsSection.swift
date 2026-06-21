@@ -375,6 +375,9 @@ struct ModernMomentThumbnail: View {
                                 }
                             )
                     }
+                    .downsampling(size: CGSize(width: size, height: size))
+                    .scaleFactor(UIScreen.main.scale)
+                    .cancelOnDisappear(true)
                     .resizable()
             }
             .contentShape(Rectangle())

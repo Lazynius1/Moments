@@ -95,8 +95,9 @@ struct ReelsViewer: View {
     
     // ✅ INSTANT PLAYBACK: Lógica de preloading para Reels
     private func preloadUpcomingVideos(from index: Int) {
-        // Precargar los siguientes 6 videos (variantes ABR incluidas)
-        let preloadCount = 6
+        // Precargar solo los próximos 2 vídeos para no saturar la caché
+        // (maxCacheSize) ni la red/decoders. Antes eran 6 × variantes ABR.
+        let preloadCount = 2
         let endIndex = min(index + preloadCount, videos.count)
         
         if index + 1 < endIndex {
@@ -823,9 +824,7 @@ struct ReelVideoView: View {
     
     // ... (resto de funciones existentes)
     private func setupVideo() {
-        let url = video.playbackURL ?? URL(string: video.videoUrl)
-        guard let url else { return }
-        playerManager.setupPlayer(with: url, startAtSeconds: startAtSeconds)
+        playerManager.setupPlayer(with: video, startAtSeconds: startAtSeconds)
     }
     
     private func loadVideoData() {
@@ -1168,49 +1167,136 @@ class ReelVideoPlayerManager: ObservableObject {
     @Published var isLoaded = false
     
     private var timeObserver: Any?
+    private var loopObserver: NSObjectProtocol?
     private var cancellables = Set<AnyCancellable>()
     private var playerItem: AVPlayerItem?
     private var isSeeking = false
     private var lastSeekTime: Date = Date()
     private var pendingStartAtSeconds: Double?
+    private var adaptiveController: VideoAdaptiveTierController?
+    private var stalledObserver: NSObjectProtocol?
+    private var consumerId: String?
     
-    func setupPlayer(with url: URL, startAtSeconds: Double = 0) {
-        // Limpiar player anterior si existe
-        cleanup()
-        pendingStartAtSeconds = startAtSeconds > 0 ? startAtSeconds : nil
-        
-        
-        // ✅ INSTANT PLAYBACK: Usar preloader
-        playerItem = VideoPreloader.shared.getPlayerItem(for: url.absoluteString)
-        
-        // ✅ Buffer inicial optimizado: 2.5s
-        // Empiezan a reproducir con solo un buffer inicial carga en background
-        playerItem?.preferredForwardBufferDuration = 2.5 // Buffer inicial (2.5s) - balance perfecto
-        playerItem?.canUseNetworkResourcesForLiveStreamingWhilePaused = true // Seguir cargando mientras está pausado
-        // ✅ Priorizar velocidad sobre calidad para inicio más rápido
-        if #available(iOS 14.0, *) {
-            playerItem?.preferredPeakBitRate = 0 // Sin límite de bitrate, usar toda la velocidad disponible
+    func setupPlayer(with video: VideoMoment, startAtSeconds: Double = 0) {
+        let moment = video.moment
+        let newConsumerId = GlobalVideoManager.profileVideoConsumerId(for: moment)
+
+        if let previousId = consumerId, previousId != newConsumerId {
+            let preserve = GlobalVideoManager.shared.shouldPreserveSharedPlayer(consumerId: previousId)
+            cleanup(releaseFromPool: !preserve)
+        } else if consumerId != nil {
+            teardownObserversOnly()
         }
-        
-        // Crear player
-        player = AVPlayer(playerItem: playerItem)
-        
-        // Configuración optimizada del reproductor
-        player?.automaticallyWaitsToMinimizeStalling = false // Más responsivo
-        player?.allowsExternalPlayback = false
+
+        consumerId = newConsumerId
+        pendingStartAtSeconds = startAtSeconds > 0 ? startAtSeconds : nil
+
+        let mediaItem = moment.primaryVisibleMediaItem
+        let source = moment.videoPlaybackSource()
+        let playbackURL = source?.playbackURL ?? video.playbackURL
+        guard let url = playbackURL else { return }
+
+        if let mediaItem, mediaItem.type == .video {
+            adaptiveController = VideoAdaptiveTierController(
+                mediaItem: mediaItem,
+                moment: moment,
+                initialTier: source?.tier
+            )
+        } else {
+            adaptiveController = nil
+        }
+
+        SharedVideoPlayerPool.shared.setEvictionHandler(for: newConsumerId) { [weak self] in
+            DispatchQueue.main.async { self?.handlePoolEviction() }
+        }
+
+        let pooledPlayer = SharedVideoPlayerPool.shared.player(for: newConsumerId)
+        let reuseExistingItem = pooledPlayer.currentItem != nil && pooledPlayer.currentItem?.status != .failed
+
+        if reuseExistingItem, let existingItem = pooledPlayer.currentItem {
+            playerItem = existingItem
+            player = pooledPlayer
+            isLoaded = existingItem.status == .readyToPlay
+            pooledPlayer.automaticallyWaitsToMinimizeStalling = false
+            pooledPlayer.allowsExternalPlayback = false
+            applySessionMuteState()
+            configureAudioSession()
+            observePlayerItem()
+            setupLooping()
+            observePlayback()
+            if isLoaded {
+                applyPendingStartAndPlayIfNeeded()
+            }
+            return
+        }
+
+        playerItem = VideoPreloader.shared.getPlayerItem(for: url.absoluteString)
+        let tier = adaptiveController?.currentTier ?? VideoPlaybackSelector.shared.recommendedTier()
+        if let playerItem {
+            VideoPlaybackSelector.shared.configure(playerItem: playerItem, tier: tier)
+        }
+
+        pooledPlayer.replaceCurrentItem(with: playerItem)
+        pooledPlayer.automaticallyWaitsToMinimizeStalling = false
+        pooledPlayer.allowsExternalPlayback = false
+        player = pooledPlayer
+        isLoaded = playerItem?.status == .readyToPlay
         applySessionMuteState()
-        
-        // Configurar sesión de audio una sola vez
         configureAudioSession()
-        
-        // Observar estados del player item
         observePlayerItem()
-        
-        // Configurar loop mejorado
         setupLooping()
-        
-        // Observar playback
         observePlayback()
+    }
+
+    private func handlePoolEviction() {
+        if let timeObserver {
+            player?.removeTimeObserver(timeObserver)
+            self.timeObserver = nil
+        }
+        if let loopObserver {
+            NotificationCenter.default.removeObserver(loopObserver)
+            self.loopObserver = nil
+        }
+        if let stalledObserver {
+            NotificationCenter.default.removeObserver(stalledObserver)
+            self.stalledObserver = nil
+        }
+        cancellables.removeAll()
+        adaptiveController = nil
+        player = nil
+        playerItem = nil
+        consumerId = nil
+        isPlaying = false
+        isLoaded = false
+        isBuffering = false
+        progress = 0
+        duration = 0
+    }
+
+    private func teardownObserversOnly() {
+        player?.pause()
+        isPlaying = false
+
+        if let timeObserver {
+            player?.removeTimeObserver(timeObserver)
+            self.timeObserver = nil
+        }
+        cancellables.removeAll()
+        if let loopObserver {
+            NotificationCenter.default.removeObserver(loopObserver)
+            self.loopObserver = nil
+        }
+        if let stalledObserver {
+            NotificationCenter.default.removeObserver(stalledObserver)
+            self.stalledObserver = nil
+        }
+        adaptiveController = nil
+        progress = 0
+        duration = 0
+        isBuffering = false
+        isLoaded = false
+        isSeeking = false
+        pendingStartAtSeconds = nil
     }
     
     // MARK: - Seek optimizado
@@ -1276,6 +1362,7 @@ class ReelVideoPlayerManager: ObservableObject {
             .sink { [weak self] isEmpty in
                 if isEmpty && self?.isPlaying == true && self?.isSeeking == false {
                     self?.isBuffering = true
+                    self?.recoverFromPlaybackStall()
                 }
             }
             .store(in: &cancellables)
@@ -1285,15 +1372,47 @@ class ReelVideoPlayerManager: ObservableObject {
             .sink { [weak self] likelyToKeepUp in
                 if likelyToKeepUp {
                     self?.isBuffering = false
+                    self?.adaptiveController?.notePlaybackHealthy()
                 }
             }
             .store(in: &cancellables)
+
+        if let stalledObserver {
+            NotificationCenter.default.removeObserver(stalledObserver)
+        }
+        stalledObserver = NotificationCenter.default.addObserver(
+            forName: .AVPlayerItemPlaybackStalled,
+            object: playerItem,
+            queue: .main
+        ) { [weak self] _ in
+            self?.recoverFromPlaybackStall()
+        }
+    }
+
+    private func recoverFromPlaybackStall() {
+        guard let player else { return }
+        VideoPlaybackRecovery.recoverFromStall(
+            player: player,
+            isPlaying: isPlaying,
+            adaptive: adaptiveController
+        ) { [weak self] newItem in
+            guard let self else { return }
+            self.playerItem = newItem
+            self.cancellables.removeAll()
+            self.observePlayerItem()
+            self.setupLooping()
+        }
     }
     
     private func setupLooping() {
         guard let playerItem = playerItem else { return }
-        
-        NotificationCenter.default.addObserver(
+
+        // Remover un observer previo para evitar acumularlos en cada setup (fuga + loops duplicados).
+        if let loopObserver {
+            NotificationCenter.default.removeObserver(loopObserver)
+        }
+
+        loopObserver = NotificationCenter.default.addObserver(
             forName: .AVPlayerItemDidPlayToEndTime,
             object: playerItem,
             queue: .main
@@ -1340,6 +1459,7 @@ class ReelVideoPlayerManager: ObservableObject {
     
     func play() {
         guard let player = player, isLoaded else { return }
+        player.currentItem?.canUseNetworkResourcesForLiveStreamingWhilePaused = true
         player.play()
         isPlaying = true
     }
@@ -1347,6 +1467,7 @@ class ReelVideoPlayerManager: ObservableObject {
     func pause() {
         guard let player = player else { return }
         player.pause()
+        player.currentItem?.canUseNetworkResourcesForLiveStreamingWhilePaused = false
         isPlaying = false
     }
 
@@ -1395,41 +1516,26 @@ class ReelVideoPlayerManager: ObservableObject {
         }
     }
     
-    func cleanup() {
-        
-        // Pausar antes de limpiar
-        player?.pause()
-        isPlaying = false
-        
-        // Remover time observer
-        if let timeObserver = timeObserver {
-            player?.removeTimeObserver(timeObserver)
-            self.timeObserver = nil
+    func cleanup(releaseFromPool: Bool = true) {
+        teardownObserversOnly()
+
+        let shouldPreserve = consumerId.map {
+            GlobalVideoManager.shared.shouldPreserveSharedPlayer(consumerId: $0)
+        } ?? false
+        let actuallyRelease = releaseFromPool && !shouldPreserve
+
+        if let consumerId, actuallyRelease {
+            SharedVideoPlayerPool.shared.release(consumerId: consumerId)
         }
-        
-        // Cancelar publishers
-        cancellables.removeAll()
-        
-        // Remover notificaciones
-        NotificationCenter.default.removeObserver(self)
-        
-        // Limpiar player y player item
-        player?.replaceCurrentItem(with: nil)
+
         player = nil
         playerItem = nil
-        
-        // Reset estados
-        progress = 0
-        duration = 0
-        isBuffering = false
-        isLoaded = false
-        isSeeking = false
+        self.consumerId = nil
         isMuted = !GlobalVideoManager.shared.userHasEnabledSoundInSession
-        pendingStartAtSeconds = nil
     }
-    
+
     deinit {
-        cleanup()
+        cleanup(releaseFromPool: false)
     }
 }
 

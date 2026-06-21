@@ -62,7 +62,7 @@ class OfflineSyncService: ObservableObject {
         // ✅ OPTIMIZACIÓN: Eliminar acciones que se cancelan entre sí (ej: like -> unlike)
         pendingActions = await optimizePendingActions(pendingActions)
         guard !pendingActions.isEmpty else {
-            print("✨ OfflineSync: Todas las acciones fueron optimizadas/canceladas locally")
+            AppLog.debug("✨ OfflineSync: Todas las acciones fueron optimizadas/canceladas locally")
             return
         }
 
@@ -506,7 +506,7 @@ class OfflineSyncService: ObservableObject {
 
         // Ejecutar borrado de acciones canceladas
         if !actionsToDelete.isEmpty {
-            print("✨ OfflineSync: Eliminando \(actionsToDelete.count) acciones redundantes/canceladas")
+            AppLog.debug("✨ OfflineSync: Eliminando \(actionsToDelete.count) acciones redundantes/canceladas")
             for id in actionsToDelete {
                 LocalPersistenceService.shared.deleteAction(id: id)
             }

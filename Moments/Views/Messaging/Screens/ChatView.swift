@@ -48,6 +48,7 @@ struct GlassmorphicChatView: View {
     @State private var plusButtonAnchorFrame: CGRect = .zero
     @State private var replyingTo: EnhancedMessage?
     @State private var clusterForReply: [EnhancedMessage]? = nil // ✅ New: Selection grid for clusters
+    @State private var clusterForGallery: [EnhancedMessage]? = nil // Galería de selección al abrir un álbum
     @State private var editingMessage: EnhancedMessage?
     @State private var messageMenuSelection: ChatMessageMenuSelection? = nil
     @State private var messageRowFrames: [String: CGRect] = [:]
@@ -235,6 +236,46 @@ struct GlassmorphicChatView: View {
                 }
             )
             .presentationDetents([.medium, .large])
+        }
+        // Galería de un álbum a pantalla completa: elegir una media → visor detalle.
+        .fullScreenCover(item: Binding(
+            get: { clusterForGallery.map { ClusterWrapper(messages: $0) } },
+            set: { clusterForGallery = $0?.messages }
+        )) { wrapper in
+            ClusterGalleryView(
+                messages: wrapper.messages,
+                onClose: {
+                    self.clusterForGallery = nil
+                },
+                detail: { selectedMessage, dismissDetail in
+                    if let media = sharedMedia(from: selectedMessage) {
+                        FullScreenMediaView(
+                            media: media,
+                            mediaItems: sharedMediaItemsForOverlay(selecting: selectedMessage),
+                            currentUserId: viewModel.currentUserId,
+                            otherParticipantName: otherParticipantDisplayName,
+                            displayReactions: { messageId in
+                                viewModel.displayReactions(for: messageId)
+                            },
+                            onReaction: { messageId, emoji in
+                                guard let message = viewModel.messages.first(where: { $0.id == messageId }) else { return }
+                                viewModel.addReaction(to: message, emoji: emoji)
+                            },
+                            onMoreReactions: { messageId in
+                                guard let message = viewModel.messages.first(where: { $0.id == messageId }) else { return }
+                                reactionPickerMessage = message
+                                showingReactionEmojiPicker = true
+                            },
+                            onClose: {
+                                dismissDetail()
+                            },
+                            onSendReply: { media, text, completion in
+                                sendReplyToSharedMedia(media, text: text, completion: completion)
+                            }
+                        )
+                    }
+                }
+            )
         }
         .sheet(isPresented: $showingReactionEmojiPicker, onDismiss: {
             reactionPickerMessage = nil
@@ -1109,11 +1150,8 @@ struct GlassmorphicChatView: View {
                 onMomentNavigation: { message in
                     handleMomentNavigationFromChat(message: message)
                 },
-                onOpenMedia: { message in
-                    viewModel.prepareMediaForViewing(message) { resolved in
-                        selectedChatMediaItems = sharedMediaItemsForOverlay(selecting: resolved)
-                        selectedChatMedia = sharedMedia(from: resolved)
-                    }
+                onOpenCluster: { clusterMessages in
+                    self.clusterForGallery = clusterMessages
                 },
                 onLongPress: { message in
                     presentMessageOptions(message, rowId: rowId, cluster: liveCluster.count > 1 ? liveCluster : nil)

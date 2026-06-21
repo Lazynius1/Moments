@@ -100,7 +100,6 @@ struct GlassmorphicMessageRow: View {
                             otherParticipantName: otherParticipantName
                         )
                     }
-                    .fixedSize(horizontal: true, vertical: false)
 
                     if !isCurrentUser { Spacer(minLength: 50) }
                 }

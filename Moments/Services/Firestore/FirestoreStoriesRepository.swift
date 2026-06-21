@@ -1162,15 +1162,18 @@ extension FirestoreService {
             }
     }
 
-    /// Precarga las imágenes de un array de historias en el caché de Kingfisher
+    /// Precarga las imágenes de las primeras historias en el caché de Kingfisher.
+    /// Acotado para no descargar full-res de decenas de autores que el usuario
+    /// quizá nunca abra.
     private func prefetchStoriesToCache(_ stories: [Story]) {
-        let urls = stories.compactMap { story -> URL? in
+        let maxStoriesToPrefetch = 5
+        let urls = stories.prefix(maxStoriesToPrefetch).compactMap { story -> URL? in
             let urlString = story.mediaItem.url
             return URL(string: urlString)
         }
 
         if !urls.isEmpty {
-            ImagePrefetchManager.shared.prefetch(urls: urls)
+            ImagePrefetchManager.shared.prefetch(urls: Array(urls))
         }
     }
 }

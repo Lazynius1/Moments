@@ -13,6 +13,27 @@ final class StoryPlaybackCoordinator: ObservableObject {
     private let defaultStoryDuration: Double = 15.0
     private var imageTimer: Timer?
     private var currentStoryId: String?
+    private var memoryWarningObserver: NSObjectProtocol?
+
+    init() {
+        memoryWarningObserver = NotificationCenter.default.addObserver(
+            forName: .momentsDidReceiveMemoryWarning,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            // Conservamos la story actual y soltamos las precargadas para liberar RAM.
+            Task { @MainActor [weak self] in
+                self?.preloadedImages.removeAll()
+                self?.preloadedStories.removeAll()
+            }
+        }
+    }
+
+    deinit {
+        if let memoryWarningObserver {
+            NotificationCenter.default.removeObserver(memoryWarningObserver)
+        }
+    }
 
     func prepareStory(_ story: Story, onImageComplete: @escaping () -> Void) {
         progress = 0.0

@@ -378,7 +378,7 @@ struct ModernTabView: View {
                             AppRouter.shared.navigate(to: .showUserProfile(userId: user.id))
                         }
                     case .failure(let error):
-                        print("Error resolving username from deep link: \(error.localizedDescription)")
+                        AppLog.debug("Error resolving username from deep link: \(error.localizedDescription)")
                     }
                 }
             }

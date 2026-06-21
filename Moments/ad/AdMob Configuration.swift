@@ -31,7 +31,7 @@ class AdMobConfiguration: NSObject {
     func initialize() {
         // Verificar el App ID cargado desde Info.plist (Silencioso en prod)
         if Bundle.main.infoDictionary?["GADApplicationIdentifier"] as? String == nil {
-            print("⚠️ AdMob: GADApplicationIdentifier NO DETECTADO en Info.plist")
+            AppLog.debug("⚠️ AdMob: GADApplicationIdentifier NO DETECTADO en Info.plist")
         }
         
         MobileAds.shared.start { [weak self] _ in
@@ -100,7 +100,7 @@ class AdMobConfiguration: NSObject {
         // Paso 1: Actualizar información de consentimiento
         UserMessagingPlatform.ConsentInformation.shared.requestConsentInfoUpdate(with: parameters) { [weak self] error in
             if let error = error {
-                print("❌ UMP Error: \(error.localizedDescription)")
+                AppLog.debug("❌ UMP Error: \(error.localizedDescription)")
                 // En caso de error, intentar cargar anuncios de todos modos
                 completion(true)
                 return
@@ -115,14 +115,14 @@ class AdMobConfiguration: NSObject {
     
     private func loadAndShowConsentFormIfRequired(completion: @escaping (Bool) -> Void) {
         guard let topVC = UIApplication.shared.topViewController() else {
-            print("⚠️ UMP: No se encontró topViewController para mostrar formulario")
+            AppLog.debug("⚠️ UMP: No se encontró topViewController para mostrar formulario")
             completion(UserMessagingPlatform.ConsentInformation.shared.canRequestAds)
             return
         }
         
         UserMessagingPlatform.ConsentForm.loadAndPresentIfRequired(from: topVC) { error in
             if let error = error {
-                print("❌ UMP Form Error: \(error.localizedDescription)")
+                AppLog.debug("❌ UMP Form Error: \(error.localizedDescription)")
             }
             
             let canRequestAds = UserMessagingPlatform.ConsentInformation.shared.canRequestAds
@@ -133,18 +133,18 @@ class AdMobConfiguration: NSObject {
     /// Permite al usuario cambiar sus preferencias de consentimiento
     func showPrivacyOptionsForm() {
         guard UserMessagingPlatform.ConsentInformation.shared.privacyOptionsRequirementStatus == .required else {
-            print("ℹ️ UMP: No se requiere formulario de opciones de privacidad")
+            AppLog.debug("ℹ️ UMP: No se requiere formulario de opciones de privacidad")
             return
         }
         
         guard let topVC = UIApplication.shared.topViewController() else {
-            print("⚠️ UMP: No se encontró topViewController para mostrar opciones de privacidad")
+            AppLog.debug("⚠️ UMP: No se encontró topViewController para mostrar opciones de privacidad")
             return
         }
         
         UserMessagingPlatform.ConsentForm.presentPrivacyOptionsForm(from: topVC) { error in
             if let error = error {
-                print("❌ UMP: Error al mostrar opciones de privacidad: \(error.localizedDescription)")
+                AppLog.debug("❌ UMP: Error al mostrar opciones de privacidad: \(error.localizedDescription)")
             }
         }
     }
@@ -253,7 +253,7 @@ class AdMobConfiguration: NSObject {
 
     func preloadNativeAd() {
         guard isInitialized else {
-            print("⏳ AdMob: Ignorando precarga (SDK no inicializado)")
+            AppLog.debug("⏳ AdMob: Ignorando precarga (SDK no inicializado)")
             return
         }
         let adUnitID = AdMobConfiguration.getNativeAdUnitId().trimmingCharacters(in: .whitespacesAndNewlines)
@@ -264,7 +264,7 @@ class AdMobConfiguration: NSObject {
         videoOptions.areCustomControlsRequested = true
         
         guard let rootViewController = UIApplication.shared.topViewController() else {
-            print("⚠️ AdMob: No se pudo obtener rootViewController para precarga")
+            AppLog.debug("⚠️ AdMob: No se pudo obtener rootViewController para precarga")
             return
         }
         
@@ -323,7 +323,7 @@ class AdMobConfiguration: NSObject {
 
 extension AdMobConfiguration: @preconcurrency AdLoaderDelegate {
     func adLoader(_ adLoader: AdLoader, didFailToReceiveAdWithError error: Error) {
-        print("❌ AdMob: Error al precargar anuncio nativo: \(error.localizedDescription)")
+        AppLog.debug("❌ AdMob: Error al precargar anuncio nativo: \(error.localizedDescription)")
         Task { @MainActor [weak self] in
             self?.preloadedNativeAd = nil
         }
@@ -355,7 +355,7 @@ class NativeAdManager: NSObject, ObservableObject {
         guard !isLoading else { return }
         
         guard AdMobConfiguration.shared.isInitialized else {
-            print("⏳ AdMob: Reintentando carga en 1s (SDK no inicializado)")
+            AppLog.debug("⏳ AdMob: Reintentando carga en 1s (SDK no inicializado)")
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
                 self.loadAd()
             }
@@ -377,11 +377,11 @@ class NativeAdManager: NSObject, ObservableObject {
         let adUnitID = AdMobConfiguration.getNativeAdUnitId().trimmingCharacters(in: .whitespacesAndNewlines)
         let rootVC = UIApplication.shared.topViewController()
         
-        print("📡 AdMob: Cargando anuncio nativo...")
-        print("   - Ad Unit ID: \(adUnitID)")
-        print("   - Root VC: \(rootVC != nil ? String(describing: type(of: rootVC!)) : "NIL")")
-        print("   - Bundle ID: \(Bundle.main.bundleIdentifier ?? "NIL")")
-        print("   - Modo Diagnóstico: \(AdMobConfiguration.isDiagnosticMode)")
+        AppLog.debug("📡 AdMob: Cargando anuncio nativo...")
+        AppLog.debug("   - Ad Unit ID: \(adUnitID)")
+        AppLog.debug("   - Root VC: \(rootVC != nil ? String(describing: type(of: rootVC!)) : "NIL")")
+        AppLog.debug("   - Bundle ID: \(Bundle.main.bundleIdentifier ?? "NIL")")
+        AppLog.debug("   - Modo Diagnóstico: \(AdMobConfiguration.isDiagnosticMode)")
 
         adLoader = AdLoader(
             adUnitID: adUnitID,
@@ -399,7 +399,7 @@ class NativeAdManager: NSObject, ObservableObject {
 
 extension NativeAdManager: @preconcurrency AdLoaderDelegate {
     func adLoader(_ adLoader: AdLoader, didFailToReceiveAdWithError error: Error) {
-        print("❌ AdMob: Error al cargar anuncio nativo: \(error.localizedDescription)")
+        AppLog.debug("❌ AdMob: Error al cargar anuncio nativo: \(error.localizedDescription)")
         Task { @MainActor [weak self] in
             self?.isLoading = false
             self?.hasError = true

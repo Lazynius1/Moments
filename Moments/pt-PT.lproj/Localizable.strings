@@ -1733,6 +1733,10 @@
 "chat.recording" = "A gravar...";
 "chat.reply.you" = "Tu";
 "chat.reply.select_item" = "Responder a um item";
+"chat.cluster.sentPhotos" = "Enviaste %d fotos";
+"chat.cluster.receivedPhotos" = "Recebeste %d fotos";
+"chat.cluster.sentItems" = "Enviaste %d itens";
+"chat.cluster.receivedItems" = "Recebeste %d itens";
 
 /* Messaging */
 "messaging.conversation.notFound" = "Conversa não encontrada";

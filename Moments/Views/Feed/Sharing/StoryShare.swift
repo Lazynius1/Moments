@@ -553,10 +553,18 @@ struct StoryBubbleContent: View {
             StoryPreviewCard(sharedStoryData: sharedStoryData)
         }
         .padding(.vertical, 4)
-        .frame(maxWidth: 280, alignment: isCurrentUser ? .trailing : .leading)
+        .frame(alignment: isCurrentUser ? .trailing : .leading)
     }
 }
 
+enum StoryShareCardMetrics {
+    static let width: CGFloat = 172
+    static var height: CGFloat { width * 16 / 9 }
+    static let cornerRadius: CGFloat = 12
+}
+
+/// Story compartida estilo Instagram Direct: NO usa tarjeta, es la propia media
+/// vertical (9:16) redondeada, con el autor superpuesto arriba en blanco.
 struct StoryPreviewCard: View {
     let sharedStoryData: [String: String]
 
@@ -567,24 +575,39 @@ struct StoryPreviewCard: View {
     var body: some View {
         ZStack {
             StoryVisualContent(sharedStoryData: sharedStoryData)
+                .frame(width: StoryShareCardMetrics.width, height: StoryShareCardMetrics.height)
+                .clipped()
+
+            VStack {
+                ZStack(alignment: .topLeading) {
+                    LinearGradient(
+                        colors: [.black.opacity(0.45), .clear],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                    .frame(height: 70)
+
+                    SharedDMPreviewAuthorRow(
+                        authorId: sharedStoryData["storyAuthorId"],
+                        authorName: sharedStoryData["storyAuthor"],
+                        useStoryRing: true
+                    )
+                    .padding(.horizontal, 10)
+                    .padding(.top, 10)
+                }
+                Spacer(minLength: 0)
+            }
 
             if isVideo {
                 SharedDMCenteredPlayOverlay()
             }
-
-            SharedDMPreviewBottomGradient()
-
-            SharedDMPreviewAuthorRow(
-                authorId: sharedStoryData["storyAuthorId"],
-                authorName: sharedStoryData["storyAuthor"],
-                useStoryRing: true
-            )
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
-            .padding(12)
         }
-        .frame(width: SharedDMMediaCardMetrics.width, height: SharedDMMediaCardMetrics.height)
-        .background(Color.black.opacity(0.2))
-        .sharedDMPreviewCardChrome()
+        .frame(width: StoryShareCardMetrics.width, height: StoryShareCardMetrics.height)
+        .clipShape(RoundedRectangle(cornerRadius: StoryShareCardMetrics.cornerRadius, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: StoryShareCardMetrics.cornerRadius, style: .continuous)
+                .stroke(Color.white.opacity(0.12), lineWidth: 0.5)
+        )
     }
 }
 

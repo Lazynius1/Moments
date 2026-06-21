@@ -20,7 +20,11 @@ extension ChatService {
                 self?.cleanupExpiredEphemeralMessages()
             }
         }
-        cleanupExpiredEphemeralMessages()
+        // Diferir el primer cleanup (query collectionGroup) para no competir con el
+        // arranque en frío.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 30) { [weak self] in
+            self?.cleanupExpiredEphemeralMessages()
+        }
     }
 
     func cleanupExpiredEphemeralMessages() {

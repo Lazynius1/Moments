@@ -38,6 +38,10 @@ class FeedViewModel {
     private var mutedUserIdsCacheTimestamp: Date = .distantPast
     private let mutedUserIdsCacheTTL: TimeInterval = 20
 
+    // Debounce de sincronización de listeners por visibilidad (scroll).
+    private var listenerSyncWorkItem: DispatchWorkItem?
+    private var latestVisibilitySnapshot: [String: CGFloat] = [:]
+
     // 🚀 Backend feed pagination state (per feed type)
     private var backendCursors: [FeedType: FeedCursor?] = [:]
     private var feedLoadedFromBackend: [FeedType: Bool] = [.following: false, .forYou: false]
@@ -300,10 +304,18 @@ class FeedViewModel {
 
     private func loadMoreMomentsLegacy(userId: String) {
         if currentFeedType == .following {
+            // Reutilizar los IDs de following ya cacheados para evitar re-leer toda
+            // la lista de following en cada "cargar más".
+            if !cachedFollowingIds.isEmpty {
+                fetchMoreMomentsFromUsers(userIds: Array(cachedFollowingIds), userId: userId, feedType: .following)
+                return
+            }
+
             firestoreService.fetchFollowing(userId: userId) { [weak self] result in
                 switch result {
                 case .success(let followingUsers):
                     let targetUserIds = followingUsers.map { $0.id }
+                    self?.cachedFollowingIds = Set(targetUserIds)
 
                     if targetUserIds.isEmpty {
                         DispatchQueue.main.async {
@@ -934,6 +946,8 @@ class FeedViewModel {
     // MARK: - Listeners
     /// Limpia listeners y trabajo pendiente. Llamar desde `onDisappear` en vistas que crean un `FeedViewModel` efímero.
     func shutdown() {
+        listenerSyncWorkItem?.cancel()
+        listenerSyncWorkItem = nil
         clearListeners()
         userListener?.remove()
         userListener = nil
@@ -952,12 +966,28 @@ class FeedViewModel {
         self.commentListeners.removeAll()
     }
 
-    /// Mantiene listeners solo para momentos visibles en viewport (+ buffer de índices).
+    /// Punto de entrada llamado en cada cambio de visibilidad (muy frecuente al
+    /// hacer scroll). Hace debounce para no recalcular listeners en cada frame.
     func syncMomentListeners(visibilityByMomentId: [String: CGFloat]) {
+        latestVisibilitySnapshot = visibilityByMomentId
+        listenerSyncWorkItem?.cancel()
+        let work = DispatchWorkItem { [weak self] in
+            guard let self else { return }
+            self.performSyncMomentListeners(visibilityByMomentId: self.latestVisibilitySnapshot)
+        }
+        listenerSyncWorkItem = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2, execute: work)
+    }
+
+    /// Mantiene listeners solo para momentos visibles en viewport (+ buffer de índices).
+    private func performSyncMomentListeners(visibilityByMomentId: [String: CGFloat]) {
         var eligibleIds = Set<String>()
+        // Índice id -> authorId para evitar búsquedas O(n) por cada id elegible.
+        var authorByMomentId: [String: String] = [:]
 
         for (index, moment) in moments.enumerated() {
             guard let momentId = moment.id else { continue }
+            authorByMomentId[momentId] = moment.authorId
             let fraction = visibilityByMomentId[momentId] ?? 0
             guard fraction >= listenerVisibilityThreshold else { continue }
 
@@ -971,8 +1001,8 @@ class FeedViewModel {
         }
 
         for momentId in eligibleIds {
-            guard let moment = moments.first(where: { $0.id == momentId }) else { continue }
-            listenForCommentUpdates(momentId: momentId, authorId: moment.authorId)
+            guard let authorId = authorByMomentId[momentId] else { continue }
+            listenForCommentUpdates(momentId: momentId, authorId: authorId)
         }
 
         let activeIds = Set(momentListeners.keys).union(Set(commentListeners.keys))

@@ -4,28 +4,58 @@ import AVFoundation
 class VideoPreloader {
     static let shared = VideoPreloader()
     private var assetCache: [String: AVAsset] = [:]
+    private var lastAccessDates: [String: Date] = [:]
+    private let cacheLock = NSLock()
     private let queue = DispatchQueue(label: "com.moments.videoPreload", qos: .utility)
-    private let maxCacheSize = 8
+    private let maxCacheSize = 12
     
     private init() {}
+
+    private func cachedAsset(for urlString: String) -> AVAsset? {
+        cacheLock.lock()
+        defer { cacheLock.unlock() }
+        if assetCache[urlString] != nil {
+            lastAccessDates[urlString] = Date()
+        }
+        return assetCache[urlString]
+    }
+
+    private func setCachedAsset(_ asset: AVAsset?, for urlString: String) {
+        cacheLock.lock()
+        assetCache[urlString] = asset
+        if asset != nil {
+            lastAccessDates[urlString] = Date()
+        } else {
+            lastAccessDates.removeValue(forKey: urlString)
+        }
+        evictIfNeededLocked()
+        cacheLock.unlock()
+    }
+
+    private func evictIfNeededLocked() {
+        guard assetCache.count > maxCacheSize else { return }
+
+        let sortedKeys = lastAccessDates.sorted { $0.value < $1.value }.map(\.key)
+        let overflow = assetCache.count - maxCacheSize
+
+        for key in sortedKeys.prefix(overflow) {
+            assetCache.removeValue(forKey: key)
+            lastAccessDates.removeValue(forKey: key)
+        }
+    }
     
     func preloadAssets(urls: [String]) {
         PerformanceSignposts.event("VideoPreloadBatch")
         queue.async { [weak self] in
             guard let self = self else { return }
-            
-            let urlsSet = Set(urls.prefix(self.maxCacheSize))
-            
-            // Limpiar cache antiguo
-            self.assetCache = self.assetCache.filter { urlsSet.contains($0.key) }
-            
+
             // Cargar nuevos
             for urlString in urls.prefix(self.maxCacheSize) {
-                if self.assetCache[urlString] == nil, let url = URL(string: urlString) {
+                if self.cachedAsset(for: urlString) == nil, let url = URL(string: urlString) {
                     // ✅ OFFLINE: Si ya está en disco, cargamos de local
                     if let localURL = PersistentVideoCache.shared.cachedURL(for: urlString) {
                         let asset = AVURLAsset(url: localURL)
-                        self.assetCache[urlString] = asset
+                        self.setCachedAsset(asset, for: urlString)
                     } else {
                         // Si no está en disco, lo cargamos remoto y lo mandamos a descargar
                         let asset = AVURLAsset(url: url)
@@ -34,7 +64,7 @@ class VideoPreloader {
                             _ = try? await asset.load(.isPlayable)
                             _ = try? await asset.load(.tracks)
                         }
-                        self.assetCache[urlString] = asset
+                        self.setCachedAsset(asset, for: urlString)
                         
                         // ✅ Descargar para futuras sesiones
                         PersistentVideoCache.shared.downloadAndCache(url: url)
@@ -45,15 +75,15 @@ class VideoPreloader {
     }
     
     func getPlayerItem(for urlString: String) -> AVPlayerItem {
-        var asset: AVAsset?
-        queue.sync {
-            asset = assetCache[urlString]
-        }
+        // Lectura no bloqueante respecto a la cola .utility (antes usaba queue.sync).
+        let asset = cachedAsset(for: urlString)
         
         if let cachedAsset = asset {
             let item = AVPlayerItem(asset: cachedAsset)
-            item.preferredForwardBufferDuration = 2.5
-            item.canUseNetworkResourcesForLiveStreamingWhilePaused = true
+            VideoPlaybackSelector.shared.configure(
+                playerItem: item,
+                tier: VideoPlaybackSelector.shared.recommendedTier()
+            )
             return item
         }
         
@@ -72,8 +102,10 @@ class VideoPreloader {
             return AVPlayerItem(url: URL(string: "http://invalid")!) 
         }
         let item = AVPlayerItem(url: url)
-        item.preferredForwardBufferDuration = 2.5
-        item.canUseNetworkResourcesForLiveStreamingWhilePaused = true
+        VideoPlaybackSelector.shared.configure(
+            playerItem: item,
+            tier: VideoPlaybackSelector.shared.recommendedTier()
+        )
         
         // ✅ Descargar para futuras sesiones
         PersistentVideoCache.shared.downloadAndCache(url: url)

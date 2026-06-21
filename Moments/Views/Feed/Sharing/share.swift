@@ -1116,7 +1116,143 @@ struct AddToStoryView: View {
 enum SharedDMMediaCardMetrics {
     static let width: CGFloat = 200
     static let height: CGFloat = 280
-    static let cornerRadius: CGFloat = 18
+    static let cornerRadius: CGFloat = 12
+}
+
+// MARK: - Tarjeta estilo Instagram (cabecera arriba · media limpia · caption debajo)
+
+enum SharedDMPostCardMetrics {
+    static let width: CGFloat = 248
+    static let defaultMediaHeight: CGFloat = 248
+    static let cornerRadius: CGFloat = 12
+}
+
+/// Convierte una cadena de proporción ("9:16", "4:5", "1.0") en width/height.
+func parseSharedAspectRatio(_ raw: String?) -> CGFloat {
+    guard let raw = raw?.trimmingCharacters(in: .whitespaces), !raw.isEmpty else { return 1.0 }
+    if raw.contains(":") {
+        let parts = raw.split(separator: ":")
+        if parts.count == 2, let w = Double(parts[0]), let h = Double(parts[1]), h > 0 {
+            return CGFloat(w / h)
+        }
+    }
+    if let value = Double(raw), value > 0 { return CGFloat(value) }
+    return 1.0
+}
+
+/// Tarjeta de POST compartido estilo Instagram Direct: contenedor gris, cabecera
+/// con autor arriba, la media respetando su proporción, y el caption ("usuario
+/// texto") debajo.
+struct SharedDMPostCard<Media: View>: View {
+    let authorId: String?
+    let authorName: String?
+    var useStoryRing: Bool = false
+    let isVideo: Bool
+    var aspectRatio: CGFloat = 1.0
+    var captionAuthor: String? = nil
+    let caption: String?
+    @ViewBuilder var media: () -> Media
+
+    @Environment(\.colorScheme) private var colorScheme
+
+    private var cardBackground: Color {
+        colorScheme == .dark ? Color(hex: "FAF9F6").opacity(0.14) : Color(hex: "0B1215").opacity(0.07)
+    }
+
+    private var primaryText: Color {
+        colorScheme == .dark ? Color(hex: "FAF9F6") : Color(hex: "0B1215")
+    }
+
+    private var resolvedMediaHeight: CGFloat {
+        guard aspectRatio > 0.01 else { return SharedDMPostCardMetrics.defaultMediaHeight }
+        let raw = SharedDMPostCardMetrics.width / aspectRatio
+        return min(max(raw, SharedDMPostCardMetrics.width * 0.6), SharedDMPostCardMetrics.width * 1.25)
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            header
+            mediaSection
+            captionSection
+        }
+        .frame(width: SharedDMPostCardMetrics.width)
+        .background(cardBackground)
+        .clipShape(RoundedRectangle(cornerRadius: SharedDMPostCardMetrics.cornerRadius, style: .continuous))
+    }
+
+    private var header: some View {
+        HStack(spacing: 8) {
+            avatar
+            if let authorName, !authorName.isEmpty {
+                Text(authorName)
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundColor(primaryText)
+                    .lineLimit(1)
+            }
+            if let authorId {
+                VerifiedBadgeView(userId: authorId, size: 13)
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
+    }
+
+    @ViewBuilder
+    private var avatar: some View {
+        if let authorId {
+            if useStoryRing {
+                StoryRingAvatarView(
+                    userId: authorId,
+                    size: 28,
+                    lineWidth: 1.8,
+                    showBaseStroke: true,
+                    baseStrokeColor: cardBackground,
+                    baseStrokeWidth: 1.5
+                )
+            } else {
+                GlassmorphicAvatar(userId: authorId)
+                    .frame(width: 28, height: 28)
+            }
+        }
+    }
+
+    private var mediaSection: some View {
+        ZStack {
+            Color.black
+            media()
+                .frame(width: SharedDMPostCardMetrics.width, height: resolvedMediaHeight)
+                .clipped()
+            if isVideo {
+                SharedDMCenteredPlayOverlay()
+            }
+        }
+        .frame(width: SharedDMPostCardMetrics.width, height: resolvedMediaHeight)
+        .clipped()
+    }
+
+    @ViewBuilder
+    private var captionSection: some View {
+        if let caption, !caption.isEmpty {
+            captionText
+                .font(.system(size: 13))
+                .foregroundColor(primaryText)
+                .lineLimit(2)
+                .multilineTextAlignment(.leading)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 10)
+        }
+    }
+
+    private var captionText: Text {
+        if let captionAuthor, !captionAuthor.isEmpty {
+            return Text(captionAuthor).font(.system(size: 13, weight: .semibold))
+                + Text(" ")
+                + Text(caption ?? "")
+        }
+        return Text(caption ?? "")
+    }
 }
 
 private struct SharedDMPreviewCardStroke: ViewModifier {
@@ -1137,31 +1273,44 @@ extension View {
 }
 
 struct SharedDMPreviewCardSkeleton: View {
-  var body: some View {
-        ZStack {
-            RoundedRectangle(cornerRadius: SharedDMMediaCardMetrics.cornerRadius, style: .continuous)
-                .fill(Color.white.opacity(0.08))
+    @Environment(\.colorScheme) private var colorScheme
 
-            VStack {
+    private var cardBackground: Color {
+        colorScheme == .dark ? Color(hex: "FAF9F6").opacity(0.14) : Color(hex: "0B1215").opacity(0.07)
+    }
+
+    private var placeholderFill: Color {
+        colorScheme == .dark ? Color.white.opacity(0.10) : Color.black.opacity(0.07)
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(spacing: 8) {
+                Circle()
+                    .fill(placeholderFill)
+                    .frame(width: 26, height: 26)
+                RoundedRectangle(cornerRadius: 4)
+                    .fill(placeholderFill)
+                    .frame(width: 90, height: 11)
                 Spacer()
-                HStack(spacing: 8) {
-                    Circle()
-                        .fill(Color.white.opacity(0.12))
-                        .frame(width: 24, height: 24)
-                    RoundedRectangle(cornerRadius: 4)
-                        .fill(Color.white.opacity(0.12))
-                        .frame(width: 88, height: 12)
-                    Spacer()
-                }
-                .padding(12)
             }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 8)
 
-            ProgressView()
-                .progressViewStyle(CircularProgressViewStyle(tint: .white.opacity(0.85)))
-                .scaleEffect(1.05)
+            ZStack {
+                placeholderFill
+                ProgressView()
+                    .progressViewStyle(CircularProgressViewStyle(tint: .gray.opacity(0.7)))
+            }
+            .frame(width: SharedDMPostCardMetrics.width, height: SharedDMPostCardMetrics.defaultMediaHeight)
         }
-        .frame(width: SharedDMMediaCardMetrics.width, height: SharedDMMediaCardMetrics.height)
-        .sharedDMPreviewCardChrome()
+        .frame(width: SharedDMPostCardMetrics.width)
+        .background(cardBackground)
+        .clipShape(RoundedRectangle(cornerRadius: SharedDMPostCardMetrics.cornerRadius, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: SharedDMPostCardMetrics.cornerRadius, style: .continuous)
+                .stroke(colorScheme == .dark ? Color.white.opacity(0.10) : Color.black.opacity(0.06), lineWidth: 0.5)
+        )
     }
 }
 
@@ -1178,11 +1327,8 @@ struct SharedDMPreviewAuthorRow: View {
                         userId: authorId,
                         size: 24,
                         lineWidth: 1.8,
-                        showBaseStroke: true,
-                        baseStrokeColor: .white,
-                        baseStrokeWidth: 1.5
+                        showBaseStroke: false
                     )
-                    .shadow(radius: 2)
                 } else {
                     Circle()
                         .fill(.ultraThinMaterial)
@@ -1197,10 +1343,12 @@ struct SharedDMPreviewAuthorRow: View {
 
             if let authorName, !authorName.isEmpty {
                 Text(authorName)
-                    .font(.custom("Poppins-SemiBold", size: 12))
+                    .font(.system(size: 12, weight: .semibold))
                     .foregroundColor(.white)
                     .lineLimit(1)
-                    .shadow(color: .black.opacity(0.5), radius: 2)
+            }
+            if let authorId {
+                VerifiedBadgeView(userId: authorId, size: 12)
             }
 
             Spacer(minLength: 0)
@@ -1243,67 +1391,50 @@ struct SharedDMUnavailablePreviewCard: View {
     var useStoryRing: Bool = true
 
     var body: some View {
-        ZStack(alignment: .bottomLeading) {
-            Group {
-                if let previewImageURL,
-                   !previewImageURL.isEmpty,
-                   let url = URL(string: previewImageURL) {
-                    KFImage(url)
-                        .resizable()
-                        .scaledToFill()
-                } else {
-                    Rectangle()
-                        .fill(
-                            LinearGradient(
-                                colors: [Color.white.opacity(0.14), Color.white.opacity(0.06)],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
+        SharedDMPostCard(
+            authorId: authorId,
+            authorName: authorName,
+            useStoryRing: useStoryRing,
+            isVideo: false,
+            caption: NSLocalizedString(messageKey, comment: "")
+        ) {
+            ZStack {
+                Group {
+                    if let previewImageURL,
+                       !previewImageURL.isEmpty,
+                       let url = URL(string: previewImageURL) {
+                        KFImage(url)
+                            .resizable()
+                            .scaledToFill()
+                    } else {
+                        Rectangle()
+                            .fill(
+                                LinearGradient(
+                                    colors: [Color.white.opacity(0.14), Color.white.opacity(0.06)],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                )
                             )
-                        )
+                    }
+                }
+                .blur(radius: previewImageURL == nil ? 0 : 22)
+                .saturation(previewImageURL == nil ? 1 : 0.35)
+
+                Color.black.opacity(0.5)
+
+                VStack(spacing: 8) {
+                    Image(systemName: iconName)
+                        .font(.system(size: 26, weight: .medium))
+                        .foregroundColor(.white.opacity(0.9))
+
+                    Text(LocalizedStringKey(titleKey))
+                        .font(.custom("Poppins-SemiBold", size: 13))
+                        .foregroundColor(.white)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 14)
                 }
             }
-            .frame(width: SharedDMMediaCardMetrics.width, height: SharedDMMediaCardMetrics.height)
-            .clipped()
-            .blur(radius: previewImageURL == nil ? 0 : 22)
-            .saturation(previewImageURL == nil ? 1 : 0.35)
-
-            Color.black.opacity(0.58)
-
-            VStack(spacing: 10) {
-                Spacer()
-
-                Image(systemName: iconName)
-                    .font(.system(size: 28, weight: .medium))
-                    .foregroundColor(.white.opacity(0.9))
-
-                Text(LocalizedStringKey(titleKey))
-                    .font(.custom("Poppins-SemiBold", size: 14))
-                    .foregroundColor(.white)
-                    .multilineTextAlignment(.center)
-
-                Text(LocalizedStringKey(messageKey))
-                    .font(.custom("Poppins-Regular", size: 12))
-                    .foregroundColor(.white.opacity(0.75))
-                    .multilineTextAlignment(.center)
-                    .lineLimit(3)
-                    .padding(.horizontal, 16)
-
-                Spacer()
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-
-            SharedDMPreviewBottomGradient()
-
-            SharedDMPreviewAuthorRow(
-                authorId: authorId,
-                authorName: authorName,
-                useStoryRing: useStoryRing
-            )
-            .padding(12)
-            .opacity(0.85)
         }
-        .frame(width: SharedDMMediaCardMetrics.width, height: SharedDMMediaCardMetrics.height)
-        .sharedDMPreviewCardChrome()
     }
 }
 
@@ -1403,19 +1534,18 @@ struct MomentBubbleContent: View {
     let isCurrentUser: Bool
     
     var body: some View {
-        // Minimalist Design: No background bubble
         VStack(alignment: .leading, spacing: 8) {
             if let content = content, !content.isEmpty {
                 Text(content)
                     .font(.custom("Poppins-Regular", size: 14))
-                    .foregroundColor(.primary) // Adaptive text color
+                    .foregroundColor(.primary)
                     .padding(.bottom, 4)
             }
             
             MomentPreviewCard(sharedMomentData: sharedMomentData)
         }
         .padding(.vertical, 4)
-        .frame(maxWidth: 280, alignment: isCurrentUser ? .trailing : .leading)
+        .frame(alignment: isCurrentUser ? .trailing : .leading)
     }
 }
 
@@ -1432,37 +1562,17 @@ struct MomentPreviewCard: View {
     }
 
     var body: some View {
-        ZStack {
+        SharedDMPostCard(
+            authorId: sharedMomentData["momentAuthorId"],
+            authorName: sharedMomentData["momentAuthor"],
+            useStoryRing: true,
+            isVideo: isVideo,
+            aspectRatio: parseSharedAspectRatio(sharedMomentData["momentAspectRatio"]),
+            captionAuthor: sharedMomentData["momentAuthor"],
+            caption: sharedMomentData["momentContent"]
+        ) {
             MomentVisualContent(sharedMomentData: sharedMomentData)
-
-            if isVideo {
-                SharedDMCenteredPlayOverlay()
-            }
-
-            SharedDMPreviewBottomGradient()
-
-            VStack(alignment: .leading, spacing: 6) {
-                SharedDMPreviewAuthorRow(
-                    authorId: sharedMomentData["momentAuthorId"],
-                    authorName: sharedMomentData["momentAuthor"],
-                    useStoryRing: false
-                )
-
-                if let content = sharedMomentData["momentContent"], !content.isEmpty {
-                    Text(content)
-                        .font(.custom("Poppins-Regular", size: 13))
-                        .foregroundColor(.white.opacity(0.95))
-                        .lineLimit(2)
-                        .multilineTextAlignment(.leading)
-                        .shadow(color: .black.opacity(0.5), radius: 2)
-                }
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
-            .padding(12)
         }
-        .frame(width: SharedDMMediaCardMetrics.width, height: SharedDMMediaCardMetrics.height)
-        .background(Color.black.opacity(0.2))
-        .sharedDMPreviewCardChrome()
     }
 }
 

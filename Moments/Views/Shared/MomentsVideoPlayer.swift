@@ -136,10 +136,10 @@ struct MomentsVideoPlayer: UIViewControllerRepresentable {
     }
     
     private func configurePlayerItem(_ item: AVPlayerItem) {
-        item.preferredForwardBufferDuration = prioritizeSmoothPlayback ? 8.0 : 2.5
-        item.canUseNetworkResourcesForLiveStreamingWhilePaused = true
-        if #available(iOS 14.0, *) {
-            item.preferredPeakBitRate = 0
+        let tier = VideoPlaybackSelector.shared.recommendedTier()
+        VideoPlaybackSelector.shared.configure(playerItem: item, tier: tier)
+        if prioritizeSmoothPlayback {
+            item.preferredForwardBufferDuration = 8.0
         }
     }
     

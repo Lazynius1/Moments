@@ -9,8 +9,38 @@ class UserCacheService: ObservableObject {
     private let cacheExpirationTime: TimeInterval = 300 // 5 minutos
     private var lastFetchTimes: [String: Date] = [:]
     private var pendingFetches: [String: [(AppUser?) -> Void]] = [:] // ✅ NUEVO: Evitar múltiples requests
-    
-    private init() {}
+
+    /// Tope de usuarios en RAM. Evita crecimiento ilimitado en feeds con muchos autores.
+    private let maxCachedUsers = 500
+    private var memoryWarningObserver: NSObjectProtocol?
+
+    private init() {
+        memoryWarningObserver = NotificationCenter.default.addObserver(
+            forName: .momentsDidReceiveMemoryWarning,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            self?.handleMemoryWarning()
+        }
+    }
+
+    deinit {
+        if let memoryWarningObserver {
+            NotificationCenter.default.removeObserver(memoryWarningObserver)
+        }
+    }
+
+    /// Expulsa las entradas menos recientemente refrescadas si se supera el tope.
+    private func evictIfNeeded() {
+        guard userCache.count > maxCachedUsers else { return }
+        let overflow = userCache.count - maxCachedUsers
+        // Ordenar por fecha de fetch ascendente (las más antiguas primero).
+        let sortedByAge = lastFetchTimes.sorted { $0.value < $1.value }
+        for (userId, _) in sortedByAge.prefix(overflow) {
+            userCache.removeValue(forKey: userId)
+            lastFetchTimes.removeValue(forKey: userId)
+        }
+    }
     
     // MARK: - Obtener usuario con cache inteligente (CORREGIDO)
     func getUser(userId: String, completion: @escaping (AppUser?) -> Void) {
@@ -52,6 +82,7 @@ class UserCacheService: ObservableObject {
                 case .success(let user):
                     self.userCache[userId] = user
                     self.lastFetchTimes[userId] = Date()
+                    self.evictIfNeeded()
                     
                     // ✅ Ejecutar todos los callbacks
                     for callback in callbacks {
@@ -81,6 +112,13 @@ class UserCacheService: ObservableObject {
                 getUser(userId: userId) { _ in }
             }
         }
+    }
+
+    private func handleMemoryWarning() {
+        // Soltamos solo el contenido en RAM. Las peticiones en vuelo deben poder
+        // terminar y notificar a sus callbacks para no dejar la UI colgada.
+        userCache.removeAll()
+        lastFetchTimes.removeAll()
     }
     
     func clearCache() {

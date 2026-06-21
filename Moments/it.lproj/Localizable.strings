@@ -923,6 +923,10 @@
 "chat.recording" = "Registrazione...";
 "chat.reply.you" = "Tu";
 "chat.reply.select_item" = "Rispondi a un elemento";
+"chat.cluster.sentPhotos" = "Hai inviato %d foto";
+"chat.cluster.receivedPhotos" = "Hai ricevuto %d foto";
+"chat.cluster.sentItems" = "Hai inviato %d elementi";
+"chat.cluster.receivedItems" = "Hai ricevuto %d elementi";
 
 /* Messaging */
 "messaging.conversation.notFound" = "Conversazione non trovata";

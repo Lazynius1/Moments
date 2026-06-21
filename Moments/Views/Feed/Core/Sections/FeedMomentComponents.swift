@@ -853,8 +853,17 @@ struct ModernPostCardView: View {
             return
         }
 
-        UserCacheService.shared.refreshUser(userId: authorId) { user in
+        // Mostrar de inmediato el username denormalizado del propio moment para
+        // evitar parpadeo y una lectura forzada por cada card visible.
+        let embedded = moment.username.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !embedded.isEmpty {
+            liveAuthorUsername = embedded
+        }
+
+        // Usar el caché con TTL (getUser) en lugar de forzar refetch (refreshUser).
+        UserCacheService.shared.getUser(userId: authorId) { user in
             let fetchedUsername = user?.username.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            guard !fetchedUsername.isEmpty else { return }
             DispatchQueue.main.async {
                 guard self.moment.authorId.trimmingCharacters(in: .whitespacesAndNewlines) == authorId else { return }
                 self.liveAuthorUsername = fetchedUsername
@@ -1139,7 +1148,6 @@ struct MediaItemView: View {
                                     DownsamplingImageProcessor(size: geometry.size)
                                 )
                                 .scaleFactor(UIScreen.main.scale)
-                                .cacheOriginalImage()
                                 .resizable()
                                 .scaledToFit()
                                 .frame(width: geometry.size.width, height: geometry.size.height)
@@ -1157,7 +1165,6 @@ struct MediaItemView: View {
                                     DownsamplingImageProcessor(size: geometry.size)
                                 )
                                 .scaleFactor(UIScreen.main.scale)
-                                .cacheOriginalImage()
                                 .resizable()
                                 .scaledToFill()
                                 .frame(width: geometry.size.width, height: geometry.size.height)
@@ -1224,6 +1231,11 @@ struct MediaItemView: View {
             withAnimation(.easeInOut(duration: 0.3)) {
                 isImmersive = false
             }
+            GlobalVideoManager.shared.completeReelsFeedHandoff(for: currentMoment)
+            // Reanudar el vídeo del feed que estaba activo antes de abrir Reels.
+            GlobalVideoManager.shared.playVideo(
+                GlobalVideoManager.profileVideoConsumerId(for: currentMoment)
+            )
         }) {
             ReelsViewer(
                 videos: resolvedReelsVideos,
@@ -1247,6 +1259,10 @@ struct MediaItemView: View {
     }
 
     private func openReelsViewer() {
+        // Pausar todos los reproductores del feed para evitar doble reproducción
+        // (audio/decoders duplicados) mientras Reels está en primer plano.
+        GlobalVideoManager.shared.markReelsFeedHandoff(for: currentMoment)
+        GlobalVideoManager.shared.pauseAllVideos()
         withAnimation(.easeInOut(duration: 0.3)) {
             isImmersive = true
         }
