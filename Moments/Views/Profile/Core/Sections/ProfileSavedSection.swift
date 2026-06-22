@@ -340,15 +340,10 @@ struct ProfileSavedMomentThumbnail: View {
                     VStack {
                         Spacer()
                         HStack {
-                            Image(systemName: "play.fill")
-                                .font(.system(size: 8))
-                                .foregroundColor(.white)
-                                .padding(4)
-                                .background(Circle().fill(.black.opacity(0.3)))
+                            ChatVideoPlayBadge(size: 14, padding: 8)
                             Spacer()
                         }
                     }
-                    .padding(6)
                 }
 
                 if !isRestricted {

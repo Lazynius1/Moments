@@ -64,6 +64,20 @@ struct GlassmorphicImageMessage: View {
     }
 }
 
+/// Icono de play para miniaturas de vídeo: esquina, sin círculo, con sombra para legibilidad.
+struct ChatVideoPlayBadge: View {
+    var size: CGFloat = 18
+    var padding: CGFloat = 10
+
+    var body: some View {
+        Image(systemName: "play.fill")
+            .font(.system(size: size, weight: .bold))
+            .foregroundColor(.white)
+            .shadow(color: .black.opacity(0.5), radius: 3, x: 0, y: 1)
+            .padding(padding)
+    }
+}
+
 struct GlassmorphicVideoMessage: View {
     let videoUrl: String?
     let thumbnailUrl: String?
@@ -87,19 +101,6 @@ struct GlassmorphicVideoMessage: View {
                     .frame(minWidth: 0, maxWidth: .infinity, minHeight: 0, maxHeight: .infinity)
             }
 
-            Circle()
-                .fill(Color.black.opacity(0.3))
-                .frame(width: 60, height: 60)
-                .background(
-                    Circle()
-                        .fill(.ultraThinMaterial)
-                )
-                .overlay(
-                    Image(systemName: "play.fill")
-                        .foregroundColor(.white)
-                        .font(.system(size: 24))
-                )
-
             if isSending {
                 let uploadProgress = max(progress ?? 0.03, 0.03)
                 ZStack {
@@ -111,6 +112,9 @@ struct GlassmorphicVideoMessage: View {
             }
         }
         .clipShape(RoundedRectangle(cornerRadius: 16))
+        .overlay(alignment: .bottomLeading) {
+            ChatVideoPlayBadge(size: 22, padding: 12)
+        }
         .overlay(
             RoundedRectangle(cornerRadius: 16)
                 .stroke(Color.white.opacity(0.2), lineWidth: 0.5)

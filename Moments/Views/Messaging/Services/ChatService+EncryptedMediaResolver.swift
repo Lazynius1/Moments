@@ -8,33 +8,53 @@ extension ChatService {
         private var outgoingPreviews: [String: CachedResolvedMedia] = [:]
         private var activeUploadMessageIds: Set<String> = []
         private var resolvedMediaCache: [String: CachedResolvedMedia] = [:]
+        private var resolvedThumbnailCache: [String: String] = [:]
 
-        actor DownloadQueue {
-            func download(objectPath: String, maxSize: Int64) async throws -> Data {
-                try await withCheckedThrowingContinuation { continuation in
-                    Storage.storage()
-                        .reference()
-                        .child(objectPath)
-                        .getData(maxSize: maxSize) { data, error in
-                            if let error {
-                                continuation.resume(throwing: error)
-                            } else if let data {
-                                continuation.resume(returning: data)
-                            } else {
-                                continuation.resume(
-                                    throwing: NSError(
-                                        domain: "ChatService",
-                                        code: -1,
-                                        userInfo: [NSLocalizedDescriptionKey: "No se pudieron descargar los datos cifrados"]
-                                    )
-                                )
-                            }
-                        }
+        /// Si el media ya fue descifrado en sesiones anteriores, devuelve URLs locales
+        /// sin tocar la red (útil al abrir la galería del cluster).
+        func warmMessageURLsFromDiskCache(_ message: EnhancedMessage) -> (mediaUrl: String?, thumbnailUrl: String?) {
+            var mediaUrl = message.mediaUrl
+            var thumbnailUrl = message.thumbnailUrl
+
+            if mediaUrl == nil,
+               let mediaEncryption = message.mediaEncryption {
+                let cacheURL = decryptedMediaCacheURL(
+                    conversationId: message.conversationId,
+                    messageId: message.id,
+                    purpose: mediaEncryption.purpose,
+                    fileExtension: mediaEncryption.fileExtension
+                )
+                if FileManager.default.fileExists(atPath: cacheURL.path) {
+                    mediaUrl = cacheURL.absoluteString
+                    resolvedMediaCache[message.id] = CachedResolvedMedia(
+                        mediaUrl: cacheURL.absoluteString,
+                        thumbnailUrl: nil
+                    )
                 }
             }
-        }
 
-        private let downloadQueue = DownloadQueue()
+            if thumbnailUrl == nil,
+               let thumbEncryption = message.thumbnailEncryption {
+                let cacheURL = decryptedMediaCacheURL(
+                    conversationId: message.conversationId,
+                    messageId: message.id,
+                    purpose: thumbEncryption.purpose,
+                    fileExtension: thumbEncryption.fileExtension
+                )
+                if FileManager.default.fileExists(atPath: cacheURL.path) {
+                    thumbnailUrl = cacheURL.absoluteString
+                    resolvedThumbnailCache[message.id] = cacheURL.absoluteString
+                }
+            }
+
+            if thumbnailUrl == nil,
+               message.type == .video,
+               let posterURL = ChatVideoPosterGenerator.cachedPosterURL(messageId: message.id) {
+                thumbnailUrl = posterURL.absoluteString
+            }
+
+            return (mediaUrl, thumbnailUrl)
+        }
 
         init(encryptionService: EncryptionService) {
             self.encryptionService = encryptionService
@@ -54,6 +74,33 @@ extension ChatService {
 
         func cacheResolvedPreview(_ preview: CachedResolvedMedia, for messageId: String) {
             resolvedMediaCache[messageId] = preview
+        }
+
+        /// Resuelve únicamente la miniatura cifrada (barato, no descarga el vídeo
+        /// completo). Devuelve un file:// local descifrado para usar como portada.
+        func resolveThumbnailURL(for message: EnhancedMessage) async -> String? {
+            if let existing = message.thumbnailUrl, !existing.isEmpty {
+                return existing
+            }
+            if let cached = resolvedThumbnailCache[message.id] {
+                return cached
+            }
+            guard let thumbObjectPath = message.thumbnailObjectPath,
+                  !thumbObjectPath.isEmpty,
+                  let thumbEncryption = message.thumbnailEncryption else {
+                return nil
+            }
+
+            let resolved = await resolveEncryptedMediaURL(
+                objectPath: thumbObjectPath,
+                metadata: thumbEncryption,
+                conversationId: message.conversationId,
+                messageId: message.id
+            )
+            if let resolved {
+                resolvedThumbnailCache[message.id] = resolved
+            }
+            return resolved
         }
 
         func resolveForMessage(_ message: EnhancedMessage) async -> (mediaUrl: String?, thumbnailUrl: String?)? {
@@ -181,7 +228,10 @@ extension ChatService {
 
             do {
                 let maxSize = max(metadata.plaintextSize + Int64(256 * 1024), Int64(8 * 1024 * 1024))
-                let encryptedData = try await downloadQueue.download(objectPath: objectPath, maxSize: maxSize)
+                let encryptedData = try await Self.downloadEncryptedBlob(
+                    objectPath: objectPath,
+                    maxSize: maxSize
+                )
                 let decryptedData = try await encryptionService.decryptChatMedia(
                     encryptedData,
                     metadata: metadata,
@@ -219,6 +269,30 @@ extension ChatService {
                 withIntermediateDirectories: true,
                 attributes: nil
             )
+        }
+
+        /// Descargas en paralelo (antes un `actor` serializaba todo y la galería tardaba mucho).
+        private static func downloadEncryptedBlob(objectPath: String, maxSize: Int64) async throws -> Data {
+            try await withCheckedThrowingContinuation { continuation in
+                Storage.storage()
+                    .reference()
+                    .child(objectPath)
+                    .getData(maxSize: maxSize) { data, error in
+                        if let error {
+                            continuation.resume(throwing: error)
+                        } else if let data {
+                            continuation.resume(returning: data)
+                        } else {
+                            continuation.resume(
+                                throwing: NSError(
+                                    domain: "ChatService",
+                                    code: -1,
+                                    userInfo: [NSLocalizedDescriptionKey: "No se pudieron descargar los datos cifrados"]
+                                )
+                            )
+                        }
+                    }
+            }
         }
     }
 }

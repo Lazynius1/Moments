@@ -47,6 +47,7 @@ extension ChatService {
                     type == .video ||
                     type == .audio ||
                     type == .file ||
+                    type == .ephemeral ||
                     type == .viewOnceImage ||
                     type == .viewOnceVideo
 
@@ -114,8 +115,17 @@ extension ChatService {
                     var thumbnailObjectPath: String?
                     var thumbnailEncryption: EncryptedChatMediaMetadata?
                     var localThumbnailURL: String?
-                    if type == .video || type == .viewOnceVideo,
-                       let thumbnailData = try await generateVideoThumbnailData(from: plaintextData) {
+
+                    // Miniatura cifrada ligera (como WhatsApp): preview instantáneo en la
+                    // notificación sin bajar el media completo. Vídeo → frame; imagen → reescalada.
+                    var generatedThumbnailData: Data?
+                    if type == .video || type == .viewOnceVideo {
+                        generatedThumbnailData = try await generateVideoThumbnailData(from: plaintextData)
+                    } else if type == .image || type == .viewOnceImage || type == .ephemeral {
+                        generatedThumbnailData = generateImageThumbnailData(from: plaintextData)
+                    }
+
+                    if let thumbnailData = generatedThumbnailData {
                         do {
                             let thumbId = UUID().uuidString
                             let thumbBase = StoragePathBuilder.build(
@@ -228,6 +238,34 @@ extension ChatService {
                 completion(.failure(error))
             }
         }
+    }
+
+    /// Genera una miniatura ligera de una imagen (lado mayor ≤ 720px, JPEG ~0.6) para
+    /// usarla en la vista previa de notificaciones. Devuelve nil si no se puede decodificar.
+    private func generateImageThumbnailData(from imageData: Data) -> Data? {
+        guard let image = UIImage(data: imageData) else { return nil }
+
+        let maxDimension: CGFloat = 720
+        let size = image.size
+        let longestSide = max(size.width, size.height)
+
+        let targetSize: CGSize
+        if longestSide > maxDimension, longestSide > 0 {
+            let scale = maxDimension / longestSide
+            targetSize = CGSize(width: size.width * scale, height: size.height * scale)
+        } else {
+            targetSize = size
+        }
+
+        let format = UIGraphicsImageRendererFormat.default()
+        format.scale = 1
+        format.opaque = true
+        let renderer = UIGraphicsImageRenderer(size: targetSize, format: format)
+        let resized = renderer.image { _ in
+            image.draw(in: CGRect(origin: .zero, size: targetSize))
+        }
+
+        return resized.jpegData(compressionQuality: 0.6)
     }
 
     private func generateVideoThumbnailURL(
@@ -375,7 +413,7 @@ extension ChatService {
     private func getFileExtension(for type: MessageType) -> String {
         print("📤 ChatService: getFileExtension requested for type: \(type)")
         switch type {
-        case .image, .viewOnceImage: return "jpg"
+        case .image, .viewOnceImage, .ephemeral: return "jpg"
         case .gif: return "gif"
         case .sticker: return "webp"
         case .video, .viewOnceVideo: return "mp4"
@@ -389,7 +427,7 @@ extension ChatService {
 
     private func getContentType(for type: MessageType) -> String {
         switch type {
-        case .image, .viewOnceImage: return "image/jpeg"
+        case .image, .viewOnceImage, .ephemeral: return "image/jpeg"
         case .video, .viewOnceVideo: return "video/mp4"
         case .audio: return "audio/mp4"
         case .gif: return "image/gif"

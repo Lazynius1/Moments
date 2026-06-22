@@ -561,7 +561,12 @@ struct NotificationsView: View {
             ChatRecoveryGateView(onCancel: {
                 showChat = false
             }) {
-                GlassmorphicChatView(conversation: conversation)
+                GlassmorphicChatView(
+                    conversation: conversation,
+                    pendingHighlightMessageIds: ChatNavigationIntentStore.consumeHighlights(
+                        for: conversation.id ?? ""
+                    )
+                )
             }
         } else {
             EmptyView()

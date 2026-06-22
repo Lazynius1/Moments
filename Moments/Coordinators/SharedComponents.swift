@@ -330,7 +330,7 @@ struct ActionSubCardView: View {
             Button(action: {
                 toggleSave()
             }) {
-                AttachmentIconView(icon: .bookmark, preset: .momentActionBar, tintColor: isSaved ? .yellow : .white)
+                AttachmentIconView(icon: .bookmark, preset: .momentActionBar, style: bookmarkStyle)
             }
         }
         .padding(.horizontal, 16)
@@ -356,6 +356,19 @@ struct ActionSubCardView: View {
         .onAppear {
             checkIfSaved()
         }
+    }
+
+    private var bookmarkStyle: AnyShapeStyle {
+        if isSaved {
+            return AnyShapeStyle(
+                LinearGradient(
+                    colors: [.yellow, .orange],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+            )
+        }
+        return AnyShapeStyle(Color.white)
     }
     
     private func toggleLike() {

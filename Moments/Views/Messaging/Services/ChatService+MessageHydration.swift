@@ -157,6 +157,16 @@ extension ChatService {
         await encryptedMediaResolver.resolveForMessage(message)
     }
 
+    /// Resuelve solo la miniatura del vídeo (cifrada o no) sin descargar el vídeo completo.
+    func resolveVideoThumbnail(for message: EnhancedMessage) async -> String? {
+        await encryptedMediaResolver.resolveThumbnailURL(for: message)
+    }
+
+    /// URLs locales ya descifradas en disco (sin red).
+    func warmMessageURLsFromDiskCache(_ message: EnhancedMessage) -> (mediaUrl: String?, thumbnailUrl: String?) {
+        encryptedMediaResolver.warmMessageURLsFromDiskCache(message)
+    }
+
     func resolveEncryptedMediaForDisplay(
         messageId: String,
         conversationId: String,

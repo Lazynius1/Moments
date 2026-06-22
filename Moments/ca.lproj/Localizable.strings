@@ -793,6 +793,8 @@
 "conversationSettings.notifications.desc" = "Activa o silencia les notificacions d'aquesta conversa.";
 "conversationSettings.typingIndicator" = "Indicador d'escriptura";
 "conversationSettings.typingIndicator.desc" = "Si ho desactives, tampoc veuràs quan l'altra persona està escrivint.";
+"conversationSettings.privacy.messagePreview.title" = "Mostra la vista prèvia";
+"conversationSettings.privacy.messagePreview.description" = "Mostra el text del missatge a les notificacions i a la llista de converses.";
 "conversationSettings.privacy.readReceipts.title" = "Confirmació de lectura";
 "conversationSettings.privacy.readReceipts.description" = "Si desactives el 'vist' en aquest xat, no podràs veure quan l'altra persona llegeix els teus missatges.";
 "conversationSettings.privacy.forwarding.title" = "Permetre reenviament";
@@ -2908,12 +2910,18 @@
 
 /* Push Notifications - Messages */
 "notification.message.single.text" = "T'ha enviat un missatge";
+"notification.action.reply" = "Respon";
+"notification.action.send" = "Envia";
+"notification.action.placeholder" = "Missatge";
 "notification.message.single.photo" = "T'ha enviat una foto 📷";
 "notification.message.single.video" = "T'ha enviat un vídeo 🎥";
 "notification.message.single.audio" = "T'ha enviat un àudio 🎵";
 "notification.message.single.viewOnce" = "T'ha enviat un missatge que desapareix 👀";
 "notification.message.single.moment" = "T'ha enviat un moment 📸";
 "notification.message.single.default" = "T'ha enviat un missatge";
+"notification.chatReaction.single" = "Ha reaccionat amb %@ al teu missatge";
+"notification.chatReaction.singleQuoted" = "Ha reaccionat amb %@ al teu missatge \"%@\"";
+"notification.chatReaction.multiple" = "Ha reaccionat amb %@ als teus missatges";
 "notification.gentleReminder.title" = "Moments";
 "notification.gentleReminder.body.neutral_day" = "Comparteix alguna cosa del teu dia, si et ve de gust.";
 "notification.gentleReminder.body.neutral_available" = "Si avui et ve de gust compartir alguna cosa, Moments és aquí.";

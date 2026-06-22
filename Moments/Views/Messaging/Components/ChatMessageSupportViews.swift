@@ -195,20 +195,16 @@ struct MessageReactionChip: View {
     }
 
     private var emojiSize: CGFloat {
-        if cluster { return 11 }
-        return compact ? 13 : 16
+        MessageReactionMetrics.emojiSize(compact: compact, cluster: cluster)
     }
     private var countSize: CGFloat {
-        if cluster { return 6 }
-        return compact ? 7 : 9
+        MessageReactionMetrics.countSize(compact: compact, cluster: cluster)
     }
     private var badgeDiameter: CGFloat {
-        if cluster { return 16 }
-        return compact ? 18 : 22
+        MessageReactionMetrics.badgeDiameter(compact: compact, cluster: cluster)
     }
     private var overlapSpacing: CGFloat {
-        if cluster { return -4 }
-        return compact ? -5 : -7
+        MessageReactionMetrics.overlapSpacing(compact: compact, cluster: cluster)
     }
 
     var body: some View {
@@ -252,6 +248,38 @@ struct MessageReactionChip: View {
     }
 }
 
+enum MessageReactionMetrics {
+    static func emojiSize(compact: Bool, cluster: Bool) -> CGFloat {
+        if cluster { return 12 }
+        return compact ? 16 : 18
+    }
+
+    static func countSize(compact: Bool, cluster: Bool) -> CGFloat {
+        if cluster { return 7 }
+        return compact ? 8 : 10
+    }
+
+    static func badgeDiameter(compact: Bool, cluster: Bool) -> CGFloat {
+        if cluster { return 18 }
+        return compact ? 24 : 28
+    }
+
+    static func overlapSpacing(compact: Bool, cluster: Bool) -> CGFloat {
+        if cluster { return -5 }
+        return compact ? -6 : -8
+    }
+
+    static func horizontalHangOffset(compact: Bool, anchoredInsideBounds: Bool) -> CGFloat {
+        if anchoredInsideBounds { return 3 }
+        // Mitad del badge fuera del borde exterior de la burbuja (esquina IG).
+        return badgeDiameter(compact: compact, cluster: false) / 2 - 2
+    }
+
+    static func hangOffset(compact: Bool, cluster: Bool = false) -> CGFloat {
+        badgeDiameter(compact: compact, cluster: cluster) - 5
+    }
+}
+
 extension View {
     /// Reacción estilo IG: emoji sobre anillo del color de fondo del chat, colgando del borde inferior.
     func messageReactionOverlay(
@@ -262,15 +290,17 @@ extension View {
         onTap: @escaping (String) -> Void
     ) -> some View {
         let hasReactions = reactions.map { !$0.isEmpty } ?? false
-        let badgeDiameter: CGFloat = compact ? 18 : 22
-        // El chip cuelga del borde inferior; el anillo lo separa de la burbuja. Solapa ~5pt.
-        let hangOffset = badgeDiameter - 5
+        let hangOffset = MessageReactionMetrics.hangOffset(compact: compact)
+        let horizontalOffset = MessageReactionMetrics.horizontalHangOffset(
+            compact: compact,
+            anchoredInsideBounds: anchoredInsideBounds
+        )
 
         return overlay(alignment: isOutgoing ? .bottomLeading : .bottomTrailing) {
             if let reactions, !reactions.isEmpty {
                 MessageReactionChip(reactions: reactions, onTap: onTap, compact: compact)
                     .offset(
-                        x: isOutgoing ? (anchoredInsideBounds ? 3 : 10) : (anchoredInsideBounds ? -3 : -10),
+                        x: isOutgoing ? horizontalOffset : -horizontalOffset,
                         y: anchoredInsideBounds ? -3 : hangOffset
                     )
                     .zIndex(5)

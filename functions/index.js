@@ -3561,6 +3561,16 @@ function pickStoryPreviewUrl(storyData) {
   return null;
 }
 
+// APNs exige collapse-id ≤ 64 bytes. IDs de Firestore/UUID pueden superarlo si se concatenan.
+function apnsCollapseId(prefix, ...parts) {
+  const candidate = `${prefix}_${parts.join('_')}`;
+  if (Buffer.byteLength(candidate, 'utf8') <= 64) {
+    return candidate;
+  }
+  const hash = crypto.createHash('sha256').update(parts.join('\0')).digest('hex').slice(0, 57);
+  return `${prefix}_${hash}`;
+}
+
 // ✅ Contar mensajes no leídos EN UNA CONVERSACIÓN ESPECÍFICA
 async function getUnreadMessagesInConversation(conversationId, userId) {
   try {
@@ -3639,6 +3649,77 @@ async function getUnreadMessagesInConversation(conversationId, userId) {
     return Math.max(1, unreadCount);
   } catch (error) {
     return 1;
+  }
+}
+
+// Mensajes propios con reacción ajena desde la última lectura del chat (plural estilo "2 mensajes").
+async function getUnreadReactionSummary(conversationId, authorId, conversationData) {
+  try {
+    const lastReadAt = conversationData.lastReadAt || {};
+    const lastReadValue = lastReadAt[authorId];
+    const lastReadMillis = lastReadValue && typeof lastReadValue.toMillis === 'function'
+      ? lastReadValue.toMillis()
+      : null;
+
+    const reactionsSnap = await admin.firestore()
+      .collectionGroup('messageReactions')
+      .where('conversationId', '==', conversationId)
+      .get();
+
+    if (reactionsSnap.empty) return { count: 1, emojis: [] };
+
+    const reactionEntries = [];
+    for (const doc of reactionsSnap.docs) {
+      const data = doc.data() || {};
+      const reactorId = typeof data.userId === 'string' ? data.userId : doc.id;
+      if (reactorId === authorId) continue;
+
+      const reactionMillis = data.timestamp && typeof data.timestamp.toMillis === 'function'
+        ? data.timestamp.toMillis()
+        : Date.now();
+
+      if (lastReadMillis && reactionMillis <= lastReadMillis) {
+        continue;
+      }
+
+      const emoji = typeof data.emoji === 'string' ? data.emoji.trim() : '';
+      if (typeof data.messageId === 'string' && data.messageId) {
+        reactionEntries.push({ messageId: data.messageId, emoji, reactionMillis });
+      }
+    }
+
+    if (reactionEntries.length === 0) return { count: 1, emojis: [] };
+
+    reactionEntries.sort((a, b) => b.reactionMillis - a.reactionMillis);
+
+    const candidateMessageIds = new Set();
+    const emojisOrdered = [];
+    const seenEmojis = new Set();
+    for (const entry of reactionEntries) {
+      candidateMessageIds.add(entry.messageId);
+      if (entry.emoji && !seenEmojis.has(entry.emoji)) {
+        seenEmojis.add(entry.emoji);
+        emojisOrdered.push(entry.emoji);
+      }
+    }
+
+    const messageRefs = [...candidateMessageIds].map((messageId) =>
+      admin.firestore().doc(`conversations/${conversationId}/messages/${messageId}`)
+    );
+    const messageDocs = await admin.firestore().getAll(...messageRefs);
+
+    let count = 0;
+    for (const msgDoc of messageDocs) {
+      if (!msgDoc.exists) continue;
+      const msg = msgDoc.data() || {};
+      if (msg.senderId !== authorId || msg.isDeleted === true) continue;
+      count += 1;
+    }
+
+    return { count: Math.max(1, count), emojis: emojisOrdered };
+  } catch (error) {
+    console.error('Error summarizing unread reacted own messages:', error);
+    return { count: 1, emojis: [] };
   }
 }
 
@@ -5726,39 +5807,81 @@ exports.onMessageAdded = onDocumentCreated('conversations/{conversationId}/messa
         bodyLocArgs = [String(unreadInConvo)];
       }
 
+      // 🔐 Vista previa E2E: el contenido sigue cifrado (el servidor no lo lee).
+      // El Notification Service Extension lo descifra en el dispositivo y reemplaza
+      // el cuerpo genérico (loc-key) por el texto real.
+      //
+      // Estrategia robusta frente al límite real de APNs (4 KB), no por longitud "a ojo":
+      //  - Construimos el payload SIN encryptedContent y medimos su tamaño real serializado.
+      //  - Solo embebemos el ciphertext (fast-path) si el payload total queda bajo un
+      //    margen seguro. Si no cabe, lo omitimos y el NSE resuelve el texto haciendo
+      //    fetch del mensaje (conversationId + messageId) y descifrando en el dispositivo.
+      // view-once nunca expone media en la notificación (privacidad, igual que WhatsApp).
+      const isViewOnceMessage = message.type === 'viewOnceImage'
+        || message.type === 'viewOnceVideo'
+        || message.type === 'ephemeral';
+
+      // gif/sticker viajan como URL pública de Giphy (sin cifrar): el NSE la descarga
+      // directamente para el adjunto. image/video usan la miniatura cifrada (hasEncryptedThumbnail).
+      const publicMediaUrl = (!isViewOnceMessage && (message.type === 'gif' || message.type === 'sticker')
+        && typeof message.mediaUrl === 'string')
+        ? message.mediaUrl
+        : '';
+
+      const baseData = {
+        type: 'new_message',
+        conversationId: conversationId,
+        messageId: messageId,
+        senderId: message.senderId,
+        targetType: 'conversation',
+        targetId: conversationId,
+        senderUsername: senderData.username,
+        senderProfileImage: senderData.profileImagePath || '',
+        messageType: message.type || 'text',
+        hasEncryptedThumbnail: (!isViewOnceMessage && message.thumbnailObjectPath && message.thumbnailEncryption) ? '1' : '0',
+        mediaUrl: publicMediaUrl,
+        unreadMessages: String(counts.unreadMessages),
+        unreadNotifications: String(counts.unreadNotifications),
+        unreadEchoes: String(counts.unreadEchoes),
+        unreadTags: String(counts.unreadTags)
+      };
+
+      const apnsPayload = {
+        aps: {
+          alert: {
+            title: senderData.username || 'Moments',
+            'loc-key': bodyLocKey,
+            'loc-args': bodyLocArgs
+          },
+          badge: Math.max(1, counts.unreadNotifications + counts.unreadMessages),
+          sound: 'default',
+          'mutable-content': 1,
+          category: 'MESSAGE_CATEGORY',
+          'thread-id': `conversation_${conversationId}`
+        }
+      };
+
+      // Límite duro de APNs: 4096 bytes. Reservamos margen para overhead de FCM y claves.
+      const APNS_PAYLOAD_SAFE_LIMIT = 3500;
+      let encryptedContent = '';
+      if (message.type === 'text' && typeof message.content === 'string' && message.content.length > 0) {
+        const candidateData = { ...baseData, encryptedContent: message.content };
+        const estimatedBytes =
+          Buffer.byteLength(JSON.stringify(candidateData), 'utf8') +
+          Buffer.byteLength(JSON.stringify(apnsPayload), 'utf8');
+        if (estimatedBytes <= APNS_PAYLOAD_SAFE_LIMIT) {
+          encryptedContent = message.content;
+        }
+      }
+
       const notificationMessage = {
         token: receiverData.fcmToken,
-        data: {
-          type: 'new_message',
-          conversationId: conversationId,
-          messageId: messageId,
-          senderId: message.senderId,
-          targetType: 'conversation',
-          targetId: conversationId,
-          senderUsername: senderData.username,
-          senderProfileImage: senderData.profileImagePath || '',
-          unreadMessages: String(counts.unreadMessages),
-          unreadNotifications: String(counts.unreadNotifications),
-          unreadEchoes: String(counts.unreadEchoes),
-          unreadTags: String(counts.unreadTags)
-        },
+        data: { ...baseData, encryptedContent },
         apns: {
           headers: {
             'apns-collapse-id': `msg_${conversationId}`
           },
-          payload: {
-            aps: {
-              alert: {
-                title: senderData.username || 'Moments',
-                'loc-key': bodyLocKey,
-                'loc-args': bodyLocArgs
-              },
-              badge: Math.max(1, counts.unreadNotifications + counts.unreadMessages),
-              sound: 'default',
-              'mutable-content': 1,
-              'thread-id': `conversation_${conversationId}`
-            }
-          }
+          payload: apnsPayload
         }
       };
 
@@ -5778,6 +5901,182 @@ exports.onMessageAdded = onDocumentCreated('conversations/{conversationId}/messa
     console.error('Error sending message notification:', error);
   }
 });
+
+// 💬 REACCIONES EN MENSAJES DE CHAT — push al autor del mensaje reaccionado (anti-spam:
+// solo onCreate, no self-reaction, respeta mute/DND, collapse por mensaje).
+exports.onMessageReactionAdded = onDocumentCreated(
+  'conversations/{conversationId}/messages/{messageId}/messageReactions/{reactorUserId}',
+  async (event) => {
+    const snap = event.data;
+    const { conversationId, messageId, reactorUserId } = event.params;
+    const reaction = snap.data();
+
+    try {
+      const emoji = typeof reaction.emoji === 'string' ? reaction.emoji.trim() : '';
+      if (!emoji) return null;
+
+      const reactorId = typeof reaction.userId === 'string' ? reaction.userId : reactorUserId;
+      if (!reactorId) return null;
+
+      const messageRef = admin.firestore().doc(`conversations/${conversationId}/messages/${messageId}`);
+      const reactionRef = messageRef.collection('messageReactions').doc(reactorUserId);
+
+      const [messageDoc, conversationDoc] = await Promise.all([
+        messageRef.get(),
+        admin.firestore().doc(`conversations/${conversationId}`).get()
+      ]);
+
+      if (!messageDoc.exists || !conversationDoc.exists) return null;
+
+      const message = messageDoc.data();
+      const conversationData = conversationDoc.data();
+      const messageAuthorId = message.senderId;
+
+      if (!messageAuthorId || messageAuthorId === reactorId) {
+        return null;
+      }
+
+      const participants = Array.isArray(conversationData.participants) ? conversationData.participants : [];
+      if (!participants.includes(reactorId) || !participants.includes(messageAuthorId)) {
+        return null;
+      }
+
+      const handled = await admin.firestore().runTransaction(async (tx) => {
+        const reactionSnap = await tx.get(reactionRef);
+        if (!reactionSnap.exists) return true;
+        if (reactionSnap.get('processed') === true) return true;
+        return false;
+      });
+      if (handled) return null;
+
+      const [reacterDoc, authorDoc] = await Promise.all([
+        admin.firestore().doc(`users/${reactorId}`).get(),
+        admin.firestore().doc(`users/${messageAuthorId}`).get()
+      ]);
+
+      if (!reacterDoc.exists || !authorDoc.exists) return null;
+
+      const reacterData = reacterDoc.data();
+      const authorData = authorDoc.data();
+
+      if (!validateUserData(reacterData) || !validateUserData(authorData)) return null;
+      if (!reacterData.isActive || !authorData.isActive) return null;
+
+      const isSilencedByMuteSettings = shouldSilenceNotificationForUser(authorData, {
+        senderId: reactorId,
+        candidateTexts: [emoji, message.type]
+      });
+      if (isSilencedByMuteSettings) return null;
+
+      if (!authorData.fcmToken || isDoNotDisturbActive(authorData)) return null;
+
+      const mutedByUserIds = Array.isArray(conversationData.mutedByUserIds)
+        ? conversationData.mutedByUserIds
+        : [];
+      const isMutedForAuthor =
+        mutedByUserIds.includes(messageAuthorId) ||
+        (conversationData.isMuted === true && conversationData.mutedBy === messageAuthorId);
+      if (isMutedForAuthor) return null;
+
+      if (!notificationTypeEnabled(authorData, 'messageReaction')) return null;
+
+      const [counts, reactionSummary] = await Promise.all([
+        getUnreadCounts(messageAuthorId, {
+          type: 'message_reaction',
+          conversationId
+        }),
+        getUnreadReactionSummary(conversationId, messageAuthorId, conversationData)
+      ]);
+
+      const unreadReactedCount = reactionSummary.count;
+      const isPlural = unreadReactedCount > 1;
+      const emojiList = reactionSummary.emojis.length > 0
+        ? reactionSummary.emojis.join(', ')
+        : emoji;
+
+      let bodyLocKey = isPlural
+        ? 'notification.chatReaction.multiple'
+        : 'notification.chatReaction.single';
+      const bodyLocArgs = isPlural ? [emojiList] : [emoji];
+
+      const baseData = {
+        type: 'message_reaction',
+        conversationId,
+        messageId,
+        targetMessageId: messageId,
+        senderId: reactorId,
+        targetType: 'conversation',
+        targetId: conversationId,
+        senderUsername: reacterData.username || '',
+        senderProfileImage: reacterData.profileImagePath || '',
+        reactionEmoji: emoji,
+        messageType: message.type || 'text',
+        isReactionPlural: isPlural ? '1' : '0',
+        reactionEmojis: emojiList,
+        unreadMessages: String(counts.unreadMessages),
+        unreadNotifications: String(counts.unreadNotifications),
+        unreadEchoes: String(counts.unreadEchoes),
+        unreadTags: String(counts.unreadTags)
+      };
+
+      const isTextReaction = !isPlural && message.type === 'text';
+
+      const apnsPayload = {
+        aps: {
+          alert: {
+            title: reacterData.username || 'Moments',
+            'loc-key': bodyLocKey,
+            'loc-args': bodyLocArgs
+          },
+          badge: Math.max(1, counts.unreadNotifications + counts.unreadMessages),
+          sound: 'default',
+          'mutable-content': isTextReaction ? 1 : 0,
+          'thread-id': `conversation_${conversationId}`
+        }
+      };
+
+      if (isTextReaction && typeof message.content === 'string' && message.content.length > 0) {
+        const APNS_PAYLOAD_SAFE_LIMIT = 3500;
+        const candidateData = { ...baseData, encryptedContent: message.content };
+        const estimatedBytes =
+          Buffer.byteLength(JSON.stringify(candidateData), 'utf8') +
+          Buffer.byteLength(JSON.stringify(apnsPayload), 'utf8');
+        if (estimatedBytes <= APNS_PAYLOAD_SAFE_LIMIT) {
+          baseData.encryptedContent = message.content;
+        }
+      }
+
+      const notificationMessage = {
+        token: authorData.fcmToken,
+        data: baseData,
+        apns: {
+          headers: {
+            'apns-collapse-id': apnsCollapseId('rx', conversationId)
+          },
+          payload: apnsPayload
+        }
+      };
+
+      try {
+        await admin.messaging().send(notificationMessage);
+        await reactionRef.update({
+          processed: true,
+          processedAt: admin.firestore.FieldValue.serverTimestamp()
+        });
+      } catch (error) {
+        console.error('Error sending chat reaction push:', error);
+        if (error.code === 'messaging/registration-token-not-registered') {
+          await removeInvalidToken(messageAuthorId, authorData.fcmToken);
+        }
+        return null;
+      }
+    } catch (error) {
+      console.error('Error sending chat reaction notification:', error);
+    }
+
+    return null;
+  }
+);
 
 // 📖 REACCIONES EN HISTORIAS (1 doc por reactor; update solo notifica si cambia el emoji)
 exports.onStoryReactionAdded = onDocumentWritten('users/{userId}/stories/{storyId}/reactions/{reactionId}', async (event) => {

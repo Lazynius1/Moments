@@ -134,22 +134,25 @@ struct UserModernMomentThumbnail: View {
     @ViewBuilder
     private var bottomChrome: some View {
         if descriptor.showsPlayCue {
-            HStack(spacing: 6) {
-                Image(systemName: "play.fill")
-                    .font(.system(size: 8, weight: .bold))
-                    .foregroundColor(.white)
+            HStack(spacing: 4) {
+                ChatVideoPlayBadge(size: videoPlayBadgeSize, padding: 8)
 
                 if descriptor.showsDuration, let duration = moment.videoDuration {
                     Text(Self.formatVideoDuration(duration))
-                        .font(.custom("Poppins-SemiBold", size: 8))
+                        .font(.custom("Poppins-SemiBold", size: 11))
                         .foregroundColor(.white)
+                        .shadow(color: .black.opacity(0.5), radius: 3, x: 0, y: 1)
                 }
             }
-            .padding(.horizontal, 8)
-            .padding(.vertical, 6)
-            .background(Color.black.opacity(0.34))
-            .clipShape(Capsule())
-            .padding(6)
+        }
+    }
+
+    private var videoPlayBadgeSize: CGFloat {
+        switch descriptor.layoutKind {
+        case .hero, .tall:
+            return 18
+        case .unit:
+            return 14
         }
     }
 

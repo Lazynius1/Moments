@@ -1,5 +1,6 @@
 import Foundation
 import FirebaseFirestore
+import FirebaseAuth
 
 extension ChatService {
     // MARK: - Ephemeral Messages
@@ -30,7 +31,15 @@ extension ChatService {
     func cleanupExpiredEphemeralMessages() {
         let now = Date()
 
+        // Acotar a los mensajes que envié yo: las reglas de Firestore solo permiten
+        // leer mensajes de conversaciones donde participo, así que una query
+        // collection-group GLOBAL sería denegada. Filtrar por senderId == miUid hace
+        // la query verificable (regla: resource.data.senderId == request.auth.uid) y
+        // segura. Cada participante limpia los efímeros que él mismo envió.
+        guard let currentUserId = Auth.auth().currentUser?.uid else { return }
+
         db.collectionGroup("messages")
+            .whereField("senderId", isEqualTo: currentUserId)
             .whereField("type", isEqualTo: MessageType.ephemeral.rawValue)
             .whereField("expirationDate", isLessThan: now)
             .whereField("isDeleted", isEqualTo: false)

@@ -376,6 +376,24 @@ struct ConversationSettingsView: View {
 
                 dividerLine
 
+                Toggle(isOn: $viewModel.messagePreviewEnabled) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(NSLocalizedString("conversationSettings.privacy.messagePreview.title", comment: "Show message preview"))
+                            .font(.custom("Poppins-Medium", size: 15))
+                            .foregroundColor(adaptiveColors.primary)
+                        Text(NSLocalizedString("conversationSettings.privacy.messagePreview.description", comment: "Show message text in notifications and the conversation list"))
+                            .font(.custom("Poppins-Regular", size: 12))
+                            .foregroundColor(adaptiveColors.tertiary)
+                    }
+                }
+                .tint(SettingsProfileColors.toggleTint)
+                .onChange(of: viewModel.messagePreviewEnabled) { _, _ in
+                    HapticManager.shared.lightImpact()
+                    viewModel.toggleMessagePreview()
+                }
+
+                dividerLine
+
                 Toggle(isOn: $viewModel.readReceiptsEnabled) {
                     VStack(alignment: .leading, spacing: 2) {
                         Text(NSLocalizedString("conversationSettings.privacy.readReceipts.title", comment: ""))
@@ -527,29 +545,33 @@ struct SharedMediaThumbnail: View {
     let media: SharedMedia
     let onTap: () -> Void
     @Environment(\.colorScheme) var colorScheme
+    @State private var resolvedThumbnailUrl: String?
 
     private var adaptiveColors: AdaptiveColors {
         AdaptiveColors(colorScheme: colorScheme)
     }
 
+    private var displayThumbnailUrl: String? {
+        if let resolvedThumbnailUrl { return resolvedThumbnailUrl }
+        // Para vídeos no usamos la URL del vídeo como imagen (no renderiza portada).
+        if media.type == .video { return nil }
+        return media.thumbnailUrl
+    }
+
     var body: some View {
-        KFImage(URL(string: media.thumbnailUrl))
+        KFImage(displayThumbnailUrl.flatMap { URL(string: $0) })
             .resizable()
             .aspectRatio(contentMode: .fill)
             .frame(width: 100, height: 100)
             .clipShape(RoundedRectangle(cornerRadius: 16))
+            .background(
+                RoundedRectangle(cornerRadius: 16)
+                    .fill(colorScheme == .dark ? Color.white.opacity(0.08) : Color.black.opacity(0.05))
+            )
+            .task { await resolveVideoThumbnailIfNeeded() }
             .overlay(alignment: .bottomLeading) {
                 if media.type == .video {
-                    HStack(spacing: 0) {
-                        Image(systemName: "play.fill")
-                            .font(.system(size: 10, weight: .bold))
-                    }
-                    .foregroundColor(.white)
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 6)
-                    .background(Color.black.opacity(0.42))
-                    .clipShape(Capsule())
-                    .padding(8)
+                    ChatVideoPlayBadge(size: 16, padding: 8)
                 }
             }
             .overlay(
@@ -560,6 +582,33 @@ struct SharedMediaThumbnail: View {
             .onTapGesture {
                 onTap()
             }
+    }
+
+    private func resolveVideoThumbnailIfNeeded() async {
+        guard media.type == .video, resolvedThumbnailUrl == nil else { return }
+
+        guard let message = media.sourceMessage else {
+            if media.thumbnailUrl != media.originalUrl {
+                resolvedThumbnailUrl = media.thumbnailUrl
+            }
+            return
+        }
+
+        if let thumb = message.thumbnailUrl, !thumb.isEmpty {
+            resolvedThumbnailUrl = thumb
+            return
+        }
+
+        if let resolved = await ChatService.shared.resolveVideoThumbnail(for: message) {
+            resolvedThumbnailUrl = resolved
+            return
+        }
+
+        if let mediaUrl = message.mediaUrl,
+           let url = URL(string: mediaUrl),
+           let poster = await ChatVideoPosterGenerator.poster(for: url, messageId: message.id) {
+            resolvedThumbnailUrl = poster
+        }
     }
 }
 
@@ -582,6 +631,7 @@ class ConversationSettingsViewModel: ObservableObject {
     @Published var readReceiptsEnabled = true
     @Published var forwardingEnabled = true
     @Published var typingIndicatorEnabled = true
+    @Published var messagePreviewEnabled = true
     @Published var showNotificationAlert = false
     @Published var notificationAlertMessage = ""
 
@@ -589,6 +639,14 @@ class ConversationSettingsViewModel: ObservableObject {
     private let firestoreService = FirestoreService()
     private var currentConversation: Conversation?
     private let typingIndicatorLegacyKey = "chat_typing_indicator_enabled"
+
+    // Clave POR CONVERSACIÓN (App Group) leída por el Notification Service Extension
+    // y la lista de conversaciones. Permite activar la vista previa en unos chats y
+    // ocultarla en otros. Por defecto: ON.
+    private var sharedDefaults: UserDefaults? { UserDefaults(suiteName: "group.com.glowsyapp") }
+    private func messagePreviewKey(for conversationId: String) -> String {
+        "chat_show_message_preview_\(conversationId)"
+    }
 
     private func boolFromDefaults(key: String, defaultValue: Bool) -> Bool {
         if let storedValue = UserDefaults.standard.object(forKey: key) as? Bool {
@@ -656,7 +714,8 @@ class ConversationSettingsViewModel: ObservableObject {
                 thumbnailUrl: message.thumbnailUrl ?? mediaUrl,
                 originalUrl: mediaUrl,
                 senderId: message.senderId,
-                timestamp: message.timestamp
+                timestamp: message.timestamp,
+                sourceMessage: message
             )
         }
         .sorted { $0.timestamp > $1.timestamp }
@@ -773,6 +832,11 @@ class ConversationSettingsViewModel: ObservableObject {
         UserDefaults.standard.set(typingIndicatorEnabled, forKey: perChatKey)
     }
 
+    func toggleMessagePreview() {
+        guard let conversationId = currentConversation?.id else { return }
+        sharedDefaults?.set(messagePreviewEnabled, forKey: messagePreviewKey(for: conversationId))
+    }
+
     private func loadPrivacySettings() {
         guard let currentUserId = Auth.auth().currentUser?.uid,
               let conversationId = currentConversation?.id else { return }
@@ -787,6 +851,9 @@ class ConversationSettingsViewModel: ObservableObject {
         } else {
             typingIndicatorEnabled = boolFromDefaults(key: typingIndicatorLegacyKey, defaultValue: true)
         }
+
+        // Vista previa por conversación (App Group, default ON).
+        messagePreviewEnabled = sharedDefaults?.object(forKey: messagePreviewKey(for: conversationId)) as? Bool ?? true
 
         let db = Firestore.firestore()
 
@@ -867,6 +934,8 @@ struct SharedMedia: Identifiable {
     let originalUrl: String
     let senderId: String
     let timestamp: Date
+    var sourceMessage: EnhancedMessage? = nil
+    var allowsSaving: Bool = true
 
     enum MediaType {
         case image
@@ -1051,18 +1120,13 @@ private enum StarredMessagePreview {
             }
         case .video, .viewOnceVideo:
             if let url = message.thumbnailUrl ?? message.mediaUrl, let imageURL = URL(string: url) {
-                ZStack {
-                    KFImage(imageURL)
-                        .resizable()
-                        .aspectRatio(contentMode: .fill)
-                    Image(systemName: "play.fill")
-                        .font(.system(size: 12, weight: .bold))
-                        .foregroundColor(.white)
-                        .padding(8)
-                        .background(Color.black.opacity(0.45))
-                        .clipShape(Circle())
-                }
-                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                KFImage(imageURL)
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
+                    .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                    .overlay(alignment: .bottomLeading) {
+                        ChatVideoPlayBadge(size: 12, padding: 6)
+                    }
             } else {
                 iconBadge(systemName: "video.fill", color: .purple, adaptiveColors: adaptiveColors)
             }
@@ -1220,6 +1284,8 @@ struct FullScreenMediaView: View {
     @State private var dragOffset: CGFloat = 0
     @State private var selectedIndex: Int
     @State private var showingReactionBarForMessageId: String? = nil
+    @State private var ephemeralRemaining: TimeInterval = 0
+    @State private var ephemeralTimer: Timer?
 
     init(
         media: SharedMedia,
@@ -1272,6 +1338,18 @@ struct FullScreenMediaView: View {
         let formatter = RelativeDateTimeFormatter()
         formatter.unitsStyle = .full
         return formatter.localizedString(for: currentMedia.timestamp, relativeTo: Date())
+    }
+
+    private var isEphemeralMedia: Bool {
+        currentMedia.sourceMessage?.type == .ephemeral || !currentMedia.allowsSaving
+    }
+
+    private var ephemeralExpirationDate: Date? {
+        currentMedia.sourceMessage?.expirationDate
+    }
+
+    private var ephemeralAccentColor: Color {
+        Color(hex: "FFCC33")
     }
 
     private var canSendReply: Bool {
@@ -1361,6 +1439,13 @@ struct FullScreenMediaView: View {
             videoDuration = 0
             isVideoPaused = false
             showingReactionBarForMessageId = nil
+            restartEphemeralCountdownIfNeeded()
+        }
+        .onAppear {
+            restartEphemeralCountdownIfNeeded()
+        }
+        .onDisappear {
+            stopEphemeralCountdown()
         }
         .onChange(of: showExpandedVideo) { _, isShown in
             if !isShown {
@@ -1485,21 +1570,39 @@ struct FullScreenMediaView: View {
                     .foregroundColor(primaryOverlayColor)
                     .lineLimit(1)
 
-                Text(relativeTime)
-                    .font(.system(size: 11, weight: .regular))
-                    .foregroundColor(secondaryOverlayColor)
+                if isEphemeralMedia, let expirationDate = ephemeralExpirationDate, ephemeralRemaining > 0 {
+                    HStack(spacing: 4) {
+                        Image(systemName: "timer")
+                            .font(.system(size: 10, weight: .semibold))
+                        Text(
+                            String(
+                                format: NSLocalizedString("stories.expiresIn", comment: ""),
+                                ChatEphemeralTimeFormatting.shortLabel(for: ephemeralRemaining)
+                            )
+                        )
+                        .font(.system(size: 11, weight: .medium))
+                    }
+                    .foregroundColor(ephemeralAccentColor)
                     .lineLimit(1)
+                } else {
+                    Text(relativeTime)
+                        .font(.system(size: 11, weight: .regular))
+                        .foregroundColor(secondaryOverlayColor)
+                        .lineLimit(1)
+                }
             }
 
             Spacer(minLength: 0)
 
-            ProfileChromeIconButton(
-                systemName: "arrow.down",
-                foregroundColor: primaryOverlayColor,
-                preset: .toolbarAction,
-                action: saveMedia
-            )
-            .accessibilityLabel(Text("conversationSettings.mediaSave.action"))
+            if currentMedia.allowsSaving {
+                ProfileChromeIconButton(
+                    systemName: "arrow.down",
+                    foregroundColor: primaryOverlayColor,
+                    preset: .toolbarAction,
+                    action: saveMedia
+                )
+                .accessibilityLabel(Text("conversationSettings.mediaSave.action"))
+            }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
@@ -1726,6 +1829,34 @@ struct FullScreenMediaView: View {
                 }
             }
         }
+    }
+
+    private func restartEphemeralCountdownIfNeeded() {
+        stopEphemeralCountdown()
+        guard isEphemeralMedia, let expirationDate = ephemeralExpirationDate else {
+            ephemeralRemaining = 0
+            return
+        }
+
+        ephemeralRemaining = ChatEphemeralTimeFormatting.remainingSeconds(until: expirationDate)
+        guard ephemeralRemaining > 0 else {
+            onClose()
+            return
+        }
+
+        ephemeralTimer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { _ in
+            let remaining = ChatEphemeralTimeFormatting.remainingSeconds(until: expirationDate)
+            ephemeralRemaining = remaining
+            if remaining <= 0 {
+                stopEphemeralCountdown()
+                onClose()
+            }
+        }
+    }
+
+    private func stopEphemeralCountdown() {
+        ephemeralTimer?.invalidate()
+        ephemeralTimer = nil
     }
 }
 

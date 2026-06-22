@@ -308,6 +308,11 @@ struct MediaGridBubble: View {
         )
         .frame(width: ClusterMediaLayout.frontWidth, height: ClusterMediaLayout.frontHeight)
         .clipShape(RoundedRectangle(cornerRadius: ClusterMediaLayout.cornerRadius, style: .continuous))
+        .overlay(alignment: .bottomLeading) {
+            if message.type == .video {
+                ChatVideoPlayBadge(size: 14, padding: 6)
+            }
+        }
         .overlay(alignment: .topTrailing) {
             if isFront {
                 ClusterCountBadge()
@@ -316,12 +321,17 @@ struct MediaGridBubble: View {
         }
         .overlay(alignment: isCurrentUser ? .bottomLeading : .bottomTrailing) {
             if isFront, let reactions = displayReactions(message.id), !reactions.isEmpty {
+                let hang = MessageReactionMetrics.hangOffset(compact: false, cluster: true)
+                let edge = MessageReactionMetrics.badgeDiameter(compact: false, cluster: true) / 2 - 2
                 MessageReactionChip(
                     reactions: reactions,
                     onTap: { emoji in onReaction(message, emoji) },
                     cluster: true
                 )
-                .padding(6)
+                .offset(
+                    x: isCurrentUser ? edge : -edge,
+                    y: hang - 6
+                )
                 .zIndex(10)
             }
         }
@@ -396,16 +406,6 @@ struct MediaGridTileView: View {
                 } else {
                     placeholder(icon: "video.fill")
                 }
-
-                Circle()
-                    .fill(Color(hex: "0B1215").opacity(0.42))
-                    .frame(width: 30, height: 30)
-                    .overlay(
-                        Image(systemName: "play.fill")
-                            .font(.system(size: 12, weight: .semibold))
-                            .foregroundColor(.white)
-                            .offset(x: 1)
-                    )
             } else {
                 placeholder(icon: "doc.fill")
             }
@@ -445,6 +445,7 @@ struct ClusterGalleryDetailRoute: Identifiable, Hashable {
 struct ClusterGalleryView<Detail: View>: View {
     let messages: [EnhancedMessage]
     let onClose: () -> Void
+    var onHydrateMedia: ((EnhancedMessage) -> Void)? = nil
     /// Visor de detalle inyectado: recibe la media tocada y un cierre para volver
     /// (pop) a la galería.
     @ViewBuilder let detail: (EnhancedMessage, @escaping () -> Void) -> Detail
@@ -482,6 +483,9 @@ struct ClusterGalleryView<Detail: View>: View {
                     .padding(.horizontal, spacing)
                     .padding(.top, 72)
                     .padding(.bottom, 40)
+                }
+                .onAppear {
+                    messages.forEach { onHydrateMedia?($0) }
                 }
 
                 closeButton
@@ -527,9 +531,17 @@ struct ClusterGalleryView<Detail: View>: View {
             )
             .frame(width: width, height: height)
             .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+            .overlay(alignment: .bottomLeading) {
+                if message.type == .video {
+                    ChatVideoPlayBadge(size: 18, padding: 10)
+                }
+            }
             .shadow(color: .black.opacity(0.12), radius: 6, x: 0, y: 3)
         }
         .buttonStyle(ScaleButtonStyle())
+        .onAppear {
+            onHydrateMedia?(message)
+        }
     }
 
     private func aspectRatio(for message: EnhancedMessage) -> CGFloat {
@@ -609,20 +621,16 @@ struct GlassmorphicMediaSelectionSheet: View {
                                         Rectangle()
                                             .fill(Color.white.opacity(0.1))
                                     }
-
-                                    Circle()
-                                        .fill(Color.black.opacity(0.5))
-                                        .frame(width: 40, height: 40)
-                                        .overlay(
-                                            Image(systemName: "play.fill")
-                                                .foregroundColor(.white)
-                                                .font(.system(size: 16))
-                                        )
                                 }
                             }
                             .frame(minWidth: 0, maxWidth: .infinity, minHeight: 0, maxHeight: .infinity)
                             .aspectRatio(1, contentMode: .fill)
                             .clipShape(RoundedRectangle(cornerRadius: 16))
+                            .overlay(alignment: .bottomLeading) {
+                                if message.type == .video {
+                                    ChatVideoPlayBadge(size: 18, padding: 10)
+                                }
+                            }
                             .overlay(
                                 RoundedRectangle(cornerRadius: 16)
                                     .stroke(adaptiveColors.primary.opacity(0.2), lineWidth: 1)

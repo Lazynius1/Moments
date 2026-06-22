@@ -61,7 +61,8 @@ struct GlassmorphicChatView: View {
     @State private var recordingTimer: Timer?
     @State private var showingConversationSettings = false
     @State private var showingReportSheet = false
-    @State private var highlightedMessageId: String? = nil // ✅ New: Jump to message highlight
+    @State private var highlightedMessageIds: Set<String> = []
+    @State private var pendingReactionHighlightIds: Set<String> = []
     @State private var isPinnedToBottom = true
     @State private var pendingIncomingMessages = 0
     @State private var unreadDividerMessageId: String? = nil
@@ -139,8 +140,9 @@ struct GlassmorphicChatView: View {
         )
     }
 
-    init(conversation: Conversation) {
+    init(conversation: Conversation, pendingHighlightMessageIds: Set<String> = []) {
         _viewModel = StateObject(wrappedValue: MomentsChatViewModel(conversation: conversation))
+        _pendingReactionHighlightIds = State(initialValue: pendingHighlightMessageIds)
     }
     
     // ✅ REFACTOR: Dividido en variables separadas para evitar el error del compilador (timeout AST)
@@ -247,6 +249,9 @@ struct GlassmorphicChatView: View {
                 onClose: {
                     self.clusterForGallery = nil
                 },
+                onHydrateMedia: { message in
+                    viewModel.hydrateMediaIfNeeded(for: message)
+                },
                 detail: { selectedMessage, dismissDetail in
                     if let media = sharedMedia(from: selectedMessage) {
                         FullScreenMediaView(
@@ -340,10 +345,10 @@ struct GlassmorphicChatView: View {
         }
         .onChange(of: messageMenuSelection) { _, newValue in
             if let message = newValue?.message {
-                highlightedMessageId = message.id
+                highlightedMessageIds = [message.id]
             } else {
                 withAnimation { reactionMessageOverlay = nil }
-                highlightedMessageId = nil
+                highlightedMessageIds.removeAll()
             }
         }
         .fullScreenCover(item: $selectedChatMedia) { media in
@@ -818,6 +823,19 @@ struct GlassmorphicChatView: View {
                 jumpToMessage(targetId, proxy: proxy)
                 pendingSearchTargetId = nil
             }
+            .onChange(of: pendingReactionHighlightIds) { _, ids in
+                guard hasCompletedInitialScroll, !ids.isEmpty else { return }
+                highlightMessages(ids, proxy: proxy)
+                pendingReactionHighlightIds.removeAll()
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .chatMessageReactionHighlight)) { notification in
+                guard
+                    let conversationId = notification.userInfo?["conversationId"] as? String,
+                    conversationId == viewModel.conversation.id,
+                    let messageId = notification.userInfo?["messageId"] as? String
+                else { return }
+                highlightMessages([messageId], proxy: proxy)
+            }
             .onChange(of: isTextFieldFocused) { _, focused in
                 guard focused, hasCompletedInitialScroll else { return }
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
@@ -927,19 +945,26 @@ struct GlassmorphicChatView: View {
 
     private func sharedMedia(from message: EnhancedMessage) -> SharedMedia? {
         guard let mediaUrl = message.mediaUrl else { return nil }
-        guard message.type == .image || message.type == .video else { return nil }
+        guard message.type == .image || message.type == .video || message.type == .ephemeral else { return nil }
 
         return SharedMedia(
             id: message.id,
-            type: message.type == .image ? .image : .video,
+            type: message.type == .video ? .video : .image,
             thumbnailUrl: message.thumbnailUrl ?? mediaUrl,
             originalUrl: mediaUrl,
             senderId: message.senderId,
-            timestamp: message.timestamp
+            timestamp: message.timestamp,
+            sourceMessage: message,
+            allowsSaving: message.type != .ephemeral
         )
     }
 
     private func sharedMediaItemsForOverlay(selecting message: EnhancedMessage) -> [SharedMedia] {
+        if message.type == .ephemeral {
+            guard let selected = sharedMedia(from: message) else { return [] }
+            return [selected]
+        }
+
         let items = viewModel.messages.compactMap(sharedMedia(from:))
         guard let selected = sharedMedia(from: message) else { return items }
 
@@ -1121,12 +1146,7 @@ struct GlassmorphicChatView: View {
                 progress: viewModel.uploadProgress[liveMessage.id],
                 showSeenLabel: shouldShowSeenLabel(for: liveMessage.id, status: liveMessage.status)
             )
-            .background(
-                RoundedRectangle(cornerRadius: 16)
-                    .fill(highlightedMessageId == liveMessage.id && messageMenuSelection == nil ? Color.white.opacity(0.15) : Color.clear)
-                    .padding(.horizontal, -8)
-                    .padding(.vertical, -4)
-            )
+            .background(messageHighlightBackground(for: liveMessage.id))
             .chatMessageLongPress {
                 presentMessageOptions(liveMessage, rowId: rowId, cluster: nil)
             }
@@ -1151,6 +1171,7 @@ struct GlassmorphicChatView: View {
                     handleMomentNavigationFromChat(message: message)
                 },
                 onOpenCluster: { clusterMessages in
+                    viewModel.prefetchClusterGalleryMedia(clusterMessages)
                     self.clusterForGallery = clusterMessages
                 },
                 onLongPress: { message in
@@ -1179,12 +1200,20 @@ struct GlassmorphicChatView: View {
                 }()
             )
             .background(
-                RoundedRectangle(cornerRadius: 16)
-                    .fill(liveCluster.contains(where: { $0.id == highlightedMessageId }) && messageMenuSelection == nil ? Color.white.opacity(0.15) : Color.clear)
-                    .padding(.horizontal, -8)
-                    .padding(.vertical, -4)
+                Group {
+                    if liveCluster.contains(where: { isMessageHighlighted($0.id) }) {
+                        RoundedRectangle(cornerRadius: 16)
+                            .fill(Color.white.opacity(0.18))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 16)
+                                    .stroke(adaptiveColors.userAccentColor.opacity(0.85), lineWidth: 2)
+                            )
+                            .padding(.horizontal, -8)
+                            .padding(.vertical, -4)
+                    }
+                }
             )
-            .scaleEffect(liveCluster.contains(where: { $0.id == highlightedMessageId }) && messageMenuSelection == nil ? 1.03 : 1.0)
+            .scaleEffect(liveCluster.contains(where: { isMessageHighlighted($0.id) }) && messageMenuSelection == nil ? 1.03 : 1.0)
             .chatMessageLongPress {
                 if let anchor = liveCluster.last {
                     presentMessageOptions(anchor, rowId: rowId, cluster: liveCluster.count > 1 ? liveCluster : nil)
@@ -1251,7 +1280,7 @@ struct GlassmorphicChatView: View {
                 rowFrame: frame,
                 clusterMessages: cluster
             )
-            highlightedMessageId = message.id
+            highlightedMessageIds = [message.id]
         }
     }
 
@@ -1572,6 +1601,7 @@ extension GlassmorphicChatView {
             hasCompletedInitialScroll = true
             isPinnedToBottom = !target.isFirstUnread
             viewModel.prefetchUnresolvedMediaIfNeeded()
+            processPendingReactionHighlights(using: proxy)
         }
     }
 
@@ -1638,23 +1668,59 @@ extension GlassmorphicChatView {
     
     // ✅ JUMP TO MESSAGE: Scrollear hacia un mensaje específico con efecto visual
     private func jumpToMessage(_ messageId: String, proxy: ScrollViewProxy) {
-        withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
-            proxy.scrollTo(messageId, anchor: .center)
-        }
-        
-        // Efecto visual temporal
-        highlightedMessageId = messageId
-        
-        // Haptic feedback
-        HapticManager.shared.mediumImpact()
-        
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
-            withAnimation {
-                if highlightedMessageId == messageId {
-                    highlightedMessageId = nil
-                }
+        highlightMessages([messageId], proxy: proxy, duration: 1.5)
+    }
+
+    private func isMessageHighlighted(_ messageId: String) -> Bool {
+        highlightedMessageIds.contains(messageId) && messageMenuSelection == nil
+    }
+
+    @ViewBuilder
+    private func messageHighlightBackground(for messageId: String) -> some View {
+        Group {
+            if isMessageHighlighted(messageId) {
+                RoundedRectangle(cornerRadius: 16)
+                    .fill(Color.white.opacity(0.18))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 16)
+                            .stroke(adaptiveColors.userAccentColor.opacity(0.85), lineWidth: 2)
+                    )
+                    .padding(.horizontal, -8)
+                    .padding(.vertical, -4)
             }
         }
+    }
+
+    private func highlightMessages(
+        _ messageIds: Set<String>,
+        proxy: ScrollViewProxy?,
+        duration: TimeInterval = 2.5,
+        scroll: Bool = true
+    ) {
+        guard !messageIds.isEmpty else { return }
+
+        if scroll, let proxy, let targetId = messageIds.first {
+            withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                proxy.scrollTo(targetId, anchor: .center)
+            }
+        }
+
+        highlightedMessageIds.formUnion(messageIds)
+        HapticManager.shared.mediumImpact()
+
+        let idsToClear = messageIds
+        DispatchQueue.main.asyncAfter(deadline: .now() + duration) {
+            withAnimation {
+                highlightedMessageIds.subtract(idsToClear)
+            }
+        }
+    }
+
+    private func processPendingReactionHighlights(using proxy: ScrollViewProxy) {
+        guard !pendingReactionHighlightIds.isEmpty else { return }
+        let ids = pendingReactionHighlightIds
+        pendingReactionHighlightIds.removeAll()
+        highlightMessages(ids, proxy: proxy)
     }
     
     private func handleMomentNavigationFromChat(message: EnhancedMessage) {

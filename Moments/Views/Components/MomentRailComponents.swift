@@ -169,8 +169,11 @@ struct ModernActionButtons: View {
                     .frame(width: 44, height: 44)
 
                 if let attachmentIcon {
-                    AttachmentIconView(icon: attachmentIcon, preset: .rail)
-                        .foregroundStyle(gradient)
+                    AttachmentIconView(
+                        icon: attachmentIcon,
+                        preset: .rail,
+                        style: gradient
+                    )
                 } else if let systemName {
                     Image(systemName: systemName)
                         .font(.system(size: 20, weight: .medium))

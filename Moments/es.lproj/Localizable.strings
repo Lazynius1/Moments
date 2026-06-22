@@ -826,6 +826,8 @@
 "conversationSettings.notifications.desc" = "Activa o silencia las notificaciones de esta conversación.";
 "conversationSettings.typingIndicator" = "Indicador de escritura";
 "conversationSettings.typingIndicator.desc" = "Si lo desactivas, tampoco verás cuándo la otra persona está escribiendo.";
+"conversationSettings.privacy.messagePreview.title" = "Mostrar vista previa";
+"conversationSettings.privacy.messagePreview.description" = "Muestra el texto del mensaje en las notificaciones y en la lista de conversaciones.";
 "conversationSettings.privacy.readReceipts.title" = "Confirmación de lectura";
 "conversationSettings.privacy.readReceipts.description" = "Si desactivas el 'visto' en este chat, no podrás ver cuándo la otra persona lee tus mensajes.";
 "conversationSettings.privacy.forwarding.title" = "Permitir reenvío";
@@ -2932,12 +2934,18 @@
 
 /* Push Notifications - Messages */
 "notification.message.single.text" = "Te envió un mensaje";
+"notification.action.reply" = "Responder";
+"notification.action.send" = "Enviar";
+"notification.action.placeholder" = "Mensaje";
 "notification.message.single.photo" = "Te envió una foto 📷";
 "notification.message.single.video" = "Te envió un video 🎥";
 "notification.message.single.audio" = "Te envió un audio 🎵";
 "notification.message.single.viewOnce" = "Te envió un mensaje que desaparece 👀";
 "notification.message.single.moment" = "Te envió un momento 📸";
 "notification.message.single.default" = "Te envió un mensaje";
+"notification.chatReaction.single" = "Reaccionó con %@ a tu mensaje";
+"notification.chatReaction.singleQuoted" = "Reaccionó con %@ a tu mensaje \"%@\"";
+"notification.chatReaction.multiple" = "Reaccionó con %@ a tus mensajes";
 "notification.gentleReminder.title" = "Moments";
 "notification.gentleReminder.body.neutral_day" = "Comparte algo de tu día, si te apetece.";
 "notification.gentleReminder.body.neutral_available" = "Si hoy te apetece compartir algo, Moments está aquí.";

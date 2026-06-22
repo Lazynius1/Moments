@@ -247,7 +247,6 @@ struct GlassmorphicMessageBubble: View {
     let onOpenMedia: (EnhancedMessage) -> Void
     let onStopLiveLocation: ((String) -> Void)?
     let onHydrateMedia: ((EnhancedMessage) -> Void)?
-    @State private var showEphemeralImage: Bool = false
     @Environment(\.colorScheme) var colorScheme
 
     private var adaptiveColors: AdaptiveColors {
@@ -289,7 +288,9 @@ struct GlassmorphicMessageBubble: View {
                             StoryReplyMessageBubble(
                                 message: message,
                                 isCurrentUser: isCurrentUser,
-                                otherParticipantId: otherParticipantId
+                                otherParticipantId: otherParticipantId,
+                                onHydrateMedia: onHydrateMedia,
+                                onOpenMedia: onOpenMedia
                             )
                         } else if let content = message.content {
                             VStack(alignment: isCurrentUser ? .trailing : .leading, spacing: 4) {
@@ -377,70 +378,22 @@ struct GlassmorphicMessageBubble: View {
                             StoryReplyMessageBubble(
                                 message: message,
                                 isCurrentUser: isCurrentUser,
-                                otherParticipantId: otherParticipantId
+                                otherParticipantId: otherParticipantId,
+                                onHydrateMedia: onHydrateMedia,
+                                onOpenMedia: onOpenMedia
                             )
                         } else {
-                            if let mediaUrl = message.mediaUrl, !message.isViewed, isEphemeralValid() {
-                                ZStack {
-                                    RoundedRectangle(cornerRadius: 16)
-                                        .fill(adaptiveColors.messageBubbleBackground)
-                                        .frame(maxWidth: 250, maxHeight: 300)
-                                        .overlay(
-                                            VStack(spacing: 8) {
-                                                AttachmentIconView(icon: .ephemeral, preset: .chatEphemeralPlaceholder, tintColor: adaptiveColors.messageTextColor.opacity(0.7))
-
-                                                Text("chat.tapToView")
-                                                    .font(.custom("Poppins-Medium", size: 14))
-                                                    .foregroundColor(adaptiveColors.messageTextColor)
-
-                                                Text("chat.ephemeral.title")
-                                                    .font(.custom("Poppins-Regular", size: 12))
-                                                    .foregroundColor(adaptiveColors.messageTextColor.opacity(0.7))
-                                            }
-                                        )
-
-                                    if showEphemeralImage {
-                                        GlassmorphicImageMessage(
-                                            imageUrl: mediaUrl,
-                                            isSending: false,
-                                            progress: nil,
-                                            onTap: {}
-                                        )
-                                    }
-                                }
-                                .onTapGesture {
-                                    showEphemeralImage = true
-                                    markAsViewed()
-                                }
-                            } else if let content = message.content {
-                                Text(content)
-                                    .font(.custom("Poppins-Regular", size: 15))
-                                    .padding(.horizontal, 16)
-                                    .padding(.vertical, 10)
-                                    .foregroundColor(adaptiveColors.messageTextColor.opacity(0.6))
-                                    .background(
-                                        RoundedRectangle(cornerRadius: 20)
-                                            .fill(adaptiveColors.messageBubbleBackground)
-                                            .overlay(
-                                                RoundedRectangle(cornerRadius: 20)
-                                                    .stroke(adaptiveColors.messageBubbleStroke, lineWidth: 0.5)
-                                            )
-                                    )
-                            } else {
-                                Text("chat.message.expired")
-                                    .font(.custom("Poppins-Regular", size: 15))
-                                    .padding(.horizontal, 16)
-                                    .padding(.vertical, 10)
-                                    .foregroundColor(adaptiveColors.messageTextColor.opacity(0.6))
-                                    .background(
-                                        RoundedRectangle(cornerRadius: 20)
-                                            .fill(adaptiveColors.messageBubbleBackground)
-                                            .overlay(
-                                                RoundedRectangle(cornerRadius: 20)
-                                                    .stroke(adaptiveColors.messageBubbleStroke, lineWidth: 0.5)
-                                            )
-                                    )
-                            }
+                            ChatEphemeralMessageContent(
+                                message: message,
+                                layout: .standard,
+                                onHydrateMedia: onHydrateMedia,
+                                onOpenMedia: onOpenMedia
+                            )
+                            .messageReactionOverlay(
+                                isOutgoing: isCurrentUser,
+                                reactions: reactions,
+                                onTap: onReaction
+                            )
                         }
                     case .sharedMoment:
                         SharedMomentMessageBubble(
@@ -516,16 +469,6 @@ struct GlassmorphicMessageBubble: View {
         .onAppear {
             if !isCurrentUser && !message.isDeleted {
             }
-        }
-    }
-
-    private func isEphemeralValid() -> Bool {
-        guard let expirationDate = message.expirationDate else { return true }
-        return Date() < expirationDate
-    }
-
-    private func markAsViewed() {
-        ChatService().markEphemeralAsViewed(conversationId: message.conversationId, messageId: message.id) { _ in
         }
     }
 

@@ -383,12 +383,107 @@ class EnhancedChatViewModel: ObservableObject {
     }
 
     func hydrateMediaIfNeeded(for message: EnhancedMessage) {
+        // Para vídeos resolvemos solo la miniatura (barato). El vídeo completo se
+        // descarga al abrirlo, evitando bajar megas solo para mostrar la portada.
+        if message.type == .video {
+            hydrateVideoThumbnailIfNeeded(for: message)
+            return
+        }
         guard messageNeedsMediaHydration(message) else { return }
         guard !hydratingMediaIds.contains(message.id) else { return }
         hydratingMediaIds.insert(message.id)
         prepareMediaForViewing(message) { [weak self] _ in
             self?.hydratingMediaIds.remove(message.id)
         }
+    }
+
+    func hydrateVideoThumbnailIfNeeded(for message: EnhancedMessage) {
+        guard message.thumbnailUrl == nil else { return }
+
+        // Caso 1: hay miniatura subida (cifrada). Resolverla sola es barato.
+        if message.thumbnailObjectPath != nil, message.thumbnailEncryption != nil {
+            let thumbnailKey = "thumb_\(message.id)"
+            guard !hydratingMediaIds.contains(thumbnailKey) else { return }
+            hydratingMediaIds.insert(thumbnailKey)
+            Task { [weak self] in
+                guard let self else { return }
+                let resolvedThumb = await self.chatService.resolveVideoThumbnail(for: message)
+                await MainActor.run {
+                    self.hydratingMediaIds.remove(thumbnailKey)
+                    guard let resolvedThumb,
+                          let index = self.messages.firstIndex(where: { $0.id == message.id }) else { return }
+                    self.messages[index].thumbnailUrl = resolvedThumb
+                    self.commitMessagesPresentation(self.messages)
+                }
+            }
+            return
+        }
+
+        // Caso 2: vídeo sin miniatura subida (legacy). Si ya hay un vídeo local/remoto,
+        // generamos la portada al vuelo; si es cifrado sin caché, resolvemos primero.
+        if let mediaUrl = message.mediaUrl, URL(string: mediaUrl) != nil {
+            generateVideoPosterIfPossible(for: message)
+            return
+        }
+
+        if message.mediaObjectPath != nil, message.mediaEncryption != nil {
+            guard !hydratingMediaIds.contains(message.id) else { return }
+            hydratingMediaIds.insert(message.id)
+            prepareMediaForViewing(message) { [weak self] updated in
+                self?.hydratingMediaIds.remove(message.id)
+                self?.generateVideoPosterIfPossible(for: updated)
+            }
+        }
+    }
+
+    private func generateVideoPosterIfPossible(for message: EnhancedMessage) {
+        guard message.thumbnailUrl == nil,
+              let mediaUrl = message.mediaUrl,
+              let url = URL(string: mediaUrl) else { return }
+        let posterKey = "poster_\(message.id)"
+        guard !hydratingMediaIds.contains(posterKey) else { return }
+        hydratingMediaIds.insert(posterKey)
+        Task { [weak self] in
+            let poster = await ChatVideoPosterGenerator.poster(for: url, messageId: message.id)
+            await MainActor.run {
+                guard let self else { return }
+                self.hydratingMediaIds.remove(posterKey)
+                guard let poster,
+                      let index = self.messages.firstIndex(where: { $0.id == message.id }) else { return }
+                self.messages[index].thumbnailUrl = poster
+                self.commitMessagesPresentation(self.messages)
+            }
+        }
+    }
+
+    /// Precalienta la galería del cluster: caché en disco → URLs locales al instante,
+    /// hidratación en paralelo para lo que falte, y prefetch de Kingfisher.
+    func prefetchClusterGalleryMedia(_ clusterMessages: [EnhancedMessage]) {
+        var didUpdate = false
+
+        for clusterMessage in clusterMessages {
+            guard let index = messages.firstIndex(where: { $0.id == clusterMessage.id }) else {
+                hydrateMediaIfNeeded(for: clusterMessage)
+                continue
+            }
+
+            let warmed = chatService.warmMessageURLsFromDiskCache(messages[index])
+            if let mediaUrl = warmed.mediaUrl, messages[index].mediaUrl == nil {
+                messages[index].mediaUrl = mediaUrl
+                didUpdate = true
+            }
+            if let thumbnailUrl = warmed.thumbnailUrl, messages[index].thumbnailUrl == nil {
+                messages[index].thumbnailUrl = thumbnailUrl
+                didUpdate = true
+            }
+            hydrateMediaIfNeeded(for: messages[index])
+        }
+
+        if didUpdate {
+            commitMessagesPresentation(messages)
+        }
+
+        ChatMediaGalleryPrefetcher.prefetch(messages: clusterMessages)
     }
 
     /// Hidrata media cifrada o pendiente de resolver (imagen, video, GIF/sticker legacy).
@@ -423,7 +518,10 @@ class EnhancedChatViewModel: ObservableObject {
             await MainActor.run {
                 if let index = messages.firstIndex(where: { $0.id == message.id }) {
                     messages[index].mediaUrl = mediaUrl
-                    messages[index].thumbnailUrl = thumbnailUrl
+                    // No sobrescribir con nil una miniatura ya resuelta.
+                    if let thumbnailUrl {
+                        messages[index].thumbnailUrl = thumbnailUrl
+                    }
                 }
                 messages = Array(messages)
                 objectWillChange.send()
@@ -530,6 +628,8 @@ class EnhancedChatViewModel: ObservableObject {
         }
     }
 
+    private var hasReceivedInitialReactionSnapshot = false
+
     private func applyReactionUpdate(_ update: MessageReactionUpdate, conversationId: String) {
         let affectedIds = update.changedMessageIds.union(update.reactionsByMessage.keys)
         guard !affectedIds.isEmpty else { return }
@@ -546,9 +646,37 @@ class EnhancedChatViewModel: ObservableObject {
                 overlays.removeValue(forKey: messageId)
             }
         }
+
+        if hasReceivedInitialReactionSnapshot {
+            for messageId in update.changedMessageIds {
+                guard
+                    let message = messages.first(where: { $0.id == messageId }),
+                    message.senderId == currentUserId,
+                    let liveReactions = update.reactionsByMessage[messageId],
+                    !liveReactions.isEmpty,
+                    reactionIncludesOtherParticipant(liveReactions)
+                else { continue }
+
+                NotificationCenter.default.post(
+                    name: .chatMessageReactionHighlight,
+                    object: nil,
+                    userInfo: [
+                        "conversationId": conversationId,
+                        "messageId": messageId
+                    ]
+                )
+            }
+        }
+        hasReceivedInitialReactionSnapshot = true
         liveReactionOverlays = overlays
 
         commitReactionPresentation(conversationId: conversationId)
+    }
+
+    private func reactionIncludesOtherParticipant(_ reactions: [String: [String]]) -> Bool {
+        reactions.values.contains { userIds in
+            userIds.contains { $0 != currentUserId }
+        }
     }
     
     // ✅ FUNCIÓN: Cargar más mensajes (Pull to refresh)

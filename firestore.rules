@@ -1302,14 +1302,27 @@ service cloud.firestore {
     }
 
     function isValidMessageReaction(reaction, conversationId, messageId, userId) {
-      return reaction.keys().hasOnly(['conversationId', 'messageId', 'userId', 'emoji', 'timestamp']) &&
-             reaction.conversationId == conversationId &&
-             reaction.messageId == messageId &&
-             reaction.userId == userId &&
-             reaction.emoji is string &&
-             reaction.emoji.size() > 0 &&
-             reaction.emoji.size() <= 16 &&
-             reaction.timestamp is timestamp;
+      return reaction.keys().hasAll(['conversationId', 'messageId', 'userId', 'emoji', 'timestamp'])
+        && reaction.keys().hasOnly(['conversationId', 'messageId', 'userId', 'emoji', 'timestamp', 'processed', 'processedAt'])
+        && reaction.conversationId == conversationId
+        && reaction.messageId == messageId
+        && reaction.userId == userId
+        && reaction.emoji is string
+        && reaction.emoji.size() > 0
+        && reaction.emoji.size() <= 16
+        && reaction.timestamp is timestamp
+        && (!('processed' in reaction) || reaction.processed is bool)
+        && (!('processedAt' in reaction) || reaction.processedAt is timestamp);
+    }
+
+    function clientCannotWriteReactionProcessedFields() {
+      return !('processed' in request.resource.data)
+        && !('processedAt' in request.resource.data);
+    }
+
+    function reactionProcessedFieldsUnchanged() {
+      return (!('processed' in resource.data) || request.resource.data.get('processed', false) == resource.data.get('processed', false))
+        && (!('processedAt' in resource.data) || request.resource.data.get('processedAt', null) == resource.data.get('processedAt', null));
     }
 
     function canReadMessageReactionDoc() {
@@ -1352,6 +1365,10 @@ service cloud.firestore {
     }
     function timestampUnchanged() {
       return !request.resource.data.diff(resource.data).changedKeys().hasAny(['timestamp']);
+    }
+
+    match /{path=**}/messageReactions/{userId} {
+      allow read: if canReadMessageReactionDoc();
     }
 
     // CONVERSATIONS (E2E)
@@ -1446,10 +1463,19 @@ service cloud.firestore {
             && request.auth.uid in get(/databases/$(database)/documents/conversations/$(conversationId)).data.participants
             && canParticipateInConversations(request.auth.uid);
 
-          allow create, update: if request.auth != null
+          allow create: if request.auth != null
             && request.auth.uid == userId
             && request.auth.uid in get(/databases/$(database)/documents/conversations/$(conversationId)).data.participants
             && canParticipateInConversations(request.auth.uid)
+            && clientCannotWriteReactionProcessedFields()
+            && isValidMessageReaction(request.resource.data, conversationId, messageId, userId);
+
+          allow update: if request.auth != null
+            && request.auth.uid == userId
+            && request.auth.uid in get(/databases/$(database)/documents/conversations/$(conversationId)).data.participants
+            && canParticipateInConversations(request.auth.uid)
+            && reactionProcessedFieldsUnchanged()
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['emoji', 'timestamp'])
             && isValidMessageReaction(request.resource.data, conversationId, messageId, userId);
 
           allow delete: if request.auth != null

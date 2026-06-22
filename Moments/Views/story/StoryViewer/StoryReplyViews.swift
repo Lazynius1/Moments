@@ -29,11 +29,12 @@ private var storyReplyRingGradient: LinearGradient {
 
 // MARK: - Story Reply Message Bubble
 struct StoryReplyMessageBubble: View {
-    let message: EnhancedMessage
+    @ObservedObject var message: EnhancedMessage
     let isCurrentUser: Bool
     /// Otro participante del chat 1:1 (para inferir autor en mensajes antiguos sin `storyAuthorId`).
     let otherParticipantId: String?
-    @State private var showEphemeralContent: Bool = false
+    var onHydrateMedia: ((EnhancedMessage) -> Void)?
+    var onOpenMedia: ((EnhancedMessage) -> Void)?
 
     @Environment(\.colorScheme) private var colorScheme
 
@@ -72,10 +73,11 @@ struct StoryReplyMessageBubble: View {
             if message.isDeleted || !isEphemeralValid() {
                 StoryReplyEphemeralExpiredCard()
             } else {
-                EphemeralStoryReplyContent(
+                ChatEphemeralMessageContent(
                     message: message,
-                    isCurrentUser: isCurrentUser,
-                    showContent: $showEphemeralContent
+                    layout: .compact,
+                    onHydrateMedia: onHydrateMedia,
+                    onOpenMedia: onOpenMedia
                 )
             }
         } else {
@@ -554,37 +556,74 @@ struct StoryReplyEphemeralExpiredCard: View {
     }
 }
 
+struct StoryReplyEphemeralResolvingCard: View {
+    @Environment(\.colorScheme) private var colorScheme
+
+    var body: some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: StoryReplyEphemeralMetrics.cornerRadius, style: .continuous)
+                .fill(Color.white.opacity(colorScheme == .dark ? 0.08 : 0.12))
+            ProgressView()
+                .tint(colorScheme == .dark ? .white.opacity(0.7) : .gray)
+        }
+        .frame(width: StoryReplyEphemeralMetrics.width, height: StoryReplyEphemeralMetrics.height)
+        .overlay(
+            RoundedRectangle(cornerRadius: StoryReplyEphemeralMetrics.cornerRadius, style: .continuous)
+                .stroke(storyReplyRingGradient, lineWidth: 2)
+        )
+    }
+}
+
 struct EphemeralStoryReplyContent: View {
-    let message: EnhancedMessage
+    @ObservedObject var message: EnhancedMessage
     let isCurrentUser: Bool
     @Binding var showContent: Bool
+    var onHydrateMedia: ((EnhancedMessage) -> Void)?
     @State private var hasBeenViewed: Bool = false
+
+    private var previewImageURL: String? {
+        message.thumbnailUrl ?? message.mediaUrl
+    }
+
+    private var resolvedMediaURL: URL? {
+        if let mediaUrl = message.mediaUrl, let url = URL(string: mediaUrl) {
+            return url
+        }
+        if let thumbnailUrl = message.thumbnailUrl, let url = URL(string: thumbnailUrl) {
+            return url
+        }
+        return nil
+    }
 
     var body: some View {
         Group {
-            if !showContent && !hasBeenViewed && isEphemeralValid() {
+            if message.isDeleted || !isEphemeralValid() {
+                StoryReplyEphemeralExpiredCard()
+            } else if !showContent && !hasBeenViewed {
                 StoryReplyEphemeralTapCard(
-                    previewImageURL: message.mediaUrl,
+                    previewImageURL: previewImageURL,
                     expirationDate: message.expirationDate
                 ) {
                     withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
                         showContent = true
                         hasBeenViewed = true
                     }
+                    onHydrateMedia?(message)
                 }
-            } else if (showContent || hasBeenViewed) && isEphemeralValid(),
-                      let mediaUrl = message.mediaUrl,
-                      let url = URL(string: mediaUrl) {
+            } else if let url = resolvedMediaURL {
                 StoryReplyEphemeralImageCard(
                     imageUrl: url,
                     expirationDate: message.expirationDate
                 )
+            } else if message.isMediaPendingResolution {
+                StoryReplyEphemeralResolvingCard()
             } else {
                 StoryReplyEphemeralExpiredCard()
             }
         }
         .onAppear {
             hasBeenViewed = message.isViewed
+            onHydrateMedia?(message)
         }
     }
 

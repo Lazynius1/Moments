@@ -174,18 +174,30 @@ enum AttachmentIconMetrics {
 struct AttachmentIconView: View {
     let icon: AttachmentIcon
     let size: CGFloat
-    var tintColor: Color = .primary
+    private let style: AnyShapeStyle
 
     init(icon: AttachmentIcon, size: CGFloat, tintColor: Color = .primary) {
         self.icon = icon
         self.size = size
-        self.tintColor = tintColor
+        self.style = AnyShapeStyle(tintColor)
     }
 
     init(icon: AttachmentIcon, preset: AttachmentIconPreset, tintColor: Color = .primary) {
         self.icon = icon
         self.size = preset.resolvedSize(for: icon)
-        self.tintColor = tintColor
+        self.style = AnyShapeStyle(tintColor)
+    }
+
+    init(icon: AttachmentIcon, size: CGFloat, style: any ShapeStyle) {
+        self.icon = icon
+        self.size = size
+        self.style = AnyShapeStyle(style)
+    }
+
+    init(icon: AttachmentIcon, preset: AttachmentIconPreset, style: any ShapeStyle) {
+        self.icon = icon
+        self.size = preset.resolvedSize(for: icon)
+        self.style = AnyShapeStyle(style)
     }
 
     var body: some View {
@@ -196,7 +208,7 @@ struct AttachmentIconView: View {
             .antialiased(true)
             .scaledToFit()
             .frame(width: size, height: size)
-            .foregroundStyle(tintColor)
+            .foregroundStyle(style)
             .accessibilityHidden(true)
     }
 }

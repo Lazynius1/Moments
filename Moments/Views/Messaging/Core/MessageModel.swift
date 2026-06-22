@@ -1172,6 +1172,9 @@ extension EnhancedMessage {
         case .image:
             guard mediaUrl == nil else { return false }
             return mediaObjectPath != nil && mediaEncryption != nil
+        case .ephemeral:
+            guard mediaUrl == nil else { return false }
+            return mediaObjectPath != nil && mediaEncryption != nil
         case .video:
             guard thumbnailUrl == nil && mediaUrl == nil else { return false }
             return mediaObjectPath != nil && mediaEncryption != nil

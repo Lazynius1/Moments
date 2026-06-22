@@ -793,6 +793,8 @@
 "login.resetPassword.success" = "Nous avons envoyé un lien de récupération de mot de passe à votre e-mail.";
 "login.info.title" = "Info";
 
+"conversationSettings.privacy.messagePreview.title" = "Afficher l'aperçu";
+"conversationSettings.privacy.messagePreview.description" = "Affiche le texte du message dans les notifications et la liste des conversations.";
 "conversationSettings.privacy.readReceipts.title" = "Accusés de lecture";
 "conversationSettings.privacy.readReceipts.description" = "Si vous désactivez les accusés de lecture dans ce chat, vous ne pourrez pas voir quand l’autre personne lit vos messages.";
 "conversationSettings.privacy.forwarding.title" = "Autoriser le transfert";
@@ -2886,12 +2888,18 @@
 
 /* Push Notifications - Messages */
 "notification.message.single.text" = "Sent you a message";
+"notification.action.reply" = "Répondre";
+"notification.action.send" = "Envoyer";
+"notification.action.placeholder" = "Message";
 "notification.message.single.photo" = "Sent you a photo 📷";
 "notification.message.single.video" = "Sent you a video 🎥";
 "notification.message.single.audio" = "Sent you an audio 🎵";
 "notification.message.single.viewOnce" = "Sent you a disappearing message 👀";
 "notification.message.single.moment" = "Sent you a moment 📸";
 "notification.message.single.default" = "Sent you a message";
+"notification.chatReaction.single" = "A réagi avec %@ à ton message";
+"notification.chatReaction.singleQuoted" = "A réagi avec %@ à ton message \"%@\"";
+"notification.chatReaction.multiple" = "A réagi avec %@ à tes messages";
 "notification.gentleReminder.title" = "Moments";
 "notification.gentleReminder.body.neutral_day" = "Partagez quelque chose de votre journée, si vous en avez envie.";
 "notification.gentleReminder.body.neutral_available" = "Si vous avez envie de partager quelque chose aujourd’hui, Moments est là.";

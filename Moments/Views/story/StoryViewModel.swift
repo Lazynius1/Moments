@@ -495,7 +495,13 @@ class StoryViewModel: ObservableObject {
                         }
 
                         // Upload media and send ephemeral message
-                        self.chatService.uploadMedia(data: imageData, type: .image, conversationId: conversationId) { result in
+                        let messageId = UUID().uuidString
+                        self.chatService.uploadMedia(
+                            data: imageData,
+                            type: .ephemeral,
+                            conversationId: conversationId,
+                            messageId: messageId
+                        ) { result in
                             switch result {
                             case .success(let uploadResult):
                                 self.chatService.sendEphemeralMessage(
@@ -509,7 +515,8 @@ class StoryViewModel: ObservableObject {
                                     mediaEncryption: uploadResult.mediaEncryption,
                                     thumbnailEncryption: uploadResult.thumbnailEncryption,
                                     expirationHours: 24,
-                                    storyReplyData: storyReply.payload
+                                    storyReplyData: storyReply.payload,
+                                    messageId: messageId
                                 ) { ephemeralResult in
                                     switch ephemeralResult {
                                     case .success(_):

@@ -1217,16 +1217,17 @@ struct LocationActionButtons: View {
         HStack(spacing: 12) {
             Button(action: onComment) {
                 HStack(spacing: 4) {
-                    AttachmentIconView(icon: .comments, preset: .actionChip)
-                        .foregroundStyle(
-                            LinearGradient(
-                                colors: commentCount > 0 ?
-                                [Color.blue, Color.purple] :
-                                adaptiveColors.buttonGradient,
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            )
+                    AttachmentIconView(
+                        icon: .comments,
+                        preset: .actionChip,
+                        style: LinearGradient(
+                            colors: commentCount > 0 ?
+                            [Color.blue, Color.purple] :
+                            adaptiveColors.buttonGradient,
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
                         )
+                    )
 
                     if commentCount > 0 {
                         Text("\(commentCount)")
@@ -1265,16 +1266,17 @@ struct LocationActionButtons: View {
                             .scaleEffect(0.8)
                             .tint(adaptiveColors.accent)
                     } else {
-                        AttachmentIconView(icon: .bookmark, preset: .actionChip)
-                            .foregroundStyle(
-                                LinearGradient(
-                                    colors: isSaved ?
-                                    [Color.yellow, Color.orange] :
-                                    adaptiveColors.buttonGradient,
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                )
+                        AttachmentIconView(
+                            icon: .bookmark,
+                            preset: .actionChip,
+                            style: LinearGradient(
+                                colors: isSaved ?
+                                [Color.yellow, Color.orange] :
+                                adaptiveColors.buttonGradient,
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
                             )
+                        )
                     }
                 }
                 .padding(.horizontal, 12)

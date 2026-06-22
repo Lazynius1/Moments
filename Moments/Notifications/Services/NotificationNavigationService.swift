@@ -101,6 +101,15 @@ class NotificationNavigationService: ObservableObject {
             if let conversationId = userInfo["conversationId"] as? String {
                 AppRouter.shared.navigate(to: .conversation(id: conversationId))
             }
+
+        case "messageReaction":
+            if let conversationId = userInfo["conversationId"] as? String {
+                let messageId = firstString(in: userInfo, keys: ["messageId", "targetMessageId"])
+                if let messageId {
+                    ChatNavigationIntentStore.enqueueHighlight(conversationId: conversationId, messageId: messageId)
+                }
+                AppRouter.shared.navigate(to: .conversation(id: conversationId))
+            }
             
         case "followRequest":
             if let requestId = userInfo["requestId"] as? String {
@@ -198,6 +207,8 @@ class NotificationNavigationService: ObservableObject {
             return "followRequest"
         case "new_message":
             return "message"
+        case "message_reaction":
+            return "messageReaction"
         case "photo_tag":
             return "photoTag"
         case "media_moderation":

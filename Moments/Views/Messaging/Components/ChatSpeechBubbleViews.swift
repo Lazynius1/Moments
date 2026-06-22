@@ -139,13 +139,13 @@ struct ChatTextBubbleView: View {
                         lineWidth: 0.5
                     )
             )
-            .frame(maxWidth: maxBubbleWidth, alignment: isOutgoing ? .trailing : .leading)
             .messageReactionOverlay(
                 isOutgoing: isOutgoing,
                 reactions: reactions,
                 compact: true,
                 onTap: onReaction
             )
+            .frame(maxWidth: maxBubbleWidth, alignment: isOutgoing ? .trailing : .leading)
     }
 }
 

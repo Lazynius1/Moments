@@ -141,7 +141,12 @@ struct MessagingView: View {
                     ChatRecoveryGateView(onCancel: {
                         selectedConversation = nil
                     }) {
-                        GlassmorphicChatView(conversation: conversation)
+                        GlassmorphicChatView(
+                            conversation: conversation,
+                            pendingHighlightMessageIds: ChatNavigationIntentStore.consumeHighlights(
+                                for: conversation.id ?? ""
+                            )
+                        )
                     }
                 }
                 .navigationDestination(
@@ -160,7 +165,12 @@ struct MessagingView: View {
                             ChatRecoveryGateView(onCancel: {
                                 targetConversationId = nil
                             }) {
-                                GlassmorphicChatView(conversation: conversation)
+                                GlassmorphicChatView(
+                                    conversation: conversation,
+                                    pendingHighlightMessageIds: ChatNavigationIntentStore.consumeHighlights(
+                                        for: conversation.id ?? ""
+                                    )
+                                )
                             }
                         } else {
                             // Fallback si no se encuentra la conversación

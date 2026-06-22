@@ -360,9 +360,10 @@ class ChatService: ObservableObject {
         thumbnailEncryption: EncryptedChatMediaMetadata? = nil,
         expirationHours: Int = 24,
         storyReplyData: [String: String]? = nil,
+        messageId: String? = nil,
         completion: @escaping (Result<EnhancedMessage, Error>) -> Void
     ) {
-        let messageId = UUID().uuidString
+        let messageId = messageId ?? UUID().uuidString
         let expirationDate = Calendar.current.date(byAdding: .hour, value: expirationHours, to: Date())
         
         // 🔐 Encrypt content if it's text (Async)
@@ -1001,13 +1002,22 @@ class ChatService: ObservableObject {
                 return
             }
 
-            reactionRef.setData([
+            let payload: [String: Any] = [
                 "conversationId": conversationId,
                 "messageId": messageId,
                 "userId": userId,
                 "emoji": emoji,
                 "timestamp": FieldValue.serverTimestamp()
-            ], merge: true, completion: completion)
+            ]
+
+            if snapshot?.exists == true {
+                reactionRef.updateData([
+                    "emoji": emoji,
+                    "timestamp": FieldValue.serverTimestamp()
+                ], completion: completion)
+            } else {
+                reactionRef.setData(payload, completion: completion)
+            }
         }
     }
     
@@ -1912,10 +1922,16 @@ class ChatService: ObservableObject {
     }
 
     private func resolveLatestConversationPreview(for conversation: Conversation) async -> String {
-        guard
-            conversation.encryptionVersion?.hasPrefix("3") == true,
-            let conversationId = conversation.id
-        else {
+        // Intentar descifrar el último texto en local para cualquier conversación
+        // con identificador (no solo v3); si no hay clave disponible se cae al neutro.
+        guard let conversationId = conversation.id else {
+            return conversation.lastMessage ?? ""
+        }
+
+        // Respetar el ajuste de privacidad "Mostrar vista previa" POR CONVERSACIÓN (default: ON).
+        let previewEnabled = UserDefaults(suiteName: "group.com.glowsyapp")?
+            .object(forKey: "chat_show_message_preview_\(conversationId)") as? Bool ?? true
+        guard previewEnabled else {
             return conversation.lastMessage ?? ""
         }
 
