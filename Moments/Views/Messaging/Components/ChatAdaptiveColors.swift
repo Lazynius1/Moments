@@ -1,5 +1,18 @@
 import SwiftUI
 
+// MARK: - Chat bubble chroma
+
+private struct ChatOutgoingBubbleColorKey: EnvironmentKey {
+    static let defaultValue = Color(hex: "3F6F8F")
+}
+
+extension EnvironmentValues {
+    var chatOutgoingBubbleColor: Color {
+        get { self[ChatOutgoingBubbleColorKey.self] }
+        set { self[ChatOutgoingBubbleColorKey.self] = newValue }
+    }
+}
+
 // MARK: - Colores adaptativos mejorados para ChatView
 extension AdaptiveColors {
     // MARK: - Colores específicos para chat mejorados
@@ -62,7 +75,7 @@ extension AdaptiveColors {
 
     // MARK: - Accent Colors
     var userAccentColor: Color {
-        colorScheme == .dark ? Color.purple : Color.blue
+        Color(hex: "3F6F8F")
     }
 
     var accentColorRed: Color {

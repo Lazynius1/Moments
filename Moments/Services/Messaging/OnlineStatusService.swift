@@ -3,6 +3,12 @@ import FirebaseFirestore
 import FirebaseAuth
 import Combine
 
+struct PresenceDisplay {
+    let status: OnlineStatus
+    let statusText: String
+    let supplementalText: String?
+}
+
 class OnlineStatusService: ObservableObject {
     private let db = Firestore.firestore()
     private var cancellables = Set<AnyCancellable>()
@@ -249,6 +255,25 @@ class OnlineStatusService: ObservableObject {
             let days = Int(timeInterval / 86400)
             return String(format: NSLocalizedString("onlineStatus.daysAgo", comment: "Days ago format"), days)
         }
+    }
+
+    func presenceDisplay(for status: OnlineStatus, lastSeen: Date?) -> PresenceDisplay? {
+        guard status != .invisible else { return nil }
+
+        return PresenceDisplay(
+            status: status,
+            statusText: status.displayName,
+            supplementalText: supplementalLastSeenText(for: status, lastSeen: lastSeen)
+        )
+    }
+
+    func supplementalLastSeenText(for status: OnlineStatus, lastSeen: Date?) -> String? {
+        guard status == .offline, let lastSeen else { return nil }
+
+        // "Offline · now" reads contradictory. Keep the timestamp only once it
+        // represents useful elapsed time.
+        guard Date().timeIntervalSince(lastSeen) >= 120 else { return nil }
+        return formatLastSeen(lastSeen)
     }
     
     // ✅ NUEVO: Manejar cuando la app entra en background

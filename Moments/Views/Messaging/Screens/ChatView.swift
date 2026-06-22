@@ -118,6 +118,10 @@ struct GlassmorphicChatView: View {
         AdaptiveColors(colorScheme: colorScheme)
     }
 
+    private var outgoingBubbleBaseColor: Color {
+        Color(hex: "3F6F8F")
+    }
+
     private var otherParticipantDisplayName: String {
         let fallback = viewModel.conversation.otherParticipantUsername ?? "Usuario"
         let live = liveOtherParticipantUsername.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -526,19 +530,22 @@ struct GlassmorphicChatView: View {
                 .font(.system(size: 11, weight: .regular))
                 .foregroundStyle(adaptiveColors.secondary)
                 .lineLimit(1)
-        } else if otherUserStatus != .invisible {
+        } else if let presence = onlineStatusService.presenceDisplay(
+            for: otherUserStatus,
+            lastSeen: otherUserLastSeen
+        ) {
             HStack(spacing: 4) {
-                Image(systemName: otherUserStatus.icon)
-                    .foregroundStyle(otherUserStatus.color)
+                Image(systemName: presence.status.icon)
+                    .foregroundStyle(presence.status.color)
                     .font(.system(size: 7))
 
-                Text(otherUserStatus.displayName)
+                Text(presence.statusText)
                     .font(.system(size: 11, weight: .regular))
                     .foregroundStyle(adaptiveColors.secondary)
                     .lineLimit(1)
 
-                if otherUserStatus != .online, let lastSeen = otherUserLastSeen {
-                    Text("• \(onlineStatusService.formatLastSeen(lastSeen))")
+                if let lastSeenText = presence.supplementalText {
+                    Text("• \(lastSeenText)")
                         .font(.system(size: 10, weight: .regular))
                         .foregroundStyle(adaptiveColors.secondary.opacity(0.7))
                         .lineLimit(1)
@@ -1234,10 +1241,50 @@ struct GlassmorphicChatView: View {
             isSelected: isMenuSelected,
             colorScheme: colorScheme
         ))
+        .environment(\.chatOutgoingBubbleColor, outgoingBubbleColor(for: rowId))
         .scaleEffect(isMenuSelected ? 0.92 : 1.0)
         .animation(.spring(response: 0.22, dampingFraction: 0.7), value: isMenuSelected)
         .zIndex(isMenuSelected ? 2 : 0)
         .id(item.id)
+    }
+
+    private func outgoingBubbleColor(for rowId: String) -> Color {
+        guard let frame = messageRowFrames[rowId] else {
+            return outgoingBubbleBaseColor
+        }
+
+        // Start the chroma shift early (around 70% of the screen), then deepen it
+        // as the row reaches the native toolbar/header area.
+        let screenHeight = UIScreen.main.bounds.height
+        let startY = screenHeight * 0.70
+        let endY = screenHeight * 0.16
+        let rawProgress = (startY - frame.minY) / max(startY - endY, 1)
+        let progress = min(max(rawProgress, 0), 1)
+        guard progress > 0 else { return outgoingBubbleBaseColor }
+
+        return interpolatedColor(fromHex: "3F6F8F", toHex: "29495F", progress: progress)
+    }
+
+    private func interpolatedColor(fromHex startHex: String, toHex endHex: String, progress: CGFloat) -> Color {
+        let start = UIColor(hex: startHex)
+        let end = UIColor(hex: endHex)
+        var startRed: CGFloat = 0
+        var startGreen: CGFloat = 0
+        var startBlue: CGFloat = 0
+        var startAlpha: CGFloat = 0
+        var endRed: CGFloat = 0
+        var endGreen: CGFloat = 0
+        var endBlue: CGFloat = 0
+        var endAlpha: CGFloat = 0
+        start.getRed(&startRed, green: &startGreen, blue: &startBlue, alpha: &startAlpha)
+        end.getRed(&endRed, green: &endGreen, blue: &endBlue, alpha: &endAlpha)
+
+        return Color(
+            red: Double(startRed + (endRed - startRed) * progress),
+            green: Double(startGreen + (endGreen - startGreen) * progress),
+            blue: Double(startBlue + (endBlue - startBlue) * progress),
+            opacity: Double(startAlpha + (endAlpha - startAlpha) * progress)
+        )
     }
 
     private var chatMediaLayoutSignature: String {

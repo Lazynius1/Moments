@@ -163,18 +163,21 @@ struct ConversationSettingsView: View {
                 .font(.custom("Poppins-Bold", size: 24))
                 .foregroundColor(adaptiveColors.primary)
 
-            if otherUserStatus != .invisible {
+            if let presence = onlineStatusService.presenceDisplay(
+                for: otherUserStatus,
+                lastSeen: otherUserLastSeen
+            ) {
                 HStack(spacing: 6) {
                     Circle()
-                        .fill(otherUserStatus == .online ? Color.green : adaptiveColors.tertiary.opacity(0.7))
+                        .fill(presence.status.color)
                         .frame(width: 8, height: 8)
 
-                    Text(otherUserStatus == .online ? NSLocalizedString("online", comment: "") : NSLocalizedString("offline", comment: ""))
+                    Text(presence.statusText)
                         .font(.custom("Poppins-Medium", size: 14))
                         .foregroundColor(adaptiveColors.secondary)
 
-                    if otherUserStatus != .online, let lastSeen = otherUserLastSeen {
-                        Text("• \(onlineStatusService.formatLastSeen(lastSeen))")
+                    if let lastSeenText = presence.supplementalText {
+                        Text("• \(lastSeenText)")
                             .font(.custom("Poppins-Regular", size: 13))
                             .foregroundColor(adaptiveColors.tertiary)
                     }

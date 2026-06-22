@@ -60,13 +60,13 @@ struct ChatBubbleShape: Shape {
 
 /// Valores de referencia al tamaño de texto por defecto; escalan con Dynamic Type.
 enum ChatTextBubbleMetrics {
-    static let horizontalPadding: CGFloat = 12
-    static let verticalPadding: CGFloat = 8
+    static let horizontalPadding: CGFloat = 15
+    static let verticalPadding: CGFloat = 10
     static let lineSpacing: CGFloat = 2
-    static let cornerRadius: CGFloat = 17
+    static let cornerRadius: CGFloat = 20
     static let joinedRadius: CGFloat = 4
     /// Fracción del ancho de pantalla que puede ocupar una burbuja (IG ≈ 0.75).
-    static let maxWidthScreenFraction: CGFloat = 0.75
+    static let maxWidthScreenFraction: CGFloat = 0.78
 }
 
 /// Fuente de mensaje: ~15pt por defecto (como IG), escalada con Ajustes → Tamaño del texto.
@@ -90,6 +90,7 @@ struct ChatTextBubbleView: View {
     let onReaction: (String) -> Void
 
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.chatOutgoingBubbleColor) private var chatOutgoingBubbleColor
     @ScaledMetric(relativeTo: .body) private var horizontalPadding = ChatTextBubbleMetrics.horizontalPadding
     @ScaledMetric(relativeTo: .body) private var verticalPadding = ChatTextBubbleMetrics.verticalPadding
     @ScaledMetric(relativeTo: .body) private var lineSpacing = ChatTextBubbleMetrics.lineSpacing
@@ -115,7 +116,7 @@ struct ChatTextBubbleView: View {
     }
 
     private var bubbleFill: Color {
-        isOutgoing ? adaptiveColors.userAccentColor : adaptiveColors.messageBubbleBackground
+        isOutgoing ? chatOutgoingBubbleColor : adaptiveColors.messageBubbleBackground
     }
 
     private var textColor: Color {
