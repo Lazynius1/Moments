@@ -57,7 +57,7 @@ struct MessagingView: View {
     @EnvironmentObject var messageRequestService: MessageRequestService
     @Environment(\.colorScheme) var colorScheme
     @State private var isShowingNewConversation = false
-    @State private var selectedConversation: Conversation? // ✅ Solo para navigationDestination
+    @State private var selectedConversation: Conversation?
     @Binding var targetConversationId: String?
     var onDismiss: (() -> Void)? = nil
 
@@ -108,7 +108,9 @@ struct MessagingView: View {
                 }
                 .coordinateSpace(name: "messagingRoot")
                 .navigationBarTitleDisplayMode(.inline)
-                .toolbar { messagingToolbarContent }
+                .toolbar {
+                    messagingToolbarContent
+                }
                 .safeAreaInset(edge: .top, spacing: 0) {
                     if !viewModel.conversations.isEmpty {
                         searchBar
@@ -131,18 +133,11 @@ struct MessagingView: View {
                         }
                     }
                 }
-                .sheet(isPresented: $showingMessageRequests) {
-                    MessageRequestsView()
-                        .presentationDetents([.medium, .large])
-                        .presentationDragIndicator(.visible)
-                }
-                // ✅ CAMBIO 2: navigationDestination en lugar de NavigationLink con isActive
                 .navigationDestination(item: $selectedConversation) { conversation in
-                    ChatRecoveryGateView(onCancel: {
-                        selectedConversation = nil
-                    }) {
-                        GlassmorphicChatView(conversation: conversation)
-                    }
+                    GlassmorphicChatView(
+                        conversation: conversation,
+                        session: ChatSessionEngine.shared.session(for: conversation)
+                    )
                 }
                 .navigationDestination(
                     isPresented: Binding(
@@ -155,15 +150,12 @@ struct MessagingView: View {
                     )
                 ) {
                     if let conversationId = targetConversationId {
-                        // Buscar conversación por ID
                         if let conversation = viewModel.conversations.first(where: { $0.id == conversationId }) {
-                            ChatRecoveryGateView(onCancel: {
-                                targetConversationId = nil
-                            }) {
-                                GlassmorphicChatView(conversation: conversation)
-                            }
+                            GlassmorphicChatView(
+                                conversation: conversation,
+                                session: ChatSessionEngine.shared.session(for: conversation)
+                            )
                         } else {
-                            // Fallback si no se encuentra la conversación
                             Text("messaging.conversation.notFound")
                                 .onAppear {
                                     targetConversationId = nil
@@ -171,19 +163,27 @@ struct MessagingView: View {
                         }
                     }
                 }
+                .sheet(isPresented: $showingMessageRequests) {
+                    MessageRequestsView()
+                        .presentationDetents([.medium, .large])
+                        .presentationDragIndicator(.visible)
+                }
 
                 .onAppear {
                     if let userId = Auth.auth().currentUser?.uid {
                         viewModel.fetchConversations(for: userId)
-                        // ✅ SOLICITUDES: Escuchar solicitudes pendientes
                         messageRequestService.listenToPendingRequests(for: userId)
                         updatePendingRequestCount(for: userId)
                     }
 
-                    // ✅ AGREGAR: Verificar si hay conversación objetivo
                     if let targetId = targetConversationId {
                         navigateToConversation(id: targetId)
                     }
+
+                    warmRecentChatSessions()
+                }
+                .onChange(of: viewModel.conversations.map(\.id)) { _, _ in
+                    warmRecentChatSessions()
                 }
                 .onChange(of: authService.currentUser) { _, _ in
                     if let userId = Auth.auth().currentUser?.uid {
@@ -200,6 +200,9 @@ struct MessagingView: View {
                         messageRequestService.removeAllListeners()
                         messageRequestService.pendingRequests = []
                         messageRequestService.errorMessage = nil
+                        ChatAccessCoordinator.shared.invalidate()
+                        ChatSessionEngine.shared.invalidateAll()
+                        selectedConversation = nil
                     }
                 }
                 // ✅ AGREGAR: Listener para cuando cambie targetConversationId
@@ -237,15 +240,19 @@ struct MessagingView: View {
         }
     }
 
+    private func warmRecentChatSessions() {
+        let ids = viewModel.conversations.prefix(3).compactMap(\.id)
+        guard !ids.isEmpty else { return }
+        ChatSessionEngine.shared.warm(conversationIds: ids)
+    }
+
     private func navigateToConversation(id: String) {
-        // Buscar conversación en la lista cargada
         if let conversation = viewModel.conversations.first(where: { $0.id == id }) {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                 selectedConversation = conversation
-                targetConversationId = nil  // Limpiar objetivo
+                targetConversationId = nil
             }
         } else {
-            // Esperar un poco y reintentar (por si las conversaciones se están cargando)
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
                 if let conversation = viewModel.conversations.first(where: { $0.id == id }) {
                     selectedConversation = conversation

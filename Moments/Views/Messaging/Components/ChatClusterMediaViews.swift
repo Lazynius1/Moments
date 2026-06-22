@@ -84,7 +84,7 @@ struct GlassmorphicClusterRow: View {
     let onMessageViewed: ((String) -> Void)?
     let onMomentNavigation: ((EnhancedMessage) -> Void)?
     let onOpenCluster: ([EnhancedMessage]) -> Void
-    let onLongPress: (EnhancedMessage) -> Void
+    let onLongPress: (EnhancedMessage, CGRect) -> Void
     let onHydrateMedia: ((EnhancedMessage) -> Void)?
     let onReply: ([EnhancedMessage]) -> Void
     let onReplyTap: ((String) -> Void)?
@@ -241,10 +241,11 @@ struct MediaGridBubble: View {
     let onReaction: (EnhancedMessage, String) -> Void
     let onMomentNavigation: ((EnhancedMessage) -> Void)?
     let onOpenCluster: ([EnhancedMessage]) -> Void
-    let onLongPress: (EnhancedMessage) -> Void
+    let onLongPress: (EnhancedMessage, CGRect) -> Void
     let onHydrateMedia: ((EnhancedMessage) -> Void)?
 
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.chatMessageRowFrame) private var rowFrame
 
     private var frontMessage: EnhancedMessage { messages[0] }
 
@@ -277,7 +278,7 @@ struct MediaGridBubble: View {
                 onOpenCluster(messages)
             }
             .chatMessageLongPress {
-                onLongPress(frontMessage)
+                onLongPress(frontMessage, rowFrame)
             }
         }
         .id(clusterReactionIdentity)

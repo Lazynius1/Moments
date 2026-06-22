@@ -83,15 +83,22 @@ class ChatService: ObservableObject {
     }
     
     // MARK: - Real-time Messages with Decryption
-    func listenToMessages(conversationId: String, limit: Int = 50, completion: @escaping (Result<[EnhancedMessage], Error>) -> Void) {
+    func listenToMessages(
+        conversationId: String,
+        limit: Int = 50,
+        replaceExisting: Bool = true,
+        completion: @escaping (Result<[EnhancedMessage], Error>) -> Void
+    ) {
+        if !replaceExisting, activeListeners[conversationId] != nil {
+            return
+        }
+
         activeListeners[conversationId]?.remove()
         activeListeners[conversationId] = nil
 
-        // Clave lista antes del primer snapshot: evita GIF/stickers sin mediaUrl al abrir el chat.
-        Task {
-            await preloadConversationKey(for: conversationId)
-
-            let listener = db.collection("conversations")
+        let attachListener = { [weak self] in
+            guard let self else { return }
+            let listener = self.db.collection("conversations")
                 .document(conversationId)
                 .collection("messages")
                 .order(by: "timestamp", descending: false)
@@ -106,9 +113,18 @@ class ChatService: ObservableObject {
                         )
                     }
                 }
+            self.activeListeners[conversationId] = listener
+        }
 
+        if encryptionService.isConversationKeyCached(for: conversationId) {
+            attachListener()
+            return
+        }
+
+        Task {
+            await preloadConversationKey(for: conversationId)
             await MainActor.run {
-                self.activeListeners[conversationId] = listener
+                attachListener()
             }
         }
     }
@@ -1371,9 +1387,13 @@ class ChatService: ObservableObject {
     /// Escucha cambios en preferencias de privacidad del chat (reenvío, zumbidos…).
     func listenToConversationForwardingPreferences(
         conversationId: String,
+        replaceExisting: Bool = true,
         onChange: @escaping (_ forwarding: [String: Bool], _ buzz: [String: Bool]) -> Void
     ) {
         let listenerKey = "conversation_prefs_\(conversationId)"
+        if !replaceExisting, activeListeners[listenerKey] != nil {
+            return
+        }
         activeListeners[listenerKey]?.remove()
 
         let listener = db.collection("conversations").document(conversationId)

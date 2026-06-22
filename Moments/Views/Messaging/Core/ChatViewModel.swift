@@ -68,7 +68,7 @@ class EnhancedChatViewModel: ObservableObject {
             handleTypingIndicator()
         }
     }
-    
+
     // ✅ NUEVO: Diccionario para estados locales con prioridad
     private var localMessageStates: [String: MessageStatus] = [:]
     /// Mensajes salientes aún no reflejados en Firestore; sobreviven a `rebuildMessagesList`.
@@ -104,8 +104,20 @@ class EnhancedChatViewModel: ObservableObject {
     private var messageStatusObserver: NSObjectProtocol?
     private var mediaUploadObserver: NSObjectProtocol?
     
-    // ✅ NUEVO: Flag para detectar la primera carga de Firestore y limpiar el caché local (sync: true)
+    // ✅ NUEVO: Flag para detectar la primera carga de Firestore (merge-first, sin wipe de caché)
     private var isFirstFetch = true
+
+    enum ChatSessionMode: Equatable {
+        case cold
+        case warm
+        case active
+    }
+
+    private(set) var chatSessionMode: ChatSessionMode = .cold
+    private var sessionListenersAttached = false
+    private var listenerPauseTask: Task<Void, Never>?
+    private var didLoadCacheFromSwiftData = false
+    private static let listenerPauseTTL: UInt64 = 180_000_000_000
     
     init(conversation: Conversation) {
         self.conversation = conversation
@@ -410,6 +422,10 @@ class EnhancedChatViewModel: ObservableObject {
         if let momentsViewModel = self as? MomentsChatViewModel {
             momentsViewModel.syncMessagePresentation()
         }
+        if let conversationId = conversation.id,
+           message.status == .sending || message.status == .pending || message.status == .failed {
+            LocalPersistenceService.shared.saveMessages([message], conversationId: conversationId, sync: false)
+        }
     }
 
     private func messageNeedsMediaHydration(_ message: EnhancedMessage) -> Bool {
@@ -712,6 +728,23 @@ class EnhancedChatViewModel: ObservableObject {
             userIds.contains { $0 != currentUserId }
         }
     }
+
+    /// Mensaje propio con reacción de otra persona; solo si hay exactamente uno (apertura sin push).
+    func soleOwnMessageWithExternalReactionId() -> String? {
+        let matching = messages.filter { message in
+            guard message.senderId == currentUserId else { return false }
+            let reactions = liveReactionOverlays[message.id] ?? message.reactions
+            guard let reactions, !reactions.isEmpty else { return false }
+            return reactionIncludesOtherParticipant(reactions)
+        }
+        guard matching.count == 1, let id = matching.last?.id else { return nil }
+        return id
+    }
+
+    func preferredHighlightMessageIdForOpen(intentHighlightIds: Set<String>) -> String? {
+        if let intentId = intentHighlightIds.first { return intentId }
+        return soleOwnMessageWithExternalReactionId()
+    }
     
     // ✅ FUNCIÓN: Cargar más mensajes (Pull to refresh)
     func loadMoreMessages() {
@@ -729,9 +762,11 @@ class EnhancedChatViewModel: ObservableObject {
                     if olderMessages.isEmpty {
                         self.canLoadMore = false
                     } else {
-                        // Agregar al historial
                         self.historicalMessages.append(contentsOf: olderMessages)
                         self.rebuildMessagesList()
+                        if let conversationId = self.conversation.id {
+                            LocalPersistenceService.shared.appendMessages(olderMessages, conversationId: conversationId)
+                        }
                     }
                 case .failure(let error):
                     print("Error loading more messages: \(error)")
@@ -761,55 +796,65 @@ class EnhancedChatViewModel: ObservableObject {
     }
     
     // MARK: - Lifecycle
-    
-    func startListening() {
+
+    func loadCachedMessagesIfNeeded() {
+        guard let conversationId = conversation.id, !conversationId.isEmpty else { return }
+        guard !didLoadCacheFromSwiftData else { return }
+        didLoadCacheFromSwiftData = true
+
+        let cachedMessages = LocalPersistenceService.shared.loadMessages(conversationId: conversationId)
+        guard !cachedMessages.isEmpty else { return }
+
+        for message in cachedMessages where message.senderId == currentUserId {
+            switch message.status {
+            case .sending, .pending, .failed:
+                outgoingTempMessages[message.id] = message
+            default:
+                break
+            }
+        }
+
+        historicalMessages = cachedMessages
+        rebuildMessagesList()
+        syncLiveReactionOverlays(from: messages)
+        prefetchUnresolvedMediaIfNeeded()
+        if let momentsViewModel = self as? MomentsChatViewModel {
+            momentsViewModel.syncMessagePresentation()
+        }
+    }
+
+    func attachChatListenersIfNeeded() {
         guard let conversationId = conversation.id, !conversationId.isEmpty else {
             self.error = "ID de conversación no válido"
             return
         }
-        
-        // Reiniciar suscripciones reactivas para evitar duplicados al re-entrar al chat
+        guard !sessionListenersAttached else { return }
+        sessionListenersAttached = true
+
         cancellables.removeAll()
         typingUsersCancellable?.cancel()
         typingUsersCancellable = nil
-        
-        // ✅ SwiftData: carga síncrona en MainActor para que el primer frame ya tenga historial y scroll al fondo.
-        let cachedMessages = LocalPersistenceService.shared.loadMessages(conversationId: conversationId)
-        if !cachedMessages.isEmpty {
-            historicalMessages = cachedMessages
-            rebuildMessagesList()
-            syncLiveReactionOverlays(from: messages)
-            prefetchUnresolvedMediaIfNeeded()
-        }
-        
-        // Re-registrar siempre el listener de mensajes para que el callback pertenezca
-        // al ViewModel activo de este chat.
-        chatService.listenToMessages(conversationId: conversationId) { [weak self] result in
+
+        chatService.listenToMessages(conversationId: conversationId, replaceExisting: false) { [weak self] result in
             DispatchQueue.main.async {
-                guard let self = self else { return }
-                
+                guard let self else { return }
+
                 switch result {
                 case .success(let messages):
-                    
-                    // ✅ DETECTAR mensajes que caen fuera de la ventana de 50 (sliding window)
-                    // y moverlos al histórico para no perderlos
                     let newSet = Set(messages.map { $0.id })
                     let droppedMessages = self.realTimeMessages.filter { !newSet.contains($0.id) }
-                    
+
                     if !droppedMessages.isEmpty {
                         self.historicalMessages.append(contentsOf: droppedMessages)
                     }
-                    
-                    // ✅ Actualizar solo la parte de tiempo real
+
                     self.realTimeMessages = messages
                     self.rebuildMessagesList()
                     self.prefetchUnresolvedMediaIfNeeded()
-                    
-                    // ✅ SwiftData: Persistir historial actualizado
-                    LocalPersistenceService.shared.saveMessages(messages, conversationId: conversationId, sync: self.isFirstFetch)
+
+                    LocalPersistenceService.shared.saveMessages(messages, conversationId: conversationId, sync: false)
                     self.isFirstFetch = false
-                    
-                    // ✅ SOLO marcar como leído si el chat está VISIBLE al usuario
+
                     if self.isChatVisible {
                         self.markUnreadMessagesAsRead(messages)
                     }
@@ -819,7 +864,7 @@ class EnhancedChatViewModel: ObservableObject {
             }
         }
 
-        chatService.listenToMessageReactions(conversationId: conversationId) { [weak self] result in
+        chatService.listenToMessageReactions(conversationId: conversationId, replaceExisting: false) { [weak self] result in
             DispatchQueue.main.async {
                 guard let self else { return }
 
@@ -832,14 +877,14 @@ class EnhancedChatViewModel: ObservableObject {
             }
         }
 
-        chatService.listenToConversationForwardingPreferences(conversationId: conversationId) { [weak self] forwarding, buzz in
+        chatService.listenToConversationForwardingPreferences(conversationId: conversationId, replaceExisting: false) { [weak self] forwarding, buzz in
             DispatchQueue.main.async {
                 self?.forwardingPreferences = forwarding
                 self?.buzzPreferences = buzz
             }
         }
 
-        chatService.listenToBuzzEvents(conversationId: conversationId) { [weak self] event, isInitialSnapshot in
+        chatService.listenToBuzzEvents(conversationId: conversationId, replaceExisting: false) { [weak self] event, isInitialSnapshot in
             Task { @MainActor in
                 guard let self else { return }
                 guard self.seenBuzzEventIds.insert(event.id).inserted else { return }
@@ -857,11 +902,62 @@ class EnhancedChatViewModel: ObservableObject {
         typingIndicatorEnabled = resolvedTypingIndicatorPreference(for: conversationId)
         applyTypingPreference(conversationId: conversationId)
     }
-    
-    func stopListening() {
-        guard let conversationId = conversation.id, !conversationId.isEmpty else {
+
+    func activateChatSession() {
+        listenerPauseTask?.cancel()
+        listenerPauseTask = nil
+        chatSessionMode = .active
+        isChatVisible = true
+        loadCachedMessagesIfNeeded()
+        attachChatListenersIfNeeded()
+
+        if let conversationId = conversation.id {
+            Task {
+                await EncryptionService.shared.preloadConversationKeys(for: [conversationId])
+            }
+        }
+    }
+
+    func deactivateChatSession() {
+        isChatVisible = false
+        if chatSessionMode == .active {
+            chatSessionMode = .warm
+        }
+        listenerPauseTask?.cancel()
+        listenerPauseTask = Task { @MainActor [weak self] in
+            try? await Task.sleep(nanoseconds: Self.listenerPauseTTL)
+            guard let self, !self.isChatVisible, self.chatSessionMode != .active else { return }
+            self.pauseChatListenersImmediately()
+        }
+    }
+
+    func warmChatSession() {
+        guard chatSessionMode != .active else { return }
+        chatSessionMode = .warm
+        loadCachedMessagesIfNeeded()
+        attachChatListenersIfNeeded()
+
+        if let conversationId = conversation.id {
+            Task {
+                await EncryptionService.shared.preloadConversationKeys(for: [conversationId])
+            }
+        }
+    }
+
+    func pauseChatListenersImmediately() {
+        listenerPauseTask?.cancel()
+        listenerPauseTask = nil
+        guard sessionListenersAttached else {
+            chatSessionMode = .cold
             return
         }
+        sessionListenersAttached = false
+        chatSessionMode = .cold
+        detachChatListeners()
+    }
+
+    private func detachChatListeners() {
+        guard let conversationId = conversation.id, !conversationId.isEmpty else { return }
         chatService.removeListener(for: conversationId)
         chatService.stopTyping(conversationId: conversationId, userId: currentUserId)
         typingTimer?.invalidate()
@@ -869,6 +965,14 @@ class EnhancedChatViewModel: ObservableObject {
         typingUsersCancellable = nil
         typingUsers = []
         cancellables.removeAll()
+    }
+
+    func startListening() {
+        activateChatSession()
+    }
+    func stopListening() {
+        pauseChatListenersImmediately()
+        isChatVisible = false
     }
 
     func sendBuzz(completion: @escaping (Result<Void, Error>) -> Void) {

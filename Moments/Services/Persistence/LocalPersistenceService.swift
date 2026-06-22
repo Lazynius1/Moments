@@ -20,7 +20,7 @@ final class LocalPersistenceService: ObservableObject {
     private let maxCachedUsers = 200      // Máximo usuarios en caché
     private let maxDataAgeDays = 7        // Datos más viejos se limpian
     private let maxConversations = 50     // Máximo conversaciones en caché
-    private let maxMessagesPerChat = 100  // Máximo mensajes por chat en caché
+    private let maxMessagesPerChat = 500  // Máximo mensajes por chat en caché
     
     // MARK: - Init
     init() {
@@ -465,6 +465,12 @@ final class LocalPersistenceService: ObservableObject {
         
         saveContext()
         trimMessages(for: conversationId)
+    }
+
+    /// Añade mensajes antiguos (paginación) sin borrar el caché existente.
+    func appendMessages(_ messages: [EnhancedMessage], conversationId: String) {
+        guard !messages.isEmpty else { return }
+        saveMessages(messages, conversationId: conversationId, sync: false)
     }
     
     /// Carga el historial de mensajes de una conversación desde el caché local

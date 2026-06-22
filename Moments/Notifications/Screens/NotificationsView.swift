@@ -17,6 +17,7 @@ struct NotificationsView: View {
     @State private var storyViewerPresentation: StoryViewerPresentation?
     @State private var selectedConversation: Conversation?
     @State private var showChat = false
+    @ObservedObject private var chatAccessCoordinator = ChatAccessCoordinator.shared
     @State private var groupedFollowersOverlayGroup: NotificationGroup?
     @Namespace private var tabAnimation
     let onNotificationsCleared: (() -> Void)?
@@ -558,10 +559,22 @@ struct NotificationsView: View {
     @ViewBuilder
     private var chatDestination: some View {
         if let conversation = selectedConversation {
-            ChatRecoveryGateView(onCancel: {
-                showChat = false
-            }) {
-                GlassmorphicChatView(conversation: conversation)
+            Group {
+                if chatAccessCoordinator.accessState == .available {
+                    GlassmorphicChatView(
+                        conversation: conversation,
+                        session: ChatSessionEngine.shared.session(for: conversation)
+                    )
+                } else {
+                    ChatRecoveryGateView(onCancel: {
+                        showChat = false
+                    }) {
+                        GlassmorphicChatView(
+                            conversation: conversation,
+                            session: ChatSessionEngine.shared.session(for: conversation)
+                        )
+                    }
+                }
             }
         } else {
             EmptyView()

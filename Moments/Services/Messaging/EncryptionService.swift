@@ -2273,6 +2273,14 @@ class EncryptionService: ObservableObject {
         case corrupted
         case notFound
     }
+
+    func isConversationKeyCached(for conversationId: String) -> Bool {
+        guard !conversationId.isEmpty else { return false }
+        if let cachedKey = conversationKeys[conversationId], !cachedKey.isExpired {
+            return true
+        }
+        return false
+    }
     
     // MARK: - 🚀 BATCH PRELOADING Optimizado
     func preloadConversationKeys(for conversationIds: [String]) async {

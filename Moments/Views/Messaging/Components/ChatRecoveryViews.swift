@@ -4,12 +4,16 @@ struct ChatRecoveryGateView<Content: View>: View {
     let onCancel: (() -> Void)?
     @ViewBuilder let content: () -> Content
 
-    @State private var accessState: ChatAccessState?
+    @ObservedObject private var accessCoordinator = ChatAccessCoordinator.shared
     @State private var refreshToken = UUID()
+
+    private var resolvedAccessState: ChatAccessState? {
+        accessCoordinator.accessState
+    }
 
     var body: some View {
         Group {
-            switch accessState {
+            switch resolvedAccessState {
             case .available:
                 content()
             case .needsPinSetup:
@@ -38,18 +42,16 @@ struct ChatRecoveryGateView<Content: View>: View {
             }
         }
         .task(id: refreshToken) {
-            await refreshState()
+            _ = await accessCoordinator.ensureAccess()
         }
         .presentationBackground(.clear)
         .presentationDragIndicator(.hidden)
     }
 
-    private func refreshState() async {
-        accessState = await EncryptionService.shared.chatAccessState()
-    }
-
     private func reloadState() {
-        refreshToken = UUID()
+        Task {
+            await accessCoordinator.refreshAccess()
+        }
     }
 }
 

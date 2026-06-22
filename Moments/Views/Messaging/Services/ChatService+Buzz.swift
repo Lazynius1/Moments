@@ -39,9 +39,13 @@ extension ChatService {
     func listenToBuzzEvents(
         conversationId: String,
         limit: Int = 80,
+        replaceExisting: Bool = true,
         onEvent: @escaping (_ event: ChatBuzzEvent, _ isInitialSnapshot: Bool) -> Void
     ) {
         let listenerKey = "buzz_\(conversationId)"
+        if !replaceExisting, activeListeners[listenerKey] != nil {
+            return
+        }
         activeListeners[listenerKey]?.remove()
         var hasDeliveredInitialSnapshot = false
 

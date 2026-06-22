@@ -13,11 +13,108 @@ struct ChatMessageMenuSelection: Equatable {
     }
 }
 
-struct ChatMessageRowFrameKey: PreferenceKey {
-    static var defaultValue: [String: CGRect] = [:]
+// MARK: - Row chrome (geometry local por fila)
 
-    static func reduce(value: inout [String: CGRect], nextValue: () -> [String: CGRect]) {
-        value.merge(nextValue(), uniquingKeysWith: { $1 })
+private struct GlobalFrame: Equatable {
+    let minX: Int
+    let minY: Int
+    let width: Int
+    let height: Int
+
+    init(_ rect: CGRect) {
+        minX = Int(rect.minX.rounded())
+        minY = Int(rect.minY.rounded())
+        width = max(0, Int(rect.width.rounded()))
+        height = max(0, Int(rect.height.rounded()))
+    }
+
+    var cgRect: CGRect {
+        CGRect(x: minX, y: minY, width: width, height: height)
+    }
+}
+
+/// Aísla geometría y estilo de selección por fila sin `PreferenceKey` en el padre.
+struct ChatMessageRowChrome<Content: View>: View {
+    let isMenuSelected: Bool
+    let isOutgoing: Bool
+    let colorScheme: ColorScheme
+    @ViewBuilder let content: () -> Content
+
+    @State private var rowFrame: CGRect = .zero
+
+    private var outgoingBubbleBaseColor: Color {
+        Color(hex: "3F6F8F")
+    }
+
+    var body: some View {
+        content()
+            .environment(\.chatMessageRowFrame, rowFrame)
+            .environment(\.chatOutgoingBubbleColor, outgoingBubbleColor)
+            .modifier(ConversationRowMenuHighlight(
+                isSelected: isMenuSelected,
+                colorScheme: colorScheme
+            ))
+            .scaleEffect(isMenuSelected ? 0.92 : 1.0)
+            .animation(.spring(response: 0.22, dampingFraction: 0.7), value: isMenuSelected)
+            .zIndex(isMenuSelected ? 2 : 0)
+            .onGeometryChange(for: GlobalFrame.self, of: { GlobalFrame($0.frame(in: .global)) }) { newFrame in
+                rowFrame = newFrame.cgRect
+            }
+    }
+
+    private var outgoingBubbleColor: Color {
+        guard isOutgoing, rowFrame.width > 0, rowFrame.height > 0 else {
+            return outgoingBubbleBaseColor
+        }
+
+        let screenHeight = UIScreen.main.bounds.height
+        let startY = screenHeight * 0.70
+        let endY = screenHeight * 0.16
+        let rawProgress = (startY - rowFrame.minY) / max(startY - endY, 1)
+        let progress = min(max(rawProgress, 0), 1)
+        guard progress > 0 else { return outgoingBubbleBaseColor }
+
+        return Self.interpolatedColor(fromHex: "3F6F8F", toHex: "29495F", progress: progress)
+    }
+
+    private static func interpolatedColor(fromHex startHex: String, toHex endHex: String, progress: CGFloat) -> Color {
+        let start = UIColor(hex: startHex)
+        let end = UIColor(hex: endHex)
+        var startRed: CGFloat = 0
+        var startGreen: CGFloat = 0
+        var startBlue: CGFloat = 0
+        var startAlpha: CGFloat = 0
+        var endRed: CGFloat = 0
+        var endGreen: CGFloat = 0
+        var endBlue: CGFloat = 0
+        var endAlpha: CGFloat = 0
+        start.getRed(&startRed, green: &startGreen, blue: &startBlue, alpha: &startAlpha)
+        end.getRed(&endRed, green: &endGreen, blue: &endBlue, alpha: &endAlpha)
+
+        return Color(
+            red: Double(startRed + (endRed - startRed) * progress),
+            green: Double(startGreen + (endGreen - startGreen) * progress),
+            blue: Double(startBlue + (endBlue - startBlue) * progress),
+            opacity: Double(startAlpha + (endAlpha - startAlpha) * progress)
+        )
+    }
+}
+
+struct ChatMessageLongPressPresent: ViewModifier {
+    @Environment(\.chatMessageRowFrame) private var rowFrame
+    let action: (CGRect) -> Void
+
+    func body(content: Content) -> some View {
+        content.chatMessageLongPress {
+            guard rowFrame.width > 0, rowFrame.height > 0 else { return }
+            action(rowFrame)
+        }
+    }
+}
+
+extension View {
+    func chatMessageLongPressPresent(action: @escaping (CGRect) -> Void) -> some View {
+        modifier(ChatMessageLongPressPresent(action: action))
     }
 }
 

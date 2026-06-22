@@ -255,6 +255,7 @@ struct UserProfileView: View {
     @StateObject private var messageRequestService = MessageRequestService()
     @State private var navigateToChat: Bool = false
     @State private var targetConversation: Conversation?
+    @ObservedObject private var chatAccessCoordinator = ChatAccessCoordinator.shared
     @State private var showingMessageRequestAlert = false
     @State private var messageRequestText = ""
     @State private var messageRequestError: String?
@@ -405,10 +406,22 @@ struct UserProfileView: View {
         }
         .fullScreenCover(isPresented: $navigateToChat) {
             if let conversation = targetConversation {
-                ChatRecoveryGateView(onCancel: {
-                    navigateToChat = false
-                }) {
-                    GlassmorphicChatView(conversation: conversation)
+                Group {
+                    if chatAccessCoordinator.accessState == .available {
+                        GlassmorphicChatView(
+                            conversation: conversation,
+                            session: ChatSessionEngine.shared.session(for: conversation)
+                        )
+                    } else {
+                        ChatRecoveryGateView(onCancel: {
+                            navigateToChat = false
+                        }) {
+                            GlassmorphicChatView(
+                                conversation: conversation,
+                                session: ChatSessionEngine.shared.session(for: conversation)
+                            )
+                        }
+                    }
                 }
             }
         }

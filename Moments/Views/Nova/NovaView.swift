@@ -3,9 +3,20 @@ import UIKit
 
 // MARK: - Vista Principal
 struct NovaView: View {
+    @ObservedObject private var accessCoordinator = ChatAccessCoordinator.shared
+
     var body: some View {
-        ChatRecoveryGateView(onCancel: nil) {
-            NovaSecureContent()
+        Group {
+            if accessCoordinator.accessState == .available {
+                NovaSecureContent()
+            } else {
+                ChatRecoveryGateView(onCancel: nil) {
+                    NovaSecureContent()
+                }
+            }
+        }
+        .task {
+            _ = await accessCoordinator.ensureAccess()
         }
     }
 }

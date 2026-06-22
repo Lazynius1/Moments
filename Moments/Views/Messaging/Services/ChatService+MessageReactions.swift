@@ -9,9 +9,13 @@ struct MessageReactionUpdate {
 extension ChatService {
     func listenToMessageReactions(
         conversationId: String,
+        replaceExisting: Bool = true,
         completion: @escaping (Result<MessageReactionUpdate, Error>) -> Void
     ) {
         let listenerKey = "reactions_\(conversationId)"
+        if !replaceExisting, activeListeners[listenerKey] != nil {
+            return
+        }
         activeListeners[listenerKey]?.remove()
         activeListeners[listenerKey] = nil
 

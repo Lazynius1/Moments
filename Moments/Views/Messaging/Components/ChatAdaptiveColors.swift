@@ -13,6 +13,18 @@ extension EnvironmentValues {
     }
 }
 
+private struct ChatMessageRowFrameKey: EnvironmentKey {
+    static let defaultValue: CGRect = .zero
+}
+
+extension EnvironmentValues {
+    /// Frame global de la fila; lo publica `ChatMessageRowChrome` para long-press y menú.
+    var chatMessageRowFrame: CGRect {
+        get { self[ChatMessageRowFrameKey.self] }
+        set { self[ChatMessageRowFrameKey.self] = newValue }
+    }
+}
+
 // MARK: - Colores adaptativos mejorados para ChatView
 extension AdaptiveColors {
     // MARK: - Colores específicos para chat mejorados
