@@ -122,6 +122,10 @@ struct ChatTextBubbleView: View {
         isOutgoing ? .white : adaptiveColors.messageTextColor
     }
 
+    private var hasReactions: Bool {
+        reactions.map { !$0.isEmpty } ?? false
+    }
+
     var body: some View {
         Text(text)
             .font(ChatMessageFont.bubble)
@@ -131,6 +135,13 @@ struct ChatTextBubbleView: View {
             .fixedSize(horizontal: false, vertical: true)
             .padding(.horizontal, horizontalPadding)
             .padding(.vertical, verticalPadding)
+            .padding(
+                MessageReactionMetrics.bubbleContentInsets(
+                    isOutgoing: isOutgoing,
+                    compact: true,
+                    hasReactions: hasReactions
+                )
+            )
             .background(bubbleFill, in: bubbleShape)
             .overlay(
                 bubbleShape

@@ -322,7 +322,7 @@ struct MediaGridBubble: View {
         .overlay(alignment: isCurrentUser ? .bottomLeading : .bottomTrailing) {
             if isFront, let reactions = displayReactions(message.id), !reactions.isEmpty {
                 let hang = MessageReactionMetrics.hangOffset(compact: false, cluster: true)
-                let edge = MessageReactionMetrics.badgeDiameter(compact: false, cluster: true) / 2 - 2
+                let edge = MessageReactionMetrics.horizontalHangOffset(compact: false, anchoredInsideBounds: false)
                 MessageReactionChip(
                     reactions: reactions,
                     onTap: { emoji in onReaction(message, emoji) },
@@ -330,11 +330,17 @@ struct MediaGridBubble: View {
                 )
                 .offset(
                     x: isCurrentUser ? edge : -edge,
-                    y: hang - 6
+                    y: hang
                 )
                 .zIndex(10)
             }
         }
+        .padding(
+            .bottom,
+            isFront && (displayReactions(message.id).map { !$0.isEmpty } ?? false)
+                ? MessageReactionMetrics.reactionRowSpacing(compact: false, cluster: true)
+                : 0
+        )
     }
 
     private var clusterReactionIdentity: String {

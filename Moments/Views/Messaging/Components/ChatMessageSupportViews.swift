@@ -271,12 +271,31 @@ enum MessageReactionMetrics {
 
     static func horizontalHangOffset(compact: Bool, anchoredInsideBounds: Bool) -> CGFloat {
         if anchoredInsideBounds { return 3 }
-        // Mitad del badge fuera del borde exterior de la burbuja (esquina IG).
-        return badgeDiameter(compact: compact, cluster: false) / 2 - 2
+        return compact ? 1 : 2
     }
 
+    /// Cuánto cuelga el badge por debajo del borde inferior de la burbuja.
     static func hangOffset(compact: Bool, cluster: Bool = false) -> CGFloat {
-        badgeDiameter(compact: compact, cluster: cluster) - 5
+        let diameter = badgeDiameter(compact: compact, cluster: cluster)
+        return diameter * 0.62
+    }
+
+    /// Espacio extra bajo la fila para que el badge no pise el mensaje de abajo.
+    static func reactionRowSpacing(compact: Bool, cluster: Bool = false) -> CGFloat {
+        let diameter = badgeDiameter(compact: compact, cluster: cluster)
+        return diameter * 0.58
+    }
+
+    /// Reserva en la burbuja de texto para que el emoji no tape letras cortas.
+    static func bubbleContentInsets(isOutgoing: Bool, compact: Bool, hasReactions: Bool) -> EdgeInsets {
+        guard hasReactions else { return EdgeInsets() }
+        let clearance = badgeDiameter(compact: compact, cluster: false) * 0.42
+        return EdgeInsets(
+            top: 0,
+            leading: isOutgoing ? clearance * 0.75 : 0,
+            bottom: clearance * 0.3,
+            trailing: isOutgoing ? 0 : clearance * 0.75
+        )
     }
 }
 
@@ -291,6 +310,7 @@ extension View {
     ) -> some View {
         let hasReactions = reactions.map { !$0.isEmpty } ?? false
         let hangOffset = MessageReactionMetrics.hangOffset(compact: compact)
+        let rowSpacing = MessageReactionMetrics.reactionRowSpacing(compact: compact)
         let horizontalOffset = MessageReactionMetrics.horizontalHangOffset(
             compact: compact,
             anchoredInsideBounds: anchoredInsideBounds
@@ -306,7 +326,7 @@ extension View {
                     .zIndex(5)
             }
         }
-        .padding(.bottom, hasReactions && !anchoredInsideBounds ? hangOffset : 0)
+        .padding(.bottom, hasReactions && !anchoredInsideBounds ? rowSpacing : 0)
     }
 }
 

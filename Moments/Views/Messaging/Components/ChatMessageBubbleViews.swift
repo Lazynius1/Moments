@@ -39,7 +39,13 @@ struct GlassmorphicMessageRow: View {
     }
 
     private var reactionTimestampSpacing: CGFloat {
-        hasReactions ? 2 : 4
+        hasReactions ? 6 : 4
+    }
+
+    private var bottomRowPadding: CGFloat {
+        let base = isGroupTail ? 5.0 : 1.0
+        guard hasReactions else { return base }
+        return base + (isGroupTail ? 8 : 4)
     }
 
     @State private var dragOffset: CGFloat = 0
@@ -123,7 +129,7 @@ struct GlassmorphicMessageRow: View {
         }
         .padding(.horizontal, 8)
         .padding(.top, isGroupHead ? 5 : 1)
-        .padding(.bottom, isGroupTail ? 5 : 1)
+        .padding(.bottom, bottomRowPadding)
     }
 
     @ViewBuilder
