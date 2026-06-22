@@ -58,6 +58,10 @@ class ChatService: ObservableObject {
         let prefsKey = "conversation_prefs_\(conversationId)"
         activeListeners[prefsKey]?.remove()
         activeListeners.removeValue(forKey: prefsKey)
+
+        let buzzKey = "buzz_\(conversationId)"
+        activeListeners[buzzKey]?.remove()
+        activeListeners.removeValue(forKey: buzzKey)
         
         let typingKey = "typing_\(conversationId)"
         activeListeners[typingKey]?.remove()
@@ -1342,7 +1346,9 @@ class ChatService: ObservableObject {
                     if let forwardingPreferences = data["forwardingPreferences"] as? [String: Bool] {
                         conversation.forwardingPreferences = forwardingPreferences
                     }
-                    
+                    if let buzzPreferences = data["buzzPreferences"] as? [String: Bool] {
+                        conversation.buzzPreferences = buzzPreferences
+                    }
                     conversations.append(conversation)
                 }
                 
@@ -1362,10 +1368,10 @@ class ChatService: ObservableObject {
         activeListeners[listenerKey] = listener
     }
 
-    /// Escucha cambios en `forwardingPreferences` para que el otro participante respete el toggle en tiempo real.
+    /// Escucha cambios en preferencias de privacidad del chat (reenvío, zumbidos…).
     func listenToConversationForwardingPreferences(
         conversationId: String,
-        onChange: @escaping ([String: Bool]) -> Void
+        onChange: @escaping (_ forwarding: [String: Bool], _ buzz: [String: Bool]) -> Void
     ) {
         let listenerKey = "conversation_prefs_\(conversationId)"
         activeListeners[listenerKey]?.remove()
@@ -1373,8 +1379,9 @@ class ChatService: ObservableObject {
         let listener = db.collection("conversations").document(conversationId)
             .addSnapshotListener { snapshot, error in
                 guard error == nil, let data = snapshot?.data() else { return }
-                let prefs = data["forwardingPreferences"] as? [String: Bool] ?? [:]
-                onChange(prefs)
+                let forwarding = data["forwardingPreferences"] as? [String: Bool] ?? [:]
+                let buzz = data["buzzPreferences"] as? [String: Bool] ?? [:]
+                onChange(forwarding, buzz)
             }
 
         activeListeners[listenerKey] = listener
@@ -1914,6 +1921,7 @@ class ChatService: ObservableObject {
                 wrappedKeys: conversation.wrappedKeys
             )
             hydrated.readReceiptPreferences = conversation.readReceiptPreferences
+            hydrated.buzzPreferences = conversation.buzzPreferences
             hydrated.forwardingPreferences = conversation.forwardingPreferences
             hydratedConversations.append(hydrated)
         }

@@ -795,6 +795,8 @@
 
 "conversationSettings.privacy.messagePreview.title" = "Mostra anteprima";
 "conversationSettings.privacy.messagePreview.description" = "Mostra il testo del messaggio nelle notifiche e nell'elenco delle conversazioni.";
+"conversationSettings.privacy.buzz.title" = "Trilli";
+"conversationSettings.privacy.buzz.description" = "Se lo disattivi, l'altra persona non potrà inviarti trilli in questa chat.";
 "conversationSettings.privacy.readReceipts.title" = "Conferme di lettura";
 "conversationSettings.privacy.readReceipts.description" = "Se disattivi le conferme di lettura in questa chat, non potrai vedere quando l'altra persona legge i tuoi messaggi.";
 "conversationSettings.privacy.forwarding.title" = "Consenti inoltro";
@@ -866,6 +868,11 @@
 "chat.attach.gif" = "GIF";
 "chat.attach.sticker" = "Sticker";
 "chat.attach.location" = "Posizione";
+"chat.attach.buzz" = "Trillo";
+"chat.buzz.sent" = "Hai inviato un trillo";
+"chat.buzz.received" = "%@ ti ha inviato un trillo";
+"chat.buzz.cooldown" = "Attendi un po' prima di inviare un altro trillo";
+"chat.buzz.blocked" = "Questa persona non accetta trilli";
 "chat.giphy.searchGif" = "Cerca GIF";
 "chat.giphy.searchSticker" = "Cerca sticker";
 "chat.giphy.recents" = "Recenti";
@@ -2900,6 +2907,7 @@
 "notification.chatReaction.single" = "Ha reagito con %@ al tuo messaggio";
 "notification.chatReaction.singleQuoted" = "Ha reagito con %@ al tuo messaggio \"%@\"";
 "notification.chatReaction.multiple" = "Ha reagito con %@ ai tuoi messaggi";
+"notification.chatBuzz.single" = "Ti ha inviato un trillo";
 "notification.gentleReminder.title" = "Moments";
 "notification.gentleReminder.body.neutral_day" = "Condividi qualcosa della tua giornata, se ne hai voglia.";
 "notification.gentleReminder.body.neutral_available" = "Se oggi hai voglia di condividere qualcosa, Moments è qui.";

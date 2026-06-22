@@ -1605,6 +1605,8 @@
 
 "conversationSettings.privacy.messagePreview.title" = "Mostrar pré-visualização";
 "conversationSettings.privacy.messagePreview.description" = "Mostra o texto da mensagem nas notificações e na lista de conversas.";
+"conversationSettings.privacy.buzz.title" = "Abanões";
+"conversationSettings.privacy.buzz.description" = "Se desativar, a outra pessoa não poderá enviar-te abanões neste chat.";
 "conversationSettings.privacy.readReceipts.title" = "Recibos de leitura";
 "conversationSettings.privacy.readReceipts.description" = "Se desativares os recibos de leitura neste chat, deixarás de conseguir ver quando a outra pessoa lê as tuas mensagens.";
 "conversationSettings.privacy.forwarding.title" = "Permitir reencaminhamento";
@@ -1676,6 +1678,11 @@
 "chat.attach.gif" = "GIF";
 "chat.attach.sticker" = "Autocolante";
 "chat.attach.location" = "Localização";
+"chat.attach.buzz" = "Abanão";
+"chat.buzz.sent" = "Enviaste um abanão";
+"chat.buzz.received" = "%@ enviou-te um abanão";
+"chat.buzz.cooldown" = "Espera um pouco antes de enviar outro abanão";
+"chat.buzz.blocked" = "Esta pessoa não aceita abanões";
 "chat.giphy.searchGif" = "Procurar GIFs";
 "chat.giphy.searchSticker" = "Procurar autocolantes";
 "chat.giphy.recents" = "Recentes";
@@ -3711,6 +3718,7 @@
 "notification.chatReaction.single" = "Reagiu com %@ à tua mensagem";
 "notification.chatReaction.singleQuoted" = "Reagiu com %@ à tua mensagem \"%@\"";
 "notification.chatReaction.multiple" = "Reagiu com %@ às tuas mensagens";
+"notification.chatBuzz.single" = "Enviou-te um abanão";
 "notification.gentleReminder.title" = "Momentos";
 "notification.gentleReminder.body.neutral_day" = "Partilha algo do teu dia, se te apetecer.";
 "notification.gentleReminder.body.neutral_available" = "Se hoje te apetecer partilhar algo, o Moments está aqui.";

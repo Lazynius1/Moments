@@ -1,5 +1,6 @@
 import Foundation
 import FirebaseAuth
+import FirebaseFirestore
 import Combine
 import Photos
 import PhotosUI
@@ -84,10 +85,14 @@ class EnhancedChatViewModel: ObservableObject {
     @Published var isLoadingMore = false
     @Published var canLoadMore = true
     @Published private(set) var forwardingPreferences: [String: Bool] = [:]
+    @Published private(set) var buzzPreferences: [String: Bool] = [:]
     /// Fuente de verdad para pintar reacciones al instante (SwiftUI no siempre detecta cambios en `message.reactions`).
     @Published private(set) var liveReactionOverlays: [String: [String: [String]]] = [:]
+    @Published var latestBuzzEvent: ChatBuzzEvent?
+    @Published private(set) var buzzEvents: [ChatBuzzEvent] = []
     private var historicalMessages: [EnhancedMessage] = []
     private var realTimeMessages: [EnhancedMessage] = []
+    private var seenBuzzEventIds = Set<String>()
     
     let conversation: Conversation
     let currentUserId: String
@@ -106,10 +111,11 @@ class EnhancedChatViewModel: ObservableObject {
         self.conversation = conversation
         self.currentUserId = Auth.auth().currentUser?.uid ?? ""
         self.forwardingPreferences = conversation.forwardingPreferences ?? [:]
+        self.buzzPreferences = conversation.buzzPreferences ?? [:]
         
         // ✅ Configurar listener para actualizaciones de estado locales
         setupLocalStatusListener()
-        setupForwardingPreferenceListener()
+        setupConversationPreferenceListener()
         refreshTypingIndicatorPreference()
     }
     
@@ -154,7 +160,7 @@ class EnhancedChatViewModel: ObservableObject {
         }
     }
 
-    private func setupForwardingPreferenceListener() {
+    private func setupConversationPreferenceListener() {
         NotificationCenter.default.addObserver(
             forName: NSNotification.Name("ConversationForwardingPreferenceChanged"),
             object: nil,
@@ -174,6 +180,34 @@ class EnhancedChatViewModel: ObservableObject {
                 self.forwardingPreferences = preferences
             }
         }
+
+        NotificationCenter.default.addObserver(
+            forName: NSNotification.Name("ConversationBuzzPreferenceChanged"),
+            object: nil,
+            queue: .main
+        ) { [weak self] notification in
+            guard let self,
+                  let userInfo = notification.userInfo,
+                  let conversationId = userInfo["conversationId"] as? String,
+                  conversationId == self.conversation.id else { return }
+
+            if let userId = userInfo["userId"] as? String,
+               let allowsBuzz = userInfo["allowsBuzz"] as? Bool {
+                var updated = self.buzzPreferences
+                updated[userId] = allowsBuzz
+                self.buzzPreferences = updated
+            } else if let preferences = userInfo["buzzPreferences"] as? [String: Bool] {
+                self.buzzPreferences = preferences
+            }
+        }
+    }
+
+    var canSendBuzz: Bool {
+        ChatMessagePolicy.canSendBuzz(
+            participants: conversation.participants,
+            currentUserId: currentUserId,
+            buzzPreferences: buzzPreferences
+        )
     }
 
     func refreshForwardingPreference() {
@@ -798,9 +832,25 @@ class EnhancedChatViewModel: ObservableObject {
             }
         }
 
-        chatService.listenToConversationForwardingPreferences(conversationId: conversationId) { [weak self] prefs in
+        chatService.listenToConversationForwardingPreferences(conversationId: conversationId) { [weak self] forwarding, buzz in
             DispatchQueue.main.async {
-                self?.forwardingPreferences = prefs
+                self?.forwardingPreferences = forwarding
+                self?.buzzPreferences = buzz
+            }
+        }
+
+        chatService.listenToBuzzEvents(conversationId: conversationId) { [weak self] event, isInitialSnapshot in
+            Task { @MainActor in
+                guard let self else { return }
+                guard self.seenBuzzEventIds.insert(event.id).inserted else { return }
+                self.buzzEvents.append(event)
+                self.buzzEvents.sort { $0.createdAt < $1.createdAt }
+                if let momentsViewModel = self as? MomentsChatViewModel {
+                    momentsViewModel.syncMessagePresentation()
+                }
+                if !isInitialSnapshot {
+                    self.latestBuzzEvent = event
+                }
             }
         }
 
@@ -819,6 +869,32 @@ class EnhancedChatViewModel: ObservableObject {
         typingUsersCancellable = nil
         typingUsers = []
         cancellables.removeAll()
+    }
+
+    func sendBuzz(completion: @escaping (Result<Void, Error>) -> Void) {
+        guard canSendBuzz else {
+            completion(.failure(NSError(
+                domain: "ChatBuzz",
+                code: 2,
+                userInfo: [NSLocalizedDescriptionKey: NSLocalizedString("chat.buzz.blocked", comment: "Buzz blocked by recipient")]
+            )))
+            return
+        }
+
+        guard let conversationId = conversation.id, !conversationId.isEmpty else {
+            completion(.failure(NSError(
+                domain: "ChatBuzz",
+                code: 1,
+                userInfo: [NSLocalizedDescriptionKey: "ID de conversación no válido"]
+            )))
+            return
+        }
+
+        chatService.sendBuzz(
+            conversationId: conversationId,
+            senderId: currentUserId,
+            completion: completion
+        )
     }
     
     // ✅ NUEVA: Cleanup cuando se destruye el ViewModel

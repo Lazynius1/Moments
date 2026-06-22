@@ -828,6 +828,8 @@
 "conversationSettings.typingIndicator.desc" = "Si lo desactivas, tampoco verás cuándo la otra persona está escribiendo.";
 "conversationSettings.privacy.messagePreview.title" = "Mostrar vista previa";
 "conversationSettings.privacy.messagePreview.description" = "Muestra el texto del mensaje en las notificaciones y en la lista de conversaciones.";
+"conversationSettings.privacy.buzz.title" = "Zumbidos";
+"conversationSettings.privacy.buzz.description" = "Si lo desactivas, la otra persona no podrá enviarte zumbidos en este chat.";
 "conversationSettings.privacy.readReceipts.title" = "Confirmación de lectura";
 "conversationSettings.privacy.readReceipts.description" = "Si desactivas el 'visto' en este chat, no podrás ver cuándo la otra persona lee tus mensajes.";
 "conversationSettings.privacy.forwarding.title" = "Permitir reenvío";
@@ -902,6 +904,11 @@
 "chat.attach.gif" = "GIF";
 "chat.attach.sticker" = "Sticker";
 "chat.attach.location" = "Ubicación";
+"chat.attach.buzz" = "Zumbido";
+"chat.buzz.sent" = "Has enviado un zumbido";
+"chat.buzz.received" = "%@ te ha enviado un zumbido";
+"chat.buzz.cooldown" = "Espera un poco antes de enviar otro zumbido";
+"chat.buzz.blocked" = "Esta persona no acepta zumbidos";
 "chat.giphy.searchGif" = "Buscar GIFs";
 "chat.giphy.searchSticker" = "Buscar stickers";
 "chat.giphy.recents" = "Recientes";
@@ -2946,6 +2953,7 @@
 "notification.chatReaction.single" = "Reaccionó con %@ a tu mensaje";
 "notification.chatReaction.singleQuoted" = "Reaccionó con %@ a tu mensaje \"%@\"";
 "notification.chatReaction.multiple" = "Reaccionó con %@ a tus mensajes";
+"notification.chatBuzz.single" = "Te envió un zumbido";
 "notification.gentleReminder.title" = "Moments";
 "notification.gentleReminder.body.neutral_day" = "Comparte algo de tu día, si te apetece.";
 "notification.gentleReminder.body.neutral_available" = "Si hoy te apetece compartir algo, Moments está aquí.";

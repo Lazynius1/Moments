@@ -30,9 +30,15 @@ private struct ChatStoryRoute: Identifiable {
 private enum ChatScrollTarget: Equatable {
     case bottom(messageId: String)
     case firstUnread(messageId: String)
+    case highlightedMessage(messageId: String)
 
     var isFirstUnread: Bool {
         if case .firstUnread = self { return true }
+        return false
+    }
+
+    var pinsToBottom: Bool {
+        if case .bottom = self { return true }
         return false
     }
 }
@@ -63,6 +69,8 @@ struct GlassmorphicChatView: View {
     @State private var showingReportSheet = false
     @State private var highlightedMessageIds: Set<String> = []
     @State private var pendingReactionHighlightIds: Set<String> = []
+    @State private var notificationOpenIntent: ChatNavigationIntentStore.OpenIntent?
+    @State private var didProcessNotificationBuzz = false
     @State private var isPinnedToBottom = true
     @State private var pendingIncomingMessages = 0
     @State private var unreadDividerMessageId: String? = nil
@@ -70,17 +78,24 @@ struct GlassmorphicChatView: View {
     @State private var hasCompletedInitialScroll = false
     @State private var initialScrollTask: Task<Void, Never>? = nil
     @State private var frozenInitialScrollTarget: ChatScrollTarget? = nil
+    @State private var chatScrollPosition = ScrollPosition(edge: .bottom)
     @State private var isSearchVisible = false
     @State private var searchQuery: String = ""
     @State private var searchMatchIds: [String] = []
     @State private var currentSearchMatchIndex: Int = 0
     @State private var pendingSearchTargetId: String? = nil
+    @State private var buzzShakeProgress: CGFloat = 1
+    @State private var buzzShakeAmplitude: CGFloat = 18
+    @State private var buzzToastText: String?
+    @State private var buzzToastDismissTask: Task<Void, Never>?
+    @State private var lastBuzzSentAt: Date?
     @State private var otherUserStatus: OnlineStatus = .offline
     @State private var otherUserLastSeen: Date?
     @State private var statusListener: ListenerRegistration?
     @FocusState private var isTextFieldFocused: Bool
     @Environment(\.colorScheme) var colorScheme
     @Environment(\.dismiss) var dismiss
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     private let privacyService = PrivacyService()
     private let firestoreService = FirestoreService()
     
@@ -144,9 +159,8 @@ struct GlassmorphicChatView: View {
         )
     }
 
-    init(conversation: Conversation, pendingHighlightMessageIds: Set<String> = []) {
+    init(conversation: Conversation) {
         _viewModel = StateObject(wrappedValue: MomentsChatViewModel(conversation: conversation))
-        _pendingReactionHighlightIds = State(initialValue: pendingHighlightMessageIds)
     }
     
     // ✅ REFACTOR: Dividido en variables separadas para evitar el error del compilador (timeout AST)
@@ -347,6 +361,15 @@ struct GlassmorphicChatView: View {
         .onChange(of: searchQuery) { _, _ in
             updateSearchMatches()
         }
+        .onChange(of: viewModel.latestBuzzEvent?.id) { _, _ in
+            guard let event = viewModel.latestBuzzEvent,
+                  event.senderId != viewModel.currentUserId else { return }
+            let message = String(
+                format: NSLocalizedString("chat.buzz.received", comment: "Incoming buzz toast"),
+                otherParticipantDisplayName
+            )
+            triggerBuzzEffect(text: message, isLocal: false, showsToast: false)
+        }
         .onChange(of: messageMenuSelection) { _, newValue in
             if let message = newValue?.message {
                 highlightedMessageIds = [message.id]
@@ -388,8 +411,12 @@ struct GlassmorphicChatView: View {
                 ChatAttachmentMenuPopover(
                     isPresented: $activeAttachmentSheet,
                     anchorFrame: plusButtonAnchorFrame,
+                    canSendBuzz: viewModel.canSendBuzz,
                     onOpenCamera: {
                         showEnhancedCamera = true
+                    },
+                    onSendBuzz: {
+                        sendBuzzFromAttachmentMenu()
                     }
                 )
                 .transition(.opacity)
@@ -682,7 +709,7 @@ struct GlassmorphicChatView: View {
     
     // ✅ REFACTORIZADO: Sección de lista de mensajes
     private var messagesListSection: some View {
-            ScrollViewReader { proxy in
+        ScrollViewReader { proxy in
             ScrollView {
                 LazyVStack(spacing: 2) {
                     // ✅ TRIGGER DE PAGINACIÓN
@@ -713,7 +740,13 @@ struct GlassmorphicChatView: View {
                                     .padding(.vertical, 6)
                             }
                             renderMessageItem(item, in: viewModel.messages, proxy: proxy)
-                                .id("\(item.id)-\(reactionIdentitySuffix(for: item))")
+                                .id(item.id)
+                        case .buzz(let event):
+                            ChatBuzzTimelineEventRow(
+                                text: buzzTimelineText(for: event),
+                                isOutgoing: event.senderId == viewModel.currentUserId
+                            )
+                                .id("buzz-\(event.id)")
                         }
                     }
                     
@@ -741,6 +774,8 @@ struct GlassmorphicChatView: View {
                     messageRowFrames.merge(frames, uniquingKeysWith: { $1 })
                 }
             }
+            .defaultScrollAnchor(.bottom)
+            .scrollPosition($chatScrollPosition, anchor: .bottom)
             .scrollContentBackground(.hidden)
             .coordinateSpace(name: "chatScroll")
             .chatScrollEdgeEffect()
@@ -793,10 +828,6 @@ struct GlassmorphicChatView: View {
                 guard !isEmpty else { return }
                 scheduleInitialScroll(proxy: proxy)
             }
-            .onChange(of: viewModel.messages.count) { _, newCount in
-                guard newCount > 0 else { return }
-                scheduleInitialScroll(proxy: proxy)
-            }
             .onChange(of: viewModel.messages.last?.id) { _, lastMessageId in
                 guard let lastMessageId, hasCompletedInitialScroll else { return }
                 let isLastMessageMine = viewModel.messages.last?.senderId == viewModel.currentUserId
@@ -817,9 +848,21 @@ struct GlassmorphicChatView: View {
                     }
                 }
             }
-            .onChange(of: chatMediaLayoutSignature) { _, _ in
-                guard hasCompletedInitialScroll, isPinnedToBottom, !viewModel.isLoadingMore else { return }
-                scrollToBottom(proxy: proxy, animated: false)
+            .onChange(of: viewModel.latestBuzzEvent?.id) { _, buzzId in
+                guard let buzzId, hasCompletedInitialScroll else { return }
+                let isMine = viewModel.latestBuzzEvent?.senderId == viewModel.currentUserId
+
+                if isMine || isPinnedToBottom {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.08) {
+                        withAnimation(.spring(response: 0.36, dampingFraction: 0.86)) {
+                            proxy.scrollTo("buzz-\(buzzId)", anchor: .center)
+                        }
+                    }
+                    pendingIncomingMessages = 0
+                    isPinnedToBottom = true
+                } else {
+                    pendingIncomingMessages += 1
+                }
             }
             .onChange(of: viewModel.typingUsers.isEmpty) { _, isEmpty in
                 guard hasCompletedInitialScroll, isPinnedToBottom, !isEmpty else { return }
@@ -835,6 +878,10 @@ struct GlassmorphicChatView: View {
                 highlightMessages(ids, proxy: proxy)
                 pendingReactionHighlightIds.removeAll()
             }
+            .onChange(of: viewModel.buzzEvents.map(\.id)) { _, _ in
+                guard hasCompletedInitialScroll else { return }
+                processPendingBuzz(using: proxy)
+            }
             .onReceive(NotificationCenter.default.publisher(for: .chatMessageReactionHighlight)) { notification in
                 guard
                     let conversationId = notification.userInfo?["conversationId"] as? String,
@@ -842,6 +889,17 @@ struct GlassmorphicChatView: View {
                     let messageId = notification.userInfo?["messageId"] as? String
                 else { return }
                 highlightMessages([messageId], proxy: proxy)
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .chatBuzzHighlight)) { notification in
+                guard
+                    let conversationId = notification.userInfo?["conversationId"] as? String,
+                    conversationId == viewModel.conversation.id
+                else { return }
+
+                reloadNotificationOpenIntent()
+                if hasCompletedInitialScroll {
+                    processPendingBuzz(using: proxy)
+                }
             }
             .onChange(of: isTextFieldFocused) { _, focused in
                 guard focused, hasCompletedInitialScroll else { return }
@@ -891,6 +949,21 @@ struct GlassmorphicChatView: View {
         ZStack {
             ChatGlassmorphicBackground(adaptiveColors: adaptiveColors)
             mainChatStack
+                .modifier(ChatBuzzShakeEffect(
+                    progress: buzzShakeProgress,
+                    amplitude: reduceMotion ? 0 : buzzShakeAmplitude
+                ))
+
+            if let buzzToastText {
+                VStack {
+                    ChatBuzzToast(text: buzzToastText)
+                        .padding(.top, 10)
+                    Spacer()
+                }
+                .padding(.horizontal, 18)
+                .transition(.move(edge: .top).combined(with: .opacity))
+                .zIndex(45)
+            }
 
             GeometryReader { proxy in
                 ChatMessageContextMenuOverlay(
@@ -989,6 +1062,72 @@ struct GlassmorphicChatView: View {
         viewModel.sendTextMessage(trimmedText, replyTo: media.id)
         DispatchQueue.main.async {
             completion(.success(()))
+        }
+    }
+
+    private func sendBuzzFromAttachmentMenu() {
+        let now = Date()
+        if let lastBuzzSentAt, now.timeIntervalSince(lastBuzzSentAt) < 45 {
+            showBuzzToast(NSLocalizedString("chat.buzz.cooldown", comment: "Buzz cooldown"))
+            return
+        }
+
+        lastBuzzSentAt = now
+        viewModel.sendBuzz { result in
+            DispatchQueue.main.async {
+                switch result {
+                case .success:
+                    triggerBuzzEffect(
+                        text: NSLocalizedString("chat.buzz.sent", comment: "Sent buzz toast"),
+                        isLocal: true,
+                        showsToast: false
+                    )
+                case .failure(let error):
+                    lastBuzzSentAt = nil
+                    showBuzzToast(error.localizedDescription)
+                }
+            }
+        }
+    }
+
+    private func buzzTimelineText(for event: ChatBuzzEvent) -> String {
+        if event.senderId == viewModel.currentUserId {
+            return NSLocalizedString("chat.buzz.sent", comment: "Sent buzz timeline event")
+        }
+
+        return String(
+            format: NSLocalizedString("chat.buzz.received", comment: "Incoming buzz timeline event"),
+            otherParticipantDisplayName
+        )
+    }
+
+    private func triggerBuzzEffect(text: String, isLocal: Bool, showsToast: Bool = true) {
+        if showsToast {
+            showBuzzToast(text)
+        }
+        guard !isLocal else { return }
+
+        buzzShakeAmplitude = 24
+        HapticManager.shared.chatBuzzReceived(reduceMotion: reduceMotion)
+        guard !reduceMotion else { return }
+        buzzShakeProgress = 0
+        withAnimation(.linear(duration: 1.12)) {
+            buzzShakeProgress = 1
+        }
+    }
+
+    private func showBuzzToast(_ text: String) {
+        buzzToastDismissTask?.cancel()
+        withAnimation(.spring(response: 0.32, dampingFraction: 0.86)) {
+            buzzToastText = text
+        }
+
+        buzzToastDismissTask = Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 1_900_000_000)
+            guard !Task.isCancelled else { return }
+            withAnimation(.spring(response: 0.28, dampingFraction: 0.9)) {
+                buzzToastText = nil
+            }
         }
     }
 
@@ -1335,11 +1474,14 @@ struct GlassmorphicChatView: View {
         initialScrollTask?.cancel()
         initialScrollTask = nil
         frozenInitialScrollTarget = nil
+        chatScrollPosition = ScrollPosition(edge: .bottom)
         hasCompletedInitialScroll = false
+        didProcessNotificationBuzz = false
         isPinnedToBottom = true
         pendingIncomingMessages = 0
         unreadDividerInitialized = false
         unreadDividerMessageId = nil
+        reloadNotificationOpenIntent()
         viewModel.isChatVisible = true
         viewModel.startListening()
         Task {
@@ -1357,6 +1499,9 @@ struct GlassmorphicChatView: View {
     private func onDisappearActions() {
         initialScrollTask?.cancel()
         initialScrollTask = nil
+        buzzToastDismissTask?.cancel()
+        buzzToastDismissTask = nil
+        buzzToastText = nil
         viewModel.isChatVisible = false  // ✅ Marcar chat como no visible
         
         viewModel.stopListening()
@@ -1571,25 +1716,57 @@ struct GlassmorphicChatView: View {
 // ✅ NUEVO: Función para manejar navegación al momento desde el chat
 extension GlassmorphicChatView {
     private func resolveInitialScrollTarget() -> ChatScrollTarget? {
+        reloadNotificationOpenIntent()
+
+        // Push de reacción: anclar al mensaje concreto (Telegram guarda el messageId de la notificación).
+        if let highlightId = notificationOpenIntent?.highlightMessageIds.first,
+           viewModel.messages.contains(where: { $0.id == highlightId }) {
+            return .highlightedMessage(messageId: highlightId)
+        }
+
+        // Estándar WA / IG / Telegram: primer no leído con divisor encima.
         if let unreadId = viewModel.messages.first(where: {
             !$0.isRead && $0.senderId != viewModel.currentUserId
         })?.id {
             return .firstUnread(messageId: unreadId)
         }
+
+        // Sin pendientes: último mensaje.
         if let lastId = viewModel.messages.last?.id {
             return .bottom(messageId: lastId)
         }
         return nil
     }
 
+    private func messageRowId(containingMessageId messageId: String) -> String? {
+        for row in viewModel.chatRenderRows {
+            guard case .message(let item) = row else { continue }
+            switch item {
+            case .single(let message) where message.id == messageId:
+                return item.id
+            case .mediaCluster(let messages) where messages.contains(where: { $0.id == messageId }):
+                return item.id
+            default:
+                continue
+            }
+        }
+        return messageId
+    }
+
     private func scrollToTarget(_ target: ChatScrollTarget, proxy: ScrollViewProxy, animated: Bool) {
         let performScroll = {
             switch target {
-            case .bottom(let messageId):
-                proxy.scrollTo(messageId, anchor: .bottom)
+            case .bottom:
+                chatScrollPosition.scrollTo(edge: .bottom)
                 proxy.scrollTo("chat-bottom-anchor", anchor: .bottom)
             case .firstUnread(let messageId):
-                proxy.scrollTo(messageId, anchor: .top)
+                let rowId = messageRowId(containingMessageId: messageId) ?? messageId
+                chatScrollPosition.scrollTo(id: rowId, anchor: .top)
+                proxy.scrollTo(rowId, anchor: .top)
+            case .highlightedMessage(let messageId):
+                let rowId = messageRowId(containingMessageId: messageId) ?? messageId
+                chatScrollPosition.scrollTo(id: rowId, anchor: .center)
+                proxy.scrollTo(rowId, anchor: .center)
             }
         }
 
@@ -1603,17 +1780,28 @@ extension GlassmorphicChatView {
     }
 
     private func scrollToBottom(proxy: ScrollViewProxy, animated: Bool) {
-        guard let lastId = viewModel.messages.last?.id else {
-            if animated {
-                withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-                    proxy.scrollTo("chat-bottom-anchor", anchor: .bottom)
-                }
-            } else {
-                proxy.scrollTo("chat-bottom-anchor", anchor: .bottom)
-            }
-            return
+        let performScroll = {
+            chatScrollPosition.scrollTo(edge: .bottom)
+            proxy.scrollTo("chat-bottom-anchor", anchor: .bottom)
         }
-        scrollToTarget(.bottom(messageId: lastId), proxy: proxy, animated: animated)
+
+        if animated {
+            withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                performScroll()
+            }
+        } else {
+            performScroll()
+        }
+    }
+
+    private func finishInitialOpen(using proxy: ScrollViewProxy, pinsToBottom: Bool) {
+        hasCompletedInitialScroll = true
+        isPinnedToBottom = pinsToBottom
+        viewModel.prefetchUnresolvedMediaIfNeeded()
+        processPendingReactionHighlights(using: proxy)
+        processPendingBuzz(using: proxy)
+        scheduleNotificationBuzzRetries(using: proxy)
+        clearNotificationOpenIntentIfFinished()
     }
 
     private func scheduleInitialScroll(proxy: ScrollViewProxy) {
@@ -1628,13 +1816,19 @@ extension GlassmorphicChatView {
         }
         guard let target = frozenInitialScrollTarget else { return }
 
+        // Sin pendientes: el anclaje inferior nativo ya muestra el final — sin scroll programático.
+        if target.pinsToBottom {
+            finishInitialOpen(using: proxy, pinsToBottom: true)
+            return
+        }
+
         if target.isFirstUnread {
             isPinnedToBottom = false
         }
 
         initialScrollTask = Task { @MainActor in
             defer { initialScrollTask = nil }
-            let delays: [UInt64] = [0, 80_000_000, 200_000_000, 450_000_000, 700_000_000]
+            let delays: [UInt64] = [0, 120_000_000, 320_000_000]
             for delay in delays {
                 if Task.isCancelled { return }
                 if delay > 0 {
@@ -1645,11 +1839,39 @@ extension GlassmorphicChatView {
                 scrollToTarget(target, proxy: proxy, animated: false)
             }
             guard !Task.isCancelled else { return }
-            hasCompletedInitialScroll = true
-            isPinnedToBottom = !target.isFirstUnread
-            viewModel.prefetchUnresolvedMediaIfNeeded()
-            processPendingReactionHighlights(using: proxy)
+            finishInitialOpen(using: proxy, pinsToBottom: target.pinsToBottom)
         }
+    }
+
+    private func scheduleNotificationBuzzRetries(using proxy: ScrollViewProxy) {
+        guard notificationOpenIntent?.playBuzzOnOpen == true, !didProcessNotificationBuzz else { return }
+
+        Task { @MainActor in
+            let retryDelays: [UInt64] = [250_000_000, 700_000_000, 1_500_000_000, 2_500_000_000]
+            for delay in retryDelays {
+                try? await Task.sleep(nanoseconds: delay)
+                guard !didProcessNotificationBuzz else { return }
+                reloadNotificationOpenIntent()
+                processPendingBuzz(using: proxy)
+            }
+        }
+    }
+
+    private func reloadNotificationOpenIntent() {
+        guard let conversationId = viewModel.conversation.id else { return }
+        notificationOpenIntent = ChatNavigationIntentStore.peek(for: conversationId)
+    }
+
+    private func clearNotificationOpenIntentIfFinished() {
+        guard let conversationId = viewModel.conversation.id else { return }
+        guard let intent = notificationOpenIntent else { return }
+
+        let highlightsPending = !intent.highlightMessageIds.isEmpty
+        let buzzPending = intent.playBuzzOnOpen && !didProcessNotificationBuzz
+        guard !highlightsPending, !buzzPending else { return }
+
+        ChatNavigationIntentStore.clear(for: conversationId)
+        notificationOpenIntent = nil
     }
 
     private func initializeUnreadDividerIfNeeded() {
@@ -1747,8 +1969,10 @@ extension GlassmorphicChatView {
         guard !messageIds.isEmpty else { return }
 
         if scroll, let proxy, let targetId = messageIds.first {
+            let rowId = messageRowId(containingMessageId: targetId) ?? targetId
             withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
-                proxy.scrollTo(targetId, anchor: .center)
+                chatScrollPosition.scrollTo(id: rowId, anchor: .center)
+                proxy.scrollTo(rowId, anchor: .center)
             }
         }
 
@@ -1764,10 +1988,78 @@ extension GlassmorphicChatView {
     }
 
     private func processPendingReactionHighlights(using proxy: ScrollViewProxy) {
-        guard !pendingReactionHighlightIds.isEmpty else { return }
-        let ids = pendingReactionHighlightIds
+        if case .highlightedMessage = frozenInitialScrollTarget {
+            if let conversationId = viewModel.conversation.id {
+                ChatNavigationIntentStore.clearHighlights(for: conversationId)
+                reloadNotificationOpenIntent()
+                clearNotificationOpenIntentIfFinished()
+            }
+            return
+        }
+
+        var ids = pendingReactionHighlightIds
+        if let stored = notificationOpenIntent?.highlightMessageIds {
+            ids.formUnion(stored)
+        }
+        guard !ids.isEmpty else { return }
         pendingReactionHighlightIds.removeAll()
         highlightMessages(ids, proxy: proxy)
+
+        if let conversationId = viewModel.conversation.id {
+            ChatNavigationIntentStore.clearHighlights(for: conversationId)
+            reloadNotificationOpenIntent()
+            clearNotificationOpenIntentIfFinished()
+        }
+    }
+
+    private func processPendingBuzz(using proxy: ScrollViewProxy) {
+        guard !didProcessNotificationBuzz else { return }
+        reloadNotificationOpenIntent()
+        guard let intent = notificationOpenIntent, intent.playBuzzOnOpen else { return }
+        guard let event = resolvePendingBuzzEvent(for: intent) else { return }
+        guard event.senderId != viewModel.currentUserId else {
+            didProcessNotificationBuzz = true
+            clearNotificationOpenIntentIfFinished()
+            return
+        }
+
+        didProcessNotificationBuzz = true
+
+        let message = String(
+            format: NSLocalizedString("chat.buzz.received", comment: "Incoming buzz toast"),
+            otherParticipantDisplayName
+        )
+        triggerBuzzEffect(text: message, isLocal: false, showsToast: false)
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+            withAnimation(.spring(response: 0.4, dampingFraction: 0.82)) {
+                proxy.scrollTo("buzz-\(event.id)", anchor: .center)
+            }
+        }
+
+        if let conversationId = viewModel.conversation.id {
+            ChatNavigationIntentStore.clear(for: conversationId)
+            notificationOpenIntent = nil
+        }
+    }
+
+    private func resolvePendingBuzzEvent(
+        for intent: ChatNavigationIntentStore.OpenIntent
+    ) -> ChatBuzzEvent? {
+        if let buzzEventId = intent.buzzEventId,
+           !buzzEventId.isEmpty,
+           let event = viewModel.buzzEvents.first(where: { $0.id == buzzEventId }) {
+            return event
+        }
+
+        if intent.buzzEventId != nil {
+            return nil
+        }
+
+        let recentCutoff = Date().addingTimeInterval(-300)
+        return viewModel.buzzEvents
+            .filter { $0.senderId != viewModel.currentUserId && $0.createdAt >= recentCutoff }
+            .max(by: { $0.createdAt < $1.createdAt })
     }
     
     private func handleMomentNavigationFromChat(message: EnhancedMessage) {
@@ -1833,6 +2125,18 @@ class MomentsChatViewModel: EnhancedChatViewModel {
     @Published private(set) var chatRenderRows: [ChatRenderRow] = []
     @Published var messagesSentThisSession: Int = 0
     private let chatService = ChatService.shared // ✅ Cambiar a Shared
+
+    private enum TimelineEntry {
+        case message(EnhancedMessage)
+        case buzz(ChatBuzzEvent)
+
+        var timestamp: Date {
+            switch self {
+            case .message(let message): return message.timestamp
+            case .buzz(let event): return event.createdAt
+            }
+        }
+    }
     
     override init(conversation: Conversation) {
         super.init(conversation: conversation)
@@ -1849,11 +2153,42 @@ class MomentsChatViewModel: EnhancedChatViewModel {
             .sorted { $0.0 < $1.0 }
 
         var rows: [ChatRenderRow] = []
-        for group in groupedMessages {
-            rows.append(.header(group.0))
-            for item in ClusterMessageGrouper.group(group.1) {
-                rows.append(.message(item))
+        let dayKeys = Set(messages.map { calendar.startOfDay(for: $0.timestamp) })
+            .union(buzzEvents.map { calendar.startOfDay(for: $0.createdAt) })
+            .sorted()
+
+        for day in dayKeys {
+            rows.append(.header(day))
+
+            let messageEntries = messages
+                .filter { calendar.isDate($0.timestamp, inSameDayAs: day) }
+                .map(TimelineEntry.message)
+            let buzzEntries = buzzEvents
+                .filter { calendar.isDate($0.createdAt, inSameDayAs: day) }
+                .map(TimelineEntry.buzz)
+            let entries = (messageEntries + buzzEntries).sorted { lhs, rhs in
+                lhs.timestamp < rhs.timestamp
             }
+
+            var pendingMessages: [EnhancedMessage] = []
+            func flushPendingMessages() {
+                guard !pendingMessages.isEmpty else { return }
+                for item in ClusterMessageGrouper.group(pendingMessages) {
+                    rows.append(.message(item))
+                }
+                pendingMessages.removeAll()
+            }
+
+            for entry in entries {
+                switch entry {
+                case .message(let message):
+                    pendingMessages.append(message)
+                case .buzz(let event):
+                    flushPendingMessages()
+                    rows.append(.buzz(event))
+                }
+            }
+            flushPendingMessages()
         }
         chatRenderRows = rows
     }

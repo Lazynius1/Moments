@@ -6078,6 +6078,147 @@ exports.onMessageReactionAdded = onDocumentCreated(
   }
 );
 
+// 📳 ZUMBIDOS EN CHAT — push al otro participante (respeta mute del chat y buzzPreferences).
+exports.onBuzzEventCreated = onDocumentCreated(
+  'conversations/{conversationId}/buzzEvents/{buzzId}',
+  async (event) => {
+    const snap = event.data;
+    const { conversationId, buzzId } = event.params;
+    const buzz = snap.data();
+
+    try {
+      if (!buzz || buzz.type !== 'buzz') return null;
+
+      const senderId = typeof buzz.senderId === 'string' ? buzz.senderId : '';
+      if (!senderId) return null;
+
+      const buzzRef = admin.firestore().doc(`conversations/${conversationId}/buzzEvents/${buzzId}`);
+      const handled = await admin.firestore().runTransaction(async (tx) => {
+        const buzzSnap = await tx.get(buzzRef);
+        if (!buzzSnap.exists) return true;
+        if (buzzSnap.get('processed') === true) return true;
+        return false;
+      });
+      if (handled) return null;
+
+      const conversationDoc = await admin.firestore().doc(`conversations/${conversationId}`).get();
+      if (!conversationDoc.exists) return null;
+
+      const conversationData = conversationDoc.data();
+      const participants = Array.isArray(conversationData.participants) ? conversationData.participants : [];
+      if (!participants.includes(senderId)) return null;
+
+      const receivers = participants.filter((participantId) => participantId !== senderId);
+      if (receivers.length === 0) return null;
+
+      const senderDoc = await admin.firestore().doc(`users/${senderId}`).get();
+      if (!senderDoc.exists) return null;
+
+      const senderData = senderDoc.data();
+      if (!validateUserData(senderData) || !senderData.isActive) return null;
+
+      const receiverRefs = receivers.map((receiverId) => admin.firestore().doc(`users/${receiverId}`));
+      const receiverDocs = await admin.firestore().getAll(...receiverRefs);
+
+      const buzzPreferences = conversationData.buzzPreferences && typeof conversationData.buzzPreferences === 'object'
+        ? conversationData.buzzPreferences
+        : {};
+      const mutedByUserIds = Array.isArray(conversationData.mutedByUserIds)
+        ? conversationData.mutedByUserIds
+        : [];
+
+      await Promise.all(receiverDocs.map(async (receiverDoc) => {
+        if (!receiverDoc.exists) return null;
+
+        const receiverId = receiverDoc.id;
+        const receiverData = receiverDoc.data();
+
+        if (!validateUserData(receiverData) || !receiverData.isActive) return null;
+
+        if (buzzPreferences[receiverId] === false) return null;
+
+        const isMutedForReceiver =
+          mutedByUserIds.includes(receiverId) ||
+          (conversationData.isMuted === true && conversationData.mutedBy === receiverId);
+        if (isMutedForReceiver) return null;
+
+        const isSilencedByMuteSettings = shouldSilenceNotificationForUser(receiverData, {
+          senderId,
+          candidateTexts: ['buzz', 'zumbido']
+        });
+        if (isSilencedByMuteSettings) return null;
+
+        if (!receiverData.fcmToken || isDoNotDisturbActive(receiverData)) return null;
+        if (!notificationTypeEnabled(receiverData, 'chatBuzz')) return null;
+
+        const counts = await getUnreadCounts(receiverId, {
+          type: 'chat_buzz',
+          conversationId
+        });
+
+        const baseData = {
+          type: 'chat_buzz',
+          conversationId,
+          buzzEventId: buzzId,
+          senderId,
+          targetType: 'conversation',
+          targetId: conversationId,
+          senderUsername: senderData.username || '',
+          senderProfileImage: senderData.profileImagePath || '',
+          unreadMessages: String(counts.unreadMessages),
+          unreadNotifications: String(counts.unreadNotifications),
+          unreadEchoes: String(counts.unreadEchoes),
+          unreadTags: String(counts.unreadTags)
+        };
+
+        const apnsPayload = {
+          aps: {
+            alert: {
+              title: senderData.username || 'Moments',
+              'loc-key': 'notification.chatBuzz.single',
+              'loc-args': []
+            },
+            badge: Math.max(1, counts.unreadNotifications + counts.unreadMessages),
+            sound: 'default',
+            'mutable-content': 0,
+            'thread-id': `conversation_${conversationId}`
+          }
+        };
+
+        const notificationMessage = {
+          token: receiverData.fcmToken,
+          data: baseData,
+          apns: {
+            headers: {
+              'apns-collapse-id': apnsCollapseId('bz', conversationId)
+            },
+            payload: apnsPayload
+          }
+        };
+
+        try {
+          await admin.messaging().send(notificationMessage);
+        } catch (error) {
+          if (error.code === 'messaging/registration-token-not-registered') {
+            await removeInvalidToken(receiverId, receiverData.fcmToken);
+          }
+        }
+
+        return null;
+      }));
+
+      await buzzRef.update({
+        processed: true,
+        processedAt: admin.firestore.FieldValue.serverTimestamp()
+      });
+    } catch (error) {
+      console.error('Error sending chat buzz notification:', error);
+    }
+
+    return null;
+  }
+);
+
 // 📖 REACCIONES EN HISTORIAS (1 doc por reactor; update solo notifica si cambia el emoji)
 exports.onStoryReactionAdded = onDocumentWritten('users/{userId}/stories/{storyId}/reactions/{reactionId}', async (event) => {
   const beforeSnap = event.data.before;

@@ -795,6 +795,8 @@
 "conversationSettings.typingIndicator.desc" = "Si ho desactives, tampoc veuràs quan l'altra persona està escrivint.";
 "conversationSettings.privacy.messagePreview.title" = "Mostra la vista prèvia";
 "conversationSettings.privacy.messagePreview.description" = "Mostra el text del missatge a les notificacions i a la llista de converses.";
+"conversationSettings.privacy.buzz.title" = "Brunzits";
+"conversationSettings.privacy.buzz.description" = "Si ho desactives, l'altra persona no et podrà enviar brunzits en aquest xat.";
 "conversationSettings.privacy.readReceipts.title" = "Confirmació de lectura";
 "conversationSettings.privacy.readReceipts.description" = "Si desactives el 'vist' en aquest xat, no podràs veure quan l'altra persona llegeix els teus missatges.";
 "conversationSettings.privacy.forwarding.title" = "Permetre reenviament";
@@ -867,6 +869,11 @@
 "chat.attach.gif" = "GIF";
 "chat.attach.sticker" = "Adhesiu";
 "chat.attach.location" = "Ubicació";
+"chat.attach.buzz" = "Brunzit";
+"chat.buzz.sent" = "Has enviat un brunzit";
+"chat.buzz.received" = "%@ t'ha enviat un brunzit";
+"chat.buzz.cooldown" = "Espera una mica abans d'enviar un altre brunzit";
+"chat.buzz.blocked" = "Aquesta persona no accepta brunzits";
 "chat.giphy.searchGif" = "Cerca GIFs";
 "chat.giphy.searchSticker" = "Cerca adhesius";
 "chat.giphy.recents" = "Recents";
@@ -2922,6 +2929,7 @@
 "notification.chatReaction.single" = "Ha reaccionat amb %@ al teu missatge";
 "notification.chatReaction.singleQuoted" = "Ha reaccionat amb %@ al teu missatge \"%@\"";
 "notification.chatReaction.multiple" = "Ha reaccionat amb %@ als teus missatges";
+"notification.chatBuzz.single" = "T'ha enviat un brunzit";
 "notification.gentleReminder.title" = "Moments";
 "notification.gentleReminder.body.neutral_day" = "Comparteix alguna cosa del teu dia, si et ve de gust.";
 "notification.gentleReminder.body.neutral_available" = "Si avui et ve de gust compartir alguna cosa, Moments és aquí.";

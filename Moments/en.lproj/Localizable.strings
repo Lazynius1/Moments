@@ -821,6 +821,8 @@
 
 "conversationSettings.privacy.messagePreview.title" = "Show Message Preview";
 "conversationSettings.privacy.messagePreview.description" = "Show the message text in notifications and the conversation list.";
+"conversationSettings.privacy.buzz.title" = "Buzzes";
+"conversationSettings.privacy.buzz.description" = "If you turn this off, others won't be able to buzz you in this chat.";
 "conversationSettings.privacy.readReceipts.title" = "Read Receipts";
 "conversationSettings.privacy.readReceipts.description" = "If you turn off read receipts in this chat, you won't be able to see when the other person reads your messages.";
 "conversationSettings.privacy.forwarding.title" = "Allow forwarding";
@@ -892,6 +894,11 @@
 "chat.attach.gif" = "GIF";
 "chat.attach.sticker" = "Sticker";
 "chat.attach.location" = "Location";
+"chat.attach.buzz" = "Buzz";
+"chat.buzz.sent" = "You sent a buzz";
+"chat.buzz.received" = "%@ sent you a buzz";
+"chat.buzz.cooldown" = "Wait a bit before sending another buzz";
+"chat.buzz.blocked" = "This person doesn't accept buzzes";
 "chat.giphy.searchGif" = "Search GIFs";
 "chat.giphy.searchSticker" = "Search stickers";
 "chat.giphy.recents" = "Recent";
@@ -2922,6 +2929,7 @@
 "notification.chatReaction.single" = "Reacted with %@ to your message";
 "notification.chatReaction.singleQuoted" = "Reacted with %@ to your message \"%@\"";
 "notification.chatReaction.multiple" = "Reacted with %@ to your messages";
+"notification.chatBuzz.single" = "Sent you a buzz";
 "notification.gentleReminder.title" = "Moments";
 "notification.gentleReminder.body.neutral_day" = "Share something from your day, if you feel like it.";
 "notification.gentleReminder.body.neutral_available" = "If you feel like sharing something today, Moments is here.";

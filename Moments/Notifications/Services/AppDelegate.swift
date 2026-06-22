@@ -182,6 +182,8 @@ extension AppDelegate: UNUserNotificationCenterDelegate {
             completionHandler([.badge])
         } else if userInfo["type"] as? String == "message_reaction" {
             completionHandler([.sound, .badge, .banner])
+        } else if userInfo["type"] as? String == "chat_buzz" {
+            completionHandler([.sound, .badge, .banner])
         } else {
             // Mostrar notificación normal (SOLO sonido y badge, el banner lo manejamos nosotros)
             completionHandler([.sound, .badge])

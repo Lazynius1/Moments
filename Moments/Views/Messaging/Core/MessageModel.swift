@@ -24,6 +24,8 @@ struct Conversation: Identifiable, Codable, Hashable {
 
     // ✅ Privacy: Preferencias explícitas de lectura por usuario en este chat
     var readReceiptPreferences: [String: Bool]?
+    /// Si `false`, los demás no pueden enviar zumbidos a ese usuario en este chat.
+    var buzzPreferences: [String: Bool]?
     /// Si `false`, los demás no pueden reenviar los mensajes de texto de ese usuario en este chat.
     var forwardingPreferences: [String: Bool]?
 
@@ -54,6 +56,7 @@ struct Conversation: Identifiable, Codable, Hashable {
         case conversationKeyVersion
         case wrappedKeys
         case readReceiptPreferences
+        case buzzPreferences
         case forwardingPreferences
     }
 
@@ -94,6 +97,7 @@ struct Conversation: Identifiable, Codable, Hashable {
         self.conversationKeyVersion = conversationKeyVersion
         self.wrappedKeys = wrappedKeys
         self.readReceiptPreferences = [:]
+        self.buzzPreferences = [:]
         self.forwardingPreferences = [:]
     }
 
@@ -118,6 +122,7 @@ struct Conversation: Identifiable, Codable, Hashable {
         self.conversationKeyVersion = try container.decodeIfPresent(Int.self, forKey: .conversationKeyVersion)
         self.wrappedKeys = try container.decodeIfPresent([String: WrappedConversationKey].self, forKey: .wrappedKeys)
         self.readReceiptPreferences = try container.decodeIfPresent([String: Bool].self, forKey: .readReceiptPreferences) ?? [:]
+        self.buzzPreferences = try container.decodeIfPresent([String: Bool].self, forKey: .buzzPreferences) ?? [:]
         self.forwardingPreferences = try container.decodeIfPresent([String: Bool].self, forKey: .forwardingPreferences) ?? [:]
     }
 
@@ -141,6 +146,7 @@ struct Conversation: Identifiable, Codable, Hashable {
         try container.encodeIfPresent(conversationKeyVersion, forKey: .conversationKeyVersion)
         try container.encodeIfPresent(wrappedKeys, forKey: .wrappedKeys)
         try container.encodeIfPresent(readReceiptPreferences, forKey: .readReceiptPreferences)
+        try container.encodeIfPresent(buzzPreferences, forKey: .buzzPreferences)
         try container.encodeIfPresent(forwardingPreferences, forKey: .forwardingPreferences)
     }
 
@@ -1579,5 +1585,16 @@ enum ChatMessagePolicy {
         forwardingPreferences: [String: Bool]? = nil
     ) -> Bool {
         canForward(message, currentUserId: currentUserId, forwardingPreferences: forwardingPreferences)
+    }
+
+    /// El remitente solo puede zumbir si todos los demás participantes lo permiten.
+    static func canSendBuzz(
+        participants: [String],
+        currentUserId: String,
+        buzzPreferences: [String: Bool]? = nil
+    ) -> Bool {
+        participants
+            .filter { $0 != currentUserId }
+            .allSatisfy { buzzPreferences?[$0] ?? true }
     }
 }

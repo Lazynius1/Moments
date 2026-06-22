@@ -795,6 +795,8 @@
 
 "conversationSettings.privacy.messagePreview.title" = "Afficher l'aperçu";
 "conversationSettings.privacy.messagePreview.description" = "Affiche le texte du message dans les notifications et la liste des conversations.";
+"conversationSettings.privacy.buzz.title" = "Wizz";
+"conversationSettings.privacy.buzz.description" = "Si tu le désactives, l'autre personne ne pourra pas t'envoyer de wizz dans cette conversation.";
 "conversationSettings.privacy.readReceipts.title" = "Accusés de lecture";
 "conversationSettings.privacy.readReceipts.description" = "Si vous désactivez les accusés de lecture dans ce chat, vous ne pourrez pas voir quand l’autre personne lit vos messages.";
 "conversationSettings.privacy.forwarding.title" = "Autoriser le transfert";
@@ -866,6 +868,11 @@
 "chat.attach.gif" = "GIF";
 "chat.attach.sticker" = "Sticker";
 "chat.attach.location" = "Position";
+"chat.attach.buzz" = "Wizz";
+"chat.buzz.sent" = "Tu as envoyé un wizz";
+"chat.buzz.received" = "%@ t'a envoyé un wizz";
+"chat.buzz.cooldown" = "Attends un peu avant d'envoyer un autre wizz";
+"chat.buzz.blocked" = "Cette personne n'accepte pas les wizz";
 "chat.giphy.searchGif" = "Rechercher des GIF";
 "chat.giphy.searchSticker" = "Rechercher des stickers";
 "chat.giphy.recents" = "Récents";
@@ -2900,6 +2907,7 @@
 "notification.chatReaction.single" = "A réagi avec %@ à ton message";
 "notification.chatReaction.singleQuoted" = "A réagi avec %@ à ton message \"%@\"";
 "notification.chatReaction.multiple" = "A réagi avec %@ à tes messages";
+"notification.chatBuzz.single" = "T'a envoyé un wizz";
 "notification.gentleReminder.title" = "Moments";
 "notification.gentleReminder.body.neutral_day" = "Partagez quelque chose de votre journée, si vous en avez envie.";
 "notification.gentleReminder.body.neutral_available" = "Si vous avez envie de partager quelque chose aujourd’hui, Moments est là.";

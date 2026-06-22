@@ -63,6 +63,32 @@ class HapticManager {
         }
     }
 
+    /// Long, physical buzz pattern for incoming chat "zumbidos".
+    func chatBuzzReceived(reduceMotion: Bool = UIAccessibility.isReduceMotionEnabled) {
+        impactHeavy.impactOccurred(intensity: 1)
+        impactHeavy.prepare()
+
+        guard !reduceMotion else { return }
+
+        let pulses: [(delay: TimeInterval, style: UIImpactFeedbackGenerator.FeedbackStyle, intensity: CGFloat)] = [
+            (0.08, .rigid, 1.0),
+            (0.16, .heavy, 0.96),
+            (0.26, .rigid, 0.9),
+            (0.38, .heavy, 0.84),
+            (0.52, .rigid, 0.76),
+            (0.68, .heavy, 0.68),
+            (0.86, .rigid, 0.58)
+        ]
+
+        for pulse in pulses {
+            DispatchQueue.main.asyncAfter(deadline: .now() + pulse.delay) {
+                let generator = UIImpactFeedbackGenerator(style: pulse.style)
+                generator.prepare()
+                generator.impactOccurred(intensity: pulse.intensity)
+            }
+        }
+    }
+
     func success() {
         notification(.success)
     }

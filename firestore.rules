@@ -1333,6 +1333,22 @@ service cloud.firestore {
         && canParticipateInConversations(request.auth.uid);
     }
 
+  function participantAllowsBuzz(prefs, participantId) {
+    return !(participantId in prefs) || prefs[participantId] != false;
+  }
+
+  // Chat 1:1 — solo hay un destinatario distinto del remitente.
+  function otherParticipantAllowsBuzz(conversationId, senderId) {
+    let data = get(/databases/$(database)/documents/conversations/$(conversationId)).data;
+    let prefs = data.get('buzzPreferences', {});
+    let participants = data.participants;
+    return participants.size() == 2
+      && (
+        (participants[0] == senderId && participantAllowsBuzz(prefs, participants[1]))
+        || (participants[1] == senderId && participantAllowsBuzz(prefs, participants[0]))
+      );
+  }
+
     function onlyStatusFieldsUpdated() {
       return request.resource.data.diff(resource.data).affectedKeys().hasOnly(['isRead','status','isViewed','statusUpdatedAt','readBy']);
     }
@@ -1419,6 +1435,13 @@ service cloud.firestore {
                    || request.resource.data.forwardingPreferences.diff(resource.data.forwardingPreferences).affectedKeys().hasOnly([request.auth.uid]))
                && (!(request.auth.uid in request.resource.data.forwardingPreferences)
                    || request.resource.data.forwardingPreferences[request.auth.uid] is bool)))
+          &&
+          (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['buzzPreferences'])
+           || (request.resource.data.buzzPreferences is map
+               && (!('buzzPreferences' in resource.data)
+                   || request.resource.data.buzzPreferences.diff(resource.data.buzzPreferences).affectedKeys().hasOnly([request.auth.uid]))
+               && (!(request.auth.uid in request.resource.data.buzzPreferences)
+                   || request.resource.data.buzzPreferences[request.auth.uid] is bool)))
         );
 
       // Conversations are shared records; clients may hide them per user via
@@ -1427,6 +1450,27 @@ service cloud.firestore {
 
       match /{path=**}/messageReactions/{userId} {
         allow read: if canReadMessageReactionDoc();
+      }
+
+      match /buzzEvents/{buzzId} {
+        allow read: if request.auth != null
+          && request.auth.uid in get(/databases/$(database)/documents/conversations/$(conversationId)).data.participants
+          && canParticipateInConversations(request.auth.uid);
+
+        allow create: if request.auth != null
+          && request.auth.uid in get(/databases/$(database)/documents/conversations/$(conversationId)).data.participants
+          && canParticipateInConversations(request.auth.uid)
+          && request.resource.data.keys().hasOnly(['senderId', 'type', 'createdAt', 'expiresAt', 'intensity', 'clientNonce'])
+          && request.resource.data.keys().hasAll(['senderId', 'type', 'createdAt'])
+          && request.resource.data.senderId == request.auth.uid
+          && request.resource.data.type == 'buzz'
+          && otherParticipantAllowsBuzz(conversationId, request.auth.uid)
+          && request.resource.data.createdAt is timestamp
+          && (!('expiresAt' in request.resource.data) || request.resource.data.expiresAt is timestamp)
+          && (!('intensity' in request.resource.data) || request.resource.data.intensity == 'normal')
+          && (!('clientNonce' in request.resource.data) || request.resource.data.clientNonce is string);
+
+        allow update, delete: if false;
       }
 
       // messages

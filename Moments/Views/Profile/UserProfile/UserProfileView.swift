@@ -408,12 +408,7 @@ struct UserProfileView: View {
                 ChatRecoveryGateView(onCancel: {
                     navigateToChat = false
                 }) {
-                    GlassmorphicChatView(
-                        conversation: conversation,
-                        pendingHighlightMessageIds: ChatNavigationIntentStore.consumeHighlights(
-                            for: conversation.id ?? ""
-                        )
-                    )
+                    GlassmorphicChatView(conversation: conversation)
                 }
             }
         }

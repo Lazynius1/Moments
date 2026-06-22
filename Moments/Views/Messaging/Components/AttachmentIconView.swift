@@ -14,6 +14,7 @@ enum AttachmentIcon: String {
     case comments = "AttachmentCommentsIcon"
     case share = "AttachmentShareIcon"
     case hiddenLayer = "AttachmentHiddenLayerIcon"
+    case buzz = "AttachmentBuzzIcon"
 }
 
 /// Tamaños calibrados para iconos PNG custom vs SF Symbols equivalentes.
@@ -169,6 +170,10 @@ enum AttachmentIconMetrics {
 
     /// Prompt voz sticker vacío. SF 30pt → PNG ~34pt
     static let voiceStickerPrompt: CGFloat = 34
+
+    /// Toast/evento de zumbido: PNG custom estrecho, ajustado para texto compacto.
+    static let buzzToast: CGFloat = 17
+    static let buzzTimelineEvent: CGFloat = 15
 }
 
 struct AttachmentIconView: View {

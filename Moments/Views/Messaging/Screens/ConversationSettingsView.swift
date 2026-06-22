@@ -397,6 +397,24 @@ struct ConversationSettingsView: View {
 
                 dividerLine
 
+                Toggle(isOn: $viewModel.buzzEnabled) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(NSLocalizedString("conversationSettings.privacy.buzz.title", comment: "Buzz notifications"))
+                            .font(.custom("Poppins-Medium", size: 15))
+                            .foregroundColor(adaptiveColors.primary)
+                        Text(NSLocalizedString("conversationSettings.privacy.buzz.description", comment: "Receive buzz alerts in this chat"))
+                            .font(.custom("Poppins-Regular", size: 12))
+                            .foregroundColor(adaptiveColors.tertiary)
+                    }
+                }
+                .tint(SettingsProfileColors.toggleTint)
+                .onChange(of: viewModel.buzzEnabled) { _, _ in
+                    HapticManager.shared.lightImpact()
+                    viewModel.toggleBuzzNotifications()
+                }
+
+                dividerLine
+
                 Toggle(isOn: $viewModel.readReceiptsEnabled) {
                     VStack(alignment: .leading, spacing: 2) {
                         Text(NSLocalizedString("conversationSettings.privacy.readReceipts.title", comment: ""))
@@ -635,6 +653,7 @@ class ConversationSettingsViewModel: ObservableObject {
     @Published var forwardingEnabled = true
     @Published var typingIndicatorEnabled = true
     @Published var messagePreviewEnabled = true
+    @Published var buzzEnabled = true
     @Published var showNotificationAlert = false
     @Published var notificationAlertMessage = ""
 
@@ -664,6 +683,10 @@ class ConversationSettingsViewModel: ObservableObject {
 
     private func forwardingPreferenceKey(for conversationId: String) -> String {
         "chat_forwarding_enabled_\(conversationId)"
+    }
+
+    private func buzzPreferenceKey(for conversationId: String) -> String {
+        "chat_buzz_enabled_\(conversationId)"
     }
 
     func loadConversationData(conversation: Conversation) {
@@ -840,6 +863,28 @@ class ConversationSettingsViewModel: ObservableObject {
         sharedDefaults?.set(messagePreviewEnabled, forKey: messagePreviewKey(for: conversationId))
     }
 
+    func toggleBuzzNotifications() {
+        guard let currentUserId = Auth.auth().currentUser?.uid,
+              let conversationId = currentConversation?.id else { return }
+
+        let db = Firestore.firestore()
+        db.collection("conversations").document(conversationId).updateData([
+            "buzzPreferences.\(currentUserId)": buzzEnabled
+        ])
+
+        UserDefaults.standard.set(buzzEnabled, forKey: buzzPreferenceKey(for: conversationId))
+
+        NotificationCenter.default.post(
+            name: NSNotification.Name("ConversationBuzzPreferenceChanged"),
+            object: nil,
+            userInfo: [
+                "conversationId": conversationId,
+                "userId": currentUserId,
+                "allowsBuzz": buzzEnabled
+            ]
+        )
+    }
+
     private func loadPrivacySettings() {
         guard let currentUserId = Auth.auth().currentUser?.uid,
               let conversationId = currentConversation?.id else { return }
@@ -847,6 +892,7 @@ class ConversationSettingsViewModel: ObservableObject {
         // Cargar desde UserDefaults como fallback instantáneo
         readReceiptsEnabled = boolFromDefaults(key: "chat_read_receipts_enabled_\(conversationId)", defaultValue: true)
         forwardingEnabled = boolFromDefaults(key: forwardingPreferenceKey(for: conversationId), defaultValue: true)
+        buzzEnabled = boolFromDefaults(key: buzzPreferenceKey(for: conversationId), defaultValue: true)
 
         let typingKey = typingIndicatorKey(for: conversationId)
         if let perChatTyping = UserDefaults.standard.object(forKey: typingKey) as? Bool {
@@ -894,6 +940,12 @@ class ConversationSettingsViewModel: ObservableObject {
                            let myForwardingPreference = forwardingPrefs[currentUserId] {
                             self.forwardingEnabled = myForwardingPreference
                             UserDefaults.standard.set(myForwardingPreference, forKey: self.forwardingPreferenceKey(for: conversationId))
+                        }
+
+                        if let buzzPrefs = convData["buzzPreferences"] as? [String: Bool],
+                           let myBuzzPreference = buzzPrefs[currentUserId] {
+                            self.buzzEnabled = myBuzzPreference
+                            UserDefaults.standard.set(myBuzzPreference, forKey: self.buzzPreferenceKey(for: conversationId))
                         }
                     } else {
                         self.notificationsEnabled = true

@@ -110,6 +110,21 @@ class NotificationNavigationService: ObservableObject {
                 }
                 AppRouter.shared.navigate(to: .conversation(id: conversationId))
             }
+
+        case "chat_buzz":
+            if let conversationId = userInfo["conversationId"] as? String {
+                let buzzEventId = firstString(in: userInfo, keys: ["buzzEventId"])
+                ChatNavigationIntentStore.enqueueBuzz(conversationId: conversationId, buzzEventId: buzzEventId)
+                NotificationCenter.default.post(
+                    name: .chatBuzzHighlight,
+                    object: nil,
+                    userInfo: [
+                        "conversationId": conversationId,
+                        "buzzEventId": buzzEventId as Any
+                    ]
+                )
+                AppRouter.shared.navigate(to: .conversation(id: conversationId))
+            }
             
         case "followRequest":
             if let requestId = userInfo["requestId"] as? String {
@@ -209,6 +224,8 @@ class NotificationNavigationService: ObservableObject {
             return "message"
         case "message_reaction":
             return "messageReaction"
+        case "chat_buzz":
+            return "chat_buzz"
         case "photo_tag":
             return "photoTag"
         case "media_moderation":

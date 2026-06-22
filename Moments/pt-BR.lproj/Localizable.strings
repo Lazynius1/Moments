@@ -795,6 +795,8 @@
 
 "conversationSettings.privacy.messagePreview.title" = "Mostrar prévia";
 "conversationSettings.privacy.messagePreview.description" = "Mostra o texto da mensagem nas notificações e na lista de conversas.";
+"conversationSettings.privacy.buzz.title" = "Chacoalhões";
+"conversationSettings.privacy.buzz.description" = "Se desativar, a outra pessoa não poderá te enviar chacoalhões neste chat.";
 "conversationSettings.privacy.readReceipts.title" = "Confirmações de leitura";
 "conversationSettings.privacy.readReceipts.description" = "Se você desativar as confirmações de leitura neste chat, também não poderá ver quando a outra pessoa ler suas mensagens.";
 "conversationSettings.privacy.forwarding.title" = "Permitir encaminhamento";
@@ -866,6 +868,11 @@
 "chat.attach.gif" = "GIF";
 "chat.attach.sticker" = "Figurinha";
 "chat.attach.location" = "Localização";
+"chat.attach.buzz" = "Chacoalhão";
+"chat.buzz.sent" = "Você enviou um chacoalhão";
+"chat.buzz.received" = "%@ te enviou um chacoalhão";
+"chat.buzz.cooldown" = "Espere um pouco antes de enviar outro chacoalhão";
+"chat.buzz.blocked" = "Esta pessoa não aceita chacoalhões";
 "chat.giphy.searchGif" = "Buscar GIFs";
 "chat.giphy.searchSticker" = "Buscar figurinhas";
 "chat.giphy.recents" = "Recentes";
@@ -2900,6 +2907,7 @@
 "notification.chatReaction.single" = "Reagiu com %@ à sua mensagem";
 "notification.chatReaction.singleQuoted" = "Reagiu com %@ à sua mensagem \"%@\"";
 "notification.chatReaction.multiple" = "Reagiu com %@ às suas mensagens";
+"notification.chatBuzz.single" = "Te enviou um chacoalhão";
 "notification.gentleReminder.title" = "Moments";
 "notification.gentleReminder.body.neutral_day" = "Compartilhe algo do seu dia, se tiver vontade.";
 "notification.gentleReminder.body.neutral_available" = "Se hoje você quiser compartilhar algo, o Moments está aqui.";

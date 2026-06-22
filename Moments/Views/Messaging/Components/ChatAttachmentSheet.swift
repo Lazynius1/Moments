@@ -51,7 +51,7 @@ enum ChatAttachmentSheetKind: Identifiable, Equatable {
 enum ChatAttachmentSheetMetrics {
     static let horizontalInset: CGFloat = 10
     static let cornerRadius: CGFloat = 24
-    static let menuPopoverTitleKeys = ["nova.attach.camera", "nova.attach.photos", "chat.attach.gif", "chat.attach.sticker", "chat.attach.location"]
+    static let menuPopoverTitleKeys = ["nova.attach.camera", "nova.attach.photos", "chat.attach.buzz", "chat.attach.gif", "chat.attach.sticker", "chat.attach.location"]
     static let menuPopoverTextExtraMargin: CGFloat = 20
     static let menuPopoverMinWidth: CGFloat = 168
     /// Clearance between popover bottom edge and the top of the + button.
@@ -185,22 +185,36 @@ private enum ChatAttachmentMenuPopoverLayout {
     static let cardHorizontalPadding: CGFloat = 24
     static let cardVerticalPadding: CGFloat = 20
     static let rowVerticalPadding: CGFloat = 16
-    static let rowCount: CGFloat = 5
 
-    static var titleFont: UIFont {
-        UIFont(name: "Poppins-Medium", size: 17)
-            ?? .systemFont(ofSize: 17, weight: .medium)
+    static func menuPopoverTitleKeys(canSendBuzz: Bool) -> [String] {
+        var keys = ChatAttachmentSheetMetrics.menuPopoverTitleKeys
+        if !canSendBuzz {
+            keys.removeAll { $0 == "chat.attach.buzz" }
+        }
+        return keys
     }
 
-    static var estimatedWidth: CGFloat {
+    static func rowCount(canSendBuzz: Bool) -> CGFloat {
+        canSendBuzz ? 6 : 5
+    }
+
+    static func estimatedWidth(canSendBuzz: Bool = true) -> CGFloat {
         max(
-            measuredWidth(for: ChatAttachmentSheetMetrics.menuPopoverTitleKeys),
+            measuredWidth(for: menuPopoverTitleKeys(canSendBuzz: canSendBuzz)),
             ChatAttachmentSheetMetrics.menuPopoverMinWidth
         )
     }
 
-    static var estimatedHeight: CGFloat {
-        rowCount * (rowIconWidth + rowVerticalPadding) + cardVerticalPadding
+    static func estimatedHeight(canSendBuzz: Bool = true) -> CGFloat {
+        rowCount(canSendBuzz: canSendBuzz) * (rowIconWidth + rowVerticalPadding) + cardVerticalPadding
+    }
+
+    static var estimatedWidth: CGFloat { estimatedWidth(canSendBuzz: true) }
+    static var estimatedHeight: CGFloat { estimatedHeight(canSendBuzz: true) }
+
+    static var titleFont: UIFont {
+        UIFont(name: "Poppins-Medium", size: 17)
+            ?? .systemFont(ofSize: 17, weight: .medium)
     }
 
     static func measuredWidth(for titleKeys: [String]) -> CGFloat {
@@ -285,12 +299,14 @@ struct ChatAttachmentPlusButton: View {
 struct ChatAttachmentMenuPopover: View {
     @Binding var isPresented: ChatAttachmentSheetKind?
     let anchorFrame: CGRect
+    let canSendBuzz: Bool
     let onOpenCamera: () -> Void
+    let onSendBuzz: () -> Void
 
     @Environment(\.colorScheme) private var colorScheme
     @State private var popoverSize = CGSize(
-        width: ChatAttachmentMenuPopoverLayout.estimatedWidth,
-        height: ChatAttachmentMenuPopoverLayout.estimatedHeight
+        width: ChatAttachmentMenuPopoverLayout.estimatedWidth(canSendBuzz: true),
+        height: ChatAttachmentMenuPopoverLayout.estimatedHeight(canSendBuzz: true)
     )
 
     var body: some View {
@@ -323,9 +339,14 @@ struct ChatAttachmentMenuPopover: View {
                 if anchorFrame != .zero {
                     ChatAttachmentMenuPopoverCard(
                         isPresented: $isPresented,
+                        canSendBuzz: canSendBuzz,
                         onOpenCamera: {
                             dismissMenu()
                             onOpenCamera()
+                        },
+                        onSendBuzz: {
+                            dismissMenu()
+                            onSendBuzz()
                         }
                     )
                     .fixedSize(horizontal: true, vertical: true)
@@ -348,8 +369,17 @@ struct ChatAttachmentMenuPopover: View {
                 guard size != .zero else { return }
                 popoverSize = size
             }
+            .onChange(of: canSendBuzz) { _, allowsBuzz in
+                popoverSize.height = ChatAttachmentMenuPopoverLayout.estimatedHeight(canSendBuzz: allowsBuzz)
+            }
         }
         .ignoresSafeArea()
+        .onAppear {
+            popoverSize = CGSize(
+                width: ChatAttachmentMenuPopoverLayout.estimatedWidth(canSendBuzz: canSendBuzz),
+                height: ChatAttachmentMenuPopoverLayout.estimatedHeight(canSendBuzz: canSendBuzz)
+            )
+        }
     }
 
     private func resolvedPopoverX(
@@ -382,7 +412,9 @@ struct ChatAttachmentMenuPopover: View {
 
 private struct ChatAttachmentMenuPopoverCard: View {
     @Binding var isPresented: ChatAttachmentSheetKind?
+    let canSendBuzz: Bool
     let onOpenCamera: () -> Void
+    let onSendBuzz: () -> Void
 
     @Environment(\.colorScheme) private var colorScheme
 
@@ -410,6 +442,13 @@ private struct ChatAttachmentMenuPopoverCard: View {
                 titleKey: "nova.attach.photos",
                 action: { present(.photos) }
             )
+            if canSendBuzz {
+                menuRow(
+                    assetImage: AttachmentIcon.buzz.rawValue,
+                    titleKey: "chat.attach.buzz",
+                    action: onSendBuzz
+                )
+            }
             menuRow(
                 assetImage: AttachmentIcon.gif.rawValue,
                 titleKey: "chat.attach.gif",
