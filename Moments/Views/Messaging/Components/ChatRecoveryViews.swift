@@ -173,6 +173,7 @@ struct ChatRecoverySettingsView: View {
             do {
                 try await EncryptionService.shared.removeLocalChatIdentity()
                 statusMessage = NSLocalizedString("chatRecovery.settings.localKeyRemoved", comment: "Local chat key removed")
+                await ChatAccessCoordinator.shared.refreshAccess()
             } catch {
                 statusMessage = error.localizedDescription
             }

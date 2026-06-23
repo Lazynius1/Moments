@@ -21,7 +21,6 @@ enum ChatScrollTarget: Equatable {
     }
 }
 
-/// Estado de scroll por conversación — sobrevive a salir y volver a entrar al chat.
 enum ChatScrollStateStore {
     struct State: Equatable {
         var hasCompletedInitialScroll = false
@@ -34,34 +33,15 @@ enum ChatScrollStateStore {
         var scrollOffsetY: CGFloat?
     }
 
-    private static let lock = NSLock()
-    private static var states: [String: State] = [:]
-
     static func state(for conversationId: String) -> State {
-        guard !conversationId.isEmpty else { return State() }
-        lock.lock()
-        defer { lock.unlock() }
-        return states[conversationId] ?? State()
+        State()
     }
 
-    static func update(for conversationId: String, _ update: (inout State) -> Void) {
-        guard !conversationId.isEmpty else { return }
-        lock.lock()
-        defer { lock.unlock() }
-        var current = states[conversationId] ?? State()
-        update(&current)
-        states[conversationId] = current
-    }
+    static func update(for conversationId: String, _ update: (inout State) -> Void) {}
 
     static func shouldRunInitialScroll(for conversationId: String, hasHighlightIntent: Bool) -> Bool {
-        let stored = state(for: conversationId)
-        if hasHighlightIntent { return true }
-        return !stored.hasCompletedInitialScroll
+        true
     }
 
-    static func clearAll() {
-        lock.lock()
-        defer { lock.unlock() }
-        states.removeAll()
-    }
+    static func clearAll() {}
 }

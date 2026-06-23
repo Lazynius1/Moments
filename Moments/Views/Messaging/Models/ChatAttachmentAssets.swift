@@ -60,7 +60,7 @@ struct ChatStickerAsset: Identifiable, Hashable, Codable {
 
 // MARK: - Stickers recientes (persistencia local)
 
-/// Guarda/recupera los últimos stickers usados en `UserDefaults` (estilo IG recientes).
+/// Guarda/recupera los últimos stickers usados en `UserDefaults`.
 enum ChatRecentStickersStore {
     private static let key = "chat.recentStickers.v1"
     private static let maxCount = 8
@@ -110,7 +110,7 @@ struct ChatLocationPayload: Codable {
     }
 }
 
-// MARK: - Duración de ubicación en vivo (estilo WhatsApp)
+// MARK: - Duración de ubicación en vivo
 
 enum LiveLocationDuration: String, CaseIterable, Identifiable, Codable {
     case fifteenMinutes

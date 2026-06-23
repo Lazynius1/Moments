@@ -82,12 +82,12 @@ struct MessagingView: View {
 
     // ✅ NUEVO: Instancia de PrivacyService para verificar historias
     private let privacyService = PrivacyService()
+    @State private var pendingConversationResolveTask: Task<Void, Never>? = nil
 
     var body: some View {
         ChatRecoveryGateView(onCancel: onDismiss) {
-            NavigationStack {
-                ZStack {
-                    GlassmorphicBackground(adaptiveColors: adaptiveColors)
+            ZStack {
+                GlassmorphicBackground(adaptiveColors: adaptiveColors)
 
                     conversationList
 
@@ -139,30 +139,6 @@ struct MessagingView: View {
                         session: ChatSessionEngine.shared.session(for: conversation)
                     )
                 }
-                .navigationDestination(
-                    isPresented: Binding(
-                        get: { targetConversationId != nil },
-                        set: { isPresented in
-                            if !isPresented {
-                                targetConversationId = nil
-                            }
-                        }
-                    )
-                ) {
-                    if let conversationId = targetConversationId {
-                        if let conversation = viewModel.conversations.first(where: { $0.id == conversationId }) {
-                            GlassmorphicChatView(
-                                conversation: conversation,
-                                session: ChatSessionEngine.shared.session(for: conversation)
-                            )
-                        } else {
-                            Text("messaging.conversation.notFound")
-                                .onAppear {
-                                    targetConversationId = nil
-                                }
-                        }
-                    }
-                }
                 .sheet(isPresented: $showingMessageRequests) {
                     MessageRequestsView()
                         .presentationDetents([.medium, .large])
@@ -184,6 +160,9 @@ struct MessagingView: View {
                 }
                 .onChange(of: viewModel.conversations.map(\.id)) { _, _ in
                     warmRecentChatSessions()
+                }
+                .onReceive(NotificationCenter.default.publisher(for: .chatDraftDidChange)) { _ in
+                    viewModel.refreshDraftOrdering()
                 }
                 .onChange(of: authService.currentUser) { _, _ in
                     if let userId = Auth.auth().currentUser?.uid {
@@ -211,6 +190,15 @@ struct MessagingView: View {
                         navigateToConversation(id: targetId)
                     }
                 }
+                .onChange(of: viewModel.conversations) { _, newConversations in
+                    if let targetId = targetConversationId,
+                       let conversation = newConversations.first(where: { $0.id == targetId }) {
+                        selectedConversation = conversation
+                        targetConversationId = nil
+                        pendingConversationResolveTask?.cancel()
+                        pendingConversationResolveTask = nil
+                    }
+                }
                 .onReceive(NotificationCenter.default.publisher(for: UIApplication.willEnterForegroundNotification)) { _ in
                     viewModel.refreshVisibleUsers()
                 }
@@ -236,9 +224,12 @@ struct MessagingView: View {
                     viewModel.stopListening()
                     messageRequestService.removeAllListeners()
                 }
+                .toolbar(.visible, for: .navigationBar)
+                .navigationBarHidden(false)
+                .navigationBarBackButtonHidden(true)
+                .toolbar(.hidden, for: .tabBar)
             }
         }
-    }
 
     private func warmRecentChatSessions() {
         let ids = viewModel.conversations.prefix(3).compactMap(\.id)
@@ -247,18 +238,21 @@ struct MessagingView: View {
     }
 
     private func navigateToConversation(id: String) {
+        pendingConversationResolveTask?.cancel()
+
         if let conversation = viewModel.conversations.first(where: { $0.id == id }) {
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                selectedConversation = conversation
-                targetConversationId = nil
-            }
+            selectedConversation = conversation
+            targetConversationId = nil
         } else {
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-                if let conversation = viewModel.conversations.first(where: { $0.id == id }) {
-                    selectedConversation = conversation
-                    targetConversationId = nil
-                } else {
-                    targetConversationId = nil
+            // Configurar una tarea de timeout por si no se resuelve en 3 segundos
+            pendingConversationResolveTask = Task {
+                try? await Task.sleep(nanoseconds: 3_000_000_000)
+                guard !Task.isCancelled else { return }
+                await MainActor.run {
+                    if targetConversationId == id {
+                        targetConversationId = nil
+                    }
+                    pendingConversationResolveTask = nil
                 }
             }
         }
@@ -816,6 +810,7 @@ struct GlassmorphicConversationRow: View {
     @State private var liveOtherParticipantUsername: String = ""
     @State private var isOtherParticipantUnavailable: Bool = false
     @State private var isOtherParticipantBlockedByCurrentUser: Bool = false
+    @State private var draftText: String = ""
     private let firestoreService = FirestoreService()
 
     private var displayUsername: String {
@@ -835,10 +830,15 @@ struct GlassmorphicConversationRow: View {
         .onAppear {
             refreshOtherParticipantUsername()
             refreshOtherParticipantAvailability()
+            refreshDraft()
         }
         .onChange(of: conversation.otherParticipantId) { _, _ in
             refreshOtherParticipantUsername()
             refreshOtherParticipantAvailability()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .chatDraftDidChange)) { notification in
+            guard (notification.userInfo?["conversationId"] as? String) == conversation.id else { return }
+            refreshDraft()
         }
         .fullScreenCover(item: $storyRoute) { route in
             StoriesView(startWithUserId: .constant(route.id))
@@ -951,13 +951,22 @@ struct GlassmorphicConversationRow: View {
 
     @ViewBuilder
     private var messagePreviewText: some View {
+        let cleanDraft = draftText.trimmingCharacters(in: .whitespacesAndNewlines)
+        let showsUnavailablePreview = isOtherParticipantUnavailable && !isOtherParticipantBlockedByCurrentUser
+        let showsDraftPreview = !showsUnavailablePreview && !cleanDraft.isEmpty
+        let resolvedPreview = showsDraftPreview
+            ? String(
+                format: NSLocalizedString("chat.draft.preview", comment: "Draft conversation preview"),
+                cleanDraft
+            )
+            : conversation.messagePreview
         let preview = Text(
-            isOtherParticipantUnavailable && !isOtherParticipantBlockedByCurrentUser
+            showsUnavailablePreview
                 ? NSLocalizedString("messaging.profileUnavailable.preview", comment: "Unavailable profile preview")
-                : conversation.messagePreview
+                : resolvedPreview
         )
         .font(.custom("Poppins-Regular", size: 14))
-        .foregroundColor(colorScheme == .dark ? .white.opacity(0.8) : .black.opacity(0.7))
+        .foregroundColor(showsDraftPreview ? Color(hex: "3F6F8F") : (colorScheme == .dark ? .white.opacity(0.8) : .black.opacity(0.7)))
         .lineLimit(1)
 
         if listInteraction == nil {
@@ -968,6 +977,14 @@ struct GlassmorphicConversationRow: View {
         } else {
             preview
         }
+    }
+
+    private func refreshDraft() {
+        guard let conversationId = conversation.id else {
+            draftText = ""
+            return
+        }
+        draftText = ChatDraftStore.shared.draft(for: conversationId)
     }
 
     @ViewBuilder
@@ -1070,7 +1087,7 @@ struct GlassmorphicConversationRow: View {
     }
 }
 
-// ✅ Nueva conversación — pantalla completa estilo Instagram
+// Nueva conversación — pantalla completa
 struct GlassmorphicNewConversationView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) private var colorScheme
@@ -1277,8 +1294,10 @@ private struct NewConversationUserRow: View {
 // MARK: - Message Composer View
 struct MessagingView_Previews: PreviewProvider {
     static var previews: some View {
-        MessagingView(targetConversationId: .constant(nil))
-            .environmentObject(AuthService())
-            .environmentObject(MessagingViewModel())
+        NavigationStack {
+            MessagingView(targetConversationId: .constant(nil))
+                .environmentObject(AuthService())
+                .environmentObject(MessagingViewModel())
+        }
     }
 }

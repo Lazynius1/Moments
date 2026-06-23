@@ -101,8 +101,16 @@ struct TabBarView: View {
         }
         .offlineBannerOverlay()
         .onAppear {
-            // ✅ Activar listener para banners in-app
-            InAppNotificationService.shared.startListing()
+            if shouldShowMainApp {
+                InAppNotificationService.shared.startListing()
+            }
+        }
+        .onChange(of: authRootIdentity) { _, _ in
+            if shouldShowMainApp {
+                InAppNotificationService.shared.startListing()
+            } else {
+                InAppNotificationService.shared.stopListening()
+            }
         }
         .onOpenURL { url in
             IncognitoModeService.shared.handlePendingAppGroupActionIfNeeded()
@@ -183,8 +191,10 @@ struct ModernTabView: View {
             }
         )) {
             Tab(NSLocalizedString("tabBar.home", comment: ""), systemImage: "house", value: AppTab.home) {
-                FeedView(showCreatorView: $showCreatorView)
-                    .environmentObject(authService)
+                NavigationStack {
+                    FeedView(showCreatorView: $showCreatorView)
+                }
+                .environmentObject(authService)
             }
             Tab(NSLocalizedString("tabBar.nova", comment: ""), image: "NovaTabIcon", value: AppTab.nova) {
                 NovaView()
@@ -267,7 +277,9 @@ struct ModernTabView: View {
             ZStack {
                 switch selectedTab {
                 case 0:
-                    FeedView(showCreatorView: $showCreatorView)
+                    NavigationStack {
+                        FeedView(showCreatorView: $showCreatorView)
+                    }
                 case 1:
                     NovaView()
                 case 2:
@@ -315,9 +327,6 @@ struct ModernTabView: View {
                 echoInvitationRoute = EchoInvitationRoute(echoId: echoId)
             }
         )
-        .overlay(alignment: .top) {
-            InAppBannerView() // ✅ NUEVO: Banners in-app
-        }
     }
 
     // ✅ NUEVO: Manejador de Deep Links extraído para evitar errores de compilador

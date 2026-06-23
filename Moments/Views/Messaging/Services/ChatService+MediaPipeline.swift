@@ -116,8 +116,6 @@ extension ChatService {
                     var thumbnailEncryption: EncryptedChatMediaMetadata?
                     var localThumbnailURL: String?
 
-                    // Miniatura cifrada ligera (como WhatsApp): preview instantáneo en la
-                    // notificación sin bajar el media completo. Vídeo → frame; imagen → reescalada.
                     var generatedThumbnailData: Data?
                     if type == .video || type == .viewOnceVideo {
                         generatedThumbnailData = try await generateVideoThumbnailData(from: plaintextData)

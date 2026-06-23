@@ -1,15 +1,26 @@
 import SwiftUI
 import UIKit
+import AudioToolbox
 
 class HapticManager {
     static let shared = HapticManager()
-    
+
+    /// Play sound alert for incoming chat "zumbidos" (Classic tri-tone chime).
+    func playBuzzReceivedSound() {
+        AudioServicesPlaySystemSound(1022)
+    }
+
+    /// Play sound whoosh for outgoing chat "zumbidos" (Sent mail whoosh).
+    func playBuzzSentSound() {
+        AudioServicesPlaySystemSound(1033)
+    }
+
     private let selectionFeedback = UISelectionFeedbackGenerator()
     private let impactLight = UIImpactFeedbackGenerator(style: .light)
     private let impactMedium = UIImpactFeedbackGenerator(style: .medium)
     private let impactHeavy = UIImpactFeedbackGenerator(style: .heavy)
     private let notificationFeedback = UINotificationFeedbackGenerator()
-    
+
     private init() {
         // Pre-warm generators for faster response
         selectionFeedback.prepare()
@@ -18,31 +29,31 @@ class HapticManager {
         impactHeavy.prepare()
         notificationFeedback.prepare()
     }
-    
+
     /// Triggered when the user changes a selection (e.g., Tab Bar)
     func selection() {
         selectionFeedback.selectionChanged()
         selectionFeedback.prepare()
     }
-    
+
     /// Light impact for minor actions (e.g., button press)
     func lightImpact() {
         impactLight.impactOccurred()
         impactLight.prepare()
     }
-    
+
     /// Medium impact for key actions (e.g., Like, Follow)
     func mediumImpact() {
         impactMedium.impactOccurred()
         impactMedium.prepare()
     }
-    
+
     /// Heavy impact for main actions or "physical" collisions
     func heavyImpact() {
         impactHeavy.impactOccurred()
         impactHeavy.prepare()
     }
-    
+
     /// Notification feedback (Success, Warning, Error)
     func notification(_ type: UINotificationFeedbackGenerator.FeedbackType) {
         notificationFeedback.notificationOccurred(type)

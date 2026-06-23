@@ -16,6 +16,7 @@ extension ChatService {
         if !replaceExisting, activeListeners[listenerKey] != nil {
             return
         }
+        let generation = beginListenerGeneration(for: listenerKey)
         activeListeners[listenerKey]?.remove()
         activeListeners[listenerKey] = nil
 
@@ -23,6 +24,7 @@ extension ChatService {
             .whereField("conversationId", isEqualTo: conversationId)
             .addSnapshotListener { [weak self] snapshot, error in
                 guard let self else { return }
+                guard self.isCurrentListenerGeneration(generation, for: listenerKey) else { return }
 
                 if let error {
                     completion(.failure(error))

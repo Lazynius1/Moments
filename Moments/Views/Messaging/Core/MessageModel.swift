@@ -1171,28 +1171,55 @@ extension EnhancedMessage {
         }
     }
 
+    /// `true` si la URL guardada es un `file://` cuyo archivo ya NO existe en disco.
+    /// El media descifrado se cachea en el directorio `Caches`, que iOS purga bajo presión
+    /// de almacenamiento: cuando eso pasa, el mensaje sigue guardando la ruta `file://`
+    /// antigua y hay que re-resolver (descargar + descifrar) en lugar de quedarse colgado.
+    private static func isMissingLocalFile(_ urlString: String?) -> Bool {
+        guard let urlString,
+              let url = URL(string: urlString),
+              url.isFileURL else { return false }
+        return !FileManager.default.fileExists(atPath: url.path)
+    }
+
+    /// El `mediaUrl` apunta a un `file://` descifrado que ya no existe (cache purgada).
+    var hasMissingLocalMedia: Bool { Self.isMissingLocalFile(mediaUrl) }
+    /// El `thumbnailUrl` apunta a un `file://` descifrado que ya no existe (cache purgada).
+    var hasMissingLocalThumbnail: Bool { Self.isMissingLocalFile(thumbnailUrl) }
+
+    /// `true` si la URL es remota o el archivo local existe.
+    func localMediaFileIsReachable(_ url: URL) -> Bool {
+        guard url.isFileURL else { return true }
+        return FileManager.default.fileExists(atPath: url.path)
+    }
+
+    /// Vídeo sin portada usable en la UI (miniatura cifrada, poster generado o legacy).
+    var needsVideoThumbnailForDisplay: Bool {
+        guard type == .video else { return false }
+        guard let urlString = thumbnailUrl,
+              let url = URL(string: urlString) else { return true }
+        return !localMediaFileIsReachable(url)
+    }
+
     /// Media cifrada pendiente de resolver a URL local/remota.
     var isMediaPendingResolution: Bool {
         guard status != .sending else { return false }
+        let canResolve = mediaObjectPath != nil && mediaEncryption != nil
         switch type {
-        case .image:
-            guard mediaUrl == nil else { return false }
-            return mediaObjectPath != nil && mediaEncryption != nil
-        case .ephemeral:
-            guard mediaUrl == nil else { return false }
-            return mediaObjectPath != nil && mediaEncryption != nil
+        case .image, .ephemeral:
+            if mediaUrl == nil { return canResolve }
+            // Cache purgada: la ruta existe pero el archivo no → re-resolver.
+            return Self.isMissingLocalFile(mediaUrl) && canResolve
         case .video:
-            guard thumbnailUrl == nil && mediaUrl == nil else { return false }
-            return mediaObjectPath != nil && mediaEncryption != nil
+            let thumbUsable = thumbnailUrl != nil && !Self.isMissingLocalFile(thumbnailUrl)
+            let mediaUsable = mediaUrl != nil && !Self.isMissingLocalFile(mediaUrl)
+            guard !thumbUsable && !mediaUsable else { return false }
+            let canResolveThumb = thumbnailObjectPath != nil && thumbnailEncryption != nil
+            return canResolve || canResolveThumb
         case .gif, .sticker:
-            if mediaUrl == nil {
-                return mediaObjectPath != nil && mediaEncryption != nil
-            }
-            if let urlString = mediaUrl,
-               let url = URL(string: urlString),
-               url.isFileURL {
-                return !FileManager.default.fileExists(atPath: url.path)
-            }
+            if mediaUrl == nil { return canResolve }
+            // Sin cifrado no podemos re-descargar un `file://` purgado; Firestore repone la https.
+            if Self.isMissingLocalFile(mediaUrl) { return canResolve }
             return false
         default:
             return false
@@ -1517,7 +1544,7 @@ struct MessageRequest: Identifiable, Codable, Hashable {
     }
 }
 
-// MARK: - Reacciones (una por usuario, estilo IG)
+// MARK: - Reacciones (una por usuario)
 
 enum MessageReactionMutation {
     /// Sustituye la reacción previa del usuario o la quita si repite el mismo emoji.

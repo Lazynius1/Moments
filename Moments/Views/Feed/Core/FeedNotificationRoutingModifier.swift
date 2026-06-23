@@ -51,27 +51,25 @@ struct FeedNotificationRoutingModifier: ViewModifier {
             .onReceive(navigationService.$pendingNavigation) { navigation in
                 guard let navigation else { return }
 
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                    switch navigation {
-                    case .conversation(let conversationId):
-                        targetConversationId = conversationId
-                        showMessages = true
-                    case .moment(let momentId, let userId):
-                        targetMomentId = momentId
-                        targetMomentUserId = userId
-                        showMomentDetail = true
-                    case .profile:
-                        break
-                    case .story(let storyId, let authorId):
-                        onOpenStory(storyId, authorId)
-                    case .notifications:
-                        showNotifications = true
-                    default:
-                        break
-                    }
-
-                    navigationService.clearPendingNavigation()
+                switch navigation {
+                case .conversation(let conversationId):
+                    targetConversationId = conversationId
+                    showMessages = true
+                case .moment(let momentId, let userId):
+                    targetMomentId = momentId
+                    targetMomentUserId = userId
+                    showMomentDetail = true
+                case .profile:
+                    break
+                case .story(let storyId, let authorId):
+                    onOpenStory(storyId, authorId)
+                case .notifications:
+                    showNotifications = true
+                default:
+                    break
                 }
+
+                navigationService.clearPendingNavigation()
             }
             .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("StoryUploaded"))) { _ in
                 if let userId = Auth.auth().currentUser?.uid {

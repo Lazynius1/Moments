@@ -180,7 +180,6 @@ struct MessageReactionChip: View {
 
     @Environment(\.colorScheme) private var colorScheme
 
-    /// Anillo del color de fondo del chat para separar el badge de la burbuja (estilo Instagram).
     private var separatorColor: Color {
         colorScheme == .dark ? Color(hex: "0B1215") : Color(hex: "FAF9F6")
     }
@@ -300,7 +299,6 @@ enum MessageReactionMetrics {
 }
 
 extension View {
-    /// Reacción estilo IG: emoji sobre anillo del color de fondo del chat, colgando del borde inferior.
     func messageReactionOverlay(
         isOutgoing: Bool,
         reactions: [String: [String]]?,

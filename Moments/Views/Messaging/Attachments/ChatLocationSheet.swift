@@ -15,7 +15,7 @@ struct ChatLocationPlace: Identifiable, Equatable {
     }
 }
 
-// MARK: - Sheet content (layout estilo WhatsApp)
+// MARK: - Sheet content
 
 struct ChatLocationSheetContent: View {
     let accentColor: Color

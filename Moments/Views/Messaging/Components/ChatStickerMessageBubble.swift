@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Burbuja para stickers: flota sobre el fondo del chat, SIN burbuja glass (estilo IG DM).
+/// Burbuja para stickers: flota sobre el fondo del chat, sin burbuja glass.
 struct ChatStickerMessageBubble: View {
     @ObservedObject var message: EnhancedMessage
     let isSending: Bool
@@ -11,8 +11,10 @@ struct ChatStickerMessageBubble: View {
     private let stickerSize: CGFloat = 140
 
     private var stickerURL: URL? {
-        guard let urlString = message.mediaUrl, !urlString.isEmpty else { return nil }
-        return URL(string: urlString)
+        guard let urlString = message.mediaUrl, !urlString.isEmpty,
+              let url = URL(string: urlString) else { return nil }
+        if url.isFileURL, !FileManager.default.fileExists(atPath: url.path) { return nil }
+        return url
     }
 
     var body: some View {
@@ -22,10 +24,13 @@ struct ChatStickerMessageBubble: View {
                     .id(stickerURL.absoluteString)
                     .frame(width: stickerSize, height: stickerSize)
                     .clipped()
-            } else {
+            } else if message.isMediaPendingResolution {
                 ProgressView()
                     .progressViewStyle(.circular)
                     .tint(colorScheme == .dark ? .white.opacity(0.6) : .black.opacity(0.4))
+                    .frame(width: stickerSize, height: stickerSize)
+            } else {
+                Color.clear
                     .frame(width: stickerSize, height: stickerSize)
             }
 

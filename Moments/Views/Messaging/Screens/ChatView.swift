@@ -61,15 +61,18 @@ struct GlassmorphicChatView: View {
     @State private var hasCompletedInitialScroll = false
     @State private var suppressPinnedMetricsUpdates = false
     @State private var didReapplyFrozenScrollPosition = false
+    @State private var didHydrateScrollStateOnce = false
+    @State private var missingFrozenAnchorLayoutPasses = 0
     @State private var initialScrollTask: Task<Void, Never>? = nil
+    @State private var highlightScrollTask: Task<Void, Never>? = nil
     @State private var frozenInitialScrollTarget: ChatScrollTarget? = nil
-    @State private var chatViewportHeight: CGFloat = 0
+    private static let chatListMinHeight: CGFloat = UIScreen.main.bounds.height - 20
     @State private var scrollContentOffset: CGFloat = 0
     @State private var scrollContentHeight: CGFloat = 0
     @State private var scrollViewportHeight: CGFloat = 0
+    @State private var scrollMetricsBuffer = ChatScrollMetricsBuffer()
     @State private var messageRowFrames: [String: CGRect] = [:]
     @State private var liveScrollAnchorRowId: String?
-    @State private var scrollPosition: ScrollPosition
     @State private var bottomSnapTask: Task<Void, Never>? = nil
     private let bottomScrollAnchorID = "chat-bottom-anchor"
     @State private var isSearchVisible = false
@@ -91,22 +94,22 @@ struct GlassmorphicChatView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     private let privacyService = PrivacyService()
     private let firestoreService = FirestoreService()
-    
+
     // ✅ NUEVO: Estados para navegación al perfil
     @State private var showingUserProfile = false
     @Namespace private var profileZoomNamespace
     @State private var navigateToProfile = false
-    
+
     // ✅ NUEVO: Estados para navegación al momento
     @State private var showingMomentDetail = false
     @State private var selectedMoment: Moment?
     @State private var showingMomentError = false
     @State private var showingStoryUnavailable = false
     @State private var storyUnavailableReason: SharedStoryAccessDenialReason?
-    
+
     // ✅ Ruta estable para presentar historias (header del chat o historia compartida en mensaje)
     @State private var storyRoute: ChatStoryRoute?
-    
+
     // ✅ HISTORIAS: Estados para anillo de historias
     @State private var hasStory: Bool = false
     @State private var hasUnseenStory: Bool = false
@@ -116,12 +119,12 @@ struct GlassmorphicChatView: View {
     @State private var liveOtherParticipantUsername: String = ""
     @State private var isOtherParticipantUnavailable: Bool = false
     @State private var isOtherParticipantBlockedByCurrentUser: Bool = false
-    
+
     // ✅ REACCIONES: Nuevo estado para Overlay
     @State private var reactionMessageOverlay: EnhancedMessage? = nil
     @State private var selectedChatMedia: SharedMedia?
     @State private var selectedChatMediaItems: [SharedMedia] = []
-    
+
     private var adaptiveColors: AdaptiveColors {
         AdaptiveColors(colorScheme: colorScheme)
     }
@@ -131,7 +134,7 @@ struct GlassmorphicChatView: View {
         let live = liveOtherParticipantUsername.trimmingCharacters(in: .whitespacesAndNewlines)
         return live.isEmpty ? fallback : live
     }
-    
+
     private var searchCounterText: String {
         guard !searchMatchIds.isEmpty else { return "0/0" }
         let current = min(max(currentSearchMatchIndex + 1, 1), searchMatchIds.count)
@@ -154,12 +157,14 @@ struct GlassmorphicChatView: View {
         viewModel.conversation.id ?? ""
     }
 
+    private var quickReactionEmoji: String { "❤️" }
+
     init(conversation: Conversation, session: ConversationChatSession? = nil) {
         let resolved = session ?? ChatSessionEngine.shared.session(for: conversation)
         let conversationId = conversation.id ?? ""
         let stored = ChatScrollStateStore.state(for: conversationId)
         _session = ObservedObject(wrappedValue: resolved)
-        _scrollPosition = State(initialValue: Self.makeScrollPosition(from: stored))
+        _messageText = State(initialValue: ChatDraftStore.shared.draft(for: conversationId))
         _hasCompletedInitialScroll = State(initialValue: stored.hasCompletedInitialScroll)
         _isPinnedToBottom = State(initialValue: stored.isPinnedToBottom)
         if let anchor = stored.scrollAnchorId, anchor != "chat-bottom-anchor" {
@@ -171,20 +176,6 @@ struct GlassmorphicChatView: View {
         _didReapplyFrozenScrollPosition = State(initialValue: false)
     }
 
-    /// Posición inicial del scroll — WhatsApp-style: re-hidrata sin scrollTo al reentrar.
-    private static func makeScrollPosition(from stored: ChatScrollStateStore.State) -> ScrollPosition {
-        guard stored.hasCompletedInitialScroll else {
-            return ScrollPosition(edge: .bottom)
-        }
-        if stored.isPinnedToBottom {
-            return ScrollPosition(edge: .bottom)
-        }
-        if let anchorId = stored.scrollAnchorId, anchorId != "chat-bottom-anchor" {
-            return ScrollPosition(id: anchorId, anchor: .top)
-        }
-        return ScrollPosition(edge: .bottom)
-    }
-    
     // ✅ REFACTOR: Dividido en variables separadas para evitar el error del compilador (timeout AST)
     private var baseChatView: some View {
         chatRootContent
@@ -200,8 +191,12 @@ struct GlassmorphicChatView: View {
             guard newValue != nil else { return }
             isTextFieldFocused = false
         }
+        .onChange(of: messageText) { _, newValue in
+            guard editingMessage == nil else { return }
+            ChatDraftStore.shared.setDraft(newValue, for: conversationId)
+        }
     }
-    
+
     private var chatViewWithSettingsAndStories: some View {
         baseChatView
             .fullScreenCover(isPresented: $showingConversationSettings, onDismiss: {
@@ -252,9 +247,12 @@ struct GlassmorphicChatView: View {
                 }
             }
     }
-    
+
     var body: some View {
         chatViewWithOverlays
+            .toolbar(.visible, for: .navigationBar)
+            .navigationBarHidden(false)
+            .toolbar(.hidden, for: .tabBar)
     }
 
     private var chatViewWithInteractionSheets: some View {
@@ -692,13 +690,13 @@ struct GlassmorphicChatView: View {
                 Image(systemName: "magnifyingglass")
                     .foregroundColor(adaptiveColors.secondary.opacity(0.8))
                     .font(.system(size: 14, weight: .medium))
-                
+
                 TextField(LocalizedStringKey("messaging.search.placeholder"), text: $searchQuery)
                     .font(.custom("Poppins-Regular", size: 14))
                     .foregroundColor(adaptiveColors.primary)
                     .textInputAutocapitalization(.never)
                     .disableAutocorrection(true)
-                
+
                 if !searchQuery.isEmpty {
                     Button {
                         searchQuery = ""
@@ -715,7 +713,7 @@ struct GlassmorphicChatView: View {
             .padding(.horizontal, 12)
             .padding(.vertical, 10)
             .momentsChromeGlass(in: Capsule(), interactive: true)
-            
+
             HStack(spacing: 6) {
                 Text(searchCounterText)
                     .font(.custom("Poppins-Medium", size: 11))
@@ -724,7 +722,7 @@ struct GlassmorphicChatView: View {
                     .padding(.horizontal, 10)
                     .padding(.vertical, 8)
                     .momentsChromeGlass(in: Capsule(), interactive: true)
-                
+
                 Button {
                     moveSearchSelection(by: -1)
                 } label: {
@@ -736,7 +734,7 @@ struct GlassmorphicChatView: View {
                 }
                 .buttonStyle(PlainButtonStyle())
                 .disabled(searchMatchIds.isEmpty)
-                
+
                 Button {
                     moveSearchSelection(by: 1)
                 } label: {
@@ -754,7 +752,7 @@ struct GlassmorphicChatView: View {
         .padding(.bottom, 8)
         .transition(.move(edge: .top).combined(with: .opacity))
     }
-    
+
     // ✅ Lista de mensajes — orden cronológico + anclaje inferior nativo (sin invertir LazyVStack)
     private var messagesListSection: some View {
         ScrollViewReader { proxy in
@@ -795,7 +793,6 @@ struct GlassmorphicChatView: View {
                 case .header(let date):
                     GlassmorphicDateHeader(date: date)
                         .padding(.vertical, 10)
-                        .trackChatScrollRowFrame(id: row.id)
                 case .message(let item):
                     if shouldShowUnreadDivider(before: item) {
                         GlassmorphicUnreadDivider()
@@ -804,14 +801,12 @@ struct GlassmorphicChatView: View {
                     }
                     renderMessageItem(item, in: viewModel.messages, proxy: proxy)
                         .id(item.id)
-                        .trackChatScrollRowFrame(id: row.id)
                 case .buzz(let event):
                     ChatBuzzTimelineEventRow(
                         text: buzzTimelineText(for: event),
                         isOutgoing: event.senderId == viewModel.currentUserId
                     )
                     .id("buzz-\(event.id)")
-                    .trackChatScrollRowFrame(id: row.id)
                 }
             }
 
@@ -822,14 +817,18 @@ struct GlassmorphicChatView: View {
             }
 
             Color.clear
-                .frame(height: 1)
+                .frame(height: 0)
                 .id(bottomScrollAnchorID)
                 .onAppear {
                     guard hasCompletedInitialScroll else { return }
-                    pendingIncomingMessages = 0
+                    markBottomAnchorVisible()
+                }
+                .onChange(of: hasCompletedInitialScroll) { _, completed in
+                    guard completed else { return }
+                    markBottomAnchorVisible()
                 }
         }
-        .frame(minHeight: max(chatViewportHeight - 20, 0), alignment: .bottom)
+        .frame(minHeight: Self.chatListMinHeight, alignment: .bottom)
         .padding(.vertical, 10)
         .scrollTargetLayout()
     }
@@ -838,26 +837,11 @@ struct GlassmorphicChatView: View {
         ScrollView {
             chatMessagesLazyStack(proxy: proxy)
         }
-        .scrollPosition($scrollPosition)
-        .background {
-            GeometryReader { geometry in
-                Color.clear
-                    .onAppear { chatViewportHeight = geometry.size.height }
-                    .onChange(of: geometry.size.height) { _, height in
-                        chatViewportHeight = height
-                    }
-            }
-        }
+        .scrollClipDisabled()
         .scrollContentBackground(.hidden)
         .coordinateSpace(name: "chatScroll")
         .chatScrollEdgeEffect()
         .scrollDismissesKeyboard(.interactively)
-        .onPreferenceChange(ChatScrollRowFrameKey.self) { frames in
-            messageRowFrames = frames
-            if hasCompletedInitialScroll, !isPinnedToBottom {
-                updateLiveScrollAnchor()
-            }
-        }
         .onScrollGeometryChange(for: ChatScrollMetrics.self, of: { geometry in
             ChatScrollMetrics(
                 offsetY: geometry.contentOffset.y,
@@ -865,9 +849,12 @@ struct GlassmorphicChatView: View {
                 viewportHeight: geometry.containerSize.height
             )
         }) { _, metrics in
-            handleScrollMetricsUpdate(metrics)
+            scrollMetricsBuffer.ingest(metrics)
         }
         .onScrollPhaseChange { _, phase in
+            if phase == .idle || phase == .decelerating {
+                flushScrollMetricsToUI()
+            }
             guard phase == .idle, hasCompletedInitialScroll else { return }
             if suppressPinnedMetricsUpdates {
                 suppressPinnedMetricsUpdates = false
@@ -879,38 +866,64 @@ struct GlassmorphicChatView: View {
 
     private func chatScrollToBottomOverlay(proxy: ScrollViewProxy) -> some View {
         Group {
-            if !isPinnedToBottom || pendingIncomingMessages > 0 {
+            if shouldShowScrollToBottomControl {
                 Button {
                     scrollToBottom(proxy: proxy, animated: true)
                     pendingIncomingMessages = 0
                     isPinnedToBottom = true
                     unreadDividerMessageId = nil
                 } label: {
-                    HStack(spacing: 6) {
-                        Image(systemName: "arrow.down.circle.fill")
-                            .font(.system(size: 16, weight: .semibold))
-                        if pendingIncomingMessages > 0 {
+                    ZStack(alignment: .topTrailing) {
+                        Image(systemName: "chevron.down")
+                            .font(.system(size: 30, weight: .bold))
+                            .symbolRenderingMode(.hierarchical)
+                            .foregroundStyle(scrollToBottomAccentColor)
+                            .shadow(color: Color.black.opacity(colorScheme == .dark ? 0.28 : 0.16), radius: 8, x: 0, y: 3)
+
+                        if pendingIncomingMessages > 0, isScrollContentScrollable {
                             Text(pendingIncomingMessages > 99 ? "99+" : "\(pendingIncomingMessages)")
-                                .font(.custom("Poppins-SemiBold", size: 12))
+                                .font(.custom("Poppins-SemiBold", size: 10))
+                                .foregroundStyle(scrollToBottomBadgeTextColor)
+                                .padding(.horizontal, 5)
+                                .frame(minWidth: 18, minHeight: 18)
+                                .background(scrollToBottomAccentColor)
+                                .clipShape(Capsule())
+                                .offset(x: 7, y: -5)
                         }
                     }
-                    .foregroundColor(.white)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 8)
-                    .background(Color.black.opacity(0.55))
-                    .clipShape(Capsule())
+                    .frame(width: 44, height: 44)
                 }
                 .padding(.trailing, 14)
-                .padding(.bottom, 14)
+                .padding(.bottom, 12)
                 .transition(.move(edge: .trailing).combined(with: .opacity))
             }
         }
+    }
+
+    private var shouldShowScrollToBottomControl: Bool {
+        pendingIncomingMessages > 0 || (!isPinnedToBottom && isScrollContentScrollable)
+    }
+
+    private func markBottomAnchorVisible() {
+        pendingIncomingMessages = 0
+        guard !isPinnedToBottom else { return }
+        isPinnedToBottom = true
+        persistScrollAnchorSnapshot()
+    }
+
+    private var scrollToBottomAccentColor: Color {
+        colorScheme == .dark ? Color(hex: "8EB6CE") : Color(hex: "3F6F8F")
+    }
+
+    private var scrollToBottomBadgeTextColor: Color {
+        colorScheme == .dark ? Color(hex: "071015") : .white
     }
 
     private func applyChatScrollInitialHandlers<V: View>(to content: V, proxy: ScrollViewProxy) -> some View {
         content
             .onAppear {
                 routeInitialScroll(using: proxy)
+                scheduleSingleHighlightScrollIfNeeded(using: proxy)
             }
             .simultaneousGesture(
                 DragGesture(minimumDistance: 24)
@@ -924,7 +937,6 @@ struct GlassmorphicChatView: View {
                         guard abs(vertical) > horizontal * 1.25, vertical > 28 else { return }
                         if isPinnedToBottom {
                             isPinnedToBottom = false
-                            ChatScrollDebug.log("drag unpinned", conversationId: conversationId)
                         }
                     }
             )
@@ -945,6 +957,7 @@ struct GlassmorphicChatView: View {
             }
             .onChange(of: viewModel.chatRenderRows.map(\.id)) { _, rowIds in
                 reapplyFrozenScrollPositionIfNeeded(in: rowIds, using: proxy)
+                scheduleSingleHighlightScrollIfNeeded(using: proxy)
                 guard !hasCompletedInitialScroll else { return }
                 if shouldOpenAtBottom(), isPinnedToBottom {
                     scheduleInitialBottomSnap(using: proxy)
@@ -965,6 +978,10 @@ struct GlassmorphicChatView: View {
                     lastMessageId: lastMessageId,
                     proxy: proxy
                 )
+            }
+            .onChange(of: viewModel.messages.count) { _, _ in
+                guard hasCompletedInitialScroll, !isPinnedToBottom else { return }
+                pendingIncomingMessages = unreadIncomingMessageCount()
             }
             .onChange(of: viewModel.latestBuzzEvent?.id) { _, buzzId in
                 guard let buzzId, hasCompletedInitialScroll else { return }
@@ -993,7 +1010,8 @@ struct GlassmorphicChatView: View {
             }
             .onChange(of: pendingReactionHighlightIds) { _, ids in
                 guard hasCompletedInitialScroll, !ids.isEmpty else { return }
-                highlightMessages(ids, proxy: proxy)
+                let shouldScroll = hasExplicitReactionHighlightIntent()
+                highlightMessages(ids, proxy: shouldScroll ? proxy : nil, scroll: shouldScroll)
                 pendingReactionHighlightIds.removeAll()
             }
             .onChange(of: viewModel.buzzEvents.map(\.id)) { _, _ in
@@ -1010,7 +1028,13 @@ struct GlassmorphicChatView: View {
                     conversationId == viewModel.conversation.id,
                     let messageId = notification.userInfo?["messageId"] as? String
                 else { return }
-                highlightMessages([messageId], proxy: proxy)
+                reloadNotificationOpenIntent()
+                let shouldScroll = notificationOpenIntent?.highlightMessageIds.contains(messageId) == true
+                if shouldScroll {
+                    scheduleSingleHighlightScrollIfNeeded(using: proxy)
+                } else {
+                    highlightMessages([messageId], proxy: nil, scroll: false)
+                }
             }
             .onReceive(NotificationCenter.default.publisher(for: .chatBuzzHighlight)) { notification in
                 guard
@@ -1065,7 +1089,7 @@ struct GlassmorphicChatView: View {
             return messages.first?.senderId == viewModel.currentUserId
         }
     }
-    
+
     // ✅ REFACTORIZADO: Sección de barra de respuesta o edición
     private var replyBarSection: some View {
         VStack(spacing: 0) {
@@ -1077,7 +1101,7 @@ struct GlassmorphicChatView: View {
                     self.replyingTo = nil
                 }
             }
-            
+
             if editingMessage != nil {
                 HStack {
                     Image(systemName: "pencil")
@@ -1172,11 +1196,14 @@ struct GlassmorphicChatView: View {
     }
 
     private var mainChatStack: some View {
-        VStack(spacing: 0) {
-            messagesListSection
-            replyBarSection
-            inputBarSection
-        }
+        messagesListSection
+            .chatBottomBarInset {
+                VStack(spacing: 0) {
+                    replyBarSection
+                    inputBarSection
+                }
+                .background(Color.clear)
+            }
     }
 
     private func sharedMedia(from message: EnhancedMessage) -> SharedMedia? {
@@ -1233,6 +1260,7 @@ struct GlassmorphicChatView: View {
             DispatchQueue.main.async {
                 switch result {
                 case .success:
+                    HapticManager.shared.playBuzzSentSound()
                     triggerBuzzEffect(
                         text: NSLocalizedString("chat.buzz.sent", comment: "Sent buzz toast"),
                         isLocal: true,
@@ -1265,6 +1293,7 @@ struct GlassmorphicChatView: View {
 
         buzzShakeAmplitude = 24
         HapticManager.shared.chatBuzzReceived(reduceMotion: reduceMotion)
+        HapticManager.shared.playBuzzReceivedSound()
         guard !reduceMotion else { return }
         buzzShakeProgress = 0
         withAnimation(.linear(duration: 1.12)) {
@@ -1317,6 +1346,7 @@ struct GlassmorphicChatView: View {
                             let replyToMessageId = replyingTo?.id
                             viewModel.sendTextMessage(messageToSend, replyTo: replyToMessageId)
                             replyingTo = nil
+                            ChatDraftStore.shared.clearDraft(for: conversationId)
                         }
 
                         messageText = ""
@@ -1389,9 +1419,9 @@ struct GlassmorphicChatView: View {
             .padding(.vertical, 10)
         }
     }
-    
+
     // ✅ REFACTORIZADO: Acciones al aparecer
-    
+
     // ✅ REFACTORIZADO: Renderizar cada item del chat por separado para evitar errores del compilador
     @ViewBuilder
     private func renderMessageItem(_ item: MessageItem, in messages: [EnhancedMessage], proxy: ScrollViewProxy) -> some View {
@@ -1407,9 +1437,12 @@ struct GlassmorphicChatView: View {
                 switch item {
                 case .single(let message):
                     let liveMessage = viewModel.messages.first(where: { $0.id == message.id }) ?? message
+                    let displayReactions = shouldRenderReactionChrome(rowId: rowId, messageIds: [liveMessage.id])
+                        ? viewModel.displayReactions(for: liveMessage.id)
+                        : nil
                     GlassmorphicMessageRow(
                     message: liveMessage,
-                    displayReactions: viewModel.displayReactions(for: liveMessage.id),
+                    displayReactions: displayReactions,
                     isCurrentUser: liveMessage.senderId == viewModel.currentUserId,
                     showAvatar: shouldShowAvatar(for: liveMessage, in: messages),
                     groupPosition: messageGroupPosition(for: liveMessage, in: messages),
@@ -1457,6 +1490,11 @@ struct GlassmorphicChatView: View {
                 .chatMessageLongPressPresent { frame in
                     presentMessageOptions(liveMessage, rowId: rowId, cluster: nil, rowFrame: frame)
                 }
+                .simultaneousGesture(
+                    TapGesture(count: 2).onEnded {
+                        addQuickReaction(to: liveMessage)
+                    }
+                )
 
                 case .mediaCluster(let clusterMessages):
                     let liveCluster = clusterMessages.compactMap { clusterMessage in
@@ -1499,7 +1537,9 @@ struct GlassmorphicChatView: View {
                         jumpToMessage(id, proxy: proxy)
                     },
                     displayReactions: { messageId in
-                        viewModel.displayReactions(for: messageId)
+                        shouldRenderReactionChrome(rowId: rowId, messageIds: liveCluster.map(\.id))
+                            ? viewModel.displayReactions(for: messageId)
+                            : nil
                     },
                     onReaction: { message, emoji in
                         viewModel.addReaction(to: message, emoji: emoji)
@@ -1512,6 +1552,13 @@ struct GlassmorphicChatView: View {
                     }()
                 )
                 .background(messageFlashBackground(forCluster: liveCluster))
+                .simultaneousGesture(
+                    TapGesture(count: 2).onEnded {
+                        if let frontMessage = liveCluster.first {
+                            addQuickReaction(to: frontMessage)
+                        }
+                    }
+                )
 
                 }
             }
@@ -1550,6 +1597,15 @@ struct GlassmorphicChatView: View {
             .joined(separator: ",")
     }
 
+    private func shouldRenderReactionChrome(rowId: String, messageIds: [String]) -> Bool {
+        true
+    }
+
+    private func addQuickReaction(to message: EnhancedMessage) {
+        viewModel.addReaction(to: message, emoji: quickReactionEmoji)
+        HapticManager.shared.lightImpact()
+    }
+
     private func presentMessageOptions(
         _ message: EnhancedMessage,
         rowId: String,
@@ -1568,6 +1624,11 @@ struct GlassmorphicChatView: View {
     }
 
     private func restoreScrollUIState() {
+        // Apertura fresca por instancia: solo se establece la línea base una vez para que un
+        // segundo `onAppear` (p. ej. al cerrar un sheet) no fuerce un salto al fondo a media lectura.
+        guard !didHydrateScrollStateOnce else { return }
+        didHydrateScrollStateOnce = true
+
         let stored = ChatScrollStateStore.state(for: conversationId)
         hasCompletedInitialScroll = stored.hasCompletedInitialScroll
         frozenInitialScrollTarget = stored.frozenInitialScrollTarget
@@ -1578,10 +1639,6 @@ struct GlassmorphicChatView: View {
         if let anchor = stored.scrollAnchorId, anchor != bottomScrollAnchorID {
             liveScrollAnchorRowId = anchor
         }
-        ChatScrollDebug.log(
-            "restore pinned=\(stored.isPinnedToBottom) anchor=\(stored.scrollAnchorId ?? "nil") offset=\(Int(stored.scrollOffsetY ?? -1)) completed=\(stored.hasCompletedInitialScroll)",
-            conversationId: conversationId
-        )
     }
 
     private func persistScrollUIState() {
@@ -1601,10 +1658,6 @@ struct GlassmorphicChatView: View {
             state.scrollAnchorId = savedAnchor
             state.scrollOffsetY = savedOffset
         }
-        ChatScrollDebug.log(
-            "persist pinned=\(isPinnedToBottom) anchor=\(savedAnchor ?? "nil") offset=\(Int(savedOffset ?? -1)) frames=\(messageRowFrames.count)",
-            conversationId: conversationId
-        )
     }
 
     private func persistScrollAnchorSnapshot() {
@@ -1617,28 +1670,34 @@ struct GlassmorphicChatView: View {
             state.scrollAnchorId = savedAnchor
             state.scrollOffsetY = savedOffset
         }
-        ChatScrollDebug.log(
-            "snapshot pinned=\(isPinnedToBottom) anchor=\(savedAnchor ?? "nil") offset=\(Int(savedOffset ?? -1))",
-            conversationId: conversationId
-        )
     }
 
-    private func handleScrollMetricsUpdate(_ metrics: ChatScrollMetrics) {
-        scrollContentOffset = metrics.offsetY
-        scrollContentHeight = metrics.contentHeight
-        scrollViewportHeight = metrics.viewportHeight
+    /// Sincroniza métricas de scroll a @State al parar o desacelerar.
+    private func flushScrollMetricsToUI() {
+        let metrics = scrollMetricsBuffer.metrics
+        let offsetDelta = abs(metrics.offsetY - scrollContentOffset)
+        let contentDelta = abs(metrics.contentHeight - scrollContentHeight)
+        let viewportDelta = abs(metrics.viewportHeight - scrollViewportHeight)
+        guard offsetDelta > 1 || contentDelta > 1 || viewportDelta > 1 else { return }
+
+        let oldViewportHeight = scrollViewportHeight
+        let oldContentHeight = scrollContentHeight
+        if offsetDelta > 1 { scrollContentOffset = metrics.offsetY }
+        if contentDelta > 1 { scrollContentHeight = metrics.contentHeight }
+        if viewportDelta > 1 { scrollViewportHeight = metrics.viewportHeight }
 
         guard hasCompletedInitialScroll else { return }
         guard !suppressPinnedMetricsUpdates else { return }
 
-        let bottomGap = metrics.contentHeight - metrics.offsetY - metrics.viewportHeight
-        let pinned = bottomGap < 48
+        let bottomGap = bottomGap(for: metrics)
+        var pinned = !isScrollable(metrics) || bottomGap < 48
+
+        if isPinnedToBottom
+            && (metrics.viewportHeight != oldViewportHeight || metrics.contentHeight != oldContentHeight) {
+            pinned = true
+        }
 
         if pinned != isPinnedToBottom {
-            ChatScrollDebug.log(
-                "pinned \(isPinnedToBottom)->\(pinned) bottomGap=\(Int(bottomGap)) offset=\(Int(metrics.offsetY))",
-                conversationId: conversationId
-            )
             isPinnedToBottom = pinned
             persistScrollAnchorSnapshot()
         }
@@ -1646,6 +1705,18 @@ struct GlassmorphicChatView: View {
         if !isPinnedToBottom {
             updateLiveScrollAnchor()
         }
+    }
+
+    private var isScrollContentScrollable: Bool {
+        scrollContentHeight > scrollViewportHeight + 48
+    }
+
+    private func isScrollable(_ metrics: ChatScrollMetrics) -> Bool {
+        metrics.contentHeight > metrics.viewportHeight + 48
+    }
+
+    private func bottomGap(for metrics: ChatScrollMetrics) -> CGFloat {
+        max(0, metrics.contentHeight - metrics.offsetY - metrics.viewportHeight)
     }
 
     private func shouldOpenAtBottom() -> Bool {
@@ -1666,19 +1737,13 @@ struct GlassmorphicChatView: View {
     /// Solo la primera apertura o intents (no leídos / reacción) necesitan scroll programático.
     private func needsProgrammaticInitialScroll() -> Bool {
         if preferredReactionHighlightMessageId() != nil { return true }
+        if hasCompletedInitialScroll && !isPinnedToBottom { return false }
         if hasUnreadIncomingMessages() { return true }
         return !hasCompletedInitialScroll
     }
 
     private func routeInitialScroll(using proxy: ScrollViewProxy) {
-        guard needsProgrammaticInitialScroll() else {
-            ChatScrollDebug.log("route skip: frozen re-entry", conversationId: conversationId)
-            return
-        }
-        ChatScrollDebug.log(
-            "route programmatic openAtBottom=\(shouldOpenAtBottom()) pinned=\(isPinnedToBottom)",
-            conversationId: conversationId
-        )
+        guard needsProgrammaticInitialScroll() else { return }
         if shouldOpenAtBottom() {
             scheduleInitialBottomSnap(using: proxy)
         } else {
@@ -1695,28 +1760,45 @@ struct GlassmorphicChatView: View {
 
         if isPinnedToBottom {
             didReapplyFrozenScrollPosition = true
-            ChatScrollDebug.log("reapply frozen bottom", conversationId: conversationId)
             withTransaction(transaction) {
-                scrollPosition = ScrollPosition(edge: .bottom)
                 proxy.scrollTo(bottomScrollAnchorID, anchor: .bottom)
             }
             return
         }
 
         guard let anchorId = storedScrollAnchorRowId(), rowIds.contains(anchorId) else {
-            ChatScrollDebug.log(
-                "reapply wait: anchor missing rows=\(rowIds.count)",
-                conversationId: conversationId
-            )
+            guard !viewModel.isLoadingMore, !viewModel.messages.isEmpty else { return }
+            missingFrozenAnchorLayoutPasses += 1
+            guard missingFrozenAnchorLayoutPasses >= 3 else { return }
+            guard let fallbackId = fallbackFrozenScrollAnchor(in: rowIds) else { return }
+
+            didReapplyFrozenScrollPosition = true
+            missingFrozenAnchorLayoutPasses = 0
+            withTransaction(transaction) {
+                proxy.scrollTo(fallbackId, anchor: .top)
+            }
             return
         }
 
         didReapplyFrozenScrollPosition = true
-        ChatScrollDebug.log("reapply frozen anchor=\(anchorId)", conversationId: conversationId)
+        missingFrozenAnchorLayoutPasses = 0
         withTransaction(transaction) {
-            scrollPosition = ScrollPosition(id: anchorId, anchor: .top)
             proxy.scrollTo(anchorId, anchor: .top)
         }
+    }
+
+    private func fallbackFrozenScrollAnchor(in rowIds: [String]) -> String? {
+        if let unreadDividerMessageId,
+           let unreadRowId = messageRowId(containingMessageId: unreadDividerMessageId),
+           rowIds.contains(unreadRowId) {
+            return unreadRowId
+        }
+
+        if let firstPreferred = rowIds.first(where: isPreferredScrollAnchorRow) {
+            return firstPreferred
+        }
+
+        return rowIds.first
     }
 
     private func updateLiveScrollAnchor() {
@@ -1728,20 +1810,10 @@ struct GlassmorphicChatView: View {
             return
         }
 
-        guard scrollViewportHeight > 0 else {
-            ChatScrollDebug.log("anchor skip: viewport=0", conversationId: conversationId)
-            return
-        }
+        guard scrollViewportHeight > 0 else { return }
 
-        guard !messageRowFrames.isEmpty else {
-            ChatScrollDebug.log(
-                "anchor skip: no frames offset=\(Int(scrollContentOffset))",
-                conversationId: conversationId
-            )
-            return
-        }
+        guard !messageRowFrames.isEmpty else { return }
 
-        // Frames from `.scrollView(axis: .vertical)` están en coords del viewport visible (0 = arriba).
         let viewportTop: CGFloat = 8
         let viewportBottom = scrollViewportHeight - 8
 
@@ -1769,27 +1841,10 @@ struct GlassmorphicChatView: View {
             }
         }
 
-        guard let candidateId else {
-            if let sample = messageRowFrames.min(by: { $0.value.minY < $1.value.minY }) {
-                ChatScrollDebug.log(
-                    "anchor skip: no candidate offset=\(Int(scrollContentOffset)) sample=\(sample.key) y=\(Int(sample.value.minY))-\(Int(sample.value.maxY)) vp=\(Int(viewportTop))-\(Int(viewportBottom))",
-                    conversationId: conversationId
-                )
-            } else {
-                ChatScrollDebug.log(
-                    "anchor skip: no candidate offset=\(Int(scrollContentOffset)) frames=\(messageRowFrames.count)",
-                    conversationId: conversationId
-                )
-            }
-            return
-        }
+        guard let candidateId else { return }
 
         if liveScrollAnchorRowId != candidateId {
             liveScrollAnchorRowId = candidateId
-            ChatScrollDebug.log(
-                "anchor row=\(candidateId) minY=\(Int(candidateMinY)) offset=\(Int(scrollContentOffset))",
-                conversationId: conversationId
-            )
             persistScrollAnchorSnapshot()
         }
     }
@@ -1797,12 +1852,16 @@ struct GlassmorphicChatView: View {
     /// Snap silencioso al fondo cuando no hay pendientes — solo primera apertura.
     private func scheduleInitialBottomSnap(using proxy: ScrollViewProxy) {
         guard shouldOpenAtBottom(), isPinnedToBottom else { return }
+        guard !hasCompletedInitialScroll else { return }
         guard bottomSnapTask == nil else { return }
 
         bottomSnapTask = Task { @MainActor in
             defer { bottomSnapTask = nil }
 
-            let delays: [UInt64] = [0, 16_000_000, 50_000_000, 120_000_000, 250_000_000, 450_000_000]
+            // Optimizar delays: si está en caché/warm, resolver rápido.
+            let isWarm = viewModel.chatSessionMode == .active || viewModel.chatSessionMode == .warm || !viewModel.messages.isEmpty
+            let delays: [UInt64] = isWarm ? [0, 50_000_000] : [0, 50_000_000, 200_000_000]
+
             for delay in delays {
                 if Task.isCancelled { return }
                 if delay > 0 {
@@ -1824,7 +1883,6 @@ struct GlassmorphicChatView: View {
             if !hasCompletedInitialScroll {
                 hasCompletedInitialScroll = true
                 isPinnedToBottom = true
-                scrollPosition = ScrollPosition(edge: .bottom)
                 frozenInitialScrollTarget = viewModel.messages.last.map { .bottom(messageId: $0.id) }
                 persistScrollUIState()
             }
@@ -1849,16 +1907,17 @@ struct GlassmorphicChatView: View {
             frozenInitialScrollTarget = nil
             initialScrollTask?.cancel()
             initialScrollTask = nil
+            highlightScrollTask?.cancel()
+            highlightScrollTask = nil
             bottomSnapTask?.cancel()
             bottomSnapTask = nil
-            scrollPosition = ScrollPosition(edge: .bottom)
         }
 
         if !conversationId.isEmpty {
             ChatSessionEngine.shared.activate(conversationId: conversationId)
         }
 
-        pendingIncomingMessages = 0
+        pendingIncomingMessages = isPinnedToBottom ? 0 : unreadIncomingMessageCount()
         setupOnlineStatusObserver()
         refreshOtherParticipantUsername()
         refreshOtherParticipantAvailability()
@@ -1867,10 +1926,13 @@ struct GlassmorphicChatView: View {
 
     // ✅ REFACTORIZADO: Acciones al desaparecer
     private func onDisappearActions() {
+        flushScrollMetricsToUI()
         updateLiveScrollAnchor()
         persistScrollUIState()
         initialScrollTask?.cancel()
         initialScrollTask = nil
+        highlightScrollTask?.cancel()
+        highlightScrollTask = nil
         bottomSnapTask?.cancel()
         bottomSnapTask = nil
         buzzToastDismissTask?.cancel()
@@ -1883,7 +1945,7 @@ struct GlassmorphicChatView: View {
 
         statusListener?.remove()
     }
-    
+
     // ✅ ACTUALIZADO: Función para verificar historias del usuario (con filtrado de privacidad como en reels)
     private func checkUserStories() {
         guard let currentUserId = Auth.auth().currentUser?.uid else { return }
@@ -1902,11 +1964,11 @@ struct GlassmorphicChatView: View {
             self.storyAudiences = snapshot.storyAudiences
         }
     }
-    
+
     // MARK: - Helper Methods
     private func setupOnlineStatusObserver() {
         let otherUserId = viewModel.conversation.otherParticipantId
-        
+
         statusListener = onlineStatusService.observeUserStatus(userId: otherUserId) { status, lastSeen in
             DispatchQueue.main.async {
                 self.otherUserStatus = status
@@ -1914,7 +1976,7 @@ struct GlassmorphicChatView: View {
             }
         }
     }
-    
+
     private func handleCameraCapture(data: Data, mediaType: EnhancedCameraPickerView.MediaType, isEphemeral: Bool) {
         guard !isOtherParticipantUnavailable else {
             showEnhancedCamera = false
@@ -1924,21 +1986,19 @@ struct GlassmorphicChatView: View {
         guard viewModel.conversation.id != nil else {
             return
         }
-        
-        // ✅ AGREGAR ESTA LÍNEA DE DEBUG:
-        
+
         if isEphemeral {
             viewModel.sendViewOnceMessage(data: data, mediaType: mediaType)
-            
+
         } else {
             if mediaType == .image {
                 viewModel.sendImageMessage(data)
             } else {
                 viewModel.sendVideoMessage(data: data)
             }
-            
+
         }
-        
+
         showEnhancedCamera = false
     }
 
@@ -2034,7 +2094,7 @@ struct GlassmorphicChatView: View {
         return nextMessage.senderId != message.senderId
     }
 
-    /// Posición del mensaje en una ráfaga del mismo remitente (estilo Instagram).
+    /// Posición del mensaje en una ráfaga del mismo remitente.
     private func messageGroupPosition(for message: EnhancedMessage, in messages: [EnhancedMessage]) -> ChatMessageGroupPosition {
         guard let index = messages.firstIndex(where: { $0.id == message.id }) else { return .single }
         let prevSameSender = index > 0 && messages[index - 1].senderId == message.senderId
@@ -2047,7 +2107,7 @@ struct GlassmorphicChatView: View {
         case (true, false): return .last
         }
     }
-    
+
     // MARK: - Voice Recording Functions
     private func startVoiceRecording() {
         recordingTime = 0
@@ -2096,10 +2156,19 @@ extension GlassmorphicChatView {
         return notificationOpenIntent?.highlightMessageIds.first
     }
 
+    private func hasExplicitReactionHighlightIntent() -> Bool {
+        reloadNotificationOpenIntent()
+        return notificationOpenIntent?.highlightMessageIds.isEmpty == false
+    }
+
     private func hasUnreadIncomingMessages() -> Bool {
-        viewModel.messages.contains {
+        unreadIncomingMessageCount() > 0
+    }
+
+    private func unreadIncomingMessageCount() -> Int {
+        viewModel.messages.filter {
             !$0.isRead && $0.senderId != viewModel.currentUserId
-        }
+        }.count
     }
 
     private func reconcileScrollStateForCurrentConversation() {
@@ -2181,6 +2250,9 @@ extension GlassmorphicChatView {
     }
 
     private func scrollToTarget(_ target: ChatScrollTarget, proxy: ScrollViewProxy, animated: Bool) {
+        if target.pinsToBottom {
+            suppressPinnedMetricsUpdates = true
+        }
         let performScroll = {
             switch target {
             case .bottom:
@@ -2204,8 +2276,8 @@ extension GlassmorphicChatView {
     }
 
     private func scrollToBottom(proxy: ScrollViewProxy, animated: Bool) {
+        suppressPinnedMetricsUpdates = true
         let performScroll = {
-            scrollPosition.scrollTo(edge: .bottom)
             proxy.scrollTo(bottomScrollAnchorID, anchor: .bottom)
         }
 
@@ -2248,15 +2320,17 @@ extension GlassmorphicChatView {
            !ChatScrollStateStore.shouldRunInitialScroll(for: conversationId, hasHighlightIntent: hasHighlightIntent) {
             return
         }
+
+        refreshFrozenScrollTargetForReactionHighlight()
+        if frozenInitialScrollTarget == nil {
+            frozenInitialScrollTarget = resolveInitialScrollTarget()
+        }
+
         guard !viewModel.messages.isEmpty else { return }
         guard initialScrollTask == nil else { return }
 
         initializeUnreadDividerIfNeeded()
-        refreshFrozenScrollTargetForReactionHighlight()
 
-        if frozenInitialScrollTarget == nil {
-            frozenInitialScrollTarget = resolveInitialScrollTarget()
-        }
         guard let target = frozenInitialScrollTarget else { return }
 
         if target.pinsToBottom {
@@ -2281,7 +2355,7 @@ extension GlassmorphicChatView {
             }
 
             let delays: [UInt64] = isHighlight
-                ? [0, 120_000_000, 320_000_000, 600_000_000, 1_000_000_000, 1_500_000_000]
+                ? [0, 150_000_000, 500_000_000, 1_200_000_000]
                 : [0, 120_000_000]
 
             for delay in delays {
@@ -2307,7 +2381,7 @@ extension GlassmorphicChatView {
                     }
                     guard messageIsReadyForScroll(activeId) else { continue }
 
-                    scrollToTarget(.highlightedMessage(messageId: activeId), proxy: proxy, animated: false)
+                    scrollToTarget(.highlightedMessage(messageId: activeId), proxy: proxy, animated: true)
                     finishInitialOpen(using: proxy, pinsToBottom: false)
                     return
                 }
@@ -2318,6 +2392,10 @@ extension GlassmorphicChatView {
             guard !Task.isCancelled, !hasCompletedInitialScroll else { return }
 
             if isHighlight, let activeId = highlightMessageId ?? preferredReactionHighlightMessageId() {
+                guard messageIsReadyForScroll(activeId) else {
+                    scheduleSingleHighlightScrollIfNeeded(using: proxy)
+                    return
+                }
                 scrollToTarget(.highlightedMessage(messageId: activeId), proxy: proxy, animated: false)
                 finishInitialOpen(using: proxy, pinsToBottom: false)
             } else {
@@ -2336,6 +2414,56 @@ extension GlassmorphicChatView {
                 guard !didProcessNotificationBuzz else { return }
                 reloadNotificationOpenIntent()
                 processPendingBuzz(using: proxy)
+            }
+        }
+    }
+
+    private func scheduleSingleHighlightScrollIfNeeded(using proxy: ScrollViewProxy) {
+        reloadNotificationOpenIntent()
+        guard let ids = notificationOpenIntent?.highlightMessageIds, ids.count == 1, let messageId = ids.first else { return }
+        guard highlightScrollTask == nil else { return }
+
+        highlightScrollTask = Task { @MainActor in
+            defer { highlightScrollTask = nil }
+
+            let delays: [UInt64] = [
+                0,
+                200_000_000,
+                600_000_000,
+                1_500_000_000,
+                3_000_000_000
+            ]
+
+            for delay in delays {
+                if Task.isCancelled { return }
+                if delay > 0 {
+                    try? await Task.sleep(nanoseconds: delay)
+                }
+
+                reloadNotificationOpenIntent()
+                guard notificationOpenIntent?.highlightMessageIds.contains(messageId) == true else { return }
+
+                if messageIsReadyForScroll(messageId) {
+                    hasCompletedInitialScroll = true
+                    isPinnedToBottom = false
+                    scrollToTarget(.highlightedMessage(messageId: messageId), proxy: proxy, animated: true)
+                    highlightMessages([messageId], proxy: nil, duration: 1.6, scroll: false)
+                    if let conversationId = viewModel.conversation.id {
+                        ChatNavigationIntentStore.clearHighlights(for: conversationId)
+                        reloadNotificationOpenIntent()
+                        clearNotificationOpenIntentIfFinished()
+                    }
+                    return
+                }
+
+                if !viewModel.messages.contains(where: { $0.id == messageId }),
+                   viewModel.canLoadMore,
+                   !viewModel.isLoadingMore {
+                    viewModel.loadMessageForHighlightIfNeeded(messageId: messageId)
+                    viewModel.loadMoreMessages()
+                } else if !viewModel.messages.contains(where: { $0.id == messageId }) {
+                    viewModel.loadMessageForHighlightIfNeeded(messageId: messageId)
+                }
             }
         }
     }
@@ -2360,18 +2488,18 @@ extension GlassmorphicChatView {
     private func initializeUnreadDividerIfNeeded() {
         guard !unreadDividerInitialized else { return }
         guard !viewModel.messages.isEmpty else { return }
-        
+
         unreadDividerMessageId = viewModel.messages.first {
             !$0.isRead && $0.senderId != viewModel.currentUserId
         }?.id
         unreadDividerInitialized = true
     }
-    
+
     private func shouldShowUnreadDivider(before item: MessageItem) -> Bool {
         guard let dividerId = unreadDividerMessageId else { return false }
         return item.id == dividerId
     }
-    
+
     private func updateSearchMatches() {
         let trimmed = searchQuery.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else {
@@ -2380,7 +2508,7 @@ extension GlassmorphicChatView {
             pendingSearchTargetId = nil
             return
         }
-        
+
         let normalizedQuery = trimmed.folding(options: [.diacriticInsensitive, .caseInsensitive], locale: .current)
         let matches = viewModel.messages.filter { message in
             let searchable = [message.content, message.preview]
@@ -2390,34 +2518,34 @@ extension GlassmorphicChatView {
             return searchable.contains(normalizedQuery)
         }
         .map(\.id)
-        
+
         searchMatchIds = matches
-        
+
         guard !matches.isEmpty else {
             currentSearchMatchIndex = 0
             pendingSearchTargetId = nil
             return
         }
-        
+
         if currentSearchMatchIndex >= matches.count {
             currentSearchMatchIndex = max(matches.count - 1, 0)
         }
-        
+
         pendingSearchTargetId = matches[currentSearchMatchIndex]
     }
-    
+
     private func moveSearchSelection(by step: Int) {
         guard !searchMatchIds.isEmpty else { return }
         let count = searchMatchIds.count
         currentSearchMatchIndex = (currentSearchMatchIndex + step + count) % count
         pendingSearchTargetId = searchMatchIds[currentSearchMatchIndex]
     }
-    
+
     // MARK: - Clustering Logic
     private func clusterMessages(_ input: [EnhancedMessage]) -> [MessageItem] {
         ClusterMessageGrouper.group(input)
     }
-    
+
     // ✅ JUMP TO MESSAGE: Scrollear hacia un mensaje específico con efecto visual
     private func jumpToMessage(_ messageId: String, proxy: ScrollViewProxy) {
         highlightMessages([messageId], proxy: proxy, duration: 1.2)
@@ -2488,7 +2616,7 @@ extension GlassmorphicChatView {
             }
             pendingReactionHighlightIds.removeAll()
             if !ids.isEmpty {
-                highlightMessages(ids, proxy: proxy, duration: 1.2, scroll: false)
+                highlightMessages(ids, proxy: nil, duration: 1.2, scroll: false)
             }
             if let conversationId = viewModel.conversation.id {
                 ChatNavigationIntentStore.clearHighlights(for: conversationId)
@@ -2504,7 +2632,8 @@ extension GlassmorphicChatView {
         }
         guard !ids.isEmpty else { return }
         pendingReactionHighlightIds.removeAll()
-        highlightMessages(ids, proxy: proxy)
+        let shouldScroll = hasExplicitReactionHighlightIntent()
+        highlightMessages(ids, proxy: shouldScroll ? proxy : nil, scroll: shouldScroll)
 
         if let conversationId = viewModel.conversation.id {
             ChatNavigationIntentStore.clearHighlights(for: conversationId)
@@ -2562,14 +2691,14 @@ extension GlassmorphicChatView {
             .filter { $0.senderId != viewModel.currentUserId && $0.createdAt >= recentCutoff }
             .max(by: { $0.createdAt < $1.createdAt })
     }
-    
+
     private func handleMomentNavigationFromChat(message: EnhancedMessage) {
         if let sharedMomentData = message.sharedMomentData,
            let momentId = sharedMomentData["momentId"] {
-            
+
             // ✅ CORREGIDO: Obtener el authorId del momento compartido o usar el senderId como fallback
             let authorId = sharedMomentData["momentAuthorId"] ?? message.senderId
-            
+
             firestoreService.fetchMoment(momentId: momentId, userId: authorId) { result in
                 DispatchQueue.main.async {
                     switch result {
@@ -2638,11 +2767,11 @@ class MomentsChatViewModel: EnhancedChatViewModel {
             }
         }
     }
-    
+
     override init(conversation: Conversation) {
         super.init(conversation: conversation)
     }
-    
+
     /// Sincroniza agrupación por fecha y filas planas de render en un solo paso @Published.
     func syncMessagePresentation() {
         let calendar = Calendar.current
@@ -2697,34 +2826,34 @@ class MomentsChatViewModel: EnhancedChatViewModel {
     func updateGroupedMessages() {
         syncMessagePresentation()
     }
-    
+
     override func sendTextMessage(_ content: String, replyTo: String? = nil) {
         guard let conversationId = conversation.id, !conversationId.isEmpty else {
             error = NSLocalizedString("chat.error.invalidConversation.text", comment: "Invalid conversation ID when sending text")
             return
         }
-        
+
         // Track antes de enviar
-        
+
         messagesSentThisSession += 1
-        
+
         // ✅ USAR el método de la clase padre que maneja mensajes temporales
         super.sendTextMessage(content, replyTo: replyTo)
     }
-    
+
     func trackMediaMessageSent(type: String) {
         messagesSentThisSession += 1
     }
-    
+
     // MARK: - Enhanced Delete Message Actions
     override func deleteMessageForEveryone(_ message: EnhancedMessage) {
-        
+
         chatService.deleteMessageWithCleanup(conversationId: message.conversationId, messageId: message.id) { _ in }
         objectWillChange.send()
     }
-    
+
     override func deleteMessageForMe(_ message: EnhancedMessage) {
-        
+
         chatService.deleteMessageForMe(conversationId: message.conversationId, messageId: message.id, userId: currentUserId) { [weak self] _ in
             DispatchQueue.main.async {
                 self?.messages.removeAll { $0.id == message.id }
@@ -2733,16 +2862,16 @@ class MomentsChatViewModel: EnhancedChatViewModel {
             }
         }
     }
-    
+
     // MARK: - New Media Message Functions
     func sendImageMessage(_ imageData: Data) {
         guard let conversationId = conversation.id, !conversationId.isEmpty else {
             error = NSLocalizedString("chat.error.invalidConversation.image", comment: "Invalid conversation ID when sending image")
             return
         }
-        
+
         trackMediaMessageSent(type: "image")
-        
+
         let messageId = UUID().uuidString
         let localPreview = localOutgoingPreviewURL(data: imageData, fileExtension: "jpg")
         let tempMessage = EnhancedMessage(
@@ -2753,9 +2882,9 @@ class MomentsChatViewModel: EnhancedChatViewModel {
             mediaUrl: localPreview,
             status: .sending
         )
-        
+
         appendOutgoingMessage(tempMessage)
-        
+
         chatService.sendMediaMessage(
             conversationId: conversationId,
             senderId: currentUserId,
@@ -2779,15 +2908,15 @@ class MomentsChatViewModel: EnhancedChatViewModel {
             }
         }
     }
-    
+
     func sendAudioMessage(_ audioData: Data, duration: TimeInterval) {
         guard let conversationId = conversation.id, !conversationId.isEmpty else {
             error = NSLocalizedString("chat.error.invalidConversation.audio", comment: "Invalid conversation ID when sending audio")
             return
         }
-        
+
         trackMediaMessageSent(type: "audio")
-        
+
         // ✅ Crear mensaje local inmediatamente para feedback visual (preview local como imágenes)
         let messageId = UUID().uuidString
         let localPreview = localOutgoingPreviewURL(data: audioData, fileExtension: "m4a")
@@ -2802,9 +2931,9 @@ class MomentsChatViewModel: EnhancedChatViewModel {
             duration: duration,
             status: .sending
         )
-        
+
         appendOutgoingMessage(tempMessage)
-        
+
         chatService.sendAudioMessage(
             conversationId: conversationId,
             senderId: currentUserId,
@@ -2828,18 +2957,18 @@ class MomentsChatViewModel: EnhancedChatViewModel {
             }
         }
     }
-    
+
     // ✅ NUEVA función para enviar mensajes view-once
     func sendViewOnceMessage(data: Data, mediaType: EnhancedCameraPickerView.MediaType) {
         guard let conversationId = conversation.id, !conversationId.isEmpty else {
             error = NSLocalizedString("chat.error.invalidConversation.viewOnce", comment: "Invalid conversation ID when sending view-once message")
             return
         }
-        
+
         // ✅ Crear mensaje local inmediatamente para feedback visual
         let messageId = UUID().uuidString
         let messageType: MessageType = mediaType == .image ? .viewOnceImage : .viewOnceVideo
-        
+
         let tempMessage = EnhancedMessage(
             id: messageId,
             conversationId: conversationId,
@@ -2848,9 +2977,9 @@ class MomentsChatViewModel: EnhancedChatViewModel {
             status: .sending,
             isViewed: false
         )
-        
+
         appendOutgoingMessage(tempMessage)
-        
+
         chatService.sendViewOnceMessage(
             conversationId: conversationId,
             senderId: currentUserId,
@@ -2869,10 +2998,10 @@ class MomentsChatViewModel: EnhancedChatViewModel {
                 }
             }
         }
-        
+
         messagesSentThisSession += 1
     }
-    
+
     // ✅ NUEVA función para enviar video normal
     override func sendVideoMessage(data: Data) {
         trackMediaMessageSent(type: "video")
@@ -3112,13 +3241,20 @@ private struct ChatScrollMetrics: Equatable {
     var viewportHeight: CGFloat
 }
 
-private enum ChatScrollDebug {
-    static let enabled = true
+@MainActor
+private final class ChatScrollMetricsBuffer {
+    var offsetY: CGFloat = 0
+    var contentHeight: CGFloat = 0
+    var viewportHeight: CGFloat = 0
 
-    static func log(_ message: String, conversationId: String = "") {
-        guard enabled else { return }
-        let prefix = conversationId.isEmpty ? "" : " conv=\(conversationId.prefix(8))"
-        print("[ChatScroll]\(prefix) \(message)")
+    func ingest(_ metrics: ChatScrollMetrics) {
+        offsetY = metrics.offsetY
+        contentHeight = metrics.contentHeight
+        viewportHeight = metrics.viewportHeight
+    }
+
+    var metrics: ChatScrollMetrics {
+        ChatScrollMetrics(offsetY: offsetY, contentHeight: contentHeight, viewportHeight: viewportHeight)
     }
 }
 

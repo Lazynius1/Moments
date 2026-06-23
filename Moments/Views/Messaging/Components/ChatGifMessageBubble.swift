@@ -37,42 +37,34 @@ enum ChatGifLayout {
     }
 }
 
-/// Burbuja para mensajes GIF: animación en bucle con chrome mínimo (estilo IG DM).
+/// Burbuja para mensajes GIF con animación en bucle.
 struct ChatGifMessageBubble: View {
     @ObservedObject var message: EnhancedMessage
     let progress: Double?
 
     @Environment(\.colorScheme) private var colorScheme
-    @State private var loadedIntrinsicSize: CGSize?
 
     private var isSending: Bool { message.status == .sending }
 
     private var gifURL: URL? {
-        guard let urlString = message.mediaUrl, !urlString.isEmpty else { return nil }
-        return URL(string: urlString)
+        guard let urlString = message.mediaUrl, !urlString.isEmpty,
+              let url = URL(string: urlString) else { return nil }
+        if url.isFileURL, !FileManager.default.fileExists(atPath: url.path) { return nil }
+        return url
     }
 
     private var displaySize: CGSize {
-        if let loadedIntrinsicSize {
-            return ChatGifLayout.displaySize(
-                width: Int(loadedIntrinsicSize.width.rounded()),
-                height: Int(loadedIntrinsicSize.height.rounded())
-            )
-        }
-        return ChatGifLayout.displaySize(width: message.mediaWidth, height: message.mediaHeight)
+        ChatGifLayout.displaySize(width: message.mediaWidth, height: message.mediaHeight)
     }
 
     var body: some View {
         ZStack {
             if let gifURL, !message.isMediaPendingResolution {
-                AnimatedGIFView(url: gifURL, onIntrinsicSize: { size in
-                    guard size.width > 0, size.height > 0 else { return }
-                    loadedIntrinsicSize = size
-                })
-                .id(gifURL.absoluteString)
-                .frame(width: displaySize.width, height: displaySize.height)
-                .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-            } else {
+                AnimatedGIFView(url: gifURL)
+                    .id(gifURL.absoluteString)
+                    .frame(width: displaySize.width, height: displaySize.height)
+                    .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+            } else if message.isMediaPendingResolution {
                 RoundedRectangle(cornerRadius: 16, style: .continuous)
                     .fill(colorScheme == .dark ? Color.white.opacity(0.06) : Color.black.opacity(0.05))
                     .frame(width: displaySize.width, height: displaySize.height)
@@ -81,6 +73,10 @@ struct ChatGifMessageBubble: View {
                             .progressViewStyle(.circular)
                             .tint(colorScheme == .dark ? .white.opacity(0.6) : .black.opacity(0.4))
                     }
+            } else {
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .fill(colorScheme == .dark ? Color.white.opacity(0.06) : Color.black.opacity(0.05))
+                    .frame(width: displaySize.width, height: displaySize.height)
             }
 
             if isSending {

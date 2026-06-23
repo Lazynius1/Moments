@@ -908,6 +908,7 @@
 "chat.buzz.sent" = "Has enviado un zumbido";
 "chat.buzz.received" = "%@ te ha enviado un zumbido";
 "chat.buzz.cooldown" = "Espera un poco antes de enviar otro zumbido";
+"chat.draft.preview" = "Borrador: %@";
 "chat.buzz.blocked" = "Esta persona no acepta zumbidos";
 "chat.giphy.searchGif" = "Buscar GIFs";
 "chat.giphy.searchSticker" = "Buscar stickers";
@@ -3874,6 +3875,9 @@
 "notificationType.mutualConnection" = "Conexiones mutuas";
 "notificationType.storyReaction" = "Reacción a historia";
 "notificationType.message" = "Mensajes";
+"notificationType.messageReaction" = "Reacciones en mensajes";
+"notificationType.chatBuzz" = "Zumbido";
+"notificationType.gentleReminder" = "Recordatorios diarios";
 "notificationType.photoTag" = "Etiquetas en fotos";
 "notificationType.echoSuggestion" = "Sugerencia de Echo";
 "notificationType.dataExportReady" = "Exportación de datos";

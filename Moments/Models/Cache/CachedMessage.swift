@@ -10,6 +10,12 @@ final class CachedMessage {
     var content: String?
     var mediaUrl: String?
     var thumbnailUrl: String?
+    /// Ruta cifrada en Storage — imprescindible para re-descargar si iOS purga Caches.
+    var mediaObjectPath: String?
+    var thumbnailObjectPath: String?
+    var mediaEncryptionData: Data?
+    var thumbnailEncryptionData: Data?
+    var mediaBatchId: String?
     var duration: Double?
     var fileName: String?
     var fileSize: Int64?
@@ -40,6 +46,11 @@ final class CachedMessage {
          content: String?,
          mediaUrl: String?,
          thumbnailUrl: String?,
+         mediaObjectPath: String? = nil,
+         thumbnailObjectPath: String? = nil,
+         mediaEncryptionData: Data? = nil,
+         thumbnailEncryptionData: Data? = nil,
+         mediaBatchId: String? = nil,
          duration: Double?,
          fileName: String?,
          fileSize: Int64?,
@@ -69,6 +80,11 @@ final class CachedMessage {
         self.content = content
         self.mediaUrl = mediaUrl
         self.thumbnailUrl = thumbnailUrl
+        self.mediaObjectPath = mediaObjectPath
+        self.thumbnailObjectPath = thumbnailObjectPath
+        self.mediaEncryptionData = mediaEncryptionData
+        self.thumbnailEncryptionData = thumbnailEncryptionData
+        self.mediaBatchId = mediaBatchId
         self.duration = duration
         self.fileName = fileName
         self.fileSize = fileSize
@@ -95,12 +111,28 @@ final class CachedMessage {
 }
 
 extension CachedMessage {
+    /// No persistir rutas `file://` muertas ni cache local de GIF/sticker.
+    private static func sanitizedMediaURL(_ url: String?, type: MessageType) -> String? {
+        guard let url, !url.isEmpty else { return nil }
+        if type == .gif || type == .sticker,
+           let parsed = URL(string: url), parsed.isFileURL {
+            return nil
+        }
+        if let parsed = URL(string: url), parsed.isFileURL,
+           !FileManager.default.fileExists(atPath: parsed.path) {
+            return nil
+        }
+        return url
+    }
+
     static func from(_ message: EnhancedMessage) -> CachedMessage {
         let encoder = JSONEncoder()
         let reactionsData = try? encoder.encode(message.reactions)
         let storyReplyDataEncoded = try? encoder.encode(message.storyReplyData)
         let sharedMomentDataEncoded = try? encoder.encode(message.sharedMomentData)
         let sharedStoryDataEncoded = try? encoder.encode(message.sharedStoryData)
+        let mediaEncryptionData = try? encoder.encode(message.mediaEncryption)
+        let thumbnailEncryptionData = try? encoder.encode(message.thumbnailEncryption)
         
         return CachedMessage(
             id: message.id,
@@ -108,8 +140,13 @@ extension CachedMessage {
             senderId: message.senderId,
             typeString: message.type.rawValue,
             content: message.content,
-            mediaUrl: message.mediaUrl,
-            thumbnailUrl: message.thumbnailUrl,
+            mediaUrl: sanitizedMediaURL(message.mediaUrl, type: message.type),
+            thumbnailUrl: sanitizedMediaURL(message.thumbnailUrl, type: message.type),
+            mediaObjectPath: message.mediaObjectPath,
+            thumbnailObjectPath: message.thumbnailObjectPath,
+            mediaEncryptionData: mediaEncryptionData,
+            thumbnailEncryptionData: thumbnailEncryptionData,
+            mediaBatchId: message.mediaBatchId,
             duration: message.duration,
             fileName: message.fileName,
             fileSize: message.fileSize,
@@ -160,6 +197,16 @@ extension CachedMessage {
             guard let data = sharedStoryDataEncoded else { return nil }
             return try? decoder.decode([String: String].self, from: data)
         }()
+
+        let mediaEncryption: EncryptedChatMediaMetadata? = {
+            guard let data = mediaEncryptionData else { return nil }
+            return try? decoder.decode(EncryptedChatMediaMetadata.self, from: data)
+        }()
+
+        let thumbnailEncryption: EncryptedChatMediaMetadata? = {
+            guard let data = thumbnailEncryptionData else { return nil }
+            return try? decoder.decode(EncryptedChatMediaMetadata.self, from: data)
+        }()
         
         return EnhancedMessage(
             id: id,
@@ -167,8 +214,12 @@ extension CachedMessage {
             senderId: senderId,
             type: type,
             content: content,
-            mediaUrl: mediaUrl,
-            thumbnailUrl: thumbnailUrl,
+            mediaUrl: Self.sanitizedMediaURL(mediaUrl, type: type),
+            thumbnailUrl: Self.sanitizedMediaURL(thumbnailUrl, type: type),
+            mediaObjectPath: mediaObjectPath,
+            thumbnailObjectPath: thumbnailObjectPath,
+            mediaEncryption: mediaEncryption,
+            thumbnailEncryption: thumbnailEncryption,
             duration: duration,
             fileName: fileName,
             fileSize: fileSize,
@@ -189,6 +240,7 @@ extension CachedMessage {
             storyReplyData: storyReplyData,
             sharedMomentData: sharedMomentData,
             sharedStoryData: sharedStoryData,
+            mediaBatchId: mediaBatchId,
             viewedBy: viewedBy
         )
     }

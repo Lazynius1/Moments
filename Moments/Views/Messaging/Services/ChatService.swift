@@ -13,6 +13,7 @@ class ChatService: ObservableObject {
     
     @Published var activeListeners: [String: ListenerRegistration] = [:]
     @Published var typingUsers: [String: Set<String>] = [:] // conversationId: Set<userId>
+    private var listenerGenerations: [String: Int] = [:]
     
     private var typingTimer: Timer?
     private let typingTimeout: TimeInterval = 3.0
@@ -45,21 +46,26 @@ class ChatService: ObservableObject {
     func removeAllListeners() {
         activeListeners.values.forEach { $0.remove() }
         activeListeners.removeAll()
+        listenerGenerations.removeAll()
     }
     
     func removeListener(for conversationId: String) {
+        bumpListenerGeneration(for: conversationId)
         activeListeners[conversationId]?.remove()
         activeListeners.removeValue(forKey: conversationId)
 
         let reactionsKey = "reactions_\(conversationId)"
+        bumpListenerGeneration(for: reactionsKey)
         activeListeners[reactionsKey]?.remove()
         activeListeners.removeValue(forKey: reactionsKey)
 
         let prefsKey = "conversation_prefs_\(conversationId)"
+        bumpListenerGeneration(for: prefsKey)
         activeListeners[prefsKey]?.remove()
         activeListeners.removeValue(forKey: prefsKey)
 
         let buzzKey = "buzz_\(conversationId)"
+        bumpListenerGeneration(for: buzzKey)
         activeListeners[buzzKey]?.remove()
         activeListeners.removeValue(forKey: buzzKey)
         
@@ -67,6 +73,23 @@ class ChatService: ObservableObject {
         activeListeners[typingKey]?.remove()
         activeListeners.removeValue(forKey: typingKey)
         typingUsers.removeValue(forKey: conversationId)
+    }
+
+    func beginListenerGeneration(for key: String) -> Int {
+        bumpListenerGeneration(for: key)
+        return listenerGeneration(for: key)
+    }
+
+    func isCurrentListenerGeneration(_ generation: Int, for key: String) -> Bool {
+        listenerGeneration(for: key) == generation
+    }
+
+    private func bumpListenerGeneration(for key: String) {
+        listenerGenerations[key, default: 0] += 1
+    }
+
+    private func listenerGeneration(for key: String) -> Int {
+        listenerGenerations[key, default: 0]
     }
     
     func removeTypingListener(for conversationId: String) {
@@ -93,11 +116,13 @@ class ChatService: ObservableObject {
             return
         }
 
+        let generation = beginListenerGeneration(for: conversationId)
         activeListeners[conversationId]?.remove()
         activeListeners[conversationId] = nil
 
         let attachListener = { [weak self] in
             guard let self else { return }
+            guard self.isCurrentListenerGeneration(generation, for: conversationId) else { return }
             let listener = self.db.collection("conversations")
                 .document(conversationId)
                 .collection("messages")
@@ -124,6 +149,7 @@ class ChatService: ObservableObject {
         Task {
             await preloadConversationKey(for: conversationId)
             await MainActor.run {
+                guard self.isCurrentListenerGeneration(generation, for: conversationId) else { return }
                 attachListener()
             }
         }
@@ -154,6 +180,51 @@ class ChatService: ObservableObject {
                     conversationId: conversationId,
                     completion: completion
                 )
+            }
+        }
+    }
+
+    func fetchMessage(conversationId: String, messageId: String, completion: @escaping (Result<EnhancedMessage?, Error>) -> Void) {
+        Task { [weak self] in
+            guard let self else { return }
+            await preloadConversationKey(for: conversationId)
+
+            do {
+                let document = try await db.collection("conversations")
+                    .document(conversationId)
+                    .collection("messages")
+                    .document(messageId)
+                    .getDocument()
+
+                guard document.exists, let data = document.data() else {
+                    await MainActor.run { completion(.success(nil)) }
+                    return
+                }
+
+                if let deletedFor = data["deletedFor"] as? [String],
+                   let currentUserId = Auth.auth().currentUser?.uid,
+                   deletedFor.contains(currentUserId) {
+                    await MainActor.run { completion(.success(nil)) }
+                    return
+                }
+
+                var message = await buildEnhancedMessage(
+                    from: data,
+                    docId: document.documentID,
+                    conversationId: conversationId
+                )
+                let reactions = await fetchReactionMap(
+                    conversationId: conversationId,
+                    messageIds: [message.id]
+                )
+                message.reactions = mergeLegacyAndLiveReactions(
+                    legacy: message.reactions,
+                    live: reactions[message.id]
+                )
+
+                await MainActor.run { completion(.success(message)) }
+            } catch {
+                await MainActor.run { completion(.failure(error)) }
             }
         }
     }
@@ -1394,10 +1465,12 @@ class ChatService: ObservableObject {
         if !replaceExisting, activeListeners[listenerKey] != nil {
             return
         }
+        let generation = beginListenerGeneration(for: listenerKey)
         activeListeners[listenerKey]?.remove()
 
         let listener = db.collection("conversations").document(conversationId)
-            .addSnapshotListener { snapshot, error in
+            .addSnapshotListener { [weak self] snapshot, error in
+                guard self?.isCurrentListenerGeneration(generation, for: listenerKey) == true else { return }
                 guard error == nil, let data = snapshot?.data() else { return }
                 let forwarding = data["forwardingPreferences"] as? [String: Bool] ?? [:]
                 let buzz = data["buzzPreferences"] as? [String: Bool] ?? [:]
@@ -1494,8 +1567,6 @@ class ChatService: ObservableObject {
         }
     }
     
-    // ✅ Marcar todos los mensajes pendientes como entregados (estilo WhatsApp)
-    // Se llama cuando la app se abre/vuelve a primer plano
     func markAllPendingMessagesAsDelivered() {
         guard let currentUserId = Auth.auth().currentUser?.uid else { return }
         

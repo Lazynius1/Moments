@@ -58,48 +58,59 @@ struct ChatBuzzTimelineEventRow: View {
 
     @Environment(\.colorScheme) private var colorScheme
 
+    private var shape: Capsule {
+        Capsule(style: .continuous)
+    }
+
     var body: some View {
-        VStack(spacing: 7) {
-            ZStack {
-                ChatBuzzWaveShape()
+        HStack {
+            Spacer()
+
+            HStack(spacing: 8) {
+                AttachmentIconView(
+                    icon: .buzz,
+                    size: AttachmentIconMetrics.buzzTimelineEvent,
+                    style: colorScheme == .dark ? .white : .black
+                )
+                .foregroundStyle(
+                    LinearGradient(
+                        colors: [Color.red, Color.orange],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+
+                Text(text)
+                    .font(.custom("Poppins-SemiBold", size: 12))
+                    .foregroundStyle(colorScheme == .dark ? .white : .black)
+                    .lineLimit(1)
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 8)
+            .momentsChromeGlass(in: shape, interactive: false)
+            .clipShape(shape)
+            .overlay {
+                shape
                     .stroke(
                         LinearGradient(
                             colors: [
-                                Color.red.opacity(0.15),
-                                Color.red.opacity(colorScheme == .dark ? 0.82 : 0.72),
-                                Color.red.opacity(0.16)
+                                Color.red.opacity(colorScheme == .dark ? 0.4 : 0.25),
+                                Color.orange.opacity(colorScheme == .dark ? 0.2 : 0.08),
+                                Color.clear
                             ],
-                            startPoint: .leading,
-                            endPoint: .trailing
+                            startPoint: isOutgoing ? .leading : .trailing,
+                            endPoint: isOutgoing ? .trailing : .leading
                         ),
-                        style: StrokeStyle(lineWidth: 3.5, lineCap: .round, lineJoin: .round)
+                        lineWidth: 1
                     )
-                    .frame(height: 22)
-                    .scaleEffect(x: isOutgoing ? -1 : 1, y: 1)
-
-                HStack(spacing: 7) {
-                    AttachmentIconView(
-                        icon: .buzz,
-                        size: AttachmentIconMetrics.buzzTimelineEvent,
-                        style: Color.red.opacity(colorScheme == .dark ? 0.92 : 0.82)
-                    )
-
-                    Text(text)
-                        .font(.custom("Poppins-SemiBold", size: 12))
-                        .foregroundStyle(colorScheme == .dark ? .white : .black)
-                        .lineLimit(1)
-                }
-                .padding(.horizontal, 10)
-                .padding(.vertical, 5)
-                .background {
-                    Capsule(style: .continuous)
-                        .fill(colorScheme == .dark ? Color.black.opacity(0.2) : Color.white.opacity(0.78))
-                }
             }
-            .padding(.horizontal, 18)
+            .shadow(color: Color.red.opacity(colorScheme == .dark ? 0.16 : 0.05), radius: 8, x: 0, y: 3)
+
+            Spacer()
         }
         .frame(maxWidth: .infinity)
-        .padding(.vertical, 8)
+        .padding(.horizontal, 24)
+        .padding(.vertical, 6)
         .accessibilityElement(children: .combine)
     }
 }

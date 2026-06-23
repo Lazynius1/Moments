@@ -177,6 +177,7 @@ class AuthService: ObservableObject {
     private let db = Firestore.firestore()
     private let storage = FirebaseStorage.Storage.storage().reference()
     private let firestoreService = FirestoreService()
+    private var lastChatScopedUserId: String?
 
     // ✅ NUEVO: Clase para manejar los listeners de forma no aislada (necesario para deinit)
     private final class CleanupHolder {
@@ -226,6 +227,9 @@ class AuthService: ObservableObject {
 
         cleanupHolder.authHandle = Auth.auth().addStateDidChangeListener { [weak self] auth, user in
             guard let self = self else { return }
+            Task { @MainActor in
+                self.invalidateChatScopedStateIfNeeded(userId: user?.uid)
+            }
 
 
             // ✅ THREAD-SAFE: Verificar estado de registro y LOCK
@@ -514,6 +518,13 @@ class AuthService: ObservableObject {
         DispatchQueue.main.async { [weak self] in
             self?.bootstrapIncompleteOnboardingIfNeeded()
         }
+    }
+
+    private func invalidateChatScopedStateIfNeeded(userId: String?) {
+        guard lastChatScopedUserId != userId else { return }
+        lastChatScopedUserId = userId
+        ChatAccessCoordinator.shared.invalidateAll()
+        ChatSessionEngine.shared.invalidateAll()
     }
 
     private func cleanupExpiredOnboardingDraft() {
@@ -2061,6 +2072,8 @@ class AuthService: ObservableObject {
         }
 
         private func finalizeLogout() {
+            InAppNotificationService.shared.stopListening()
+
             do {
                 try Auth.auth().signOut()
 

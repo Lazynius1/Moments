@@ -46,6 +46,7 @@ extension ChatService {
         if !replaceExisting, activeListeners[listenerKey] != nil {
             return
         }
+        let generation = beginListenerGeneration(for: listenerKey)
         activeListeners[listenerKey]?.remove()
         var hasDeliveredInitialSnapshot = false
 
@@ -55,7 +56,8 @@ extension ChatService {
             .order(by: "createdAt", descending: true)
             .limit(to: limit)
 
-        activeListeners[listenerKey] = query.addSnapshotListener { snapshot, error in
+        activeListeners[listenerKey] = query.addSnapshotListener { [weak self] snapshot, error in
+            guard self?.isCurrentListenerGeneration(generation, for: listenerKey) == true else { return }
             guard error == nil, let changes = snapshot?.documentChanges else { return }
             let isInitialSnapshot = !hasDeliveredInitialSnapshot
 

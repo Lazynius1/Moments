@@ -472,6 +472,27 @@ final class LocalPersistenceService: ObservableObject {
         guard !messages.isEmpty else { return }
         saveMessages(messages, conversationId: conversationId, sync: false)
     }
+
+    /// Reconciles a known remote window while preserving older cached history outside that window.
+    func reconcileMessages(_ messages: [EnhancedMessage], conversationId: String) {
+        guard let context = modelContext else { return }
+        saveMessages(messages, conversationId: conversationId, sync: false)
+        guard let oldestRemoteTimestamp = messages.map(\.timestamp).min() else { return }
+
+        let remoteIds = Set(messages.map(\.id))
+        let predicate = #Predicate<CachedMessage> {
+            $0.conversationId == conversationId && $0.timestamp >= oldestRemoteTimestamp
+        }
+        let descriptor = FetchDescriptor<CachedMessage>(predicate: predicate)
+        let cachedWindow = (try? context.fetch(descriptor)) ?? []
+
+        for cached in cachedWindow where !remoteIds.contains(cached.id) {
+            context.delete(cached)
+        }
+
+        saveContext()
+        trimMessages(for: conversationId)
+    }
     
     /// Carga el historial de mensajes de una conversación desde el caché local
     func loadMessages(conversationId: String) -> [EnhancedMessage] {
@@ -1092,6 +1113,11 @@ final class LocalPersistenceService: ObservableObject {
         existing.content = new.content
         existing.mediaUrl = new.mediaUrl
         existing.thumbnailUrl = new.thumbnailUrl
+        existing.mediaObjectPath = new.mediaObjectPath
+        existing.thumbnailObjectPath = new.thumbnailObjectPath
+        existing.mediaEncryptionData = new.mediaEncryptionData
+        existing.thumbnailEncryptionData = new.thumbnailEncryptionData
+        existing.mediaBatchId = new.mediaBatchId
         existing.duration = new.duration
         existing.fileName = new.fileName
         existing.fileSize = new.fileSize

@@ -135,7 +135,7 @@ class TimeSpentManager: ObservableObject {
                 isPending: true,
                 reaction: body
             )
-            InAppNotificationService.shared.handleNewNotification(bannerNotification)
+            NotificationPresentationCoordinator.shared.present(bannerNotification, source: .local)
         }
     }
     

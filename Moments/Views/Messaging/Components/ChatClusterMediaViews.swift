@@ -192,7 +192,7 @@ private struct ClusterMessageStatusObserver: View {
     }
 }
 
-// MARK: - Instagram-style fanned photo pile
+// MARK: - Fanned photo pile
 
 enum ClusterMediaLayout {
     static let frontWidth: CGFloat = 196
@@ -217,9 +217,7 @@ enum ClusterMediaLayout {
         return maxSide + 12
     }
 
-    /// Rotación y desplazamiento de cada carta visible (índice 0 = frontal). Stack
-    /// compacto estilo Instagram: las cartas de atrás asoman poco (sobre todo hacia
-    /// arriba) con rotaciones sutiles. La frontal va ligeramente inclinada.
+    /// Rotación y desplazamiento de cada carta visible (índice 0 = frontal).
     static let rotations: [Double] = [-4, 3, -2.5, 4, -3]
     static let offsets: [CGSize] = [
         CGSize(width: 0, height: 0),
@@ -230,9 +228,6 @@ enum ClusterMediaLayout {
     ]
 }
 
-/// Pila de fotos en abanico estilo Instagram: la primera media al frente y las
-/// siguientes asomando rotadas detrás (fotos reales), con una etiqueta de conteo
-/// encima. Al tocar abre la galería de selección.
 struct MediaGridBubble: View {
     let messages: [EnhancedMessage]
     let isCurrentUser: Bool
@@ -400,15 +395,19 @@ struct MediaGridTileView: View {
             if message.type == .image {
                 if message.isMediaPendingResolution {
                     ChatMediaResolvingPlaceholder()
-                } else if let mediaUrl = message.mediaUrl, let url = URL(string: mediaUrl) {
+                } else if let mediaUrl = message.mediaUrl,
+                          let url = URL(string: mediaUrl),
+                          message.localMediaFileIsReachable(url) {
                     ChatKFImage(url: url, downsamplingSize: downsamplingSize)
                 } else {
                     placeholder(icon: "photo.fill")
                 }
             } else if message.type == .video {
-                if message.isMediaPendingResolution {
+                if message.isMediaPendingResolution || message.needsVideoThumbnailForDisplay {
                     ChatMediaResolvingPlaceholder()
-                } else if let thumbnailUrl = message.thumbnailUrl, let url = URL(string: thumbnailUrl) {
+                } else if let thumbnailUrl = message.thumbnailUrl,
+                          let url = URL(string: thumbnailUrl),
+                          message.localMediaFileIsReachable(url) {
                     ChatKFImage(url: url, downsamplingSize: downsamplingSize)
                 } else {
                     placeholder(icon: "video.fill")
@@ -439,16 +438,13 @@ struct ClusterWrapper: Identifiable {
     }
 }
 
-// MARK: - Fullscreen cluster gallery (Instagram-style)
+// MARK: - Fullscreen cluster gallery
 
 struct ClusterGalleryDetailRoute: Identifiable, Hashable {
     let index: Int
     var id: Int { index }
 }
 
-/// Galería a pantalla completa estilo Instagram: rejilla de 2 columnas tipo
-/// masonry que respeta el aspect ratio real de cada media. Al tocar una, hace una
-/// transición de pantalla (push) al visor de detalle (inyectado) abriendo ese item.
 struct ClusterGalleryView<Detail: View>: View {
     let messages: [EnhancedMessage]
     let onClose: () -> Void
@@ -476,7 +472,8 @@ struct ClusterGalleryView<Detail: View>: View {
 
     private var grid: some View {
         GeometryReader { geo in
-            let columnWidth = (geo.size.width - spacing * 3) / 2
+            let availableWidth = geo.size.width.isFinite ? geo.size.width : 0
+            let columnWidth = max((availableWidth - spacing * 3) / 2, 1)
             let columns = distribute(messages)
 
             ZStack(alignment: .topLeading) {
@@ -523,7 +520,8 @@ struct ClusterGalleryView<Detail: View>: View {
 
     private func card(_ message: EnhancedMessage, width: CGFloat) -> some View {
         let ratio = aspectRatio(for: message)
-        let height = width / ratio
+        let safeWidth = max(width.isFinite ? width : 1, 1)
+        let height = max(safeWidth / ratio, 1)
         let index = messages.firstIndex(where: { $0.id == message.id }) ?? 0
         return Button {
             path.append(ClusterGalleryDetailRoute(index: index))
@@ -532,11 +530,11 @@ struct ClusterGalleryView<Detail: View>: View {
                 message: message,
                 progress: nil,
                 downsamplingSize: CGSize(
-                    width: width * UIScreen.main.scale,
+                    width: safeWidth * UIScreen.main.scale,
                     height: height * UIScreen.main.scale
                 )
             )
-            .frame(width: width, height: height)
+            .frame(width: safeWidth, height: height)
             .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
             .overlay(alignment: .bottomLeading) {
                 if message.type == .video {

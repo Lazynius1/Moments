@@ -149,47 +149,18 @@ extension AppDelegate: MessagingDelegate {
 extension AppDelegate: UNUserNotificationCenterDelegate {
     // ✅ Mostrar notificaciones cuando la app está abierta + mark as delivered
     func userNotificationCenter(_ center: UNUserNotificationCenter, willPresent notification: UNNotification, withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {
-        
         let userInfo = notification.request.content.userInfo
-        
-        // ✅ Marcar mensaje como entregado cuando llegue la notificación (estilo WhatsApp)
-        if let conversationId = userInfo["conversationId"] as? String,
-           let messageId = userInfo["messageId"] as? String,
-           userInfo["type"] as? String != "message_reaction" {
-            ChatService.shared.markMessageAsDeliveredFromNotification(
-                conversationId: conversationId,
-                messageId: messageId
-            )
+
+        Task { @MainActor in
+            NotificationPresentationCoordinator.shared.present(from: userInfo, source: .push)
         }
 
-        if userInfo["type"] as? String == "message_reaction",
-           let conversationId = userInfo["conversationId"] as? String,
-           let messageId = userInfo["messageId"] as? String {
-            ChatNavigationIntentStore.enqueueHighlight(conversationId: conversationId, messageId: messageId)
-            NotificationCenter.default.post(
-                name: .chatMessageReactionHighlight,
-                object: nil,
-                userInfo: [
-                    "conversationId": conversationId,
-                    "messageId": messageId
-                ]
-            )
-        }
-        
-        // ✅ VERIFICAR si es notificación silenciosa para badge
-        if userInfo["silent"] as? Bool == true {
-            // Solo actualizar badge, sin mostrar banner
+        if NotificationPresentationCoordinator.isSilentPush(userInfo) {
             completionHandler([.badge])
-        } else if userInfo["type"] as? String == "message_reaction" {
-            completionHandler([.sound, .badge, .banner])
-        } else if userInfo["type"] as? String == "chat_buzz" {
-            completionHandler([.sound, .badge, .banner])
         } else {
-            // Mostrar notificación normal (SOLO sonido y badge, el banner lo manejamos nosotros)
             completionHandler([.sound, .badge])
         }
-        
-        // ✅ Actualizar badge service cuando llegue notificación
+
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
             NotificationBadgeService.shared.setupListeners()
         }

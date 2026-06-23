@@ -1682,6 +1682,7 @@
 "chat.buzz.sent" = "Enviaste um abanão";
 "chat.buzz.received" = "%@ enviou-te um abanão";
 "chat.buzz.cooldown" = "Espera um pouco antes de enviar outro abanão";
+"chat.draft.preview" = "Rascunho: %@";
 "chat.buzz.blocked" = "Esta pessoa não aceita abanões";
 "chat.giphy.searchGif" = "Procurar GIFs";
 "chat.giphy.searchSticker" = "Procurar autocolantes";

@@ -2283,6 +2283,11 @@ struct Notification: Identifiable, Codable {
     let chainPosition: Int? // 🔗 Story Chains
     let totalParts: Int? // 🔗 Story Chains: nº total de partes acumuladas
     let chainRole: String? // 🔗 Story Chains: "creator" | "participant"
+    let messageId: String?
+    let messageType: String?
+    let buzzEventId: String?
+    let reminderVariant: String?
+    let isReactionPlural: Bool?
 
     enum CodingKeys: String, CodingKey {
         case id
@@ -2316,6 +2321,11 @@ struct Notification: Identifiable, Codable {
         case chainPosition
         case totalParts
         case chainRole
+        case messageId
+        case messageType
+        case buzzEventId
+        case reminderVariant
+        case isReactionPlural
     }
 
     init(id: String? = nil,
@@ -2345,7 +2355,12 @@ struct Notification: Identifiable, Codable {
          chainTitle: String? = nil,
          chainPosition: Int? = nil,
          totalParts: Int? = nil,
-         chainRole: String? = nil) {
+         chainRole: String? = nil,
+         messageId: String? = nil,
+         messageType: String? = nil,
+         buzzEventId: String? = nil,
+         reminderVariant: String? = nil,
+         isReactionPlural: Bool? = nil) {
 
         self.id = id
         self.type = type
@@ -2375,6 +2390,11 @@ struct Notification: Identifiable, Codable {
         self.chainPosition = chainPosition
         self.totalParts = totalParts
         self.chainRole = chainRole
+        self.messageId = messageId
+        self.messageType = messageType
+        self.buzzEventId = buzzEventId
+        self.reminderVariant = reminderVariant
+        self.isReactionPlural = isReactionPlural
     }
 
     init(from decoder: Decoder) throws {
@@ -2434,6 +2454,17 @@ struct Notification: Identifiable, Codable {
         self.chainPosition = try container.decodeIfPresent(Int.self, forKey: .chainPosition)
         self.totalParts = try container.decodeIfPresent(Int.self, forKey: .totalParts)
         self.chainRole = try container.decodeIfPresent(String.self, forKey: .chainRole)
+        self.messageId = try container.decodeIfPresent(String.self, forKey: .messageId)
+        self.messageType = try container.decodeIfPresent(String.self, forKey: .messageType)
+        self.buzzEventId = try container.decodeIfPresent(String.self, forKey: .buzzEventId)
+        self.reminderVariant = try container.decodeIfPresent(String.self, forKey: .reminderVariant)
+        if let plural = try container.decodeIfPresent(Bool.self, forKey: .isReactionPlural) {
+            self.isReactionPlural = plural
+        } else if let pluralString = try container.decodeIfPresent(String.self, forKey: .isReactionPlural) {
+            self.isReactionPlural = pluralString == "1" || pluralString.lowercased() == "true"
+        } else {
+            self.isReactionPlural = nil
+        }
     }
 
     func encode(to encoder: Encoder) throws {
@@ -2466,6 +2497,11 @@ struct Notification: Identifiable, Codable {
         try container.encodeIfPresent(chainPosition, forKey: .chainPosition)
         try container.encodeIfPresent(totalParts, forKey: .totalParts)
         try container.encodeIfPresent(chainRole, forKey: .chainRole)
+        try container.encodeIfPresent(messageId, forKey: .messageId)
+        try container.encodeIfPresent(messageType, forKey: .messageType)
+        try container.encodeIfPresent(buzzEventId, forKey: .buzzEventId)
+        try container.encodeIfPresent(reminderVariant, forKey: .reminderVariant)
+        try container.encodeIfPresent(isReactionPlural, forKey: .isReactionPlural)
     }
 }
 
@@ -2480,6 +2516,9 @@ enum NotificationType: String, Codable, CaseIterable {
     case mutualConnection = "mutualConnection"
     case storyReaction = "storyReaction"
     case message = "message" // ✅ NUEVO: Para mensajes directos (DM)
+    case messageReaction = "messageReaction"
+    case chatBuzz = "chatBuzz"
+    case gentleReminder = "gentleReminder"
     case photoTag = "photoTag" // ✅ NUEVO: Para etiquetas en fotos
     case echoSuggestion = "echoSuggestion" // 🌊 NUEVO: Sugerencia de Echo (Nova Spark)
     case dataExportReady = "data_export_ready"
@@ -2498,6 +2537,9 @@ enum NotificationType: String, Codable, CaseIterable {
         case .mutualConnection: return NSLocalizedString("notificationType.mutualConnection", comment: "Mutual connections")
         case .storyReaction: return NSLocalizedString("notificationType.storyReaction", comment: "Story reaction")
         case .message: return NSLocalizedString("notificationType.message", comment: "Messages")
+        case .messageReaction: return NSLocalizedString("notificationType.messageReaction", comment: "Message reactions")
+        case .chatBuzz: return NSLocalizedString("notificationType.chatBuzz", comment: "Chat buzz")
+        case .gentleReminder: return NSLocalizedString("notificationType.gentleReminder", comment: "Gentle reminders")
         case .photoTag: return NSLocalizedString("notificationType.photoTag", comment: "Photo tags")
         case .echoSuggestion: return NSLocalizedString("notificationType.echoSuggestion", comment: "Echo suggestion")
         case .dataExportReady: return NSLocalizedString("notificationType.dataExportReady", comment: "Data export")
@@ -2518,6 +2560,9 @@ enum NotificationType: String, Codable, CaseIterable {
         case .mutualConnection: return "person.2.fill"
         case .storyReaction: return "face.smiling"
         case .message: return "envelope.fill"
+        case .messageReaction: return "face.smiling.inverse"
+        case .chatBuzz: return "bell.and.waves.left.and.right.fill"
+        case .gentleReminder: return "sparkles"
         case .photoTag: return "person.crop.rectangle"
         case .echoSuggestion: return "sparkles.rectangle.stack"
         case .dataExportReady: return "tray.and.arrow.down.fill"

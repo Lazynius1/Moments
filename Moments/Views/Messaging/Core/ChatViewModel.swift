@@ -74,6 +74,7 @@ class EnhancedChatViewModel: ObservableObject {
     /// Mensajes salientes aún no reflejados en Firestore; sobreviven a `rebuildMessagesList`.
     private var outgoingTempMessages: [String: EnhancedMessage] = [:]
     private var hydratingMediaIds = Set<String>()
+    private var refreshingMetadataIds = Set<String>()
     
     // ✅ NUEVO: Flag para bloquear listener temporalmente
     private var isUpdatingLocalMessage = false
@@ -117,6 +118,7 @@ class EnhancedChatViewModel: ObservableObject {
     private var sessionListenersAttached = false
     private var listenerPauseTask: Task<Void, Never>?
     private var didLoadCacheFromSwiftData = false
+    private var requestedHighlightMessageIds = Set<String>()
     private static let listenerPauseTTL: UInt64 = 180_000_000_000
     
     init(conversation: Conversation) {
@@ -432,6 +434,58 @@ class EnhancedChatViewModel: ObservableObject {
         message.isMediaPendingResolution
     }
 
+    /// Mensajes del cache antiguo pueden carecer de metadata de Storage; re-fetch puntual desde Firestore.
+    func refreshMediaMetadataIfNeeded(for message: EnhancedMessage) {
+        guard message.type == .image || message.type == .video else { return }
+        guard let conversationId = conversation.id, !conversationId.isEmpty else { return }
+
+        let missingMain = message.mediaObjectPath == nil || message.mediaEncryption == nil
+        let needsThumb = message.type == .video && message.needsVideoThumbnailForDisplay
+        let missingThumbMeta = message.thumbnailObjectPath == nil || message.thumbnailEncryption == nil
+
+        if message.type == .image {
+            guard missingMain else { return }
+        } else if missingMain {
+            // Falta metadata del vídeo principal.
+        } else if needsThumb && missingThumbMeta {
+            // Falta metadata de la miniatura cifrada (p. ej. cache viejo).
+        } else {
+            if needsThumb { hydrateVideoThumbnailIfNeeded(for: message) }
+            return
+        }
+
+        let messageId = message.id
+        guard refreshingMetadataIds.insert(messageId).inserted else { return }
+
+        chatService.fetchMessage(conversationId: conversationId, messageId: messageId) { [weak self] result in
+            DispatchQueue.main.async {
+                guard let self else { return }
+                self.refreshingMetadataIds.remove(messageId)
+                if case .success(let fresh?) = result {
+                    self.applyRefreshedMediaMessage(fresh, conversationId: conversationId)
+                }
+            }
+        }
+    }
+
+    private func applyRefreshedMediaMessage(_ fresh: EnhancedMessage, conversationId: String) {
+        if let index = historicalMessages.firstIndex(where: { $0.id == fresh.id }) {
+            historicalMessages[index] = fresh
+        }
+        if let index = realTimeMessages.firstIndex(where: { $0.id == fresh.id }) {
+            realTimeMessages[index] = fresh
+        }
+        rebuildMessagesList()
+        LocalPersistenceService.shared.saveMessages([fresh], conversationId: conversationId, sync: false)
+        if let updated = messages.first(where: { $0.id == fresh.id }) {
+            if updated.type == .video {
+                hydrateVideoThumbnailIfNeeded(for: updated)
+            } else {
+                hydrateMediaIfNeeded(for: updated)
+            }
+        }
+    }
+
     func hydrateMediaIfNeeded(for message: EnhancedMessage) {
         // Para vídeos resolvemos solo la miniatura (barato). El vídeo completo se
         // descarga al abrirlo, evitando bajar megas solo para mostrar la portada.
@@ -439,18 +493,26 @@ class EnhancedChatViewModel: ObservableObject {
             hydrateVideoThumbnailIfNeeded(for: message)
             return
         }
-        guard messageNeedsMediaHydration(message) else { return }
+        guard messageNeedsMediaHydration(message) else {
+            if message.type == .image,
+               message.mediaUrl == nil,
+               message.mediaObjectPath == nil || message.mediaEncryption == nil {
+                refreshMediaMetadataIfNeeded(for: message)
+            }
+            return
+        }
         guard !hydratingMediaIds.contains(message.id) else { return }
         hydratingMediaIds.insert(message.id)
-        prepareMediaForViewing(message) { [weak self] _ in
+        prepareMediaForViewing(message) { [weak self] updated in
             self?.hydratingMediaIds.remove(message.id)
         }
     }
 
     func hydrateVideoThumbnailIfNeeded(for message: EnhancedMessage) {
-        guard message.thumbnailUrl == nil else { return }
+        guard message.type == .video else { return }
+        guard message.needsVideoThumbnailForDisplay else { return }
 
-        // Caso 1: hay miniatura subida (cifrada). Resolverla sola es barato.
+        // Caso 1: hay miniatura cifrada en Storage. Resolverla sola es barato.
         if message.thumbnailObjectPath != nil, message.thumbnailEncryption != nil {
             let thumbnailKey = "thumb_\(message.id)"
             guard !hydratingMediaIds.contains(thumbnailKey) else { return }
@@ -461,21 +523,25 @@ class EnhancedChatViewModel: ObservableObject {
                 await MainActor.run {
                     self.hydratingMediaIds.remove(thumbnailKey)
                     guard let resolvedThumb,
-                          let index = self.messages.firstIndex(where: { $0.id == message.id }) else { return }
+                          let index = self.messages.firstIndex(where: { $0.id == message.id }) else {
+                        return
+                    }
                     self.messages[index].thumbnailUrl = resolvedThumb
-                    self.commitMessagesPresentation(self.messages)
+                    if let conversationId = self.conversation.id {
+                        LocalPersistenceService.shared.saveMessages([self.messages[index]], conversationId: conversationId, sync: false)
+                    }
                 }
             }
             return
         }
 
-        // Caso 2: vídeo sin miniatura subida (legacy). Si ya hay un vídeo local/remoto,
-        // generamos la portada al vuelo; si es cifrado sin caché, resolvemos primero.
+        // Caso 2: vídeo ya disponible local/remoto → generar poster sin bajar el .mp4 completo.
         if let mediaUrl = message.mediaUrl, URL(string: mediaUrl) != nil {
             generateVideoPosterIfPossible(for: message)
             return
         }
 
+        // Caso 3: solo tenemos el vídeo cifrado → descargar y luego generar poster.
         if message.mediaObjectPath != nil, message.mediaEncryption != nil {
             guard !hydratingMediaIds.contains(message.id) else { return }
             hydratingMediaIds.insert(message.id)
@@ -483,11 +549,14 @@ class EnhancedChatViewModel: ObservableObject {
                 self?.hydratingMediaIds.remove(message.id)
                 self?.generateVideoPosterIfPossible(for: updated)
             }
+            return
         }
+
+        refreshMediaMetadataIfNeeded(for: message)
     }
 
     private func generateVideoPosterIfPossible(for message: EnhancedMessage) {
-        guard message.thumbnailUrl == nil,
+        guard message.needsVideoThumbnailForDisplay,
               let mediaUrl = message.mediaUrl,
               let url = URL(string: mediaUrl) else { return }
         let posterKey = "poster_\(message.id)"
@@ -499,9 +568,13 @@ class EnhancedChatViewModel: ObservableObject {
                 guard let self else { return }
                 self.hydratingMediaIds.remove(posterKey)
                 guard let poster,
-                      let index = self.messages.firstIndex(where: { $0.id == message.id }) else { return }
+                      let index = self.messages.firstIndex(where: { $0.id == message.id }) else {
+                    return
+                }
                 self.messages[index].thumbnailUrl = poster
-                self.commitMessagesPresentation(self.messages)
+                if let conversationId = self.conversation.id {
+                    LocalPersistenceService.shared.saveMessages([self.messages[index]], conversationId: conversationId, sync: false)
+                }
             }
         }
     }
@@ -513,8 +586,13 @@ class EnhancedChatViewModel: ObservableObject {
 
         for clusterMessage in clusterMessages {
             guard let index = messages.firstIndex(where: { $0.id == clusterMessage.id }) else {
+                refreshMediaMetadataIfNeeded(for: clusterMessage)
                 hydrateMediaIfNeeded(for: clusterMessage)
                 continue
+            }
+
+            if messages[index].mediaObjectPath == nil || messages[index].mediaEncryption == nil {
+                refreshMediaMetadataIfNeeded(for: messages[index])
             }
 
             let warmed = chatService.warmMessageURLsFromDiskCache(messages[index])
@@ -526,11 +604,19 @@ class EnhancedChatViewModel: ObservableObject {
                 messages[index].thumbnailUrl = thumbnailUrl
                 didUpdate = true
             }
-            hydrateMediaIfNeeded(for: messages[index])
+            if messages[index].type == .video {
+                hydrateVideoThumbnailIfNeeded(for: messages[index])
+            } else {
+                hydrateMediaIfNeeded(for: messages[index])
+            }
         }
 
-        if didUpdate {
-            commitMessagesPresentation(messages)
+        if didUpdate, let conversationId = conversation.id {
+            LocalPersistenceService.shared.saveMessages(
+                clusterMessages.compactMap { m in messages.first(where: { $0.id == m.id }) },
+                conversationId: conversationId,
+                sync: false
+            )
         }
 
         ChatMediaGalleryPrefetcher.prefetch(messages: clusterMessages)
@@ -551,10 +637,23 @@ class EnhancedChatViewModel: ObservableObject {
 
     /// Tras reinstalar o sin caché local: descarga el `.enc`, descifra y actualiza el mensaje en la lista.
     func prepareMediaForViewing(_ message: EnhancedMessage, completion: @escaping (EnhancedMessage) -> Void) {
-        if message.mediaUrl != nil {
+        // Si ya hay una URL usable la devolvemos tal cual. Pero si es un `file://` cuyo archivo
+        // fue purgado del directorio Caches, NO cortamos aquí: hay que re-descargar/descifrar.
+        if message.mediaUrl != nil, !message.hasMissingLocalMedia {
             completion(message)
             return
         }
+
+        if (message.type == .gif || message.type == .sticker),
+           message.hasMissingLocalMedia,
+           message.mediaObjectPath == nil {
+            if let index = messages.firstIndex(where: { $0.id == message.id }) {
+                messages[index].mediaUrl = nil
+            }
+            completion(messages.first(where: { $0.id == message.id }) ?? message)
+            return
+        }
+
         guard message.mediaObjectPath != nil, message.mediaEncryption != nil else {
             completion(message)
             return
@@ -568,15 +667,12 @@ class EnhancedChatViewModel: ObservableObject {
             await MainActor.run {
                 if let index = messages.firstIndex(where: { $0.id == message.id }) {
                     messages[index].mediaUrl = mediaUrl
-                    // No sobrescribir con nil una miniatura ya resuelta.
                     if let thumbnailUrl {
                         messages[index].thumbnailUrl = thumbnailUrl
                     }
-                }
-                messages = Array(messages)
-                objectWillChange.send()
-                if let momentsViewModel = self as? MomentsChatViewModel {
-                    momentsViewModel.syncMessagePresentation()
+                    if let conversationId = conversation.id {
+                        LocalPersistenceService.shared.saveMessages([messages[index]], conversationId: conversationId, sync: false)
+                    }
                 }
                 let updated = messages.first(where: { $0.id == message.id }) ?? message
                 completion(updated)
@@ -774,6 +870,29 @@ class EnhancedChatViewModel: ObservableObject {
             }
         }
     }
+
+    func loadMessageForHighlightIfNeeded(messageId: String) {
+        guard !messageId.isEmpty else { return }
+        guard !messages.contains(where: { $0.id == messageId }) else { return }
+        guard let conversationId = conversation.id else { return }
+        guard requestedHighlightMessageIds.insert(messageId).inserted else { return }
+
+        chatService.fetchMessage(conversationId: conversationId, messageId: messageId) { [weak self] result in
+            DispatchQueue.main.async {
+                guard let self else { return }
+                switch result {
+                case .success(let message):
+                    guard let message else { return }
+                    guard !self.messages.contains(where: { $0.id == message.id }) else { return }
+                    self.historicalMessages.append(message)
+                    self.rebuildMessagesList()
+                    LocalPersistenceService.shared.appendMessages([message], conversationId: conversationId)
+                case .failure(let error):
+                    print("Error loading highlighted message: \(error)")
+                }
+            }
+        }
+    }
     
     // ✅ NUEVA: Función para reemplazar mensaje temporal
     private func replaceTemporaryMessage(messageId: String, with sentMessage: EnhancedMessage) {
@@ -852,7 +971,7 @@ class EnhancedChatViewModel: ObservableObject {
                     self.rebuildMessagesList()
                     self.prefetchUnresolvedMediaIfNeeded()
 
-                    LocalPersistenceService.shared.saveMessages(messages, conversationId: conversationId, sync: false)
+                    LocalPersistenceService.shared.reconcileMessages(messages, conversationId: conversationId)
                     self.isFirstFetch = false
 
                     if self.isChatVisible {
@@ -1074,12 +1193,18 @@ class EnhancedChatViewModel: ObservableObject {
         
         let messageId = UUID().uuidString
         let localPreview = localOutgoingPreviewURL(data: imageData, fileExtension: "jpg")
+        // Reservar dimensiones desde el origen: la burbuja calcula su altura sin esperar a descargar
+        // la imagen, evitando el reflujo/padding al renderizar.
+        let pixelWidth = Int(image.size.width * image.scale)
+        let pixelHeight = Int(image.size.height * image.scale)
         let tempMessage = EnhancedMessage(
             id: messageId,
             conversationId: conversationId,
             senderId: currentUserId,
             type: .image,
             mediaUrl: localPreview,
+            mediaWidth: pixelWidth > 0 ? pixelWidth : nil,
+            mediaHeight: pixelHeight > 0 ? pixelHeight : nil,
             status: .sending,
             mediaBatchId: mediaBatchId
         )

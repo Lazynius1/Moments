@@ -423,10 +423,12 @@ struct NotificationsView: View {
             if let storyId = firstNotification.storyId {
                 navigateToStory(storyId: storyId, authorId: Auth.auth().currentUser?.uid)
             }
-        case .message:
+        case .message, .messageReaction, .chatBuzz:
             if let conversationId = firstNotification.conversationId ?? firstNotification.momentId {
                 fetchAndNavigateToChat(conversationId: conversationId)
             }
+        case .gentleReminder:
+            AppRouter.shared.navigate(to: .creator)
         case .echoSuggestion:
             // 🌊 Navigate to Echo Viewer
             if let echoId = firstNotification.echoId {

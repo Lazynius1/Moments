@@ -12,9 +12,20 @@ struct ChatToolbarIconGlassModifier: ViewModifier {
 struct ChatToolbarScrollEdgeModifier: ViewModifier {
     func body(content: Content) -> some View {
         if #available(iOS 26.0, *) {
-            content.scrollEdgeEffectStyle(.soft, for: .top)
+            content.scrollEdgeEffectStyle(.soft, for: [.top, .bottom])
         } else {
             content
+                .mask {
+                    LinearGradient(
+                        stops: [
+                            .init(color: .black, location: 0),
+                            .init(color: .black, location: 0.90),
+                            .init(color: .clear, location: 1)
+                        ],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                }
         }
     }
 }
@@ -30,6 +41,15 @@ extension View {
 
     func messagingListEdgeToEdge() -> some View {
         modifier(MessagingListSectionMarginsModifier())
+    }
+
+    @ViewBuilder
+    func chatBottomBarInset<Content: View>(@ViewBuilder content: @escaping () -> Content) -> some View {
+        if #available(iOS 26.0, *) {
+            self.safeAreaBar(edge: .bottom, spacing: 0, content: content)
+        } else {
+            self.safeAreaInset(edge: .bottom, spacing: 0, content: content)
+        }
     }
 }
 

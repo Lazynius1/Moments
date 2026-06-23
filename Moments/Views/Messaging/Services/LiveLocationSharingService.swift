@@ -141,8 +141,6 @@ final class LiveLocationSharingService: NSObject, ObservableObject {
         locationManager.requestAlwaysAuthorization()
         locationManager.allowsBackgroundLocationUpdates = true
         locationManager.pausesLocationUpdatesAutomatically = false
-        // Muestra la píldora/indicador de ubicación en la barra de estado y Dynamic Island
-        // mientras la app está en segundo plano, igual que WhatsApp.
         locationManager.showsBackgroundLocationIndicator = true
         locationManager.startUpdatingLocation()
 

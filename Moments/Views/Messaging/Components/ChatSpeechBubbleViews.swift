@@ -3,7 +3,7 @@ import UIKit
 
 // MARK: - Group position
 
-/// Posición de un mensaje dentro de una ráfaga del mismo remitente (estilo Instagram).
+/// Posición de un mensaje dentro de una ráfaga del mismo remitente.
 enum ChatMessageGroupPosition {
     case single
     case first
@@ -13,7 +13,7 @@ enum ChatMessageGroupPosition {
 
 // MARK: - Speech bubble shape
 
-/// Burbuja redondeada estilo Instagram. Las esquinas del lado del emisor se "unen"
+/// Burbuja redondeada. Las esquinas del lado del emisor se "unen"
 /// (radio pequeño) entre mensajes consecutivos para dar el efecto de grupo.
 struct ChatBubbleShape: Shape {
     enum Side {
@@ -56,7 +56,7 @@ struct ChatBubbleShape: Shape {
     }
 }
 
-// MARK: - Text bubble metrics (Instagram Direct en iOS)
+// MARK: - Text bubble metrics
 
 /// Valores de referencia al tamaño de texto por defecto; escalan con Dynamic Type.
 enum ChatTextBubbleMetrics {
@@ -65,11 +65,11 @@ enum ChatTextBubbleMetrics {
     static let lineSpacing: CGFloat = 2
     static let cornerRadius: CGFloat = 20
     static let joinedRadius: CGFloat = 4
-    /// Fracción del ancho de pantalla que puede ocupar una burbuja (IG ≈ 0.75).
+    /// Fracción del ancho de pantalla que puede ocupar una burbuja.
     static let maxWidthScreenFraction: CGFloat = 0.78
 }
 
-/// Fuente de mensaje: ~15pt por defecto (como IG), escalada con Ajustes → Tamaño del texto.
+/// Fuente de mensaje: ~15pt por defecto, escalada con Ajustes → Tamaño del texto.
 enum ChatMessageFont {
     static var bubble: Font {
         Font(
@@ -101,7 +101,6 @@ struct ChatTextBubbleView: View {
         AdaptiveColors(colorScheme: colorScheme)
     }
 
-    /// Como en Instagram: ~75% del ancho de pantalla, así se adapta al dispositivo.
     private var maxBubbleWidth: CGFloat {
         UIScreen.main.bounds.width * ChatTextBubbleMetrics.maxWidthScreenFraction
     }

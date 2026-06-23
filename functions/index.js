@@ -4389,7 +4389,7 @@ async function handleBadgeUpdate(userId, userData) {
   const badgeCount = notifications.size;
   const message = {
     token: userData.fcmToken,
-    data: { silent: 'true' },
+    data: { silent: true },
     apns: {
       payload: {
         aps: {

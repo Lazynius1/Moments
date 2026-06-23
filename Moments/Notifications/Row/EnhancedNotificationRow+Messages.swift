@@ -165,6 +165,9 @@ extension EnhancedNotificationRow {
                 )
             case .mediaModeration:
                 return AttributedString(NSLocalizedString("notifications.message.mediaModeration", comment: "Media moderation notification"))
+            case .messageReaction, .chatBuzz, .gentleReminder:
+                let copy = NotificationCopyResolver.resolve(firstNotification)
+                return AttributedString(copy.body ?? copy.title)
             }
         } else {
             switch firstNotification.type {
@@ -265,6 +268,9 @@ extension EnhancedNotificationRow {
                 )
             case .mediaModeration:
                 return AttributedString(NSLocalizedString("notifications.message.mediaModeration", comment: "Media moderation notification"))
+            case .messageReaction, .chatBuzz, .gentleReminder:
+                let copy = NotificationCopyResolver.resolve(firstNotification)
+                return AttributedString(copy.body ?? copy.title)
             }
         }
     }

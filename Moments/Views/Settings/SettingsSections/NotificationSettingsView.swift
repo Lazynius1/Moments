@@ -113,7 +113,7 @@ struct NotificationSettingsView: View {
                                 .foregroundColor(.gray)
 
                             VStack(spacing: 0) {
-                                ForEach(Array(NotificationType.allCases.enumerated()), id: \.element.rawValue) { index, type in
+                                ForEach(Array(NotificationType.allCases.filter { $0 != .gentleReminder }.enumerated()), id: \.element.rawValue) { index, type in
                                     notificationToggleRow(
                                         title: type.displayName,
                                         isOn: Binding(
@@ -122,7 +122,7 @@ struct NotificationSettingsView: View {
                                         )
                                     )
 
-                                    if index < NotificationType.allCases.count - 1 {
+                                    if index < NotificationType.allCases.filter({ $0 != .gentleReminder }).count - 1 {
                                         Divider().padding(.leading, 4)
                                     }
                                 }

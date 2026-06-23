@@ -582,7 +582,6 @@ struct GlassmorphicAudioMessage: View {
         return 0
     }
 
-    /// En reproducción muestra el tiempo restante (estilo WhatsApp); en pausa, la duración total.
     private var displayedDurationSeconds: Double {
         guard duration > 0 else { return 0 }
         if isPlaying {

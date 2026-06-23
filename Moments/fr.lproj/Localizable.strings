@@ -872,6 +872,7 @@
 "chat.buzz.sent" = "Tu as envoyé un wizz";
 "chat.buzz.received" = "%@ t'a envoyé un wizz";
 "chat.buzz.cooldown" = "Attends un peu avant d'envoyer un autre wizz";
+"chat.draft.preview" = "Brouillon : %@";
 "chat.buzz.blocked" = "Cette personne n'accepte pas les wizz";
 "chat.giphy.searchGif" = "Rechercher des GIF";
 "chat.giphy.searchSticker" = "Rechercher des stickers";

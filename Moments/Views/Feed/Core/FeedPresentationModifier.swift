@@ -42,7 +42,7 @@ struct FeedPresentationModifier: ViewModifier {
                     )
                 })
             }
-            .fullScreenCover(isPresented: $showMessages) {
+            .navigationDestination(isPresented: $showMessages) {
                 MessagingView(targetConversationId: $targetConversationId, onDismiss: {
                     showMessages = false
                 })

@@ -66,8 +66,27 @@ class MessagingViewModel: ObservableObject {
                 return lhsPinned && !rhsPinned
             }
 
+            let lhsHasDraft = hasDraft(lhs, userId: currentUserId)
+            let rhsHasDraft = hasDraft(rhs, userId: currentUserId)
+
+            if lhsHasDraft != rhsHasDraft {
+                return lhsHasDraft && !rhsHasDraft
+            }
+
             return lhs.timestamp > rhs.timestamp
         }
+    }
+
+    private func hasDraft(_ conversation: Conversation, userId: String?) -> Bool {
+        guard let conversationId = conversation.id else { return false }
+        return !ChatDraftStore.shared.draft(for: conversationId, userId: userId)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .isEmpty
+    }
+
+    func refreshDraftOrdering() {
+        conversations = sortConversationsForInbox(conversations)
+        filteredConversations = sortConversationsForInbox(filteredConversations)
     }
 
     func applyLocalConversationState(conversationId: String, isPinned: Bool? = nil, isMuted: Bool? = nil) {
@@ -224,9 +243,10 @@ class MessagingViewModel: ObservableObject {
         filteredConversations = conversations.filter { conversation in
             let username = conversation.otherParticipantUsername?.lowercased() ?? ""
             let lastMessage = conversation.lastMessage?.lowercased() ?? ""
+            let draft = conversation.id.map { ChatDraftStore.shared.draft(for: $0).lowercased() } ?? ""
             let searchQuery = trimmedQuery.lowercased()
 
-            return username.contains(searchQuery) || lastMessage.contains(searchQuery)
+            return username.contains(searchQuery) || lastMessage.contains(searchQuery) || draft.contains(searchQuery)
         }
 
         let existingUserIds = Set(conversations.compactMap { $0.otherParticipantId })

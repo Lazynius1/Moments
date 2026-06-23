@@ -560,7 +560,7 @@ struct ChatLocationDetailView: View {
     }
 }
 
-// MARK: - Marcador de avatar para ubicación en vivo (estilo WhatsApp)
+// MARK: - Marcador de avatar para ubicación en vivo
 
 struct LiveLocationAvatarPin: View {
     let senderId: String

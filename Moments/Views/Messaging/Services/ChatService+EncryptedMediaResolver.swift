@@ -132,8 +132,13 @@ extension ChatService {
             if let cached = outgoingPreviews[messageId] {
                 return cached
             }
+            // El cache en memoria puede apuntar a un archivo que iOS purgó de Caches mientras la
+            // app estaba en segundo plano: si ya no existe, lo descartamos y re-descargamos.
             if let cached = resolvedMediaCache[messageId] {
-                return cached
+                if Self.cachedMediaFileExists(cached.mediaUrl) {
+                    return cached
+                }
+                resolvedMediaCache.removeValue(forKey: messageId)
             }
 
             let diskMain = decryptedMediaCacheURL(
@@ -244,6 +249,13 @@ extension ChatService {
             } catch {
                 return nil
             }
+        }
+
+        /// `true` si la URL cacheada es un `file://` cuyo archivo sigue existiendo en disco.
+        private static func cachedMediaFileExists(_ urlString: String?) -> Bool {
+            guard let urlString, let url = URL(string: urlString) else { return false }
+            guard url.isFileURL else { return true } // remoto (http): asumimos válido
+            return FileManager.default.fileExists(atPath: url.path)
         }
 
         private func decryptedMediaCacheURL(
