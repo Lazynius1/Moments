@@ -18,6 +18,7 @@ struct Conversation: Identifiable, Codable, Hashable {
     let isMuted: Bool?
     let mutedByUserIds: [String]?
     let mutedBy: String?
+    let archivedByUserIds: [String]?
     let encryptionVersion: String?
     let conversationKeyVersion: Int?
     let wrappedKeys: [String: WrappedConversationKey]?
@@ -55,6 +56,7 @@ struct Conversation: Identifiable, Codable, Hashable {
         case isMuted
         case mutedByUserIds
         case mutedBy
+        case archivedByUserIds
         case encryptionVersion
         case conversationKeyVersion
         case wrappedKeys
@@ -79,6 +81,7 @@ struct Conversation: Identifiable, Codable, Hashable {
         isMuted: Bool? = false,
         mutedByUserIds: [String]? = nil,
         mutedBy: String? = nil,
+        archivedByUserIds: [String]? = nil,
         encryptionVersion: String? = nil,
         conversationKeyVersion: Int? = nil,
         wrappedKeys: [String: WrappedConversationKey]? = nil
@@ -97,6 +100,7 @@ struct Conversation: Identifiable, Codable, Hashable {
         self.isMuted = isMuted
         self.mutedByUserIds = mutedByUserIds
         self.mutedBy = mutedBy
+        self.archivedByUserIds = archivedByUserIds
         self.encryptionVersion = encryptionVersion
         self.conversationKeyVersion = conversationKeyVersion
         self.wrappedKeys = wrappedKeys
@@ -123,6 +127,7 @@ struct Conversation: Identifiable, Codable, Hashable {
         self.isMuted = try container.decodeIfPresent(Bool.self, forKey: .isMuted) ?? false
         self.mutedByUserIds = try container.decodeIfPresent([String].self, forKey: .mutedByUserIds)
         self.mutedBy = try container.decodeIfPresent(String.self, forKey: .mutedBy)
+        self.archivedByUserIds = try container.decodeIfPresent([String].self, forKey: .archivedByUserIds)
         self.encryptionVersion = try container.decodeIfPresent(String.self, forKey: .encryptionVersion)
         self.conversationKeyVersion = try container.decodeIfPresent(Int.self, forKey: .conversationKeyVersion)
         self.wrappedKeys = try container.decodeIfPresent([String: WrappedConversationKey].self, forKey: .wrappedKeys)
@@ -149,6 +154,7 @@ struct Conversation: Identifiable, Codable, Hashable {
         try container.encodeIfPresent(isMuted, forKey: .isMuted)
         try container.encodeIfPresent(mutedByUserIds, forKey: .mutedByUserIds)
         try container.encodeIfPresent(mutedBy, forKey: .mutedBy)
+        try container.encodeIfPresent(archivedByUserIds, forKey: .archivedByUserIds)
         try container.encodeIfPresent(encryptionVersion, forKey: .encryptionVersion)
         try container.encodeIfPresent(conversationKeyVersion, forKey: .conversationKeyVersion)
         try container.encodeIfPresent(wrappedKeys, forKey: .wrappedKeys)
@@ -192,6 +198,11 @@ struct Conversation: Identifiable, Codable, Hashable {
         }
 
         return false
+    }
+
+    func isArchived(for userId: String?) -> Bool {
+        guard let userId, !userId.isEmpty else { return false }
+        return archivedByUserIds?.contains(userId) == true
     }
 
     /// Devuelve el timestamp de borrado del usuario dado, si existe.

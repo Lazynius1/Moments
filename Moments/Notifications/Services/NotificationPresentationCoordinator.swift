@@ -45,6 +45,13 @@ final class NotificationPresentationCoordinator {
 
     private func shouldShowBanner(for notification: Notification) -> Bool {
         let chatTypes: Set<NotificationType> = [.message, .messageReaction, .chatBuzz]
+        if chatTypes.contains(notification.type),
+           let conversationId = notification.conversationId,
+           !conversationId.isEmpty,
+           let userId = Auth.auth().currentUser?.uid,
+           ChatService.shared.isConversationArchived(conversationId, for: userId) {
+            return false
+        }
         guard chatTypes.contains(notification.type),
               let conversationId = notification.conversationId,
               !conversationId.isEmpty,

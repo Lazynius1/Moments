@@ -3452,6 +3452,12 @@
 "messaging.swipe.pin" = "Pin";
 "messaging.swipe.unpin" = "Unpin";
 "messaging.menu.markUnread" = "Mark as unread";
+"messaging.menu.archive" = "Archive";
+"messaging.menu.unarchive" = "Unarchive";
+"messaging.section.archived" = "Archived";
+"messaging.section.archivedWithUnread" = "Archived (%d unread)";
+"messaging.toast.archived" = "Chat archived";
+"messaging.toast.unarchived" = "Chat unarchived";
 "feed.refreshing" = "Refreshing";
 "profile.ui.posts" = "Posts";
 "userProfile.blockedByMe.title" = "Blocked user";

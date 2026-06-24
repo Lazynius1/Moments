@@ -3428,6 +3428,12 @@
 "messaging.swipe.pin" = "Fissa";
 "messaging.swipe.unpin" = "Rimuovi";
 "messaging.menu.markUnread" = "Segna come non letto";
+"messaging.menu.archive" = "Archivia";
+"messaging.menu.unarchive" = "Annulla archiviazione";
+"messaging.section.archived" = "Archiviate";
+"messaging.section.archivedWithUnread" = "Archiviate (%d non letti)";
+"messaging.toast.archived" = "Chat archiviata";
+"messaging.toast.unarchived" = "Chat ripristinata";
 "feed.refreshing" = "Aggiornamento in corso";
 "profile.ui.posts" = "Post";
 "userProfile.blockedByMe.title" = "Utente bloccato";

@@ -3428,6 +3428,12 @@
 "messaging.swipe.pin" = "Épingler";
 "messaging.swipe.unpin" = "Désépingler";
 "messaging.menu.markUnread" = "Marquer comme non lu";
+"messaging.menu.archive" = "Archiver";
+"messaging.menu.unarchive" = "Désarchiver";
+"messaging.section.archived" = "Archivées";
+"messaging.section.archivedWithUnread" = "Archivées (%d non lus)";
+"messaging.toast.archived" = "Discussion archivée";
+"messaging.toast.unarchived" = "Discussion désarchivée";
 "feed.refreshing" = "Actualisation";
 "profile.ui.posts" = "Posts";
 "userProfile.blockedByMe.title" = "Utilisateur bloqué";

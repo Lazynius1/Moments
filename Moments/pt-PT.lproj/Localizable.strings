@@ -4239,6 +4239,12 @@
 "messaging.swipe.pin" = "Fixar";
 "messaging.swipe.unpin" = "Desafixar";
 "messaging.menu.markUnread" = "Marcar como não lida";
+"messaging.menu.archive" = "Arquivar";
+"messaging.menu.unarchive" = "Desarquivar";
+"messaging.section.archived" = "Arquivadas";
+"messaging.section.archivedWithUnread" = "Arquivadas (%d não lidas)";
+"messaging.toast.archived" = "Conversa arquivada";
+"messaging.toast.unarchived" = "Conversa desarquivada";
 "feed.refreshing" = "Atualizando";
 "profile.ui.posts" = "Publicações";
 "userProfile.blockedByMe.title" = "Utilizador bloqueado";

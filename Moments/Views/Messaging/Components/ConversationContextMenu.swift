@@ -1,4 +1,5 @@
 import SwiftUI
+import FirebaseAuth
 
 // MARK: - Selection
 
@@ -39,6 +40,8 @@ struct ConversationContextMenuOverlay: View {
     let onMarkUnread: (Conversation) -> Void
     let onPin: (Conversation) -> Void
     let onMute: (Conversation) -> Void
+    let onArchive: (Conversation) -> Void
+    let onUnarchive: (Conversation) -> Void
     let onDelete: (Conversation) -> Void
 
     private let menuRowHeight: CGFloat = 38
@@ -121,6 +124,26 @@ struct ConversationContextMenuOverlay: View {
                 }
             )
 
+            if conversation.isArchived(for: Auth.auth().currentUser?.uid) {
+                ConversationContextMenuRow(
+                    icon: "archivebox.fill",
+                    title: NSLocalizedString("messaging.menu.unarchive", comment: "Unarchive conversation"),
+                    action: {
+                        dismissMenu()
+                        onUnarchive(conversation)
+                    }
+                )
+            } else {
+                ConversationContextMenuRow(
+                    icon: "archivebox",
+                    title: NSLocalizedString("messaging.menu.archive", comment: "Archive conversation"),
+                    action: {
+                        dismissMenu()
+                        onArchive(conversation)
+                    }
+                )
+            }
+
             ConversationContextMenuRow(
                 icon: "trash",
                 title: NSLocalizedString("notifications.delete", comment: "Delete"),
@@ -155,7 +178,7 @@ struct ConversationContextMenuOverlay: View {
 
     private var visibleMenuRowsCount: CGFloat {
         guard let conversation = selection?.conversation else { return 4 }
-        return conversation.unreadCount == 0 ? 4 : 3
+        return conversation.unreadCount == 0 ? 5 : 4
     }
 
     private var menuPanelHeight: CGFloat {

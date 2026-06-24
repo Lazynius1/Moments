@@ -3448,6 +3448,12 @@
 "messaging.swipe.pin" = "Fixar";
 "messaging.swipe.unpin" = "Desfixar";
 "messaging.menu.markUnread" = "Marcar com a no llegit";
+"messaging.menu.archive" = "Arxivar";
+"messaging.menu.unarchive" = "Desarxivar";
+"messaging.section.archived" = "Arxivades";
+"messaging.section.archivedWithUnread" = "Arxivades (%d no llegits)";
+"messaging.toast.archived" = "Xat arxivat";
+"messaging.toast.unarchived" = "Xat desarxivat";
 "feed.refreshing" = "Actualitzant";
 "profile.ui.posts" = "Posts";
 "userProfile.blockedByMe.title" = "Usuari bloquejat";

@@ -3476,6 +3476,12 @@
 "messaging.swipe.pin" = "Fijar";
 "messaging.swipe.unpin" = "Desfijar";
 "messaging.menu.markUnread" = "Marcar como no leído";
+"messaging.menu.archive" = "Archivar";
+"messaging.menu.unarchive" = "Desarchivar";
+"messaging.section.archived" = "Archivadas";
+"messaging.section.archivedWithUnread" = "Archivadas (%d no leídos)";
+"messaging.toast.archived" = "Chat archivado";
+"messaging.toast.unarchived" = "Chat desarchivado";
 "feed.refreshing" = "Actualizando";
 "userProfile.blockedByMe.title" = "Usuario bloqueado";
 "userProfile.blockedByMe.description" = "Bloqueaste a esta persona. No puede enviarte mensajes ni interactuar contigo.";

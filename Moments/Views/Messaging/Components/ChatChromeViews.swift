@@ -326,3 +326,25 @@ struct GlassmorphicTypingIndicator: View {
         .clipShape(RoundedRectangle(cornerRadius: 20))
     }
 }
+
+struct MessagingActionToast: View {
+    let text: String
+    let colorScheme: ColorScheme
+
+    private var shape: RoundedRectangle {
+        RoundedRectangle(cornerRadius: 14, style: .continuous)
+    }
+
+    var body: some View {
+        Text(text)
+            .font(.custom("Poppins-SemiBold", size: 14))
+            .foregroundStyle(colorScheme == .dark ? .white : .black)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, 18)
+            .padding(.vertical, 14)
+            .momentsChromeGlass(in: shape, interactive: false)
+            .clipShape(shape)
+            .shadow(color: .black.opacity(colorScheme == .dark ? 0.22 : 0.12), radius: 18, x: 0, y: 10)
+            .accessibilityElement(children: .combine)
+    }
+}

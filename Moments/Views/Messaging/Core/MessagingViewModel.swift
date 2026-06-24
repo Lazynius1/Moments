@@ -6,6 +6,7 @@ import Combine
 @MainActor
 class MessagingViewModel: ObservableObject {
     @Published var conversations: [Conversation] = []
+    @Published var archivedConversations: [Conversation] = []
     @Published var suggestedUsers: [AppUser] = []
     @Published var hasUnreadMessages: Bool = false
     @Published var selectedConversation: Conversation?
@@ -27,11 +28,22 @@ class MessagingViewModel: ObservableObject {
     private func updatingConversation(
         _ conversation: Conversation,
         isPinned: Bool? = nil,
-        isMuted: Bool? = nil
+        isMuted: Bool? = nil,
+        isArchived: Bool? = nil
     ) -> Conversation {
         let currentUserId = Auth.auth().currentUser?.uid
         let resolvedPinned = isPinned ?? conversation.isPinned(for: currentUserId)
         let resolvedMuted = isMuted ?? conversation.isMuted(for: currentUserId)
+        var archivedIds = conversation.archivedByUserIds ?? []
+        if let isArchived, let currentUserId, !currentUserId.isEmpty {
+            if isArchived {
+                if !archivedIds.contains(currentUserId) {
+                    archivedIds.append(currentUserId)
+                }
+            } else {
+                archivedIds.removeAll { $0 == currentUserId }
+            }
+        }
         var updated = Conversation(
             id: conversation.id,
             participants: conversation.participants,
@@ -47,6 +59,7 @@ class MessagingViewModel: ObservableObject {
             isMuted: resolvedMuted,
             mutedByUserIds: conversation.mutedByUserIds,
             mutedBy: conversation.mutedBy,
+            archivedByUserIds: archivedIds.isEmpty ? nil : archivedIds,
             encryptionVersion: conversation.encryptionVersion,
             conversationKeyVersion: conversation.conversationKeyVersion,
             wrappedKeys: conversation.wrappedKeys
@@ -87,23 +100,49 @@ class MessagingViewModel: ObservableObject {
 
     func refreshDraftOrdering() {
         conversations = sortConversationsForInbox(conversations)
+        archivedConversations = sortConversationsForInbox(archivedConversations)
         filteredConversations = sortConversationsForInbox(filteredConversations)
     }
 
-    func applyLocalConversationState(conversationId: String, isPinned: Bool? = nil, isMuted: Bool? = nil) {
-        conversations = sortConversationsForInbox(conversations.map { conversation in
-            conversation.id == conversationId
-                ? updatingConversation(conversation, isPinned: isPinned, isMuted: isMuted)
-                : conversation
-        })
+    func applyLocalConversationState(
+        conversationId: String,
+        isPinned: Bool? = nil,
+        isMuted: Bool? = nil,
+        isArchived: Bool? = nil
+    ) {
+        let updateList: ([Conversation]) -> [Conversation] = { list in
+            self.sortConversationsForInbox(list.map { conversation in
+                conversation.id == conversationId
+                    ? self.updatingConversation(conversation, isPinned: isPinned, isMuted: isMuted, isArchived: isArchived)
+                    : conversation
+            })
+        }
 
-        filteredConversations = sortConversationsForInbox(filteredConversations.map { conversation in
-            conversation.id == conversationId
-                ? updatingConversation(conversation, isPinned: isPinned, isMuted: isMuted)
-                : conversation
-        })
+        if let isArchived {
+            if isArchived {
+                if let conversation = conversations.first(where: { $0.id == conversationId }) {
+                    conversations.removeAll { $0.id == conversationId }
+                    let updated = updatingConversation(conversation, isPinned: isPinned, isMuted: isMuted, isArchived: true)
+                    archivedConversations = sortConversationsForInbox([updated] + archivedConversations.filter { $0.id != conversationId })
+                }
+            } else {
+                if let conversation = archivedConversations.first(where: { $0.id == conversationId }) {
+                    archivedConversations.removeAll { $0.id == conversationId }
+                    let updated = updatingConversation(conversation, isPinned: isPinned, isMuted: isMuted, isArchived: false)
+                    conversations = sortConversationsForInbox([updated] + conversations.filter { $0.id != conversationId })
+                }
+            }
+        } else {
+            conversations = updateList(conversations)
+            archivedConversations = updateList(archivedConversations)
+        }
 
-        LocalPersistenceService.shared.saveConversations(conversations, sync: true)
+        filteredConversations = updateList(filteredConversations)
+        LocalPersistenceService.shared.saveConversations(conversations + archivedConversations, sync: true)
+    }
+
+    func archivedUnreadCount(for userId: String) -> Int {
+        archivedConversations.filter { !($0.readStatus[userId] ?? true) }.count
     }
 
     deinit {
@@ -120,7 +159,10 @@ class MessagingViewModel: ObservableObject {
         let cachedConversations = sortConversationsForInbox(LocalPersistenceService.shared.loadConversations())
         if !cachedConversations.isEmpty {
             DispatchQueue.main.async {
-                self.conversations = cachedConversations
+                let active = cachedConversations.filter { !$0.isArchived(for: userId) }
+                let archived = cachedConversations.filter { $0.isArchived(for: userId) }
+                self.conversations = active
+                self.archivedConversations = archived
                 self.hasUnreadMessages = cachedConversations.contains { !($0.readStatus[userId] ?? true) }
             }
         }
@@ -131,12 +173,14 @@ class MessagingViewModel: ObservableObject {
                 switch result {
                 case .success(let conversations):
                     let filtered = conversations.filter { $0.id != nil && !$0.id!.isEmpty }
-                    let sorted = self.sortConversationsForInbox(filtered)
-                    self.conversations = sorted
-                    self.hasUnreadMessages = conversations.contains { !($0.readStatus[userId] ?? true) }
+                    let active = self.sortConversationsForInbox(filtered.filter { !$0.isArchived(for: userId) })
+                    let archived = self.sortConversationsForInbox(filtered.filter { $0.isArchived(for: userId) })
+                    self.conversations = active
+                    self.archivedConversations = archived
+                    self.hasUnreadMessages = filtered.contains { !($0.readStatus[userId] ?? true) }
                     self.errorMessage = nil
 
-                    LocalPersistenceService.shared.saveConversations(sorted, sync: self.isFirstFetch)
+                    LocalPersistenceService.shared.saveConversations(active + archived, sync: self.isFirstFetch)
                     self.isFirstFetch = false
 
                 case .failure(let error):
@@ -176,6 +220,7 @@ class MessagingViewModel: ObservableObject {
                                 isMuted: existing.isMuted,
                                 mutedByUserIds: existing.mutedByUserIds,
                                 mutedBy: existing.mutedBy,
+                                archivedByUserIds: existing.archivedByUserIds,
                                 encryptionVersion: existing.encryptionVersion,
                                 conversationKeyVersion: existing.conversationKeyVersion,
                                 wrappedKeys: existing.wrappedKeys
@@ -208,6 +253,7 @@ class MessagingViewModel: ObservableObject {
                                 isMuted: existing.isMuted,
                                 mutedByUserIds: existing.mutedByUserIds,
                                 mutedBy: existing.mutedBy,
+                                archivedByUserIds: existing.archivedByUserIds,
                                 encryptionVersion: existing.encryptionVersion,
                                 conversationKeyVersion: existing.conversationKeyVersion,
                                 wrappedKeys: existing.wrappedKeys
@@ -243,7 +289,7 @@ class MessagingViewModel: ObservableObject {
 
         isSearchingContent = true
 
-        filteredConversations = conversations.filter { conversation in
+        filteredConversations = (conversations + archivedConversations).filter { conversation in
             let username = conversation.otherParticipantUsername?.lowercased() ?? ""
             let lastMessage = conversation.lastMessage?.lowercased() ?? ""
             let draft = conversation.id.map { ChatDraftStore.shared.draft(for: $0).lowercased() } ?? ""
@@ -252,7 +298,7 @@ class MessagingViewModel: ObservableObject {
             return username.contains(searchQuery) || lastMessage.contains(searchQuery) || draft.contains(searchQuery)
         }
 
-        let existingUserIds = Set(conversations.compactMap { $0.otherParticipantId })
+        let existingUserIds = Set((conversations + archivedConversations).compactMap { $0.otherParticipantId })
         let workItem = DispatchWorkItem { [weak self] in
             guard let self = self else { return }
             FirestoreService().searchUsers(query: trimmedQuery) { [weak self] result in
@@ -289,7 +335,7 @@ class MessagingViewModel: ObservableObject {
     }
 
     func createOrFindConversation(with user: AppUser, from userId: String, completion: @escaping (Conversation?) -> Void) {
-        if let existingConversation = conversations.first(where: { $0.otherParticipantId == user.id }) {
+        if let existingConversation = (conversations + archivedConversations).first(where: { $0.otherParticipantId == user.id }) {
             completion(existingConversation)
             return
         }
@@ -586,10 +632,14 @@ class MessagingViewModel: ObservableObject {
         }
 
         conversations.removeAll { $0.id == conversationId }
+        archivedConversations.removeAll { $0.id == conversationId }
         filteredConversations.removeAll { $0.id == conversationId }
-        hasUnreadMessages = conversations.contains { !($0.readStatus[currentUserId] ?? true) }
+        hasUnreadMessages = (conversations + archivedConversations).contains { !($0.readStatus[currentUserId] ?? true) }
         ChatSessionEngine.shared.invalidateSession(conversationId: conversationId)
-        LocalPersistenceService.shared.saveConversations(conversations, sync: true)
+        if let conversationId = conversation.id {
+            ChatScrollStateStore.clear(for: conversationId)
+        }
+        LocalPersistenceService.shared.saveConversations(conversations + archivedConversations, sync: true)
         LocalPersistenceService.shared.deleteConversationCache(conversationId: conversationId)
 
         chatService.deleteConversationsBetweenUsers(
@@ -606,7 +656,9 @@ class MessagingViewModel: ObservableObject {
             } else {
                 DispatchQueue.main.async {
                     self?.conversations.removeAll { $0.id == conversationId }
-                    self?.hasUnreadMessages = self?.conversations.contains { !($0.readStatus[Auth.auth().currentUser?.uid ?? ""] ?? true) } ?? false
+                    self?.archivedConversations.removeAll { $0.id == conversationId }
+                    self?.hasUnreadMessages = (self?.conversations ?? []).contains { !($0.readStatus[Auth.auth().currentUser?.uid ?? ""] ?? true) }
+                        || (self?.archivedConversations ?? []).contains { !($0.readStatus[Auth.auth().currentUser?.uid ?? ""] ?? true) }
                 }
             }
         }
@@ -637,6 +689,13 @@ class MessagingViewModel: ObservableObject {
                             updatedConversation.readStatus = readStatus
                             self?.conversations[index] = updatedConversation
                             self?.hasUnreadMessages = true
+                        } else if let index = self?.archivedConversations.firstIndex(where: { $0.id == conversationId }) {
+                            var updatedConversation = conversation
+                            var readStatus = conversation.readStatus
+                            readStatus[Auth.auth().currentUser?.uid ?? ""] = false
+                            updatedConversation.readStatus = readStatus
+                            self?.archivedConversations[index] = updatedConversation
+                            self?.hasUnreadMessages = true
                         }
                     }
                 }
@@ -646,6 +705,32 @@ class MessagingViewModel: ObservableObject {
     func stopListening() {
         if let userId = Auth.auth().currentUser?.uid {
             chatService.removeConversationsListener(for: userId)
+        }
+    }
+
+    func archiveConversation(_ conversation: Conversation) {
+        guard let conversationId = conversation.id,
+              let currentUserId = Auth.auth().currentUser?.uid else { return }
+        applyLocalConversationState(conversationId: conversationId, isArchived: true)
+        chatService.archiveConversation(conversationId, for: currentUserId) { [weak self] error in
+            if let error {
+                DispatchQueue.main.async {
+                    self?.errorMessage = error.localizedDescription
+                }
+            }
+        }
+    }
+
+    func unarchiveConversation(_ conversation: Conversation) {
+        guard let conversationId = conversation.id,
+              let currentUserId = Auth.auth().currentUser?.uid else { return }
+        applyLocalConversationState(conversationId: conversationId, isArchived: false)
+        chatService.unarchiveConversation(conversationId, for: currentUserId) { [weak self] error in
+            if let error {
+                DispatchQueue.main.async {
+                    self?.errorMessage = error.localizedDescription
+                }
+            }
         }
     }
 }

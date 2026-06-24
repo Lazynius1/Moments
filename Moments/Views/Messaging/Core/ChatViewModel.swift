@@ -1005,10 +1005,6 @@ class EnhancedChatViewModel: ObservableObject {
 
                     LocalPersistenceService.shared.reconcileMessages(messages, conversationId: conversationId)
                     self.isFirstFetch = false
-
-                    if self.isChatVisible {
-                        self.markUnreadMessagesAsRead(messages)
-                    }
                 case .failure(let error):
                     self.error = error.localizedDescription
                 }
@@ -1680,6 +1676,24 @@ class EnhancedChatViewModel: ObservableObject {
     }
     
     // MARK: - Read Status
+
+    func markVisibleConversationAsRead() {
+        guard isChatVisible else { return }
+        applyOptimisticReadLocally()
+        markUnreadMessagesAsRead(messages)
+    }
+
+    private func applyOptimisticReadLocally() {
+        var didChange = false
+        for index in realTimeMessages.indices {
+            guard realTimeMessages[index].senderId != currentUserId,
+                  !realTimeMessages[index].isRead else { continue }
+            realTimeMessages[index].isRead = true
+            didChange = true
+        }
+        guard didChange else { return }
+        rebuildMessagesList()
+    }
     
     private func markUnreadMessagesAsRead(_ messages: [EnhancedMessage]) {
         guard let conversationId = conversation.id, !conversationId.isEmpty else {

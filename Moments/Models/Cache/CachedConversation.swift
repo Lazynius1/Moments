@@ -1,5 +1,6 @@
 import Foundation
 import SwiftData
+import FirebaseAuth
 
 @Model
 final class CachedConversation {
@@ -13,6 +14,7 @@ final class CachedConversation {
     var otherParticipantProfileImagePath: String?
     var isPinned: Bool
     var isMuted: Bool
+    var isArchived: Bool
     var readReceiptPreferencesData: Data? // [String: Bool] encoded
     var forwardingPreferencesData: Data? // [String: Bool] encoded
     var lastDeletedAtData: Data? // [String: Date] encoded
@@ -28,6 +30,7 @@ final class CachedConversation {
          otherParticipantProfileImagePath: String?,
          isPinned: Bool = false,
          isMuted: Bool = false,
+         isArchived: Bool = false,
          readReceiptPreferencesData: Data? = nil,
          forwardingPreferencesData: Data? = nil,
          lastDeletedAtData: Data? = nil,
@@ -42,6 +45,7 @@ final class CachedConversation {
         self.otherParticipantProfileImagePath = otherParticipantProfileImagePath
         self.isPinned = isPinned
         self.isMuted = isMuted
+        self.isArchived = isArchived
         self.readReceiptPreferencesData = readReceiptPreferencesData
         self.forwardingPreferencesData = forwardingPreferencesData
         self.lastDeletedAtData = lastDeletedAtData
@@ -68,6 +72,7 @@ extension CachedConversation {
             otherParticipantProfileImagePath: conversation.otherParticipantProfileImagePath,
             isPinned: conversation.isPinned ?? false,
             isMuted: conversation.isMuted ?? false,
+            isArchived: conversation.isArchived(for: Auth.auth().currentUser?.uid),
             readReceiptPreferencesData: readReceiptPreferencesData,
             forwardingPreferencesData: forwardingPreferencesData,
             lastDeletedAtData: lastDeletedAtData,
@@ -107,7 +112,8 @@ extension CachedConversation {
             otherParticipantUsername: otherParticipantUsername,
             otherParticipantProfileImagePath: otherParticipantProfileImagePath,
             isPinned: isPinned,
-            isMuted: isMuted
+            isMuted: isMuted,
+            archivedByUserIds: isArchived ? [Auth.auth().currentUser?.uid ?? ""].filter { !$0.isEmpty } : nil
         )
         conversation.readReceiptPreferences = readReceiptPreferences
         conversation.forwardingPreferences = forwardingPreferences

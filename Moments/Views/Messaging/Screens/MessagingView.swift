@@ -75,6 +75,9 @@ struct MessagingView: View {
     @State private var showingStatusSelector = false
     @State private var conversationMenuSelection: ConversationMenuSelection?
     @State private var conversationRowFrames: [String: CGRect] = [:]
+    @State private var showingArchivedConversations = false
+    @State private var actionToastMessage: String?
+    @State private var actionToastDismissTask: Task<Void, Never>? = nil
 
     private var adaptiveColors: AdaptiveColors {
         AdaptiveColors(colorScheme: colorScheme)
@@ -100,19 +103,35 @@ struct MessagingView: View {
                             onMarkUnread: markConversationUnread,
                             onPin: pinConversation,
                             onMute: muteConversation,
+                            onArchive: archiveConversation,
+                            onUnarchive: unarchiveConversation,
                             onDelete: deleteConversation
                         )
                     }
                     .ignoresSafeArea()
                     .allowsHitTesting(conversationMenuSelection != nil)
+
+                if let actionToastMessage {
+                    VStack {
+                        Spacer()
+                        MessagingActionToast(text: actionToastMessage, colorScheme: colorScheme)
+                            .padding(.horizontal, 16)
+                            .padding(.bottom, 16)
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .allowsHitTesting(false)
+                    .zIndex(3)
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
                 }
+                }
+                .animation(.spring(response: 0.32, dampingFraction: 0.84), value: actionToastMessage)
                 .coordinateSpace(name: "messagingRoot")
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
                     messagingToolbarContent
                 }
                 .safeAreaInset(edge: .top, spacing: 0) {
-                    if !viewModel.conversations.isEmpty {
+                    if !viewModel.conversations.isEmpty || !viewModel.archivedConversations.isEmpty {
                         searchBar
                     }
                 }
@@ -132,6 +151,17 @@ struct MessagingView: View {
                             selectedConversation = conversation
                         }
                     }
+                }
+                .navigationDestination(isPresented: $showingArchivedConversations) {
+                    ArchivedConversationsView(
+                        viewModel: viewModel,
+                        selectedConversation: $selectedConversation,
+                        onMarkUnread: markConversationUnread,
+                        onPin: pinConversation,
+                        onMute: muteConversation,
+                        onUnarchive: unarchiveConversation,
+                        onDelete: deleteConversation
+                    )
                 }
                 .navigationDestination(item: $selectedConversation) { conversation in
                     GlassmorphicChatView(
@@ -174,6 +204,7 @@ struct MessagingView: View {
                         viewModel.stopListening()
                         viewModel.errorMessage = nil
                         viewModel.conversations = []
+                        viewModel.archivedConversations = []
                         viewModel.filteredConversations = []
                         viewModel.hasUnreadMessages = false
                         messageRequestService.removeAllListeners()
@@ -221,6 +252,9 @@ struct MessagingView: View {
                     }
                 }
                 .onDisappear {
+                    actionToastDismissTask?.cancel()
+                    actionToastDismissTask = nil
+                    actionToastMessage = nil
                     viewModel.stopListening()
                     messageRequestService.removeAllListeners()
                 }
@@ -240,7 +274,7 @@ struct MessagingView: View {
     private func navigateToConversation(id: String) {
         pendingConversationResolveTask?.cancel()
 
-        if let conversation = viewModel.conversations.first(where: { $0.id == id }) {
+        if let conversation = (viewModel.conversations + viewModel.archivedConversations).first(where: { $0.id == id }) {
             selectedConversation = conversation
             targetConversationId = nil
         } else {
@@ -468,7 +502,7 @@ struct MessagingView: View {
 
                  Spacer()
              }
-         } else if viewModel.conversations.isEmpty && !isSearching {
+         } else if viewModel.conversations.isEmpty && viewModel.archivedConversations.isEmpty && !isSearching {
              VStack(spacing: 20) {
                  Spacer()
 
@@ -646,8 +680,37 @@ struct MessagingView: View {
         }
     }
 
+    private func archiveConversation(_ conversation: Conversation) {
+        HapticManager.shared.lightImpact()
+        viewModel.archiveConversation(conversation)
+        showActionToast(NSLocalizedString("messaging.toast.archived", comment: "Conversation archived toast"))
+    }
+
+    private func unarchiveConversation(_ conversation: Conversation) {
+        HapticManager.shared.lightImpact()
+        viewModel.unarchiveConversation(conversation)
+        showActionToast(NSLocalizedString("messaging.toast.unarchived", comment: "Conversation unarchived toast"))
+    }
+
+    private func showActionToast(_ message: String) {
+        actionToastDismissTask?.cancel()
+        withAnimation(.spring(response: 0.32, dampingFraction: 0.84)) {
+            actionToastMessage = message
+        }
+        actionToastDismissTask = Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 2_000_000_000)
+            withAnimation(.easeOut(duration: 0.2)) {
+                actionToastMessage = nil
+            }
+        }
+    }
+
     @ViewBuilder
     private var conversationsSection: some View {
+        if !viewModel.archivedConversations.isEmpty {
+            archivedConversationsEntryRow
+        }
+
         ForEach(viewModel.conversations) { conversation in
             if let conversationId = conversation.id, !conversationId.isEmpty {
                 conversationRow(conversation)
@@ -681,11 +744,46 @@ struct MessagingView: View {
         .listRowBackground(Color.clear)
         .zIndex(isMenuSelected ? 1 : 0)
     }
+
+    private var archivedConversationsEntryRow: some View {
+        let userId = Auth.auth().currentUser?.uid ?? ""
+        let unreadCount = viewModel.archivedUnreadCount(for: userId)
+
+        return Button {
+            showingArchivedConversations = true
+        } label: {
+            HStack(spacing: 10) {
+                Image(systemName: "archivebox")
+                    .font(.system(size: 15, weight: .semibold))
+                    .frame(width: 22)
+
+                Text(
+                    unreadCount > 0
+                        ? String(format: NSLocalizedString("messaging.section.archivedWithUnread", comment: "Archived section with unread count"), unreadCount)
+                        : NSLocalizedString("messaging.section.archived", comment: "Archived section")
+                )
+                .font(.custom("Poppins-SemiBold", size: 15))
+
+                Spacer()
+
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 13, weight: .semibold))
+                    .opacity(0.45)
+            }
+            .foregroundStyle(adaptiveColors.primary.opacity(0.85))
+            .padding(.horizontal, 16)
+            .padding(.vertical, 12)
+        }
+        .buttonStyle(.plain)
+        .listRowInsets(EdgeInsets())
+        .listRowSeparator(.hidden)
+        .listRowBackground(Color.clear)
+    }
 }
 
 // MARK: - Pressable row wrapper (scale feedback)
 
-private struct ConversationPressableRow: View {
+struct ConversationPressableRow: View {
     let conversation: Conversation
     let isMenuSelected: Bool
     let colorScheme: ColorScheme

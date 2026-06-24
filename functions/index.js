@@ -5742,6 +5742,13 @@ exports.onMessageAdded = onDocumentCreated('conversations/{conversationId}/messa
         return null;
       }
 
+      const archivedByUserIds = Array.isArray(conversationData.archivedByUserIds)
+        ? conversationData.archivedByUserIds
+        : [];
+      if (archivedByUserIds.includes(receiverId)) {
+        return null;
+      }
+
       let notificationTitle = senderData.username || 'Nuevo mensaje';
       let notificationBody = '';
 
@@ -6141,6 +6148,11 @@ exports.onBuzzEventCreated = onDocumentCreated(
           mutedByUserIds.includes(receiverId) ||
           (conversationData.isMuted === true && conversationData.mutedBy === receiverId);
         if (isMutedForReceiver) return null;
+
+        const archivedByUserIds = Array.isArray(conversationData.archivedByUserIds)
+          ? conversationData.archivedByUserIds
+          : [];
+        if (archivedByUserIds.includes(receiverId)) return null;
 
         const isSilencedByMuteSettings = shouldSilenceNotificationForUser(receiverData, {
           senderId,

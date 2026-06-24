@@ -1167,6 +1167,11 @@ class ChatService: ObservableObject {
     // ✅ Mapa en memoria: conversationId -> fecha de corte temporal del usuario actual
     // Se pobla al cargar el listener de conversaciones y se consulta en handleMessagesSnapshot.
     private var conversationCutoffs: [String: Date] = [:]
+    private var archivedConversationIds: Set<String> = []
+
+    func isConversationArchived(_ conversationId: String, for userId: String) -> Bool {
+        archivedConversationIds.contains(conversationId)
+    }
 
     /// Punto de corte en memoria (fallback cuando el modelo `Conversation` no trae `lastDeletedAt`).
     func deletedAtCutoff(for conversationId: String) -> Date? {
@@ -1330,6 +1335,34 @@ class ChatService: ObservableObject {
                 }
             }
     }
+
+    func archiveConversation(_ conversationId: String, for userId: String, completion: @escaping (Error?) -> Void) {
+        db.collection("conversations")
+            .document(conversationId)
+            .updateData([
+                "archivedByUserIds": FieldValue.arrayUnion([userId]),
+                "archivedByTimestamps.\(userId)": FieldValue.serverTimestamp()
+            ]) { error in
+                if error == nil {
+                    self.archivedConversationIds.insert(conversationId)
+                }
+                completion(error)
+            }
+    }
+
+    func unarchiveConversation(_ conversationId: String, for userId: String, completion: @escaping (Error?) -> Void) {
+        db.collection("conversations")
+            .document(conversationId)
+            .updateData([
+                "archivedByUserIds": FieldValue.arrayRemove([userId]),
+                "archivedByTimestamps.\(userId)": FieldValue.delete()
+            ]) { error in
+                if error == nil {
+                    self.archivedConversationIds.remove(conversationId)
+                }
+                completion(error)
+            }
+    }
     
     func fetchConversations(for userId: String, completion: @escaping (Result<[Conversation], Error>) -> Void) {
         // Evitar listeners de listas de conversación huérfanos (p. ej. cambio de cuenta)
@@ -1363,6 +1396,7 @@ class ChatService: ObservableObject {
                 }
 
                 var conversations: [Conversation] = []
+                var archivedIds: Set<String> = []
 
                 // Conversaciones que necesitan auto-restauración (mensaje nuevo tras borrado)
                 var toRestore: [DocumentReference] = []
@@ -1435,6 +1469,10 @@ class ChatService: ObservableObject {
                     let legacyMutedBy = data["mutedBy"] as? String
                     let legacyIsMuted = data["isMuted"] as? Bool ?? false
                     let isMuted = mutedByUserIds.contains(userId) || (legacyIsMuted && legacyMutedBy == userId)
+                    let archivedByUserIds = data["archivedByUserIds"] as? [String] ?? []
+                    if archivedByUserIds.contains(userId) {
+                        archivedIds.insert(doc.documentID)
+                    }
 
                     var conversation = Conversation(
                         id: doc.documentID,
@@ -1451,6 +1489,7 @@ class ChatService: ObservableObject {
                         isMuted: isMuted,
                         mutedByUserIds: mutedByUserIds,
                         mutedBy: legacyMutedBy,
+                        archivedByUserIds: archivedByUserIds,
                         encryptionVersion: encryptionVersion,
                         conversationKeyVersion: data["conversationKeyVersion"] as? Int
                     )
@@ -1488,6 +1527,7 @@ class ChatService: ObservableObject {
                 }
 
                 conversations.sort { $0.timestamp > $1.timestamp }
+                self.archivedConversationIds = archivedIds
 
                 Task { [weak self] in
                     guard let self else {
@@ -2055,6 +2095,7 @@ class ChatService: ObservableObject {
                 isMuted: conversation.isMuted,
                 mutedByUserIds: conversation.mutedByUserIds,
                 mutedBy: conversation.mutedBy,
+                archivedByUserIds: conversation.archivedByUserIds,
                 encryptionVersion: conversation.encryptionVersion,
                 conversationKeyVersion: conversation.conversationKeyVersion,
                 wrappedKeys: conversation.wrappedKeys
