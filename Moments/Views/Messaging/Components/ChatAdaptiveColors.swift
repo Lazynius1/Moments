@@ -18,10 +18,31 @@ private struct ChatMessageRowFrameKey: EnvironmentKey {
 }
 
 extension EnvironmentValues {
-    /// Frame global de la fila; lo publica `ChatMessageRowChrome` para long-press y menú.
+    /// Frame global de la fila; lo publica `ChatMessageRowChrome` para layout.
     var chatMessageRowFrame: CGRect {
         get { self[ChatMessageRowFrameKey.self] }
         set { self[ChatMessageRowFrameKey.self] = newValue }
+    }
+}
+
+private struct ChatMessageBubbleFrameKey: EnvironmentKey {
+    static let defaultValue: CGRect = .zero
+}
+
+private struct ChatMessageBubbleCornerRadiusKey: EnvironmentKey {
+    static let defaultValue: CGFloat = 16
+}
+
+extension EnvironmentValues {
+    /// Frame global de la burbuja; lo publica `ChatMessageBubbleChrome`.
+    var chatMessageBubbleFrame: CGRect {
+        get { self[ChatMessageBubbleFrameKey.self] }
+        set { self[ChatMessageBubbleFrameKey.self] = newValue }
+    }
+
+    var chatMessageBubbleCornerRadius: CGFloat {
+        get { self[ChatMessageBubbleCornerRadiusKey.self] }
+        set { self[ChatMessageBubbleCornerRadiusKey.self] = newValue }
     }
 }
 

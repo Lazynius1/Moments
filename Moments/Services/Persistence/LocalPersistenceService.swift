@@ -1105,6 +1105,7 @@ final class LocalPersistenceService: ObservableObject {
         existing.isMuted = new.isMuted
         existing.readReceiptPreferencesData = new.readReceiptPreferencesData
         existing.forwardingPreferencesData = new.forwardingPreferencesData
+        existing.lastDeletedAtData = new.lastDeletedAtData
         existing.lastSyncedAt = Date()
     }
     

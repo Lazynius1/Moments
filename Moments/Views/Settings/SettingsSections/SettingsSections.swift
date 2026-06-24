@@ -873,8 +873,7 @@ struct ConnectionVisibilityView: View {
     @ObservedObject var viewModel: SettingsViewModel
 
     var body: some View {
-        NavigationView {
-            ZStack {
+        ZStack {
                 (colorScheme == .dark ? Color(hex: "0B1215") : Color(hex: "FAF9F6")).ignoresSafeArea()
 
                 ScrollView {
@@ -949,7 +948,6 @@ struct ConnectionVisibilityView: View {
             ToolbarItem(placement: .navigationBarLeading) {
                 SettingsToolbarBackButton(action: { dismiss() })
             }
-        }
         }
     }
 

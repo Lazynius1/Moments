@@ -266,9 +266,6 @@ struct UserProfileView: View {
     @State private var storyRoute: UserProfileStoryRoute?
     @State private var scrollOffset: CGFloat = 0
     @StateObject private var heroCoordinator = ProfileGridHeroTransitionCoordinator()
-    // NUEVO: Estado para el gesto de arrastre
-    @State private var dragAmount = CGSize.zero
-    @State private var isDragging = false
     @State private var hasRegisteredVisit = false
     @State private var selectedTab: UserProfileTabType = .moments // ✅ NUEVO: Tab seleccionado
     @State private var selectedNestedProfileUserId: String? = nil
@@ -343,28 +340,7 @@ struct UserProfileView: View {
         .environmentObject(heroCoordinator)
         .environment(\.profileGridHeroTransitionCoordinator, heroCoordinator)
         .navigationBarHidden(true)
-        .offset(x: dragAmount.width)
-        .opacity(isDragging ? 0.8 : 1.0)
-        .scaleEffect(isDragging ? 0.95 : 1.0)
-        .gesture(
-            DragGesture()
-                .onChanged { value in
-                    if value.translation.width > 0 {
-                        dragAmount = value.translation
-                        isDragging = true
-                    }
-                }
-                .onEnded { value in
-                    withAnimation(.spring()) {
-                        if value.translation.width > 100 {
-                            dismiss()
-                        } else {
-                            dragAmount = .zero
-                            isDragging = false
-                        }
-                    }
-                }
-        )
+        .toolbar(.hidden, for: .tabBar)
         .sheet(item: $showingUserList) { listType in
             UserListView(
                 title: listType.title,
@@ -384,12 +360,15 @@ struct UserProfileView: View {
             .presentationBackground(.clear)
             .transition(.move(edge: .bottom).combined(with: .opacity))
         }
-        .fullScreenCover(isPresented: $showNestedProfile, onDismiss: {
-            selectedNestedProfileUserId = nil
-        }) {
+        .navigationDestination(isPresented: $showNestedProfile) {
             if let userId = selectedNestedProfileUserId {
                 UserProfileView(userId: userId)
                     .userProfileZoomDestination(userId: userId, namespace: profileZoomNamespace)
+            }
+        }
+        .onChange(of: showNestedProfile) { _, isShowing in
+            if !isShowing {
+                selectedNestedProfileUserId = nil
             }
         }
         .sheet(isPresented: $showExploreWithHashtag) {
@@ -404,7 +383,7 @@ struct UserProfileView: View {
             .presentationDragIndicator(.hidden)
             .presentationBackground(.clear)
         }
-        .fullScreenCover(isPresented: $navigateToChat) {
+        .navigationDestination(isPresented: $navigateToChat) {
             if let conversation = targetConversation {
                 Group {
                     if chatAccessCoordinator.accessState == .available {

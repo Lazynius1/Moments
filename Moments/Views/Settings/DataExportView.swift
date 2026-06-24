@@ -10,8 +10,7 @@ struct DataExportView: View {
     @State private var showMailComposer = false
     
     var body: some View {
-        NavigationView {
-            ZStack {
+        ZStack {
             (colorScheme == .dark ? Color(hex: "0B1215") : Color(hex: "FAF9F6")).ignoresSafeArea()
             
             ScrollView {
@@ -236,7 +235,6 @@ struct DataExportView: View {
             Button(NSLocalizedString("dataExport.ok", comment: "OK button")) { }
         } message: {
             Text(viewModel.errorMessage)
-        }
         }
     }
 }

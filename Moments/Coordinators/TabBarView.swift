@@ -208,7 +208,9 @@ struct ModernTabView: View {
                     .environmentObject(exploreViewModel)
             }
             Tab(NSLocalizedString("tabBar.profile", comment: ""), systemImage: "person", value: AppTab.profile) {
-                ProfileView(selectedTab: $selectedTab)
+                NavigationStack {
+                    ProfileView(selectedTab: $selectedTab)
+                }
             }
         }
         .tabViewStyle(.automatic)
@@ -288,7 +290,9 @@ struct ModernTabView: View {
                     ExploreView()
                         .environmentObject(exploreViewModel)
                 case 4:
-                    ProfileView(selectedTab: $selectedTab)
+                    NavigationStack {
+                        ProfileView(selectedTab: $selectedTab)
+                    }
                 default:
                     FeedView(showCreatorView: $showCreatorView)
                 }

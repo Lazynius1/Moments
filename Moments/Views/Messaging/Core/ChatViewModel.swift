@@ -126,7 +126,7 @@ class EnhancedChatViewModel: ObservableObject {
         self.currentUserId = Auth.auth().currentUser?.uid ?? ""
         self.forwardingPreferences = conversation.forwardingPreferences ?? [:]
         self.buzzPreferences = conversation.buzzPreferences ?? [:]
-        
+
         // ✅ Configurar listener para actualizaciones de estado locales
         setupLocalStatusListener()
         setupConversationPreferenceListener()
@@ -155,7 +155,7 @@ class EnhancedChatViewModel: ObservableObject {
                 self?.updateMessageInArray(messageId: messageId, newStatus: status)
             }
         }
-        
+
         // ✅ Progress Listener
         mediaUploadObserver = NotificationCenter.default.addObserver(
             forName: NSNotification.Name("MediaUploadProgress"),
@@ -690,7 +690,7 @@ class EnhancedChatViewModel: ObservableObject {
     
     private func rebuildMessagesList() {
         // 1. Unir real-time + históricos (PRIORIDAD AL REAL-TIME para cambios de estado)
-        let allMessages = realTimeMessages + historicalMessages
+        let allMessages = messagesRespectingDeletionCutoff(realTimeMessages + historicalMessages)
         
         // 2. Deduplicar por ID (se queda con el primero que encuentre, que ahora es el real-time)
         var seenIds = Set<String>()
@@ -709,6 +709,20 @@ class EnhancedChatViewModel: ObservableObject {
                 outgoingTempMessages.removeValue(forKey: id)
             }
         }
+    }
+
+    /// Punto de corte tras borrar conversación: modelo local o mapa en memoria de ChatService.
+    private func effectiveDeletedAtCutoff() -> Date? {
+        if let cutoff = conversation.deletedAtCutoff(for: currentUserId) {
+            return cutoff
+        }
+        guard let conversationId = conversation.id else { return nil }
+        return chatService.deletedAtCutoff(for: conversationId)
+    }
+
+    private func messagesRespectingDeletionCutoff(_ messages: [EnhancedMessage]) -> [EnhancedMessage] {
+        guard let cutoff = effectiveDeletedAtCutoff() else { return messages }
+        return messages.filter { $0.timestamp > cutoff }
     }
 
     private func commitReactionPresentation(conversationId: String? = nil) {
@@ -848,7 +862,12 @@ class EnhancedChatViewModel: ObservableObject {
         
         isLoadingMore = true
         
-        chatService.fetchOlderMessages(conversationId: conversationId, before: firstMessage.timestamp) { [weak self] result in
+        let cutoff = effectiveDeletedAtCutoff()
+        chatService.fetchOlderMessages(
+            conversationId: conversationId,
+            before: firstMessage.timestamp,
+            cutoffDate: cutoff
+        ) { [weak self] result in
             DispatchQueue.main.async {
                 guard let self = self else { return }
                 self.isLoadingMore = false
@@ -921,7 +940,13 @@ class EnhancedChatViewModel: ObservableObject {
         guard !didLoadCacheFromSwiftData else { return }
         didLoadCacheFromSwiftData = true
 
-        let cachedMessages = LocalPersistenceService.shared.loadMessages(conversationId: conversationId)
+        var cachedMessages = LocalPersistenceService.shared.loadMessages(conversationId: conversationId)
+        
+        // Filtrar mensajes locales usando el punto de corte (lastDeletedAt)
+        if let cutoff = effectiveDeletedAtCutoff() {
+            cachedMessages = cachedMessages.filter { $0.timestamp > cutoff }
+        }
+
         guard !cachedMessages.isEmpty else { return }
 
         for message in cachedMessages where message.senderId == currentUserId {
@@ -954,7 +979,12 @@ class EnhancedChatViewModel: ObservableObject {
         typingUsersCancellable?.cancel()
         typingUsersCancellable = nil
 
-        chatService.listenToMessages(conversationId: conversationId, replaceExisting: false) { [weak self] result in
+        let cutoff = effectiveDeletedAtCutoff()
+        chatService.listenToMessages(
+            conversationId: conversationId,
+            cutoffDate: cutoff,
+            replaceExisting: false
+        ) { [weak self] result in
             DispatchQueue.main.async {
                 guard let self else { return }
 
@@ -964,7 +994,9 @@ class EnhancedChatViewModel: ObservableObject {
                     let droppedMessages = self.realTimeMessages.filter { !newSet.contains($0.id) }
 
                     if !droppedMessages.isEmpty {
-                        self.historicalMessages.append(contentsOf: droppedMessages)
+                        // No promover al histórico mensajes anteriores al punto de corte del borrado
+                        let promotable = self.messagesRespectingDeletionCutoff(droppedMessages)
+                        self.historicalMessages.append(contentsOf: promotable)
                     }
 
                     self.realTimeMessages = messages
@@ -1003,7 +1035,11 @@ class EnhancedChatViewModel: ObservableObject {
             }
         }
 
-        chatService.listenToBuzzEvents(conversationId: conversationId, replaceExisting: false) { [weak self] event, isInitialSnapshot in
+        chatService.listenToBuzzEvents(
+            conversationId: conversationId,
+            cutoffDate: effectiveDeletedAtCutoff(),
+            replaceExisting: false
+        ) { [weak self] event, isInitialSnapshot in
             Task { @MainActor in
                 guard let self else { return }
                 guard self.seenBuzzEventIds.insert(event.id).inserted else { return }

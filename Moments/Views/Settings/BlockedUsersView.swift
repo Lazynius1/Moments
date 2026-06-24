@@ -13,8 +13,6 @@ struct BlockedUsersView: View {
                 .ignoresSafeArea()
 
             VStack(spacing: 16) {
-                header
-                
                 if viewModel.isLoading {
                     ProgressView(NSLocalizedString("common.searching", comment: "Searching"))
                         .progressViewStyle(CircularProgressViewStyle())
@@ -34,29 +32,37 @@ struct BlockedUsersView: View {
                     .padding(.horizontal, 24)
                 } else {
                     ScrollView {
-                        LazyVStack(spacing: 10) {
-                            ForEach(viewModel.blockedUsers, id: \.id) { user in
-                                HStack(spacing: 12) {
-                                    Text(user.username)
-                                        .font(.custom("Poppins-Regular", size: 15))
-                                        .foregroundColor(.primary)
-                                    
-                                    Spacer()
-                                    
-                                    Button(action: {
-                                        viewModel.unblockUser(userId: user.id)
-                                    }) {
-                                        Text(NSLocalizedString("blockedUsers.unblock", comment: "Unblock"))
-                                            .font(.custom("Poppins-Medium", size: 13))
+                        VStack(alignment: .leading, spacing: 12) {
+                            Text(String(format: NSLocalizedString("settings.sections.blockedAccounts.subtitle", comment: "Blocked accounts count"), viewModel.blockedUsers.count))
+                                .font(.custom("Poppins-Medium", size: 14))
+                                .foregroundColor(.secondary)
+                                .padding(.horizontal, 16)
+                                .padding(.top, 8)
+
+                            LazyVStack(spacing: 10) {
+                                ForEach(viewModel.blockedUsers, id: \.id) { user in
+                                    HStack(spacing: 12) {
+                                        Text(user.username)
+                                            .font(.custom("Poppins-Regular", size: 15))
                                             .foregroundColor(.primary)
-                                            .padding(.horizontal, 12)
-                                            .padding(.vertical, 8)
-                                            .background(Color.clear.momentsChromeGlass(in: Capsule(), interactive: true))
+
+                                        Spacer()
+
+                                        Button(action: {
+                                            viewModel.unblockUser(userId: user.id)
+                                        }) {
+                                            Text(NSLocalizedString("blockedUsers.unblock", comment: "Unblock"))
+                                                .font(.custom("Poppins-Medium", size: 13))
+                                                .foregroundColor(.primary)
+                                                .padding(.horizontal, 12)
+                                                .padding(.vertical, 8)
+                                                .background(Color.clear.momentsChromeGlass(in: Capsule(), interactive: true))
+                                        }
+                                        .buttonStyle(.plain)
                                     }
-                                    .buttonStyle(.plain)
+                                    .padding(.horizontal, 14)
+                                    .padding(.vertical, 12)
                                 }
-                                .padding(.horizontal, 14)
-                                .padding(.vertical, 12)
                             }
                         }
                         .padding(.horizontal, 12)
@@ -79,32 +85,15 @@ struct BlockedUsersView: View {
                 dismissButton: .default(Text(NSLocalizedString("blockedUsers.ok", comment: "OK")))
             )
         }
-    }
-    
-    private var header: some View {
-        HStack(spacing: 12) {
-            SettingsToolbarBackButton(action: { dismiss() })
-            
-            Spacer()
-            
-            VStack(spacing: 2) {
-                Text(NSLocalizedString("blockedUsers.title", comment: "Blocked Users"))
-                    .font(.custom("Poppins-SemiBold", size: 22))
-                    .foregroundColor(.primary)
-                Text(String(format: NSLocalizedString("settings.sections.blockedAccounts.subtitle", comment: "Blocked accounts count"), viewModel.blockedUsers.count))
-                    .font(.custom("Poppins-Medium", size: 13))
-                    .foregroundColor(.secondary)
+        .navigationTitle(NSLocalizedString("blockedUsers.title", comment: "Blocked Users"))
+        .navigationBarTitleDisplayMode(.inline)
+        .navigationBarBackButtonHidden(true)
+        .toolbarBackground(.hidden, for: .navigationBar)
+        .toolbar {
+            ToolbarItem(placement: .navigationBarLeading) {
+                SettingsToolbarBackButton(action: { dismiss() })
             }
-            
-            Spacer()
-            
-            Color.clear
-                .frame(
-                    width: MomentsGlassButtonPreset.navigationBack.controlSize,
-                    height: MomentsGlassButtonPreset.navigationBack.controlSize
-                )
         }
-        .padding(.horizontal, 14)
     }
 }
 

@@ -15,6 +15,7 @@ final class CachedConversation {
     var isMuted: Bool
     var readReceiptPreferencesData: Data? // [String: Bool] encoded
     var forwardingPreferencesData: Data? // [String: Bool] encoded
+    var lastDeletedAtData: Data? // [String: Date] encoded
     var lastSyncedAt: Date
 
     init(id: String,
@@ -29,6 +30,7 @@ final class CachedConversation {
          isMuted: Bool = false,
          readReceiptPreferencesData: Data? = nil,
          forwardingPreferencesData: Data? = nil,
+         lastDeletedAtData: Data? = nil,
          lastSyncedAt: Date = Date()) {
         self.id = id
         self.participants = participants
@@ -42,6 +44,7 @@ final class CachedConversation {
         self.isMuted = isMuted
         self.readReceiptPreferencesData = readReceiptPreferencesData
         self.forwardingPreferencesData = forwardingPreferencesData
+        self.lastDeletedAtData = lastDeletedAtData
         self.lastSyncedAt = lastSyncedAt
     }
 }
@@ -52,6 +55,7 @@ extension CachedConversation {
         let readStatusData = try? encoder.encode(conversation.readStatus)
         let readReceiptPreferencesData = try? encoder.encode(conversation.readReceiptPreferences)
         let forwardingPreferencesData = try? encoder.encode(conversation.forwardingPreferences)
+        let lastDeletedAtData = try? encoder.encode(conversation.lastDeletedAt)
 
         return CachedConversation(
             id: conversation.id ?? UUID().uuidString,
@@ -66,6 +70,7 @@ extension CachedConversation {
             isMuted: conversation.isMuted ?? false,
             readReceiptPreferencesData: readReceiptPreferencesData,
             forwardingPreferencesData: forwardingPreferencesData,
+            lastDeletedAtData: lastDeletedAtData,
             lastSyncedAt: Date()
         )
     }
@@ -87,6 +92,11 @@ extension CachedConversation {
             return try? decoder.decode([String: Bool].self, from: data)
         }()
 
+        let lastDeletedAt: [String: Date]? = {
+            guard let data = lastDeletedAtData else { return nil }
+            return try? decoder.decode([String: Date].self, from: data)
+        }()
+
         var conversation = Conversation(
             id: id,
             participants: participants,
@@ -101,6 +111,7 @@ extension CachedConversation {
         )
         conversation.readReceiptPreferences = readReceiptPreferences
         conversation.forwardingPreferences = forwardingPreferences
+        conversation.lastDeletedAt = lastDeletedAt
         return conversation
     }
 }

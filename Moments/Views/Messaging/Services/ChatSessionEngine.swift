@@ -81,6 +81,18 @@ final class ChatSessionEngine: ObservableObject {
         syncInAppFallbackListeners()
     }
 
+    /// Descarta la sesión en memoria de una conversación (p. ej. tras borrarla del inbox).
+    func invalidateSession(conversationId: String) {
+        guard !conversationId.isEmpty else { return }
+        if activeConversationId == conversationId {
+            activeConversationId = nil
+        }
+        sessions[conversationId]?.stopListening()
+        sessions.removeValue(forKey: conversationId)
+        conversationById.removeValue(forKey: conversationId)
+        syncInAppFallbackListeners()
+    }
+
     func warmConversationIdsForNotifications() -> [String] {
         var ids = Set<String>()
         if let activeConversationId {

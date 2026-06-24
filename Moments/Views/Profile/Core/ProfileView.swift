@@ -360,11 +360,11 @@ struct ProfileView: View {
                     .environmentObject(heroCoordinator)
                 }
                 .ignoresSafeArea(.all, edges: .all)
-                .fullScreenCover(isPresented: $isShowingSettings) {
+                .navigationDestination(isPresented: $isShowingSettings) {
                     SettingsView()
                         .navigationTransition(.zoom(sourceID: "settings-view", in: profileZoomNamespace))
                 }
-                .fullScreenCover(isPresented: $isShowingEditProfile) {
+                .navigationDestination(isPresented: $isShowingEditProfile) {
                     ModernEditProfileView(
                         selectedPhoto: $selectedPhoto,
                         newBio: $newBio,
@@ -438,12 +438,15 @@ struct ProfileView: View {
                         .transition(.move(edge: .bottom).combined(with: .opacity))
                     }
                 }
-                .fullScreenCover(isPresented: $showExternalProfile, onDismiss: {
-                    selectedExternalProfileUserId = nil
-                }) {
+                .navigationDestination(isPresented: $showExternalProfile) {
                     if let userId = selectedExternalProfileUserId {
                         UserProfileView(userId: userId)
                             .userProfileZoomDestination(userId: userId, namespace: profileZoomNamespace)
+                    }
+                }
+                .onChange(of: showExternalProfile) { _, isShowing in
+                    if !isShowing {
+                        selectedExternalProfileUserId = nil
                     }
                 }
                 .alert(
@@ -559,6 +562,8 @@ struct ProfileView: View {
         }
         .environmentObject(heroCoordinator)
         .environment(\.profileGridHeroTransitionCoordinator, heroCoordinator)
+        .toolbar(.hidden, for: .navigationBar)
+        .navigationBarHidden(true)
     }
 
     private func usersForList(type: UserListType) -> [AppUser] {

@@ -34,13 +34,15 @@ struct FeedPresentationModifier: ViewModifier {
 
     func body(content: Content) -> some View {
         content
-            .fullScreenCover(isPresented: $showNotifications) {
+            .navigationDestination(isPresented: $showNotifications) {
                 NotificationsView(onNotificationsCleared: {
                     NotificationCenter.default.post(
                         name: NSNotification.Name("NotificationsCleared"),
                         object: nil
                     )
                 })
+                .environmentObject(messagingViewModel)
+                .environmentObject(firestoreService)
             }
             .navigationDestination(isPresented: $showMessages) {
                 MessagingView(targetConversationId: $targetConversationId, onDismiss: {

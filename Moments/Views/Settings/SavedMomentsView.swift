@@ -71,13 +71,10 @@ struct SavedMomentsView: View {
     }
 
     var body: some View {
-        NavigationStack {
-            ZStack(alignment: .bottom) {
+        ZStack(alignment: .bottom) {
                 background
 
                 VStack(spacing: 14) {
-                    header
-
                     if viewModel.isLoading {
                         loadingView
                             .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -112,8 +109,6 @@ struct SavedMomentsView: View {
                     }
                 )
             }
-            .toolbar(.hidden, for: .navigationBar)
-        }
         .momentZoomNavigationSurface(colorScheme: colorScheme)
         .onAppear {
             if viewModel.moments.isEmpty && !viewModel.isLoading {
@@ -156,6 +151,27 @@ struct SavedMomentsView: View {
             let validSet = Set(validIds)
             selectedMomentIds = Set(selectedMomentIds.filter { validSet.contains($0) })
         }
+        .navigationTitle(NSLocalizedString("profile.tab.saved", comment: "Saved tab title"))
+        .navigationBarTitleDisplayMode(.inline)
+        .navigationBarBackButtonHidden(true)
+        .toolbarBackground(.hidden, for: .navigationBar)
+        .toolbar {
+            ToolbarItem(placement: .navigationBarLeading) {
+                SettingsToolbarBackButton(action: { dismiss() })
+            }
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Button(isSelectionMode ? NSLocalizedString("savedMoments.cancel", comment: "Cancel") : NSLocalizedString("savedMoments.select", comment: "Select")) {
+                    withAnimation(.spring(response: 0.32, dampingFraction: 0.82)) {
+                        isSelectionMode.toggle()
+                        if !isSelectionMode {
+                            selectedMomentIds.removeAll()
+                        }
+                    }
+                }
+                .font(.custom("Poppins-SemiBold", size: 14))
+                .foregroundColor(isSelectionMode ? .red : .primary)
+            }
+        }
     }
 
     private var background: some View {
@@ -170,42 +186,6 @@ struct SavedMomentsView: View {
             filterPanel
             gridContent
         }
-    }
-
-    private var header: some View {
-        HStack(spacing: 12) {
-            SettingsToolbarBackButton(action: { dismiss() })
-
-            VStack(alignment: .leading, spacing: 2) {
-                Text(NSLocalizedString("profile.tab.saved", comment: "Saved tab title"))
-                    .font(.custom("Poppins-SemiBold", size: 22))
-                    .foregroundColor(.primary)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.85)
-                    .layoutPriority(1)
-                Text(String(format: NSLocalizedString("savedMoments.count", comment: "Saved moments count"), viewModel.moments.count))
-                    .font(.custom("Poppins-Medium", size: 13))
-                    .foregroundColor(.secondary)
-                    .lineLimit(1)
-            }
-
-            Spacer()
-
-            Button(isSelectionMode ? NSLocalizedString("savedMoments.cancel", comment: "Cancel selection mode") : NSLocalizedString("savedMoments.select", comment: "Enable selection mode")) {
-                withAnimation(.spring(response: 0.32, dampingFraction: 0.82)) {
-                    isSelectionMode.toggle()
-                    if !isSelectionMode {
-                        selectedMomentIds.removeAll()
-                    }
-                }
-            }
-            .font(.custom("Poppins-SemiBold", size: 13))
-            .foregroundColor(isSelectionMode ? .red : .primary)
-            .padding(.horizontal, 10)
-            .padding(.vertical, 8)
-            .background(Color.clear.momentsChromeGlass(in: Capsule(), interactive: true))
-        }
-        .padding(.horizontal, 14)
     }
 
     private var searchBar: some View {

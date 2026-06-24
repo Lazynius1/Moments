@@ -28,6 +28,9 @@ struct Conversation: Identifiable, Codable, Hashable {
     var buzzPreferences: [String: Bool]?
     /// Si `false`, los demás no pueden reenviar los mensajes de texto de ese usuario en este chat.
     var forwardingPreferences: [String: Bool]?
+    /// Timestamp del momento en que cada usuario borró la conversación (punto de corte).
+    /// Los mensajes y buzz events con timestamp ≤ este valor se ocultan para ese usuario.
+    var lastDeletedAt: [String: Date]?
 
     func hash(into hasher: inout Hasher) {
         hasher.combine(id)
@@ -58,6 +61,7 @@ struct Conversation: Identifiable, Codable, Hashable {
         case readReceiptPreferences
         case buzzPreferences
         case forwardingPreferences
+        case lastDeletedAt
     }
 
     init(
@@ -99,6 +103,7 @@ struct Conversation: Identifiable, Codable, Hashable {
         self.readReceiptPreferences = [:]
         self.buzzPreferences = [:]
         self.forwardingPreferences = [:]
+        self.lastDeletedAt = nil
     }
 
     init(from decoder: Decoder) throws {
@@ -124,6 +129,8 @@ struct Conversation: Identifiable, Codable, Hashable {
         self.readReceiptPreferences = try container.decodeIfPresent([String: Bool].self, forKey: .readReceiptPreferences) ?? [:]
         self.buzzPreferences = try container.decodeIfPresent([String: Bool].self, forKey: .buzzPreferences) ?? [:]
         self.forwardingPreferences = try container.decodeIfPresent([String: Bool].self, forKey: .forwardingPreferences) ?? [:]
+        // lastDeletedAt se hidrata manualmente desde Firestore (Timestamp → Date)
+        self.lastDeletedAt = nil
     }
 
     func encode(to encoder: Encoder) throws {
@@ -148,6 +155,7 @@ struct Conversation: Identifiable, Codable, Hashable {
         try container.encodeIfPresent(readReceiptPreferences, forKey: .readReceiptPreferences)
         try container.encodeIfPresent(buzzPreferences, forKey: .buzzPreferences)
         try container.encodeIfPresent(forwardingPreferences, forKey: .forwardingPreferences)
+        // lastDeletedAt no se codifica a Firestore desde el cliente; se gestiona en el servidor
     }
 
     func allowsForwarding(ofMessagesFrom senderId: String) -> Bool {
@@ -184,6 +192,12 @@ struct Conversation: Identifiable, Codable, Hashable {
         }
 
         return false
+    }
+
+    /// Devuelve el timestamp de borrado del usuario dado, si existe.
+    /// Mensajes y buzz events con `timestamp <= deletedAtCutoff` deben ocultarse para ese usuario.
+    func deletedAtCutoff(for userId: String) -> Date? {
+        lastDeletedAt?[userId]
     }
 
     // Propiedad calculada para obtener el número de mensajes no leídos

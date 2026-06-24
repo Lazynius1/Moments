@@ -104,14 +104,14 @@ extension View {
 }
 
 private struct ProfileGridLiftedSourceModifier: ViewModifier {
-    @EnvironmentObject private var coordinator: ProfileGridHeroTransitionCoordinator
+    @Environment(\.profileGridHeroTransitionCoordinator) private var coordinator
     @Environment(\.colorScheme) private var colorScheme
 
     let moment: Moment
     let gridIndex: Int
 
     private var contentOpacity: CGFloat {
-        coordinator.liftedGridSourceContentOpacity(moment: moment, gridIndex: gridIndex)
+        coordinator?.liftedGridSourceContentOpacity(moment: moment, gridIndex: gridIndex) ?? 1
     }
 
     private var holeBackground: Color {

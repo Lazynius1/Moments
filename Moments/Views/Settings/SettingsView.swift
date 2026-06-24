@@ -111,197 +111,180 @@ struct SettingsView: View {
     @State private var blockedAccountsCount: Int = 0
 
     var body: some View {
-        NavigationView {
-            ZStack {
-                // ✅ Fondo moderno con glassmorphism
-                modernBackgroundView
+        ZStack {
+            // ✅ Fondo moderno con glassmorphism
+            modernBackgroundView
 
-                if isLoading {
-                    modernLoadingView
-                } else {
-                    SettingsFormView(
-                        viewModel: viewModel,
-                        isPrivate: $isPrivate,
-                        showMutualConnections: $showMutualConnections,
-                        showFollowing: $showFollowing,
-                        isScheduleEnabled: $isScheduleEnabled,
-                        startTime: $startTime,
-                        endTime: $endTime,
-                        username: $username,
-                        email: $email,
-                        phoneNumber: $phoneNumber,
-                        isShowingPersonalInfo: $isShowingPersonalInfo,
-                        isShowingQRCode: $isShowingQRCode,
-                        isShowingContentVisibility: $isShowingContentVisibility,
-                        isShowingConnections: $isShowingConnections,
-                        isShowingBestFriends: $isShowingBestFriends,
-                        isShowingBlockedAccounts: $isShowingBlockedAccounts,
-                        isShowingMute: $isShowingMute,
-                        isShowingPasswordChange: $isShowingPasswordChange,
-                        isShowingSavedMoments: $isShowingSavedMoments,
-                        isShowingUserActivity: $isShowingUserActivity,
-                        isShowingDataExport: $isShowingDataExport,
-                        isShowingModerationReviews: $isShowingModerationReviews,
-                        isShowingArchivedStories: $isShowingArchivedStories,
-                        isShowingSupportMoments: $isShowingSupportMoments,
-                        isShowingNotificationSettings: $isShowingNotificationSettings,
-                        isShowingAdvancedAccountManagement: $isShowingAdvancedAccountManagement,
-                        isShowingNovaMemory: $isShowingNovaMemory,
-                        showReadReceipts: $showReadReceipts,
-                        blockedAccountsCount: blockedAccountsCount
-                    )
-                    .transition(.asymmetric(
-                        insertion: .move(edge: .bottom).combined(with: .opacity),
-                        removal: .move(edge: .top).combined(with: .opacity)
-                    ))
-                }
+            if isLoading {
+                modernLoadingView
+            } else {
+                SettingsFormView(
+                    viewModel: viewModel,
+                    isPrivate: $isPrivate,
+                    showMutualConnections: $showMutualConnections,
+                    showFollowing: $showFollowing,
+                    isScheduleEnabled: $isScheduleEnabled,
+                    startTime: $startTime,
+                    endTime: $endTime,
+                    username: $username,
+                    email: $email,
+                    phoneNumber: $phoneNumber,
+                    isShowingPersonalInfo: $isShowingPersonalInfo,
+                    isShowingQRCode: $isShowingQRCode,
+                    isShowingContentVisibility: $isShowingContentVisibility,
+                    isShowingConnections: $isShowingConnections,
+                    isShowingBestFriends: $isShowingBestFriends,
+                    isShowingBlockedAccounts: $isShowingBlockedAccounts,
+                    isShowingMute: $isShowingMute,
+                    isShowingPasswordChange: $isShowingPasswordChange,
+                    isShowingSavedMoments: $isShowingSavedMoments,
+                    isShowingUserActivity: $isShowingUserActivity,
+                    isShowingDataExport: $isShowingDataExport,
+                    isShowingModerationReviews: $isShowingModerationReviews,
+                    isShowingArchivedStories: $isShowingArchivedStories,
+                    isShowingSupportMoments: $isShowingSupportMoments,
+                    isShowingNotificationSettings: $isShowingNotificationSettings,
+                    isShowingAdvancedAccountManagement: $isShowingAdvancedAccountManagement,
+                    isShowingNovaMemory: $isShowingNovaMemory,
+                    showReadReceipts: $showReadReceipts,
+                    blockedAccountsCount: blockedAccountsCount
+                )
+                .transition(.asymmetric(
+                    insertion: .move(edge: .bottom).combined(with: .opacity),
+                    removal: .move(edge: .top).combined(with: .opacity)
+                ))
             }
-            .navigationTitle(NSLocalizedString("settings.title", comment: "Settings"))
-            .navigationBarTitleDisplayMode(.large)
-            .navigationBarBackButtonHidden(true)
-            .toolbarBackground(.hidden, for: .navigationBar)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    ProfileChromeIconButton(
-                        systemName: "xmark",
-                        foregroundColor: colorScheme == .dark ? .white : .black,
-                        preset: .toolbarAction,
-                        standaloneGlass: false,
-                        action: { dismiss() }
-                    )
+        }
+        .navigationTitle(NSLocalizedString("settings.title", comment: "Settings"))
+        .navigationBarTitleDisplayMode(.large)
+        .toolbarBackground(.hidden, for: .navigationBar)
+        .toolbar(.hidden, for: .tabBar)
+        .sheet(isPresented: $isShowingQRCode) {
+            QRCodeView()
+        }
+        .sheet(isPresented: $isShowingPersonalInfo) {
+            PersonalInfoView(username: $username, email: $email, phoneNumber: $phoneNumber)
+                .presentationDetents([.medium, .large])
+                .presentationContentInteraction(.scrolls)
+                .presentationDragIndicator(.visible)
+        }
+        .navigationDestination(isPresented: $isShowingContentVisibility) {
+            ContentVisibilityView()
+        }
+        .navigationDestination(isPresented: $isShowingConnections) {
+            ConnectionVisibilityView(
+                showMutualConnections: $showMutualConnections,
+                showFollowing: $showFollowing,
+                showAdmirers: $showAdmirers,
+                viewModel: viewModel
+            )
+        }
+        .navigationDestination(isPresented: $isShowingBestFriends) {
+            BestFriendsView()
+        }
+        .navigationDestination(isPresented: $isShowingBlockedAccounts) {
+            BlockedUsersView()
+        }
+        .navigationDestination(isPresented: $isShowingMute) {
+            MuteSettingsView()
+        }
+        .navigationDestination(isPresented: $isShowingPasswordChange) {
+            Group {
+                if authService.isPasswordLinked {
+                    PasswordChangeView()
+                        .environmentObject(authService)
+                } else {
+                    SetPasswordView()
+                        .environmentObject(authService)
                 }
             }
             .onAppear {
-                isLoading = true
-                viewModel.fetchUserSettings { result in
-                    switch result {
-                    case .success(let user):
-                        self.isPrivate = user.isPrivate
-                        self.showMutualConnections = user.showMutualConnections
-                        self.showFollowing = user.showFollowing
-                        self.blockedAccountsCount = user.blockedUsers.count
-                        self.username = user.username
-                        self.email = user.email
-                        if let start = user.activeHoursStart, let end = user.activeHoursEnd,
-                           let startDate = viewModel.dateFormatter.date(from: start),
-                           let endDate = viewModel.dateFormatter.date(from: end) {
-                            self.startTime = startDate
-                            self.endTime = endDate
-                            self.isScheduleEnabled = true
-                        } else {
-                            self.isScheduleEnabled = false
-                            self.startTime = Date()
-                            self.startTime = Date()
-                            self.endTime = Date()
-                        }
-                        self.showReadReceipts = user.showReadReceipts
-                    case .failure(let error):
-                        guard Auth.auth().currentUser != nil, authService.currentFirebaseUser != nil else {
-                            self.isLoading = false
-                            dismiss()
-                            return
-                        }
-                        self.showError(message: String(format: NSLocalizedString("settings.error.load", comment: "Settings load error"), error.localizedDescription))
-                    }
-                    self.isLoading = false
-                }
+                authService.refreshLinkedProviders()
             }
-            .onChange(of: authService.currentFirebaseUser) { _, user in
-                guard user == nil else { return }
-                isLoading = false
-                showError = false
-                errorMessage = nil
-                dismiss()
-            }
-            .alert(isPresented: $showError) {
-                Alert(
-                    title: Text("settings.error.title"),
-                    message: Text(errorMessage ?? NSLocalizedString("settings.error.unknown", comment: "Unknown settings error")),
-                    dismissButton: .default(Text("settings.ok"))
-                )
-            }
-                    }
-            .sheet(isPresented: $isShowingQRCode) {
-                QRCodeView()
-            }
-            .sheet(isPresented: $isShowingPersonalInfo) {
-                PersonalInfoView(username: $username, email: $email, phoneNumber: $phoneNumber)
-                    .presentationDetents([.medium, .large])
-                    .presentationContentInteraction(.scrolls)
-                    .presentationDragIndicator(.visible)
-            }
-            .fullScreenCover(isPresented: $isShowingContentVisibility) {
-                ContentVisibilityView()
-            }
-            .fullScreenCover(isPresented: $isShowingConnections) {
-                ConnectionVisibilityView(
-                    showMutualConnections: $showMutualConnections,
-                    showFollowing: $showFollowing,
-                    showAdmirers: $showAdmirers,
-                    viewModel: viewModel
-                )
-            }
-            .fullScreenCover(isPresented: $isShowingBestFriends) {
-                BestFriendsView()
-            }
-            .fullScreenCover(isPresented: $isShowingBlockedAccounts) {
-                BlockedUsersView()
-            }
-            .fullScreenCover(isPresented: $isShowingMute) {
-                MuteSettingsView()
-            }
-            .fullScreenCover(isPresented: $isShowingPasswordChange) {
-                Group {
-                    if authService.isPasswordLinked {
-                        PasswordChangeView()
-                            .environmentObject(authService)
-                    } else {
-                        SetPasswordView()
-                            .environmentObject(authService)
-                    }
-                }
-                .onAppear {
-                    authService.refreshLinkedProviders()
-                }
-            }
-            .fullScreenCover(isPresented: $isShowingSavedMoments) {
-                SavedMomentsView()
-            }
-            .fullScreenCover(isPresented: $isShowingUserActivity) {
-                UserActivityView()
-            }
-            .fullScreenCover(isPresented: $isShowingDataExport) {
+        }
+        .navigationDestination(isPresented: $isShowingSavedMoments) {
+            SavedMomentsView()
+        }
+        .navigationDestination(isPresented: $isShowingUserActivity) {
+            UserActivityView()
+        }
+        .navigationDestination(isPresented: $isShowingDataExport) {
             DataExportView()
+        }
+        .navigationDestination(isPresented: $isShowingModerationReviews) {
+            ModerationReviewStatusView()
+        }
+        .navigationDestination(isPresented: $isShowingArchivedStories) {
+            ArchiveView()
+        }
+        .navigationDestination(isPresented: $isShowingNotificationSettings) {
+            NotificationSettingsView(
+                viewModel: viewModel,
+                isScheduleEnabled: $isScheduleEnabled,
+                startTime: $startTime,
+                endTime: $endTime
+            )
+        }
+        .sheet(isPresented: $isShowingAdvancedAccountManagement) {
+            AdvancedAccountManagementView()
+                .presentationDetents([.medium, .large])
+                .presentationDragIndicator(.visible)
+        }
+        .sheet(isPresented: $isShowingNovaMemory) {
+            NovaMemoryManagementView()
+                .presentationDetents([.medium, .large])
+                .presentationDragIndicator(.visible)
+        }
+        .tint(colorScheme == .dark ? .white : .black)
+        .onAppear {
+            isLoading = true
+            viewModel.fetchUserSettings { result in
+                switch result {
+                case .success(let user):
+                    self.isPrivate = user.isPrivate
+                    self.showMutualConnections = user.showMutualConnections
+                    self.showFollowing = user.showFollowing
+                    self.blockedAccountsCount = user.blockedUsers.count
+                    self.username = user.username
+                    self.email = user.email
+                    if let start = user.activeHoursStart, let end = user.activeHoursEnd,
+                       let startDate = viewModel.dateFormatter.date(from: start),
+                       let endDate = viewModel.dateFormatter.date(from: end) {
+                        self.startTime = startDate
+                        self.endTime = endDate
+                        self.isScheduleEnabled = true
+                    } else {
+                        self.isScheduleEnabled = false
+                        self.startTime = Date()
+                        self.startTime = Date()
+                        self.endTime = Date()
+                    }
+                    self.showReadReceipts = user.showReadReceipts
+                case .failure(let error):
+                    guard Auth.auth().currentUser != nil, authService.currentFirebaseUser != nil else {
+                        self.isLoading = false
+                        dismiss()
+                        return
+                    }
+                    self.showError(message: String(format: NSLocalizedString("settings.error.load", comment: "Settings load error"), error.localizedDescription))
+                }
+                self.isLoading = false
             }
-            .fullScreenCover(isPresented: $isShowingModerationReviews) {
-                ModerationReviewStatusView()
-            }
-            .fullScreenCover(isPresented: $isShowingArchivedStories) {
-                ArchiveView()
-            }
-        // .fullScreenCover(isPresented: $isShowingSupportMoments) { support moments sections, unused for now
-        //     SupportMomentsView()
-        //    }
-            .fullScreenCover(isPresented: $isShowingNotificationSettings) {
-                NotificationSettingsView(
-                    viewModel: viewModel,
-                    isScheduleEnabled: $isScheduleEnabled,
-                    startTime: $startTime,
-                    endTime: $endTime
-                )
-            }
-            .sheet(isPresented: $isShowingAdvancedAccountManagement) {
-                AdvancedAccountManagementView()
-                    .presentationDetents([.medium, .large])
-                    .presentationDragIndicator(.visible)
-            }
-            .sheet(isPresented: $isShowingNovaMemory) {
-                NovaMemoryManagementView()
-                    .presentationDetents([.medium, .large])
-                    .presentationDragIndicator(.visible)
-            }
-            .tint(colorScheme == .dark ? .white : .black)
-            .navigationViewStyle(StackNavigationViewStyle()) // Forzar navegación por stack
+        }
+        .onChange(of: authService.currentFirebaseUser) { _, user in
+            guard user == nil else { return }
+            isLoading = false
+            showError = false
+            errorMessage = nil
+            dismiss()
+        }
+        .alert(isPresented: $showError) {
+            Alert(
+                title: Text("settings.error.title"),
+                message: Text(errorMessage ?? NSLocalizedString("settings.error.unknown", comment: "Unknown settings error")),
+                dismissButton: .default(Text("settings.ok"))
+            )
+        }
     }
 
     private func showError(message: String) {

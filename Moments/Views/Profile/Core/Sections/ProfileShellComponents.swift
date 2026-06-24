@@ -114,8 +114,7 @@ struct ModernProfileContentView: View {
                 }
             })
         } else {
-            NavigationStack {
-                ZStack(alignment: .top) {
+            ZStack(alignment: .top) {
                 ProfileMomentZoomNavigation.canvasBackground(for: colorScheme)
                     .ignoresSafeArea()
                     .allowsHitTesting(false)
@@ -123,7 +122,7 @@ struct ModernProfileContentView: View {
                 ScrollView {
                     VStack(spacing: 0) {
                         Color.clear
-                            .frame(height: ProfileHeaderCollapseMetrics.topContentInset)
+                            .frame(height: safeAreaTop + ProfileHeaderCollapseMetrics.topContentInset)
 
                         ModernProfileHeader(
                             viewModel: viewModel,
@@ -341,7 +340,6 @@ struct ModernProfileContentView: View {
                 .onPreferenceChange(ProfileGridThumbnailFramePreferenceKey.self) { frames in
                     heroCoordinator.ingestThumbnailFrames(frames)
                 }
-                .scrollClipDisabled()
 
                 ProfileStickyChromeContainer(
                     blurProgress: usernameCollapseProgress,
@@ -361,10 +359,11 @@ struct ModernProfileContentView: View {
                     ProfilePillTabs(selectedTab: $selectedProfileTab)
                         .frame(maxWidth: 240)
                 }
+                .padding(.top, safeAreaTop)
                 .animation(.easeOut(duration: 0.18), value: tabsArePinned)
                 .zIndex(10)
-                }
-                .coordinateSpace(name: "profileGridOverlay")
+            }
+            .coordinateSpace(name: "profileGridOverlay")
                 .navigationDestination(item: $zoomDestination) { destination in
                     ProfileMomentZoomDetailDestination(
                         destination: destination,
@@ -378,7 +377,6 @@ struct ModernProfileContentView: View {
                     )
                 }
                 .toolbar(.hidden, for: .navigationBar)
-            }
             .profileNavigationSurface(colorScheme: colorScheme)
                 .onAppear {
                     heroCoordinator.openZoomDetail = { zoomDestination = $0 }

@@ -12,6 +12,8 @@ struct GlassmorphicMessageRow: View {
     let isOtherParticipantUnavailable: Bool
     let otherParticipantName: String
     let repliedMessage: EnhancedMessage?
+    var isMenuSelected: Bool = false
+    var isBubbleFlashing: Bool = false
     let onReply: () -> Void
     let onReaction: (String) -> Void
     let onAvatarTap: () -> Void
@@ -22,6 +24,7 @@ struct GlassmorphicMessageRow: View {
     let onOpenMedia: (EnhancedMessage) -> Void
     let onStopLiveLocation: ((String) -> Void)?
     let onHydrateMedia: ((EnhancedMessage) -> Void)?
+    let onLongPress: ((CGRect, CGFloat) -> Void)?
     let progress: Double?
     var showSeenLabel: Bool = false
 
@@ -140,7 +143,7 @@ struct GlassmorphicMessageRow: View {
     ) -> some View {
         let bubble = GlassmorphicMessageBubble(
             message: message,
-            reactions: resolvedReactions,
+            reactions: isMenuSelected ? nil : resolvedReactions,
             onReaction: onReaction,
             repliedMessage: repliedMessage,
             otherParticipantId: otherParticipantId,
@@ -157,7 +160,17 @@ struct GlassmorphicMessageRow: View {
             onHydrateMedia: onHydrateMedia
         )
 
-        bubble
+        ChatMessageBubbleChrome(
+            isMenuSelected: isMenuSelected,
+            isOutgoing: isCurrentUser,
+            cornerRadius: ChatBubbleAnchorMetrics.cornerRadius(for: message),
+            colorScheme: colorScheme,
+            isFlashing: isBubbleFlashing,
+            dragOffset: dragOffset,
+            onLongPress: onLongPress
+        ) {
+            bubble
+        }
     }
 }
 

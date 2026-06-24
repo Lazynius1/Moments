@@ -5,7 +5,9 @@ import SwiftUI
 struct ChatMessageMenuSelection: Equatable {
     let rowId: String
     let message: EnhancedMessage
-    let rowFrame: CGRect
+    let anchorFrame: CGRect
+    let anchorCornerRadius: CGFloat
+    let isOutgoing: Bool
     var clusterMessages: [EnhancedMessage]? = nil
 
     static func == (lhs: ChatMessageMenuSelection, rhs: ChatMessageMenuSelection) -> Bool {
@@ -13,7 +15,49 @@ struct ChatMessageMenuSelection: Equatable {
     }
 }
 
-// MARK: - Row chrome (geometry local por fila)
+enum ChatBubbleAnchorMetrics {
+    /// Escala al abrir menú o durante highlight (reacción, jump, reply).
+    static let menuSelectionScale: CGFloat = 1.03
+    static let highlightScale: CGFloat = menuSelectionScale
+    static let highlightDuration: TimeInterval = 1.5
+    static let pressScale: CGFloat = 0.97
+
+    static func cornerRadius(for message: EnhancedMessage) -> CGFloat {
+        switch message.type {
+        case .text:
+            return 20
+        case .audio:
+            return 18
+        case .image, .video, .viewOnceImage, .viewOnceVideo, .location, .ephemeral, .sharedMoment, .sharedStory:
+            return 16
+        case .gif, .sticker:
+            return 12
+        case .file:
+            return 14
+        default:
+            return 16
+        }
+    }
+
+    static let clusterCornerRadius: CGFloat = 16
+}
+
+/// Opacidad del resto del chat mientras el menú está abierto (la burbuja seleccionada queda al 100 %).
+enum ChatMenuDimming {
+    static let inactiveOpacity: CGFloat = 0.42
+}
+
+extension View {
+    func chatMenuDimmedUnlessSelected(isSelected: Bool, menuOpen: Bool) -> some View {
+        opacity(menuOpen && !isSelected ? ChatMenuDimming.inactiveOpacity : 1)
+    }
+
+    func chatMenuDimmedWhenOpen(_ menuOpen: Bool) -> some View {
+        opacity(menuOpen ? ChatMenuDimming.inactiveOpacity : 1)
+    }
+}
+
+// MARK: - Row chrome (layout + outgoing gradient)
 
 private struct GlobalFrame: Equatable {
     let minX: Int
@@ -33,9 +77,8 @@ private struct GlobalFrame: Equatable {
     }
 }
 
-/// Aísla geometría y estilo de selección por fila sin `PreferenceKey` en el padre.
+/// Publica geometría de fila y color outgoing; sin highlight de menú.
 struct ChatMessageRowChrome<Content: View>: View {
-    let isMenuSelected: Bool
     let isOutgoing: Bool
     let colorScheme: ColorScheme
     @ViewBuilder let content: () -> Content
@@ -50,13 +93,6 @@ struct ChatMessageRowChrome<Content: View>: View {
         content()
             .environment(\.chatMessageRowFrame, rowFrame)
             .environment(\.chatOutgoingBubbleColor, outgoingBubbleColor)
-            .modifier(ConversationRowMenuHighlight(
-                isSelected: isMenuSelected,
-                colorScheme: colorScheme
-            ))
-            .scaleEffect(isMenuSelected ? 0.92 : 1.0)
-            .animation(.spring(response: 0.22, dampingFraction: 0.7), value: isMenuSelected)
-            .zIndex(isMenuSelected ? 2 : 0)
             .onGeometryChange(for: GlobalFrame.self, of: { GlobalFrame($0.frame(in: .global)) }) { newFrame in
                 rowFrame = newFrame.cgRect
             }
@@ -100,30 +136,74 @@ struct ChatMessageRowChrome<Content: View>: View {
     }
 }
 
-struct ChatMessageLongPressPresent: ViewModifier {
-    @Environment(\.chatMessageRowFrame) private var rowFrame
-    let action: (CGRect) -> Void
+// MARK: - Bubble chrome (escala + long-press)
 
-    func body(content: Content) -> some View {
-        content.chatMessageLongPress {
-            guard rowFrame.width > 0, rowFrame.height > 0 else { return }
-            action(rowFrame)
-        }
+struct ChatMessageBubbleChrome<Content: View>: View {
+    let isMenuSelected: Bool
+    let isOutgoing: Bool
+    let cornerRadius: CGFloat
+    let colorScheme: ColorScheme
+    var isFlashing: Bool = false
+    var dragOffset: CGFloat = 0
+    let onLongPress: ((CGRect, CGFloat) -> Void)?
+    @ViewBuilder let content: () -> Content
+
+    @State private var bubbleFrame: CGRect = .zero
+    @State private var isPressing = false
+
+    private var swipeScale: CGFloat {
+        guard dragOffset > 0 else { return 1 }
+        return 1 - min(dragOffset / 400, 0.03)
+    }
+
+    private var selectionScale: CGFloat {
+        if isMenuSelected || isFlashing { return ChatBubbleAnchorMetrics.highlightScale }
+        if isPressing { return ChatBubbleAnchorMetrics.pressScale }
+        return swipeScale
+    }
+
+    var body: some View {
+        content()
+            .onGeometryChange(for: GlobalFrame.self, of: {
+                GlobalFrame($0.frame(in: .global))
+            }) { newFrame in
+                guard !isMenuSelected else { return }
+                bubbleFrame = newFrame.cgRect
+            }
+            .environment(\.chatMessageBubbleFrame, bubbleFrame)
+            .environment(\.chatMessageBubbleCornerRadius, cornerRadius)
+            .scaleEffect(
+                selectionScale,
+                anchor: isOutgoing ? .bottomTrailing : .bottomLeading
+            )
+            .animation(.spring(response: 0.22, dampingFraction: 0.7), value: isMenuSelected)
+            .animation(.spring(response: 0.22, dampingFraction: 0.7), value: isFlashing)
+            .animation(.easeOut(duration: 0.12), value: isPressing)
+            .animation(.spring(response: 0.3, dampingFraction: 0.7), value: dragOffset)
+            .zIndex(isMenuSelected || isFlashing ? 1 : 0)
+            .chatMessageLongPress(isPressing: $isPressing) {
+                guard let onLongPress else { return }
+                DispatchQueue.main.async {
+                    guard bubbleFrame.width > 0, bubbleFrame.height > 0 else { return }
+                    onLongPress(bubbleFrame, cornerRadius)
+                }
+            }
     }
 }
 
-extension View {
-    func chatMessageLongPressPresent(action: @escaping (CGRect) -> Void) -> some View {
-        modifier(ChatMessageLongPressPresent(action: action))
-    }
-}
+// MARK: - Overlay
 
-// MARK: - Overlay (mismo patrón que ConversationContextMenuOverlay)
+private struct ChatMessageMenuLayout {
+    let reactionsCenter: CGPoint
+    let menuCenter: CGPoint
+}
 
 struct ChatMessageContextMenuOverlay: View {
     @Binding var selection: ChatMessageMenuSelection?
 
     let containerSize: CGSize
+    /// Origen del `GeometryReader` del overlay en pantalla; `anchorFrame` viene en `.global`.
+    let containerFrameInGlobal: CGRect
     let safeAreaInsets: EdgeInsets
     let colorScheme: ColorScheme
     let currentUserId: String
@@ -141,10 +221,12 @@ struct ChatMessageContextMenuOverlay: View {
 
     private let menuRowHeight: CGFloat = 44
     private let menuCornerRadius: CGFloat = ChatAttachmentSheetMetrics.cornerRadius
-    private let rowCornerRadius: CGFloat = 16
     private let stackGap: CGFloat = 10
     private let reactionsBarHeight: CGFloat = 54
     private let horizontalInset: CGFloat = 16
+
+    private let reactionsBarEstimatedWidth: CGFloat = 300
+    private let menuEstimatedWidth: CGFloat = 240
 
     @StateObject private var emojiUsageTracker = EmojiUsageTracker()
 
@@ -159,20 +241,25 @@ struct ChatMessageContextMenuOverlay: View {
     var body: some View {
         ZStack {
             if let selection {
-                dimLayer(cutout: selection.rowFrame)
+                let rowCount = visibleMenuRowsCount(
+                    for: selection.message,
+                    isCurrentUser: selection.message.senderId == currentUserId
+                )
+                let layout = menuLayout(for: selection, rowCount: rowCount)
+
+                Color.clear
                     .ignoresSafeArea()
                     .contentShape(Rectangle())
                     .onTapGesture { dismissMenu() }
-                    .transition(.opacity)
 
                 reactionsBar(for: selection.message)
                     .fixedSize()
-                    .position(reactionsPosition(for: selection.rowFrame))
+                    .position(layout.reactionsCenter)
                     .transition(.opacity)
 
                 actionsMenu(for: selection.message, isCurrentUser: selection.message.senderId == currentUserId)
                     .fixedSize(horizontal: true, vertical: true)
-                    .position(menuPosition(for: selection.rowFrame, rowCount: visibleMenuRowsCount(for: selection.message, isCurrentUser: selection.message.senderId == currentUserId)))
+                    .position(layout.menuCenter)
                     .transition(.opacity)
             }
         }
@@ -180,23 +267,8 @@ struct ChatMessageContextMenuOverlay: View {
     }
 
     @ViewBuilder
-    private func dimLayer(cutout: CGRect) -> some View {
-        let scaledCutout = scaledRowFrame(for: cutout)
-        ZStack {
-            Rectangle()
-                .fill(Color.black.opacity(colorScheme == .dark ? 0.50 : 0.32))
-
-            RoundedRectangle(cornerRadius: rowCornerRadius, style: .continuous)
-                .frame(width: scaledCutout.width, height: scaledCutout.height)
-                .position(x: scaledCutout.midX, y: scaledCutout.midY)
-                .blendMode(.destinationOut)
-        }
-        .compositingGroup()
-    }
-
-    @ViewBuilder
     private func reactionsBar(for message: EnhancedMessage) -> some View {
-        HStack(spacing: 14) {
+        HStack(spacing: 12) {
             ForEach(emojiUsageTracker.orderedEmojis(from: EmojiReactionDefaults.chat), id: \.self) { emoji in
                 Button {
                     HapticManager.shared.mediumImpact()
@@ -204,7 +276,7 @@ struct ChatMessageContextMenuOverlay: View {
                     onReaction(message, emoji)
                 } label: {
                     Text(emoji)
-                        .font(.system(size: 30))
+                        .font(.system(size: 28))
                 }
                 .buttonStyle(.plain)
             }
@@ -230,8 +302,8 @@ struct ChatMessageContextMenuOverlay: View {
             }
             .buttonStyle(.plain)
         }
-        .padding(.horizontal, 18)
-        .padding(.vertical, 12)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 10)
         .momentsChromeGlass(in: Capsule(), interactive: true)
         .clipShape(Capsule())
         .shadow(color: .black.opacity(colorScheme == .dark ? 0.24 : 0.12), radius: 24, x: 0, y: 12)
@@ -312,74 +384,116 @@ struct ChatMessageContextMenuOverlay: View {
             .padding(.horizontal, 12)
     }
 
-    private func scaledRowFrame(for rowFrame: CGRect) -> CGRect {
-        let scale: CGFloat = 0.92
-        let widthDiff = rowFrame.width * (1 - scale)
-        let heightDiff = rowFrame.height * (1 - scale)
+    private func localAnchorFrame(_ globalFrame: CGRect) -> CGRect {
+        CGRect(
+            x: globalFrame.minX - containerFrameInGlobal.minX,
+            y: globalFrame.minY - containerFrameInGlobal.minY,
+            width: globalFrame.width,
+            height: globalFrame.height
+        )
+    }
+
+    private func scaledAnchorFrame(for globalAnchorFrame: CGRect) -> CGRect {
+        let anchorFrame = localAnchorFrame(globalAnchorFrame)
+        let scale = ChatBubbleAnchorMetrics.menuSelectionScale
+        let widthDiff = anchorFrame.width * (scale - 1)
+        let heightDiff = anchorFrame.height * (scale - 1)
         return CGRect(
-            x: rowFrame.minX + widthDiff / 2,
-            y: rowFrame.minY + heightDiff / 2,
-            width: rowFrame.width * scale,
-            height: rowFrame.height * scale
+            x: anchorFrame.minX - widthDiff / 2,
+            y: anchorFrame.minY - heightDiff / 2,
+            width: anchorFrame.width * scale,
+            height: anchorFrame.height * scale
         )
     }
 
-    private func reactionsPosition(for rowFrame: CGRect) -> CGPoint {
-        let scaled = scaledRowFrame(for: rowFrame)
-        return CGPoint(
-            x: scaled.midX,
-            y: scaled.minY - stackGap - reactionsBarHeight / 2
-        )
+    private var layoutTopMargin: CGFloat {
+        safeAreaInsets.top + 12
     }
 
-    private func menuPosition(for rowFrame: CGRect, rowCount: Int) -> CGPoint {
-        let scaled = scaledRowFrame(for: rowFrame)
+    private var layoutBottomMargin: CGFloat {
+        safeAreaInsets.bottom + 12
+    }
+
+    private func menuLayout(for selection: ChatMessageMenuSelection, rowCount: Int) -> ChatMessageMenuLayout {
+        let scaled = scaledAnchorFrame(for: selection.anchorFrame)
         let menuHeight = menuPanelHeight(rowCount: rowCount)
-        let placesBelow = shouldPlaceMenuBelow(rowFrame: rowFrame, menuHeight: menuHeight)
+        let centerX = clampedCenterX(scaled.midX, itemWidth: max(reactionsBarEstimatedWidth, menuEstimatedWidth))
 
-        if placesBelow {
-            return CGPoint(
-                x: clampedMenuCenterX(for: scaled, menuWidth: 240),
-                y: scaled.maxY + stackGap + menuHeight / 2
+        let spaceAbove = scaled.minY - layoutTopMargin
+        let spaceBelow = containerSize.height - layoutBottomMargin - scaled.maxY
+
+        let reactionsAbove = spaceAbove >= reactionsBarHeight + stackGap
+        let reactionsBelow = !reactionsAbove && spaceBelow >= reactionsBarHeight + stackGap
+
+        let reactionsCenterY: CGFloat
+        if reactionsAbove {
+            reactionsCenterY = max(
+                layoutTopMargin + reactionsBarHeight / 2,
+                scaled.minY - stackGap - reactionsBarHeight / 2
+            )
+        } else if reactionsBelow {
+            reactionsCenterY = min(
+                containerSize.height - layoutBottomMargin - reactionsBarHeight / 2,
+                scaled.maxY + stackGap + reactionsBarHeight / 2
+            )
+        } else {
+            reactionsCenterY = min(
+                containerSize.height - layoutBottomMargin - reactionsBarHeight / 2,
+                scaled.maxY + stackGap + reactionsBarHeight / 2
             )
         }
 
-        let proposedY = scaled.minY - stackGap - reactionsBarHeight - stackGap - menuHeight / 2
-        let minY = safeAreaInsets.top + menuHeight / 2 + 8
-        return CGPoint(
-            x: clampedMenuCenterX(for: scaled, menuWidth: 240),
-            y: max(minY, proposedY)
+        let menuBelowPreferred = spaceBelow >= menuHeight + stackGap + (reactionsBelow ? reactionsBarHeight + stackGap : 0)
+        let menuAbovePreferred = spaceAbove >= menuHeight + stackGap + (reactionsAbove ? reactionsBarHeight + stackGap : 0)
+        let menuBelow: Bool
+        if menuBelowPreferred { menuBelow = true }
+        else if menuAbovePreferred { menuBelow = false }
+        else { menuBelow = spaceBelow >= spaceAbove }
+
+        let menuCenterY: CGFloat
+        if menuBelow {
+            var anchorMaxY = scaled.maxY
+            if reactionsBelow {
+                anchorMaxY += stackGap + reactionsBarHeight
+            }
+            menuCenterY = min(
+                containerSize.height - layoutBottomMargin - menuHeight / 2,
+                anchorMaxY + stackGap + menuHeight / 2
+            )
+        } else {
+            var anchorMinY = scaled.minY
+            if reactionsAbove {
+                anchorMinY -= stackGap + reactionsBarHeight
+            }
+            menuCenterY = max(
+                layoutTopMargin + menuHeight / 2,
+                anchorMinY - stackGap - menuHeight / 2
+            )
+        }
+
+        return ChatMessageMenuLayout(
+            reactionsCenter: CGPoint(x: centerX, y: reactionsCenterY),
+            menuCenter: CGPoint(x: clampedCenterX(scaled.midX, itemWidth: menuEstimatedWidth), y: menuCenterY)
         )
     }
 
-    private func clampedMenuCenterX(for scaledFrame: CGRect, menuWidth: CGFloat) -> CGFloat {
-        let margin = horizontalInset
-        let half = menuWidth / 2
-        let minX = margin + half
-        let maxX = containerSize.width - margin - half
-        return min(max(scaledFrame.midX, minX), maxX)
+    private func clampedCenterX(_ centerX: CGFloat, itemWidth: CGFloat) -> CGFloat {
+        let half = itemWidth / 2
+        let minCenterX = horizontalInset + half
+        let maxCenterX = containerSize.width - horizontalInset - half
+        guard maxCenterX >= minCenterX else { return containerSize.width / 2 }
+        return min(max(centerX, minCenterX), maxCenterX)
     }
 
     private func menuPanelHeight(rowCount: Int) -> CGFloat {
         CGFloat(rowCount) * menuRowHeight + 20
     }
 
-    private func shouldPlaceMenuBelow(rowFrame: CGRect, menuHeight: CGFloat) -> Bool {
-        let scaled = scaledRowFrame(for: rowFrame)
-        let spaceBelow = containerSize.height - safeAreaInsets.bottom - 12 - scaled.maxY
-        let spaceAbove = scaled.minY - safeAreaInsets.top - 12 - reactionsBarHeight - stackGap
-        let required = menuHeight + stackGap
-
-        if spaceBelow >= required { return true }
-        if spaceAbove >= required { return false }
-        return spaceBelow >= spaceAbove
-    }
-
     private func visibleMenuRowsCount(for message: EnhancedMessage, isCurrentUser: Bool) -> Int {
         guard !message.isDeleted else { return 0 }
-        var count = 2 // reply + delete for me
+        var count = 2
         if ChatMessagePolicy.canForward(message, currentUserId: currentUserId, forwardingPreferences: forwardingPreferences) { count += 1 }
-        count += 1 // star / unstar
+        count += 1
         if ChatMessagePolicy.canEdit(message, userId: currentUserId) { count += 1 }
         if ChatMessagePolicy.canCopy(message, currentUserId: currentUserId, forwardingPreferences: forwardingPreferences) { count += 1 }
         if isCurrentUser && !message.isRead && isWithinDeleteLimit(message.timestamp) { count += 1 }

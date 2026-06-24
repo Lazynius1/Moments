@@ -51,8 +51,7 @@ struct SetPasswordView: View {
     }
 
     var body: some View {
-        NavigationView {
-            ZStack {
+        ZStack {
                 (colorScheme == .dark ? Color(hex: "0B1215") : Color(hex: "FAF9F6")).ignoresSafeArea()
 
                 ScrollView {
@@ -153,7 +152,6 @@ struct SetPasswordView: View {
                      ? NSLocalizedString("settings.security.password.addSuccessMessageVerify", comment: "")
                      : NSLocalizedString("settings.security.password.addSuccessMessage", comment: ""))
             }
-        }
     }
 
     @ViewBuilder

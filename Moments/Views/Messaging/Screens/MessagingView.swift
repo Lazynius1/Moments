@@ -844,7 +844,7 @@ struct GlassmorphicConversationRow: View {
             StoriesView(startWithUserId: .constant(route.id))
                 .ignoresSafeArea(.keyboard)
         }
-        .fullScreenCover(isPresented: $showingUserProfile) {
+        .navigationDestination(isPresented: $showingUserProfile) {
             UserProfileView(userId: conversation.otherParticipantId)
                 .userProfileZoomDestination(
                     userId: conversation.otherParticipantId,
@@ -1114,7 +1114,7 @@ struct GlassmorphicNewConversationView: View {
         .navigationBarTitleDisplayMode(.inline)
         .navigationBarBackButtonHidden(true)
         .toolbar { newConversationToolbarContent }
-        .fullScreenCover(item: $showingUserProfile) { user in
+        .navigationDestination(item: $showingUserProfile) { user in
             UserProfileView(userId: user.id)
                 .userProfileZoomDestination(userId: user.id, namespace: profileZoomNamespace)
         }

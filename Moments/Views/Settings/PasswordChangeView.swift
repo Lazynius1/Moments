@@ -8,8 +8,7 @@ struct PasswordChangeView: View {
     @StateObject private var viewModel = PasswordChangeViewModel()
     
     var body: some View {
-        NavigationView {
-            ZStack {
+        ZStack {
                 (colorScheme == .dark ? Color(hex: "0B1215") : Color(hex: "FAF9F6")).ignoresSafeArea()
                 
                 ScrollView {
@@ -262,7 +261,6 @@ struct PasswordChangeView: View {
             } message: {
                 Text(NSLocalizedString("passwordChange.successMessage", comment: "Success message"))
             }
-        }
     }
 }
 

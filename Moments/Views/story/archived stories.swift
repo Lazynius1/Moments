@@ -54,7 +54,7 @@ struct ArchiveView: View {
         }
     }
 
-    init(embedInNavigation: Bool = true, showsCustomDismiss: Bool = true) {
+    init(embedInNavigation: Bool = false, showsCustomDismiss: Bool = true) {
         self.embedInNavigation = embedInNavigation
         self.showsCustomDismiss = showsCustomDismiss
     }

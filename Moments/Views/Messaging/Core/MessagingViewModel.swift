@@ -53,6 +53,7 @@ class MessagingViewModel: ObservableObject {
         )
         updated.readReceiptPreferences = conversation.readReceiptPreferences
         updated.forwardingPreferences = conversation.forwardingPreferences
+        updated.lastDeletedAt = conversation.lastDeletedAt
         return updated
     }
 
@@ -184,6 +185,7 @@ class MessagingViewModel: ObservableObject {
                         )
                         self.conversations[i].readReceiptPreferences = existing.readReceiptPreferences
                         self.conversations[i].forwardingPreferences = existing.forwardingPreferences
+                        self.conversations[i].lastDeletedAt = existing.lastDeletedAt
                     }
                 }
 
@@ -215,6 +217,7 @@ class MessagingViewModel: ObservableObject {
                         )
                         self.filteredConversations[i].readReceiptPreferences = existing.readReceiptPreferences
                         self.filteredConversations[i].forwardingPreferences = existing.forwardingPreferences
+                        self.filteredConversations[i].lastDeletedAt = existing.lastDeletedAt
                     }
                 }
             }
@@ -585,6 +588,7 @@ class MessagingViewModel: ObservableObject {
         conversations.removeAll { $0.id == conversationId }
         filteredConversations.removeAll { $0.id == conversationId }
         hasUnreadMessages = conversations.contains { !($0.readStatus[currentUserId] ?? true) }
+        ChatSessionEngine.shared.invalidateSession(conversationId: conversationId)
         LocalPersistenceService.shared.saveConversations(conversations, sync: true)
         LocalPersistenceService.shared.deleteConversationCache(conversationId: conversationId)
 

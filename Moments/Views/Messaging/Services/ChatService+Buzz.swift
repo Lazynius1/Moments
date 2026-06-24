@@ -38,6 +38,7 @@ extension ChatService {
 
     func listenToBuzzEvents(
         conversationId: String,
+        cutoffDate: Date? = nil,
         limit: Int = 80,
         replaceExisting: Bool = true,
         onEvent: @escaping (_ event: ChatBuzzEvent, _ isInitialSnapshot: Bool) -> Void
@@ -69,6 +70,11 @@ extension ChatService {
                 }
 
                 let createdAt = (data["createdAt"] as? Timestamp)?.dateValue() ?? Date()
+
+                // Filtrar buzz events anteriores al punto de corte del usuario
+                if let cutoff = cutoffDate, createdAt <= cutoff {
+                    continue
+                }
 
                 onEvent(ChatBuzzEvent(
                     id: change.document.documentID,

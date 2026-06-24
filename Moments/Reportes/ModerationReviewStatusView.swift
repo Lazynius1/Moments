@@ -13,31 +13,11 @@ struct ModerationReviewStatusView: View {
     @State private var refreshing = false
 
     var body: some View {
-        NavigationView {
-            ZStack {
+        ZStack {
                 (colorScheme == .dark ? Color(hex: "0B1215") : Color(hex: "FAF9F6"))
                     .ignoresSafeArea()
 
                 VStack(spacing: 0) {
-                    AppealStatusHeader(
-                        title: selectedRequest == nil
-                        ? NSLocalizedString("moderationReview.status.title", comment: "Moderation review requests title")
-                        : NSLocalizedString("moderationReview.status.detailTitle", comment: "Moderation review request detail title"),
-                        showsBackButton: true,
-                        showsRefreshButton: selectedRequest == nil,
-                        refreshing: refreshing,
-                        onBack: {
-                            if selectedRequest != nil {
-                                withAnimation(.spring(response: 0.36, dampingFraction: 0.86)) {
-                                    selectedRequest = nil
-                                }
-                            } else {
-                                dismiss()
-                            }
-                        },
-                        onRefresh: fetchRequests
-                    )
-
                     ZStack {
                         if let selectedRequest {
                             ModerationReviewDetailView(request: selectedRequest)
@@ -68,8 +48,6 @@ struct ModerationReviewStatusView: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
             }
-            .navigationBarHidden(true)
-        }
         .animation(.spring(response: 0.36, dampingFraction: 0.86), value: selectedRequest?.id)
         .onAppear {
             fetchRequests()
@@ -78,6 +56,25 @@ struct ModerationReviewStatusView: View {
             Button(NSLocalizedString("appeal.error.ok", comment: "OK button for error alerts")) { }
         } message: {
             Text(errorMessage ?? NSLocalizedString("appeal.error.unknown", comment: "Unknown error"))
+        }
+        .navigationTitle(selectedRequest == nil
+            ? NSLocalizedString("moderationReview.status.title", comment: "Moderation review requests title")
+            : NSLocalizedString("moderationReview.status.detailTitle", comment: "Moderation review request detail title"))
+        .navigationBarTitleDisplayMode(.inline)
+        .navigationBarBackButtonHidden(true)
+        .toolbarBackground(.hidden, for: .navigationBar)
+        .toolbar {
+            ToolbarItem(placement: .navigationBarLeading) {
+                SettingsToolbarBackButton(action: {
+                    if selectedRequest != nil {
+                        withAnimation(.spring(response: 0.36, dampingFraction: 0.86)) {
+                            selectedRequest = nil
+                        }
+                    } else {
+                        dismiss()
+                    }
+                })
+            }
         }
     }
 

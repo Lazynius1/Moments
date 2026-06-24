@@ -180,10 +180,6 @@ struct MessageReactionChip: View {
 
     @Environment(\.colorScheme) private var colorScheme
 
-    private var separatorColor: Color {
-        colorScheme == .dark ? Color(hex: "0B1215") : Color(hex: "FAF9F6")
-    }
-
     private var sortedEntries: [(emoji: String, count: Int)] {
         reactions
             .map { (emoji: $0.key, count: $0.value.count) }
@@ -237,11 +233,6 @@ struct MessageReactionChip: View {
                 }
             }
             .frame(width: badgeDiameter, height: badgeDiameter)
-            .background(
-                Circle()
-                    .fill(separatorColor)
-            )
-            .shadow(color: .black.opacity(0.2), radius: 2, y: 1)
         }
         .buttonStyle(.plain)
     }
@@ -250,7 +241,7 @@ struct MessageReactionChip: View {
 enum MessageReactionMetrics {
     static func emojiSize(compact: Bool, cluster: Bool) -> CGFloat {
         if cluster { return 12 }
-        return compact ? 16 : 18
+        return compact ? 18 : 20
     }
 
     static func countSize(compact: Bool, cluster: Bool) -> CGFloat {
@@ -260,12 +251,12 @@ enum MessageReactionMetrics {
 
     static func badgeDiameter(compact: Bool, cluster: Bool) -> CGFloat {
         if cluster { return 18 }
-        return compact ? 24 : 28
+        return compact ? 22 : 24
     }
 
     static func overlapSpacing(compact: Bool, cluster: Bool) -> CGFloat {
         if cluster { return -5 }
-        return compact ? -6 : -8
+        return compact ? -5 : -7
     }
 
     static func horizontalHangOffset(compact: Bool, anchoredInsideBounds: Bool) -> CGFloat {
@@ -299,6 +290,67 @@ enum MessageReactionMetrics {
 }
 
 extension View {
+    func reversedMask<M: View>(
+        alignment: Alignment = .center,
+        @ViewBuilder mask: () -> M
+    ) -> some View {
+        self.overlay(alignment: alignment) {
+            mask()
+                .blendMode(.destinationOut)
+        }
+        .compositingGroup()
+    }
+
+    @ViewBuilder
+    func messageReactionCutout(
+        isOutgoing: Bool,
+        reactions: [String: [String]]?,
+        compact: Bool = false,
+        anchoredInsideBounds: Bool = false,
+        gap: CGFloat = 1.5
+    ) -> some View {
+        let hasReactions = reactions.map { !$0.isEmpty } ?? false
+
+        if hasReactions, let reactions = reactions {
+            let sortedEntries = reactions
+                .map { (emoji: $0.key, count: $0.value.count) }
+                .sorted {
+                    if $0.count == $1.count { return $0.emoji < $1.emoji }
+                    return $0.count > $1.count
+                }
+
+            let visibleCount = min(5, sortedEntries.count)
+            if visibleCount > 0 {
+                let diameter = MessageReactionMetrics.badgeDiameter(compact: compact, cluster: false)
+                let overlap = MessageReactionMetrics.overlapSpacing(compact: compact, cluster: false)
+                let chipWidth = diameter + CGFloat(visibleCount - 1) * (diameter + overlap)
+                let chipHeight = diameter
+
+                let cutoutWidth = chipWidth + gap * 2
+                let cutoutHeight = chipHeight + gap * 2
+
+                let hangOffset = MessageReactionMetrics.hangOffset(compact: compact)
+                let horizontalOffset = MessageReactionMetrics.horizontalHangOffset(
+                    compact: compact,
+                    anchoredInsideBounds: anchoredInsideBounds
+                )
+
+                let cutoutX = isOutgoing ? (horizontalOffset - gap) : (-horizontalOffset + gap)
+                let cutoutY = anchoredInsideBounds ? (-3 + gap) : (hangOffset + gap)
+
+                self.reversedMask(alignment: isOutgoing ? .bottomLeading : .bottomTrailing) {
+                    Capsule()
+                        .frame(width: cutoutWidth, height: cutoutHeight)
+                        .offset(x: cutoutX, y: cutoutY)
+                }
+            } else {
+                self
+            }
+        } else {
+            self
+        }
+    }
+
     func messageReactionOverlay(
         isOutgoing: Bool,
         reactions: [String: [String]]?,
@@ -314,17 +366,24 @@ extension View {
             anchoredInsideBounds: anchoredInsideBounds
         )
 
-        return overlay(alignment: isOutgoing ? .bottomLeading : .bottomTrailing) {
-            if let reactions, !reactions.isEmpty {
-                MessageReactionChip(reactions: reactions, onTap: onTap, compact: compact)
-                    .offset(
-                        x: isOutgoing ? horizontalOffset : -horizontalOffset,
-                        y: anchoredInsideBounds ? -3 : hangOffset
-                    )
-                    .zIndex(5)
+        return self
+            .messageReactionCutout(
+                isOutgoing: isOutgoing,
+                reactions: reactions,
+                compact: compact,
+                anchoredInsideBounds: anchoredInsideBounds
+            )
+            .overlay(alignment: isOutgoing ? .bottomLeading : .bottomTrailing) {
+                if let reactions, !reactions.isEmpty {
+                    MessageReactionChip(reactions: reactions, onTap: onTap, compact: compact)
+                        .offset(
+                            x: isOutgoing ? horizontalOffset : -horizontalOffset,
+                            y: anchoredInsideBounds ? -3 : hangOffset
+                        )
+                        .zIndex(5)
+                }
             }
-        }
-        .padding(.bottom, hasReactions && !anchoredInsideBounds ? rowSpacing : 0)
+            .padding(.bottom, hasReactions && !anchoredInsideBounds ? rowSpacing : 0)
     }
 }
 

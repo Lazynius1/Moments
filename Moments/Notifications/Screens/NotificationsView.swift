@@ -43,51 +43,52 @@ struct NotificationsView: View {
 
     var body: some View {
         ZStack(alignment: .bottom) {
-            NavigationStack {
-                VStack(spacing: 0) {
-                    tabBarView
-                    contentView
+            VStack(spacing: 0) {
+                tabBarView
+                contentView
+            }
+            .background(colorScheme == .dark ? Color(hex: "0B1215") : Color(hex: "FAF9F6"))
+            .navigationDestination(isPresented: $showChat) {
+                chatDestination
+            }
+            .navigationDestination(item: $zoomDestination) { destination in
+                MomentZoomDetailDestination(
+                    destination: destination,
+                    moments: momentsForZoomDestination(destination),
+                    namespace: momentZoomNamespace
+                )
+            }
+            .onChange(of: zoomDestination) { _, newValue in
+                if newValue == nil {
+                    zoomResolvedMoment = nil
                 }
-                .background(colorScheme == .dark ? Color(hex: "0B1215") : Color(hex: "FAF9F6"))
-                .navigationDestination(isPresented: $showChat) {
-                    chatDestination
-                }
-                .navigationDestination(item: $zoomDestination) { destination in
-                    MomentZoomDetailDestination(
-                        destination: destination,
-                        moments: momentsForZoomDestination(destination),
-                        namespace: momentZoomNamespace
-                    )
-                }
-                .onChange(of: zoomDestination) { _, newValue in
-                    if newValue == nil {
-                        zoomResolvedMoment = nil
-                    }
-                }
-                .navigationBarTitleDisplayMode(.inline)
-                .toolbar {
-                    ToolbarItem(placement: .navigationBarLeading) {
-                        Button(action: { dismiss() }) {
-                            Image(systemName: "chevron.left")
-                                .font(.system(size: 16, weight: .semibold))
-                                .foregroundColor(colorScheme == .dark ? .white : .black)
-                        }
-                    }
-
-                    ToolbarItem(placement: .principal) {
-                        Text("notifications.title")
-                            .font(.system(size: 18, weight: .semibold))
+            }
+            .navigationBarTitleDisplayMode(.inline)
+            .navigationBarBackButtonHidden(true)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button(action: { dismiss() }) {
+                        Image(systemName: "chevron.left")
+                            .font(.system(size: 16, weight: .semibold))
                             .foregroundColor(colorScheme == .dark ? .white : .black)
                     }
                 }
-                .toolbarBackground(.visible, for: .navigationBar)
-                .toolbarBackground(
-                    colorScheme == .dark ?
-                    Color(hex: "0B1215").opacity(0.72) :
-                    Color(hex: "FAF9F6").opacity(0.9),
-                    for: .navigationBar
-                )
+
+                ToolbarItem(placement: .principal) {
+                    Text("notifications.title")
+                        .font(.system(size: 18, weight: .semibold))
+                        .foregroundColor(colorScheme == .dark ? .white : .black)
+                }
             }
+            .toolbarBackground(.visible, for: .navigationBar)
+            .toolbarBackground(
+                colorScheme == .dark ?
+                Color(hex: "0B1215").opacity(0.72) :
+                Color(hex: "FAF9F6").opacity(0.9),
+                for: .navigationBar
+            )
+            .toolbar(.hidden, for: .tabBar)
+
 
             if let pendingDeletion = viewModel.pendingDeletion {
                 NotificationDeletionUndoToast(

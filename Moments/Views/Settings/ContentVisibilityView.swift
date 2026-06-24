@@ -14,8 +14,7 @@ struct ContentVisibilityView: View {
     @State private var showingHiddenFromView = false
     
     var body: some View {
-        NavigationView {
-            ZStack {
+        ZStack {
                 (colorScheme == .dark ? Color(hex: "0B1215") : Color(hex: "FAF9F6")).ignoresSafeArea()
                 
                 if isLoading {
@@ -220,7 +219,6 @@ struct ContentVisibilityView: View {
                     .presentationDetents([.medium, .large])
                     .presentationDragIndicator(.visible)
             }
-        }
     }
     
     // ✅ NUEVA FUNCIÓN: Resumen de configuración de interacciones

@@ -11416,3 +11416,160 @@ exports.cleanupIncompleteAuthAccounts = onSchedule(
     }
   }
 );
+
+// ─────────────────────────────────────────────────────────────────────────────
+// MARK: - Conversation Cleanup
+// Cuando ambos participantes han borrado la conversación, eliminar:
+//   1. Todos los mensajes de Firestore (messages, buzzEvents, messageReactions)
+//   2. Todos los archivos de Firebase Storage de esa conversación (media, audio,
+//      thumbnails…) — tanto los referenciados en los mensajes como cualquier
+//      archivo huérfano que esté en el directorio de Storage de cada participante.
+//   3. El documento de la conversación.
+// Esto replica el comportamiento de WhatsApp/Instagram.
+// ─────────────────────────────────────────────────────────────────────────────
+exports.cleanupDeletedConversation = onDocumentWritten(
+  {
+    document: 'conversations/{conversationId}',
+    memory: '512MiB',
+    timeoutSeconds: 540
+  },
+  async (event) => {
+    const db = admin.firestore();
+    const bucket = admin.storage().bucket();
+    const conversationId = event.params.conversationId;
+
+    // Solo actuar en documentos que siguen existiendo (no en borrados físicos)
+    const after = event.data?.after;
+    if (!after || !after.exists) return;
+
+    const data = after.data();
+    if (!data) return;
+
+    const participants = data.participants;
+    if (!Array.isArray(participants) || participants.length === 0) return;
+
+    const deletedFor = data.deletedFor;
+    if (!Array.isArray(deletedFor) || deletedFor.length === 0) return;
+
+    // Comprobar que TODOS los participantes están en deletedFor
+    const allDeleted = participants.every((uid) => deletedFor.includes(uid));
+    if (!allDeleted) return;
+
+    console.log(`[cleanupDeletedConversation] All participants deleted conversation ${conversationId}. Starting full cleanup.`);
+
+    // ─── Helpers ─────────────────────────────────────────────────────────────
+
+    // Borra un archivo de Storage por su objectPath; ignora "not found"
+    const deleteStorageFile = async (objectPath) => {
+      if (!objectPath || typeof objectPath !== 'string' || objectPath.trim() === '') return;
+      const path = objectPath.trim();
+      try {
+        await bucket.file(path).delete();
+      } catch (err) {
+        // Ignorar 404 (archivo ya borrado o nunca subido)
+        if (err.code !== 404 && err.message && !err.message.includes('No such object')) {
+          console.warn(`[cleanupDeletedConversation] Could not delete Storage file ${path}:`, err.message);
+        }
+      }
+    };
+
+    // Borra todos los archivos bajo un "prefijo" de Storage (equivalente a carpeta)
+    const deleteStorageDirectory = async (prefix) => {
+      try {
+        const [files] = await bucket.getFiles({ prefix });
+        if (files.length === 0) return;
+        await Promise.all(files.map((f) => f.delete().catch(() => {})));
+        console.log(`[cleanupDeletedConversation] Deleted ${files.length} Storage files under ${prefix}`);
+      } catch (err) {
+        console.warn(`[cleanupDeletedConversation] Error listing Storage files under ${prefix}:`, err.message);
+      }
+    };
+
+    // ─── 1. Recoger y borrar media de cada mensaje (y sus reacciones) ──────────
+    const collRef = db
+      .collection('conversations')
+      .doc(conversationId)
+      .collection('messages');
+
+    const storagePathsToDelete = new Set();
+    let hasMore = true;
+    let totalMessages = 0;
+    let totalReactions = 0;
+
+    while (hasMore) {
+      const snapshot = await collRef.limit(500).get();
+      if (snapshot.empty) { hasMore = false; break; }
+
+      // Obtener las reacciones de cada mensaje en este lote de 500 en paralelo
+      const reactionsPromises = snapshot.docs.map(async (messageDoc) => {
+        const reactionsSnap = await messageDoc.ref.collection('messageReactions').get();
+        return { messageDoc, reactionsDocs: reactionsSnap.docs };
+      });
+      const results = await Promise.all(reactionsPromises);
+
+      const batch = db.batch();
+      for (const { messageDoc, reactionsDocs } of results) {
+        const msgData = messageDoc.data();
+        // Recoger paths de Storage referenciados directamente en el mensaje
+        const mediaPath = msgData.mediaObjectPath;
+        const thumbPath = msgData.thumbnailObjectPath;
+        if (mediaPath) storagePathsToDelete.add(mediaPath);
+        if (thumbPath) storagePathsToDelete.add(thumbPath);
+
+        // Borrar cada documento de reacción
+        for (const reactionDoc of reactionsDocs) {
+          batch.delete(reactionDoc.ref);
+          totalReactions++;
+        }
+
+        // Borrar el mensaje
+        batch.delete(messageDoc.ref);
+      }
+      await batch.commit();
+      totalMessages += snapshot.size;
+      if (snapshot.size < 500) hasMore = false;
+    }
+    console.log(`[cleanupDeletedConversation] Deleted ${totalMessages} messages and ${totalReactions} reactions from Firestore.`);
+
+    // ─── 2. Borrar sub-colecciones restantes (buzzEvents, typing) ────────────
+    const deleteSubcollection = async (subcollectionName) => {
+      const subRef = db
+        .collection('conversations')
+        .doc(conversationId)
+        .collection(subcollectionName);
+      let hasMoreSub = true;
+      let total = 0;
+      while (hasMoreSub) {
+        const snap = await subRef.limit(500).get();
+        if (snap.empty) { hasMoreSub = false; break; }
+        const b = db.batch();
+        snap.docs.forEach((d) => b.delete(d.ref));
+        await b.commit();
+        total += snap.size;
+        if (snap.size < 500) hasMoreSub = false;
+      }
+      console.log(`[cleanupDeletedConversation] Deleted ${total} docs from ${subcollectionName}.`);
+    };
+
+    await deleteSubcollection('buzzEvents');
+    await deleteSubcollection('typing');
+
+    // ─── 3. Borrar archivos de Storage ───────────────────────────────────────
+    // 3a. Archivos referenciados en los mensajes
+    await Promise.all([...storagePathsToDelete].map(deleteStorageFile));
+    console.log(`[cleanupDeletedConversation] Deleted ${storagePathsToDelete.size} referenced Storage files.`);
+
+    // 3b. Barrer el directorio de Storage de cada participante para esta conv
+    //     (captura archivos huérfanos: uploads a medias que no llegaron a guardarse en Firestore)
+    //     Patrón: users/{uid}/chat/{conversationId}/
+    await Promise.all(
+      participants.map((uid) =>
+        deleteStorageDirectory(`users/${uid}/chat/${conversationId}/`)
+      )
+    );
+
+    // ─── 4. Borrar el documento de la conversación ───────────────────────────
+    await db.collection('conversations').doc(conversationId).delete();
+    console.log(`[cleanupDeletedConversation] Conversation ${conversationId} fully deleted (Firestore + Storage).`);
+  }
+);

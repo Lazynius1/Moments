@@ -108,6 +108,7 @@ class ChatService: ObservableObject {
     // MARK: - Real-time Messages with Decryption
     func listenToMessages(
         conversationId: String,
+        cutoffDate: Date? = nil,
         limit: Int = 50,
         replaceExisting: Bool = true,
         completion: @escaping (Result<[EnhancedMessage], Error>) -> Void
@@ -134,6 +135,7 @@ class ChatService: ObservableObject {
                             snapshot: snapshot,
                             error: error,
                             conversationId: conversationId,
+                            cutoffDate: cutoffDate,
                             completion: completion
                         )
                     }
@@ -156,7 +158,7 @@ class ChatService: ObservableObject {
     }
     
     // ✅ ONE-SHOT FETCH: útil para pantallas de stats donde no necesitamos listener vivo
-    func fetchRecentMessages(conversationId: String, limit: Int = 300, completion: @escaping (Result<[EnhancedMessage], Error>) -> Void) {
+    func fetchRecentMessages(conversationId: String, cutoffDate: Date? = nil, limit: Int = 300, completion: @escaping (Result<[EnhancedMessage], Error>) -> Void) {
         Task { [weak self] in
             guard let self else { return }
             await preloadConversationKey(for: conversationId)
@@ -171,6 +173,7 @@ class ChatService: ObservableObject {
                     snapshot: snapshot,
                     error: nil,
                     conversationId: conversationId,
+                    cutoffDate: cutoffDate,
                     completion: completion
                 )
             } catch {
@@ -178,6 +181,7 @@ class ChatService: ObservableObject {
                     snapshot: nil,
                     error: error,
                     conversationId: conversationId,
+                    cutoffDate: cutoffDate,
                     completion: completion
                 )
             }
@@ -230,7 +234,7 @@ class ChatService: ObservableObject {
     }
     
     // ✅ NUEVO: Cargar mensajes anteriores (Paginación)
-    func fetchOlderMessages(conversationId: String, before timestamp: Date, limit: Int = 20, completion: @escaping (Result<[EnhancedMessage], Error>) -> Void) {
+    func fetchOlderMessages(conversationId: String, before timestamp: Date, cutoffDate: Date? = nil, limit: Int = 20, completion: @escaping (Result<[EnhancedMessage], Error>) -> Void) {
         Task { [weak self] in
             guard let self else { return }
             await preloadConversationKey(for: conversationId)
@@ -246,6 +250,7 @@ class ChatService: ObservableObject {
                     snapshot: snapshot,
                     error: nil,
                     conversationId: conversationId,
+                    cutoffDate: cutoffDate,
                     completion: completion
                 )
             } catch {
@@ -253,6 +258,7 @@ class ChatService: ObservableObject {
                     snapshot: nil,
                     error: error,
                     conversationId: conversationId,
+                    cutoffDate: cutoffDate,
                     completion: completion
                 )
             }
@@ -264,6 +270,7 @@ class ChatService: ObservableObject {
         snapshot: QuerySnapshot?,
         error: Error?,
         conversationId: String,
+        cutoffDate: Date? = nil,
         completion: @escaping (Result<[EnhancedMessage], Error>) -> Void
     ) async {
         if let error = error {
@@ -278,6 +285,16 @@ class ChatService: ObservableObject {
 
         // Clave de conversación antes de descifrar media (evita huecos en blanco al abrir el chat).
         await preloadConversationKey(for: conversationId)
+
+        // Punto de corte temporal: ocultar mensajes que el usuario ya había borrado antes de restauración
+        let cutoffDateToUse: Date?
+        if let cutoffDate = cutoffDate {
+            cutoffDateToUse = cutoffDate
+        } else {
+            cutoffDateToUse = await MainActor.run {
+                conversationCutoffs[conversationId]
+            }
+        }
         
         var messages: [EnhancedMessage] = []
         
@@ -287,6 +304,13 @@ class ChatService: ObservableObject {
             if let deletedFor = data["deletedFor"] as? [String],
                let currentUserId = Auth.auth().currentUser?.uid,
                deletedFor.contains(currentUserId) {
+                continue
+            }
+
+            // Filtrar mensajes anteriores al punto de corte del usuario
+            if let cutoff = cutoffDateToUse,
+               let msgTimestamp = (data["timestamp"] as? Timestamp)?.dateValue(),
+               msgTimestamp <= cutoff {
                 continue
             }
 
@@ -1140,6 +1164,15 @@ class ChatService: ObservableObject {
         }
     }
 
+    // ✅ Mapa en memoria: conversationId -> fecha de corte temporal del usuario actual
+    // Se pobla al cargar el listener de conversaciones y se consulta en handleMessagesSnapshot.
+    private var conversationCutoffs: [String: Date] = [:]
+
+    /// Punto de corte en memoria (fallback cuando el modelo `Conversation` no trae `lastDeletedAt`).
+    func deletedAtCutoff(for conversationId: String) -> Date? {
+        conversationCutoffs[conversationId]
+    }
+
     func deleteConversationsBetweenUsers(user1Id: String, user2Id: String, completion: @escaping (Error?) -> Void) {
         self.db.collection("conversations")
             .whereField("participants", arrayContains: user1Id)
@@ -1162,43 +1195,18 @@ class ChatService: ObservableObject {
                 }
 
                 let batch = Firestore.firestore().batch()
+                let now = FieldValue.serverTimestamp()
                 for doc in conversationsToMarkAsDeleted {
-                    // En lugar de eliminar, marcar como eliminada para este usuario
+                    // Marcar conversación como eliminada para este usuario
+                    // y guardar el punto de corte temporal (lastDeletedAt)
                     batch.updateData([
                         "deletedFor": FieldValue.arrayUnion([user1Id]),
-                        "deletedAt": FieldValue.serverTimestamp()
+                        "lastDeletedAt.\(user1Id)": now
                     ], forDocument: doc.reference)
                 }
 
                 batch.commit { error in
-                    if let error = error {
-                        completion(error)
-                    } else {
-                        // ✅ Esperar a que el borrado "for user" de mensajes termine para evitar reaperturas con historial viejo.
-                        guard !conversationsToMarkAsDeleted.isEmpty else {
-                            completion(nil)
-                            return
-                        }
-
-                        let group = DispatchGroup()
-                        var firstError: Error?
-
-                        for doc in conversationsToMarkAsDeleted {
-                            group.enter()
-                            Task { @MainActor in
-                                self.markAllMessagesAsDeletedForUser(conversationId: doc.documentID, userId: user1Id) { messageError in
-                                    if firstError == nil, let messageError {
-                                        firstError = messageError
-                                    }
-                                    group.leave()
-                                }
-                            }
-                        }
-
-                        group.notify(queue: .main) {
-                            completion(firstError)
-                        }
-                    }
+                    completion(error)
                 }
             }
     }
@@ -1337,8 +1345,9 @@ class ChatService: ObservableObject {
         let listener = db.collection("conversations")
             .whereField("participants", arrayContains: userId)
             .order(by: "timestamp", descending: true)
-            .addSnapshotListener { snapshot, error in
-                
+            .addSnapshotListener { [weak self] snapshot, error in
+                guard let self else { return }
+
                 if let error = error {
                     if Auth.auth().currentUser == nil {
                         completion(.success([]))
@@ -1347,22 +1356,40 @@ class ChatService: ObservableObject {
                     completion(.failure(error))
                     return
                 }
-                
+
                 guard let documents = snapshot?.documents else {
                     completion(.success([]))
                     return
                 }
-                
+
                 var conversations: [Conversation] = []
-                
+
+                // Conversaciones que necesitan auto-restauración (mensaje nuevo tras borrado)
+                var toRestore: [DocumentReference] = []
+
                 for doc in documents {
                     let data = doc.data()
-                    
-                    // ✅ Filtrar conversaciones eliminadas para este usuario (estilo nativo)
-                    if let deletedFor = data["deletedFor"] as? [String], deletedFor.contains(userId) {
-                        continue
+
+                    let deletedFor = data["deletedFor"] as? [String] ?? []
+                    let isDeletedForMe = deletedFor.contains(userId)
+
+                    // Leer lastDeletedAt para este usuario
+                    let lastDeletedAtMap = data["lastDeletedAt"] as? [String: Timestamp]
+                    let myDeletedAt = lastDeletedAtMap?[userId]?.dateValue()
+
+                    if isDeletedForMe {
+                        // Comparar el timestamp del último mensaje con el punto de corte
+                        if let lastMsgTimestamp = (data["timestamp"] as? Timestamp)?.dateValue(),
+                           let cutoff = myDeletedAt,
+                           lastMsgTimestamp > cutoff {
+                            // Auto-restaurar silenciosamente: llegó un mensaje nuevo
+                            toRestore.append(doc.reference)
+                        } else {
+                            // Sigue borrada para este usuario
+                            continue
+                        }
                     }
-                    
+
                     guard
                         let participants = data["participants"] as? [String],
                         let timestamp = (data["timestamp"] as? Timestamp)?.dateValue(),
@@ -1370,18 +1397,18 @@ class ChatService: ObservableObject {
                     else {
                         continue
                     }
-                    
+
                     let otherParticipantId = participants.first { $0 != userId } ?? ""
                     let encryptionVersion = data["encryptionVersion"] as? String
                     let lastMessage = sanitizedConversationPreview(
                         data["lastMessage"] as? String,
                         encryptionVersion: encryptionVersion
                     )
-                    
+
                     // ✅ Intentar obtener datos del participantData (bidireccional)
                     let otherParticipantUsername: String
                     let otherParticipantProfileImagePath: String
-                    
+
                     if let participantData = data["participantData"] as? [String: [String: Any]],
                        let otherData = participantData[otherParticipantId] {
                         // ✅ Usar datos bidireccionales
@@ -1398,7 +1425,7 @@ class ChatService: ObservableObject {
                             otherParticipantProfileImagePath = data["otherParticipantProfileImagePath"] as? String ?? ""
                         }
                     }
-                    
+
                     // ✅ Extraer campos de pin y mute
                     let pinnedByUserIds = data["pinnedByUserIds"] as? [String] ?? []
                     let legacyPinnedBy = data["pinnedBy"] as? String
@@ -1408,7 +1435,7 @@ class ChatService: ObservableObject {
                     let legacyMutedBy = data["mutedBy"] as? String
                     let legacyIsMuted = data["isMuted"] as? Bool ?? false
                     let isMuted = mutedByUserIds.contains(userId) || (legacyIsMuted && legacyMutedBy == userId)
-                    
+
                     var conversation = Conversation(
                         id: doc.documentID,
                         participants: participants,
@@ -1436,9 +1463,30 @@ class ChatService: ObservableObject {
                     if let buzzPreferences = data["buzzPreferences"] as? [String: Bool] {
                         conversation.buzzPreferences = buzzPreferences
                     }
+                    // Hidratar lastDeletedAt desde Firestore
+                    if let rawMap = data["lastDeletedAt"] as? [String: Timestamp] {
+                        conversation.lastDeletedAt = rawMap.mapValues { $0.dateValue() }
+                    }
                     conversations.append(conversation)
                 }
-                
+
+                // Actualizar mapa de cutoffs en memoria (para filtrar mensajes)
+                for conversation in conversations {
+                    guard let convId = conversation.id else { continue }
+                    if let cutoff = conversation.deletedAtCutoff(for: userId) {
+                        self.conversationCutoffs[convId] = cutoff
+                    } else {
+                        self.conversationCutoffs.removeValue(forKey: convId)
+                    }
+                }
+
+                // Restaurar conversaciones auto-restauradas (sin batch para no acumular escrituras)
+                for ref in toRestore {
+                    ref.updateData([
+                        "deletedFor": FieldValue.arrayRemove([userId])
+                    ])
+                }
+
                 conversations.sort { $0.timestamp > $1.timestamp }
 
                 Task { [weak self] in
@@ -2014,6 +2062,7 @@ class ChatService: ObservableObject {
             hydrated.readReceiptPreferences = conversation.readReceiptPreferences
             hydrated.buzzPreferences = conversation.buzzPreferences
             hydrated.forwardingPreferences = conversation.forwardingPreferences
+            hydrated.lastDeletedAt = conversation.lastDeletedAt
             hydratedConversations.append(hydrated)
         }
 

@@ -84,7 +84,7 @@ struct GlassmorphicClusterRow: View {
     let onMessageViewed: ((String) -> Void)?
     let onMomentNavigation: ((EnhancedMessage) -> Void)?
     let onOpenCluster: ([EnhancedMessage]) -> Void
-    let onLongPress: (EnhancedMessage, CGRect) -> Void
+    let onLongPress: (EnhancedMessage, CGRect, CGFloat) -> Void
     let onHydrateMedia: ((EnhancedMessage) -> Void)?
     let onReply: ([EnhancedMessage]) -> Void
     let onReplyTap: ((String) -> Void)?
@@ -92,6 +92,8 @@ struct GlassmorphicClusterRow: View {
     let onReaction: (EnhancedMessage, String) -> Void
     let uploadProgress: [String: Double]
     let showSeenLabel: Bool
+    var isMenuSelected: Bool = false
+    var isBubbleFlashing: Bool = false
 
     @State private var dragOffset: CGFloat = 0
     @State private var hasTriggeredHaptic = false
@@ -135,7 +137,10 @@ struct GlassmorphicClusterRow: View {
                         onMomentNavigation: onMomentNavigation,
                         onOpenCluster: onOpenCluster,
                         onLongPress: onLongPress,
-                        onHydrateMedia: onHydrateMedia
+                        onHydrateMedia: onHydrateMedia,
+                        isMenuSelected: isMenuSelected,
+                        isBubbleFlashing: isBubbleFlashing,
+                        dragOffset: dragOffset
                     )
 
                     if let anchorMessage = messages.last {
@@ -236,11 +241,13 @@ struct MediaGridBubble: View {
     let onReaction: (EnhancedMessage, String) -> Void
     let onMomentNavigation: ((EnhancedMessage) -> Void)?
     let onOpenCluster: ([EnhancedMessage]) -> Void
-    let onLongPress: (EnhancedMessage, CGRect) -> Void
+    let onLongPress: (EnhancedMessage, CGRect, CGFloat) -> Void
     let onHydrateMedia: ((EnhancedMessage) -> Void)?
+    var isMenuSelected: Bool = false
+    var isBubbleFlashing: Bool = false
+    var dragOffset: CGFloat = 0
 
     @Environment(\.colorScheme) private var colorScheme
-    @Environment(\.chatMessageRowFrame) private var rowFrame
 
     private var frontMessage: EnhancedMessage { messages[0] }
 
@@ -253,27 +260,36 @@ struct MediaGridBubble: View {
         VStack(alignment: isCurrentUser ? .trailing : .leading, spacing: 6) {
             countLabel(count: count)
 
-            ZStack {
-                ForEach(Array(visible.enumerated()).reversed(), id: \.element.id) { index, message in
-                    photoCard(message: message, isFront: index == 0)
-                        .rotationEffect(.degrees(ClusterMediaLayout.rotations[index]))
-                        .offset(ClusterMediaLayout.offsets[index])
-                        .zIndex(Double(10 - index))
+            ChatMessageBubbleChrome(
+                isMenuSelected: isMenuSelected,
+                isOutgoing: isCurrentUser,
+                cornerRadius: ChatBubbleAnchorMetrics.clusterCornerRadius,
+                colorScheme: colorScheme,
+                isFlashing: isBubbleFlashing,
+                dragOffset: dragOffset,
+                onLongPress: { frame, radius in
+                    onLongPress(frontMessage, frame, radius)
                 }
-            }
-            .frame(width: ClusterMediaLayout.frontWidth, height: ClusterMediaLayout.frontHeight)
-            .padding(.top, topPad)
-            .padding(.horizontal, sidePad)
-            .padding(.bottom, ClusterMediaLayout.fanBottomPadding)
-            .contentShape(Rectangle())
-            .onAppear {
-                messages.forEach { onHydrateMedia?($0) }
-            }
-            .onTapGesture {
-                onOpenCluster(messages)
-            }
-            .chatMessageLongPress {
-                onLongPress(frontMessage, rowFrame)
+            ) {
+                ZStack {
+                    ForEach(Array(visible.enumerated()).reversed(), id: \.element.id) { index, message in
+                        photoCard(message: message, isFront: index == 0)
+                            .rotationEffect(.degrees(ClusterMediaLayout.rotations[index]))
+                            .offset(ClusterMediaLayout.offsets[index])
+                            .zIndex(Double(10 - index))
+                    }
+                }
+                .frame(width: ClusterMediaLayout.frontWidth, height: ClusterMediaLayout.frontHeight)
+                .padding(.top, topPad)
+                .padding(.horizontal, sidePad)
+                .padding(.bottom, ClusterMediaLayout.fanBottomPadding)
+                .contentShape(Rectangle())
+                .onAppear {
+                    messages.forEach { onHydrateMedia?($0) }
+                }
+                .onTapGesture {
+                    onOpenCluster(messages)
+                }
             }
         }
         .id(clusterReactionIdentity)

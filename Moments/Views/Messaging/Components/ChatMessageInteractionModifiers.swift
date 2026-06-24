@@ -38,8 +38,13 @@ extension View {
     }
 
     /// Long press tolerante a micro-movimientos (más fácil en clusters/media).
-    func chatMessageLongPress(onLongPress: @escaping () -> Void) -> some View {
-        onLongPressGesture(minimumDuration: 0.42, maximumDistance: 18) {
+    func chatMessageLongPress(
+        isPressing: Binding<Bool>? = nil,
+        onLongPress: @escaping () -> Void
+    ) -> some View {
+        onLongPressGesture(minimumDuration: 0.42, maximumDistance: 18, pressing: { pressing in
+            isPressing?.wrappedValue = pressing
+        }) {
             HapticManager.shared.heavyImpact()
             onLongPress()
         }

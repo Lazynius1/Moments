@@ -12,48 +12,46 @@ struct BestFriendsView: View {
     @FocusState private var isSearchFieldFocused: Bool
 
     var body: some View {
-        NavigationView {
-            ZStack {
-                (colorScheme == .dark ? Color(hex: "0B1215") : Color(hex: "FAF9F6"))
-                    .ignoresSafeArea()
+        ZStack {
+            (colorScheme == .dark ? Color(hex: "0B1215") : Color(hex: "FAF9F6"))
+                .ignoresSafeArea()
 
-                if viewModel.isLoading {
-                    ProgressView()
-                } else if hasAnyUsers == false {
-                    emptyStateView
-                } else {
-                    contentView
+            if viewModel.isLoading {
+                ProgressView()
+            } else if hasAnyUsers == false {
+                emptyStateView
+            } else {
+                contentView
+            }
+        }
+        .navigationTitle(NSLocalizedString("bestFriends.title", comment: "Best Friends"))
+        .navigationBarTitleDisplayMode(.inline)
+        .navigationBarBackButtonHidden(true)
+        .toolbar {
+            ToolbarItem(placement: .navigationBarLeading) {
+                Button(action: { dismiss() }) {
+                    Image(systemName: "chevron.left")
+                        .font(.system(size: 17, weight: .semibold))
+                        .foregroundColor(colorScheme == .dark ? .white : .black)
+                        .frame(width: 44, height: 44)
                 }
             }
-            .navigationTitle(NSLocalizedString("bestFriends.title", comment: "Best Friends"))
-            .navigationBarTitleDisplayMode(.inline)
-            .navigationBarBackButtonHidden(true)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button(action: { dismiss() }) {
-                        Image(systemName: "chevron.left")
-                            .font(.system(size: 17, weight: .semibold))
-                            .foregroundColor(colorScheme == .dark ? .white : .black)
-                            .frame(width: 44, height: 44)
-                    }
-                }
-            }
+        }
 
-            .onAppear {
-                viewModel.fetchBestFriends()
-                viewModel.fetchConnections()
-            }
-            .onChange(of: searchText) { _, _ in
-                visibleUserLimit = 30
-                viewModel.searchUsersGlobally(query: searchText)
-            }
-            .alert(isPresented: $viewModel.showError) {
-                Alert(
-                    title: Text("Error"),
-                    message: Text(viewModel.errorMessage ?? "Ocurrió un error desconocido"),
-                    dismissButton: .default(Text("OK"))
-                )
-            }
+        .onAppear {
+            viewModel.fetchBestFriends()
+            viewModel.fetchConnections()
+        }
+        .onChange(of: searchText) { _, _ in
+            visibleUserLimit = 30
+            viewModel.searchUsersGlobally(query: searchText)
+        }
+        .alert(isPresented: $viewModel.showError) {
+            Alert(
+                title: Text("Error"),
+                message: Text(viewModel.errorMessage ?? "Ocurrió un error desconocido"),
+                dismissButton: .default(Text("OK"))
+            )
         }
     }
 

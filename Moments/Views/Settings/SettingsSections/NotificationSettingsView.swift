@@ -13,8 +13,7 @@ struct NotificationSettingsView: View {
     @State private var scheduleErrorMessage: String = ""
 
     var body: some View {
-        NavigationView {
-            ZStack {
+        ZStack {
                 (colorScheme == .dark ? Color(hex: "0B1215") : Color(hex: "FAF9F6")).ignoresSafeArea()
 
                 ScrollView(showsIndicators: false) {
@@ -230,7 +229,6 @@ struct NotificationSettingsView: View {
                 Text(scheduleErrorMessage)
             }
             .settingsSwitchTint()
-        }
     }
 
     private func notificationToggleRow(title: String, isOn: Binding<Bool>) -> some View {

@@ -10,8 +10,7 @@ struct MuteSettingsView: View {
     @State private var showAddMutedWord = false
     
     var body: some View {
-        NavigationView {
-            ZStack {
+        ZStack {
             (colorScheme == .dark ? Color(hex: "0B1215") : Color(hex: "FAF9F6")).ignoresSafeArea()
             
             if isLoading {
@@ -196,7 +195,6 @@ struct MuteSettingsView: View {
         }
         .sheet(isPresented: $showAddMutedWord) {
             AddMutedWordView(viewModel: viewModel)
-        }
         }
     }
 }

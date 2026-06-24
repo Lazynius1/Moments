@@ -9,7 +9,7 @@ struct LoginActivityView: View {
     @State private var isLoading = true
     
     var body: some View {
-        NavigationView {
+        NavigationStack {
             ZStack {
                 (colorScheme == .dark ? Color(hex: "0B1215") : Color(hex: "FAF9F6")).ignoresSafeArea()
                 
@@ -86,13 +86,13 @@ struct LoginActivityView: View {
             }
             .navigationTitle(NSLocalizedString("loginActivity.navigation.title", comment: "Login activity navigation title"))
             .navigationBarTitleDisplayMode(.inline)
-            .navigationBarBackButtonHidden(true)
             .toolbarBackground(.hidden, for: .navigationBar)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
                     SettingsToolbarBackButton(action: { dismiss() })
                 }
             }
+        }
             .onAppear {
                 viewModel.loadLoginActivity {
                     isLoading = false
@@ -151,15 +151,10 @@ struct LoginActivityView: View {
                     }
                 }
             }
-        }
     }
     
     private var headerSection: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text("loginActivity.title")
-                .font(.custom("Poppins-SemiBold", size: 18))
-                .foregroundColor(colorScheme == .dark ? .white : .black)
-
             Text("loginActivity.description")
                 .font(.custom("Poppins-Regular", size: 13))
                 .foregroundColor(colorScheme == .dark ? .white.opacity(0.58) : .black.opacity(0.52))
