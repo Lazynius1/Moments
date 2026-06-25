@@ -261,7 +261,7 @@ private struct ConversationContextMenuRow: View {
                     .frame(width: 18, alignment: .center)
 
                 Text(title)
-                    .font(.custom("Poppins-SemiBold", size: 14.5))
+                    .font(.system(size: legacyPoppinsSize(14.5), weight: .semibold))
                     .foregroundColor(textColor)
                     .fixedSize(horizontal: false, vertical: true)
 

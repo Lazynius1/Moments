@@ -16,7 +16,7 @@ struct BlockedUsersView: View {
                 if viewModel.isLoading {
                     ProgressView(NSLocalizedString("common.searching", comment: "Searching"))
                         .progressViewStyle(CircularProgressViewStyle())
-                        .font(.custom("Poppins-Regular", size: 16))
+                        .font(.system(size: legacyPoppinsSize(16)))
                         .foregroundColor(.secondary)
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else if viewModel.blockedUsers.isEmpty {
@@ -25,7 +25,7 @@ struct BlockedUsersView: View {
                             .font(.system(size: 44, weight: .regular))
                             .foregroundColor(.secondary)
                         Text(NSLocalizedString("blockedUsers.empty", comment: "No blocked users"))
-                            .font(.custom("Poppins-Regular", size: 16))
+                            .font(.system(size: legacyPoppinsSize(16)))
                             .foregroundColor(.secondary)
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -34,7 +34,7 @@ struct BlockedUsersView: View {
                     ScrollView {
                         VStack(alignment: .leading, spacing: 12) {
                             Text(String(format: NSLocalizedString("settings.sections.blockedAccounts.subtitle", comment: "Blocked accounts count"), viewModel.blockedUsers.count))
-                                .font(.custom("Poppins-Medium", size: 14))
+                                .font(.system(size: legacyPoppinsSize(14), weight: .medium))
                                 .foregroundColor(.secondary)
                                 .padding(.horizontal, 16)
                                 .padding(.top, 8)
@@ -43,7 +43,7 @@ struct BlockedUsersView: View {
                                 ForEach(viewModel.blockedUsers, id: \.id) { user in
                                     HStack(spacing: 12) {
                                         Text(user.username)
-                                            .font(.custom("Poppins-Regular", size: 15))
+                                            .font(.system(size: legacyPoppinsSize(15)))
                                             .foregroundColor(.primary)
 
                                         Spacer()
@@ -52,7 +52,7 @@ struct BlockedUsersView: View {
                                             viewModel.unblockUser(userId: user.id)
                                         }) {
                                             Text(NSLocalizedString("blockedUsers.unblock", comment: "Unblock"))
-                                                .font(.custom("Poppins-Medium", size: 13))
+                                                .font(.system(size: legacyPoppinsSize(13), weight: .medium))
                                                 .foregroundColor(.primary)
                                                 .padding(.horizontal, 12)
                                                 .padding(.vertical, 8)

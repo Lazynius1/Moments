@@ -104,7 +104,7 @@ struct IncognitoGlobalOverlay: View {
                     .frame(width: 18, height: 18)
 
                 Text(service.formattedTime)
-                    .font(.custom("Poppins-SemiBold", size: 14))
+                    .font(.system(size: legacyPoppinsSize(14), weight: .semibold))
                     .monospacedDigit()
                     .foregroundStyle(pillTitleColor)
             }
@@ -133,7 +133,7 @@ struct IncognitoGlobalOverlay: View {
 
             VStack(alignment: .leading, spacing: 10) {
                 Text("incognito.liveHint.active")
-                    .font(.custom("Poppins-Regular", size: 13))
+                    .font(.system(size: legacyPoppinsSize(13)))
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.leading)
                     .fixedSize(horizontal: false, vertical: true)
@@ -152,7 +152,7 @@ struct IncognitoGlobalOverlay: View {
                         }
 
                         Text("incognito.cta.pause")
-                            .font(.custom("Poppins-SemiBold", size: 14))
+                            .font(.system(size: legacyPoppinsSize(14), weight: .semibold))
                     }
                     .foregroundStyle(pillTitleColor)
                     .frame(maxWidth: .infinity)

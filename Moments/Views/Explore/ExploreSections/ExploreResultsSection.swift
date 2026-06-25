@@ -59,11 +59,11 @@ struct SmartSearchResultsView: View {
         HStack {
             VStack(alignment: .leading, spacing: 4) {
                 Text(headerTitle)
-                    .font(.custom("Poppins-SemiBold", size: 20))
+                    .font(.system(size: legacyPoppinsSize(20), weight: .semibold))
                     .foregroundColor(.primary)
 
                 Text(headerSubtitle)
-                    .font(.custom("Poppins-Regular", size: 14))
+                    .font(.system(size: legacyPoppinsSize(14)))
                     .foregroundColor(.secondary)
             }
 
@@ -85,13 +85,13 @@ struct SmartSearchResultsView: View {
         VStack(alignment: .leading, spacing: 16) {
             HStack {
                 Text(String(format: NSLocalizedString("explore.search.moments", comment: "Search moments"), searchQuery))
-                    .font(.custom("Poppins-SemiBold", size: 18))
+                    .font(.system(size: legacyPoppinsSize(18), weight: .semibold))
                     .foregroundColor(.primary)
 
                 Spacer()
 
                 Text("\(moments.count)")
-                    .font(.custom("Poppins-Bold", size: 16))
+                    .font(.system(size: legacyPoppinsSize(16), weight: .bold))
                     .foregroundColor(Color(hex: "667eea"))
                     .padding(.horizontal, 12)
                     .padding(.vertical, 6)
@@ -129,13 +129,13 @@ struct SmartSearchResultsView: View {
         VStack(alignment: .leading, spacing: 16) {
             HStack {
                 Text("explore.search.results")
-                    .font(.custom("Poppins-SemiBold", size: 18))
+                    .font(.system(size: legacyPoppinsSize(18), weight: .semibold))
                     .foregroundColor(.primary)
 
                 Spacer()
 
                 Text("\(moments.count)")
-                    .font(.custom("Poppins-Bold", size: 16))
+                    .font(.system(size: legacyPoppinsSize(16), weight: .bold))
                     .foregroundColor(Color(hex: "667eea"))
                     .padding(.horizontal, 12)
                     .padding(.vertical, 6)
@@ -156,13 +156,13 @@ struct SmartSearchResultsView: View {
                 VStack(alignment: .leading, spacing: 12) {
                     HStack {
                         Text("explore.search.users")
-                            .font(.custom("Poppins-SemiBold", size: 18))
+                            .font(.system(size: legacyPoppinsSize(18), weight: .semibold))
                             .foregroundColor(.primary)
 
                         Spacer()
 
                         Text("\(users.count)")
-                            .font(.custom("Poppins-Medium", size: 14))
+                            .font(.system(size: legacyPoppinsSize(14), weight: .medium))
                             .foregroundColor(.secondary)
                     }
                     .padding(.horizontal, 24)
@@ -186,13 +186,13 @@ struct SmartSearchResultsView: View {
                 VStack(alignment: .leading, spacing: 12) {
                     HStack {
                         Text("explore.search.moments.tab")
-                            .font(.custom("Poppins-SemiBold", size: 18))
+                            .font(.system(size: legacyPoppinsSize(18), weight: .semibold))
                             .foregroundColor(.primary)
 
                         Spacer()
 
                         Text("\(moments.count)")
-                            .font(.custom("Poppins-Medium", size: 14))
+                            .font(.system(size: legacyPoppinsSize(14), weight: .medium))
                             .foregroundColor(.secondary)
                     }
                     .padding(.horizontal, 24)
@@ -285,7 +285,7 @@ struct MiniUserCard: View {
 
                 HStack(spacing: 2) {
                     Text("@\(user.username)")
-                        .font(.custom("Poppins-SemiBold", size: 12))
+                        .font(.system(size: legacyPoppinsSize(12), weight: .semibold))
                         .foregroundColor(.primary)
                         .lineLimit(1)
 
@@ -309,7 +309,7 @@ struct RecentSearchesView: View {
         VStack(alignment: .leading, spacing: 16) {
             HStack {
                 Text(NSLocalizedString("explore.recentSearches.title", comment: ""))
-                    .font(.custom("Poppins-Bold", size: 28))
+                    .font(.system(size: legacyPoppinsSize(28), weight: .bold))
                     .foregroundColor(.primary)
 
                 Spacer()
@@ -317,7 +317,7 @@ struct RecentSearchesView: View {
                 if !searches.isEmpty {
                     Button(action: onClearAll) {
                         Text(NSLocalizedString("explore.recentSearches.clearAll", comment: ""))
-                            .font(.custom("Poppins-Bold", size: 14))
+                            .font(.system(size: legacyPoppinsSize(14), weight: .bold))
                             .foregroundColor(.primary)
                     }
                 }
@@ -331,7 +331,7 @@ struct RecentSearchesView: View {
                         .foregroundColor(.secondary.opacity(0.5))
 
                     Text(NSLocalizedString("explore.recentSearches.empty", comment: ""))
-                        .font(.custom("Poppins-Regular", size: 14))
+                        .font(.system(size: legacyPoppinsSize(14)))
                         .foregroundColor(.secondary)
                 }
                 .frame(maxWidth: .infinity)
@@ -350,11 +350,11 @@ struct RecentSearchesView: View {
 
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text(search.query)
-                                        .font(.custom("Poppins-Medium", size: 16))
+                                        .font(.system(size: legacyPoppinsSize(16), weight: .medium))
                                         .foregroundColor(.primary)
 
                                     Text(searchTypeLabel(for: search.type))
-                                        .font(.custom("Poppins-Regular", size: 12))
+                                        .font(.system(size: legacyPoppinsSize(12)))
                                         .foregroundColor(.secondary)
                                 }
 

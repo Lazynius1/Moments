@@ -226,13 +226,13 @@ struct ProfileGridHeroCard: View {
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(moment.username)
-                    .font(.custom("Poppins-SemiBold", size: 13))
+                    .font(.system(size: legacyPoppinsSize(13), weight: .semibold))
                     .foregroundColor(primaryTextColor)
                     .lineLimit(1)
 
                 if let locationText {
                     Text(locationText)
-                        .font(.custom("Poppins-Regular", size: 11))
+                        .font(.system(size: legacyPoppinsSize(11)))
                         .foregroundColor(secondaryTextColor)
                         .lineLimit(1)
                 }
@@ -318,7 +318,7 @@ struct ProfileGridHeroCard: View {
         ZStack {
             Color.black.opacity(0.06)
             Text(moment.content)
-                .font(.custom("Poppins-Regular", size: 14))
+                .font(.system(size: legacyPoppinsSize(14)))
                 .foregroundColor(secondaryTextColor)
                 .multilineTextAlignment(.center)
                 .padding(20)

@@ -124,7 +124,7 @@ struct ConversationSettingsView: View {
             Spacer()
 
             Text("conversationSettings.title")
-                .font(.custom("Poppins-SemiBold", size: 22))
+                .font(.system(size: legacyPoppinsSize(22), weight: .semibold))
                 .foregroundColor(adaptiveColors.primary)
 
             Spacer()
@@ -160,7 +160,7 @@ struct ConversationSettingsView: View {
             }
 
             Text(otherParticipantDisplayName)
-                .font(.custom("Poppins-Bold", size: 24))
+                .font(.system(size: legacyPoppinsSize(24), weight: .bold))
                 .foregroundColor(adaptiveColors.primary)
 
             if let presence = onlineStatusService.presenceDisplay(
@@ -173,12 +173,12 @@ struct ConversationSettingsView: View {
                         .frame(width: 8, height: 8)
 
                     Text(presence.statusText)
-                        .font(.custom("Poppins-Medium", size: 14))
+                        .font(.system(size: legacyPoppinsSize(14), weight: .medium))
                         .foregroundColor(adaptiveColors.secondary)
 
                     if let lastSeenText = presence.supplementalText {
                         Text("• \(lastSeenText)")
-                            .font(.custom("Poppins-Regular", size: 13))
+                            .font(.system(size: legacyPoppinsSize(13)))
                             .foregroundColor(adaptiveColors.tertiary)
                     }
                 }
@@ -212,7 +212,7 @@ struct ConversationSettingsView: View {
         VStack(alignment: .leading, spacing: 16) {
             HStack {
                 Text(NSLocalizedString("conversationSettings.conversationInfo", comment: ""))
-                    .font(.custom("Poppins-SemiBold", size: 16))
+                    .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
                     .foregroundColor(adaptiveColors.primary)
             }
 
@@ -256,7 +256,7 @@ struct ConversationSettingsView: View {
         VStack(alignment: .leading, spacing: 16) {
             HStack {
                 Text(NSLocalizedString("conversationSettings.sharedMedia", comment: ""))
-                    .font(.custom("Poppins-SemiBold", size: 16))
+                    .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
                     .foregroundColor(adaptiveColors.primary)
 
                 Spacer()
@@ -267,7 +267,7 @@ struct ConversationSettingsView: View {
                         viewModel.showAllMedia = true
                     }) {
                         Text(NSLocalizedString("common.viewAll", comment: "View all"))
-                            .font(.custom("Poppins-Medium", size: 13))
+                            .font(.system(size: legacyPoppinsSize(13), weight: .medium))
                             .foregroundColor(adaptiveColors.primary)
                             .padding(.horizontal, 12)
                             .padding(.vertical, 6)
@@ -284,7 +284,7 @@ struct ConversationSettingsView: View {
                             .font(.system(size: 30))
                             .foregroundColor(adaptiveColors.tertiary)
                         Text(NSLocalizedString("conversationSettings.noSharedMedia", comment: ""))
-                            .font(.custom("Poppins-Regular", size: 14))
+                            .font(.system(size: legacyPoppinsSize(14)))
                             .foregroundColor(adaptiveColors.tertiary)
                     }
                     .padding(.vertical, 20)
@@ -320,13 +320,13 @@ struct ConversationSettingsView: View {
                         .foregroundColor(Color(hex: "FFD60A"))
 
                     Text(NSLocalizedString("conversationSettings.starredMessages", comment: ""))
-                        .font(.custom("Poppins-Medium", size: 15))
+                        .font(.system(size: legacyPoppinsSize(15), weight: .medium))
                         .foregroundColor(adaptiveColors.primary)
 
                     Spacer()
 
                     Text(starredMessagesCountLabel)
-                        .font(.custom("Poppins-Regular", size: 14))
+                        .font(.system(size: legacyPoppinsSize(14)))
                         .foregroundColor(adaptiveColors.tertiary)
 
                     Image(systemName: "chevron.right")
@@ -356,7 +356,7 @@ struct ConversationSettingsView: View {
         VStack(alignment: .leading, spacing: 16) {
             HStack {
                 Text(NSLocalizedString("conversationSettings.privacy", comment: ""))
-                    .font(.custom("Poppins-SemiBold", size: 16))
+                    .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
                     .foregroundColor(adaptiveColors.primary)
             }
 
@@ -364,10 +364,10 @@ struct ConversationSettingsView: View {
                 Toggle(isOn: $viewModel.notificationsEnabled) {
                     VStack(alignment: .leading, spacing: 2) {
                         Text(NSLocalizedString("conversationSettings.notifications", comment: "Notifications"))
-                            .font(.custom("Poppins-Medium", size: 15))
+                            .font(.system(size: legacyPoppinsSize(15), weight: .medium))
                             .foregroundColor(adaptiveColors.primary)
                         Text(NSLocalizedString("conversationSettings.notifications.desc", comment: "Receive alerts for new messages"))
-                            .font(.custom("Poppins-Regular", size: 12))
+                            .font(.system(size: legacyPoppinsSize(12)))
                             .foregroundColor(adaptiveColors.tertiary)
                     }
                 }
@@ -382,10 +382,10 @@ struct ConversationSettingsView: View {
                 Toggle(isOn: $viewModel.messagePreviewEnabled) {
                     VStack(alignment: .leading, spacing: 2) {
                         Text(NSLocalizedString("conversationSettings.privacy.messagePreview.title", comment: "Show message preview"))
-                            .font(.custom("Poppins-Medium", size: 15))
+                            .font(.system(size: legacyPoppinsSize(15), weight: .medium))
                             .foregroundColor(adaptiveColors.primary)
                         Text(NSLocalizedString("conversationSettings.privacy.messagePreview.description", comment: "Show message text in notifications and the conversation list"))
-                            .font(.custom("Poppins-Regular", size: 12))
+                            .font(.system(size: legacyPoppinsSize(12)))
                             .foregroundColor(adaptiveColors.tertiary)
                     }
                 }
@@ -400,10 +400,10 @@ struct ConversationSettingsView: View {
                 Toggle(isOn: $viewModel.buzzEnabled) {
                     VStack(alignment: .leading, spacing: 2) {
                         Text(NSLocalizedString("conversationSettings.privacy.buzz.title", comment: "Buzz notifications"))
-                            .font(.custom("Poppins-Medium", size: 15))
+                            .font(.system(size: legacyPoppinsSize(15), weight: .medium))
                             .foregroundColor(adaptiveColors.primary)
                         Text(NSLocalizedString("conversationSettings.privacy.buzz.description", comment: "Receive buzz alerts in this chat"))
-                            .font(.custom("Poppins-Regular", size: 12))
+                            .font(.system(size: legacyPoppinsSize(12)))
                             .foregroundColor(adaptiveColors.tertiary)
                     }
                 }
@@ -418,10 +418,10 @@ struct ConversationSettingsView: View {
                 Toggle(isOn: $viewModel.readReceiptsEnabled) {
                     VStack(alignment: .leading, spacing: 2) {
                         Text(NSLocalizedString("conversationSettings.privacy.readReceipts.title", comment: ""))
-                            .font(.custom("Poppins-Medium", size: 15))
+                            .font(.system(size: legacyPoppinsSize(15), weight: .medium))
                             .foregroundColor(adaptiveColors.primary)
                         Text(NSLocalizedString("conversationSettings.privacy.readReceipts.description", comment: ""))
-                            .font(.custom("Poppins-Regular", size: 12))
+                            .font(.system(size: legacyPoppinsSize(12)))
                             .foregroundColor(adaptiveColors.tertiary)
                     }
                 }
@@ -436,10 +436,10 @@ struct ConversationSettingsView: View {
                 Toggle(isOn: $viewModel.forwardingEnabled) {
                     VStack(alignment: .leading, spacing: 2) {
                         Text(NSLocalizedString("conversationSettings.privacy.forwarding.title", comment: ""))
-                            .font(.custom("Poppins-Medium", size: 15))
+                            .font(.system(size: legacyPoppinsSize(15), weight: .medium))
                             .foregroundColor(adaptiveColors.primary)
                         Text(NSLocalizedString("conversationSettings.privacy.forwarding.description", comment: ""))
-                            .font(.custom("Poppins-Regular", size: 12))
+                            .font(.system(size: legacyPoppinsSize(12)))
                             .foregroundColor(adaptiveColors.tertiary)
                     }
                 }
@@ -454,10 +454,10 @@ struct ConversationSettingsView: View {
                 Toggle(isOn: $viewModel.typingIndicatorEnabled) {
                     VStack(alignment: .leading, spacing: 2) {
                         Text(NSLocalizedString("conversationSettings.typingIndicator", comment: "Typing indicator"))
-                            .font(.custom("Poppins-Medium", size: 15))
+                            .font(.system(size: legacyPoppinsSize(15), weight: .medium))
                             .foregroundColor(adaptiveColors.primary)
                         Text(NSLocalizedString("conversationSettings.typingIndicator.desc", comment: "Show when you are typing"))
-                            .font(.custom("Poppins-Regular", size: 12))
+                            .font(.system(size: legacyPoppinsSize(12)))
                             .foregroundColor(adaptiveColors.tertiary)
                     }
                 }
@@ -484,7 +484,7 @@ struct ConversationSettingsView: View {
                         .foregroundColor(.red)
 
                     Text(NSLocalizedString("conversationSettings.clearConversation", comment: "Clear conversation"))
-                        .font(.custom("Poppins-Medium", size: 16))
+                        .font(.system(size: legacyPoppinsSize(16), weight: .medium))
                         .foregroundColor(.red)
 
                     Spacer()
@@ -502,7 +502,7 @@ struct ConversationSettingsView: View {
                         .foregroundColor(.red)
 
                     Text(NSLocalizedString("conversationSettings.blockUser", comment: "Block user"))
-                        .font(.custom("Poppins-Medium", size: 16))
+                        .font(.system(size: legacyPoppinsSize(16), weight: .medium))
                         .foregroundColor(.red)
 
                     Spacer()
@@ -550,13 +550,13 @@ struct ChatInfoRow: View {
                 .foregroundColor(adaptiveColors.secondary)
 
             Text(title)
-                .font(.custom("Poppins-Regular", size: 14))
+                .font(.system(size: legacyPoppinsSize(14)))
                 .foregroundColor(adaptiveColors.secondary)
 
             Spacer()
 
             Text(value)
-                .font(.custom("Poppins-SemiBold", size: 14))
+                .font(.system(size: legacyPoppinsSize(14), weight: .semibold))
                 .foregroundColor(adaptiveColors.primary)
         }
     }
@@ -1036,7 +1036,7 @@ struct ConversationStarredMessagesView: View {
                 Spacer()
 
                 Text(NSLocalizedString("conversationSettings.starredMessages", comment: ""))
-                    .font(.custom("Poppins-SemiBold", size: 22))
+                    .font(.system(size: legacyPoppinsSize(22), weight: .semibold))
                     .foregroundColor(adaptiveColors.primary)
 
                 Spacer()
@@ -1054,7 +1054,7 @@ struct ConversationStarredMessagesView: View {
                         .font(.system(size: 36))
                         .foregroundColor(adaptiveColors.tertiary)
                     Text(NSLocalizedString("conversationSettings.starredMessages.empty", comment: ""))
-                        .font(.custom("Poppins-Regular", size: 15))
+                        .font(.system(size: legacyPoppinsSize(15)))
                         .foregroundColor(adaptiveColors.tertiary)
                         .multilineTextAlignment(.center)
                         .padding(.horizontal, 32)
@@ -1124,16 +1124,16 @@ private struct StarredMessageRow: View {
                 VStack(alignment: .leading, spacing: 4) {
                     HStack {
                         Text(senderLabel)
-                            .font(.custom("Poppins-SemiBold", size: 14))
+                            .font(.system(size: legacyPoppinsSize(14), weight: .semibold))
                             .foregroundColor(adaptiveColors.primary)
                         Spacer()
                         Text(relativeDate)
-                            .font(.custom("Poppins-Regular", size: 12))
+                            .font(.system(size: legacyPoppinsSize(12)))
                             .foregroundColor(adaptiveColors.tertiary)
                     }
 
                     Text(previewText)
-                        .font(.custom("Poppins-Regular", size: 14))
+                        .font(.system(size: legacyPoppinsSize(14)))
                         .foregroundColor(adaptiveColors.secondary)
                         .lineLimit(2)
                         .multilineTextAlignment(.leading)
@@ -1249,7 +1249,7 @@ struct AllSharedMediaView: View {
                     Spacer()
 
                     Text(NSLocalizedString("conversationSettings.sharedMedia", comment: ""))
-                        .font(.custom("Poppins-SemiBold", size: 22))
+                        .font(.system(size: legacyPoppinsSize(22), weight: .semibold))
                         .foregroundColor(adaptiveColors.primary)
 
                     Spacer()
@@ -1665,7 +1665,7 @@ struct FullScreenMediaView: View {
     private var replyComposer: some View {
         HStack(spacing: 10) {
             TextField(NSLocalizedString("conversationSettings.replyPlaceholder", comment: "Reply placeholder"), text: $replyText)
-                .font(.custom("Poppins-Regular", size: 15))
+                .font(.system(size: legacyPoppinsSize(15)))
                 .foregroundColor(primaryOverlayColor)
                 .focused($isReplyFocused)
                 .submitLabel(.send)

@@ -79,7 +79,7 @@ struct LocationBottomSheet: View {
                     }
 
                     Text(locationName)
-                        .font(.custom("Poppins-Bold", size: 18))
+                        .font(.system(size: legacyPoppinsSize(18), weight: .bold))
                         .foregroundColor(adaptiveColors.primary)
                         .lineLimit(1)
 
@@ -92,7 +92,7 @@ struct LocationBottomSheet: View {
 
                 HStack(spacing: 10) {
                     Text(statsText)
-                        .font(.custom("Poppins-Regular", size: 13))
+                        .font(.system(size: legacyPoppinsSize(13)))
                         .foregroundColor(adaptiveColors.secondary)
                         .lineLimit(1)
 
@@ -190,7 +190,7 @@ struct LocationBottomSheet: View {
 
             if uniqueContributors.count > 3 {
                 Text("+\(uniqueContributors.count - 3)")
-                    .font(.custom("Poppins-SemiBold", size: 11))
+                    .font(.system(size: legacyPoppinsSize(11), weight: .semibold))
                     .foregroundColor(adaptiveColors.primary)
                     .frame(width: 30, height: 30)
                     .background(
@@ -298,11 +298,11 @@ struct LocationBottomSheet: View {
 
             VStack(spacing: 8) {
                 Text(NSLocalizedString("maps.bottomSheet.loading.moments", comment: "Loading moments message"))
-                    .font(.custom("Poppins-SemiBold", size: 16))
+                    .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
                     .foregroundColor(adaptiveColors.primary)
 
                 Text(NSLocalizedString("maps.bottomSheet.loading.filtering", comment: "Filtering by privacy message"))
-                    .font(.custom("Poppins-Regular", size: 14))
+                    .font(.system(size: legacyPoppinsSize(14)))
                     .foregroundColor(adaptiveColors.secondary)
             }
         }
@@ -342,11 +342,11 @@ struct LocationBottomSheet: View {
 
             VStack(spacing: 12) {
                 Text(NSLocalizedString("maps.bottomSheet.empty.title", comment: "No moments in this location"))
-                    .font(.custom("Poppins-SemiBold", size: 18))
+                    .font(.system(size: legacyPoppinsSize(18), weight: .semibold))
                     .foregroundColor(adaptiveColors.primary)
 
                 Text(NSLocalizedString("maps.bottomSheet.empty.subtitle", comment: "Be the first to share a moment here"))
-                    .font(.custom("Poppins-Regular", size: 14))
+                    .font(.system(size: legacyPoppinsSize(14)))
                     .foregroundColor(adaptiveColors.secondary)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 20)
@@ -487,7 +487,7 @@ struct MapsVideoThumbnailView: View {
                     HStack {
                         Spacer()
                         Text(formatVideoDuration(duration))
-                            .font(.custom("Poppins-Medium", size: 10))
+                            .font(.system(size: legacyPoppinsSize(10), weight: .medium))
                             .foregroundColor(.white)
                             .padding(.horizontal, 6)
                             .padding(.vertical, 2)
@@ -551,12 +551,12 @@ struct ModernLocationMomentRow: View {
 
                         VStack(alignment: .leading, spacing: 0) {
                             LiveUsernameText(userId: moment.authorId, fallbackUsername: moment.username, prefix: "@")
-                                .font(.custom("Poppins-SemiBold", size: 13))
+                                .font(.system(size: legacyPoppinsSize(13), weight: .semibold))
                                 .foregroundColor(.white)
                                 .shadow(radius: 2)
 
                             Text(formatTimeAgo(moment.timestamp))
-                                .font(.custom("Poppins-Regular", size: 10))
+                                .font(.system(size: legacyPoppinsSize(10)))
                                 .foregroundColor(.white.opacity(0.8))
                                 .shadow(radius: 1)
                         }
@@ -571,7 +571,7 @@ struct ModernLocationMomentRow: View {
                 // Texto si existe
                 if !moment.content.isEmpty {
                     Text(moment.content)
-                        .font(.custom("Poppins-Regular", size: 13))
+                        .font(.system(size: legacyPoppinsSize(13)))
                         .foregroundColor(adaptiveColors.primary.opacity(0.9))
                         .lineLimit(2)
                         .padding(.horizontal, 12)

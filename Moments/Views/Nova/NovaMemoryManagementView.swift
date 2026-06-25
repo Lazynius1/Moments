@@ -69,11 +69,11 @@ struct NovaMemoryManagementView: View {
         ZStack {
             VStack(spacing: 4) {
                 Text(NSLocalizedString("nova.memory.title", comment: "Nova's Memory"))
-                    .font(.custom("Poppins-Bold", size: 22))
+                    .font(.system(size: legacyPoppinsSize(22), weight: .bold))
                     .foregroundColor(NovaColors.textPrimary)
 
                 Text(NSLocalizedString("nova.memory.description", comment: "Manage what Nova knows about you"))
-                    .font(.custom("Poppins-Regular", size: 13))
+                    .font(.system(size: legacyPoppinsSize(13)))
                     .foregroundColor(NovaColors.textSecondary)
                     .multilineTextAlignment(.center)
             }
@@ -105,7 +105,7 @@ struct NovaMemoryManagementView: View {
                 .tint(NovaColors.textPrimary)
 
             Text(NSLocalizedString("settings.loading", comment: "Loading..."))
-                .font(.custom("Poppins-Medium", size: 14))
+                .font(.system(size: legacyPoppinsSize(14), weight: .medium))
                 .foregroundColor(NovaColors.textSecondary)
         }
     }
@@ -123,12 +123,12 @@ struct NovaMemoryManagementView: View {
 
             VStack(spacing: 8) {
                 Text(NSLocalizedString("nova.memory.empty", comment: "Nova doesn't remember anything yet"))
-                    .font(.custom("Poppins-SemiBold", size: 18))
+                    .font(.system(size: legacyPoppinsSize(18), weight: .semibold))
                     .foregroundColor(NovaColors.textPrimary)
                     .multilineTextAlignment(.center)
 
                 Text(NSLocalizedString("nova.memory.empty.subtitle", comment: "Talk to Nova to start building memory"))
-                    .font(.custom("Poppins-Regular", size: 14))
+                    .font(.system(size: legacyPoppinsSize(14)))
                     .foregroundColor(NovaColors.textSecondary)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 34)
@@ -175,7 +175,7 @@ struct NovaMemoryManagementView: View {
                     .font(.system(size: 14, weight: .semibold))
 
                 Text(NSLocalizedString("nova.memory.clearAll", comment: "Clear all memory"))
-                    .font(.custom("Poppins-Medium", size: 15))
+                    .font(.system(size: legacyPoppinsSize(15), weight: .medium))
             }
             .foregroundColor(.red)
             .frame(maxWidth: .infinity)
@@ -225,11 +225,11 @@ private struct MemoryCategorySection: View {
 
                 VStack(alignment: .leading, spacing: 1) {
                     Text(title)
-                        .font(.custom("Poppins-SemiBold", size: 15))
+                        .font(.system(size: legacyPoppinsSize(15), weight: .semibold))
                         .foregroundColor(NovaColors.textPrimary)
 
                     Text("\(facts.count) \(facts.count == 1 ? localizedSingularItem : localizedPluralItem)")
-                        .font(.custom("Poppins-Regular", size: 12))
+                        .font(.system(size: legacyPoppinsSize(12)))
                         .foregroundColor(NovaColors.textSecondary)
                 }
 
@@ -285,7 +285,7 @@ private struct MemoryFactRow: View {
         HStack(alignment: .center, spacing: 12) {
             VStack(alignment: .leading, spacing: 5) {
                 Text(fact.content)
-                    .font(.custom("Poppins-Regular", size: 15))
+                    .font(.system(size: legacyPoppinsSize(15)))
                     .foregroundColor(NovaColors.textPrimary)
                     .lineLimit(3)
                     .fixedSize(horizontal: false, vertical: true)
@@ -298,7 +298,7 @@ private struct MemoryFactRow: View {
                     }
 
                     Text(fact.timestamp.timeAgoDisplay())
-                        .font(.custom("Poppins-Regular", size: 11))
+                        .font(.system(size: legacyPoppinsSize(11)))
                         .foregroundColor(NovaColors.textTertiary)
                 }
             }

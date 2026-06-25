@@ -17,15 +17,24 @@ struct NotificationLeadingAvatarView: View {
 
     var body: some View {
         Group {
-            if senderIds.count > 1,
-               let frontId = senderIds.first,
-               let backId = senderIds.dropFirst().first {
+             if senderIds.count > 1,
+                let frontId = senderIds.first,
+                let backId = senderIds.dropFirst().first {
                 HStack(spacing: -NotificationRowMetrics.stackedOverlap) {
-                    avatarCircle(userId: backId)
+                    AsyncProfileImageView(userId: backId)
+                        .frame(width: NotificationRowMetrics.stackedAvatarSize, height: NotificationRowMetrics.stackedAvatarSize)
+                        .clipShape(Circle())
                         .zIndex(0)
+                        .reversedMask(alignment: .center) {
+                            Circle()
+                                .frame(width: NotificationRowMetrics.stackedAvatarSize + 3, height: NotificationRowMetrics.stackedAvatarSize + 3)
+                                .offset(x: NotificationRowMetrics.stackedAvatarSize - NotificationRowMetrics.stackedOverlap)
+                        }
                         .onTapGesture { onSecondaryTap?() }
 
-                    avatarCircle(userId: frontId)
+                    AsyncProfileImageView(userId: frontId)
+                        .frame(width: NotificationRowMetrics.stackedAvatarSize, height: NotificationRowMetrics.stackedAvatarSize)
+                        .clipShape(Circle())
                         .zIndex(1)
                         .onTapGesture { onPrimaryTap() }
                 }

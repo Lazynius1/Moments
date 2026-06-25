@@ -807,7 +807,7 @@ struct StoryViewerScreen: View {
                         HStack(spacing: 4) {
                             Text(story.username)
                                 .foregroundColor(.white)
-                                .font(.custom("Poppins-SemiBold", size: 14))
+                                .font(.system(size: legacyPoppinsSize(14), weight: .semibold))
                                 .lineLimit(1)
                                 .shadow(color: Color.black.opacity(0.60), radius: 5, x: 0, y: 2)
 
@@ -820,7 +820,7 @@ struct StoryViewerScreen: View {
 
                         Text(timeAgoString(from: story.timestamp))
                             .foregroundColor(.white.opacity(0.7))
-                            .font(.custom("Poppins-Regular", size: 11))
+                            .font(.system(size: legacyPoppinsSize(11)))
                             .shadow(color: Color.black.opacity(0.55), radius: 4, x: 0, y: 2)
                     }
                 }
@@ -896,7 +896,7 @@ struct StoryViewerScreen: View {
 
                 Text(String(format: NSLocalizedString("storyChains.part", comment: "Part"), chainPosition, chainTitle))
                     .foregroundColor(chainPanelSecondary)
-                    .font(.custom("Poppins-Medium", size: 12))
+                    .font(.system(size: legacyPoppinsSize(12), weight: .medium))
                     .lineLimit(1)
             }
 
@@ -914,7 +914,7 @@ struct StoryViewerScreen: View {
                         Image(systemName: "list.bullet")
                             .font(.system(size: 13, weight: .semibold))
                         Text(NSLocalizedString("storyChains.viewChain", comment: "View Chain"))
-                            .font(.custom("Poppins-Medium", size: 13))
+                            .font(.system(size: legacyPoppinsSize(13), weight: .medium))
                             .lineLimit(1)
                     }
                     .foregroundColor(chainPanelPrimary)
@@ -935,7 +935,7 @@ struct StoryViewerScreen: View {
                             Image(systemName: "plus.circle.fill")
                                 .font(.system(size: 13, weight: .semibold))
                             Text(NSLocalizedString("storyChains.continueStory", comment: "Continue Story"))
-                                .font(.custom("Poppins-Medium", size: 13))
+                                .font(.system(size: legacyPoppinsSize(13), weight: .medium))
                                 .lineLimit(1)
                         }
                         .foregroundColor(chainPanelPrimary)
@@ -958,7 +958,7 @@ struct StoryViewerScreen: View {
                             Image(systemName: "chevron.left")
                                 .font(.system(size: 13, weight: .semibold))
                             Text(NSLocalizedString("storyChains.previousPart", comment: "Previous part"))
-                                .font(.custom("Poppins-Medium", size: 13))
+                                .font(.system(size: legacyPoppinsSize(13), weight: .medium))
                                 .lineLimit(1)
                         }
                         .foregroundColor(chainPanelPrimary.opacity(currentChainIndex > 0 ? 1 : 0.45))
@@ -976,7 +976,7 @@ struct StoryViewerScreen: View {
                     }) {
                         HStack(spacing: 6) {
                             Text(NSLocalizedString("storyChains.nextPart", comment: "Next part"))
-                                .font(.custom("Poppins-Medium", size: 13))
+                                .font(.system(size: legacyPoppinsSize(13), weight: .medium))
                                 .lineLimit(1)
                             Image(systemName: "chevron.right")
                                 .font(.system(size: 13, weight: .semibold))
@@ -1100,7 +1100,7 @@ struct StoryViewerScreen: View {
                                 if authorAllowsMessages {
                                     TextField(storyMessagePlaceholder, text: $messageText, axis: .vertical)
                                         .foregroundColor(storyViewerChromeColors.messageTextColor)
-                                        .font(.custom("Poppins-Regular", size: 14))
+                                        .font(.system(size: legacyPoppinsSize(14)))
                                         .padding(.leading, 4)
                                         .lineLimit(1...3)
                                         .focused($isTextFieldFocused)
@@ -1125,7 +1125,7 @@ struct StoryViewerScreen: View {
 
                                         Text(storyRepliesDisabledPlaceholder)
                                             .foregroundColor(storyViewerChromeColors.replyBarSecondaryText)
-                                            .font(.custom("Poppins-Regular", size: 14))
+                                            .font(.system(size: legacyPoppinsSize(14)))
                                             .lineLimit(2)
                                     }
                                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -1361,7 +1361,7 @@ struct StoryViewerScreen: View {
                                     .foregroundColor(.white.opacity(0.6))
                                 Text("stories.contentUnavailable")
                                     .foregroundColor(.white.opacity(0.8))
-                                    .font(.custom("Poppins-Medium", size: 16))
+                                    .font(.system(size: legacyPoppinsSize(16), weight: .medium))
                             }
                         }
                         .frame(width: canvasRect.width, height: canvasRect.height)

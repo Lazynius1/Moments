@@ -156,7 +156,7 @@ struct ModernLoadingMoreView: View {
                 )
 
             Text("feed.loadingMore")
-                .font(.custom("Poppins-Regular", size: 14))
+                .font(.system(size: legacyPoppinsSize(14)))
                 .foregroundColor(adaptiveColors.secondary)
         }
         .padding(.horizontal, 20)
@@ -589,7 +589,7 @@ struct ModernPostCardView: View {
                     HStack(spacing: 4) {
                         Button(action: openAuthorProfile) {
                             Text(displayAuthorUsername)
-                                .font(.custom("Poppins-SemiBold", size: 15))
+                                .font(.system(size: legacyPoppinsSize(15), weight: .semibold))
                                 .foregroundColor(adaptiveColors.primary)
                         }
                         .buttonStyle(PlainButtonStyle())
@@ -605,7 +605,7 @@ struct ModernPostCardView: View {
                     }
 
                     Text(moment.timestamp.timeAgoDisplay())
-                        .font(.custom("Poppins-Regular", size: 11))
+                        .font(.system(size: legacyPoppinsSize(11)))
                         .foregroundColor(adaptiveColors.tertiary)
                 }
 
@@ -624,7 +624,7 @@ struct ModernPostCardView: View {
                                 .foregroundColor(adaptiveColors.accent)
 
                             Text(location)
-                                .font(.custom("Poppins-Regular", size: 13))
+                                .font(.system(size: legacyPoppinsSize(13)))
                                 .foregroundColor(adaptiveColors.secondary)
                                 .lineLimit(1)
                         }
@@ -1335,11 +1335,11 @@ private struct ModeratedMediaItemView: View {
                     .foregroundColor(.white.opacity(0.92))
 
                 Text(NSLocalizedString("mediaModeration.hidden.title", comment: "Hidden content title"))
-                    .font(.custom("Poppins-SemiBold", size: 16))
+                    .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
                     .foregroundColor(.white)
 
                 Text(NSLocalizedString("mediaModeration.hidden.subtitle", comment: "Hidden content subtitle"))
-                    .font(.custom("Poppins-Medium", size: 12))
+                    .font(.system(size: legacyPoppinsSize(12), weight: .medium))
                     .foregroundColor(.white.opacity(0.78))
             }
             .multilineTextAlignment(.center)
@@ -1706,8 +1706,8 @@ struct ExpandableContentView: View {
         VStack(alignment: .leading, spacing: 8) {
             MomentHashtagText(
                 content: isExpanded ? content : String(content.prefix(maxCharacters)) + (content.count > maxCharacters ? "..." : ""),
-                textFont: .custom("Poppins-Regular", size: 14),
-                hashtagFont: .custom("Poppins-SemiBold", size: 14),
+                textFont: .system(size: 14),
+                hashtagFont: .system(size: 14, weight: .semibold),
                 baseColor: .white,
                 mentionColor: Color(hex: "007AFF"),
                 textAlignment: .leading,
@@ -1727,7 +1727,7 @@ struct ExpandableContentView: View {
                 }) {
                     HStack(spacing: 4) {
                         Text(isExpanded ? "feed.seeLess" : "feed.seeMore")
-                            .font(.custom("Poppins-SemiBold", size: 12))
+                            .font(.system(size: legacyPoppinsSize(12), weight: .semibold))
                             .foregroundColor(.white)
 
                         Image(systemName: isExpanded ? "chevron.up" : "chevron.down")

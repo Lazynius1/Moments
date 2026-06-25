@@ -246,7 +246,7 @@ struct ContentTypeSelectionView: View {
                 HStack(spacing: 0) {
                     ForEach(dialModes, id: \.self) { mode in
                         Text(titleFor(mode))
-                            .font(.custom("Poppins-Medium", size: 15))
+                            .font(.system(size: legacyPoppinsSize(15), weight: .medium))
                             .foregroundColor(dialLabelColor(for: mode))
                             .frame(maxWidth: .infinity, maxHeight: .infinity)
                     }

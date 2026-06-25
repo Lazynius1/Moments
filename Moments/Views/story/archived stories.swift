@@ -82,7 +82,7 @@ struct ArchiveView: View {
                         .scaleEffect(1.2)
 
                     Text("archivedStories.loading")
-                        .font(.custom("Poppins-Regular", size: 16))
+                        .font(.system(size: legacyPoppinsSize(16)))
                         .foregroundColor(.gray)
                 }
             } else if viewModel.groupedStories.isEmpty {
@@ -93,11 +93,11 @@ struct ArchiveView: View {
 
                     VStack(spacing: 8) {
                         Text("archivedStories.empty.title")
-                            .font(.custom("Poppins-SemiBold", size: 18))
+                            .font(.system(size: legacyPoppinsSize(18), weight: .semibold))
                             .foregroundColor(colorScheme == .dark ? .white : .black)
 
                         Text("archivedStories.empty.description")
-                            .font(.custom("Poppins-Regular", size: 14))
+                            .font(.system(size: legacyPoppinsSize(14)))
                             .foregroundColor(.gray)
                             .multilineTextAlignment(.center)
                     }
@@ -176,7 +176,7 @@ struct ArchiveView: View {
                     } label: {
                         HStack(spacing: 5) {
                             Text(NSLocalizedString("archivedStories.headerTitle", comment: "Archive Stories header title"))
-                                .font(.custom("Poppins-SemiBold", size: 17))
+                                .font(.system(size: legacyPoppinsSize(17), weight: .semibold))
                             Image(systemName: "chevron.down")
                                 .font(.system(size: 11, weight: .semibold))
                         }
@@ -269,7 +269,7 @@ struct ArchiveView: View {
                 .font(.system(size: 28))
                 .foregroundColor(.gray.opacity(0.75))
             Text(text)
-                .font(.custom("Poppins-Regular", size: 14))
+                .font(.system(size: legacyPoppinsSize(14)))
                 .foregroundColor(.gray)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -289,14 +289,14 @@ struct ArchiveView: View {
                         ForEach(calendarMonthSections) { monthSection in
                             VStack(alignment: .leading, spacing: 10) {
                                 Text(calendarMonthTitle(monthSection.monthStart))
-                                    .font(.custom("Poppins-SemiBold", size: 17))
+                                    .font(.system(size: legacyPoppinsSize(17), weight: .semibold))
                                     .foregroundColor(colorScheme == .dark ? .white : .black)
                                     .padding(.horizontal, sectionHorizontalPadding)
 
                                 HStack(spacing: 0) {
                                     ForEach(Array(weekdaySymbols.enumerated()), id: \.offset) { _, symbol in
                                         Text(symbol)
-                                            .font(.custom("Poppins-Medium", size: 11))
+                                            .font(.system(size: legacyPoppinsSize(11), weight: .medium))
                                             .foregroundColor(.gray)
                                             .frame(maxWidth: .infinity)
                                     }
@@ -332,7 +332,7 @@ struct ArchiveView: View {
                                                     }
 
                                                     Text("\(dayNumber)")
-                                                        .font(.custom("Poppins-SemiBold", size: 12))
+                                                        .font(.system(size: legacyPoppinsSize(12), weight: .semibold))
                                                         .foregroundColor(cell.bucket == nil ? (colorScheme == .dark ? .white : .black) : .white)
                                                 }
                                                 .frame(height: 42)
@@ -384,7 +384,7 @@ struct ArchiveView: View {
 
                                 if pin.stories.count > 1 {
                                     Text("\(pin.stories.count)")
-                                        .font(.custom("Poppins-Bold", size: 10))
+                                        .font(.system(size: legacyPoppinsSize(10), weight: .bold))
                                         .foregroundColor(.white)
                                         .padding(.horizontal, 5)
                                         .padding(.vertical, 2)
@@ -405,7 +405,7 @@ struct ArchiveView: View {
                         .font(.system(size: 22, weight: .semibold))
                         .foregroundColor(.gray)
                     Text(NSLocalizedString("archivedStories.map.empty", comment: "No geolocated stories"))
-                        .font(.custom("Poppins-Medium", size: 13))
+                        .font(.system(size: legacyPoppinsSize(13), weight: .medium))
                         .foregroundColor(.gray)
                         .multilineTextAlignment(.center)
                 }
@@ -700,13 +700,13 @@ struct ArchiveDateSectionVertical: View {
             // Date header
             HStack {
                 Text(formatDateKey(dateKey))
-                    .font(.custom("Poppins-SemiBold", size: 18))
+                    .font(.system(size: legacyPoppinsSize(18), weight: .semibold))
                     .foregroundColor(colorScheme == .dark ? .white : .black)
                 
                 Spacer()
                 
                 Text(String(format: NSLocalizedString("archivedStories.count", comment: "Story count"), stories.count))
-                    .font(.custom("Poppins-Regular", size: 14))
+                    .font(.system(size: legacyPoppinsSize(14)))
                     .foregroundColor(.gray)
             }
             .padding(.horizontal, 20)
@@ -770,13 +770,13 @@ struct ArchiveDateSectionGrid: View {
         VStack(alignment: .leading, spacing: 10) {
             HStack {
                 Text(formatDateKey(dateKey))
-                    .font(.custom("Poppins-SemiBold", size: 15))
+                    .font(.system(size: legacyPoppinsSize(15), weight: .semibold))
                     .foregroundColor(colorScheme == .dark ? .white : .black)
                 
                 Spacer()
                 
                 Text(String(format: NSLocalizedString("archivedStories.count", comment: "Story count"), stories.count))
-                    .font(.custom("Poppins-Regular", size: 12))
+                    .font(.system(size: legacyPoppinsSize(12)))
                     .foregroundColor(.gray)
             }
             .padding(.horizontal, 20)
@@ -890,7 +890,7 @@ struct ArchiveStoryVerticalCard: View {
                         HStack {
                             Spacer()
                             Text(formatDuration(story.duration))
-                                .font(.custom("Poppins-Bold", size: 10))
+                                .font(.system(size: legacyPoppinsSize(10), weight: .bold))
                                 .foregroundColor(.white)
                                 .padding(.horizontal, 6)
                                 .padding(.vertical, 3)
@@ -940,18 +940,18 @@ struct ArchiveStoryVerticalCard: View {
                         }
                         
                         Text(story.username)
-                            .font(.custom("Poppins-SemiBold", size: 14))
+                            .font(.system(size: legacyPoppinsSize(14), weight: .semibold))
                             .foregroundColor(colorScheme == .dark ? .white : .black)
                             .lineLimit(1)
                     }
                     
                     VStack(alignment: .leading, spacing: 4) {
                         Text(formatTime(story.timestamp))
-                            .font(.custom("Poppins-Medium", size: 13))
+                            .font(.system(size: legacyPoppinsSize(13), weight: .medium))
                             .foregroundColor(colorScheme == .dark ? .white.opacity(0.9) : .black.opacity(0.8))
                         
                         Text(formatRelativeDate(story.timestamp))
-                            .font(.custom("Poppins-Regular", size: 12))
+                            .font(.system(size: legacyPoppinsSize(12)))
                             .foregroundColor(.gray)
                     }
                     
@@ -963,7 +963,7 @@ struct ArchiveStoryVerticalCard: View {
                                 .foregroundColor(Color(hex: "007AFF"))
                             
                             Text(story.mediaItem.type == .video ? NSLocalizedString("archivedStories.video", comment: "Video") : NSLocalizedString("archivedStories.photo", comment: "Photo"))
-                                .font(.custom("Poppins-Regular", size: 11))
+                                .font(.system(size: legacyPoppinsSize(11)))
                                 .foregroundColor(.gray)
                         }
                         
@@ -975,7 +975,7 @@ struct ArchiveStoryVerticalCard: View {
                                     .foregroundColor(.blue.opacity(0.8))
                                 
                                 Text("archivedStories.viewActivity")
-                                    .font(.custom("Poppins-Regular", size: 11))
+                                    .font(.system(size: legacyPoppinsSize(11)))
                                     .foregroundColor(.blue.opacity(0.8))
                             }
                         }
@@ -1255,7 +1255,7 @@ struct StoryStatsView: View {
                         .tint(primaryText)
 
                     Text(NSLocalizedString("archivedStories.loadingStats", comment: "Loading statistics"))
-                        .font(.custom("Poppins-Regular", size: 14))
+                        .font(.system(size: legacyPoppinsSize(14)))
                         .foregroundColor(secondaryText)
                 }
             } else {
@@ -1319,7 +1319,7 @@ struct StoryStatsView: View {
             }
 
             Text(NSLocalizedString("archivedStories.stats.title", comment: "Statistics title"))
-                .font(.custom("Poppins-SemiBold", size: 18))
+                .font(.system(size: legacyPoppinsSize(18), weight: .semibold))
                 .foregroundColor(primaryText)
                 .padding(.top, 2)
         }
@@ -1328,17 +1328,17 @@ struct StoryStatsView: View {
     private var storyMetaSection: some View {
         VStack(alignment: .leading, spacing: 6) {
             Text(String(format: NSLocalizedString("archivedStories.storyFrom", comment: "Story from date"), formatStoryDate(story.timestamp)))
-                .font(.custom("Poppins-SemiBold", size: 15))
+                .font(.system(size: legacyPoppinsSize(15), weight: .semibold))
                 .foregroundColor(primaryText)
 
             Text(String(format: NSLocalizedString("archivedStories.publishedAt", comment: "Published at time"), formatStoryTime(story.timestamp)))
-                .font(.custom("Poppins-Regular", size: 13))
+                .font(.system(size: legacyPoppinsSize(13)))
                 .foregroundColor(secondaryText)
 
             Text(story.mediaItem.type == .video
                  ? NSLocalizedString("archivedStories.video", comment: "Video")
                  : NSLocalizedString("archivedStories.photo", comment: "Photo"))
-                .font(.custom("Poppins-Medium", size: 12))
+                .font(.system(size: legacyPoppinsSize(12), weight: .medium))
                 .foregroundColor(secondaryText)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -1470,7 +1470,7 @@ struct StoryStatsView: View {
                 .font(.system(size: 15, weight: .medium))
 
             TextField(NSLocalizedString("userListView.search.placeholder", comment: "Search users placeholder"), text: text)
-                .font(.custom("Poppins-Regular", size: 14))
+                .font(.system(size: legacyPoppinsSize(14)))
                 .foregroundColor(primaryText)
                 .textFieldStyle(.plain)
 
@@ -1555,13 +1555,13 @@ private struct ArchivedStoryStatMetric: View {
     var body: some View {
         VStack(spacing: 3) {
             Text(value)
-                .font(.custom("Poppins-Bold", size: 17))
+                .font(.system(size: legacyPoppinsSize(17), weight: .bold))
                 .foregroundColor(primaryText)
                 .lineLimit(1)
                 .minimumScaleFactor(0.8)
 
             Text(title)
-                .font(.custom("Poppins-Regular", size: 10))
+                .font(.system(size: legacyPoppinsSize(10)))
                 .foregroundColor(secondaryText)
                 .lineLimit(1)
                 .minimumScaleFactor(0.8)
@@ -1592,12 +1592,12 @@ private struct ArchivedStoryViewerRow: View {
 
             HStack(spacing: 6) {
                 Text(viewer.username ?? NSLocalizedString("archivedStories.user", comment: "User"))
-                    .font(.custom("Poppins-SemiBold", size: 15))
+                    .font(.system(size: legacyPoppinsSize(15), weight: .semibold))
                     .foregroundColor(primaryText)
 
                 if let badgeText = viewer.rewatchBadgeText {
                     Text(badgeText)
-                        .font(.custom("Poppins-SemiBold", size: 15))
+                        .font(.system(size: legacyPoppinsSize(15), weight: .semibold))
                         .foregroundColor(primaryText)
                 }
             }
@@ -1643,11 +1643,11 @@ private struct ArchivedStoryReactionRow: View {
 
             VStack(alignment: .leading, spacing: 4) {
                 Text(user?.username ?? NSLocalizedString("archivedStories.user", comment: "User"))
-                    .font(.custom("Poppins-SemiBold", size: 15))
+                    .font(.system(size: legacyPoppinsSize(15), weight: .semibold))
                     .foregroundColor(primaryText)
 
                 Text(timeAgo(from: reaction.timestamp))
-                    .font(.custom("Poppins-Regular", size: 12))
+                    .font(.system(size: legacyPoppinsSize(12)))
                     .foregroundColor(secondaryText)
             }
 

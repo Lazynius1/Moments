@@ -29,7 +29,7 @@ struct ModernLoadingView: View {
             }
 
                             Text("profile.loading")
-                .font(.custom("Poppins-Medium", size: 16))
+                .font(.system(size: legacyPoppinsSize(16), weight: .medium))
                 .foregroundColor(ProfileColors.textSecondary)
         }
         .onAppear {
@@ -62,11 +62,11 @@ struct ModernErrorView: View {
 
             VStack(spacing: 12) {
                 Text("profile.error.title")
-                    .font(.custom("Poppins-SemiBold", size: 18))
+                    .font(.system(size: legacyPoppinsSize(18), weight: .semibold))
                     .foregroundColor(ProfileColors.textPrimary)
 
                 Text(errorMessage)
-                    .font(.custom("Poppins-Regular", size: 14))
+                    .font(.system(size: legacyPoppinsSize(14)))
                     .foregroundColor(ProfileColors.textSecondary)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 20)
@@ -77,7 +77,7 @@ struct ModernErrorView: View {
                     Image(systemName: "arrow.clockwise")
                         .font(.system(size: 16))
                     Text("profile.error.retryButton")
-                        .font(.custom("Poppins-SemiBold", size: 14))
+                        .font(.system(size: legacyPoppinsSize(14), weight: .semibold))
                 }
                 .foregroundColor(.white)
                 .padding(.horizontal, 24)
@@ -100,13 +100,13 @@ struct ExpandableBioView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             Text(bio)
-                .font(.custom("Poppins-Regular", size: 14))
+                .font(.system(size: legacyPoppinsSize(14)))
                 .foregroundColor(ProfileColors.textSecondary)
                 .multilineTextAlignment(.leading)
                 .lineLimit(isExpanded ? nil : 3)
                 .background(
                     Text(bio)
-                        .font(.custom("Poppins-Regular", size: 15))
+                        .font(.system(size: legacyPoppinsSize(15)))
                         .lineLimit(3)
                         .background(GeometryReader { geometry in
                             Color.clear.onAppear {
@@ -127,7 +127,7 @@ struct ExpandableBioView: View {
                     }
                 }) {
                     Text(isExpanded ? NSLocalizedString("profile.content.seeLess", comment: "See less text") : NSLocalizedString("profile.content.seeMore", comment: "See more text"))
-                        .font(.custom("Poppins-Medium", size: 13))
+                        .font(.system(size: legacyPoppinsSize(13), weight: .medium))
                         .foregroundColor(ProfileColors.accent)
                         .padding(.vertical, 4)
                 }
@@ -235,7 +235,7 @@ struct ProfileAvatarNoteView: View {
                 NSLocalizedString("profile.avatarNote.placeholder", comment: "Avatar note placeholder"),
                 text: $draft
             )
-            .font(.custom("Poppins-Medium", size: 12))
+            .font(.system(size: legacyPoppinsSize(12), weight: .medium))
             .multilineTextAlignment(.center)
             .lineLimit(1)
             .focused($isFocused)
@@ -264,7 +264,7 @@ struct ProfileAvatarNoteView: View {
                     Button(NSLocalizedString("common.done", comment: "Done")) {
                         commitEdit()
                     }
-                    .font(.custom("Poppins-SemiBold", size: 15))
+                    .font(.system(size: legacyPoppinsSize(15), weight: .semibold))
                 }
             }
             .onAppear {
@@ -273,7 +273,7 @@ struct ProfileAvatarNoteView: View {
             }
         } else if let displayText {
             Text(displayText)
-                .font(.custom("Poppins-Medium", size: 12))
+                .font(.system(size: legacyPoppinsSize(12), weight: .medium))
                 .foregroundColor(colorScheme == .dark ? .white.opacity(0.82) : .black.opacity(0.72))
                 .multilineTextAlignment(.center)
                 .lineLimit(2)
@@ -286,7 +286,7 @@ struct ProfileAvatarNoteView: View {
                 }
         } else if isEditable {
             Text(NSLocalizedString("profile.avatarNote.placeholder", comment: "Avatar note placeholder"))
-                .font(.custom("Poppins-Medium", size: 12))
+                .font(.system(size: legacyPoppinsSize(12), weight: .medium))
                 .foregroundColor(colorScheme == .dark ? .white.opacity(0.38) : .black.opacity(0.32))
                 .multilineTextAlignment(.center)
                 .lineLimit(2)

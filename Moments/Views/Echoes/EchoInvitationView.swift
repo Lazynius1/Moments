@@ -83,16 +83,23 @@ struct EchoInvitationView: View {
                     .foregroundStyle(secondaryTextColor)
                     .textCase(.uppercase)
                 
+                let participants = echo.participants
                 HStack(spacing: -10) {
-                    ForEach(echo.participants) { participant in
+                    ForEach(Array(participants.enumerated()), id: \.element.id) { index, participant in
                         AsyncProfileImageView(userId: participant.userId)
                             .frame(width: 44, height: 44)
                             .clipShape(Circle())
-                            .overlay(Circle().stroke(Color.black, lineWidth: 2))
+                            .reversedMask(alignment: .center) {
+                                if index < participants.count - 1 {
+                                    Circle()
+                                        .frame(width: 47, height: 47)
+                                        .offset(x: 34)
+                                }
+                            }
                     }
                     
-                    if echo.participants.count > 1 {
-                        let count = echo.participants.count
+                    if participants.count > 1 {
+                        let count = participants.count
                         let format = count == 1 ? "echo.participants.singular" : "echo.participants.plural"
                         Text(String(format: NSLocalizedString(format, comment: ""), count))
                             .font(.system(size: 14, weight: .medium))

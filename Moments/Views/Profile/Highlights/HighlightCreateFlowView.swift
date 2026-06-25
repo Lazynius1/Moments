@@ -53,13 +53,13 @@ struct HighlightCreateFlowView: View {
                 Button(NSLocalizedString("common.cancel", comment: "")) {
                     dismiss()
                 }
-                .font(.custom("Poppins-Medium", size: 16))
+                .font(.system(size: legacyPoppinsSize(16), weight: .medium))
                 .foregroundColor(ProfileColors.textPrimary)
             }
 
             ToolbarItem(placement: .principal) {
                 Text(navigationTitle(for: viewModel))
-                    .font(.custom("Poppins-SemiBold", size: 16))
+                    .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
                     .foregroundColor(ProfileColors.textPrimary)
             }
 
@@ -87,7 +87,7 @@ struct HighlightCreateFlowView: View {
 
             ToolbarItem(placement: .principal) {
                 Text(nameCoverNavigationTitle(for: viewModel))
-                    .font(.custom("Poppins-SemiBold", size: 17))
+                    .font(.system(size: legacyPoppinsSize(17), weight: .semibold))
                     .foregroundColor(ProfileColors.textPrimary)
             }
 

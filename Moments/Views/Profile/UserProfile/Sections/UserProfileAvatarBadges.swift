@@ -119,7 +119,7 @@ struct UserPlusBadgeInline: View {
                 .foregroundColor(.white)
 
             Text("userProfile.plus")
-                .font(.custom("Poppins-Bold", size: 9))
+                .font(.system(size: legacyPoppinsSize(9), weight: .bold))
                 .foregroundColor(.white)
         }
         .padding(.horizontal, 8)
@@ -146,7 +146,7 @@ struct UserSupportBadgeInline: View {
                 .font(.system(size: 10))
 
             Text(badge.name.uppercased())
-                .font(.custom("Poppins-Bold", size: 8))
+                .font(.system(size: legacyPoppinsSize(8), weight: .bold))
                 .foregroundColor(.white)
         }
         .padding(.horizontal, 8)
@@ -224,7 +224,7 @@ struct UserModernRefreshIndicator: View {
             }
 
             Text("userProfile.updating")
-                .font(.custom("Poppins-Medium", size: 14))
+                .font(.system(size: legacyPoppinsSize(14), weight: .medium))
                 .foregroundColor(UserProfileColors.textSecondary)
         }
         .padding(.horizontal, 20)

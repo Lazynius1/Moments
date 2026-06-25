@@ -241,13 +241,13 @@ struct StoryShareRecipientsPanel: View {
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(NSLocalizedString("share.story.title", comment: "Share story sheet title"))
-                        .font(.custom("Poppins-SemiBold", size: 18))
+                        .font(.system(size: legacyPoppinsSize(18), weight: .semibold))
                         .foregroundColor(.primary)
 
                     LiveUsernameContent(userId: story.authorId, fallbackUsername: story.username) { username in
                         Text(String(format: NSLocalizedString("share.story.by", comment: "Story by user"), username))
                     }
-                    .font(.custom("Poppins-Regular", size: 14))
+                    .font(.system(size: legacyPoppinsSize(14)))
                     .foregroundColor(.secondary)
                 }
 
@@ -264,7 +264,7 @@ struct StoryShareRecipientsPanel: View {
 
                 TextField(NSLocalizedString("share.search.placeholder", comment: ""), text: $searchText)
                     .foregroundColor(.primary)
-                    .font(.custom("Poppins-Regular", size: 16))
+                    .font(.system(size: legacyPoppinsSize(16)))
                     .textFieldStyle(PlainTextFieldStyle())
                     .autocorrectionDisabled()
                     .onChange(of: searchText) { _, newValue in
@@ -327,7 +327,7 @@ struct StoryShareRecipientsPanel: View {
                         if !globalSearchResults.isEmpty {
                             VStack(alignment: .leading, spacing: 12) {
                                 Text("share.search.globalResults")
-                                    .font(.custom("Poppins-SemiBold", size: 14))
+                                    .font(.system(size: legacyPoppinsSize(14), weight: .semibold))
                                     .foregroundColor(.secondary)
                                     .padding(.top, 8)
 

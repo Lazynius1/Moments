@@ -100,7 +100,7 @@ private struct FeedTypeButton: View {
     var body: some View {
         Button(action: action) {
             Text(type.title)
-                .font(.custom("Poppins-SemiBold", size: 12))
+                .font(.system(size: legacyPoppinsSize(12), weight: .semibold))
                 .foregroundColor(isSelected ? .white : (colorScheme == .dark ? .white.opacity(0.7) : .black.opacity(0.8)))
                 .padding(.horizontal, 12)
                 .padding(.vertical, 6)

@@ -220,7 +220,7 @@ struct GlassmorphicDateHeader: View {
 
     var body: some View {
         Text(formatDate(date))
-            .font(.custom("Poppins-Regular", size: 12))
+            .font(.system(size: legacyPoppinsSize(12)))
             .foregroundColor(adaptiveColors.dateHeaderColor)
             .padding(.horizontal, 16)
             .padding(.vertical, 6)
@@ -260,7 +260,7 @@ struct GlassmorphicUnreadDivider: View {
                 Image(systemName: "circle.fill")
                     .font(.system(size: 5))
                 Text("chat.newMessages")
-                    .font(.custom("Poppins-SemiBold", size: 11))
+                    .font(.system(size: legacyPoppinsSize(11), weight: .semibold))
             }
             .foregroundColor(adaptiveColors.primary.opacity(0.9))
             .padding(.horizontal, 10)
@@ -337,7 +337,7 @@ struct MessagingActionToast: View {
 
     var body: some View {
         Text(text)
-            .font(.custom("Poppins-SemiBold", size: 14))
+            .font(.system(size: legacyPoppinsSize(14), weight: .semibold))
             .foregroundStyle(colorScheme == .dark ? .white : .black)
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, 18)

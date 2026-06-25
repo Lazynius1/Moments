@@ -27,11 +27,11 @@ struct GlassmorphicReplyBar: View {
             HStack(spacing: 12) {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(message.senderId == currentUserId ? LocalizedStringKey("chat.reply.you") : LocalizedStringKey(otherParticipantName))
-                        .font(.custom("Poppins-SemiBold", size: 13))
+                        .font(.system(size: legacyPoppinsSize(13), weight: .semibold))
                         .foregroundColor(message.senderId == currentUserId ? adaptiveColors.userAccentColor : adaptiveColors.receivedAccentColor)
 
                     Text(message.preview)
-                        .font(.custom("Poppins-Regular", size: 14))
+                        .font(.system(size: legacyPoppinsSize(14)))
                         .foregroundColor(adaptiveColors.replyBarText)
                         .lineLimit(1)
                 }
@@ -95,11 +95,11 @@ struct GlassmorphicReplyPreview: View {
                 HStack(spacing: 8) {
                     VStack(alignment: .leading, spacing: 1) {
                         Text(message.senderId == currentUserId ? LocalizedStringKey("chat.reply.you") : LocalizedStringKey(otherParticipantName))
-                            .font(.custom("Poppins-SemiBold", size: 11))
+                            .font(.system(size: legacyPoppinsSize(11), weight: .semibold))
                             .foregroundColor(message.senderId == currentUserId ? adaptiveColors.userAccentColor : adaptiveColors.receivedAccentColor)
 
                         Text(message.preview)
-                            .font(.custom("Poppins-Regular", size: 12))
+                            .font(.system(size: legacyPoppinsSize(12)))
                             .foregroundColor(adaptiveColors.messageTextColor.opacity(0.8))
                             .lineLimit(1)
                     }
@@ -408,19 +408,19 @@ struct MessageTimestamp: View {
     var body: some View {
         HStack(spacing: 4) {
             Text(formatTime(message.timestamp))
-                .font(.custom("Poppins-Regular", size: 11))
+                .font(.system(size: legacyPoppinsSize(11)))
                 .foregroundColor(adaptiveColors.timestampColor)
 
             if message.editedAt != nil {
                 Text("chat.edited")
-                    .font(.custom("Poppins-Regular", size: 11))
+                    .font(.system(size: legacyPoppinsSize(11)))
                     .foregroundColor(adaptiveColors.timestampColor)
             }
 
             if isCurrentUser {
                 if showSeenLabel && displayStatus == .read {
                     Text("chat.seen")
-                        .font(.custom("Poppins-Medium", size: 11))
+                        .font(.system(size: legacyPoppinsSize(11), weight: .medium))
                         .foregroundColor(adaptiveColors.timestampColor.opacity(0.9))
                 } else {
                     MessageStatusIcon(status: displayStatus)

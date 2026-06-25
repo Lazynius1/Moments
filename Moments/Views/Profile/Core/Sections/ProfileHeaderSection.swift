@@ -202,7 +202,7 @@ struct ModernProfileHeader: View {
                                     .font(.system(size: 11, weight: .semibold))
 
                                 Text(websiteUrl.replacingOccurrences(of: "https://", with: "").replacingOccurrences(of: "http://", with: ""))
-                                    .font(.custom("Poppins-Medium", size: 12))
+                                    .font(.system(size: legacyPoppinsSize(12), weight: .medium))
                                     .lineLimit(1)
                                     .truncationMode(.tail)
                             }
@@ -231,7 +231,7 @@ struct ModernProfileHeader: View {
                     Image(systemName: "pencil")
                         .font(.system(size: 13, weight: .semibold))
                     Text(NSLocalizedString("profile.editButton", comment: "Edit profile"))
-                        .font(.custom("Poppins-SemiBold", size: 13))
+                        .font(.system(size: legacyPoppinsSize(13), weight: .semibold))
                 }
                 .foregroundColor(colorScheme == .dark ? .white : .black)
                 .frame(maxWidth: .infinity)
@@ -374,7 +374,7 @@ struct PlusBadgeInline: View {
                 .foregroundColor(.white)
 
                             Text("profile.plus")
-                .font(.custom("Poppins-Bold", size: 9))
+                .font(.system(size: legacyPoppinsSize(9), weight: .bold))
                 .foregroundColor(.white)
         }
         .padding(.horizontal, 8)
@@ -401,7 +401,7 @@ struct SupportBadgeInline: View {
                 .font(.system(size: 10))
 
             Text(badge.name.uppercased())
-                .font(.custom("Poppins-Bold", size: 8))
+                .font(.system(size: legacyPoppinsSize(8), weight: .bold))
                 .foregroundColor(.white)
         }
         .padding(.horizontal, 8)
@@ -444,16 +444,16 @@ struct ProfileOverviewCard: View {
                 }) {
                     HStack(spacing: 10) {
                         Text("profile.interests.title")
-                            .font(.custom("Poppins-SemiBold", size: 13))
+                            .font(.system(size: legacyPoppinsSize(13), weight: .semibold))
                             .foregroundColor(ProfileColors.textPrimary)
 
                         Text("· \(interests.count)")
-                            .font(.custom("Poppins-Medium", size: 12))
+                            .font(.system(size: legacyPoppinsSize(12), weight: .medium))
                             .foregroundColor(ProfileColors.textSecondary)
 
                         if !showingInterests, let firstInterest = interests.first {
                             Text(firstInterest)
-                                .font(.custom("Poppins-Medium", size: 11))
+                                .font(.system(size: legacyPoppinsSize(11), weight: .medium))
                                 .foregroundColor(ProfileColors.textSecondary)
                                 .lineLimit(1)
                         }
@@ -515,11 +515,11 @@ struct ModernStatsSection: View {
                 }) {
                     VStack(spacing: 4) {
                         Text("\(stat.1)")
-                            .font(.custom("Poppins-Bold", size: embeddedStyle ? 17 : 18))
+                            .font(.system(size: legacyPoppinsSize(embeddedStyle ? 17 : 18), weight: .bold))
                             .foregroundColor(ProfileColors.textPrimary)
 
                         Text(stat.0)
-                            .font(.custom("Poppins-Medium", size: embeddedStyle ? 10 : 11))
+                            .font(.system(size: legacyPoppinsSize(embeddedStyle ? 10 : 11), weight: .medium))
                             .foregroundColor(ProfileColors.textSecondary)
                     }
                     .frame(maxWidth: .infinity)
@@ -551,7 +551,7 @@ struct ModernInterestsView: View {
         VStack(alignment: .leading, spacing: 14) {
             if showsTitle {
                 Text("profile.interests.title")
-                    .font(.custom("Poppins-SemiBold", size: 18))
+                    .font(.system(size: legacyPoppinsSize(18), weight: .semibold))
                     .foregroundColor(ProfileColors.textPrimary)
             }
 
@@ -564,7 +564,7 @@ struct ModernInterestsView: View {
                             Text(emoji)
                                 .font(.system(size: 16))
                             Text(interest)
-                                .font(.custom("Poppins-Medium", size: 14))
+                                .font(.system(size: legacyPoppinsSize(14), weight: .medium))
                                 .foregroundColor(ProfileColors.textPrimary)
                         }
                         .padding(.horizontal, embeddedStyle ? 14 : 16)

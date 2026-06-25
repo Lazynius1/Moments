@@ -120,7 +120,7 @@ struct PhotoCropEditorView: View {
                 .tint(colorScheme == .dark ? .white : .black)
             
             Text(NSLocalizedString("profileEditor.crop.loadingImage", comment: ""))
-                .font(.custom("Poppins-Medium", size: 16))
+                .font(.system(size: legacyPoppinsSize(16), weight: .medium))
                 .foregroundColor(colorScheme == .dark ? .white.opacity(0.8) : .black.opacity(0.8))
         }
     }
@@ -149,7 +149,7 @@ struct PhotoCropEditorView: View {
             Spacer()
             
             Text(NSLocalizedString("profileEditor.crop.moveAndScale", comment: ""))
-                .font(.custom("Poppins-SemiBold", size: 17))
+                .font(.system(size: legacyPoppinsSize(17), weight: .semibold))
                 .foregroundColor(colorScheme == .dark ? .white : .primary)
                 .shadow(color: (colorScheme == .dark ? Color.black : Color.white).opacity(0.3), radius: 2, x: 0, y: 1)
             
@@ -332,7 +332,7 @@ struct PhotoCropEditorView: View {
             } label: {
                 HStack(spacing: 8) {
                     Text(selectedAlbum?.title ?? NSLocalizedString("profileEditor.category.recent", comment: ""))
-                        .font(.custom("Poppins-SemiBold", size: 16))
+                        .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
                     Image(systemName: "chevron.right")
                         .font(.system(size: 13, weight: .semibold))
                 }
@@ -472,7 +472,7 @@ struct PhotoCropEditorView: View {
                     .tint(colorScheme == .dark ? .white : .black)
                 
                 Text(NSLocalizedString("profileEditor.crop.processing", comment: ""))
-                    .font(.custom("Poppins-Medium", size: 16))
+                    .font(.system(size: legacyPoppinsSize(16), weight: .medium))
                     .foregroundColor(colorScheme == .dark ? .white : .black)
             }
         }

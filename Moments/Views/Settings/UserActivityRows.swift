@@ -29,13 +29,13 @@ struct ActivityCommentItemRow: View {
                 HStack(spacing: 6) {
                     if isSelectionMode {
                         Text(item.moment?.username ?? NSLocalizedString("onlineStatus.unknown", comment: "Unknown"))
-                            .font(.custom("Poppins-SemiBold", size: 13))
+                            .font(.system(size: legacyPoppinsSize(13), weight: .semibold))
                             .foregroundColor(colorScheme == .dark ? .white : .black)
                             .lineLimit(1)
                     } else {
                         Button(action: onOpenAuthorProfile) {
                             Text(item.moment?.username ?? NSLocalizedString("onlineStatus.unknown", comment: "Unknown"))
-                                .font(.custom("Poppins-SemiBold", size: 13))
+                                .font(.system(size: legacyPoppinsSize(13), weight: .semibold))
                                 .foregroundColor(colorScheme == .dark ? .white : .black)
                                 .lineLimit(1)
                         }
@@ -71,23 +71,23 @@ struct ActivityCommentItemRow: View {
                 Text(item.moment?.content.isEmpty == false
                      ? (item.moment?.content ?? "")
                      : NSLocalizedString("userActivity.simple.comments.momentNoContent", comment: "Moment without content"))
-                    .font(.custom("Poppins-Regular", size: 12))
+                    .font(.system(size: legacyPoppinsSize(12)))
                     .foregroundColor(.gray)
                     .lineLimit(2)
 
                 Text(NSLocalizedString("userActivity.simple.comments.yourComment", comment: "Your comment label"))
-                    .font(.custom("Poppins-SemiBold", size: 11))
+                    .font(.system(size: legacyPoppinsSize(11), weight: .semibold))
                     .foregroundColor(colorScheme == .dark ? .white.opacity(0.82) : .black.opacity(0.82))
 
                 Text(item.commentText.isEmpty
                      ? NSLocalizedString("userActivity.simple.comments.emptyComment", comment: "Empty comment fallback")
                      : item.commentText)
-                    .font(.custom("Poppins-Regular", size: 12))
+                    .font(.system(size: legacyPoppinsSize(12)))
                     .foregroundColor(colorScheme == .dark ? .white : .black)
                     .lineLimit(3)
 
                 Text(item.commentedAt.timeAgoDisplay())
-                    .font(.custom("Poppins-Regular", size: 11))
+                    .font(.system(size: legacyPoppinsSize(11)))
                     .foregroundColor(.gray.opacity(0.85))
             }
 
@@ -273,13 +273,13 @@ struct ActivityCommentMomentPreview: View {
                     .foregroundColor(.white.opacity(0.95))
 
                 Text(NSLocalizedString("savedMoments.restricted.title", comment: "Saved moment restricted title"))
-                    .font(.custom("Poppins-SemiBold", size: 8))
+                    .font(.system(size: legacyPoppinsSize(8), weight: .semibold))
                     .foregroundColor(.white)
                     .lineLimit(2)
                     .multilineTextAlignment(.center)
 
                 Text(NSLocalizedString("savedMoments.restricted.subtitle", comment: "Saved moment restricted subtitle"))
-                    .font(.custom("Poppins-Regular", size: 7))
+                    .font(.system(size: legacyPoppinsSize(7)))
                     .foregroundColor(.white.opacity(0.86))
                     .lineLimit(2)
                     .multilineTextAlignment(.center)
@@ -358,71 +358,71 @@ struct ActivityEventRow: View {
                             if shouldUseSplitHeaderLayout {
                                 HStack(alignment: .firstTextBaseline, spacing: 10) {
                                     Text(item.title)
-                                        .font(.custom("Poppins-SemiBold", size: 15))
+                                        .font(.system(size: legacyPoppinsSize(15), weight: .semibold))
                                         .foregroundColor(colorScheme == .dark ? .white : .black)
                                         .lineLimit(1)
 
                                     Spacer(minLength: 0)
 
                                     Text(actionText)
-                                        .font(.custom("Poppins-Regular", size: 12))
+                                        .font(.system(size: legacyPoppinsSize(12)))
                                         .foregroundColor(colorScheme == .dark ? .white : .black)
                                         .lineLimit(1)
                                 }
                             } else {
                                 HStack(alignment: .firstTextBaseline, spacing: 4) {
                                     Text(item.title)
-                                        .font(.custom("Poppins-SemiBold", size: 15))
+                                        .font(.system(size: legacyPoppinsSize(15), weight: .semibold))
                                         .foregroundColor(colorScheme == .dark ? .white : .black)
                                         .lineLimit(1)
                                     Text(actionText)
-                                        .font(.custom("Poppins-Regular", size: 12))
+                                        .font(.system(size: legacyPoppinsSize(12)))
                                         .foregroundColor(colorScheme == .dark ? .white : .black)
                                         .lineLimit(1)
                                 }
                             }
                         } else {
                             Text(item.title)
-                                .font(.custom("Poppins-SemiBold", size: 14))
+                                .font(.system(size: legacyPoppinsSize(14), weight: .semibold))
                                 .foregroundColor(colorScheme == .dark ? .white : .black)
                                 .lineLimit(2)
                         }
 
                         if !item.subtitle.isEmpty {
                             Text(item.subtitle)
-                                .font(.custom("Poppins-Regular", size: 13))
+                                .font(.system(size: legacyPoppinsSize(13)))
                                 .foregroundColor(colorScheme == .dark ? .white : .black)
                                 .lineLimit(2)
                         }
 
                         HStack(spacing: 6) {
                             Text(item.timestamp.timeAgoDisplay())
-                                .font(.custom("Poppins-Regular", size: 11))
+                                .font(.system(size: legacyPoppinsSize(11)))
                                 .foregroundColor(.gray.opacity(0.85))
 
                             if hasContext {
                                 Text("•")
-                                    .font(.custom("Poppins-Regular", size: 10))
+                                    .font(.system(size: legacyPoppinsSize(10)))
                                     .foregroundColor(.gray.opacity(0.7))
 
                                 if let username = item.targetUsername,
                                    !username.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                                     Text(contextPrefix)
-                                        .font(.custom("Poppins-Regular", size: 11))
+                                        .font(.system(size: legacyPoppinsSize(11)))
                                         .foregroundColor(.gray.opacity(0.85))
 
                                     Button {
                                         onOpenTargetProfile()
                                     } label: {
                                         Text(username)
-                                            .font(.custom("Poppins-SemiBold", size: 11))
+                                            .font(.system(size: legacyPoppinsSize(11), weight: .semibold))
                                             .foregroundColor(colorScheme == .dark ? .white : .black)
                                             .lineLimit(1)
                                     }
                                     .buttonStyle(.plain)
                                 } else if let context = item.contextText, !context.isEmpty {
                                     Text(context)
-                                        .font(.custom("Poppins-Regular", size: 11))
+                                        .font(.system(size: legacyPoppinsSize(11)))
                                         .foregroundColor(.gray.opacity(0.85))
                                         .lineLimit(1)
                                 }
@@ -664,7 +664,7 @@ struct ActivityEventRow: View {
             VStack(alignment: .leading, spacing: 3) {
                 HStack(spacing: 6) {
                     Text(item.title)
-                        .font(.custom("Poppins-SemiBold", size: 15))
+                        .font(.system(size: legacyPoppinsSize(15), weight: .semibold))
                         .foregroundColor(colorScheme == .dark ? .white : .black)
                         .lineLimit(1)
                     
@@ -673,12 +673,12 @@ struct ActivityEventRow: View {
                         .foregroundColor(.secondary.opacity(0.7))
                     
                     Text(item.timestamp.timeAgoDisplay())
-                        .font(.custom("Poppins-Regular", size: 11))
+                        .font(.system(size: legacyPoppinsSize(11)))
                         .foregroundColor(.secondary)
                 }
                 
                 Text(cleanDescriptionText)
-                    .font(.custom("Poppins-Regular", size: 13))
+                    .font(.system(size: legacyPoppinsSize(13)))
                     .foregroundColor(.secondary)
                     .lineLimit(1)
             }
@@ -690,7 +690,7 @@ struct ActivityEventRow: View {
                     onOpenTargetProfile()
                 } label: {
                     Text(actionText)
-                        .font(.custom("Poppins-SemiBold", size: 12))
+                        .font(.system(size: legacyPoppinsSize(12), weight: .semibold))
                         .foregroundColor(colorScheme == .dark ? .white : .black)
                         .padding(.horizontal, 14)
                         .padding(.vertical, 6)
@@ -944,13 +944,13 @@ struct ActivityReactionMomentCard: View {
                     .foregroundColor(.white.opacity(0.95))
 
                 Text(NSLocalizedString("savedMoments.restricted.title", comment: "Saved moment restricted title"))
-                    .font(.custom("Poppins-SemiBold", size: 10))
+                    .font(.system(size: legacyPoppinsSize(10), weight: .semibold))
                     .foregroundColor(.white)
                     .lineLimit(2)
                     .multilineTextAlignment(.center)
 
                 Text(NSLocalizedString("savedMoments.restricted.subtitle", comment: "Saved moment restricted subtitle"))
-                    .font(.custom("Poppins-Regular", size: 9))
+                    .font(.system(size: legacyPoppinsSize(9)))
                     .foregroundColor(.white.opacity(0.84))
                     .lineLimit(2)
                     .multilineTextAlignment(.center)

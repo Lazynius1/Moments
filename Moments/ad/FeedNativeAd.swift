@@ -93,7 +93,7 @@ struct ModernAdLoadingView: View {
         VStack(spacing: 12) {
             HStack {
                 Text("ad.common.ad")
-                    .font(.custom("Poppins-Medium", size: 12))
+                    .font(.system(size: legacyPoppinsSize(12), weight: .medium))
                     .foregroundColor(.gray.opacity(0.8))
                     .padding(.horizontal, 12)
                     .padding(.vertical, 4)
@@ -184,7 +184,7 @@ struct ModernNativeAdCardViewWithMediaView: View {
         VStack(spacing: 12) {
             HStack {
                 Text("ad.common.ad")
-                    .font(.custom("Poppins-Medium", size: 12))
+                    .font(.system(size: legacyPoppinsSize(12), weight: .medium))
                     .foregroundColor(.gray.opacity(0.8))
                     .padding(.horizontal, 12)
                     .padding(.vertical, 4)
@@ -252,7 +252,7 @@ struct FeedNativeAdMediaViewRepresentable: UIViewRepresentable {
         // ✅ CORREGIDO: Headline
         let headlineLabel = UILabel()
         headlineLabel.text = nativeAd.headline ?? "Título del anuncio"
-        headlineLabel.font = UIFont(name: "Poppins-SemiBold", size: 18) ?? UIFont.boldSystemFont(ofSize: 18)
+        headlineLabel.font = UIFont.systemFont(ofSize: legacyPoppinsSize(18), weight: .semibold) ?? UIFont.boldSystemFont(ofSize: 18)
         headlineLabel.textColor = .white
         headlineLabel.numberOfLines = 0
         headlineLabel.translatesAutoresizingMaskIntoConstraints = false
@@ -261,7 +261,7 @@ struct FeedNativeAdMediaViewRepresentable: UIViewRepresentable {
         // ✅ CORREGIDO: Body
         let bodyLabel = UILabel()
         bodyLabel.text = nativeAd.body ?? "Descripción del anuncio"
-        bodyLabel.font = UIFont(name: "Poppins-Regular", size: 15) ?? UIFont.systemFont(ofSize: 15)
+        bodyLabel.font = UIFont.systemFont(ofSize: legacyPoppinsSize(15)) ?? UIFont.systemFont(ofSize: legacyPoppinsSize(15))
         bodyLabel.textColor = .white.withAlphaComponent(0.9)
         bodyLabel.numberOfLines = 0
         bodyLabel.translatesAutoresizingMaskIntoConstraints = false
@@ -270,7 +270,7 @@ struct FeedNativeAdMediaViewRepresentable: UIViewRepresentable {
         // ✅ QUITADO: CTA Button - No necesario, el tapping general funciona
         // let callToActionButton = UIButton(type: .system)
         // callToActionButton.setTitle(nativeAd.callToAction ?? "Más información", for: .normal)
-        // callToActionButton.titleLabel?.font = UIFont(name: "Poppins-SemiBold", size: 16) ?? UIFont.boldSystemFont(ofSize: 16)
+        // callToActionButton.titleLabel?.font = UIFont.systemFont(ofSize: legacyPoppinsSize(16), weight: .semibold) ?? UIFont.boldSystemFont(ofSize: 16)
         // callToActionButton.setTitleColor(.white, for: .normal)
         // callToActionButton.backgroundColor = UIColor(red: 0, green: 0.66, blue: 0.59, alpha: 1)
         // callToActionButton.layer.cornerRadius = 16
@@ -361,7 +361,7 @@ struct IntegratedAdLoadingView: View {
                 
                 VStack(spacing: 2) {
                     Text("ad.common.ad")
-                        .font(.custom("Poppins-Medium", size: 10))
+                        .font(.system(size: legacyPoppinsSize(10), weight: .medium))
                         .foregroundColor(.secondary)
                         .padding(.horizontal, 8)
                         .padding(.vertical, 4)
@@ -372,7 +372,7 @@ struct IntegratedAdLoadingView: View {
                     
                     let personalizationStatus = AdMobConfiguration.shared.getAdPersonalizationStatus()
                     Text(personalizationStatus.isPersonalized ? "Personalizado" : "No personalizado")
-                        .font(.custom("Poppins-Regular", size: 8))
+                        .font(.system(size: legacyPoppinsSize(8)))
                         .foregroundColor(personalizationStatus.isPersonalized ? .green : .orange)
                         .padding(.horizontal, 6)
                         .padding(.vertical, 2)
@@ -448,12 +448,12 @@ struct IntegratedNativeAdView: View {
                 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(nativeAd.advertiser ?? "Anunciante")
-                        .font(.custom("Poppins-SemiBold", size: 14))
+                        .font(.system(size: legacyPoppinsSize(14), weight: .semibold))
                         .foregroundColor(.primary)
                     // Ad badge handled by UIKit's adAttributionView
                     
                     Text("ad.common.sponsored")
-                        .font(.custom("Poppins-Regular", size: 11))
+                        .font(.system(size: legacyPoppinsSize(11)))
                         .foregroundColor(.secondary)
                 }
                 
@@ -505,7 +505,7 @@ struct IntegratedAdMediaView: UIViewRepresentable {
         // Headline
         let headlineLabel = UILabel()
         headlineLabel.text = nativeAd.headline
-        headlineLabel.font = UIFont(name: "Poppins-SemiBold", size: 16) ?? UIFont.boldSystemFont(ofSize: 16)
+        headlineLabel.font = UIFont.systemFont(ofSize: legacyPoppinsSize(16), weight: .semibold) ?? UIFont.boldSystemFont(ofSize: 16)
         headlineLabel.textColor = .label
         headlineLabel.numberOfLines = 2
         headlineLabel.translatesAutoresizingMaskIntoConstraints = false
@@ -514,7 +514,7 @@ struct IntegratedAdMediaView: UIViewRepresentable {
         // Body
         let bodyLabel = UILabel()
         bodyLabel.text = nativeAd.body
-        bodyLabel.font = UIFont(name: "Poppins-Regular", size: 14) ?? UIFont.systemFont(ofSize: 14)
+        bodyLabel.font = UIFont.systemFont(ofSize: legacyPoppinsSize(14)) ?? UIFont.systemFont(ofSize: legacyPoppinsSize(14))
         bodyLabel.textColor = .secondaryLabel
         bodyLabel.numberOfLines = 2
         bodyLabel.translatesAutoresizingMaskIntoConstraints = false
@@ -523,7 +523,7 @@ struct IntegratedAdMediaView: UIViewRepresentable {
         // ✅ QUITADO: CTA Button - No necesario, el tapping general funciona
         // let callToActionButton = UIButton(type: .system)
         // callToActionButton.setTitle(nativeAd.callToAction ?? "Más información", for: .normal)
-        // callToActionButton.titleLabel?.font = UIFont(name: "Poppins-SemiBold", size: 16) ?? UIFont.boldSystemFont(ofSize: 16)
+        // callToActionButton.titleLabel?.font = UIFont.systemFont(ofSize: legacyPoppinsSize(16), weight: .semibold) ?? UIFont.boldSystemFont(ofSize: 16)
         // callToActionButton.setTitleColor(.white, for: .normal)
         // callToActionButton.backgroundColor = UIColor(red: 0, green: 0.66, blue: 0.59, alpha: 1)
         // callToActionButton.layer.cornerRadius = 16
@@ -534,7 +534,7 @@ struct IntegratedAdMediaView: UIViewRepresentable {
         // ✅ QUITADO: Advertiser - Redundante con header
         // let advertiserLabel = UILabel()
         // advertiserLabel.text = nativeAd.advertiser ?? "Anunciante"
-        // advertiserLabel.font = UIFont(name: "Poppins-SemiBold", size: 14) ?? UIFont.boldSystemFont(ofSize: 14)
+        // advertiserLabel.font = UIFont.systemFont(ofSize: legacyPoppinsSize(14), weight: .semibold) ?? UIFont.boldSystemFont(ofSize: 14)
         // advertiserLabel.textColor = .white.withAlphaComponent(0.8)
         // advertiserLabel.translatesAutoresizingMaskIntoConstraints = false
         // nativeAdView.advertiserView = advertiserLabel

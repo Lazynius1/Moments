@@ -52,7 +52,7 @@ struct SearchBarView: View {
                         .animation(.easeInOut(duration: 0.3), value: isSearchFocused)
 
                     TextField("explore.search.placeholder", text: $searchText)
-                        .font(.custom("Poppins-Medium", size: 14))
+                        .font(.system(size: legacyPoppinsSize(14), weight: .medium))
                         .foregroundColor(.primary)
                         .focused($internalFocus)
                         .onChange(of: internalFocus) { _, newValue in
@@ -86,7 +86,7 @@ struct SearchBarView: View {
                     onSearch("")
                     isSearchFocused = false
                 }
-                .font(.custom("Poppins-SemiBold", size: 14))
+                .font(.system(size: legacyPoppinsSize(14), weight: .semibold))
                 .foregroundColor(Color(hex: "667eea"))
                 .transition(.move(edge: .trailing).combined(with: .opacity))
             }
@@ -123,11 +123,11 @@ struct LoadingStateView: View {
 
             VStack(spacing: 8) {
                 Text("explore.loading")
-                    .font(.custom("Poppins-SemiBold", size: 18))
+                    .font(.system(size: legacyPoppinsSize(18), weight: .semibold))
                     .foregroundColor(.primary)
 
                 Text("explore.loading.subtitle")
-                    .font(.custom("Poppins-Regular", size: 14))
+                    .font(.system(size: legacyPoppinsSize(14)))
                     .foregroundColor(.secondary)
             }
         }
@@ -158,11 +158,11 @@ struct ErrorStateView: View {
 
             VStack(spacing: 12) {
                 Text("explore.error.title")
-                    .font(.custom("Poppins-SemiBold", size: 20))
+                    .font(.system(size: legacyPoppinsSize(20), weight: .semibold))
                     .foregroundColor(.primary)
 
                 Text(message)
-                    .font(.custom("Poppins-Regular", size: 16))
+                    .font(.system(size: legacyPoppinsSize(16)))
                     .foregroundColor(.secondary)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 32)
@@ -172,7 +172,7 @@ struct ErrorStateView: View {
                         Image(systemName: "arrow.clockwise")
                         Text("explore.error.retry")
                     }
-                    .font(.custom("Poppins-SemiBold", size: 16))
+                    .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
                     .foregroundColor(.white)
                     .padding(.horizontal, 24)
                     .padding(.vertical, 12)
@@ -210,11 +210,11 @@ struct SuggestedUsersSection: View {
                 HStack {
                     VStack(alignment: .leading, spacing: 4) {
                         Text("explore.suggestedUsers.title")
-                            .font(.custom("Poppins-SemiBold", size: 20))
+                            .font(.system(size: legacyPoppinsSize(20), weight: .semibold))
                             .foregroundColor(.primary)
 
                         Text("explore.suggestedUsers.subtitle")
-                            .font(.custom("Poppins-Regular", size: 13))
+                            .font(.system(size: legacyPoppinsSize(13)))
                             .foregroundColor(.secondary)
                     }
 
@@ -223,7 +223,7 @@ struct SuggestedUsersSection: View {
                     Button("explore.suggestedUsers.seeMore") {
                         onShowMore()
                     }
-                    .font(.custom("Poppins-SemiBold", size: 14))
+                    .font(.system(size: legacyPoppinsSize(14), weight: .semibold))
                     .foregroundColor(Color(hex: "667eea"))
                 }
                 .padding(.horizontal, 10)
@@ -319,7 +319,7 @@ struct SuggestedUserCard: View {
                 VStack(spacing: 3) {
                     HStack(spacing: 4) {
                         Text(user.username)
-                            .font(.custom("Poppins-SemiBold", size: 13))
+                            .font(.system(size: legacyPoppinsSize(13), weight: .semibold))
                             .foregroundColor(.white) // ✅ Texto blanco siempre
                             .lineLimit(1)
                             .shadow(radius: 2)
@@ -329,19 +329,19 @@ struct SuggestedUserCard: View {
 
                     if commonInterests > 0 {
                         Text(String(format: NSLocalizedString("explore.commonInterests", comment: "Common interests"), commonInterests))
-                            .font(.custom("Poppins-Medium", size: 10))
+                            .font(.system(size: legacyPoppinsSize(10), weight: .medium))
                             .foregroundColor(.white.opacity(0.82))
                             .lineLimit(1)
                     } else {
                         Text(NSLocalizedString("explore.suggestedUsers.suggestedForYou", comment: ""))
-                             .font(.custom("Poppins-Medium", size: 10))
+                             .font(.system(size: legacyPoppinsSize(10), weight: .medium))
                              .foregroundColor(.white.opacity(0.82))
                     }
                 }
 
                 Button(action: onFollow) {
                     Text(buttonTitle)
-                        .font(.custom("Poppins-SemiBold", size: 11))
+                        .font(.system(size: legacyPoppinsSize(11), weight: .semibold))
                         .foregroundColor(.primary)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 6)
@@ -444,7 +444,7 @@ struct SearchResultCard: View {
                 VStack(alignment: .leading, spacing: 6) {
                     HStack(spacing: 4) {
                         Text("@\(user.username)")
-                            .font(.custom("Poppins-SemiBold", size: 18))
+                            .font(.system(size: legacyPoppinsSize(18), weight: .semibold))
                             .foregroundColor(.primary)
 
                         // ✅ INSIGNIA DE VERIFICADO
@@ -453,14 +453,14 @@ struct SearchResultCard: View {
 
                     if let bio = user.bio, !bio.isEmpty {
                         Text(bio)
-                            .font(.custom("Poppins-Regular", size: 14))
+                            .font(.system(size: legacyPoppinsSize(14)))
                             .foregroundColor(.secondary)
                             .lineLimit(2)
                     }
 
                     if commonInterests > 0 {
                         Text(String(format: NSLocalizedString("explore.commonInterests", comment: "Common interests"), commonInterests))
-                            .font(.custom("Poppins-Medium", size: 12))
+                            .font(.system(size: legacyPoppinsSize(12), weight: .medium))
                             .foregroundColor(Color(hex: "667eea"))
                     }
                 }
@@ -480,7 +480,7 @@ struct SearchResultCard: View {
                               buttonState == .requestPendingCancellable ? "xmark.circle" : "xmark")
                         Text(buttonState.buttonText)
                     }
-                    .font(.custom("Poppins-Medium", size: 14))
+                    .font(.system(size: legacyPoppinsSize(14), weight: .medium))
                     .foregroundColor(.secondary)
                     .padding(.horizontal, 16)
                     .padding(.vertical, 8)
@@ -507,7 +507,7 @@ struct FollowButton: View {
                 Image(systemName: buttonIcon)
                 Text(buttonText)
             }
-            .font(.custom("Poppins-SemiBold", size: 14))
+            .font(.system(size: legacyPoppinsSize(14), weight: .semibold))
             .foregroundColor(.primary)
             .padding(.horizontal, 20)
             .padding(.vertical, 10)
@@ -618,11 +618,11 @@ struct EmptyMomentsView: View {
 
             VStack(spacing: 8) {
                 Text("explore.noMoments")
-                    .font(.custom("Poppins-SemiBold", size: 18))
+                    .font(.system(size: legacyPoppinsSize(18), weight: .semibold))
                     .foregroundColor(.primary)
 
                 Text("explore.noMoments.subtitle")
-                    .font(.custom("Poppins-Regular", size: 14))
+                    .font(.system(size: legacyPoppinsSize(14)))
                     .foregroundColor(.secondary)
                     .multilineTextAlignment(.center)
             }
@@ -650,11 +650,11 @@ struct EmptySearchView: View {
 
             VStack(spacing: 8) {
                 Text("explore.noUsers")
-                    .font(.custom("Poppins-SemiBold", size: 18))
+                    .font(.system(size: legacyPoppinsSize(18), weight: .semibold))
                     .foregroundColor(.primary)
 
                 Text("explore.noUsers.subtitle")
-                    .font(.custom("Poppins-Regular", size: 14))
+                    .font(.system(size: legacyPoppinsSize(14)))
                     .foregroundColor(.secondary)
             }
         }

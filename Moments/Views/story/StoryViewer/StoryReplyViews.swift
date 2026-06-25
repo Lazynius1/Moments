@@ -50,7 +50,7 @@ struct StoryReplyMessageBubble: View {
                         ? NSLocalizedString("stories.replied", comment: "")
                         : NSLocalizedString("stories.repliedTo", comment: "")
                 )
-                .font(.custom("Poppins-Medium", size: 12))
+                .font(.system(size: legacyPoppinsSize(12), weight: .medium))
                 .foregroundColor(adaptiveColors.replyBarSecondaryText)
                 .multilineTextAlignment(isCurrentUser ? .trailing : .leading)
                 .frame(maxWidth: .infinity, alignment: isCurrentUser ? .trailing : .leading)
@@ -151,7 +151,7 @@ struct StoryTextReplyContent: View {
             let cleanContent = content.hasPrefix("💬 ") ? String(content.dropFirst(2)) : content
 
             Text(cleanContent)
-                .font(.custom("Poppins-Regular", size: 15))
+                .font(.system(size: legacyPoppinsSize(15)))
                 .foregroundColor(adaptiveColors.messageTextColor)
                 .multilineTextAlignment(isCurrentUser ? .trailing : .leading)
                 .frame(maxWidth: .infinity, alignment: isCurrentUser ? .trailing : .leading)
@@ -310,7 +310,7 @@ private struct StoryReplyUnavailableThumbnail: View {
                     .foregroundColor(.white.opacity(0.9))
 
                 Text(LocalizedStringKey(reason.titleKey))
-                    .font(.custom("Poppins-SemiBold", size: 9))
+                    .font(.system(size: legacyPoppinsSize(9), weight: .semibold))
                     .foregroundColor(.white)
                     .multilineTextAlignment(.center)
                     .lineLimit(2)
@@ -435,7 +435,7 @@ struct StoryReplyEphemeralTapCard: View {
 
                 VStack(spacing: 4) {
                     Text("stories.tapToView")
-                        .font(.custom("Poppins-SemiBold", size: 11))
+                        .font(.system(size: legacyPoppinsSize(11), weight: .semibold))
                         .foregroundColor(.white)
 
                     if let expirationDate, expirationDate > Date() {
@@ -445,7 +445,7 @@ struct StoryReplyEphemeralTapCard: View {
                                 storyReplyFormatTimeLeft(expirationDate.timeIntervalSince(Date()))
                             )
                         )
-                        .font(.custom("Poppins-Regular", size: 10))
+                        .font(.system(size: legacyPoppinsSize(10)))
                         .foregroundColor(.white.opacity(0.75))
                     }
                 }
@@ -495,7 +495,7 @@ struct StoryReplyEphemeralImageCard: View {
             .overlay(alignment: .topTrailing) {
                 if let expirationDate, expirationDate > Date() {
                     Text(storyReplyFormatTimeLeft(expirationDate.timeIntervalSince(Date())))
-                        .font(.custom("Poppins-Regular", size: 9))
+                        .font(.system(size: legacyPoppinsSize(9)))
                         .foregroundColor(.white)
                         .padding(.horizontal, 6)
                         .padding(.vertical, 3)
@@ -540,7 +540,7 @@ struct StoryReplyEphemeralExpiredCard: View {
                     .foregroundColor(.white.opacity(0.85))
 
                 Text("stories.ephemeral.expired")
-                    .font(.custom("Poppins-SemiBold", size: 10))
+                    .font(.system(size: legacyPoppinsSize(10), weight: .semibold))
                     .foregroundColor(.white)
                     .multilineTextAlignment(.center)
                     .lineLimit(2)
@@ -649,7 +649,7 @@ struct ClickableEphemeralImageContent: View {
             .overlay(alignment: .topTrailing) {
                 if let expirationDate, expirationDate > Date() {
                     Text(storyReplyFormatTimeLeft(expirationDate.timeIntervalSince(Date())))
-                        .font(.custom("Poppins-Regular", size: 10))
+                        .font(.system(size: legacyPoppinsSize(10)))
                         .foregroundColor(.white)
                         .padding(.horizontal, 8)
                         .padding(.vertical, 4)
@@ -696,13 +696,13 @@ struct FullScreenEphemeralImageView: View {
                         dismiss()
                     }
                     .foregroundColor(.white)
-                    .font(.custom("Poppins-Medium", size: 16))
+                    .font(.system(size: legacyPoppinsSize(16), weight: .medium))
 
                     Spacer()
 
                     if timeLeft > 0 {
                         Text(String(format: NSLocalizedString("stories.expiresIn", comment: "Expires in"), formatTimeLeft(timeLeft)))
-                            .font(.custom("Poppins-Regular", size: 14))
+                            .font(.system(size: legacyPoppinsSize(14)))
                             .foregroundColor(.white.opacity(0.8))
                             .padding(.horizontal, 12)
                             .padding(.vertical, 6)

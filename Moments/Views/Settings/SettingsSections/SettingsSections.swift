@@ -153,7 +153,7 @@ struct SettingsGroup<Content: View>: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             Text(title.uppercased())
-                .font(.custom("Poppins-Bold", size: 11))
+                .font(.system(size: legacyPoppinsSize(11), weight: .bold))
                 .foregroundColor(colorScheme == .dark ? .white.opacity(0.45) : .black.opacity(0.35))
                 .padding(.leading, 4)
 
@@ -215,12 +215,12 @@ struct SettingsRow: View {
 
                 VStack(alignment: .leading, spacing: 1) {
                     Text(title)
-                        .font(.custom("Poppins-Medium", size: 15))
+                        .font(.system(size: legacyPoppinsSize(15), weight: .medium))
                         .foregroundColor(isDestructive ? .red : (colorScheme == .dark ? .white : .black))
 
                     if let subtitle = subtitle, !subtitle.isEmpty {
                         Text(subtitle)
-                            .font(.custom("Poppins-Regular", size: 12))
+                            .font(.system(size: legacyPoppinsSize(12)))
                             .foregroundColor(.gray)
                     }
                 }
@@ -272,7 +272,7 @@ struct AdvancedAccountSection: View {
                         .frame(width: 28, alignment: .center)
 
                     Text(NSLocalizedString("settings.advanced.title", comment: "Advanced"))
-                        .font(.custom("Poppins-Medium", size: 15))
+                        .font(.system(size: legacyPoppinsSize(15), weight: .medium))
                         .foregroundColor(colorScheme == .dark ? .white : .black)
 
                     Spacer()
@@ -395,7 +395,7 @@ struct AdvancedAccountManagementView: View {
                             Image(systemName: "info.circle")
                                 .font(.system(size: 13, weight: .medium))
                             Text("settings.info.title")
-                                .font(.custom("Poppins-SemiBold", size: 12))
+                                .font(.system(size: legacyPoppinsSize(12), weight: .semibold))
                         }
                         .foregroundColor(AuthColors.secondary(colorScheme, opacity: 0.62))
 
@@ -404,7 +404,7 @@ struct AdvancedAccountManagementView: View {
                             Text("settings.info.delete")
                             Text("settings.info.reactivate")
                         }
-                        .font(.custom("Poppins-Regular", size: 12))
+                        .font(.system(size: legacyPoppinsSize(12)))
                         .foregroundColor(AuthColors.secondary(colorScheme, opacity: 0.58))
                         .fixedSize(horizontal: false, vertical: true)
                     }
@@ -507,13 +507,13 @@ private struct AdvancedSheetHeader: View {
 
             VStack(spacing: 5) {
                 Text(title)
-                    .font(.custom("Poppins-SemiBold", size: 18))
+                    .font(.system(size: legacyPoppinsSize(18), weight: .semibold))
                     .foregroundColor(AuthColors.primary(colorScheme))
                     .multilineTextAlignment(.center)
 
                 if let subtitle, !subtitle.isEmpty {
                     Text(subtitle)
-                        .font(.custom("Poppins-Regular", size: 12))
+                        .font(.system(size: legacyPoppinsSize(12)))
                         .foregroundColor(AuthColors.secondary(colorScheme, opacity: 0.58))
                         .multilineTextAlignment(.center)
                         .lineLimit(2)
@@ -542,11 +542,11 @@ private struct AdvancedAccountActionRow: View {
             HStack(spacing: 14) {
                 VStack(alignment: .leading, spacing: 3) {
                     Text(title)
-                        .font(.custom("Poppins-SemiBold", size: 15))
+                        .font(.system(size: legacyPoppinsSize(15), weight: .semibold))
                         .foregroundColor(isDestructive ? .red : AuthColors.primary(colorScheme))
 
                     Text(subtitle)
-                        .font(.custom("Poppins-Regular", size: 12))
+                        .font(.system(size: legacyPoppinsSize(12)))
                         .foregroundColor(AuthColors.secondary(colorScheme, opacity: 0.54))
                         .lineLimit(2)
                 }
@@ -656,14 +656,14 @@ struct ProfileSection: View {
                 // Nombre y badges inline
                 HStack(spacing: 8) {
                     Text(username.isEmpty ? "Usuario" : username)
-                        .font(.custom("Poppins-SemiBold", size: 20))
+                        .font(.system(size: legacyPoppinsSize(20), weight: .semibold))
                         .foregroundColor(colorScheme == .dark ? .white : .black)
 
                     // Badges inline
                     if let currentUser = authService.currentUser {
                         if currentUser.isPlusSubscriber {
                             Text(NSLocalizedString("common.pro", comment: "PRO badge"))
-                                .font(.custom("Poppins-Bold", size: 10))
+                                .font(.system(size: legacyPoppinsSize(10), weight: .bold))
                                 .foregroundColor(.white)
                                 .padding(.horizontal, 8)
                                 .padding(.vertical, 3)
@@ -681,7 +681,7 @@ struct ProfileSection: View {
                             .foregroundColor(Color(hex: "FFD700"))
 
                         Text("settings.plus.active")
-                            .font(.custom("Poppins-Medium", size: 13))
+                            .font(.system(size: legacyPoppinsSize(13), weight: .medium))
                             .foregroundColor(Color(hex: "FFD700"))
                     }
                     .padding(.horizontal, 12)
@@ -761,10 +761,10 @@ struct PrivacySection: View {
 
                     VStack(alignment: .leading, spacing: 1) {
                         Text(NSLocalizedString("settings.privacy.privateAccount", comment: "Private account"))
-                            .font(.custom("Poppins-Medium", size: 15))
+                            .font(.system(size: legacyPoppinsSize(15), weight: .medium))
                             .foregroundColor(colorScheme == .dark ? .white : .black)
                         Text(NSLocalizedString("settings.privacy.privateAccount.description", comment: "Private account description"))
-                            .font(.custom("Poppins-Regular", size: 12))
+                            .font(.system(size: legacyPoppinsSize(12)))
                             .foregroundColor(.gray)
                     }
 
@@ -820,10 +820,10 @@ struct PrivacySection: View {
 
                 VStack(alignment: .leading, spacing: 1) {
                     Text(NSLocalizedString("settings.privacy.readReceipts.title", comment: "Read receipts"))
-                        .font(.custom("Poppins-Medium", size: 15))
+                        .font(.system(size: legacyPoppinsSize(15), weight: .medium))
                         .foregroundColor(colorScheme == .dark ? .white : .black)
                     Text(NSLocalizedString("settings.privacy.readReceipts.description", comment: "Read receipts description"))
-                        .font(.custom("Poppins-Regular", size: 12))
+                        .font(.system(size: legacyPoppinsSize(12)))
                         .foregroundColor(.gray)
                 }
 
@@ -878,7 +878,7 @@ struct ConnectionVisibilityView: View {
                 ScrollView {
                     LazyVStack(alignment: .leading, spacing: 20) {
                         Text("settings.privacy.control.title")
-                            .font(.custom("Poppins-Medium", size: 12))
+                            .font(.system(size: legacyPoppinsSize(12), weight: .medium))
                             .foregroundColor(.gray)
 
                         VStack(spacing: 0) {
@@ -914,7 +914,7 @@ struct ConnectionVisibilityView: View {
                         }
 
                         Text("settings.privacy.control.description")
-                            .font(.custom("Poppins-Regular", size: 11))
+                            .font(.system(size: legacyPoppinsSize(11)))
                             .foregroundColor(.gray.opacity(0.8))
                             .padding(.top, 2)
                     }
@@ -944,10 +944,10 @@ struct ConnectionVisibilityView: View {
             VStack(alignment: .leading, spacing: 5) {
                 Text(title)
                     .foregroundColor(colorScheme == .dark ? .white : .black)
-                    .font(.custom("Poppins-SemiBold", size: 14))
+                    .font(.system(size: legacyPoppinsSize(14), weight: .semibold))
                 Text(description)
                     .foregroundColor(.gray)
-                    .font(.custom("Poppins-Regular", size: 12))
+                    .font(.system(size: legacyPoppinsSize(12)))
             }
 
             Spacer()
@@ -978,11 +978,11 @@ private struct AppleLinkSettingsRow: View {
 
                     VStack(alignment: .leading, spacing: 1) {
                         Text("settings.security.appleId")
-                            .font(.custom("Poppins-Medium", size: 15))
+                            .font(.system(size: legacyPoppinsSize(15), weight: .medium))
                             .foregroundColor(colorScheme == .dark ? .white : .black)
 
                         Text("settings.security.appleId.description")
-                            .font(.custom("Poppins-Regular", size: 12))
+                            .font(.system(size: legacyPoppinsSize(12)))
                             .foregroundColor(.gray)
                     }
 
@@ -1048,11 +1048,11 @@ struct SecurityStatusRow<OverlayView: View>: View {
 
                 VStack(alignment: .leading, spacing: 1) {
                     Text(title)
-                        .font(.custom("Poppins-Medium", size: 15))
+                        .font(.system(size: legacyPoppinsSize(15), weight: .medium))
                         .foregroundColor(colorScheme == .dark ? .white : .black)
 
                     Text(subtitle)
-                        .font(.custom("Poppins-Regular", size: 12))
+                        .font(.system(size: legacyPoppinsSize(12)))
                         .foregroundColor(.gray)
                 }
 
@@ -1452,7 +1452,7 @@ struct LogoutSection: View {
                     .frame(width: 28, alignment: .center)
 
                 Text(NSLocalizedString("settings.logout", comment: "Log out"))
-                    .font(.custom("Poppins-Medium", size: 15))
+                    .font(.system(size: legacyPoppinsSize(15), weight: .medium))
                     .foregroundColor(.red)
 
                 Spacer()

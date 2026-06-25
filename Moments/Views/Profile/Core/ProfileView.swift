@@ -140,7 +140,7 @@ struct ProfilePillTabs: View {
                                 }
 
                                 Text(tab.localizedTitle)
-                                    .font(.custom(labelFontName(for: index, width: proxy.size.width), size: 12))
+                                    .font(.system(size: legacyPoppinsSize(12), weight: labelWeight(for: index, width: proxy.size.width)))
                             }
                             .foregroundColor(labelColor(for: index, width: proxy.size.width))
                             .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -210,10 +210,6 @@ struct ProfilePillTabs: View {
         visualIndex(for: width) == index ? .semibold : .medium
     }
 
-    private func labelFontName(for index: Int, width: CGFloat) -> String {
-        visualIndex(for: width) == index ? "Poppins-SemiBold" : "Poppins-Medium"
-    }
-
     private func constrainedTranslation(_ translation: CGFloat, width: CGFloat) -> CGFloat {
         let segment = segmentWidth(for: width)
         let minOffset = -((CGFloat(ProfileTabType.allCases.count - 1) * segment) / 2)
@@ -255,6 +251,52 @@ struct ProfilePillTabs: View {
             selectedTab = targetTab
             transientOffset = 0
         }
+    }
+}
+
+// ✅ NUEVO: Separated Floating Tabs Component para el perfil propio
+struct ProfileFloatingTabBar: View {
+    @Binding var selectedTab: ProfileTabType
+    @Environment(\.colorScheme) private var colorScheme
+
+    var body: some View {
+        HStack(spacing: 10) {
+            ForEach(ProfileTabType.allCases, id: \.self) { tab in
+                let isSelected = selectedTab == tab
+
+                Button(action: {
+                    if tab != selectedTab {
+                        HapticManager.shared.selection()
+                    }
+                    withAnimation(.spring(response: 0.25, dampingFraction: 0.75)) {
+                        selectedTab = tab
+                    }
+                }) {
+                    HStack(spacing: 6) {
+                        if tab == .saved {
+                            AttachmentIconView(icon: .bookmark, preset: .profilePillTab)
+                        } else if tab == .tagged {
+                            AttachmentIconView(icon: .tagged, preset: .profilePillTab)
+                        } else {
+                            Image(systemName: tab.icon)
+                                .font(.system(size: 13, weight: isSelected ? .semibold : .medium))
+                        }
+
+                        Text(tab.localizedTitle)
+                            .font(.system(size: legacyPoppinsSize(12), weight: isSelected ? .semibold : .medium))
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 9)
+                    .momentsChromeGlass(
+                        in: Capsule(),
+                        interactive: true
+                    )
+                }
+                .buttonStyle(.plain)
+                .environment(\.colorScheme, isSelected ? (colorScheme == .dark ? .light : .dark) : colorScheme)
+            }
+        }
+        .padding(.vertical, 4)
     }
 }
 

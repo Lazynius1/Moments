@@ -195,18 +195,18 @@ struct StoryGalleryPicker: View {
                 )
 
                 Text("creator.gallery.permission")
-                    .font(.custom("Poppins-Medium", size: 16))
+                    .font(.system(size: legacyPoppinsSize(16), weight: .medium))
                     .foregroundColor(colorScheme == .dark ? .white : .black)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 40)
 
                 VStack(spacing: 12) {
                     Text("creator.permissions.instructions.title")
-                        .font(.custom("Poppins-SemiBold", size: 14))
+                        .font(.system(size: legacyPoppinsSize(14), weight: .semibold))
                         .foregroundColor(colorScheme == .dark ? .white : .black)
 
                     Text("creator.permissions.instructions.path")
-                        .font(.custom("Poppins-Regular", size: 12))
+                        .font(.system(size: legacyPoppinsSize(12)))
                         .foregroundColor(colorScheme == .dark ? .gray : .gray.opacity(0.7))
                         .multilineTextAlignment(.center)
 
@@ -215,7 +215,7 @@ struct StoryGalleryPicker: View {
                             UIApplication.shared.open(settingsUrl)
                         }
                     }
-                    .font(.custom("Poppins-SemiBold", size: 14))
+                    .font(.system(size: legacyPoppinsSize(14), weight: .semibold))
                     .foregroundColor(.white)
                     .padding(.horizontal, 24)
                     .padding(.vertical, 10)
@@ -232,7 +232,7 @@ struct StoryGalleryPicker: View {
                 Button("common.close") {
                     dismiss()
                 }
-                .font(.custom("Poppins-Medium", size: 14))
+                .font(.system(size: legacyPoppinsSize(14), weight: .medium))
                 .foregroundColor(colorScheme == .dark ? .gray : .gray.opacity(0.7))
             }
         }
@@ -285,10 +285,10 @@ private struct StoryLongVideoDecisionOverlay: View {
 
                     VStack(alignment: .leading, spacing: 6) {
                         Text("storyVideo.long.title")
-                            .font(.custom("Poppins-SemiBold", size: 17))
+                            .font(.system(size: legacyPoppinsSize(17), weight: .semibold))
                             .foregroundColor(primaryTextColor)
                         Text(decisionMessage)
-                            .font(.custom("Poppins-Regular", size: 13))
+                            .font(.system(size: legacyPoppinsSize(13)))
                             .foregroundColor(secondaryTextColor)
                             .fixedSize(horizontal: false, vertical: true)
                     }
@@ -297,7 +297,7 @@ private struct StoryLongVideoDecisionOverlay: View {
 
                 if canAutoSplit {
                     Text("storyVideo.long.revealHint")
-                        .font(.custom("Poppins-Regular", size: 12))
+                        .font(.system(size: legacyPoppinsSize(12)))
                         .foregroundColor(tertiaryTextColor)
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
@@ -305,7 +305,7 @@ private struct StoryLongVideoDecisionOverlay: View {
                 HStack(spacing: 18) {
                     Button(action: onCancel) {
                         Text("common.cancel")
-                            .font(.custom("Poppins-Medium", size: 13))
+                            .font(.system(size: legacyPoppinsSize(13), weight: .medium))
                             .foregroundColor(secondaryTextColor)
                             .padding(.horizontal, 4)
                             .frame(minHeight: 44)
@@ -330,7 +330,7 @@ private struct StoryLongVideoDecisionOverlay: View {
                         .buttonStyle(MomentRowButtonStyle())
                     }
                 }
-                .font(.custom("Poppins-SemiBold", size: 14))
+                .font(.system(size: legacyPoppinsSize(14), weight: .semibold))
                 .foregroundColor(primaryTextColor)
             }
             .padding(.horizontal, 20)

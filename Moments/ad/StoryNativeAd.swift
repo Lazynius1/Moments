@@ -233,14 +233,14 @@ private struct StoryAdTopChrome: View {
                     VStack(alignment: .leading, spacing: 2) {
                         Text(title)
                             .foregroundColor(.white)
-                            .font(.custom("Poppins-SemiBold", size: 14))
+                            .font(.system(size: legacyPoppinsSize(14), weight: .semibold))
                             .lineLimit(1)
                             .shadow(color: Color.black.opacity(0.60), radius: 5, x: 0, y: 2)
 
                         HStack(spacing: 6) {
                             Text("Ad")
                                 .foregroundColor(.white)
-                                .font(.custom("Poppins-SemiBold", size: 9))
+                                .font(.system(size: legacyPoppinsSize(9), weight: .semibold))
                                 .padding(.horizontal, 5)
                                 .padding(.vertical, 2)
                                 .background(Color.white.opacity(0.18))
@@ -248,7 +248,7 @@ private struct StoryAdTopChrome: View {
 
                             Text(subtitle)
                                 .foregroundColor(.white.opacity(0.7))
-                                .font(.custom("Poppins-Regular", size: 11))
+                                .font(.system(size: legacyPoppinsSize(11)))
                                 .shadow(color: Color.black.opacity(0.55), radius: 4, x: 0, y: 2)
                         }
                     }
@@ -681,7 +681,7 @@ struct StoryAdMediaViewRepresentable: UIViewRepresentable {
         
         let adAttributionLabel = UILabel()
         adAttributionLabel.text = "Ad"
-        adAttributionLabel.font = UIFont(name: "Poppins-Bold", size: 12) ?? UIFont.boldSystemFont(ofSize: 12)
+        adAttributionLabel.font = UIFont.systemFont(ofSize: legacyPoppinsSize(12), weight: .bold) ?? UIFont.boldSystemFont(ofSize: 12)
         adAttributionLabel.textColor = .white
         adAttributionLabel.textAlignment = .center
         adAttributionLabel.translatesAutoresizingMaskIntoConstraints = false
@@ -696,7 +696,7 @@ struct StoryAdMediaViewRepresentable: UIViewRepresentable {
         // Headline
         let headlineLabel = UILabel()
         headlineLabel.text = nativeAd.headline
-        headlineLabel.font = UIFont(name: "Poppins-SemiBold", size: 22) ?? UIFont.boldSystemFont(ofSize: 22)
+        headlineLabel.font = UIFont.systemFont(ofSize: legacyPoppinsSize(22), weight: .semibold) ?? UIFont.boldSystemFont(ofSize: 22)
         headlineLabel.textColor = .white
         headlineLabel.numberOfLines = 1
         headlineLabel.lineBreakMode = .byTruncatingTail
@@ -706,7 +706,7 @@ struct StoryAdMediaViewRepresentable: UIViewRepresentable {
         // Body
         let bodyLabel = UILabel()
         bodyLabel.text = nativeAd.body
-        bodyLabel.font = UIFont(name: "Poppins-Regular", size: 15) ?? UIFont.systemFont(ofSize: 15)
+        bodyLabel.font = UIFont.systemFont(ofSize: legacyPoppinsSize(15)) ?? UIFont.systemFont(ofSize: legacyPoppinsSize(15))
         bodyLabel.textColor = UIColor.white.withAlphaComponent(0.9)
         bodyLabel.numberOfLines = 1
         bodyLabel.lineBreakMode = .byTruncatingTail
@@ -715,7 +715,7 @@ struct StoryAdMediaViewRepresentable: UIViewRepresentable {
 
         let callToActionButton = UIButton(type: .system)
         callToActionButton.setTitle(nativeAd.callToAction ?? "Más información", for: .normal)
-        callToActionButton.titleLabel?.font = UIFont(name: "Poppins-SemiBold", size: 15) ?? UIFont.boldSystemFont(ofSize: 15)
+        callToActionButton.titleLabel?.font = UIFont.systemFont(ofSize: legacyPoppinsSize(15), weight: .semibold) ?? UIFont.boldSystemFont(ofSize: 15)
         callToActionButton.setTitleColor(.white, for: .normal)
         callToActionButton.backgroundColor = UIColor(red: 0.09, green: 0.56, blue: 0.96, alpha: 0.95)
         callToActionButton.layer.cornerRadius = 18
@@ -734,7 +734,7 @@ struct StoryAdMediaViewRepresentable: UIViewRepresentable {
 
         let advertiserLabel = UILabel()
         advertiserLabel.text = nativeAd.advertiser ?? "Anunciante"
-        advertiserLabel.font = UIFont(name: "Poppins-SemiBold", size: 14) ?? UIFont.boldSystemFont(ofSize: 14)
+        advertiserLabel.font = UIFont.systemFont(ofSize: legacyPoppinsSize(14), weight: .semibold) ?? UIFont.boldSystemFont(ofSize: 14)
         advertiserLabel.textColor = .white.withAlphaComponent(0.8)
         advertiserLabel.numberOfLines = 1
         advertiserLabel.lineBreakMode = .byTruncatingTail
@@ -899,7 +899,7 @@ struct StoryAdLoadingView: View {
                         Button("ad.common.skip") {
                             onNext()
                         }
-                        .font(.custom("Poppins-Medium", size: 12))
+                        .font(.system(size: legacyPoppinsSize(12), weight: .medium))
                         .foregroundColor(.white)
                         .padding(.horizontal, 12)
                         .padding(.vertical, 6)
@@ -933,12 +933,12 @@ struct StoryAdLoadingView: View {
                     
                     VStack(spacing: 8) {
                         Text("ad.story.preparing")
-                            .font(.custom("Poppins-SemiBold", size: 18))
+                            .font(.system(size: legacyPoppinsSize(18), weight: .semibold))
                             .foregroundColor(.white)
                             .shadow(color: .black.opacity(0.3), radius: 5)
                         
                         Text("ad.story.preparingDescription")
-                            .font(.custom("Poppins-Regular", size: 14))
+                            .font(.system(size: legacyPoppinsSize(14)))
                             .foregroundColor(.white.opacity(0.8))
                             .shadow(color: .black.opacity(0.3), radius: 3)
                     }
@@ -1218,13 +1218,13 @@ struct IntegratedStoryAdView: View {
                     VStack(spacing: 20) {
                         VStack(alignment: .leading, spacing: 8) {
                             Text(nativeAd.headline ?? "")
-                                .font(.custom("Poppins-Bold", size: 22))
+                                .font(.system(size: legacyPoppinsSize(22), weight: .bold))
                                 .foregroundColor(.white)
                                 .shadow(color: .black.opacity(0.5), radius: 4)
                             
                             if let body = nativeAd.body {
                                 Text(body)
-                                    .font(.custom("Poppins-Regular", size: 15))
+                                    .font(.system(size: legacyPoppinsSize(15)))
                                     .foregroundColor(.white.opacity(0.9))
                                     .lineLimit(3)
                                     .shadow(color: .black.opacity(0.3), radius: 2)
@@ -1239,7 +1239,7 @@ struct IntegratedStoryAdView: View {
                         }) {
                             HStack {
                                 Text(nativeAd.callToAction ?? "Más información")
-                                    .font(.custom("Poppins-SemiBold", size: 16))
+                                    .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
                                 Image(systemName: "arrow.right.circle.fill")
                                     .font(.system(size: 20))
                             }
@@ -1301,11 +1301,11 @@ struct IntegratedStoryAdView: View {
                     
                     VStack(alignment: .leading, spacing: 2) {
                         Text(nativeAd.advertiser ?? "Anunciante")
-                            .font(.custom("Poppins-SemiBold", size: 14))
+                            .font(.system(size: legacyPoppinsSize(14), weight: .semibold))
                             .foregroundColor(.white)
                         
                         Text("ad.common.sponsored")
-                            .font(.custom("Poppins-Regular", size: 11))
+                            .font(.system(size: legacyPoppinsSize(11)))
                             .foregroundColor(.white.opacity(0.7))
                     }
                     
@@ -1381,7 +1381,7 @@ struct IntegratedStoryMediaView: UIViewRepresentable {
         
         let adAttributionLabel = UILabel()
         adAttributionLabel.text = "Ad"
-        adAttributionLabel.font = UIFont(name: "Poppins-Bold", size: 12) ?? UIFont.boldSystemFont(ofSize: 12)
+        adAttributionLabel.font = UIFont.systemFont(ofSize: legacyPoppinsSize(12), weight: .bold) ?? UIFont.boldSystemFont(ofSize: 12)
         adAttributionLabel.textColor = .white
         adAttributionLabel.textAlignment = .center
         adAttributionLabel.translatesAutoresizingMaskIntoConstraints = false
@@ -1410,7 +1410,7 @@ struct IntegratedStoryMediaView: UIViewRepresentable {
         // ✅ QUITADO: CTA Button - No necesario, el tapping general funciona
         // let callToActionButton = UIButton(type: .system)
         // callToActionButton.setTitle(nativeAd.callToAction ?? "Más información", for: .normal)
-        // callToActionButton.titleLabel?.font = UIFont(name: "Poppins-SemiBold", size: 16) ?? UIFont.boldSystemFont(ofSize: 16)
+        // callToActionButton.titleLabel?.font = UIFont.systemFont(ofSize: legacyPoppinsSize(16), weight: .semibold) ?? UIFont.boldSystemFont(ofSize: 16)
         // callToActionButton.setTitleColor(.white, for: .normal)
         // callToActionButton.backgroundColor = UIColor(red: 0, green: 0.66, blue: 0.59, alpha: 1)
         // callToActionButton.layer.cornerRadius = 16
@@ -1429,7 +1429,7 @@ struct IntegratedStoryMediaView: UIViewRepresentable {
         // Advertiser
         let advertiserLabel = UILabel()
         advertiserLabel.text = nativeAd.advertiser ?? "Anunciante"
-        advertiserLabel.font = UIFont(name: "Poppins-SemiBold", size: 14) ?? UIFont.boldSystemFont(ofSize: 14)
+        advertiserLabel.font = UIFont.systemFont(ofSize: legacyPoppinsSize(14), weight: .semibold) ?? UIFont.boldSystemFont(ofSize: 14)
         advertiserLabel.textColor = .white.withAlphaComponent(0.8)
         advertiserLabel.translatesAutoresizingMaskIntoConstraints = false
         nativeAdView.advertiserView = advertiserLabel

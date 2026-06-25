@@ -275,7 +275,7 @@ struct AppealFormHeader: View {
             
             VStack(spacing: 12) {
                 Text(NSLocalizedString("appeal.title", comment: "Appeal title"))
-                    .font(.custom("Poppins-Bold", size: 26))
+                    .font(.system(size: legacyPoppinsSize(26), weight: .bold))
                     .foregroundColor(AuthColors.primary(colorScheme))
                 
                 Text(NSLocalizedString("appeal.subtitle", comment: "Appeal subtitle"))
@@ -615,7 +615,7 @@ struct AppealSuccessView: View {
             VStack(spacing: 24) {
                 VStack(spacing: 16) {
                     Text(NSLocalizedString("appeal.success.title", comment: "Appeal success title"))
-                        .font(.custom("Poppins-Bold", size: 28))
+                        .font(.system(size: legacyPoppinsSize(28), weight: .bold))
                         .foregroundColor(AuthColors.primary(colorScheme))
                         .multilineTextAlignment(.center)
                     

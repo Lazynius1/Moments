@@ -119,14 +119,14 @@ struct ChainConfigurationView: View {
                         .foregroundColor(.blue)
                     
                     Text(NSLocalizedString("storyChains.configurationTitle", comment: "Chain Configuration"))
-                        .font(.custom("Poppins-Bold", size: 24))
+                        .font(.system(size: legacyPoppinsSize(24), weight: .bold))
                         .foregroundColor(.primary)
                     
                     // Texto informativo aclarando el origen de la configuración
                     Text(isContinuing ? 
                          NSLocalizedString("storyChains.inheritedSettingsInfo", comment: "The settings for this chain were defined by the original author and cannot be changed.") :
                          NSLocalizedString("storyChains.visibilityInfo", comment: "Visibility info"))
-                        .font(.custom("Poppins-Regular", size: 16))
+                        .font(.system(size: legacyPoppinsSize(16)))
                         .foregroundColor(.secondary)
                         .multilineTextAlignment(.center)
                         .padding(.horizontal)
@@ -136,11 +136,11 @@ struct ChainConfigurationView: View {
                 if let chainTitleSummary, !chainTitleSummary.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                     VStack(alignment: .leading, spacing: 6) {
                         Text(NSLocalizedString("storyChains.chainTitle", comment: ""))
-                            .font(.custom("Poppins-SemiBold", size: 13))
+                            .font(.system(size: legacyPoppinsSize(13), weight: .semibold))
                             .foregroundColor(.secondary)
 
                         Text(chainTitleSummary)
-                            .font(.custom("Poppins-SemiBold", size: 18))
+                            .font(.system(size: legacyPoppinsSize(18), weight: .semibold))
                             .foregroundColor(.primary)
                             .lineLimit(2)
                     }
@@ -155,7 +155,7 @@ struct ChainConfigurationView: View {
                         VStack(alignment: .leading, spacing: 12) {
                             HStack {
                                 Text(NSLocalizedString("storyChains.allowOthersToggle", comment: "Allow others toggle"))
-                                    .font(.custom("Poppins-Medium", size: 16))
+                                    .font(.system(size: legacyPoppinsSize(16), weight: .medium))
                                     .foregroundColor(.primary)
                                 
                                 Spacer()
@@ -164,7 +164,7 @@ struct ChainConfigurationView: View {
                             }
                             
                             Text(NSLocalizedString("storyChains.allowOthersDescription", comment: "Allow others description"))
-                                .font(.custom("Poppins-Regular", size: 14))
+                                .font(.system(size: legacyPoppinsSize(14)))
                                 .foregroundColor(.secondary)
                         }
                         .padding(.vertical, 4)
@@ -174,7 +174,7 @@ struct ChainConfigurationView: View {
                     if allowOthersToContinue {
                         VStack(alignment: .leading, spacing: 12) {
                             Text(NSLocalizedString("storyChains.continuationAudience", comment: "Continuation audience"))
-                                .font(.custom("Poppins-Medium", size: 16))
+                                .font(.system(size: legacyPoppinsSize(16), weight: .medium))
                                 .foregroundColor(.primary)
                             
                             Button(action: {
@@ -192,7 +192,7 @@ struct ChainConfigurationView: View {
                                     .frame(width: 28, alignment: .center)
                                     
                                     Text(getAudienceText())
-                                        .font(.custom("Poppins-Regular", size: 16))
+                                        .font(.system(size: legacyPoppinsSize(16)))
                                         .foregroundColor(isContinuing ? .secondary : .primary)
                                     
                                     Spacer()
@@ -214,7 +214,7 @@ struct ChainConfigurationView: View {
                     if isContinuing {
                         // Mensaje de pie para colaboradores
                         Text(NSLocalizedString("storyChains.collaboratorNotice", comment: "Note: Since you are a collaborator, the chain rules established by the author apply."))
-                            .font(.custom("Poppins-Italic", size: 13))
+                            .font(.system(size: legacyPoppinsSize(13)).italic())
                             .foregroundColor(.secondary)
                             .multilineTextAlignment(.center)
                             .padding(.top, 8)
@@ -240,7 +240,7 @@ struct ChainConfigurationView: View {
                             .font(.system(size: 16))
                         
                         Text(NSLocalizedString("storyChains.shareChain", comment: "Share Chain"))
-                            .font(.custom("Poppins-Medium", size: 16))
+                            .font(.system(size: legacyPoppinsSize(16), weight: .medium))
                             .foregroundColor(.white)
                     }
                     .padding(.horizontal, 20)

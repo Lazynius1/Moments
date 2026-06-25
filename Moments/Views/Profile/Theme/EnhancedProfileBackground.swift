@@ -866,7 +866,7 @@ struct EnhancedProfilePreviewCard: View {
                 // Profile info with enhanced styling
                 VStack(spacing: 8) {
                     Text("Tu Perfil")
-                        .font(.custom("Poppins-Bold", size: 20))
+                        .font(.system(size: legacyPoppinsSize(20), weight: .bold))
                         .foregroundColor(.white)
                         .shadow(color: .black.opacity(0.3), radius: 2, x: 0, y: 1)
                     
@@ -878,7 +878,7 @@ struct EnhancedProfilePreviewCard: View {
                             .shadow(color: .white.opacity(0.5), radius: 3, x: 0, y: 0)
                         
                         Text(theme.displayName)
-                            .font(.custom("Poppins-Medium", size: 16))
+                            .font(.system(size: legacyPoppinsSize(16), weight: .medium))
                             .foregroundColor(.white.opacity(0.95))
                     }
                     .padding(.horizontal, 16)

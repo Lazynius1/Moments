@@ -16,15 +16,15 @@ struct TimeSpentCardView: View {
             HStack(alignment: .top) {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(NSLocalizedString("userActivity.timeSpent.title", value: "Time on Moments", comment: "Time spent title"))
-                        .font(.custom("Poppins-SemiBold", size: 16))
+                        .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
                         .foregroundColor(colorScheme == .dark ? .white : .black)
                     
                     Text("\(formatTime(average))")
-                        .font(.custom("Poppins-Bold", size: 28))
+                        .font(.system(size: legacyPoppinsSize(28), weight: .bold))
                         .foregroundColor(colorScheme == .dark ? .white : .black)
                     
                     Text(NSLocalizedString("userActivity.timeSpent.average", value: "Daily average", comment: "Daily average subtitle"))
-                        .font(.custom("Poppins-Regular", size: 13))
+                        .font(.system(size: legacyPoppinsSize(13)))
                         .foregroundColor(.gray)
                 }
                 Spacer()
@@ -63,7 +63,7 @@ struct TimeSpentCardView: View {
                         .frame(height: 100)
                         
                         Text(dayAbbreviation(for: item.date))
-                            .font(.custom("Poppins-Regular", size: 11))
+                            .font(.system(size: legacyPoppinsSize(11)))
                             .foregroundColor(.gray)
                     }
                 }

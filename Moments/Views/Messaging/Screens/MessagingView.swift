@@ -419,7 +419,7 @@ struct MessagingView: View {
                     .font(.system(size: 16))
 
                 TextField(NSLocalizedString("messaging.search.placeholder", comment: "Search conversations placeholder"), text: $searchText)
-                    .font(.custom("Poppins-Regular", size: 15))
+                    .font(.system(size: legacyPoppinsSize(15)))
                     .foregroundColor(adaptiveColors.primary)
                     .focused($isSearchFocused)
                     .onChange(of: searchText) { _, newValue in
@@ -455,7 +455,7 @@ struct MessagingView: View {
                     isSearchFocused = false
                     viewModel.clearSearch()
                 }
-                .font(.custom("Poppins-Medium", size: 14))
+                .font(.system(size: legacyPoppinsSize(14), weight: .medium))
                 .foregroundColor(adaptiveColors.primary)
                 .transition(.move(edge: .trailing).combined(with: .opacity))
             }
@@ -477,7 +477,7 @@ struct MessagingView: View {
                          .foregroundColor(.white.opacity(0.8))
 
                      Text(errorMessage)
-                         .font(.custom("Poppins-Regular", size: 16))
+                         .font(.system(size: legacyPoppinsSize(16)))
                          .foregroundColor(.white)
                          .multilineTextAlignment(.center)
                          .padding(.horizontal)
@@ -488,7 +488,7 @@ struct MessagingView: View {
                          }
                      }) {
                          Text("messaging.retry")
-                             .font(.custom("Poppins-SemiBold", size: 16))
+                             .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
                              .foregroundColor(Color(hex: "007AFF"))
                              .padding(.horizontal, 30)
                              .padding(.vertical, 12)
@@ -512,11 +512,11 @@ struct MessagingView: View {
                          .foregroundColor(.white.opacity(0.8))
 
                      Text("messaging.noConversations.title")
-                         .font(.custom("Poppins-SemiBold", size: 18))
+                         .font(.system(size: legacyPoppinsSize(18), weight: .semibold))
                          .foregroundColor(.white)
 
                      Text("messaging.noConversations.subtitle")
-                         .font(.custom("Poppins-Regular", size: 14))
+                         .font(.system(size: legacyPoppinsSize(14)))
                          .foregroundColor(.white.opacity(0.8))
 
                      Button(action: {
@@ -526,7 +526,7 @@ struct MessagingView: View {
                              Image(systemName: "plus.circle.fill")
                              Text("messaging.newConversation")
                          }
-                         .font(.custom("Poppins-SemiBold", size: 16))
+                         .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
                          .foregroundColor(Color(hex: "007AFF"))
                          .padding(.horizontal, 24)
                          .padding(.vertical, 12)
@@ -621,11 +621,11 @@ struct MessagingView: View {
                 .foregroundStyle(adaptiveColors.secondary.opacity(0.6))
 
             Text("messaging.noResults")
-                .font(.custom("Poppins-SemiBold", size: 16))
+                .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
                 .foregroundStyle(adaptiveColors.primary)
 
             Text("messaging.noResults.description")
-                .font(.custom("Poppins-Regular", size: 14))
+                .font(.system(size: legacyPoppinsSize(14)))
                 .foregroundStyle(adaptiveColors.secondary)
                 .multilineTextAlignment(.center)
         }
@@ -762,7 +762,7 @@ struct MessagingView: View {
                         ? String(format: NSLocalizedString("messaging.section.archivedWithUnread", comment: "Archived section with unread count"), unreadCount)
                         : NSLocalizedString("messaging.section.archived", comment: "Archived section")
                 )
-                .font(.custom("Poppins-SemiBold", size: 15))
+                .font(.system(size: legacyPoppinsSize(15), weight: .semibold))
 
                 Spacer()
 
@@ -872,11 +872,11 @@ struct SearchUserRow: View {
 
                 VStack(alignment: .leading, spacing: 4) {
                     Text(user.username)
-                        .font(.custom("Poppins-SemiBold", size: 16))
+                        .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
                         .foregroundColor(colorScheme == .dark ? .white : .black)
 
                     Text("messaging.tapToStartConversation")
-                        .font(.custom("Poppins-Regular", size: 14))
+                        .font(.system(size: legacyPoppinsSize(14)))
                         .foregroundColor(colorScheme == .dark ? .white.opacity(0.8) : .black.opacity(0.7))
                         .lineLimit(1)
                 }
@@ -1016,7 +1016,7 @@ struct GlassmorphicConversationRow: View {
     private var usernameRow: some View {
         let label = HStack(spacing: 4) {
             Text(displayUsername)
-                .font(.custom("Poppins-SemiBold", size: 16))
+                .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
                 .strikethrough(isOtherParticipantUnavailable && !isOtherParticipantBlockedByCurrentUser, color: colorScheme == .dark ? .white.opacity(0.55) : .black.opacity(0.45))
                 .foregroundColor((colorScheme == .dark ? Color.white : Color.black).opacity(isOtherParticipantUnavailable ? 0.72 : 1.0))
 
@@ -1063,7 +1063,7 @@ struct GlassmorphicConversationRow: View {
                 ? NSLocalizedString("messaging.profileUnavailable.preview", comment: "Unavailable profile preview")
                 : resolvedPreview
         )
-        .font(.custom("Poppins-Regular", size: 14))
+        .font(.system(size: legacyPoppinsSize(14)))
         .foregroundColor(showsDraftPreview ? Color(hex: "3F6F8F") : (colorScheme == .dark ? .white.opacity(0.8) : .black.opacity(0.7)))
         .lineLimit(1)
 
@@ -1089,7 +1089,7 @@ struct GlassmorphicConversationRow: View {
     private var conversationTrailingColumn: some View {
         VStack(alignment: .trailing, spacing: 6) {
             Text(formattedTimestamp(conversation.timestamp))
-                .font(.custom("Poppins-Regular", size: 12))
+                .font(.system(size: legacyPoppinsSize(12)))
                 .foregroundColor(colorScheme == .dark ? .white.opacity(0.7) : .black.opacity(0.5))
 
             if !(conversation.readStatus[Auth.auth().currentUser?.uid ?? ""] ?? true) {
@@ -1336,7 +1336,7 @@ struct GlassmorphicNewConversationView: View {
                 .foregroundStyle(adaptiveColors.secondary.opacity(0.5))
 
             Text("messaging.noResults")
-                .font(.custom("Poppins-SemiBold", size: 15))
+                .font(.system(size: legacyPoppinsSize(15), weight: .semibold))
                 .foregroundStyle(adaptiveColors.primary)
         }
         .frame(maxWidth: .infinity)
@@ -1376,7 +1376,7 @@ private struct NewConversationUserRow: View {
 
             Button(action: onSelect) {
                 Text(user.username)
-                    .font(.custom("Poppins-SemiBold", size: 16))
+                    .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
                     .foregroundColor(colorScheme == .dark ? .white : .black)
                     .lineLimit(1)
                     .frame(maxWidth: .infinity, alignment: .leading)

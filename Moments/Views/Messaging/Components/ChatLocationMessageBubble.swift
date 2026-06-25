@@ -172,13 +172,13 @@ struct ChatLocationMessageBubble: View {
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(titleText)
-                    .font(.custom("Poppins-Medium", size: 14))
+                    .font(.system(size: legacyPoppinsSize(14), weight: .medium))
                     .foregroundColor(colorScheme == .dark ? .white : .black)
                     .lineLimit(isLive ? 2 : 1)
                     .fixedSize(horizontal: false, vertical: true)
                 if let subtitle = subtitleText {
                     Text(subtitle)
-                        .font(.custom("Poppins-Regular", size: 12))
+                        .font(.system(size: legacyPoppinsSize(12)))
                         .foregroundColor(colorScheme == .dark ? .white.opacity(0.6) : .black.opacity(0.5))
                         .lineLimit(1)
                 }
@@ -199,7 +199,7 @@ struct ChatLocationMessageBubble: View {
                 Image(systemName: "stop.circle.fill")
                     .font(.system(size: 14))
                 Text(LocalizedStringKey("chat.location.stopSharing"))
-                    .font(.custom("Poppins-SemiBold", size: 13))
+                    .font(.system(size: legacyPoppinsSize(13), weight: .semibold))
             }
             .foregroundColor(.red)
             .frame(maxWidth: .infinity)
@@ -430,13 +430,13 @@ struct ChatLocationDetailView: View {
                 )
                 VStack(alignment: .leading, spacing: 3) {
                     Text(titleText)
-                        .font(.custom("Poppins-SemiBold", size: 16))
+                        .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
                         .foregroundColor(colorScheme == .dark ? .white : .black)
                         .lineLimit(isLive ? 2 : 1)
                         .fixedSize(horizontal: false, vertical: true)
                     if let subtitle = subtitleText {
                         Text(subtitle)
-                            .font(.custom("Poppins-Regular", size: 13))
+                            .font(.system(size: legacyPoppinsSize(13)))
                             .foregroundColor(colorScheme == .dark ? .white.opacity(0.65) : .black.opacity(0.55))
                             .lineLimit(2)
                     }
@@ -488,7 +488,7 @@ struct ChatLocationDetailView: View {
             HStack(spacing: 8) {
                 Image(systemName: systemImage)
                 Text(LocalizedStringKey(titleKey))
-                    .font(.custom("Poppins-SemiBold", size: 14))
+                    .font(.system(size: legacyPoppinsSize(14), weight: .semibold))
                     .lineLimit(1)
                     .minimumScaleFactor(0.8)
             }

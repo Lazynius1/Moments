@@ -363,12 +363,12 @@ struct ModernVideoPlayer: View {
                         .font(.system(size: 18, weight: .semibold))
                         .foregroundColor(.white.opacity(0.9))
                     Text(NSLocalizedString("feed.video.loadError", comment: "Video load error"))
-                        .font(.custom("Poppins-Medium", size: 13))
+                        .font(.system(size: legacyPoppinsSize(13), weight: .medium))
                         .foregroundColor(.white.opacity(0.85))
                     Button(NSLocalizedString("feed.video.retry", comment: "Retry video load")) {
                         forceReloadPlayer()
                     }
-                    .font(.custom("Poppins-SemiBold", size: 12))
+                    .font(.system(size: legacyPoppinsSize(12), weight: .semibold))
                     .foregroundColor(.white)
                     .padding(.horizontal, 12)
                     .padding(.vertical, 7)
@@ -381,7 +381,7 @@ struct ModernVideoPlayer: View {
                 
                 VStack(spacing: 12) {
                     Text(NSLocalizedString("feed.video.loading", comment: "Video loading state"))
-                        .font(.custom("Poppins-Medium", size: 14))
+                        .font(.system(size: legacyPoppinsSize(14), weight: .medium))
                         .foregroundColor(.white.opacity(0.8))
                 }
             }
@@ -415,7 +415,7 @@ struct ModernVideoPlayer: View {
                         .scaleEffect(1.5)
                     
 //                    Text("Buffering...")
-//                        .font(.custom("Poppins-Medium", size: 12))
+//                        .font(.system(size: legacyPoppinsSize(12), weight: .medium))
 //                        .foregroundColor(.white.opacity(0.8))
                 }
                 .transition(.opacity)

@@ -152,7 +152,7 @@ struct StoryOwnStoryBottomBar: View {
                     .foregroundColor(chromeColors.messageTextColor)
                     .frame(height: 32)
                 Text(NSLocalizedString("stories.ownBottom.share", comment: "Share story"))
-                    .font(.custom("Poppins-Medium", size: 12))
+                    .font(.system(size: legacyPoppinsSize(12), weight: .medium))
                     .foregroundColor(chromeColors.messageTextColor)
                     .shadow(color: labelShadowColor, radius: 4, x: 0, y: 1)
                     .lineLimit(1)
@@ -169,7 +169,7 @@ struct StoryOwnStoryBottomBar: View {
                     .frame(height: 32)
 
                 Text(String(reactionCount))
-                    .font(.custom("Poppins-Medium", size: 12))
+                    .font(.system(size: legacyPoppinsSize(12), weight: .medium))
                     .foregroundColor(chromeColors.messageTextColor)
                     .shadow(color: labelShadowColor, radius: 4, x: 0, y: 1)
             }
@@ -207,12 +207,19 @@ struct StoryOwnStoryBottomBar: View {
         Button(action: onViewActivity) {
             VStack(spacing: 6) {
                 if !recentViewers.isEmpty {
-                    HStack(spacing: -8) {
-                        ForEach(recentViewers) { viewer in
-                            viewerAvatar(viewer)
-                        }
-                    }
-                    .frame(height: 32)
+                     HStack(spacing: -8) {
+                         ForEach(Array(recentViewers.enumerated()), id: \.element.id) { index, viewer in
+                             viewerAvatar(viewer)
+                                 .reversedMask(alignment: .center) {
+                                     if index < recentViewers.count - 1 {
+                                         Circle()
+                                             .frame(width: 31, height: 31)
+                                             .offset(x: 20)
+                                     }
+                                 }
+                         }
+                     }
+                     .frame(height: 32)
                 } else {
                     Image("StoryActivityEmptyIcon")
                         .renderingMode(.template)
@@ -224,7 +231,7 @@ struct StoryOwnStoryBottomBar: View {
                 }
 
                 Text(NSLocalizedString("stories.ownBottom.activity", comment: "Activity label under avatars"))
-                    .font(.custom("Poppins-Medium", size: 12))
+                    .font(.system(size: legacyPoppinsSize(12), weight: .medium))
                     .foregroundColor(chromeColors.messageTextColor)
                     .shadow(color: labelShadowColor, radius: 4, x: 0, y: 1)
             }
@@ -246,7 +253,7 @@ struct StoryOwnStoryBottomBar: View {
             .shadow(color: labelShadowColor, radius: 4, x: 0, y: 1)
 
             Text(audienceTitle)
-                .font(.custom("Poppins-Medium", size: 12))
+                .font(.system(size: legacyPoppinsSize(12), weight: .medium))
                 .foregroundColor(chromeColors.messageTextColor)
                 .shadow(color: labelShadowColor, radius: 4, x: 0, y: 1)
                 .lineLimit(1)
@@ -254,7 +261,7 @@ struct StoryOwnStoryBottomBar: View {
                 .frame(maxWidth: 88)
 
             Text(storyDurationLabel)
-                .font(.custom("Poppins-Regular", size: 11))
+                .font(.system(size: legacyPoppinsSize(11)))
                 .foregroundColor(chromeColors.messageTextColor.opacity(0.92))
                 .shadow(color: labelShadowColor, radius: 4, x: 0, y: 1)
                 .lineLimit(1)
@@ -336,7 +343,7 @@ struct StoryReactionsStrip: View {
             HStack {
                 Spacer()
                 Text(NSLocalizedString("storyContextMenu.scrollReactions", comment: "Scroll for more reactions"))
-                    .font(.custom("Poppins-Regular", size: 10))
+                    .font(.system(size: legacyPoppinsSize(10)))
                     .foregroundColor(.white.opacity(0.7))
                 Spacer()
             }
@@ -404,7 +411,7 @@ struct StoryNoInteractionsNotice: View {
 
     var body: some View {
         Text("stories.noInteractions")
-            .font(.custom("Poppins-Regular", size: 14))
+            .font(.system(size: legacyPoppinsSize(14)))
             .foregroundColor(colorScheme == .dark ? Color.white.opacity(0.68) : Color.black.opacity(0.68))
             .multilineTextAlignment(.center)
             .padding(.horizontal, 20)

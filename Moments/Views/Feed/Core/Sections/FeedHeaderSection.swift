@@ -11,7 +11,7 @@ struct FeedRefreshIndicator: View {
                 .scaleEffect(0.72)
 
             Text("feed.refreshing")
-                .font(.custom("Poppins-Medium", size: 12))
+                .font(.system(size: legacyPoppinsSize(12), weight: .medium))
                 .foregroundColor(colorScheme == .dark ? .white.opacity(0.74) : .black.opacity(0.62))
         }
         .padding(.horizontal, 12)

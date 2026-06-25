@@ -17,13 +17,13 @@ struct ClickableHashtagsView: View {
                                 onHashtagTap(hashtag)
                             }) {
                                 Text(word.content)
-                                    .font(.custom("Poppins-SemiBold", size: 14))
+                                    .font(.system(size: legacyPoppinsSize(14), weight: .semibold))
                                     .foregroundColor(Color(hex: "667eea"))
                             }
                             .buttonStyle(PlainButtonStyle())
                         } else {
                             Text(word.content)
-                                .font(.custom("Poppins-Regular", size: 14))
+                                .font(.system(size: legacyPoppinsSize(14)))
                                 .foregroundColor(colorScheme == .dark ? .white.opacity(0.95) : .black.opacity(0.9))
                         }
                     }
@@ -71,7 +71,7 @@ struct ClickableHashtagsHStackView: View {
             switch part.type {
             case .text:
                 Text(part.content)
-                    .font(.custom("Poppins-Regular", size: 14))
+                    .font(.system(size: legacyPoppinsSize(14)))
                     .foregroundColor(colorScheme == .dark ? .white.opacity(0.95) : .black.opacity(0.9))
                     .fixedSize(horizontal: false, vertical: true)
             
@@ -81,7 +81,7 @@ struct ClickableHashtagsHStackView: View {
                     onHashtagTap(hashtag)
                 }) {
                     Text(part.content)
-                        .font(.custom("Poppins-SemiBold", size: 14))
+                        .font(.system(size: legacyPoppinsSize(14), weight: .semibold))
                         .foregroundColor(Color(hex: "667eea"))
                         .padding(.horizontal, 8)
                         .padding(.vertical, 4)

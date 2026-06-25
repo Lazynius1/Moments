@@ -39,12 +39,12 @@ struct ActivityInteractionCategoryRow: View {
                 VStack(alignment: .leading, spacing: 2) {
                     HStack(spacing: 6) {
                         Text(NSLocalizedString(category.titleKey, comment: "Interaction category title"))
-                            .font(.custom("Poppins-SemiBold", size: 15))
+                            .font(.system(size: legacyPoppinsSize(15), weight: .semibold))
                             .foregroundColor(colorScheme == .dark ? .white : .black)
 
                         if let count = summary?.count, count > 0 {
                             Text("\(count)")
-                                .font(.custom("Poppins-Bold", size: 11))
+                                .font(.system(size: legacyPoppinsSize(11), weight: .bold))
                                 .foregroundColor(.white)
                                 .padding(.horizontal, 6)
                                 .padding(.vertical, 2)
@@ -56,7 +56,7 @@ struct ActivityInteractionCategoryRow: View {
                     }
 
                     Text(NSLocalizedString(category.subtitleKey, comment: "Interaction category subtitle"))
-                        .font(.custom("Poppins-Regular", size: 12))
+                        .font(.system(size: legacyPoppinsSize(12)))
                         .foregroundColor(.secondary)
                         .lineLimit(1)
                 }
@@ -201,7 +201,7 @@ struct AuthorFilterSheet: View {
                             StoryRingAvatarView(userId: authorId, size: 36, lineWidth: 2.3)
 
                             Text(authorUsernameMap[authorId] ?? NSLocalizedString("onlineStatus.unknown", comment: "Unknown"))
-                                .font(.custom("Poppins-SemiBold", size: 14))
+                                .font(.system(size: legacyPoppinsSize(14), weight: .semibold))
                                 .foregroundColor(colorScheme == .dark ? .white : .black)
 
                             Spacer()

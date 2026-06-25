@@ -20,7 +20,7 @@ struct ContentVisibilityView: View {
                 if isLoading {
                     ProgressView(NSLocalizedString("contentVisibility.loading", comment: "Loading configuration..."))
                         .progressViewStyle(CircularProgressViewStyle())
-                        .font(.custom("Poppins-Regular", size: 16))
+                        .font(.system(size: legacyPoppinsSize(16)))
                         .foregroundColor(.gray)
                 } else {
                     ScrollView {
@@ -33,7 +33,7 @@ struct ContentVisibilityView: View {
                                         .font(.system(size: 10, weight: .bold))
                                         .foregroundColor(colorScheme == .dark ? .white.opacity(0.45) : .black.opacity(0.35))
                                     Text(NSLocalizedString("contentVisibility.stories.title", comment: "Stories").uppercased())
-                                        .font(.custom("Poppins-Bold", size: 11))
+                                        .font(.system(size: legacyPoppinsSize(11), weight: .bold))
                                         .foregroundColor(colorScheme == .dark ? .white.opacity(0.45) : .black.opacity(0.35))
                                 }
                                 .padding(.leading, 4)
@@ -58,11 +58,11 @@ struct ContentVisibilityView: View {
                                             
                                             VStack(alignment: .leading, spacing: 4) {
                                                 Text(NSLocalizedString("contentVisibility.interactions.title", comment: "Interactions title"))
-                                                    .font(.custom("Poppins-SemiBold", size: 15))
+                                                    .font(.system(size: legacyPoppinsSize(15), weight: .semibold))
                                                     .foregroundColor(colorScheme == .dark ? .white : .black)
                                                 
                                                 Text(getInteractionSummary())
-                                                    .font(.custom("Poppins-Regular", size: 13))
+                                                    .font(.system(size: legacyPoppinsSize(13)))
                                                     .foregroundColor(.gray)
                                             }
                                             
@@ -87,7 +87,7 @@ struct ContentVisibilityView: View {
                                         .font(.system(size: 10, weight: .bold))
                                         .foregroundColor(colorScheme == .dark ? .white.opacity(0.45) : .black.opacity(0.35))
                                     Text(NSLocalizedString("contentVisibility.posts.title", comment: "Posts").uppercased())
-                                        .font(.custom("Poppins-Bold", size: 11))
+                                        .font(.system(size: legacyPoppinsSize(11), weight: .bold))
                                         .foregroundColor(colorScheme == .dark ? .white.opacity(0.45) : .black.opacity(0.35))
                                 }
                                 .padding(.leading, 4)
@@ -111,7 +111,7 @@ struct ContentVisibilityView: View {
                                         .font(.system(size: 10, weight: .bold))
                                         .foregroundColor(colorScheme == .dark ? .white.opacity(0.45) : .black.opacity(0.35))
                                     Text(NSLocalizedString("contentVisibility.additionalRestrictions", comment: "Additional restrictions header").uppercased())
-                                        .font(.custom("Poppins-Bold", size: 11))
+                                        .font(.system(size: legacyPoppinsSize(11), weight: .bold))
                                         .foregroundColor(colorScheme == .dark ? .white.opacity(0.45) : .black.opacity(0.35))
                                 }
                                 .padding(.leading, 4)
@@ -126,10 +126,10 @@ struct ContentVisibilityView: View {
                                             
                                             VStack(alignment: .leading, spacing: 2) {
                                                 Text(NSLocalizedString("contentVisibility.hideFrom", comment: "Hide from label"))
-                                                    .font(.custom("Poppins-Medium", size: 15))
+                                                    .font(.system(size: legacyPoppinsSize(15), weight: .medium))
                                                     .foregroundColor(colorScheme == .dark ? .white : .black)
                                                 Text(String(format: NSLocalizedString("contentVisibility.hiddenCount", comment: "Hidden users count"), viewModel.hiddenFromUsers.count))
-                                                    .font(.custom("Poppins-Regular", size: 13))
+                                                    .font(.system(size: legacyPoppinsSize(13)))
                                                     .foregroundColor(.gray)
                                             }
                                             Spacer()
@@ -144,7 +144,7 @@ struct ContentVisibilityView: View {
                             // MARK: Audience lists
                             VStack(alignment: .leading, spacing: 6) {
                                 Text(NSLocalizedString("contentVisibility.audienceLists", comment: "Audience lists header").uppercased())
-                                    .font(.custom("Poppins-Bold", size: 11))
+                                    .font(.system(size: legacyPoppinsSize(11), weight: .bold))
                                     .foregroundColor(colorScheme == .dark ? .white.opacity(0.45) : .black.opacity(0.35))
                                     .padding(.leading, 4)
                                 
@@ -160,10 +160,10 @@ struct ContentVisibilityView: View {
                                             
                                             VStack(alignment: .leading, spacing: 2) {
                                                 Text(NSLocalizedString("contentVisibility.manageCustomLists", comment: "Manage custom lists label"))
-                                                    .font(.custom("Poppins-Medium", size: 15))
+                                                    .font(.system(size: legacyPoppinsSize(15), weight: .medium))
                                                     .foregroundColor(colorScheme == .dark ? .white : .black)
                                                 Text(NSLocalizedString("contentVisibility.createEditAudience", comment: "Create and edit custom audiences label"))
-                                                    .font(.custom("Poppins-Regular", size: 13))
+                                                    .font(.system(size: legacyPoppinsSize(13)))
                                                     .foregroundColor(.gray)
                                             }
                                             Spacer()
@@ -246,12 +246,12 @@ struct ContentVisibilityView: View {
                     .font(.system(size: 18, weight: .medium))
 
                 Text(title)
-                    .font(.custom("Poppins-SemiBold", size: 15))
+                    .font(.system(size: legacyPoppinsSize(15), weight: .semibold))
                     .foregroundColor(colorScheme == .dark ? .white : .black)
             }
 
             Text(description)
-                .font(.custom("Poppins-Regular", size: 13))
+                .font(.system(size: legacyPoppinsSize(13)))
                 .foregroundColor(.gray)
         }
         .padding(.vertical, 6)
@@ -268,11 +268,11 @@ struct ContentVisibilityView: View {
 
             VStack(alignment: .leading, spacing: 4) {
                 Text(getAudienceDisplayTitle(audience: audience, customListName: customListName))
-                    .font(.custom("Poppins-SemiBold", size: 15))
+                    .font(.system(size: legacyPoppinsSize(15), weight: .semibold))
                     .foregroundColor(colorScheme == .dark ? .white : .black)
 
                 Text(getAudienceDisplayDescription(audience: audience, customCount: customCount))
-                    .font(.custom("Poppins-Regular", size: 13))
+                    .font(.system(size: legacyPoppinsSize(13)))
                     .foregroundColor(.gray)
             }
 
@@ -328,7 +328,7 @@ struct StoryInteractionSettingsView: View {
                     viewModel.saveStoryInteractionSettings()
                     dismiss()
                 }
-                .font(.custom("Poppins-SemiBold", size: 15))
+                .font(.system(size: legacyPoppinsSize(15), weight: .semibold))
                 .foregroundColor(colorScheme == .dark ? .white : .black)
                 .frame(height: 44)
                 .padding(.horizontal, 16)
@@ -342,12 +342,12 @@ struct StoryInteractionSettingsView: View {
                 VStack(spacing: 16) {
                     VStack(spacing: 4) {
                         Text(NSLocalizedString("contentVisibility.interactionsConfig.description", comment: "Configure interactions description"))
-                            .font(.custom("Poppins-SemiBold", size: 15))
+                            .font(.system(size: legacyPoppinsSize(15), weight: .semibold))
                             .foregroundColor(colorScheme == .dark ? .white : .black)
                             .multilineTextAlignment(.center)
 
                         Text(NSLocalizedString("contentVisibility.interactionsConfig.subtitle", comment: "Configure interactions subtitle"))
-                            .font(.custom("Poppins-Regular", size: 13))
+                            .font(.system(size: legacyPoppinsSize(13)))
                             .foregroundColor(.gray)
                             .multilineTextAlignment(.center)
                     }
@@ -378,11 +378,11 @@ struct StoryInteractionSettingsView: View {
                     if !viewModel.allowStoryMessages && !viewModel.allowStoryReactions && !viewModel.allowStoryEphemeralPhotos {
                         VStack(spacing: 6) {
                             Text(NSLocalizedString("contentVisibility.viewOnlyMode", comment: "View only mode label"))
-                                .font(.custom("Poppins-SemiBold", size: 15))
+                                .font(.system(size: legacyPoppinsSize(15), weight: .semibold))
                                 .foregroundColor(colorScheme == .dark ? .white : .black)
 
                             Text(NSLocalizedString("contentVisibility.viewOnlyMode.description", comment: "View only mode description"))
-                                .font(.custom("Poppins-Regular", size: 13))
+                                .font(.system(size: legacyPoppinsSize(13)))
                                 .foregroundColor(.gray)
                                 .multilineTextAlignment(.center)
                         }
@@ -415,11 +415,11 @@ struct InteractionToggleRow: View {
 
             VStack(alignment: .leading, spacing: 4) {
                 Text(title)
-                    .font(.custom("Poppins-SemiBold", size: 15))
+                    .font(.system(size: legacyPoppinsSize(15), weight: .semibold))
                     .foregroundColor(colorScheme == .dark ? .white : .black)
 
                 Text(description)
-                    .font(.custom("Poppins-Regular", size: 13))
+                    .font(.system(size: legacyPoppinsSize(13)))
                     .foregroundColor(.gray)
                     .fixedSize(horizontal: false, vertical: true)
             }
@@ -670,7 +670,7 @@ struct HiddenFromView: View {
                 Spacer()
 
                 Text(NSLocalizedString("contentVisibility.hideContent.navigation", comment: "Hide Content"))
-                    .font(.custom("Poppins-SemiBold", size: 20))
+                    .font(.system(size: legacyPoppinsSize(20), weight: .semibold))
                     .foregroundColor(colorScheme == .dark ? .white : .black)
 
                 Spacer()
@@ -682,7 +682,7 @@ struct HiddenFromView: View {
             ScrollView {
                 VStack(spacing: 16) {
                     Text(NSLocalizedString("contentVisibility.info.description", comment: "Information description"))
-                        .font(.custom("Poppins-Regular", size: 13))
+                        .font(.system(size: legacyPoppinsSize(13)))
                         .foregroundColor(.gray)
                         .multilineTextAlignment(.center)
                         .padding(.horizontal, 12)
@@ -692,7 +692,7 @@ struct HiddenFromView: View {
                             .foregroundColor(.gray)
 
                         TextField(NSLocalizedString("audience.picker.searchPlaceholder", comment: ""), text: $searchText)
-                            .font(.custom("Poppins-Regular", size: 16))
+                            .font(.system(size: legacyPoppinsSize(16)))
                             .onChange(of: searchText) { _, newValue in
                                 if !newValue.isEmpty {
                                     searchUsers(query: newValue)
@@ -746,12 +746,12 @@ struct HiddenFromView: View {
                                         .foregroundColor(.gray)
 
                                     Text("contentVisibility.noHiddenUsers.title")
-                                        .font(.custom("Poppins-Regular", size: 16))
+                                        .font(.system(size: legacyPoppinsSize(16)))
                                         .foregroundColor(.gray)
                                         .multilineTextAlignment(.center)
 
                                     Text("contentVisibility.noHiddenUsers.description")
-                                        .font(.custom("Poppins-Regular", size: 14))
+                                        .font(.system(size: legacyPoppinsSize(14)))
                                         .foregroundColor(.gray)
                                         .multilineTextAlignment(.center)
                                 }
@@ -769,7 +769,7 @@ struct HiddenFromView: View {
 
     private func sectionLabel(_ text: String) -> some View {
         Text(text.uppercased())
-            .font(.custom("Poppins-Bold", size: 11))
+            .font(.system(size: legacyPoppinsSize(11), weight: .bold))
             .foregroundColor(colorScheme == .dark ? .white.opacity(0.45) : .black.opacity(0.35))
             .padding(.leading, 4)
     }
@@ -818,12 +818,12 @@ struct UserRowView: View {
             
             VStack(alignment: .leading, spacing: 2) {
                 Text(user.username)
-                    .font(.custom("Poppins-Medium", size: 15))
+                    .font(.system(size: legacyPoppinsSize(15), weight: .medium))
                     .foregroundColor(colorScheme == .dark ? .white : .black)
                 
                 if let bio = user.bio, !bio.isEmpty {
                     Text(bio)
-                        .font(.custom("Poppins-Regular", size: 13))
+                        .font(.system(size: legacyPoppinsSize(13)))
                         .foregroundColor(.gray)
                         .lineLimit(1)
                 }

@@ -172,12 +172,18 @@ struct SharedActivityView<ViewModel: UserListViewModel & ObservableObject>: View
 
     private var heroSection: some View {
         VStack(spacing: 18) {
-            HStack(spacing: -18) {
+            let hasCurrentUser = currentUser != nil
+            HStack(spacing: -32) {
                 sharedAvatar(userId: currentUser?.id, fallbackLabel: "M")
                     .zIndex(2)
 
                 sharedAvatar(userId: otherUser.id, fallbackLabel: String(otherUser.username.prefix(1)).uppercased())
                     .zIndex(1)
+                    .reversedMask(alignment: .center) {
+                        Circle()
+                            .frame(width: hasCurrentUser ? 128 : 121, height: hasCurrentUser ? 128 : 121)
+                            .offset(x: -93)
+                    }
             }
             .padding(.top, 8)
 
@@ -380,6 +386,7 @@ struct SharedActivityView<ViewModel: UserListViewModel & ObservableObject>: View
                     )
             }
         }
+        .frame(width: 125, height: 125)
     }
 
     private func refreshRelationshipState() {

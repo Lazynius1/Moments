@@ -287,12 +287,12 @@ struct DiscoverMapView: View {
 
                     VStack(alignment: .leading, spacing: 0) {
                         Text(zoneName ?? NSLocalizedString("maps.discover.title", comment: "Discover map title"))
-                            .font(.custom("Poppins-SemiBold", size: 16))
+                            .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
                             .foregroundColor(adaptiveColors.primary)
                             .lineLimit(1)
 
                         Text(headerSubtitle)
-                            .font(.custom("Poppins-Regular", size: 11))
+                            .font(.system(size: legacyPoppinsSize(11)))
                             .foregroundColor(adaptiveColors.tertiary)
                             .lineLimit(1)
                     }
@@ -351,11 +351,11 @@ struct DiscoverMapView: View {
 
                                     VStack(alignment: .leading, spacing: -2) {
                                         Text(discoverWeather.temperatureFormatted)
-                                            .font(.custom("Poppins-Bold", size: 13))
+                                            .font(.system(size: legacyPoppinsSize(13), weight: .bold))
                                             .foregroundColor(adaptiveColors.primary)
 
                                         Text(discoverWeather.condition.displayName)
-                                            .font(.custom("Poppins-Medium", size: 9))
+                                            .font(.system(size: legacyPoppinsSize(9), weight: .medium))
                                             .foregroundColor(adaptiveColors.secondary)
                                             .lineLimit(1)
                                     }
@@ -377,14 +377,14 @@ struct DiscoverMapView: View {
                     if discoverWeather != nil && weatherEffectsEnabled {
                         HStack(spacing: 4) {
                             Text(NSLocalizedString("weather.attribution.text", comment: "Weather attribution text"))
-                                .font(.custom("Poppins-Regular", size: 7))
+                                .font(.system(size: legacyPoppinsSize(7)))
                                 .foregroundColor(.secondary.opacity(0.8))
 
                             Link(
                                 NSLocalizedString("weather.attribution.link", comment: "Weather attribution link"),
                                 destination: URL(string: "https://weatherkit.apple.com/legal-attribution.html")!
                             )
-                            .font(.custom("Poppins-Medium", size: 7))
+                            .font(.system(size: legacyPoppinsSize(7), weight: .medium))
                             .foregroundColor(.blue.opacity(0.6))
                         }
                         .padding(.trailing, 8)
@@ -415,7 +415,7 @@ struct DiscoverMapView: View {
                 NSLocalizedString("maps.search.placeholder", comment: "Map search placeholder"),
                 text: $searchText
             )
-            .font(.custom("Poppins-Medium", size: 14))
+            .font(.system(size: legacyPoppinsSize(14), weight: .medium))
             .focused($searchFieldFocused)
             .submitLabel(.search)
             .autocorrectionDisabled()
@@ -435,7 +435,7 @@ struct DiscoverMapView: View {
                     applyContentFilter(filter)
                 } label: {
                     Text(NSLocalizedString(filter.titleKey, comment: "Map filter"))
-                        .font(.custom("Poppins-SemiBold", size: 12))
+                        .font(.system(size: legacyPoppinsSize(12), weight: .semibold))
                         .foregroundColor(contentFilter == filter ? .white : adaptiveColors.primary)
                         .padding(.horizontal, 12)
                         .padding(.vertical, 8)
@@ -635,7 +635,7 @@ struct DiscoverMapView: View {
                 .foregroundColor(.orange)
 
             Text(message)
-                .font(.custom("Poppins-Medium", size: 12))
+                .font(.system(size: legacyPoppinsSize(12), weight: .medium))
                 .foregroundColor(adaptiveColors.primary)
                 .lineLimit(2)
 
@@ -645,7 +645,7 @@ struct DiscoverMapView: View {
                 performRegionSearch()
             } label: {
                 Text(NSLocalizedString("maps.error.retry", comment: "Retry button text"))
-                    .font(.custom("Poppins-SemiBold", size: 11))
+                    .font(.system(size: legacyPoppinsSize(11), weight: .semibold))
                     .foregroundColor(adaptiveColors.accent)
             }
             .buttonStyle(.plain)
@@ -663,7 +663,7 @@ struct DiscoverMapView: View {
                 .foregroundColor(adaptiveColors.accent)
 
             Text(message)
-                .font(.custom("Poppins-Medium", size: 14))
+                .font(.system(size: legacyPoppinsSize(14), weight: .medium))
                 .foregroundColor(adaptiveColors.primary)
                 .multilineTextAlignment(.center)
 
@@ -671,7 +671,7 @@ struct DiscoverMapView: View {
                 performRegionSearch()
             } label: {
                 Text(NSLocalizedString("maps.error.retry", comment: "Retry button text"))
-                    .font(.custom("Poppins-SemiBold", size: 13))
+                    .font(.system(size: legacyPoppinsSize(13), weight: .semibold))
                     .foregroundColor(.white)
                     .padding(.horizontal, 18)
                     .padding(.vertical, 10)
@@ -914,7 +914,7 @@ struct MapFriendActivityPinView: View {
             )
 
             Text(pin.username)
-                .font(.custom("Poppins-SemiBold", size: 10))
+                .font(.system(size: legacyPoppinsSize(10), weight: .semibold))
                 .lineLimit(1)
                 .padding(.horizontal, 6)
                 .padding(.vertical, 3)

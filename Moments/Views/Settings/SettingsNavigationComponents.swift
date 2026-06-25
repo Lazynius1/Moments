@@ -28,7 +28,7 @@ struct SettingsNavigationBar: View {
             Spacer()
             
             Text(title)
-                .font(.custom("Poppins-SemiBold", size: 17))
+                .font(.system(size: legacyPoppinsSize(17), weight: .semibold))
                 .foregroundColor(colorScheme == .dark ? .white : .black)
             
             Spacer()

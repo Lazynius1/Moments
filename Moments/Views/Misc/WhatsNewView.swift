@@ -120,11 +120,11 @@ struct WhatsNewView: View {
 
                 VStack(alignment: .leading, spacing: 3) {
                     Text(NSLocalizedString("whatsNew.title", comment: ""))
-                        .font(.custom("Poppins-Bold", size: 24))
+                        .font(.system(size: legacyPoppinsSize(24), weight: .bold))
                         .foregroundColor(.primary)
 
                     Text(NSLocalizedString("whatsNew.subtitle", comment: ""))
-                        .font(.custom("Poppins-Medium", size: 14))
+                        .font(.system(size: legacyPoppinsSize(14), weight: .medium))
                         .foregroundColor(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
@@ -145,7 +145,7 @@ struct WhatsNewView: View {
             }
         } label: {
             Text(NSLocalizedString("whatsNew.button", comment: ""))
-                .font(.custom("Poppins-SemiBold", size: 16))
+                .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
             .foregroundColor(.primary)
             .frame(maxWidth: .infinity)
             .padding(.vertical, 16)
@@ -184,11 +184,11 @@ private struct WhatsNewFeatureRow: View {
 
             VStack(alignment: .leading, spacing: 5) {
                 Text(feature.title)
-                    .font(.custom("Poppins-SemiBold", size: 16))
+                    .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
                     .foregroundColor(.primary)
 
                 Text(feature.description)
-                    .font(.custom("Poppins-Regular", size: 14))
+                    .font(.system(size: legacyPoppinsSize(14)))
                     .foregroundColor(.secondary)
                     .lineSpacing(2)
                     .fixedSize(horizontal: false, vertical: true)

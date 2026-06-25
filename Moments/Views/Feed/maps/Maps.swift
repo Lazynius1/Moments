@@ -379,7 +379,7 @@ struct LocationMapView: View {
                 }
 
                 Text(NSLocalizedString("maps.search.thisArea", comment: "Search in this area"))
-                    .font(.custom("Poppins-SemiBold", size: 13))
+                    .font(.system(size: legacyPoppinsSize(13), weight: .semibold))
             }
             .foregroundColor(adaptiveColors.primary)
             .padding(.horizontal, 14)
@@ -410,13 +410,13 @@ struct LocationMapView: View {
 
                     VStack(alignment: .leading, spacing: 0) {
                         Text(effectiveHeaderLocationName)
-                            .font(.custom("Poppins-SemiBold", size: 16))
+                            .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
                             .foregroundColor(adaptiveColors.primary)
                             .lineLimit(1)
 
                         if !locationMoments.isEmpty {
                             Text(String(format: NSLocalizedString("maps.location.moments", comment: "Number of moments in location"), locationMoments.count))
-                                .font(.custom("Poppins-Regular", size: 11))
+                                .font(.system(size: legacyPoppinsSize(11)))
                                 .foregroundColor(adaptiveColors.tertiary)
                         }
                     }
@@ -449,11 +449,11 @@ struct LocationMapView: View {
 
                                     VStack(alignment: .leading, spacing: -2) {
                                         Text(weather.temperatureFormatted)
-                                            .font(.custom("Poppins-Bold", size: 13))
+                                            .font(.system(size: legacyPoppinsSize(13), weight: .bold))
                                             .foregroundColor(adaptiveColors.primary)
 
                                         Text(weather.condition.displayName)
-                                            .font(.custom("Poppins-Medium", size: 9))
+                                            .font(.system(size: legacyPoppinsSize(9), weight: .medium))
                                             .foregroundColor(adaptiveColors.secondary)
                                             .lineLimit(1)
                                     }
@@ -475,11 +475,11 @@ struct LocationMapView: View {
                     if currentWeather != nil && weatherEffectsEnabled {
                         HStack(spacing: 4) {
                             Text(NSLocalizedString("weather.attribution.text", comment: "Weather attribution text"))
-                                .font(.custom("Poppins-Regular", size: 7))
+                                .font(.system(size: legacyPoppinsSize(7)))
                                 .foregroundColor(.secondary.opacity(0.8))
 
                             Link(NSLocalizedString("weather.attribution.link", comment: "Weather attribution link"), destination: URL(string: "https://weatherkit.apple.com/legal-attribution.html")!)
-                                .font(.custom("Poppins-Medium", size: 7))
+                                .font(.system(size: legacyPoppinsSize(7), weight: .medium))
                                 .foregroundColor(.blue.opacity(0.6))
                         }
                         .padding(.trailing, 8)
@@ -560,11 +560,11 @@ struct LocationMapView: View {
 
             VStack(spacing: 0) {
                 Text(value)
-                    .font(.custom("Poppins-Bold", size: 12))
+                    .font(.system(size: legacyPoppinsSize(12), weight: .bold))
                     .foregroundColor(adaptiveColors.primary)
 
                 Text(label.uppercased())
-                    .font(.custom("Poppins-Bold", size: 7))
+                    .font(.system(size: legacyPoppinsSize(7), weight: .bold))
                     .foregroundColor(adaptiveColors.tertiary)
                     .tracking(0.5)
             }
@@ -578,7 +578,7 @@ struct LocationMapView: View {
                 .foregroundColor(.orange)
 
             Text(message)
-                .font(.custom("Poppins-Medium", size: 12))
+                .font(.system(size: legacyPoppinsSize(12), weight: .medium))
                 .foregroundColor(adaptiveColors.primary)
                 .lineLimit(2)
 
@@ -586,7 +586,7 @@ struct LocationMapView: View {
 
             Button(action: searchInCurrentArea) {
                 Text(NSLocalizedString("maps.error.retry", comment: "Retry button text"))
-                    .font(.custom("Poppins-SemiBold", size: 11))
+                    .font(.system(size: legacyPoppinsSize(11), weight: .semibold))
                     .foregroundColor(adaptiveColors.accent)
             }
             .buttonStyle(.plain)
@@ -720,11 +720,11 @@ struct LocationMapView: View {
 
                 VStack(spacing: 8) {
                     Text(NSLocalizedString("maps.loading.location", comment: "Loading location message"))
-                        .font(.custom("Poppins-SemiBold", size: 16))
+                        .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
                         .foregroundColor(adaptiveColors.primary)
 
                     Text(locationName)
-                        .font(.custom("Poppins-Regular", size: 14))
+                        .font(.system(size: legacyPoppinsSize(14)))
                         .foregroundColor(adaptiveColors.secondary)
                         .lineLimit(2)
                         .multilineTextAlignment(.center)
@@ -767,11 +767,11 @@ struct LocationMapView: View {
 
                 VStack(spacing: 12) {
                     Text(NSLocalizedString("maps.error.locationLoadFailed", comment: "Location load failed error message"))
-                        .font(.custom("Poppins-SemiBold", size: 18))
+                        .font(.system(size: legacyPoppinsSize(18), weight: .semibold))
                         .foregroundColor(adaptiveColors.primary)
 
                     Text(message)
-                        .font(.custom("Poppins-Regular", size: 14))
+                        .font(.system(size: legacyPoppinsSize(14)))
                         .foregroundColor(adaptiveColors.tertiary)
                         .multilineTextAlignment(.center)
                         .padding(.horizontal, 40)
@@ -782,7 +782,7 @@ struct LocationMapView: View {
                                 .font(.system(size: 14, weight: .semibold))
 
                             Text(NSLocalizedString("maps.error.retry", comment: "Retry button text"))
-                                .font(.custom("Poppins-SemiBold", size: 14))
+                                .font(.system(size: legacyPoppinsSize(14), weight: .semibold))
                         }
                         .foregroundColor(.white)
                         .padding(.horizontal, 20)
@@ -819,7 +819,7 @@ struct LocationMapView: View {
                             }
                         }) {
                             Text(NSLocalizedString("maps.error.configurePermissions", comment: "Configure permissions button text"))
-                                .font(.custom("Poppins-Regular", size: 12))
+                                .font(.system(size: legacyPoppinsSize(12)))
                                 .foregroundColor(adaptiveColors.accent)
                                 .underline()
                         }
@@ -1786,11 +1786,11 @@ extension LocationMapView {
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(weather.temperatureFormatted)
-                        .font(.custom("Poppins-SemiBold", size: 14))
+                        .font(.system(size: legacyPoppinsSize(14), weight: .semibold))
                         .foregroundColor(adaptiveColors.primary)
 
                     Text(weather.condition.displayName)
-                        .font(.custom("Poppins-Regular", size: 11))
+                        .font(.system(size: legacyPoppinsSize(11)))
                         .foregroundColor(adaptiveColors.secondary)
                         .lineLimit(1)
                 }
@@ -1890,7 +1890,7 @@ extension LocationMapView {
                 }
 
                 Text(locationName)
-                    .font(.custom("Poppins-SemiBold", size: 12))
+                    .font(.system(size: legacyPoppinsSize(12), weight: .semibold))
                     .foregroundColor(adaptiveColors.primary)
                     .padding(.horizontal, 12)
                     .padding(.vertical, 6)

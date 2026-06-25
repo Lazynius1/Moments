@@ -33,13 +33,13 @@ struct PrivacyConsentView: View {
                 VStack(spacing: 16) {
                     // Usando claves de localización existentes que el usuario ya tiene
                     Text(NSLocalizedString("attPreAlert.title", comment: "ATT Pre-Alert title"))
-                        .font(.custom("Poppins-SemiBold", size: 20))
+                        .font(.system(size: legacyPoppinsSize(20), weight: .semibold))
                         .multilineTextAlignment(.center)
                         .foregroundColor(.primary)
 
                     VStack(spacing: 12) {
                         Text(NSLocalizedString("attPreAlert.description", comment: "ATT Pre-Alert description"))
-                            .font(.custom("Poppins-Regular", size: 15))
+                            .font(.system(size: legacyPoppinsSize(15)))
                             .multilineTextAlignment(.center)
                             .foregroundColor(.primary.opacity(0.7))
                         
@@ -50,7 +50,7 @@ struct PrivacyConsentView: View {
                                 .foregroundColor(.primary)
                             
                             Text(NSLocalizedString("attPreAlert.info", comment: "ATT Pre-Alert info message"))
-                                .font(.custom("Poppins-Medium", size: 13))
+                                .font(.system(size: legacyPoppinsSize(13), weight: .medium))
                                 .foregroundColor(.primary.opacity(0.6))
                         }
                         .padding(.horizontal, 16)

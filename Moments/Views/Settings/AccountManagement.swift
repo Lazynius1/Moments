@@ -40,7 +40,7 @@ struct AccountManagementSection: View {
             )
         }
         .foregroundColor(colorScheme == .dark ? .white : .black)
-        .font(.custom("Poppins-Regular", size: 14))
+        .font(.system(size: legacyPoppinsSize(14)))
         .listRowBackground(SettingsListRowBackground())
 
         // Deactivate confirmation
@@ -270,12 +270,12 @@ struct DeleteAccountVerificationView: View {
                 VStack(spacing: 28) {
                     VStack(spacing: 10) {
                         Text("accountManagement.permanentDeletion")
-                            .font(.custom("Poppins-SemiBold", size: 22))
+                            .font(.system(size: legacyPoppinsSize(22), weight: .semibold))
                             .foregroundColor(AuthColors.primary(colorScheme))
                             .multilineTextAlignment(.center)
 
                         Text("accountManagement.willBeDeleted")
-                            .font(.custom("Poppins-Regular", size: 14))
+                            .font(.system(size: legacyPoppinsSize(14)))
                             .foregroundColor(AuthColors.secondary(colorScheme, opacity: 0.62))
                             .multilineTextAlignment(.center)
                     }
@@ -294,7 +294,7 @@ struct DeleteAccountVerificationView: View {
                         Button(action: { navigate(to: .confirmation) }) {
                             HStack(spacing: 10) {
                                 Text(NSLocalizedString("accountManagement.continue", comment: "Continue"))
-                                    .font(.custom("Poppins-SemiBold", size: 16))
+                                    .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
                                 Image(systemName: "arrow.right")
                                     .font(.system(size: 15, weight: .semibold))
                             }
@@ -311,7 +311,7 @@ struct DeleteAccountVerificationView: View {
 
                         Button(action: onCancel) {
                             Text(NSLocalizedString("accountManagement.cancel", comment: "Cancel button"))
-                                .font(.custom("Poppins-SemiBold", size: 16))
+                                .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
                                 .foregroundColor(AuthColors.primary(colorScheme))
                                 .frame(maxWidth: .infinity)
                                 .frame(height: 52)
@@ -352,7 +352,7 @@ struct DeleteAccountVerificationView: View {
                                 .fill(AuthColors.secondary(colorScheme, opacity: 0.16))
                                 .frame(height: 1)
                             Text("accountManagement.deleteAuthDivider")
-                                .font(.custom("Poppins-Regular", size: 12))
+                                .font(.system(size: legacyPoppinsSize(12)))
                                 .foregroundColor(AuthColors.secondary(colorScheme, opacity: 0.52))
                             Rectangle()
                                 .fill(AuthColors.secondary(colorScheme, opacity: 0.16))
@@ -366,11 +366,11 @@ struct DeleteAccountVerificationView: View {
 
                     VStack(alignment: .leading, spacing: 10) {
                         Text("accountManagement.writeExactly")
-                            .font(.custom("Poppins-SemiBold", size: 14))
+                            .font(.system(size: legacyPoppinsSize(14), weight: .semibold))
                             .foregroundColor(AuthColors.primary(colorScheme))
 
                         Text(requiredText)
-                            .font(.custom("Poppins-SemiBold", size: 14))
+                            .font(.system(size: legacyPoppinsSize(14), weight: .semibold))
                             .foregroundColor(.red)
                             .padding(.horizontal, 16)
                             .frame(height: 42)
@@ -382,7 +382,7 @@ struct DeleteAccountVerificationView: View {
                                 .foregroundColor(AuthColors.secondary(colorScheme, opacity: 0.42))
                         )
                         .focused($isConfirmFocused)
-                        .font(.custom("Poppins-Regular", size: 15))
+                        .font(.system(size: legacyPoppinsSize(15)))
                         .foregroundColor(AuthColors.primary(colorScheme))
                         .textInputAutocapitalization(.characters)
                         .padding(.horizontal, 2)
@@ -403,7 +403,7 @@ struct DeleteAccountVerificationView: View {
                                 .padding(.top, 1)
 
                             Text("accountManagement.understandIrreversible")
-                                .font(.custom("Poppins-Regular", size: 13))
+                                .font(.system(size: legacyPoppinsSize(13)))
                                 .foregroundColor(AuthColors.secondary(colorScheme, opacity: 0.72))
                                 .fixedSize(horizontal: false, vertical: true)
                         }
@@ -417,7 +417,7 @@ struct DeleteAccountVerificationView: View {
                             Image(systemName: "trash")
                                 .font(.system(size: 15, weight: .semibold))
                             Text(NSLocalizedString("accountManagement.deleteAccountPermanently", comment: "Delete account permanently"))
-                                .font(.custom("Poppins-SemiBold", size: 15))
+                                .font(.system(size: legacyPoppinsSize(15), weight: .semibold))
                         }
                         .foregroundColor(.red)
                         .frame(maxWidth: .infinity)
@@ -449,7 +449,7 @@ struct DeleteAccountVerificationView: View {
                     .tint(AuthColors.primary(colorScheme))
 
                 Text("accountManagement.deleting")
-                    .font(.custom("Poppins-SemiBold", size: 15))
+                    .font(.system(size: legacyPoppinsSize(15), weight: .semibold))
                     .foregroundColor(AuthColors.primary(colorScheme))
             }
             .padding(.horizontal, 22)
@@ -491,27 +491,27 @@ struct DeleteAccountVerificationView: View {
     private var passwordVerificationSection: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text("accountManagement.confirmPassword")
-                .font(.custom("Poppins-SemiBold", size: 14))
+                .font(.system(size: legacyPoppinsSize(14), weight: .semibold))
                 .foregroundColor(AuthColors.primary(colorScheme))
 
             HStack(spacing: 12) {
                 ZStack(alignment: .leading) {
                     if password.isEmpty {
                         Text(NSLocalizedString("accountManagement.currentPassword", comment: "Current password placeholder"))
-                            .font(.custom("Poppins-Regular", size: 15))
+                            .font(.system(size: legacyPoppinsSize(15)))
                             .foregroundColor(AuthColors.secondary(colorScheme, opacity: 0.42))
                     }
 
                     if isPasswordVisible {
                         TextField("", text: $password)
                             .focused($isPasswordFocused)
-                            .font(.custom("Poppins-Regular", size: 15))
+                            .font(.system(size: legacyPoppinsSize(15)))
                             .foregroundColor(AuthColors.primary(colorScheme))
                             .textContentType(.password)
                     } else {
                         SecureField("", text: $password)
                             .focused($isPasswordFocused)
-                            .font(.custom("Poppins-Regular", size: 15))
+                            .font(.system(size: legacyPoppinsSize(15)))
                             .foregroundColor(AuthColors.primary(colorScheme))
                             .textContentType(.password)
                     }
@@ -539,7 +539,7 @@ struct DeleteAccountVerificationView: View {
 
             if let passwordErrorMessage {
                 Text(passwordErrorMessage)
-                    .font(.custom("Poppins-Regular", size: 12))
+                    .font(.system(size: legacyPoppinsSize(12)))
                     .foregroundColor(.red.opacity(colorScheme == .dark ? 0.88 : 0.78))
                     .padding(.horizontal, 18)
                     .transition(.opacity.combined(with: .move(edge: .top)))
@@ -556,7 +556,7 @@ struct DeleteAccountVerificationView: View {
                         .font(.system(size: 18, weight: .semibold))
                         .foregroundColor(.green)
                     Text("accountManagement.identityVerified")
-                        .font(.custom("Poppins-SemiBold", size: 14))
+                        .font(.system(size: legacyPoppinsSize(14), weight: .semibold))
                         .foregroundColor(AuthColors.primary(colorScheme))
                 }
                 .padding(.horizontal, 16)
@@ -581,7 +581,7 @@ struct DeleteAccountVerificationView: View {
 
             if let verificationErrorMessage {
                 Text(verificationErrorMessage)
-                    .font(.custom("Poppins-Regular", size: 12))
+                    .font(.system(size: legacyPoppinsSize(12)))
                     .foregroundColor(.red.opacity(colorScheme == .dark ? 0.88 : 0.78))
                     .padding(.horizontal, 4)
             }
@@ -693,12 +693,12 @@ private struct DeleteAccountHeader: View {
 
             VStack(spacing: 5) {
                 Text(title)
-                    .font(.custom("Poppins-SemiBold", size: 18))
+                    .font(.system(size: legacyPoppinsSize(18), weight: .semibold))
                     .foregroundColor(AuthColors.primary(colorScheme))
                     .multilineTextAlignment(.center)
 
                 Text(subtitle)
-                    .font(.custom("Poppins-Regular", size: 12))
+                    .font(.system(size: legacyPoppinsSize(12)))
                     .foregroundColor(AuthColors.secondary(colorScheme, opacity: 0.58))
                     .multilineTextAlignment(.center)
                     .lineLimit(2)
@@ -722,7 +722,7 @@ private struct DeleteAccountImpactRow: View {
                 .frame(width: 22, alignment: .center)
 
             Text(text)
-                .font(.custom("Poppins-Regular", size: 14))
+                .font(.system(size: legacyPoppinsSize(14)))
                 .foregroundColor(AuthColors.primary(colorScheme))
                 .lineLimit(2)
 

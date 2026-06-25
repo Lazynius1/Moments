@@ -559,7 +559,7 @@ struct EchoViewerUI: View {
             
             VStack(spacing: 18) {
                 Text(NSLocalizedString("echo.leave.locked", comment: ""))
-                    .font(.custom("Poppins-Medium", size: 16))
+                    .font(.system(size: legacyPoppinsSize(16), weight: .medium))
                     .foregroundColor(.white)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 4)
@@ -568,7 +568,7 @@ struct EchoViewerUI: View {
                     withAnimation { showLockoutAlert = false }
                 }) {
                     Text(NSLocalizedString("echo.viewer.ok", comment: ""))
-                        .font(.custom("Poppins-SemiBold", size: 16))
+                        .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
                         .foregroundColor(.white)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 11)

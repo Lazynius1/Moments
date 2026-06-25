@@ -123,13 +123,13 @@ struct MapPlaceBottomSheet: View {
                 }
 
                 Text(displayTitle.isEmpty ? cluster.displayName : displayTitle)
-                    .font(.custom("Poppins-Bold", size: 22))
+                    .font(.system(size: legacyPoppinsSize(22), weight: .bold))
                     .foregroundColor(adaptiveColors.primary)
                     .lineLimit(2)
                     .multilineTextAlignment(.center)
 
                 Text(statsText)
-                    .font(.custom("Poppins-Regular", size: 13))
+                    .font(.system(size: legacyPoppinsSize(13)))
                     .foregroundColor(adaptiveColors.secondary)
                     .lineLimit(2)
                     .multilineTextAlignment(.center)
@@ -168,7 +168,7 @@ struct MapPlaceBottomSheet: View {
                     onTimeFilterChange?()
                 } label: {
                     Text(NSLocalizedString(filter.titleKey, comment: "Map time filter"))
-                        .font(.custom("Poppins-SemiBold", size: 11))
+                        .font(.system(size: legacyPoppinsSize(11), weight: .semibold))
                         .foregroundColor(
                             timeFilter?.wrappedValue == filter ? .white : adaptiveColors.secondary
                         )
@@ -200,7 +200,7 @@ struct MapPlaceBottomSheet: View {
                 .font(.system(size: 11, weight: .semibold))
                 .foregroundColor(adaptiveColors.accent)
             Text(weather.temperatureFormatted)
-                .font(.custom("Poppins-SemiBold", size: 11))
+                .font(.system(size: legacyPoppinsSize(11), weight: .semibold))
                 .foregroundColor(adaptiveColors.secondary)
         }
         .padding(.horizontal, 8)
@@ -279,7 +279,7 @@ struct MapPlaceBottomSheet: View {
     private var placeIndexSection: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text(NSLocalizedString("maps.zoneSheet.places", comment: "Places section title"))
-                .font(.custom("Poppins-SemiBold", size: 14))
+                .font(.system(size: legacyPoppinsSize(14), weight: .semibold))
                 .foregroundColor(adaptiveColors.primary)
                 .padding(.horizontal, 20)
 
@@ -348,7 +348,7 @@ struct MapPlaceBottomSheet: View {
         VStack(spacing: 16) {
             ProgressView().tint(adaptiveColors.accent)
             Text(NSLocalizedString("maps.bottomSheet.loading.moments", comment: ""))
-                .font(.custom("Poppins-Regular", size: 14))
+                .font(.system(size: legacyPoppinsSize(14)))
                 .foregroundColor(adaptiveColors.secondary)
         }
         .frame(height: 220)
@@ -357,10 +357,10 @@ struct MapPlaceBottomSheet: View {
     private var emptyView: some View {
         VStack(spacing: 12) {
             Text(NSLocalizedString("maps.bottomSheet.empty.title", comment: ""))
-                .font(.custom("Poppins-SemiBold", size: 16))
+                .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
                 .foregroundColor(adaptiveColors.primary)
             Text(NSLocalizedString("maps.bottomSheet.empty.subtitle", comment: ""))
-                .font(.custom("Poppins-Regular", size: 13))
+                .font(.system(size: legacyPoppinsSize(13)))
                 .foregroundColor(adaptiveColors.secondary)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 24)
@@ -401,7 +401,7 @@ struct MapPlaceIndexRow: View {
             VStack(alignment: .leading, spacing: 4) {
                 HStack(spacing: 6) {
                     Text(place.displayName)
-                        .font(.custom("Poppins-SemiBold", size: 15))
+                        .font(.system(size: legacyPoppinsSize(15), weight: .semibold))
                         .foregroundColor(adaptiveColors.primary)
                         .lineLimit(1)
 
@@ -413,7 +413,7 @@ struct MapPlaceIndexRow: View {
                 }
 
                 Text(metadataText)
-                    .font(.custom("Poppins-Regular", size: 12))
+                    .font(.system(size: legacyPoppinsSize(12)))
                     .foregroundColor(adaptiveColors.secondary)
                     .lineLimit(1)
 
@@ -424,7 +424,7 @@ struct MapPlaceIndexRow: View {
                             place.storyCount
                         )
                     )
-                    .font(.custom("Poppins-Medium", size: 11))
+                    .font(.system(size: legacyPoppinsSize(11), weight: .medium))
                     .foregroundColor(adaptiveColors.accent)
                 }
             }
@@ -456,7 +456,7 @@ struct MapPlaceIndexRow: View {
 
             if place.momentCount > 3 {
                 Text("+\(place.momentCount - 3)")
-                    .font(.custom("Poppins-SemiBold", size: 11))
+                    .font(.system(size: legacyPoppinsSize(11), weight: .semibold))
                     .foregroundColor(adaptiveColors.secondary)
                     .frame(width: 30, height: 44)
                     .background(

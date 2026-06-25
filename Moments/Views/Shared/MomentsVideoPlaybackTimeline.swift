@@ -69,7 +69,7 @@ struct MomentsVideoPlaybackTimeline: View {
                 Spacer()
                 Text(formatTime(duration))
             }
-            .font(.custom("Poppins-Medium", size: 11))
+            .font(.system(size: legacyPoppinsSize(11), weight: .medium))
             .foregroundColor(.white.opacity(0.92))
         }
         .padding(.horizontal, horizontalPadding)

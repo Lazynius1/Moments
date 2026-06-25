@@ -176,17 +176,17 @@ struct QuestionResponsesView: View {
         VStack(alignment: .leading, spacing: 18) {
             VStack(alignment: .leading, spacing: 6) {
                 Text(NSLocalizedString("questionResponses.title", comment: "Questions received title"))
-                    .font(.custom("Poppins-SemiBold", size: 24))
+                    .font(.system(size: legacyPoppinsSize(24), weight: .semibold))
                     .foregroundStyle(.primary)
 
                 Text(NSLocalizedString("questionResponses.subtitle", comment: "Questions received subtitle"))
-                    .font(.custom("Poppins-Regular", size: 14))
+                    .font(.system(size: legacyPoppinsSize(14)))
                     .foregroundStyle(.secondary)
             }
             .padding(.horizontal, 20)
 
             Text(questionText)
-                .font(.custom("Poppins-SemiBold", size: 17))
+                .font(.system(size: legacyPoppinsSize(17), weight: .semibold))
                 .foregroundStyle(.primary)
                 .multilineTextAlignment(.leading)
                 .padding(.horizontal, 20)
@@ -196,7 +196,7 @@ struct QuestionResponsesView: View {
                     VStack(spacing: 12) {
                         ProgressView()
                         Text(NSLocalizedString("questionResponses.loading", comment: "Loading questions"))
-                            .font(.custom("Poppins-Regular", size: 14))
+                            .font(.system(size: legacyPoppinsSize(14)))
                             .foregroundStyle(.secondary)
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -207,11 +207,11 @@ struct QuestionResponsesView: View {
                             .foregroundStyle(.secondary)
 
                         Text(NSLocalizedString("questionResponses.emptyTitle", comment: "No questions yet"))
-                            .font(.custom("Poppins-SemiBold", size: 17))
+                            .font(.system(size: legacyPoppinsSize(17), weight: .semibold))
                             .foregroundStyle(.primary)
 
                         Text(NSLocalizedString("questionResponses.emptySubtitle", comment: "Share story to receive questions"))
-                            .font(.custom("Poppins-Regular", size: 14))
+                            .font(.system(size: legacyPoppinsSize(14)))
                             .foregroundStyle(.secondary)
                             .multilineTextAlignment(.center)
                     }
@@ -250,11 +250,11 @@ struct QuestionResponsesView: View {
         VStack(alignment: .leading, spacing: 18) {
             VStack(alignment: .leading, spacing: 6) {
                 Text(NSLocalizedString("questionResponses.shareResponse", comment: "Respond in story title"))
-                    .font(.custom("Poppins-SemiBold", size: 24))
+                    .font(.system(size: legacyPoppinsSize(24), weight: .semibold))
                     .foregroundStyle(.primary)
 
                 Text(NSLocalizedString("questionResponses.shareSubtitle", comment: "Respond in story subtitle"))
-                    .font(.custom("Poppins-Regular", size: 14))
+                    .font(.system(size: legacyPoppinsSize(14)))
                     .foregroundStyle(.secondary)
             }
             .padding(.horizontal, 20)
@@ -271,7 +271,7 @@ struct QuestionResponsesView: View {
                 showingCreatorView = true
             }) {
                 Text(NSLocalizedString("questionResponses.createStory", comment: "Reply in your story button"))
-                    .font(.custom("Poppins-SemiBold", size: 16))
+                    .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
                     .foregroundStyle(.primary)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 16)
@@ -289,11 +289,11 @@ struct QuestionResponsesView: View {
     private func promptCard(questionText: String) -> some View {
         VStack(alignment: .leading, spacing: 10) {
             Label(NSLocalizedString("questionResponses.promptLabel", comment: "Prompt label"), systemImage: "questionmark.bubble.fill")
-                .font(.custom("Poppins-SemiBold", size: 13))
+                .font(.system(size: legacyPoppinsSize(13), weight: .semibold))
                 .foregroundStyle(.secondary)
 
             Text(questionText)
-                .font(.custom("Poppins-SemiBold", size: 17))
+                .font(.system(size: legacyPoppinsSize(17), weight: .semibold))
                 .foregroundStyle(.primary)
                 .multilineTextAlignment(.leading)
         }
@@ -308,11 +308,11 @@ struct QuestionResponsesView: View {
     private func responsePreviewCard(response: QuestionResponse) -> some View {
         VStack(alignment: .leading, spacing: 12) {
             Text(NSLocalizedString("questionResponses.questionLabel", comment: "Question label"))
-                .font(.custom("Poppins-SemiBold", size: 13))
+                .font(.system(size: legacyPoppinsSize(13), weight: .semibold))
                 .foregroundStyle(.secondary)
 
             Text(response.response)
-                .font(.custom("Poppins-Regular", size: 16))
+                .font(.system(size: legacyPoppinsSize(16)))
                 .foregroundStyle(.primary)
                 .multilineTextAlignment(.leading)
         }
@@ -372,16 +372,16 @@ private struct QuestionResponseRow: View {
                 VStack(alignment: .leading, spacing: 6) {
                     HStack(spacing: 8) {
                         Text(responderUsername.isEmpty ? NSLocalizedString("common.loading", comment: "Loading") : responderUsername)
-                            .font(.custom("Poppins-SemiBold", size: 14))
+                            .font(.system(size: legacyPoppinsSize(14), weight: .semibold))
                             .foregroundStyle(.primary)
 
                         Text(timeAgo(from: response.timestamp))
-                            .font(.custom("Poppins-Regular", size: 12))
+                            .font(.system(size: legacyPoppinsSize(12)))
                             .foregroundStyle(.secondary)
                     }
 
                     Text(response.response)
-                        .font(.custom("Poppins-Regular", size: 15))
+                        .font(.system(size: legacyPoppinsSize(15)))
                         .foregroundStyle(.primary)
                         .multilineTextAlignment(.leading)
                         .lineSpacing(1)

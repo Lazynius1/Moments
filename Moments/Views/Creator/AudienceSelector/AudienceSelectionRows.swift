@@ -25,20 +25,20 @@ struct CustomListRow: View {
                 // Texto
                 VStack(alignment: .leading, spacing: 4) {
                     Text(list.name)
-                        .font(.custom("Poppins-SemiBold", size: 16))
+                        .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
                         .foregroundColor(colorScheme == .dark ? .white : .black)
                     
                     HStack(spacing: 4) {
                         Image(systemName: "person.fill")
                             .font(.system(size: 12))
                         Text(String(format: NSLocalizedString("audience.people.count", comment: "People count"), list.members.count))
-                            .font(.custom("Poppins-Regular", size: 13))
+                            .font(.system(size: legacyPoppinsSize(13)))
                     }
                     .foregroundColor(.gray)
                     
                     if let description = list.description, !description.isEmpty {
                         Text(description)
-                            .font(.custom("Poppins-Regular", size: 12))
+                            .font(.system(size: legacyPoppinsSize(12)))
                             .foregroundColor(.gray)
                             .lineLimit(1)
                     }
@@ -114,12 +114,12 @@ struct AudienceGridCard: View {
 
                 VStack(alignment: .leading, spacing: 3) {
                     Text(audience.title)
-                        .font(.custom(isSelected ? "Poppins-SemiBold" : "Poppins-Medium", size: 16))
+                        .font(.system(size: legacyPoppinsSize(16), weight: isSelected ? .semibold : .medium))
                         .foregroundColor(primaryText)
                         .opacity(isSelected ? 1 : 0.82)
 
                     Text(audience.description)
-                        .font(.custom("Poppins-Regular", size: 13))
+                        .font(.system(size: legacyPoppinsSize(13)))
                         .foregroundColor(primaryText.opacity(0.55))
                         .opacity(isSelected ? 1 : 0.72)
                         .lineLimit(2)
@@ -176,12 +176,12 @@ struct CustomListCard: View {
                 // ✅ Información de la lista
                 VStack(spacing: 2) {
                     Text(list.name)
-                        .font(.custom("Poppins-SemiBold", size: 14))
+                        .font(.system(size: legacyPoppinsSize(14), weight: .semibold))
                         .foregroundColor(colorScheme == .dark ? .white : .black)
                         .lineLimit(1)
                     
                     Text("\(list.members.count) personas")
-                        .font(.custom("Poppins-Regular", size: 11))
+                        .font(.system(size: legacyPoppinsSize(11)))
                         .foregroundColor(colorScheme == .dark ? .white.opacity(0.5) : .black.opacity(0.5))
                 }
             }
@@ -237,20 +237,20 @@ struct CustomListRowModern: View {
                 // ✅ Información de la lista
                 VStack(alignment: .leading, spacing: 2) {
                     Text(list.name)
-                        .font(.custom("Poppins-SemiBold", size: 16))
+                        .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
                         .foregroundColor(colorScheme == .dark ? .white : .black)
                     
                     HStack(spacing: 4) {
                         Image(systemName: "person.fill")
                             .font(.system(size: 12))
                         Text(String(format: NSLocalizedString("audience.people.count", comment: "People count"), list.members.count))
-                            .font(.custom("Poppins-Regular", size: 13))
+                            .font(.system(size: legacyPoppinsSize(13)))
                     }
                     .foregroundColor(colorScheme == .dark ? .white.opacity(0.6) : .black.opacity(0.6))
                     
                     if let description = list.description, !description.isEmpty {
                         Text(description)
-                            .font(.custom("Poppins-Regular", size: 12))
+                            .font(.system(size: legacyPoppinsSize(12)))
                             .foregroundColor(colorScheme == .dark ? .white.opacity(0.5) : .black.opacity(0.5))
                             .lineLimit(1)
                     }
@@ -327,16 +327,16 @@ struct AudienceOptionRow: View {
                 // Texto
                 VStack(alignment: .leading, spacing: 4) {
                     Text(audience.title)
-                        .font(.custom("Poppins-SemiBold", size: 16))
+                        .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
                         .foregroundColor(colorScheme == .dark ? .white : .black)
                     
                     if let count = customCount {
                         Text(String(format: NSLocalizedString("audience.people.count", comment: "People count"), count))
-                            .font(.custom("Poppins-Regular", size: 13))
+                            .font(.system(size: legacyPoppinsSize(13)))
                             .foregroundColor(.gray)
                     } else {
                         Text(audience.description)
-                            .font(.custom("Poppins-Regular", size: 13))
+                            .font(.system(size: legacyPoppinsSize(13)))
                             .foregroundColor(.gray)
                     }
                 }

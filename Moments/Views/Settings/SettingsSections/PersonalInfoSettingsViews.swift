@@ -110,12 +110,12 @@ struct PersonalInfoView: View {
                 HStack(spacing: 14) {
                     VStack(alignment: .leading, spacing: 1) {
                         Text(NSLocalizedString("settings.profile.username", comment: "Username label"))
-                            .font(.custom("Poppins-Medium", size: 15))
+                            .font(.system(size: legacyPoppinsSize(15), weight: .medium))
                             .foregroundColor(colorScheme == .dark ? .white : .black)
 
                         if let nextDate = nextAvailableDate {
                             Text(String(format: NSLocalizedString("username.availableOn", comment: "Available on %@"), nextDate))
-                                .font(.custom("Poppins-Regular", size: 12))
+                                .font(.system(size: legacyPoppinsSize(12)))
                                 .foregroundColor(.orange)
                         }
                     }
@@ -123,7 +123,7 @@ struct PersonalInfoView: View {
                     Spacer(minLength: 12)
 
                     Text("@\(username.isEmpty ? "—" : username)")
-                        .font(.custom("Poppins-Regular", size: 14))
+                        .font(.system(size: legacyPoppinsSize(14)))
                         .foregroundColor(.gray)
                         .lineLimit(1)
 
@@ -151,13 +151,13 @@ struct PersonalInfoView: View {
 
             HStack(spacing: 14) {
                 Text(NSLocalizedString("settings.profile.email", comment: "Email label"))
-                    .font(.custom("Poppins-Medium", size: 15))
+                    .font(.system(size: legacyPoppinsSize(15), weight: .medium))
                     .foregroundColor(colorScheme == .dark ? .white : .black)
 
                 Spacer(minLength: 12)
 
                 Text(email.isEmpty ? NSLocalizedString("settings.notConfigured", comment: "Not configured") : email)
-                    .font(.custom("Poppins-Regular", size: 14))
+                    .font(.system(size: legacyPoppinsSize(14)))
                     .foregroundColor(.gray)
                     .lineLimit(1)
             }
@@ -207,10 +207,10 @@ struct UsernameChangeContent: View {
 
                 VStack(alignment: .leading, spacing: 6) {
                     Text(NSLocalizedString("username.change.title", comment: "Change username title"))
-                        .font(.custom("Poppins-Bold", size: 24))
+                        .font(.system(size: legacyPoppinsSize(24), weight: .bold))
                         .foregroundColor(.primary)
                     Text(NSLocalizedString("username.change.subtitle", comment: "Can be changed every 6 months"))
-                        .font(.custom("Poppins-Regular", size: 14))
+                        .font(.system(size: legacyPoppinsSize(14)))
                         .foregroundColor(.secondary)
                 }
                 .padding(.top, 8)
@@ -218,11 +218,11 @@ struct UsernameChangeContent: View {
                 VStack(alignment: .leading, spacing: 8) {
                     HStack(spacing: 10) {
                         Text("@")
-                            .font(.custom("Poppins-SemiBold", size: 18))
+                            .font(.system(size: legacyPoppinsSize(18), weight: .semibold))
                             .foregroundColor(.secondary)
 
                         TextField(currentUsername, text: $newUsername)
-                            .font(.custom("Poppins-Regular", size: 17))
+                            .font(.system(size: legacyPoppinsSize(17)))
                             .autocorrectionDisabled()
                             .textInputAutocapitalization(.never)
                             .onChange(of: newUsername) { _, _ in
@@ -255,17 +255,17 @@ struct UsernameChangeContent: View {
 
                     if let error = errorMessage {
                         Text(error)
-                            .font(.custom("Poppins-Regular", size: 13))
+                            .font(.system(size: legacyPoppinsSize(13)))
                             .foregroundColor(.red)
                     } else if newUsername.count >= 3 && isDifferent, let available = isAvailable {
                         Text(available
                              ? NSLocalizedString("username.available", comment: "Username available")
                              : NSLocalizedString("username.taken", comment: "Username taken"))
-                            .font(.custom("Poppins-Regular", size: 13))
+                            .font(.system(size: legacyPoppinsSize(13)))
                             .foregroundColor(available ? .green : .red)
                     } else {
                         Text(NSLocalizedString("username.rules", comment: "3-30 chars, letters, numbers and _"))
-                            .font(.custom("Poppins-Regular", size: 13))
+                            .font(.system(size: legacyPoppinsSize(13)))
                             .foregroundColor(.secondary)
                     }
                 }
@@ -278,7 +278,7 @@ struct UsernameChangeContent: View {
                                 .padding(.trailing, 4)
                         }
                         Text(NSLocalizedString("username.change.save", comment: "Save username"))
-                            .font(.custom("Poppins-SemiBold", size: 16))
+                            .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
                     }
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 16)

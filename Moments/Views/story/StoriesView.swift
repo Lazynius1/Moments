@@ -928,13 +928,13 @@ private struct StoryViewerLoadingState: View {
                     .foregroundColor(primaryChrome.opacity(0.88))
 
                 Text(message)
-                    .font(.custom("Poppins-Medium", size: 18))
+                    .font(.system(size: legacyPoppinsSize(18), weight: .medium))
                     .foregroundColor(primaryChrome.opacity(0.88))
                     .multilineTextAlignment(.center)
 
                 Button(action: onClose) {
                     Text(NSLocalizedString("common.close", comment: "Close"))
-                        .font(.custom("Poppins-Medium", size: 16))
+                        .font(.system(size: legacyPoppinsSize(16), weight: .medium))
                         .foregroundColor(primaryChrome)
                         .padding(.horizontal, 26)
                         .padding(.vertical, 12)

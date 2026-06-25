@@ -116,7 +116,7 @@ struct StoryChainView: View {
 
             Text(NSLocalizedString("storyChains.loading", comment: "Loading chain"))
                 .foregroundColor(secondaryForeground)
-                .font(.custom("Poppins-Regular", size: 16))
+                .font(.system(size: legacyPoppinsSize(16)))
         }
     }
 
@@ -137,7 +137,7 @@ struct StoryChainView: View {
                     .foregroundStyle(primaryForeground)
 
                 Text(NSLocalizedString("storyChains.notFound", comment: "No stories found in this chain"))
-                    .font(.custom("Poppins-Medium", size: 16))
+                    .font(.system(size: legacyPoppinsSize(16), weight: .medium))
                     .foregroundStyle(primaryForeground)
                     .multilineTextAlignment(.center)
             }
@@ -154,7 +154,7 @@ struct StoryChainView: View {
                     .font(.system(size: 17, weight: .semibold))
 
                 Text(NSLocalizedString("storyChains.continueStory", comment: "Continue Story"))
-                    .font(.custom("Poppins-SemiBold", size: 15))
+                    .font(.system(size: legacyPoppinsSize(15), weight: .semibold))
             }
             .foregroundStyle(colorScheme == .dark ? Color(hex: "0B1215") : Color(hex: "FAF9F6"))
             .padding(.horizontal, 24)
@@ -183,10 +183,10 @@ struct StoryChainView: View {
 
                 VStack(spacing: 4) {
                     Text(NSLocalizedString("storyChains.chain", comment: "Chain"))
-                        .font(.custom("Poppins-Regular", size: 12))
+                        .font(.system(size: legacyPoppinsSize(12)))
                         .foregroundColor(secondaryForeground)
                     Text(chainTitle)
-                        .font(.custom("Poppins-SemiBold", size: 24))
+                        .font(.system(size: legacyPoppinsSize(24), weight: .semibold))
                         .foregroundColor(primaryForeground)
                         .lineLimit(1)
                         .truncationMode(.tail)
@@ -257,7 +257,7 @@ struct StoryChainView: View {
             Image(systemName: icon)
                 .font(.system(size: 11, weight: .semibold))
             Text(text)
-                .font(.custom("Poppins-Medium", size: 12))
+                .font(.system(size: legacyPoppinsSize(12), weight: .medium))
                 .lineLimit(1)
         }
         .foregroundColor(tint)
@@ -370,7 +370,7 @@ struct StoryChainItemView: View {
                     
                     // Número
                     Text("\(position)")
-                        .font(.custom("Poppins-Bold", size: 16))
+                        .font(.system(size: legacyPoppinsSize(16), weight: .bold))
                         .foregroundColor(.primary)
                 }
                 
@@ -378,19 +378,19 @@ struct StoryChainItemView: View {
                 VStack(alignment: .leading, spacing: 4) {
                     HStack {
                         Text(story.username)
-                            .font(.custom("Poppins-Medium", size: 14))
+                            .font(.system(size: legacyPoppinsSize(14), weight: .medium))
                             .foregroundColor(.primary)
                         
                         Spacer()
                         
                         Text(timeAgoString(from: story.timestamp))
-                            .font(.custom("Poppins-Regular", size: 12))
+                            .font(.system(size: legacyPoppinsSize(12)))
                             .foregroundColor(.secondary)
                     }
                     
                     if let text = story.text, !text.isEmpty {
                         Text(text)
-                            .font(.custom("Poppins-Regular", size: 13))
+                            .font(.system(size: legacyPoppinsSize(13)))
                             .foregroundColor(.secondary)
                             .lineLimit(2)
                     }
@@ -402,7 +402,7 @@ struct StoryChainItemView: View {
                             .foregroundColor(.secondary)
                         
                         Text(story.mediaItem.type == .video ? NSLocalizedString("storyChains.video", comment: "Video") : NSLocalizedString("storyChains.photo", comment: "Photo"))
-                            .font(.custom("Poppins-Regular", size: 12))
+                            .font(.system(size: legacyPoppinsSize(12)))
                             .foregroundColor(.secondary)
                     }
                 }
@@ -556,7 +556,7 @@ struct StoryChainGridItemView: View {
                     Spacer()
 
                     Text(story.username)
-                        .font(.custom("Poppins-SemiBold", size: 12))
+                        .font(.system(size: legacyPoppinsSize(12), weight: .semibold))
                         .foregroundColor(.white.opacity(0.96))
                         .lineLimit(1)
                         .truncationMode(.tail)
@@ -604,7 +604,7 @@ struct StoryChainGridItemView: View {
                             .frame(width: 30, height: 30)
 
                         Text("\(position)")
-                            .font(.custom("Poppins-Bold", size: 13))
+                            .font(.system(size: legacyPoppinsSize(13), weight: .bold))
                             .foregroundColor(.white)
                     }
                 }

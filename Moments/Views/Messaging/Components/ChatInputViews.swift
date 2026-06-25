@@ -33,7 +33,7 @@ struct GlassmorphicInputBar: View {
                 HStack(alignment: .center, spacing: 8) {
                     TextField(LocalizedStringKey("chat.input.placeholder"), text: $text, axis: .vertical)
                         .lineLimit(1...6)
-                        .font(.custom("Poppins-Regular", size: 15))
+                        .font(.system(size: legacyPoppinsSize(15)))
                         .foregroundColor(adaptiveColors.primary)
                         .accentColor(adaptiveColors.primary)
                         .textFieldStyle(PlainTextFieldStyle())
@@ -124,7 +124,7 @@ struct VoiceRecordingBar: View {
                     )
 
                 Text("chat.recording")
-                    .font(.custom("Poppins-Regular", size: 12))
+                    .font(.system(size: legacyPoppinsSize(12)))
                     .foregroundColor(adaptiveColors.recordingIndicator)
 
                 LiveWaveformView(color: adaptiveColors.primary)
@@ -133,7 +133,7 @@ struct VoiceRecordingBar: View {
                 Spacer()
 
                 Text(formattedTime)
-                    .font(.custom("Poppins-Medium", size: 14))
+                    .font(.system(size: legacyPoppinsSize(14), weight: .medium))
                     .foregroundColor(adaptiveColors.primary)
             }
             .padding(.horizontal, 16)

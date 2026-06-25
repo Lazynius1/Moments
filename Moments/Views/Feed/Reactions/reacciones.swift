@@ -205,7 +205,7 @@ struct ModernReactionButton: View {
             // Contador de reacciones
             if reactionCount > 0 {
                 Text("\(reactionCount)")
-                    .font(.custom("Poppins-Medium", size: 12))
+                    .font(.system(size: legacyPoppinsSize(12), weight: .medium))
                     .foregroundColor(.white.opacity(0.8))
             }
             
@@ -379,7 +379,7 @@ struct ReactionPickerView: View {
                                 }
                                 
                                 Text(reaction.displayName)
-                                    .font(.custom("Poppins-Bold", size: 10))
+                                    .font(.system(size: legacyPoppinsSize(10), weight: .bold))
                                     .foregroundColor(.white)
                                     .shadow(color: .black.opacity(0.5), radius: 1)
                             }
@@ -396,7 +396,7 @@ struct ReactionPickerView: View {
             // ✨ Botón de cerrar
             Button(action: onClose) {
                 Text("Cerrar")
-                    .font(.custom("Poppins-SemiBold", size: 14))
+                    .font(.system(size: legacyPoppinsSize(14), weight: .semibold))
                     .foregroundColor(.white.opacity(0.8))
                     .padding(.horizontal, 24)
                     .padding(.vertical, 8)

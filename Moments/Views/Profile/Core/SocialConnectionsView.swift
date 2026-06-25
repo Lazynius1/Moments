@@ -379,7 +379,8 @@ struct SocialConnectionsScreen<VM: UserListViewModel & ObservableObject>: View {
                 onRemoveFollower: isOwnProfile && tab == .followers ? { user in
                     (listViewModel as? ProfileViewModel)?.removeFollower(userId: user.id)
                 } : nil,
-                onAvatarTap: handleAvatarTap
+                onAvatarTap: handleAvatarTap,
+                mutualUserIds: Set(mutuals.map { $0.id })
             )
         }
     }

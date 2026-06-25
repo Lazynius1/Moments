@@ -21,7 +21,7 @@ struct HighlightStoryGrid: View {
                 VStack(spacing: 12) {
                     ProgressView()
                     Text(NSLocalizedString("common.loading", comment: "Loading"))
-                        .font(.custom("Poppins-Regular", size: 14))
+                        .font(.system(size: legacyPoppinsSize(14)))
                         .foregroundColor(.secondary)
                 }
                 .frame(maxWidth: .infinity)
@@ -32,7 +32,7 @@ struct HighlightStoryGrid: View {
                         .font(.system(size: 48))
                         .foregroundColor(.secondary.opacity(0.4))
                     Text(NSLocalizedString(emptyMessageKey, comment: "No stories to select"))
-                        .font(.custom("Poppins-Medium", size: 15))
+                        .font(.system(size: legacyPoppinsSize(15), weight: .medium))
                         .foregroundColor(.secondary)
                         .multilineTextAlignment(.center)
                 }
@@ -235,12 +235,12 @@ struct HighlightEditorHeader: View {
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(title)
-                    .font(.custom("Poppins-SemiBold", size: 16))
+                    .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
                     .foregroundColor(.primary)
                     .lineLimit(1)
 
                 Text(subtitle)
-                    .font(.custom("Poppins-Regular", size: 11))
+                    .font(.system(size: legacyPoppinsSize(11)))
                     .foregroundColor(.secondary)
                     .lineLimit(1)
             }
@@ -272,7 +272,7 @@ struct HighlightViewerTitlePill: View {
 
     var body: some View {
         Text(title)
-            .font(.custom("Poppins-SemiBold", size: 15))
+            .font(.system(size: legacyPoppinsSize(15), weight: .semibold))
             .foregroundColor(textColor)
             .lineLimit(1)
             .padding(.horizontal, 16)
@@ -324,14 +324,14 @@ struct HighlightEditorBottomBar: View {
 
                 VStack(alignment: .leading, spacing: 6) {
                     Text(NSLocalizedString("highlightedStories.titleLabel", comment: "Title"))
-                        .font(.custom("Poppins-Medium", size: 11))
+                        .font(.system(size: legacyPoppinsSize(11), weight: .medium))
                         .foregroundColor(.secondary)
 
                     TextField(
                         NSLocalizedString("highlightedStories.titlePlaceholder", comment: "Title Placeholder"),
                         text: $title
                     )
-                    .font(.custom("Poppins-Medium", size: 15))
+                    .font(.system(size: legacyPoppinsSize(15), weight: .medium))
                     .padding(.horizontal, 12)
                     .padding(.vertical, 10)
                     .background(Color.clear.momentsChromeGlass(in: RoundedRectangle(cornerRadius: 14, style: .continuous)))
@@ -345,7 +345,7 @@ struct HighlightEditorBottomBar: View {
                             .scaleEffect(0.85)
                     }
                     Text(actionTitle)
-                        .font(.custom("Poppins-SemiBold", size: 15))
+                        .font(.system(size: legacyPoppinsSize(15), weight: .semibold))
                 }
                 .foregroundColor(.white)
                 .frame(maxWidth: .infinity)

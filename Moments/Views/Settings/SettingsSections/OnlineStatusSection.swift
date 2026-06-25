@@ -28,10 +28,10 @@ struct OnlineStatusSection: View {
 
                 VStack(alignment: .leading, spacing: 1) {
                     Text(NSLocalizedString("settings.onlineStatus.title", comment: "Online Status"))
-                        .font(.custom("Poppins-Medium", size: 15))
+                        .font(.system(size: legacyPoppinsSize(15), weight: .medium))
                         .foregroundColor(colorScheme == .dark ? .white : .black)
                     Text(String(format: NSLocalizedString("settings.onlineStatus.current", comment: "Current status"), onlineStatusService.currentUserStatus.displayName))
-                        .font(.custom("Poppins-Regular", size: 12))
+                        .font(.system(size: legacyPoppinsSize(12)))
                         .foregroundColor(.gray)
                 }
 
@@ -49,7 +49,7 @@ struct OnlineStatusSection: View {
                 } label: {
                     HStack(spacing: 4) {
                         Text(NSLocalizedString("settings.onlineStatus.select", comment: "Select"))
-                            .font(.custom("Poppins-Medium", size: 13))
+                            .font(.system(size: legacyPoppinsSize(13), weight: .medium))
                         Image(systemName: "chevron.up.down")
                             .font(.system(size: 10, weight: .bold))
                     }

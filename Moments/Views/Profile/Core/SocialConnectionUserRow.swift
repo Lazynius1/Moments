@@ -177,6 +177,7 @@ struct SocialConnectionUserRow<ViewModel: UserListViewModel>: View {
     var onViewSharedActivity: ((AppUser) -> Void)? = nil
     var onRemoveFollower: ((AppUser) -> Void)? = nil
     var onAvatarTap: ((String, Bool) -> Void)? = nil
+    var isMutual: Bool = false
 
     @Environment(\.colorScheme) private var colorScheme
     @State private var followState: FollowButtonState = .canFollow
@@ -238,16 +239,41 @@ struct SocialConnectionUserRow<ViewModel: UserListViewModel>: View {
 
     var body: some View {
         HStack(spacing: SocialConnectionRowMetrics.contentSpacing) {
-            StoryRingAvatarView(
-                userId: user.id,
-                size: SocialConnectionRowMetrics.avatarSize,
-                lineWidth: 2.2,
-                showBaseStroke: true,
-                baseStrokeColor: colorScheme == .dark ? Color.white.opacity(0.18) : Color.black.opacity(0.14),
-                baseStrokeWidth: 0.9,
-                profileZoomNamespace: profileZoomNamespace,
-                onTap: handleAvatarTap
-            )
+            ZStack(alignment: .topLeading) {
+                let avatarView = StoryRingAvatarView(
+                    userId: user.id,
+                    size: SocialConnectionRowMetrics.avatarSize,
+                    lineWidth: 2.2,
+                    showBaseStroke: true,
+                    baseStrokeColor: colorScheme == .dark ? Color.white.opacity(0.18) : Color.black.opacity(0.14),
+                    baseStrokeWidth: 0.9,
+                    profileZoomNamespace: profileZoomNamespace,
+                    onTap: handleAvatarTap
+                )
+
+                if isMutual {
+                    avatarView
+                        .reversedMask(alignment: .topLeading) {
+                            Circle()
+                                .frame(width: 21, height: 21)
+                                .offset(x: -1.5, y: -1.5)
+                        }
+
+                    Circle()
+                        .fill(Color.clear)
+                        .frame(width: 18, height: 18)
+                        .momentsChromeGlass(in: Circle(), interactive: false)
+                        .overlay {
+                            AttachmentIconView(
+                                icon: .mutuals,
+                                size: 10
+                            )
+                        }
+                        .offset(x: 0, y: 0)
+                } else {
+                    avatarView
+                }
+            }
 
             userInfoSection
 

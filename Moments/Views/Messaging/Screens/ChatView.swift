@@ -694,7 +694,7 @@ struct GlassmorphicChatView: View {
                     .font(.system(size: 14, weight: .medium))
 
                 TextField(LocalizedStringKey("messaging.search.placeholder"), text: $searchQuery)
-                    .font(.custom("Poppins-Regular", size: 14))
+                    .font(.system(size: legacyPoppinsSize(14)))
                     .foregroundColor(adaptiveColors.primary)
                     .textInputAutocapitalization(.never)
                     .disableAutocorrection(true)
@@ -718,7 +718,7 @@ struct GlassmorphicChatView: View {
 
             HStack(spacing: 6) {
                 Text(searchCounterText)
-                    .font(.custom("Poppins-Medium", size: 11))
+                    .font(.system(size: legacyPoppinsSize(11), weight: .medium))
                     .foregroundColor(adaptiveColors.secondary)
                     .frame(minWidth: 38)
                     .padding(.horizontal, 10)
@@ -900,7 +900,7 @@ struct GlassmorphicChatView: View {
 
                         if pendingIncomingMessages > 0, isScrollContentScrollable {
                             Text(pendingIncomingMessages > 99 ? "99+" : "\(pendingIncomingMessages)")
-                                .font(.custom("Poppins-SemiBold", size: 10))
+                                .font(.system(size: legacyPoppinsSize(10), weight: .semibold))
                                 .foregroundStyle(scrollToBottomBadgeTextColor)
                                 .padding(.horizontal, 5)
                                 .frame(minWidth: 18, minHeight: 18)
@@ -1112,7 +1112,7 @@ struct GlassmorphicChatView: View {
                     Image(systemName: "pencil")
                         .foregroundColor(adaptiveColors.primary)
                     Text("chat.editing.title")
-                        .font(.custom("Poppins-Medium", size: 14))
+                        .font(.system(size: legacyPoppinsSize(14), weight: .medium))
                         .foregroundColor(adaptiveColors.primary)
                     Spacer()
                     Button(action: {
@@ -1383,7 +1383,7 @@ struct GlassmorphicChatView: View {
                     .font(.system(size: 15, weight: .semibold))
 
                 Text("chat.input.unavailable")
-                    .font(.custom("Poppins-Medium", size: 14))
+                    .font(.system(size: legacyPoppinsSize(14), weight: .medium))
                     .lineLimit(1)
 
                 Spacer(minLength: 0)
@@ -1404,7 +1404,7 @@ struct GlassmorphicChatView: View {
         var body: some View {
             HStack(spacing: 10) {
                 Text("chat.blockedByMe.input")
-                    .font(.custom("Poppins-Medium", size: 13))
+                    .font(.system(size: legacyPoppinsSize(13), weight: .medium))
                     .foregroundColor(colorScheme == .dark ? .white.opacity(0.66) : .black.opacity(0.58))
                     .lineLimit(2)
 
@@ -1412,7 +1412,7 @@ struct GlassmorphicChatView: View {
 
                 Button(action: onUnblock) {
                     Text("chat.blockedByMe.unblock")
-                        .font(.custom("Poppins-SemiBold", size: 13))
+                        .font(.system(size: legacyPoppinsSize(13), weight: .semibold))
                         .foregroundColor(colorScheme == .dark ? .white : .black)
                         .padding(.horizontal, 12)
                         .padding(.vertical, 8)

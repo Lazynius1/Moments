@@ -215,7 +215,7 @@ struct ModernMomentThumbnail: View {
 
                 if descriptor.showsDuration, let duration = moment.videoDuration {
                     Text(Self.formatVideoDuration(duration))
-                        .font(.custom("Poppins-SemiBold", size: 11))
+                        .font(.system(size: legacyPoppinsSize(11), weight: .semibold))
                         .foregroundColor(.white)
                         .shadow(color: .black.opacity(0.5), radius: 3, x: 0, y: 1)
                 }
@@ -273,7 +273,7 @@ struct ModernMomentThumbnail: View {
             Image(systemName: "clock.fill")
                 .font(.system(size: 7, weight: .bold))
             Text(moment.scheduledRemainingText)
-                .font(.custom("Poppins-SemiBold", size: 8))
+                .font(.system(size: legacyPoppinsSize(8), weight: .semibold))
                 .lineLimit(1)
         }
         .foregroundColor(.white)
@@ -337,7 +337,7 @@ struct ModernMomentThumbnail: View {
                                         .tint(Color(hex: "007AFF"))
                                         .scaleEffect(0.8)
                                     Text("profile.video.uploading")
-                                        .font(.custom("Poppins-Regular", size: 8))
+                                        .font(.system(size: legacyPoppinsSize(8)))
                                         .foregroundColor(.white.opacity(0.6))
                                 }
                             } else {
@@ -346,7 +346,7 @@ struct ModernMomentThumbnail: View {
                                         .font(.system(size: 16))
                                         .foregroundColor(.gray.opacity(0.6))
                                     Text("profile.video")
-                                        .font(.custom("Poppins-Regular", size: 8))
+                                        .font(.system(size: legacyPoppinsSize(8)))
                                         .foregroundColor(.white.opacity(0.6))
                                 }
                             }
@@ -373,7 +373,7 @@ struct ModernMomentThumbnail: View {
                                         .tint(Color(hex: "007AFF"))
                                         .scaleEffect(0.8)
                                     Text("profile.image.uploading")
-                                        .font(.custom("Poppins-Regular", size: 8))
+                                        .font(.system(size: legacyPoppinsSize(8)))
                                         .foregroundColor(.white.opacity(0.6))
                                 }
                             )
@@ -401,7 +401,7 @@ struct ModernMomentThumbnail: View {
                         .foregroundColor(.gray.opacity(0.6))
 
                     Text(moment.content.isEmpty ? NSLocalizedString("profile.content.empty", comment: "No content text") : String(moment.content.prefix(12)))
-                        .font(.custom("Poppins-Regular", size: 8))
+                        .font(.system(size: legacyPoppinsSize(8)))
                         .foregroundColor(.white.opacity(0.8))
                         .multilineTextAlignment(.center)
                         .lineLimit(2)
@@ -477,11 +477,11 @@ struct ProfileSectionEmptyState: View {
 
             VStack(spacing: 6) {
                 Text(titleKey)
-                    .font(.custom("Poppins-SemiBold", size: 17))
+                    .font(.system(size: legacyPoppinsSize(17), weight: .semibold))
                     .foregroundColor(ProfileColors.textPrimary)
 
                 Text(subtitleKey)
-                    .font(.custom("Poppins-Regular", size: 14))
+                    .font(.system(size: legacyPoppinsSize(14)))
                     .foregroundColor(ProfileColors.textSecondary)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 24)

@@ -22,11 +22,11 @@ struct DataExportView: View {
                             .foregroundColor(SettingsProfileColors.accent(colorScheme))
                         
                         Text(NSLocalizedString("dataExport.title", comment: "Data export title"))
-                            .font(.custom("Poppins-Bold", size: 24))
+                            .font(.system(size: legacyPoppinsSize(24), weight: .bold))
                             .foregroundColor(colorScheme == .dark ? .white : .black)
                         
                         Text(NSLocalizedString("dataExport.subtitle", comment: "Data export subtitle"))
-                            .font(.custom("Poppins-Regular", size: 16))
+                            .font(.system(size: legacyPoppinsSize(16)))
                             .foregroundColor(.gray)
                             .multilineTextAlignment(.center)
                     }
@@ -39,7 +39,7 @@ struct DataExportView: View {
                                 .foregroundColor(SettingsProfileColors.accent(colorScheme))
                             
                             Text(NSLocalizedString("dataExport.whatIncludes.title", comment: "What includes download title"))
-                                .font(.custom("Poppins-SemiBold", size: 16))
+                                .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
                                 .foregroundColor(colorScheme == .dark ? .white : .black)
                         }
                         
@@ -63,7 +63,7 @@ struct DataExportView: View {
                     // Export Options
                     VStack(alignment: .leading, spacing: 16) {
                         Text(NSLocalizedString("dataExport.options.title", comment: "Export options title"))
-                            .font(.custom("Poppins-SemiBold", size: 18))
+                            .font(.system(size: legacyPoppinsSize(18), weight: .semibold))
                             .foregroundColor(colorScheme == .dark ? .white : .black)
                         
                         VStack(spacing: 12) {
@@ -100,7 +100,7 @@ struct DataExportView: View {
                     // Format Selection
                     VStack(alignment: .leading, spacing: 16) {
                         Text(NSLocalizedString("dataExport.format.title", comment: "Data format title"))
-                            .font(.custom("Poppins-SemiBold", size: 18))
+                            .font(.system(size: legacyPoppinsSize(18), weight: .semibold))
                             .foregroundColor(colorScheme == .dark ? .white : .black)
                         
                         HStack(spacing: 12) {
@@ -134,25 +134,25 @@ struct DataExportView: View {
                                 .foregroundColor(.orange)
                             
                             Text(NSLocalizedString("dataExport.privacy.title", comment: "Privacy notice title"))
-                            .font(.custom("Poppins-SemiBold", size: 16))
+                            .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
                             .foregroundColor(colorScheme == .dark ? .white : .black)
                         }
                         
                         VStack(alignment: .leading, spacing: 8) {
                             Text(NSLocalizedString("dataExport.privacy.bullet1", comment: "Privacy bullet 1"))
-                                .font(.custom("Poppins-Regular", size: 14))
+                                .font(.system(size: legacyPoppinsSize(14)))
                                 .foregroundColor(.gray)
                             
                             Text(NSLocalizedString("dataExport.privacy.bullet2", comment: "Privacy bullet 2"))
-                                .font(.custom("Poppins-Regular", size: 14))
+                                .font(.system(size: legacyPoppinsSize(14)))
                                 .foregroundColor(.gray)
                             
                             Text(NSLocalizedString("dataExport.privacy.bullet3", comment: "Privacy bullet 3"))
-                                .font(.custom("Poppins-Regular", size: 14))
+                                .font(.system(size: legacyPoppinsSize(14)))
                                 .foregroundColor(.gray)
                             
                             Text(NSLocalizedString("dataExport.privacy.bullet4", comment: "Privacy bullet 4"))
-                                .font(.custom("Poppins-Regular", size: 14))
+                                .font(.system(size: legacyPoppinsSize(14)))
                                 .foregroundColor(.gray)
                         }
                     }
@@ -184,7 +184,7 @@ struct DataExportView: View {
                             }
                             
                             Text(viewModel.isProcessing ? NSLocalizedString("dataExport.processing", comment: "Processing text") : NSLocalizedString("dataExport.requestDownload", comment: "Request download text"))
-                                .font(.custom("Poppins-SemiBold", size: 16))
+                                .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
                         }
                         .foregroundColor(
                             viewModel.canRequestExport
@@ -203,7 +203,7 @@ struct DataExportView: View {
                     
                     if !viewModel.canRequestExport && viewModel.currentRequest == nil {
                         Text(String(format: NSLocalizedString("dataExport.alreadyRequested", comment: "Already requested message"), "\(viewModel.daysUntilNextRequest)"))
-                            .font(.custom("Poppins-Regular", size: 14))
+                            .font(.system(size: legacyPoppinsSize(14)))
                             .foregroundColor(.orange)
                             .multilineTextAlignment(.center)
                             .padding(.horizontal)
@@ -254,11 +254,11 @@ struct DataIncludeRow: View {
             
             VStack(alignment: .leading, spacing: 2) {
                 Text(title)
-                    .font(.custom("Poppins-Medium", size: 15))
+                    .font(.system(size: legacyPoppinsSize(15), weight: .medium))
                     .foregroundColor(colorScheme == .dark ? .white : .black)
                 
                 Text(description)
-                    .font(.custom("Poppins-Regular", size: 13))
+                    .font(.system(size: legacyPoppinsSize(13)))
                     .foregroundColor(.gray)
             }
             
@@ -285,7 +285,7 @@ struct ExportOptionCard: View {
                         .font(.system(size: 20))
                     
                     Text(title)
-                        .font(.custom("Poppins-SemiBold", size: 16))
+                        .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
                         .foregroundColor(colorScheme == .dark ? .white : .black)
                     
                     Spacer()
@@ -302,17 +302,17 @@ struct ExportOptionCard: View {
                 }
                 
                 Text(description)
-                    .font(.custom("Poppins-Regular", size: 14))
+                    .font(.system(size: legacyPoppinsSize(14)))
                     .foregroundColor(.gray)
                     .multilineTextAlignment(.leading)
                 
                 HStack {
                     Text("dataExport.estimatedSize")
-                        .font(.custom("Poppins-Regular", size: 12))
+                        .font(.system(size: legacyPoppinsSize(12)))
                         .foregroundColor(.gray)
                     
                     Text(estimatedSize)
-                        .font(.custom("Poppins-Medium", size: 12))
+                        .font(.system(size: legacyPoppinsSize(12), weight: .medium))
                         .foregroundColor(SettingsProfileColors.accent(colorScheme))
                     
                     Spacer()
@@ -343,11 +343,11 @@ struct FormatButton: View {
         Button(action: onTap) {
             VStack(spacing: 8) {
                 Text(title)
-                    .font(.custom("Poppins-SemiBold", size: 16))
+                    .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
                     .foregroundColor(isSelected ? .white : (colorScheme == .dark ? .white : .black))
                 
                 Text(description)
-                    .font(.custom("Poppins-Regular", size: 12))
+                    .font(.system(size: legacyPoppinsSize(12)))
                     .foregroundColor(isSelected ? .white.opacity(0.8) : .gray)
                     .multilineTextAlignment(.center)
             }
@@ -377,39 +377,39 @@ struct CurrentRequestSection: View {
                     .foregroundColor(.blue)
                 
                                         Text(NSLocalizedString("dataExport.requestInProgress.title", comment: "Request in progress title"))
-                            .font(.custom("Poppins-SemiBold", size: 16))
+                            .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
                             .foregroundColor(colorScheme == .dark ? .white : .black)
             }
             
             VStack(alignment: .leading, spacing: 8) {
                 HStack {
                     Text("dataExport.status")
-                        .font(.custom("Poppins-Regular", size: 14))
+                        .font(.system(size: legacyPoppinsSize(14)))
                         .foregroundColor(.gray)
                     
                     Text(request.status.displayName)
-                        .font(.custom("Poppins-Medium", size: 14))
+                        .font(.system(size: legacyPoppinsSize(14), weight: .medium))
                         .foregroundColor(request.status.color)
                 }
                 
                 HStack {
                     Text("dataExport.requestedAt")
-                        .font(.custom("Poppins-Regular", size: 14))
+                        .font(.system(size: legacyPoppinsSize(14)))
                         .foregroundColor(.gray)
                     
                     Text(request.requestDate.formatted(date: .abbreviated, time: .shortened))
-                        .font(.custom("Poppins-Medium", size: 14))
+                        .font(.system(size: legacyPoppinsSize(14), weight: .medium))
                         .foregroundColor(colorScheme == .dark ? .white : .black)
                 }
                 
                 if let completionDate = request.estimatedCompletion {
                     HStack {
                         Text("dataExport.estimatedCompletion")
-                            .font(.custom("Poppins-Regular", size: 14))
+                            .font(.system(size: legacyPoppinsSize(14)))
                             .foregroundColor(.gray)
                         
                         Text(completionDate.formatted(date: .abbreviated, time: .shortened))
-                            .font(.custom("Poppins-Medium", size: 14))
+                            .font(.system(size: legacyPoppinsSize(14), weight: .medium))
                             .foregroundColor(.blue)
                     }
                 }
@@ -419,13 +419,13 @@ struct CurrentRequestSection: View {
             VStack(alignment: .leading, spacing: 4) {
                 HStack {
                                             Text(NSLocalizedString("dataExport.progress", comment: "Progress text"))
-                            .font(.custom("Poppins-Regular", size: 12))
+                            .font(.system(size: legacyPoppinsSize(12)))
                             .foregroundColor(.gray)
                     
                     Spacer()
                     
                     Text("\(Int(request.progress * 100))%")
-                        .font(.custom("Poppins-Medium", size: 12))
+                        .font(.system(size: legacyPoppinsSize(12), weight: .medium))
                         .foregroundColor(.blue)
                 }
                 

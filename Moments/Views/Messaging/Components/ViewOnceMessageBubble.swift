@@ -107,11 +107,11 @@ struct ViewOnceUnreadBubble: View {
                 
                 VStack(alignment: .leading, spacing: 4) {
                     Text(getTypeText())
-                        .font(.custom("Poppins-SemiBold", size: 16))
+                        .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
                         .foregroundColor(adaptiveColors.messageTextColor)
                     
                     Text("chat.viewOnce.tapToView")
-                        .font(.custom("Poppins-Medium", size: 12))
+                        .font(.system(size: legacyPoppinsSize(12), weight: .medium))
                         .foregroundColor(adaptiveColors.messageTextColor.opacity(0.8))
                     
                     // Simple message with signature colors
@@ -119,7 +119,7 @@ struct ViewOnceUnreadBubble: View {
                         Image(systemName: "sparkles")
                             .font(.system(size: 10))
                         Text("chat.viewOnce.autoDelete")
-                            .font(.custom("Poppins-Medium", size: 10))
+                            .font(.system(size: legacyPoppinsSize(10), weight: .medium))
                     }
                     .foregroundColor(.clear)
                     .overlay(
@@ -129,7 +129,7 @@ struct ViewOnceUnreadBubble: View {
                                     Image(systemName: "sparkles")
                                         .font(.system(size: 10))
                                     Text("chat.viewOnce.autoDelete")
-                                        .font(.custom("Poppins-Medium", size: 10))
+                                        .font(.system(size: legacyPoppinsSize(10), weight: .medium))
                                 }
                             )
                     )
@@ -205,11 +205,11 @@ struct ViewOnceOpenedBubble: View {
             
             VStack(alignment: .leading, spacing: 2) {
                 Text(getTypeText())
-                    .font(.custom("Poppins-Regular", size: 14))
+                    .font(.system(size: legacyPoppinsSize(14)))
                     .foregroundColor(adaptiveColors.messageTextColor.opacity(0.5))
                 
                 Text("chat.viewOnce.alreadyViewed")
-                    .font(.custom("Poppins-Regular", size: 11))
+                    .font(.system(size: legacyPoppinsSize(11)))
                     .foregroundColor(adaptiveColors.messageTextColor.opacity(0.3))
                     .italic()
             }
@@ -256,14 +256,14 @@ struct ViewOnceSentBubble: View {
         HStack(spacing: 12) {
             VStack(alignment: .leading, spacing: 4) {
                 Text(getTypeText())
-                    .font(.custom("Poppins-SemiBold", size: 14))
+                    .font(.system(size: legacyPoppinsSize(14), weight: .semibold))
                     .foregroundColor(adaptiveColors.messageTextColor)
                 
                 HStack(spacing: 4) {
                     Image(systemName: "eye.slash.fill")
                         .font(.system(size: 10))
                     Text("chat.viewOnce.viewOnce")
-                        .font(.custom("Poppins-Medium", size: 11))
+                        .font(.system(size: legacyPoppinsSize(11), weight: .medium))
                 }
                 .foregroundColor(adaptiveColors.messageTextColor.opacity(0.7))
                 
@@ -272,12 +272,12 @@ struct ViewOnceSentBubble: View {
                         Image(systemName: "checkmark.circle.fill")
                             .font(.system(size: 10))
                         Text("chat.viewOnce.viewed")
-                            .font(.custom("Poppins-Medium", size: 10))
+                            .font(.system(size: legacyPoppinsSize(10), weight: .medium))
                     }
                     .foregroundColor(.green.opacity(0.8))
                 } else {
                     Text("chat.viewOnce.sent")
-                        .font(.custom("Poppins-Medium", size: 10))
+                        .font(.system(size: legacyPoppinsSize(10), weight: .medium))
                         .foregroundColor(adaptiveColors.messageTextColor.opacity(0.5))
                 }
             }

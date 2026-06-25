@@ -609,7 +609,7 @@ struct GlassmorphicMediaSelectionSheet: View {
             // Header
             HStack {
                 Text("chat.reply.select_item")
-                    .font(.custom("Poppins-SemiBold", size: 18))
+                    .font(.system(size: legacyPoppinsSize(18), weight: .semibold))
                     .foregroundColor(adaptiveColors.primary)
 
                 Spacer()

@@ -22,11 +22,11 @@ struct RestModeView: View {
                     // Header Description
                     VStack(alignment: .leading, spacing: 8) {
                         Text(NSLocalizedString("userActivity.timeSpent.restMode.descTitle", value: "Momento de pausa", comment: "Rest mode desc title"))
-                            .font(.custom("Poppins-SemiBold", size: 18))
+                            .font(.system(size: legacyPoppinsSize(18), weight: .semibold))
                             .foregroundColor(colorScheme == .dark ? .white : .black)
                             
                         Text(NSLocalizedString("userActivity.timeSpent.restMode.descBody", value: "Silencia las notificaciones push de Moments durante las horas que elijas para evitar distracciones.", comment: "Rest mode desc body"))
-                            .font(.custom("Poppins-Regular", size: 14))
+                            .font(.system(size: legacyPoppinsSize(14)))
                             .foregroundColor(.gray)
                             .lineSpacing(4)
                     }
@@ -42,7 +42,7 @@ struct RestModeView: View {
                         VStack(spacing: 0) {
                             Toggle(isOn: $isRestModeEnabled.animation(.spring(response: 0.3, dampingFraction: 0.7))) {
                                 Text(NSLocalizedString("settings.notifications.schedule.enable", comment: "Enable rest mode"))
-                                    .font(.custom("Poppins-Medium", size: 16))
+                                    .font(.system(size: legacyPoppinsSize(16), weight: .medium))
                                     .foregroundColor(colorScheme == .dark ? .white : .black)
                             }
                             .tint(SettingsProfileColors.toggleTint)
@@ -64,7 +64,7 @@ struct RestModeView: View {
                                     displayedComponents: .hourAndMinute
                                 )
                                 .datePickerStyle(.compact)
-                                .font(.custom("Poppins-Medium", size: 15))
+                                .font(.system(size: legacyPoppinsSize(15), weight: .medium))
                                 .padding(.vertical, 14)
                                 .padding(.horizontal, 16)
                                 
@@ -78,7 +78,7 @@ struct RestModeView: View {
                                     displayedComponents: .hourAndMinute
                                 )
                                 .datePickerStyle(.compact)
-                                .font(.custom("Poppins-Medium", size: 15))
+                                .font(.system(size: legacyPoppinsSize(15), weight: .medium))
                                 .padding(.vertical, 14)
                                 .padding(.horizontal, 16)
                             }
@@ -101,7 +101,7 @@ struct RestModeView: View {
                                         .padding(.trailing, 4)
                                 }
                                 Text(NSLocalizedString("settings.schedule.save", comment: "Save"))
-                                    .font(.custom("Poppins-SemiBold", size: 16))
+                                    .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
                             }
                             .foregroundColor(SettingsProfileColors.accentContrastingText(colorScheme))
                             .frame(maxWidth: .infinity)

@@ -789,7 +789,7 @@ struct LocationMomentCard: View {
                 } label: {
                     HStack(spacing: 3) {
                         LiveUsernameText(userId: moment.authorId, fallbackUsername: moment.username)
-                            .font(.custom("Poppins-SemiBold", size: 14))
+                            .font(.system(size: legacyPoppinsSize(14), weight: .semibold))
                             .foregroundColor(adaptiveColors.primary)
 
                         VerifiedBadgeView(userId: moment.authorId, size: 12)
@@ -798,7 +798,7 @@ struct LocationMomentCard: View {
                 .buttonStyle(.plain)
 
                 Text(moment.timestamp.timeAgoDisplay())
-                    .font(.custom("Poppins-Regular", size: 11))
+                    .font(.system(size: legacyPoppinsSize(11)))
                     .foregroundColor(colorScheme == .dark ? .white.opacity(0.9) : .black.opacity(0.75))
             }
         }
@@ -970,12 +970,12 @@ struct LocationMomentCard: View {
                 AttachmentIconView(icon: .comments, preset: .inlineCommentsHeader, tintColor: Color(hex: "007AFF").opacity(0.9))
 
                 Text("locationMomentDetail.comments")
-                    .font(.custom("Poppins-SemiBold", size: 17))
+                    .font(.system(size: legacyPoppinsSize(17), weight: .semibold))
                     .foregroundColor(colorScheme == .dark ? .white : .black)
 
                 if commentCount > 0 {
                     Text("(\(commentCount))")
-                        .font(.custom("Poppins-Medium", size: 12))
+                        .font(.system(size: legacyPoppinsSize(12), weight: .medium))
                         .foregroundColor(.white)
                         .padding(.horizontal, 8)
                         .padding(.vertical, 3)
@@ -995,7 +995,7 @@ struct LocationMomentCard: View {
                 Button(NSLocalizedString("locationMomentDetail.viewAll", comment: "View all")) {
                     onComment()
                 }
-                .font(.custom("Poppins-SemiBold", size: 13))
+                .font(.system(size: legacyPoppinsSize(13), weight: .semibold))
                 .foregroundColor(Color(hex: "007AFF"))
                 .padding(.horizontal, 10)
                 .padding(.vertical, 5)
@@ -1021,11 +1021,11 @@ struct LocationMomentCard: View {
 
                     VStack(spacing: 8) {
                         Text("locationMomentDetail.noComments.title")
-                            .font(.custom("Poppins-SemiBold", size: 16))
+                            .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
                             .foregroundColor(colorScheme == .dark ? .white.opacity(0.9) : .black.opacity(0.9))
 
                         Text("locationMomentDetail.noComments.description")
-                            .font(.custom("Poppins-Regular", size: 14))
+                            .font(.system(size: legacyPoppinsSize(14)))
                             .foregroundColor(.gray.opacity(0.8))
                             .multilineTextAlignment(.center)
                     }
@@ -1033,7 +1033,7 @@ struct LocationMomentCard: View {
                     Button(NSLocalizedString("locationMomentDetail.comment", comment: "Comment")) {
                         onComment()
                     }
-                    .font(.custom("Poppins-SemiBold", size: 14))
+                    .font(.system(size: legacyPoppinsSize(14), weight: .semibold))
                     .foregroundColor(.white)
                     .padding(.horizontal, 20)
                     .padding(.vertical, 10)
@@ -1231,7 +1231,7 @@ struct LocationActionButtons: View {
 
                     if commentCount > 0 {
                         Text("\(commentCount)")
-                            .font(.custom("Poppins-Medium", size: 12))
+                            .font(.system(size: legacyPoppinsSize(12), weight: .medium))
                             .foregroundColor(adaptiveColors.secondary)
                     }
                 }
@@ -1325,7 +1325,7 @@ struct LocationExpandableContentView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             Text(content)
-                .font(.custom("Poppins-Regular", size: 13))
+                .font(.system(size: legacyPoppinsSize(13)))
                 .foregroundColor(adaptiveColors.primary)
                 .lineLimit(isExpanded ? nil : maxLines)
                 .multilineTextAlignment(.leading)
@@ -1333,7 +1333,7 @@ struct LocationExpandableContentView: View {
                 .animation(.easeInOut(duration: 0.25), value: isExpanded)
                 .background(
                     Text(content)
-                        .font(.custom("Poppins-Regular", size: 13))
+                        .font(.system(size: legacyPoppinsSize(13)))
                         .lineLimit(maxLines)
                         .background(
                             GeometryReader { geometry in
@@ -1355,7 +1355,7 @@ struct LocationExpandableContentView: View {
                 }) {
                     HStack(spacing: 3) {
                         Text(isExpanded ? "menos" : "más")
-                            .font(.custom("Poppins-SemiBold", size: 11))
+                            .font(.system(size: legacyPoppinsSize(11), weight: .semibold))
                             .foregroundColor(adaptiveColors.primary)
 
                         Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
@@ -1432,7 +1432,7 @@ struct FollowButtonForLocation: View {
                 }
 
                 Text(followTitle)
-                    .font(.custom("Poppins-SemiBold", size: 11))
+                    .font(.system(size: legacyPoppinsSize(11), weight: .semibold))
             }
             .foregroundColor(adaptiveColors.primary)
             .padding(.horizontal, 12)
@@ -1613,7 +1613,7 @@ struct LocationCommentRow: View {
                 HStack(spacing: 6) {
                     HStack(spacing: 3) {
                         Text(comment.username)
-                            .font(.custom("Poppins-SemiBold", size: 13))
+                            .font(.system(size: legacyPoppinsSize(13), weight: .semibold))
                             .foregroundColor(adaptiveColors.primary)
 
                         // ✅ INSIGNIA DE VERIFICADO
@@ -1621,14 +1621,14 @@ struct LocationCommentRow: View {
                     }
 
                     Text(comment.timestamp.timeAgoDisplay())
-                        .font(.custom("Poppins-Regular", size: 10))
+                        .font(.system(size: legacyPoppinsSize(10)))
                         .foregroundColor(colorScheme == .dark ? .white.opacity(0.85) : .black.opacity(0.7))
 
                     Spacer()
                 }
 
                 Text(comment.content)
-                    .font(.custom("Poppins-Regular", size: 13))
+                    .font(.system(size: legacyPoppinsSize(13)))
                     .foregroundColor(adaptiveColors.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             }

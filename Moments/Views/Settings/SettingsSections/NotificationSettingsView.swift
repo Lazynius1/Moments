@@ -20,7 +20,7 @@ struct NotificationSettingsView: View {
                     LazyVStack(alignment: .leading, spacing: 34) {
                         VStack(alignment: .leading, spacing: 16) {
                             Text(NSLocalizedString("settings.notifications.schedule.title", comment: "Notification Schedule"))
-                                .font(.custom("Poppins-Medium", size: 12))
+                                .font(.system(size: legacyPoppinsSize(12), weight: .medium))
                                 .foregroundColor(.gray)
 
                             notificationToggleRow(
@@ -38,7 +38,7 @@ struct NotificationSettingsView: View {
                                            selection: $startTime,
                                            displayedComponents: .hourAndMinute)
                                     .datePickerStyle(.compact)
-                                    .font(.custom("Poppins-Regular", size: 14))
+                                    .font(.system(size: legacyPoppinsSize(14)))
                                     .foregroundColor(colorScheme == .dark ? .white : .black)
                                     .padding(.top, 2)
 
@@ -46,7 +46,7 @@ struct NotificationSettingsView: View {
                                            selection: $endTime,
                                            displayedComponents: .hourAndMinute)
                                     .datePickerStyle(.compact)
-                                    .font(.custom("Poppins-Regular", size: 14))
+                                    .font(.system(size: legacyPoppinsSize(14)))
                                     .foregroundColor(colorScheme == .dark ? .white : .black)
                                     .padding(.top, 2)
 
@@ -87,7 +87,7 @@ struct NotificationSettingsView: View {
                                             Text(NSLocalizedString("settings.schedule.save", comment: "Save schedule"))
                                         }
                                     }
-                                    .font(.custom("Poppins-SemiBold", size: 14))
+                                    .font(.system(size: legacyPoppinsSize(14), weight: .semibold))
                                     .frame(maxWidth: .infinity)
                                     .padding()
                                     .background(Color(colorScheme == .dark ? .black : .white).opacity(0.2))
@@ -108,7 +108,7 @@ struct NotificationSettingsView: View {
 
                         VStack(alignment: .leading, spacing: 16) {
                             Text(NSLocalizedString("settings.notifications.types.title", comment: "Notification Types"))
-                                .font(.custom("Poppins-Medium", size: 12))
+                                .font(.system(size: legacyPoppinsSize(12), weight: .medium))
                                 .foregroundColor(.gray)
 
                             VStack(spacing: 0) {
@@ -140,7 +140,7 @@ struct NotificationSettingsView: View {
 
                         VStack(alignment: .leading, spacing: 16) {
                             Text(NSLocalizedString("settings.notifications.advanced.title", comment: "Advanced Settings"))
-                                .font(.custom("Poppins-Medium", size: 12))
+                                .font(.system(size: legacyPoppinsSize(12), weight: .medium))
                                 .foregroundColor(.gray)
 
                             VStack(spacing: 0) {
@@ -184,7 +184,7 @@ struct NotificationSettingsView: View {
                             Image(systemName: "checkmark.circle.fill")
                                 .foregroundColor(.green)
                             Text(NSLocalizedString("settings.schedule.saved", comment: "Schedule saved"))
-                                .font(.custom("Poppins-Medium", size: 13))
+                                .font(.system(size: legacyPoppinsSize(13), weight: .medium))
                                 .foregroundColor(colorScheme == .dark ? .white : .black)
                         }
                         .padding(.horizontal, 14)
@@ -234,7 +234,7 @@ struct NotificationSettingsView: View {
     private func notificationToggleRow(title: String, isOn: Binding<Bool>) -> some View {
         Toggle(title, isOn: isOn)
             .tint(SettingsProfileColors.toggleTint)
-            .font(.custom("Poppins-Regular", size: 14))
+            .font(.system(size: legacyPoppinsSize(14)))
             .foregroundColor(colorScheme == .dark ? .white : .black)
             .padding(.vertical, 10)
     }

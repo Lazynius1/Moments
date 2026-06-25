@@ -181,13 +181,13 @@ struct MainActionsView: View {
                 
                 VStack(alignment: .leading, spacing: 2) {
                     Text("share.moment.title")
-                        .font(.custom("Poppins-SemiBold", size: 18))
+                        .font(.system(size: legacyPoppinsSize(18), weight: .semibold))
                         .foregroundColor(.primary)
                     
                     LiveUsernameContent(userId: moment.authorId, fallbackUsername: moment.username) { username in
                         Text(String(format: NSLocalizedString("share.moment.from", comment: ""), username))
                     }
-                        .font(.custom("Poppins-Regular", size: 14))
+                        .font(.system(size: legacyPoppinsSize(14)))
                         .foregroundColor(.secondary)
                 }
                 
@@ -264,11 +264,11 @@ struct ShareActionButton: View {
                 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(title)
-                        .font(.custom("Poppins-SemiBold", size: 16))
+                        .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
                         .foregroundColor(.primary)
                     
                     Text(subtitle)
-                        .font(.custom("Poppins-Regular", size: 13))
+                        .font(.system(size: legacyPoppinsSize(13)))
                         .foregroundColor(.secondary)
                 }
                 
@@ -449,7 +449,7 @@ struct ShareRecipientsPickerSheet: View {
 
                 TextField(NSLocalizedString("share.search.placeholder", comment: ""), text: $searchText)
                     .foregroundColor(.primary)
-                    .font(.custom("Poppins-Regular", size: 16))
+                    .font(.system(size: legacyPoppinsSize(16)))
                     .textFieldStyle(PlainTextFieldStyle())
                     .autocorrectionDisabled()
                     .onChange(of: searchText) { _, newValue in
@@ -529,7 +529,7 @@ struct ShareRecipientsPickerSheet: View {
                 if !globalSearchResults.isEmpty {
                     VStack(alignment: .leading, spacing: 12) {
                         Text("share.search.globalResults")
-                            .font(.custom("Poppins-SemiBold", size: 14))
+                            .font(.system(size: legacyPoppinsSize(14), weight: .semibold))
                             .foregroundColor(.secondary)
                             .padding(.top, 8)
 
@@ -555,7 +555,7 @@ struct ShareRecipientsPickerSheet: View {
                             .font(.system(size: 40))
                             .foregroundColor(.secondary)
                         Text("share.favorites.empty")
-                            .font(.custom("Poppins-Medium", size: 16))
+                            .font(.system(size: legacyPoppinsSize(16), weight: .medium))
                             .foregroundColor(.secondary)
                     }
                     .frame(maxWidth: .infinity)
@@ -591,12 +591,12 @@ struct ShareRecipientsPickerSheet: View {
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(LocalizedStringKey(titleKey))
-                    .font(.custom("Poppins-SemiBold", size: 18))
+                    .font(.system(size: legacyPoppinsSize(18), weight: .semibold))
                     .foregroundColor(.primary)
 
                 if let subtitle, !subtitle.isEmpty {
                     Text(subtitle)
-                        .font(.custom("Poppins-Regular", size: 14))
+                        .font(.system(size: legacyPoppinsSize(14)))
                         .foregroundColor(.secondary)
                         .lineLimit(2)
                 }
@@ -746,7 +746,7 @@ struct QuickActionButton: View {
             }
             
             Text(title)
-                .font(.custom("Poppins-Medium", size: 12))
+                .font(.system(size: legacyPoppinsSize(12), weight: .medium))
                 .foregroundColor(.white.opacity(0.8))
                 .multilineTextAlignment(.center)
                 .lineLimit(1)
@@ -846,7 +846,7 @@ struct PersonCell: View {
             }, perform: {})
             
             Text(conversation.otherParticipantUsername ?? "Usuario")
-                .font(.custom("Poppins-Medium", size: 12))
+                .font(.system(size: legacyPoppinsSize(12), weight: .medium))
                 .foregroundColor(.primary)
                 .lineLimit(1)
                 .truncationMode(.tail)
@@ -916,12 +916,12 @@ struct EmptyStateView: View {
             
             VStack(spacing: 8) {
                 Text(title)
-                    .font(.custom("Poppins-SemiBold", size: 18))
+                    .font(.system(size: legacyPoppinsSize(18), weight: .semibold))
                     .foregroundColor(.white)
                     .multilineTextAlignment(.center)
                 
                 Text(subtitle)
-                    .font(.custom("Poppins-Regular", size: 14))
+                    .font(.system(size: legacyPoppinsSize(14)))
                     .foregroundColor(.white.opacity(0.7))
                     .multilineTextAlignment(.center)
             }
@@ -955,7 +955,7 @@ struct AddToStoryView: View {
                         .foregroundColor(.yellow)
                     
                     Text(error)
-                        .font(.custom("Poppins-Medium", size: 16))
+                        .font(.system(size: legacyPoppinsSize(16), weight: .medium))
                         .foregroundColor(.white)
                         .multilineTextAlignment(.center)
                         .padding(.horizontal)
@@ -972,7 +972,7 @@ struct AddToStoryView: View {
                         .scaleEffect(1.5)
                     
                     Text("share.preparing") // Assume this exists or add to Localizable
-                        .font(.custom("Poppins-Medium", size: 16))
+                        .font(.system(size: legacyPoppinsSize(16), weight: .medium))
                         .foregroundColor(.white)
                 }
             }
@@ -1428,7 +1428,7 @@ struct SharedDMUnavailablePreviewCard: View {
                         .foregroundColor(.white.opacity(0.9))
 
                     Text(LocalizedStringKey(titleKey))
-                        .font(.custom("Poppins-SemiBold", size: 13))
+                        .font(.system(size: legacyPoppinsSize(13), weight: .semibold))
                         .foregroundColor(.white)
                         .multilineTextAlignment(.center)
                         .padding(.horizontal, 14)
@@ -1537,7 +1537,7 @@ struct MomentBubbleContent: View {
         VStack(alignment: .leading, spacing: 8) {
             if let content = content, !content.isEmpty {
                 Text(content)
-                    .font(.custom("Poppins-Regular", size: 14))
+                    .font(.system(size: legacyPoppinsSize(14)))
                     .foregroundColor(.primary)
                     .padding(.bottom, 4)
             }
@@ -1691,7 +1691,7 @@ struct FilterChip: View {
                 Image(systemName: icon)
                     .font(.system(size: 14, weight: .bold))
                 Text(title)
-                    .font(.custom("Poppins-Medium", size: 13))
+                    .font(.system(size: legacyPoppinsSize(13), weight: .medium))
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 8)
@@ -1722,7 +1722,7 @@ struct SendActionBottomBar: View {
                          String(format: NSLocalizedString("share.sendToCount", comment: ""), selectedCount) : 
                          NSLocalizedString("share.selectContacts", comment: ""))
                 }
-                .font(.custom("Poppins-SemiBold", size: 16))
+                .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
                 .foregroundColor(selectedCount > 0 ? .white : .primary)
                 .frame(maxWidth: .infinity)
                 .frame(height: 54)
@@ -1775,7 +1775,7 @@ struct GlobalUserCell: View {
             }
             
             Text(user.username)
-                .font(.custom("Poppins-Medium", size: 11))
+                .font(.system(size: legacyPoppinsSize(11), weight: .medium))
                 .foregroundColor(.primary)
                 .lineLimit(1)
         }
@@ -1809,7 +1809,7 @@ struct EmptySearchState: View {
                 .font(.system(size: 40))
                 .foregroundColor(.secondary)
             Text(NSLocalizedString("share.search.noResults", comment: ""))
-                .font(.custom("Poppins-Medium", size: 16))
+                .font(.system(size: legacyPoppinsSize(16), weight: .medium))
                 .foregroundColor(.secondary)
         }
         .frame(maxWidth: .infinity)
@@ -1833,7 +1833,7 @@ struct PreparingStoryOverlay: View {
                         .foregroundColor(.yellow)
                     
                     Text(error)
-                        .font(.custom("Poppins-Medium", size: 16))
+                        .font(.system(size: legacyPoppinsSize(16), weight: .medium))
                         .foregroundColor(.white)
                         .multilineTextAlignment(.center)
                         .padding(.horizontal)
@@ -1850,7 +1850,7 @@ struct PreparingStoryOverlay: View {
                         .scaleEffect(1.5)
                     
                     Text(NSLocalizedString("share.preparing", comment: "Preparing story..."))
-                        .font(.custom("Poppins-Medium", size: 16))
+                        .font(.system(size: legacyPoppinsSize(16), weight: .medium))
                         .foregroundColor(.white)
                 }
             }

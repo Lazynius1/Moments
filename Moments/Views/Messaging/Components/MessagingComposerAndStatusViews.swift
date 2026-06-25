@@ -112,7 +112,7 @@ struct OnlineStatusSelectorView: View {
             VStack(spacing: 24) {
                 VStack(spacing: 8) {
                     Text(NSLocalizedString("messaging.status.current", comment: "Current status"))
-                        .font(.custom("Poppins-Regular", size: 14))
+                        .font(.system(size: legacyPoppinsSize(14)))
                         .foregroundColor(adaptiveColors.secondary)
 
                     HStack(spacing: 10) {
@@ -121,7 +121,7 @@ struct OnlineStatusSelectorView: View {
                             .foregroundColor(currentStatus.color)
 
                         Text(currentStatus.displayName)
-                            .font(.custom("Poppins-Bold", size: 24))
+                            .font(.system(size: legacyPoppinsSize(24), weight: .bold))
                             .foregroundColor(adaptiveColors.primary)
                     }
                 }
@@ -140,7 +140,7 @@ struct OnlineStatusSelectorView: View {
                                     .frame(width: 24)
 
                                 Text(status.displayName)
-                                    .font(.custom("Poppins-Regular", size: 16))
+                                    .font(.system(size: legacyPoppinsSize(16)))
                                     .foregroundColor(adaptiveColors.primary)
 
                                 Spacer()

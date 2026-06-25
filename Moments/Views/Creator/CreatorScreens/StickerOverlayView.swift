@@ -178,7 +178,7 @@ struct StickerOverlayView: View {
                                     .overlay(Circle().stroke(.white.opacity(0.3), lineWidth: 0.5))
 
                                 Text(username)
-                                    .font(.custom("Poppins-Bold", size: 10))
+                                    .font(.system(size: legacyPoppinsSize(10), weight: .bold))
                                     .foregroundColor(.white)
 
                                 Spacer()
@@ -203,7 +203,7 @@ struct StickerOverlayView: View {
                             VStack {
                                 Spacer()
                                 Text(caption)
-                                    .font(.custom("Poppins-Medium", size: 9))
+                                    .font(.system(size: legacyPoppinsSize(9), weight: .medium))
                                     .foregroundColor(.white)
                                     .padding(.horizontal, 8)
                                     .padding(.vertical, 4)
@@ -458,7 +458,7 @@ struct StickerOverlayView: View {
 
                             VStack(alignment: .leading, spacing: 0) {
                                 Text(sticker.interactionData?.username ?? "User")
-                                    .font(.custom("Poppins-Bold", size: 13))
+                                    .font(.system(size: legacyPoppinsSize(13), weight: .bold))
                                     .foregroundColor(.white)
                                     .shadow(color: .black.opacity(0.3), radius: 2, x: 0, y: 1)
                             }
@@ -483,7 +483,7 @@ struct StickerOverlayView: View {
                             VStack {
                                 Spacer()
                                 Text(caption)
-                                    .font(.custom("Poppins-Medium", size: 9))
+                                    .font(.system(size: legacyPoppinsSize(9), weight: .medium))
                                     .foregroundColor(.white)
                                     .padding(.horizontal, 8)
                                     .padding(.vertical, 4)

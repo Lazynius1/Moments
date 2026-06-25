@@ -19,7 +19,7 @@ struct UserRelationshipChip: View {
             }
 
             Text(title)
-                .font(.custom("Poppins-Medium", size: 11))
+                .font(.system(size: legacyPoppinsSize(11), weight: .medium))
                 .lineLimit(1)
         }
         .foregroundColor(colorScheme == .dark ? .white.opacity(0.78) : .black.opacity(0.68))
@@ -65,19 +65,19 @@ struct UserRelationshipManagementSheet: View {
 
                 VStack(spacing: 4) {
                     Text(String(format: NSLocalizedString("userProfile.relationship.sheet.title", comment: ""), username))
-                        .font(.custom("Poppins-Bold", size: 22))
+                        .font(.system(size: legacyPoppinsSize(22), weight: .bold))
                         .foregroundColor(colorScheme == .dark ? .white : .black)
                         .multilineTextAlignment(.center)
 
                     Text(NSLocalizedString("userProfile.relationship.sheet.subtitle", comment: ""))
-                        .font(.custom("Poppins-Regular", size: 14))
+                        .font(.system(size: legacyPoppinsSize(14)))
                         .foregroundColor(colorScheme == .dark ? .white.opacity(0.62) : .black.opacity(0.56))
                         .multilineTextAlignment(.center)
                 }
 
                 if !relationshipSummaryItems.isEmpty {
                     Text(relationshipSummaryItems.joined(separator: " · "))
-                        .font(.custom("Poppins-Medium", size: 12))
+                        .font(.system(size: legacyPoppinsSize(12), weight: .medium))
                         .foregroundColor(colorScheme == .dark ? .white.opacity(0.52) : .black.opacity(0.46))
                         .lineLimit(1)
                 }
@@ -134,11 +134,11 @@ struct UserRelationshipManagementSheet: View {
                 HStack(spacing: 14) {
                     VStack(alignment: .leading, spacing: 2) {
                         Text(NSLocalizedString("userProfile.relationship.lists.title", comment: ""))
-                            .font(.custom("Poppins-SemiBold", size: 15))
+                            .font(.system(size: legacyPoppinsSize(15), weight: .semibold))
                         Text(customListCount > 0
                             ? String(format: NSLocalizedString("userProfile.relationship.lists.count", comment: ""), customListCount)
                             : NSLocalizedString("userProfile.relationship.lists.empty", comment: ""))
-                            .font(.custom("Poppins-Regular", size: 12))
+                            .font(.system(size: legacyPoppinsSize(12)))
                             .foregroundColor(colorScheme == .dark ? .white.opacity(0.52) : .black.opacity(0.48))
                     }
 
@@ -168,7 +168,7 @@ struct UserRelationshipManagementSheet: View {
             Button(action: onUnfollow) {
                 HStack(spacing: 14) {
                     Text(NSLocalizedString("userProfile.relationship.unfollow", comment: ""))
-                        .font(.custom("Poppins-SemiBold", size: 15))
+                        .font(.system(size: legacyPoppinsSize(15), weight: .semibold))
 
                     Spacer()
 
@@ -197,10 +197,10 @@ struct UserRelationshipManagementSheet: View {
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(NSLocalizedString("userProfile.relationship.lists.title", comment: ""))
-                        .font(.custom("Poppins-Bold", size: 18))
+                        .font(.system(size: legacyPoppinsSize(18), weight: .bold))
                         .foregroundColor(colorScheme == .dark ? .white : .black)
                     Text(NSLocalizedString("userProfile.relationship.lists.manage", comment: ""))
-                        .font(.custom("Poppins-Regular", size: 12))
+                        .font(.system(size: legacyPoppinsSize(12)))
                         .foregroundColor(colorScheme == .dark ? .white.opacity(0.52) : .black.opacity(0.48))
                 }
 
@@ -216,7 +216,7 @@ struct UserRelationshipManagementSheet: View {
                     )
 
                     Text(NSLocalizedString("userProfile.relationship.lists.empty", comment: ""))
-                        .font(.custom("Poppins-Medium", size: 14))
+                        .font(.system(size: legacyPoppinsSize(14), weight: .medium))
                         .foregroundColor(colorScheme == .dark ? .white.opacity(0.62) : .black.opacity(0.54))
                         .multilineTextAlignment(.center)
                 }
@@ -231,9 +231,9 @@ struct UserRelationshipManagementSheet: View {
                             HStack(spacing: 14) {
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text(list.name)
-                                        .font(.custom("Poppins-SemiBold", size: 15))
+                                        .font(.system(size: legacyPoppinsSize(15), weight: .semibold))
                                     Text(String(format: NSLocalizedString("audience.people.count", comment: ""), list.members.count))
-                                        .font(.custom("Poppins-Regular", size: 12))
+                                        .font(.system(size: legacyPoppinsSize(12)))
                                         .foregroundColor(colorScheme == .dark ? .white.opacity(0.52) : .black.opacity(0.48))
                                 }
 
@@ -326,9 +326,9 @@ struct UserRelationshipManagementSheet: View {
             HStack(spacing: 14) {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(title)
-                        .font(.custom("Poppins-SemiBold", size: 15))
+                        .font(.system(size: legacyPoppinsSize(15), weight: .semibold))
                     Text(subtitle)
-                        .font(.custom("Poppins-Regular", size: 12))
+                        .font(.system(size: legacyPoppinsSize(12)))
                         .foregroundColor(colorScheme == .dark ? .white.opacity(0.52) : .black.opacity(0.48))
                         .lineLimit(2)
                 }

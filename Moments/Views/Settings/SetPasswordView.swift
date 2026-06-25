@@ -62,13 +62,13 @@ struct SetPasswordView: View {
                                 .foregroundColor(SettingsProfileColors.accent(colorScheme))
 
                             Text("settings.security.password.add")
-                                .font(.custom("Poppins-Bold", size: 24))
+                                .font(.system(size: legacyPoppinsSize(24), weight: .bold))
                                 .foregroundColor(colorScheme == .dark ? .white : .black)
 
                             Text(needsEditableEmail
                                  ? "settings.security.password.addSheetDescriptionNoEmail"
                                  : "settings.security.password.addSheetDescription")
-                                .font(.custom("Poppins-Regular", size: 16))
+                                .font(.system(size: legacyPoppinsSize(16)))
                                 .foregroundColor(.gray)
                                 .multilineTextAlignment(.center)
                         }
@@ -108,7 +108,7 @@ struct SetPasswordView: View {
                                 }
 
                                 Text("settings.security.password.save")
-                                    .font(.custom("Poppins-SemiBold", size: 16))
+                                    .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
                             }
                             .foregroundColor(isFormValid ? SettingsProfileColors.accentContrastingText(colorScheme) : .white)
                             .frame(maxWidth: .infinity)
@@ -158,7 +158,7 @@ struct SetPasswordView: View {
     private var emailSection: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text("settings.security.password.accountEmail")
-                .font(.custom("Poppins-Medium", size: 14))
+                .font(.system(size: legacyPoppinsSize(14), weight: .medium))
                 .foregroundColor(colorScheme == .dark ? .white : .black)
 
             if needsEditableEmail {
@@ -169,7 +169,7 @@ struct SetPasswordView: View {
                 .keyboardType(.emailAddress)
                 .textInputAutocapitalization(.never)
                 .autocorrectionDisabled()
-                .font(.custom("Poppins-Regular", size: 16))
+                .font(.system(size: legacyPoppinsSize(16)))
                 .padding()
                 .background(
                     RoundedRectangle(cornerRadius: 12)
@@ -178,16 +178,16 @@ struct SetPasswordView: View {
 
                 if authService.backupEmailStatus == .appleRelay {
                     Text("settings.security.password.relayWarning")
-                        .font(.custom("Poppins-Regular", size: 12))
+                        .font(.system(size: legacyPoppinsSize(12)))
                         .foregroundColor(.orange)
                 } else {
                     Text("settings.security.password.emailRequired")
-                        .font(.custom("Poppins-Regular", size: 12))
+                        .font(.system(size: legacyPoppinsSize(12)))
                         .foregroundColor(AuthColors.secondary(colorScheme, opacity: 0.65))
                 }
             } else {
                 Text(emailInput)
-                    .font(.custom("Poppins-Regular", size: 15))
+                    .font(.system(size: legacyPoppinsSize(15)))
                     .foregroundColor(.gray)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding()
@@ -197,7 +197,7 @@ struct SetPasswordView: View {
                     )
 
                 Text("settings.security.password.emailLoginHint")
-                    .font(.custom("Poppins-Regular", size: 12))
+                    .font(.system(size: legacyPoppinsSize(12)))
                     .foregroundColor(AuthColors.secondary(colorScheme, opacity: 0.65))
             }
         }
@@ -208,7 +208,7 @@ struct SetPasswordView: View {
     private var appleVerificationSection: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text("settings.security.password.verifyApple")
-                .font(.custom("Poppins-Medium", size: 14))
+                .font(.system(size: legacyPoppinsSize(14), weight: .medium))
                 .foregroundColor(colorScheme == .dark ? .white : .black)
 
             if appleIdentityVerified {
@@ -216,7 +216,7 @@ struct SetPasswordView: View {
                     Image(systemName: "checkmark.seal.fill")
                         .foregroundColor(.green)
                     Text("accountManagement.identityVerified")
-                        .font(.custom("Poppins-SemiBold", size: 14))
+                        .font(.system(size: legacyPoppinsSize(14), weight: .semibold))
                 }
                 .padding()
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -239,7 +239,7 @@ struct SetPasswordView: View {
 
             if let verificationErrorMessage {
                 Text(verificationErrorMessage)
-                    .font(.custom("Poppins-Regular", size: 12))
+                    .font(.system(size: legacyPoppinsSize(12)))
                     .foregroundColor(.red)
             }
         }
@@ -254,16 +254,16 @@ struct SetPasswordView: View {
     ) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             Text(title)
-                .font(.custom("Poppins-Medium", size: 16))
+                .font(.system(size: legacyPoppinsSize(16), weight: .medium))
                 .foregroundColor(colorScheme == .dark ? .white : .black)
 
             HStack {
                 if isVisible.wrappedValue {
                     TextField(placeholder, text: text)
-                        .font(.custom("Poppins-Regular", size: 16))
+                        .font(.system(size: legacyPoppinsSize(16)))
                 } else {
                     SecureField(placeholder, text: text)
-                        .font(.custom("Poppins-Regular", size: 16))
+                        .font(.system(size: legacyPoppinsSize(16)))
                 }
 
                 Button(action: { isVisible.wrappedValue.toggle() }) {

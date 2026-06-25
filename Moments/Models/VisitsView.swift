@@ -634,7 +634,7 @@ struct StalkerCard: View {
                 VStack(spacing: 2) {
                     HStack(spacing: 2) {
                         Text(analysis.username)
-                            .font(.custom("Poppins-SemiBold", size: 12))
+                            .font(.system(size: legacyPoppinsSize(12), weight: .semibold))
                             .foregroundColor(colorScheme == .dark ? .white : .black)
                             .lineLimit(1)
                         
@@ -643,7 +643,7 @@ struct StalkerCard: View {
                     }
                     
                     Text(String(format: NSLocalizedString("visits.count", comment: ""), analysis.visitsLast24h))
-                        .font(.custom("Poppins-Regular", size: 10))
+                        .font(.system(size: legacyPoppinsSize(10)))
                         .foregroundColor(analysis.frequencyType.color)
                 }
             }
@@ -669,7 +669,7 @@ struct StalkerAlertView: View {
     var body: some View {
         VStack(spacing: 20) {
             Text("visits.stalkerAlert.title")
-                .font(.custom("Poppins-Bold", size: 24))
+                .font(.system(size: legacyPoppinsSize(24), weight: .bold))
                 .foregroundColor(colorScheme == .dark ? .white : .black)
             
             AsyncImage(url: URL(string: stalker.profileImagePath ?? "")) { image in
@@ -696,7 +696,7 @@ struct StalkerAlertView: View {
             VStack(spacing: 8) {
                 HStack(spacing: 4) {
                     Text(stalker.username)
-                        .font(.custom("Poppins-SemiBold", size: 20))
+                        .font(.system(size: legacyPoppinsSize(20), weight: .semibold))
                         .foregroundColor(colorScheme == .dark ? .white : .black)
                     
                     // ✅ INSIGNIA DE VERIFICADO
@@ -704,12 +704,12 @@ struct StalkerAlertView: View {
                 }
                 
                 Text(String(format: NSLocalizedString("visits.stalkerAlert.message", comment: ""), stalker.visitsLast24h))
-                    .font(.custom("Poppins-Regular", size: 16))
+                    .font(.system(size: legacyPoppinsSize(16)))
                     .foregroundColor(colorScheme == .dark ? .gray.opacity(0.8) : .gray.opacity(0.7))
                     .multilineTextAlignment(.center)
                 
                 Text(stalker.frequencyType.message)
-                    .font(.custom("Poppins-Medium", size: 14))
+                    .font(.system(size: legacyPoppinsSize(14), weight: .medium))
                     .foregroundColor(stalker.frequencyType.color)
                     .padding(.horizontal, 12)
                     .padding(.vertical, 6)
@@ -720,7 +720,7 @@ struct StalkerAlertView: View {
             Button("common.understood") {
                 isPresented = false
             }
-            .font(.custom("Poppins-SemiBold", size: 16))
+            .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
             .foregroundColor(.white)
             .padding(.horizontal, 30)
             .padding(.vertical, 12)
@@ -913,7 +913,7 @@ extension VisitsView {
     private var headerView: some View {
         VStack(alignment: .center, spacing: 2) {
             Text("visits.title")
-                .font(.custom("Poppins-Bold", size: 22))
+                .font(.system(size: legacyPoppinsSize(22), weight: .bold))
                 .foregroundColor(colorScheme == .dark ? .white : .black)
 
             Text(
@@ -925,7 +925,7 @@ extension VisitsView {
                     viewModel.groupedVisits.count
                 )
             )
-                .font(.custom("Poppins-Regular", size: 13))
+                .font(.system(size: legacyPoppinsSize(13)))
                 .foregroundColor(colorScheme == .dark ? .white.opacity(0.7) : .black.opacity(0.7))
         }
         .frame(maxWidth: .infinity, alignment: .center)

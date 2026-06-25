@@ -356,8 +356,7 @@ struct ModernProfileContentView: View {
                         profileZoomNamespace: profileZoomNamespace
                     )
                 } pinnedTabs: {
-                    ProfilePillTabs(selectedTab: $selectedProfileTab)
-                        .frame(maxWidth: 240)
+                    ProfileFloatingTabBar(selectedTab: $selectedProfileTab)
                 }
                 .padding(.top, safeAreaTop)
                 .animation(.easeOut(duration: 0.18), value: tabsArePinned)
@@ -552,7 +551,7 @@ struct ModernRefreshIndicator: View {
             }
 
                             Text("profile.updating")
-                .font(.custom("Poppins-Medium", size: 14))
+                .font(.system(size: legacyPoppinsSize(14), weight: .medium))
                 .foregroundColor(ProfileColors.textSecondary)
         }
         .padding(.horizontal, 20)

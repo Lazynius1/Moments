@@ -108,7 +108,7 @@ struct ProfileGridPreviewEditorView: View {
             Spacer()
 
             Text(NSLocalizedString("profileGridPreview.title", comment: "Adjust preview title"))
-                .font(.custom("Poppins-SemiBold", size: 17))
+                .font(.system(size: legacyPoppinsSize(17), weight: .semibold))
                 .foregroundColor(colorScheme == .dark ? .white : .black)
 
             Spacer()
@@ -167,13 +167,13 @@ struct ProfileGridPreviewEditorView: View {
                         .frame(width: 14, height: 14)
 
                     Text(NSLocalizedString("profileGridPreview.background.label", comment: "Background label"))
-                        .font(.custom("Poppins-Medium", size: 14))
+                        .font(.system(size: legacyPoppinsSize(14), weight: .medium))
                 }
             }
             .fixedSize(horizontal: false, vertical: true)
 
             Text(NSLocalizedString("profileGridPreview.hint", comment: "Pinch and drag hint"))
-                .font(.custom("Poppins-Regular", size: 13))
+                .font(.system(size: legacyPoppinsSize(13)))
                 .foregroundColor(colorScheme == .dark ? .white.opacity(0.62) : .black.opacity(0.55))
                 .multilineTextAlignment(.center)
                 .frame(minHeight: 36, alignment: .top)
@@ -185,11 +185,11 @@ struct ProfileGridPreviewEditorView: View {
     private var modeChipTitle: some View {
         ZStack {
             Text(NSLocalizedString("profileGridPreview.mode.fill", comment: "Fill mode"))
-                .font(.custom("Poppins-SemiBold", size: 14))
+                .font(.system(size: legacyPoppinsSize(14), weight: .semibold))
                 .opacity(fitMode == .fill ? 1 : 0)
 
             Text(NSLocalizedString("profileGridPreview.mode.fit", comment: "Fit mode"))
-                .font(.custom("Poppins-SemiBold", size: 14))
+                .font(.system(size: legacyPoppinsSize(14), weight: .semibold))
                 .opacity(fitMode == .fit ? 1 : 0)
         }
         .frame(minWidth: 72, alignment: .leading)

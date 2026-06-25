@@ -48,11 +48,11 @@ struct NovaHeader: View {
 
             VStack(alignment: .leading, spacing: 3) {
                 Text("nova.name")
-                    .font(.custom("Poppins-Bold", size: 20))
+                    .font(.system(size: legacyPoppinsSize(20), weight: .bold))
                     .foregroundColor(NovaColors.textPrimary)
 
                 Text(subtitleText)
-                    .font(.custom("Poppins-Regular", size: 12))
+                    .font(.system(size: legacyPoppinsSize(12)))
                     .foregroundColor(NovaColors.textSecondary)
             }
 
@@ -228,7 +228,7 @@ struct ModernWelcomeSection: View {
 
             VStack(spacing: 24) {
                 Text(eyebrowText)
-                    .font(.custom("Poppins-Medium", size: 12))
+                    .font(.system(size: legacyPoppinsSize(12), weight: .medium))
                     .foregroundColor(NovaColors.textSecondary)
                     .padding(.horizontal, 12)
                     .padding(.vertical, 8)
@@ -241,12 +241,12 @@ struct ModernWelcomeSection: View {
 
                 VStack(spacing: 12) {
                     Text("\(NSLocalizedString("nova.hello", comment: "Hello message")) \(viewModel.currentUserDisplayName)")
-                        .font(.custom("Poppins-Bold", size: 34))
+                        .font(.system(size: legacyPoppinsSize(34), weight: .bold))
                         .foregroundColor(NovaColors.textPrimary)
                         .multilineTextAlignment(.center)
 
                     Text("nova.introduction")
-                        .font(.custom("Poppins-Regular", size: 16))
+                        .font(.system(size: legacyPoppinsSize(16)))
                         .foregroundColor(NovaColors.textSecondary)
                         .multilineTextAlignment(.center)
                         .lineSpacing(3)
@@ -260,7 +260,7 @@ struct ModernWelcomeSection: View {
                             .foregroundColor(NovaColors.textSecondary)
 
                         Text(supportText)
-                            .font(.custom("Poppins-Regular", size: 13))
+                            .font(.system(size: legacyPoppinsSize(13)))
                             .foregroundColor(NovaColors.textSecondary)
                             .multilineTextAlignment(.leading)
                     }
@@ -276,7 +276,7 @@ struct ModernWelcomeSection: View {
 
                     if let userData = viewModel.userData, !userData.interests.isEmpty {
                         Text(userData.interests.prefix(3).joined(separator: " • "))
-                            .font(.custom("Poppins-Medium", size: 13))
+                            .font(.system(size: legacyPoppinsSize(13), weight: .medium))
                             .foregroundColor(NovaColors.textTertiary)
                             .multilineTextAlignment(.center)
                     }
@@ -313,14 +313,14 @@ struct ModernInfoCard: View {
                     .font(.system(size: 20))
 
                 Text(title)
-                    .font(.custom("Poppins-SemiBold", size: 16))
+                    .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
                     .foregroundColor(NovaColors.textPrimary)
 
                 Spacer()
             }
 
             Text(value)
-                .font(.custom("Poppins-Regular", size: 14))
+                .font(.system(size: legacyPoppinsSize(14)))
                 .foregroundColor(NovaColors.textSecondary)
                 .lineLimit(3)
         }
@@ -358,11 +358,11 @@ struct ModernStatCard: View {
                 .font(.system(size: 24))
 
             Text(value)
-                .font(.custom("Poppins-Bold", size: 20))
+                .font(.system(size: legacyPoppinsSize(20), weight: .bold))
                 .foregroundColor(NovaColors.textPrimary)
 
             Text(title)
-                .font(.custom("Poppins-Medium", size: 12))
+                .font(.system(size: legacyPoppinsSize(12), weight: .medium))
                 .foregroundColor(NovaColors.textSecondary)
         }
         .frame(maxWidth: .infinity)
@@ -409,7 +409,7 @@ struct ModernSuggestionCard: View {
                     )
 
                 Text(title)
-                    .font(.custom("Poppins-SemiBold", size: 14))
+                    .font(.system(size: legacyPoppinsSize(14), weight: .semibold))
                     .foregroundColor(NovaColors.textPrimary)
                     .multilineTextAlignment(.center)
                     .lineLimit(2)
@@ -667,7 +667,7 @@ struct ModernLoadingAnimation: View {
                 VStack(alignment: .leading, spacing: 4) {
                     if let statusLabel, !statusLabel.isEmpty {
                         Text(statusLabel)
-                            .font(.custom("Poppins-Medium", size: 13))
+                            .font(.system(size: legacyPoppinsSize(13), weight: .medium))
                             .foregroundColor(NovaColors.textSecondary)
                     }
 
@@ -713,7 +713,7 @@ struct NovaEncryptionBadge: View {
                 .foregroundColor(NovaColors.textPrimary)
 
             Text("nova.encryptedData")
-                .font(.custom("Poppins-Medium", size: 11))
+                .font(.system(size: legacyPoppinsSize(11), weight: .medium))
                 .foregroundColor(NovaColors.textSecondary)
         }
         .padding(.horizontal, 10)

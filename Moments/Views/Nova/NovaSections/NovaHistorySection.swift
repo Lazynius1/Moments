@@ -23,7 +23,7 @@ struct ConversationHistoryOverlay: View {
                     // Header del historial
                     HStack {
                         Text("nova.recentConversations")
-                            .font(.custom("Poppins-Bold", size: 20))
+                            .font(.system(size: legacyPoppinsSize(20), weight: .bold))
                             .foregroundColor(NovaColors.textPrimary)
 
                         Spacer()
@@ -52,11 +52,11 @@ struct ConversationHistoryOverlay: View {
                                     AttachmentIconView(icon: .comments, preset: .emptyStateHero, tintColor: NovaColors.textSecondary)
 
                                     Text("nova.noConversations")
-                                        .font(.custom("Poppins-Medium", size: 16))
+                                        .font(.system(size: legacyPoppinsSize(16), weight: .medium))
                                         .foregroundColor(NovaColors.textSecondary)
 
                                     Text("nova.startNewConversation")
-                                        .font(.custom("Poppins-Regular", size: 14))
+                                        .font(.system(size: legacyPoppinsSize(14)))
                                         .foregroundColor(NovaColors.textTertiary)
                                         .multilineTextAlignment(.center)
                                 }
@@ -79,7 +79,7 @@ struct ConversationHistoryOverlay: View {
                                             }
 
                                         Text("nova.newConversation")
-                                            .font(.custom("Poppins-SemiBold", size: 16))
+                                            .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
                                             .foregroundColor(NovaColors.textPrimary)
 
                                         Spacer()
@@ -157,18 +157,18 @@ struct ConversationHistoryItem: View {
             HStack {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(conversation.title)
-                        .font(.custom("Poppins-SemiBold", size: 16))
+                        .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
                         .foregroundColor(NovaColors.textPrimary)
                         .lineLimit(2)
                         .multilineTextAlignment(.leading)
 
                     Text(conversation.lastUpdated.timeAgoDisplay())
-                        .font(.custom("Poppins-Regular", size: 12))
+                        .font(.system(size: legacyPoppinsSize(12)))
                         .foregroundColor(NovaColors.textSecondary)
 
                     if conversation.messageCount > 0 {
                         Text("\(conversation.messageCount) \(NSLocalizedString("nova.messages", comment: "Messages count"))")
-                            .font(.custom("Poppins-Regular", size: 11))
+                            .font(.system(size: legacyPoppinsSize(11)))
                             .foregroundColor(NovaColors.textTertiary)
                     }
                 }

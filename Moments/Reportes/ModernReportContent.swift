@@ -54,7 +54,7 @@ struct ModernReportContent: View {
                 ScrollView(.vertical, showsIndicators: false) {
                     VStack(alignment: .leading, spacing: 24) {
                         Text(String(format: NSLocalizedString("report.subtitle", comment: "Report subtitle"), contentType))
-                            .font(.custom("Poppins-Regular", size: 15))
+                            .font(.system(size: legacyPoppinsSize(15)))
                             .foregroundColor(secondaryText)
                             .multilineTextAlignment(.leading)
                             .padding(.horizontal, 20)
@@ -123,11 +123,11 @@ struct ModernReportContent: View {
             
             VStack(spacing: 8) {
                 Text(NSLocalizedString("report.success.title", comment: "Report success title"))
-                    .font(.custom("Poppins-SemiBold", size: 20))
+                    .font(.system(size: legacyPoppinsSize(20), weight: .semibold))
                     .foregroundColor(primaryText)
                 
                 Text(NSLocalizedString("report.success.message", comment: "Report success message"))
-                    .font(.custom("Poppins-Regular", size: 15))
+                    .font(.system(size: legacyPoppinsSize(15)))
                     .foregroundColor(secondaryText)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 40)
@@ -211,7 +211,7 @@ struct NativeReportSheetHeader: View {
             Spacer()
 
             Text(title)
-                .font(.custom("Poppins-SemiBold", size: 18))
+                .font(.system(size: legacyPoppinsSize(18), weight: .semibold))
                 .foregroundColor(primaryText)
                 .lineLimit(1)
 
@@ -265,13 +265,13 @@ struct NativeReportOptionRow: View {
 
                 VStack(alignment: .leading, spacing: subtitle.isEmpty ? 0 : 3) {
                     Text(title)
-                        .font(.custom("Poppins-Medium", size: 16))
+                        .font(.system(size: legacyPoppinsSize(16), weight: .medium))
                         .foregroundColor(primaryText)
                         .multilineTextAlignment(.leading)
 
                     if !subtitle.isEmpty {
                         Text(subtitle)
-                            .font(.custom("Poppins-Regular", size: 13))
+                            .font(.system(size: legacyPoppinsSize(13)))
                             .foregroundColor(secondaryText)
                             .multilineTextAlignment(.leading)
                     }
@@ -326,12 +326,12 @@ struct NativeReportDetailsSection: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text(title)
-                .font(.custom("Poppins-Medium", size: 15))
+                .font(.system(size: legacyPoppinsSize(15), weight: .medium))
                 .foregroundColor(primaryText)
 
             ZStack(alignment: .topLeading) {
                 TextEditor(text: $text)
-                    .font(.custom("Poppins-Regular", size: 15))
+                    .font(.system(size: legacyPoppinsSize(15)))
                     .foregroundColor(primaryText)
                     .scrollContentBackground(.hidden)
                     .frame(minHeight: 108)
@@ -344,7 +344,7 @@ struct NativeReportDetailsSection: View {
 
                 if text.isEmpty {
                     Text(placeholder)
-                        .font(.custom("Poppins-Regular", size: 15))
+                        .font(.system(size: legacyPoppinsSize(15)))
                         .foregroundColor(secondaryText)
                         .padding(.horizontal, 16)
                         .padding(.vertical, 18)
@@ -371,7 +371,7 @@ struct NativeReportSubmitBar: View {
                             .tint(.white)
                     } else {
                         Text(title)
-                            .font(.custom("Poppins-SemiBold", size: 16))
+                            .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
                     }
                 }
                 .foregroundColor(.white)

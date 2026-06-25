@@ -89,14 +89,14 @@ struct EditMomentView: View {
 
                 ToolbarItem(placement: .principal) {
                     Text(NSLocalizedString("editMoment.title", comment: "Edit moment"))
-                        .font(.custom("Poppins-SemiBold", size: 17))
+                        .font(.system(size: legacyPoppinsSize(17), weight: .semibold))
                         .foregroundColor(colorScheme == .dark ? .white : .black)
                 }
 
                 ToolbarItem(placement: .topBarTrailing) {
                     Button(action: saveChanges) {
                         Text(NSLocalizedString("editMoment.save", comment: "Save"))
-                            .font(.custom("Poppins-SemiBold", size: 15))
+                            .font(.system(size: legacyPoppinsSize(15), weight: .semibold))
                             .foregroundColor(hasChanges && !isSaving
                                 ? (colorScheme == .dark ? .white : .black)
                                 : (colorScheme == .dark ? .white.opacity(0.45) : .black.opacity(0.35)))
@@ -138,7 +138,7 @@ struct EditMomentView: View {
                         ProgressView()
                             .tint(colorScheme == .dark ? .white : .black)
                         Text(NSLocalizedString("editMoment.saving", comment: "Saving"))
-                            .font(.custom("Poppins-Medium", size: 15))
+                            .font(.system(size: legacyPoppinsSize(15), weight: .medium))
                             .foregroundColor(colorScheme == .dark ? .white : .black)
                     }
                     .padding(.horizontal, 18)
@@ -186,14 +186,14 @@ struct EditMomentView: View {
             ZStack(alignment: .topLeading) {
                 if editedContent.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                     Text(NSLocalizedString("editMoment.placeholder", comment: "Placeholder"))
-                        .font(.custom("Poppins-Regular", size: 16))
+                        .font(.system(size: legacyPoppinsSize(16)))
                         .foregroundColor(colorScheme == .dark ? .white.opacity(0.35) : .black.opacity(0.32))
                         .padding(.top, 12)
                         .padding(.leading, 10)
                 }
 
                 TextEditor(text: $editedContent)
-                    .font(.custom("Poppins-Regular", size: 16))
+                    .font(.system(size: legacyPoppinsSize(16)))
                     .foregroundColor(colorScheme == .dark ? .white : .black)
                     .scrollContentBackground(.hidden)
                     .background(Color.clear)
@@ -251,7 +251,7 @@ struct EditMomentView: View {
                 .foregroundColor(colorScheme == .dark ? .white.opacity(0.7) : .black.opacity(0.65))
 
             Text(NSLocalizedString("editMoment.audience.locked.explainer", value: "Este momento fue limitado por moderación y su audiencia no se puede cambiar desde aquí.", comment: "Audience locked explainer"))
-                .font(.custom("Poppins-Regular", size: 12))
+                .font(.system(size: legacyPoppinsSize(12)))
                 .foregroundColor(colorScheme == .dark ? .white.opacity(0.68) : .black.opacity(0.58))
 
             Spacer(minLength: 0)
@@ -264,11 +264,11 @@ struct EditMomentView: View {
     private func sectionHeader(title: String, subtitle: String) -> some View {
         VStack(alignment: .leading, spacing: 3) {
             Text(title)
-                .font(.custom("Poppins-SemiBold", size: 16))
+                .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
                 .foregroundColor(colorScheme == .dark ? .white : .black)
 
             Text(subtitle)
-                .font(.custom("Poppins-Regular", size: 12))
+                .font(.system(size: legacyPoppinsSize(12)))
                 .foregroundColor(colorScheme == .dark ? .white.opacity(0.58) : .black.opacity(0.5))
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -302,16 +302,16 @@ struct EditMomentView: View {
 
                 VStack(alignment: .leading, spacing: 3) {
                     Text(title)
-                        .font(.custom("Poppins-Medium", size: 14))
+                        .font(.system(size: legacyPoppinsSize(14), weight: .medium))
                         .foregroundColor(colorScheme == .dark ? .white.opacity(0.7) : .black.opacity(0.62))
 
                     Text(value)
-                        .font(.custom("Poppins-SemiBold", size: 15))
+                        .font(.system(size: legacyPoppinsSize(15), weight: .semibold))
                         .foregroundColor(colorScheme == .dark ? .white : .black)
                         .lineLimit(2)
 
                     Text(subtitle)
-                        .font(.custom("Poppins-Regular", size: 12))
+                        .font(.system(size: legacyPoppinsSize(12)))
                         .foregroundColor(colorScheme == .dark ? .white.opacity(0.56) : .black.opacity(0.48))
                         .lineLimit(2)
                 }
@@ -475,7 +475,7 @@ private struct EditMomentPhotoTagSheet: View {
                             ProgressView()
                                 .tint(colorScheme == .dark ? .white : .black)
                             Text(NSLocalizedString("editMoment.tags.loading", value: "Cargando imagen…", comment: "Loading image for tag editor"))
-                                .font(.custom("Poppins-Medium", size: 15))
+                                .font(.system(size: legacyPoppinsSize(15), weight: .medium))
                                 .foregroundColor(colorScheme == .dark ? .white.opacity(0.78) : .black.opacity(0.66))
                         }
                     } else {
@@ -485,13 +485,13 @@ private struct EditMomentPhotoTagSheet: View {
                                 .foregroundColor(colorScheme == .dark ? .white.opacity(0.7) : .black.opacity(0.55))
 
                             Text(NSLocalizedString("editMoment.tags.unavailable", value: "No hemos podido abrir el editor de etiquetas.", comment: "Tags editor unavailable"))
-                                .font(.custom("Poppins-Medium", size: 15))
+                                .font(.system(size: legacyPoppinsSize(15), weight: .medium))
                                 .foregroundColor(colorScheme == .dark ? .white : .black)
                                 .multilineTextAlignment(.center)
 
                             Button(action: { dismiss() }) {
                                 Text(NSLocalizedString("common.ok", value: "OK", comment: "OK"))
-                                    .font(.custom("Poppins-SemiBold", size: 15))
+                                    .font(.system(size: legacyPoppinsSize(15), weight: .semibold))
                                     .foregroundColor(colorScheme == .dark ? .white : .black)
                                     .padding(.horizontal, 16)
                                     .padding(.vertical, 10)

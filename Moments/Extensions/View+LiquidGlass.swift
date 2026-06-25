@@ -86,7 +86,7 @@ enum MomentsGlassButtonTint {
 // MARK: - Chrome glass tokens (clear + canvas tint)
 
 enum MomentsChromeGlass {
-    static let defaultTintOpacity: CGFloat = 0.40
+    static let defaultTintOpacity: CGFloat = 0.60
 
     static func canvasTint(for colorScheme: ColorScheme, opacity: CGFloat = defaultTintOpacity) -> Color {
         MomentsGlassButtonTint.canvas(for: colorScheme).opacity(opacity)

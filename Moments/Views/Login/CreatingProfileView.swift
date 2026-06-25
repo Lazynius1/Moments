@@ -66,7 +66,7 @@ struct CreatingProfileStatusView: View {
     var body: some View {
         VStack(spacing: 8) {
             Text(NSLocalizedString("creatingProfile.title", comment: "Creating your account"))
-                .font(.custom("Poppins-Bold", size: 24))
+                .font(.system(size: legacyPoppinsSize(24), weight: .bold))
                 .foregroundColor(AuthColors.primary(colorScheme))
             
             Text(viewModel.currentStepText)

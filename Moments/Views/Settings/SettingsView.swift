@@ -314,7 +314,7 @@ struct SettingsView: View {
                 .scaleEffect(1.5)
 
                             Text("settings.loading")
-                .font(.custom("Poppins-Medium", size: 16))
+                .font(.system(size: legacyPoppinsSize(16), weight: .medium))
                 .foregroundColor(colorScheme == .dark ? .white : .black)
         }
         .transition(.opacity.combined(with: .scale))

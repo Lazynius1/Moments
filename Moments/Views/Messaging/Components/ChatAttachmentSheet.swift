@@ -213,7 +213,7 @@ private enum ChatAttachmentMenuPopoverLayout {
     static var estimatedHeight: CGFloat { estimatedHeight(canSendBuzz: true) }
 
     static var titleFont: UIFont {
-        UIFont(name: "Poppins-Medium", size: 17)
+        UIFont.systemFont(ofSize: legacyPoppinsSize(17), weight: .medium)
             ?? .systemFont(ofSize: 17, weight: .medium)
     }
 
@@ -503,7 +503,7 @@ private struct ChatAttachmentMenuPopoverCard: View {
                 .frame(width: 40, height: 40, alignment: .center)
 
                 Text(LocalizedStringKey(titleKey))
-                    .font(.custom("Poppins-Medium", size: 17))
+                    .font(.system(size: legacyPoppinsSize(17), weight: .medium))
                     .foregroundColor(primaryTextColor)
                     .lineLimit(1)
                     .fixedSize(horizontal: true, vertical: false)
@@ -947,7 +947,7 @@ private struct ChatAttachmentMediaCell: View {
                             Image(systemName: "play.fill")
                                 .font(.system(size: 10, weight: .bold))
                             Text(formatDuration(duration))
-                                .font(.custom("Poppins-Medium", size: 11))
+                                .font(.system(size: legacyPoppinsSize(11), weight: .medium))
                         }
                         .foregroundColor(.white)
                         .padding(.horizontal, 6)
@@ -964,7 +964,7 @@ private struct ChatAttachmentMediaCell: View {
                             .frame(width: 24, height: 24)
                             .overlay {
                                 Text("\(selectionIndex)")
-                                    .font(.custom("Poppins-SemiBold", size: 12))
+                                    .font(.system(size: legacyPoppinsSize(12), weight: .semibold))
                                     .foregroundColor(.white)
                             }
                             .padding(8)
@@ -991,7 +991,7 @@ struct ChatAttachmentPermissionPrompt: View {
 
     var body: some View {
         Text(LocalizedStringKey(messageKey))
-            .font(.custom("Poppins-Regular", size: 15))
+            .font(.system(size: legacyPoppinsSize(15)))
             .foregroundColor(colorScheme == .dark ? .white.opacity(0.7) : .black.opacity(0.6))
             .multilineTextAlignment(.center)
             .padding(24)
@@ -1093,7 +1093,7 @@ struct ChatAttachmentPillButton: View {
     var body: some View {
         Button(action: action) {
             label
-                .font(.custom(tint == nil ? "Poppins-Medium" : "Poppins-SemiBold", size: 14))
+                .font(.system(size: legacyPoppinsSize(14), weight: tint == nil ? .medium : .semibold))
                 .foregroundColor(tint == nil ? StoryEditorChromeColor.icon(colorScheme) : .white)
                 .padding(.horizontal, 16)
                 .padding(.vertical, 10)

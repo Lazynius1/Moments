@@ -38,7 +38,7 @@ struct UserReportContent: View {
                 ScrollView(.vertical, showsIndicators: false) {
                     VStack(alignment: .leading, spacing: 24) {
                         Text(NSLocalizedString("report.user.subtitle", comment: "Report account subtitle"))
-                            .font(.custom("Poppins-Regular", size: 15))
+                            .font(.system(size: legacyPoppinsSize(15)))
                             .foregroundColor(secondaryText)
                             .multilineTextAlignment(.leading)
                             .padding(.horizontal, 20)
@@ -106,11 +106,11 @@ struct UserReportContent: View {
 
             VStack(spacing: 8) {
                 Text(NSLocalizedString("report.success.title", comment: "Report success title"))
-                    .font(.custom("Poppins-SemiBold", size: 20))
+                    .font(.system(size: legacyPoppinsSize(20), weight: .semibold))
                     .foregroundColor(primaryText)
 
                 Text(NSLocalizedString("report.success.message", comment: "Report success message"))
-                    .font(.custom("Poppins-Regular", size: 15))
+                    .font(.system(size: legacyPoppinsSize(15)))
                     .foregroundColor(secondaryText)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 40)

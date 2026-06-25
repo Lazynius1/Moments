@@ -12,7 +12,7 @@ struct AppErrorBanner: View {
                 .foregroundColor(.orange)
 
             Text(message)
-                .font(.custom("Poppins-Medium", size: 12))
+                .font(.system(size: legacyPoppinsSize(12), weight: .medium))
                 .foregroundColor(.primary)
                 .lineLimit(3)
 
@@ -21,7 +21,7 @@ struct AppErrorBanner: View {
             if let onRetry {
                 Button(action: onRetry) {
                     Text(retryTitle)
-                        .font(.custom("Poppins-SemiBold", size: 11))
+                        .font(.system(size: legacyPoppinsSize(11), weight: .semibold))
                 }
                 .buttonStyle(.plain)
             }

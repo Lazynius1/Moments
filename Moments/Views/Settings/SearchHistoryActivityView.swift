@@ -25,7 +25,7 @@ struct SearchHistoryActivityView: View {
                         .font(.system(size: 40))
                         .foregroundColor(.gray.opacity(0.5))
                     Text(NSLocalizedString("userActivity.recentSearches.empty", value: "No hay búsquedas recientes", comment: "Empty search history"))
-                        .font(.custom("Poppins-Medium", size: 16))
+                        .font(.system(size: legacyPoppinsSize(16), weight: .medium))
                         .foregroundColor(.gray)
                 }
             } else {
@@ -76,7 +76,7 @@ struct SearchHistoryActivityView: View {
                         clearAllSearches()
                     }) {
                         Text(NSLocalizedString("userActivity.recentSearches.clearAll", value: "Borrar todo", comment: "Clear all searches"))
-                            .font(.custom("Poppins-SemiBold", size: 14))
+                            .font(.system(size: legacyPoppinsSize(14), weight: .semibold))
                             .foregroundColor(Color(hex: "3B82F6"))
                     }
                 }
@@ -197,29 +197,29 @@ struct SearchHistoryRowView: View {
             // Text
             VStack(alignment: .leading, spacing: 4) {
                 Text(search.query)
-                    .font(.custom("Poppins-Medium", size: 16))
+                    .font(.system(size: legacyPoppinsSize(16), weight: .medium))
                     .foregroundColor(colorScheme == .dark ? .white : .black)
                     .lineLimit(1)
                 
                 if search.type == "user" {
                     if let status = socialStatus {
                         Text(status)
-                            .font(.custom("Poppins-Regular", size: 12))
+                            .font(.system(size: legacyPoppinsSize(12)))
                             .foregroundColor(.gray)
                     } else if let user = userProfile, let bio = user.bio, !bio.isEmpty {
                         Text(bio)
-                            .font(.custom("Poppins-Regular", size: 12))
+                            .font(.system(size: legacyPoppinsSize(12)))
                             .foregroundColor(.gray)
                             .lineLimit(1)
                     } else {
                         Text(NSLocalizedString("explore.recentSearches.type.user", value: "Usuario", comment: ""))
-                            .font(.custom("Poppins-Regular", size: 12))
+                            .font(.system(size: legacyPoppinsSize(12)))
                             .foregroundColor(.gray)
                     }
                 } else {
                     // Si no es un usuario mostraremos el tipo explícito de la búsqueda
                     Text(getSearchTypeLabel(for: search.type))
-                        .font(.custom("Poppins-Regular", size: 12))
+                        .font(.system(size: legacyPoppinsSize(12)))
                         .foregroundColor(.gray)
                 }
             }

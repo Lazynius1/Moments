@@ -75,15 +75,18 @@ struct ModernActionButtons: View {
     let onComment: () -> Void
     let onSave: () -> Void
     let onContextMenu: () -> Void 
-    
     @EnvironmentObject private var firestoreService: FirestoreService
-    @Environment(\.colorScheme) var colorScheme 
-    @Binding var isImmersive: Bool 
-    
+    @Environment(\.colorScheme) var colorScheme
+    @Binding var isImmersive: Bool
+
+    private var adaptiveColors: AdaptiveColors {
+        AdaptiveColors(colorScheme: colorScheme)
+    }
+
     var body: some View {
         HStack(spacing: 0) {
             Spacer()
-            
+
             HStack(spacing: 8) {
                 // ✅ REACCIONES
                 EpicReactionButton(
@@ -97,8 +100,8 @@ struct ModernActionButtons: View {
                     Button(action: onComment) {
                         iconButton(
                             attachmentIcon: .comments,
-                            color: commentCount > 0 ? .blue : .white,
-                            secondaryColor: commentCount > 0 ? .purple : .white,
+                            color: commentCount > 0 ? .blue : adaptiveColors.primary,
+                            secondaryColor: commentCount > 0 ? .purple : adaptiveColors.secondary,
                             isActive: commentCount > 0,
                             count: commentCount
                         )
@@ -112,12 +115,12 @@ struct ModernActionButtons: View {
                         if isSaveLoading {
                             ProgressView()
                                 .frame(width: 44, height: 44)
-                                .tint(.white)
+                                .tint(colorScheme == .dark ? .white : .black)
                         } else {
                             iconButton(
                                 attachmentIcon: .bookmark,
-                                color: isSaved ? .yellow : .white,
-                                secondaryColor: isSaved ? .orange : .white,
+                                color: isSaved ? .yellow : adaptiveColors.primary,
+                                secondaryColor: isSaved ? .orange : adaptiveColors.secondary,
                                 isActive: isSaved
                             )
                         }
@@ -129,8 +132,8 @@ struct ModernActionButtons: View {
                 Button(action: onContextMenu) {
                     iconButton(
                         systemName: "ellipsis",
-                        color: .white,
-                        secondaryColor: .white.opacity(0.8),
+                        color: adaptiveColors.primary,
+                        secondaryColor: adaptiveColors.secondary,
                         isActive: false
                     )
                 }
@@ -165,7 +168,7 @@ struct ModernActionButtons: View {
         ZStack(alignment: .topTrailing) {
             ZStack {
                 Circle()
-                    .fill(.white.opacity(0.05))
+                    .fill(colorScheme == .dark ? Color.white.opacity(0.05) : Color.black.opacity(0.05))
                     .frame(width: 44, height: 44)
 
                 if let attachmentIcon {
@@ -227,7 +230,7 @@ struct ModernFollowButton: View {
                 }
                 
                 Text(title)
-                    .font(.custom("Poppins-SemiBold", size: 14))
+                    .font(.system(size: legacyPoppinsSize(14), weight: .semibold))
             }
             .foregroundColor(adaptiveColors.primary)
             .padding(.horizontal, 16)

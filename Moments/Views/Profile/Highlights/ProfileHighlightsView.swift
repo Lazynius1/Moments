@@ -126,7 +126,7 @@ struct ProfileHighlightsView: View {
 
                                 if !isCompact {
                                     Text(NSLocalizedString("highlightedStories.new", comment: "New highlight"))
-                                        .font(.custom("Poppins-Regular", size: 10))
+                                        .font(.system(size: legacyPoppinsSize(10)))
                                         .foregroundColor(ProfileColors.textSecondary)
                                 }
                             }
@@ -152,7 +152,7 @@ struct ProfileHighlightsView: View {
                                     ))
 
                                 Text(highlight.title)
-                                    .font(.custom("Poppins-Medium", size: isCompact ? 9 : 11))
+                                    .font(.system(size: legacyPoppinsSize(isCompact ? 9 : 11), weight: .medium))
                                     .foregroundColor(ProfileColors.textPrimary)
                                     .lineLimit(1)
                                     .frame(width: isCompact ? 60 : 80)

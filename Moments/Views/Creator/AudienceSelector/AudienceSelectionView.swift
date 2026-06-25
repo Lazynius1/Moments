@@ -55,7 +55,7 @@ struct AudienceSelectionView: View {
                             HStack {
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text("audience.saved")
-                                        .font(.custom("Poppins-Medium", size: 16))
+                                        .font(.system(size: legacyPoppinsSize(16), weight: .medium))
                                         .foregroundColor(.white)
                                 }
                             }
@@ -96,11 +96,11 @@ struct AudienceSelectionView: View {
                 VStack(spacing: 0) {
                     VStack(spacing: 8) {
                         Text("audience.selection.title")
-                            .font(.custom("Poppins-Bold", size: 24))
+                            .font(.system(size: legacyPoppinsSize(24), weight: .bold))
                             .foregroundColor(colorScheme == .dark ? .white : .black)
                         
                         Text("audience.selection.subtitle")
-                            .font(.custom("Poppins-Regular", size: 16))
+                            .font(.system(size: legacyPoppinsSize(16)))
                             .foregroundColor(colorScheme == .dark ? .white.opacity(0.7) : .black.opacity(0.7))
                             .multilineTextAlignment(.center)
                     }
@@ -185,7 +185,7 @@ struct AudienceSelectionView: View {
             // ✅ Header de sección con estilo moderno
             HStack {
                 Text("audience.predefined")
-                    .font(.custom("Poppins-SemiBold", size: 16))
+                    .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
                     .foregroundColor(colorScheme == .dark ? .white.opacity(0.8) : .black.opacity(0.8))
                 Spacer()
             }
@@ -246,12 +246,12 @@ struct AudienceSelectionView: View {
             // ✅ Header con botón de gestión
             HStack {
                 Text("audience.customLists")
-                    .font(.custom("Poppins-SemiBold", size: 16))
+                    .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
                     .foregroundColor(colorScheme == .dark ? .white.opacity(0.8) : .black.opacity(0.8))
                 Spacer()
                 Button(action: { navigate(to: .manageLists) }) {
                     Text("audience.manage")
-                        .font(.custom("Poppins-Medium", size: 14))
+                        .font(.system(size: legacyPoppinsSize(14), weight: .medium))
                         .foregroundColor(Color(hex: "007AFF"))
                 }
             }
@@ -262,7 +262,7 @@ struct AudienceSelectionView: View {
                     ProgressView()
                         .scaleEffect(0.8)
                     Text("audience.loadingLists")
-                        .font(.custom("Poppins-Regular", size: 14))
+                        .font(.system(size: legacyPoppinsSize(14)))
                         .foregroundColor(colorScheme == .dark ? .white.opacity(0.6) : .black.opacity(0.6))
                 }
                 .padding()
@@ -280,7 +280,7 @@ struct AudienceSelectionView: View {
                                     .frame(width: 48, height: 48)
                                     .momentsChromeGlass(in: Circle(), interactive: true)
                                 Text("audience.create")
-                                    .font(.custom("Poppins-Medium", size: 14))
+                                    .font(.system(size: legacyPoppinsSize(14), weight: .medium))
                                     .foregroundColor(Color(hex: "007AFF"))
                             }
                             .frame(width: 100, height: 140)
@@ -321,11 +321,11 @@ struct AudienceSelectionView: View {
             
             VStack(spacing: 4) {
                 Text("audience.noCustomLists.title")
-                    .font(.custom("Poppins-SemiBold", size: 16))
+                    .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
                     .foregroundColor(colorScheme == .dark ? .white : .black)
                 
                 Text("audience.noCustomLists.description")
-                    .font(.custom("Poppins-Regular", size: 14))
+                    .font(.system(size: legacyPoppinsSize(14)))
                     .foregroundColor(colorScheme == .dark ? .white.opacity(0.6) : .black.opacity(0.6))
                     .multilineTextAlignment(.center)
             }
@@ -338,7 +338,7 @@ struct AudienceSelectionView: View {
                         .frame(width: 30, height: 30)
                         .momentsChromeGlass(in: Circle(), interactive: true)
                     Text("audience.createFirstList")
-                        .font(.custom("Poppins-Medium", size: 14))
+                        .font(.system(size: legacyPoppinsSize(14), weight: .medium))
                         .foregroundColor(.primary)
                 }
             }
@@ -368,7 +368,7 @@ struct AudienceSelectionView: View {
         VStack(spacing: 12) {
             HStack {
                 Text("audience.manualSelection")
-                    .font(.custom("Poppins-SemiBold", size: 16))
+                    .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
                     .foregroundColor(colorScheme == .dark ? .white.opacity(0.8) : .black.opacity(0.8))
                 Spacer()
             }
@@ -391,14 +391,14 @@ struct AudienceSelectionView: View {
 
                     VStack(alignment: .leading, spacing: 3) {
                         Text("audience.custom")
-                            .font(.custom(isCustomPeopleSelected ? "Poppins-SemiBold" : "Poppins-Medium", size: 16))
+                            .font(.system(size: legacyPoppinsSize(16), weight: isCustomPeopleSelected ? .semibold : .medium))
                             .foregroundColor(colorScheme == .dark ? .white : .black)
                             .opacity(isCustomPeopleSelected ? 1 : 0.82)
 
                         Text(customSelectedUsers.isEmpty ?
                              NSLocalizedString("audience.description.custom", comment: "Custom audience description") :
                              String(format: NSLocalizedString("audience.people.count", comment: "People count"), customSelectedUsers.count))
-                            .font(.custom("Poppins-Regular", size: 13))
+                            .font(.system(size: legacyPoppinsSize(13)))
                             .foregroundColor((colorScheme == .dark ? Color.white : Color.black).opacity(0.55))
                             .opacity(isCustomPeopleSelected ? 1 : 0.72)
                     }
@@ -568,10 +568,10 @@ struct CreateCustomListView: View {
                             
                             VStack(spacing: 2) {
                                 Text(NSLocalizedString("audience.create.action", comment: ""))
-                                    .font(.custom("Poppins-SemiBold", size: 20))
+                                    .font(.system(size: legacyPoppinsSize(20), weight: .semibold))
                                     .foregroundColor(colorScheme == .dark ? .white : .black)
                                 Text(NSLocalizedString("audience.customLists", comment: ""))
-                                    .font(.custom("Poppins-Regular", size: 13))
+                                    .font(.system(size: legacyPoppinsSize(13)))
                                     .foregroundColor(colorScheme == .dark ? .white.opacity(0.6) : .black.opacity(0.55))
                             }
                             .multilineTextAlignment(.center)
@@ -625,7 +625,7 @@ struct CreateCustomListView: View {
                         
                         VStack(spacing: 6) {
                             Text(listName.isEmpty ? NSLocalizedString("audience.list.placeholder", comment: "") : listName)
-                                .font(.custom("Poppins-Bold", size: 24))
+                                .font(.system(size: legacyPoppinsSize(24), weight: .bold))
                                 .foregroundColor(colorScheme == .dark ? .white : .black)
                                 .multilineTextAlignment(.center)
                             
@@ -633,7 +633,7 @@ struct CreateCustomListView: View {
                                 Image(systemName: "person.2.fill")
                                     .font(.system(size: 12))
                                 Text(String(format: NSLocalizedString("audience.members.count.short", comment: ""), selectedMembers.count))
-                                    .font(.custom("Poppins-Medium", size: 14))
+                                    .font(.system(size: legacyPoppinsSize(14), weight: .medium))
                             }
                             .foregroundColor(colorScheme == .dark ? .white.opacity(0.6) : .black.opacity(0.6))
                         }
@@ -646,7 +646,7 @@ struct CreateCustomListView: View {
                         VStack(alignment: .leading, spacing: 12) {
                             Label {
                                 Text("audience.list.name")
-                                    .font(.custom("Poppins-SemiBold", size: 14))
+                                    .font(.system(size: legacyPoppinsSize(14), weight: .semibold))
                             } icon: {
                                 Image(systemName: "pencil.circle.fill")
                             }
@@ -654,7 +654,7 @@ struct CreateCustomListView: View {
                             .padding(.leading, 4)
                             
                             TextField(NSLocalizedString("audience.list.name.example", comment: ""), text: $listName)
-                                .font(.custom("Poppins-Medium", size: 17))
+                                .font(.system(size: legacyPoppinsSize(17), weight: .medium))
                                 .padding(18)
                                 .background(
                                     RoundedRectangle(cornerRadius: 20)
@@ -669,7 +669,7 @@ struct CreateCustomListView: View {
                         VStack(alignment: .leading, spacing: 12) {
                             Label {
                                 Text(NSLocalizedString("audience.list.description", comment: ""))
-                                    .font(.custom("Poppins-SemiBold", size: 14))
+                                    .font(.system(size: legacyPoppinsSize(14), weight: .semibold))
                             } icon: {
                                 Image(systemName: "text.alignleft")
                             }
@@ -677,7 +677,7 @@ struct CreateCustomListView: View {
                             .padding(.leading, 4)
                             
                             TextField(NSLocalizedString("audience.list.description.placeholder", comment: ""), text: $listDescription)
-                                .font(.custom("Poppins-Medium", size: 17))
+                                .font(.system(size: legacyPoppinsSize(17), weight: .medium))
                                 .padding(18)
                                 .background(
                                     RoundedRectangle(cornerRadius: 20)
@@ -692,7 +692,7 @@ struct CreateCustomListView: View {
                         VStack(alignment: .leading, spacing: 16) {
                             Label {
                                 Text(NSLocalizedString("audience.personalization", comment: ""))
-                                    .font(.custom("Poppins-SemiBold", size: 14))
+                                    .font(.system(size: legacyPoppinsSize(14), weight: .semibold))
                             } icon: {
                                 Image(systemName: "paintpalette.fill")
                             }
@@ -758,7 +758,7 @@ struct CreateCustomListView: View {
                             HStack {
                                 Label {
                                     Text("audience.members")
-                                        .font(.custom("Poppins-SemiBold", size: 14))
+                                        .font(.system(size: legacyPoppinsSize(14), weight: .semibold))
                                 } icon: {
                                     Image(systemName: "person.circle.fill")
                                 }
@@ -776,7 +776,7 @@ struct CreateCustomListView: View {
                                             .frame(width: 20, height: 20)
                                             .momentsChromeGlass(in: Circle(), interactive: true)
                                     }
-                                    .font(.custom("Poppins-Medium", size: 13))
+                                    .font(.system(size: legacyPoppinsSize(13), weight: .medium))
                                     .foregroundColor(.primary)
                                 }
                             }
@@ -808,7 +808,7 @@ struct CreateCustomListView: View {
                                     Image(systemName: "plus.circle.fill")
                                         .font(.system(size: 20))
                                     Text(NSLocalizedString("audience.create.action", comment: ""))
-                                        .font(.custom("Poppins-Bold", size: 16))
+                                        .font(.system(size: legacyPoppinsSize(16), weight: .bold))
                                 }
                             }
                             .frame(maxWidth: .infinity)
@@ -917,7 +917,7 @@ struct SuggestedUserCircle: View {
                             ZStack {
                                 Color.gray.opacity(0.2)
                                 Text(user.username.prefix(1).uppercased())
-                                    .font(.custom("Poppins-Bold", size: 20))
+                                    .font(.system(size: legacyPoppinsSize(20), weight: .bold))
                                     .foregroundColor(.gray)
                             }
                         }
@@ -954,7 +954,7 @@ struct SuggestedUserCircle: View {
             .buttonStyle(PlainButtonStyle())
             
             Text(user.username)
-                .font(.custom("Poppins-Medium", size: 10))
+                .font(.system(size: legacyPoppinsSize(10), weight: .medium))
                 .foregroundColor(.gray)
                 .lineLimit(1)
                 .frame(width: 64)
@@ -1090,10 +1090,10 @@ struct EditCustomListView: View {
                             
                             VStack(spacing: 2) {
                                 Text(NSLocalizedString("common.edit", comment: ""))
-                                    .font(.custom("Poppins-SemiBold", size: 20))
+                                    .font(.system(size: legacyPoppinsSize(20), weight: .semibold))
                                     .foregroundColor(colorScheme == .dark ? .white : .black)
                                 Text(list.name)
-                                    .font(.custom("Poppins-Regular", size: 13))
+                                    .font(.system(size: legacyPoppinsSize(13)))
                                     .foregroundColor(colorScheme == .dark ? .white.opacity(0.6) : .black.opacity(0.55))
                             }
                             .multilineTextAlignment(.center)
@@ -1142,11 +1142,11 @@ struct EditCustomListView: View {
                         
                         VStack(spacing: 4) {
                             Text(listName.isEmpty ? NSLocalizedString("audience.list.placeholder", comment: "") : listName)
-                                .font(.custom("Poppins-Bold", size: 22))
+                                .font(.system(size: legacyPoppinsSize(22), weight: .bold))
                                 .foregroundColor(colorScheme == .dark ? .white : .black)
                             
                             Text(String(format: NSLocalizedString("audience.members.count.short", comment: ""), selectedMembers.count))
-                                .font(.custom("Poppins-Medium", size: 14))
+                                .font(.system(size: legacyPoppinsSize(14), weight: .medium))
                                 .foregroundColor(colorScheme == .dark ? .white.opacity(0.6) : .black.opacity(0.6))
                         }
                     }
@@ -1183,7 +1183,7 @@ struct EditCustomListView: View {
                                     Image(systemName: "checkmark.circle.fill")
                                         .font(.system(size: 20))
                                     Text(NSLocalizedString("common.save", comment: ""))
-                                        .font(.custom("Poppins-Bold", size: 16))
+                                        .font(.system(size: legacyPoppinsSize(16), weight: .bold))
                                 }
                             }
                             .frame(maxWidth: .infinity)
@@ -1223,7 +1223,7 @@ struct EditCustomListView: View {
             VStack(alignment: .leading, spacing: 12) {
                 Label {
                     Text("audience.list.name")
-                        .font(.custom("Poppins-SemiBold", size: 14))
+                        .font(.system(size: legacyPoppinsSize(14), weight: .semibold))
                 } icon: {
                     Image(systemName: "pencil.circle.fill")
                 }
@@ -1231,7 +1231,7 @@ struct EditCustomListView: View {
                 .padding(.leading, 4)
                 
                 TextField(NSLocalizedString("audience.list.name.example", comment: ""), text: $listName)
-                    .font(.custom("Poppins-Medium", size: 17))
+                    .font(.system(size: legacyPoppinsSize(17), weight: .medium))
                     .padding(18)
                     .background(
                         RoundedRectangle(cornerRadius: 20)
@@ -1247,7 +1247,7 @@ struct EditCustomListView: View {
             VStack(alignment: .leading, spacing: 12) {
                 Label {
                     Text(NSLocalizedString("audience.list.description", comment: ""))
-                        .font(.custom("Poppins-SemiBold", size: 14))
+                        .font(.system(size: legacyPoppinsSize(14), weight: .semibold))
                 } icon: {
                     Image(systemName: "text.alignleft")
                 }
@@ -1255,7 +1255,7 @@ struct EditCustomListView: View {
                 .padding(.leading, 4)
                 
                 TextField(NSLocalizedString("audience.list.description.placeholder", comment: ""), text: $listDescription)
-                    .font(.custom("Poppins-Medium", size: 17))
+                    .font(.system(size: legacyPoppinsSize(17), weight: .medium))
                     .padding(18)
                     .background(
                         RoundedRectangle(cornerRadius: 20)
@@ -1273,7 +1273,7 @@ struct EditCustomListView: View {
         VStack(alignment: .leading, spacing: 20) {
             Label {
                 Text(NSLocalizedString("audience.personalization", comment: ""))
-                    .font(.custom("Poppins-SemiBold", size: 14))
+                    .font(.system(size: legacyPoppinsSize(14), weight: .semibold))
             } icon: {
                 Image(systemName: "paintpalette.fill")
             }
@@ -1349,9 +1349,9 @@ struct EditCustomListView: View {
                 Label {
                     VStack(alignment: .leading, spacing: 4) {
                         Text(NSLocalizedString("audience.members", comment: ""))
-                            .font(.custom("Poppins-SemiBold", size: 14))
+                            .font(.system(size: legacyPoppinsSize(14), weight: .semibold))
                         Text(String(format: NSLocalizedString("audience.members.count.long", comment: ""), selectedMembers.count))
-                            .font(.custom("Poppins-Regular", size: 12))
+                            .font(.system(size: legacyPoppinsSize(12)))
                             .foregroundColor(.gray)
                     }
                 } icon: {
@@ -1371,7 +1371,7 @@ struct EditCustomListView: View {
                         Text(NSLocalizedString("audience.list.add", comment: ""))
                             .foregroundColor(.primary)
                     }
-                    .font(.custom("Poppins-Medium", size: 14))
+                    .font(.system(size: legacyPoppinsSize(14), weight: .medium))
                 }
             }
             .padding(.leading, 4)
@@ -1390,10 +1390,10 @@ struct EditCustomListView: View {
                         .font(.system(size: 40))
                         .foregroundColor(.gray.opacity(0.3))
                     Text(NSLocalizedString("audience.list.empty", comment: ""))
-                        .font(.custom("Poppins-Medium", size: 14))
+                        .font(.system(size: legacyPoppinsSize(14), weight: .medium))
                         .foregroundColor(.gray)
                     Text(NSLocalizedString("audience.list.emptyAlt", comment: ""))
-                        .font(.custom("Poppins-Regular", size: 12))
+                        .font(.system(size: legacyPoppinsSize(12)))
                         .foregroundColor(.gray)
                 }
                 .frame(maxWidth: .infinity)
@@ -1429,7 +1429,7 @@ struct EditCustomListView: View {
                             )
                             .foregroundColor(.primary)
                         }
-                        .font(.custom("Poppins-Medium", size: 14))
+                        .font(.system(size: legacyPoppinsSize(14), weight: .medium))
                     }
                     .padding(.top, 4)
                 }
@@ -1497,7 +1497,7 @@ struct MemberRowWithRemove: View {
                     ZStack {
                         colorScheme == .dark ? Color(hex: "FAF9F6").opacity(0.06) : Color(hex: "0B1215").opacity(0.05)
                         Text(user.username.prefix(1).uppercased())
-                            .font(.custom("Poppins-Bold", size: 16))
+                            .font(.system(size: legacyPoppinsSize(16), weight: .bold))
                             .foregroundColor(.gray)
                     }
                 }
@@ -1509,7 +1509,7 @@ struct MemberRowWithRemove: View {
             // Info del usuario
             VStack(alignment: .leading, spacing: 2) {
                 Text(user.username)
-                    .font(.custom("Poppins-SemiBold", size: 15))
+                    .font(.system(size: legacyPoppinsSize(15), weight: .semibold))
                     .foregroundColor(colorScheme == .dark ? .white : .black)
                     .lineLimit(1)
             }
@@ -1638,10 +1638,10 @@ struct MemberPickerView: View {
                         
                         VStack(spacing: 2) {
                             Text(NSLocalizedString("audience.picker.title", comment: ""))
-                                .font(.custom("Poppins-SemiBold", size: 20))
+                                .font(.system(size: legacyPoppinsSize(20), weight: .semibold))
                                 .foregroundColor(primaryTextColor)
                             Text(NSLocalizedString("audience.members", comment: ""))
-                                .font(.custom("Poppins-Regular", size: 13))
+                                .font(.system(size: legacyPoppinsSize(13)))
                                 .foregroundColor(secondaryTextColor)
                         }
                         .multilineTextAlignment(.center)
@@ -1651,7 +1651,7 @@ struct MemberPickerView: View {
                         Button(NSLocalizedString("common.confirm", comment: "")) {
                             confirmPicker()
                         }
-                        .font(.custom("Poppins-SemiBold", size: 14))
+                        .font(.system(size: legacyPoppinsSize(14), weight: .semibold))
                         .foregroundColor(.primary)
                         .padding(.horizontal, 14)
                         .padding(.vertical, 9)
@@ -1712,7 +1712,7 @@ struct MemberPickerView: View {
                                                 .fill(Color(hex: "00A896").opacity(0.18))
                                                 .frame(width: 48, height: 48)
                                             Text("+\(hiddenSelectedCount)")
-                                                .font(.custom("Poppins-SemiBold", size: 13))
+                                                .font(.system(size: legacyPoppinsSize(13), weight: .semibold))
                                                 .foregroundColor(Color(hex: "00A896"))
                                         }
                                         Text(NSLocalizedString("audience.more", comment: "More"))
@@ -1757,7 +1757,7 @@ struct MemberPickerView: View {
                 .foregroundColor(secondaryTextColor)
             
             TextField(NSLocalizedString("audience.picker.searchPlaceholder", comment: ""), text: $searchText)
-                .font(.custom("Poppins-Regular", size: 16))
+                .font(.system(size: legacyPoppinsSize(16)))
                 .foregroundColor(colorScheme == .dark ? .white : .black)
                 .onSubmit {
                     if !searchText.isEmpty {
@@ -1800,11 +1800,11 @@ struct MemberPickerView: View {
                 .foregroundColor(secondaryTextColor)
             
             Text(NSLocalizedString("audience.picker.initialTitle", comment: ""))
-                .font(.custom("Poppins-SemiBold", size: 18))
+                .font(.system(size: legacyPoppinsSize(18), weight: .semibold))
                 .foregroundColor(colorScheme == .dark ? .white : .black)
             
             Text(NSLocalizedString("audience.picker.initialDescription", comment: ""))
-                .font(.custom("Poppins-Regular", size: 14))
+                .font(.system(size: legacyPoppinsSize(14)))
                 .foregroundColor(secondaryTextColor)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 40)
@@ -1819,7 +1819,7 @@ struct MemberPickerView: View {
             ProgressView()
                 .scaleEffect(1.2)
             Text(NSLocalizedString("common.searching", comment: ""))
-                .font(.custom("Poppins-Regular", size: 16))
+                .font(.system(size: legacyPoppinsSize(16)))
                 .foregroundColor(secondaryTextColor)
             Spacer()
         }
@@ -1834,11 +1834,11 @@ struct MemberPickerView: View {
                 .foregroundColor(secondaryTextColor)
             
             Text(NSLocalizedString("common.noResults", comment: ""))
-                .font(.custom("Poppins-SemiBold", size: 18))
+                .font(.system(size: legacyPoppinsSize(18), weight: .semibold))
                 .foregroundColor(colorScheme == .dark ? .white : .black)
             
             Text(String(format: NSLocalizedString("audience.picker.noResultsDescription", comment: ""), searchText))
-                .font(.custom("Poppins-Regular", size: 14))
+                .font(.system(size: legacyPoppinsSize(14)))
                 .foregroundColor(secondaryTextColor)
                 .multilineTextAlignment(.center)
             
@@ -1870,10 +1870,10 @@ struct MemberPickerView: View {
         HStack {
             VStack(alignment: .leading, spacing: 4) {
                 Text(String(format: NSLocalizedString("audience.picker.selectedCount", comment: ""), selectedMembers.count))
-                    .font(.custom("Poppins-SemiBold", size: 16))
+                    .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
                     .foregroundColor(colorScheme == .dark ? .white : .black)
                 Text(NSLocalizedString("audience.picker.selectedDescription", comment: ""))
-                    .font(.custom("Poppins-Regular", size: 12))
+                    .font(.system(size: legacyPoppinsSize(12)))
                     .foregroundColor(secondaryTextColor)
             }
             
@@ -1883,7 +1883,7 @@ struct MemberPickerView: View {
                 Button(NSLocalizedString("common.clear", comment: "")) {
                     selectedMembers.removeAll()
                 }
-                .font(.custom("Poppins-Medium", size: 14))
+                .font(.system(size: legacyPoppinsSize(14), weight: .medium))
                 .foregroundColor(.red)
                 .padding(.horizontal, 14)
                 .padding(.vertical, 8)
@@ -1892,7 +1892,7 @@ struct MemberPickerView: View {
                 Button(NSLocalizedString("common.confirm", comment: "")) {
                     confirmPicker()
                 }
-                .font(.custom("Poppins-SemiBold", size: 14))
+                .font(.system(size: legacyPoppinsSize(14), weight: .semibold))
                 .foregroundColor(.primary)
                 .padding(.horizontal, 16)
                 .padding(.vertical, 8)
@@ -2005,7 +2005,7 @@ struct UserSelectionCard: View {
                 
                 VStack(alignment: .leading, spacing: 4) {
                     Text(user.username)
-                        .font(.custom("Poppins-SemiBold", size: 16))
+                        .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
                         .foregroundColor(colorScheme == .dark ? .white : .black)
                         .lineLimit(1)
                 }
@@ -2073,7 +2073,7 @@ struct UserSelectionRowEnhanced: View {
                 
                 VStack(alignment: .leading, spacing: 4) {
                     Text(user.username)
-                        .font(.custom("Poppins-SemiBold", size: 16))
+                        .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
                         .foregroundColor(colorScheme == .dark ? .white : .black)
                         .lineLimit(1)
                 }

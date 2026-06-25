@@ -98,7 +98,7 @@ struct AlbumPickerView: View {
                 dismiss()
             }
         }
-        .font(.custom("Poppins-SemiBold", size: 16))
+        .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
         .foregroundColor(colorScheme == .dark ? .white : .black)
         .frame(maxWidth: .infinity)
         .frame(height: 50)
@@ -173,12 +173,12 @@ private struct AlbumRowView: View {
 
                 VStack(alignment: .leading, spacing: 4) {
                     Text(album.title)
-                        .font(.custom("Poppins-SemiBold", size: 16))
+                        .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
                         .foregroundColor(colorScheme == .dark ? .white : .black)
                         .frame(maxWidth: .infinity, alignment: .leading)
 
                     Text(String(format: NSLocalizedString("creator.album.elements", comment: "Album elements"), album.assetCount))
-                        .font(.custom("Poppins-Regular", size: 14))
+                        .font(.system(size: legacyPoppinsSize(14)))
                         .foregroundColor(.gray.opacity(0.8))
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }

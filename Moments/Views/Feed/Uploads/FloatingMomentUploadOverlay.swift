@@ -141,7 +141,7 @@ struct FloatingMomentUploadOverlay: View {
 
             if extraUploadsCount > 0 {
                 Text("+\(extraUploadsCount)")
-                    .font(.custom("Poppins-SemiBold", size: 10))
+                    .font(.system(size: legacyPoppinsSize(10), weight: .semibold))
                     .foregroundStyle(.white)
                     .padding(.horizontal, 6)
                     .padding(.vertical, 3)
@@ -179,12 +179,12 @@ struct FloatingMomentUploadOverlay: View {
 
                 VStack(alignment: .leading, spacing: 4) {
                     Text(moment.content.isEmpty ? NSLocalizedString("feed.uploading.newMoment", comment: "New moment text") : moment.content)
-                        .font(.custom("Poppins-SemiBold", size: 12))
+                        .font(.system(size: legacyPoppinsSize(12), weight: .semibold))
                         .foregroundStyle(primaryTextColor)
                         .lineLimit(1)
 
                     Text(detailText(for: moment))
-                        .font(.custom("Poppins-Medium", size: 10))
+                        .font(.system(size: legacyPoppinsSize(10), weight: .medium))
                         .foregroundStyle(secondaryTextColor)
                         .lineLimit(2)
 
@@ -236,7 +236,7 @@ struct FloatingMomentUploadOverlay: View {
 
             if moment.mediaCount > 1 {
                 Text("\(moment.currentMediaIndex + 1)/\(moment.mediaCount)")
-                    .font(.custom("Poppins-SemiBold", size: 9))
+                    .font(.system(size: legacyPoppinsSize(9), weight: .semibold))
                     .foregroundStyle(.white)
                     .padding(.horizontal, 6)
                     .padding(.vertical, 2)
@@ -264,13 +264,13 @@ struct FloatingMomentUploadOverlay: View {
 
             HStack(spacing: 6) {
                 Text(statusLabel(for: moment.status))
-                    .font(.custom("Poppins-Medium", size: 10))
+                    .font(.system(size: legacyPoppinsSize(10), weight: .medium))
                     .foregroundStyle(secondaryTextColor)
 
                 Spacer(minLength: 4)
 
                 Text("\(Int(renderedProgress * 100))%")
-                    .font(.custom("Poppins-SemiBold", size: 10))
+                    .font(.system(size: legacyPoppinsSize(10), weight: .semibold))
                     .foregroundStyle(primaryTextColor)
             }
         }

@@ -91,7 +91,7 @@ struct ArchivedConversationsView: View {
                 .font(.system(size: 44))
                 .foregroundStyle(adaptiveColors.primary.opacity(0.5))
             Text("messaging.section.archived")
-                .font(.custom("Poppins-SemiBold", size: 16))
+                .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
                 .foregroundStyle(adaptiveColors.primary.opacity(0.7))
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)

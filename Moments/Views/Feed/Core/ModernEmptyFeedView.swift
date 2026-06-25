@@ -19,12 +19,12 @@ struct ModernEmptyFeedView: View {
 
             VStack(spacing: 8) {
                 Text(emptyTitle)
-                    .font(.custom("Poppins-SemiBold", size: 22))
+                    .font(.system(size: legacyPoppinsSize(22), weight: .semibold))
                     .foregroundColor(primaryText)
                     .multilineTextAlignment(.center)
 
                 Text(emptyDescription)
-                    .font(.custom("Poppins-Regular", size: 14))
+                    .font(.system(size: legacyPoppinsSize(14)))
                     .foregroundColor(secondaryText)
                     .multilineTextAlignment(.center)
                     .lineLimit(3)
@@ -35,7 +35,7 @@ struct ModernEmptyFeedView: View {
             Button(action: primaryAction) {
                 HStack(spacing: 10) {
                     Text(primaryActionTitle)
-                        .font(.custom("Poppins-SemiBold", size: 15))
+                        .font(.system(size: legacyPoppinsSize(15), weight: .semibold))
 
                     Image(systemName: primaryActionIcon)
                         .font(.system(size: 14, weight: .semibold))

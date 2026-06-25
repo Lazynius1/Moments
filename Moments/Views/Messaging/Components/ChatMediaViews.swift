@@ -169,7 +169,7 @@ struct NormalVideoPlayerView: View {
                         Image(systemName: "play.rectangle.fill")
                             .font(.system(size: 14))
                         Text("common.video")
-                            .font(.custom("Poppins-SemiBold", size: 12))
+                            .font(.system(size: legacyPoppinsSize(12), weight: .semibold))
                             .textCase(.uppercase)
                     }
                     .foregroundColor(.white)
@@ -269,7 +269,7 @@ struct FullScreenImageView: View {
                         Image(systemName: "photo.fill")
                             .font(.system(size: 14))
                         Text("common.photo")
-                            .font(.custom("Poppins-SemiBold", size: 12))
+                            .font(.system(size: legacyPoppinsSize(12), weight: .semibold))
                             .textCase(.uppercase)
                     }
                     .foregroundColor(.white)

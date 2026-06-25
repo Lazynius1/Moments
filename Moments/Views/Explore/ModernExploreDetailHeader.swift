@@ -99,7 +99,7 @@ struct ModernExploreDetailHeader: View {
                         } label: {
                             HStack(spacing: 4) {
                                 Text(displayUsername(for: moment))
-                                    .font(.custom("Poppins-SemiBold", size: 15))
+                                    .font(.system(size: legacyPoppinsSize(15), weight: .semibold))
                                     .foregroundColor(.primary)
                                     .lineLimit(1)
 
@@ -118,7 +118,7 @@ struct ModernExploreDetailHeader: View {
                                     Image(systemName: "location.fill")
                                         .font(.system(size: 9, weight: .semibold))
                                     Text(location)
-                                        .font(.custom("Poppins-Regular", size: 10))
+                                        .font(.system(size: legacyPoppinsSize(10)))
                                         .lineLimit(1)
                                 }
                                 .foregroundColor(.secondary.opacity(0.85))
@@ -126,7 +126,7 @@ struct ModernExploreDetailHeader: View {
                             .buttonStyle(.plain)
                         } else {
                             Text(moment.timestamp.timeAgoDisplay())
-                                .font(.custom("Poppins-Regular", size: 10))
+                                .font(.system(size: legacyPoppinsSize(10)))
                                 .foregroundColor(.secondary.opacity(0.7))
                         }
                     }

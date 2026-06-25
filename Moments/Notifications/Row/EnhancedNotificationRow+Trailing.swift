@@ -185,7 +185,7 @@ extension EnhancedNotificationRow {
                         onShowGroupedFollowers?(group)
                     }) {
                         Text(NSLocalizedString("notifications.groupedFollowers.viewAction", comment: "View grouped followers"))
-                            .font(.custom("Poppins-SemiBold", size: 12))
+                            .font(.system(size: legacyPoppinsSize(12), weight: .semibold))
                             .foregroundColor(colorScheme == .dark ? .white : .black)
                             .padding(.horizontal, 16)
                             .padding(.vertical, 8)
@@ -201,9 +201,9 @@ extension EnhancedNotificationRow {
                                 .font(.system(size: 12, weight: .semibold))
 
                             Text(notificationFollowTitle)
-                                .font(.custom("Poppins-SemiBold", size: 12))
+                                .font(.system(size: legacyPoppinsSize(12), weight: .semibold))
                         }
-                            .font(.custom("Poppins-SemiBold", size: 12))
+                            .font(.system(size: legacyPoppinsSize(12), weight: .semibold))
                             .foregroundColor(colorScheme == .dark ? .white : .black)
                             .padding(.horizontal, 16)
                             .padding(.vertical, 8)

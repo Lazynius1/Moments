@@ -327,7 +327,7 @@ struct MediaSelectionView: View {
                 .tint(Color(hex: "007AFF"))
 
                             Text("creator.gallery.loading")
-                .font(.custom("Poppins-Medium", size: 16))
+                .font(.system(size: legacyPoppinsSize(16), weight: .medium))
                 .foregroundColor(.gray)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -858,7 +858,7 @@ struct MediaSelectionView: View {
             )
 
             Text("creator.gallery.permission")
-                .font(.custom("Poppins-Medium", size: 16))
+                .font(.system(size: legacyPoppinsSize(16), weight: .medium))
                 .foregroundColor(colorScheme == .dark ? .white : .black)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 40)
@@ -866,11 +866,11 @@ struct MediaSelectionView: View {
             // ✅ Instrucciones opcionales para el usuario
             VStack(spacing: 12) {
                 Text("creator.permissions.instructions.title")
-                    .font(.custom("Poppins-SemiBold", size: 14))
+                    .font(.system(size: legacyPoppinsSize(14), weight: .semibold))
                     .foregroundColor(colorScheme == .dark ? .white : .black)
 
                 Text("creator.permissions.instructions.path")
-                    .font(.custom("Poppins-Regular", size: 12))
+                    .font(.system(size: legacyPoppinsSize(12)))
                     .foregroundColor(colorScheme == .dark ? .gray : .gray.opacity(0.7))
                     .multilineTextAlignment(.center)
 
@@ -879,7 +879,7 @@ struct MediaSelectionView: View {
                         UIApplication.shared.open(settingsUrl)
                     }
                 }
-                .font(.custom("Poppins-SemiBold", size: 14))
+                .font(.system(size: legacyPoppinsSize(14), weight: .semibold))
                 .foregroundColor(.white)
                 .padding(.horizontal, 24)
                 .padding(.vertical, 10)

@@ -84,14 +84,14 @@ struct PhotoTagSelectionView: View {
                         Spacer()
 
                         Text(NSLocalizedString("creator.tagPeople", comment: ""))
-                            .font(.custom("Poppins-SemiBold", size: 20))
+                            .font(.system(size: legacyPoppinsSize(20), weight: .semibold))
                             .foregroundColor(colorScheme == .dark ? .white : .black)
 
                         Spacer()
 
                         Button(action: { closeEditor() }) {
                             Text(NSLocalizedString("creator.tag.done", comment: ""))
-                                .font(.custom("Poppins-SemiBold", size: 16))
+                                .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
                                 .foregroundColor(.primary)
                                 .padding(.horizontal, 16)
                                 .padding(.vertical, 8)

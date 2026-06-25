@@ -277,7 +277,7 @@ struct StoryOverlaysView: View {
                             Image(systemName: "magicmouse.fill")
                                 .font(.system(size: 12))
                             Text(NSLocalizedString("storyEditor.reveal.active", comment: "Reveal effect active status"))
-                                .font(.custom("Poppins-Medium", size: 11))
+                                .font(.system(size: legacyPoppinsSize(11), weight: .medium))
 
                             Button {
                                 withAnimation(.spring()) {

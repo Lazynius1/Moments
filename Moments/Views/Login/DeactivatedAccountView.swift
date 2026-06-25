@@ -80,7 +80,7 @@ struct DeactivationLoadingView: View {
             VStack(spacing: 10) {
                 VStack(spacing: 12) {
                     Text(NSLocalizedString("deactivated.reactivating", value: "Reactivando cuenta...", comment: "Reactivating account title"))
-                        .font(.custom("Poppins-Bold", size: 24))
+                        .font(.system(size: legacyPoppinsSize(24), weight: .bold))
                         .foregroundColor(AuthColors.primary(colorScheme))
                     
                     Text(NSLocalizedString("deactivated.verifying", value: "Verificando estado...", comment: "Verifying status"))
@@ -112,7 +112,7 @@ struct DeactivationContent: View {
                         .foregroundColor(AuthColors.primary(colorScheme))
 
                     Text(NSLocalizedString("deactivated.title", value: "Cuenta en Reposo", comment: "Sleeping account title"))
-                        .font(.custom("Poppins-Bold", size: 30))
+                        .font(.system(size: legacyPoppinsSize(30), weight: .bold))
                         .foregroundColor(AuthColors.primary(colorScheme))
                     
                     Text(NSLocalizedString("deactivated.subtitle", value: "Tu cuenta está desactivada temporalmente pero todos tus datos están seguros.", comment: "Deactivated subtitle"))

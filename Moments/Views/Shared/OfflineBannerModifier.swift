@@ -55,18 +55,18 @@ struct CollapsibleOfflineBanner: View {
 
             VStack(alignment: .leading, spacing: 2) {
                 Text("network.offline.title")
-                    .font(.custom("Poppins-SemiBold", size: 15))
+                    .font(.system(size: legacyPoppinsSize(15), weight: .semibold))
                     .foregroundColor(.primary)
 
                 Text("offline.banner.message")
-                    .font(.custom("Poppins-Regular", size: 11))
+                    .font(.system(size: legacyPoppinsSize(11)))
                     .foregroundColor(.primary.opacity(0.72))
                     .lineLimit(2)
                     .fixedSize(horizontal: false, vertical: true)
             }
 
             Text("network.offline.retry")
-                .font(.custom("Poppins-SemiBold", size: 11))
+                .font(.system(size: legacyPoppinsSize(11), weight: .semibold))
                 .foregroundColor(.primary)
                 .padding(.horizontal, 6)
                 .padding(.vertical, 8)

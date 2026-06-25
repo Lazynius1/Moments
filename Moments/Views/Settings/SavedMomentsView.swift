@@ -168,7 +168,7 @@ struct SavedMomentsView: View {
                         }
                     }
                 }
-                .font(.custom("Poppins-SemiBold", size: 14))
+                .font(.system(size: legacyPoppinsSize(14), weight: .semibold))
                 .foregroundColor(isSelectionMode ? .red : .primary)
             }
         }
@@ -193,7 +193,7 @@ struct SavedMomentsView: View {
             Image(systemName: "magnifyingglass")
                 .foregroundColor(.secondary)
             TextField(NSLocalizedString("savedMoments.search.placeholder", comment: "Saved moments search placeholder"), text: $searchText)
-                .font(.custom("Poppins-Regular", size: 15))
+                .font(.system(size: legacyPoppinsSize(15)))
                 .textInputAutocapitalization(.never)
                 .autocorrectionDisabled()
 
@@ -226,7 +226,7 @@ struct SavedMomentsView: View {
                         Text(sortMode.title)
                             .lineLimit(1)
                     }
-                    .font(.custom("Poppins-Medium", size: 13))
+                    .font(.system(size: legacyPoppinsSize(13), weight: .medium))
                     .foregroundColor(.primary)
                     .padding(.horizontal, 12)
                     .padding(.vertical, 10)
@@ -244,7 +244,7 @@ struct SavedMomentsView: View {
             ForEach(SavedMediaFilter.allCases, id: \.self) { filter in
                 Button(action: { mediaFilter = filter }) {
                     Text(filter.title)
-                        .font(.custom("Poppins-SemiBold", size: 13))
+                        .font(.system(size: legacyPoppinsSize(13), weight: .semibold))
                         .foregroundColor(.primary)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 10)
@@ -277,7 +277,7 @@ struct SavedMomentsView: View {
                 ForEach(SavedCollectionFilter.allCases, id: \.self) { filter in
                     Button(action: { collectionFilter = filter }) {
                         Text(filter.title)
-                            .font(.custom("Poppins-Medium", size: 13))
+                            .font(.system(size: legacyPoppinsSize(13), weight: .medium))
                             .foregroundColor(.primary)
                             .padding(.horizontal, 12)
                             .padding(.vertical, 9)
@@ -313,9 +313,9 @@ struct SavedMomentsView: View {
                         .font(.system(size: 36))
                         .foregroundColor(.secondary)
                     Text(NSLocalizedString("savedMoments.empty.filtered.title", comment: "No results for current filters"))
-                        .font(.custom("Poppins-SemiBold", size: 16))
+                        .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
                     Text(NSLocalizedString("savedMoments.empty.filtered.description", comment: "Hint for filtered empty state"))
-                        .font(.custom("Poppins-Regular", size: 13))
+                        .font(.system(size: legacyPoppinsSize(13)))
                         .foregroundColor(.secondary)
                         .multilineTextAlignment(.center)
                         .padding(.horizontal, 32)
@@ -325,7 +325,7 @@ struct SavedMomentsView: View {
                         mediaFilter = .all
                         collectionFilter = .all
                     }
-                    .font(.custom("Poppins-SemiBold", size: 13))
+                    .font(.system(size: legacyPoppinsSize(13), weight: .semibold))
                     .foregroundColor(.primary)
                     .padding(.horizontal, 14)
                     .padding(.vertical, 10)
@@ -379,14 +379,14 @@ struct SavedMomentsView: View {
     private var selectionBar: some View {
         HStack(spacing: 10) {
             Text(String(format: NSLocalizedString("savedMoments.selection.count", comment: "Selected items count"), selectedMomentIds.count))
-                .font(.custom("Poppins-SemiBold", size: 14))
+                .font(.system(size: legacyPoppinsSize(14), weight: .semibold))
 
             Spacer()
 
             Button(action: shareSelectedLinks) {
                 Label {
                     Text(NSLocalizedString("savedMoments.share", comment: "Share action"))
-                        .font(.custom("Poppins-SemiBold", size: 13))
+                        .font(.system(size: legacyPoppinsSize(13), weight: .semibold))
                 } icon: {
                     AttachmentIconView(icon: .share, preset: .shareInline)
                 }
@@ -398,7 +398,7 @@ struct SavedMomentsView: View {
 
             Button(action: { showRemoveSelectionAlert = true }) {
                 Label(NSLocalizedString("savedMoments.remove", comment: "Remove action"), systemImage: "bookmark.slash")
-                    .font(.custom("Poppins-SemiBold", size: 13))
+                    .font(.system(size: legacyPoppinsSize(13), weight: .semibold))
             }
             .foregroundColor(.red)
             .padding(.horizontal, 12)
@@ -422,7 +422,7 @@ struct SavedMomentsView: View {
         VStack(spacing: 12) {
             ProgressView().scaleEffect(1.2)
             Text(NSLocalizedString("savedMoments.loading", comment: "Loading saved moments"))
-                .font(.custom("Poppins-Medium", size: 15))
+                .font(.system(size: legacyPoppinsSize(15), weight: .medium))
                 .foregroundColor(.secondary)
         }
     }
@@ -433,16 +433,16 @@ struct SavedMomentsView: View {
                 .font(.system(size: 40))
                 .foregroundColor(.secondary)
             Text(NSLocalizedString("savedMoments.error.title", comment: "Saved moments loading error title"))
-                .font(.custom("Poppins-Bold", size: 19))
+                .font(.system(size: legacyPoppinsSize(19), weight: .bold))
             Text(error.localizedDescription)
-                .font(.custom("Poppins-Regular", size: 13))
+                .font(.system(size: legacyPoppinsSize(13)))
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 24)
             Button(NSLocalizedString("savedMoments.retry", comment: "Retry action")) {
                 viewModel.loadSavedMoments()
             }
-            .font(.custom("Poppins-SemiBold", size: 14))
+            .font(.system(size: legacyPoppinsSize(14), weight: .semibold))
             .foregroundColor(.primary)
             .padding(.horizontal, 16)
             .padding(.vertical, 11)
@@ -456,14 +456,14 @@ struct SavedMomentsView: View {
                 .font(.system(size: 64))
                 .foregroundColor(.secondary)
             Text(NSLocalizedString("savedMoments.empty.title", comment: "Saved moments empty title"))
-                .font(.custom("Poppins-Bold", size: 23))
+                .font(.system(size: legacyPoppinsSize(23), weight: .bold))
             Text(NSLocalizedString("savedMoments.empty.description", comment: "Saved moments empty description"))
-                .font(.custom("Poppins-Regular", size: 15))
+                .font(.system(size: legacyPoppinsSize(15)))
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 26)
             Text(NSLocalizedString("savedMoments.empty.tip", comment: "Saved moments empty tip"))
-                .font(.custom("Poppins-Medium", size: 13))
+                .font(.system(size: legacyPoppinsSize(13), weight: .medium))
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 30)
@@ -698,7 +698,7 @@ private struct SavedMomentGridCard: View {
                         comment: "Saved moment restricted title"
                     )
                 )
-                    .font(.custom("Poppins-SemiBold", size: 10))
+                    .font(.system(size: legacyPoppinsSize(10), weight: .semibold))
                     .foregroundColor(.white)
                     .lineLimit(2)
                     .multilineTextAlignment(.center)
@@ -709,7 +709,7 @@ private struct SavedMomentGridCard: View {
                         comment: "Saved moment restricted subtitle"
                     )
                 )
-                    .font(.custom("Poppins-Regular", size: 9))
+                    .font(.system(size: legacyPoppinsSize(9)))
                     .foregroundColor(.white.opacity(0.84))
                     .lineLimit(2)
                     .multilineTextAlignment(.center)
@@ -747,7 +747,7 @@ private struct SavedMomentGridCard: View {
                 )
                 if !moment.content.isEmpty {
                     Text(moment.content)
-                        .font(.custom("Poppins-Medium", size: 12))
+                        .font(.system(size: legacyPoppinsSize(12), weight: .medium))
                         .foregroundColor(.white)
                         .lineLimit(4)
                         .padding(8)
@@ -1076,12 +1076,12 @@ struct ModernSavedDetailHeader: View {
 
                         VStack(alignment: .leading, spacing: 0) {
                             LiveUsernameText(userId: moment.authorId, fallbackUsername: moment.username)
-                                .font(.custom("Poppins-SemiBold", size: 16))
+                                .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
                                 .foregroundColor(primaryTextColor)
                                 .lineLimit(1)
 
                             Text(timeAgo(from: moment.timestamp))
-                                .font(.custom("Poppins-Regular", size: 10))
+                                .font(.system(size: legacyPoppinsSize(10)))
                                 .foregroundColor(secondaryTextColor)
                         }
                     }
@@ -1483,7 +1483,7 @@ struct ModernSavedDetailMomentCard: View {
                         .font(.system(size: 11, weight: .bold))
 
                     Text(location)
-                        .font(.custom("Poppins-SemiBold", size: 11))
+                        .font(.system(size: legacyPoppinsSize(11), weight: .semibold))
                         .lineLimit(1)
                 }
                 .foregroundColor(.white)
@@ -1506,7 +1506,7 @@ struct ModernSavedDetailMomentCard: View {
                         AttachmentIconView(icon: .tagged, preset: .tagCountChip, tintColor: .white)
 
                         Text("\(tags.count)")
-                            .font(.custom("Poppins-SemiBold", size: 11))
+                            .font(.system(size: legacyPoppinsSize(11), weight: .semibold))
                     }
                     .foregroundColor(.white)
                     .padding(.horizontal, 11)

@@ -427,7 +427,7 @@ struct InteractiveRevealSticker: View {
                     .rotationEffect(.degrees(animateHint ? -8 : 6))
                     .offset(x: animateHint ? 6 : -5, y: animateHint ? 2 : -2)
                 Text(NSLocalizedString("reveal.viewerHint", comment: "Reveal hint"))
-                    .font(.custom("Poppins-SemiBold", size: 12))
+                    .font(.system(size: legacyPoppinsSize(12), weight: .semibold))
             }
             .foregroundColor(.white.opacity(0.96))
             .padding(.horizontal, 14)

@@ -328,7 +328,7 @@ struct GlassmorphicAudioMessage: View {
                     .frame(height: 24)
                     
                     Text(NSLocalizedString("chat.loading", comment: "Loading audio message"))
-                        .font(.custom("Poppins-Regular", size: 11))
+                        .font(.system(size: legacyPoppinsSize(11)))
                         .foregroundColor(durationLabelColor)
                         
                 } else if isAudioAvailable {
@@ -343,7 +343,7 @@ struct GlassmorphicAudioMessage: View {
                         .frame(maxWidth: .infinity)
 
                         Text(formatDuration(displayedDurationSeconds))
-                            .font(.custom("Poppins-Medium", size: 11))
+                            .font(.system(size: legacyPoppinsSize(11), weight: .medium))
                             .monospacedDigit()
                             .foregroundColor(durationLabelColor)
                             .frame(minWidth: 34, alignment: .trailing)
@@ -367,7 +367,7 @@ struct GlassmorphicAudioMessage: View {
                             .foregroundColor(.orange)
                         
                         Text(NSLocalizedString("chat.audio.unavailable", comment: "Audio message unavailable"))
-                            .font(.custom("Poppins-Regular", size: 12))
+                            .font(.system(size: legacyPoppinsSize(12)))
                             .foregroundColor(durationLabelColor)
                     }
                 }

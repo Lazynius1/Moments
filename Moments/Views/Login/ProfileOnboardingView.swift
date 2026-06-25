@@ -496,7 +496,7 @@ private struct OnboardingStepHeader: View {
 
             VStack(spacing: 8) {
                 Text(title)
-                    .font(.custom("Poppins-SemiBold", size: 22))
+                    .font(.system(size: legacyPoppinsSize(22), weight: .semibold))
                     .foregroundColor(AuthColors.primary(colorScheme))
                     .multilineTextAlignment(.center)
 
@@ -791,7 +791,7 @@ private struct OnboardingProfilePreviewStep: View {
 
                 VStack(spacing: 6) {
                     Text("@\(username)")
-                        .font(.custom("Poppins-SemiBold", size: 20))
+                        .font(.system(size: legacyPoppinsSize(20), weight: .semibold))
                         .foregroundColor(AuthColors.primary(colorScheme))
 
                     HStack(spacing: 6) {

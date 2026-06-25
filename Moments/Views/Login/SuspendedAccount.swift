@@ -89,7 +89,7 @@ struct EnhancedSuspendedHeader: View {
             
             VStack(spacing: 12) {
                 Text(NSLocalizedString("suspended.title", comment: "Suspended Account"))
-                    .font(.custom("Poppins-Bold", size: 30))
+                    .font(.system(size: legacyPoppinsSize(30), weight: .bold))
                     .foregroundColor(AuthColors.primary(colorScheme))
                     .multilineTextAlignment(.center)
                 

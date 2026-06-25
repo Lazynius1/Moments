@@ -28,11 +28,11 @@ struct ProfileThemeSelector: View {
                     // Header
                     VStack(spacing: 12) {
                         Text("Tema del Perfil")
-                            .font(.custom("Poppins-Bold", size: 24))
+                            .font(.system(size: legacyPoppinsSize(24), weight: .bold))
                             .foregroundColor(colorScheme == .dark ? .white : .black)
                         
                         Text("Personaliza el fondo de tu perfil")
-                            .font(.custom("Poppins-Regular", size: 16))
+                            .font(.system(size: legacyPoppinsSize(16)))
                             .foregroundColor(.gray)
                             .multilineTextAlignment(.center)
                     }
@@ -77,7 +77,7 @@ struct ProfileThemeSelector: View {
                             }
                             
                             Text(isUpdating ? "Guardando..." : "Guardar Tema")
-                                .font(.custom("Poppins-SemiBold", size: 16))
+                                .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
                         }
                         .foregroundColor(.white)
                         .frame(maxWidth: .infinity)
@@ -99,7 +99,7 @@ struct ProfileThemeSelector: View {
                     Button("Cancelar") {
                         dismiss()
                     }
-                    .font(.custom("Poppins-Medium", size: 16))
+                    .font(.system(size: legacyPoppinsSize(16), weight: .medium))
                     .foregroundColor(colorScheme == .dark ? .white : .black)
                 }
             }
@@ -148,7 +148,7 @@ struct ProfilePreviewCard: View {
                 
                 // Nombre simulado
                 Text("Tu Perfil")
-                    .font(.custom("Poppins-Bold", size: 18))
+                    .font(.system(size: legacyPoppinsSize(18), weight: .bold))
                     .foregroundColor(.white)
                 
                 // Badge simulado
@@ -157,7 +157,7 @@ struct ProfilePreviewCard: View {
                         .font(.system(size: 20))
                     
                     Text(theme.displayName)
-                        .font(.custom("Poppins-Medium", size: 14))
+                        .font(.system(size: legacyPoppinsSize(14), weight: .medium))
                         .foregroundColor(.white.opacity(0.9))
                 }
                 .padding(.horizontal, 12)
@@ -222,12 +222,12 @@ struct ThemeCard: View {
                             .font(.system(size: 16))
                         
                         Text(theme.displayName)
-                            .font(.custom("Poppins-SemiBold", size: 14))
+                            .font(.system(size: legacyPoppinsSize(14), weight: .semibold))
                             .foregroundColor(colorScheme == .dark ? .white : .black)
                     }
                     
                     Text(theme.description)
-                        .font(.custom("Poppins-Regular", size: 12))
+                        .font(.system(size: legacyPoppinsSize(12)))
                         .foregroundColor(.gray)
                         .multilineTextAlignment(.center)
                         .lineLimit(2)
@@ -235,7 +235,7 @@ struct ThemeCard: View {
                     // Precio si aplica
                     if let price = theme.price {
                         Text(price)
-                            .font(.custom("Poppins-Medium", size: 12))
+                            .font(.system(size: legacyPoppinsSize(12), weight: .medium))
                             .foregroundColor(.blue)
                     }
                 }

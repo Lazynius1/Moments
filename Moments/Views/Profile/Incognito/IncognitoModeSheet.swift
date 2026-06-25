@@ -77,12 +77,12 @@ struct IncognitoModeSheet: View {
     private var header: some View {
         VStack(spacing: 8) {
             Text("incognito.title")
-                .font(.custom("Poppins-SemiBold", size: 28))
+                .font(.system(size: legacyPoppinsSize(28), weight: .semibold))
                 .foregroundStyle(titleColor)
                 .multilineTextAlignment(.center)
 
             Text("incognito.subtitle")
-                .font(.custom("Poppins-Regular", size: 15))
+                .font(.system(size: legacyPoppinsSize(15)))
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
                 .fixedSize(horizontal: false, vertical: true)
@@ -109,30 +109,30 @@ struct IncognitoModeSheet: View {
                         .foregroundStyle(iconColor)
 
                     Text(service.formattedTime)
-                        .font(.custom("Poppins-SemiBold", size: 30))
+                        .font(.system(size: legacyPoppinsSize(30), weight: .semibold))
                         .monospacedDigit()
                         .foregroundStyle(titleColor)
 
                     Text(LocalizedStringKey(statusKey))
-                        .font(.custom("Poppins-Medium", size: 12))
+                        .font(.system(size: legacyPoppinsSize(12), weight: .medium))
                         .foregroundStyle(.secondary)
                 }
             }
 
             if let errorKey {
                 Text(LocalizedStringKey(errorKey))
-                    .font(.custom("Poppins-Regular", size: 13))
+                    .font(.system(size: legacyPoppinsSize(13)))
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
                     .fixedSize(horizontal: false, vertical: true)
             } else if service.isActive {
                 Text("incognito.liveHint.active")
-                    .font(.custom("Poppins-Regular", size: 13))
+                    .font(.system(size: legacyPoppinsSize(13)))
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
             } else if service.remainingSeconds < service.dailyBudgetSeconds {
                 Text("incognito.liveHint.paused")
-                    .font(.custom("Poppins-Regular", size: 13))
+                    .font(.system(size: legacyPoppinsSize(13)))
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
             }
@@ -156,7 +156,7 @@ struct IncognitoModeSheet: View {
                     }
 
                     Text(LocalizedStringKey(primaryActionKey))
-                        .font(.custom("Poppins-SemiBold", size: 15))
+                        .font(.system(size: legacyPoppinsSize(15), weight: .semibold))
                 }
                 .foregroundStyle(titleColor)
                 .frame(maxWidth: .infinity)
@@ -202,12 +202,12 @@ struct IncognitoModeSheet: View {
                         .foregroundStyle(iconColor)
 
                     Text("incognito.onboarding.title")
-                        .font(.custom("Poppins-SemiBold", size: 24))
+                        .font(.system(size: legacyPoppinsSize(24), weight: .semibold))
                         .foregroundStyle(titleColor)
                         .multilineTextAlignment(.center)
 
                     Text("incognito.onboarding.body")
-                        .font(.custom("Poppins-Regular", size: 15))
+                        .font(.system(size: legacyPoppinsSize(15)))
                         .foregroundStyle(.secondary)
                         .multilineTextAlignment(.center)
                         .fixedSize(horizontal: false, vertical: true)
@@ -224,7 +224,7 @@ struct IncognitoModeSheet: View {
                     HapticManager.shared.selection()
                 } label: {
                     Text("incognito.onboarding.dismiss")
-                        .font(.custom("Poppins-SemiBold", size: 15))
+                        .font(.system(size: legacyPoppinsSize(15), weight: .semibold))
                         .foregroundStyle(titleColor)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 15)
@@ -264,7 +264,7 @@ struct IncognitoModeSheet: View {
                 .padding(.top, 6)
 
             Text(LocalizedStringKey(key))
-                .font(.custom("Poppins-Regular", size: 14))
+                .font(.system(size: legacyPoppinsSize(14)))
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
         }
@@ -279,11 +279,11 @@ struct IncognitoModeSheet: View {
 
             VStack(alignment: .leading, spacing: 4) {
                 Text(LocalizedStringKey(titleKey))
-                    .font(.custom("Poppins-SemiBold", size: 14))
+                    .font(.system(size: legacyPoppinsSize(14), weight: .semibold))
                     .foregroundStyle(titleColor)
 
                 Text(LocalizedStringKey(bodyKey))
-                    .font(.custom("Poppins-Regular", size: 13))
+                    .font(.system(size: legacyPoppinsSize(13)))
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             }

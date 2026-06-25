@@ -52,12 +52,12 @@ struct AccountHistoryActivityView: View {
                             // Title and Description
                             VStack(alignment: .center, spacing: 8) {
                                 Text(NSLocalizedString("userActivity.accountHistory.title", value: "Información sobre el historial de la cuenta", comment: "Account history title"))
-                                    .font(.custom("Poppins-SemiBold", size: 20))
+                                    .font(.system(size: legacyPoppinsSize(20), weight: .semibold))
                                     .foregroundColor(colorScheme == .dark ? .white : .black)
                                     .multilineTextAlignment(.center)
                                 
                                 Text(NSLocalizedString("userActivity.accountHistory.description", value: "Revisa los cambios que has hecho en tu cuenta desde que la creaste.", comment: "Description for Account History"))
-                                    .font(.custom("Poppins-Regular", size: 14))
+                                    .font(.system(size: legacyPoppinsSize(14)))
                                     .foregroundColor(.gray)
                                     .multilineTextAlignment(.center)
                             }
@@ -70,7 +70,7 @@ struct AccountHistoryActivityView: View {
                             
                             if filteredHistory.isEmpty {
                                 Text(NSLocalizedString("userActivity.accountHistory.noChanges", value: "No record of changes found.", comment: "No changes state for account history"))
-                                    .font(.custom("Poppins-Regular", size: 14))
+                                    .font(.system(size: legacyPoppinsSize(14)))
                                     .foregroundColor(.gray)
                                     .padding(.top, 40)
                             } else {
@@ -232,10 +232,10 @@ struct AccountHistoryActivityView: View {
     private func filterChip(title: String, value: String) -> some View {
         HStack(spacing: 6) {
             Text(title)
-                .font(.custom("Poppins-Medium", size: 11))
+                .font(.system(size: legacyPoppinsSize(11), weight: .medium))
                 .foregroundColor(.gray)
             Text(value)
-                .font(.custom("Poppins-SemiBold", size: 12))
+                .font(.system(size: legacyPoppinsSize(12), weight: .semibold))
                 .foregroundColor(colorScheme == .dark ? .white : .black)
                 .lineLimit(1)
             Image(systemName: "chevron.down")
@@ -370,30 +370,30 @@ struct AccountHistoryRowView: View {
             // Content
             VStack(alignment: .leading, spacing: 6) {
                 Text(item.type.localizedName)
-                    .font(.custom("Poppins-Medium", size: 16))
+                    .font(.system(size: legacyPoppinsSize(16), weight: .medium))
                     .foregroundColor(colorScheme == .dark ? .white : .black)
                 
                 Text(dateString)
-                    .font(.custom("Poppins-Regular", size: 13))
+                    .font(.system(size: legacyPoppinsSize(13)))
                     .foregroundColor(.gray)
                 
                 if let oldValue = item.oldValue, let newValue = item.newValue {
                     VStack(alignment: .leading, spacing: 4) {
                         HStack(alignment: .top) {
                             Text("De:")
-                                .font(.custom("Poppins-SemiBold", size: 14))
+                                .font(.system(size: legacyPoppinsSize(14), weight: .semibold))
                                 .foregroundColor(Color(hex: "F97316"))
                             Text(oldValue)
-                                .font(.custom("Poppins-Regular", size: 14))
+                                .font(.system(size: legacyPoppinsSize(14)))
                                 .foregroundColor(colorScheme == .dark ? .white : .black)
                                 .lineLimit(3)
                         }
                         HStack(alignment: .top) {
                             Text("A:")
-                                .font(.custom("Poppins-SemiBold", size: 14))
+                                .font(.system(size: legacyPoppinsSize(14), weight: .semibold))
                                 .foregroundColor(SettingsProfileColors.accent(colorScheme))
                             Text(newValue)
-                                .font(.custom("Poppins-Regular", size: 14))
+                                .font(.system(size: legacyPoppinsSize(14)))
                                 .foregroundColor(colorScheme == .dark ? .white : .black)
                                 .lineLimit(3)
                         }

@@ -36,7 +36,7 @@ struct SuggestedUsersView: View {
     private var headerView: some View {
         VStack(alignment: .center, spacing: 2) {
             Text("explore.suggestedUsers.title")
-                .font(.custom("Poppins-SemiBold", size: 20))
+                .font(.system(size: legacyPoppinsSize(20), weight: .semibold))
                 .foregroundColor(.primary)
         }
         .padding(.horizontal, 12)
@@ -53,7 +53,7 @@ struct SuggestedUsersView: View {
                     ProgressView()
                         .scaleEffect(1.2)
                     Text("explore.suggestedUsers.loading")
-                        .font(.custom("Poppins-Regular", size: 16))
+                        .font(.system(size: legacyPoppinsSize(16)))
                         .foregroundColor(colorScheme == .dark ? .white : .black)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -64,11 +64,11 @@ struct SuggestedUsersView: View {
                         .foregroundColor(colorScheme == .dark ? .white : .black)
                     
                     Text("explore.suggestedUsers.empty")
-                        .font(.custom("Poppins-SemiBold", size: 18))
+                        .font(.system(size: legacyPoppinsSize(18), weight: .semibold))
                         .foregroundColor(.primary)
                     
                     Text("explore.suggestedUsers.emptyDescription")
-                        .font(.custom("Poppins-Regular", size: 14))
+                        .font(.system(size: legacyPoppinsSize(14)))
                         .foregroundColor(colorScheme == .dark ? .white : .black)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -102,7 +102,7 @@ struct SuggestedUsersView: View {
                                 ProgressView()
                                     .scaleEffect(0.8)
                                 Text("explore.suggestedUsers.loadingMore")
-                                    .font(.custom("Poppins-Regular", size: 14))
+                                    .font(.system(size: legacyPoppinsSize(14)))
                                     .foregroundColor(colorScheme == .dark ? .white : .black)
                                 Spacer()
                             }
@@ -161,7 +161,7 @@ struct SuggestedUserRow: View {
                 Button(action: onTap) {
                     HStack(spacing: 4) {
                         Text(user.username)
-                            .font(.custom("Poppins-SemiBold", size: 16))
+                            .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
                             .foregroundColor(.primary)
                         
                         if user.isVerified {
@@ -172,7 +172,7 @@ struct SuggestedUserRow: View {
                 
                 if commonInterests > 0 {
                     Text(String(format: NSLocalizedString("explore.suggestedUsers.commonInterests", comment: "Common interests"), commonInterests))
-                        .font(.custom("Poppins-Regular", size: 12))
+                        .font(.system(size: legacyPoppinsSize(12)))
                         .foregroundColor(colorScheme == .dark ? .white.opacity(0.8) : .black.opacity(0.8))
                 }
                 
@@ -181,7 +181,7 @@ struct SuggestedUserRow: View {
                     HStack(spacing: 6) {
                         ForEach(Array(user.interests.prefix(2)), id: \.self) { interest in
                             Text(interest)
-                                .font(.custom("Poppins-Regular", size: 11))
+                                .font(.system(size: legacyPoppinsSize(11)))
                                 .foregroundColor(colorScheme == .dark ? .white.opacity(0.82) : .black.opacity(0.72))
                                 .padding(.horizontal, 8)
                                 .padding(.vertical, 4)
@@ -190,7 +190,7 @@ struct SuggestedUserRow: View {
                         
                         if user.interests.count > 2 {
                             Text("+\(user.interests.count - 2)")
-                                .font(.custom("Poppins-Regular", size: 11))
+                                .font(.system(size: legacyPoppinsSize(11)))
                                 .foregroundColor(colorScheme == .dark ? .white.opacity(0.8) : .black.opacity(0.8))
                                 .padding(.horizontal, 8)
                                 .padding(.vertical, 4)
@@ -227,7 +227,7 @@ struct SuggestedUserFollowButton: View {
                 Image(systemName: buttonIcon)
                     .font(.system(size: 12, weight: .medium))
                 Text(buttonText)
-                    .font(.custom("Poppins-SemiBold", size: 12))
+                    .font(.system(size: legacyPoppinsSize(12), weight: .semibold))
             }
             .foregroundColor(colorScheme == .dark ? .white : .black)
             .padding(.horizontal, 12)

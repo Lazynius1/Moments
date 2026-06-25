@@ -38,7 +38,7 @@ struct ChatBuzzToast: View {
             )
 
             Text(text)
-                .font(.custom("Poppins-SemiBold", size: 13))
+                .font(.system(size: legacyPoppinsSize(13), weight: .semibold))
                 .lineLimit(2)
                 .multilineTextAlignment(.leading)
         }
@@ -81,7 +81,7 @@ struct ChatBuzzTimelineEventRow: View {
                 )
 
                 Text(text)
-                    .font(.custom("Poppins-SemiBold", size: 12))
+                    .font(.system(size: legacyPoppinsSize(12), weight: .semibold))
                     .foregroundStyle(colorScheme == .dark ? .white : .black)
                     .lineLimit(1)
             }

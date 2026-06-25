@@ -24,11 +24,11 @@ struct DailyLimitView: View {
                     // Header Description
                     VStack(alignment: .leading, spacing: 8) {
                         Text(NSLocalizedString("userActivity.timeSpent.dailyLimit.descTitle", value: "Establece tu ritmo", comment: "Daily limit desc title"))
-                            .font(.custom("Poppins-SemiBold", size: 18))
+                            .font(.system(size: legacyPoppinsSize(18), weight: .semibold))
                             .foregroundColor(colorScheme == .dark ? .white : .black)
                             
                         Text(NSLocalizedString("userActivity.timeSpent.dailyLimit.descBody", value: "Moments te enviará una notificación cuando rebase el tiempo que hayas decidido pasar en la aplicación cada día.", comment: "Daily limit desc body"))
-                            .font(.custom("Poppins-Regular", size: 14))
+                            .font(.system(size: legacyPoppinsSize(14)))
                             .foregroundColor(.gray)
                             .lineSpacing(4)
                     }
@@ -40,7 +40,7 @@ struct DailyLimitView: View {
                     VStack(spacing: 0) {
                         Toggle(isOn: $isLimitEnabled.animation(.spring(response: 0.3, dampingFraction: 0.7))) {
                             Text(NSLocalizedString("userActivity.timeSpent.dailyLimit.toggle", value: "Aviso de límite diario", comment: "Daily limit toggle"))
-                                .font(.custom("Poppins-Medium", size: 16))
+                                .font(.system(size: legacyPoppinsSize(16), weight: .medium))
                                 .foregroundColor(colorScheme == .dark ? .white : .black)
                         }
                         .tint(SettingsProfileColors.toggleTint)
@@ -57,7 +57,7 @@ struct DailyLimitView: View {
                     if isLimitEnabled {
                         VStack(spacing: 0) {
                             Text(NSLocalizedString("userActivity.timeSpent.dailyLimit.pickerTitle", value: "Duración del límite", comment: "Daily limit picker title"))
-                                .font(.custom("Poppins-Medium", size: 15))
+                                .font(.system(size: legacyPoppinsSize(15), weight: .medium))
                                 .foregroundColor(colorScheme == .dark ? .white : .black)
                                 .frame(maxWidth: .infinity, alignment: .leading)
                                 .padding(.horizontal, 16)
@@ -68,7 +68,7 @@ struct DailyLimitView: View {
                                 Picker("Hours", selection: $selectedHours) {
                                     ForEach(hoursOffset, id: \.self) { hour in
                                         Text("\(hour) h").tag(hour)
-                                            .font(.custom("Poppins-Regular", size: 18))
+                                            .font(.system(size: legacyPoppinsSize(18)))
                                     }
                                 }
                                 .pickerStyle(.wheel)
@@ -77,7 +77,7 @@ struct DailyLimitView: View {
                                 Picker("Minutes", selection: $selectedMinutes) {
                                     ForEach(minutesOffset, id: \.self) { minute in
                                         Text("\(minute) min").tag(minute)
-                                            .font(.custom("Poppins-Regular", size: 18))
+                                            .font(.system(size: legacyPoppinsSize(18)))
                                     }
                                 }
                                 .pickerStyle(.wheel)
@@ -99,7 +99,7 @@ struct DailyLimitView: View {
                     // Save Button
                     Button(action: saveSettings) {
                         Text(NSLocalizedString("settings.schedule.save", comment: "Save"))
-                            .font(.custom("Poppins-SemiBold", size: 16))
+                            .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
                             .foregroundColor(SettingsProfileColors.accentContrastingText(colorScheme))
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 16)

@@ -272,8 +272,7 @@ struct UserModernPublicProfileView: View {
                     showingReportSheet: $showingReportSheet
                 )
             } pinnedTabs: {
-                UserProfilePillTabs(selectedTab: $selectedTab)
-                    .frame(maxWidth: 240)
+                UserProfileFloatingTabBar(selectedTab: $selectedTab)
             }
             .animation(.easeOut(duration: 0.18), value: tabsArePinned)
             .zIndex(10)

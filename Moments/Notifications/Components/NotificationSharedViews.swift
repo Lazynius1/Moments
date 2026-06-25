@@ -112,7 +112,7 @@ struct NotificationDeletionUndoToast: View {
     var body: some View {
         HStack(spacing: 10) {
             Text(message)
-                .font(.custom("Poppins-SemiBold", size: 14))
+                .font(.system(size: legacyPoppinsSize(14), weight: .semibold))
                 .foregroundColor(colorScheme == .dark ? .white : .black)
                 .lineLimit(1)
 
@@ -120,7 +120,7 @@ struct NotificationDeletionUndoToast: View {
 
             Button(action: onUndo) {
                 Text(NSLocalizedString("notifications.deleted.undo", comment: "Undo notification deletion"))
-                    .font(.custom("Poppins-SemiBold", size: 14))
+                    .font(.system(size: legacyPoppinsSize(14), weight: .semibold))
                     .foregroundColor(colorScheme == .dark ? .white : .black)
             }
             .buttonStyle(.plain)
@@ -140,7 +140,7 @@ struct GlassmorphicButtonStyle: ButtonStyle {
     
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .font(.custom("Poppins-SemiBold", size: 12))
+            .font(.system(size: legacyPoppinsSize(12), weight: .semibold))
             .foregroundColor(.white)
             .padding(.horizontal, 12)
             .padding(.vertical, 6)

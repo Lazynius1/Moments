@@ -38,7 +38,7 @@ struct ShareMomentSticker: View {
                 // CAPTION (Floating at bottom)
                 if !moment.content.isEmpty && !renderClean {
                     Text(moment.content)
-                        .font(.custom("Poppins-Medium", size: 12))
+                        .font(.system(size: legacyPoppinsSize(12), weight: .medium))
                         .foregroundColor(.white)
                         .padding(.horizontal, 10)
                         .padding(.vertical, 6)
@@ -98,7 +98,7 @@ struct ShareMomentSticker: View {
                     
                     VStack(alignment: .leading, spacing: 0) {
                         LiveUsernameText(userId: moment.authorId, fallbackUsername: moment.username)
-                            .font(.custom("Poppins-Bold", size: 13))
+                            .font(.system(size: legacyPoppinsSize(13), weight: .bold))
                             .foregroundColor(.white)
                     }
                     

@@ -56,7 +56,7 @@ struct LoadingMomentView: View {
                     .scaleEffect(1.5)
 
                 Text("feed.loadingMoment")
-                    .font(.custom("Poppins-Medium", size: 16))
+                    .font(.system(size: legacyPoppinsSize(16), weight: .medium))
                     .foregroundColor(.white)
             }
         }
@@ -77,14 +77,14 @@ struct ErrorMomentView: View {
                     .foregroundColor(.red)
 
                 Text(message)
-                    .font(.custom("Poppins-Medium", size: 16))
+                    .font(.system(size: legacyPoppinsSize(16), weight: .medium))
                     .foregroundColor(.white)
                     .multilineTextAlignment(.center)
 
                 Button(NSLocalizedString("common.close", comment: "Close")) {
                     onClose()
                 }
-                .font(.custom("Poppins-SemiBold", size: 16))
+                .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
                 .foregroundColor(.white)
                 .padding(.horizontal, 24)
                 .padding(.vertical, 12)

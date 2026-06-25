@@ -40,7 +40,7 @@ private enum NovaAttachmentMenuPopoverLayout {
     static let rowCount: CGFloat = 2
 
     static var titleFont: UIFont {
-        UIFont(name: "Poppins-Medium", size: 17)
+        UIFont.systemFont(ofSize: legacyPoppinsSize(17), weight: .medium)
             ?? .systemFont(ofSize: 17, weight: .medium)
     }
 
@@ -242,7 +242,7 @@ private struct NovaAttachmentMenuPopoverCard: View {
                 .frame(width: 40, height: 40, alignment: .center)
 
                 Text(LocalizedStringKey(titleKey))
-                    .font(.custom("Poppins-Medium", size: 17))
+                    .font(.system(size: legacyPoppinsSize(17), weight: .medium))
                     .foregroundColor(primaryTextColor)
                     .lineLimit(1)
                     .fixedSize(horizontal: true, vertical: false)
@@ -884,7 +884,7 @@ private struct NovaAttachmentPhotoCell: View {
                             .frame(width: 24, height: 24)
                             .overlay {
                                 Text("1")
-                                    .font(.custom("Poppins-SemiBold", size: 12))
+                                    .font(.system(size: legacyPoppinsSize(12), weight: .semibold))
                                     .foregroundColor(.white)
                             }
                             .padding(8)
@@ -906,7 +906,7 @@ private struct NovaAttachmentPermissionPrompt: View {
             AttachmentIconView(icon: .photos, preset: .permissionPromptMedium, tintColor: NovaColors.textSecondary)
 
             Text(LocalizedStringKey(messageKey))
-                .font(.custom("Poppins-Regular", size: 14))
+                .font(.system(size: legacyPoppinsSize(14)))
                 .foregroundColor(NovaColors.textSecondary)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 24)
@@ -1013,7 +1013,7 @@ private struct NovaStoryPillButton: View {
     var body: some View {
         Button(action: action) {
             Text(LocalizedStringKey(titleKey))
-                .font(.custom(tint == nil ? "Poppins-Medium" : "Poppins-SemiBold", size: 14))
+                .font(.system(size: legacyPoppinsSize(14), weight: tint == nil ? .medium : .semibold))
                 .foregroundColor(tint == nil ? StoryEditorChromeColor.icon(colorScheme) : .white)
                 .padding(.horizontal, 16)
                 .padding(.vertical, 10)

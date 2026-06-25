@@ -22,7 +22,7 @@ struct EnhancedChatBubble: View {
                             .foregroundColor(NovaColors.primary.opacity(0.7))
 
                         Text(message.text)
-                            .font(.custom("Poppins-Regular", size: 12))
+                            .font(.system(size: legacyPoppinsSize(12)))
                             .foregroundColor(NovaColors.textSecondary)
                             .multilineTextAlignment(.center)
                     }
@@ -55,7 +55,7 @@ struct EnhancedChatBubble: View {
 
                         if !message.text.isEmpty {
                             Text(message.text)
-                                .font(.custom("Poppins-Regular", size: 16))
+                                .font(.system(size: legacyPoppinsSize(16)))
                                 .foregroundColor(NovaColors.textPrimary)
                                 .padding(.horizontal, 20)
                                 .padding(.vertical, 14)
@@ -68,7 +68,7 @@ struct EnhancedChatBubble: View {
                         }
 
                         Text("nova.you")
-                            .font(.custom("Poppins-Medium", size: 12))
+                            .font(.system(size: legacyPoppinsSize(12), weight: .medium))
                             .foregroundColor(NovaColors.textSecondary)
                             .padding(.trailing, 8)
                     }
@@ -89,7 +89,7 @@ struct EnhancedChatBubble: View {
                                 )
 
                             Text("nova.name")
-                                .font(.custom("Poppins-SemiBold", size: 13))
+                                .font(.system(size: legacyPoppinsSize(13), weight: .semibold))
                                 .foregroundColor(NovaColors.textPrimary)
 
                             Spacer()
@@ -439,7 +439,7 @@ struct HeaderView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             Text(text)
-                .font(.custom("Poppins-Bold", size: 20))
+                .font(.system(size: legacyPoppinsSize(20), weight: .bold))
                 .foregroundStyle(
                     LinearGradient(
                         colors: [NovaColors.primary, NovaColors.accent],
@@ -468,7 +468,7 @@ struct BulletPointView: View {
                 .padding(.top, 8)
 
             Text(text)
-                .font(.custom("Poppins-Regular", size: 16))
+                .font(.system(size: legacyPoppinsSize(16)))
                 .foregroundColor(NovaColors.textPrimary)
                 .fixedSize(horizontal: false, vertical: true)
 
@@ -484,14 +484,14 @@ struct NumberedListView: View {
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
             Text("\(number)")
-                .font(.custom("Poppins-SemiBold", size: 14))
+                .font(.system(size: legacyPoppinsSize(14), weight: .semibold))
                 .foregroundColor(.white)
                 .frame(width: 20, height: 20)
                 .background(NovaColors.primary)
                 .clipShape(Circle())
 
             Text(text)
-                .font(.custom("Poppins-Regular", size: 16))
+                .font(.system(size: legacyPoppinsSize(16)))
                 .foregroundColor(NovaColors.textPrimary)
                 .fixedSize(horizontal: false, vertical: true)
 
@@ -511,7 +511,7 @@ struct LinkView: View {
                     .font(.system(size: 14))
 
                 Text(text)
-                    .font(.custom("Poppins-Medium", size: 16))
+                    .font(.system(size: legacyPoppinsSize(16), weight: .medium))
                     .underline()
 
                 Image(systemName: "arrow.up.right.square")
@@ -562,7 +562,7 @@ struct CodeBlockView: View {
                         Image(systemName: isCopied ? "checkmark" : "doc.on.doc")
                         Text(isCopied ? "Copiado" : "Copiar")
                     }
-                    .font(.custom("Poppins-Medium", size: 12))
+                    .font(.system(size: legacyPoppinsSize(12), weight: .medium))
                     .foregroundColor(isCopied ? .green : NovaColors.primary)
                 }
             }
@@ -600,7 +600,7 @@ struct QuoteView: View {
                 .frame(width: 4)
 
             Text(text)
-                .font(.custom("Poppins-Medium", size: 16))
+                .font(.system(size: legacyPoppinsSize(16), weight: .medium))
                 .foregroundColor(NovaColors.textSecondary)
                 .italic()
 
@@ -615,7 +615,7 @@ struct RegularTextView: View {
 
     var body: some View {
         Text(parseInlineFormatting(text))
-            .font(.custom("Poppins-Regular", size: 16))
+            .font(.system(size: legacyPoppinsSize(16)))
             .foregroundColor(NovaColors.textPrimary)
             .lineSpacing(4)
     }
@@ -626,14 +626,14 @@ struct RegularTextView: View {
         // 1. Negritas **texto**
         applyRegex(pattern: #"\*\*([^*]+)\*\*"#, to: &attributedString, originalText: text) { matchText in
             var attr = AttributedString(matchText.replacingOccurrences(of: "**", with: ""))
-            attr.font = .custom("Poppins-Bold", size: 16)
+            attr.font = .system(size: 16, weight: .bold)
             return attr
         }
 
         // 2. Cursivas *texto* (evitando negritas ya procesadas)
         applyRegex(pattern: #"(?<!\*)\*([^*]+)\*(?!\*)"#, to: &attributedString, originalText: text) { matchText in
             var attr = AttributedString(matchText.replacingOccurrences(of: "*", with: ""))
-            attr.font = .custom("Poppins-Italic", size: 16)
+            attr.font = .system(size: 16).italic()
             return attr
         }
 

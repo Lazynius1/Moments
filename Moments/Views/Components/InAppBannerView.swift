@@ -51,19 +51,19 @@ struct InAppBannerView: View {
             VStack(alignment: .leading, spacing: 3) {
                 if let headline = lines.headline {
                     Text(headline)
-                        .font(.custom("Poppins-Bold", size: 14))
+                        .font(.system(size: legacyPoppinsSize(14), weight: .bold))
                         .foregroundColor(.primary)
                         .lineLimit(1)
                 }
 
                 if let detail = lines.detail {
                     Text(detail)
-                        .font(.custom("Poppins-Medium", size: 13))
+                        .font(.system(size: legacyPoppinsSize(13), weight: .medium))
                         .foregroundColor(.secondary)
                         .lineLimit(2)
                 } else if isSystemModerationBanner(notification) {
                     Text(moderationBannerText(for: notification))
-                        .font(.custom("Poppins-Medium", size: 13))
+                        .font(.system(size: legacyPoppinsSize(13), weight: .medium))
                         .foregroundColor(.secondary.opacity(0.92))
                         .lineLimit(2)
                 }

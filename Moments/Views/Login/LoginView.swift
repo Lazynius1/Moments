@@ -176,7 +176,7 @@ struct EnhancedHeaderView: View {
 
             VStack(spacing: 6) {
                 Text("login.hero.title")
-                    .font(.custom("Poppins-Bold", size: 25))
+                    .font(.system(size: legacyPoppinsSize(25), weight: .bold))
                     .foregroundColor(primaryText)
                     .multilineTextAlignment(.center)
             }
@@ -595,7 +595,7 @@ struct EnhancedAccountVerificationView: View {
 
                     VStack(spacing: 12) {
                         Text("login.verifyingAccount")
-                            .font(.custom("Poppins-Bold", size: 26))
+                            .font(.system(size: legacyPoppinsSize(26), weight: .bold))
                             .foregroundColor(AuthColors.primary(colorScheme))
                             .multilineTextAlignment(.center)
 
@@ -666,7 +666,7 @@ struct EnhancedResetPasswordView: View {
                                     .scaleEffect(0.8)
                             } else {
                                 Text("login.resetPassword.sendLink")
-                                    .font(.custom("Poppins-SemiBold", size: 16))
+                                    .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
                                     .foregroundColor(primaryText)
                             }
                         }
@@ -715,11 +715,11 @@ struct EnhancedResetPasswordView: View {
         ZStack {
             VStack(spacing: 5) {
                 Text("login.resetPassword.title")
-                    .font(.custom("Poppins-Bold", size: 22))
+                    .font(.system(size: legacyPoppinsSize(22), weight: .bold))
                     .foregroundColor(primaryText)
 
                 Text("login.resetPassword.description")
-                    .font(.custom("Poppins-Regular", size: 14))
+                    .font(.system(size: legacyPoppinsSize(14)))
                     .foregroundColor(AuthColors.secondary(colorScheme, opacity: 0.68))
                     .multilineTextAlignment(.center)
                     .lineSpacing(2)

@@ -19,12 +19,12 @@ struct UserActivityView: View {
                     VStack(alignment: .leading, spacing: 22) {
                         VStack(alignment: .leading, spacing: 10) {
                             Text(NSLocalizedString("userActivity.simple.headline", comment: "Activity headline"))
-                                .font(.custom("Poppins-Bold", size: 30))
+                                .font(.system(size: legacyPoppinsSize(30), weight: .bold))
                                 .foregroundColor(colorScheme == .dark ? .white : .black)
                                 .multilineTextAlignment(.leading)
 
                             Text(NSLocalizedString("userActivity.simple.subtitle", comment: "Activity subtitle"))
-                                .font(.custom("Poppins-Regular", size: 14))
+                                .font(.system(size: legacyPoppinsSize(14)))
                                 .foregroundColor(.gray)
                         }
 
@@ -84,7 +84,7 @@ struct UserActivityView: View {
     private func activitySection(title: String, categories: [ActivityInteractionCategory]) -> some View {
             VStack(alignment: .leading, spacing: 14) {
             Text(title.uppercased())
-                .font(.custom("Poppins-SemiBold", size: 12))
+                .font(.system(size: legacyPoppinsSize(12), weight: .semibold))
                 .foregroundColor(.gray.opacity(0.8))
                 .padding(.leading, 4)
 
@@ -168,7 +168,7 @@ struct RecentlyDeletedActivityView: View {
                     } label: {
                         HStack(spacing: 5) {
                             Text(currentTitle)
-                                .font(.custom("Poppins-SemiBold", size: 17))
+                                .font(.system(size: legacyPoppinsSize(17), weight: .semibold))
                             Image(systemName: "chevron.down")
                                 .font(.system(size: 11, weight: .semibold))
                         }
@@ -226,7 +226,7 @@ struct ArchivedActivityView: View {
                 } label: {
                     HStack(spacing: 5) {
                         Text(currentTitle)
-                            .font(.custom("Poppins-SemiBold", size: 17))
+                            .font(.system(size: legacyPoppinsSize(17), weight: .semibold))
                         Image(systemName: "chevron.down")
                             .font(.system(size: 11, weight: .semibold))
                     }

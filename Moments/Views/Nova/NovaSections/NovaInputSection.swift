@@ -131,7 +131,7 @@ struct EnhancedInputBar: View {
                         axis: .vertical
                     )
                     .lineLimit(1...6)
-                    .font(.custom("Poppins-Regular", size: 16))
+                    .font(.system(size: legacyPoppinsSize(16)))
                     .foregroundColor(NovaColors.textPrimary)
                     .padding(.leading, 14)
                     .padding(.trailing, 12)
@@ -280,7 +280,7 @@ struct SmartSuggestionChip: View {
                     .frame(width: style == .hero ? 28 : 14)
 
                 Text(suggestion.text)
-                    .font(.custom(style == .hero ? "Poppins-SemiBold" : "Poppins-Medium", size: style == .hero ? 15 : 14))
+                    .font(.system(size: legacyPoppinsSize(style == .hero ? 15 : 14), weight: style == .hero ? .semibold : .medium))
                     .foregroundColor(NovaColors.textPrimary)
 
                 if style == .hero {

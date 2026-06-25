@@ -298,19 +298,19 @@ struct ActivityInteractionDetailView: View {
 
             VStack(spacing: 6) {
                 Text(NSLocalizedString(titleKey, comment: "Error title"))
-                    .font(.custom("Poppins-SemiBold", size: 16))
+                    .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
                     .foregroundColor(colorScheme == .dark ? .white : .black)
                     .multilineTextAlignment(.center)
 
                 Text(NSLocalizedString(subtitleKey, comment: "Error subtitle"))
-                    .font(.custom("Poppins-Regular", size: 13))
+                    .font(.system(size: legacyPoppinsSize(13)))
                     .foregroundColor(.secondary)
                     .multilineTextAlignment(.center)
             }
 
             Button(action: { viewModel.reload() }) {
                 Text(NSLocalizedString("userActivity.simple.retry", comment: "Retry activity load"))
-                    .font(.custom("Poppins-SemiBold", size: 14))
+                    .font(.system(size: legacyPoppinsSize(14), weight: .semibold))
                     .foregroundColor(.white)
                     .padding(.horizontal, 24)
                     .padding(.vertical, 10)
@@ -328,7 +328,7 @@ struct ActivityInteractionDetailView: View {
                 Button(title) {
                     handleSelectionToolbarTap()
                 }
-                .font(.custom("Poppins-SemiBold", size: 14))
+                .font(.system(size: legacyPoppinsSize(14), weight: .semibold))
             }
         }
     }
@@ -961,10 +961,10 @@ struct ActivityInteractionDetailView: View {
     private func filterChip(title: String, value: String) -> some View {
         HStack(spacing: 6) {
             Text(title)
-                .font(.custom("Poppins-Medium", size: 11))
+                .font(.system(size: legacyPoppinsSize(11), weight: .medium))
                 .foregroundColor(.gray)
             Text(value)
-                .font(.custom("Poppins-SemiBold", size: 12))
+                .font(.system(size: legacyPoppinsSize(12), weight: .semibold))
                 .foregroundColor(colorScheme == .dark ? .white : .black)
                 .lineLimit(1)
             Image(systemName: "chevron.down")
@@ -1142,7 +1142,7 @@ struct ActivityInteractionDetailView: View {
             Image(systemName: icon)
                 .font(.system(size: 11, weight: .semibold))
             Text(text)
-                .font(.custom("Poppins-SemiBold", size: 11))
+                .font(.system(size: legacyPoppinsSize(11), weight: .semibold))
         }
         .foregroundColor(.secondary)
         .padding(.horizontal, 10)
@@ -1266,14 +1266,14 @@ struct ActivityInteractionDetailView: View {
 
             VStack(spacing: 8) {
                 Text(NSLocalizedString(textKey, comment: "Empty state text"))
-                    .font(.custom("Poppins-SemiBold", size: 16))
+                    .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
                     .foregroundColor(colorScheme == .dark ? .white : .black)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 24)
 
                 if !emptyStateSubtitle.isEmpty {
                     Text(emptyStateSubtitle)
-                        .font(.custom("Poppins-Regular", size: 13))
+                        .font(.system(size: legacyPoppinsSize(13)))
                         .foregroundColor(.secondary)
                         .multilineTextAlignment(.center)
                         .padding(.horizontal, 36)
@@ -1298,14 +1298,14 @@ struct ActivityInteractionDetailView: View {
 
             HStack(spacing: 10) {
                 Text("\(selectedCount)")
-                    .font(.custom("Poppins-Bold", size: 14))
+                    .font(.system(size: legacyPoppinsSize(14), weight: .bold))
                     .foregroundColor(colorScheme == .dark ? .white : .black)
                     .padding(.horizontal, 10)
                     .padding(.vertical, 6)
                     .background(Capsule().fill(Color(colorScheme == .dark ? .white : .black).opacity(0.08)))
 
                 Text(countText)
-                    .font(.custom("Poppins-Regular", size: 12))
+                    .font(.system(size: legacyPoppinsSize(12)))
                     .foregroundColor(.gray)
 
                 Spacer()
@@ -1326,7 +1326,7 @@ struct ActivityInteractionDetailView: View {
                                 Text(NSLocalizedString("userActivity.event.archived.action.restore", comment: "Restore action"))
                             }
                         }
-                        .font(.custom("Poppins-SemiBold", size: 13))
+                        .font(.system(size: legacyPoppinsSize(13), weight: .semibold))
                         .foregroundColor(SettingsProfileColors.accent(colorScheme))
                     }
                     .disabled(selectedCount == 0 || viewModel.isLoading || isRestoringArchivedSelection)
@@ -1350,14 +1350,14 @@ struct ActivityInteractionDetailView: View {
 
             HStack(spacing: 10) {
                 Text("\(selectedCount)")
-                    .font(.custom("Poppins-Bold", size: 14))
+                    .font(.system(size: legacyPoppinsSize(14), weight: .bold))
                     .foregroundColor(colorScheme == .dark ? .white : .black)
                     .padding(.horizontal, 10)
                     .padding(.vertical, 6)
                     .background(Capsule().fill(Color(colorScheme == .dark ? .white : .black).opacity(0.08)))
 
                 Text(countText)
-                    .font(.custom("Poppins-Regular", size: 12))
+                    .font(.system(size: legacyPoppinsSize(12)))
                     .foregroundColor(.gray)
 
                 Spacer()
@@ -1367,7 +1367,7 @@ struct ActivityInteractionDetailView: View {
                         toggleAllVisibleRecentlyDeletedSelection()
                     } label: {
                         Text(NSLocalizedString(allVisibleRecentlyDeletedSelected ? "common.clear" : "common.selectAll", comment: "Select all visible deleted content"))
-                            .font(.custom("Poppins-SemiBold", size: 13))
+                            .font(.system(size: legacyPoppinsSize(13), weight: .semibold))
                             .foregroundColor(colorScheme == .dark ? .white.opacity(0.88) : .black.opacity(0.78))
                     }
                     .disabled(visibleRecentlyDeletedIds.isEmpty || viewModel.isLoading || isProcessing)
@@ -1387,7 +1387,7 @@ struct ActivityInteractionDetailView: View {
                                 Text(NSLocalizedString("userActivity.simple.recentlyDeleted.restore.single", comment: "Restore action"))
                             }
                         }
-                        .font(.custom("Poppins-SemiBold", size: 13))
+                        .font(.system(size: legacyPoppinsSize(13), weight: .semibold))
                         .foregroundColor(colorScheme == .dark ? .white : .black)
                     }
                     .disabled(selectedCount == 0 || viewModel.isLoading || isProcessing)
@@ -1407,7 +1407,7 @@ struct ActivityInteractionDetailView: View {
                                 Text(NSLocalizedString("userActivity.simple.recentlyDeleted.delete.single", comment: "Delete action"))
                             }
                         }
-                        .font(.custom("Poppins-SemiBold", size: 13))
+                        .font(.system(size: legacyPoppinsSize(13), weight: .semibold))
                         .foregroundColor(.red)
                     }
                     .disabled(selectedCount == 0 || viewModel.isLoading || isProcessing)
@@ -1433,14 +1433,14 @@ struct ActivityInteractionDetailView: View {
 
             HStack(spacing: 10) {
                 Text("\(selectedCount)")
-                    .font(.custom("Poppins-Bold", size: 14))
+                    .font(.system(size: legacyPoppinsSize(14), weight: .bold))
                     .foregroundColor(colorScheme == .dark ? .white : .black)
                     .padding(.horizontal, 10)
                     .padding(.vertical, 6)
                     .background(Capsule().fill(Color(colorScheme == .dark ? .white : .black).opacity(0.08)))
 
                 Text(countText)
-                    .font(.custom("Poppins-Regular", size: 12))
+                    .font(.system(size: legacyPoppinsSize(12)))
                     .foregroundColor(.gray)
 
                 Spacer()
@@ -1465,7 +1465,7 @@ struct ActivityInteractionDetailView: View {
                              : (selectedCount == 1
                                 ? NSLocalizedString("userActivity.simple.reactions.delete.single", comment: "Delete one reaction")
                                 : NSLocalizedString("userActivity.simple.reactions.delete.multiple", comment: "Delete multiple reactions")))
-                            .font(.custom("Poppins-SemiBold", size: 13))
+                            .font(.system(size: legacyPoppinsSize(13), weight: .semibold))
                     }
                     .foregroundColor(.white)
                     .padding(.horizontal, 14)
@@ -1490,14 +1490,14 @@ struct ActivityInteractionDetailView: View {
 
             HStack(spacing: 10) {
                 Text("\(selectedCount)")
-                    .font(.custom("Poppins-Bold", size: 14))
+                    .font(.system(size: legacyPoppinsSize(14), weight: .bold))
                     .foregroundColor(colorScheme == .dark ? .white : .black)
                     .padding(.horizontal, 10)
                     .padding(.vertical, 6)
                     .background(Capsule().fill(Color(colorScheme == .dark ? .white : .black).opacity(0.08)))
 
                 Text(String(format: NSLocalizedString("userActivity.simple.comments.selectedCount", comment: "Selected comments count"), selectedCount))
-                    .font(.custom("Poppins-Regular", size: 12))
+                    .font(.system(size: legacyPoppinsSize(12)))
                     .foregroundColor(.gray)
 
                 Spacer()
@@ -1518,7 +1518,7 @@ struct ActivityInteractionDetailView: View {
                         Text(selectedCount == 1
                              ? NSLocalizedString("userActivity.simple.comments.delete.single", comment: "Delete one comment")
                              : NSLocalizedString("userActivity.simple.comments.delete.multiple", comment: "Delete multiple comments"))
-                            .font(.custom("Poppins-SemiBold", size: 13))
+                            .font(.system(size: legacyPoppinsSize(13), weight: .semibold))
                     }
                     .foregroundColor(.white)
                     .padding(.horizontal, 14)
@@ -1543,14 +1543,14 @@ struct ActivityInteractionDetailView: View {
 
             HStack(spacing: 10) {
                 Text("\(selectedCount)")
-                    .font(.custom("Poppins-Bold", size: 14))
+                    .font(.system(size: legacyPoppinsSize(14), weight: .bold))
                     .foregroundColor(colorScheme == .dark ? .white : .black)
                     .padding(.horizontal, 10)
                     .padding(.vertical, 6)
                     .background(Capsule().fill(Color(colorScheme == .dark ? .white : .black).opacity(0.08)))
 
                 Text(String(format: NSLocalizedString("userActivity.simple.stickers.selectedCount", comment: "Selected sticker replies count"), selectedCount))
-                    .font(.custom("Poppins-Regular", size: 12))
+                    .font(.system(size: legacyPoppinsSize(12)))
                     .foregroundColor(.gray)
 
                 Spacer()
@@ -1571,7 +1571,7 @@ struct ActivityInteractionDetailView: View {
                         Text(selectedCount == 1
                              ? NSLocalizedString("userActivity.simple.stickers.delete.single", comment: "Delete one sticker reply")
                              : NSLocalizedString("userActivity.simple.stickers.delete.multiple", comment: "Delete multiple sticker replies"))
-                            .font(.custom("Poppins-SemiBold", size: 13))
+                            .font(.system(size: legacyPoppinsSize(13), weight: .semibold))
                     }
                     .foregroundColor(.white)
                     .padding(.horizontal, 14)
@@ -1854,7 +1854,7 @@ struct ActivityInteractionDetailView: View {
                 .foregroundColor(Color(hex: "22C55E"))
 
             Text(NSLocalizedString(textKey, comment: "Selection success banner"))
-                .font(.custom("Poppins-SemiBold", size: 13))
+                .font(.system(size: legacyPoppinsSize(13), weight: .semibold))
                 .foregroundColor(colorScheme == .dark ? .white : .black)
                 .multilineTextAlignment(.leading)
         }
@@ -1876,11 +1876,11 @@ struct ActivityInteractionDetailView: View {
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(NSLocalizedString(titleKey, comment: "Processing title"))
-                    .font(.custom("Poppins-SemiBold", size: 13))
+                    .font(.system(size: legacyPoppinsSize(13), weight: .semibold))
                     .foregroundColor(colorScheme == .dark ? .white : .black)
 
                 Text(NSLocalizedString(subtitleKey, comment: "Processing subtitle"))
-                    .font(.custom("Poppins-Regular", size: 11))
+                    .font(.system(size: legacyPoppinsSize(11)))
                     .foregroundColor(.gray)
             }
 

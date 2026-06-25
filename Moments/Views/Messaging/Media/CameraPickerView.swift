@@ -269,7 +269,7 @@ struct EnhancedCameraPickerView: View {
                         .font(.system(size: 12, weight: .semibold))
                 }
                 Text(isEphemeralMode ? NSLocalizedString("camera.mode.ephemeral", comment: "Ephemeral mode") : NSLocalizedString("camera.mode.normal", comment: "Normal mode"))
-                    .font(.custom("Poppins-SemiBold", size: 11))
+                    .font(.system(size: legacyPoppinsSize(11), weight: .semibold))
             }
             .foregroundColor(isEphemeralMode ? .black : .white)
             .padding(.horizontal, 10)
@@ -372,7 +372,7 @@ struct EnhancedCameraPickerView: View {
                 HStack(spacing: 0) {
                     ForEach(CaptureMode.allCases, id: \.self) { mode in
                         Text(mode.title)
-                            .font(.custom("Poppins-Medium", size: 12))
+                            .font(.system(size: legacyPoppinsSize(12), weight: .medium))
                             .foregroundColor(modeLabelColor(for: mode))
                             .frame(maxWidth: .infinity, maxHeight: .infinity)
                     }
@@ -628,7 +628,7 @@ struct EnhancedCaptureButton: View {
             ZStack {
                 if isRecording && captureMode == .video {
                     Text(formatTime(recordingTime))
-                        .font(.custom("Poppins-SemiBold", size: 14))
+                        .font(.system(size: legacyPoppinsSize(14), weight: .semibold))
                         .foregroundColor(.white)
                         .padding(.horizontal, 12)
                         .padding(.vertical, 6)
@@ -809,7 +809,7 @@ private struct CameraMediaPreviewOverlay: View {
                             HStack(spacing: 8) {
                                 AttachmentIconView(icon: .ephemeral, preset: .cameraEphemeralBadge, tintColor: Color(hex: "FFCC33"))
                                 Text(NSLocalizedString("camera.preview.ephemeralBadge", comment: "Ephemeral preview badge"))
-                                    .font(.custom("Poppins-SemiBold", size: 11))
+                                    .font(.system(size: legacyPoppinsSize(11), weight: .semibold))
                             }
                             .foregroundColor(Color(hex: "FFCC33"))
                             .padding(.horizontal, 12)
@@ -830,7 +830,7 @@ private struct CameraMediaPreviewOverlay: View {
                                     Image(systemName: "arrow.counterclockwise")
                                         .font(.system(size: 12, weight: .semibold))
                                     Text(NSLocalizedString("camera.preview.retake", comment: "Retake media"))
-                                        .font(.custom("Poppins-SemiBold", size: 13))
+                                        .font(.system(size: legacyPoppinsSize(13), weight: .semibold))
                                 }
                                 .foregroundColor(.white)
                                 .padding(.horizontal, 14)
@@ -857,7 +857,7 @@ private struct CameraMediaPreviewOverlay: View {
                                             .font(.system(size: 12, weight: .semibold))
                                     }
                                     Text(NSLocalizedString("camera.preview.send", comment: "Send media"))
-                                        .font(.custom("Poppins-SemiBold", size: 13))
+                                        .font(.system(size: legacyPoppinsSize(13), weight: .semibold))
                                 }
                                 .foregroundColor(preview.isEphemeral ? .black : .white)
                                 .padding(.horizontal, 14)

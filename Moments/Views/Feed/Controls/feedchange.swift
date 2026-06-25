@@ -101,11 +101,11 @@ struct ExpandableFeedSelector: View {
                     // Título y descripción
                     VStack(alignment: .leading, spacing: 2) {
                         Text(selectedFeedType.title)
-                            .font(.custom("Poppins-SemiBold", size: 16))
+                            .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
                             .foregroundColor(.white)
                         
                         Text(selectedFeedType.description)
-                            .font(.custom("Poppins-Regular", size: 12))
+                            .font(.system(size: legacyPoppinsSize(12)))
                             .foregroundColor(.gray.opacity(0.8))
                     }
                     
@@ -196,11 +196,11 @@ struct FeedOptionRow: View {
                 // Texto
                 VStack(alignment: .leading, spacing: 2) {
                     Text(feedType.title)
-                        .font(.custom("Poppins-Medium", size: 14))
+                        .font(.system(size: legacyPoppinsSize(14), weight: .medium))
                         .foregroundColor(isSelected ? .white : .white.opacity(0.8))
                     
                     Text(feedType.description)
-                        .font(.custom("Poppins-Regular", size: 11))
+                        .font(.system(size: legacyPoppinsSize(11)))
                         .foregroundColor(.gray.opacity(isSelected ? 0.8 : 0.6))
                 }
                 
@@ -263,7 +263,7 @@ struct CompactFeedToggle: View {
                         )
                     
                     Text(selectedFeedType.title)
-                        .font(.custom("Poppins-SemiBold", size: 14))
+                        .font(.system(size: legacyPoppinsSize(14), weight: .semibold))
                         .foregroundColor(.white)
                     
                     Image(systemName: "chevron.down")
@@ -308,7 +308,7 @@ struct CompactFeedToggle: View {
                                 Image(systemName: feedType.icon)
                                     .font(.system(size: 12, weight: .medium))
                                 Text(feedType.title)
-                                    .font(.custom("Poppins-Medium", size: 12))
+                                    .font(.system(size: legacyPoppinsSize(12), weight: .medium))
                             }
                             .foregroundColor(.white.opacity(0.8))
                             .padding(.horizontal, 10)
@@ -344,7 +344,7 @@ struct SegmentedFeedToggle: View {
                         Image(systemName: feedType.icon)
                             .font(.system(size: 12, weight: .medium))
                         Text(feedType.title)
-                            .font(.custom("Poppins-SemiBold", size: 12))
+                            .font(.system(size: legacyPoppinsSize(12), weight: .semibold))
                     }
                     .foregroundColor(selectedFeedType == feedType ? .white : Color.primary.opacity(0.7))
                     .padding(.horizontal, 12)
@@ -408,7 +408,7 @@ struct HeaderFeedChip: View {
                         .frame(width: 6, height: 6)
                     
                     Text(selectedFeedType.title)
-                        .font(.custom("Poppins-SemiBold", size: 13))
+                        .font(.system(size: legacyPoppinsSize(13), weight: .semibold))
                         .foregroundColor(.white)
                     
                     Image(systemName: "chevron.down")
@@ -445,7 +445,7 @@ struct HeaderFeedChip: View {
                                         .frame(width: 6, height: 6)
                                     
                                     Text(feedType.title)
-                                        .font(.custom("Poppins-Medium", size: 12))
+                                        .font(.system(size: legacyPoppinsSize(12), weight: .medium))
                                         .foregroundColor(.white.opacity(0.9))
                                 }
                                 .padding(.horizontal, 12)

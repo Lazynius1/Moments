@@ -48,7 +48,7 @@ struct MediaEditingView: View {
                         Spacer()
 
                         Text(NSLocalizedString("creator.edit", comment: ""))
-                            .font(.custom("Poppins-SemiBold", size: 18))
+                            .font(.system(size: legacyPoppinsSize(18), weight: .semibold))
                             .foregroundColor(.white)
 
                         Spacer()
@@ -78,7 +78,7 @@ struct MediaEditingView: View {
                         Spacer()
 
                         Text(NSLocalizedString("creator.edit", comment: ""))
-                            .font(.custom("Poppins-SemiBold", size: 18))
+                            .font(.system(size: legacyPoppinsSize(18), weight: .semibold))
                             .foregroundColor(.white)
                             .shadow(color: .black.opacity(0.5), radius: 5)
 

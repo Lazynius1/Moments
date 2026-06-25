@@ -64,11 +64,11 @@ struct BestFriendsView: View {
             
             VStack(spacing: 8) {
                 Text(NSLocalizedString("bestFriends.empty.title", comment: "No best friends"))
-                    .font(.custom("Poppins-SemiBold", size: 18))
+                    .font(.system(size: legacyPoppinsSize(18), weight: .semibold))
                     .foregroundColor(.primary)
                 
                 Text(NSLocalizedString("bestFriends.empty.description", comment: "Add friends from your following to mark them as best friends."))
-                    .font(.custom("Poppins-Regular", size: 14))
+                    .font(.system(size: legacyPoppinsSize(14)))
                     .foregroundColor(.secondary)
                     .multilineTextAlignment(.center)
             }
@@ -207,7 +207,7 @@ struct BestFriendsView: View {
                                 .foregroundColor(.secondary)
                             Text(String(format: NSLocalizedString("bestFriends.search.noResults", comment: "No results found for '%@'"), searchText))
                                 .foregroundColor(.secondary)
-                                .font(.custom("Poppins-Regular", size: 14))
+                                .font(.system(size: legacyPoppinsSize(14)))
                         }
                         .frame(maxWidth: .infinity, alignment: .center)
                         .padding(.vertical, 20)
@@ -221,7 +221,7 @@ struct BestFriendsView: View {
 
     private func userSectionHeader(_ title: String) -> some View {
         Text(title.uppercased())
-            .font(.custom("Poppins-SemiBold", size: 12))
+            .font(.system(size: legacyPoppinsSize(12), weight: .semibold))
             .foregroundColor(.gray.opacity(0.8))
             .padding(.leading, 4)
     }
@@ -265,7 +265,7 @@ struct SelectableBestFriendRow: View {
                     .clipShape(Circle())
 
                 Text(user.username)
-                    .font(.custom("Poppins-Regular", size: 15))
+                    .font(.system(size: legacyPoppinsSize(15)))
                     .foregroundColor(colorScheme == .dark ? .white : .black)
                     .lineLimit(1)
 
@@ -297,7 +297,7 @@ struct BestFriendRow: View {
                 .clipShape(Circle())
             
             Text(user.username)
-                .font(.custom("Poppins-Regular", size: 14))
+                .font(.system(size: legacyPoppinsSize(14)))
             
             Spacer()
             
@@ -305,7 +305,7 @@ struct BestFriendRow: View {
                 viewModel.removeBestFriend(userId: user.id)
             }) {
                 Text(NSLocalizedString("bestFriends.button.remove", comment: "Remove"))
-                    .font(.custom("Poppins-SemiBold", size: 12))
+                    .font(.system(size: legacyPoppinsSize(12), weight: .semibold))
                     .foregroundColor(.red)
                     .padding(.horizontal, 12)
                     .padding(.vertical, 6)
@@ -328,7 +328,7 @@ struct ConnectionRow: View {
                 .clipShape(Circle())
             
             Text(user.username)
-                .font(.custom("Poppins-Regular", size: 14))
+                .font(.system(size: legacyPoppinsSize(14)))
             
             Spacer()
             
@@ -336,7 +336,7 @@ struct ConnectionRow: View {
                 viewModel.addBestFriend(userId: user.id)
             }) {
                 Text(NSLocalizedString("bestFriends.button.add", comment: "Add"))
-                    .font(.custom("Poppins-SemiBold", size: 12))
+                    .font(.system(size: legacyPoppinsSize(12), weight: .semibold))
                     .foregroundColor(.blue)
                     .padding(.horizontal, 12)
                     .padding(.vertical, 6)
@@ -360,7 +360,7 @@ struct FollowerRow: View {
                 .clipShape(Circle())
             
             Text(user.username)
-                .font(.custom("Poppins-Regular", size: 14))
+                .font(.system(size: legacyPoppinsSize(14)))
             
             Spacer()
             
@@ -369,7 +369,7 @@ struct FollowerRow: View {
                 viewModel.addBestFriend(userId: user.id)
             }) {
                 Text(NSLocalizedString("bestFriends.button.addGeneric", comment: "Add"))
-                    .font(.custom("Poppins-SemiBold", size: 12))
+                    .font(.system(size: legacyPoppinsSize(12), weight: .semibold))
                     .foregroundColor(.orange)
                     .padding(.horizontal, 12)
                     .padding(.vertical, 6)

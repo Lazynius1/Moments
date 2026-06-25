@@ -62,11 +62,11 @@ struct PrivacyPolicyView: View {
     private var header: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text(NSLocalizedString("privacyPolicy.title", comment: "Privacy policy title"))
-                .font(.custom("Poppins-Bold", size: 28))
+                .font(.system(size: legacyPoppinsSize(28), weight: .bold))
                 .foregroundColor(AuthColors.primary(colorScheme))
 
             Text(NSLocalizedString("privacyPolicy.lastUpdated", comment: "Privacy policy last updated date"))
-                .font(.custom("Poppins-Regular", size: 14))
+                .font(.system(size: legacyPoppinsSize(14)))
                 .foregroundColor(AuthColors.secondary(colorScheme, opacity: 0.64))
         }
     }
@@ -74,11 +74,11 @@ struct PrivacyPolicyView: View {
     private func policySection(_ section: PrivacyPolicySection) -> some View {
         VStack(alignment: .leading, spacing: 9) {
             Text(NSLocalizedString(section.titleKey, comment: "Privacy policy section title"))
-                .font(.custom("Poppins-SemiBold", size: 18))
+                .font(.system(size: legacyPoppinsSize(18), weight: .semibold))
                 .foregroundColor(AuthColors.primary(colorScheme))
 
             Text(NSLocalizedString(section.bodyKey, comment: "Privacy policy section body"))
-                .font(.custom("Poppins-Regular", size: 15))
+                .font(.system(size: legacyPoppinsSize(15)))
                 .lineSpacing(4)
                 .foregroundColor(AuthColors.secondary(colorScheme, opacity: 0.78))
                 .textSelection(.enabled)

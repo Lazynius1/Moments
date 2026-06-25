@@ -30,7 +30,7 @@ struct HighlightViewer: View {
                     .scaleEffect(1.4)
 
                 Text(NSLocalizedString("highlightedStories.loading", comment: "Loading stories..."))
-                    .font(.custom("Poppins-Regular", size: 15))
+                    .font(.system(size: legacyPoppinsSize(15)))
                     .foregroundColor(.white.opacity(0.8))
             }
         } else if viewModel.stories.isEmpty {
@@ -40,13 +40,13 @@ struct HighlightViewer: View {
                     .foregroundColor(.white.opacity(0.35))
 
                 Text(NSLocalizedString("stories.noStoriesAvailable", comment: "No stories available"))
-                    .font(.custom("Poppins-Medium", size: 16))
+                    .font(.system(size: legacyPoppinsSize(16), weight: .medium))
                     .foregroundColor(.white.opacity(0.8))
 
                 Button(NSLocalizedString("common.close", comment: "Close")) {
                     dismiss()
                 }
-                .font(.custom("Poppins-SemiBold", size: 15))
+                .font(.system(size: legacyPoppinsSize(15), weight: .semibold))
                 .foregroundColor(ProfileColors.accent)
             }
         } else {

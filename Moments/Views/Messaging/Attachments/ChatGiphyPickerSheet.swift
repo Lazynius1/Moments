@@ -199,7 +199,7 @@ struct ChatGiphyPickerContent: View {
     private var giphySectionHeader: some View {
         HStack {
             Text(LocalizedStringKey("chat.giphy.brand"))
-                .font(.custom("Poppins-SemiBold", size: 12))
+                .font(.system(size: legacyPoppinsSize(12), weight: .semibold))
                 .foregroundColor(secondaryText)
                 .textCase(.uppercase)
             Spacer()
@@ -213,7 +213,7 @@ struct ChatGiphyPickerContent: View {
     private func pinnedRecentsSection(onSelectRecent: @escaping (ChatStickerAsset) -> Void) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             Text(LocalizedStringKey("chat.giphy.recents"))
-                .font(.custom("Poppins-Medium", size: 13))
+                .font(.system(size: legacyPoppinsSize(13), weight: .medium))
                 .foregroundColor(secondaryText)
                 .padding(.horizontal, 16)
 
@@ -258,7 +258,7 @@ struct ChatGiphyPickerContent: View {
 
     private func stateMessage(key: String) -> some View {
         Text(LocalizedStringKey(key))
-            .font(.custom("Poppins-Regular", size: 14))
+            .font(.system(size: legacyPoppinsSize(14)))
             .foregroundColor(secondaryText)
             .multilineTextAlignment(.center)
             .frame(maxWidth: .infinity)

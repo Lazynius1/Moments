@@ -206,7 +206,7 @@ struct StoryVideoTrimEditorView: View {
                     VStack {
                         Spacer()
                         Text(String(format: "%.1fs selected", trimDuration))
-                            .font(.custom("Poppins-Medium", size: 12))
+                            .font(.system(size: legacyPoppinsSize(12), weight: .medium))
                             .foregroundColor(.white)
                             .padding(.horizontal, 12)
                             .padding(.vertical, 6)
@@ -362,7 +362,7 @@ struct StoryVideoTrimEditorView: View {
                 ProgressView()
                     .tint(.white)
                 Text("storyVideo.trim.processing")
-                    .font(.custom("Poppins-Medium", size: 14))
+                    .font(.system(size: legacyPoppinsSize(14), weight: .medium))
                     .foregroundColor(.white)
             }
             .padding(.horizontal, 28)

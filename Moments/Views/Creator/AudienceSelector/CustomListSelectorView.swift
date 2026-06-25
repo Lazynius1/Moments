@@ -20,7 +20,7 @@ struct CustomListSelectorView: View {
                         ProgressView()
                             .scaleEffect(1.2)
                         Text(NSLocalizedString("audience.loadingLists", comment: "Loading lists..."))
-                            .font(.custom("Poppins-Regular", size: 14))
+                            .font(.system(size: legacyPoppinsSize(14)))
                             .foregroundColor(.secondary)
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -32,11 +32,11 @@ struct CustomListSelectorView: View {
                         
                         VStack(spacing: 8) {
                             Text(NSLocalizedString("audience.noCustomLists.title", comment: "No custom lists"))
-                                .font(.custom("Poppins-SemiBold", size: 18))
+                                .font(.system(size: legacyPoppinsSize(18), weight: .semibold))
                                 .foregroundColor(.primary)
                             
                             Text(NSLocalizedString("audience.noCustomLists.description", comment: "Create your first custom list"))
-                                .font(.custom("Poppins-Regular", size: 14))
+                                .font(.system(size: legacyPoppinsSize(14)))
                                 .foregroundColor(.secondary)
                                 .multilineTextAlignment(.center)
                         }
@@ -48,7 +48,7 @@ struct CustomListSelectorView: View {
                                 Image(systemName: "plus.circle.fill")
                                     .font(.system(size: 16))
                                 Text(NSLocalizedString("audience.createFirstList", comment: "Create first list"))
-                                    .font(.custom("Poppins-Medium", size: 16))
+                                    .font(.system(size: legacyPoppinsSize(16), weight: .medium))
                             }
                             .foregroundColor(.white)
                             .padding(.horizontal, 20)
@@ -69,11 +69,11 @@ struct CustomListSelectorView: View {
                                 HStack {
                                     VStack(alignment: .leading, spacing: 4) {
                                         Text(list.name)
-                                            .font(.custom("Poppins-SemiBold", size: 16))
+                                            .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
                                             .foregroundColor(.primary)
                                         
                                         Text(String(format: NSLocalizedString("audience.people.count", comment: "People count"), list.members.count))
-                                            .font(.custom("Poppins-Regular", size: 13))
+                                            .font(.system(size: legacyPoppinsSize(13)))
                                             .foregroundColor(.secondary)
                                     }
                                     

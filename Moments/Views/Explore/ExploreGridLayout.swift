@@ -477,7 +477,7 @@ struct ExploreMomentThumbnail: View {
 
                 if descriptor.showsDuration, let duration = moment.videoDuration {
                     Text(Self.formatVideoDuration(duration))
-                        .font(.custom("Poppins-SemiBold", size: 8))
+                        .font(.system(size: legacyPoppinsSize(8), weight: .semibold))
                         .foregroundColor(.white)
                 }
             }

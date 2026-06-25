@@ -42,16 +42,16 @@ struct UserProfileOverviewSection: View {
                 }) {
                     HStack(spacing: 10) {
                         Text("profile.interests.title")
-                            .font(.custom("Poppins-SemiBold", size: 13))
+                            .font(.system(size: legacyPoppinsSize(13), weight: .semibold))
                             .foregroundColor(UserProfileColors.textPrimary)
 
                         Text("· \(interests.count)")
-                            .font(.custom("Poppins-Medium", size: 12))
+                            .font(.system(size: legacyPoppinsSize(12), weight: .medium))
                             .foregroundColor(UserProfileColors.textSecondary)
 
                         if !showingInterests, let firstInterest = interests.first {
                             Text(firstInterest)
-                                .font(.custom("Poppins-Medium", size: 11))
+                                .font(.system(size: legacyPoppinsSize(11), weight: .medium))
                                 .foregroundColor(UserProfileColors.textSecondary)
                                 .lineLimit(1)
                         }
@@ -146,11 +146,11 @@ struct UserModernStatsSection: View {
                 }) {
                     VStack(spacing: 4) {
                         Text("\(stat.1)")
-                            .font(.custom("Poppins-Bold", size: embeddedStyle ? 17 : 18))
+                            .font(.system(size: legacyPoppinsSize(embeddedStyle ? 17 : 18), weight: .bold))
                             .foregroundColor(UserProfileColors.textPrimary)
 
                         Text(stat.0)
-                            .font(.custom("Poppins-Medium", size: embeddedStyle ? 10 : 11))
+                            .font(.system(size: legacyPoppinsSize(embeddedStyle ? 10 : 11), weight: .medium))
                             .foregroundColor(UserProfileColors.textSecondary)
                     }
                     .frame(maxWidth: .infinity)
@@ -181,13 +181,13 @@ struct UserExpandableBioView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             Text(bio)
-                .font(.custom("Poppins-Regular", size: 14))
+                .font(.system(size: legacyPoppinsSize(14)))
                 .foregroundColor(UserProfileColors.textSecondary)
                 .multilineTextAlignment(.leading)
                 .lineLimit(isExpanded ? nil : 3)
                 .background(
                     Text(bio)
-                        .font(.custom("Poppins-Regular", size: 15))
+                        .font(.system(size: legacyPoppinsSize(15)))
                         .lineLimit(3)
                         .background(GeometryReader { geometry in
                             Color.clear.onAppear {
@@ -207,7 +207,7 @@ struct UserExpandableBioView: View {
                     }
                 }) {
                     Text(isExpanded ? NSLocalizedString("userProfile.seeLess", comment: "See less") : NSLocalizedString("userProfile.seeMore", comment: "See more"))
-                        .font(.custom("Poppins-Medium", size: 13))
+                        .font(.system(size: legacyPoppinsSize(13), weight: .medium))
                         .foregroundColor(UserProfileColors.accent)
                         .padding(.horizontal, 12)
                         .padding(.vertical, 4)
@@ -265,7 +265,7 @@ struct UserModernInterestsView: View {
         VStack(alignment: .leading, spacing: 14) {
             if showsTitle {
                 Text("userProfile.interests")
-                    .font(.custom("Poppins-SemiBold", size: 18))
+                    .font(.system(size: legacyPoppinsSize(18), weight: .semibold))
                     .foregroundColor(UserProfileColors.textPrimary)
             }
 
@@ -279,7 +279,7 @@ struct UserModernInterestsView: View {
                             Text(emoji)
                                 .font(.system(size: 16))
                             Text(interest)
-                                .font(.custom("Poppins-Medium", size: 14))
+                                .font(.system(size: legacyPoppinsSize(14), weight: .medium))
                                 .foregroundColor(isShared ? .white : UserProfileColors.textPrimary)
                         }
                         .padding(.horizontal, 16)

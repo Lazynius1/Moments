@@ -1202,7 +1202,7 @@ struct StoryEditingView: View {
                     .font(.system(size: 12, weight: .semibold))
 
                 Text(String(format: NSLocalizedString("storyVideo.editor.autoSplitNotice", comment: "Auto split publish notice"), partCount))
-                    .font(.custom("Poppins-Medium", size: 12))
+                    .font(.system(size: legacyPoppinsSize(12), weight: .medium))
                     .lineLimit(2)
 
                 Spacer(minLength: 0)
@@ -2854,7 +2854,7 @@ struct EmojiPickerView: View {
                             if !recentEmojis.isEmpty {
                                 VStack(alignment: .leading, spacing: 10) {
                                     Text(LocalizedStringKey("chat.giphy.recents"))
-                                        .font(.custom("Poppins-Medium", size: 13))
+                                        .font(.system(size: legacyPoppinsSize(13), weight: .medium))
                                         .foregroundColor(secondaryText)
                                         .padding(.horizontal, 16)
 

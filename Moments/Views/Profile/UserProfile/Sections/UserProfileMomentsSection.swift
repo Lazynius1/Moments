@@ -139,7 +139,7 @@ struct UserModernMomentThumbnail: View {
 
                 if descriptor.showsDuration, let duration = moment.videoDuration {
                     Text(Self.formatVideoDuration(duration))
-                        .font(.custom("Poppins-SemiBold", size: 11))
+                        .font(.system(size: legacyPoppinsSize(11), weight: .semibold))
                         .foregroundColor(.white)
                         .shadow(color: .black.opacity(0.5), radius: 3, x: 0, y: 1)
                 }
@@ -207,7 +207,7 @@ struct UserModernMomentThumbnail: View {
             Image(systemName: "clock.fill")
                 .font(.system(size: 7, weight: .bold))
             Text(moment.scheduledRemainingText)
-                .font(.custom("Poppins-SemiBold", size: 8))
+                .font(.system(size: legacyPoppinsSize(8), weight: .semibold))
                 .lineLimit(1)
         }
         .foregroundColor(.white)
@@ -261,7 +261,7 @@ struct UserModernMomentThumbnail: View {
                                         .tint(UserProfileColors.accent)
                                         .scaleEffect(0.8)
                                     Text("userProfile.video.loading")
-                                        .font(.custom("Poppins-Regular", size: 8))
+                                        .font(.system(size: legacyPoppinsSize(8)))
                                         .foregroundColor(UserProfileColors.textSecondary)
                                 }
                             } else {
@@ -270,7 +270,7 @@ struct UserModernMomentThumbnail: View {
                                         .font(.system(size: 16))
                                         .foregroundColor(UserProfileColors.textTertiary)
                                     Text("userProfile.video")
-                                        .font(.custom("Poppins-Regular", size: 8))
+                                        .font(.system(size: legacyPoppinsSize(8)))
                                         .foregroundColor(UserProfileColors.textSecondary)
                                 }
                             }
@@ -297,7 +297,7 @@ struct UserModernMomentThumbnail: View {
                                         .tint(UserProfileColors.accent)
                                         .scaleEffect(0.8)
                                     Text("userProfile.image.loading")
-                                        .font(.custom("Poppins-Regular", size: 8))
+                                        .font(.system(size: legacyPoppinsSize(8)))
                                         .foregroundColor(UserProfileColors.textSecondary)
                                 }
                             )
@@ -322,7 +322,7 @@ struct UserModernMomentThumbnail: View {
                         .foregroundColor(UserProfileColors.textTertiary)
 
                     Text(moment.content.isEmpty ? NSLocalizedString("userProfile.noContent", comment: "No content") : String(moment.content.prefix(12)))
-                        .font(.custom("Poppins-Regular", size: 8))
+                        .font(.system(size: legacyPoppinsSize(8)))
                         .foregroundColor(UserProfileColors.textPrimary)
                         .multilineTextAlignment(.center)
                         .lineLimit(2)

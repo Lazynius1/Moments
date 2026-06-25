@@ -83,8 +83,8 @@ struct MomentCaptionView: View {
         VStack(alignment: .leading, spacing: 8) {
             MomentHashtagText(
                 content: previewContent,
-                textFont: .custom("Poppins-Regular", size: style == .detail ? 15 : 14),
-                hashtagFont: .custom("Poppins-SemiBold", size: style == .detail ? 15 : 14),
+                textFont: .system(size: style == .detail ? 15 : 14),
+                hashtagFont: .system(size: style == .detail ? 15 : 14, weight: .semibold),
                 baseColor: baseTextColor,
                 hashtagColor: hashtagTextColor,
                 mentionColor: mentionTextColor,
@@ -105,7 +105,7 @@ struct MomentCaptionView: View {
                 } label: {
                     HStack(spacing: 5) {
                         Text(NSLocalizedString("feed.seeMore", comment: "See more"))
-                            .font(.custom("Poppins-SemiBold", size: 12))
+                            .font(.system(size: legacyPoppinsSize(12), weight: .semibold))
 
                         Image(systemName: "text.alignleft")
                             .font(.system(size: 10, weight: .semibold))
@@ -145,11 +145,11 @@ private struct ReelsCaptionBody: View {
     let mentionTextColor: Color
     let onHashtagTap: (String) -> Void
 
-    // ~10 líneas de texto 14pt Poppins con interlineado ≈ 22pt → 220pt
+    // ~10 lines of 14pt body text with ~22pt line spacing -> 220pt
     private let expandedMaxHeight: CGFloat = 220
-    private let bodyFont = Font.custom("Poppins-Regular", size: 14)
-    private let tagFont = Font.custom("Poppins-SemiBold", size: 14)
-    private let boldFont = Font.custom("Poppins-Bold", size: 14)
+    private let bodyFont = Font.system(size: 14)
+    private let tagFont = Font.system(size: 14, weight: .semibold)
+    private let boldFont = Font.system(size: 14, weight: .bold)
     private let springAnimation = Animation.spring(response: 0.38, dampingFraction: 0.85)
 
     @State private var contentHeight: CGFloat = 0
@@ -313,7 +313,7 @@ private struct MomentCaptionReaderSheet: View {
                 VStack(alignment: .leading, spacing: 12) {
                     HStack {
                         Text(NSLocalizedString("editMoment.description", comment: "Description"))
-                            .font(.custom("Poppins-SemiBold", size: 17))
+                            .font(.system(size: legacyPoppinsSize(17), weight: .semibold))
                             .foregroundColor(baseTextColor)
 
                         Spacer()
@@ -321,8 +321,8 @@ private struct MomentCaptionReaderSheet: View {
 
                     MomentHashtagText(
                         content: content,
-                        textFont: .custom("Poppins-Regular", size: 16),
-                        hashtagFont: .custom("Poppins-SemiBold", size: 16),
+                        textFont: .system(size: 16),
+                        hashtagFont: .system(size: 16, weight: .semibold),
                         baseColor: baseTextColor,
                         hashtagColor: hashtagTextColor,
                         mentionColor: Color(hex: "007AFF"),
@@ -391,7 +391,7 @@ private struct MomentCaptionMediaPreview: View {
                     }
 
                     LiveUsernameText(userId: moment.authorId, fallbackUsername: moment.username)
-                        .font(.custom("Poppins-SemiBold", size: 13))
+                        .font(.system(size: legacyPoppinsSize(13), weight: .semibold))
                         .lineLimit(1)
                 }
                 .foregroundColor(.white)

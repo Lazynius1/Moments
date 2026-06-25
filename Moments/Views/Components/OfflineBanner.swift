@@ -25,7 +25,7 @@ struct OfflineBanner: View {
                     }
                     
                     Text("network.offline.title")
-                        .font(.custom("Poppins-SemiBold", size: 17)) // Más cuerpo al texto
+                        .font(.system(size: legacyPoppinsSize(17), weight: .semibold)) // Más cuerpo al texto
                         .foregroundColor(.primary)
                         .padding(.trailing, 12) // Margen derecho para balancear la cápsula
                 }
@@ -127,7 +127,7 @@ struct SlowConnectionBanner: View {
                         }
                         
                         Text("network.slow.title")
-                            .font(.custom("Poppins-SemiBold", size: 15))
+                            .font(.system(size: legacyPoppinsSize(15), weight: .semibold))
                             .foregroundColor(.primary)
                         
                         Spacer(minLength: 12)

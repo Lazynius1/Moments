@@ -162,13 +162,13 @@ struct ExploreView: View {
     private var exploreRecentSearchesHeader: some View {
         HStack {
             Text(NSLocalizedString("explore.recentSearches.title", comment: ""))
-                .font(.custom("Poppins-Bold", size: 28))
+                .font(.system(size: legacyPoppinsSize(28), weight: .bold))
                 .foregroundColor(.primary)
             Spacer()
             Button(NSLocalizedString("explore.recentSearches.clearAll", comment: "")) {
                 viewModel.clearAllSearches()
             }
-            .font(.custom("Poppins-Bold", size: 14))
+            .font(.system(size: legacyPoppinsSize(14), weight: .bold))
             .foregroundColor(.primary)
         }
         .textCase(nil)
@@ -400,12 +400,12 @@ private struct ExploreRecentSearchRow: View {
 
                 VStack(alignment: .leading, spacing: 0) {
                     Text(search.query)
-                        .font(.custom("Poppins-SemiBold", size: 16))
+                        .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
                         .foregroundStyle(.primary)
 
                     if let socialStatus {
                         Text(socialStatus)
-                            .font(.custom("Poppins-Medium", size: 12))
+                            .font(.system(size: legacyPoppinsSize(12), weight: .medium))
                             .foregroundStyle(.secondary)
                     }
                 }

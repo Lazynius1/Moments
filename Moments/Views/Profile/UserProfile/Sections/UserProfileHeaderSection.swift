@@ -196,7 +196,7 @@ struct UserModernProfileHeader: View {
                                         .replacingOccurrences(of: "https://", with: "")
                                         .replacingOccurrences(of: "http://", with: "")
                                 )
-                                .font(.custom("Poppins-Medium", size: 12))
+                                .font(.system(size: legacyPoppinsSize(12), weight: .medium))
                                 .lineLimit(1)
                                 .truncationMode(.tail)
                             }
@@ -212,7 +212,7 @@ struct UserModernProfileHeader: View {
                 Button(action: onFollowAction) {
                     HStack(spacing: 7) {
                         Text(followButtonText)
-                            .font(.custom("Poppins-SemiBold", size: 13))
+                            .font(.system(size: legacyPoppinsSize(13), weight: .semibold))
                             .lineLimit(1)
                             .minimumScaleFactor(0.85)
 
@@ -236,7 +236,7 @@ struct UserModernProfileHeader: View {
                             .font(.system(size: 13, weight: .semibold))
 
                         Text(NSLocalizedString("userProfile.sendMessage", comment: "Send message"))
-                            .font(.custom("Poppins-SemiBold", size: 13))
+                            .font(.system(size: legacyPoppinsSize(13), weight: .semibold))
                             .lineLimit(1)
                             .minimumScaleFactor(0.85)
                     }

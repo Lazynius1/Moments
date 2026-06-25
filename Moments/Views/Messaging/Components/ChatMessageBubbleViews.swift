@@ -191,7 +191,7 @@ struct DeletedMessageBubble: View {
                 .foregroundColor(adaptiveColors.messageTextColor.opacity(0.5))
 
             Text(getDeletedText())
-                .font(.custom("Poppins-Regular", size: 14))
+                .font(.system(size: legacyPoppinsSize(14)))
                 .foregroundColor(adaptiveColors.messageTextColor.opacity(0.6))
                 .italic()
         }
@@ -319,7 +319,7 @@ struct GlassmorphicMessageBubble: View {
                                             .font(.system(size: 10, weight: .semibold))
                                         Text("chat.forwarded")
                                     }
-                                    .font(.custom("Poppins-Regular", size: 11))
+                                    .font(.system(size: legacyPoppinsSize(11)))
                                     .foregroundColor(adaptiveColors.messageTextColor.opacity(0.55))
                                 }
 

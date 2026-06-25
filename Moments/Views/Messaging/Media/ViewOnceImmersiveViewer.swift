@@ -89,11 +89,11 @@ struct ViewOnceImmersiveViewer: View {
 
                         VStack(alignment: .leading, spacing: 2) {
                             Text(authorName)
-                                .font(.custom("Poppins-SemiBold", size: 16))
+                                .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
                                 .foregroundColor(.white)
 
                             Text(relativeTime)
-                                .font(.custom("Poppins-Regular", size: 13))
+                                .font(.system(size: legacyPoppinsSize(13)))
                                 .foregroundColor(.white.opacity(0.58))
                         }
                     }
@@ -111,7 +111,7 @@ struct ViewOnceImmersiveViewer: View {
                     Image(systemName: "sparkles")
                         .font(.system(size: 12))
                     Text("chat.viewOnce.autoDelete")
-                        .font(.custom("Poppins-Medium", size: 12))
+                        .font(.system(size: legacyPoppinsSize(12), weight: .medium))
                 }
                 .padding(.bottom, 40)
             }
@@ -203,7 +203,7 @@ struct ViewOnceImmersiveViewer: View {
                     Image(systemName: "video.slash")
                         .font(.system(size: 40))
                     Text("chat.video.unavailable")
-                        .font(.custom("Poppins-Medium", size: 16))
+                        .font(.system(size: legacyPoppinsSize(16), weight: .medium))
                 }
                 .foregroundColor(.white.opacity(0.5))
             }

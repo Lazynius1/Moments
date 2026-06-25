@@ -41,10 +41,10 @@ struct InAppMessageQuickReplyPanel: View {
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(notification.senderUsername)
-                        .font(.custom("Poppins-Bold", size: 15))
+                        .font(.system(size: legacyPoppinsSize(15), weight: .bold))
                         .foregroundColor(.primary)
                     Text(NSLocalizedString("notification.action.reply", comment: "Reply"))
-                        .font(.custom("Poppins-Medium", size: 12))
+                        .font(.system(size: legacyPoppinsSize(12), weight: .medium))
                         .foregroundColor(.secondary)
                 }
 
@@ -61,7 +61,7 @@ struct InAppMessageQuickReplyPanel: View {
 
             if let previewText {
                 Text(previewText)
-                    .font(.custom("Poppins-Regular", size: 13))
+                    .font(.system(size: legacyPoppinsSize(13)))
                     .foregroundColor(.secondary)
                     .lineLimit(3)
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -78,7 +78,7 @@ struct InAppMessageQuickReplyPanel: View {
                         text: $replyText,
                         axis: .vertical
                     )
-                    .font(.custom("Poppins-Regular", size: 15))
+                    .font(.system(size: legacyPoppinsSize(15)))
                     .lineLimit(1...4)
                     .focused($isFieldFocused)
                     .padding(.horizontal, 14)
@@ -99,7 +99,7 @@ struct InAppMessageQuickReplyPanel: View {
                 }
             } else {
                 Text(NSLocalizedString("chatRecovery.unavailable.title", comment: "Chat unavailable"))
-                    .font(.custom("Poppins-Medium", size: 12))
+                    .font(.system(size: legacyPoppinsSize(12), weight: .medium))
                     .foregroundColor(.secondary)
             }
         }

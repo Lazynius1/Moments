@@ -694,7 +694,7 @@ struct RevealStickerEditorView: View {
             Spacer()
 
             Text(NSLocalizedString("revealEditor.title", comment: "Customize Reveal"))
-                .font(.custom("Poppins-SemiBold", size: 17))
+                .font(.system(size: legacyPoppinsSize(17), weight: .semibold))
                 .foregroundColor(.white)
                 .shadow(radius: 4)
 
@@ -702,7 +702,7 @@ struct RevealStickerEditorView: View {
 
             Button(action: { editingId = nil }) {
                 Text(NSLocalizedString("common.done", comment: "Done"))
-                    .font(.custom("Poppins-SemiBold", size: 15))
+                    .font(.system(size: legacyPoppinsSize(15), weight: .semibold))
                     .foregroundColor(.white)
                     .padding(.horizontal, 20)
                     .padding(.vertical, 10)
@@ -733,7 +733,7 @@ struct RevealStickerBottomControlsInset: View {
                 Spacer(minLength: 0)
 
                 Text(NSLocalizedString("revealEditor.title", comment: "Customize Reveal"))
-                    .font(.custom("Poppins-SemiBold", size: 15))
+                    .font(.system(size: legacyPoppinsSize(15), weight: .semibold))
                     .foregroundColor(primaryTextColor)
 
                 Spacer(minLength: 0)
@@ -865,7 +865,7 @@ private struct RevealStickerControlsContent: View {
                                 .font(.system(size: 13, weight: .semibold))
 
                             Text(title(for: tab))
-                                .font(.custom("Poppins-Medium", size: 13))
+                                .font(.system(size: legacyPoppinsSize(13), weight: .medium))
                         }
                         .foregroundColor(tabLabelColor(for: index, width: proxy.size.width))
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -921,7 +921,7 @@ private struct RevealStickerControlsContent: View {
                             )
 
                             Text(NSLocalizedString("revealEditor.preset.\(preset.id)", comment: ""))
-                                .font(.custom("Poppins-Medium", size: 12))
+                                .font(.system(size: legacyPoppinsSize(12), weight: .medium))
                                 .foregroundColor(primaryTextColor)
                         }
                     }
@@ -939,7 +939,7 @@ private struct RevealStickerControlsContent: View {
                     ForEach(["none", "dots", "noise", "static", "scanlines", "grid", "lines", "waves", "matrix", "holographic"], id: \.self) { p in
                         Button(action: { updateCustomPattern(p) }) {
                             Text(NSLocalizedString("revealEditor.pattern.\(p)", comment: ""))
-                                .font(.custom("Poppins-Medium", size: 13))
+                                .font(.system(size: legacyPoppinsSize(13), weight: .medium))
                                 .padding(.horizontal, 16)
                                 .padding(.vertical, 8)
                                 .background(customPattern == p ? chipBackgroundColor : chipInactiveBackgroundColor)
@@ -981,7 +981,7 @@ private struct RevealStickerControlsContent: View {
                             .font(.system(size: 18, weight: .bold))
 
                         Text(customType == "solid" ? "2" : "1")
-                            .font(.custom("Poppins-SemiBold", size: 12))
+                            .font(.system(size: legacyPoppinsSize(12), weight: .semibold))
                     }
                     .foregroundColor(primaryTextColor)
                     .frame(width: 50, height: 50)
@@ -993,7 +993,7 @@ private struct RevealStickerControlsContent: View {
                     Text(customType == "solid"
                         ? NSLocalizedString("revealEditor.color.background", comment: "")
                         : NSLocalizedString("revealEditor.color1", comment: ""))
-                        .font(.custom("Poppins-Medium", size: 12))
+                        .font(.system(size: legacyPoppinsSize(12), weight: .medium))
                         .foregroundColor(primaryTextColor)
                     Text(customType == "solid"
                         ? NSLocalizedString("revealEditor.tab.custom", comment: "Custom")

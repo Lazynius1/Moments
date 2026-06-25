@@ -16,11 +16,11 @@ struct ProfileThemeDemo: View {
                     // Header
                     VStack(spacing: 12) {
                         Text("Demostración de Temas")
-                            .font(.custom("Poppins-Bold", size: 24))
+                            .font(.system(size: legacyPoppinsSize(24), weight: .bold))
                             .foregroundColor(colorScheme == .dark ? .white : .black)
                         
                         Text("Prueba los diferentes temas de perfil")
-                            .font(.custom("Poppins-Regular", size: 16))
+                            .font(.system(size: legacyPoppinsSize(16)))
                             .foregroundColor(.gray)
                             .multilineTextAlignment(.center)
                     }
@@ -55,17 +55,17 @@ struct ProfileThemeDemo: View {
                     // Información del tema
                     VStack(spacing: 8) {
                         Text("Tema: \(selectedTheme.displayName)")
-                            .font(.custom("Poppins-Bold", size: 18))
+                            .font(.system(size: legacyPoppinsSize(18), weight: .bold))
                             .foregroundColor(colorScheme == .dark ? .white : .black)
                         
                         Text(selectedTheme.description)
-                            .font(.custom("Poppins-Regular", size: 14))
+                            .font(.system(size: legacyPoppinsSize(14)))
                             .foregroundColor(.gray)
                             .multilineTextAlignment(.center)
                         
                         if let price = selectedTheme.price {
                             Text("Precio: \(price)")
-                                .font(.custom("Poppins-Medium", size: 14))
+                                .font(.system(size: legacyPoppinsSize(14), weight: .medium))
                                 .foregroundColor(.blue)
                         }
                     }
@@ -80,7 +80,7 @@ struct ProfileThemeDemo: View {
                     Button("Cerrar") {
                         // Cerrar la vista
                     }
-                    .font(.custom("Poppins-Medium", size: 16))
+                    .font(.system(size: legacyPoppinsSize(16), weight: .medium))
                     .foregroundColor(colorScheme == .dark ? .white : .black)
                 }
             }
@@ -116,7 +116,7 @@ struct DemoProfilePreviewCard: View {
                 
                 // Nombre simulado
                 Text("Usuario Demo")
-                    .font(.custom("Poppins-Bold", size: 18))
+                    .font(.system(size: legacyPoppinsSize(18), weight: .bold))
                     .foregroundColor(.white)
                 
                 // Badge simulado
@@ -125,7 +125,7 @@ struct DemoProfilePreviewCard: View {
                         .font(.system(size: 20))
                     
                     Text(theme.displayName)
-                        .font(.custom("Poppins-Medium", size: 14))
+                        .font(.system(size: legacyPoppinsSize(14), weight: .medium))
                         .foregroundColor(.white.opacity(0.9))
                 }
                 .padding(.horizontal, 12)

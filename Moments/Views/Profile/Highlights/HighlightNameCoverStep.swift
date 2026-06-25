@@ -38,7 +38,7 @@ struct HighlightNameCoverStep: View {
                     viewModel.showCoverPicker = true
                 } label: {
                     Text(NSLocalizedString("highlightedStories.editCover", comment: ""))
-                        .font(.custom("Poppins-Medium", size: 15))
+                        .font(.system(size: legacyPoppinsSize(15), weight: .medium))
                         .foregroundColor(ProfileColors.accent)
                 }
                 .buttonStyle(.plain)
@@ -52,7 +52,7 @@ struct HighlightNameCoverStep: View {
                 prompt: Text(NSLocalizedString("highlightedStories.defaultTitle", comment: ""))
                     .foregroundColor(ProfileColors.textSecondary)
             )
-            .font(.custom("Poppins-Medium", size: 16))
+            .font(.system(size: legacyPoppinsSize(16), weight: .medium))
             .foregroundColor(ProfileColors.textPrimary)
             .multilineTextAlignment(.center)
             .focused($isTitleFocused)

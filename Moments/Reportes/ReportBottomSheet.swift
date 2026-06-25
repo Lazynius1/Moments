@@ -79,13 +79,13 @@ struct ReportCategoryRow: View {
                 
                 VStack(alignment: .leading, spacing: 4) {
                     Text(category.title)
-                        .font(.custom("Poppins-SemiBold", size: 16))
+                        .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
                         .foregroundColor(adaptiveColors.primary)
                         .multilineTextAlignment(.leading)
                     
                     if !category.subtitle.isEmpty {
                         Text(category.subtitle)
-                            .font(.custom("Poppins-Regular", size: 13))
+                            .font(.system(size: legacyPoppinsSize(13)))
                             .foregroundColor(adaptiveColors.tertiary)
                             .multilineTextAlignment(.leading)
                     }

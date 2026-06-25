@@ -47,12 +47,12 @@ struct UserModernBlockedView: View {
 
                 VStack(spacing: 16) {
                     Text(isBlockedByCurrentUser ? NSLocalizedString("userProfile.blockedUser", comment: "Blocked user") : NSLocalizedString("userProfile.restrictedAccess", comment: "Restricted access"))
-                        .font(.custom("Poppins-Bold", size: 22))
+                        .font(.system(size: legacyPoppinsSize(22), weight: .bold))
                         .foregroundColor(.white)
                     Text(isBlockedByCurrentUser ?
                          NSLocalizedString("userProfile.blockedByYou", comment: "You blocked this user") :
                          NSLocalizedString("userProfile.blockedYou", comment: "This user blocked you"))
-                        .font(.custom("Poppins-Regular", size: 16))
+                        .font(.system(size: legacyPoppinsSize(16)))
                         .foregroundColor(.gray.opacity(0.8))
                         .multilineTextAlignment(.center)
                         .padding(.horizontal, 40)
@@ -65,7 +65,7 @@ struct UserModernBlockedView: View {
                                 Image(systemName: "person.fill.checkmark")
                                     .font(.system(size: 16))
                                 Text("userProfile.unblockUser")
-                                    .font(.custom("Poppins-SemiBold", size: 14))
+                                    .font(.system(size: legacyPoppinsSize(14), weight: .semibold))
                             }
                             .foregroundColor(.white)
                             .padding(.horizontal, 24)
@@ -77,7 +77,7 @@ struct UserModernBlockedView: View {
                     }
                     Button(action: onDismiss) {
                         Text("userProfile.back")
-                            .font(.custom("Poppins-SemiBold", size: 14))
+                            .font(.system(size: legacyPoppinsSize(14), weight: .semibold))
                             .foregroundColor(.white)
                             .padding(.horizontal, 24)
                             .padding(.vertical, 12)
@@ -146,7 +146,7 @@ struct UserModernPrivateProfileView: View {
                     VStack(alignment: .leading, spacing: 5) {
                         VStack(alignment: .leading, spacing: 3) {
                             Text(userProfile?.username ?? NSLocalizedString("userProfile.user", comment: "User"))
-                                .font(.custom("Poppins-Bold", size: 20))
+                                .font(.system(size: legacyPoppinsSize(20), weight: .bold))
                                 .foregroundColor(colorScheme == .dark ? .white : .black)
 
                             VerifiedBadgeView(userId: self.userId, size: 18)
@@ -154,7 +154,7 @@ struct UserModernPrivateProfileView: View {
 
                         if let bio = userProfile?.bio, !bio.isEmpty {
                             Text(bio)
-                                .font(.custom("Poppins-Regular", size: 14))
+                                .font(.system(size: legacyPoppinsSize(14)))
                                 .foregroundColor(colorScheme == .dark ? .white.opacity(0.62) : .black.opacity(0.54))
                                 .lineLimit(3)
                         }
@@ -175,7 +175,7 @@ struct UserModernPrivateProfileView: View {
                             Image(systemName: followButtonIcon)
                                 .font(.system(size: 13, weight: .medium))
                             Text(followButtonText)
-                                .font(.custom("Poppins-SemiBold", size: 13))
+                                .font(.system(size: legacyPoppinsSize(13), weight: .semibold))
                                 .lineLimit(1)
                                 .minimumScaleFactor(0.85)
                             if followButtonState == .following {
@@ -211,7 +211,7 @@ struct UserModernPrivateProfileView: View {
                                 .font(.system(size: 13, weight: .semibold))
 
                             Text(NSLocalizedString("userProfile.sendMessage", comment: "Send message"))
-                                .font(.custom("Poppins-SemiBold", size: 13))
+                                .font(.system(size: legacyPoppinsSize(13), weight: .semibold))
                                 .lineLimit(1)
                                 .minimumScaleFactor(0.85)
                         }
@@ -228,10 +228,10 @@ struct UserModernPrivateProfileView: View {
                     ForEach(Array(privateStats.enumerated()), id: \.offset) { index, stat in
                         VStack(spacing: 3) {
                             Text("--")
-                                .font(.custom("Poppins-Bold", size: 17))
+                                .font(.system(size: legacyPoppinsSize(17), weight: .bold))
                                 .foregroundColor(colorScheme == .dark ? .white.opacity(0.38) : .black.opacity(0.32))
                             Text(stat)
-                                .font(.custom("Poppins-Medium", size: 10))
+                                .font(.system(size: legacyPoppinsSize(10), weight: .medium))
                                 .foregroundColor(colorScheme == .dark ? .white.opacity(0.38) : .black.opacity(0.32))
                         }
                         .frame(maxWidth: .infinity)
@@ -254,11 +254,11 @@ struct UserModernPrivateProfileView: View {
 
                     VStack(spacing: 6) {
                         Text(NSLocalizedString("userProfile.private.title", comment: "Private profile title"))
-                            .font(.custom("Poppins-Bold", size: 18))
+                            .font(.system(size: legacyPoppinsSize(18), weight: .bold))
                             .foregroundColor(colorScheme == .dark ? .white : .black)
 
                         Text(NSLocalizedString("userProfile.private.description", comment: "Private profile description"))
-                            .font(.custom("Poppins-Regular", size: 14))
+                            .font(.system(size: legacyPoppinsSize(14)))
                             .foregroundColor(colorScheme == .dark ? .white.opacity(0.56) : .black.opacity(0.50))
                             .multilineTextAlignment(.center)
                             .padding(.horizontal, 40)
@@ -282,7 +282,7 @@ struct UserModernPrivateProfileView: View {
     private var privateTopBar: some View {
         ZStack {
             Text(userProfile?.username ?? NSLocalizedString("userProfile.user", comment: "User"))
-                .font(.custom("Poppins-SemiBold", size: 18))
+                .font(.system(size: legacyPoppinsSize(18), weight: .semibold))
                 .foregroundColor(colorScheme == .dark ? .white : .black)
                 .lineLimit(1)
                 .truncationMode(.tail)
@@ -365,7 +365,7 @@ struct UserModernUnavailableProfileView: View {
             // ── Top bar ──────────────────────────────────────────────
             ZStack {
                 Text("")
-                    .font(.custom("Poppins-SemiBold", size: 18))
+                    .font(.system(size: legacyPoppinsSize(18), weight: .semibold))
                     .foregroundColor(colorScheme == .dark ? .white : .black)
 
                 HStack {
@@ -391,11 +391,11 @@ struct UserModernUnavailableProfileView: View {
 
                 VStack(alignment: .leading, spacing: 5) {
                     Text(NSLocalizedString("userProfile.unavailable.username", comment: "Unavailable username placeholder"))
-                        .font(.custom("Poppins-Bold", size: 20))
+                        .font(.system(size: legacyPoppinsSize(20), weight: .bold))
                         .foregroundColor(colorScheme == .dark ? .white.opacity(0.38) : .black.opacity(0.32))
 
                     Text(NSLocalizedString("userProfile.unavailable.bio", comment: "Unavailable bio placeholder"))
-                        .font(.custom("Poppins-Regular", size: 14))
+                        .font(.system(size: legacyPoppinsSize(14)))
                         .foregroundColor(colorScheme == .dark ? .white.opacity(0.28) : .black.opacity(0.22))
                         .lineLimit(2)
                 }
@@ -415,12 +415,12 @@ struct UserModernUnavailableProfileView: View {
 
                 VStack(spacing: 6) {
                     Text(NSLocalizedString("userProfile.unavailable.title", comment: "Unavailable title"))
-                        .font(.custom("Poppins-Bold", size: 20))
+                        .font(.system(size: legacyPoppinsSize(20), weight: .bold))
                         .foregroundColor(colorScheme == .dark ? .white : .black)
                         .multilineTextAlignment(.center)
 
                     Text(NSLocalizedString("userProfile.unavailable.description", comment: "Unavailable description"))
-                        .font(.custom("Poppins-Regular", size: 14))
+                        .font(.system(size: legacyPoppinsSize(14)))
                         .foregroundColor(colorScheme == .dark ? .white.opacity(0.56) : .black.opacity(0.50))
                         .multilineTextAlignment(.center)
                         .padding(.horizontal, 40)
@@ -457,7 +457,7 @@ struct UserModernBlockedByMeProfileView: View {
                 // ── Top bar ──────────────────────────────────────────────
                 ZStack {
                     Text(username)
-                        .font(.custom("Poppins-SemiBold", size: 18))
+                        .font(.system(size: legacyPoppinsSize(18), weight: .semibold))
                         .foregroundColor(colorScheme == .dark ? .white : .black)
                         .lineLimit(1)
                         .truncationMode(.tail)
@@ -485,12 +485,12 @@ struct UserModernBlockedByMeProfileView: View {
 
                     VStack(alignment: .leading, spacing: 5) {
                         Text(username)
-                            .font(.custom("Poppins-Bold", size: 20))
+                            .font(.system(size: legacyPoppinsSize(20), weight: .bold))
                             .foregroundColor(colorScheme == .dark ? .white : .black)
 
                         if let bio = userProfile?.bio, !bio.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                             Text(bio)
-                                .font(.custom("Poppins-Regular", size: 14))
+                                .font(.system(size: legacyPoppinsSize(14)))
                                 .foregroundColor(colorScheme == .dark ? .white.opacity(0.54) : .black.opacity(0.48))
                                 .lineLimit(2)
                         }
@@ -506,10 +506,10 @@ struct UserModernBlockedByMeProfileView: View {
                     ForEach(Array(blockedStats.enumerated()), id: \.offset) { index, stat in
                         VStack(spacing: 3) {
                             Text("--")
-                                .font(.custom("Poppins-Bold", size: 17))
+                                .font(.system(size: legacyPoppinsSize(17), weight: .bold))
                                 .foregroundColor(colorScheme == .dark ? .white.opacity(0.38) : .black.opacity(0.32))
                             Text(stat)
-                                .font(.custom("Poppins-Medium", size: 10))
+                                .font(.system(size: legacyPoppinsSize(10), weight: .medium))
                                 .foregroundColor(colorScheme == .dark ? .white.opacity(0.38) : .black.opacity(0.32))
                         }
                         .frame(maxWidth: .infinity)
@@ -532,11 +532,11 @@ struct UserModernBlockedByMeProfileView: View {
 
                     VStack(spacing: 6) {
                         Text(NSLocalizedString("userProfile.blockedByMe.title", comment: "Blocked by me title"))
-                            .font(.custom("Poppins-Bold", size: 18))
+                            .font(.system(size: legacyPoppinsSize(18), weight: .bold))
                             .foregroundColor(colorScheme == .dark ? .white : .black)
 
                         Text(NSLocalizedString("userProfile.blockedByMe.description", comment: "Blocked by me description"))
-                            .font(.custom("Poppins-Regular", size: 14))
+                            .font(.system(size: legacyPoppinsSize(14)))
                             .foregroundColor(colorScheme == .dark ? .white.opacity(0.56) : .black.opacity(0.50))
                             .multilineTextAlignment(.center)
                             .padding(.horizontal, 34)
@@ -544,7 +544,7 @@ struct UserModernBlockedByMeProfileView: View {
 
                     Button(action: onUnblock) {
                         Text(NSLocalizedString("userProfile.unblockUser", comment: "Unblock user"))
-                            .font(.custom("Poppins-SemiBold", size: 14))
+                            .font(.system(size: legacyPoppinsSize(14), weight: .semibold))
                             .foregroundColor(colorScheme == .dark ? .white : .black)
                             .padding(.horizontal, 24)
                             .padding(.vertical, 12)

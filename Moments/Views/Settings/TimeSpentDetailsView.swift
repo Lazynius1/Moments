@@ -14,11 +14,11 @@ struct TimeSpentDetailsView: View {
                     
                     VStack(alignment: .leading, spacing: 8) {
                         Text(NSLocalizedString("userActivity.timeSpent.details.title", value: "Time on Moments", comment: "Time spent details title"))
-                            .font(.custom("Poppins-Bold", size: 28))
+                            .font(.system(size: legacyPoppinsSize(28), weight: .bold))
                             .foregroundColor(colorScheme == .dark ? .white : .black)
                         
                         Text(NSLocalizedString("userActivity.timeSpent.details.subtitle", value: "See how much time you spend on Moments each day. We use this data to help you manage your time.", comment: "Time spent details subtitle"))
-                            .font(.custom("Poppins-Regular", size: 14))
+                            .font(.system(size: legacyPoppinsSize(14)))
                             .foregroundColor(.gray)
                             .lineSpacing(4)
                     }
@@ -74,11 +74,11 @@ struct TimeSpentSettingsRow: View {
         HStack(spacing: 16) {
             VStack(alignment: .leading, spacing: 4) {
                 Text(title)
-                    .font(.custom("Poppins-Medium", size: 16))
+                    .font(.system(size: legacyPoppinsSize(16), weight: .medium))
                     .foregroundColor(colorScheme == .dark ? .white : .black)
                 
                 Text(subtitle)
-                    .font(.custom("Poppins-Regular", size: 13))
+                    .font(.system(size: legacyPoppinsSize(13)))
                     .foregroundColor(.gray)
                     .multilineTextAlignment(.leading)
             }

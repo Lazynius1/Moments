@@ -35,7 +35,7 @@ struct SidebarMenuView: View {
                     // Encabezado
                     HStack {
                         Text("Menú")
-                            .font(.custom("Poppins-Bold", size: 24))
+                            .font(.system(size: legacyPoppinsSize(24), weight: .bold))
                             .foregroundColor(.white)
                         Spacer()
                         Button(action: {
@@ -187,7 +187,7 @@ struct SidebarMenuView: View {
                 .font(.system(size: 20))
                 .foregroundColor(isSelected ? .white : Color(hex: "007AFF"))
             Text(destination.rawValue)
-                .font(.custom("Poppins-Medium", size: 16))
+                .font(.system(size: legacyPoppinsSize(16), weight: .medium))
                 .foregroundColor(isSelected ? .white : .white.opacity(0.9))
         }
         .padding(.vertical, 12)

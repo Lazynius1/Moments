@@ -293,11 +293,11 @@ struct GridPhotoPickerView: View {
                     .tint(Color(hex: "007AFF"))
                 
                 Text("profileEditor.uploadingPhoto")
-                    .font(.custom("Poppins-SemiBold", size: 18))
+                    .font(.system(size: legacyPoppinsSize(18), weight: .semibold))
                     .foregroundColor(.white)
                 
                 Text("profileEditor.uploadingTime")
-                    .font(.custom("Poppins-Regular", size: 14))
+                    .font(.system(size: legacyPoppinsSize(14)))
                     .foregroundColor(.white.opacity(0.8))
             }
             .padding(40)
@@ -346,7 +346,7 @@ struct GridPhotoPickerView: View {
                 .tint(Color(hex: "007AFF"))
             
                             Text("profileEditor.loadingPhotos")
-                .font(.custom("Poppins-Medium", size: 16))
+                .font(.system(size: legacyPoppinsSize(16), weight: .medium))
                 .foregroundColor(.white.opacity(0.8))
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -359,11 +359,11 @@ struct GridPhotoPickerView: View {
                 .foregroundColor(Color(hex: "007AFF"))
             
                             Text("profileEditor.photosAccess.title")
-                .font(.custom("Poppins-Bold", size: 20))
+                .font(.system(size: legacyPoppinsSize(20), weight: .bold))
                 .foregroundColor(.white)
             
                             Text("profileEditor.photosAccess.description")
-                .font(.custom("Poppins-Regular", size: 16))
+                .font(.system(size: legacyPoppinsSize(16)))
                 .foregroundColor(.gray)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 40)
@@ -371,7 +371,7 @@ struct GridPhotoPickerView: View {
             Button(NSLocalizedString("profileEditor.allowAccess", comment: "")) {
                 requestPhotoLibraryPermission()
             }
-            .font(.custom("Poppins-SemiBold", size: 16))
+            .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
             .foregroundColor(.white)
             .padding(.horizontal, 32)
             .padding(.vertical, 16)
@@ -389,11 +389,11 @@ struct GridPhotoPickerView: View {
                 .foregroundColor(colorScheme == .dark ? .gray.opacity(0.8) : .gray.opacity(0.6))
             
             Text("profileEditor.accessDenied.title")
-                .font(.custom("Poppins-Bold", size: 20))
+                .font(.system(size: legacyPoppinsSize(20), weight: .bold))
                 .foregroundColor(colorScheme == .dark ? .white : .black)
             
             Text("profileEditor.accessDenied.description")
-                .font(.custom("Poppins-Regular", size: 16))
+                .font(.system(size: legacyPoppinsSize(16)))
                 .foregroundColor(colorScheme == .dark ? .gray : .gray.opacity(0.7))
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 40)
@@ -404,7 +404,7 @@ struct GridPhotoPickerView: View {
                     UIApplication.shared.open(settingsUrl)
                 }
             }
-            .font(.custom("Poppins-SemiBold", size: 16))
+            .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
             .foregroundColor(.white)
             .padding(.horizontal, 32)
             .padding(.vertical, 16)
@@ -655,7 +655,7 @@ private struct CategoryFilterButton: View {
                 Image(systemName: icon)
                     .font(.system(size: 14))
                 Text(title)
-                    .font(.custom("Poppins-Medium", size: 14))
+                    .font(.system(size: legacyPoppinsSize(14), weight: .medium))
             }
             .foregroundColor(isSelected ? (colorScheme == .dark ? .white : .black) : (colorScheme == .dark ? .white.opacity(0.6) : .black.opacity(0.6)))
             .padding(.horizontal, 16)
@@ -970,7 +970,7 @@ struct ModernEditProfileView: View {
                 .tint(.white)
             
             Text("profileEditor.loadingProfile")
-                .font(.custom("Poppins-Medium", size: 16))
+                .font(.system(size: legacyPoppinsSize(16), weight: .medium))
                 .foregroundColor(.white.opacity(0.8))
         }
     }
@@ -982,11 +982,11 @@ struct ModernEditProfileView: View {
                 .foregroundColor(.red.opacity(0.8))
             
             Text("profileEditor.error")
-                .font(.custom("Poppins-Bold", size: 18))
+                .font(.system(size: legacyPoppinsSize(18), weight: .bold))
                 .foregroundColor(.white)
             
             Text(message)
-                .font(.custom("Poppins-Regular", size: 14))
+                .font(.system(size: legacyPoppinsSize(14)))
                 .foregroundColor(.white.opacity(0.7))
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 40)
@@ -994,7 +994,7 @@ struct ModernEditProfileView: View {
             Button(NSLocalizedString("profileEditor.retry", comment: "")) {
                 loadUserData()
             }
-            .font(.custom("Poppins-SemiBold", size: 14))
+            .font(.system(size: legacyPoppinsSize(14), weight: .semibold))
             .foregroundColor(colorScheme == .dark ? .white : .black)
             .padding(.horizontal, 24)
             .padding(.vertical, 12)
@@ -1074,14 +1074,14 @@ struct ModernEditProfileView: View {
                 Spacer()
                 
                 Text("profileEditor.title")
-                    .font(.custom("Poppins-Bold", size: 18))
+                    .font(.system(size: legacyPoppinsSize(18), weight: .bold))
                     .foregroundColor(colorScheme == .dark ? .white : .black)
                 
                 Spacer()
                 
                 Button(action: { saveProfile() }) {
                     Text("common.save")
-                        .font(.custom("Poppins-SemiBold", size: 14))
+                        .font(.system(size: legacyPoppinsSize(14), weight: .semibold))
                         .foregroundColor(characterCount <= 150 ? (colorScheme == .dark ? .white : .black) : .secondary)
                         .padding(.horizontal, 14)
                         .padding(.vertical, 10)
@@ -1145,7 +1145,7 @@ struct ModernEditProfileView: View {
                         Image(systemName: "photo.on.rectangle")
                             .font(.system(size: 14))
                         Text("profileEditor.change")
-                            .font(.custom("Poppins-Medium", size: 13))
+                            .font(.system(size: legacyPoppinsSize(13), weight: .medium))
                     }
                     .foregroundColor(colorScheme == .dark ? .white : .black)
                     .padding(.horizontal, 16)
@@ -1170,7 +1170,7 @@ struct ModernEditProfileView: View {
                         Image(systemName: section.icon)
                             .font(.system(size: 14, weight: .semibold))
                         Text(section.title)
-                            .font(.custom("Poppins-SemiBold", size: 14))
+                            .font(.system(size: legacyPoppinsSize(14), weight: .semibold))
                     }
                     .foregroundColor(activeSection == section ? (colorScheme == .dark ? .white : .black) : (colorScheme == .dark ? .white.opacity(0.65) : .black.opacity(0.55)))
                     .padding(.horizontal, 16)
@@ -1198,13 +1198,13 @@ struct ModernEditProfileView: View {
                             .foregroundColor(colorScheme == .dark ? .white.opacity(0.8) : .black.opacity(0.75))
                         
                         Text("profileEditor.username")
-                            .font(.custom("Poppins-SemiBold", size: 14))
+                            .font(.system(size: legacyPoppinsSize(14), weight: .semibold))
                             .foregroundColor(colorScheme == .dark ? .white.opacity(0.6) : .black.opacity(0.55))
                         
                         Spacer()
                         
                         Text("profileEditor.notEditable")
-                            .font(.custom("Poppins-Medium", size: 10))
+                            .font(.system(size: legacyPoppinsSize(10), weight: .medium))
                             .foregroundColor(colorScheme == .dark ? .white.opacity(0.4) : .black.opacity(0.35))
                             .padding(.horizontal, 8)
                             .padding(.vertical, 4)
@@ -1213,7 +1213,7 @@ struct ModernEditProfileView: View {
                     }
                     
                     Text("\(username)")
-                        .font(.custom("Poppins-Medium", size: 16))
+                        .font(.system(size: legacyPoppinsSize(16), weight: .medium))
                         .foregroundColor(colorScheme == .dark ? .white : .black)
                         .padding(16)
                         .frame(maxWidth: .infinity, alignment: .leading)
@@ -1228,13 +1228,13 @@ struct ModernEditProfileView: View {
                             .foregroundColor(colorScheme == .dark ? .white.opacity(0.8) : .black.opacity(0.75))
                         
                         Text("profileEditor.email")
-                            .font(.custom("Poppins-SemiBold", size: 14))
+                            .font(.system(size: legacyPoppinsSize(14), weight: .semibold))
                             .foregroundColor(colorScheme == .dark ? .white.opacity(0.6) : .black.opacity(0.55))
                         
                         Spacer()
                         
                         Text("profileEditor.notEditable")
-                            .font(.custom("Poppins-Medium", size: 10))
+                            .font(.system(size: legacyPoppinsSize(10), weight: .medium))
                             .foregroundColor(colorScheme == .dark ? .white.opacity(0.4) : .black.opacity(0.35))
                             .padding(.horizontal, 8)
                             .padding(.vertical, 4)
@@ -1243,7 +1243,7 @@ struct ModernEditProfileView: View {
                     }
                     
                     Text(email)
-                        .font(.custom("Poppins-Medium", size: 16))
+                        .font(.system(size: legacyPoppinsSize(16), weight: .medium))
                         .foregroundColor(colorScheme == .dark ? .white : .black)
                         .padding(16)
                         .frame(maxWidth: .infinity, alignment: .leading)
@@ -1268,19 +1268,19 @@ struct ModernEditProfileView: View {
                         .foregroundColor(colorScheme == .dark ? .white.opacity(0.8) : .black.opacity(0.75))
                     
                     Text("profileEditor.bio")
-                        .font(.custom("Poppins-SemiBold", size: 16))
+                        .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
                         .foregroundColor(colorScheme == .dark ? .white : .black)
                     
                     Spacer()
                     
                     Text("\(characterCount)/150")
-                        .font(.custom("Poppins-Medium", size: 12))
+                        .font(.system(size: legacyPoppinsSize(12), weight: .medium))
                         .foregroundColor(characterCount > 150 ? .red : (colorScheme == .dark ? .white.opacity(0.5) : .black.opacity(0.45)))
                 }
 
                 ZStack(alignment: .topLeading) {
                     TextEditor(text: $newBio)
-                        .font(.custom("Poppins-Regular", size: 15))
+                        .font(.system(size: legacyPoppinsSize(15)))
                         .foregroundColor(colorScheme == .dark ? .white : .black)
                         .scrollContentBackground(.hidden)
                         .background(Color.clear)
@@ -1294,7 +1294,7 @@ struct ModernEditProfileView: View {
                     
                     if newBio.isEmpty {
                         Text("profileEditor.bio.placeholder")
-                            .font(.custom("Poppins-Regular", size: 15))
+                            .font(.system(size: legacyPoppinsSize(15)))
                             .foregroundColor(colorScheme == .dark ? .white.opacity(0.3) : .black.opacity(0.28))
                             .padding(.horizontal, 16)
                             .padding(.vertical, 20)
@@ -1316,14 +1316,14 @@ struct ModernEditProfileView: View {
                         .foregroundColor(colorScheme == .dark ? .white.opacity(0.8) : .black.opacity(0.75))
                     
                     Text("profileEditor.interests.title")
-                        .font(.custom("Poppins-SemiBold", size: 18))
+                        .font(.system(size: legacyPoppinsSize(18), weight: .semibold))
                         .foregroundColor(colorScheme == .dark ? .white : .black)
                     
                     Spacer()
                     
                     Button(action: { isShowingInterestsPicker = true }) {
                         Text(NSLocalizedString("creator.edit", comment: ""))
-                            .font(.custom("Poppins-Medium", size: 14))
+                            .font(.system(size: legacyPoppinsSize(14), weight: .medium))
                             .foregroundColor(colorScheme == .dark ? .white : .black)
                             .padding(.horizontal, 12)
                             .padding(.vertical, 6)
@@ -1332,7 +1332,7 @@ struct ModernEditProfileView: View {
                 }
                 
                 Text("profileEditor.interests.description")
-                    .font(.custom("Poppins-Regular", size: 14))
+                    .font(.system(size: legacyPoppinsSize(14)))
                     .foregroundColor(colorScheme == .dark ? .white.opacity(0.6) : .black.opacity(0.55))
                     .padding(.top, -10)
                 
@@ -1345,11 +1345,11 @@ struct ModernEditProfileView: View {
                         
                         VStack(spacing: 4) {
                             Text("profileEditor.interests.empty.title")
-                                .font(.custom("Poppins-Medium", size: 16))
+                                .font(.system(size: legacyPoppinsSize(16), weight: .medium))
                                 .foregroundColor(colorScheme == .dark ? .white.opacity(0.8) : .black.opacity(0.78))
                             
                             Text("profileEditor.interests.empty.subtitle")
-                                .font(.custom("Poppins-Regular", size: 13))
+                                .font(.system(size: legacyPoppinsSize(13)))
                                 .foregroundColor(colorScheme == .dark ? .white.opacity(0.5) : .black.opacity(0.45))
                                 .multilineTextAlignment(.center)
                                 .padding(.horizontal, 20)
@@ -1358,7 +1358,7 @@ struct ModernEditProfileView: View {
                         Button(NSLocalizedString("profileEditor.addInterests", comment: "")) {
                             isShowingInterestsPicker = true
                         }
-                        .font(.custom("Poppins-SemiBold", size: 14))
+                        .font(.system(size: legacyPoppinsSize(14), weight: .semibold))
                         .foregroundColor(colorScheme == .dark ? .white : .black)
                         .padding(.horizontal, 24)
                         .padding(.vertical, 12)
@@ -1375,7 +1375,7 @@ struct ModernEditProfileView: View {
                                 Text(InterestPickerRow.interestEmoji(for: interest))
                                     .font(.system(size: 14))
                                 Text(InterestOption.localize(interest))
-                                    .font(.custom("Poppins-Medium", size: 14))
+                                    .font(.system(size: legacyPoppinsSize(14), weight: .medium))
                                     .foregroundColor(colorScheme == .dark ? .white : .black)
                             }
                             .padding(.horizontal, 14)
@@ -1397,12 +1397,12 @@ struct ModernEditProfileView: View {
                     .foregroundColor(colorScheme == .dark ? .white.opacity(0.8) : .black.opacity(0.75))
                 
                 Text(title)
-                    .font(.custom("Poppins-SemiBold", size: 14))
+                    .font(.system(size: legacyPoppinsSize(14), weight: .semibold))
                     .foregroundColor(colorScheme == .dark ? .white.opacity(0.6) : .black.opacity(0.55))
             }
             
             TextField("", text: text, prompt: Text(placeholder).foregroundColor(colorScheme == .dark ? .white.opacity(0.3) : .black.opacity(0.28)))
-                .font(.custom("Poppins-Medium", size: 16))
+                .font(.system(size: legacyPoppinsSize(16), weight: .medium))
                 .foregroundColor(colorScheme == .dark ? .white : .black)
                 .padding(16)
                 .background(colorScheme == .dark ? Color.white.opacity(0.04) : Color.black.opacity(0.035))
@@ -1437,18 +1437,18 @@ struct ModernEditProfileView: View {
             
             VStack(spacing: 4) {
                 Text("profileEditor.interests.navigationTitle")
-                    .font(.custom("Poppins-SemiBold", size: 17))
+                    .font(.system(size: legacyPoppinsSize(17), weight: .semibold))
                     .foregroundColor(colorScheme == .dark ? .white : .black)
                 
                 Text("profileEditor.interests.select.title")
-                    .font(.custom("Poppins-Regular", size: 13))
+                    .font(.system(size: legacyPoppinsSize(13)))
                     .foregroundColor(colorScheme == .dark ? .white.opacity(0.65) : .black.opacity(0.55))
             }
             
             Spacer()
             
             Text("\(selectedInterests.count)/5")
-                .font(.custom("Poppins-SemiBold", size: 13))
+                .font(.system(size: legacyPoppinsSize(13), weight: .semibold))
                 .foregroundColor(selectedInterests.count >= 5 ? .red : (colorScheme == .dark ? .white : .black))
                 .padding(.horizontal, 12)
                 .padding(.vertical, 8)
@@ -1504,7 +1504,7 @@ struct ModernEditProfileView: View {
                 Spacer()
                 
                 Text("profileEditor.change")
-                    .font(.custom("Poppins-SemiBold", size: 17))
+                    .font(.system(size: legacyPoppinsSize(17), weight: .semibold))
                     .foregroundColor(colorScheme == .dark ? .white : .black)
                 
                 Spacer()
@@ -1566,7 +1566,7 @@ struct ModernEditProfileView: View {
                     .frame(width: 20)
                 
                 Text(title)
-                    .font(.custom("Poppins-Medium", size: 15))
+                    .font(.system(size: legacyPoppinsSize(15), weight: .medium))
                     .foregroundColor(isDestructive ? .red.opacity(0.9) : (colorScheme == .dark ? .white : .black))
                 
                 Spacer()
@@ -1695,7 +1695,7 @@ private struct InterestPickerRow: View {
                 Text(InterestPickerRow.interestEmoji(for: interest))
                     .font(.system(size: 16))
                 Text(InterestOption.localize(interest))
-                    .font(.custom("Poppins-Medium", size: 14))
+                    .font(.system(size: legacyPoppinsSize(14), weight: .medium))
                     .foregroundColor(colorScheme == .dark ? .white : .black)
                 Spacer()
                 

@@ -170,7 +170,7 @@ struct LocationPickerView: View {
             .toolbar {
                 ToolbarItem(placement: .principal) {
                     Text("creator.addLocation")
-                        .font(.custom("Poppins-SemiBold", size: 17))
+                        .font(.system(size: legacyPoppinsSize(17), weight: .semibold))
                         .foregroundColor(colorScheme == .dark ? .white : .black)
                 }
 

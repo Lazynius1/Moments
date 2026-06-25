@@ -18,7 +18,7 @@ struct LoginActivityView: View {
                         Text("loginActivity.loading")
                     }
                         .progressViewStyle(CircularProgressViewStyle())
-                        .font(.custom("Poppins-Regular", size: 16))
+                        .font(.system(size: legacyPoppinsSize(16)))
                         .foregroundColor(.gray)
                 } else {
                     ScrollView {
@@ -27,7 +27,7 @@ struct LoginActivityView: View {
                             
                             VStack(alignment: .leading, spacing: 16) {
                                 Text("loginActivity.currentSession")
-                                    .font(.custom("Poppins-SemiBold", size: 16))
+                                    .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
                                     .foregroundColor(colorScheme == .dark ? .white : .black)
                                 
                                 CurrentSessionCard(
@@ -42,7 +42,7 @@ struct LoginActivityView: View {
                             VStack(alignment: .leading, spacing: 16) {
                                 HStack {
                                     Text("loginActivity.otherSessions")
-                                        .font(.custom("Poppins-SemiBold", size: 16))
+                                        .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
                                         .foregroundColor(colorScheme == .dark ? .white : .black)
                                     
                                     Spacer()
@@ -50,7 +50,7 @@ struct LoginActivityView: View {
                                     Button(NSLocalizedString("loginActivity.logoutAll", comment: "Logout all sessions")) {
                                         viewModel.showLogoutAllAlert = true
                                     }
-                                    .font(.custom("Poppins-Medium", size: 14))
+                                    .font(.system(size: legacyPoppinsSize(14), weight: .medium))
                                     .foregroundColor(.red)
                                 }
                                 
@@ -61,7 +61,7 @@ struct LoginActivityView: View {
                                             .foregroundColor(.gray)
                                         
                                         Text("loginActivity.noOtherSessions")
-                                            .font(.custom("Poppins-Regular", size: 16))
+                                            .font(.system(size: legacyPoppinsSize(16)))
                                             .foregroundColor(.gray)
                                     }
                                     .frame(maxWidth: .infinity)
@@ -156,7 +156,7 @@ struct LoginActivityView: View {
     private var headerSection: some View {
         VStack(alignment: .leading, spacing: 6) {
             Text("loginActivity.description")
-                .font(.custom("Poppins-Regular", size: 13))
+                .font(.system(size: legacyPoppinsSize(13)))
                 .foregroundColor(colorScheme == .dark ? .white.opacity(0.58) : .black.opacity(0.52))
         }
         .padding(.horizontal)
@@ -172,14 +172,14 @@ struct CurrentSessionCard: View {
         VStack(alignment: .leading, spacing: 10) {
             HStack {
                 Text("loginActivity.activeSession")
-                    .font(.custom("Poppins-SemiBold", size: 15))
+                    .font(.system(size: legacyPoppinsSize(15), weight: .semibold))
                     .foregroundColor(colorScheme == .dark ? .white : .black)
                 
                 Spacer()
                 
                 if session != nil {
                     Text("loginActivity.current")
-                        .font(.custom("Poppins-Bold", size: 11))
+                        .font(.system(size: legacyPoppinsSize(11), weight: .bold))
                         .foregroundColor(.green)
                 }
             }
@@ -193,7 +193,7 @@ struct CurrentSessionCard: View {
                 }
             } else {
                 Text("loginActivity.noCurrentSession")
-                    .font(.custom("Poppins-Regular", size: 14))
+                    .font(.system(size: legacyPoppinsSize(14)))
                     .foregroundColor(.gray)
             }
         }
@@ -213,14 +213,14 @@ struct SessionCard: View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
                 Text(session.device)
-                    .font(.custom("Poppins-Medium", size: 15))
+                    .font(.system(size: legacyPoppinsSize(15), weight: .medium))
                     .foregroundColor(colorScheme == .dark ? .white : .black)
                     .lineLimit(1)
 
                 Spacer(minLength: 0)
 
                 Text(session.timestamp.timeAgoDisplay())
-                    .font(.custom("Poppins-Regular", size: 12))
+                    .font(.system(size: legacyPoppinsSize(12)))
                     .foregroundColor(colorScheme == .dark ? .white.opacity(0.6) : .black.opacity(0.5))
             }
             
@@ -256,7 +256,7 @@ private struct SessionLogoutButton: View {
     var body: some View {
         Button(action: action) {
             Text("loginActivity.logoutSession")
-                .font(.custom("Poppins-Medium", size: 13))
+                .font(.system(size: legacyPoppinsSize(13), weight: .medium))
                 .foregroundColor(.red)
                 .frame(maxWidth: .infinity, alignment: .leading)
         }
@@ -272,7 +272,7 @@ struct SessionSecurityHint: View {
     var body: some View {
         HStack(spacing: 0) {
             Text(text)
-                .font(.custom("Poppins-Medium", size: 11))
+                .font(.system(size: legacyPoppinsSize(11), weight: .medium))
                 .foregroundColor(color)
                 .lineLimit(2)
         }
@@ -297,24 +297,24 @@ struct SessionDetails: View {
         VStack(alignment: .leading, spacing: 4) {
             HStack(spacing: 4) {
                 Text(NSLocalizedString("loginActivity.session.location", value: "Ubicación", comment: "Location label"))
-                    .font(.custom("Poppins-Medium", size: 12))
+                    .font(.system(size: legacyPoppinsSize(12), weight: .medium))
                     .foregroundColor(.secondary.opacity(0.95))
                 Text(visibleLocation)
-                    .font(.custom("Poppins-Regular", size: 13))
+                    .font(.system(size: legacyPoppinsSize(13)))
                     .foregroundColor(.secondary)
                     .lineLimit(1)
             }
 
             HStack(spacing: 6) {
                 Text(visibleIP)
-                    .font(.custom("Poppins-Regular", size: 12))
+                    .font(.system(size: legacyPoppinsSize(12)))
                     .foregroundColor(.secondary)
                     .lineLimit(1)
                 Text("•")
-                    .font(.custom("Poppins-Regular", size: 11))
+                    .font(.system(size: legacyPoppinsSize(11)))
                     .foregroundColor(.secondary.opacity(0.7))
                 Text(session.timestamp.formatted(date: .abbreviated, time: .shortened))
-                    .font(.custom("Poppins-Regular", size: 12))
+                    .font(.system(size: legacyPoppinsSize(12)))
                     .foregroundColor(.secondary)
                     .lineLimit(1)
             }

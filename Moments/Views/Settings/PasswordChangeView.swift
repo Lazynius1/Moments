@@ -20,11 +20,11 @@ struct PasswordChangeView: View {
                                 .foregroundColor(SettingsProfileColors.accent(colorScheme))
                             
                             Text(NSLocalizedString("passwordChange.title", comment: "Change password title"))
-                                .font(.custom("Poppins-Bold", size: 24))
+                                .font(.system(size: legacyPoppinsSize(24), weight: .bold))
                                 .foregroundColor(colorScheme == .dark ? .white : .black)
                             
                             Text(NSLocalizedString("passwordChange.subtitle", comment: "Change password subtitle"))
-                                .font(.custom("Poppins-Regular", size: 16))
+                                .font(.system(size: legacyPoppinsSize(16)))
                                 .foregroundColor(.gray)
                                 .multilineTextAlignment(.center)
                         }
@@ -35,16 +35,16 @@ struct PasswordChangeView: View {
                             // Current Password
                             VStack(alignment: .leading, spacing: 8) {
                                 Text(NSLocalizedString("passwordChange.currentPassword", comment: "Current password"))
-                                    .font(.custom("Poppins-Medium", size: 16))
+                                    .font(.system(size: legacyPoppinsSize(16), weight: .medium))
                                     .foregroundColor(colorScheme == .dark ? .white : .black)
                                 
                                 HStack {
                                     if viewModel.showCurrentPassword {
                                         TextField(NSLocalizedString("passwordChange.currentPasswordPlaceholder", comment: "Current password placeholder"), text: $viewModel.currentPassword)
-                                            .font(.custom("Poppins-Regular", size: 16))
+                                            .font(.system(size: legacyPoppinsSize(16)))
                                     } else {
                                         SecureField(NSLocalizedString("passwordChange.currentPasswordPlaceholder", comment: "Current password placeholder"), text: $viewModel.currentPassword)
-                                            .font(.custom("Poppins-Regular", size: 16))
+                                            .font(.system(size: legacyPoppinsSize(16)))
                                     }
                                     
                                     Button(action: {
@@ -66,7 +66,7 @@ struct PasswordChangeView: View {
                                 
                                 if viewModel.currentPasswordError {
                                     Text(NSLocalizedString("passwordChange.currentPasswordError", comment: "Current password error"))
-                                        .font(.custom("Poppins-Regular", size: 12))
+                                        .font(.system(size: legacyPoppinsSize(12)))
                                         .foregroundColor(.red)
                                 }
                             }
@@ -74,16 +74,16 @@ struct PasswordChangeView: View {
                             // New Password
                             VStack(alignment: .leading, spacing: 8) {
                                 Text(NSLocalizedString("passwordChange.newPassword", comment: "New password"))
-                                    .font(.custom("Poppins-Medium", size: 16))
+                                    .font(.system(size: legacyPoppinsSize(16), weight: .medium))
                                     .foregroundColor(colorScheme == .dark ? .white : .black)
                                 
                                 HStack {
                                     if viewModel.showNewPassword {
                                         TextField(NSLocalizedString("passwordChange.newPasswordPlaceholder", comment: "New password placeholder"), text: $viewModel.newPassword)
-                                            .font(.custom("Poppins-Regular", size: 16))
+                                            .font(.system(size: legacyPoppinsSize(16)))
                                     } else {
                                         SecureField(NSLocalizedString("passwordChange.newPasswordPlaceholder", comment: "New password placeholder"), text: $viewModel.newPassword)
-                                            .font(.custom("Poppins-Regular", size: 16))
+                                            .font(.system(size: legacyPoppinsSize(16)))
                                     }
                                     
                                     Button(action: {
@@ -107,11 +107,11 @@ struct PasswordChangeView: View {
                                 VStack(alignment: .leading, spacing: 4) {
                                     HStack {
                                         Text("passwordChange.strength")
-                                            .font(.custom("Poppins-Regular", size: 12))
+                                            .font(.system(size: legacyPoppinsSize(12)))
                                             .foregroundColor(.gray)
                                         
                                         Text(viewModel.passwordStrength.title)
-                                            .font(.custom("Poppins-Medium", size: 12))
+                                            .font(.system(size: legacyPoppinsSize(12), weight: .medium))
                                             .foregroundColor(viewModel.passwordStrength.color)
                                     }
                                     
@@ -134,7 +134,7 @@ struct PasswordChangeView: View {
                                 
                                 if viewModel.newPasswordError {
                                     Text(NSLocalizedString("passwordChange.passwordRequirement", comment: "Password requirement"))
-                                        .font(.custom("Poppins-Regular", size: 12))
+                                        .font(.system(size: legacyPoppinsSize(12)))
                                         .foregroundColor(.red)
                                 }
                             }
@@ -142,16 +142,16 @@ struct PasswordChangeView: View {
                             // Confirm New Password
                             VStack(alignment: .leading, spacing: 8) {
                                 Text(NSLocalizedString("passwordChange.confirmPassword", comment: "Confirm password"))
-                                    .font(.custom("Poppins-Medium", size: 16))
+                                    .font(.system(size: legacyPoppinsSize(16), weight: .medium))
                                     .foregroundColor(colorScheme == .dark ? .white : .black)
                                 
                                 HStack {
                                     if viewModel.showConfirmPassword {
                                         TextField(NSLocalizedString("passwordChange.confirmPasswordPlaceholder", comment: "Confirm password placeholder"), text: $viewModel.confirmPassword)
-                                            .font(.custom("Poppins-Regular", size: 16))
+                                            .font(.system(size: legacyPoppinsSize(16)))
                                     } else {
                                         SecureField(NSLocalizedString("passwordChange.confirmPasswordPlaceholder", comment: "Confirm password placeholder"), text: $viewModel.confirmPassword)
-                                            .font(.custom("Poppins-Regular", size: 16))
+                                            .font(.system(size: legacyPoppinsSize(16)))
                                     }
                                     
                                     Button(action: {
@@ -173,7 +173,7 @@ struct PasswordChangeView: View {
                                 
                                 if viewModel.confirmPasswordError {
                                     Text(NSLocalizedString("passwordChange.passwordsDontMatch", comment: "Passwords don't match"))
-                                        .font(.custom("Poppins-Regular", size: 12))
+                                        .font(.system(size: legacyPoppinsSize(12)))
                                         .foregroundColor(.red)
                                 }
                             }
@@ -187,7 +187,7 @@ struct PasswordChangeView: View {
                                     .foregroundColor(SettingsProfileColors.accent(colorScheme))
                                 
                                 Text(NSLocalizedString("passwordChange.securityTips", comment: "Security tips"))
-                                    .font(.custom("Poppins-SemiBold", size: 16))
+                                    .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
                                     .foregroundColor(colorScheme == .dark ? .white : .black)
                             }
                             
@@ -220,7 +220,7 @@ struct PasswordChangeView: View {
                                 }
                                 
                                 Text(viewModel.isLoading ? "Cambiando..." : "Cambiar Contraseña")
-                                    .font(.custom("Poppins-SemiBold", size: 16))
+                                    .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
                             }
                             .foregroundColor(
                                 viewModel.isFormValid
@@ -276,7 +276,7 @@ struct PasswordSecurityTipRow: View {
                 .font(.system(size: 12))
             
             Text(text)
-                .font(.custom("Poppins-Regular", size: 14))
+                .font(.system(size: legacyPoppinsSize(14)))
                 .foregroundColor(colorScheme == .dark ? .white : .black)
         }
     }

@@ -917,7 +917,7 @@ struct StoryStickerView: View {
 
                             VStack(alignment: .leading, spacing: 0) {
                                 Text(sticker.interactionData?.username ?? NSLocalizedString("storyEditor.mention.userFallback", comment: "Fallback username for mention sticker"))
-                                    .font(.custom("Poppins-Bold", size: 13 * sticker.scale))
+                                    .font(.system(size: legacyPoppinsSize(13 * sticker.scale), weight: .bold))
                                     .foregroundColor(.white)
                                     .shadow(color: .black.opacity(0.3), radius: 2, x: 0, y: 1)
                             }
@@ -943,7 +943,7 @@ struct StoryStickerView: View {
                             VStack {
                                 Spacer()
                                 Text(caption)
-                                    .font(.custom("Poppins-Medium", size: 9 * sticker.scale))
+                                    .font(.system(size: legacyPoppinsSize(9 * sticker.scale), weight: .medium))
                                     .foregroundColor(.white)
                                     .padding(.horizontal, 8 * sticker.scale)
                                     .padding(.vertical, 4 * sticker.scale)
@@ -1002,7 +1002,7 @@ struct StoryStickerView: View {
                                         .overlay(Circle().stroke(.white.opacity(0.3), lineWidth: 0.5 * sticker.scale))
 
                                     Text(username)
-                                        .font(.custom("Poppins-Bold", size: 10 * sticker.scale))
+                                        .font(.system(size: legacyPoppinsSize(10 * sticker.scale), weight: .bold))
                                         .foregroundColor(.white)
 
                                     Spacer()
@@ -1026,7 +1026,7 @@ struct StoryStickerView: View {
                                 VStack {
                                     Spacer()
                                     Text(caption)
-                                        .font(.custom("Poppins-Medium", size: 9 * sticker.scale))
+                                        .font(.system(size: legacyPoppinsSize(9 * sticker.scale), weight: .medium))
                                         .foregroundColor(.white)
                                         .padding(.horizontal, 8 * sticker.scale)
                                         .padding(.vertical, 4 * sticker.scale)
@@ -1650,22 +1650,22 @@ struct QuestionResponseInputView: View {
             VStack(alignment: .leading, spacing: 18) {
                 VStack(alignment: .leading, spacing: 6) {
                     Text("question.answer.title")
-                        .font(.custom("Poppins-SemiBold", size: 24))
+                        .font(.system(size: legacyPoppinsSize(24), weight: .semibold))
                         .foregroundStyle(.primary)
 
                     Text("question.answer.subtitle")
-                        .font(.custom("Poppins-Regular", size: 14))
+                        .font(.system(size: legacyPoppinsSize(14)))
                         .foregroundStyle(.secondary)
                 }
                 .padding(.horizontal, 20)
 
                 VStack(alignment: .leading, spacing: 10) {
                     Label("question.promptLabel", systemImage: "questionmark.bubble.fill")
-                        .font(.custom("Poppins-SemiBold", size: 13))
+                        .font(.system(size: legacyPoppinsSize(13), weight: .semibold))
                         .foregroundStyle(.secondary)
 
                     Text(questionText)
-                        .font(.custom("Poppins-SemiBold", size: 17))
+                        .font(.system(size: legacyPoppinsSize(17), weight: .semibold))
                         .foregroundStyle(.primary)
                         .multilineTextAlignment(.leading)
                 }
@@ -1679,11 +1679,11 @@ struct QuestionResponseInputView: View {
 
                 VStack(alignment: .leading, spacing: 10) {
                     Text("question.yourAnswer")
-                        .font(.custom("Poppins-SemiBold", size: 13))
+                        .font(.system(size: legacyPoppinsSize(13), weight: .semibold))
                         .foregroundStyle(.secondary)
 
                     TextField(NSLocalizedString("question.answerPlaceholder", comment: "Write your question"), text: $responseText, axis: .vertical)
-                        .font(.custom("Poppins-Regular", size: 16))
+                        .font(.system(size: legacyPoppinsSize(16)))
                         .foregroundStyle(.primary)
                         .focused($isTextFieldFocused)
                         .lineLimit(3...6)
@@ -1707,7 +1707,7 @@ struct QuestionResponseInputView: View {
                         }
 
                         Text("question.sendAnswer")
-                            .font(.custom("Poppins-SemiBold", size: 16))
+                            .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
                     }
                     .foregroundStyle(.primary)
                     .frame(maxWidth: .infinity)

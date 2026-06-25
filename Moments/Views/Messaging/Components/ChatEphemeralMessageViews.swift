@@ -185,11 +185,11 @@ struct ChatEphemeralTapCard: View {
 
                 VStack(spacing: 4) {
                     Text("chat.tapToView")
-                        .font(.custom("Poppins-SemiBold", size: layout == .compact ? 11 : 13))
+                        .font(.system(size: legacyPoppinsSize(layout == .compact ? 11 : 13), weight: .semibold))
                         .foregroundColor(.white)
 
                     Text("chat.ephemeral.title")
-                        .font(.custom("Poppins-Regular", size: layout == .compact ? 10 : 11))
+                        .font(.system(size: legacyPoppinsSize(layout == .compact ? 10 : 11)))
                         .foregroundColor(.white.opacity(0.78))
 
                     if let expirationDate, expirationDate > Date() {
@@ -199,7 +199,7 @@ struct ChatEphemeralTapCard: View {
                                 ChatEphemeralTimeFormatting.shortLabel(until: expirationDate)
                             )
                         )
-                        .font(.custom("Poppins-Regular", size: 10))
+                        .font(.system(size: legacyPoppinsSize(10)))
                         .foregroundColor(ChatEphemeralPalette.accent.opacity(0.9))
                     }
                 }
@@ -251,7 +251,7 @@ struct ChatEphemeralImageCard: View {
             .overlay(alignment: .topTrailing) {
                 if let expirationDate, expirationDate > Date() {
                     Text(ChatEphemeralTimeFormatting.shortLabel(until: expirationDate))
-                        .font(.custom("Poppins-Medium", size: 10))
+                        .font(.system(size: legacyPoppinsSize(10), weight: .medium))
                         .foregroundColor(.white)
                         .padding(.horizontal, 8)
                         .padding(.vertical, 4)
@@ -286,7 +286,7 @@ struct ChatEphemeralResolvingCard: View {
                 ProgressView()
                     .progressViewStyle(CircularProgressViewStyle(tint: ChatEphemeralPalette.accent))
                 Text("common.loading")
-                    .font(.custom("Poppins-Regular", size: 11))
+                    .font(.system(size: legacyPoppinsSize(11)))
                     .foregroundColor(.white.opacity(0.72))
             }
         }
@@ -313,7 +313,7 @@ struct ChatEphemeralExpiredCard: View {
                     .foregroundColor(.white.opacity(0.45))
 
                 Text("stories.ephemeral.expired")
-                    .font(.custom("Poppins-Medium", size: layout == .compact ? 10 : 12))
+                    .font(.system(size: legacyPoppinsSize(layout == .compact ? 10 : 12), weight: .medium))
                     .foregroundColor(.white.opacity(0.55))
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 8)

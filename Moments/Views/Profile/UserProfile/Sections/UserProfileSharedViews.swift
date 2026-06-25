@@ -20,11 +20,11 @@ struct StatItem: View {
                 .foregroundColor(color)
 
             Text(value)
-                .font(.custom("Poppins-Bold", size: 20))
+                .font(.system(size: legacyPoppinsSize(20), weight: .bold))
                 .foregroundColor(.primary)
 
             Text(label)
-                .font(.custom("Poppins-Regular", size: 12))
+                .font(.system(size: legacyPoppinsSize(12)))
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)
         }
@@ -58,7 +58,7 @@ struct UserModernLoadingView: View {
                     .animation(.linear(duration: 1).repeatForever(autoreverses: false), value: isAnimating)
             }
                             Text("userProfile.loading")
-                .font(.custom("Poppins-Medium", size: 16))
+                .font(.system(size: legacyPoppinsSize(16), weight: .medium))
                 .foregroundColor(UserProfileColors.textSecondary)
         }
         .onAppear { isAnimating = true }
@@ -229,8 +229,8 @@ struct UserExpandableContentView: View {
         VStack(alignment: .leading, spacing: 8) {
             MomentHashtagText(
                 content: isExpanded ? content : String(content.prefix(maxCharacters)) + (content.count > maxCharacters ? "..." : ""),
-                textFont: .custom("Poppins-Regular", size: 14),
-                hashtagFont: .custom("Poppins-SemiBold", size: 14),
+                textFont: .system(size: 14),
+                hashtagFont: .system(size: 14, weight: .semibold),
                 baseColor: .white.opacity(0.95),
                 mentionColor: Color(hex: "007AFF"),
                 textAlignment: .center,
@@ -249,7 +249,7 @@ struct UserExpandableContentView: View {
                     }
                 }) {
                     Text(isExpanded ? NSLocalizedString("userProfile.seeLess", comment: "See less") : NSLocalizedString("userProfile.seeMore", comment: "See more"))
-                        .font(.custom("Poppins-Medium", size: 13))
+                        .font(.system(size: legacyPoppinsSize(13), weight: .medium))
                         .foregroundColor(UserProfileColors.accent)
                         .padding(.horizontal, 12)
                         .padding(.vertical, 4)
@@ -355,7 +355,7 @@ struct ProfileImageViewer: View {
                                     .font(.system(size: 120))
                                     .foregroundColor(.secondary)
                                 Text(username)
-                                    .font(.custom("Poppins-SemiBold", size: 18))
+                                    .font(.system(size: legacyPoppinsSize(18), weight: .semibold))
                                     .foregroundColor(.primary)
                             }
                         )

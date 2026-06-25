@@ -44,6 +44,7 @@ struct UsersTabContent<ViewModel: UserListViewModel>: View {
     var onViewSharedActivity: ((AppUser) -> Void)? = nil
     var onRemoveFollower: ((AppUser) -> Void)? = nil
     var onAvatarTap: ((String, Bool) -> Void)? = nil
+    var mutualUserIds: Set<String> = []
     @Environment(\.colorScheme) var colorScheme
 
     private var filteredUsers: [AppUser] {
@@ -134,7 +135,8 @@ struct UsersTabContent<ViewModel: UserListViewModel>: View {
                         newContentCount: recentMomentCounts[user.id],
                         onViewSharedActivity: onViewSharedActivity,
                         onRemoveFollower: onRemoveFollower,
-                        onAvatarTap: onAvatarTap
+                        onAvatarTap: onAvatarTap,
+                        isMutual: mutualUserIds.contains(user.id)
                     )
                 }
             }
@@ -309,11 +311,11 @@ struct UserListView<ViewModel: UserListViewModel>: View {
     private var headerView: some View {
         VStack(alignment: .center, spacing: 2) {
             Text(title)
-                .font(.custom("Poppins-Bold", size: 22))
+                .font(.system(size: legacyPoppinsSize(22), weight: .bold))
                 .foregroundColor(colorScheme == .dark ? .white : .black)
 
             Text("\(users.count) \(users.count == 1 ? NSLocalizedString("userListView.person.singular", comment: "Person singular") : NSLocalizedString("userListView.person.plural", comment: "Person plural"))")
-                .font(.custom("Poppins-Regular", size: 13))
+                .font(.system(size: legacyPoppinsSize(13)))
                 .foregroundColor(colorScheme == .dark ? .white.opacity(0.7) : .black.opacity(0.7))
         }
         .frame(maxWidth: .infinity, alignment: .center)
@@ -330,7 +332,7 @@ struct UserListView<ViewModel: UserListViewModel>: View {
                 .font(.system(size: 16))
 
             TextField(NSLocalizedString("userListView.search.placeholder", comment: "Search users placeholder"), text: $searchText)
-                .font(.custom("Poppins-Regular", size: 16))
+                .font(.system(size: legacyPoppinsSize(16)))
                 .foregroundColor(colorScheme == .dark ? .white : .black)
                 .textFieldStyle(PlainTextFieldStyle())
 
@@ -375,7 +377,7 @@ struct ModernProfileUserRowView<ViewModel: UserListViewModel>: View {
             VStack(alignment: .leading, spacing: 4) {
                 HStack(spacing: 4) {
                     Text(user.username)
-                        .font(.custom("Poppins-SemiBold", size: 16))
+                        .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
                         .foregroundColor(colorScheme == .dark ? .white : .black)
                     
                     if user.isVerified {
@@ -386,7 +388,7 @@ struct ModernProfileUserRowView<ViewModel: UserListViewModel>: View {
                 // Bio o información adicional
                 if let bio = user.bio, !bio.isEmpty {
                     Text(bio)
-                        .font(.custom("Poppins-Regular", size: 13))
+                        .font(.system(size: legacyPoppinsSize(13)))
                         .foregroundColor(colorScheme == .dark ? .white.opacity(0.7) : .black.opacity(0.7))
                         .lineLimit(1)
                 }
@@ -462,7 +464,7 @@ struct ModernProfileUserRowView<ViewModel: UserListViewModel>: View {
                 .foregroundColor(.orange)
             
             Text(NSLocalizedString("userListView.frequentVisits", comment: "Frequent visits indicator"))
-                .font(.custom("Poppins-Medium", size: 10))
+                .font(.system(size: legacyPoppinsSize(10), weight: .medium))
                 .foregroundColor(colorScheme == .dark ? .white.opacity(0.8) : .black.opacity(0.8))
         }
         .padding(.horizontal, 8)
@@ -492,7 +494,7 @@ struct ModernProfileUserRowView<ViewModel: UserListViewModel>: View {
                         Image(systemName: "person.badge.plus")
                             .font(.system(size: 12, weight: .medium))
                         Text(NSLocalizedString("userListView.followButton", comment: "Follow button"))
-                            .font(.custom("Poppins-SemiBold", size: 12))
+                            .font(.system(size: legacyPoppinsSize(12), weight: .semibold))
                     }
                     .foregroundColor(colorScheme == .dark ? .white : .black)
                     .padding(.horizontal, 12)
@@ -507,7 +509,7 @@ struct ModernProfileUserRowView<ViewModel: UserListViewModel>: View {
                         Image(systemName: "person.badge.minus")
                             .font(.system(size: 12, weight: .medium))
                         Text(NSLocalizedString("userListView.unfollowButton", comment: "Unfollow button"))
-                            .font(.custom("Poppins-SemiBold", size: 12))
+                            .font(.system(size: legacyPoppinsSize(12), weight: .semibold))
                     }
                     .foregroundColor(colorScheme == .dark ? .white : .black)
                     .padding(.horizontal, 12)

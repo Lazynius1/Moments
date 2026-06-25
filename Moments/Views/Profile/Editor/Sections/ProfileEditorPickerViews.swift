@@ -137,11 +137,11 @@ struct ProfileAlbumRowView: View {
 
                 VStack(alignment: .leading, spacing: 4) {
                     Text(album.title)
-                        .font(.custom("Poppins-SemiBold", size: 16))
+                        .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
                         .foregroundColor(colorScheme == .dark ? .white : .black)
 
                     Text(String(format: NSLocalizedString("profileEditor.album.photosCount", comment: ""), album.assetCount))
-                        .font(.custom("Poppins-Regular", size: 14))
+                        .font(.system(size: legacyPoppinsSize(14)))
                         .foregroundColor(.gray)
                 }
 
@@ -182,7 +182,7 @@ struct ProfileLibraryCropEntryView: View {
                     ProgressView()
                         .tint(colorScheme == .dark ? .white : .black)
                     Text("profileEditor.loadingPhotos")
-                        .font(.custom("Poppins-Medium", size: 15))
+                        .font(.system(size: legacyPoppinsSize(15), weight: .medium))
                         .foregroundColor(colorScheme == .dark ? .white.opacity(0.75) : .black.opacity(0.75))
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -193,11 +193,11 @@ struct ProfileLibraryCropEntryView: View {
                         .foregroundColor(colorScheme == .dark ? .white.opacity(0.7) : .black.opacity(0.7))
 
                     Text("profileEditor.photosAccess.title")
-                        .font(.custom("Poppins-SemiBold", size: 18))
+                        .font(.system(size: legacyPoppinsSize(18), weight: .semibold))
                         .foregroundColor(colorScheme == .dark ? .white : .black)
 
                     Text("profileEditor.photosAccess.description")
-                        .font(.custom("Poppins-Regular", size: 14))
+                        .font(.system(size: legacyPoppinsSize(14)))
                         .foregroundColor(colorScheme == .dark ? .white.opacity(0.65) : .black.opacity(0.6))
                         .multilineTextAlignment(.center)
                         .padding(.horizontal, 28)
@@ -207,7 +207,7 @@ struct ProfileLibraryCropEntryView: View {
                             UIApplication.shared.open(settingsUrl)
                         }
                     }
-                    .font(.custom("Poppins-SemiBold", size: 14))
+                    .font(.system(size: legacyPoppinsSize(14), weight: .semibold))
                     .foregroundColor(colorScheme == .dark ? .white : .black)
                     .padding(.horizontal, 18)
                     .padding(.vertical, 10)
@@ -217,13 +217,13 @@ struct ProfileLibraryCropEntryView: View {
             } else {
                 VStack(spacing: 16) {
                     Text("profileEditor.photosAccess.title")
-                        .font(.custom("Poppins-SemiBold", size: 18))
+                        .font(.system(size: legacyPoppinsSize(18), weight: .semibold))
                         .foregroundColor(colorScheme == .dark ? .white : .black)
 
                     Button(NSLocalizedString("profileEditor.allowAccess", comment: "")) {
                         requestPermission()
                     }
-                    .font(.custom("Poppins-SemiBold", size: 14))
+                    .font(.system(size: legacyPoppinsSize(14), weight: .semibold))
                     .foregroundColor(colorScheme == .dark ? .white : .black)
                     .padding(.horizontal, 18)
                     .padding(.vertical, 10)

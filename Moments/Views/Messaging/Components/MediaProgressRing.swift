@@ -37,7 +37,7 @@ struct MediaProgressRing: View {
             // Percentage Text (Small) - Optional, only if size > 50
             if size > 50 {
                 Text("\(Int(progress * 100))%")
-                    .font(.custom("Poppins-Bold", size: 10))
+                    .font(.system(size: legacyPoppinsSize(10), weight: .bold))
                     .foregroundColor(.white)
             }
         }

@@ -179,7 +179,7 @@ struct ReelVideoView: View {
                             .foregroundColor(chromeTertiaryColor)
 
                         Text(NSLocalizedString("comments.add.placeholder", comment: "Add comment placeholder"))
-                            .font(.custom("Poppins-Regular", size: 15))
+                            .font(.system(size: legacyPoppinsSize(15)))
                             .foregroundColor(chromeTertiaryColor)
 
                         Spacer()
@@ -265,13 +265,13 @@ struct ReelVideoView: View {
                                     ? NSLocalizedString("feed.reels.video.starting", comment: "Reels starting state")
                                     : NSLocalizedString("feed.reels.video.loading", comment: "Reels loading state")
                                 )
-                                    .font(.custom("Poppins-Medium", size: 14))
+                                    .font(.system(size: legacyPoppinsSize(14), weight: .medium))
                                     .foregroundColor(.white)
                                     .transition(.opacity)
                                 
                                 if playerManager.isBuffering {
                                     Text(NSLocalizedString("feed.reels.video.optimizing", comment: "Reels optimizing quality"))
-                                        .font(.custom("Poppins-Regular", size: 12))
+                                        .font(.system(size: legacyPoppinsSize(12)))
                                         .foregroundColor(.white.opacity(0.6))
                                         .transition(.opacity)
                                 }
@@ -419,7 +419,7 @@ struct ReelVideoView: View {
                                         }) {
                                             HStack(spacing: 6) {
                                                 Text(displayAuthorUsername)
-                                                    .font(.custom("Poppins-SemiBold", size: 15))
+                                                    .font(.system(size: legacyPoppinsSize(15), weight: .semibold))
                                                     .foregroundColor(chromePrimaryColor)
                                                     .lineLimit(1)
 
@@ -434,7 +434,7 @@ struct ReelVideoView: View {
 
                                         HStack(spacing: 8) {
                                             Text(formatTimeAgo(video.moment.timestamp))
-                                                .font(.custom("Poppins-Regular", size: 12))
+                                                .font(.system(size: legacyPoppinsSize(12)))
                                                 .foregroundColor(chromeSecondaryColor)
 
                                             if let location = video.moment.location, !location.isEmpty {
@@ -444,7 +444,7 @@ struct ReelVideoView: View {
                                                     Text(location)
                                                         .lineLimit(1)
                                                 }
-                                                .font(.custom("Poppins-Regular", size: 12))
+                                                .font(.system(size: legacyPoppinsSize(12)))
                                                 .foregroundColor(chromeTertiaryColor)
                                             }
                                         }
@@ -945,7 +945,7 @@ struct EnhancedReelReactionButton: View {
             // Count with better styling
             if reactionCount > 0 {
                 Text(formatCount(reactionCount))
-                    .font(.custom("Poppins-Bold", size: 12))
+                    .font(.system(size: legacyPoppinsSize(12), weight: .bold))
                     .foregroundColor(.white)
                     .padding(.horizontal, 8)
                     .padding(.vertical, 4)
@@ -1127,7 +1127,7 @@ struct EnhancedReelActionButton: View {
             // Count badge
             if let count = count, count > 0 {
                 Text(formatCount(count))
-                    .font(.custom("Poppins-Bold", size: 12))
+                    .font(.system(size: legacyPoppinsSize(12), weight: .bold))
                     .foregroundColor(.white)
                     .padding(.horizontal, 8)
                     .padding(.vertical, 4)

@@ -525,7 +525,7 @@ private struct ChatContextMenuRow: View {
         }) {
             HStack {
                 Text(title)
-                    .font(.custom("Poppins-Medium", size: 17))
+                    .font(.system(size: legacyPoppinsSize(17), weight: .medium))
                 Spacer()
                 Image(systemName: icon)
                     .font(.system(size: 18))
@@ -559,7 +559,7 @@ struct GlassActionButton: View {
                     .font(.system(size: 18))
                     .frame(width: 24)
                 Text(title)
-                    .font(.custom("Poppins-Regular", size: 16))
+                    .font(.system(size: legacyPoppinsSize(16)))
                 Spacer()
             }
             .foregroundColor(isDestructive ? Color.red : MomentsChromeGlass.contentColor(for: colorScheme))

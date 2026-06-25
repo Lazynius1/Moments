@@ -75,7 +75,7 @@ struct ProfileSavedContent: View {
                 ProgressView()
                     .scaleEffect(1.2)
                 Text(NSLocalizedString("profile.saved.loading", comment: "Loading saved"))
-                    .font(.custom("Poppins-Medium", size: 14))
+                    .font(.system(size: legacyPoppinsSize(14), weight: .medium))
                     .foregroundColor(ProfileColors.textSecondary)
             }
             .frame(maxWidth: .infinity)
@@ -95,7 +95,7 @@ struct ProfileSavedContent: View {
                                 }
                             }) {
                                 Text(filter.title)
-                                    .font(.custom("Poppins-Medium", size: 12))
+                                    .font(.system(size: legacyPoppinsSize(12), weight: .medium))
                                     .foregroundColor(selectedFilter == filter ? ProfileColors.textPrimary : ProfileColors.textSecondary)
                                     .padding(.horizontal, 12)
                                     .padding(.vertical, 8)
@@ -121,7 +121,7 @@ struct ProfileSavedContent: View {
                             Image(systemName: "arrow.up.right")
                                 .font(.system(size: 11, weight: .semibold))
                         }
-                        .font(.custom("Poppins-SemiBold", size: 12))
+                        .font(.system(size: legacyPoppinsSize(12), weight: .semibold))
                         .foregroundColor(ProfileColors.textPrimary)
                         .padding(.horizontal, 10)
                         .padding(.vertical, 8)
@@ -136,7 +136,7 @@ struct ProfileSavedContent: View {
                             .font(.system(size: 30))
                             .foregroundColor(ProfileColors.textSecondary)
                         Text(NSLocalizedString("profile.saved.filtered.empty", comment: "No saved moments for selected filter"))
-                            .font(.custom("Poppins-Medium", size: 13))
+                            .font(.system(size: legacyPoppinsSize(13), weight: .medium))
                             .foregroundColor(ProfileColors.textSecondary)
                     }
                     .frame(maxWidth: .infinity)
@@ -176,7 +176,7 @@ struct ProfileSavedContent: View {
                 if !recentMoments.isEmpty {
                     VStack(alignment: .leading, spacing: 10) {
                         Text(NSLocalizedString("profile.saved.recent", comment: "Recent saved moments section"))
-                            .font(.custom("Poppins-SemiBold", size: 14))
+                            .font(.system(size: legacyPoppinsSize(14), weight: .semibold))
                             .foregroundColor(ProfileColors.textPrimary)
                             .padding(.horizontal, 20)
 
@@ -447,7 +447,7 @@ struct ProfileSavedMomentThumbnail: View {
             )
 
             Text(moment.content)
-                .font(.custom("Poppins-Medium", size: 10))
+                .font(.system(size: legacyPoppinsSize(10), weight: .medium))
                 .foregroundColor(.white)
                 .multilineTextAlignment(.center)
                 .lineLimit(4)
@@ -477,7 +477,7 @@ struct ProfileSavedMomentThumbnail: View {
                         comment: "Saved moment restricted title"
                     )
                 )
-                    .font(.custom("Poppins-SemiBold", size: 9))
+                    .font(.system(size: legacyPoppinsSize(9), weight: .semibold))
                     .foregroundColor(.white)
                     .lineLimit(2)
                     .multilineTextAlignment(.center)
@@ -488,7 +488,7 @@ struct ProfileSavedMomentThumbnail: View {
                         comment: "Saved moment restricted subtitle"
                     )
                 )
-                    .font(.custom("Poppins-Regular", size: 8))
+                    .font(.system(size: legacyPoppinsSize(8)))
                     .foregroundColor(.white.opacity(0.84))
                     .lineLimit(2)
                     .multilineTextAlignment(.center)

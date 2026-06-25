@@ -30,12 +30,12 @@ struct NovaActionConfirmationOverlay: View {
                 VStack(spacing: 8) {
                     Text(action.title)
                         .foregroundColor(primaryTextColor)
-                        .font(.custom("Poppins-SemiBold", size: 18))
+                        .font(.system(size: legacyPoppinsSize(18), weight: .semibold))
                         .multilineTextAlignment(.center)
 
                     Text(NSLocalizedString("nova.confirm.subtitle", comment: ""))
                         .foregroundColor(secondaryTextColor)
-                        .font(.custom("Poppins-Regular", size: 14))
+                        .font(.system(size: legacyPoppinsSize(14)))
                         .multilineTextAlignment(.center)
                 }
 
@@ -54,13 +54,13 @@ struct NovaActionConfirmationOverlay: View {
 
                 Text(action.detail)
                     .foregroundColor(secondaryTextColor)
-                    .font(.custom("Poppins-Regular", size: 14))
+                    .font(.system(size: legacyPoppinsSize(14)))
                     .multilineTextAlignment(.center)
 
                 HStack(spacing: 10) {
                     Button(action: onCancel) {
                         Text(NSLocalizedString("common.cancel", comment: "Cancel"))
-                            .font(.custom("Poppins-Medium", size: 14))
+                            .font(.system(size: legacyPoppinsSize(14), weight: .medium))
                             .foregroundColor(primaryTextColor)
                             .frame(maxWidth: .infinity)
                             .frame(height: 46)
@@ -73,7 +73,7 @@ struct NovaActionConfirmationOverlay: View {
 
                     Button(action: onConfirm) {
                         Text(NSLocalizedString("nova.confirm.approve", comment: ""))
-                            .font(.custom("Poppins-SemiBold", size: 14))
+                            .font(.system(size: legacyPoppinsSize(14), weight: .semibold))
                             .foregroundColor(primaryTextColor)
                             .frame(maxWidth: .infinity)
                             .frame(height: 46)

@@ -79,7 +79,7 @@ struct MessageRequestsView: View {
                 Spacer()
                 
                 Text("messageRequests.title")
-                    .font(.custom("Poppins-SemiBold", size: 22))
+                    .font(.system(size: legacyPoppinsSize(22), weight: .semibold))
                     .foregroundColor(adaptiveColors.primary)
                 
                 Spacer()
@@ -94,7 +94,7 @@ struct MessageRequestsView: View {
                 HStack {
                     Spacer()
                     Text(String(format: NSLocalizedString("messageRequests.count", comment: "Request count"), messageRequestService.pendingRequests.count))
-                        .font(.custom("Poppins-Medium", size: 12))
+                        .font(.system(size: legacyPoppinsSize(12), weight: .medium))
                         .foregroundColor(adaptiveColors.secondary)
                         .padding(.horizontal, 12)
                         .padding(.vertical, 6)

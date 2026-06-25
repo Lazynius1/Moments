@@ -194,7 +194,7 @@ struct ModernLocationPin: View {
             }
 
             Text(locationName)
-                .font(.custom("Poppins-SemiBold", size: 12))
+                .font(.system(size: legacyPoppinsSize(12), weight: .semibold))
                 .foregroundColor(adaptiveColors.primary)
                 .padding(.horizontal, 12)
                 .padding(.vertical, 6)
@@ -243,7 +243,7 @@ struct ModernLocationGallery: View {
                         .foregroundColor(adaptiveColors.accent)
 
                     Text(NSLocalizedString("maps.gallery.explore", comment: "Explore gallery section title"))
-                        .font(.custom("Poppins-Bold", size: 16))
+                        .font(.system(size: legacyPoppinsSize(16), weight: .bold))
                         .foregroundColor(adaptiveColors.primary)
                 }
 
@@ -252,7 +252,7 @@ struct ModernLocationGallery: View {
                 if !moments.isEmpty {
                     Button(action: onShowAll) {
                         Text(NSLocalizedString("maps.gallery.seeAll", comment: "See all gallery items"))
-                            .font(.custom("Poppins-SemiBold", size: 13))
+                            .font(.system(size: legacyPoppinsSize(13), weight: .semibold))
                             .foregroundColor(adaptiveColors.accent)
                             .padding(.horizontal, 12)
                             .padding(.vertical, 6)
@@ -450,12 +450,12 @@ struct ModernLocationGalleryView: View {
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(locationName)
-                    .font(.custom("Poppins-Bold", size: 18))
+                    .font(.system(size: legacyPoppinsSize(18), weight: .bold))
                     .foregroundColor(adaptiveColors.primary)
                     .lineLimit(1)
 
                 Text(String(format: NSLocalizedString("maps.bottomSheet.moments", comment: "Number of moments in location"), moments.count))
-                    .font(.custom("Poppins-Medium", size: 12))
+                    .font(.system(size: legacyPoppinsSize(12), weight: .medium))
                     .foregroundColor(adaptiveColors.accent)
             }
 
@@ -489,7 +489,7 @@ struct ModernLocationGalleryView: View {
                 .foregroundColor(adaptiveColors.tertiary)
 
             Text(NSLocalizedString("maps.gallery.empty", comment: "Gallery empty state"))
-                .font(.custom("Poppins-SemiBold", size: 18))
+                .font(.system(size: legacyPoppinsSize(18), weight: .semibold))
                 .foregroundColor(adaptiveColors.primary)
         }
         .frame(maxHeight: .infinity)
