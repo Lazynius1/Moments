@@ -452,7 +452,7 @@ final class NovaAgent: ObservableObject {
             return NSLocalizedString("nova.agent.tool.moment", comment: "Creating moment")
         case "list_audience_lists":
             return NSLocalizedString("nova.agent.tool.lists", comment: "Listing audience lists")
-        case "get_connection_suggestions", "get_followers_summary", "get_following_summary", "get_mutual_connections", "get_shared_interest_users", "find_user_by_username", "send_follow_request":
+        case "get_connection_suggestions", "get_followers_summary", "get_following_summary", "get_mutuals", "get_mutual_connections", "get_shared_interest_users", "find_user_by_username", "send_follow_request":
             return NSLocalizedString("nova.agent.tool.connections", comment: "Finding connections")
         case "get_my_profile_snapshot", "get_recent_moments_summary", "get_recent_stories_summary", "get_profile_and_content_overview", "get_user_profile_snapshot":
             return NSLocalizedString("nova.agent.tool.activity", comment: "Checking activity")

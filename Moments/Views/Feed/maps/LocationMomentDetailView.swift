@@ -504,7 +504,7 @@ struct LocationMomentDetailView: View {
     private func getAudienceIcon(_ audience: String) -> String {
         switch audience {
         case "everyone": return "globe"
-        case "connections": return "person.2"
+        case "mutuals": return "person.2"
         case "bestFriends": return "heart"
         case "custom", "customList": return "person.3"
         default: return "globe"
@@ -514,7 +514,7 @@ struct LocationMomentDetailView: View {
     private func getAudienceColor(_ audience: String) -> Color {
         switch audience {
         case "everyone": return .green
-        case "connections": return .blue
+        case "mutuals": return .blue
         case "bestFriends": return .pink
         case "custom", "customList": return .orange
         default: return Color(hex: "007AFF")
@@ -524,7 +524,7 @@ struct LocationMomentDetailView: View {
     private func getAudienceText(_ audience: String) -> String {
         switch audience {
         case "everyone": return "Público"
-        case "connections": return "Conexiones"
+        case "mutuals": return "Mutuas"
         case "bestFriends": return "Mejores amigos"
         case "custom", "customList": return "Personalizado"
         default: return "Público"

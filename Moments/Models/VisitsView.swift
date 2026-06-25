@@ -77,39 +77,39 @@ struct GroupedVisit: Identifiable {
         }
     }
     
-    // ✅ Tiempo desde la última visita de forma inteligente
-    var timeDescription: String {
+    var rowSubtitle: String {
+        let relative = relativeLastVisitText
+        guard visitCount > 1 else { return relative }
+        return "\(relative) · \(visitCount)×"
+    }
+
+    private var relativeLastVisitText: String {
         let interval = Date().timeIntervalSince(lastVisit)
-        
-        if visitCount == 1 {
-            // Una sola visita
-            if interval < 60 {
-                return "Visitó hace un momento"
-            } else if interval < 3600 {
-                let minutes = Int(interval / 60)
-                return "Visitó hace \(minutes) min"
-            } else if interval < 86400 {
-                let hours = Int(interval / 3600)
-                return "Visitó hace \(hours)h"
-            } else {
-                let days = Int(interval / 86400)
-                return "Visitó hace \(days)d"
-            }
-        } else {
-            // Múltiples visitas
-            if interval < 60 {
-                return "Última visita: hace un momento (\(visitCount) veces)"
-            } else if interval < 3600 {
-                let minutes = Int(interval / 60)
-                return "Última visita: hace \(minutes) min (\(visitCount) veces)"
-            } else if interval < 86400 {
-                let hours = Int(interval / 3600)
-                return "Última visita: hace \(hours)h (\(visitCount) veces)"
-            } else {
-                let days = Int(interval / 86400)
-                return "Última visita: hace \(days)d (\(visitCount) veces)"
-            }
+
+        if interval < 60 {
+            return NSLocalizedString("visits.time.justNow", comment: "")
         }
+        if interval < 3600 {
+            let minutes = max(1, Int(interval / 60))
+            return String(format: NSLocalizedString("visits.time.minutesAgo", comment: ""), minutes)
+        }
+        if interval < 86_400 {
+            let hours = max(1, Int(interval / 3600))
+            return String(format: NSLocalizedString("visits.time.hoursAgo", comment: ""), hours)
+        }
+        if interval < 604_800 {
+            let days = max(1, Int(interval / 86_400))
+            return String(format: NSLocalizedString("visits.time.daysAgo", comment: ""), days)
+        }
+
+        let formatter = DateFormatter()
+        formatter.dateFormat = "dd/MM"
+        return formatter.string(from: lastVisit)
+    }
+
+    // Legacy copy kept for older surfaces.
+    var timeDescription: String {
+        rowSubtitle
     }
 }
 
@@ -165,22 +165,113 @@ struct VisitorAnalysis {
     }
 }
 
-// ✅ VISTA PRINCIPAL: VisitsView SIN overlay grisáceo
+enum VisitGrouping {
+    static func build(visits: [Visit], users: [AppUser]) -> [GroupedVisit] {
+        let userDict = Dictionary(uniqueKeysWithValues: users.map { ($0.id, $0) })
+        var groupedByUser: [String: [Visit]] = [:]
+
+        for visit in visits {
+            groupedByUser[visit.visitorId, default: []].append(visit)
+        }
+
+        return groupedByUser.compactMap { userId, userVisits -> GroupedVisit? in
+            guard let user = userDict[userId] else { return nil }
+            return GroupedVisit(user: user, visits: userVisits)
+        }
+        .sorted { $0.lastVisit > $1.lastVisit }
+    }
+
+    static func uniqueVisitorIds(from visits: [Visit]) -> [String] {
+        Array(Set(visits.map(\.visitorId)))
+    }
+}
+
+// MARK: - Embedded visits tab (SocialConnectionsView)
+
+struct VisitsTabContent<VM: UserListViewModel>: View {
+    let groupedVisits: [GroupedVisit]
+    let isLoading: Bool
+    let listViewModel: VM
+    let searchText: String
+    var sortMode: SocialConnectionsSortMode = .default
+    let colorScheme: ColorScheme
+    var profileZoomNamespace: Namespace.ID? = nil
+    let onUserTap: (String) -> Void
+    var onAvatarTap: ((String, Bool) -> Void)? = nil
+
+    private var filteredVisits: [GroupedVisit] {
+        let base: [GroupedVisit]
+        if searchText.isEmpty {
+            base = groupedVisits
+        } else {
+            base = groupedVisits.filter {
+                $0.user.username.localizedCaseInsensitiveContains(searchText) ||
+                ($0.user.bio?.localizedCaseInsensitiveContains(searchText) ?? false)
+            }
+        }
+        return SocialConnectionsSorting.sortVisits(base, mode: sortMode)
+    }
+
+    var body: some View {
+        Group {
+            if isLoading {
+                VisitsTabSkeletonView(colorScheme: colorScheme)
+            } else if groupedVisits.isEmpty {
+                ModernEmptyVisitsView(colorScheme: colorScheme)
+            } else if filteredVisits.isEmpty {
+                SocialConnectionsNoResultsView(colorScheme: colorScheme)
+            } else {
+                ScrollView {
+                    LazyVStack(spacing: 0) {
+                        ForEach(filteredVisits) { groupedVisit in
+                            GroupedVisitRow(
+                                groupedVisit: groupedVisit,
+                                colorScheme: colorScheme,
+                                profileZoomNamespace: profileZoomNamespace,
+                                listViewModel: listViewModel,
+                                onUserTap: onUserTap,
+                                onAvatarTap: onAvatarTap
+                            )
+                        }
+                    }
+                    .padding(.bottom, 40)
+                }
+            }
+        }
+    }
+}
+
+// Legacy sheet wrapper (deprecated)
 struct VisitsView: View {
     @StateObject private var viewModel = VisitsViewModel()
-    @Environment(\.dismiss) var dismiss
     @Environment(\.colorScheme) var colorScheme
+    @State private var showSpecificUserStories = false
+    @State private var selectedStoryUserId = ""
 
     var body: some View {
         VStack(spacing: 0) {
-            // ✅ Header con título
             headerView
-            
-            // ✅ Contenido principal
-            contentView
+            VisitsTabContent(
+                groupedVisits: viewModel.groupedVisits,
+                isLoading: viewModel.isLoading,
+                listViewModel: EmptyUserListViewModel(),
+                searchText: "",
+                colorScheme: colorScheme,
+                onUserTap: { userId in
+                    LegacyNavigationBridge.profile(userId: userId)
+                },
+                onAvatarTap: handleAvatarTap
+            )
         }
         .presentationDetents([.medium, .large])
         .presentationDragIndicator(.visible)
+        .fullScreenCover(isPresented: $showSpecificUserStories, onDismiss: {
+            selectedStoryUserId = ""
+        }) {
+            StoriesView(startAtUserId: selectedStoryUserId)
+                .environmentObject(FirestoreService.shared)
+                .ignoresSafeArea(.keyboard)
+        }
         .overlay(
             Group {
                 if viewModel.showStalkerAlert, let stalker = viewModel.detectedStalker {
@@ -203,340 +294,224 @@ struct VisitsView: View {
             viewModel.fetchVisits()
         }
     }
-    
-    // Sección de stalkers (sin cambios)
-    private var stalkerSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                Text("visits.frequentVisitors")
-                    .font(.custom("Poppins-SemiBold", size: 18))
-                    .foregroundColor(colorScheme == .dark ? .white : .black)
-                
-                Spacer()
-                
-                Text("\(viewModel.stalkerAnalysis.count)")
-                    .font(.custom("Poppins-Medium", size: 12))
-                    .foregroundColor(.white)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
-                    .background(Color.red.opacity(0.6))
-                    .clipShape(Capsule())
+
+    private func handleAvatarTap(userId: String, hasStory: Bool) {
+        SocialConnectionAvatarTapRouting.route(
+            userId: userId,
+            hasStory: hasStory,
+            openProfile: { LegacyNavigationBridge.profile(userId: $0) },
+            openStories: { userId in
+                selectedStoryUserId = userId
+                showSpecificUserStories = true
             }
-            .padding(.horizontal, 20)
-            
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 12) {
-                    ForEach(viewModel.stalkerAnalysis, id: \.userId) { analysis in
-                        StalkerCard(analysis: analysis, colorScheme: colorScheme)
-                    }
-                }
-                .padding(.horizontal, 20)
-            }
-        }
-        .padding(.bottom, 20)
+        )
     }
-    
 }
 
-// ✅ NUEVA: Row de visita agrupada
-struct GroupedVisitRow: View {
-    let groupedVisit: GroupedVisit
+struct VisitsRelationshipButton<VM: UserListViewModel>: View {
+    let user: AppUser
+    let viewModel: VM
     let colorScheme: ColorScheme
-    @State private var showProfile = false
-    @State private var showExpandedVisits = false
-    @Namespace private var profileZoomNamespace
+
+    @State private var followState: FollowButtonState = .canFollow
+    @State private var isFollowLoading = false
+    @State private var showingUnfollowConfirmation = false
 
     var body: some View {
-        VStack(spacing: 0) {
-            // Row principal
-            Button(action: { showProfile = true }) {
-                HStack(spacing: 16) {
-                    // Avatar con badge
-                    ZStack {
-                        StoryRingAvatarView(
-                            userId: groupedVisit.user.id,
-                            size: 44,
-                            lineWidth: 2.1,
-                            showBaseStroke: true,
-                            baseStrokeColor: colorScheme == .dark ? Color.white.opacity(0.18) : Color.black.opacity(0.14),
-                            baseStrokeWidth: 0.9,
-                            profileZoomNamespace: profileZoomNamespace
-                        )
-                        
-                        // Badge de stalker
-                        if groupedVisit.frequencyType != .normal {
-                            Text(groupedVisit.frequencyType.badge)
-                                .font(.system(size: 16))
-                                .background(
-                                    Circle()
-                                        .fill(groupedVisit.frequencyType.color)
-                                        .frame(width: 24, height: 24)
-                                )
-                                .offset(x: 20, y: -20)
-                        }
-                        
-                        // ✅ NUEVO: Indicador de visitas múltiples
-                        if groupedVisit.visitCount > 1 {
-                            Text("\(groupedVisit.visitCount)")
-                                .font(.custom("Poppins-Bold", size: 10))
-                                .foregroundColor(colorScheme == .dark ? .white : .black)
-                                .frame(width: 20, height: 20)
-                                .momentsChromeGlass(in: Circle())
-                                .offset(x: -20, y: 20)
-                        }
-                        
-                        // ✅ NUEVO: Indicador de visita reciente (pulsing)
-                        if groupedVisit.isRecent {
-                            Circle()
-                                .fill(Color.green)
-                                .frame(width: 12, height: 12)
-                                .offset(x: 22, y: 22)
-                                .opacity(0.8)
-                                .scaleEffect(1.0)
-                                .animation(.easeInOut(duration: 1).repeatForever(autoreverses: true), value: groupedVisit.isRecent)
-                        }
-                    }
-                    .offset(x: -4)
-                    
-                    VStack(alignment: .leading, spacing: 4) {
-                        HStack(spacing: 8) {
-                            HStack(spacing: 4) {
-                                Text(groupedVisit.user.username)
-                                    .font(.custom("Poppins-SemiBold", size: 16))
-                                    .foregroundColor(colorScheme == .dark ? .white : .black)
-                                
-                                // ✅ INSIGNIA DE VERIFICADO
-                                VerifiedBadgeView(userId: groupedVisit.user.id, size: 12)
-                            }
-                            
-                            // Mensaje de frecuencia
-                            if groupedVisit.frequencyType != .normal {
-                                Text(groupedVisit.frequencyType.message)
-                                    .font(.custom("Poppins-Medium", size: 10))
-                                    .foregroundColor(groupedVisit.frequencyType.color)
-                                    .padding(.horizontal, 6)
-                                    .padding(.vertical, 2)
-                                    .background(groupedVisit.frequencyType.color.opacity(0.2))
-                                    .clipShape(Capsule())
-                            }
-                        }
-                        
-                        Text(groupedVisit.timeDescription)
-                            .font(.custom("Poppins-Regular", size: 14))
-                            .foregroundColor(colorScheme == .dark ? .gray.opacity(0.8) : .gray.opacity(0.6))
-                    }
-                    
-                    Spacer()
-                    
-                    VStack(spacing: 4) {
-                        // ✅ NUEVO: Botón para expandir si hay múltiples visitas
-                        if groupedVisit.visitCount > 1 {
-                            Button(action: {
-                                withAnimation(.spring(response: 0.5, dampingFraction: 0.8)) {
-                                    showExpandedVisits.toggle()
-                                }
-                            }) {
-                                Image(systemName: showExpandedVisits ? "chevron.up" : "chevron.down")
-                                    .font(.system(size: 14, weight: .semibold))
-                                    .foregroundColor(colorScheme == .dark ? .white.opacity(0.78) : .black.opacity(0.72))
-                                    .frame(width: 24, height: 24)
-                            }
-                            .buttonStyle(PlainButtonStyle())
-                        } else {
-                            Image(systemName: "chevron.right")
-                                .font(.system(size: 14, weight: .semibold))
-                                .foregroundColor(colorScheme == .dark ? .gray.opacity(0.6) : .gray.opacity(0.5))
-                        }
-                    }
-                }
-                .padding(.horizontal, 20)
-                .padding(.vertical, 16)
-            }
-            .buttonStyle(PlainButtonStyle())
-            
-            // ✅ NUEVO: Lista expandible de visitas individuales
-            if showExpandedVisits && groupedVisit.visitCount > 1 {
-                VStack(spacing: 8) {
-                    Divider()
-                        .padding(.horizontal, 20)
-                    
-                    ForEach(Array(groupedVisit.visits.prefix(5).enumerated()), id: \.element.id) { index, visit in
-                        HStack {
-                            Circle()
-                                .fill(Color(hex: "00A896").opacity(0.6))
-                                .frame(width: 6, height: 6)
-                            
-                            Text(timeAgoString(from: visit.timestamp))
-                                .font(.custom("Poppins-Regular", size: 12))
-                                .foregroundColor(colorScheme == .dark ? .gray.opacity(0.7) : .gray.opacity(0.6))
-                            
-                            Spacer()
-                        }
-                        .padding(.horizontal, 40)
-                    }
-                    
-                    // Mostrar "y X más" si hay más de 5 visitas
-                    if groupedVisit.visitCount > 5 {
-                        HStack {
-                            Text(String(format: NSLocalizedString("visits.moreCount", comment: ""), groupedVisit.visitCount - 5))
-                                .font(.custom("Poppins-Regular", size: 11))
-                                .foregroundColor(colorScheme == .dark ? .gray.opacity(0.6) : .gray.opacity(0.5))
-                                .italic()
-                            
-                            Spacer()
-                        }
-                        .padding(.horizontal, 40)
-                    }
-                }
-                .padding(.bottom, 12)
-                .transition(.opacity.combined(with: .scale(scale: 0.95, anchor: .top)))
+        Group {
+            if followState != .ownProfile {
+                ModernFollowButton(
+                    state: followState,
+                    isLoading: isFollowLoading,
+                    colorScheme: colorScheme,
+                    action: performRelationshipAction
+                )
             }
         }
-        .padding(.horizontal, 20)
-        .background(
-            (colorScheme == .dark ? Color.white : Color.black)
-                .opacity(showExpandedVisits ? 0.04 : 0)
-        )
-        .fullScreenCover(isPresented: $showProfile) {
-            UserProfileView(userId: groupedVisit.user.id)
-                .userProfileZoomDestination(userId: groupedVisit.user.id, namespace: profileZoomNamespace)
+        .onAppear {
+            refreshFollowState()
+            viewModel.prefetchRelationshipState(for: user.id)
+        }
+        .onReceive(NotificationCenter.default.publisher(for: FollowStateStore.didChangeNotification)) { notification in
+            guard let changedUserId = notification.userInfo?["userId"] as? String,
+                  changedUserId == user.id else { return }
+            refreshFollowState()
+        }
+        .confirmationDialog(
+            NSLocalizedString("userProfile.unfollow.confirm.title", comment: ""),
+            isPresented: $showingUnfollowConfirmation,
+            titleVisibility: .visible
+        ) {
+            Button(NSLocalizedString("userProfile.unfollow.confirm.action", comment: ""), role: .destructive) {
+                viewModel.unfollowUser(userId: user.id)
+                FollowStateStore.shared.setState(.canFollow, for: user.id)
+                refreshFollowState()
+            }
+            Button(NSLocalizedString("common.cancel", comment: ""), role: .cancel) { }
+        } message: {
+            Text(NSLocalizedString("userProfile.unfollow.confirm.message", comment: ""))
         }
     }
-    
-    private func timeAgoString(from date: Date) -> String {
-        let interval = Date().timeIntervalSince(date)
-        
-        if interval < 60 {
-            return NSLocalizedString("visits.time.justNow", comment: "")
-        } else if interval < 3600 {
-            let minutes = Int(interval / 60)
-            return String(format: NSLocalizedString("visits.time.minutesAgo", comment: ""), minutes)
-        } else if interval < 86400 {
-            let hours = Int(interval / 3600)
-            return String(format: NSLocalizedString("visits.time.hoursAgo", comment: ""), hours)
-        } else if interval < 604800 {
-            let days = Int(interval / 86400)
-            return String(format: NSLocalizedString("visits.time.daysAgo", comment: ""), days)
-        } else {
-            let formatter = DateFormatter()
-            formatter.dateFormat = "dd/MM"
-            return formatter.string(from: date)
+
+    private func refreshFollowState() {
+        followState = viewModel.relationshipState(for: user.id)
+    }
+
+    private func performRelationshipAction() {
+        guard !isFollowLoading else { return }
+
+        switch followState {
+        case .following:
+            showingUnfollowConfirmation = true
+        case .canFollow, .canRequestFollow:
+            isFollowLoading = true
+            viewModel.followUser(userId: user.id)
+            let nextState: FollowButtonState = followState == .canRequestFollow ? .requestPendingCancellable : .following
+            FollowStateStore.shared.setState(nextState, for: user.id)
+            followState = nextState
+            isFollowLoading = false
+        case .requestPendingCancellable:
+            viewModel.cancelFollowRequest(userId: user.id)
+            FollowStateStore.shared.setState(.canRequestFollow, for: user.id)
+            refreshFollowState()
+        case .ownProfile, .blocked, .requestPending:
+            break
         }
+    }
+}
+
+// Row minimalista alineada con las listas sociales.
+struct GroupedVisitRow<VM: UserListViewModel>: View {
+    let groupedVisit: GroupedVisit
+    let colorScheme: ColorScheme
+    var profileZoomNamespace: Namespace.ID? = nil
+    var listViewModel: VM? = nil
+    var onUserTap: ((String) -> Void)? = nil
+    var onAvatarTap: ((String, Bool) -> Void)? = nil
+    @State private var isPressed = false
+    @Namespace private var fallbackZoomNamespace
+
+    private var zoomNamespace: Namespace.ID {
+        profileZoomNamespace ?? fallbackZoomNamespace
+    }
+
+    private var primaryTextColor: Color {
+        colorScheme == .dark ? .white : .black
+    }
+
+    private var secondaryTextColor: Color {
+        colorScheme == .dark ? Color.white.opacity(0.55) : Color.black.opacity(0.55)
+    }
+
+    var body: some View {
+        HStack(spacing: SocialConnectionRowMetrics.contentSpacing) {
+            StoryRingAvatarView(
+                userId: groupedVisit.user.id,
+                size: SocialConnectionRowMetrics.avatarSize,
+                lineWidth: 2.2,
+                showBaseStroke: true,
+                baseStrokeColor: colorScheme == .dark ? Color.white.opacity(0.18) : Color.black.opacity(0.14),
+                baseStrokeWidth: 0.9,
+                profileZoomNamespace: zoomNamespace,
+                onTap: handleAvatarTap
+            )
+
+            userInfoSection
+
+            Spacer(minLength: 4)
+
+            if let listViewModel {
+                VisitsRelationshipButton(
+                    user: groupedVisit.user,
+                    viewModel: listViewModel,
+                    colorScheme: colorScheme
+                )
+            }
+        }
+        .padding(.horizontal, SocialConnectionRowMetrics.horizontalPadding)
+        .padding(.vertical, SocialConnectionRowMetrics.verticalPadding)
+    }
+
+    private var userInfoSection: some View {
+        VStack(alignment: .leading, spacing: SocialConnectionRowMetrics.textLineSpacing) {
+            HStack(spacing: 4) {
+                Text(groupedVisit.user.username)
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(primaryTextColor)
+                    .lineLimit(1)
+
+                if groupedVisit.user.isVerified {
+                    VerifiedBadge(size: 13)
+                }
+
+                if groupedVisit.isRecent {
+                    Circle()
+                        .fill(Color(hex: "00A896"))
+                        .frame(width: 6, height: 6)
+                }
+            }
+
+            Text(groupedVisit.rowSubtitle)
+                .font(.system(size: 14, weight: .regular))
+                .foregroundStyle(secondaryTextColor)
+                .lineLimit(1)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            (colorScheme == .dark ? Color.white : Color.black)
+                .opacity(isPressed ? 0.06 : 0)
+        )
+        .contentShape(Rectangle())
+        .onTapGesture { onUserTap?(groupedVisit.user.id) }
+        .onLongPressGesture(minimumDuration: 0, maximumDistance: .infinity, pressing: { pressing in
+            withAnimation(.easeInOut(duration: 0.1)) {
+                isPressed = pressing
+            }
+        }, perform: {})
+    }
+
+    private func handleAvatarTap(hasStory: Bool) {
+        if let onAvatarTap {
+            onAvatarTap(groupedVisit.user.id, hasStory)
+            return
+        }
+
+        if hasStory {
+            return
+        }
+
+        onUserTap?(groupedVisit.user.id)
     }
 }
 
 // ✅ ACTUALIZADO: VisitsViewModel con agrupación
 class VisitsViewModel: ObservableObject {
-    @Published var groupedVisits: [GroupedVisit] = [] // ✅ CAMBIO: visitas agrupadas
+    @Published var groupedVisits: [GroupedVisit] = []
     @Published var stalkerAnalysis: [VisitorAnalysis] = []
     @Published var isLoading: Bool = true
     @Published var showStalkerAlert: Bool = false
     @Published var detectedStalker: VisitorAnalysis?
-    
-    private let firestoreService = FirestoreService()
-    private var listener: ListenerRegistration?
-    
+
     func fetchVisits() {
         guard let userId = Auth.auth().currentUser?.uid else {
-            self.isLoading = false
+            isLoading = false
             return
         }
 
-        
-        listener?.remove()
-        listener = Firestore.firestore()
-            .collection("users")
-            .document(userId)
-            .collection("visits")
-            .order(by: "timestamp", descending: true)
-            .limit(to: 200) // ✅ Aumentamos el límite para mejor agrupación
-            .addSnapshotListener { [weak self] snapshot, error in
-                guard let self = self else { return }
-                
-                if error != nil {
-                    DispatchQueue.main.async {
-                        self.isLoading = false
-                    }
-                    return
-                }
+        isLoading = true
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            defer { self.isLoading = false }
 
-                guard let documents = snapshot?.documents else {
-                    DispatchQueue.main.async {
-                        self.groupedVisits = []
-                        self.isLoading = false
-                    }
-                    return
-                }
-                
+            let grouped = await ProfileVisitsService.shared.fetchGroupedVisits(userId: userId)
+            self.groupedVisits = grouped
 
-                // Decodificar visitas
-                let visits = documents.compactMap { doc -> Visit? in
-                    do {
-                        let visit = try doc.data(as: Visit.self)
-                        return visit
-                    } catch {
-                        return nil
-                    }
-                }
-                
-
-                // Obtener visitantes únicos
-                let uniqueVisitorIds = Array(Set(visits.map { $0.visitorId }))
-
-                guard !uniqueVisitorIds.isEmpty else {
-                    DispatchQueue.main.async {
-                        self.groupedVisits = []
-                        self.stalkerAnalysis = []
-                        self.isLoading = false
-                    }
-                    return
-                }
-
-                // Obtener perfiles de usuarios
-                self.firestoreService.fetchUsers(userIds: uniqueVisitorIds) { result in
-                    switch result {
-                    case .success(let users):
-                        let userDict = Dictionary(uniqueKeysWithValues: users.map { ($0.id, $0) })
-
-                        // ✅ NUEVA LÓGICA: Agrupar visitas por usuario
-                        var groupedByUser: [String: [Visit]] = [:]
-                        for visit in visits {
-                            if groupedByUser[visit.visitorId] == nil {
-                                groupedByUser[visit.visitorId] = []
-                            }
-                            groupedByUser[visit.visitorId]?.append(visit)
-                        }
-                        
-                        // Crear GroupedVisit para cada usuario
-                        let groupedVisits = groupedByUser.compactMap { (userId, userVisits) -> GroupedVisit? in
-                            guard let user = userDict[userId] else {
-                                return nil
-                            }
-                            
-                            return GroupedVisit(user: user, visits: userVisits)
-                        }
-                        
-                        // Ordenar por última visita (más reciente primero)
-                        let sortedGroupedVisits = groupedVisits.sorted { $0.lastVisit > $1.lastVisit }
-
-                        DispatchQueue.main.async {
-                            self.groupedVisits = sortedGroupedVisits
-                            self.isLoading = false
-                            
-                            // Analizar stalkers
-                            self.analyzeStalkers(allVisits: visits, userDict: userDict)
-                        }
-                        
-                    case .failure(_):
-                        DispatchQueue.main.async {
-                            self.groupedVisits = []
-                            self.isLoading = false
-                        }
-                    }
-                }
-            }
+            let userDict = Dictionary(uniqueKeysWithValues: grouped.map { ($0.user.id, $0.user) })
+            let allVisits = grouped.flatMap(\.visits)
+            self.analyzeStalkers(allVisits: allVisits, userDict: userDict)
+        }
     }
-    
+
     // Análisis de stalkers (sin cambios)
     private func analyzeStalkers(allVisits: [Visit], userDict: [String: AppUser]) {
         let now = Date()
@@ -602,21 +577,22 @@ class VisitsViewModel: ObservableObject {
         default: return .normal
         }
     }
-
-    deinit {
-        listener?.remove()
-    }
 }
 
 // ✅ COMPONENTES AUXILIARES (sin cambios pero adaptados)
 struct StalkerCard: View {
     let analysis: VisitorAnalysis
     let colorScheme: ColorScheme
-    @State private var showProfile = false
-    @Namespace private var profileZoomNamespace
-    
+    var profileZoomNamespace: Namespace.ID? = nil
+    var onUserTap: ((String) -> Void)? = nil
+    @Namespace private var fallbackZoomNamespace
+
+    private var zoomNamespace: Namespace.ID {
+        profileZoomNamespace ?? fallbackZoomNamespace
+    }
+
     var body: some View {
-        Button(action: { showProfile = true }) {
+        Button(action: { onUserTap?(analysis.userId) }) {
             VStack(spacing: 8) {
                 ZStack {
                     AsyncImage(url: URL(string: analysis.profileImagePath ?? "")) { image in
@@ -627,7 +603,7 @@ struct StalkerCard: View {
                             .clipShape(Circle())
                             .userProfileZoomSource(
                                 userId: analysis.userId,
-                                namespace: profileZoomNamespace,
+                                namespace: zoomNamespace,
                                 cornerRadius: 30
                             )
                             .overlay(
@@ -682,10 +658,6 @@ struct StalkerCard: View {
             .shadow(color: analysis.frequencyType.color.opacity(0.3), radius: 4, x: 0, y: 2)
         }
         .buttonStyle(PlainButtonStyle())
-        .fullScreenCover(isPresented: $showProfile) {
-            UserProfileView(userId: analysis.userId)
-                .userProfileZoomDestination(userId: analysis.userId, namespace: profileZoomNamespace)
-        }
     }
 }
 
@@ -766,6 +738,78 @@ struct StalkerAlertView: View {
     }
 }
 
+struct VisitsVisitorSkeletonRow: View {
+    let colorScheme: ColorScheme
+
+    private var surfaceColor: Color {
+        colorScheme == .dark ? Color.white.opacity(0.08) : Color.black.opacity(0.06)
+    }
+
+    var body: some View {
+        HStack(spacing: SocialConnectionRowMetrics.contentSpacing) {
+            Circle()
+                .fill(surfaceColor)
+                .frame(width: SocialConnectionRowMetrics.avatarSize, height: SocialConnectionRowMetrics.avatarSize)
+
+            VStack(alignment: .leading, spacing: 6) {
+                RoundedRectangle(cornerRadius: 4, style: .continuous)
+                    .fill(surfaceColor)
+                    .frame(width: 132, height: 12)
+
+                RoundedRectangle(cornerRadius: 4, style: .continuous)
+                    .fill(surfaceColor)
+                    .frame(width: 88, height: 10)
+            }
+
+            Spacer(minLength: 4)
+
+            Capsule()
+                .fill(surfaceColor)
+                .frame(width: 108, height: 34)
+        }
+        .padding(.horizontal, SocialConnectionRowMetrics.horizontalPadding)
+        .padding(.vertical, SocialConnectionRowMetrics.verticalPadding)
+    }
+}
+
+struct VisitsTabSkeletonView: View {
+    let colorScheme: ColorScheme
+
+    var body: some View {
+        ScrollView {
+            LazyVStack(spacing: 0) {
+                ForEach(0..<8, id: \.self) { _ in
+                    VisitsVisitorSkeletonRow(colorScheme: colorScheme)
+                }
+            }
+            .padding(.bottom, 40)
+        }
+        .shimmering(active: true)
+    }
+}
+
+private struct VisitsSkeletonShimmerModifier: ViewModifier {
+    let active: Bool
+    @State private var phase: CGFloat = 0
+
+    func body(content: Content) -> some View {
+        content
+            .opacity(active ? 0.55 + (sin(phase) * 0.15) : 1)
+            .onAppear {
+                guard active else { return }
+                withAnimation(.easeInOut(duration: 1.1).repeatForever(autoreverses: true)) {
+                    phase = .pi * 2
+                }
+            }
+    }
+}
+
+private extension View {
+    func shimmering(active: Bool) -> some View {
+        modifier(VisitsSkeletonShimmerModifier(active: active))
+    }
+}
+
 struct VisitModernLoadingView: View {
     let colorScheme: ColorScheme
     @State private var isAnimating = false
@@ -795,7 +839,7 @@ struct VisitModernLoadingView: View {
             }
             
             Text("visits.loading")
-                .font(.custom("Poppins-Medium", size: 16))
+                .font(.system(size: 16, weight: .medium))
                 .foregroundColor(colorScheme == .dark ? .white.opacity(0.8) : .black.opacity(0.7))
         }
         .onAppear {
@@ -843,11 +887,11 @@ struct ModernEmptyVisitsView: View {
             
             VStack(spacing: 8) {
                 Text("visits.empty.title")
-                    .font(.custom("Poppins-SemiBold", size: 20))
+                    .font(.system(size: 20, weight: .semibold))
                     .foregroundColor(colorScheme == .dark ? .white : .black)
-                
+
                 Text("visits.empty.description")
-                    .font(.custom("Poppins-Regular", size: 16))
+                    .font(.system(size: 16, weight: .regular))
                     .foregroundColor(colorScheme == .dark ? .gray.opacity(0.8) : .gray.opacity(0.6))
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 40)
@@ -891,43 +935,15 @@ extension VisitsView {
     }
     
     private var contentView: some View {
-        Group {
-            if viewModel.isLoading {
-                VisitModernLoadingView(colorScheme: colorScheme)
-            } else if viewModel.groupedVisits.isEmpty {
-                ModernEmptyVisitsView(colorScheme: colorScheme)
-            } else {
-                ScrollView {
-                    LazyVStack(spacing: 0) {
-                        // Sección de stalkers si existen
-                        if !viewModel.stalkerAnalysis.isEmpty {
-                            stalkerSection
-                        }
-
-                        // ✅ NUEVA: Lista de visitas agrupadas
-                        ForEach(Array(viewModel.groupedVisits.enumerated()), id: \.element.id) { index, groupedVisit in
-                            VStack(spacing: 0) {
-                                GroupedVisitRow(
-                                    groupedVisit: groupedVisit,
-                                    colorScheme: colorScheme
-                                )
-
-                                if index < viewModel.groupedVisits.count - 1 {
-                                    Divider()
-                                        .overlay(
-                                            (colorScheme == .dark ? Color.white : Color.black)
-                                                .opacity(0.08)
-                                        )
-                                        .padding(.leading, 90)
-                                        .padding(.trailing, 20)
-                                }
-                            }
-                        }
-                    }
-                    .padding(.top, 20)
-                    .padding(.bottom, 40)
-                }
+        VisitsTabContent(
+            groupedVisits: viewModel.groupedVisits,
+            isLoading: viewModel.isLoading,
+            listViewModel: EmptyUserListViewModel(),
+            searchText: "",
+            colorScheme: colorScheme,
+            onUserTap: { userId in
+                LegacyNavigationBridge.profile(userId: userId)
             }
-        }
+        )
     }
 }

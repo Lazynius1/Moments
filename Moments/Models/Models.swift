@@ -142,7 +142,7 @@ struct Connection: Identifiable, Codable {
     }
 }
 
-struct Admirer: Identifiable, Codable {
+struct FollowerRecord: Identifiable, Codable {
     let id: String
     let userId: String
     let timestamp: Date
@@ -2592,7 +2592,7 @@ extension Moment: ContentProtocol {
 
         switch audience {
         case "everyone": return .everyone
-        case "connections": return .connections
+        case "mutuals": return .mutuals
         case "bestFriends": return .bestFriends
         case "custom": return .custom
         default: return .everyone
@@ -2619,7 +2619,7 @@ extension Story: ContentProtocol {
 
         switch audience {
         case "everyone": return .everyone
-        case "connections": return .connections
+        case "mutuals": return .mutuals
         case "bestFriends": return .bestFriends
         case "custom": return .custom
         default: return .everyone

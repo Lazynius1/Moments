@@ -9,17 +9,25 @@ import AVKit
 // MARK: - ✅ NUEVO: Estadísticas modernas como ProfileView
 struct UserProfileOverviewSection: View {
     @ObservedObject var viewModel: UserProfileViewModel
-    @Binding var showingUserList: UserProfileView.UserListType?
+    @Binding var socialConnectionsRoute: SocialConnectionsRoute?
+    @Binding var selectedTab: UserProfileTabType
     @Binding var showingInterests: Bool
     let interests: [String]
     @Environment(\.colorScheme) var colorScheme
 
+    private var hasVisibleStats: Bool {
+        viewModel.canViewContent
+            || viewModel.visibleConnectionTypes.canViewFollowers
+            || viewModel.visibleConnectionTypes.canViewFollowing
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            if viewModel.canViewConnections {
+            if hasVisibleStats {
                 UserModernStatsSection(
                     viewModel: viewModel,
-                    showingUserList: $showingUserList,
+                    socialConnectionsRoute: $socialConnectionsRoute,
+                    selectedTab: $selectedTab,
                     embeddedStyle: true
                 )
                 .frame(maxWidth: .infinity)
@@ -59,7 +67,7 @@ struct UserProfileOverviewSection: View {
                 }
                 .buttonStyle(.plain)
                 .padding(.horizontal, 20)
-                .padding(.top, viewModel.canViewConnections ? 12 : 0)
+                .padding(.top, hasVisibleStats ? 12 : 0)
 
                 if showingInterests {
                     UserModernInterestsView(
@@ -83,23 +91,58 @@ struct UserProfileOverviewSection: View {
 
 struct UserModernStatsSection: View {
     @ObservedObject var viewModel: UserProfileViewModel
-    @Binding var showingUserList: UserProfileView.UserListType?
+    @Binding var socialConnectionsRoute: SocialConnectionsRoute?
+    @Binding var selectedTab: UserProfileTabType
     var embeddedStyle: Bool = false
     @Environment(\.colorScheme) var colorScheme
 
-    private var computedStats: [(String, Int, UserProfileView.UserListType)] {
-        [
-            (NSLocalizedString("profile.ui.followers", comment: "Followers"), viewModel.admirers.count, .admirers),
-            (NSLocalizedString("profile.ui.following", comment: "Following"), viewModel.connections.count, .connections),
-            (NSLocalizedString("profile.ui.mutuals", comment: "Mutuals"), viewModel.mutualConnections.count, .mutualConnections)
-        ]
+    private enum StatAction: Hashable {
+        case posts
+        case social(UserProfileView.UserListType)
+    }
+
+    private var postsCount: Int {
+        max(viewModel.moments.count, viewModel.userProfile?.momentsCount ?? 0)
+    }
+
+    private var computedStats: [(String, Int, StatAction)] {
+        var stats: [(String, Int, StatAction)] = []
+
+        if viewModel.canViewContent {
+            stats.append((
+                NSLocalizedString("profile.ui.posts", comment: "Posts"),
+                postsCount,
+                .posts
+            ))
+        }
+        if viewModel.visibleConnectionTypes.canViewFollowers {
+            stats.append((
+                NSLocalizedString("profile.ui.followers", comment: "Followers"),
+                viewModel.followers.count,
+                .social(.followers)
+            ))
+        }
+        if viewModel.visibleConnectionTypes.canViewFollowing {
+            stats.append((
+                NSLocalizedString("profile.ui.following", comment: "Following"),
+                viewModel.following.count,
+                .social(.following)
+            ))
+        }
+
+        return stats
     }
 
     var body: some View {
         HStack(spacing: embeddedStyle ? 0 : 8) {
             ForEach(Array(computedStats.enumerated()), id: \.offset) { index, stat in
                 Button(action: {
-                    showingUserList = stat.2
+                    switch stat.2 {
+                    case .posts:
+                        selectedTab = .moments
+                    case .social(let listType):
+                        socialConnectionsRoute = SocialConnectionsRoute(initialTab: listType.socialTab)
+                    }
                 }) {
                     VStack(spacing: 4) {
                         Text("\(stat.1)")
@@ -124,7 +167,7 @@ struct UserModernStatsSection: View {
             }
         }
         .padding(.horizontal, embeddedStyle ? 2 : 0)
-        .animation(.spring(response: 0.3, dampingFraction: 0.6), value: showingUserList)
+        .animation(.spring(response: 0.3, dampingFraction: 0.6), value: socialConnectionsRoute)
     }
 }
 

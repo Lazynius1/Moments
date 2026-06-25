@@ -1240,7 +1240,11 @@ struct StoryViewerScreen: View {
         Button(action: action) {
             Group {
                 if let attachmentIcon {
-                    AttachmentIconView(icon: attachmentIcon, preset: .storyReplyAction, tintColor: .white)
+                    AttachmentIconView(
+                        icon: attachmentIcon,
+                        preset: .storyReplyAction,
+                        tintColor: storyViewerChromeColors.messageTextColor
+                    )
                 } else {
                     Image(systemName: systemImage ?? "questionmark")
                         .font(.system(size: 22, weight: .regular))
@@ -2273,7 +2277,7 @@ struct StoryViewerScreen: View {
 
             }
 
-        case "connections":
+        case "mutuals":
 
             // Verificar conexión mutua usando PrivacyService
             let privacyService = PrivacyService()

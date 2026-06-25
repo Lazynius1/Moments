@@ -203,10 +203,10 @@ struct AudienceSelectionView: View {
                 )
 
                 AudienceGridCard(
-                    audience: .connections,
-                    isSelected: selectedAudience == .connections,
+                    audience: .mutuals,
+                    isSelected: selectedAudience == .mutuals,
                     onTap: {
-                        selectedAudience = .connections
+                        selectedAudience = .mutuals
                         resetSelection()
                         showSaveFeedback()
                     }
@@ -886,7 +886,7 @@ struct SuggestedMembersCarousel: View {
     private func loadSuggestions() {
         // Cargamos sugerencias basadas en conexiones mutuas (amigos)
         guard let userId = Auth.auth().currentUser?.uid else { return }
-        FirestoreService().fetchMutualConnections(userId: userId) { result in
+        FirestoreService().fetchMutuals(userId: userId) { result in
             if case .success(let users) = result {
                 DispatchQueue.main.async {
                     self.suggestedUsers = Array(users.prefix(10))

@@ -708,9 +708,11 @@
 "settings.privacy.hideMutual.description" = "Solo tú podrás ver quiénes son tus amigos en común";
 "settings.privacy.hideFollowing" = "Ocultar mi lista de seguidos";
 "settings.privacy.hideFollowing.description" = "Solo tú podrás ver a quién sigues";
-"settings.privacy.hideAdmirers" = "Ocultar mis seguidores";
-"settings.privacy.hideAdmirers.description" = "Solo tú podrás ver quién te sigue";
-"settings.privacy.control.description" = "Cuando actives estas opciones, otros usuarios no podrán ver estas listas en tu perfil. Nota: Ocultar 'siguiendo' o 'seguidores' también ocultará 'conexiones mutuas' ya que no se pueden calcular sin ambas listas. Siempre podrás cambiar estas configuraciones.";
+"settings.privacy.hideFollowers" = "Ocultar mis seguidores";
+"settings.privacy.hideFollowers.description" = "Solo tú podrás ver quién te sigue";
+"nova.confirm.field.showFollowers" = "Mostrar seguidores";
+"nova.confirm.field.showMutuals" = "Mostrar mutuas";
+"settings.privacy.control.description" = "Cuando actives estas opciones, otros usuarios no podrán ver esas listas en tu perfil. Siempre podrás cambiar estas configuraciones.";
 "settings.privacy.readReceipts.title" = "Confirmaciones de lectura";
 "settings.privacy.readReceipts.description" = "Si desactivas las confirmaciones de lectura, no podrás ver las de otras personas.";
 "settings.logout" = "Cerrar sesión";
@@ -1152,6 +1154,7 @@
 /* Audience Types */
 "audience.type.everyone" = "Todos";
 "audience.type.connections" = "Mutuos";
+"audience.type.mutuals" = "Mutuos";
 "audience.type.bestFriends" = "Mejores amigos";
 "audience.type.custom" = "Personalizado";
 "audience.type.customList" = "Lista personalizada";
@@ -1160,6 +1163,7 @@
 /* Audience Descriptions */
 "audience.description.everyone" = "Cualquier persona puede ver este contenido";
 "audience.description.connections" = "Solo las personas que sigues y te siguen";
+"audience.description.mutuals" = "Solo las personas que sigues y te siguen";
 "audience.description.bestFriends" = "Solo tu lista de mejores amigos";
 "audience.description.custom" = "Elige personas específicas";
 "audience.description.customList" = "Usar una lista personalizada";
@@ -3089,8 +3093,42 @@
 /* Profile UI Labels */
 "profile.ui.followers" = "Seguidores";
 "profile.ui.following" = "Siguiendo";
-"profile.ui.mutuals" = "Mutuals";
+"profile.ui.mutuals" = "Mutuas";
+"profile.ui.inCommon" = "En comun";
 "profile.ui.posts" = "Posts";
+
+/* Social Connections */
+"socialConnections.tab.visits" = "%@ visitas";
+"socialConnections.tab.followers" = "%@ seguidores";
+"socialConnections.tab.inCommon" = "%@ en comun";
+"socialConnections.tab.following" = "%@ siguiendo";
+"socialConnections.tab.mutuals" = "%@ mutuas";
+"socialConnections.sort.by" = "Ordenar por";
+"socialConnections.common.section.people" = "Seguidores en comun";
+"socialConnections.sort.default" = "Predeterminado";
+"socialConnections.sort.alphabetical" = "Alfabético";
+"socialConnections.sort.newest" = "Más recientes";
+"socialConnections.sort.oldest" = "Más antiguos";
+"socialConnections.followAlso" = "Seguir también";
+"socialConnections.categories.title" = "Categorías";
+"socialConnections.categories.clear" = "Quitar filtro";
+"socialConnections.category.leastInteracted" = "Menos interacción";
+"socialConnections.category.mostShownInFeed" = "Más mostrados en el feed";
+"socialConnections.menu.sharedActivity" = "Ver actividad compartida";
+"socialConnections.menu.mute" = "Silenciar";
+"socialConnections.menu.unmute" = "Dejar de silenciar";
+"socialConnections.removeFollower" = "Suprimir";
+"socialConnections.removeFollower.confirm.title" = "¿Suprimir seguidor?";
+"socialConnections.removeFollower.confirm.message" = "%@ dejará de seguirte en Moments.";
+"socialConnections.newPosts.single" = "1 publicación nueva";
+"socialConnections.newPosts.multiple" = "%d publicaciones nuevas";
+"sharedActivity.title" = "Actividad compartida";
+"sharedActivity.youAndUser" = "Tú y %@";
+"sharedActivity.subtitle" = "Consulta tu actividad con %@ y gestiona las interacciones.";
+"sharedActivity.timeline.followedYou" = "%@ ha comenzado a seguirte en %@";
+"sharedActivity.timeline.youFollowed" = "Has comenzado a seguir a %@ en %@";
+"sharedActivity.modules.likes" = "Me gusta";
+"sharedActivity.modules.placeholder" = "Esta sección llegará pronto a Moments.";
 
 /* Messaging Errors */
 "messaging.error.startConversationFailed" = "No se pudo iniciar la conversación. Inténtalo de nuevo.";
@@ -3941,3 +3979,10 @@
 "report.user.reason.bullying.subtitle" = "Acoso, amenazas o contacto insistente no deseado";
 "report.user.reason.scam.title" = "Estafa, fraude o spam";
 "report.user.reason.scam.subtitle" = "Mensajes sospechosos, intentos de fraude o comportamiento de spam";
+"sharedActivity.selection.tags.suppress" = "Suprimir";
+"sharedActivity.selection.tags.suppress.count" = "Suprimir (%d)";
+"sharedActivity.selection.reactions.delete.single" = "Eliminar reacción";
+"sharedActivity.selection.reactions.delete.multiple" = "Eliminar reacciones (%d)";
+"sharedActivity.selection.reactions.delete.base" = "Eliminar reacción";
+"sharedActivity.selection.comments.delete.count" = "Eliminar (%d)";
+"sharedActivity.selection.comments.delete.base" = "Eliminar";

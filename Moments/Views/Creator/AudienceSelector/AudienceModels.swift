@@ -3,7 +3,7 @@ import Foundation
 
 enum ContentAudience: String, Codable, CaseIterable {
     case everyone = "everyone"
-    case connections = "connections"
+    case mutuals = "mutuals"
     case bestFriends = "bestFriends"
     case custom = "custom"
     case customList = "customList"
@@ -12,7 +12,7 @@ enum ContentAudience: String, Codable, CaseIterable {
     var title: String {
         switch self {
         case .everyone: return NSLocalizedString("audience.type.everyone", comment: "Everyone audience type")
-        case .connections: return NSLocalizedString("audience.type.connections", comment: "Connections audience type")
+        case .mutuals: return NSLocalizedString("audience.type.mutuals", comment: "Mutuals audience type")
         case .bestFriends: return NSLocalizedString("audience.type.bestFriends", comment: "Best friends audience type")
         case .custom: return NSLocalizedString("audience.type.custom", comment: "Custom audience type")
         case .customList: return NSLocalizedString("audience.type.customList", comment: "Custom list audience type")
@@ -23,7 +23,7 @@ enum ContentAudience: String, Codable, CaseIterable {
     var description: String {
         switch self {
         case .everyone: return NSLocalizedString("audience.description.everyone", comment: "Everyone audience description")
-        case .connections: return NSLocalizedString("audience.description.connections", comment: "Connections audience description")
+        case .mutuals: return NSLocalizedString("audience.description.mutuals", comment: "Mutuals audience description")
         case .bestFriends: return NSLocalizedString("audience.description.bestFriends", comment: "Best friends audience description")
         case .custom: return NSLocalizedString("audience.description.custom", comment: "Custom audience description")
         case .customList: return NSLocalizedString("audience.description.customList", comment: "Custom list audience description")
@@ -34,7 +34,7 @@ enum ContentAudience: String, Codable, CaseIterable {
     var icon: String {
         switch self {
         case .everyone: return "globe"
-        case .connections: return "person.2.fill"
+        case .mutuals: return "person.2.fill"
         case .bestFriends: return "star.fill"
         case .custom: return "person.crop.circle.badge.plus"
         case .customList: return "list.bullet.rectangle"
@@ -45,7 +45,7 @@ enum ContentAudience: String, Codable, CaseIterable {
     var assetName: String {
         switch self {
         case .everyone: return "AudienceEveryoneIcon"
-        case .connections: return "AudienceMutualsIcon"
+        case .mutuals: return "AudienceMutualsIcon"
         case .bestFriends: return "AudienceBestFriendsIcon"
         case .custom: return "AudienceCustomIcon"
         case .customList: return "AudienceCustomListIcon"
@@ -62,7 +62,7 @@ enum ContentAudience: String, Codable, CaseIterable {
         }
         switch setting {
         case .everyone: return .everyone
-        case .mutuals, .admirers: return .connections
+        case .mutuals: return .mutuals
         case .bestFriends: return .bestFriends
         case .custom: return .custom
         case .onlyMe: return .onlyMe
@@ -75,8 +75,8 @@ enum ContentAudience: String, Codable, CaseIterable {
             .lowercased() ?? "everyone"
 
         switch normalized {
-        case "connections", "mutuals", "mutual", "admirers":
-            return .connections
+        case "mutuals", "mutual":
+            return .mutuals
         case "bestfriends", "best_friends", "best-friends":
             return .bestFriends
         case "customlist":

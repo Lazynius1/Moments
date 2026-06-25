@@ -58,11 +58,11 @@ actor NovaProfileTools {
         }
     }
 
-    func mutualConnections(userId: String, limit: Int = 5) async -> JSONObject {
+    func mutuals(userId: String, limit: Int = 5) async -> JSONObject {
         let capped = min(max(limit, 1), 10)
         do {
             let mutuals: [AppUser] = try await continuationResult { callback in
-                firestoreService.fetchMutualConnections(userId: userId, completion: callback)
+                firestoreService.fetchMutuals(userId: userId, completion: callback)
             }
             let mutualPayload: [JSONValue] = mutuals.prefix(capped).map { user in
                 .object([
@@ -73,10 +73,10 @@ actor NovaProfileTools {
             }
             return [
                 "total_count": NovaJSON.int(mutuals.count),
-                "mutual_connections": .array(mutualPayload)
+                "mutuals": .array(mutualPayload)
             ]
         } catch {
-            return ["error": .string(error.localizedDescription), "total_count": .number(0), "mutual_connections": .array([])]
+            return ["error": .string(error.localizedDescription), "total_count": .number(0), "mutuals": .array([])]
         }
     }
 
@@ -144,16 +144,16 @@ actor NovaProfileTools {
 
     func profilePrivacy(userId: String) async -> JSONObject {
         do {
-            let settings = try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<(isPrivate: Bool, showMutualConnections: Bool, showFollowing: Bool, showAdmirers: Bool), Error>) in
+            let settings = try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<(isPrivate: Bool, showMutuals: Bool, showFollowing: Bool, showFollowers: Bool), Error>) in
                 privacyService.fetchPrivacySettings(userId: userId) { result in
                     continuation.resume(with: result)
                 }
             }
             return [
                 "is_private": .bool(settings.isPrivate),
-                "show_mutual_connections": .bool(settings.showMutualConnections),
+                "show_mutuals": .bool(settings.showMutuals),
                 "show_following": .bool(settings.showFollowing),
-                "show_admirers": .bool(settings.showAdmirers)
+                "show_followers": .bool(settings.showFollowers)
             ]
         } catch {
             return ["error": .string(error.localizedDescription)]
@@ -163,18 +163,18 @@ actor NovaProfileTools {
     func updatePrivacy(
         userId: String,
         isPrivate: Bool?,
-        showMutualConnections: Bool?,
+        showMutuals: Bool?,
         showFollowing: Bool?,
-        showAdmirers: Bool?
+        showFollowers: Bool?
     ) async -> JSONObject {
         do {
             try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
                 privacyService.updatePrivacySettings(
                     userId: userId,
                     isPrivate: isPrivate,
-                    showMutualConnections: showMutualConnections,
+                    showMutuals: showMutuals,
                     showFollowing: showFollowing,
-                    showAdmirers: showAdmirers
+                    showFollowers: showFollowers
                 ) { error in
                     if let error { continuation.resume(throwing: error) } else { continuation.resume(returning: ()) }
                 }
@@ -182,9 +182,9 @@ actor NovaProfileTools {
             return [
                 "success": .bool(true),
                 "is_private": isPrivate.map(JSONValue.bool) ?? .null,
-                "show_mutual_connections": showMutualConnections.map(JSONValue.bool) ?? .null,
+                "show_mutuals": showMutuals.map(JSONValue.bool) ?? .null,
                 "show_following": showFollowing.map(JSONValue.bool) ?? .null,
-                "show_admirers": showAdmirers.map(JSONValue.bool) ?? .null
+                "show_followers": showFollowers.map(JSONValue.bool) ?? .null
             ]
         } catch {
             return ["success": .bool(false), "error": .string(error.localizedDescription)]

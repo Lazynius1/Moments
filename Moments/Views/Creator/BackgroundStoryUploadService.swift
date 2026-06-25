@@ -1893,7 +1893,7 @@ class BackgroundStoryUploadService: ObservableObject {
                 // Fallback manual por si acaso
                 switch payload.audienceSetting {
                 case "everyone": return .everyone
-                case "connections": return .connections
+                case "mutuals": return .mutuals
                 case "bestFriends": return .bestFriends
                 case "custom": return .custom
                 case "customList": return .customList

@@ -1530,14 +1530,9 @@ class MomentDetailViewModel: ObservableObject {
 
     private func checkIfFollowing() {
         guard let currentUserId = currentUserId, let targetUserId = authorProfile?.id else { return }
-        firestoreService.fetchConnections(userId: currentUserId) { [weak self] result in
+        firestoreService.isFollowing(currentUserId: currentUserId, targetUserId: targetUserId) { [weak self] isFollowing in
             DispatchQueue.main.async {
-                switch result {
-                case .success(let connections):
-                    self?.isFollowing = connections.contains { $0.userId == targetUserId }
-                case .failure(_):
-                    break
-                }
+                self?.isFollowing = isFollowing
             }
         }
     }

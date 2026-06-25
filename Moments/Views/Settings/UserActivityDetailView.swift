@@ -1194,7 +1194,7 @@ struct ActivityInteractionDetailView: View {
         case .followers:
             return NSLocalizedString("userActivity.simple.empty.followers.subtitle", value: "Track recent follow requests, mutual friends, and profile connections.", comment: "")
         case .visits:
-            return NSLocalizedString("userActivity.simple.empty.visits.subtitle", value: "See the friends and admirers who checked out your profile recently.", comment: "")
+            return NSLocalizedString("userActivity.simple.empty.visits.subtitle", value: "See the friends and followers who checked out your profile recently.", comment: "")
         case .moments:
             return NSLocalizedString("userActivity.simple.empty.moments.subtitle", value: "Your shared grid posts and daily captures will appear here.", comment: "")
         case .reels:

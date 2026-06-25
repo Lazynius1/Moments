@@ -522,10 +522,10 @@ extension FirestoreService {
     }
 
     func fetchInitialMoments(for userId: String, completion: @escaping (Result<(moments: [Moment], lastDocument: DocumentSnapshot?), Error>) -> Void) {
-        self.fetchConnections(userId: userId) { result in
+        self.fetchFollowing(userId: userId) { result in
             switch result {
-            case .success(let connections):
-                let connectionIds = connections.map { $0.userId }
+            case .success(let following):
+                let connectionIds = following.map { $0.id }
                 if connectionIds.isEmpty {
                     completion(.success((moments: [], lastDocument: nil)))
                     return
@@ -576,10 +576,10 @@ extension FirestoreService {
     }
 
     func fetchMoreMoments(for userId: String, startAfter: DocumentSnapshot, completion: @escaping (Result<(moments: [Moment], lastDocument: DocumentSnapshot?), Error>) -> Void) {
-        self.fetchConnections(userId: userId) { result in
+        self.fetchFollowing(userId: userId) { result in
             switch result {
-            case .success(let connections):
-                let connectionIds = connections.map { $0.userId }
+            case .success(let following):
+                let connectionIds = following.map { $0.id }
                 if connectionIds.isEmpty {
                     completion(.success((moments: [], lastDocument: nil)))
                     return
@@ -737,8 +737,7 @@ extension FirestoreService {
         let contentAudience: ContentAudience
         switch audienceSetting {
         case .everyone: contentAudience = .everyone
-        case .mutuals: contentAudience = .connections
-        case .admirers: contentAudience = .connections
+        case .mutuals: contentAudience = .mutuals
         case .bestFriends: contentAudience = .bestFriends
         case .custom: contentAudience = selectedListId != nil ? .customList : .custom
         case .onlyMe: contentAudience = .onlyMe

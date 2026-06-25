@@ -74,7 +74,7 @@ struct ModernProfileContentView: View {
     @Binding var isShowingSettings: Bool
     @Binding var isShowingEditProfile: Bool
     @Binding var newBio: String
-    @Binding var showingUserList: ProfileView.UserListType?
+    @Binding var socialConnectionsRoute: SocialConnectionsRoute?
     @Binding var showStoryViewer: Bool
     @Binding var selectedStoryIndex: Int
     @Binding var selectedPhoto: PhotosPickerItem?
@@ -145,7 +145,7 @@ struct ModernProfileContentView: View {
 
                         ProfileOverviewCard(
                             viewModel: viewModel,
-                            showingUserList: $showingUserList,
+                            socialConnectionsRoute: $socialConnectionsRoute,
                             showingInterests: $showingFullInfo,
                             interests: viewModel.userProfile?.interests ?? []
                         )

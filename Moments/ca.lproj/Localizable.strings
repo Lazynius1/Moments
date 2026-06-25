@@ -675,7 +675,7 @@
 "settings.privacy.hideFollowing.description" = "Només tu podràs veure a qui segueixes";
 "settings.privacy.hideAdmirers" = "Amagar els meus seguidors";
 "settings.privacy.hideAdmirers.description" = "Només tu podràs veure qui et segueix";
-"settings.privacy.control.description" = "Quan activis aquestes opcions, altres usuaris no podran veure aquestes llistes al teu perfil. Nota: Amagar 'seguits' o 'seguidors' també amagarà 'connexions mútues' ja que no es poden calcular sense ambdues llistes. Sempre podràs canviar aquestes configuracions.";
+"settings.privacy.control.description" = "Quan activis aquestes opcions, altres usuaris no podran veure aquestes llistes al teu perfil. Sempre podràs canviar aquestes configuracions.";
 "settings.privacy.readReceipts.title" = "Confirmacions de lectura";
 "settings.privacy.readReceipts.description" = "Si desactives les confirmacions de lectura, no podràs veure les de les altres persones.";
 "settings.logout" = "Tancar sessió";
@@ -3456,6 +3456,28 @@
 "messaging.toast.unarchived" = "Xat desarxivat";
 "feed.refreshing" = "Actualitzant";
 "profile.ui.posts" = "Posts";
+
+/* Social Connections */
+"socialConnections.tab.visits" = "%@ visites";
+"socialConnections.tab.followers" = "%@ seguidors";
+"socialConnections.tab.following" = "%@ seguint";
+"socialConnections.tab.mutuals" = "%@ mútues";
+"socialConnections.sort.by" = "Ordenar per";
+"socialConnections.sort.default" = "Predeterminat";
+"socialConnections.sort.alphabetical" = "Alfabètic";
+"socialConnections.sort.newest" = "Més recents";
+"socialConnections.sort.oldest" = "Més antics";
+"socialConnections.followAlso" = "Segueix també";
+"socialConnections.categories.title" = "Categories";
+"socialConnections.categories.clear" = "Treure filtre";
+"socialConnections.category.leastInteracted" = "Menys interacció";
+"socialConnections.category.mostShownInFeed" = "Més vistos al feed";
+"socialConnections.menu.sharedActivity" = "Veure activitat compartida";
+"socialConnections.removeFollower" = "Suprimir";
+"socialConnections.removeFollower.confirm.title" = "Suprimir seguidor?";
+"socialConnections.removeFollower.confirm.message" = "%@ deixarà de seguir-te a Moments.";
+"socialConnections.newPosts.single" = "1 publicació nova";
+"socialConnections.newPosts.multiple" = "%d publicacions noves";
 "userProfile.blockedByMe.title" = "Usuari bloquejat";
 "userProfile.blockedByMe.description" = "Has bloquejat aquesta persona. No pot enviar-te missatges ni interactuar amb tu.";
 "chat.blockedByMe.subtitle" = "Bloquejat";
@@ -3910,3 +3932,10 @@
 "report.user.reason.bullying.subtitle" = "Assetjament, amenaces o contacte repetit no desitjat";
 "report.user.reason.scam.title" = "Estafa, frau o spam";
 "report.user.reason.scam.subtitle" = "Missatges sospitosos, intents de frau o comportament de spam";
+"sharedActivity.selection.tags.suppress" = "Suprimir";
+"sharedActivity.selection.tags.suppress.count" = "Suprimir (%d)";
+"sharedActivity.selection.reactions.delete.single" = "Eliminar reaccio";
+"sharedActivity.selection.reactions.delete.multiple" = "Eliminar reaccions (%d)";
+"sharedActivity.selection.reactions.delete.base" = "Eliminar reaccio";
+"sharedActivity.selection.comments.delete.count" = "Eliminar (%d)";
+"sharedActivity.selection.comments.delete.base" = "Eliminar";

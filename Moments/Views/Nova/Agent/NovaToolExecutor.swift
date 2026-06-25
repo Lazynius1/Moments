@@ -158,8 +158,8 @@ final class NovaToolExecutor {
                 momentLimit: intArg(args["moment_limit"]) ?? 5,
                 storyLimit: intArg(args["story_limit"]) ?? 5
             )
-        case "get_mutual_connections":
-            return await profileTools.mutualConnections(userId: userId, limit: intArg(args["limit"]) ?? 5)
+        case "get_mutuals", "get_mutual_connections":
+            return await profileTools.mutuals(userId: userId, limit: intArg(args["limit"]) ?? 5)
         case "get_shared_interest_users":
             return await profileTools.sharedInterestUsers(userId: userId, limit: intArg(args["limit"]) ?? 5)
         case "find_user_by_username":
@@ -178,9 +178,9 @@ final class NovaToolExecutor {
             return await profileTools.updatePrivacy(
                 userId: userId,
                 isPrivate: boolArg(args["is_private"]),
-                showMutualConnections: boolArg(args["show_mutual_connections"]),
+                showMutuals: boolArg(args["show_mutuals"]) ?? boolArg(args["show_mutual_connections"]),
                 showFollowing: boolArg(args["show_following"]),
-                showAdmirers: boolArg(args["show_admirers"])
+                showFollowers: boolArg(args["show_followers"])
             )
         case "update_profile_bio":
             guard let bio = stringArg(args["bio"]) else {

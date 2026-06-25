@@ -169,12 +169,18 @@ struct ActivityCommentMomentPreview: View {
             if media.type == .image {
                 mediaImage(urlString: media.url)
             } else {
-                mediaVideoPreview(videoURL: media.url, thumbnailURL: media.thumbnailUrl ?? moment.thumbnailUrl)
+                mediaVideoPreview(
+                    videoURL: media.url,
+                    thumbnailURL: resolvedVideoThumbnailURL(for: moment, preferred: media.thumbnailUrl)
+                )
             }
         } else if let imagePath = moment.previewImageURLString, !imagePath.isEmpty {
             mediaImage(urlString: imagePath)
         } else if let video = moment.previewVideoURLString, !video.isEmpty {
-            mediaVideoPreview(videoURL: video, thumbnailURL: moment.previewImageURLString ?? moment.thumbnailUrl)
+            mediaVideoPreview(
+                videoURL: video,
+                thumbnailURL: resolvedVideoThumbnailURL(for: moment, preferred: moment.previewImageURLString)
+            )
         } else {
             placeholder
         }
@@ -211,13 +217,36 @@ struct ActivityCommentMomentPreview: View {
                     }
             }
 
-            Image(systemName: "play.circle.fill")
-                .font(.system(size: 20, weight: .regular))
-                .foregroundColor(.white.opacity(0.92))
-                .shadow(radius: 3)
+            VStack {
+                Spacer()
+                HStack {
+                    ChatVideoPlayBadge(size: 14, padding: 8)
+                    Spacer()
+                }
+            }
         }
         .frame(width: size, height: size)
         .clipped()
+    }
+
+    private func resolvedVideoThumbnailURL(for moment: Moment, preferred: String?) -> String? {
+        let candidates = [
+            preferred,
+            moment.previewImageURLString,
+            moment.thumbnailUrl
+        ]
+
+        let normalizedVideoURL = moment.previewVideoURLString?.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        for candidate in candidates {
+            guard let trimmed = candidate?.trimmingCharacters(in: .whitespacesAndNewlines),
+                  !trimmed.isEmpty else { continue }
+            if normalizedVideoURL == nil || trimmed != normalizedVideoURL {
+                return trimmed
+            }
+        }
+
+        return nil
     }
 
     private var placeholder: some View {

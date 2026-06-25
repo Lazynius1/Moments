@@ -700,9 +700,11 @@
 "settings.privacy.hideMutual.description" = "Only you can see who your mutual friends are";
 "settings.privacy.hideFollowing" = "Hide my following list";
 "settings.privacy.hideFollowing.description" = "Only you can see who you follow";
-"settings.privacy.hideAdmirers" = "Hide my followers";
-"settings.privacy.hideAdmirers.description" = "Only you can see who follows you";
-"settings.privacy.control.description" = "When you activate these options, other users won't be able to see these lists on your profile. Note: Hiding 'following' or 'followers' will also hide 'mutual connections' since they cannot be calculated without both lists. You can always change these settings.";
+"settings.privacy.hideFollowers" = "Hide my followers";
+"settings.privacy.hideFollowers.description" = "Only you can see who follows you";
+"nova.confirm.field.showFollowers" = "Show followers";
+"nova.confirm.field.showMutuals" = "Show mutuals";
+"settings.privacy.control.description" = "When you enable these options, other users won't be able to see these lists on your profile. You can always change these settings.";
 "conversationSettings.title" = "Conversation Settings";
 "conversationSettings.created" = "Created";
 "conversationSettings.messages" = "Messages";
@@ -1127,6 +1129,7 @@
 /* Audience Types */
 "audience.type.everyone" = "Everyone";
 "audience.type.connections" = "Mutuals";
+"audience.type.mutuals" = "Mutuals";
 "audience.type.bestFriends" = "Best friends";
 "audience.type.custom" = "Custom";
 "audience.type.customList" = "Custom list";
@@ -1150,6 +1153,7 @@
 /* Audience Descriptions */
 "audience.description.everyone" = "Anyone can see this content";
 "audience.description.connections" = "Only people you follow and follow you";
+"audience.description.mutuals" = "Only people you follow and follow you";
 "audience.description.bestFriends" = "Only your best friends list";
 "audience.description.custom" = "Choose specific people";
 "audience.description.customList" = "Use a custom list";
@@ -3066,6 +3070,7 @@
 "profile.ui.followers" = "Followers";
 "profile.ui.following" = "Following";
 "profile.ui.mutuals" = "Mutuals";
+"profile.ui.inCommon" = "In common";
 
 /* Messaging Errors */
 "messaging.error.startConversationFailed" = "Couldn't start the conversation. Please try again.";
@@ -3460,6 +3465,39 @@
 "messaging.toast.unarchived" = "Chat unarchived";
 "feed.refreshing" = "Refreshing";
 "profile.ui.posts" = "Posts";
+
+/* Social Connections */
+"socialConnections.tab.visits" = "%@ visits";
+"socialConnections.tab.followers" = "%@ followers";
+"socialConnections.tab.inCommon" = "%@ in common";
+"socialConnections.tab.following" = "%@ following";
+"socialConnections.tab.mutuals" = "%@ mutuals";
+"socialConnections.sort.by" = "Sort by";
+"socialConnections.common.section.people" = "People in common";
+"socialConnections.sort.default" = "Default";
+"socialConnections.sort.alphabetical" = "Alphabetical";
+"socialConnections.sort.newest" = "Newest";
+"socialConnections.sort.oldest" = "Oldest";
+"socialConnections.followAlso" = "Follow back";
+"socialConnections.categories.title" = "Categories";
+"socialConnections.categories.clear" = "Clear filter";
+"socialConnections.category.leastInteracted" = "Least Interacted With";
+"socialConnections.category.mostShownInFeed" = "Most Shown in Feed";
+"socialConnections.menu.sharedActivity" = "View shared activity";
+"socialConnections.menu.mute" = "Mute";
+"socialConnections.menu.unmute" = "Unmute";
+"socialConnections.removeFollower" = "Remove";
+"socialConnections.removeFollower.confirm.title" = "Remove follower?";
+"socialConnections.removeFollower.confirm.message" = "%@ will be removed from your followers on Moments.";
+"socialConnections.newPosts.single" = "1 new post";
+"socialConnections.newPosts.multiple" = "%d new posts";
+"sharedActivity.title" = "Shared activity";
+"sharedActivity.youAndUser" = "You and %@";
+"sharedActivity.subtitle" = "Check your activity with %@ and manage your interactions.";
+"sharedActivity.timeline.followedYou" = "%@ started following you in %@";
+"sharedActivity.timeline.youFollowed" = "You started following %@ in %@";
+"sharedActivity.modules.likes" = "Likes";
+"sharedActivity.modules.placeholder" = "This section is coming soon to Moments.";
 "userProfile.blockedByMe.title" = "Blocked user";
 "userProfile.blockedByMe.description" = "You blocked this person. They can’t message or interact with you.";
 "chat.blockedByMe.subtitle" = "Blocked";
@@ -3921,3 +3959,10 @@
 "report.user.reason.bullying.subtitle" = "Harassment, threats or repeated unwanted contact";
 "report.user.reason.scam.title" = "Scam, fraud or spam";
 "report.user.reason.scam.subtitle" = "Suspicious messages, fraud attempts or spammy behavior";
+"sharedActivity.selection.tags.suppress" = "Suppress";
+"sharedActivity.selection.tags.suppress.count" = "Suppress (%d)";
+"sharedActivity.selection.reactions.delete.single" = "Delete reaction";
+"sharedActivity.selection.reactions.delete.multiple" = "Delete reactions (%d)";
+"sharedActivity.selection.reactions.delete.base" = "Delete reaction";
+"sharedActivity.selection.comments.delete.count" = "Delete (%d)";
+"sharedActivity.selection.comments.delete.base" = "Delete";

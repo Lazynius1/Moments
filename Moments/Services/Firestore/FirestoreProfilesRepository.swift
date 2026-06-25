@@ -14,9 +14,9 @@ extension FirestoreService {
             bio: nil,
             blockedUsers: [],
             isPrivate: false,
-            showMutualConnections: true,
+            showMutuals: true,
             showFollowing: true,
-            showAdmirers: true,
+            showFollowers: true,
             activeHoursStart: nil,
             activeHoursEnd: nil,
             notificationPreferences: [
@@ -269,7 +269,7 @@ extension FirestoreService {
             bio: data["bio"] as? String,
             blockedUsers: (data["blockedUsers"] as? [String]) ?? [],
             isPrivate: (data["isPrivate"] as? Bool) ?? false,
-            showMutualConnections: (data["showMutualConnections"] as? Bool) ?? true,
+            showMutuals: (data["showMutuals"] as? Bool) ?? true,
             showFollowing: (data["showFollowing"] as? Bool) ?? true,
             activeHoursStart: data["activeHoursStart"] as? String,
             activeHoursEnd: data["activeHoursEnd"] as? String,
@@ -353,103 +353,60 @@ extension FirestoreService {
         }
     }
 
-    func fetchConnections(userId: String, completion: @escaping (Result<[Connection], Error>) -> Void) {
-        self.db.collection("users").document(userId).collection("connections")
+    func fetchMutuals(userId: String, completion: @escaping (Result<[AppUser], Error>) -> Void) {
+        db.collection("users").document(userId).collection("mutuals")
             .order(by: "timestamp", descending: true)
-            .getDocuments { snapshot, error in
-                if let error = error {
+            .limit(to: 1000)
+            .getDocuments { [weak self] snapshot, error in
+                guard let self else { return }
+
+                if let error {
                     completion(.failure(error))
                     return
                 }
 
-                guard let documents = snapshot?.documents else {
+                let userIds = snapshot?.documents.compactMap { doc -> String? in
+                    let data = doc.data()
+                    return data["userId"] as? String ?? doc.documentID
+                } ?? []
+
+                if userIds.isEmpty {
                     completion(.success([]))
                     return
                 }
 
-                let connections = documents.compactMap { doc -> Connection? in
-                    do {
-                        return try doc.data(as: Connection.self)
-                    } catch {
-                        return nil
+                self.fetchUsersByIdsClean(userIds: userIds) { result in
+                    if case .success(let users) = result {
+                        LocalPersistenceService.shared.saveMutuals(userId: userId, mutuals: users)
                     }
+                    completion(result)
                 }
-                completion(.success(connections))
             }
     }
 
-    func fetchAdmirers(userId: String, completion: @escaping (Result<[Admirer], Error>) -> Void) {
-        self.db.collection("users").document(userId).collection("admirers")
+    func fetchMutualsWithTimestamps(userId: String) async throws -> [(user: AppUser, timestamp: Date)] {
+        let snapshot = try await db.collection("users").document(userId).collection("mutuals")
             .order(by: "timestamp", descending: true)
-            .getDocuments { snapshot, error in
-                if let error = error {
-                    completion(.failure(error))
-                    return
-                }
+            .limit(to: 100)
+            .getDocuments()
 
-                guard let documents = snapshot?.documents else {
-                    completion(.success([]))
-                    return
-                }
-
-                let admirers = documents.compactMap { doc -> Admirer? in
-                    do {
-                        return try doc.data(as: Admirer.self)
-                    } catch {
-                        return nil
-                    }
-                }
-                completion(.success(admirers))
-            }
-    }
-
-    func fetchMutualConnections(userId: String, completion: @escaping (Result<[AppUser], Error>) -> Void) {
-        let group = DispatchGroup()
-        var followingIds: Set<String> = []
-        var followerIds: Set<String> = []
-        var fetchError: Error?
-
-        group.enter()
-        fetchFollowing(userId: userId) { result in
-            defer { group.leave() }
-            switch result {
-            case .success(let users):
-                let ids = users.map { $0.id }
-                followingIds = Set(ids)
-            case .failure(let error):
-                fetchError = error
-            }
+        let mutualData = snapshot.documents.compactMap { doc -> (id: String, timestamp: Date)? in
+            let data = doc.data()
+            guard let id = data["userId"] as? String,
+                  let timestamp = (data["timestamp"] as? Timestamp)?.dateValue() else { return nil }
+            return (id, timestamp)
         }
 
-        group.enter()
-        fetchFollowers(userId: userId) { result in
-            defer { group.leave() }
-            switch result {
-            case .success(let users):
-                let ids = users.map { $0.id }
-                followerIds = Set(ids)
-            case .failure(let error):
-                fetchError = error
-            }
-        }
+        if mutualData.isEmpty { return [] }
 
-        group.notify(queue: .main) {
-            if let error = fetchError {
-                completion(.failure(error))
-                return
-            }
+        let users = try await fetchUsersAsync(userIds: mutualData.map(\.id))
+        let userDict = Dictionary(uniqueKeysWithValues: users.map { ($0.id, $0) })
 
-            let mutualIds = Array(followingIds.intersection(followerIds))
-
-            if mutualIds.isEmpty {
-                completion(.success([]))
-                return
-            }
-
-            self.fetchUsersByIdsClean(userIds: mutualIds, completion: completion)
+        return mutualData.compactMap { item in
+            guard let user = userDict[item.id] else { return nil }
+            return (user, item.timestamp)
         }
     }
-
     func updateProfilePicture(userId: String, profileImagePath: String, completion: @escaping (Error?) -> Void) {
         self.db.collection("users").document(userId).updateData([
             "profileImagePath": profileImagePath

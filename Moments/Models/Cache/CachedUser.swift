@@ -31,9 +31,9 @@ final class CachedUser {
     var isActive: Bool?
     
     // MARK: - Preferencias de privacidad
-    var showMutualConnections: Bool?
+    var showMutuals: Bool?
     var showFollowing: Bool?
-    var showAdmirers: Bool?
+    var showFollowers: Bool?
     var showReadReceipts: Bool?
     var showBadge: Bool?
     var showPlusBadge: Bool?
@@ -65,9 +65,9 @@ final class CachedUser {
         isVerified: Bool? = false,
         isPrivate: Bool? = false,
         isActive: Bool? = true,
-        showMutualConnections: Bool? = true,
+        showMutuals: Bool? = true,
         showFollowing: Bool? = true,
-        showAdmirers: Bool? = true,
+        showFollowers: Bool? = true,
         showReadReceipts: Bool? = true,
         showBadge: Bool? = true,
         showPlusBadge: Bool? = true,
@@ -95,9 +95,9 @@ final class CachedUser {
         self.isVerified = isVerified
         self.isPrivate = isPrivate
         self.isActive = isActive
-        self.showMutualConnections = showMutualConnections
+        self.showMutuals = showMutuals
         self.showFollowing = showFollowing
-        self.showAdmirers = showAdmirers
+        self.showFollowers = showFollowers
         self.showReadReceipts = showReadReceipts
         self.showBadge = showBadge
         self.showPlusBadge = showPlusBadge
@@ -136,9 +136,9 @@ extension CachedUser {
             isVerified: user.isVerified,
             isPrivate: user.isPrivate,
             isActive: user.isActive,
-            showMutualConnections: user.showMutualConnections,
+            showMutuals: user.showMutuals,
             showFollowing: user.showFollowing,
-            showAdmirers: user.showAdmirers,
+            showFollowers: user.showFollowers,
             showReadReceipts: user.showReadReceipts,
             showBadge: user.showBadge,
             showPlusBadge: user.showPlusBadge,
@@ -191,9 +191,9 @@ extension CachedUser {
             bio: bio,
             blockedUsers: blockedUsers,
             isPrivate: isPrivate ?? false,
-            showMutualConnections: showMutualConnections ?? true,
+            showMutuals: showMutuals ?? true,
             showFollowing: showFollowing ?? true,
-            showAdmirers: showAdmirers ?? true,
+            showFollowers: showFollowers ?? true,
             activeHoursStart: nil,
             activeHoursEnd: nil,
             notificationPreferences: nil,

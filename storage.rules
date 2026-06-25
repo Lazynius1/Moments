@@ -87,9 +87,8 @@ service firebase.storage {
               firestore.get(/databases/(default)/documents/users/$(ownerId)).data.get('isActive', true) &&
               canViewOwnerProfile(viewerId, ownerId) &&
               (audience == 'everyone' ||
-               (audience == 'connections' &&
-                firestore.exists(/databases/(default)/documents/users/$(viewerId)/following/$(ownerId)) &&
-                firestore.exists(/databases/(default)/documents/users/$(ownerId)/following/$(viewerId))) ||
+               (audience == 'mutuals' &&
+                firestore.exists(/databases/(default)/documents/users/$(viewerId)/mutuals/$(ownerId))) ||
                (audience == 'bestFriends' &&
                 viewerId in firestore.get(/databases/(default)/documents/users/$(ownerId)).data.get('bestFriends', [])) ||
                (audience == 'custom' &&

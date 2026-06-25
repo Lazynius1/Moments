@@ -43,9 +43,8 @@ service cloud.firestore {
                  (get(/databases/$(database)/documents/users/$(ownerId)).data.get('isActive', true) &&
                   canViewContent(viewerId, ownerId) &&
                   (audience == 'everyone' ||
-                   (audience == 'connections' &&
-                    exists(/databases/$(database)/documents/users/$(viewerId)/following/$(ownerId)) &&
-                    exists(/databases/$(database)/documents/users/$(ownerId)/following/$(viewerId))) ||
+                   (audience == 'mutuals' &&
+                    exists(/databases/$(database)/documents/users/$(viewerId)/mutuals/$(ownerId))) ||
                    (audience == 'bestFriends' &&
                     viewerId in get(/databases/$(database)/documents/users/$(ownerId)).data.bestFriends) ||
                    (audience == 'custom' &&
@@ -227,9 +226,9 @@ service cloud.firestore {
                 && request.resource.data.isPlusSubscriber is bool
                 && request.resource.data.blockedUsers is list
                 && request.resource.data.isPrivate is bool
-                && request.resource.data.showMutualConnections is bool
+                && request.resource.data.showMutuals is bool
                 && request.resource.data.showFollowing is bool
-                && request.resource.data.showAdmirers is bool
+                && request.resource.data.showFollowers is bool
                 && request.resource.data.bestFriends is list
                 && request.resource.data.get('isActive', true) == true  // ✅ Asegurar que sea true
                 && request.resource.data.get('showBadge', true) is bool
@@ -362,15 +361,28 @@ service cloud.firestore {
         allow read: if request.auth != null && (
           request.auth.uid == userId || // El propietario ve todos sus seguidores
           (canViewContent(request.auth.uid, userId) && // ✅ Puedes ver el perfil del usuario
-           get(/databases/$(database)/documents/users/$(userId)).data.showAdmirers)
+           get(/databases/$(database)/documents/users/$(userId)).data.get('showFollowers', true))
         );
         
         // 🔐 Solo las partes de la relación pueden crear el documento follower correspondiente.
         allow create: if request.auth != null &&
                       canCreateFollowerDocument(userId, followerId);
         
+        // El owner puede borrar seguidores para soportar "Suprimir" desde la lista.
         allow delete: if request.auth != null && (request.auth.uid == followerId || request.auth.uid == userId);
         allow update: if request.auth != null && (request.auth.uid == followerId || request.auth.uid == userId);
+      }
+
+      match /mutuals/{mutualUserId} {
+        allow read: if request.auth != null && (
+          request.auth.uid == userId ||
+          (canViewContent(request.auth.uid, userId) &&
+           get(/databases/$(database)/documents/users/$(userId)).data.get('showMutuals', true))
+        );
+
+        // Solo Cloud Functions crean/actualizan mutuals; el cliente puede borrar al unfollow.
+        allow create, update: if false;
+        allow delete: if request.auth != null && (request.auth.uid == userId || request.auth.uid == mutualUserId);
       }
 
       // SISTEMA DE SOLICITUDES DE SEGUIMIENTO
@@ -494,7 +506,7 @@ service cloud.firestore {
                       && get(/databases/$(database)/documents/users/$(userId)).data.get('isActive', true)
                       && request.resource.data.authorId == userId
                       && (!("audience" in request.resource.data) ||
-                          request.resource.data.audience in ['everyone', 'connections', 'bestFriends', 'custom', 'customList', 'onlyMe'])
+                          request.resource.data.audience in ['everyone', 'mutuals', 'bestFriends', 'custom', 'customList', 'onlyMe'])
                       && (!("customViewers" in request.resource.data) ||
                           request.resource.data.customViewers is list)
                       && (!("customListId" in request.resource.data) ||
@@ -745,7 +757,7 @@ service cloud.firestore {
                       && get(/databases/$(database)/documents/users/$(userId)).data.get('isActive', true)
                       && request.resource.data.authorId == userId
                       && (!("audience" in request.resource.data) ||
-                          request.resource.data.audience in ['everyone', 'connections', 'bestFriends', 'custom', 'customList', 'onlyMe'])
+                          request.resource.data.audience in ['everyone', 'mutuals', 'bestFriends', 'custom', 'customList', 'onlyMe'])
                       && (!("customViewers" in request.resource.data) ||
                           request.resource.data.customViewers is list)
                       && (!("customListId" in request.resource.data) ||
@@ -783,7 +795,7 @@ service cloud.firestore {
                       && (!("allowOthersToContinue" in request.resource.data) ||
                           request.resource.data.allowOthersToContinue is bool)
                       && (!("continuationAudience" in request.resource.data) ||
-                          request.resource.data.continuationAudience in ['everyone', 'connections', 'bestFriends', 'custom', 'customList'])
+                          request.resource.data.continuationAudience in ['everyone', 'mutuals', 'bestFriends', 'custom', 'customList'])
                       && (!("continuationCustomViewers" in request.resource.data) ||
                           request.resource.data.continuationCustomViewers is list)
                       && (!("continuationCustomListId" in request.resource.data) ||
@@ -990,19 +1002,13 @@ service cloud.firestore {
         }
       }
 
-      // LEGACY: Mantener compatibilidad
+      // LEGACY: colecciones retiradas del grafo social
       match /connections/{targetUserDocId} {
-        allow read: if request.auth != null;
-        allow create: if request.auth != null;
-        allow delete: if request.auth != null && request.auth.uid == userId;
-        allow update: if request.auth != null && request.auth.uid == userId;
+        allow read, write: if false;
       }
 
       match /admirers/{admirerDocId} {
-        allow read: if request.auth != null;
-        allow create: if request.auth != null;
-        allow delete: if request.auth != null && (request.auth.uid == admirerDocId || request.auth.uid == userId);
-        allow update: if request.auth != null && (request.auth.uid == admirerDocId || request.auth.uid == userId);
+        allow read, write: if false;
       }
 
       match /visits/{visitId} {

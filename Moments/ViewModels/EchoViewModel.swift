@@ -297,7 +297,7 @@ class EchoViewModel: ObservableObject {
                 
                 let audience = momentRef.audience ?? "everyone"
                 
-                if audience == "everyone" || audience == "connections" {
+                if audience == "everyone" || audience == "mutuals" {
                     DispatchQueue.main.async { self.momentAvailability[momentRef.momentId] = true }
                 } else if audience == "bestFriends" {
                     privacyService.checkIfBestFriend(userId: momentRef.authorId, friendId: viewerId) { isBestFriend in

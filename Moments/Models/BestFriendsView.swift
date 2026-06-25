@@ -78,7 +78,7 @@ struct BestFriendsView: View {
         .padding()
     }
 
-    private var filteredResults: (bestFriends: [AppUser], connections: [AppUser], mutualConnections: [AppUser], admirers: [AppUser]) {
+    private var filteredResults: (bestFriends: [AppUser], following: [AppUser], mutuals: [AppUser], followers: [AppUser]) {
         viewModel.filteredUsers(searchText: searchText)
     }
 
@@ -96,19 +96,19 @@ struct BestFriendsView: View {
 
     private var hasAnyUsers: Bool {
         !viewModel.bestFriends.isEmpty ||
-        !viewModel.connections.isEmpty ||
-        !viewModel.mutualConnections.isEmpty ||
-        !viewModel.admirers.isEmpty
+        !viewModel.following.isEmpty ||
+        !viewModel.mutuals.isEmpty ||
+        !viewModel.followers.isEmpty
     }
 
     private var visibleMutuals: [AppUser] {
-        filteredResults.mutualConnections.filter { connection in
+        filteredResults.mutuals.filter { connection in
             !viewModel.bestFriends.contains(where: { $0.id == connection.id })
         }
     }
 
     private var visibleConnections: [AppUser] {
-        filteredResults.connections.filter { connection in
+        filteredResults.following.filter { connection in
             !viewModel.bestFriends.contains(where: { $0.id == connection.id })
         }
     }
@@ -122,7 +122,7 @@ struct BestFriendsView: View {
         deduplicatedUsers(
             visibleMutuals +
             visibleConnections +
-            filteredResults.admirers +
+            filteredResults.followers +
             viewModel.remoteSearchResults
         )
         .filter { !selectedIds.contains($0.id) }
@@ -349,7 +349,7 @@ struct ConnectionRow: View {
 }
 
 // ✅ NUEVO: Fila para admiradores
-struct AdmirerRow: View {
+struct FollowerRow: View {
     let user: AppUser
     @ObservedObject var viewModel: BestFriendsViewModel
 
@@ -383,9 +383,9 @@ struct AdmirerRow: View {
 
 class BestFriendsViewModel: ObservableObject {
     @Published var bestFriends: [AppUser] = []
-    @Published var connections: [AppUser] = []
-    @Published var mutualConnections: [AppUser] = []  // ✅ NUEVO: Usuarios mutuos
-    @Published var admirers: [AppUser] = []  // ✅ NUEVO: Admiradores (gente que te sigue)
+    @Published var following: [AppUser] = []
+    @Published var mutuals: [AppUser] = []  // ✅ NUEVO: Usuarios mutuos
+    @Published var followers: [AppUser] = []
     @Published var remoteSearchResults: [AppUser] = []
     @Published var isLoading: Bool = false
     @Published var showError: Bool = false
@@ -398,11 +398,11 @@ class BestFriendsViewModel: ObservableObject {
     private var searchWorkItem: DispatchWorkItem?
     
     // ✅ NUEVO: Función para filtrar usuarios por texto de búsqueda
-    func filteredUsers(searchText: String) -> (bestFriends: [AppUser], connections: [AppUser], mutualConnections: [AppUser], admirers: [AppUser]) {
+    func filteredUsers(searchText: String) -> (bestFriends: [AppUser], following: [AppUser], mutuals: [AppUser], followers: [AppUser]) {
         let lowercasedSearch = searchText.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
         
         if lowercasedSearch.isEmpty {
-            return (bestFriends, connections, mutualConnections, admirers)
+            return (bestFriends, following, mutuals, followers)
         }
         
         let filteredBestFriends = bestFriends.filter { user in
@@ -410,22 +410,22 @@ class BestFriendsViewModel: ObservableObject {
             (user.bio?.lowercased().contains(lowercasedSearch) ?? false)
         }
         
-        let filteredConnections = connections.filter { user in
+        let filteredConnections = following.filter { user in
             user.username.lowercased().contains(lowercasedSearch) ||
             (user.bio?.lowercased().contains(lowercasedSearch) ?? false)
         }
         
-        let filteredMutualConnections = mutualConnections.filter { user in
+        let filteredMutualConnections = mutuals.filter { user in
             user.username.lowercased().contains(lowercasedSearch) ||
             (user.bio?.lowercased().contains(lowercasedSearch) ?? false)
         }
         
-        let filteredAdmirers = admirers.filter { user in
+        let filteredFollowers = followers.filter { user in
             user.username.lowercased().contains(lowercasedSearch) ||
             (user.bio?.lowercased().contains(lowercasedSearch) ?? false)
         }
-        
-        return (filteredBestFriends, filteredConnections, filteredMutualConnections, filteredAdmirers)
+
+        return (filteredBestFriends, filteredConnections, filteredMutualConnections, filteredFollowers)
     }
 
     init(firestoreService: FirestoreService = FirestoreService(), bestFriendsService: BestFriendsService? = nil) {
@@ -513,7 +513,7 @@ class BestFriendsViewModel: ObservableObject {
                 
                 let mutualIds = followingSet.intersection(followersSet)        // Mutuos
                 let connectionIds = followingSet.subtracting(mutualIds)       // Conexiones (solo sigues tú)
-                let admirerIds = followersSet.subtracting(mutualIds)          // Admiradores (solo te siguen)
+                let followerOnlyIds = followersSet.subtracting(mutualIds)
                 
                 // 4. Cargar usuarios de conexiones (los que puedes agregar como mejores amigos)
                 if !connectionIds.isEmpty {
@@ -521,12 +521,12 @@ class BestFriendsViewModel: ObservableObject {
                     self?.fetchUsersInBatches(userIds: Array(connectionIds)) { [weak self] users in
                         defer { dispatchGroup.leave() }
                         DispatchQueue.main.async {
-                            self?.connections = users
+                            self?.following = users
                         }
                     }
                 } else {
                     DispatchQueue.main.async {
-                        self?.connections = []
+                        self?.following = []
                     }
                 }
                 
@@ -536,27 +536,27 @@ class BestFriendsViewModel: ObservableObject {
                     self?.fetchUsersInBatches(userIds: Array(mutualIds)) { [weak self] users in
                         defer { dispatchGroup.leave() }
                         DispatchQueue.main.async {
-                            self?.mutualConnections = users
+                            self?.mutuals = users
                         }
                     }
                 } else {
                     DispatchQueue.main.async {
-                        self?.mutualConnections = []
+                        self?.mutuals = []
                     }
                 }
                 
                 // ✅ NUEVO: Cargar admiradores (gente que te sigue pero tú no sigues)
-                if !admirerIds.isEmpty {
+                if !followerOnlyIds.isEmpty {
                     dispatchGroup.enter()
-                    self?.fetchUsersInBatches(userIds: Array(admirerIds)) { [weak self] users in
+                    self?.fetchUsersInBatches(userIds: Array(followerOnlyIds)) { [weak self] users in
                         defer { dispatchGroup.leave() }
                         DispatchQueue.main.async {
-                            self?.admirers = users
+                            self?.followers = users
                         }
                     }
                 } else {
                     DispatchQueue.main.async {
-                        self?.admirers = []
+                        self?.followers = []
                     }
                 }
                 

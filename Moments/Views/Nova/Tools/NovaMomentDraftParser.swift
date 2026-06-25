@@ -24,7 +24,7 @@ enum NovaMomentDraftParser {
             properties: [
                 "should_publish": .boolean(),
                 "content": .string(description: "Caption for the moment. Empty string if none."),
-                "audience": .string(description: "everyone | connections | bestFriends | onlyMe | custom | customList"),
+                "audience": .string(description: "everyone | mutuals | bestFriends | onlyMe | custom | customList"),
                 "target_username": .string(description: "Only when audience is custom."),
                 "custom_list_name": .string(description: "Only when audience is customList.")
             ]

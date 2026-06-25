@@ -676,7 +676,7 @@
 "settings.privacy.hideFollowing.description" = "Só você pode ver quem você segue";
 "settings.privacy.hideAdmirers" = "Ocultar meus seguidores";
 "settings.privacy.hideAdmirers.description" = "Só você pode ver quem segue você";
-"settings.privacy.control.description" = "Quando você ativa essas opções, outros usuários não poderão ver essas listas no seu perfil. Observação: ocultar 'seguindo' ou 'seguidores' também ocultará 'conexões mútuas', já que elas não podem ser calculadas sem as duas listas. Você pode mudar essas configurações quando quiser.";
+"settings.privacy.control.description" = "Quando você ativa essas opções, outros usuários não poderão ver essas listas no seu perfil. Você pode mudar essas configurações quando quiser.";
 "conversationSettings.title" = "Configurações da conversa";
 "conversationSettings.created" = "Criada";
 "conversationSettings.messages" = "Mensagens";
@@ -3436,6 +3436,28 @@
 "messaging.toast.unarchived" = "Conversa desarquivada";
 "feed.refreshing" = "Atualizando";
 "profile.ui.posts" = "Publicações";
+
+/* Social Connections */
+"socialConnections.tab.visits" = "%@ visitas";
+"socialConnections.tab.followers" = "%@ seguidores";
+"socialConnections.tab.following" = "%@ seguindo";
+"socialConnections.tab.mutuals" = "%@ mútuas";
+"socialConnections.sort.by" = "Ordenar por";
+"socialConnections.sort.default" = "Padrão";
+"socialConnections.sort.alphabetical" = "Alfabético";
+"socialConnections.sort.newest" = "Mais recentes";
+"socialConnections.sort.oldest" = "Mais antigos";
+"socialConnections.followAlso" = "Seguir também";
+"socialConnections.categories.title" = "Categorias";
+"socialConnections.categories.clear" = "Limpar filtro";
+"socialConnections.category.leastInteracted" = "Menos interagidos";
+"socialConnections.category.mostShownInFeed" = "Mais mostrados no feed";
+"socialConnections.menu.sharedActivity" = "Ver atividade compartilhada";
+"socialConnections.removeFollower" = "Remover";
+"socialConnections.removeFollower.confirm.title" = "Remover seguidor?";
+"socialConnections.removeFollower.confirm.message" = "%@ deixará de seguir você no Moments.";
+"socialConnections.newPosts.single" = "1 nova publicação";
+"socialConnections.newPosts.multiple" = "%d novas publicações";
 "userProfile.blockedByMe.title" = "Usuário bloqueado";
 "userProfile.blockedByMe.description" = "Você bloqueou esta pessoa. Ela não pode enviar mensagens nem interagir com você.";
 "chat.blockedByMe.subtitle" = "Bloqueado";
@@ -3890,3 +3912,10 @@
 "report.user.reason.bullying.subtitle" = "Assedio, ameacas ou contato repetido indesejado";
 "report.user.reason.scam.title" = "Golpe, fraude ou spam";
 "report.user.reason.scam.subtitle" = "Mensagens suspeitas, tentativas de fraude ou comportamento de spam";
+"sharedActivity.selection.tags.suppress" = "Suprimir";
+"sharedActivity.selection.tags.suppress.count" = "Suprimir (%d)";
+"sharedActivity.selection.reactions.delete.single" = "Excluir reacao";
+"sharedActivity.selection.reactions.delete.multiple" = "Excluir reacoes (%d)";
+"sharedActivity.selection.reactions.delete.base" = "Excluir reacao";
+"sharedActivity.selection.comments.delete.count" = "Excluir (%d)";
+"sharedActivity.selection.comments.delete.base" = "Excluir";

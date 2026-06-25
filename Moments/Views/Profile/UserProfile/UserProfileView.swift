@@ -249,7 +249,7 @@ struct UserProfilePillTabs: View {
 struct UserProfileView: View {
     @StateObject private var viewModel: UserProfileViewModel
     @Environment(\.dismiss) var dismiss
-    @State private var showingUserList: UserProfileView.UserListType?
+    @State private var socialConnectionsRoute: SocialConnectionsRoute?
     private let userId: String
     @StateObject private var messagingViewModel = MessagingViewModel()
     @StateObject private var messageRequestService = MessageRequestService()
@@ -268,8 +268,6 @@ struct UserProfileView: View {
     @StateObject private var heroCoordinator = ProfileGridHeroTransitionCoordinator()
     @State private var hasRegisteredVisit = false
     @State private var selectedTab: UserProfileTabType = .moments // ✅ NUEVO: Tab seleccionado
-    @State private var selectedNestedProfileUserId: String? = nil
-    @State private var showNestedProfile = false
     @Namespace private var profileZoomNamespace
 
     // ✅ NUEVOS: Estados para navegación al explorer
@@ -285,23 +283,26 @@ struct UserProfileView: View {
     }
 
     enum UserListType: Identifiable {
-        case admirers
-        case connections
-        case mutualConnections
+        case inCommon
+        case followers
+        case following
+        case mutuals
 
         var id: String {
             switch self {
-            case .admirers: return "admirers"
-            case .connections: return "connections"
-            case .mutualConnections: return "mutualConnections"
+            case .inCommon: return "inCommon"
+            case .followers: return "followers"
+            case .following: return "following"
+            case .mutuals: return "mutuals"
             }
         }
 
         var title: String {
             switch self {
-            case .admirers: return NSLocalizedString("profile.ui.followers", comment: "Followers")
-            case .connections: return NSLocalizedString("profile.ui.following", comment: "Following")
-            case .mutualConnections: return NSLocalizedString("profile.ui.mutuals", comment: "Mutuals")
+            case .inCommon: return NSLocalizedString("profile.ui.inCommon", comment: "In common")
+            case .followers: return NSLocalizedString("profile.ui.followers", comment: "Followers")
+            case .following: return NSLocalizedString("profile.ui.following", comment: "Following")
+            case .mutuals: return NSLocalizedString("profile.ui.mutuals", comment: "Mutuals")
             }
         }
     }
@@ -341,35 +342,27 @@ struct UserProfileView: View {
         .environment(\.profileGridHeroTransitionCoordinator, heroCoordinator)
         .navigationBarHidden(true)
         .toolbar(.hidden, for: .tabBar)
-        .sheet(item: $showingUserList) { listType in
-            UserListView(
-                title: listType.title,
-                users: usersForListType(listType),
+        .navigationDestination(item: $socialConnectionsRoute) { route in
+            SocialConnectionsScreen(
+                route: route,
+                username: viewModel.userProfile?.username ?? "",
+                availableTabs: SocialConnectionTab.tabs(
+                    for: viewModel.visibleConnectionTypes,
+                    includesVisits: false
+                ),
+                includesVisits: false,
+                isOwnProfile: false,
+                currentUser: viewModel.viewerProfile,
+                inCommonUsers: viewModel.commonConnections,
+                followers: viewModel.followers,
+                following: viewModel.following,
+                mutuals: viewModel.mutuals,
+                suggestedUsers: viewModel.suggestedConnectionsForViewer,
+                viewerInterests: viewModel.viewerInterests,
                 visitTimestamps: [:],
-                viewModel: viewModel,
-                onDismiss: { showingUserList = nil },
-                rowAction: rowAction(for: listType),
-                onUserTap: { user in
-                    openNestedUserProfile(userId: user.id)
-                },
+                listViewModel: viewModel,
                 profileZoomNamespace: profileZoomNamespace
             )
-            .presentationDetents([.medium, .large])
-            .presentationDragIndicator(.visible)
-            .interactiveDismissDisabled(false)
-            .presentationBackground(.clear)
-            .transition(.move(edge: .bottom).combined(with: .opacity))
-        }
-        .navigationDestination(isPresented: $showNestedProfile) {
-            if let userId = selectedNestedProfileUserId {
-                UserProfileView(userId: userId)
-                    .userProfileZoomDestination(userId: userId, namespace: profileZoomNamespace)
-            }
-        }
-        .onChange(of: showNestedProfile) { _, isShowing in
-            if !isShowing {
-                selectedNestedProfileUserId = nil
-            }
         }
         .sheet(isPresented: $showExploreWithHashtag) {
             ExploreView(initialSearchQuery: selectedHashtag)
@@ -431,7 +424,7 @@ struct UserProfileView: View {
         .fullScreenCover(item: $storyRoute) { route in
             StoriesView(startWithUserId: .constant(route.userId))
         }
-        .animation(.easeInOut(duration: 0.3), value: showingUserList)
+        .animation(.easeInOut(duration: 0.3), value: socialConnectionsRoute)
         .confirmationDialog(
             NSLocalizedString("userProfile.unfollow.confirm.title", comment: "Unfollow confirmation title"),
             isPresented: $showingUnfollowConfirmation,
@@ -591,7 +584,7 @@ struct UserProfileView: View {
                     messagingViewModel: messagingViewModel,
                     safeAreaTop: safeAreaTop,
                     safeAreaBottom: safeAreaBottom,
-                    showingUserList: $showingUserList,
+                    socialConnectionsRoute: $socialConnectionsRoute,
                     navigateToChat: $navigateToChat,
                     targetConversation: $targetConversation,
                     scrollOffset: $scrollOffset,
@@ -636,30 +629,6 @@ struct UserProfileView: View {
         return NSLocalizedString("userProfile.unfollow.confirm.message", comment: "Unfollow confirmation message")
     }
 
-    private func usersForListType(_ listType: UserListType) -> [AppUser] {
-        switch listType {
-        case .admirers: return viewModel.admirers
-        case .connections: return viewModel.connections
-        case .mutualConnections: return viewModel.mutualConnections
-        }
-    }
-
-    private func rowAction(for listType: UserListType) -> UserListRowAction {
-        switch listType {
-        case .admirers:
-            return .follow
-        case .connections, .mutualConnections:
-            return .unfollow
-        }
-    }
-
-    private func openNestedUserProfile(userId: String) {
-        showingUserList = nil
-        selectedNestedProfileUserId = userId
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
-            showNestedProfile = true
-        }
-    }
 }
 
 struct UserProfileView_Previews: PreviewProvider {

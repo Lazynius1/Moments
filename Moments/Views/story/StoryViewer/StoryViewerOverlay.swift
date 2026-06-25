@@ -30,7 +30,7 @@ struct GlassmorphicProgressBar: View {
                 startPoint: .leading,
                 endPoint: .trailing
             )
-        case "connections", "mutuals", "mutual":
+        case "mutuals", "mutual":
             // Mutuals accent (different from default)
             return LinearGradient(
                 colors: [Color(hex: "00B4D8"), Color(hex: "4CC9F0")],
@@ -50,7 +50,7 @@ struct GlassmorphicProgressBar: View {
         switch normalizedAudience {
         case "bestfriends", "best_friends", "best-friends":
             return Color(hex: "24C26A").opacity(0.65)
-        case "connections", "mutuals", "mutual":
+        case "mutuals", "mutual":
             return Color(hex: "00B4D8").opacity(0.55)
         default:
             return Color.purple.opacity(0.6)
@@ -257,8 +257,8 @@ struct GlassmorphicViewersSheet: View {
 
     private var audienceTitle: String {
         switch normalizedAudience {
-        case "connections", "mutuals", "mutual":
-            return NSLocalizedString("audience.type.connections", comment: "Mutuals")
+        case "mutuals", "mutual":
+            return NSLocalizedString("audience.type.mutuals", comment: "Mutuals")
         case "bestfriends", "best_friends", "best-friends":
             return NSLocalizedString("audience.type.bestFriends", comment: "Best friends")
         case "customlist":
@@ -602,8 +602,8 @@ struct GlassmorphicViewersSheet: View {
         audienceListName = nil
 
         switch normalizedAudience {
-        case "connections", "mutuals", "mutual":
-            firestoreService.fetchMutualConnections(userId: story.authorId) { result in
+        case "mutuals", "mutual":
+            firestoreService.fetchMutuals(userId: story.authorId) { result in
                 DispatchQueue.main.async {
                     switch result {
                     case .success(let users):

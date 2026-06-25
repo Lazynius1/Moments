@@ -82,28 +82,42 @@ class DataExportService: ObservableObject {
             }
         }
         
-        // Fetch connections
+        // Fetch following
         if exportType != .mediaOnly {
             group.enter()
-            fetchCollection(userId: userId, collection: "connections") { result in
+            fetchCollection(userId: userId, collection: "following") { result in
                 defer { group.leave() }
                 switch result {
                 case .success(let data):
-                    exportData.connections = data
+                    exportData.following = data
+                case .failure(let error):
+                    fetchError = error
+                }
+            }
+        }
+
+        // Fetch mutuals
+        if exportType != .mediaOnly {
+            group.enter()
+            fetchCollection(userId: userId, collection: "mutuals") { result in
+                defer { group.leave() }
+                switch result {
+                case .success(let data):
+                    exportData.mutuals = data
                 case .failure(let error):
                     fetchError = error
                 }
             }
         }
         
-        // Fetch admirers
+        // Fetch followers
         if exportType != .mediaOnly {
             group.enter()
-            fetchCollection(userId: userId, collection: "admirers") { result in
+            fetchCollection(userId: userId, collection: "followers") { result in
                 defer { group.leave() }
                 switch result {
                 case .success(let data):
-                    exportData.admirers = data
+                    exportData.followers = data
                 case .failure(let error):
                     fetchError = error
                 }
@@ -439,8 +453,9 @@ class DataExportService: ObservableObject {
             "profile": userData.profile ?? [:],
             "moments": userData.moments ?? [],
             "stories": userData.stories ?? [],
-            "connections": userData.connections ?? [],
-            "admirers": userData.admirers ?? [],
+            "following": userData.following ?? [],
+            "mutuals": userData.mutuals ?? [],
+            "followers": userData.followers ?? [],
             "conversations": userData.conversations ?? [],
             "notifications": userData.notifications ?? [],
             "activityStats": userData.activityStats ?? [],
@@ -473,12 +488,16 @@ class DataExportService: ObservableObject {
             try createStoriesCSV(stories: stories, directory: tempDir)
         }
         
-        if let connections = userData.connections {
-            try createConnectionsCSV(connections: connections, directory: tempDir)
+        if let following = userData.following {
+            try createSocialListCSV(rows: following, filename: "following.csv", directory: tempDir)
+        }
+
+        if let mutuals = userData.mutuals {
+            try createSocialListCSV(rows: mutuals, filename: "mutuals.csv", directory: tempDir)
         }
         
-        if let admirers = userData.admirers {
-            try createAdmirersCSV(admirers: admirers, directory: tempDir)
+        if let followers = userData.followers {
+            try createFollowersCSV(followers: followers, directory: tempDir)
         }
         
         if let conversations = userData.conversations {
@@ -578,29 +597,33 @@ class DataExportService: ObservableObject {
         try csvContent.write(to: fileURL, atomically: true, encoding: .utf8)
     }
     
-    private func createConnectionsCSV(connections: [[String: Any]], directory: URL) throws {
+    private func createSocialListCSV(rows: [[String: Any]], filename: String, directory: URL) throws {
         var csvContent = "UserID,Timestamp\n"
-        
-        for connection in connections {
-            let userId = connection["userId"] as? String ?? ""
-            let timestamp = formatTimestamp(connection["timestamp"])
+
+        for row in rows {
+            let userId = row["userId"] as? String ?? ""
+            let timestamp = formatTimestamp(row["timestamp"])
             csvContent += "\"\(userId)\",\"\(timestamp)\"\n"
         }
-        
-        let fileURL = directory.appendingPathComponent("connections.csv")
+
+        let fileURL = directory.appendingPathComponent(filename)
         try csvContent.write(to: fileURL, atomically: true, encoding: .utf8)
     }
+
+    private func createConnectionsCSV(connections: [[String: Any]], directory: URL) throws {
+        try createSocialListCSV(rows: connections, filename: "connections.csv", directory: directory)
+    }
     
-    private func createAdmirersCSV(admirers: [[String: Any]], directory: URL) throws {
+    private func createFollowersCSV(followers: [[String: Any]], directory: URL) throws {
         var csvContent = "UserID,Timestamp\n"
         
-        for admirer in admirers {
-            let userId = admirer["userId"] as? String ?? ""
-            let timestamp = formatTimestamp(admirer["timestamp"])
+        for follower in followers {
+            let userId = follower["userId"] as? String ?? ""
+            let timestamp = formatTimestamp(follower["timestamp"])
             csvContent += "\"\(userId)\",\"\(timestamp)\"\n"
         }
         
-        let fileURL = directory.appendingPathComponent("admirers.csv")
+        let fileURL = directory.appendingPathComponent("followers.csv")
         try csvContent.write(to: fileURL, atomically: true, encoding: .utf8)
     }
     
@@ -679,8 +702,9 @@ class DataExportService: ObservableObject {
         - **profile.csv**: Información de tu perfil
         - **moments.csv**: Todas tus publicaciones
         - **stories.csv**: Tus historias
-        - **connections.csv**: Personas que sigues
-        - **admirers.csv**: Personas que te siguen
+        - **following.csv**: Personas que sigues
+        - **mutuals.csv**: Personas con las que tienes relación mutua
+        - **followers.csv**: Personas que te siguen
         - **conversations.csv**: Resumen de tus conversaciones
         - **conversations/**: Conversaciones completas en JSON (mensajes y metadatos)
         - **activity_stats.csv**: Estadísticas de uso de la app
@@ -927,8 +951,9 @@ struct UserExportData {
     var profile: [String: Any]?
     var moments: [[String: Any]]?
     var stories: [[String: Any]]?
-    var connections: [[String: Any]]?
-    var admirers: [[String: Any]]?
+    var following: [[String: Any]]?
+    var mutuals: [[String: Any]]?
+    var followers: [[String: Any]]?
     var conversations: [[String: Any]]?
     var notifications: [[String: Any]]?
     var activityStats: [[String: Any]]?

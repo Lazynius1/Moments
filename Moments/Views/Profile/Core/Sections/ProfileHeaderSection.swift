@@ -421,7 +421,7 @@ struct SupportBadgeInline: View {
 
 struct ProfileOverviewCard: View {
     @ObservedObject var viewModel: ProfileViewModel
-    @Binding var showingUserList: ProfileView.UserListType?
+    @Binding var socialConnectionsRoute: SocialConnectionsRoute?
     @Binding var showingInterests: Bool
     let interests: [String]
     @Environment(\.colorScheme) var colorScheme
@@ -430,7 +430,7 @@ struct ProfileOverviewCard: View {
         VStack(alignment: .leading, spacing: 0) {
             ModernStatsSection(
                 viewModel: viewModel,
-                showingUserList: $showingUserList,
+                socialConnectionsRoute: $socialConnectionsRoute,
                 embeddedStyle: true
             )
             .frame(maxWidth: .infinity)
@@ -494,16 +494,16 @@ struct ProfileOverviewCard: View {
 // MARK: - Sección de estadísticas moderna (ARREGLADA)
 struct ModernStatsSection: View {
     @ObservedObject var viewModel: ProfileViewModel
-    @Binding var showingUserList: ProfileView.UserListType?
+    @Binding var socialConnectionsRoute: SocialConnectionsRoute?
     var embeddedStyle: Bool = false
     @Environment(\.colorScheme) var colorScheme
 
     private var computedStats: [(String, Int, ProfileView.UserListType)] {
         [
-            (NSLocalizedString("profile.stats.visits", comment: "Visits"), viewModel.visits.count, .visits),
-            (NSLocalizedString("profile.ui.followers", comment: "Followers"), viewModel.admirers.count, .admirers),
-            (NSLocalizedString("profile.ui.following", comment: "Following"), viewModel.connections.count, .connections),
-            (NSLocalizedString("profile.ui.mutuals", comment: "Mutuals"), viewModel.mutualConnections.count, .mutualConnections)
+            (NSLocalizedString("profile.stats.visits", comment: "Visits"), viewModel.groupedVisits.count, .visits),
+            (NSLocalizedString("profile.ui.followers", comment: "Followers"), viewModel.followers.count, .followers),
+            (NSLocalizedString("profile.ui.following", comment: "Following"), viewModel.following.count, .following),
+            (NSLocalizedString("profile.ui.mutuals", comment: "Mutuals"), viewModel.mutuals.count, .mutuals)
         ]
     }
 
@@ -511,7 +511,7 @@ struct ModernStatsSection: View {
         HStack(spacing: embeddedStyle ? 0 : 6) {
             ForEach(Array(computedStats.enumerated()), id: \.offset) { index, stat in
                 Button(action: {
-                    showingUserList = stat.2
+                    socialConnectionsRoute = SocialConnectionsRoute(initialTab: stat.2.socialTab)
                 }) {
                     VStack(spacing: 4) {
                         Text("\(stat.1)")
@@ -536,7 +536,7 @@ struct ModernStatsSection: View {
             }
         }
         .padding(.horizontal, embeddedStyle ? 2 : 0)
-        .animation(.spring(response: 0.3, dampingFraction: 0.6), value: showingUserList)
+        .animation(.spring(response: 0.3, dampingFraction: 0.6), value: socialConnectionsRoute)
     }
 }
 

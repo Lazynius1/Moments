@@ -14,7 +14,7 @@ struct UserVisibilitySettings {
 // MARK: - ContentVisibilityType
 enum ContentVisibilityType: String, Codable {
     case everyone = "everyone"
-    case connections = "connections"
+    case mutuals = "mutuals"
     case bestFriends = "bestFriends"
     case custom = "custom"
     case onlyMe = "onlyMe"
@@ -65,7 +65,7 @@ class ContentVisibilityService {
             case .everyone:
                 self.checkEveryoneVisibility(contentOwnerId: contentOwnerId, viewerId: viewerId, completion: completion)
                 
-            case .connections:
+            case .mutuals:
                 self.checkConnectionsVisibility(contentOwnerId: contentOwnerId, viewerId: viewerId, completion: completion)
                 
             case .bestFriends:

@@ -9,10 +9,12 @@ import WidgetKit
 class ProfileViewModel: ObservableObject, UserListViewModel {
     @Published var userProfile: AppUser?
     @Published var visits: [AppUser] = []
+    @Published var groupedVisits: [GroupedVisit] = []
+    @Published var isLoadingVisits: Bool = false
     @Published var visitTimestamps: [String: [Date]] = [:]
-    @Published var connections: [AppUser] = []
-    @Published var mutualConnections: [AppUser] = []
-    @Published var admirers: [AppUser] = []
+    @Published var following: [AppUser] = []
+    @Published var mutuals: [AppUser] = []
+    @Published var followers: [AppUser] = []
     @Published var moments: [Moment] = []
     @Published var customListNamesById: [String: String] = [:]
     @Published var taggedMoments: [Moment] = [] // ✅ NUEVO
@@ -33,35 +35,7 @@ class ProfileViewModel: ObservableObject, UserListViewModel {
     private var lastUnfollowTime: [String: Date] = [:]
 
     private func fetchUsersInBatches(userIds: [String], completion: @escaping ([AppUser]) -> Void) {
-        if userIds.isEmpty {
-            completion([])
-            return
-        }
-
-        let batchSize = 10
-        var allUsers: [AppUser] = []
-        let batches = stride(from: 0, to: userIds.count, by: batchSize).map {
-            Array(userIds[$0..<min($0 + batchSize, userIds.count)])
-        }
-
-        let batchGroup = DispatchGroup()
-
-        for batch in batches {
-            batchGroup.enter()
-            firestoreService.fetchUsers(userIds: batch) { result in
-                defer { batchGroup.leave() }
-                switch result {
-                case .success(let users):
-                    allUsers.append(contentsOf: users)
-                case .failure(_):
-                    break
-                }
-            }
-        }
-
-        batchGroup.notify(queue: .main) {
-            completion(allUsers)
-        }
+        firestoreService.fetchUsersInBatches(userIds: userIds, completion: completion)
     }
 
     func fetchProfile(userId: String) {
@@ -77,11 +51,12 @@ class ProfileViewModel: ObservableObject, UserListViewModel {
 
         // ✅ Cargar conexiones del caché
         let cachedConnections = LocalPersistenceService.shared.loadConnections(userId: userId)
-        if !cachedConnections.followers.isEmpty || !cachedConnections.following.isEmpty {
-            self.categorizeConnections(
+        if !cachedConnections.followers.isEmpty || !cachedConnections.following.isEmpty || !cachedConnections.mutuals.isEmpty {
+            self.applyConnectionSnapshots(
                 userId: userId,
-                followingIds: cachedConnections.following.map { $0.id },
-                followerIds: cachedConnections.followers.map { $0.id }
+                followingUsers: cachedConnections.following,
+                followerUsers: cachedConnections.followers,
+                mutualUsers: cachedConnections.mutuals
             )
         }
 
@@ -106,7 +81,6 @@ class ProfileViewModel: ObservableObject, UserListViewModel {
                 self.fetchVisits(userId: userId)
                 self.fetchMoments(userId: userId)
                 self.fetchCustomAudienceListNames(userId: userId)
-
             case .failure(let error):
                 self.errorMessage = "Error al cargar el perfil: \(error.localizedDescription)"
                 self.isLoading = false
@@ -116,157 +90,116 @@ class ProfileViewModel: ObservableObject, UserListViewModel {
 
     // ✅ NUEVA FUNCIÓN: Fetch conexiones con verificación directa
     private func fetchConnections(userId: String) {
+        let group = DispatchGroup()
+        var fetchedFollowing: [AppUser] = []
+        var fetchedFollowers: [AppUser] = []
+        var fetchedMutuals: [AppUser] = []
+        var capturedError: Error?
 
-        // Primero obtener following directamente de Firestore
-        let db = firestoreService.db
-        db.collection("users").document(userId).collection("following")
-            .getDocuments { [weak self] followingSnapshot, error in
-                Task { @MainActor [weak self] in
-                    guard let self = self else { return }
-
-                    if let error = error {
-                        self.errorMessage = "Error al cargar conexiones: \(error.localizedDescription)"
-                        self.isLoading = false
-                        return
+        group.enter()
+        firestoreService.fetchFollowing(userId: userId) { result in
+            defer { group.leave() }
+            switch result {
+            case .success(let users):
+                fetchedFollowing = users.filter { user in
+                    guard let unfollowTime = self.lastUnfollowTime[user.id] else { return true }
+                    let timeSinceUnfollow = Date().timeIntervalSince(unfollowTime)
+                    if timeSinceUnfollow < 5.0 {
+                        return false
                     }
-
-                    let followingIds = followingSnapshot?.documents.compactMap { doc in
-                        doc.data()["userId"] as? String
-                    } ?? []
-
-
-                    // Filtrar unfollows recientes
-                    let filteredFollowingIds = followingIds.filter { userId in
-                        if let unfollowTime = self.lastUnfollowTime[userId] {
-                            // Si el unfollow fue hace menos de 5 segundos, no incluir
-                            let timeSinceUnfollow = Date().timeIntervalSince(unfollowTime)
-                            if timeSinceUnfollow < 5.0 {
-                                return false
-                            } else {
-                                // Limpiar el cache después de 5 segundos
-                                self.lastUnfollowTime.removeValue(forKey: userId)
-                                self.recentUnfollows.remove(userId)
-                            }
-                        }
-                        return true
-                    }
-
-
-                    // Luego obtener followers
-                    let db2 = self.firestoreService.db
-                    Task { @MainActor [weak self] in
-                        guard let self = self else { return }
-                        do {
-                            let followersSnapshot = try await db2
-                                .collection("users")
-                                .document(userId)
-                                .collection("followers")
-                                .getDocuments()
-
-                            let followerIds = followersSnapshot.documents.compactMap { doc in
-                                doc.data()["userId"] as? String
-                            }
-
-                            // Categorizar conexiones con IDs filtrados
-                            self.categorizeConnections(
-                                userId: userId,
-                                followingIds: filteredFollowingIds,
-                                followerIds: followerIds
-                            )
-                        } catch {
-                            self.errorMessage = "Error al cargar admiradores: \(error.localizedDescription)"
-                            self.isLoading = false
-                        }
-                    }
+                    self.lastUnfollowTime.removeValue(forKey: user.id)
+                    self.recentUnfollows.remove(user.id)
+                    return true
                 }
+            case .failure(let error):
+                capturedError = error
             }
+        }
+
+        group.enter()
+        firestoreService.fetchFollowers(userId: userId) { result in
+            defer { group.leave() }
+            switch result {
+            case .success(let users):
+                fetchedFollowers = users
+            case .failure(let error):
+                capturedError = error
+            }
+        }
+
+        group.enter()
+        firestoreService.fetchMutuals(userId: userId) { result in
+            defer { group.leave() }
+            switch result {
+            case .success(let users):
+                fetchedMutuals = users
+            case .failure(let error):
+                capturedError = error
+            }
+        }
+
+        group.notify(queue: .main) {
+            if let capturedError {
+                self.errorMessage = "Error al cargar conexiones: \(capturedError.localizedDescription)"
+                self.isLoading = false
+                return
+            }
+
+            self.applyConnectionSnapshots(
+                userId: userId,
+                followingUsers: fetchedFollowing,
+                followerUsers: fetchedFollowers,
+                mutualUsers: fetchedMutuals
+            )
+        }
     }
 
-    // ✅ NUEVA FUNCIÓN: Categorizar conexiones
-    private func categorizeConnections(userId: String, followingIds: [String], followerIds: [String]) {
-        let followingSet = Set(followingIds)
-        let followersSet = Set(followerIds)
+    private func applyConnectionSnapshots(
+        userId: String,
+        followingUsers: [AppUser],
+        followerUsers: [AppUser],
+        mutualUsers: [AppUser]
+    ) {
+        self.following = followingUsers
+        self.followers = followerUsers
+        self.mutuals = mutualUsers
+        self.isLoading = false
 
-        let mutualIds = followingSet.intersection(followersSet)
-        let connectionIds = followingSet.subtracting(mutualIds)
-        let admirerIds = followersSet.subtracting(mutualIds)
-
-
-        let fetchGroup = DispatchGroup()
-
-        // Fetch mutuos
-        fetchGroup.enter()
-        self.fetchUsersInBatches(userIds: Array(mutualIds)) { [weak self] users in
-            DispatchQueue.main.async {
-                self?.mutualConnections = users
-            }
-            fetchGroup.leave()
-        }
-
-        // Fetch conexiones
-        fetchGroup.enter()
-        self.fetchUsersInBatches(userIds: Array(connectionIds)) { [weak self] users in
-            DispatchQueue.main.async {
-                self?.connections = users
-            }
-            fetchGroup.leave()
-        }
-
-        // Fetch admiradores
-        fetchGroup.enter()
-        self.fetchUsersInBatches(userIds: Array(admirerIds)) { [weak self] users in
-            DispatchQueue.main.async {
-                self?.admirers = users
-                self?.isLoading = false
-            }
-            fetchGroup.leave()
-        }
-
-        fetchGroup.notify(queue: .main) {
-            // ✅ SwiftData: Guardar en caché local
-            let allFollowers = self.mutualConnections + self.admirers
-            let allFollowing = self.mutualConnections + self.connections
-            LocalPersistenceService.shared.saveFollowers(userId: userId, followers: allFollowers)
-            LocalPersistenceService.shared.saveFollowing(userId: userId, following: allFollowing)
-        }
+        LocalPersistenceService.shared.saveFollowers(userId: userId, followers: followerUsers)
+        LocalPersistenceService.shared.saveFollowing(userId: userId, following: followingUsers)
+        LocalPersistenceService.shared.saveMutuals(userId: userId, mutuals: mutualUsers)
     }
 
     // ✅ FUNCIÓN EXISTENTE: Fetch visitas
+    func refreshVisits() {
+        guard let userId = Auth.auth().currentUser?.uid else { return }
+        fetchVisits(userId: userId)
+    }
+
     private func fetchVisits(userId: String) {
-        firestoreService.fetchVisits(userId: userId) { [weak self] result in
-            guard let self = self else { return }
-            switch result {
-            case .success(let visits):
-                let visitorIds = visits.map { $0.visitorId }
-                self.fetchUsersInBatches(userIds: visitorIds) { users in
-                    DispatchQueue.main.async {
-                        self.visits = users
+        isLoadingVisits = true
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            defer { self.isLoadingVisits = false }
 
-                        // Actualizar timestamps
-                        var timestamps: [String: [Date]] = [:]
-                        for visit in visits {
-                            if timestamps[visit.visitorId] == nil {
-                                timestamps[visit.visitorId] = []
-                            }
-                            timestamps[visit.visitorId]?.append(visit.timestamp)
-                        }
-                        self.visitTimestamps = timestamps
+            let grouped = await ProfileVisitsService.shared.fetchGroupedVisits(userId: userId)
+            self.groupedVisits = grouped
+            self.visits = grouped.map(\.user)
 
-                         // 🔄 Actualizar contador de visitas de hoy para el widget
-                         let calendar = Calendar.current
-                         let today = calendar.startOfDay(for: Date())
-                         let todayCount = visits.filter { visit in
-                             let visitDay = calendar.startOfDay(for: visit.timestamp)
-                             return visitDay == today
-                         }.count
-
-                         self.widgetUserDefaults?.set(todayCount, forKey: "widget_profile_visits_today")
-                         WidgetCenter.shared.reloadTimelines(ofKind: "GlowsyWidgetExtension")
-                    }
-                }
-            case .failure(let error):
-                self.errorMessage = "Error al cargar visitas: \(error.localizedDescription)"
+            var timestamps: [String: [Date]] = [:]
+            for visitGroup in grouped {
+                timestamps[visitGroup.user.id] = visitGroup.visits.map(\.timestamp)
             }
+            self.visitTimestamps = timestamps
+
+            let calendar = Calendar.current
+            let today = calendar.startOfDay(for: Date())
+            let todayCount = grouped.reduce(0) { partial, group in
+                partial + group.visits.filter { calendar.startOfDay(for: $0.timestamp) == today }.count
+            }
+
+            self.widgetUserDefaults?.set(todayCount, forKey: "widget_profile_visits_today")
+            WidgetCenter.shared.reloadTimelines(ofKind: "GlowsyWidgetExtension")
         }
     }
 
@@ -591,30 +524,41 @@ class ProfileViewModel: ObservableObject, UserListViewModel {
         recentUnfollows.remove(userId)
         lastUnfollowTime.removeValue(forKey: userId)
 
-        self.firestoreService.followUser(currentUserId: currentUserId, targetUserId: userId) { [weak self] error in
-            guard let self = self else { return }
-            if let error = error {
-                self.errorMessage = "Error al seguir usuario: \(error.localizedDescription)"
-                return
-            }
+        firestoreService.fetchUserProfile(userId: userId) { [weak self] result in
+            guard let self else { return }
+            let isPrivate = (try? result.get().isPrivate) ?? false
 
+            self.firestoreService.followUser(currentUserId: currentUserId, targetUserId: userId) { [weak self] error in
+                guard let self = self else { return }
+                if let error = error {
+                    self.errorMessage = "Error al seguir usuario: \(error.localizedDescription)"
+                    return
+                }
 
-            // Actualizar UI inmediatamente
-            DispatchQueue.main.async {
-                if let admirerIndex = self.admirers.firstIndex(where: { $0.id == userId }) {
-                    let user = self.admirers[admirerIndex]
-                    self.admirers.remove(at: admirerIndex)
-                    self.mutualConnections.append(user)
-                } else {
-                    // Obtener usuario y agregarlo a conexiones
-                    self.firestoreService.fetchUser(userId: userId) { [weak self] result in
-                        switch result {
-                        case .success(let user):
-                            DispatchQueue.main.async {
-                                self?.connections.append(user)
+                DispatchQueue.main.async {
+                    let nextState: FollowButtonState = isPrivate ? .requestPendingCancellable : .following
+                    FollowStateStore.shared.setState(nextState, for: userId)
+
+                    guard !isPrivate else { return }
+
+                    if let follower = self.followers.first(where: { $0.id == userId }) {
+                        if !self.mutuals.contains(where: { $0.id == userId }) {
+                            self.mutuals.append(follower)
+                        }
+                    }
+
+                    if !self.following.contains(where: { $0.id == userId }) {
+                        self.firestoreService.fetchUser(userId: userId) { [weak self] result in
+                            switch result {
+                            case .success(let user):
+                                DispatchQueue.main.async {
+                                    if self?.following.contains(where: { $0.id == user.id }) == false {
+                                        self?.following.append(user)
+                                    }
+                                }
+                            case .failure(let error):
+                                self?.errorMessage = "Error al actualizar conexiones: \(error.localizedDescription)"
                             }
-                        case .failure(let error):
-                            self?.errorMessage = "Error al actualizar conexiones: \(error.localizedDescription)"
                         }
                     }
                 }
@@ -648,14 +592,96 @@ class ProfileViewModel: ObservableObject, UserListViewModel {
 
             // Actualizar UI inmediatamente
             DispatchQueue.main.async {
-                if let mutualIndex = self.mutualConnections.firstIndex(where: { $0.id == userId }) {
-                    let user = self.mutualConnections[mutualIndex]
-                    self.mutualConnections.remove(at: mutualIndex)
-                    self.admirers.append(user)
-                } else if let connectionIndex = self.connections.firstIndex(where: { $0.id == userId }) {
-                    self.connections.remove(at: connectionIndex)
+                if let mutualIndex = self.mutuals.firstIndex(where: { $0.id == userId }) {
+                    self.mutuals.remove(at: mutualIndex)
+                }
+                if let followingIndex = self.following.firstIndex(where: { $0.id == userId }) {
+                    self.following.remove(at: followingIndex)
                 }
             }
+        }
+    }
+
+    func cancelFollowRequest(userId: String) {
+        guard let currentUserId = Auth.auth().currentUser?.uid else { return }
+
+        firestoreService.cancelFollowRequest(currentUserId: currentUserId, targetUserId: userId) { [weak self] error in
+            guard let self else { return }
+            guard error == nil else {
+                self.errorMessage = "Error al cancelar solicitud: \(error!.localizedDescription)"
+                return
+            }
+
+            DispatchQueue.main.async {
+                FollowStateStore.shared.setState(.canRequestFollow, for: userId)
+            }
+        }
+    }
+
+    func removeFollower(userId: String) {
+        guard let currentUserId = Auth.auth().currentUser?.uid else {
+            self.errorMessage = "Usuario no autenticado."
+            return
+        }
+
+        let batch = firestoreService.db.batch()
+        let followerRef = firestoreService.db
+            .collection("users")
+            .document(currentUserId)
+            .collection("followers")
+            .document(userId)
+        batch.deleteDocument(followerRef)
+
+        batch.commit { [weak self] error in
+            guard let self else { return }
+            if let error {
+                self.errorMessage = "Error al suprimir seguidor: \(error.localizedDescription)"
+                return
+            }
+
+            DispatchQueue.main.async {
+                if let followerIndex = self.followers.firstIndex(where: { $0.id == userId }) {
+                    self.followers.remove(at: followerIndex)
+                }
+                if let mutualIndex = self.mutuals.firstIndex(where: { $0.id == userId }) {
+                    self.mutuals.remove(at: mutualIndex)
+                }
+            }
+        }
+    }
+
+    func relationshipState(for userId: String) -> FollowButtonState {
+        if let cached = FollowStateStore.shared.state(for: userId) {
+            return cached
+        }
+
+        if let currentUserId = Auth.auth().currentUser?.uid, currentUserId == userId {
+            return .ownProfile
+        }
+
+        if following.contains(where: { $0.id == userId }) || mutuals.contains(where: { $0.id == userId }) {
+            return .following
+        }
+
+        let knownUser = followers.first(where: { $0.id == userId })
+            ?? following.first(where: { $0.id == userId })
+            ?? mutuals.first(where: { $0.id == userId })
+
+        if knownUser?.isPrivate == true {
+            return .canRequestFollow
+        }
+
+        return .canFollow
+    }
+
+    func prefetchRelationshipState(for userId: String) {
+        guard FollowStateStore.shared.state(for: userId) == nil,
+              let currentUserId = Auth.auth().currentUser?.uid,
+              currentUserId != userId else { return }
+
+        privacyService.getFollowButtonState(viewerId: currentUserId, targetUserId: userId) { state in
+            let reconciled = FollowStateStore.shared.reconciledState(state, for: userId)
+            FollowStateStore.shared.setState(reconciled, for: userId)
         }
     }
 
@@ -762,9 +788,9 @@ class ProfileViewModel: ObservableObject, UserListViewModel {
                 bio: profile.bio,
                 blockedUsers: profile.blockedUsers,
                 isPrivate: profile.isPrivate,
-                showMutualConnections: profile.showMutualConnections,
+                showMutuals: profile.showMutuals,
                 showFollowing: profile.showFollowing,
-                showAdmirers: profile.showAdmirers,
+                showFollowers: profile.showFollowers,
                 activeHoursStart: profile.activeHoursStart,
                 activeHoursEnd: profile.activeHoursEnd,
                 notificationPreferences: profile.notificationPreferences,

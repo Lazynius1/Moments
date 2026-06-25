@@ -3,7 +3,7 @@ import SwiftUI
 // 🔗 ENUM: Configuración específica para continuación de cadenas
 enum ChainContinuationSetting: String, CaseIterable {
     case everyone = "everyone"
-    case connections = "connections"
+    case mutuals = "mutuals"
     case bestFriends = "bestFriends"
     case custom = "custom"
     case customList = "customList"
@@ -11,7 +11,7 @@ enum ChainContinuationSetting: String, CaseIterable {
     var title: String {
         switch self {
         case .everyone: return NSLocalizedString("audience.type.everyone", comment: "Everyone")
-        case .connections: return NSLocalizedString("audience.type.connections", comment: "Connections")
+        case .mutuals: return NSLocalizedString("audience.type.mutuals", comment: "Mutuals")
         case .bestFriends: return NSLocalizedString("audience.type.bestFriends", comment: "Best Friends")
         case .custom: return NSLocalizedString("audience.type.custom", comment: "Custom")
         case .customList: return NSLocalizedString("audience.type.customList", comment: "Custom List")
@@ -25,7 +25,7 @@ enum ChainContinuationSetting: String, CaseIterable {
     var contentAudience: ContentAudience {
         switch self {
         case .everyone: return .everyone
-        case .connections: return .connections
+        case .mutuals: return .mutuals
         case .bestFriends: return .bestFriends
         case .custom: return .custom
         case .customList: return .customList
@@ -35,7 +35,7 @@ enum ChainContinuationSetting: String, CaseIterable {
     var description: String {
         switch self {
         case .everyone: return NSLocalizedString("audience.description.everyone", comment: "Everyone description")
-        case .connections: return NSLocalizedString("audience.description.connections", comment: "Connections description")
+        case .mutuals: return NSLocalizedString("audience.description.mutuals", comment: "Mutuals description")
         case .bestFriends: return NSLocalizedString("audience.description.bestFriends", comment: "Best Friends description")
         case .custom: return NSLocalizedString("audience.description.custom", comment: "Custom description")
         case .customList: return NSLocalizedString("audience.description.customList", comment: "Custom List description")
@@ -307,7 +307,7 @@ struct ChainConfigurationView: View {
             get: {
                 switch continuationAudience {
                 case .everyone: return .everyone
-                case .connections: return .connections
+                case .mutuals: return .mutuals
                 case .bestFriends: return .bestFriends
                 case .custom: return .custom
                 case .customList: return .customList
@@ -316,7 +316,7 @@ struct ChainConfigurationView: View {
             set: { newValue in
                 switch newValue {
                 case .everyone: continuationAudience = .everyone
-                case .connections: continuationAudience = .connections
+                case .mutuals: continuationAudience = .mutuals
                 case .bestFriends: continuationAudience = .bestFriends
                 case .custom: continuationAudience = .custom
                 case .customList: continuationAudience = .custom

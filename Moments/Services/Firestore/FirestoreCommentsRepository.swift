@@ -729,8 +729,8 @@ extension FirestoreService {
                 default:
                     let visibilityType: ContentVisibilityType
                     switch audience {
-                    case ContentAudience.connections.rawValue:
-                        visibilityType = .connections
+                    case ContentAudience.mutuals.rawValue:
+                        visibilityType = .mutuals
                     case ContentAudience.bestFriends.rawValue:
                         visibilityType = .bestFriends
                     default:

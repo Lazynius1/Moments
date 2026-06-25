@@ -264,10 +264,10 @@ struct ChainContinuationSelectorView: View {
                 )
 
                 AudienceGridCard(
-                    audience: .connections,
-                    isSelected: selectedAudience == .connections,
+                    audience: .mutuals,
+                    isSelected: selectedAudience == .mutuals,
                     onTap: {
-                        selectedAudience = .connections
+                        selectedAudience = .mutuals
                         resetSelection()
                         finishSelection()
                     }
@@ -538,7 +538,7 @@ struct ChainContinuationSelectorView: View {
             get: {
                 switch selectedAudience {
                 case .everyone: return .everyone
-                case .connections: return .connections
+                case .mutuals: return .mutuals
                 case .bestFriends: return .bestFriends
                 case .custom: return .custom
                 case .customList: return .customList
@@ -547,7 +547,7 @@ struct ChainContinuationSelectorView: View {
             set: { newValue in
                 switch newValue {
                 case .everyone: selectedAudience = .everyone
-                case .connections: selectedAudience = .connections
+                case .mutuals: selectedAudience = .mutuals
                 case .bestFriends: selectedAudience = .bestFriends
                 case .custom: selectedAudience = .custom
                 case .customList: selectedAudience = .customList

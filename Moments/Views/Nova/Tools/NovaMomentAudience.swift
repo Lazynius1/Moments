@@ -2,7 +2,7 @@ import Foundation
 
 enum NovaMomentAudience: Equatable {
     case everyone
-    case connections
+    case mutuals
     case bestFriends
     case onlyMe
     case custom(userIds: [String], label: String)
@@ -11,7 +11,7 @@ enum NovaMomentAudience: Equatable {
     var contentAudience: ContentAudience {
         switch self {
         case .everyone: return .everyone
-        case .connections: return .connections
+        case .mutuals: return .mutuals
         case .bestFriends: return .bestFriends
         case .onlyMe: return .onlyMe
         case .custom: return .custom
@@ -22,7 +22,7 @@ enum NovaMomentAudience: Equatable {
     var audienceSetting: CaptionAndDetailsView.AudienceSetting {
         switch self {
         case .everyone: return .everyone
-        case .connections: return .mutuals
+        case .mutuals: return .mutuals
         case .bestFriends: return .bestFriends
         case .onlyMe: return .onlyMe
         case .custom, .customList: return .custom
@@ -33,8 +33,8 @@ enum NovaMomentAudience: Equatable {
         switch self {
         case .everyone:
             return ContentAudience.everyone.title
-        case .connections:
-            return ContentAudience.connections.title
+        case .mutuals:
+            return ContentAudience.mutuals.title
         case .bestFriends:
             return ContentAudience.bestFriends.title
         case .onlyMe:
@@ -101,8 +101,8 @@ enum NovaMomentAudienceResolver {
         switch normalizeAudienceRaw(audienceRaw) {
         case "everyone", "":
             return ContentAudience.everyone.title
-        case "connections":
-            return ContentAudience.connections.title
+        case "mutuals":
+            return ContentAudience.mutuals.title
         case "bestfriends":
             return ContentAudience.bestFriends.title
         case "onlyme":
@@ -133,8 +133,8 @@ enum NovaMomentAudienceResolver {
         switch normalizeAudienceRaw(audienceRaw) {
         case "everyone", "":
             return .success(NovaMomentAudience.everyone)
-        case "connections":
-            return .success(NovaMomentAudience.connections)
+        case "mutuals":
+            return .success(NovaMomentAudience.mutuals)
         case "bestfriends":
             return .success(NovaMomentAudience.bestFriends)
         case "onlyme":

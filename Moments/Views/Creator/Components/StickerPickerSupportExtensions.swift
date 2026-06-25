@@ -149,8 +149,8 @@ extension StickerPickerView {
             )
         case .everyone:
             return await canUserSeeContent(ownerId: storyAuthorId, viewerId: mentionedUserId, visibility: .everyone)
-        case .connections:
-            return await canUserSeeContent(ownerId: storyAuthorId, viewerId: mentionedUserId, visibility: .connections)
+        case .mutuals:
+            return await canUserSeeContent(ownerId: storyAuthorId, viewerId: mentionedUserId, visibility: .mutuals)
         case .bestFriends:
             return await canUserSeeContent(ownerId: storyAuthorId, viewerId: mentionedUserId, visibility: .bestFriends)
         }

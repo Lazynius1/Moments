@@ -4,12 +4,274 @@ import SwiftUI
 protocol UserListViewModel {
     func followUser(userId: String)
     func unfollowUser(userId: String)
+    func cancelFollowRequest(userId: String)
+    func relationshipState(for userId: String) -> FollowButtonState
+    func prefetchRelationshipState(for userId: String)
+}
+
+final class EmptyUserListViewModel: UserListViewModel, ObservableObject {
+    func followUser(userId: String) {}
+    func unfollowUser(userId: String) {}
+    func cancelFollowRequest(userId: String) {}
+    func relationshipState(for userId: String) -> FollowButtonState { .canFollow }
+    func prefetchRelationshipState(for userId: String) {}
 }
 
 enum UserListRowAction {
     case follow
     case unfollow
     case none
+}
+
+// MARK: - Embedded users tab (SocialConnectionsView)
+
+struct UsersTabContent<ViewModel: UserListViewModel>: View {
+    let title: String
+    let users: [AppUser]
+    let visitTimestamps: [String: [Date]]
+    let searchText: String
+    var sortMode: SocialConnectionsSortMode = .default
+    var followerTimestamps: [String: Date] = [:]
+    var followingTimestamps: [String: Date] = [:]
+    let rowAction: UserListRowAction
+    var activeTab: SocialConnectionTab = .followers
+    var includesVisits: Bool = false
+    let viewModel: ViewModel
+    let onUserTap: ((AppUser) -> Void)?
+    var profileZoomNamespace: Namespace.ID? = nil
+    var rowConfiguration: SocialConnectionRowConfiguration? = nil
+    var recentMomentCounts: [String: Int] = [:]
+    var onViewSharedActivity: ((AppUser) -> Void)? = nil
+    var onRemoveFollower: ((AppUser) -> Void)? = nil
+    var onAvatarTap: ((String, Bool) -> Void)? = nil
+    @Environment(\.colorScheme) var colorScheme
+
+    private var filteredUsers: [AppUser] {
+        let base: [AppUser]
+        if searchText.isEmpty {
+            base = users
+        } else {
+            base = users.filter { user in
+                user.username.localizedCaseInsensitiveContains(searchText) ||
+                (user.bio?.localizedCaseInsensitiveContains(searchText) ?? false)
+            }
+        }
+        return SocialConnectionsSorting.sortUsers(
+            base,
+            mode: sortMode,
+            timestamps: activeTab == .followers ? followerTimestamps : (activeTab == .following ? followingTimestamps : [:])
+        )
+    }
+
+    var body: some View {
+        Group {
+            if filteredUsers.isEmpty {
+                if users.isEmpty {
+                    emptyStateView
+                } else {
+                    SocialConnectionsNoResultsView(colorScheme: colorScheme)
+                }
+            } else {
+                userListView
+            }
+        }
+    }
+
+    private var emptyStateView: some View {
+        VStack(spacing: 16) {
+            ZStack {
+                Circle()
+                    .fill(Color.gray.opacity(0.1))
+                    .frame(width: 80, height: 80)
+
+                Image(systemName: emptyStateIcon())
+                    .font(.system(size: 32, weight: .medium))
+                    .foregroundStyle(
+                        LinearGradient(
+                            colors: [Color.gray.opacity(0.6), Color(hex: "007AFF").opacity(0.4)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+            }
+
+            VStack(spacing: 8) {
+                Text(String(format: NSLocalizedString("userListView.empty.title", comment: "Empty state title"), title.lowercased()))
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundColor(colorScheme == .dark ? .white : .black)
+
+                Text(String(format: NSLocalizedString("userListView.empty.description", comment: "Empty state description"), title.lowercased()))
+                    .font(.system(size: 14, weight: .regular))
+                    .foregroundColor(colorScheme == .dark ? .white.opacity(0.7) : .black.opacity(0.7))
+                    .multilineTextAlignment(.center)
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .padding(.horizontal, 40)
+        .padding(.vertical, 60)
+    }
+
+    private var userListView: some View {
+        ScrollView {
+            LazyVStack(spacing: 0) {
+                ForEach(filteredUsers) { user in
+                    SocialConnectionUserRow(
+                        user: user,
+                        subtitle: nil,
+                        viewModel: viewModel,
+                        onUserTap: onUserTap,
+                        profileZoomNamespace: profileZoomNamespace,
+                        activeTab: activeTab,
+                        includesVisits: includesVisits,
+                        configuration: rowConfiguration ?? .init(
+                            showsRemoveFollower: false,
+                            showsRelationshipButton: rowAction != .none,
+                            showsOverflowMenu: rowAction == .unfollow,
+                            showsFollowBackHint: false,
+                            showsBio: true,
+                            showsNewPosts: false
+                        ),
+                        newContentCount: recentMomentCounts[user.id],
+                        onViewSharedActivity: onViewSharedActivity,
+                        onRemoveFollower: onRemoveFollower,
+                        onAvatarTap: onAvatarTap
+                    )
+                }
+            }
+            .padding(.vertical, 4)
+        }
+    }
+
+    private func emptyStateIcon() -> String {
+        switch title.lowercased() {
+        case "visitas": return "eye.slash"
+        case "admiradores", "seguidores": return "heart.slash"
+        case "conexiones", "siguiendo": return "person.2.slash"
+        case "conexiones mutuas", "mutuas": return "arrow.triangle.2.circlepath"
+        default: return "person.slash"
+        }
+    }
+}
+
+struct CommonConnectionsTabContent<ViewModel: UserListViewModel>: View {
+    let commonUsers: [AppUser]
+    let suggestedUsers: [AppUser]
+    let viewerInterests: [String]
+    let viewModel: ViewModel
+    let onUserTap: ((AppUser) -> Void)?
+    var onAvatarTap: ((String, Bool) -> Void)? = nil
+    var profileZoomNamespace: Namespace.ID? = nil
+    @Environment(\.colorScheme) var colorScheme
+
+    var body: some View {
+        Group {
+            if commonUsers.isEmpty && suggestedUsers.isEmpty {
+                SocialConnectionsNoResultsView(colorScheme: colorScheme)
+            } else {
+                ScrollView {
+                    LazyVStack(alignment: .leading, spacing: 0) {
+                        if !commonUsers.isEmpty {
+                            sectionHeader(NSLocalizedString("socialConnections.common.section.people", comment: ""))
+
+                            ForEach(commonUsers) { user in
+                                SocialConnectionUserRow(
+                                    user: user,
+                                    subtitle: nil,
+                                    viewModel: viewModel,
+                                    onUserTap: onUserTap,
+                                    profileZoomNamespace: profileZoomNamespace,
+                                    activeTab: .inCommon,
+                                    configuration: .init(
+                                        showsRemoveFollower: false,
+                                        showsRelationshipButton: true,
+                                        showsOverflowMenu: false,
+                                        showsFollowBackHint: false,
+                                        showsBio: true,
+                                        showsNewPosts: false
+                                    ),
+                                    onAvatarTap: onAvatarTap
+                                )
+                            }
+                        }
+
+                        if !suggestedUsers.isEmpty {
+                            sectionHeader(NSLocalizedString("explore.suggestedUsers.suggestedForYou", comment: ""))
+
+                            ForEach(suggestedUsers) { user in
+                                SuggestedUserRow(
+                                    user: user,
+                                    commonInterests: Set(user.interests).intersection(Set(viewerInterests)).count,
+                                    buttonState: viewModel.relationshipState(for: user.id),
+                                    profileZoomNamespace: profileZoomNamespace,
+                                    onFollow: {
+                                        let state = viewModel.relationshipState(for: user.id)
+                                        if state == .canFollow || state == .canRequestFollow {
+                                            viewModel.followUser(userId: user.id)
+                                        } else if state == .requestPendingCancellable {
+                                            viewModel.cancelFollowRequest(userId: user.id)
+                                        }
+                                    },
+                                    onTap: {
+                                        onUserTap?(user)
+                                    }
+                                )
+                                .onAppear {
+                                    viewModel.prefetchRelationshipState(for: user.id)
+                                }
+                            }
+                        }
+                    }
+                    .padding(.vertical, 4)
+                }
+            }
+        }
+    }
+
+    private func sectionHeader(_ title: String) -> some View {
+        Text(title)
+            .font(.system(size: 18, weight: .semibold))
+            .foregroundStyle(colorScheme == .dark ? .white : .black)
+            .padding(.horizontal, 16)
+            .padding(.top, 14)
+            .padding(.bottom, 10)
+    }
+}
+
+struct SocialConnectionsNoResultsView: View {
+    let colorScheme: ColorScheme
+
+    var body: some View {
+        VStack(spacing: 16) {
+            ZStack {
+                Circle()
+                    .fill(Color.gray.opacity(0.1))
+                    .frame(width: 80, height: 80)
+
+                Image(systemName: "magnifyingglass")
+                    .font(.system(size: 32, weight: .medium))
+                    .foregroundStyle(
+                        LinearGradient(
+                            colors: [Color.gray.opacity(0.6), Color(hex: "007AFF").opacity(0.4)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+            }
+
+            VStack(spacing: 8) {
+                Text(NSLocalizedString("userListView.noResults.title", comment: "No results title"))
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundColor(colorScheme == .dark ? .white : .black)
+
+                Text(NSLocalizedString("userListView.noResults.description", comment: "No results description"))
+                    .font(.system(size: 14, weight: .regular))
+                    .foregroundColor(colorScheme == .dark ? .white.opacity(0.7) : .black.opacity(0.7))
+                    .multilineTextAlignment(.center)
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .padding(.horizontal, 40)
+    }
 }
 
 struct UserListView<ViewModel: UserListViewModel>: View {
@@ -23,29 +285,33 @@ struct UserListView<ViewModel: UserListViewModel>: View {
     var profileZoomNamespace: Namespace.ID? = nil
     @State private var searchText = ""
     @Environment(\.colorScheme) var colorScheme
-    
+
     var body: some View {
         VStack(spacing: 0) {
-            // ✅ Header con título (sin handle custom)
             headerView
-            
-            // ✅ Searchbar para buscar usuarios
             searchBarView
-            
-            // ✅ Contenido principal
-            contentView
+            UsersTabContent(
+                title: title,
+                users: users,
+                visitTimestamps: visitTimestamps,
+                searchText: searchText,
+                rowAction: rowAction,
+                viewModel: viewModel,
+                onUserTap: onUserTap,
+                profileZoomNamespace: profileZoomNamespace
+            )
         }
         .presentationDetents([.medium, .large])
         .presentationDragIndicator(.visible)
     }
-    
+
     // ✅ Header actualizado sin padding extra del handle
     private var headerView: some View {
         VStack(alignment: .center, spacing: 2) {
             Text(title)
                 .font(.custom("Poppins-Bold", size: 22))
                 .foregroundColor(colorScheme == .dark ? .white : .black)
-            
+
             Text("\(users.count) \(users.count == 1 ? NSLocalizedString("userListView.person.singular", comment: "Person singular") : NSLocalizedString("userListView.person.plural", comment: "Person plural"))")
                 .font(.custom("Poppins-Regular", size: 13))
                 .foregroundColor(colorScheme == .dark ? .white.opacity(0.7) : .black.opacity(0.7))
@@ -62,12 +328,12 @@ struct UserListView<ViewModel: UserListViewModel>: View {
             Image(systemName: "magnifyingglass")
                 .foregroundColor(.gray)
                 .font(.system(size: 16))
-            
+
             TextField(NSLocalizedString("userListView.search.placeholder", comment: "Search users placeholder"), text: $searchText)
                 .font(.custom("Poppins-Regular", size: 16))
                 .foregroundColor(colorScheme == .dark ? .white : .black)
                 .textFieldStyle(PlainTextFieldStyle())
-            
+
             if !searchText.isEmpty {
                 Button(action: {
                     searchText = ""
@@ -83,149 +349,6 @@ struct UserListView<ViewModel: UserListViewModel>: View {
         .momentsChromeGlass(in: Capsule())
         .padding(.horizontal, 20)
         .padding(.bottom, 16)
-    }
-    
-    // ✅ Usuarios filtrados por búsqueda
-    private var filteredUsers: [AppUser] {
-        if searchText.isEmpty {
-            return users
-        } else {
-            return users.filter { user in
-                user.username.localizedCaseInsensitiveContains(searchText) ||
-                (user.bio?.localizedCaseInsensitiveContains(searchText) ?? false)
-            }
-        }
-    }
-    
-    private var contentView: some View {
-        Group {
-            if filteredUsers.isEmpty {
-                if users.isEmpty {
-                    emptyStateView
-                } else {
-                    noResultsView
-                }
-            } else {
-                userListView
-            }
-        }
-    }
-    
-    // ✅ Estado vacío con el mismo estilo
-    private var emptyStateView: some View {
-        VStack(spacing: 16) {
-            ZStack {
-                Circle()
-                    .fill(Color.gray.opacity(0.1))
-                    .frame(width: 80, height: 80)
-                
-                Image(systemName: getEmptyStateIcon())
-                    .font(.system(size: 32, weight: .medium))
-                    .foregroundStyle(
-                        LinearGradient(
-                            colors: [Color.gray.opacity(0.6), Color(hex: "007AFF").opacity(0.4)],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
-            }
-            
-            VStack(spacing: 8) {
-                Text(String(format: NSLocalizedString("userListView.empty.title", comment: "Empty state title"), title.lowercased()))
-                    .font(.custom("Poppins-SemiBold", size: 18))
-                    .foregroundColor(colorScheme == .dark ? .white : .black)
-                
-                Text(String(format: NSLocalizedString("userListView.empty.description", comment: "Empty state description"), title.lowercased()))
-                    .font(.custom("Poppins-Regular", size: 14))
-                    .foregroundColor(colorScheme == .dark ? .white.opacity(0.7) : .black.opacity(0.7))
-                    .multilineTextAlignment(.center)
-            }
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.horizontal, 40)
-        .padding(.vertical, 60)
-    }
-    
-    // ✅ Lista de usuarios con scroll
-    // ✅ Estado cuando no hay resultados de búsqueda
-    private var noResultsView: some View {
-        VStack(spacing: 16) {
-            ZStack {
-                Circle()
-                    .fill(Color.gray.opacity(0.1))
-                    .frame(width: 80, height: 80)
-                
-                Image(systemName: "magnifyingglass")
-                    .font(.system(size: 32, weight: .medium))
-                    .foregroundStyle(
-                        LinearGradient(
-                            colors: [Color.gray.opacity(0.6), Color(hex: "007AFF").opacity(0.4)],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
-            }
-            
-            VStack(spacing: 8) {
-                Text(NSLocalizedString("userListView.noResults.title", comment: "No results title"))
-                    .font(.custom("Poppins-SemiBold", size: 18))
-                    .foregroundColor(colorScheme == .dark ? .white : .black)
-                
-                Text(NSLocalizedString("userListView.noResults.description", comment: "No results description"))
-                    .font(.custom("Poppins-Regular", size: 14))
-                    .foregroundColor(colorScheme == .dark ? .white.opacity(0.7) : .black.opacity(0.7))
-                    .multilineTextAlignment(.center)
-            }
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .padding(.horizontal, 40)
-    }
-    
-    private var userListView: some View {
-        ScrollView {
-            LazyVStack(spacing: 0) {
-                ForEach(Array(filteredUsers.enumerated()), id: \.element.id) { index, user in
-                    VStack(spacing: 0) {
-                        ModernProfileUserRowView(
-                            user: user,
-                            visitTimestamps: visitTimestamps[user.id] ?? [],
-                            rowAction: rowAction,
-                            viewModel: viewModel,
-                            onDismiss: onDismiss,
-                            onUserTap: onUserTap,
-                            profileZoomNamespace: profileZoomNamespace
-                        )
-
-                        if index < filteredUsers.count - 1 {
-                            Divider()
-                                .overlay(
-                                    (colorScheme == .dark ? Color.white : Color.black)
-                                        .opacity(0.08)
-                                )
-                                .padding(.leading, 84)
-                                .padding(.trailing, 20)
-                        }
-                    }
-                }
-            }
-            .padding(.vertical, 8)
-        }
-    }
-    
-    
-    private func getEmptyStateIcon() -> String {
-        switch title.lowercased() {
-        case "visitas":
-            return "eye.slash"
-        case "admiradores":
-            return "heart.slash"
-        case "conexiones":
-            return "person.2.slash"
-        case "conexiones mutuas":
-            return "arrow.triangle.2.circlepath"
-        default:
-            return "person.slash"
-        }
     }
 }
 

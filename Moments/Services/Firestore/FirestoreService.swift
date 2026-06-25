@@ -727,11 +727,15 @@ class FirestoreService: ObservableObject {
             // Referencias a los documentos
             let followingRef = self.db.collection("users").document(currentUserId).collection("following").document(targetUserId)
             let followerRef = self.db.collection("users").document(targetUserId).collection("followers").document(currentUserId)
+            let currentUserMutualRef = self.db.collection("users").document(currentUserId).collection("mutuals").document(targetUserId)
+            let targetUserMutualRef = self.db.collection("users").document(targetUserId).collection("mutuals").document(currentUserId)
 
 
             // Añadir operaciones de borrado al batch
             batch.deleteDocument(followingRef)
             batch.deleteDocument(followerRef)
+            batch.deleteDocument(currentUserMutualRef)
+            batch.deleteDocument(targetUserMutualRef)
 
             // Ejecutar batch
             batch.commit { error in
@@ -1032,6 +1036,63 @@ class FirestoreService: ObservableObject {
         }
     }
 
+    func fetchFollowingWithTimestamps(userId: String) async throws -> [(user: AppUser, timestamp: Date)] {
+        let snapshot = try await db.collection("users").document(userId).collection("following")
+            .order(by: "timestamp", descending: true)
+            .limit(to: 100)
+            .getDocuments()
+
+        let followingData = snapshot.documents.compactMap { doc -> (id: String, timestamp: Date)? in
+            let data = doc.data()
+            guard let id = data["userId"] as? String,
+                  let timestamp = (data["timestamp"] as? Timestamp)?.dateValue() else { return nil }
+            return (id, timestamp)
+        }
+
+        if followingData.isEmpty { return [] }
+
+        let followingIds = followingData.map(\.id)
+        let users = try await fetchUsersAsync(userIds: followingIds)
+        let userDict = Dictionary(uniqueKeysWithValues: users.map { ($0.id, $0) })
+
+        return followingData.compactMap { item in
+            guard let user = userDict[item.id] else { return nil }
+            return (user, item.timestamp)
+        }
+    }
+
+    func fetchRecentMomentCounts(for authorIds: [String], since: Date) async -> [String: Int] {
+        guard !authorIds.isEmpty else { return [:] }
+
+        let sinceTimestamp = Timestamp(date: since)
+        var counts: [String: Int] = [:]
+
+        await withTaskGroup(of: (String, Int).self) { group in
+            for authorId in authorIds.prefix(60) {
+                group.addTask { [weak self] in
+                    guard let self else { return (authorId, 0) }
+                    do {
+                        let snapshot = try await self.db.collection("users")
+                            .document(authorId)
+                            .collection("moments")
+                            .whereField("timestamp", isGreaterThan: sinceTimestamp)
+                            .limit(to: 10)
+                            .getDocuments()
+                        return (authorId, snapshot.documents.count)
+                    } catch {
+                        return (authorId, 0)
+                    }
+                }
+            }
+
+            for await (authorId, count) in group where count > 0 {
+                counts[authorId] = count
+            }
+        }
+
+        return counts
+    }
+
     func fetchFollowers(userId: String, completion: @escaping (Result<[AppUser], Error>) -> Void) {
 
         db.collection("users").document(userId).collection("followers")
@@ -1045,7 +1106,10 @@ class FirestoreService: ObservableObject {
                     return
                 }
 
-                let userIds = snapshot?.documents.compactMap { $0.data()["userId"] as? String } ?? []
+                let userIds = snapshot?.documents.compactMap { doc -> String? in
+                    let data = doc.data()
+                    return data["userId"] as? String ?? doc.documentID
+                } ?? []
 
                 if userIds.isEmpty {
                     completion(.success([]))
@@ -1349,10 +1413,10 @@ class FirestoreService: ObservableObject {
                             return
                         }
 
-                        self.fetchMutualConnections(userId: currentUserId) { result in
+                        self.fetchMutuals(userId: currentUserId) { result in
                             switch result {
-                            case .success(let mutualConnections):
-                                let isMutualConnection = mutualConnections.contains { $0.id == targetUserId }
+                            case .success(let mutuals):
+                                let isMutualConnection = mutuals.contains { $0.id == targetUserId }
                                 completion(.success(isMutualConnection))
                             case .failure(let error):
                                 completion(.failure(error))

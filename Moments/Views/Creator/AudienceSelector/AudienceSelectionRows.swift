@@ -94,7 +94,7 @@ struct AudienceGridCard: View {
 
     private var gridIconSize: CGFloat {
         switch audience {
-        case .everyone, .connections, .bestFriends, .custom, .customList:
+        case .everyone, .mutuals, .bestFriends, .custom, .customList:
             return AudienceIconMetrics.gridCardEmphasis
         case .onlyMe:
             return AudienceIconMetrics.gridCard

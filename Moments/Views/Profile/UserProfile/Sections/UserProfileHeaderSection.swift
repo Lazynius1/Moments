@@ -115,7 +115,7 @@ struct UserModernProfileHeader: View {
     @EnvironmentObject var authService: AuthService // ✅ NUEVO: Para acceder a badges del usuario visitado
     @Binding var navigateToChat: Bool
     @Binding var targetConversation: Conversation?
-    @Binding var showingUserList: UserProfileView.UserListType?
+    @Binding var socialConnectionsRoute: SocialConnectionsRoute?
     @Binding var showingMessageRequestAlert: Bool
     @Binding var messageRequestText: String
     @Binding var messageRequestError: String?

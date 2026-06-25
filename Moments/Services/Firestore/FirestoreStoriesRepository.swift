@@ -1044,7 +1044,7 @@ extension FirestoreService {
     }
 
     private func legacyStorySummaryCleanupPayload(audienceKeys: [String]) -> [AnyHashable: Any] {
-        let defaultAudienceKeys = ["everyone", "connections", "mutuals", "bestFriends", "custom", "customList", "onlyMe"]
+        let defaultAudienceKeys = ["everyone", "mutuals", "bestFriends", "custom", "customList", "onlyMe"]
         let keys = Array(Set(defaultAudienceKeys + audienceKeys))
 
         var payload: [AnyHashable: Any] = [
@@ -1130,7 +1130,7 @@ extension FirestoreService {
                     if let audienceStr = story.audience {
                         switch audienceStr {
                         case "everyone": visibilityType = .everyone
-                        case "connections": visibilityType = .connections
+                        case "mutuals": visibilityType = .mutuals
                         case "bestFriends": visibilityType = .bestFriends
                         case "custom", "customList": visibilityType = .custom
                         case "onlyMe": visibilityType = .onlyMe

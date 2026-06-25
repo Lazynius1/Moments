@@ -78,9 +78,8 @@ struct SettingsView: View {
     @EnvironmentObject var authService: AuthService
     @StateObject private var viewModel = SettingsViewModel()
     @State private var isPrivate: Bool = false
-    @State private var showMutualConnections: Bool = true
     @State private var showFollowing: Bool = true
-    @State private var showAdmirers: Bool = true
+    @State private var showFollowers: Bool = true
     @State private var showReadReceipts: Bool = true
     @State private var isScheduleEnabled: Bool = false
     @State private var startTime: Date = Date()
@@ -121,8 +120,8 @@ struct SettingsView: View {
                 SettingsFormView(
                     viewModel: viewModel,
                     isPrivate: $isPrivate,
-                    showMutualConnections: $showMutualConnections,
                     showFollowing: $showFollowing,
+                    showFollowers: $showFollowers,
                     isScheduleEnabled: $isScheduleEnabled,
                     startTime: $startTime,
                     endTime: $endTime,
@@ -173,9 +172,8 @@ struct SettingsView: View {
         }
         .navigationDestination(isPresented: $isShowingConnections) {
             ConnectionVisibilityView(
-                showMutualConnections: $showMutualConnections,
                 showFollowing: $showFollowing,
-                showAdmirers: $showAdmirers,
+                showFollowers: $showFollowers,
                 viewModel: viewModel
             )
         }
@@ -242,8 +240,8 @@ struct SettingsView: View {
                 switch result {
                 case .success(let user):
                     self.isPrivate = user.isPrivate
-                    self.showMutualConnections = user.showMutualConnections
                     self.showFollowing = user.showFollowing
+                    self.showFollowers = user.showFollowers
                     self.blockedAccountsCount = user.blockedUsers.count
                     self.username = user.username
                     self.email = user.email

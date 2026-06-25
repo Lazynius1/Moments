@@ -51,9 +51,9 @@ struct AppUser: Identifiable, Codable {
     let bio: String?
     let blockedUsers: [String]
     let isPrivate: Bool
-    let showMutualConnections: Bool
+    let showMutuals: Bool
     let showFollowing: Bool
-    let showAdmirers: Bool
+    let showFollowers: Bool
     let activeHoursStart: String?
     let activeHoursEnd: String?
     let notificationPreferences: [String: Bool]?
@@ -109,9 +109,9 @@ struct AppUser: Identifiable, Codable {
         case bio
         case blockedUsers
         case isPrivate
-        case showMutualConnections
+        case showMutuals
         case showFollowing
-        case showAdmirers
+        case showFollowers
         case activeHoursStart
         case activeHoursEnd
         case notificationPreferences
@@ -152,9 +152,9 @@ struct AppUser: Identifiable, Codable {
         self.bio = try container.decodeIfPresent(String.self, forKey: .bio)
         self.blockedUsers = (try container.decodeIfPresent([String].self, forKey: .blockedUsers)) ?? []
         self.isPrivate = (try container.decodeIfPresent(Bool.self, forKey: .isPrivate)) ?? false
-        self.showMutualConnections = (try container.decodeIfPresent(Bool.self, forKey: .showMutualConnections)) ?? true
+        self.showMutuals = (try container.decodeIfPresent(Bool.self, forKey: .showMutuals)) ?? true
         self.showFollowing = (try container.decodeIfPresent(Bool.self, forKey: .showFollowing)) ?? true
-        self.showAdmirers = (try container.decodeIfPresent(Bool.self, forKey: .showAdmirers)) ?? true
+        self.showFollowers = (try container.decodeIfPresent(Bool.self, forKey: .showFollowers)) ?? true
         self.activeHoursStart = try container.decodeIfPresent(String.self, forKey: .activeHoursStart)
         self.activeHoursEnd = try container.decodeIfPresent(String.self, forKey: .activeHoursEnd)
         self.notificationPreferences = try container.decodeIfPresent([String: Bool].self, forKey: .notificationPreferences)
@@ -226,9 +226,9 @@ struct AppUser: Identifiable, Codable {
         bio: String?,
         blockedUsers: [String],
         isPrivate: Bool,
-        showMutualConnections: Bool = true,
+        showMutuals: Bool = true,
         showFollowing: Bool = true,
-        showAdmirers: Bool = true,
+        showFollowers: Bool = true,
         activeHoursStart: String?,
         activeHoursEnd: String?,
         notificationPreferences: [String: Bool]?,
@@ -266,9 +266,9 @@ struct AppUser: Identifiable, Codable {
         self.bio = bio
         self.blockedUsers = blockedUsers
         self.isPrivate = isPrivate
-        self.showMutualConnections = showMutualConnections
+        self.showMutuals = showMutuals
         self.showFollowing = showFollowing
-        self.showAdmirers = showAdmirers
+        self.showFollowers = showFollowers
         self.activeHoursStart = activeHoursStart
         self.activeHoursEnd = activeHoursEnd
         self.notificationPreferences = notificationPreferences
@@ -600,7 +600,7 @@ extension AppUser {
             return false
         }
         
-        return showMutualConnections && showFollowing
+        return showFollowing || showFollowers
     }
     
     // Obtener nivel de privacidad
@@ -612,7 +612,7 @@ extension AppUser {
         
         if isPrivate {
             return .private
-        } else if !showMutualConnections || !showFollowing {
+        } else if !showFollowing || !showFollowers {
             return .restricted
         } else {
             return .public

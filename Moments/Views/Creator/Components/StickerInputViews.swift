@@ -291,7 +291,7 @@ struct ModernMentionInputView: View {
         guard let currentUserId = Auth.auth().currentUser?.uid else { return }
 
         // Cargar usuarios sugeridos (conexiones mutuas, etc.)
-        firestoreService.fetchMutualConnections(userId: currentUserId) { result in
+        firestoreService.fetchMutuals(userId: currentUserId) { result in
             DispatchQueue.main.async {
                 switch result {
                 case .success(let connections):
@@ -559,7 +559,7 @@ extension View {
 }
 
 // MARK: - No necesitas extensión - ya tienes las funciones en FirestoreService
-// fetchMutualConnections, fetchUserProfile, searchUsers ya existen
+// fetchMutuals, fetchUserProfile, searchUsers ya existen
 
 struct ModernHashtagInputView: View {
     let onSelect: (String) -> Void

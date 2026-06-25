@@ -202,9 +202,9 @@ struct NovaPendingAction: Identifiable {
     private static func describePrivacyArgs(_ args: JSONObject) -> String {
         var lines: [String] = []
         appendBoolLine(args["is_private"], labelKey: "nova.confirm.field.privateAccount", to: &lines)
-        appendBoolLine(args["show_mutual_connections"], labelKey: "nova.confirm.field.showMutualConnections", to: &lines)
+        appendBoolLine(args["show_mutual_connections"], labelKey: "nova.confirm.field.showMutuals", to: &lines)
         appendBoolLine(args["show_following"], labelKey: "nova.confirm.field.showFollowing", to: &lines)
-        appendBoolLine(args["show_admirers"], labelKey: "nova.confirm.field.showAdmirers", to: &lines)
+        appendBoolLine(args["show_followers"], labelKey: "nova.confirm.field.showFollowers", to: &lines)
         return lines.joined(separator: "\n")
     }
 

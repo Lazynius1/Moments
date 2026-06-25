@@ -7,9 +7,12 @@ import FirebaseFirestore
 @MainActor
 class UserProfileViewModel: ObservableObject, UserListViewModel {
     @Published var userProfile: AppUser?
-    @Published var connections: [AppUser] = []
-    @Published var mutualConnections: [AppUser] = []
-    @Published var admirers: [AppUser] = []
+    @Published var viewerProfile: AppUser?
+    @Published var following: [AppUser] = []
+    @Published var mutuals: [AppUser] = []
+    @Published var followers: [AppUser] = []
+    @Published var commonConnections: [AppUser] = []
+    @Published var suggestedConnectionsForViewer: [AppUser] = []
     @Published var moments: [Moment] = []
     @Published var taggedMoments: [Moment] = [] // ✅ NUEVO
     @Published var isLoadingTagged: Bool = false // ✅ NUEVO
@@ -19,7 +22,7 @@ class UserProfileViewModel: ObservableObject, UserListViewModel {
     @Published var isLoading: Bool = true
     @Published var followButtonState: FollowButtonState = .canFollow
     @Published var canViewContent: Bool = false
-    @Published var canViewConnections: Bool = false
+    @Published var canViewSocialLists: Bool = false
     @Published var isRefreshing: Bool = false
     @Published var isProfileUnavailable: Bool = false
     @Published var isInBestFriends: Bool = false
@@ -30,18 +33,26 @@ class UserProfileViewModel: ObservableObject, UserListViewModel {
     @Published var isUpdatingBestFriend: Bool = false
     @Published var isUpdatingMute: Bool = false
     @Published var isUpdatingLists: Bool = false
+    @Published private(set) var viewerInterests: [String] = []
 
     // ✅ NUEVAS PROPIEDADES: Control granular de visibilidad
     @Published var visibleConnectionTypes = VisibleConnectionTypes(
-        canViewAdmirers: false,
-        canViewConnections: false,
-        canViewMutualConnections: false
+        canViewFollowers: false,
+        canViewFollowing: false,
+        canViewMutuals: false
     )
 
     let userId: String
     private let firestoreService = FirestoreService()
     private let privacyService = PrivacyService()
     private let bestFriendsService = BestFriendsService()
+    private var viewerNetworkIds: Set<String> = []
+    private var viewerFollowingIds: Set<String> = []
+    private var viewerFollowerIds: Set<String> = []
+    private var viewerBlockedUserIds: Set<String> = []
+    private var targetVisibleFollowingIds: Set<String> = []
+    private var targetVisibleFollowerIds: Set<String> = []
+    private var lastSuggestionsSignature: String?
 
     // Cache local para tracking de unfollows recientes
     private var recentUnfollows: Set<String> = []
@@ -78,6 +89,7 @@ class UserProfileViewModel: ObservableObject, UserListViewModel {
         }
         isLoading = true
         isProfileUnavailable = false
+        loadViewerContext(currentUserId: currentUserId)
 
         // ✅ SwiftData: Carga inicial desde caché local
         if let cachedProfile = LocalPersistenceService.shared.loadUser(userId: userId) {
@@ -96,10 +108,11 @@ class UserProfileViewModel: ObservableObject, UserListViewModel {
 
         // ✅ Cargar conexiones del caché
         let cachedConnections = LocalPersistenceService.shared.loadConnections(userId: userId)
-        if !cachedConnections.followers.isEmpty || !cachedConnections.following.isEmpty {
+        if !cachedConnections.followers.isEmpty || !cachedConnections.following.isEmpty || !cachedConnections.mutuals.isEmpty {
             self.categorizeConnectionsWithPrivacy(
-                targetFollowingIds: cachedConnections.following.map(\.id),
-                targetFollowerIds: cachedConnections.followers.map(\.id)
+                targetFollowingUsers: cachedConnections.following,
+                targetFollowerUsers: cachedConnections.followers,
+                targetMutualUsers: cachedConnections.mutuals
             )
         }
 
@@ -134,6 +147,7 @@ class UserProfileViewModel: ObservableObject, UserListViewModel {
                     self.userProfile = profile
                 }
                 if profile.isActive {
+                    self.refreshMutedUserIds()
                     self.checkContentVisibility(currentUserId: currentUserId)
                 }
             case .failure(let error):
@@ -259,7 +273,7 @@ class UserProfileViewModel: ObservableObject, UserListViewModel {
             DispatchQueue.main.async {
                 self?.visibleConnectionTypes = visibleTypes
                 // Para compatibilidad con código existente
-                self?.canViewConnections = visibleTypes.canViewAdmirers || visibleTypes.canViewConnections || visibleTypes.canViewMutualConnections
+                self?.canViewSocialLists = visibleTypes.canViewFollowers || visibleTypes.canViewFollowing
                 completion?()
             }
         }
@@ -270,70 +284,34 @@ class UserProfileViewModel: ObservableObject, UserListViewModel {
     // ✅ FUNCIÓN MEJORADA: Fetch conexiones directo con filtrado de privacidad
     private func fetchConnectionsDirect() {
         let group = DispatchGroup()
-        var targetFollowingIds: [String] = []
-        var targetFollowerIds: [String] = []
+        var fetchedFollowing: [AppUser] = []
+        var fetchedFollowers: [AppUser] = []
 
-        if visibleConnectionTypes.canViewConnections || visibleConnectionTypes.canViewMutualConnections {
+        if visibleConnectionTypes.canViewFollowing {
             group.enter()
-            let snapshotUnfollowTime = self.lastUnfollowTime
-            let snapshotRecentUnfollows = self.recentUnfollows
-            firestoreService.db.collection("users").document(userId).collection("following")
-                .getDocuments { [weak self] followingSnapshot, error in
-                    defer { group.leave() }
-                    guard let self = self else { return }
-                    guard error == nil else { return }
-
-                    let followingIds = followingSnapshot?.documents.compactMap { doc in
-                        doc.data()["userId"] as? String
-                    } ?? []
-
-                    var localUnfollowTime = snapshotUnfollowTime
-                    var localRecentUnfollows = snapshotRecentUnfollows
-                    var expiredKeys: [String] = []
-
-                    targetFollowingIds = followingIds.filter { followedUserId in
-                        if let unfollowTime = localUnfollowTime[followedUserId] {
-                            let timeSinceUnfollow = Date().timeIntervalSince(unfollowTime)
-                            if timeSinceUnfollow < 5.0 {
-                                return false
-                            } else {
-                                expiredKeys.append(followedUserId)
-                                localUnfollowTime.removeValue(forKey: followedUserId)
-                                localRecentUnfollows.remove(followedUserId)
-                            }
-                        }
-                        return true
-                    }
-
-                    if !expiredKeys.isEmpty {
-                        let keysToRemove = expiredKeys
-                        Task { @MainActor [weak self] in
-                            for key in keysToRemove {
-                                self?.lastUnfollowTime.removeValue(forKey: key)
-                                self?.recentUnfollows.remove(key)
-                            }
-                        }
-                    }
+            firestoreService.fetchFollowing(userId: userId) { result in
+                defer { group.leave() }
+                if case .success(let users) = result {
+                    fetchedFollowing = users
                 }
+            }
         }
 
-        if visibleConnectionTypes.canViewAdmirers || visibleConnectionTypes.canViewMutualConnections {
+        if visibleConnectionTypes.canViewFollowers {
             group.enter()
-            firestoreService.db.collection("users").document(userId).collection("followers")
-                .getDocuments { followersSnapshot, error in
-                    defer { group.leave() }
-                    guard error == nil else { return }
-
-                    targetFollowerIds = followersSnapshot?.documents.compactMap { doc in
-                        doc.data()["userId"] as? String
-                    } ?? []
+            firestoreService.fetchFollowers(userId: userId) { result in
+                defer { group.leave() }
+                if case .success(let users) = result {
+                    fetchedFollowers = users
                 }
+            }
         }
 
         group.notify(queue: .main) {
             self.categorizeConnectionsWithPrivacy(
-                targetFollowingIds: targetFollowingIds,
-                targetFollowerIds: targetFollowerIds
+                targetFollowingUsers: fetchedFollowing,
+                targetFollowerUsers: fetchedFollowers,
+                targetMutualUsers: []
             )
         }
     }
@@ -359,72 +337,29 @@ class UserProfileViewModel: ObservableObject, UserListViewModel {
     }
 
     // ✅ NUEVA FUNCIÓN: Categorizar conexiones respetando configuraciones de privacidad
-    private func categorizeConnectionsWithPrivacy(targetFollowingIds: [String], targetFollowerIds: [String]) {
-        let targetFollowingSet = Set(targetFollowingIds)
-        let targetFollowerSet = Set(targetFollowerIds)
+    private func categorizeConnectionsWithPrivacy(
+        targetFollowingUsers: [AppUser],
+        targetFollowerUsers: [AppUser],
+        targetMutualUsers: [AppUser]
+    ) {
+        let targetFollowingSet = Set(targetFollowingUsers.map(\.id))
+        let targetFollowerSet = Set(targetFollowerUsers.map(\.id))
+        targetVisibleFollowingIds = visibleConnectionTypes.canViewFollowing ? targetFollowingSet : []
+        targetVisibleFollowerIds = visibleConnectionTypes.canViewFollowers ? targetFollowerSet : []
 
-        let mutualIds: Set<String> = visibleConnectionTypes.canViewMutualConnections
-            ? targetFollowingSet.intersection(targetFollowerSet)
-            : []
-        let connectionIds = targetFollowingSet.subtracting(mutualIds)
-        let admirerIds = targetFollowerSet.subtracting(mutualIds)
+        let filteredFollowing = visibleConnectionTypes.canViewFollowing ? targetFollowingUsers : []
+        let filteredFollowers = visibleConnectionTypes.canViewFollowers ? targetFollowerUsers : []
 
-        let fetchGroup = DispatchGroup()
+        self.mutuals = []
+        self.following = filteredFollowing
+        self.followers = filteredFollowers
 
-        // ✅ SOLO cargar si tengo permisos específicos
-        if visibleConnectionTypes.canViewMutualConnections {
-            fetchGroup.enter()
-            self.fetchUsersInBatches(userIds: Array(mutualIds)) { [weak self] users in
-                DispatchQueue.main.async {
-                    self?.mutualConnections = users
-                }
-                fetchGroup.leave()
-            }
-        } else {
-            DispatchQueue.main.async {
-                self.mutualConnections = []
-            }
-        }
+        self.recomputeVisitorSections()
+        self.fetchMoments()
+        self.isLoading = false
 
-        if visibleConnectionTypes.canViewConnections {
-            fetchGroup.enter()
-            self.fetchUsersInBatches(userIds: Array(connectionIds)) { [weak self] users in
-                DispatchQueue.main.async {
-                    self?.connections = users
-                }
-                fetchGroup.leave()
-            }
-        } else {
-            DispatchQueue.main.async {
-                self.connections = []
-            }
-        }
-
-        if visibleConnectionTypes.canViewAdmirers {
-            fetchGroup.enter()
-            self.fetchUsersInBatches(userIds: Array(admirerIds)) { [weak self] users in
-                DispatchQueue.main.async {
-                    self?.admirers = users
-                }
-                fetchGroup.leave()
-            }
-        } else {
-            DispatchQueue.main.async {
-                self.admirers = []
-            }
-        }
-
-        // ✅ Cargar momentos cuando terminen todas las conexiones
-        fetchGroup.notify(queue: .main) {
-            self.fetchMoments()
-            self.isLoading = false
-
-            // ✅ SwiftData: Persistir conexiones en el caché local
-            let allFollowers = self.mutualConnections + self.admirers
-            let allFollowing = self.mutualConnections + self.connections
-            LocalPersistenceService.shared.saveFollowers(userId: self.userId, followers: allFollowers)
-            LocalPersistenceService.shared.saveFollowing(userId: self.userId, following: allFollowing)
-        }
+        LocalPersistenceService.shared.saveFollowers(userId: self.userId, followers: filteredFollowers)
+        LocalPersistenceService.shared.saveFollowing(userId: self.userId, following: filteredFollowing)
     }
 
     private func fetchUsersInBatches(userIds: [String], completion: @escaping ([AppUser]) -> Void) {
@@ -456,6 +391,120 @@ class UserProfileViewModel: ObservableObject, UserListViewModel {
 
         batchGroup.notify(queue: .main) {
             completion(allUsers)
+        }
+    }
+
+    private func loadViewerContext(currentUserId: String) {
+        let group = DispatchGroup()
+        var fetchedViewerProfile: AppUser?
+        var followingIds: Set<String> = []
+        var followerIds: Set<String> = []
+
+        group.enter()
+        firestoreService.fetchUserProfile(userId: currentUserId) { result in
+            if case .success(let profile) = result {
+                fetchedViewerProfile = profile
+            }
+            group.leave()
+        }
+
+        group.enter()
+        firestoreService.db.collection("users").document(currentUserId).collection("following")
+            .getDocuments { snapshot, _ in
+                followingIds = Set(snapshot?.documents.compactMap { doc in
+                    let data = doc.data()
+                    return data["userId"] as? String ?? doc.documentID
+                } ?? [])
+                group.leave()
+            }
+
+        group.enter()
+        firestoreService.db.collection("users").document(currentUserId).collection("followers")
+            .getDocuments { snapshot, _ in
+                followerIds = Set(snapshot?.documents.compactMap { doc in
+                    let data = doc.data()
+                    return data["userId"] as? String ?? doc.documentID
+                } ?? [])
+                group.leave()
+            }
+
+        group.notify(queue: .main) {
+            self.viewerProfile = fetchedViewerProfile
+            self.viewerInterests = fetchedViewerProfile?.interests ?? []
+            self.viewerBlockedUserIds = Set(fetchedViewerProfile?.blockedUsers ?? [])
+            self.viewerFollowingIds = followingIds
+            self.viewerFollowerIds = followerIds
+            self.viewerNetworkIds = followingIds.union(followerIds)
+            self.recomputeVisitorSections()
+        }
+    }
+
+    private func recomputeVisitorSections() {
+        guard let viewerId = Auth.auth().currentUser?.uid else {
+            commonConnections = []
+            suggestedConnectionsForViewer = []
+            return
+        }
+
+        let targetVisibleNetworkIds = targetVisibleFollowingIds.union(targetVisibleFollowerIds)
+        let commonIds = viewerNetworkIds
+            .intersection(targetVisibleNetworkIds)
+            .subtracting([viewerId, userId])
+
+        let visibleUsers = uniqueUsersPreservingOrder(mutuals + followers + following)
+        commonConnections = visibleUsers.filter { commonIds.contains($0.id) }
+
+        refreshSuggestedConnections(excludingIds: Set(commonConnections.map(\.id)).union([viewerId, userId]))
+    }
+
+    private func refreshSuggestedConnections(excludingIds: Set<String>) {
+        guard let viewerId = Auth.auth().currentUser?.uid else { return }
+        guard !viewerInterests.isEmpty else {
+            suggestedConnectionsForViewer = []
+            return
+        }
+
+        let signature = ([viewerId, userId] + excludingIds.sorted() + viewerInterests.sorted()).joined(separator: "|")
+        guard signature != lastSuggestionsSignature else { return }
+        lastSuggestionsSignature = signature
+
+        firestoreService.fetchUsersWithSharedInterests(interests: viewerInterests, excludingUserId: viewerId) { [weak self] result in
+            guard let self else { return }
+            guard case .success(let users) = result else {
+                DispatchQueue.main.async {
+                    self.suggestedConnectionsForViewer = []
+                }
+                return
+            }
+
+            let excludedNetworkIds = self.viewerFollowingIds.union(self.viewerFollowerIds)
+            let filtered = self.uniqueUsersPreservingOrder(users).filter { user in
+                guard !excludingIds.contains(user.id) else { return false }
+                guard !excludedNetworkIds.contains(user.id) else { return false }
+                guard !self.viewerBlockedUserIds.contains(user.id) else { return false }
+                guard !user.blockedUsers.contains(viewerId) else { return false }
+                return true
+            }
+            .sorted { lhs, rhs in
+                let lhsInterests = Set(lhs.interests).intersection(Set(self.viewerInterests)).count
+                let rhsInterests = Set(rhs.interests).intersection(Set(self.viewerInterests)).count
+                if lhsInterests != rhsInterests {
+                    return lhsInterests > rhsInterests
+                }
+                return lhs.username.localizedCaseInsensitiveCompare(rhs.username) == .orderedAscending
+            }
+
+            DispatchQueue.main.async {
+                self.suggestedConnectionsForViewer = Array(filtered.prefix(8))
+                self.suggestedConnectionsForViewer.forEach { self.prefetchRelationshipState(for: $0.id) }
+            }
+        }
+    }
+
+    private func uniqueUsersPreservingOrder(_ users: [AppUser]) -> [AppUser] {
+        var seen = Set<String>()
+        return users.filter { user in
+            seen.insert(user.id).inserted
         }
     }
 
@@ -614,6 +663,15 @@ class UserProfileViewModel: ObservableObject, UserListViewModel {
         }
     }
 
+    private func refreshMutedUserIds() {
+        guard let currentUserId = Auth.auth().currentUser?.uid else { return }
+        firestoreService.fetchMutedUserIds(userId: currentUserId) { [weak self] mutedIds in
+            DispatchQueue.main.async {
+                self?.isMutedByCurrentUser = mutedIds.contains(self?.userId ?? "")
+            }
+        }
+    }
+
     func removeFromCustomList(_ list: CustomAudienceList) {
         guard let currentUserId = Auth.auth().currentUser?.uid,
               let listId = list.id,
@@ -719,55 +777,81 @@ class UserProfileViewModel: ObservableObject, UserListViewModel {
 
     // ✅ FUNCIÓN CORREGIDA: Follow user con actualización inmediata de UI
     func followUser(userId: String) {
-        guard let currentUserId = Auth.auth().currentUser?.uid, let userProfile = self.userProfile else { return }
+        guard let currentUserId = Auth.auth().currentUser?.uid else { return }
 
         // Limpiar unfollow reciente si existe
         recentUnfollows.remove(userId)
         lastUnfollowTime.removeValue(forKey: userId)
 
-        if userProfile.isPrivate {
-            firestoreService.sendFollowRequest(currentUserId: currentUserId, targetUserId: userId) { [weak self] error in
-                DispatchQueue.main.async {
-                    guard let self = self else { return }
-                    if error != nil {
-                        return
+        if userId == self.userId, let userProfile = self.userProfile {
+            if userProfile.isPrivate {
+                firestoreService.sendFollowRequest(currentUserId: currentUserId, targetUserId: userId) { [weak self] error in
+                    DispatchQueue.main.async {
+                        guard let self = self else { return }
+                        guard error == nil else { return }
+                        self.followButtonState = .requestPendingCancellable
+                        FollowStateStore.shared.setState(.requestPendingCancellable, for: userId)
                     }
-                    self.followButtonState = .requestPendingCancellable
-                    FollowStateStore.shared.setState(.requestPendingCancellable, for: userId)
                 }
-            }
-        } else {
-            firestoreService.followUser(currentUserId: currentUserId, targetUserId: userId) { [weak self] error in
-                DispatchQueue.main.async {
-                    guard let self = self else { return }
-                    if error != nil {
-                        return
-                    }
+            } else {
+                firestoreService.followUser(currentUserId: currentUserId, targetUserId: userId) { [weak self] error in
+                    DispatchQueue.main.async {
+                        guard let self = self else { return }
+                        guard error == nil else { return }
 
-                    self.followButtonState = .following
-                    self.isFollowing = true
-                    FollowStateStore.shared.setState(.following, for: userId)
+                        self.followButtonState = .following
+                        self.isFollowing = true
+                        FollowStateStore.shared.setState(.following, for: userId)
 
-                    // Actualizar UI inmediatamente si tengo permisos para ver admirers
-                    if self.visibleConnectionTypes.canViewAdmirers,
-                       let admirerIndex = self.admirers.firstIndex(where: { $0.id == userId }) {
-                        let user = self.admirers.remove(at: admirerIndex)
-                        if self.visibleConnectionTypes.canViewMutualConnections {
-                            self.mutualConnections.append(user)
+                        if self.visibleConnectionTypes.canViewMutuals,
+                           let follower = self.followers.first(where: { $0.id == userId }),
+                           !self.mutuals.contains(where: { $0.id == userId }) {
+                            self.mutuals.append(follower)
                         }
-                    } else if self.visibleConnectionTypes.canViewConnections {
-                        // Obtener usuario y agregarlo a conexiones si puedo verlas
-                        self.firestoreService.fetchUser(userId: userId) { [weak self] result in
-                            if case .success(let user) = result {
-                                DispatchQueue.main.async {
-                                    if self?.visibleConnectionTypes.canViewConnections == true {
-                                        self?.connections.append(user)
+
+                        if self.visibleConnectionTypes.canViewFollowing,
+                           !self.following.contains(where: { $0.id == userId }) {
+                            self.firestoreService.fetchUser(userId: userId) { [weak self] result in
+                                if case .success(let user) = result {
+                                    DispatchQueue.main.async {
+                                        if self?.visibleConnectionTypes.canViewFollowing == true {
+                                            if self?.following.contains(where: { $0.id == user.id }) == false {
+                                                self?.following.append(user)
+                                            }
+                                        }
                                     }
                                 }
                             }
                         }
                     }
                 }
+            }
+            return
+        }
+
+        privacyService.getFollowButtonState(viewerId: currentUserId, targetUserId: userId) { [weak self] state in
+            guard let self else { return }
+            let reconciled = FollowStateStore.shared.reconciledState(state, for: userId)
+
+            switch reconciled {
+            case .canRequestFollow:
+                self.firestoreService.sendFollowRequest(currentUserId: currentUserId, targetUserId: userId) { error in
+                    guard error == nil else { return }
+                    DispatchQueue.main.async {
+                        FollowStateStore.shared.setState(.requestPendingCancellable, for: userId)
+                    }
+                }
+            case .canFollow:
+                self.firestoreService.followUser(currentUserId: currentUserId, targetUserId: userId) { [weak self] error in
+                    guard let self else { return }
+                    guard error == nil else { return }
+                    DispatchQueue.main.async {
+                        FollowStateStore.shared.setState(.following, for: userId)
+                        self.suggestedConnectionsForViewer.removeAll { $0.id == userId }
+                    }
+                }
+            default:
+                break
             }
         }
     }
@@ -782,7 +866,9 @@ class UserProfileViewModel: ObservableObject, UserListViewModel {
             }
 
             DispatchQueue.main.async {
-                self.followButtonState = .canRequestFollow
+                if userId == self.userId {
+                    self.followButtonState = .canRequestFollow
+                }
                 FollowStateStore.shared.setState(.canRequestFollow, for: userId)
             }
         }
@@ -806,39 +892,78 @@ class UserProfileViewModel: ObservableObject, UserListViewModel {
             }
 
             DispatchQueue.main.async {
-                let nextState: FollowButtonState = self.userProfile?.isPrivate == true ? .canRequestFollow : .canFollow
+                let nextState: FollowButtonState
+                if userId == self.userId {
+                    nextState = self.userProfile?.isPrivate == true ? .canRequestFollow : .canFollow
+                } else {
+                    let knownUser = self.followers.first(where: { $0.id == userId })
+                        ?? self.following.first(where: { $0.id == userId })
+                        ?? self.mutuals.first(where: { $0.id == userId })
+                    nextState = knownUser?.isPrivate == true ? .canRequestFollow : .canFollow
+                }
+                FollowStateStore.shared.setState(nextState, for: userId)
+
+                guard userId == self.userId else { return }
+
                 self.followButtonState = nextState
                 self.isFollowing = false
-                FollowStateStore.shared.setState(nextState, for: userId)
 
                 if self.userProfile?.isPrivate == true {
                     self.canViewContent = false
                 }
 
-                // Actualizar UI inmediatamente respetando permisos de privacidad
-                if self.visibleConnectionTypes.canViewMutualConnections,
-                   let mutualIndex = self.mutualConnections.firstIndex(where: { $0.id == userId }) {
-                    let user = self.mutualConnections.remove(at: mutualIndex)
-                    if self.visibleConnectionTypes.canViewAdmirers {
-                        self.admirers.append(user)
-                    }
-                } else if self.visibleConnectionTypes.canViewConnections,
-                          let connectionIndex = self.connections.firstIndex(where: { $0.id == userId }) {
-                    self.connections.remove(at: connectionIndex)
+                if self.visibleConnectionTypes.canViewMutuals,
+                   let mutualIndex = self.mutuals.firstIndex(where: { $0.id == userId }) {
+                    self.mutuals.remove(at: mutualIndex)
+                }
+                if self.visibleConnectionTypes.canViewFollowing,
+                   let followingIndex = self.following.firstIndex(where: { $0.id == userId }) {
+                    self.following.remove(at: followingIndex)
                 }
             }
         }
     }
 
+    func relationshipState(for userId: String) -> FollowButtonState {
+        if let cached = FollowStateStore.shared.state(for: userId) {
+            return cached
+        }
+
+        if let currentUserId = Auth.auth().currentUser?.uid, currentUserId == userId {
+            return .ownProfile
+        }
+
+        if following.contains(where: { $0.id == userId }) || mutuals.contains(where: { $0.id == userId }) {
+            return .following
+        }
+
+        let knownUser = followers.first(where: { $0.id == userId })
+            ?? following.first(where: { $0.id == userId })
+            ?? mutuals.first(where: { $0.id == userId })
+
+        if knownUser?.isPrivate == true {
+            return .canRequestFollow
+        }
+
+        return .canFollow
+    }
+
+    func prefetchRelationshipState(for userId: String) {
+        guard FollowStateStore.shared.state(for: userId) == nil,
+              let currentUserId = Auth.auth().currentUser?.uid,
+              currentUserId != userId else { return }
+
+        privacyService.getFollowButtonState(viewerId: currentUserId, targetUserId: userId) { state in
+            let reconciled = FollowStateStore.shared.reconciledState(state, for: userId)
+            FollowStateStore.shared.setState(reconciled, for: userId)
+        }
+    }
+
     func checkIfFollowing() {
         guard let currentUserId = Auth.auth().currentUser?.uid else { return }
-        firestoreService.fetchConnections(userId: currentUserId) { [weak self] result in
-            guard let self = self else { return }
-            if case .success(let connections) = result {
-                let followingIds = connections.map { $0.userId }
-                DispatchQueue.main.async {
-                    self.isFollowing = followingIds.contains(self.userId)
-                }
+        firestoreService.isFollowing(currentUserId: currentUserId, targetUserId: userId) { [weak self] isFollowing in
+            DispatchQueue.main.async {
+                self?.isFollowing = isFollowing
             }
         }
     }

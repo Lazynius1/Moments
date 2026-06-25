@@ -274,7 +274,7 @@ struct ProfileView: View {
     @State private var isShowingEditProfile = false
     @State private var selectedPhoto: PhotosPickerItem?
     @State private var newBio: String = ""
-    @State private var showingUserList: UserListType?
+    @State private var socialConnectionsRoute: SocialConnectionsRoute?
     @State private var errorMessage: String?
     @State private var showStoryViewer: Bool = false
     @State private var selectedStoryIndex: Int = 0
@@ -288,32 +288,30 @@ struct ProfileView: View {
     @State private var selectedProfileTab: ProfileTabType = .moments  // ✅ NUEVO: Tab selector
     @State private var showProfileImageFullscreen = false // ✅ NUEVO: Estado para ver foto grande
     @State private var isShowingIncognito = false
-    @State private var selectedExternalProfileUserId: String? = nil
-    @State private var showExternalProfile = false
     @Namespace private var profileZoomNamespace
     @State private var editingMoment: Moment? = nil
     @State private var pendingDeleteMoment: Moment? = nil
     enum UserListType: Identifiable {
         case visits
-        case admirers
-        case connections
-        case mutualConnections
+        case followers
+        case following
+        case mutuals
 
         var id: String {
             switch self {
             case .visits: return "visits"
-            case .admirers: return "admirers"
-            case .connections: return "connections"
-            case .mutualConnections: return "mutualConnections"
+            case .followers: return "followers"
+            case .following: return "following"
+            case .mutuals: return "mutuals"
             }
         }
 
         var title: String {
             switch self {
             case .visits: return NSLocalizedString("profile.userList.visits", comment: "Visits")
-            case .admirers: return NSLocalizedString("profile.ui.followers", comment: "Followers")
-            case .connections: return NSLocalizedString("profile.ui.following", comment: "Following")
-            case .mutualConnections: return NSLocalizedString("profile.ui.mutuals", comment: "Mutuals")
+            case .followers: return NSLocalizedString("profile.ui.followers", comment: "Followers")
+            case .following: return NSLocalizedString("profile.ui.following", comment: "Following")
+            case .mutuals: return NSLocalizedString("profile.ui.mutuals", comment: "Mutuals")
             }
         }
     }
@@ -343,7 +341,7 @@ struct ProfileView: View {
                         isShowingSettings: $isShowingSettings,
                         isShowingEditProfile: $isShowingEditProfile,
                         newBio: $newBio,
-                        showingUserList: $showingUserList,
+                        socialConnectionsRoute: $socialConnectionsRoute,
                         showStoryViewer: $showStoryViewer,
                         selectedStoryIndex: $selectedStoryIndex,
                         selectedPhoto: $selectedPhoto,
@@ -408,46 +406,24 @@ struct ProfileView: View {
                     )
                 }
 
-                .sheet(item: $showingUserList) { listType in
-                    switch listType {
-                    case .visits:
-                        VisitsView()
-                            .presentationDetents([.medium, .large])
-                            .presentationDragIndicator(.visible)
-                            .interactiveDismissDisabled(false)
-                            .presentationBackground(.clear)
-                            .transition(.move(edge: .bottom).combined(with: .opacity))
-
-                    case .admirers, .connections, .mutualConnections:
-                        UserListView(
-                            title: listType.title,
-                            users: usersForList(type: listType),
-                            visitTimestamps: [:],
-                            viewModel: viewModel,
-                            onDismiss: { showingUserList = nil },
-                            rowAction: rowAction(for: listType),
-                            onUserTap: { user in
-                                openUserProfileFromList(userId: user.id)
-                            },
-                            profileZoomNamespace: profileZoomNamespace
-                        )
-                        .presentationDetents([.medium, .large])
-                        .presentationDragIndicator(.visible)
-                        .interactiveDismissDisabled(false)
-                        .presentationBackground(.clear)
-                        .transition(.move(edge: .bottom).combined(with: .opacity))
-                    }
-                }
-                .navigationDestination(isPresented: $showExternalProfile) {
-                    if let userId = selectedExternalProfileUserId {
-                        UserProfileView(userId: userId)
-                            .userProfileZoomDestination(userId: userId, namespace: profileZoomNamespace)
-                    }
-                }
-                .onChange(of: showExternalProfile) { _, isShowing in
-                    if !isShowing {
-                        selectedExternalProfileUserId = nil
-                    }
+                .navigationDestination(item: $socialConnectionsRoute) { route in
+                    SocialConnectionsScreen(
+                        route: route,
+                        username: viewModel.userProfile?.username ?? "",
+                        availableTabs: SocialConnectionTab.ownProfileTabs,
+                        includesVisits: true,
+                        isOwnProfile: true,
+                        currentUser: viewModel.userProfile,
+                        inCommonUsers: [],
+                        followers: viewModel.followers,
+                        following: viewModel.following,
+                        mutuals: viewModel.mutuals,
+                        suggestedUsers: [],
+                        viewerInterests: viewModel.userProfile?.interests ?? [],
+                        visitTimestamps: viewModel.visitTimestamps,
+                        listViewModel: viewModel,
+                        profileZoomNamespace: profileZoomNamespace
+                    )
                 }
                 .alert(
                     NSLocalizedString("contextMenu.delete.title", comment: "Delete moment alert title"),
@@ -513,7 +489,7 @@ struct ProfileView: View {
                         )
                     }
                 }
-                .animation(.easeInOut(duration: 0.3), value: showingUserList)
+                .animation(.easeInOut(duration: 0.3), value: socialConnectionsRoute)
                 .onChange(of: selectedTab) { _, newTab in
                     if newTab == 4 {
                         isShowingSettings = false
@@ -538,7 +514,7 @@ struct ProfileView: View {
                     }
                 }
                 .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("ShowProfileVisits"))) { _ in
-                    showingUserList = .visits
+                    socialConnectionsRoute = SocialConnectionsRoute(initialTab: .visits)
                 }
                 .onDisappear {
                     // Reset profile transition and detail states immediately when switching tabs or leaving the screen
@@ -564,32 +540,6 @@ struct ProfileView: View {
         .environment(\.profileGridHeroTransitionCoordinator, heroCoordinator)
         .toolbar(.hidden, for: .navigationBar)
         .navigationBarHidden(true)
-    }
-
-    private func usersForList(type: UserListType) -> [AppUser] {
-        switch type {
-        case .visits: return viewModel.visits
-        case .admirers: return viewModel.admirers
-        case .connections: return viewModel.connections
-        case .mutualConnections: return viewModel.mutualConnections
-        }
-    }
-
-    private func rowAction(for type: UserListType) -> UserListRowAction {
-        switch type {
-        case .visits, .admirers:
-            return .follow
-        case .connections, .mutualConnections:
-            return .unfollow
-        }
-    }
-
-    private func openUserProfileFromList(userId: String) {
-        showingUserList = nil
-        selectedExternalProfileUserId = userId
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
-            showExternalProfile = true
-        }
     }
 
     private func updateMoment(payload: EditMomentPayload, for moment: Moment) {

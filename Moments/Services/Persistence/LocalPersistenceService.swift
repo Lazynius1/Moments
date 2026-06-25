@@ -620,6 +620,11 @@ final class LocalPersistenceService: ObservableObject {
     func saveFollowing(userId: String, following: [AppUser]) {
         saveConnectionList(userId: userId, users: following, type: "following")
     }
+
+    /// Guarda mutuas de un usuario
+    func saveMutuals(userId: String, mutuals: [AppUser]) {
+        saveConnectionList(userId: userId, users: mutuals, type: "mutual")
+    }
     
     private func saveConnectionList(userId: String, users: [AppUser], type: String) {
         guard let context = modelContext else { return }
@@ -639,8 +644,8 @@ final class LocalPersistenceService: ObservableObject {
     }
     
     /// Carga las conexiones de un usuario desde el caché local
-    func loadConnections(userId: String) -> (followers: [AppUser], following: [AppUser]) {
-        guard let context = modelContext else { return ([], []) }
+    func loadConnections(userId: String) -> (followers: [AppUser], following: [AppUser], mutuals: [AppUser]) {
+        guard let context = modelContext else { return ([], [], []) }
         
         let predicate = #Predicate<CachedConnection> { $0.userId == userId }
         let descriptor = FetchDescriptor<CachedConnection>(predicate: predicate)
@@ -650,21 +655,25 @@ final class LocalPersistenceService: ObservableObject {
             
             var followers: [AppUser] = []
             var following: [AppUser] = []
+            var mutuals: [AppUser] = []
             
             for conn in connections {
                 if let user = loadUser(userId: conn.targetId) {
-                    if conn.type == "follower" {
+                    switch conn.type {
+                    case "follower":
                         followers.append(user)
-                    } else {
+                    case "mutual":
+                        mutuals.append(user)
+                    default:
                         following.append(user)
                     }
                 }
             }
             
-            return (followers, following)
+            return (followers, following, mutuals)
         } catch {
             AppLog.debug("❌ LocalPersistence: Error al cargar conexiones: \(error)")
-            return ([], [])
+            return ([], [], [])
         }
     }
     
@@ -1262,6 +1271,13 @@ final class LocalPersistenceService: ObservableObject {
             if let existing = existing {
                 context.delete(existing)
             }
+
+            let mutualId = "\(currentUserId)_\(targetUserId)_mutual"
+            let mutualPredicate = #Predicate<CachedConnection> { $0.id == mutualId }
+            let mutualDescriptor = FetchDescriptor<CachedConnection>(predicate: mutualPredicate)
+            if let mutual = (try? context.fetch(mutualDescriptor))?.first {
+                context.delete(mutual)
+            }
         }
         
         saveContext()
@@ -1646,7 +1662,7 @@ final class StorySeenStateService {
         }
 
         switch normalized {
-        case "everyone", "connections", "mutuals":
+        case "everyone", "mutuals":
             return true
         default:
             return false

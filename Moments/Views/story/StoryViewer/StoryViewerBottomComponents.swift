@@ -14,8 +14,8 @@ private enum StoryAudienceBottomInfo {
 
     static func title(for audience: String?, listName: String?) -> String {
         switch normalizedAudience(audience) {
-        case "connections", "mutuals", "mutual":
-            return NSLocalizedString("audience.type.connections", comment: "Mutuals")
+        case "mutuals", "mutual":
+            return NSLocalizedString("audience.type.mutuals", comment: "Mutuals")
         case "bestfriends", "best_friends", "best-friends":
             return NSLocalizedString("audience.type.bestFriends", comment: "Best friends")
         case "customlist":

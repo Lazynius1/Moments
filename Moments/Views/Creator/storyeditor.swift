@@ -481,8 +481,7 @@ struct StoryEditingView: View {
             get: {
                 switch storyAudience {
                 case .everyone: return .everyone
-                case .mutuals: return .connections
-                case .admirers: return .connections
+                case .mutuals: return .mutuals
                 case .bestFriends: return .bestFriends
                 case .custom:
                     return selectedListId != nil ? .customList : .custom
@@ -492,7 +491,7 @@ struct StoryEditingView: View {
             set: { newValue in
                 switch newValue {
                 case .everyone: storyAudience = .everyone
-                case .connections: storyAudience = .mutuals
+                case .mutuals: storyAudience = .mutuals
                 case .bestFriends: storyAudience = .bestFriends
                 case .custom: storyAudience = .custom
                 case .customList: storyAudience = .custom
@@ -509,8 +508,7 @@ struct StoryEditingView: View {
         let audienceRaw: String
         switch storyAudience {
         case .everyone:     audienceRaw = ContentAudience.everyone.rawValue
-        case .mutuals:      audienceRaw = ContentAudience.connections.rawValue
-        case .admirers:     audienceRaw = ContentAudience.connections.rawValue
+        case .mutuals:      audienceRaw = ContentAudience.mutuals.rawValue
         case .bestFriends:  audienceRaw = ContentAudience.bestFriends.rawValue
         case .custom:       audienceRaw = (selectedListId != nil) ? ContentAudience.customList.rawValue : ContentAudience.custom.rawValue
         case .onlyMe:       audienceRaw = ContentAudience.onlyMe.rawValue
@@ -534,7 +532,7 @@ struct StoryEditingView: View {
     private func convertContinuationAudience() -> ContentAudience {
         switch continuationAudience {
         case .everyone: return .everyone
-        case .connections: return .connections
+        case .mutuals: return .mutuals
         case .bestFriends: return .bestFriends
         case .custom: return .custom
         case .customList: return .customList
@@ -1401,7 +1399,7 @@ struct StoryEditingView: View {
                         switch contentAudience {
                         case .everyone:
                             self.storyAudience = .everyone
-                        case .connections:
+                        case .mutuals:
                             self.storyAudience = .mutuals
                         case .bestFriends:
                             self.storyAudience = .bestFriends
@@ -2189,8 +2187,7 @@ struct StoryEditingView: View {
             } else {
                 switch storyAudience {
                 case .everyone: return .everyone
-                case .mutuals: return .connections
-                case .admirers: return .connections
+                case .mutuals: return .mutuals
                 case .bestFriends: return .bestFriends
                 case .custom: return selectedListId != nil ? .customList : .custom
                 case .onlyMe: return .onlyMe

@@ -48,12 +48,12 @@ enum NovaToolRegistry {
                 Publish a moment with the photo attached in this chat message. After success, the upload starts automatically.
                 Do not tell the user to confirm in chat — in-app approval is handled separately.
                 Moments cannot be text-only — media must be attached via the chat (+ button) before calling.
-                audience: everyone | connections | bestFriends | onlyMe | custom | customList.
+                audience: everyone | mutuals | bestFriends | onlyMe | custom | customList.
                 Call list_audience_lists first if the user refers to a list by vague name.
                 """,
                 parameters: [
                     "content": .string(description: "Optional caption. Include @username (no space) to mention people; mentions are resolved automatically for linking/notifications and do not change audience."),
-                    "audience": .string(description: "Exactly: everyone | connections | bestFriends | onlyMe | custom | customList"),
+                    "audience": .string(description: "Exactly: everyone | mutuals | bestFriends | onlyMe | custom | customList"),
                     "target_username": .string(description: "For audience=custom: username without @."),
                     "custom_list_name": .string(description: "For audience=customList: list name."),
                     "custom_list_id": .string(description: "Optional list id if already known.")
@@ -100,8 +100,8 @@ enum NovaToolRegistry {
                 optionalParameters: ["limit"]
             ),
             FunctionDeclaration(
-                name: "get_mutual_connections",
-                description: "Return mutual connections for the current user in neutral JSON.",
+                name: "get_mutuals",
+                description: "Return mutual followers for the current user in neutral JSON.",
                 parameters: [
                     "limit": .integer(description: "Max users to return (default 5, max 10).")
                 ],
@@ -164,11 +164,11 @@ enum NovaToolRegistry {
                 description: "Update the current user's privacy settings. Requires user confirmation. Only include keys the user actually wants to change.",
                 parameters: [
                     "is_private": .boolean(description: "Whether the account should be private."),
-                    "show_mutual_connections": .boolean(description: "Whether mutual connections should be visible."),
+                    "show_mutuals": .boolean(description: "Whether mutuals should be visible."),
                     "show_following": .boolean(description: "Whether following should be visible."),
-                    "show_admirers": .boolean(description: "Whether admirers should be visible.")
+                    "show_followers": .boolean(description: "Whether followers should be visible.")
                 ],
-                optionalParameters: ["is_private", "show_mutual_connections", "show_following", "show_admirers"]
+                optionalParameters: ["is_private", "show_mutuals", "show_following", "show_followers"]
             ),
             FunctionDeclaration(
                 name: "update_profile_bio",

@@ -23,7 +23,7 @@ enum NovaPromptCatalog {
     NEVER claim a moment was published unless create_moment returned success:true. If the tool fails, returns an error, or the user declined the in-app step, say that clearly and do not imply it posted.
     If the tool returns missing_media, ask the user to attach a photo with the + button first — do not claim success.
 
-    create_moment audience parameter must be exactly one of: everyone, connections, bestFriends, onlyMe, custom, customList.
+    create_moment audience parameter must be exactly one of: everyone, mutuals, bestFriends, onlyMe, custom, customList.
     Map the user's natural language to these English tool values before calling the tool. UI labels are localized separately.
     For custom use target_username; for customList use custom_list_name or list_audience_lists first.
     Moments always require media: never call create_moment without a photo attached in the chat (+ button). Caption is optional.
@@ -39,7 +39,7 @@ enum NovaPromptCatalog {
 
     static let momentDraftPrompt = """
     Decide if the user wants to publish/upload a moment (photo post) to their profile.
-    Return JSON only. Map audience to English tool values: everyone, connections, bestFriends, onlyMe, custom, customList.
+    Return JSON only. Map audience to English tool values: everyone, mutuals, bestFriends, onlyMe, custom, customList.
     Extract caption into content. Use @username inside content to mention people in the caption. Use audience=custom + target_username only when the post visibility should be limited to that user (not for a simple @mention in text). If a named list, use customList + custom_list_name.
     Set should_publish false for general chat, questions, or analysis about a photo without posting intent.
     """

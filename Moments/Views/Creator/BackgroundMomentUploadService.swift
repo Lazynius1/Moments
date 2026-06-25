@@ -999,7 +999,6 @@ class BackgroundMomentUploadService: ObservableObject {
         switch setting {
         case .everyone: return "everyone"
         case .mutuals: return "mutuals"
-        case .admirers: return "admirers"
         case .bestFriends: return "bestFriends"
         case .custom: return "custom"
         case .onlyMe: return "onlyMe"
@@ -1286,7 +1285,6 @@ class BackgroundMomentUploadService: ObservableObject {
                 switch payload.audienceSetting {
                 case "everyone": return .everyone
                 case "mutuals": return .mutuals
-                case "admirers": return .admirers
                 case "bestFriends": return .bestFriends
                 case "custom": return .custom
                 case "customList": return .custom

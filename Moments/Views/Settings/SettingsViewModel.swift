@@ -44,14 +44,14 @@ class SettingsViewModel: ObservableObject {
             }
         }
     }
-    func updatePrivacySettings(isPrivate: Bool? = nil, showMutualConnections: Bool? = nil, showFollowing: Bool? = nil, showAdmirers: Bool? = nil) {
+    func updatePrivacySettings(isPrivate: Bool? = nil, showMutuals: Bool? = nil, showFollowing: Bool? = nil, showFollowers: Bool? = nil) {
         guard let userId = Auth.auth().currentUser?.uid else { return }
         privacyService.updatePrivacySettings(
             userId: userId,
             isPrivate: isPrivate,
-            showMutualConnections: showMutualConnections,
+            showMutuals: showMutuals,
             showFollowing: showFollowing,
-            showAdmirers: showAdmirers
+            showFollowers: showFollowers
         ) { _ in }
     }
 

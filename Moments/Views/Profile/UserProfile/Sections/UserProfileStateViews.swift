@@ -273,9 +273,9 @@ struct UserModernPrivateProfileView: View {
 
     private var privateStats: [String] {
         [
+            NSLocalizedString("profile.ui.posts", comment: "Posts"),
             NSLocalizedString("profile.ui.followers", comment: "Followers"),
-            NSLocalizedString("profile.ui.following", comment: "Following"),
-            NSLocalizedString("profile.ui.mutuals", comment: "Mutuals")
+            NSLocalizedString("profile.ui.following", comment: "Following")
         ]
     }
 
@@ -561,9 +561,9 @@ struct UserModernBlockedByMeProfileView: View {
 
     private var blockedStats: [String] {
         [
+            NSLocalizedString("profile.ui.posts", comment: "Posts"),
             NSLocalizedString("profile.ui.followers", comment: "Followers"),
-            NSLocalizedString("profile.ui.following", comment: "Following"),
-            NSLocalizedString("profile.ui.mutuals", comment: "Mutuals")
+            NSLocalizedString("profile.ui.following", comment: "Following")
         ]
     }
 

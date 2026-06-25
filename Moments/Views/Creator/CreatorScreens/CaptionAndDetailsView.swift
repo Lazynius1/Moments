@@ -81,7 +81,6 @@ struct CaptionAndDetailsView: View {
     enum AudienceSetting {
         case everyone
         case mutuals
-        case admirers
         case bestFriends
         case custom
         case onlyMe
@@ -89,8 +88,7 @@ struct CaptionAndDetailsView: View {
         var title: String {
             switch self {
             case .everyone: return NSLocalizedString("audience.type.everyone", comment: "Everyone audience type")
-            case .mutuals: return NSLocalizedString("audience.type.connections", comment: "Connections audience type")
-            case .admirers: return NSLocalizedString("audience.type.connections", comment: "Connections audience type (admirers maps to connections)")
+            case .mutuals: return NSLocalizedString("audience.type.mutuals", comment: "Mutuals audience type")
             case .bestFriends: return NSLocalizedString("audience.type.bestFriends", comment: "Best friends audience type")
             case .custom: return NSLocalizedString("audience.type.custom", comment: "Custom audience type")
             case .onlyMe: return NSLocalizedString("audience.type.onlyMe", comment: "Only me audience type")
@@ -101,7 +99,6 @@ struct CaptionAndDetailsView: View {
             switch self {
             case .everyone: return "AudienceEveryoneIcon"
             case .mutuals: return "AudienceMutualsIcon"
-            case .admirers: return "AudienceMutualsIcon"
             case .bestFriends: return "AudienceBestFriendsIcon"
             case .custom: return "AudienceCustomIcon"
             case .onlyMe: return "AudienceOnlyMeIcon"
@@ -113,8 +110,7 @@ struct CaptionAndDetailsView: View {
     func toContentAudience() -> ContentAudience {
         switch audienceSetting {
         case .everyone: return .everyone
-        case .mutuals: return .connections
-        case .admirers: return .connections
+        case .mutuals: return .mutuals
         case .bestFriends: return .bestFriends
         case .custom: return selectedListId != nil ? .customList : .custom
         case .onlyMe: return .onlyMe
@@ -669,8 +665,7 @@ struct CaptionAndDetailsView: View {
             get: {
                 switch audienceSetting {
                 case .everyone: return .everyone
-                case .mutuals: return .connections
-                case .admirers: return .connections
+                case .mutuals: return .mutuals
                 case .bestFriends: return .bestFriends
                 case .custom:
                     return selectedListId != nil ? .customList : .custom
@@ -680,7 +675,7 @@ struct CaptionAndDetailsView: View {
             set: { newValue in
                 switch newValue {
                 case .everyone: audienceSetting = .everyone
-                case .connections: audienceSetting = .mutuals
+                case .mutuals: audienceSetting = .mutuals
                 case .bestFriends: audienceSetting = .bestFriends
                 case .custom: audienceSetting = .custom
                 case .customList: audienceSetting = .custom
@@ -696,8 +691,7 @@ struct CaptionAndDetailsView: View {
         let audienceRaw: String
         switch audienceSetting {
         case .everyone:    audienceRaw = ContentAudience.everyone.rawValue
-        case .mutuals:     audienceRaw = ContentAudience.connections.rawValue
-        case .admirers:    audienceRaw = ContentAudience.connections.rawValue
+        case .mutuals:     audienceRaw = ContentAudience.mutuals.rawValue
         case .bestFriends: audienceRaw = ContentAudience.bestFriends.rawValue
         case .custom:      audienceRaw = (selectedListId != nil) ? ContentAudience.customList.rawValue : ContentAudience.custom.rawValue
         case .onlyMe:      audienceRaw = ContentAudience.onlyMe.rawValue
@@ -729,7 +723,7 @@ struct CaptionAndDetailsView: View {
                    let contentAudience = ContentAudience(rawValue: postAudienceRaw) {
                     switch contentAudience {
                     case .everyone:    self.audienceSetting = .everyone
-                    case .connections: self.audienceSetting = .mutuals
+                    case .mutuals: self.audienceSetting = .mutuals
                     case .bestFriends: self.audienceSetting = .bestFriends
                     case .custom:
                         self.audienceSetting = .custom

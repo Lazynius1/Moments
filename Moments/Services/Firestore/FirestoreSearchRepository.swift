@@ -82,6 +82,41 @@ extension FirestoreService {
             }
     }
 
+    func fetchUsersInBatches(userIds: [String], completion: @escaping ([AppUser]) -> Void) {
+        if userIds.isEmpty {
+            completion([])
+            return
+        }
+
+        let batchSize = 10
+        var allUsers: [AppUser] = []
+        let batches = stride(from: 0, to: userIds.count, by: batchSize).map {
+            Array(userIds[$0..<min($0 + batchSize, userIds.count)])
+        }
+
+        let batchGroup = DispatchGroup()
+
+        for batch in batches {
+            batchGroup.enter()
+            fetchUsers(userIds: batch) { result in
+                defer { batchGroup.leave() }
+                if case .success(let users) = result {
+                    allUsers.append(contentsOf: users)
+                }
+            }
+        }
+
+        batchGroup.notify(queue: .main) {
+            var seen = Set<String>()
+            let uniqueUsers = allUsers.filter { user in
+                guard !seen.contains(user.id) else { return false }
+                seen.insert(user.id)
+                return true
+            }
+            completion(uniqueUsers)
+        }
+    }
+
     func fetchUserDataForNova(userId: String, completion: @escaping (Result<AppUser, Error>) -> Void) {
         db.collection("users").document(userId).getDocument { snapshot, error in
             if let error = error {
@@ -142,7 +177,7 @@ extension FirestoreService {
         }
 
         group.enter()
-        fetchMutualConnections(userId: currentUserId) { result in
+        fetchMutuals(userId: currentUserId) { result in
             defer { group.leave() }
             switch result {
             case .success(let users):

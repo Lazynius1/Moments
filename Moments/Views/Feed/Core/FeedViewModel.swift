@@ -15,7 +15,7 @@ class FeedViewModel {
     var errorMessage: String?
     var userProfileImage: String?
     var connections: [Connection] = []
-    var admirers: [Admirer] = []
+    var followers: [FollowerRecord] = []
 
     // Propiedades para el selector de feed
     var currentFeedType: FeedType = .following
@@ -1214,7 +1214,7 @@ class FeedViewModel {
     }
 
     func fetchConnections(userId: String) {
-        firestoreService.fetchConnections(userId: userId) { _ in }
+        firestoreService.fetchFollowing(userId: userId) { _ in }
     }
 
     func removeCommentListener(momentId: String) {
@@ -1237,11 +1237,18 @@ class FeedViewModel {
         lastUpdateHashes.removeValue(forKey: momentId)
     }
 
-    func fetchAdmirers(userId: String) {
-        firestoreService.fetchAdmirers(userId: userId) { result in
-            if case .success(let admirers) = result {
-                DispatchQueue.main.async {
-                    self.admirers = admirers
+    func fetchFollowers(userId: String) {
+        Task {
+            do {
+                let followers = try await firestoreService.fetchFollowersWithTimestamps(userId: userId)
+                await MainActor.run {
+                    self.followers = followers.map { item in
+                        FollowerRecord(id: item.user.id, userId: item.user.id, timestamp: item.timestamp)
+                    }
+                }
+            } catch {
+                await MainActor.run {
+                    self.errorMessage = error.localizedDescription
                 }
             }
         }

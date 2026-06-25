@@ -8,8 +8,8 @@ struct SettingsFormView: View {
     @Environment(\.colorScheme) var colorScheme
     @ObservedObject var viewModel: SettingsViewModel
     @Binding var isPrivate: Bool
-    @Binding var showMutualConnections: Bool
     @Binding var showFollowing: Bool
+    @Binding var showFollowers: Bool
     @Binding var isScheduleEnabled: Bool
     @Binding var startTime: Date
     @Binding var endTime: Date
@@ -62,8 +62,8 @@ struct SettingsFormView: View {
                 SettingsGroup(title: NSLocalizedString("settings.group.privacy", comment: "Privacy & Security")) {
                     PrivacySection(
                         isPrivate: $isPrivate,
-                        showMutualConnections: $showMutualConnections,
                         showFollowing: $showFollowing,
+                        showFollowers: $showFollowers,
                         viewModel: viewModel,
                         isShowingContentVisibility: $isShowingContentVisibility,
                         isShowingConnections: $isShowingConnections,
@@ -738,8 +738,8 @@ struct ArchiveSection: View {
 struct PrivacySection: View {
     @Environment(\.colorScheme) var colorScheme
     @Binding var isPrivate: Bool
-    @Binding var showMutualConnections: Bool
     @Binding var showFollowing: Bool
+    @Binding var showFollowers: Bool
     @ObservedObject var viewModel: SettingsViewModel
     @Binding var isShowingContentVisibility: Bool
     @Binding var isShowingConnections: Bool
@@ -842,7 +842,7 @@ struct PrivacySection: View {
     }
 
     private func getConnectionPrivacyStatus() -> String {
-        let hiddenCount = (!showMutualConnections ? 1 : 0) + (!showFollowing ? 1 : 0)
+        let hiddenCount = (!showFollowing ? 1 : 0) + (!showFollowers ? 1 : 0)
         switch hiddenCount {
         case 0: return NSLocalizedString("settings.privacy.connections.allPublic", comment: "All connections are public")
         case 1: return NSLocalizedString("settings.privacy.connections.hiddenCount.singular", comment: "1 hidden list")
@@ -867,9 +867,8 @@ struct PrivacySection: View {
 struct ConnectionVisibilityView: View {
     @Environment(\.colorScheme) var colorScheme
     @Environment(\.dismiss) var dismiss
-    @Binding var showMutualConnections: Bool
     @Binding var showFollowing: Bool
-    @Binding var showAdmirers: Bool
+    @Binding var showFollowers: Bool
     @ObservedObject var viewModel: SettingsViewModel
 
     var body: some View {
@@ -883,22 +882,6 @@ struct ConnectionVisibilityView: View {
                             .foregroundColor(.gray)
 
                         VStack(spacing: 0) {
-                            privacyToggleRow(
-                                title: "settings.privacy.hideMutual",
-                                description: "settings.privacy.hideMutual.description",
-                                isOn: Binding(
-                                    get: { !showMutualConnections },
-                                    set: { newValue in
-                                        showMutualConnections = !newValue
-                                        viewModel.updatePrivacySettings(showMutualConnections: !newValue)
-                                        let impact = UIImpactFeedbackGenerator(style: .light)
-                                        impact.impactOccurred()
-                                    }
-                                )
-                            )
-
-                            Divider().opacity(0.2).padding(.leading, 32)
-
                             privacyToggleRow(
                                 title: "settings.privacy.hideFollowing",
                                 description: "settings.privacy.hideFollowing.description",
@@ -916,13 +899,13 @@ struct ConnectionVisibilityView: View {
                             Divider().opacity(0.2).padding(.leading, 32)
 
                             privacyToggleRow(
-                                title: "settings.privacy.hideAdmirers",
-                                description: "settings.privacy.hideAdmirers.description",
+                                title: "settings.privacy.hideFollowers",
+                                description: "settings.privacy.hideFollowers.description",
                                 isOn: Binding(
-                                    get: { !showAdmirers },
+                                    get: { !showFollowers },
                                     set: { newValue in
-                                        showAdmirers = !newValue
-                                        viewModel.updatePrivacySettings(showAdmirers: !newValue)
+                                        showFollowers = !newValue
+                                        viewModel.updatePrivacySettings(showFollowers: !newValue)
                                         let impact = UIImpactFeedbackGenerator(style: .light)
                                         impact.impactOccurred()
                                     }

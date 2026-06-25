@@ -12,7 +12,7 @@ struct UserModernPublicProfileView: View {
     @ObservedObject var messagingViewModel: MessagingViewModel
     let safeAreaTop: CGFloat
     let safeAreaBottom: CGFloat
-    @Binding var showingUserList: UserProfileView.UserListType?
+    @Binding var socialConnectionsRoute: SocialConnectionsRoute?
     @EnvironmentObject private var heroCoordinator: ProfileGridHeroTransitionCoordinator
     @Binding var navigateToChat: Bool
     @Binding var targetConversation: Conversation?
@@ -63,7 +63,7 @@ struct UserModernPublicProfileView: View {
                         messagingViewModel: messagingViewModel,
                         navigateToChat: $navigateToChat,
                         targetConversation: $targetConversation,
-                        showingUserList: $showingUserList,
+                        socialConnectionsRoute: $socialConnectionsRoute,
                         showingMessageRequestAlert: $showingMessageRequestAlert,
                         messageRequestText: $messageRequestText,
                         messageRequestError: $messageRequestError,
@@ -81,7 +81,8 @@ struct UserModernPublicProfileView: View {
 
                     UserProfileOverviewSection(
                         viewModel: viewModel,
-                        showingUserList: $showingUserList,
+                        socialConnectionsRoute: $socialConnectionsRoute,
+                        selectedTab: $selectedTab,
                         showingInterests: $showingFullInfo,
                         interests: viewModel.userProfile?.interests ?? []
                     )
@@ -278,6 +279,28 @@ struct UserModernPublicProfileView: View {
             .zIndex(10)
             }
             .coordinateSpace(name: "profileGridOverlay")
+            .navigationDestination(item: $socialConnectionsRoute) { route in
+                SocialConnectionsScreen(
+                    route: route,
+                    username: viewModel.userProfile?.username ?? "",
+                    availableTabs: SocialConnectionTab.tabs(
+                        for: viewModel.visibleConnectionTypes,
+                        includesVisits: false
+                    ),
+                    includesVisits: false,
+                    isOwnProfile: false,
+                    currentUser: viewModel.viewerProfile,
+                    inCommonUsers: viewModel.commonConnections,
+                    followers: viewModel.followers,
+                    following: viewModel.following,
+                    mutuals: viewModel.mutuals,
+                    suggestedUsers: viewModel.suggestedConnectionsForViewer,
+                    viewerInterests: viewModel.viewerInterests,
+                    visitTimestamps: [:],
+                    listViewModel: viewModel,
+                    profileZoomNamespace: profileZoomNamespace
+                )
+            }
             .navigationDestination(item: $zoomDestination) { destination in
                 ProfileMomentZoomDetailDestination(
                     destination: destination,

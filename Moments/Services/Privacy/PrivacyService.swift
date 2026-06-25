@@ -66,7 +66,7 @@ class PrivacyService {
         }
     }
     
-    func fetchPrivacySettings(userId: String, completion: @escaping (Result<(isPrivate: Bool, showMutualConnections: Bool, showFollowing: Bool, showAdmirers: Bool), Error>) -> Void) {
+    func fetchPrivacySettings(userId: String, completion: @escaping (Result<(isPrivate: Bool, showMutuals: Bool, showFollowing: Bool, showFollowers: Bool), Error>) -> Void) {
         db.collection("users").document(userId).getDocument { snapshot, error in
             if let error = error {
                 completion(.failure(error))
@@ -79,28 +79,28 @@ class PrivacyService {
             }
 
             let isPrivate = data["isPrivate"] as? Bool ?? false
-            let showMutualConnections = data["showMutualConnections"] as? Bool ?? true
+            let showMutuals = data["showMutuals"] as? Bool ?? true
             let showFollowing = data["showFollowing"] as? Bool ?? true
-            let showAdmirers = data["showAdmirers"] as? Bool ?? true
+            let showFollowers = data["showFollowers"] as? Bool ?? true
 
-            completion(.success((isPrivate: isPrivate, showMutualConnections: showMutualConnections, showFollowing: showFollowing, showAdmirers: showAdmirers)))
+            completion(.success((isPrivate: isPrivate, showMutuals: showMutuals, showFollowing: showFollowing, showFollowers: showFollowers)))
         }
     }
 
-    func updatePrivacySettings(userId: String, isPrivate: Bool? = nil, showMutualConnections: Bool? = nil, showFollowing: Bool? = nil, showAdmirers: Bool? = nil, completion: @escaping (Error?) -> Void) {
+    func updatePrivacySettings(userId: String, isPrivate: Bool? = nil, showMutuals: Bool? = nil, showFollowing: Bool? = nil, showFollowers: Bool? = nil, completion: @escaping (Error?) -> Void) {
         var updateData: [String: Any] = [:]
 
         if let isPrivate = isPrivate {
             updateData["isPrivate"] = isPrivate
         }
-        if let showMutualConnections = showMutualConnections {
-            updateData["showMutualConnections"] = showMutualConnections
+        if let showMutuals = showMutuals {
+            updateData["showMutuals"] = showMutuals
         }
         if let showFollowing = showFollowing {
             updateData["showFollowing"] = showFollowing
         }
-        if let showAdmirers = showAdmirers {
-            updateData["showAdmirers"] = showAdmirers
+        if let showFollowers = showFollowers {
+            updateData["showFollowers"] = showFollowers
         }
 
         guard !updateData.isEmpty else {
@@ -181,10 +181,10 @@ class PrivacyService {
     }
     
     // ✅ FUNCIÓN CORREGIDA: Ahora interpreta correctamente los toggles
-    func canViewUserConnections(viewerId: String, targetUserId: String, completion: @escaping (Result<(canViewMutualConnections: Bool, canViewFollowing: Bool, canViewAdmirers: Bool), Error>) -> Void) {
+    func canViewUserConnections(viewerId: String, targetUserId: String, completion: @escaping (Result<(canViewMutuals: Bool, canViewFollowing: Bool, canViewFollowers: Bool), Error>) -> Void) {
         // Si es el mismo usuario, siempre puede ver sus propias listas
         guard viewerId != targetUserId else {
-            completion(.success((canViewMutualConnections: true, canViewFollowing: true, canViewAdmirers: true)))
+            completion(.success((canViewMutuals: true, canViewFollowing: true, canViewFollowers: true)))
             return
         }
         
@@ -195,19 +195,19 @@ class PrivacyService {
                 // Verificar si está bloqueado (en ambas direcciones)
                 self?.checkMutualBlocks(viewerId: viewerId, targetUserId: targetUserId) { isBlocked in
                     if isBlocked {
-                        completion(.success((canViewMutualConnections: false, canViewFollowing: false, canViewAdmirers: false)))
+                        completion(.success((canViewMutuals: false, canViewFollowing: false, canViewFollowers: false)))
                         return
                     }
                     
-                    // Las mutuas solo son visibles si también se pueden ver las dos listas base.
-                    let canViewMutuals = settings.showMutualConnections && settings.showFollowing && settings.showAdmirers
+                    // Cada lista social es independiente: ocultar seguidores o siguiendo no afecta a mutuas.
+                    let canViewMutuals = settings.showMutuals
                     
                     // Si el perfil es público
                     if !settings.isPrivate {
                         completion(.success((
-                            canViewMutualConnections: canViewMutuals,
+                            canViewMutuals: canViewMutuals,
                             canViewFollowing: settings.showFollowing,
-                            canViewAdmirers: settings.showAdmirers
+                            canViewFollowers: settings.showFollowers
                         )))
                         return
                     }
@@ -216,12 +216,12 @@ class PrivacyService {
                     self?.firestoreService.isFollowing(currentUserId: viewerId, targetUserId: targetUserId) { isFollowing in
                         if isFollowing {
                             completion(.success((
-                                canViewMutualConnections: canViewMutuals,
+                                canViewMutuals: canViewMutuals,
                                 canViewFollowing: settings.showFollowing,
-                                canViewAdmirers: settings.showAdmirers
+                                canViewFollowers: settings.showFollowers
                             )))
                         } else {
-                            completion(.success((canViewMutualConnections: false, canViewFollowing: false, canViewAdmirers: false)))
+                            completion(.success((canViewMutuals: false, canViewFollowing: false, canViewFollowers: false)))
                         }
                     }
                 }
@@ -238,17 +238,17 @@ class PrivacyService {
             switch result {
             case .success(let permissions):
                 let visibleTypes = VisibleConnectionTypes(
-                    canViewAdmirers: permissions.canViewAdmirers,
-                    canViewConnections: permissions.canViewFollowing,
-                    canViewMutualConnections: permissions.canViewMutualConnections
+                    canViewFollowers: permissions.canViewFollowers,
+                    canViewFollowing: permissions.canViewFollowing,
+                    canViewMutuals: permissions.canViewMutuals
                 )
                 completion(visibleTypes)
             case .failure:
                 // En caso de error, denegar todo acceso
                 completion(VisibleConnectionTypes(
-                    canViewAdmirers: false,
-                    canViewConnections: false,
-                    canViewMutualConnections: false
+                    canViewFollowers: false,
+                    canViewFollowing: false,
+                    canViewMutuals: false
                 ))
             }
         }
@@ -559,9 +559,9 @@ class PrivacyService {
 }
 
 struct VisibleConnectionTypes {
-    let canViewAdmirers: Bool      // Puede ver los seguidores del target
-    let canViewConnections: Bool   // Puede ver a quién sigue el target
-    let canViewMutualConnections: Bool // Puede ver conexiones mutuas
+    let canViewFollowers: Bool     // Puede ver los seguidores del target
+    let canViewFollowing: Bool     // Puede ver a quién sigue el target
+    let canViewMutuals: Bool       // Puede ver conexiones mutuas
 }
 
 // MARK: - Follow Button States
@@ -756,7 +756,7 @@ extension PrivacyService {
             switch storyVisibility {
             case "everyone":
                 self.canViewUserContent(viewerId: viewerId, targetUserId: authorId, completion: completion)
-            case "connections":
+            case "mutuals":
                 self.checkMutualConnection(user1: viewerId, user2: authorId, completion: completion)
             case "bestFriends":
                 self.checkIfBestFriend(userId: authorId, friendId: viewerId, completion: completion)
@@ -797,9 +797,9 @@ extension PrivacyService {
             // Todos los seguidores si el perfil es público, o conexiones mutuas si es privado
             fetchPotentialViewers(for: moment.authorId, completion: completion)
             
-        case .connections:
+        case .mutuals:
             // Solo conexiones mutuas
-            fetchMutualConnections(for: moment.authorId, completion: completion)
+            fetchMutuals(for: moment.authorId, completion: completion)
             
         case .bestFriends:
             // Solo mejores amigos
@@ -919,8 +919,8 @@ extension PrivacyService {
         }
     }
     
-    private func fetchMutualConnections(for userId: String, completion: @escaping ([String]) -> Void) {
-        firestoreService.fetchMutualConnections(userId: userId) { result in
+    private func fetchMutuals(for userId: String, completion: @escaping ([String]) -> Void) {
+        firestoreService.fetchMutuals(userId: userId) { result in
             switch result {
             case .success(let users):
                 completion(users.map { $0.id })
@@ -1144,7 +1144,7 @@ extension PrivacyService {
                             completion(canView)
                         }
 
-                    case "connections":
+                    case "mutuals":
                         self.checkMutualConnection(user1: viewerId, user2: moment.authorId, completion: completion)
 
                     case "bestFriends":
@@ -1222,7 +1222,7 @@ extension PrivacyService {
                     case "everyone":
                         self.canViewUserContentAfterBlockCheck(viewerId: viewerId, targetUserId: story.authorId, completion: completion)
 
-                    case "connections":
+                    case "mutuals":
                         self.checkMutualConnection(user1: viewerId, user2: story.authorId, completion: completion)
 
                     case "bestFriends":
@@ -1349,7 +1349,7 @@ extension PrivacyService {
                         // Para contenido público, solo verificar si el perfil del autor es accesible
                         self.canViewUserContentForExplore(viewerId: viewerId, targetUserId: moment.authorId, completion: completion)
 
-                    case "connections":
+                    case "mutuals":
                         // Solo mostrar si hay conexión mutua
                         self.checkMutualConnection(user1: viewerId, user2: moment.authorId, completion: completion)
 

@@ -99,7 +99,7 @@ struct StorySegmentedRing: View {
             return .bestFriends
         }
         
-        if key == "connections" || key == "connection" || key == "mutuals" || key == "mutual" {
+        if key == "mutuals" || key == "mutual" {
             return .mutuals
         }
         
