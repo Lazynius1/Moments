@@ -2050,7 +2050,7 @@ class ChatService: ObservableObject {
             // ✅ Verificar si la conversación está eliminada y restaurarla para quien corresponda.
             // Si el remitente envía un mensaje, la conversación debe reaparecer también para él.
             let deletedFor = doc.data()?["deletedFor"] as? [String] ?? []
-            let participantsToRestore = deletedFor
+            let shouldRestoreSender = deletedFor.contains(senderId)
             
             var updateData: [String: Any] = [
                 "lastMessage": lastMessage,
@@ -2058,9 +2058,9 @@ class ChatService: ObservableObject {
                 "readStatus": readStatus
             ]
             
-            // ✅ Restaurar conversación para participantes que la habían eliminado (estilo nativo)
-            if !participantsToRestore.isEmpty {
-                updateData["deletedFor"] = FieldValue.arrayRemove(participantsToRestore)
+            // ✅ Restaurar sólo al remitente para respetar las reglas de deletedFor por usuario.
+            if shouldRestoreSender {
+                updateData["deletedFor"] = FieldValue.arrayRemove([senderId])
             }
             
             Firestore.firestore().collection("conversations").document(conversationId).updateData(updateData) { error in
