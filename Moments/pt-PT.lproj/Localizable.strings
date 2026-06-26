@@ -992,6 +992,16 @@
 "userListView.search.placeholder" = "Pesquisar utilizadores...";
 "userListView.empty.title" = "Sem %@";
 "userListView.empty.description" = "Quando tiveres %@, vão aparecer aqui";
+"userListView.empty.hidden.followers.title" = "Seguidores ocultos";
+"userListView.empty.hidden.followers.description" = "Este utilizador escolheu ocultar a lista de seguidores.";
+"userListView.empty.hidden.following.title" = "A seguir oculto";
+"userListView.empty.hidden.following.description" = "Este utilizador escolheu ocultar quem segue.";
+"userListView.empty.visitor.followers.title" = "Sem seguidores";
+"userListView.empty.visitor.followers.description" = "Este utilizador ainda não tem seguidores.";
+"userListView.empty.visitor.following.title" = "Não segue ninguém";
+"userListView.empty.visitor.following.description" = "Este utilizador ainda não segue ninguém.";
+"userListView.empty.visitor.mutuals.title" = "Sem ligações em comum";
+"userListView.empty.visitor.mutuals.description" = "Ainda não tens ligações em comum com este utilizador.";
 "userListView.noResults.title" = "Nenhum resultado encontrado";
 "userListView.noResults.description" = "Experimenta termos de pesquisa diferentes";
 "userListView.closeButton" = "Fechar";

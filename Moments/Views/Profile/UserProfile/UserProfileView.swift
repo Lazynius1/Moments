@@ -400,6 +400,7 @@ struct UserProfileView: View {
                 suggestedUsers: viewModel.suggestedConnectionsForViewer,
                 viewerInterests: viewModel.viewerInterests,
                 visitTimestamps: [:],
+                connectionVisibility: viewModel.visibleConnectionTypes,
                 listViewModel: viewModel,
                 profileZoomNamespace: profileZoomNamespace
             )

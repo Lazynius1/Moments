@@ -36,6 +36,8 @@ struct UsersTabContent<ViewModel: UserListViewModel>: View {
     let rowAction: UserListRowAction
     var activeTab: SocialConnectionTab = .followers
     var includesVisits: Bool = false
+    var isOwnProfile: Bool = true
+    var isListHiddenFromViewer: Bool = false
     let viewModel: ViewModel
     let onUserTap: ((AppUser) -> Void)?
     var profileZoomNamespace: Namespace.ID? = nil
@@ -79,29 +81,21 @@ struct UsersTabContent<ViewModel: UserListViewModel>: View {
     }
 
     private var emptyStateView: some View {
-        VStack(spacing: 16) {
-            ZStack {
-                Circle()
-                    .fill(Color.gray.opacity(0.1))
-                    .frame(width: 80, height: 80)
+        let content = emptyStateContent()
+        let iconColor = colorScheme == .dark ? Color.white.opacity(0.88) : Color.black.opacity(0.88)
 
-                Image(systemName: emptyStateIcon())
-                    .font(.system(size: 32, weight: .medium))
-                    .foregroundStyle(
-                        LinearGradient(
-                            colors: [Color.gray.opacity(0.6), Color(hex: "007AFF").opacity(0.4)],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
-            }
+        return VStack(spacing: 20) {
+            Image(systemName: content.icon)
+                .font(.system(size: 52, weight: .light))
+                .foregroundStyle(iconColor)
+                .symbolRenderingMode(.monochrome)
 
             VStack(spacing: 8) {
-                Text(String(format: NSLocalizedString("userListView.empty.title", comment: "Empty state title"), title.lowercased()))
+                Text(content.title)
                     .font(.system(size: 18, weight: .semibold))
                     .foregroundColor(colorScheme == .dark ? .white : .black)
 
-                Text(String(format: NSLocalizedString("userListView.empty.description", comment: "Empty state description"), title.lowercased()))
+                Text(content.description)
                     .font(.system(size: 14, weight: .regular))
                     .foregroundColor(colorScheme == .dark ? .white.opacity(0.7) : .black.opacity(0.7))
                     .multilineTextAlignment(.center)
@@ -110,6 +104,64 @@ struct UsersTabContent<ViewModel: UserListViewModel>: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .padding(.horizontal, 40)
         .padding(.vertical, 60)
+    }
+
+    private struct UserListEmptyStateContent {
+        let title: String
+        let description: String
+        let icon: String
+    }
+
+    private func emptyStateContent() -> UserListEmptyStateContent {
+        if isListHiddenFromViewer {
+            switch activeTab {
+            case .followers:
+                return UserListEmptyStateContent(
+                    title: NSLocalizedString("userListView.empty.hidden.followers.title", comment: "Hidden followers title"),
+                    description: NSLocalizedString("userListView.empty.hidden.followers.description", comment: "Hidden followers description"),
+                    icon: "eye.slash"
+                )
+            case .following:
+                return UserListEmptyStateContent(
+                    title: NSLocalizedString("userListView.empty.hidden.following.title", comment: "Hidden following title"),
+                    description: NSLocalizedString("userListView.empty.hidden.following.description", comment: "Hidden following description"),
+                    icon: "eye.slash"
+                )
+            default:
+                break
+            }
+        }
+
+        if !isOwnProfile {
+            switch activeTab {
+            case .followers:
+                return UserListEmptyStateContent(
+                    title: NSLocalizedString("userListView.empty.visitor.followers.title", comment: "Visitor empty followers title"),
+                    description: NSLocalizedString("userListView.empty.visitor.followers.description", comment: "Visitor empty followers description"),
+                    icon: "person.2"
+                )
+            case .following:
+                return UserListEmptyStateContent(
+                    title: NSLocalizedString("userListView.empty.visitor.following.title", comment: "Visitor empty following title"),
+                    description: NSLocalizedString("userListView.empty.visitor.following.description", comment: "Visitor empty following description"),
+                    icon: "person.2"
+                )
+            case .mutuals:
+                return UserListEmptyStateContent(
+                    title: NSLocalizedString("userListView.empty.visitor.mutuals.title", comment: "Visitor empty mutuals title"),
+                    description: NSLocalizedString("userListView.empty.visitor.mutuals.description", comment: "Visitor empty mutuals description"),
+                    icon: "arrow.triangle.2.circlepath"
+                )
+            default:
+                break
+            }
+        }
+
+        return UserListEmptyStateContent(
+            title: String(format: NSLocalizedString("userListView.empty.title", comment: "Empty state title"), title.lowercased()),
+            description: String(format: NSLocalizedString("userListView.empty.description", comment: "Empty state description"), title.lowercased()),
+            icon: emptyStateIcon(for: activeTab)
+        )
     }
 
     private var userListView: some View {
@@ -144,13 +196,12 @@ struct UsersTabContent<ViewModel: UserListViewModel>: View {
         }
     }
 
-    private func emptyStateIcon() -> String {
-        switch title.lowercased() {
-        case "visitas": return "eye.slash"
-        case "admiradores", "seguidores": return "heart.slash"
-        case "conexiones", "siguiendo": return "person.2.slash"
-        case "conexiones mutuas", "mutuas": return "arrow.triangle.2.circlepath"
-        default: return "person.slash"
+    private func emptyStateIcon(for tab: SocialConnectionTab) -> String {
+        switch tab {
+        case .visits: return "eye.slash"
+        case .followers, .following: return "person.2"
+        case .mutuals: return "arrow.triangle.2.circlepath"
+        case .inCommon: return "person.2"
         }
     }
 }
@@ -243,22 +294,13 @@ struct SocialConnectionsNoResultsView: View {
     let colorScheme: ColorScheme
 
     var body: some View {
-        VStack(spacing: 16) {
-            ZStack {
-                Circle()
-                    .fill(Color.gray.opacity(0.1))
-                    .frame(width: 80, height: 80)
+        let iconColor = colorScheme == .dark ? Color.white.opacity(0.88) : Color.black.opacity(0.88)
 
-                Image(systemName: "magnifyingglass")
-                    .font(.system(size: 32, weight: .medium))
-                    .foregroundStyle(
-                        LinearGradient(
-                            colors: [Color.gray.opacity(0.6), Color(hex: "007AFF").opacity(0.4)],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
-            }
+        VStack(spacing: 20) {
+            Image(systemName: "magnifyingglass")
+                .font(.system(size: 52, weight: .light))
+                .foregroundStyle(iconColor)
+                .symbolRenderingMode(.monochrome)
 
             VStack(spacing: 8) {
                 Text(NSLocalizedString("userListView.noResults.title", comment: "No results title"))

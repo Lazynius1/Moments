@@ -180,6 +180,16 @@
 "userListView.search.placeholder" = "Cercar usuaris...";
 "userListView.empty.title" = "No hi ha %@";
 "userListView.empty.description" = "Quan tenguis %@, apareixeran aquí";
+"userListView.empty.hidden.followers.title" = "Seguidors ocults";
+"userListView.empty.hidden.followers.description" = "Aquest usuari ha triat ocultar la seva llista de seguidors.";
+"userListView.empty.hidden.following.title" = "Seguint ocult";
+"userListView.empty.hidden.following.description" = "Aquest usuari ha triat ocultar qui segueix.";
+"userListView.empty.visitor.followers.title" = "Sense seguidors";
+"userListView.empty.visitor.followers.description" = "Aquest usuari encara no té seguidors.";
+"userListView.empty.visitor.following.title" = "No segueix ningú";
+"userListView.empty.visitor.following.description" = "Aquest usuari encara no segueix ningú.";
+"userListView.empty.visitor.mutuals.title" = "Sense connexions en comú";
+"userListView.empty.visitor.mutuals.description" = "Encara no tens connexions en comú amb aquest usuari.";
 "userListView.noResults.title" = "No s'han trobat resultats";
 "userListView.noResults.description" = "Intenta amb altres termes de cerca";
 "userListView.closeButton" = "Tancar";

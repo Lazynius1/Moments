@@ -186,6 +186,16 @@
 "userListView.search.placeholder" = "Search users...";
 "userListView.empty.title" = "No %@";
 "userListView.empty.description" = "When you have %@, they will appear here";
+"userListView.empty.hidden.followers.title" = "Followers hidden";
+"userListView.empty.hidden.followers.description" = "This user chose to hide their followers list.";
+"userListView.empty.hidden.following.title" = "Following hidden";
+"userListView.empty.hidden.following.description" = "This user chose to hide who they follow.";
+"userListView.empty.visitor.followers.title" = "No followers";
+"userListView.empty.visitor.followers.description" = "This user doesn't have any followers yet.";
+"userListView.empty.visitor.following.title" = "Not following anyone";
+"userListView.empty.visitor.following.description" = "This user isn't following anyone yet.";
+"userListView.empty.visitor.mutuals.title" = "No mutual connections";
+"userListView.empty.visitor.mutuals.description" = "You don't have any mutual connections with this user yet.";
 "userListView.noResults.title" = "No results found";
 "userListView.noResults.description" = "Try different search terms";
 "userListView.closeButton" = "Close";

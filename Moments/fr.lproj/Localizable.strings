@@ -182,6 +182,16 @@
 "userListView.search.placeholder" = "Rechercher des utilisateurs...";
 "userListView.empty.title" = "Aucun %@";
 "userListView.empty.description" = "Quand vous aurez des %@, ils apparaîtront ici";
+"userListView.empty.hidden.followers.title" = "Abonnés masqués";
+"userListView.empty.hidden.followers.description" = "Cet utilisateur a choisi de masquer sa liste d'abonnés.";
+"userListView.empty.hidden.following.title" = "Abonnements masqués";
+"userListView.empty.hidden.following.description" = "Cet utilisateur a choisi de masquer ses abonnements.";
+"userListView.empty.visitor.followers.title" = "Aucun abonné";
+"userListView.empty.visitor.followers.description" = "Cet utilisateur n'a pas encore d'abonnés.";
+"userListView.empty.visitor.following.title" = "Ne suit personne";
+"userListView.empty.visitor.following.description" = "Cet utilisateur ne suit encore personne.";
+"userListView.empty.visitor.mutuals.title" = "Aucune connexion commune";
+"userListView.empty.visitor.mutuals.description" = "Vous n'avez pas encore de connexions communes avec cet utilisateur.";
 "userListView.noResults.title" = "Aucun résultat trouvé";
 "userListView.noResults.description" = "Essayez d’autres termes de recherche";
 "userListView.closeButton" = "Fermer";

@@ -31,15 +31,14 @@ enum SocialConnectionTab: String, CaseIterable, Identifiable, Hashable {
         [.visits, .followers, .following, .mutuals]
     }
 
-    static func tabs(for visibility: VisibleConnectionTypes, includesVisits: Bool) -> [SocialConnectionTab] {
+    static func tabs(for _: VisibleConnectionTypes, includesVisits: Bool) -> [SocialConnectionTab] {
         var tabs: [SocialConnectionTab] = []
         if includesVisits { tabs.append(.visits) }
-        if !includesVisits,
-           visibility.canViewFollowers || visibility.canViewFollowing {
+        if !includesVisits {
             tabs.append(.inCommon)
+            tabs.append(.followers)
+            tabs.append(.following)
         }
-        if visibility.canViewFollowers { tabs.append(.followers) }
-        if visibility.canViewFollowing { tabs.append(.following) }
         return tabs
     }
 }
@@ -91,6 +90,7 @@ struct SocialConnectionsScreen<VM: UserListViewModel & ObservableObject>: View {
     let suggestedUsers: [AppUser]
     let viewerInterests: [String]
     let visitTimestamps: [String: [Date]]
+    var connectionVisibility: VisibleConnectionTypes?
     @ObservedObject var listViewModel: VM
     var profileZoomNamespace: Namespace.ID?
 
@@ -160,12 +160,17 @@ struct SocialConnectionsScreen<VM: UserListViewModel & ObservableObject>: View {
             return false
         }
 
+        if !canViewList(for: selectedTab) {
+            return false
+        }
+
         return selectedTab != .visits || includesVisits
     }
 
     private var shouldShowSortRow: Bool {
         guard let selectedTab else { return true }
-        return selectedTab != .inCommon
+        if selectedTab == .inCommon { return false }
+        return canViewList(for: selectedTab)
     }
 
     var body: some View {
@@ -366,6 +371,8 @@ struct SocialConnectionsScreen<VM: UserListViewModel & ObservableObject>: View {
                 rowAction: defaultRowAction(for: tab),
                 activeTab: tab,
                 includesVisits: includesVisits,
+                isOwnProfile: isOwnProfile,
+                isListHiddenFromViewer: !canViewList(for: tab),
                 viewModel: listViewModel,
                 onUserTap: { user in
                     selectedProfileTarget = SocialProfileNavigationTarget(id: user.id)
@@ -412,15 +419,27 @@ struct SocialConnectionsScreen<VM: UserListViewModel & ObservableObject>: View {
         case .inCommon:
             return inCommonUsers.count
         case .followers:
+            if let visibility = connectionVisibility, !visibility.canViewFollowers { return 0 }
             return followers.count
         case .following:
+            if let visibility = connectionVisibility, !visibility.canViewFollowing { return 0 }
             return following.count
         case .mutuals:
             return mutuals.count
         }
     }
 
+    private func canViewList(for tab: SocialConnectionTab) -> Bool {
+        guard let visibility = connectionVisibility else { return true }
+        switch tab {
+        case .followers: return visibility.canViewFollowers
+        case .following: return visibility.canViewFollowing
+        default: return true
+        }
+    }
+
     private func users(for tab: SocialConnectionTab) -> [AppUser] {
+        guard canViewList(for: tab) else { return [] }
         switch tab {
         case .visits: return []
         case .inCommon: return inCommonUsers

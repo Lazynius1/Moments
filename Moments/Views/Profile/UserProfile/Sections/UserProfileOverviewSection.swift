@@ -114,20 +114,31 @@ struct UserModernStatsSection: View {
                 postsCount,
                 .posts
             ))
-        }
-        if viewModel.visibleConnectionTypes.canViewFollowers {
             stats.append((
                 NSLocalizedString("profile.ui.followers", comment: "Followers"),
-                viewModel.followers.count,
+                viewModel.visibleConnectionTypes.canViewFollowers ? viewModel.followers.count : 0,
                 .social(.followers)
             ))
-        }
-        if viewModel.visibleConnectionTypes.canViewFollowing {
             stats.append((
                 NSLocalizedString("profile.ui.following", comment: "Following"),
-                viewModel.following.count,
+                viewModel.visibleConnectionTypes.canViewFollowing ? viewModel.following.count : 0,
                 .social(.following)
             ))
+        } else {
+            if viewModel.visibleConnectionTypes.canViewFollowers {
+                stats.append((
+                    NSLocalizedString("profile.ui.followers", comment: "Followers"),
+                    viewModel.followers.count,
+                    .social(.followers)
+                ))
+            }
+            if viewModel.visibleConnectionTypes.canViewFollowing {
+                stats.append((
+                    NSLocalizedString("profile.ui.following", comment: "Following"),
+                    viewModel.following.count,
+                    .social(.following)
+                ))
+            }
         }
 
         return stats
