@@ -243,64 +243,64 @@ enum AppealError: LocalizedError, Equatable {
     var errorDescription: String? {
         switch self {
         case .invalidUserId:
-            return "ID de usuario inválido"
+            return NSLocalizedString("appeal.errors.invalidUserId", comment: "")
         case .emptyMessage:
-            return "El mensaje no puede estar vacío"
+            return NSLocalizedString("appeal.errors.emptyMessage", comment: "")
         case .messageTooShort(let current, let required):
-            return "El mensaje debe tener al menos \(required) caracteres. Actualmente tiene \(current)."
+            return String(format: NSLocalizedString("appeal.errors.messageTooShort", comment: ""), current, required)
         case .messageTooLong(let current):
-            return "El mensaje es demasiado largo (\(current) caracteres). Máximo 2000 caracteres."
+            return String(format: NSLocalizedString("appeal.errors.messageTooLong", comment: ""), current)
         case .invalidEmail:
-            return "Debe proporcionar un email válido"
+            return NSLocalizedString("appeal.errors.invalidEmail", comment: "")
         case .invalidURL:
-            return "Error de configuración de la aplicación"
+            return NSLocalizedString("appeal.errors.invalidURL", comment: "")
         case .encodingError:
-            return "Error al procesar los datos"
+            return NSLocalizedString("appeal.errors.encodingError", comment: "")
         case .decodingError:
-            return "Error al procesar la respuesta del servidor"
+            return NSLocalizedString("appeal.errors.decodingError", comment: "")
         case .invalidResponse:
-            return "Respuesta inválida del servidor"
+            return NSLocalizedString("appeal.errors.invalidResponse", comment: "")
         case .userNotFound:
-            return "Usuario no encontrado en el sistema"
+            return NSLocalizedString("appeal.errors.userNotFound", comment: "")
         case .userNotSuspended:
-            return "Tu cuenta no está suspendida actualmente"
+            return NSLocalizedString("appeal.errors.userNotSuspended", comment: "")
         case .appealAlreadyExists(let ticketNumber, let status):
-            return "Ya tienes una apelación \(status): \(ticketNumber)"
+            return String(format: NSLocalizedString("appeal.errors.appealAlreadyExists", comment: ""), status, ticketNumber)
         case .reviewAlreadyExists(let ticketNumber, let status):
-            return "Ya tienes una solicitud de revisión \(status): \(ticketNumber)"
+            return String(format: NSLocalizedString("appeal.errors.reviewAlreadyExists", comment: ""), status, ticketNumber)
         case .rateLimited:
-            return "Has alcanzado el límite de apelaciones. Inténtalo más tarde."
+            return NSLocalizedString("appeal.errors.rateLimited", comment: "")
         case .serverError:
-            return "Error interno del servidor. Inténtalo más tarde."
+            return NSLocalizedString("appeal.errors.serverError", comment: "")
         case .networkError(let message):
-            return "Error de conexión: \(message)"
+            return String(format: NSLocalizedString("appeal.errors.networkError", comment: ""), message)
         case .validationError(let message):
             return message
         case .httpError(let statusCode):
-            return "Error del servidor (código \(statusCode))"
+            return String(format: NSLocalizedString("appeal.errors.httpError", comment: ""), statusCode)
         }
     }
     
     var recoverySuggestion: String? {
         switch self {
         case .messageTooShort:
-            return "Agrega más detalles sobre por qué consideras que la suspensión es incorrecta."
+            return NSLocalizedString("appeal.recovery.messageTooShort", comment: "")
         case .messageTooLong:
-            return "Reduce el mensaje a máximo 2000 caracteres."
+            return NSLocalizedString("appeal.recovery.messageTooLong", comment: "")
         case .invalidEmail:
-            return "Verifica que tu email tenga un formato válido (ej: usuario@ejemplo.com)."
+            return NSLocalizedString("appeal.recovery.invalidEmail", comment: "")
         case .appealAlreadyExists:
-            return "Puedes verificar el estado de tu apelación existente en Configuración."
+            return NSLocalizedString("appeal.recovery.appealAlreadyExists", comment: "")
         case .reviewAlreadyExists:
-            return "Ya hemos recibido una solicitud para este contenido. Espera a que el equipo la revise."
+            return NSLocalizedString("appeal.recovery.reviewAlreadyExists", comment: "")
         case .rateLimited:
-            return "Espera un poco antes de intentar enviar otra apelación."
+            return NSLocalizedString("appeal.recovery.rateLimited", comment: "")
         case .networkError:
-            return "Verifica tu conexión a internet e inténtalo de nuevo."
+            return NSLocalizedString("appeal.recovery.networkError", comment: "")
         case .serverError:
-            return "El problema es temporal. Inténtalo en unos minutos."
+            return NSLocalizedString("appeal.recovery.serverError", comment: "")
         default:
-            return "Si el problema persiste, contacta a soporte técnico."
+            return NSLocalizedString("appeal.recovery.default", comment: "")
         }
     }
 }
@@ -317,7 +317,7 @@ struct AppealResult {
     init(from response: AppealResponse) {
         self.success = response.success
         self.ticketNumber = response.ticketNumber
-        self.message = response.message ?? "Apelación procesada"
+        self.message = response.message ?? NSLocalizedString("appeal.result.processed", comment: "")
         self.estimatedResponseTime = response.estimatedResponseTime
         self.priority = response.priority
         self.nextSteps = response.nextSteps ?? []
@@ -341,7 +341,7 @@ extension AppealService {
         }
 
         guard !contentId.isEmpty else {
-            throw AppealError.validationError("Contenido inválido")
+            throw AppealError.validationError(NSLocalizedString("appeal.errors.invalidContent", comment: ""))
         }
 
         let trimmedMessage = message.trimmingCharacters(in: .whitespacesAndNewlines)

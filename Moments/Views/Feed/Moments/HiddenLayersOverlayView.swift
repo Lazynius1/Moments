@@ -315,19 +315,21 @@ struct HiddenLayersOverlayView: View {
     private func unlockSummaryString(for date: Date) -> String {
         let seconds = date.timeIntervalSince(viewerNow)
         if seconds > 0, seconds < 24 * 60 * 60 {
-            let formatter = RelativeDateTimeFormatter()
-            formatter.unitsStyle = .short
-            return formatter.localizedString(for: date, relativeTo: viewerNow)
+            return MomentsFormat.relativeTime(
+                from: date,
+                style: .conversational(unitsStyle: .short),
+                relativeTo: viewerNow
+            )
         }
 
         if Calendar.current.isDateInToday(date) {
             return String(
                 format: NSLocalizedString("hiddenLayers.viewer.unlock.today", value: "hoy a las %@", comment: "Hidden layer unlock today"),
-                date.formatted(date: .omitted, time: .shortened)
+                MomentsFormat.smartDate(from: date, context: .timeOnly)
             )
         }
 
-        return date.formatted(date: .abbreviated, time: .shortened)
+        return MomentsFormat.smartDate(from: date, context: .mediumDateTime)
     }
 
     private var temporaryLockedLayer: MomentHiddenLayer? {

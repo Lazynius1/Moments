@@ -434,7 +434,7 @@ struct EchoViewerUI: View {
                         .font(.system(size: 14, weight: .semibold))
                         .foregroundStyle(topPrimaryTextColor)
                         .lineLimit(1)
-                    Text(echo.createdAt.formatted(date: .omitted, time: .shortened))
+                    Text(MomentsFormat.smartDate(from: echo.createdAt, context: .timeOnly))
                         .font(.system(size: 11, weight: .medium))
                         .foregroundStyle(topSecondaryTextColor)
                 }
@@ -515,9 +515,7 @@ struct EchoViewerUI: View {
 
     private func relativeTimeText(from date: Date?) -> String {
         guard let date else { return "" }
-        let formatter = RelativeDateTimeFormatter()
-        formatter.unitsStyle = .abbreviated
-        return formatter.localizedString(for: date, relativeTo: Date())
+        return MomentsFormat.relativeTime(from: date)
     }
     
     private func leaveEchoAction(userId: String) {

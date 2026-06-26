@@ -101,12 +101,11 @@ enum UploadStatus {
 
     var displayText: String {
         switch self {
-        case .initializing: return "Iniciando..."
-        case .uploading: return "Subiendo..."
-        case .processing: return "Procesando..."
-        case .completed: return "Publicado"
-        case .failed: return "Error al subir"
-        case .moderated: return "Publicado" // 🤫 Usuario no sabe que fue moderado
+        case .initializing: return NSLocalizedString("creator.upload.initializing", comment: "")
+        case .uploading: return NSLocalizedString("creator.upload.uploading", comment: "")
+        case .processing: return NSLocalizedString("creator.upload.processing", comment: "")
+        case .completed, .moderated: return NSLocalizedString("creator.upload.completed", comment: "")
+        case .failed: return NSLocalizedString("creator.upload.failed", comment: "")
         }
     }
 

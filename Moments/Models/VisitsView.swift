@@ -102,9 +102,7 @@ struct GroupedVisit: Identifiable {
             return String(format: NSLocalizedString("visits.time.daysAgo", comment: ""), days)
         }
 
-        let formatter = DateFormatter()
-        formatter.dateFormat = "dd/MM"
-        return formatter.string(from: lastVisit)
+        return MomentsFormat.smartDate(from: lastVisit, context: .numericDayMonth)
     }
 
     // Legacy copy kept for older surfaces.
@@ -132,9 +130,9 @@ enum VisitorFrequencyType: Int, CaseIterable {
     var message: String {
         switch self {
         case .normal: return ""
-        case .frequent: return "Visitante frecuente"
-        case .stalker: return "¡Alguien está interesado! 😏"
-        case .superStalker: return "¡Tu fan número 1! 🌟"
+        case .frequent: return NSLocalizedString("visits.badge.frequent", comment: "")
+        case .stalker: return NSLocalizedString("visits.badge.interested", comment: "")
+        case .superStalker: return NSLocalizedString("visits.badge.topFan", comment: "")
         }
     }
     

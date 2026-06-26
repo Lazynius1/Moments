@@ -168,7 +168,7 @@ struct StoryOwnStoryBottomBar: View {
                 reactionEmojisStack
                     .frame(height: 32)
 
-                Text(String(reactionCount))
+                Text(MomentsFormat.count(reactionCount, style: .socialMetric))
                     .font(.system(size: legacyPoppinsSize(12), weight: .medium))
                     .foregroundColor(chromeColors.messageTextColor)
                     .shadow(color: labelShadowColor, radius: 4, x: 0, y: 1)

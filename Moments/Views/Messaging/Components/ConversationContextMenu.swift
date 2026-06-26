@@ -256,12 +256,12 @@ private struct ConversationContextMenuRow: View {
         MomentRowButton(action: action) {
             HStack(spacing: 12) {
                 Image(systemName: icon)
-                    .font(.system(size: 15, weight: .semibold))
+                    .font(.system(size: 15, weight: .medium))
                     .foregroundColor(textColor)
                     .frame(width: 18, alignment: .center)
 
                 Text(title)
-                    .font(.system(size: legacyPoppinsSize(14.5), weight: .semibold))
+                    .font(.system(size: legacyPoppinsSize(14.5), weight: .medium))
                     .foregroundColor(textColor)
                     .fixedSize(horizontal: false, vertical: true)
 

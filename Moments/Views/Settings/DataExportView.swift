@@ -397,7 +397,7 @@ struct CurrentRequestSection: View {
                         .font(.system(size: legacyPoppinsSize(14)))
                         .foregroundColor(.gray)
                     
-                    Text(request.requestDate.formatted(date: .abbreviated, time: .shortened))
+                    Text(MomentsFormat.smartDate(from: request.requestDate, context: .mediumDateTime))
                         .font(.system(size: legacyPoppinsSize(14), weight: .medium))
                         .foregroundColor(colorScheme == .dark ? .white : .black)
                 }
@@ -408,7 +408,7 @@ struct CurrentRequestSection: View {
                             .font(.system(size: legacyPoppinsSize(14)))
                             .foregroundColor(.gray)
                         
-                        Text(completionDate.formatted(date: .abbreviated, time: .shortened))
+                        Text(MomentsFormat.smartDate(from: completionDate, context: .mediumDateTime))
                             .font(.system(size: legacyPoppinsSize(14), weight: .medium))
                             .foregroundColor(.blue)
                     }

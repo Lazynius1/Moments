@@ -463,41 +463,6 @@ const onMessageAdded = onDocumentCreated('conversations/{conversationId}/message
         return null;
       }
 
-      let notificationTitle = senderData.username || 'Nuevo mensaje';
-      let notificationBody = '';
-
-      switch (message.type) {
-        case 'text':
-          notificationBody = 'Te envió un mensaje';
-          break;
-        case 'image':
-          notificationBody = 'Te envió una foto 📷';
-          break;
-        case 'video':
-          notificationBody = 'Te envió un video 🎥';
-          break;
-        case 'audio':
-          notificationBody = 'Te envió un audio 🎵';
-          break;
-        case 'viewOnceImage':
-          notificationBody = 'Te envió una foto que se ve una vez 📷✨';
-          break;
-        case 'viewOnceVideo':
-          notificationBody = 'Te envió un video que se ve una vez 🎥✨';
-          break;
-        case 'location':
-          notificationBody = 'Te envió su ubicación 📍';
-          break;
-        case 'file':
-          notificationBody = 'Te envió un archivo 📎';
-          break;
-        case 'gif':
-          notificationBody = 'Te envió un GIF 🎭';
-          break;
-        default:
-          notificationBody = 'Te envió un mensaje';
-      }
-
       const cleanImageUrl = senderData.profileImagePath
         ? senderData.profileImagePath.replace(':443', '')
         : null;

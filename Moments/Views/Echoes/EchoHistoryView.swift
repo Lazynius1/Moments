@@ -277,9 +277,10 @@ struct EchoHistoryCard: View {
         if echo.expiresAt <= Date() {
             return NSLocalizedString("echo.status.expired", comment: "")
         }
-        let formatter = RelativeDateTimeFormatter()
-        formatter.unitsStyle = .short
-        return formatter.localizedString(for: echo.expiresAt, relativeTo: Date())
+        return MomentsFormat.relativeTime(
+            from: echo.expiresAt,
+            style: .conversational(unitsStyle: .short)
+        )
     }
     
     var body: some View {

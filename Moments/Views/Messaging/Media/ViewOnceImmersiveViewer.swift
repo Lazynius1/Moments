@@ -36,9 +36,7 @@ struct ViewOnceImmersiveViewer: View {
     }
 
     private var relativeTime: String {
-        let formatter = RelativeDateTimeFormatter()
-        formatter.unitsStyle = .full
-        return formatter.localizedString(for: message.timestamp, relativeTo: Date())
+        MomentsFormat.relativeTime(from: message.timestamp, style: .conversational(unitsStyle: .full))
     }
     
     private let timer = Timer.publish(every: 0.1, on: .main, in: .common).autoconnect()

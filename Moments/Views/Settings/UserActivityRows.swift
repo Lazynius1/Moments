@@ -581,9 +581,10 @@ struct ActivityEventRow: View {
             return NSLocalizedString("echo.status.expired", comment: "")
         }
 
-        let formatter = RelativeDateTimeFormatter()
-        formatter.unitsStyle = .short
-        return formatter.localizedString(for: expiresAt, relativeTo: Date())
+        return MomentsFormat.relativeTime(
+            from: expiresAt,
+            style: .conversational(unitsStyle: .short)
+        )
     }
 
     private var hasContext: Bool {

@@ -444,28 +444,23 @@ class LocationUtilities: NSObject, ObservableObject, CLLocationManagerDelegate {
     }
 
     static func formatDistance(_ distanceInMeters: Double) -> String {
-        if distanceInMeters < 1000 {
-            return String(format: "%.0f m", distanceInMeters)
-        } else {
-            let kilometers = distanceInMeters / 1000
-            return String(format: "%.1f km", kilometers)
-        }
+        MomentsFormat.distance(distanceInMeters)
     }
 
     static func getLocationPermissionStatus() -> String {
         switch CLLocationManager().authorizationStatus {
         case .notDetermined:
-            return "No determinado"
+            return NSLocalizedString("maps.permission.notDetermined", comment: "")
         case .restricted:
-            return "Restringido"
+            return NSLocalizedString("maps.permission.restricted", comment: "")
         case .denied:
-            return "Denegado"
+            return NSLocalizedString("maps.permission.denied", comment: "")
         case .authorizedAlways:
-            return "Autorizado siempre"
+            return NSLocalizedString("maps.permission.authorizedAlways", comment: "")
         case .authorizedWhenInUse:
-            return "Autorizado en uso"
+            return NSLocalizedString("maps.permission.authorizedWhenInUse", comment: "")
         @unknown default:
-            return "Desconocido"
+            return NSLocalizedString("maps.permission.unknown", comment: "")
         }
     }
 }

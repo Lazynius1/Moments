@@ -708,10 +708,7 @@ class ConversationSettingsViewModel: ObservableObject {
         }
 
         // Formatear fecha de creación
-        let formatter = DateFormatter()
-        formatter.dateStyle = .medium
-        formatter.timeStyle = .none
-        conversationCreatedDate = formatter.string(from: conversation.timestamp)
+        conversationCreatedDate = MomentsFormat.smartDate(from: conversation.timestamp, context: .mediumDate)
     }
 
     private func processMessages(_ messages: [EnhancedMessage]) {
@@ -1110,9 +1107,7 @@ private struct StarredMessageRow: View {
     }
 
     private var relativeDate: String {
-        let formatter = RelativeDateTimeFormatter()
-        formatter.unitsStyle = .abbreviated
-        return formatter.localizedString(for: message.timestamp, relativeTo: Date())
+        MomentsFormat.relativeTime(from: message.timestamp)
     }
 
     var body: some View {
@@ -1390,9 +1385,7 @@ struct FullScreenMediaView: View {
     }
 
     private var relativeTime: String {
-        let formatter = RelativeDateTimeFormatter()
-        formatter.unitsStyle = .full
-        return formatter.localizedString(for: currentMedia.timestamp, relativeTo: Date())
+        MomentsFormat.relativeTime(from: currentMedia.timestamp, style: .conversational(unitsStyle: .full))
     }
 
     private var isEphemeralMedia: Bool {

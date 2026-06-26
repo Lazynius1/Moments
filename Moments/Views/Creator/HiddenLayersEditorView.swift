@@ -1455,18 +1455,18 @@ struct HiddenLayersEditorView: View {
         if Calendar.current.isDateInToday(date) {
             return String(
                 format: NSLocalizedString("hiddenLayers.unlock.todayTime", value: "Hoy %1$@", comment: "Hidden layer unlock today with time"),
-                date.formatted(date: .omitted, time: .shortened)
+                MomentsFormat.smartDate(from: date, context: .timeOnly)
             )
         }
 
         if Calendar.current.isDateInTomorrow(date) {
             return String(
                 format: NSLocalizedString("hiddenLayers.unlock.tomorrowTime", value: "Mañana %1$@", comment: "Hidden layer unlock tomorrow with time"),
-                date.formatted(date: .omitted, time: .shortened)
+                MomentsFormat.smartDate(from: date, context: .timeOnly)
             )
         }
 
-        return date.formatted(date: .abbreviated, time: .shortened)
+        return MomentsFormat.smartDate(from: date, context: .mediumDateTime)
     }
 
     private func defaultScheduledDate() -> Date {

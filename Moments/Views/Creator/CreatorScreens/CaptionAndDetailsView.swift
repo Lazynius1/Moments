@@ -346,7 +346,7 @@ struct CaptionAndDetailsView: View {
 
                                         Spacer()
 
-                                        Text(scheduledDate.formatted())
+                                        Text(MomentsFormat.smartDate(from: scheduledDate, context: .mediumDateTime))
                                             .font(.subheadline)
                                             .foregroundColor(.white.opacity(0.7))
                                     }

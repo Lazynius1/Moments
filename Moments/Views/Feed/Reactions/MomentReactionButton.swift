@@ -128,7 +128,7 @@ struct EpicReactionButton: View {
                 // ✨ Contador como Badge Interactivo (SIN BORDE)
                 if showCount && reactionCount > 0 {
                     Button(action: showReactionsList) {
-                        Text("\(reactionCount)")
+                        Text(MomentsFormat.count(reactionCount, style: .socialMetric))
                             .font(.system(size: 10, weight: .bold))
                             .foregroundColor(.white)
                             .padding(.horizontal, 6)
@@ -632,7 +632,10 @@ struct ReactionsListSheet: View {
                 .font(.system(size: legacyPoppinsSize(22), weight: .bold))
                 .foregroundColor(colorScheme == .dark ? .white : .black)
             
-            Text("\(filteredReactionGroups.count) \(filteredReactionGroups.count == 1 ? "tipo" : "tipos") de reacción")
+            Text(String(format: NSLocalizedString(
+                filteredReactionGroups.count == 1 ? "reactions.typeCount.single" : "reactions.typeCount",
+                comment: "Reaction type count"
+            ), filteredReactionGroups.count))
                 .font(.system(size: legacyPoppinsSize(13)))
                 .foregroundColor(colorScheme == .dark ? .white.opacity(0.7) : .black.opacity(0.7))
         }
@@ -650,7 +653,7 @@ struct ReactionsListSheet: View {
                 .scaleEffect(1.2)
                 .tint(.white)
             
-            Text("Cargando reacciones...")
+            Text(NSLocalizedString("reactions.loading", comment: "Loading reactions"))
                 .font(.system(size: legacyPoppinsSize(16), weight: .medium))
                 .foregroundColor(adaptiveColors.secondary)
         }
@@ -664,11 +667,11 @@ struct ReactionsListSheet: View {
                 .font(.system(size: 48))
                 .foregroundColor(colorScheme == .dark ? .white.opacity(0.6) : .black.opacity(0.6))
             
-            Text("No hay reacciones")
+            Text(NSLocalizedString("reactions.empty.title", comment: "No reactions"))
                 .font(.system(size: legacyPoppinsSize(18), weight: .bold))
                 .foregroundColor(colorScheme == .dark ? .white : .black)
             
-            Text("Sé el primero en reaccionar a este momento")
+            Text(NSLocalizedString("reactions.empty.subtitle", comment: "Empty reactions subtitle"))
                 .font(.system(size: legacyPoppinsSize(14)))
                 .foregroundColor(colorScheme == .dark ? .white.opacity(0.7) : .black.opacity(0.7))
                 .multilineTextAlignment(.center)
@@ -696,11 +699,11 @@ struct ReactionsListSheet: View {
             }
             
             VStack(spacing: 8) {
-                Text("No se encontraron resultados")
+                Text(NSLocalizedString("reactions.search.noResults.title", comment: "No search results"))
                     .font(.system(size: legacyPoppinsSize(18), weight: .semibold))
                     .foregroundColor(colorScheme == .dark ? .white : .black)
                 
-                Text("Intenta con otros términos de búsqueda")
+                Text(NSLocalizedString("reactions.search.noResults.subtitle", comment: "No search results subtitle"))
                     .font(.system(size: legacyPoppinsSize(14)))
                     .foregroundColor(colorScheme == .dark ? .white.opacity(0.7) : .black.opacity(0.7))
                     .multilineTextAlignment(.center)
@@ -744,7 +747,10 @@ struct ReactionsListSheet: View {
                         .font(.system(size: legacyPoppinsSize(14), weight: .bold))
                         .foregroundColor(colorScheme == .dark ? .white : .black)
                     
-                    Text("\(group.count) \(group.count == 1 ? "persona" : "personas")")
+                    Text(String(format: NSLocalizedString(
+                        group.count == 1 ? "reactions.peopleCount.single" : "reactions.peopleCount",
+                        comment: "People reaction count"
+                    ), group.count))
                         .font(.system(size: legacyPoppinsSize(11)))
                         .foregroundColor(colorScheme == .dark ? .white.opacity(0.7) : .black.opacity(0.7))
                 }
@@ -761,7 +767,7 @@ struct ReactionsListSheet: View {
                 if group.users.count > 10 {
                     HStack {
                         Spacer()
-                        Text("Y \(group.users.count - 10) más...")
+                        Text(String(format: NSLocalizedString("reactions.more", comment: "More reactions"), group.users.count - 10))
                             .font(.system(size: legacyPoppinsSize(11)))
                             .foregroundColor(colorScheme == .dark ? .white.opacity(0.6) : .black.opacity(0.6))
                             .padding(.horizontal, 10)
@@ -811,7 +817,7 @@ struct ReactionsListSheet: View {
             // Información del usuario
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 4) {
-                    Text(userProfiles[userId]?.username ?? "Usuario")
+                    Text(userProfiles[userId]?.username ?? NSLocalizedString("messaging.user.default", comment: "Default user"))
                         .font(.system(size: legacyPoppinsSize(14), weight: .semibold))
                         .foregroundColor(colorScheme == .dark ? .white : .black)
                     
@@ -820,7 +826,7 @@ struct ReactionsListSheet: View {
                     }
                 }
                 
-                Text("Reaccionó con \(reactionType.displayName)")
+                Text(String(format: NSLocalizedString("reactions.userReacted", comment: "User reacted with"), reactionType.displayName))
                     .font(.system(size: legacyPoppinsSize(11)))
                     .foregroundColor(colorScheme == .dark ? .white.opacity(0.7) : .black.opacity(0.7))
             }

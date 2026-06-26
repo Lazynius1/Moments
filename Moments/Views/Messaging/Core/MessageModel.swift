@@ -1272,15 +1272,17 @@ struct ViewOnceStateManager {
         guard message.isViewOnce else { return "" }
 
         if message.isDeleted {
-            return "Mensaje eliminado"
+            return NSLocalizedString("messaging.message.deleted", comment: "")
         }
 
         if message.senderId == userId {
-            // Remitente
-            return message.isViewed ? "Visto" : "Enviado"
+            return message.isViewed
+                ? NSLocalizedString("chat.viewOnce.viewed", comment: "")
+                : NSLocalizedString("chat.viewOnce.sent", comment: "")
         } else {
-            // Receptor
-            return message.hasBeenViewedBy(userId: userId) ? "Visto" : "Toca para ver"
+            return message.hasBeenViewedBy(userId: userId)
+                ? NSLocalizedString("chat.viewOnce.viewed", comment: "")
+                : NSLocalizedString("chat.viewOnce.tapToView", comment: "")
         }
     }
 
@@ -1305,26 +1307,12 @@ extension EnhancedMessage {
 
     /// Formato de tiempo relativo
     var relativeTimeString: String {
-        let formatter = RelativeDateTimeFormatter()
-        formatter.unitsStyle = .short
-        formatter.locale = Locale(identifier: "es_ES")
-        return formatter.localizedString(for: timestamp, relativeTo: Date())
+        MomentsFormat.relativeTime(from: timestamp)
     }
 
     /// Formato de tiempo absoluto
     var absoluteTimeString: String {
-        let formatter = DateFormatter()
-
-        if Calendar.current.isDateInToday(timestamp) {
-            formatter.timeStyle = .short
-        } else if Calendar.current.isDate(timestamp, equalTo: Date(), toGranularity: .weekOfYear) {
-            formatter.dateFormat = "EEEE HH:mm"
-        } else {
-            formatter.dateFormat = "dd/MM/yyyy HH:mm"
-        }
-
-        formatter.locale = Locale(identifier: "es_ES")
-        return formatter.string(from: timestamp)
+        MomentsFormat.smartDate(from: timestamp, context: .messageAbsolute)
     }
 
     /// Tamaño del archivo formateado
@@ -1398,21 +1386,21 @@ enum ViewOnceError: Error, LocalizedError {
     var errorDescription: String? {
         switch self {
         case .messageNotFound:
-            return "Mensaje no encontrado"
+            return NSLocalizedString("messaging.message.notFound", comment: "")
         case .alreadyViewed:
-            return "Este mensaje ya fue visto"
+            return NSLocalizedString("messaging.message.alreadyViewed", comment: "")
         case .notViewOnceMessage:
-            return "No es un mensaje de ver una vez"
+            return NSLocalizedString("messaging.message.notViewOnce", comment: "")
         case .deletionFailed:
-            return "No se pudo eliminar el mensaje"
+            return NSLocalizedString("messaging.message.deleteFailed", comment: "")
         case .uploadFailed:
-            return "Error al subir el archivo"
+            return NSLocalizedString("messaging.message.uploadFailed", comment: "")
         case .invalidMediaType:
-            return "Tipo de archivo no soportado"
+            return NSLocalizedString("messaging.message.unsupportedFile", comment: "")
         case .fileTooLarge:
-            return "El archivo es demasiado grande"
+            return NSLocalizedString("messaging.message.fileTooLarge", comment: "")
         case .networkError:
-            return "Error de conexión"
+            return NSLocalizedString("messaging.message.connectionError", comment: "")
         }
     }
 }
@@ -1439,10 +1427,10 @@ struct MessageRequest: Identifiable, Codable, Hashable {
 
         var displayName: String {
             switch self {
-            case .pending: return "Pendiente"
-            case .accepted: return "Aceptada"
-            case .rejected: return "Rechazada"
-            case .blocked: return "Bloqueada"
+            case .pending: return NSLocalizedString("messaging.request.status.pending", comment: "")
+            case .accepted: return NSLocalizedString("messaging.request.status.accepted", comment: "")
+            case .rejected: return NSLocalizedString("messaging.request.status.rejected", comment: "")
+            case .blocked: return NSLocalizedString("messaging.request.status.blocked", comment: "")
             }
         }
 
@@ -1532,29 +1520,29 @@ struct MessageRequest: Identifiable, Codable, Hashable {
             }
             return message
         case .image:
-            return "📷 Imagen"
+            return NSLocalizedString("messaging.preview.image", comment: "")
         case .video:
-            return "🎥 Video"
+            return NSLocalizedString("messaging.preview.video", comment: "")
         case .audio:
-            return "🎵 Audio"
+            return NSLocalizedString("messaging.preview.audio", comment: "")
         case .gif:
-            return "🎞️ GIF"
+            return NSLocalizedString("messaging.preview.gif", comment: "")
         case .file:
-            return "📎 Archivo"
+            return NSLocalizedString("messaging.preview.file", comment: "")
         case .location:
-            return "📍 Ubicación"
+            return NSLocalizedString("messaging.preview.location", comment: "")
         case .sticker:
-            return "😊 Sticker"
+            return NSLocalizedString("messaging.preview.sticker", comment: "")
         case .ephemeral:
-            return "📸 Momento efímero"
+            return NSLocalizedString("messaging.preview.ephemeral", comment: "")
         case .sharedMoment:
-            return "📷 Momento compartido"
+            return NSLocalizedString("messaging.preview.sharedMoment", comment: "")
         case .sharedStory:
             return NSLocalizedString("chat.preview.sharedStory", comment: "")
         case .viewOnceImage:
-            return "📷 Foto (ver una vez)"
+            return NSLocalizedString("messaging.preview.viewOncePhoto", comment: "")
         case .viewOnceVideo:
-            return "🎥 Video (ver una vez)"
+            return NSLocalizedString("messaging.preview.viewOnceVideo", comment: "")
         }
     }
 

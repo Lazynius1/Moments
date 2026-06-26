@@ -153,7 +153,7 @@ struct SettingsGroup<Content: View>: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             Text(title.uppercased())
-                .font(.system(size: legacyPoppinsSize(11), weight: .bold))
+                .font(.system(size: legacyPoppinsSize(11), weight: .medium))
                 .foregroundColor(colorScheme == .dark ? .white.opacity(0.45) : .black.opacity(0.35))
                 .padding(.leading, 4)
 

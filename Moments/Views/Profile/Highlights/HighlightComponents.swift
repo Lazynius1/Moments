@@ -152,10 +152,7 @@ struct HighlightStoryDateBadge: View {
     }
 
     private var monthText: String {
-        let formatter = DateFormatter()
-        formatter.locale = Locale.current
-        formatter.dateFormat = "MMM"
-        return formatter.string(from: date)
+        MomentsFormat.smartDate(from: date, context: .monthAbbreviated)
     }
 }
 

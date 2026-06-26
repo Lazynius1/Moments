@@ -519,12 +519,8 @@ extension AppUser {
     // ✅ NUEVO: Obtener información de desactivación
     var deactivationInfo: String? {
         guard !isActive, let deactivatedAt = deactivatedAt else { return nil }
-        
-        let formatter = DateFormatter()
-        formatter.dateStyle = .medium
-        formatter.timeStyle = .short
-        
-        return "Cuenta desactivada el \(formatter.string(from: deactivatedAt))"
+
+        return "Cuenta desactivada el \(MomentsFormat.smartDate(from: deactivatedAt, context: .mediumDateTime))"
     }
     
     // ✅ NUEVO: Tiempo desde desactivación

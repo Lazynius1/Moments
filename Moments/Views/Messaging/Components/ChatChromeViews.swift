@@ -229,17 +229,7 @@ struct GlassmorphicDateHeader: View {
     }
 
     private func formatDate(_ date: Date) -> String {
-        let calendar = Calendar.current
-        if calendar.isDateInToday(date) {
-            return NSLocalizedString("chat.date.today", comment: "Today")
-        } else if calendar.isDateInYesterday(date) {
-            return NSLocalizedString("chat.date.yesterday", comment: "Yesterday")
-        } else {
-            let formatter = DateFormatter()
-            formatter.dateStyle = .medium
-            formatter.locale = Locale.current
-            return formatter.string(from: date)
-        }
+        MomentsFormat.smartDate(from: date, context: .chatSeparator)
     }
 }
 

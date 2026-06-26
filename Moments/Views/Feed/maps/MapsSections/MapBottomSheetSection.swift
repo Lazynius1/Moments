@@ -541,7 +541,7 @@ struct ModernLocationMomentRow: View {
                     .frame(height: 60)
 
                     // Info sutil sobre la imagen
-                    HStack(spacing: 10) {
+                    HStack(spacing: 8) {
                         StoryRingAvatarView(
                             userId: moment.authorId,
                             size: 32,
@@ -630,9 +630,7 @@ struct ModernLocationMomentRow: View {
     }
 
     private func formatTimeAgo(_ timestamp: Date) -> String {
-        let formatter = RelativeDateTimeFormatter()
-        formatter.unitsStyle = .abbreviated
-        return formatter.localizedString(for: timestamp, relativeTo: Date())
+        MomentsFormat.relativeTime(from: timestamp)
     }
 }
 

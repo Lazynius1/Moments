@@ -773,9 +773,7 @@ struct ModernContextMenuContent: View {
     }
     
     private func formatRelativeTime(_ date: Date) -> String {
-        let formatter = RelativeDateTimeFormatter()
-        formatter.unitsStyle = .abbreviated
-        return formatter.localizedString(for: date, relativeTo: Date())
+        MomentsFormat.relativeTime(from: date)
     }
 }
 
@@ -1024,7 +1022,7 @@ private struct HiddenLayerMetricsRow: View {
                 if let latest = discoveries.first {
                     Text(String(
                         format: NSLocalizedString("hiddenLayers.metrics.row.latest", value: "Última: %@", comment: ""),
-                        latest.discoveredAt.formatted(date: .abbreviated, time: .shortened)
+                        MomentsFormat.smartDate(from: latest.discoveredAt, context: .mediumDateTime)
                     ))
                     .font(.system(size: legacyPoppinsSize(11)))
                     .foregroundColor(colorScheme == .dark ? .white.opacity(0.55) : .black.opacity(0.45))
@@ -1211,7 +1209,7 @@ private struct HiddenLayerDiscoveryPersonRow: View {
                     Text(discovery.username ?? "@\(discovery.viewerId.prefix(6))")
                         .font(.system(size: legacyPoppinsSize(13), weight: .medium))
                         .foregroundColor(colorScheme == .dark ? .white : .black)
-                    Text(discovery.discoveredAt.formatted(date: .abbreviated, time: .shortened))
+                    Text(MomentsFormat.smartDate(from: discovery.discoveredAt, context: .mediumDateTime))
                         .font(.system(size: legacyPoppinsSize(11)))
                         .foregroundColor(colorScheme == .dark ? .white.opacity(0.64) : .black.opacity(0.5))
                 }
@@ -1333,7 +1331,7 @@ private extension MomentHiddenLayer {
         if unlockMode == .scheduled, let unlockAt, unlockAt > Date() {
             return String(
                 format: NSLocalizedString("hiddenLayers.metrics.status.scheduled", value: "Se abre %@", comment: ""),
-                unlockAt.formatted(date: .abbreviated, time: .shortened)
+                MomentsFormat.smartDate(from: unlockAt, context: .mediumDateTime)
             )
         }
         return nil
@@ -1360,7 +1358,7 @@ struct ContextMenuButton: View {
                 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(title)
-                        .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
+                        .font(.system(size: legacyPoppinsSize(16), weight: .medium))
                         .foregroundColor(colorScheme == .dark ? .white : .black)
                     
                     Text(subtitle)
@@ -1398,7 +1396,7 @@ struct ContextMenuButtonDisabled: View {
             
             VStack(alignment: .leading, spacing: 2) {
                 Text(title)
-                    .font(.system(size: legacyPoppinsSize(16), weight: .semibold))
+                    .font(.system(size: legacyPoppinsSize(16), weight: .medium))
                     .foregroundColor(colorScheme == .dark ? .white.opacity(0.5) : .black.opacity(0.4))
                 
                 Text(subtitle)

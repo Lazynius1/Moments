@@ -91,7 +91,7 @@ struct SmartSearchResultsView: View {
                 Spacer()
 
                 Text("\(moments.count)")
-                    .font(.system(size: legacyPoppinsSize(16), weight: .bold))
+                    .font(.system(size: legacyPoppinsSize(14), weight: .semibold))
                     .foregroundColor(Color(hex: "667eea"))
                     .padding(.horizontal, 12)
                     .padding(.vertical, 6)
@@ -135,7 +135,7 @@ struct SmartSearchResultsView: View {
                 Spacer()
 
                 Text("\(moments.count)")
-                    .font(.system(size: legacyPoppinsSize(16), weight: .bold))
+                    .font(.system(size: legacyPoppinsSize(14), weight: .semibold))
                     .foregroundColor(Color(hex: "667eea"))
                     .padding(.horizontal, 12)
                     .padding(.vertical, 6)
@@ -309,7 +309,7 @@ struct RecentSearchesView: View {
         VStack(alignment: .leading, spacing: 16) {
             HStack {
                 Text(NSLocalizedString("explore.recentSearches.title", comment: ""))
-                    .font(.system(size: legacyPoppinsSize(28), weight: .bold))
+                    .font(.system(size: legacyPoppinsSize(17), weight: .semibold))
                     .foregroundColor(.primary)
 
                 Spacer()
@@ -317,7 +317,7 @@ struct RecentSearchesView: View {
                 if !searches.isEmpty {
                     Button(action: onClearAll) {
                         Text(NSLocalizedString("explore.recentSearches.clearAll", comment: ""))
-                            .font(.system(size: legacyPoppinsSize(14), weight: .bold))
+                            .font(.system(size: legacyPoppinsSize(13), weight: .semibold))
                             .foregroundColor(.primary)
                     }
                 }

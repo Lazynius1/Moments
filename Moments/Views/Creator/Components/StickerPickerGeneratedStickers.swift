@@ -283,16 +283,8 @@ extension StickerPickerView {
             let now = Date()
 
             // ✅ FORMATO: "14:30" (Hora) + "7 Ago" (Fecha)
-            let timeFormatter = DateFormatter()
-            timeFormatter.timeStyle = .short
-            timeFormatter.locale = Locale(identifier: "es_ES")
-
-            let dateFormatter = DateFormatter()
-            dateFormatter.dateFormat = "d MMM"
-            dateFormatter.locale = Locale(identifier: "es_ES")
-
-            let timeString = timeFormatter.string(from: now)
-            let dateString = dateFormatter.string(from: now)
+            let timeString = MomentsFormat.smartDate(from: now, context: .timeOnly)
+            let dateString = MomentsFormat.smartDate(from: now, context: .dayMonthLabel)
 
             let width: CGFloat = 164
             let height: CGFloat = 56

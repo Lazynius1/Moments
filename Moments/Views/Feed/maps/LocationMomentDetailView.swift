@@ -770,7 +770,7 @@ struct LocationMomentCard: View {
     }
 
     private var authorCompactHeader: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: 8) {
             StoryRingAvatarView(
                 userId: moment.authorId,
                 size: 32,

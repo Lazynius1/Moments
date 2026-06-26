@@ -1169,19 +1169,7 @@ struct GlassmorphicConversationRow: View {
     }
 
     private func formattedTimestamp(_ date: Date) -> String {
-        let calendar = Calendar.current
-
-        if calendar.isDateInToday(date) {
-            let formatter = DateFormatter()
-            formatter.timeStyle = .short
-            return formatter.string(from: date)
-        } else if calendar.isDateInYesterday(date) {
-            return NSLocalizedString("notifications.date.yesterday", comment: "Yesterday")
-        } else {
-            let formatter = DateFormatter()
-            formatter.dateStyle = .short
-            return formatter.string(from: date)
-        }
+        MomentsFormat.smartDate(from: date, context: .inboxTimestamp)
     }
 }
 

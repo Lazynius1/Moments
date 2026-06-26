@@ -484,10 +484,7 @@ struct ArchiveView: View {
     }
 
     private func calendarMonthTitle(_ date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.locale = Locale.current
-        formatter.dateFormat = "LLLL yyyy"
-        return formatter.string(from: date).capitalized
+        MomentsFormat.smartDate(from: date, context: .monthYearLabel)
     }
 
     private var weekdaySymbols: [String] {
@@ -738,19 +735,12 @@ struct ArchiveDateSectionVertical: View {
         formatter.dateFormat = "yyyy-MM-dd"
         
         if let date = formatter.date(from: dateKey) {
-            let displayFormatter = DateFormatter()
-            displayFormatter.locale = Locale(identifier: "es")
-            
             if Calendar.current.isDateInToday(date) {
                 return NSLocalizedString("archivedStories.today", comment: "Today")
             } else if Calendar.current.isDateInYesterday(date) {
                 return NSLocalizedString("archivedStories.yesterday", comment: "Yesterday")
-            } else if Calendar.current.isDate(date, equalTo: Date(), toGranularity: .year) {
-                displayFormatter.dateFormat = "d 'de' MMMM"
-                return displayFormatter.string(from: date)
             } else {
-                displayFormatter.dateFormat = "d 'de' MMMM 'de' yyyy"
-                return displayFormatter.string(from: date)
+                return MomentsFormat.smartDate(from: date, context: .storyArchive)
             }
         }
         
@@ -806,19 +796,12 @@ struct ArchiveDateSectionGrid: View {
         formatter.dateFormat = "yyyy-MM-dd"
         
         if let date = formatter.date(from: dateKey) {
-            let displayFormatter = DateFormatter()
-            displayFormatter.locale = Locale(identifier: "es")
-            
             if Calendar.current.isDateInToday(date) {
                 return NSLocalizedString("archivedStories.today", comment: "Today")
             } else if Calendar.current.isDateInYesterday(date) {
                 return NSLocalizedString("archivedStories.yesterday", comment: "Yesterday")
-            } else if Calendar.current.isDate(date, equalTo: Date(), toGranularity: .year) {
-                displayFormatter.dateFormat = "d 'de' MMMM"
-                return displayFormatter.string(from: date)
             } else {
-                displayFormatter.dateFormat = "d 'de' MMMM 'de' yyyy"
-                return displayFormatter.string(from: date)
+                return MomentsFormat.smartDate(from: date, context: .storyArchive)
             }
         }
         
@@ -1006,16 +989,11 @@ struct ArchiveStoryVerticalCard: View {
     }
     
     private func formatTime(_ date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.timeStyle = .short
-        return formatter.string(from: date)
+        MomentsFormat.smartDate(from: date, context: .timeOnly)
     }
     
     private func formatRelativeDate(_ date: Date) -> String {
-        let formatter = RelativeDateTimeFormatter()
-        formatter.locale = Locale(identifier: "es")
-        formatter.unitsStyle = .abbreviated
-        return formatter.localizedString(for: date, relativeTo: Date())
+        MomentsFormat.relativeTime(from: date)
     }
     
     private func formatDuration(_ duration: Double) -> String {
@@ -1525,17 +1503,11 @@ struct StoryStatsView: View {
     }
 
     private func formatStoryDate(_ date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.locale = Locale.current
-        formatter.dateStyle = .medium
-        return formatter.string(from: date)
+        MomentsFormat.smartDate(from: date, context: .mediumDate)
     }
 
     private func formatStoryTime(_ date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.locale = Locale.current
-        formatter.timeStyle = .short
-        return formatter.string(from: date)
+        MomentsFormat.smartDate(from: date, context: .timeOnly)
     }
 }
 
@@ -1664,10 +1636,7 @@ private struct ArchivedStoryReactionRow: View {
     }
 
     private func timeAgo(from date: Date) -> String {
-        let formatter = RelativeDateTimeFormatter()
-        formatter.locale = Locale.current
-        formatter.unitsStyle = .abbreviated
-        return formatter.localizedString(for: date, relativeTo: Date())
+        MomentsFormat.relativeTime(from: date)
     }
 }
 

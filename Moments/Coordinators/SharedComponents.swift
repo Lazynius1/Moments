@@ -298,7 +298,7 @@ struct ActionSubCardView: View {
                         .foregroundColor(.white)
                     // ✅ NUEVO: El autor siempre ve el contador, los demás solo si no está oculto
                     if moment.authorId == Auth.auth().currentUser?.uid || !moment.hideLikeCounts {
-                        Text("\(moment.reactions["heart"]?.count ?? 0)")
+                        Text(MomentsFormat.count(moment.reactions["heart"]?.count ?? 0, style: .socialMetric))
                             .font(.system(size: 14, weight: .medium))
                             .foregroundColor(.white)
                     }
@@ -310,7 +310,7 @@ struct ActionSubCardView: View {
                     Image(systemName: "message")
                         .font(.system(size: 18, weight: .medium))
                         .foregroundColor(.white)
-                    Text("\(moment.commentCount)")
+                    Text(MomentsFormat.count(moment.commentCount, style: .socialMetric))
                         .font(.system(size: 14, weight: .medium))
                         .foregroundColor(.white)
                 }

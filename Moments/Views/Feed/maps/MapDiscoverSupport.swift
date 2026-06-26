@@ -195,9 +195,7 @@ enum MapDistanceFormatter {
 
 enum MapRelativeTimeFormatter {
     static func string(from date: Date) -> String {
-        let formatter = RelativeDateTimeFormatter()
-        formatter.unitsStyle = .short
-        return formatter.localizedString(for: date, relativeTo: Date())
+        MomentsFormat.relativeTime(from: date)
     }
 }
 

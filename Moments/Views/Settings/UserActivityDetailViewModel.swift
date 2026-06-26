@@ -28,13 +28,6 @@ final class ActivityInteractionDetailViewModel: ObservableObject, @unchecked Sen
     @Published var moments: [Moment] = [] // ✅ NUEVO: Para Moments y Reels (estilo ProfileView)
     @Published var customListNamesById: [String: String] = [:] // ✅ NUEVO: Para resolver audiencias custom
 
-    private let dateFormatter: DateFormatter = {
-        let formatter = DateFormatter()
-        formatter.dateStyle = .medium
-        formatter.timeStyle = .short
-        return formatter
-    }()
-
     private let category: ActivityInteractionCategory
     private let recentlyDeletedKind: RecentlyDeletedContentKind
     private let db = Firestore.firestore()
@@ -769,7 +762,7 @@ final class ActivityInteractionDetailViewModel: ObservableObject, @unchecked Sen
             do {
                 let items = try await FirestoreService.shared.fetchFollowersWithTimestamps(userId: userId)
                 let mapped: [ActivityEventItem] = items.map { item in
-                    let dateString = self.dateFormatter.string(from: item.timestamp)
+                    let dateString = MomentsFormat.smartDate(from: item.timestamp, context: .mediumDateTime)
                     let subtitle = String(format: NSLocalizedString("userActivity.event.follow.subtitle", comment: ""), dateString)
 
                     return ActivityEventItem(
@@ -808,7 +801,7 @@ final class ActivityInteractionDetailViewModel: ObservableObject, @unchecked Sen
 
                 for item in items {
                     let actorId = item.user.id
-                    let dateString = self.dateFormatter.string(from: item.visit.timestamp)
+                    let dateString = MomentsFormat.smartDate(from: item.visit.timestamp, context: .mediumDateTime)
                     let subtitle = String(format: NSLocalizedString("userActivity.event.visit.subtitle", comment: ""), dateString)
 
                     let event = ActivityEventItem(

@@ -219,7 +219,7 @@ struct ChatMessageContextMenuOverlay: View {
     let onReaction: (EnhancedMessage, String) -> Void
     let onMoreReactions: (EnhancedMessage) -> Void
 
-    private let menuRowHeight: CGFloat = 44
+    private let menuRowHeight: CGFloat = 36
     private let menuCornerRadius: CGFloat = ChatAttachmentSheetMetrics.cornerRadius
     private let stackGap: CGFloat = 10
     private let reactionsBarHeight: CGFloat = 54
@@ -318,14 +318,11 @@ struct ChatMessageContextMenuOverlay: View {
                     onReply(message)
                 }
 
-                menuDivider
-
                 if ChatMessagePolicy.canForward(message, currentUserId: currentUserId, forwardingPreferences: forwardingPreferences) {
                     ChatContextMenuRow(title: "chat.action.forward", icon: "arrowshape.turn.up.right", primaryTextColor: primaryTextColor) {
                         dismissMenu()
                         onForward(message)
                     }
-                    menuDivider
                 }
 
                 let isStarred = message.isStarred(by: currentUserId)
@@ -338,14 +335,11 @@ struct ChatMessageContextMenuOverlay: View {
                     onToggleStar(message)
                 }
 
-                menuDivider
-
                 if ChatMessagePolicy.canEdit(message, userId: currentUserId) {
                     ChatContextMenuRow(title: "chat.action.edit", icon: "pencil", primaryTextColor: primaryTextColor) {
                         dismissMenu()
                         onEdit(message)
                     }
-                    menuDivider
                 }
 
                 if ChatMessagePolicy.canCopy(message, currentUserId: currentUserId, forwardingPreferences: forwardingPreferences) {
@@ -353,7 +347,6 @@ struct ChatMessageContextMenuOverlay: View {
                         dismissMenu()
                         onCopy(message)
                     }
-                    menuDivider
                 }
 
                 ChatContextMenuRow(title: "chat.action.deleteForMe", icon: "trash", isDestructive: true, primaryTextColor: primaryTextColor) {
@@ -362,7 +355,6 @@ struct ChatMessageContextMenuOverlay: View {
                 }
 
                 if isCurrentUser && !message.isRead && isWithinDeleteLimit(message.timestamp) {
-                    menuDivider
                     ChatContextMenuRow(title: "chat.action.deleteForEveryone", icon: "trash.fill", isDestructive: true, primaryTextColor: primaryTextColor) {
                         dismissMenu()
                         onDeleteForEveryone(message)
@@ -371,17 +363,11 @@ struct ChatMessageContextMenuOverlay: View {
             }
         }
         .frame(minWidth: 240)
-        .padding(.vertical, 10)
-        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .padding(.horizontal, 8)
         .momentsChromeGlass(in: menuCardShape, interactive: true)
         .clipShape(menuCardShape)
         .shadow(color: .black.opacity(colorScheme == .dark ? 0.24 : 0.12), radius: 24, x: 0, y: 12)
-    }
-
-    private var menuDivider: some View {
-        Divider()
-            .overlay(Color.primary.opacity(colorScheme == .dark ? 0.1 : 0.07))
-            .padding(.horizontal, 12)
     }
 
     private func localAnchorFrame(_ globalFrame: CGRect) -> CGRect {
@@ -486,7 +472,7 @@ struct ChatMessageContextMenuOverlay: View {
     }
 
     private func menuPanelHeight(rowCount: Int) -> CGFloat {
-        CGFloat(rowCount) * menuRowHeight + 20
+        CGFloat(rowCount) * menuRowHeight + 16
     }
 
     private func visibleMenuRowsCount(for message: EnhancedMessage, isCurrentUser: Bool) -> Int {
@@ -519,23 +505,19 @@ private struct ChatContextMenuRow: View {
     let action: () -> Void
 
     var body: some View {
-        Button(action: {
-            HapticManager.shared.lightImpact()
-            action()
-        }) {
+        MomentRowButton(action: action) {
             HStack {
                 Text(title)
-                    .font(.system(size: legacyPoppinsSize(17), weight: .medium))
+                    .font(.system(size: legacyPoppinsSize(16), weight: .medium))
                 Spacer()
                 Image(systemName: icon)
-                    .font(.system(size: 18))
+                    .font(.system(size: 16))
             }
             .foregroundColor(isDestructive ? .red : primaryTextColor)
-            .padding(.horizontal, 8)
-            .padding(.vertical, 10)
+            .padding(.horizontal, 12)
+            .frame(height: 36)
             .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
     }
 }
 

@@ -2144,10 +2144,7 @@ struct StoryViewerScreen: View {
     }
 
     private func timeAgoString(from date: Date) -> String {
-        let formatter = RelativeDateTimeFormatter()
-        formatter.unitsStyle = .abbreviated
-        formatter.locale = Locale(identifier: "es")
-        return formatter.localizedString(for: date, relativeTo: Date())
+        MomentsFormat.relativeTime(from: date)
     }
 
     private func loadAuthorInteractionSettings() {

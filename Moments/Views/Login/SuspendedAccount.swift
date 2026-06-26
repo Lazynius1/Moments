@@ -153,11 +153,7 @@ struct EnhancedSuspensionInfo: View {
     }
     
     private func formatExpirationDate(_ date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.dateStyle = .full
-        formatter.timeStyle = .short
-        formatter.locale = .current
-        return formatter.string(from: date)
+        MomentsFormat.smartDate(from: date, context: .fullDateTime)
     }
 }
 
@@ -381,15 +377,15 @@ struct EnhancedContactSupportView: View {
             
             // Pre-rellenar mensaje con información de la suspensión
             if let reason = suspensionReason {
-                message = "Hola, me han suspendido la cuenta por: \"\(reason)\". Creo que es un error porque..."
+                message = String(format: NSLocalizedString("suspended.contact.prefill", comment: ""), reason)
             }
         }
         .alert(isPresented: $showAlert) {
             Alert(
-                title: Text("Mensaje Enviado"),
+                title: Text(NSLocalizedString("suspended.contact.alert.title", comment: "")),
                 message: Text(alertMessage),
-                dismissButton: .default(Text("OK")) {
-                    if alertMessage.contains("enviado") {
+                dismissButton: .default(Text(NSLocalizedString("common.ok", comment: "OK"))) {
+                    if alertMessage == NSLocalizedString("suspended.contact.alert.success", comment: "") {
                         isPresented = false
                     }
                 }
@@ -403,7 +399,7 @@ struct EnhancedContactSupportView: View {
         // Simular envío de mensaje (aquí integrarías tu sistema de soporte)
         DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
             isLoading = false
-            alertMessage = "Tu mensaje ha sido enviado a nuestro equipo de soporte. Te responderemos en un plazo de 24-48 horas."
+            alertMessage = NSLocalizedString("suspended.contact.alert.success", comment: "")
             showAlert = true
         }
     }
@@ -442,11 +438,11 @@ struct EnhancedContactSupportHeader: View {
             }
             
             VStack(spacing: 12) {
-                Text("Contactar Soporte")
+                Text(NSLocalizedString("suspended.contact.title", comment: ""))
                     .font(.system(size: 28, weight: .bold, design: .rounded))
                     .foregroundColor(AuthColors.primary(colorScheme))
                 
-                Text("Explícanos tu situación y revisaremos tu caso")
+                Text(NSLocalizedString("suspended.contact.subtitle", comment: ""))
                     .font(.system(size: 18, weight: .medium))
                     .foregroundColor(AuthColors.secondary(colorScheme, opacity: 0.72))
                     .multilineTextAlignment(.center)
@@ -473,7 +469,7 @@ struct EnhancedEmailInputField: View {
                     .font(.system(size: 16, weight: .medium))
                     .foregroundColor(AuthColors.secondary(colorScheme, opacity: 0.72))
                 
-                Text("Tu email de contacto")
+                Text(NSLocalizedString("suspended.contact.email", comment: ""))
                     .font(.system(size: 14, weight: .medium))
                     .foregroundColor(AuthColors.secondary(colorScheme, opacity: 0.72))
             }
@@ -523,7 +519,7 @@ struct EnhancedMessageInputField: View {
                     .font(.system(size: 16, weight: .medium))
                     .foregroundColor(AuthColors.secondary(colorScheme, opacity: 0.72))
                 
-                Text("Tu mensaje")
+                Text(NSLocalizedString("suspended.contact.message", comment: ""))
                     .font(.system(size: 14, weight: .medium))
                     .foregroundColor(AuthColors.secondary(colorScheme, opacity: 0.72))
             }
@@ -553,7 +549,7 @@ struct EnhancedMessageInputField: View {
                     )
                 
                 if message.isEmpty {
-                    Text("Explícanos por qué consideras que la suspensión es incorrecta...")
+                    Text(NSLocalizedString("suspended.contact.placeholder", comment: ""))
                         .foregroundColor(AuthColors.secondary(colorScheme, opacity: 0.52))
                         .font(.system(size: 16))
                         .padding(.horizontal, 20)
@@ -591,7 +587,7 @@ struct EnhancedSendSupportButton: View {
                         .progressViewStyle(CircularProgressViewStyle(tint: AuthColors.primary(colorScheme)))
                         .scaleEffect(0.8)
                 } else {
-                    Text("Enviar Mensaje")
+                    Text(NSLocalizedString("suspended.contact.send", comment: ""))
                         .font(.system(size: 18, weight: .semibold))
                         .foregroundColor(AuthColors.primary(colorScheme))
                 }

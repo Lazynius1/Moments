@@ -27,10 +27,7 @@ struct PersonalInfoView: View {
     private var nextAvailableDate: String? {
         guard let last = lastUsernameChange, !canChangeUsername else { return nil }
         let next = Calendar.current.date(byAdding: .month, value: 6, to: last) ?? Date()
-        let fmt = DateFormatter()
-        fmt.dateStyle = .long
-        fmt.locale = Locale.current
-        return fmt.string(from: next)
+        return MomentsFormat.smartDate(from: next, context: .longDate)
     }
 
     var body: some View {

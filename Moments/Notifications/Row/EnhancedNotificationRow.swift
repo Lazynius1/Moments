@@ -55,7 +55,7 @@ struct EnhancedNotificationRow: View {
                         .lineLimit(2)
                 }
                 
-                Text(group.notifications.first!.timestamp, style: .relative)
+                Text(MomentsFormat.relativeTime(from: group.notifications.first!.timestamp))
                     .font(.system(size: 11, weight: .medium))
                     .foregroundColor(.gray.opacity(0.72))
             }

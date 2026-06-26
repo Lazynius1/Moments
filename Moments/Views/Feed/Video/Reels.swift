@@ -816,10 +816,7 @@ struct ReelVideoView: View {
     }
     
     private func formatTimeAgo(_ date: Date) -> String {
-        let formatter = RelativeDateTimeFormatter()
-        formatter.locale = Locale(identifier: "es")
-        formatter.unitsStyle = .short
-        return formatter.localizedString(for: date, relativeTo: Date())
+        MomentsFormat.relativeTime(from: date)
     }
     
     // ... (resto de funciones existentes)
@@ -944,7 +941,7 @@ struct EnhancedReelReactionButton: View {
             
             // Count with better styling
             if reactionCount > 0 {
-                Text(formatCount(reactionCount))
+                Text(MomentsFormat.count(reactionCount, style: .socialMetric))
                     .font(.system(size: legacyPoppinsSize(12), weight: .bold))
                     .foregroundColor(.white)
                     .padding(.horizontal, 8)
@@ -1057,16 +1054,6 @@ struct EnhancedReelReactionButton: View {
             }
         }
     }
-    
-    private func formatCount(_ count: Int) -> String {
-        if count >= 1000000 {
-            return String(format: "%.1fM", Double(count) / 1000000.0)
-        } else if count >= 1000 {
-            return String(format: "%.1fK", Double(count) / 1000.0)
-        } else {
-            return "\(count)"
-        }
-    }
 }
 
 // Enhanced Action Button
@@ -1126,7 +1113,7 @@ struct EnhancedReelActionButton: View {
             
             // Count badge
             if let count = count, count > 0 {
-                Text(formatCount(count))
+                Text(MomentsFormat.count(count, style: .socialMetric))
                     .font(.system(size: legacyPoppinsSize(12), weight: .bold))
                     .foregroundColor(.white)
                     .padding(.horizontal, 8)
@@ -1142,16 +1129,6 @@ struct EnhancedReelActionButton: View {
                     )
                     .shadow(color: .black.opacity(0.3), radius: 3, x: 0, y: 2)
             }
-        }
-    }
-    
-    private func formatCount(_ count: Int) -> String {
-        if count >= 1000000 {
-            return String(format: "%.1fM", Double(count) / 1000000.0)
-        } else if count >= 1000 {
-            return String(format: "%.1fK", Double(count) / 1000.0)
-        } else {
-            return "\(count)"
         }
     }
 }

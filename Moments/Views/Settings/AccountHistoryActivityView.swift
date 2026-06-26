@@ -412,10 +412,6 @@ struct AccountHistoryRowView: View {
     }
     
     private var dateString: String {
-        let formatter = DateFormatter()
-        formatter.dateStyle = .medium
-        formatter.timeStyle = .short
-        formatter.locale = Locale.current
-        return formatter.string(from: item.timestamp)
+        MomentsFormat.smartDate(from: item.timestamp, context: .mediumDateTime)
     }
 }

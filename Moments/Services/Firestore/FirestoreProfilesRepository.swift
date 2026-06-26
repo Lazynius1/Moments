@@ -143,10 +143,7 @@ extension FirestoreService {
                 let sixMonthsAgo = Calendar.current.date(byAdding: .month, value: -6, to: Date()) ?? Date()
                 if lastChange > sixMonthsAgo {
                     let nextAvailable = Calendar.current.date(byAdding: .month, value: 6, to: lastChange) ?? Date()
-                    let formatter = DateFormatter()
-                    formatter.dateStyle = .long
-                    formatter.locale = Locale.current
-                    let dateStr = formatter.string(from: nextAvailable)
+                    let dateStr = MomentsFormat.smartDate(from: nextAvailable, context: .longDate)
                     completion(.failure(NSError(domain: "", code: 4, userInfo: [NSLocalizedDescriptionKey: String(format: NSLocalizedString("username.error.cooldown", comment: "Username can be changed on %@"), dateStr)])))
                     return
                 }

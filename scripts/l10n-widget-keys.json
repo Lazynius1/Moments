@@ -1,0 +1,50 @@
+{
+  "en": {
+    "widget.intent.configuration.title": "Configuration",
+    "widget.intent.configuration.description": "This is an example widget.",
+    "widget.control.timerConfiguration.title": "Timer Name Configuration",
+    "widget.control.startTimer.title": "Start a timer"
+  },
+  "es": {
+    "widget.intent.configuration.title": "Configuración",
+    "widget.intent.configuration.description": "Este es un widget de ejemplo.",
+    "widget.control.timerConfiguration.title": "Configuración del nombre del temporizador",
+    "widget.control.startTimer.title": "Iniciar temporizador"
+  },
+  "ca": {
+    "widget.intent.configuration.title": "Configuració",
+    "widget.intent.configuration.description": "Aquest és un widget d'exemple.",
+    "widget.control.timerConfiguration.title": "Configuració del nom del temporitzador",
+    "widget.control.startTimer.title": "Inicia el temporitzador"
+  },
+  "de": {
+    "widget.intent.configuration.title": "Konfiguration",
+    "widget.intent.configuration.description": "Dies ist ein Beispiel-Widget.",
+    "widget.control.timerConfiguration.title": "Timer-Namen konfigurieren",
+    "widget.control.startTimer.title": "Timer starten"
+  },
+  "fr": {
+    "widget.intent.configuration.title": "Configuration",
+    "widget.intent.configuration.description": "Ceci est un widget d'exemple.",
+    "widget.control.timerConfiguration.title": "Configuration du nom du minuteur",
+    "widget.control.startTimer.title": "Démarrer un minuteur"
+  },
+  "it": {
+    "widget.intent.configuration.title": "Configurazione",
+    "widget.intent.configuration.description": "Questo è un widget di esempio.",
+    "widget.control.timerConfiguration.title": "Configurazione nome timer",
+    "widget.control.startTimer.title": "Avvia timer"
+  },
+  "pt-BR": {
+    "widget.intent.configuration.title": "Configuração",
+    "widget.intent.configuration.description": "Este é um widget de exemplo.",
+    "widget.control.timerConfiguration.title": "Configuração do nome do timer",
+    "widget.control.startTimer.title": "Iniciar timer"
+  },
+  "pt-PT": {
+    "widget.intent.configuration.title": "Configuração",
+    "widget.intent.configuration.description": "Este é um widget de exemplo.",
+    "widget.control.timerConfiguration.title": "Configuração do nome do temporizador",
+    "widget.control.startTimer.title": "Iniciar temporizador"
+  }
+}

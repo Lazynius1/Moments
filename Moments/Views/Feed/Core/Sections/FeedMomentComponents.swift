@@ -576,7 +576,7 @@ struct ModernPostCardView: View {
 
     // Header del post con círculo de historia
     private var postHeaderView: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: 8) {
             StoryRingAvatarView(
                 userId: moment.authorId,
                 size: 44,
@@ -585,24 +585,26 @@ struct ModernPostCardView: View {
             )
 
             VStack(alignment: .leading, spacing: 2) {
-                HStack(spacing: 6) {
-                    HStack(spacing: 4) {
-                        Button(action: openAuthorProfile) {
-                            Text(displayAuthorUsername)
-                                .font(.system(size: legacyPoppinsSize(15), weight: .semibold))
-                                .foregroundColor(adaptiveColors.primary)
-                        }
-                        .buttonStyle(PlainButtonStyle())
-
-                        // ✅ INSIGNIA DE VERIFICADO
-                        if moment.authorId == Auth.auth().currentUser?.uid {
-                            // Para el usuario actual, verificar si está verificado
-                            CurrentUserVerifiedBadge(size: 14)
-                        } else {
-                            // Para otros usuarios, verificar si están verificados
-                            VerifiedBadgeView(userId: moment.authorId, size: 14)
-                        }
+                HStack(alignment: .center, spacing: 4) {
+                    Button(action: openAuthorProfile) {
+                        Text(displayAuthorUsername)
+                            .font(.system(size: legacyPoppinsSize(15), weight: .semibold))
+                            .foregroundColor(adaptiveColors.primary)
                     }
+                    .buttonStyle(PlainButtonStyle())
+
+                    // ✅ INSIGNIA DE VERIFICADO
+                    if moment.authorId == Auth.auth().currentUser?.uid {
+                        // Para el usuario actual, verificar si está verificado
+                        CurrentUserVerifiedBadge(size: 14)
+                    } else {
+                        // Para otros usuarios, verificar si están verificados
+                        VerifiedBadgeView(userId: moment.authorId, size: 14)
+                    }
+
+                    Text("·")
+                        .font(.system(size: legacyPoppinsSize(11)))
+                        .foregroundColor(adaptiveColors.tertiary)
 
                     Text(moment.timestamp.timeAgoDisplay())
                         .font(.system(size: legacyPoppinsSize(11)))

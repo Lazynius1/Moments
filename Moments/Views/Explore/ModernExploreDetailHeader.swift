@@ -77,7 +77,7 @@ struct ModernExploreDetailHeader: View {
             if let moment {
                 let authorId = moment.authorId.trimmingCharacters(in: .whitespacesAndNewlines)
 
-                HStack(spacing: 10) {
+                HStack(spacing: 8) {
                     StoryRingAvatarView(
                         userId: authorId,
                         size: 36,
@@ -93,20 +93,30 @@ struct ModernExploreDetailHeader: View {
                     )
 
                     VStack(alignment: .leading, spacing: 1) {
-                        Button {
-                            guard !authorId.isEmpty else { return }
-                            onAvatarTap(authorId, false)
-                        } label: {
-                            HStack(spacing: 4) {
-                                Text(displayUsername(for: moment))
-                                    .font(.system(size: legacyPoppinsSize(15), weight: .semibold))
-                                    .foregroundColor(.primary)
-                                    .lineLimit(1)
+                        HStack(alignment: .center, spacing: 4) {
+                            Button {
+                                guard !authorId.isEmpty else { return }
+                                onAvatarTap(authorId, false)
+                            } label: {
+                                HStack(spacing: 4) {
+                                    Text(displayUsername(for: moment))
+                                        .font(.system(size: legacyPoppinsSize(15), weight: .semibold))
+                                        .foregroundColor(.primary)
+                                        .lineLimit(1)
 
-                                VerifiedBadgeView(userId: authorId, size: 13)
+                                    VerifiedBadgeView(userId: authorId, size: 13)
+                                }
                             }
+                            .buttonStyle(.plain)
+
+                            Text("·")
+                                .font(.system(size: legacyPoppinsSize(10)))
+                                .foregroundColor(.secondary.opacity(0.7))
+
+                            Text(moment.timestamp.timeAgoDisplay())
+                                .font(.system(size: legacyPoppinsSize(10)))
+                                .foregroundColor(.secondary.opacity(0.7))
                         }
-                        .buttonStyle(.plain)
 
                         if let location = moment.location?.trimmingCharacters(in: .whitespacesAndNewlines),
                            !location.isEmpty,
@@ -124,10 +134,6 @@ struct ModernExploreDetailHeader: View {
                                 .foregroundColor(.secondary.opacity(0.85))
                             }
                             .buttonStyle(.plain)
-                        } else {
-                            Text(moment.timestamp.timeAgoDisplay())
-                                .font(.system(size: legacyPoppinsSize(10)))
-                                .foregroundColor(.secondary.opacity(0.7))
                         }
                     }
                 }

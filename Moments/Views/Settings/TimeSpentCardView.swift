@@ -94,8 +94,6 @@ struct TimeSpentCardView: View {
     }
     
     private func dayAbbreviation(for date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "E" // Mon, Tue, Wed
-        return formatter.string(from: date).prefix(1).uppercased() // M, T, W
+        MomentsFormat.smartDate(from: date, context: .weekdayNarrow)
     }
 }

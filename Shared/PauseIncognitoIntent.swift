@@ -4,7 +4,7 @@ import Foundation
 
 @available(iOS 18.0, *)
 struct PauseIncognitoIntent: LiveActivityIntent {
-    static var title: LocalizedStringResource = "Pause Incognito"
+    static var title: LocalizedStringResource { "incognito.activity.pause" }
     static var openAppWhenRun = false
     static var isDiscoverable = false
 

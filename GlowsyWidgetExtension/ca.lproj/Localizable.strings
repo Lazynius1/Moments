@@ -35,3 +35,7 @@
 "incognito.activity.subtitle" = "La teva activitat no deixa rastre";
 "incognito.activity.pause" = "Pausar";
 "incognito.activity.resume" = "Reprendre";
+"widget.intent.configuration.title" = "Configuració";
+"widget.intent.configuration.description" = "Aquest és un widget d'exemple.";
+"widget.control.timerConfiguration.title" = "Configuració del nom del temporitzador";
+"widget.control.startTimer.title" = "Inicia el temporitzador";

@@ -194,7 +194,7 @@ struct SharedActivityView<ViewModel: UserListViewModel & ObservableObject>: View
                         otherUser.username
                     )
                 )
-                .font(.system(size: 28, weight: .bold))
+                .font(.system(size: 28, weight: .semibold))
                 .foregroundStyle(primaryTextColor)
                 .multilineTextAlignment(.center)
 
@@ -381,7 +381,7 @@ struct SharedActivityView<ViewModel: UserListViewModel & ObservableObject>: View
                     .frame(width: 118, height: 118)
                     .overlay(
                         Text(fallbackLabel)
-                            .font(.system(size: 36, weight: .bold))
+                            .font(.system(size: 36, weight: .semibold))
                             .foregroundStyle(primaryTextColor)
                     )
             }
@@ -494,10 +494,7 @@ struct SharedActivityView<ViewModel: UserListViewModel & ObservableObject>: View
     }
 
     private func monthYearString(from date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.locale = .current
-        formatter.dateFormat = "LLL. yyyy"
-        return formatter.string(from: date)
+        MomentsFormat.smartDate(from: date, context: .monthYearLabel)
     }
 }
 

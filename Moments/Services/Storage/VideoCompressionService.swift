@@ -15,11 +15,15 @@ enum VideoCompressionError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .invalidSource:
-            return "No se pudo leer el vídeo."
+            return NSLocalizedString("errors.video.invalidSource", comment: "")
         case .exportFailed:
-            return "No se pudo comprimir el vídeo."
+            return NSLocalizedString("errors.video.exportFailed", comment: "")
         case .outputTooLarge(let size, let limit):
-            return "El vídeo sigue siendo demasiado grande (\(ByteCountFormatter.string(fromByteCount: size, countStyle: .file))) tras comprimir. Máximo: \(ByteCountFormatter.string(fromByteCount: limit, countStyle: .file))."
+            return String(
+                format: NSLocalizedString("errors.video.outputTooLarge", comment: ""),
+                ByteCountFormatter.string(fromByteCount: size, countStyle: .file),
+                ByteCountFormatter.string(fromByteCount: limit, countStyle: .file)
+            )
         }
     }
 }

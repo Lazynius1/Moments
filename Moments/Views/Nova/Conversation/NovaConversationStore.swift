@@ -439,9 +439,7 @@ final class NovaConversationStore: ObservableObject {
     }
 
     private func fallbackTitle() -> String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "HH:mm"
-        return "Chat \(formatter.string(from: Date()))"
+        "Chat \(MomentsFormat.smartDate(from: Date(), context: .timeOnly))"
     }
 }
 

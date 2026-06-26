@@ -4,21 +4,7 @@ import SwiftUI
 
 enum SocialConnectionCountFormatter {
     static func string(from count: Int) -> String {
-        guard count >= 1_000 else { return "\(count)" }
-
-        let value = Double(count)
-        if count >= 1_000_000 {
-            let millions = value / 1_000_000
-            return millions >= 10
-                ? String(format: "%.0fM", millions)
-                : String(format: "%.1fM", millions).replacingOccurrences(of: ".0M", with: "M")
-        }
-
-        let thousands = value / 1_000
-        if count >= 10_000 {
-            return String(format: "%.0fK", thousands)
-        }
-        return String(format: "%.1fK", thousands).replacingOccurrences(of: ".0K", with: "K")
+        MomentsFormat.count(count, style: .profileStat)
     }
 }
 

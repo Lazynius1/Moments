@@ -135,6 +135,11 @@
 		<string>en</string>
 		<string>es</string>
 		<string>ca</string>
+		<string>de</string>
+		<string>fr</string>
+		<string>it</string>
+		<string>pt-BR</string>
+		<string>pt-PT</string>
 	</array>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>en</string>

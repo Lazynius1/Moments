@@ -162,13 +162,13 @@ struct ExploreView: View {
     private var exploreRecentSearchesHeader: some View {
         HStack {
             Text(NSLocalizedString("explore.recentSearches.title", comment: ""))
-                .font(.system(size: legacyPoppinsSize(28), weight: .bold))
+                .font(.system(size: legacyPoppinsSize(17), weight: .semibold))
                 .foregroundColor(.primary)
             Spacer()
             Button(NSLocalizedString("explore.recentSearches.clearAll", comment: "")) {
                 viewModel.clearAllSearches()
             }
-            .font(.system(size: legacyPoppinsSize(14), weight: .bold))
+            .font(.system(size: legacyPoppinsSize(13), weight: .semibold))
             .foregroundColor(.primary)
         }
         .textCase(nil)

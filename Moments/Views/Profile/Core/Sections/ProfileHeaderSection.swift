@@ -514,7 +514,7 @@ struct ModernStatsSection: View {
                     socialConnectionsRoute = SocialConnectionsRoute(initialTab: stat.2.socialTab)
                 }) {
                     VStack(spacing: 4) {
-                        Text("\(stat.1)")
+                        Text(MomentsFormat.count(stat.1, style: .profileStat))
                             .font(.system(size: legacyPoppinsSize(embeddedStyle ? 17 : 18), weight: .bold))
                             .foregroundColor(ProfileColors.textPrimary)
 

@@ -35,3 +35,7 @@
 "incognito.activity.subtitle" = "Sua atividade não deixa rastros";
 "incognito.activity.pause" = "Pausar";
 "incognito.activity.resume" = "Retomar";
+"widget.intent.configuration.title" = "Configuração";
+"widget.intent.configuration.description" = "Este é um widget de exemplo.";
+"widget.control.timerConfiguration.title" = "Configuração do nome do timer";
+"widget.control.startTimer.title" = "Iniciar timer";

@@ -692,34 +692,38 @@ class DataExportService: ObservableObject {
     }
     
     private func createReadmeFile(directory: URL) throws {
+        let exportedAt = String(
+            format: NSLocalizedString("export.readme.exportedAt", comment: ""),
+            ISO8601DateFormatter().string(from: Date())
+        )
         let readmeContent = """
-        # Exportación de Datos de Moments
-        
-        Este archivo contiene todos tus datos exportados de la aplicación Moments.
-        
-        ## Archivos incluidos:
-        
-        - **profile.csv**: Información de tu perfil
-        - **moments.csv**: Todas tus publicaciones
-        - **stories.csv**: Tus historias
-        - **following.csv**: Personas que sigues
-        - **mutuals.csv**: Personas con las que tienes relación mutua
-        - **followers.csv**: Personas que te siguen
-        - **conversations.csv**: Resumen de tus conversaciones
-        - **conversations/**: Conversaciones completas en JSON (mensajes y metadatos)
-        - **activity_stats.csv**: Estadísticas de uso de la app
-        - **login_activity.csv**: Historial de inicios de sesión
-        - **media_urls.csv**: URLs de todos tus archivos multimedia
-        - **media/**: Archivos multimedia descargados (si disponibles)
-        
-        ## Formato de fechas:
-        Todas las fechas están en formato ISO 8601 (YYYY-MM-DDTHH:MM:SSZ)
-        
-        ## Privacidad:
-        Este archivo contiene información personal. Manéjalo con cuidado.
-        
-        Exportado el: \(ISO8601DateFormatter().string(from: Date()))
-        Versión: 1.0
+        \(NSLocalizedString("export.readme.title", comment: ""))
+
+        \(NSLocalizedString("export.readme.intro", comment: ""))
+
+        \(NSLocalizedString("export.readme.filesHeader", comment: ""))
+
+        \(NSLocalizedString("export.readme.profile", comment: ""))
+        \(NSLocalizedString("export.readme.moments", comment: ""))
+        \(NSLocalizedString("export.readme.stories", comment: ""))
+        \(NSLocalizedString("export.readme.following", comment: ""))
+        \(NSLocalizedString("export.readme.mutuals", comment: ""))
+        \(NSLocalizedString("export.readme.followers", comment: ""))
+        \(NSLocalizedString("export.readme.conversations", comment: ""))
+        \(NSLocalizedString("export.readme.conversationsDir", comment: ""))
+        \(NSLocalizedString("export.readme.activity", comment: ""))
+        \(NSLocalizedString("export.readme.login", comment: ""))
+        \(NSLocalizedString("export.readme.mediaUrls", comment: ""))
+        \(NSLocalizedString("export.readme.mediaDir", comment: ""))
+
+        \(NSLocalizedString("export.readme.datesHeader", comment: ""))
+        \(NSLocalizedString("export.readme.datesBody", comment: ""))
+
+        \(NSLocalizedString("export.readme.privacyHeader", comment: ""))
+        \(NSLocalizedString("export.readme.privacyBody", comment: ""))
+
+        \(exportedAt)
+        \(NSLocalizedString("export.readme.version", comment: ""))
         """
         
         let fileURL = directory.appendingPathComponent("README.txt")

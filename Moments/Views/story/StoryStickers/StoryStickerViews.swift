@@ -1221,8 +1221,8 @@ struct StoryStickerView: View {
             }
         } else if sticker.type == .time {
             StickerTimeCardView(
-                timeText: sticker.interactionData?.questionText ?? Date.now.formatted(date: .omitted, time: .shortened),
-                dateText: sticker.interactionData?.caption ?? Date.now.formatted(date: .numeric, time: .omitted),
+                timeText: sticker.interactionData?.questionText ?? MomentsFormat.smartDate(from: .now, context: .timeOnly),
+                dateText: sticker.interactionData?.caption ?? MomentsFormat.smartDate(from: .now, context: .numericDate),
                 styleVariant: sticker.interactionData?.styleVariant ?? 0
             )
             .frame(width: 164, height: 56)

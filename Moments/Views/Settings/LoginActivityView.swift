@@ -313,7 +313,7 @@ struct SessionDetails: View {
                 Text("•")
                     .font(.system(size: legacyPoppinsSize(11)))
                     .foregroundColor(.secondary.opacity(0.7))
-                Text(session.timestamp.formatted(date: .abbreviated, time: .shortened))
+                Text(MomentsFormat.smartDate(from: session.timestamp, context: .mediumDateTime))
                     .font(.system(size: legacyPoppinsSize(12)))
                     .foregroundColor(.secondary)
                     .lineLimit(1)

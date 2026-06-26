@@ -45,7 +45,7 @@ extension GlowsyWidgetExtensionControl {
 
 @available(iOS 18.0, *)
 struct TimerConfiguration: ControlConfigurationIntent {
-    static let title: LocalizedStringResource = "Timer Name Configuration"
+    static let title: LocalizedStringResource = "widget.control.timerConfiguration.title"
 
     @Parameter(title: "Timer Name", default: "Timer")
     var timerName: String
@@ -53,7 +53,7 @@ struct TimerConfiguration: ControlConfigurationIntent {
 
 @available(iOS 18.0, *)
 struct StartTimerIntent: SetValueIntent {
-    static let title: LocalizedStringResource = "Start a timer"
+    static let title: LocalizedStringResource = "widget.control.startTimer.title"
 
     @Parameter(title: "Timer Name")
     var name: String

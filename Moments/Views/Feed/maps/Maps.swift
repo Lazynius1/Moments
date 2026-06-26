@@ -604,13 +604,10 @@ struct LocationMapView: View {
         let oldest = sortedMoments.first!.timestamp
         let newest = sortedMoments.last!.timestamp
 
-        let formatter = DateFormatter()
-        formatter.dateFormat = "MMM"
-
         if Calendar.current.isDate(oldest, equalTo: newest, toGranularity: .month) {
-            return formatter.string(from: oldest)
+            return MomentsFormat.smartDate(from: oldest, context: .monthAbbreviated)
         } else {
-            return "\(formatter.string(from: oldest))-\(formatter.string(from: newest))"
+            return "\(MomentsFormat.smartDate(from: oldest, context: .monthAbbreviated))-\(MomentsFormat.smartDate(from: newest, context: .monthAbbreviated))"
         }
     }
 
