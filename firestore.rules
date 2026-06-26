@@ -1331,9 +1331,20 @@ service cloud.firestore {
 
     function onlyConversationLastDeletedAtUpdated() {
       return request.resource.data.lastDeletedAt is map
-        && (!('lastDeletedAt' in resource.data) ||
-            request.resource.data.lastDeletedAt.diff(resource.data.lastDeletedAt).affectedKeys().hasOnly([request.auth.uid]))
+        && (
+          (!('lastDeletedAt' in resource.data) && request.resource.data.lastDeletedAt.keys().hasOnly([request.auth.uid])) ||
+          (('lastDeletedAt' in resource.data) && request.resource.data.lastDeletedAt.diff(resource.data.lastDeletedAt).affectedKeys().hasOnly([request.auth.uid]))
+        )
         && request.resource.data.lastDeletedAt[request.auth.uid] is timestamp;
+    }
+
+    function onlyConversationLastReadAtUpdated() {
+      return request.resource.data.lastReadAt is map
+        && (
+          (!('lastReadAt' in resource.data) && request.resource.data.lastReadAt.keys().hasOnly([request.auth.uid])) ||
+          (('lastReadAt' in resource.data) && request.resource.data.lastReadAt.diff(resource.data.lastReadAt).affectedKeys().hasOnly([request.auth.uid]))
+        )
+        && request.resource.data.lastReadAt[request.auth.uid] is timestamp;
     }
 
     function validConversationReadStatus() {
@@ -1467,7 +1478,7 @@ service cloud.firestore {
         request.resource.data.diff(resource.data).affectedKeys().hasOnly([
           'lastMessage', 'lastMessageTime', 'lastMessageSenderId', 'lastMessageType',
           'updatedAt', 'unreadCount', 'deletedFor', 'lastDeletedAt',
-          'timestamp', 'readStatus',
+          'timestamp', 'readStatus', 'lastReadAt',
           'encryptionKey', 'encryptionKeyCreatedAt', 'encryptionVersion',
           'wrappedKeys', 'forwardingPreferences', 'buzzPreferences'
         ]) &&
@@ -1479,6 +1490,8 @@ service cloud.firestore {
           (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['timestamp']) || request.resource.data.timestamp is timestamp)
           &&
           (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['readStatus']) || validConversationReadStatus())
+          &&
+          (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['lastReadAt']) || onlyConversationLastReadAtUpdated())
           &&
           (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['encryptionKey','encryptionKeyCreatedAt','encryptionVersion']) ||
            (request.resource.data.encryptionKey is string &&
