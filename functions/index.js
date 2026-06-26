@@ -11471,9 +11471,18 @@ exports.cleanupDeletedConversation = onDocumentWritten(
 
     // ─── Helpers ─────────────────────────────────────────────────────────────
 
+    const isParticipantChatStoragePath = (objectPath) => {
+      if (!objectPath || typeof objectPath !== 'string') return false;
+      const path = objectPath.trim();
+      return participants.some((uid) => path.startsWith(`users/${uid}/chat/${conversationId}/`));
+    };
+
     // Borra un archivo de Storage por su objectPath; ignora "not found"
     const deleteStorageFile = async (objectPath) => {
-      if (!objectPath || typeof objectPath !== 'string' || objectPath.trim() === '') return;
+      if (!isParticipantChatStoragePath(objectPath)) {
+        console.warn(`[cleanupDeletedConversation] Skipping out-of-scope Storage path: ${objectPath}`);
+        return;
+      }
       const path = objectPath.trim();
       try {
         await bucket.file(path).delete();
