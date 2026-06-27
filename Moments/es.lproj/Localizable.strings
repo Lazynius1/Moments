@@ -959,6 +959,8 @@
 "chat.action.forward" = "Reenviar";
 "chat.action.star" = "Destacar";
 "chat.action.unstar" = "Quitar destacado";
+"chat.loadingOlderMessages" = "Cargando mensajes…";
+"chat.historyStart" = "Inicio de la conversación";
 "chat.forward.title" = "Reenviar mensaje";
 "chat.forwarded" = "Reenviado";
 "chat.error.editWindowExpired" = "Solo puedes editar mensajes durante los primeros 10 minutos";

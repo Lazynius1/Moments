@@ -922,6 +922,8 @@
 "chat.action.forward" = "Reenviar";
 "chat.action.star" = "Destacar";
 "chat.action.unstar" = "Treure destacat";
+"chat.loadingOlderMessages" = "Carregant missatges…";
+"chat.historyStart" = "Inici de la conversa";
 "chat.forward.title" = "Reenviar missatge";
 "chat.forwarded" = "Reenviat";
 "chat.error.editWindowExpired" = "Només pots editar missatges durant els primers 10 minuts";

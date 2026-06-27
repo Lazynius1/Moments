@@ -921,6 +921,8 @@
 "chat.action.forward" = "Inoltra";
 "chat.action.star" = "Metti in evidenza";
 "chat.action.unstar" = "Rimuovi evidenziazione";
+"chat.loadingOlderMessages" = "Caricamento messaggi…";
+"chat.historyStart" = "Inizio della conversazione";
 "chat.forward.title" = "Inoltra messaggio";
 "chat.forwarded" = "Inoltrato";
 "chat.error.editWindowExpired" = "Puoi modificare i messaggi solo nei primi 10 minuti";

@@ -24,7 +24,7 @@ final class LocalPersistenceService: ObservableObject {
     private let maxCachedUsers = 200      // Máximo usuarios en caché
     private let maxDataAgeDays = 7        // Datos más viejos se limpian
     private let maxConversations = 50     // Máximo conversaciones en caché
-    private let maxMessagesPerChat = 500  // Máximo mensajes por chat en caché
+    private let maxMessagesPerChat = 200  // Máximo mensajes por chat en caché (disco)
     
     // MARK: - Init
     init() {
@@ -687,7 +687,7 @@ final class LocalPersistenceService: ObservableObject {
         trimConversations()
     }
 
-    /// Carga rápida sin I/O de disco por mensaje (local-first: pintar UI al instante).
+    /// Carga rápida sin I/O de disco por mensaje (local-first: warm/ingest/listeners).
     func loadMessagesFast(conversationId: String) -> [EnhancedMessage] {
         guard let context = modelContext else { return [] }
 
@@ -704,6 +704,62 @@ final class LocalPersistenceService: ObservableObject {
             AppLog.debug("❌ LocalPersistence: Error al cargar mensajes (fast): \(error)")
             return []
         }
+    }
+
+    /// Últimos N mensajes desde SwiftData (sin cargar todo el historial en RAM).
+    func loadRecentMessagesFast(
+        conversationId: String,
+        limit: Int,
+        cutoffDate: Date? = nil
+    ) -> [EnhancedMessage] {
+        guard limit > 0, let context = modelContext else { return [] }
+
+        let predicate = #Predicate<CachedMessage> { $0.conversationId == conversationId }
+        var descriptor = FetchDescriptor<CachedMessage>(
+            predicate: predicate,
+            sortBy: [
+                SortDescriptor(\.timestamp, order: .reverse),
+                SortDescriptor(\.id, order: .reverse)
+            ]
+        )
+        descriptor.fetchLimit = limit
+
+        guard var cached = try? context.fetch(descriptor) else { return [] }
+        if let cutoffDate {
+            cached = cached.filter { $0.timestamp > cutoffDate }
+        }
+        return cached.reversed().map { $0.toEnhancedMessage() }
+    }
+
+    /// Página de mensajes estrictamente anteriores al cursor (paginación lazy desde disco).
+    func loadMessagesBefore(
+        conversationId: String,
+        cursor: MessageSyncCursor,
+        cutoffDate: Date? = nil,
+        limit: Int
+    ) -> [EnhancedMessage] {
+        guard limit > 0, let context = modelContext else { return [] }
+
+        let predicate = #Predicate<CachedMessage> { $0.conversationId == conversationId }
+        let descriptor = FetchDescriptor<CachedMessage>(
+            predicate: predicate,
+            sortBy: [
+                SortDescriptor(\.timestamp, order: .reverse),
+                SortDescriptor(\.id, order: .reverse)
+            ]
+        )
+
+        guard let cached = try? context.fetch(descriptor) else { return [] }
+
+        var page: [EnhancedMessage] = []
+        for message in cached {
+            if let cutoffDate, message.timestamp <= cutoffDate { continue }
+            let messageCursor = MessageSyncCursor(timestamp: message.timestamp, messageId: message.id)
+            guard cursor.isAfter(messageCursor) else { continue }
+            page.append(message.toEnhancedMessage())
+            if page.count >= limit { break }
+        }
+        return page.reversed()
     }
 
     /// Re-enlaza URLs locales desde App Group (puede ejecutarse fuera del main).

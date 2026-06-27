@@ -73,6 +73,17 @@ struct GlassmorphicChatView: View {
     @State private var messageRowFrames: [String: CGRect] = [:]
     @State private var liveScrollAnchorRowId: String?
     @State private var bottomSnapTask: Task<Void, Never>? = nil
+    @State private var historyScrollAnchorRowId: String?
+    @State private var historyScrollSnapshot: HistoryScrollSnapshot?
+    @State private var historyScrollPosition: String?
+    @State private var isRestoringHistoryScroll = false
+    @State private var historyPrefetchArmed = true
+    @State private var historyScrollRestoreTask: Task<Void, Never>? = nil
+    private static let historyPrefetchDistance: CGFloat = 320
+    private static let historyPrefetchRearmDistance: CGFloat = 480
+    private static let historyPrefetchEarlyRowCount = 5
+    /// Spinner solo si el usuario ya está en el tope y la página aún no llegó (scroll rápido).
+    private static let historyLoadingRevealDistance: CGFloat = 56
     private let bottomScrollAnchorID = "chat-bottom-anchor"
     @State private var isSearchVisible = false
     @State private var searchQuery: String = ""
@@ -837,44 +848,21 @@ struct GlassmorphicChatView: View {
 
     @ViewBuilder
     private func chatMessagesStackContent(proxy: ScrollViewProxy) -> some View {
-            if viewModel.canLoadMore {
-                Color.clear
-                    .frame(height: 20)
-                    .onAppear {
-                        viewModel.loadMoreMessages()
-                    }
-            }
-
-            if viewModel.isLoadingMore {
-                ProgressView()
-                    .progressViewStyle(CircularProgressViewStyle(tint: adaptiveColors.primary))
-                    .scaleEffect(0.8)
-                    .padding(.vertical, 10)
-            }
-
-            ForEach(viewModel.chatRenderRows) { row in
-                switch row {
-                case .header(let date):
-                    GlassmorphicDateHeader(date: date)
-                        .padding(.vertical, 10)
-                        .chatMenuDimmedWhenOpen(messageMenuSelection != nil)
-                case .message(let item):
-                    if shouldShowUnreadDivider(before: item) {
-                        GlassmorphicUnreadDivider()
-                            .padding(.horizontal, 18)
-                            .padding(.vertical, 6)
-                            .chatMenuDimmedWhenOpen(messageMenuSelection != nil)
-                    }
-                    renderMessageItem(item, in: viewModel.messages, proxy: proxy)
-                        .id(item.id)
-                case .buzz(let event):
-                    ChatBuzzTimelineEventRow(
-                        text: buzzTimelineText(for: event),
-                        isOutgoing: event.senderId == viewModel.currentUserId
-                    )
-                    .id("buzz-\(event.id)")
+            if !viewModel.canLoadMore, hasCompletedInitialScroll {
+                ChatHistoryStartHeader(adaptiveColors: adaptiveColors)
                     .chatMenuDimmedWhenOpen(messageMenuSelection != nil)
-                }
+            }
+
+            if viewModel.canLoadMore && historyPrefetchArmed && !viewModel.isLoadingOlderHistory && !isRestoringHistoryScroll {
+                Color.clear
+                    .frame(height: 1)
+                    .onAppear {
+                        maybePrefetchOlderHistory(using: proxy)
+                    }
+            }
+
+            ForEach(Array(viewModel.chatRenderRows.enumerated()), id: \.element.id) { index, row in
+                chatRenderRow(row, index: index, proxy: proxy)
             }
 
             if !viewModel.typingUsers.isEmpty {
@@ -897,6 +885,14 @@ struct GlassmorphicChatView: View {
                 }
     }
 
+    /// WhatsApp/iMessage: prefetch silencioso; spinner solo en el tope mientras aún carga.
+    private var shouldShowHistoryLoadingIndicator: Bool {
+        guard viewModel.isLoadingOlderHistory,
+              viewModel.canLoadMore,
+              hasCompletedInitialScroll else { return false }
+        return scrollContentOffset < Self.historyLoadingRevealDistance
+    }
+
     /// Scroll interactivo solo cuando el contenido supera el viewport (métricas reales del ScrollView).
     private var allowsVerticalScrolling: Bool {
         guard scrollViewportHeight > 1, scrollContentHeight > 1 else { return false }
@@ -909,6 +905,7 @@ struct GlassmorphicChatView: View {
         }
         .defaultScrollAnchor(.bottom)
         .defaultScrollAnchor(.bottom, for: .alignment)
+        .scrollPosition(id: $historyScrollPosition, anchor: historyScrollPositionAnchor)
         .scrollBounceBehavior(.basedOnSize)
         .scrollContentBackground(.hidden)
         .coordinateSpace(name: "chatScroll")
@@ -923,18 +920,73 @@ struct GlassmorphicChatView: View {
         }) { _, metrics in
             scrollMetricsBuffer.ingest(metrics)
             syncScrollLayoutMetrics(from: metrics)
+            let offsetY = metrics.offsetY
+            if abs(offsetY - scrollContentOffset) > 4 {
+                scrollContentOffset = offsetY
+                updateHistoryPrefetchRearm(from: offsetY)
+            }
+            if isRestoringHistoryScroll, let snapshot = historyScrollSnapshot {
+                applyHistoryScrollCorrection(using: proxy, snapshot: snapshot)
+            }
+            if hasCompletedInitialScroll, !isRestoringHistoryScroll, offsetY < Self.historyPrefetchDistance {
+                maybePrefetchOlderHistory(using: proxy)
+            }
         }
+        .onPreferenceChange(ChatScrollRowFrameKey.self) { messageRowFrames = $0 }
         .onScrollPhaseChange { _, phase in
             if phase == .idle || phase == .decelerating {
                 flushScrollMetricsToUI()
             }
+            if phase == .decelerating || phase == .idle {
+                updateHistoryPrefetchRearm(from: scrollContentOffset)
+                if hasCompletedInitialScroll, !isPinnedToBottom {
+                    maybePrefetchOlderHistory(using: proxy)
+                }
+            }
             guard allowsVerticalScrolling else { return }
             guard phase == .idle, hasCompletedInitialScroll else { return }
-            if suppressPinnedMetricsUpdates {
+            if suppressPinnedMetricsUpdates, !isRestoringHistoryScroll {
                 suppressPinnedMetricsUpdates = false
             }
             updateLiveScrollAnchor()
             commitScrollStateToStore()
+        }
+        .overlay(alignment: .top) {
+            if shouldShowHistoryLoadingIndicator {
+                ChatHistoryLoadingIndicator(adaptiveColors: adaptiveColors)
+                    .padding(.top, 6)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func chatRenderRow(_ row: ChatRenderRow, index: Int, proxy: ScrollViewProxy) -> some View {
+        switch row {
+        case .header(let date):
+            GlassmorphicDateHeader(date: date)
+                .padding(.vertical, 10)
+                .chatMenuDimmedWhenOpen(messageMenuSelection != nil)
+                .trackChatScrollRowFrame(id: row.id)
+        case .message(let item):
+            if shouldShowUnreadDivider(before: item) {
+                GlassmorphicUnreadDivider()
+                    .padding(.horizontal, 18)
+                    .padding(.vertical, 6)
+                    .chatMenuDimmedWhenOpen(messageMenuSelection != nil)
+            }
+            renderMessageItem(item, in: viewModel.messages, proxy: proxy)
+                .onAppear {
+                    guard index < Self.historyPrefetchEarlyRowCount else { return }
+                    maybePrefetchOlderHistory(using: proxy)
+                }
+        case .buzz(let event):
+            ChatBuzzTimelineEventRow(
+                text: buzzTimelineText(for: event),
+                isOutgoing: event.senderId == viewModel.currentUserId
+            )
+            .id("buzz-\(event.id)")
+            .chatMenuDimmedWhenOpen(messageMenuSelection != nil)
+            .trackChatScrollRowFrame(id: row.id)
         }
     }
 
@@ -1016,7 +1068,10 @@ struct GlassmorphicChatView: View {
                 initialScrollTask = nil
                 scheduleInitialScroll(proxy: proxy)
             }
-            .onChange(of: viewModel.chatRenderRows.map(\.id)) { _, rowIds in
+            .onChange(of: viewModel.chatRenderRows.map(\.id)) { oldIds, rowIds in
+                if historyScrollSnapshot != nil, oldIds.count != rowIds.count {
+                    scheduleHistoryScrollRestoration(using: proxy)
+                }
                 reapplyFrozenScrollPositionIfNeeded(in: rowIds, using: proxy)
                 scheduleSingleHighlightScrollIfNeeded(using: proxy)
                 guard !hasCompletedInitialScroll else { return }
@@ -1085,6 +1140,14 @@ struct GlassmorphicChatView: View {
             .onChange(of: viewModel.buzzEvents.map(\.id)) { _, _ in
                 guard hasCompletedInitialScroll else { return }
                 processPendingBuzz(using: proxy)
+            }
+            .onChange(of: viewModel.isLoadingMore) { wasLoading, isLoading in
+                guard wasLoading, !isLoading else { return }
+                if historyScrollSnapshot != nil {
+                    scheduleHistoryScrollRestoration(using: proxy)
+                } else {
+                    viewModel.endHistoryScrollRestoration()
+                }
             }
     }
 
@@ -1655,6 +1718,7 @@ struct GlassmorphicChatView: View {
             }
         }
         .chatMenuDimmedUnlessSelected(isSelected: isMenuSelected, menuOpen: messageMenuSelection != nil)
+        .trackChatScrollRowFrame(id: rowId)
         .zIndex(isMenuSelected || isBubbleHighlighted ? 100 : 0)
         .id(item.id)
     }
@@ -1846,6 +1910,8 @@ struct GlassmorphicChatView: View {
         if pinned != isPinnedToBottom {
             isPinnedToBottom = pinned
             if pinned {
+                historyScrollPosition = nil
+                historyScrollSnapshot = nil
                 clearUnreadDividerAndMarkReadIfNeeded()
             }
         }
@@ -1899,7 +1965,116 @@ struct GlassmorphicChatView: View {
         }
     }
 
+    private var historyScrollPositionAnchor: UnitPoint {
+        historyScrollSnapshot?.viewportAnchor ?? .top
+    }
+
     /// Re-aplica scroll guardado tras recrear la vista (navigationDestination pop/push).
+    private func requestLoadOlderHistory(using _: ScrollViewProxy) {
+        guard hasCompletedInitialScroll,
+              !viewModel.isLoadingMore,
+              !isRestoringHistoryScroll,
+              viewModel.canLoadMore,
+              let oldest = viewModel.messages.first,
+              let anchorRowId = messageRowId(containingMessageId: oldest.id) else { return }
+
+        let metrics = scrollMetricsBuffer.metrics
+        let viewport = max(scrollViewportHeight, metrics.viewportHeight)
+        let anchorMinY = messageRowFrames[anchorRowId]?.minY ?? max(metrics.offsetY, 0)
+
+        historyScrollAnchorRowId = anchorRowId
+        historyScrollSnapshot = HistoryScrollSnapshot(
+            anchorRowId: anchorRowId,
+            anchorMinY: anchorMinY,
+            contentOffsetY: metrics.offsetY,
+            contentHeight: metrics.contentHeight,
+            viewportHeight: viewport
+        )
+        historyScrollPosition = anchorRowId
+        suppressPinnedMetricsUpdates = true
+        isPinnedToBottom = false
+        historyPrefetchArmed = false
+        viewModel.loadMoreMessages()
+    }
+
+    private var shouldPrefetchOlderHistory: Bool {
+        guard hasCompletedInitialScroll,
+              historyPrefetchArmed,
+              !isPinnedToBottom,
+              viewModel.canLoadMore,
+              !viewModel.isLoadingMore,
+              !isRestoringHistoryScroll else { return false }
+        return scrollContentOffset < Self.historyPrefetchDistance
+    }
+
+    private func maybePrefetchOlderHistory(using proxy: ScrollViewProxy) {
+        guard shouldPrefetchOlderHistory else { return }
+        requestLoadOlderHistory(using: proxy)
+    }
+
+    private func updateHistoryPrefetchRearm(from offsetY: CGFloat) {
+        guard viewModel.canLoadMore else { return }
+        if offsetY > Self.historyPrefetchRearmDistance {
+            historyPrefetchArmed = true
+        }
+    }
+
+    private func isHistoryAnchorAtTarget(_ snapshot: HistoryScrollSnapshot) -> Bool {
+        if let frame = messageRowFrames[snapshot.anchorRowId] {
+            return abs(frame.minY - snapshot.anchorMinY) <= 3
+        }
+        let delta = scrollContentHeight - snapshot.contentHeight
+        guard delta > 0 else { return false }
+        let targetOffset = snapshot.contentOffsetY + delta
+        return abs(scrollContentOffset - targetOffset) <= 8
+    }
+
+    private func applyHistoryScrollCorrection(using proxy: ScrollViewProxy, snapshot: HistoryScrollSnapshot) {
+        guard viewModel.chatRenderRows.contains(where: { $0.id == snapshot.anchorRowId }) else { return }
+        var transaction = Transaction()
+        transaction.disablesAnimations = true
+        withTransaction(transaction) {
+            historyScrollPosition = snapshot.anchorRowId
+            proxy.scrollTo(snapshot.anchorRowId, anchor: snapshot.viewportAnchor)
+        }
+    }
+
+    private func scheduleHistoryScrollRestoration(using proxy: ScrollViewProxy) {
+        guard let snapshot = historyScrollSnapshot else {
+            viewModel.endHistoryScrollRestoration()
+            return
+        }
+
+        historyScrollRestoreTask?.cancel()
+        isRestoringHistoryScroll = true
+
+        historyScrollRestoreTask = Task { @MainActor in
+            defer {
+                historyScrollRestoreTask = nil
+                isRestoringHistoryScroll = false
+                suppressPinnedMetricsUpdates = false
+                historyScrollAnchorRowId = nil
+                historyScrollSnapshot = nil
+                historyScrollPosition = nil
+                historyPrefetchArmed = false
+                viewModel.endHistoryScrollRestoration()
+            }
+
+            let delays: [UInt64] = [0, 8_000_000, 16_000_000, 32_000_000, 50_000_000, 80_000_000, 120_000_000]
+
+            for delay in delays {
+                if Task.isCancelled { return }
+                if delay > 0 { try? await Task.sleep(nanoseconds: delay) }
+
+                applyHistoryScrollCorrection(using: proxy, snapshot: snapshot)
+
+                if isHistoryAnchorAtTarget(snapshot) {
+                    return
+                }
+            }
+        }
+    }
+
     private func reapplyFrozenScrollPositionIfNeeded(in rowIds: [String], using proxy: ScrollViewProxy) {
         guard hasCompletedInitialScroll, !didReapplyFrozenScrollPosition, !rowIds.isEmpty else { return }
 
@@ -2635,7 +2810,7 @@ extension GlassmorphicChatView {
 
                     if !viewModel.messages.contains(where: { $0.id == activeId }) {
                         if viewModel.canLoadMore, !viewModel.isLoadingMore {
-                            viewModel.loadMoreMessages()
+                            requestLoadOlderHistory(using: proxy)
                         }
                         continue
                     }
@@ -2720,7 +2895,7 @@ extension GlassmorphicChatView {
                    viewModel.canLoadMore,
                    !viewModel.isLoadingMore {
                     viewModel.loadMessageForHighlightIfNeeded(messageId: messageId)
-                    viewModel.loadMoreMessages()
+                    requestLoadOlderHistory(using: proxy)
                 } else if !viewModel.messages.contains(where: { $0.id == messageId }) {
                     viewModel.loadMessageForHighlightIfNeeded(messageId: messageId)
                 }
@@ -3454,6 +3629,20 @@ class MomentsChatViewModel: EnhancedChatViewModel {
             updateGroupedMessages()
             objectWillChange.send()
         }
+    }
+}
+
+private struct HistoryScrollSnapshot {
+    let anchorRowId: String
+    let anchorMinY: CGFloat
+    let contentOffsetY: CGFloat
+    let contentHeight: CGFloat
+    let viewportHeight: CGFloat
+
+    var viewportAnchor: UnitPoint {
+        guard viewportHeight > 0 else { return UnitPoint(x: 0.5, y: 0.08) }
+        let y = min(max(anchorMinY / viewportHeight, 0), 1)
+        return UnitPoint(x: 0.5, y: y)
     }
 }
 

@@ -949,6 +949,8 @@
 "chat.action.forward" = "Forward";
 "chat.action.star" = "Star";
 "chat.action.unstar" = "Remove Star";
+"chat.loadingOlderMessages" = "Loading messages…";
+"chat.historyStart" = "Beginning of conversation";
 "chat.forward.title" = "Forward message";
 "chat.forwarded" = "Forwarded";
 "chat.error.editWindowExpired" = "You can only edit messages within the first 10 minutes";

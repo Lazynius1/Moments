@@ -921,6 +921,8 @@
 "chat.action.forward" = "Encaminhar";
 "chat.action.star" = "Destacar";
 "chat.action.unstar" = "Remover destaque";
+"chat.loadingOlderMessages" = "Carregando mensagens…";
+"chat.historyStart" = "Início da conversa";
 "chat.forward.title" = "Encaminhar mensagem";
 "chat.forwarded" = "Encaminhado";
 "chat.error.editWindowExpired" = "Só podes editar mensagens nos primeiros 10 minutos";

@@ -83,6 +83,39 @@ extension ToolbarContent {
     }
 }
 
+/// Spinner fijo arriba del hilo al paginar historial (estilo Instagram).
+struct ChatHistoryLoadingIndicator: View {
+    let adaptiveColors: AdaptiveColors
+
+    var body: some View {
+        HStack(spacing: 8) {
+            ProgressView()
+                .progressViewStyle(CircularProgressViewStyle(tint: adaptiveColors.primary))
+                .scaleEffect(0.85)
+            Text("chat.loadingOlderMessages")
+                .font(.system(size: 12, weight: .medium))
+                .foregroundStyle(adaptiveColors.secondary)
+        }
+        .frame(maxWidth: .infinity)
+        .allowsHitTesting(false)
+    }
+}
+
+/// Marca sutil al llegar al inicio del historial disponible.
+struct ChatHistoryStartHeader: View {
+    let adaptiveColors: AdaptiveColors
+
+    var body: some View {
+        Text("chat.historyStart")
+            .font(.system(size: legacyPoppinsSize(12)))
+            .foregroundStyle(adaptiveColors.secondary.opacity(0.85))
+            .multilineTextAlignment(.center)
+            .frame(maxWidth: .infinity)
+            .padding(.horizontal, 24)
+            .padding(.vertical, 12)
+    }
+}
+
 /// Encabezado de sección en listas de mensajes (misma fuente que el toolbar).
 struct MessagingSectionHeader: View {
     let title: LocalizedStringKey

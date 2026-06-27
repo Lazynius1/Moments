@@ -921,6 +921,8 @@
 "chat.action.forward" = "Transférer";
 "chat.action.star" = "Mettre en favori";
 "chat.action.unstar" = "Retirer des favoris";
+"chat.loadingOlderMessages" = "Chargement des messages…";
+"chat.historyStart" = "Début de la conversation";
 "chat.forward.title" = "Transférer le message";
 "chat.forwarded" = "Transféré";
 "chat.error.editWindowExpired" = "Vous ne pouvez modifier un message que dans les 10 premières minutes";

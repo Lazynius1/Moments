@@ -921,6 +921,8 @@
 "chat.action.forward" = "Weiterleiten";
 "chat.action.star" = "Markieren";
 "chat.action.unstar" = "Markierung entfernen";
+"chat.loadingOlderMessages" = "Nachrichten werden geladen…";
+"chat.historyStart" = "Beginn der Unterhaltung";
 "chat.forward.title" = "Nachricht weiterleiten";
 "chat.forwarded" = "Weitergeleitet";
 "chat.error.editWindowExpired" = "Nachrichten können nur in den ersten 10 Minuten bearbeitet werden";

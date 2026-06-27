@@ -99,10 +99,11 @@ class EnhancedChatViewModel: ObservableObject {
     
     // ✅ PAGINACIÓN
     @Published var isLoadingMore = false
+    @Published var isLoadingOlderHistory = false
     @Published var canLoadMore = true
-    /// Mensajes cacheados en SwiftData aún no mostrados (más antiguos que la ventana inicial).
-    private var deferredCachedMessages: [EnhancedMessage] = []
-    private static let initialChatWindowSize = 20
+    private static let recentChatWindowSize = 20
+    private static let staleChatWindowSize = 6
+    private static let staleChatThresholdDays = 45
     private static let historyPageSize = 25
     @Published private(set) var forwardingPreferences: [String: Bool] = [:]
     @Published private(set) var buzzPreferences: [String: Bool] = [:]
@@ -232,23 +233,25 @@ class EnhancedChatViewModel: ObservableObject {
     func mergeMessagesFromLocalCache() {
         guard let conversationId = conversation.id, !conversationId.isEmpty else { return }
 
-        var cachedMessages = LocalPersistenceService.shared.loadMessagesFast(conversationId: conversationId)
-        if let cutoff = effectiveDeletedAtCutoff() {
-            cachedMessages = cachedMessages.filter { $0.timestamp > cutoff }
-        }
-        guard !cachedMessages.isEmpty else { return }
-
-        let knownIds = Set(
-            (realTimeMessages + historicalMessages + deferredCachedMessages).map(\.id)
+        let cutoff = effectiveDeletedAtCutoff()
+        let recent = LocalPersistenceService.shared.loadRecentMessagesFast(
+            conversationId: conversationId,
+            limit: 50,
+            cutoffDate: cutoff
         )
-        let incoming = cachedMessages
-            .filter { !knownIds.contains($0.id) }
+        guard !recent.isEmpty else { return }
+
+        let knownIds = Set((realTimeMessages + historicalMessages).map(\.id))
+        let oldestVisible = historicalMessages.first?.timestamp
+            ?? messages.first?.timestamp
+            ?? Date.distantPast
+        let incoming = recent
+            .filter { !knownIds.contains($0.id) && $0.timestamp >= oldestVisible }
             .sorted { $0.timestamp < $1.timestamp }
         guard !incoming.isEmpty else { return }
 
-        for message in incoming {
-            insertIncomingCachedMessage(message)
-        }
+        historicalMessages.append(contentsOf: incoming)
+        historicalMessages.sort { $0.timestamp < $1.timestamp }
         rebuildMessagesList()
         prefetchUnresolvedMediaIfNeeded()
         if let momentsViewModel = self as? MomentsChatViewModel {
@@ -848,9 +851,6 @@ class EnhancedChatViewModel: ObservableObject {
         for index in historicalMessages.indices {
             patch(&historicalMessages[index])
         }
-        for index in deferredCachedMessages.indices {
-            patch(&deferredCachedMessages[index])
-        }
         for index in realTimeMessages.indices {
             patch(&realTimeMessages[index])
         }
@@ -1139,71 +1139,111 @@ class EnhancedChatViewModel: ObservableObject {
         return soleOwnMessageWithExternalReactionId()
     }
     
-    // ✅ FUNCIÓN: Cargar más mensajes (caché local primero, luego Firestore)
+    // ✅ FUNCIÓN: Cargar más mensajes (SwiftData primero, luego Firestore)
     func loadMoreMessages() {
-        guard !isLoadingMore, canLoadMore, let conversationId = conversation.id else { return }
-
-        if !deferredCachedMessages.isEmpty {
-            isLoadingMore = true
-            let takeCount = min(Self.historyPageSize, deferredCachedMessages.count)
-            let batch = Array(deferredCachedMessages.suffix(takeCount))
-            deferredCachedMessages.removeLast(takeCount)
-            historicalMessages.insert(contentsOf: batch, at: 0)
-            rebuildMessagesList()
-            if let momentsViewModel = self as? MomentsChatViewModel {
-                momentsViewModel.syncMessagePresentation()
-            }
-            canLoadMore = !deferredCachedMessages.isEmpty || canLoadMoreFromServer
-            isLoadingMore = false
-            return
-        }
-
-        guard canLoadMoreFromServer, let firstMessage = messages.first else {
-            canLoadMore = false
-            return
-        }
+        guard !isLoadingMore, canLoadMore, let conversationId = conversation.id, let oldest = messages.first else { return }
 
         isLoadingMore = true
+        isLoadingOlderHistory = true
 
         let cutoff = effectiveDeletedAtCutoff()
-        chatService.fetchOlderMessages(
-            conversationId: conversationId,
-            before: firstMessage.timestamp,
-            cutoffDate: cutoff
-        ) { [weak self] result in
-            DispatchQueue.main.async {
-                guard let self = self else { return }
-                self.isLoadingMore = false
+        let pageSize = Self.historyPageSize
+        let cursor = MessageSyncCursor(timestamp: oldest.timestamp, messageId: oldest.id)
 
-                switch result {
-                case .success(let olderMessages):
-                    if olderMessages.isEmpty {
-                        self.canLoadMoreFromServer = false
-                        self.canLoadMore = !self.deferredCachedMessages.isEmpty
-                    } else {
-                        let existingIds = Set(
-                            (self.historicalMessages + self.realTimeMessages + self.deferredCachedMessages).map(\.id)
-                        )
-                        let novel = olderMessages.filter { !existingIds.contains($0.id) }
-                        let sortedNovel = novel.sorted { $0.timestamp < $1.timestamp }
-                        self.historicalMessages.insert(contentsOf: sortedNovel, at: 0)
-                        self.rebuildMessagesList()
-                        if let momentsViewModel = self as? MomentsChatViewModel {
-                            momentsViewModel.syncMessagePresentation()
-                        }
-                        if let conversationId = self.conversation.id {
-                            LocalPersistenceService.shared.appendMessages(novel, conversationId: conversationId)
-                        }
-                        self.canLoadMore = true
-                    }
-                case .failure(let error):
-                    print("Error loading more messages: \(error)")
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            await Task.yield()
+
+            let localPage = LocalPersistenceService.shared.loadMessagesBefore(
+                conversationId: conversationId,
+                cursor: cursor,
+                cutoffDate: cutoff,
+                limit: pageSize
+            )
+
+            if !localPage.isEmpty {
+                self.prependHistoryPage(localPage)
+                self.finishHistoryLoad(canLoadMore: true)
+                return
+            }
+
+            guard NetworkMonitor.shared.isConnected else {
+                self.finishHistoryLoad(canLoadMore: false)
+                return
+            }
+
+            do {
+                let olderMessages = try await self.fetchOlderMessagesFromFirestore(
+                    conversationId: conversationId,
+                    before: oldest.timestamp,
+                    cutoffDate: cutoff,
+                    limit: pageSize
+                )
+
+                let existingIds = Set((self.historicalMessages + self.realTimeMessages).map(\.id))
+                let novel = olderMessages
+                    .filter { !existingIds.contains($0.id) }
+                    .sorted { $0.timestamp < $1.timestamp }
+
+                if !novel.isEmpty {
+                    self.prependHistoryPage(novel)
+                    LocalPersistenceService.shared.appendMessages(novel, conversationId: conversationId)
                 }
+
+                let hasMore = !novel.isEmpty && novel.count >= pageSize
+                self.finishHistoryLoad(canLoadMore: hasMore)
+            } catch {
+                print("Error loading more messages: \(error)")
+                self.finishHistoryLoad(canLoadMore: self.canLoadMore)
             }
         }
     }
 
-    private var canLoadMoreFromServer = true
+    private func prependHistoryPage(_ page: [EnhancedMessage]) {
+        guard !page.isEmpty else { return }
+        let existingIds = Set((historicalMessages + realTimeMessages).map(\.id))
+        let novel = page.filter { !existingIds.contains($0.id) }
+        guard !novel.isEmpty else { return }
+        historicalMessages.insert(contentsOf: novel, at: 0)
+        rebuildMessagesList()
+        prefetchUnresolvedMediaIfNeeded()
+        if let momentsViewModel = self as? MomentsChatViewModel {
+            momentsViewModel.syncMessagePresentation()
+        }
+    }
+
+    private func finishHistoryLoad(canLoadMore: Bool) {
+        self.canLoadMore = canLoadMore
+        isLoadingMore = false
+    }
+
+    /// La vista llama esto cuando el scroll quedó re-anclado tras prepend.
+    func endHistoryScrollRestoration() {
+        isLoadingOlderHistory = false
+    }
+
+    private func fetchOlderMessagesFromFirestore(
+        conversationId: String,
+        before timestamp: Date,
+        cutoffDate: Date?,
+        limit: Int
+    ) async throws -> [EnhancedMessage] {
+        try await withCheckedThrowingContinuation { continuation in
+            chatService.fetchOlderMessages(
+                conversationId: conversationId,
+                before: timestamp,
+                cutoffDate: cutoffDate,
+                limit: limit
+            ) { result in
+                continuation.resume(with: result)
+            }
+        }
+    }
+
+    private func initialWindowSize() -> Int {
+        let days = Calendar.current.dateComponents([.day], from: conversation.timestamp, to: Date()).day ?? 0
+        return days > Self.staleChatThresholdDays ? Self.staleChatWindowSize : Self.recentChatWindowSize
+    }
 
     func loadMessageForHighlightIfNeeded(messageId: String) {
         guard !messageId.isEmpty else { return }
@@ -1255,16 +1295,16 @@ class EnhancedChatViewModel: ObservableObject {
         guard !didLoadCacheFromSwiftData else { return }
         didLoadCacheFromSwiftData = true
 
-        var cachedMessages = LocalPersistenceService.shared.loadMessagesFast(conversationId: conversationId)
-        
-        // Filtrar mensajes locales usando el punto de corte (lastDeletedAt)
-        if let cutoff = effectiveDeletedAtCutoff() {
-            cachedMessages = cachedMessages.filter { $0.timestamp > cutoff }
-        }
+        let cutoff = effectiveDeletedAtCutoff()
+        let windowSize = initialWindowSize()
+        let scanLimit = max(windowSize, 50)
+        let recentMessages = LocalPersistenceService.shared.loadRecentMessagesFast(
+            conversationId: conversationId,
+            limit: scanLimit,
+            cutoffDate: cutoff
+        )
 
-        guard !cachedMessages.isEmpty else { return }
-
-        for message in cachedMessages where message.senderId == currentUserId {
+        for message in recentMessages where message.senderId == currentUserId {
             switch message.status {
             case .sending, .pending, .failed:
                 outgoingTempMessages[message.id] = message
@@ -1273,7 +1313,9 @@ class EnhancedChatViewModel: ObservableObject {
             }
         }
 
-        applyInitialCacheWindow(cachedMessages)
+        guard !recentMessages.isEmpty else { return }
+
+        historicalMessages = Array(recentMessages.suffix(windowSize))
         rebuildMessagesList()
         syncLiveReactionOverlays(from: messages)
         prefetchUnresolvedMediaIfNeeded()
@@ -1283,33 +1325,8 @@ class EnhancedChatViewModel: ObservableObject {
         scheduleAsyncDiskURLWarm()
     }
 
-    /// Muestra solo la cola reciente al abrir; el resto queda en `deferredCachedMessages` para loadMore.
-    private func applyInitialCacheWindow(_ cachedMessages: [EnhancedMessage]) {
-        if cachedMessages.count <= Self.initialChatWindowSize {
-            historicalMessages = cachedMessages
-            deferredCachedMessages = []
-        } else {
-            historicalMessages = Array(cachedMessages.suffix(Self.initialChatWindowSize))
-            deferredCachedMessages = Array(cachedMessages.dropLast(Self.initialChatWindowSize))
-        }
-        canLoadMoreFromServer = true
-        canLoadMore = !deferredCachedMessages.isEmpty || canLoadMoreFromServer
-    }
-
-    private func insertIncomingCachedMessage(_ message: EnhancedMessage) {
-        if let oldestVisible = historicalMessages.first?.timestamp, message.timestamp < oldestVisible {
-            deferredCachedMessages.append(message)
-            deferredCachedMessages.sort { $0.timestamp < $1.timestamp }
-        } else {
-            historicalMessages.append(message)
-            historicalMessages.sort { $0.timestamp < $1.timestamp }
-        }
-        canLoadMore = !deferredCachedMessages.isEmpty || canLoadMoreFromServer
-    }
-
     private func existingMessagesById() -> [String: EnhancedMessage] {
         var map: [String: EnhancedMessage] = [:]
-        for message in deferredCachedMessages { map[message.id] = message }
         for message in historicalMessages { map[message.id] = message }
         for message in realTimeMessages { map[message.id] = message }
         return map
@@ -1323,7 +1340,7 @@ class EnhancedChatViewModel: ObservableObject {
         if !droppedMessages.isEmpty {
             let promotable = messagesRespectingDeletionCutoff(droppedMessages)
             let existingIds = Set(
-                (historicalMessages + deferredCachedMessages + realTimeMessages).map(\.id)
+                (historicalMessages + realTimeMessages).map(\.id)
             )
             historicalMessages.append(contentsOf: promotable.filter { !existingIds.contains($0.id) })
         }
@@ -1341,7 +1358,6 @@ class EnhancedChatViewModel: ObservableObject {
 
         let realtimeIds = Set(realTimeMessages.map(\.id))
         historicalMessages.removeAll { realtimeIds.contains($0.id) }
-        deferredCachedMessages.removeAll { realtimeIds.contains($0.id) }
 
         rebuildMessagesList()
         prefetchUnresolvedMediaIfNeeded()

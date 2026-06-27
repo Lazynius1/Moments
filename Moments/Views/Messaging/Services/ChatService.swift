@@ -234,7 +234,7 @@ class ChatService: ObservableObject {
     }
     
     // ✅ NUEVO: Cargar mensajes anteriores (Paginación)
-    func fetchOlderMessages(conversationId: String, before timestamp: Date, cutoffDate: Date? = nil, limit: Int = 20, completion: @escaping (Result<[EnhancedMessage], Error>) -> Void) {
+    func fetchOlderMessages(conversationId: String, before timestamp: Date, cutoffDate: Date? = nil, limit: Int = 25, completion: @escaping (Result<[EnhancedMessage], Error>) -> Void) {
         Task { [weak self] in
             guard let self else { return }
             await preloadConversationKey(for: conversationId)
